@@ -179,18 +179,16 @@ identified, so `LD (&45AF),A` reads as `LD (CHECK_WRITE_STATUS+1),A`.
 
 ## 7. What is not settled
 
-- **How `PATCH_45A2` at `&7800` reaches the system page.** The dump settles
-  *that* it does: ten fragments below `&46CC` trace back to `&7879`-`&799B`
-  in this half, two of them ten bytes at `&45A2` and `&45B9`, which are
-  exactly this routine's first and last LDIRs. This half's own
-  `&45A2`-`&46CB` is unchanged but for three ROM patch sites. What does not
-  work is the route: those LDIRs only reach the system page if it is at
-  `&4000`, yet the code arrives via `JP L7841`, an absolute jump that needs
-  *this* half at `&4000`, and nothing between touches `LMPR`. No reference
-  to the sources through the window exists anywhere either. The likeliest
-  answer is that this code is itself moved before it runs, as the blocks at
-  `&7460` and `&7BA4` are — but nothing found so far moves it, and the boot
-  sector is not part of this file.
+- **What fills `&45A2`-`&46CB` in the system page.** The dump shows that
+  region holding `&7879`-`&799B` from the MasterBASIC half, filled right up
+  to `&46CC` where the first stub begins, so the two form one continuous
+  installed area. The routine at `&7841` has exactly that destination
+  layout — 21 bytes to `&45C6`, 3 to `&45DB`, 238 to `&45DE` — but reads
+  its sources from the DOS page, and those bytes are not what is there.
+  So something with the same shape and different sources does the real
+  filling, and `&7841` either runs and is overwritten or does not run at
+  all in an ordinary boot.
+
 - **The dispatcher at `&7C51`** switches on values that are command tokens
   at the low end and something else past `&B9`.
 - **499 bytes of the DOS page** differ after boot and are largely
