@@ -1,0 +1,33 @@
+# Getting back into MasterBASIC from somewhere it is not paged in.
+
+MB &5CDF BUILD_PAGE_IN_TRAMPOLINE
+
+DOC BUILD_PAGE_IN_TRAMPOLINE
+    Assemble a short routine in the ROM's code buffer whose whole job is
+    to page MasterBASIC in and jump into it.
+
+    It first copies nine bytes from &4D50 in the system page -- which is
+    CDBUFF+&50, where hook 185 builds -- and then writes the rest a byte
+    at a time, opcode by opcode:
+
+        C2 00 00      JP NZ,&0000     the operand is filled in later
+        D0            RET NC
+        3E nn         LD A,page       LMPR+1, this half's own page
+        D3 FB         OUT (HMPR),A
+        21 nn nn      LD HL,DE        the caller's DE
+        C3 20 9D      JP &9D20
+
+    &9D20 is in the window, so it is this half's &5D20 seen from a page
+    where this half sits at &8000.  The trampoline therefore pages
+    MasterBASIC into the window and jumps straight into it, carrying HL.
+
+    Finally LD BC,&4D50 and a fall into RESTORE_HMPR_AND_STORE, which
+    puts HMPR back and writes &4D50 -- the address of what was just
+    built -- through the pointer in V4076, so whoever needs the
+    trampoline can find it.
+
+    That is the third builder into CDBUFF, after &735D at +&11 and hook
+    185 at +&50.  This one lands at +&50 as well, so it and the hook are
+    alternative users of the same space rather than both being live.
+
+MB &5D20 : where the trampoline lands, with this half paged in at &8000

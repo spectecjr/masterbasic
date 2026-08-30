@@ -6980,7 +6980,7 @@ HCMDV:
                LD D,(HL)                       ; 4EB4 56
                POP AF                          ; 4EB5 F1
                CP &E1                          ; 4EB6 FE E1
-               JP Z,L5CDF                      ; 4EB8 CA DF 5C
+               JP Z,BUILD_PAGE_IN_TRAMPOLINE   ; 4EB8 CA DF 5C
                CP &C2                          ; 4EBB FE C2
                JP Z,L5D32                      ; 4EBD CA 32 5D
                CP &C9                          ; 4EC0 FE C9
@@ -10703,30 +10703,63 @@ SERCMD:
                RET                             ; 5972 C9
 
 ;; --------------------------------------------------------------------
-;; HK_SUBCHAR -- &5973 to &5982
+;; SUBSTITUTE_PRINTER_CHAR -- &5973 to &5982
 ;;
 ;; Takes:     A
 ;; Leaves:    F, DE, HL
 ;;
 ;; Shown for this routine in disasm/:
 ;;
-;;     Hook code 182.  Substitute a character on its way to the printer.
+;;     Replace one character with a string on its way to the printer.
 ;;     
-;;     Compares the character with MODCHAR1 and MODCHAR2 -- XVARs 60 and 61,
-;;     which the manual gives as the pound sign and the hash -- and on a match
-;;     sends MODMSG1 or MODMSG2 in its place.  That is the mechanism behind the
-;;     manual's account of making a printer produce the right symbol for
-;;     characters whose codes differ between the SAM and the printer.
+;;     The Coupe uses 96 for the pound sign and 35 for hash, and printers
+;;     generally do not: 96 is usually a single quote there, and whether 35
+;;     prints as hash or pound depends on which international character set
+;;     the printer is switched to.  The manual sets the problem out under
+;;     LPRINT and says MasterBASIC solves it by sending sequences that
+;;     switch character sets around the character itself.
+;;     
+;;     This is that.  A is the character about to be printed:
+;;     
+;;     LD DE,(MODCHAR1)     ; E = MODCHAR1, D = MODCHAR2
+;;     LD HL,MODMSG1
+;;     CP E : JR Z,send
+;;     LD HL,MODMSG2
+;;     CP D : JR Z,send
+;;     CALL CMR : DEFW PRMAIN   ; anything else prints as itself
+;;     
+;;     The four XVARs it reads are set up for an Epson and can be changed by
+;;     the user, which is why they are XVARs at all:
+;;     
+;;     MODCHAR1  &60  96, pound
+;;     MODCHAR2  &23  35, hash
+;;     MODMSG1   04 1B 52 03 23   length 4, then ESC "R" 3 "#"
+;;     MODMSG2   04 1B 52 00 23   length 4, then ESC "R" 0 "#"
+;;     
+;;     ESC R n is the Epson command for the international character set, so
+;;     a pound is printed by switching to set 3 and sending "#", and a hash
+;;     by switching to set 0 and sending the same "#".  The switch is left
+;;     in place; the next substitution puts it back.
+;;     
+;;     What was here before:
+;;     
+;;         Hook code 182.  Substitute a character on its way to the printer.
+;;     
+;;         Compares the character with MODCHAR1 and MODCHAR2 -- XVARs 60 and 61,
+;;         which the manual gives as the pound sign and the hash -- and on a match
+;;         sends MODMSG1 or MODMSG2 in its place.  That is the mechanism behind the
+;;         manual's account of making a printer produce the right symbol for
+;;         characters whose codes differ between the SAM and the printer.
 ;; --------------------------------------------------------------------
 
-HK_SUBCHAR:
+SUBSTITUTE_PRINTER_CHAR:
                LD DE,(MODCHAR1)                ; 5973 ED 5B 3C 40
                LD HL,MODMSG1                   ; 5977 21 3F 40
                CP E                            ; 597A BB
-               JR Z,L5989                      ; 597B 28 0C
+               JR Z,SEND_COUNTED_TO_CHANNEL    ; 597B 28 0C
                LD HL,MODMSG2                   ; 597D 21 47 40
                CP D                            ; 5980 BA
-               JR Z,L5989                      ; 5981 28 06
+               JR Z,SEND_COUNTED_TO_CHANNEL    ; 5981 28 06
 
 ;; --------------------------------------------------------------------
 ;; CALL_PRMAIN -- &5983 to &5988
@@ -10744,14 +10777,24 @@ CALL_PRMAIN:
                RET                             ; 5988 C9
 
 ;; --------------------------------------------------------------------
-;; L5989 -- &5989 to &5989
+;; SEND_COUNTED_TO_CHANNEL -- &5989 to &5989
 ;;
 ;; Takes:     HL
 ;; Leaves:    B
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Send a counted string a byte at a time through the channel routine.
+;;     
+;;     The first byte is the length.  For each of the rest it reads CHANS,
+;;     adds &19, and goes through HLJPI -- so every byte is passed to the
+;;     routine whose address sits 25 bytes into the channel information
+;;     area, rather than being printed directly.  Registers are saved around
+;;     each byte because the channel routine is entitled to use them.
 ;; --------------------------------------------------------------------
 
-; ---- L5989 ---- from &597B, &5981
-L5989:
+; ---- SEND_COUNTED_TO_CHANNEL ---- from &597B, &5981
+SEND_COUNTED_TO_CHANNEL:
                LD B,(HL)                       ; 5989 46
 
 ;; --------------------------------------------------------------------
@@ -12272,7 +12315,7 @@ L5CC1:
                JR L5D57                        ; 5CDD 18 78
 
 ;; --------------------------------------------------------------------
-;; L5CDF -- &5CDF to &5D1F
+;; BUILD_PAGE_IN_TRAMPOLINE -- &5CDF to &5D1F
 ;;
 ;; Takes:     A, DE
 ;; Leaves:    BC, DE, HL
@@ -12280,10 +12323,39 @@ L5CC1:
 ;; Ends:      JP, JR
 ;;
 ;; ? drives IN A,(LMPR), OUT (HMPR),A; calls PAGE_IN_ROM1.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Assemble a short routine in the ROM's code buffer whose whole job is
+;;     to page MasterBASIC in and jump into it.
+;;     
+;;     It first copies nine bytes from &4D50 in the system page -- which is
+;;     CDBUFF+&50, where hook 185 builds -- and then writes the rest a byte
+;;     at a time, opcode by opcode:
+;;     
+;;     C2 00 00      JP NZ,&0000     the operand is filled in later
+;;     D0            RET NC
+;;     3E nn         LD A,page       LMPR+1, this half's own page
+;;     D3 FB         OUT (HMPR),A
+;;     21 nn nn      LD HL,DE        the caller's DE
+;;     C3 20 9D      JP &9D20
+;;     
+;;     &9D20 is in the window, so it is this half's &5D20 seen from a page
+;;     where this half sits at &8000.  The trampoline therefore pages
+;;     MasterBASIC into the window and jumps straight into it, carrying HL.
+;;     
+;;     Finally LD BC,&4D50 and a fall into RESTORE_HMPR_AND_STORE, which
+;;     puts HMPR back and writes &4D50 -- the address of what was just
+;;     built -- through the pointer in V4076, so whoever needs the
+;;     trampoline can find it.
+;;     
+;;     That is the third builder into CDBUFF, after &735D at +&11 and hook
+;;     185 at +&50.  This one lands at +&50 as well, so it and the hook are
+;;     alternative users of the same space rather than both being live.
 ;; --------------------------------------------------------------------
 
-; ---- L5CDF ---- from &4EB8
-L5CDF:
+; ---- BUILD_PAGE_IN_TRAMPOLINE ---- from &4EB8
+BUILD_PAGE_IN_TRAMPOLINE:
                LD B,&E7                        ; 5CDF 06 E7
                LD HL,DOS_V4D50                 ; 5CE1 21 50 8D
                CALL PAGE_IN_ROM1               ; 5CE4 CD 59 5C
@@ -12335,7 +12407,7 @@ L5CDF:
 ;;
 ;; ? calls EXPECT_COMMA, EXPECT_RPAREN, CALL_EXPSTR.
 ;; --------------------------------------------------------------------
-               LD DE,&4D50                     ; 5D20 11 50 4D
+               LD DE,&4D50                     ; 5D20 11 50 4D  where the trampoline lands, with this half paged in at &8000
                LD BC,&0015                     ; 5D23 01 15 00
                LDIR                            ; 5D26 ED B0
                LD HL,DOS_L5E1F                 ; 5D28 21 1F 9E

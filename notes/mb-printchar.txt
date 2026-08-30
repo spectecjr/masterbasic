@@ -1,0 +1,45 @@
+# Getting a pound sign out of a printer.
+
+MB &5973 SUBSTITUTE_PRINTER_CHAR
+MB &5989 SEND_COUNTED_TO_CHANNEL
+
+DOC SUBSTITUTE_PRINTER_CHAR
+    Replace one character with a string on its way to the printer.
+
+    The Coupe uses 96 for the pound sign and 35 for hash, and printers
+    generally do not: 96 is usually a single quote there, and whether 35
+    prints as hash or pound depends on which international character set
+    the printer is switched to.  The manual sets the problem out under
+    LPRINT and says MasterBASIC solves it by sending sequences that
+    switch character sets around the character itself.
+
+    This is that.  A is the character about to be printed:
+
+        LD DE,(MODCHAR1)     ; E = MODCHAR1, D = MODCHAR2
+        LD HL,MODMSG1
+        CP E : JR Z,send
+        LD HL,MODMSG2
+        CP D : JR Z,send
+        CALL CMR : DEFW PRMAIN   ; anything else prints as itself
+
+    The four XVARs it reads are set up for an Epson and can be changed by
+    the user, which is why they are XVARs at all:
+
+        MODCHAR1  &60  96, pound
+        MODCHAR2  &23  35, hash
+        MODMSG1   04 1B 52 03 23   length 4, then ESC "R" 3 "#"
+        MODMSG2   04 1B 52 00 23   length 4, then ESC "R" 0 "#"
+
+    ESC R n is the Epson command for the international character set, so
+    a pound is printed by switching to set 3 and sending "#", and a hash
+    by switching to set 0 and sending the same "#".  The switch is left
+    in place; the next substitution puts it back.
+
+DOC SEND_COUNTED_TO_CHANNEL
+    Send a counted string a byte at a time through the channel routine.
+
+    The first byte is the length.  For each of the rest it reads CHANS,
+    adds &19, and goes through HLJPI -- so every byte is passed to the
+    routine whose address sits 25 bytes into the channel information
+    area, rather than being printed directly.  Registers are saved around
+    each byte because the channel routine is entitled to use them.
