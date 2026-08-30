@@ -71,6 +71,7 @@ Lines carry a note where a sequence has one settled meaning in this codebase:
 | `CALL CMR` / `DEFW` | call the ROM with ROM1 paged in |
 | `CALL CALLDOS` / `DEFW` | call the other page, whose paging changes first |
 | `SET 7,H` / `RES 6,H` | window `&4000`–`&7FFF` into `&8000`–`&BFFF` |
+| `BIT 6,H` | the rotating window check: HL has crossed from section C into D |
 | `EX (SP),HL` at an entry | the return address is the inline parameter |
 | `LD (nnnn),A` into an instruction | self-modifying: which operand it patches |
 | `RST FPCALC` | what the calculator list computes |

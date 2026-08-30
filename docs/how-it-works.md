@@ -265,6 +265,27 @@ So one routine uses a ROM vector to get control, an install into the
 system page so the ROM can reach it, a signature search to find its way
 back, and a size test to decide when taking over is worth doing at all.
 
+## 4b. The idiom for walking past 16K
+
+`BIT 6,H` appears twenty-one times across the two halves, and it is not
+MasterBASIC's invention — the Technical Manual gives it as the standard way
+to walk a structure longer than a page:
+
+```asm
+BIT 6,H
+JR Z,LAB1
+IN A,(HMPAGE) : INC A : OUT (HMPAGE) : RES 6,H
+LAB1:
+```
+
+The ROM keeps sections C and D as "a rotating window onto memory" with the
+system variables and stack in section B. Once HL walks out of C into D, the
+page goes up by one and `RES 6,H` brings HL back `&4000` lower onto the same
+byte, so nothing else in the loop has to check. The manual's own note on why
+this is safe applies here too: the low five bits of the page cannot be
+carried into the flag bits above them, because every structure walked this
+way ends in a terminator before that could happen.
+
 ## 5. Code written at run time
 
 Three mechanisms, each meaning the file does not hold what executes.

@@ -21293,6 +21293,7 @@ RDLB3:
 
 ; ---- CHKHL ---- from &6691, &760E, &777A
 CHKHL:
+               ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 7785 CB 74
                RET Z                           ; 7787 C8
                CALL INCURPAGE                  ; 7788 CD F2 3F

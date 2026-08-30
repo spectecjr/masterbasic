@@ -37,6 +37,12 @@ def notes_for(d, bodies):
             out[a] = ('HMPR is 0, so setting bit 7 and clearing bit 6 turns '
                       'an address in &4000-&7FFF into the same byte of the '
                       "ROM's system page at &8000-&BFFF")
+        elif text == 'BIT 6,H':
+            out[a] = ("the rotating window check: if HL has walked out of "
+                      "section C into section D, the page goes up by one "
+                      "and RES 6,H brings HL back &4000 lower onto the same "
+                      "byte.  The Technical Manual gives this idiom as the "
+                      "standard way to walk a structure longer than 16K")
         elif text.startswith('EX (SP),HL') and a in starts:
             out[a] = ('the return address becomes HL, so what follows the '
                       'call is data this routine reads, not code')

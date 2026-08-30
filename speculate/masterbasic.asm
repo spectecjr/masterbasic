@@ -3541,6 +3541,7 @@ L4680:
                OUT (C),E                       ; 4694 ED 59
                ; to the alternate register set and back again
                EXX                             ; 4696 D9
+               ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 4697 CB 74
                CALL NZ,INCURPAGE               ; 4699 C4 F2 3F
                POP DE                          ; 469C D1
@@ -3890,6 +3891,7 @@ L4712:
 
 ; ---- L4717 ---- from &46A4, &46CE, &46F7
 L4717:
+               ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 4717 CB 74
                CALL NZ,INCURPAGE               ; 4719 C4 F2 3F
                LD (V409A),HL                   ; 471C 22 9A 40
@@ -3918,6 +3920,7 @@ L4717:
 
 ; ---- L4725 ---- from &46B3, &4708
 L4725:
+               ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 4725 CB 74
                CALL NZ,INCURPAGE               ; 4727 C4 F2 3F
                PUSH HL                         ; 472A E5
@@ -5813,6 +5816,7 @@ L4BDB:
                LD HL,(V40A2)                   ; 4BF8 2A A2 40
                LD DE,(V409E)                   ; 4BFB ED 5B 9E 40
                ADD HL,DE                       ; 4BFF 19
+               ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 4C00 CB 74
                JR Z,L4C0F                      ; 4C02 28 0B
                RES 6,H                         ; 4C04 CB B4
@@ -9560,6 +9564,7 @@ SCAN_TEXT_PAGED:
                CALL SCAN_TEXT_FOR_D_OR_E       ; 569B CD 76 58
                JR NC,L56AE                     ; 569E 30 0E
                EX (SP),HL                      ; 56A0 E3
+               ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 56A1 CB 74
                POP HL                          ; 56A3 E1
                JR Z,L56AB                      ; 56A4 28 05
@@ -10520,6 +10525,7 @@ FIND_LINE_FROM_HL:
 
 ; ---- NEXT_LINE ---- from &5924, &592D
 NEXT_LINE:
+               ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 5913 CB 74
                CALL NZ,INCURPAGE               ; 5915 C4 F2 3F
                LD (V409E),HL                   ; 5918 22 9E 40
@@ -11444,6 +11450,7 @@ L5AEF:
 L5B0A:
                ; to the alternate register set and back again
                EX AF,AF'                       ; 5B0A 08
+               ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 5B0B CB 74
                JR Z,L5B12                      ; 5B0D 28 03
                RES 6,H                         ; 5B0F CB B4
@@ -12556,6 +12563,7 @@ L5E3D:
                LD HL,(MODCOUNT)                ; 5E4E 2A 84 5B
                ADD HL,DE                       ; 5E51 19
                ADD A,C                         ; 5E52 81
+               ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 5E53 CB 74
                JR Z,L5E5A                      ; 5E55 28 03
                RES 6,H                         ; 5E57 CB B4
@@ -12677,6 +12685,7 @@ L5EC8:
 
 ; ---- L5ECE ---- from &5E87
 L5ECE:
+               ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 5ECE CB 74
                JR Z,L5EDB                      ; 5ED0 28 09
                RES 6,H                         ; 5ED2 CB B4
@@ -19524,6 +19533,7 @@ L700C:
 
 ; ---- L703F ---- from &7038
 L703F:
+               ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 703F CB 74
                JR Z,L7046                      ; 7041 28 03
                RES 6,H                         ; 7043 CB B4
@@ -21039,6 +21049,7 @@ L74B8:
                RES 7,H                         ; 74BB CB BC
                SET 6,H                         ; 74BD CB F4
                EX DE,HL                        ; 74BF EB
+               ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 74C0 CB 74
                CALL Z,DECURPAGE                ; 74C2 CC F9 3F
                LD A,H                          ; 74C5 7C
@@ -21089,9 +21100,11 @@ L74DB:
                LDIR                            ; 7503 ED B0
                ; to the alternate register set and back again
                EXX                             ; 7505 D9
+               ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 7506 CB 74
                CALL Z,DECURPAGE                ; 7508 CC F9 3F
                EX DE,HL                        ; 750B EB
+               ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 750C CB 74
                JR NZ,L7519                     ; 750E 20 09
                LD A,(TEMPB2)                   ; 7510 3A CF 5A
@@ -21123,6 +21136,7 @@ L7519:
 ;; --------------------------------------------------------------------
                ; to the alternate register set and back again
                EX AF,AF'                       ; 751F 08
+               ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 7520 CB 74
                JR Z,L7530                      ; 7522 28 0C
                RES 6,H                         ; 7524 CB B4
@@ -21177,6 +21191,7 @@ L7549:
                SET 6,H                         ; 754E CB F4
                LD A,D                          ; 7550 7A
                EX DE,HL                        ; 7551 EB
+               ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 7552 CB 74
                CALL NZ,INCURPAGE               ; 7554 C4 F2 3F
                ; to the alternate register set and back again
@@ -21259,6 +21274,7 @@ L759C:
                LDIR                            ; 75A5 ED B0
                ; to the alternate register set and back again
                EXX                             ; 75A7 D9
+               ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 75A8 CB 74
                CALL NZ,INCURPAGE               ; 75AA C4 F2 3F
                BIT 7,D                         ; 75AD CB 7A
@@ -21327,6 +21343,7 @@ L75CB:
                ; to the alternate register set and back again
                EX AF,AF'                       ; 75CB 08
                LDIR                            ; 75CC ED B0
+               ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 75CE CB 74
                CALL NZ,INCURPAGE               ; 75D0 C4 F2 3F
                BIT 6,D                         ; 75D3 CB 72
@@ -22213,6 +22230,7 @@ BUILD_PUT_BLOCK:
                LD H,D                          ; 787C 62
                LD L,E                          ; 787D 6B
                ADD HL,BC                       ; 787E 09
+               ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 787F CB 74
                JR Z,L7889                      ; 7881 28 06
                CALL STKSTR                     ; 7883 CD 27 01
@@ -22407,6 +22425,7 @@ L7914:
                INC DE                          ; 7924 13
                INC DE                          ; 7925 13
                ADD HL,BC                       ; 7926 09
+               ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 7927 CB 74
                JR NZ,L793E                     ; 7929 20 13
                ; to the alternate register set and back again
@@ -22422,6 +22441,7 @@ L7914:
                LD H,D                          ; 7935 62
                LD L,E                          ; 7936 6B
                ADD HL,BC                       ; 7937 09
+               ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 7938 CB 74
                POP HL                          ; 793A E1
                JR NZ,L793F                     ; 793B 20 02
