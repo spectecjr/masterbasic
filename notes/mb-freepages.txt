@@ -42,6 +42,25 @@ DOC FREE_PAGE_IF_EMPTY
     The write goes through WRA, so no paging is needed here: WRA zeroes
     HMPR, windows HL up by &4000 and puts it back.
 
+# The manual says the same thing twice, in as many words.
+#
+#   "Space is allocated in 1K (1024-byte) units -- the value you supply
+#    will be rounded up if need be."            (RECORD SOUND)
+#
+#   "Space is allocated in 1K units.  The number you supply is rounded
+#    up, so LPRINT CLEAR 2048 and LPRINT CLEAR 1025 both reserve 2048
+#    bytes (2K)."                               (LPRINT CLEAR)
+#
+# and it describes this pair's job from the outside: "LPRINT CLEAR 0 has
+# the special function of turning off interrupt-driven printing and
+# freeing the buffer space for other uses".  FREE_BLOCK_CHAIN is reached
+# from &5596, straight after the call that loads the print buffer's
+# pointers into V4088 and V4089, which is what that sentence describes.
+#
+# The buffer itself is the chain: "this buffer space can be anything up
+# to 256K, depending on the free memory available", which is sixteen
+# pages of sixteen blocks.
+#
 # What this is not.
 #
 # Only HMPR is touched, never XMPRL, so these are ordinary internal
@@ -55,3 +74,10 @@ DOC FREE_PAGE_IF_EMPTY
 # alternatives -- ALLOCT says which pages are MasterBASIC's, the markers
 # say which kilobyte of a page is in use, and a page goes back to ALLOCT
 # only when all sixteen of its markers are clear.
+#
+# The decisive detail, if this is ever in doubt again, is that the block
+# address is computed from the marker index and lands inside the same
+# page: marker n at &BFF0+n names the kilobyte at &8000+n*&400.  A table
+# of anything else would not have that relationship, and would not need
+# the &BFEE exception that exists only because block 15's last two bytes
+# are where markers 14 and 15 live.
