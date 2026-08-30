@@ -37,3 +37,29 @@ MB &627E NEXT_SCREEN_BYTE
 MB &61D2 COUNT_RUN
 MB &61DE ENCODE_RUN
 MB &61F8 EMIT_RUN_PAIR
+
+# OPEN: what page is at &4000 in DUMP 5, the text dump.
+#
+# &6AF9-&6BE0 reads what look like the ROM's own dump variables straight
+# -- &5A12, &5A13, &5A15, &5A1F, &5A2D, &5A39, &5A40 -- and the
+# Technical Manual names that whole run: DMPLEN, DMPWID, DMPWM, DMPHM,
+# GCM2, DMPTL, UWLHS and MODE, with DEVICE at &5A73 and PRRHS at &5A0E
+# a few instructions away.  Reading them at those addresses needs the
+# ROM's system page at &4000.
+#
+# It cannot have it.  The same stretch does CALL &500B at &6B4A and
+# &6B5F and CALL &5015 at &6B9F, and those are this half's own routines
+# next to HPRTOK; &500B is also called from &5221, which is ordinary
+# code.  In the system page &500B holds character bitmap data --
+# 00 08 14 00 1C 22 22 1C -- so it is not a call target there.
+#
+# So one of the two readings is wrong and I cannot yet say which.  A
+# sys_low range was tried and reverted: it named UWLHS, MODE, SCRNBUF
+# and M23PAPP correctly and turned two working calls into calls on
+# character data, which is not a trade worth making.
+#
+# The thing to check next is &500B itself.  &500A is DEFB &36 skipped,
+# the LD (HL),&FF idiom, so &500B is the &FF of that instruction and
+# reads as RST &38 followed by JP (IY) -- which is a strange thing to
+# CALL, and may mean the entry point is misaligned rather than the
+# paging misread.
