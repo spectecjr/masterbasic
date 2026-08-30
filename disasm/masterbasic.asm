@@ -89,7 +89,7 @@ HUDG:          EQU  &5C7D  ; The high UDG range start pointer (for chars 169+).
 INCURPAGE:     EQU  &3FF2  ; ! ;2* page on and wind HL back unconditionally
 INDOPFG:       EQU  &5ABD  ; INDENTED O/P FLAG
 INP2:          EQU  &4F49
-INSLV:         EQU  &5BBA
+INSLV:         EQU  &5BBA  ; The BASIC ROM's Block-Move Vector, which can be patched to implement faster block-moves.
 INSTHASH:      EQU  &5A05  ; NORMALLY '#'
 INVERT:        EQU  &5A54  ; 00/FF FOR NORMAL/INVERSE ;
 IXJUMP:        EQU  &002D  ; ROM entry: jump to the address in IX
@@ -12394,28 +12394,68 @@ L7455:
                RET                             ; 745F C9
 
 ;; --------------------------------------------------------------------
-;; 385 bytes assembled to run at &46CC, not here.
+;; 385 bytes assembled to run at &46CC, not here.  This is MasterBASIC's
+;; string move, and it is the clearest example in the image of how the
+;; extension and the ROM fit together.
 ;;
-;; The installer copies this block into the ROM's system page, and it
-;; is written for the address it lands at rather than the one it sits
-;; at: MB &7460 becomes &46CC, so subtract &2D94 from any address in
-;; the listing between here and &75E0 to get the address the code will
-;; actually be running at.
+;; The installer copies it into the ROM's system page and points INSLV
+;; at it.  The ROM's variable table does not say what INSLV is, but its
+;; source does:
 ;;
-;; That is not a guess.  Every absolute CALL and JP in the block --
-;; eight of them -- targets an address inside &46CC to &484C, which is
-;; exactly the range the copy covers, and not one targets anywhere else
-;; in &4000-&7FFF.  A block written for where it sits could not do
-;; that.
+;; STRMOV:    LD A,B : OR C : RET Z
+;; STRMOV1:   LD HL,(INSLV) : INC H : DEC H : JP NZ,HLJUMP
+;; LD H,B : LD L,C
+;; STRMOVL:   ...
 ;;
-;; So the labels the listing puts on those operands are wrong, and
-;; unavoidably so: L483A and L4702 name addresses in *this* page, while
-;; the code means &483A and &4702 in the page it is copied to.  Read
-;; them as raw numbers.  Relative jumps are unaffected, which is why
-;; the block is mostly JR.
+;; -- so setting INSLV makes every string move in the machine come here
+;; instead.  That is why this block has to live in the system page: it
+;; is called with MasterBASIC paged out.
 ;;
-;; The block ends exactly where the resident helper block at &75E1
-;; begins, so the two are neighbours, both written to be moved.
+;; It begins by deciding whether it is worth the trouble:
+;;
+;; LD A,B : AND A : JR NZ,+     ; 256 or more, do it here
+;; LD A,C : CP &15 : JP C,&2A96 ; under 21 bytes, let the ROM do it
+;;
+;; and the address it hands back to is the neatest part.  &2A96 is
+;; LD H,B, the instruction immediately after the INSLV test -- so the
+;; ROM finishes the move with its own code and does not call the hook
+;; again.  Jumping to STRMOV1 would recurse for ever; jumping three
+;; bytes further does not.
+;;
+;; It finds that address by searching for it.  The signature at &79EB is
+;; C2 05 00, which is the JP NZ,HLJUMP of the vector check itself, with
+;; a step of +3 to clear it.  MasterBASIC locates the ROM by the shape
+;; of the very instruction it has taken over.
+;;
+;; So one routine uses all of it: a ROM vector to get control, an
+;; install into the system page so the ROM can reach it, a signature
+;; search to find its way back, and a size test to decide when taking
+;; over is worth it at all.
+;;
+;; What was here before:
+;;
+;;     385 bytes assembled to run at &46CC, not here.
+;;     
+;;     The installer copies this block into the ROM's system page, and it
+;;     is written for the address it lands at rather than the one it sits
+;;     at: MB &7460 becomes &46CC, so subtract &2D94 from any address in
+;;     the listing between here and &75E0 to get the address the code will
+;;     actually be running at.
+;;     
+;;     That is not a guess.  Every absolute CALL and JP in the block --
+;;     eight of them -- targets an address inside &46CC to &484C, which is
+;;     exactly the range the copy covers, and not one targets anywhere else
+;;     in &4000-&7FFF.  A block written for where it sits could not do
+;;     that.
+;;     
+;;     So the labels the listing puts on those operands are wrong, and
+;;     unavoidably so: L483A and L4702 name addresses in *this* page, while
+;;     the code means &483A and &4702 in the page it is copied to.  Read
+;;     them as raw numbers.  Relative jumps are unaffected, which is why
+;;     the block is mostly JR.
+;;     
+;;     The block ends exactly where the resident helper block at &75E1
+;;     begins, so the two are neighbours, both written to be moved.
 ;; --------------------------------------------------------------------
 
 ; ---- RELOCATED_TO_46CC ---- from &7B31

@@ -1,0 +1,40 @@
+# The string move, which shows the whole design working at once.
+
+DOC RELOCATED_TO_46CC
+    385 bytes assembled to run at &46CC, not here.  This is MasterBASIC's
+    string move, and it is the clearest example in the image of how the
+    extension and the ROM fit together.
+
+    The installer copies it into the ROM's system page and points INSLV
+    at it.  The ROM's variable table does not say what INSLV is, but its
+    source does:
+
+        STRMOV:    LD A,B : OR C : RET Z
+        STRMOV1:   LD HL,(INSLV) : INC H : DEC H : JP NZ,HLJUMP
+                   LD H,B : LD L,C
+        STRMOVL:   ...
+
+    -- so setting INSLV makes every string move in the machine come here
+    instead.  That is why this block has to live in the system page: it
+    is called with MasterBASIC paged out.
+
+    It begins by deciding whether it is worth the trouble:
+
+        LD A,B : AND A : JR NZ,+     ; 256 or more, do it here
+        LD A,C : CP &15 : JP C,&2A96 ; under 21 bytes, let the ROM do it
+
+    and the address it hands back to is the neatest part.  &2A96 is
+    LD H,B, the instruction immediately after the INSLV test -- so the
+    ROM finishes the move with its own code and does not call the hook
+    again.  Jumping to STRMOV1 would recurse for ever; jumping three
+    bytes further does not.
+
+    It finds that address by searching for it.  The signature at &79EB is
+    C2 05 00, which is the JP NZ,HLJUMP of the vector check itself, with
+    a step of +3 to clear it.  MasterBASIC locates the ROM by the shape
+    of the very instruction it has taken over.
+
+    So one routine uses all of it: a ROM vector to get control, an
+    install into the system page so the ROM can reach it, a signature
+    search to find its way back, and a size test to decide when taking
+    over is worth it at all.

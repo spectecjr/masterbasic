@@ -71,10 +71,16 @@ installed addresses into the ROM vector variables:
 
 | vector | to | vector | to |
 |---|---|---|---|
-| `INSLV` | `&46CC` | `PATOUT` | `&49A9` |
-| `EDITV` | `&4866` | `RST8V` | `&4AB8` |
-| `CMDV` | `&488E` | `PRTOKV` | `&4BB0` |
-| `FRAMIV` | `&4986` | `EVALUV` | `&4BBA` |
+| `INSLV` | `&46CC` string move | `PATOUT` | `&49A9` printable output |
+| `EDITV` | `&4866` line editor | `RST8V` | `&4AB8` error handling |
+| `CMDV` | `&488E` command dispatch | `PRTOKV` | `&4BB0` token printing |
+| `FRAMIV` | `&4986` frame interrupt | `EVALUV` | `&4BBA` function evaluation |
+
+Those roles are read out of the ROM source — `STRMOV1`, `EDITOR`,
+`STMTLP3`, `FRAMINT`, `ERROR2`, `PRGR802`, `ABOVLETS` and the `LD IX,
+(PATOUT)` in the print path — because the ROM's own variable table leaves
+most of them without a comment. `postinstall/syspage.asm` names the
+installed code after them.
 
 It also moves the BASIC stack down to `&45A1`, because the ROM `BSTACK` at
 `&4AFF` sits inside the second installed block and had to move.
@@ -143,6 +149,37 @@ by a signature search, so the call goes wherever the search found.
 **The `NR` family.** `NRRD`, `NRRDD`, `NRWR`, `NRWRD` and `NRWRHL`, each
 followed by `DEFW <ROM variable>`, read and write ROM variables from a page
 where they are not visible.
+
+## 4a. One routine that uses all of it
+
+The string move is the clearest example of the whole arrangement working
+together, and worth following once.
+
+The ROM's `STRMOV1` begins `LD HL,(INSLV) / INC H / DEC H / JP NZ,HLJUMP`,
+so setting `INSLV` diverts every string move in the machine. MasterBASIC
+sets it to `&46CC` — which is why that block has to be installed in the
+system page, since it is called with the extension paged out.
+
+The block starts by deciding whether it is worth the trouble:
+
+```asm
+LD A,B : AND A : JR NZ,+        ; 256 or more, handle it here
+LD A,C : CP &15 : JP C,&2A96    ; under 21 bytes, let the ROM do it
+```
+
+`&2A96` is `LD H,B`, the instruction immediately *after* the `INSLV` test.
+Handing back there means the ROM finishes the move with its own code
+without calling the hook again — jumping to `STRMOV1` would recurse for
+ever, jumping three bytes past it does not.
+
+And it finds that address by searching for it. The signature at `&79EB` is
+`C2 05 00`, which is the `JP NZ,HLJUMP` of the vector check itself, with a
+step of `+3` to clear it. MasterBASIC locates the ROM by the shape of the
+very instruction it has taken over.
+
+So one routine uses a ROM vector to get control, an install into the
+system page so the ROM can reach it, a signature search to find its way
+back, and a size test to decide when taking over is worth doing at all.
 
 ## 5. Code written at run time
 

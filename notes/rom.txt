@@ -47,7 +47,7 @@ EQU SETCHADP: Sets the CHADP (current character) page, disables ROM1, and then p
 EQU TEMPB2: Temporary byte storage in system page (byte #2)
 EQU TEMPW1: Temporary word storage in system page (word #1)
 # EQU INP2:
-# EQU INSLV:
+EQU INSLV: The BASIC ROM's Block-Move Vector, which can be patched to implement faster block-moves.
 
 EQU JPFSTRS: Create ASCII version of number on floating-point calculator stack in buffer at 5BA0H. On exit, DE holds 5BA0H and BC holds the number of characters in the buffer. 
 EQU BSKTEND: End of BASIC's GOSUB, DO and PROC stack.

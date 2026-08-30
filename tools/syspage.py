@@ -35,16 +35,19 @@ COPIES = (
 # The vectors INSTALL_ROM_VECTORS points into this page, and so the
 # entry points worth tracing from.
 VECTORS = (
-    (0x46CC, 'INSLV_TARGET'),
-    (0x4866, 'EDITV_TARGET'),
-    (0x488E, 'CMDV_TARGET'),
-    (0x4986, 'FRAMIV_TARGET'),
-    (0x49A9, 'PATOUT_TARGET'),
-    (0x4AB8, 'RST8V_TARGET'),
-    (0x4BB0, 'PRTOKV_TARGET'),
-    (0x4BBA, 'EVALUV_TARGET'),
-    # Not a vector: the relocated block jumps here, and the dump shows
-    # ten bytes of MasterBASIC's &7986 -- SUB &AB then LD (FN_LOCN),A --
+    # Named for what the ROM uses each vector for, read out of the ROM
+    # source rather than guessed: the ROM's own variable table leaves most
+    # of them without a comment.
+    (0x46CC, 'INSLV_STRING_MOVE'),    # STRMOV1: LD HL,(INSLV) / JP NZ,HLJUMP
+    (0x4866, 'EDITV_EDITOR'),         # EDITOR: the line editor entry
+    (0x488E, 'CMDV_COMMAND'),         # STMTLP3, after LD (CSA),HL
+    (0x4986, 'FRAMIV_FRAME_INT'),     # FRAMINT, the 50Hz frame interrupt
+    (0x49A9, 'PATOUT_CHAR_OUT'),      # LD IX,(PATOUT) -- "usually=ENDOUTP"
+    (0x4AB8, 'RST8V_ERROR'),          # ERROR2, where RST &08 ends up
+    (0x4BB0, 'PRTOKV_PRINT_TOKEN'),   # PRGR802, printing a keyword
+    (0x4BBA, 'EVALUV_EVAL_FN'),       # ABOVLETS, evaluating a function
+    # Not a vector: the relocated block jumps here, and the dump shows ten
+    # bytes of MasterBASIC's &7986 -- SUB &AB then LD (FN_LOCN),A --
     # turning a token into a function index.
     (0x45A2, 'TOKEN_TO_FN_INDEX'),
 )
@@ -125,12 +128,17 @@ def main():
     path = os.path.join(out, 'syspage.asm')
     covered = sum(1 for a in range(BASE, TOP)
                   if d.m(a) in (CODE, CONT))
-    segs = []
-    for at, end, _ in sorted(placed):
-        if segs and at == segs[-1][0] + segs[-1][1]:
-            segs[-1] = (segs[-1][0], segs[-1][1] + end - at)
-        else:
-            segs.append((at, end - at))
+    # With a dump, that one range is the page and the copy ranges lie
+    # inside it; emitting both would print the stubs twice.
+    if real is not None:
+        segs = [(BASE, len(real))]
+    else:
+        segs = []
+        for at, end, _ in sorted(placed):
+            if segs and at == segs[-1][0] + segs[-1][1]:
+                segs[-1] = (segs[-1][0], segs[-1][1] + end - at)
+            else:
+                segs.append((at, end - at))
     with open(path, 'w') as f:
         f.write(HEAD % (covered, sum(e - s for s, e, _ in placed)))
         d.emit(f, segs=segs)
