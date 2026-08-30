@@ -5745,7 +5745,7 @@ CMD_LPRINT:
                CALL L560D                      ; 5591 CD 0D 56
                AND A                           ; 5594 A7
                RET Z                           ; 5595 C8
-               JP FREE_PAGE_CHAIN              ; 5596 C3 7B 5F
+               JP FREE_BLOCK_CHAIN             ; 5596 C3 7B 5F
 
 ; ---- L5599 ---- from &558E, &75EC
 L5599:
@@ -5798,7 +5798,7 @@ L55C6:
                CALL NUMBER_THEN_END            ; 55D7 CD C8 44
                CALL L560D                      ; 55DA CD 0D 56
                AND A                           ; 55DD A7
-               CALL NZ,FREE_PAGE_CHAIN         ; 55DE C4 7B 5F
+               CALL NZ,FREE_BLOCK_CHAIN        ; 55DE C4 7B 5F
                CALL L5EDD                      ; 55E1 CD DD 5E
                EX DE,HL                        ; 55E4 EB
                LD HL,(V4066)                   ; 55E5 2A 66 40
@@ -7422,7 +7422,7 @@ L5C6A:
                LD A,(V407E)                    ; 5C83 3A 7E 40
                LD HL,(V407F)                   ; 5C86 2A 7F 40
                AND A                           ; 5C89 A7
-               CALL NZ,FREE_PAGE_CHAIN         ; 5C8A C4 7B 5F
+               CALL NZ,FREE_BLOCK_CHAIN        ; 5C8A C4 7B 5F
                CALL L5EDD                      ; 5C8D CD DD 5E
                LD (V407E),A                    ; 5C90 32 7E 40
                LD (V407F),HL                   ; 5C93 22 7F 40
@@ -7922,8 +7922,30 @@ L5EE2:
 L5F14:
                LD L,&1F                        ; 5F14 2E 1F
 
-; ---- L5F16 ---- from &5F79
-L5F16:
+;; --------------------------------------------------------------------
+;; Find a free 1K block, in a page already ours or a fresh one.
+;;
+;; HMPR is zeroed first, so the &91xx it then reads is the system
+;; page's &51xx: ALLOCT, which the ROM's variable list describes as
+;; "MUST START AT PAGE EDGE.  32 BYTES - 1 PER PAGE".  L starts one
+;; below the current page and walks down.  Zero means the page is free
+;; and gets claimed; &20 means it is already MasterBASIC's and may have
+;; room; running off the end reports error 1, out of memory.
+;;
+;; A newly claimed page has its top sixteen bytes zeroed.  Those
+;; sixteen are one marker per 1K block: the page is divided into
+;; sixteen of them, and the marker at &BFF0+n says whether block n is
+;; in use.  &FF claims one.
+;;
+;; The block itself is at ((n * 4) + &83) << 8, which steps &400 --
+;; 1K -- from &8300 to &BF00, and its last two bytes hold a link.  The
+;; top block is the exception, because &BFF0-&BFFF is the marker array
+;; itself: its link goes at &BFEE instead of &BFFE, which is the
+;; CP &BF : JR Z that keeps L at &EE.
+;; --------------------------------------------------------------------
+
+; ---- ALLOC_1K_BLOCK ---- from &5F79
+ALLOC_1K_BLOCK:
                LD H,&91                        ; 5F16 26 91
                XOR A                           ; 5F18 AF
                OUT (HMPR),A                    ; 5F19 D3 FB
@@ -8014,27 +8036,21 @@ L5F72:
                IN A,(HMPR)                     ; 5F75 DB FB
                DEC A                           ; 5F77 3D
                LD L,A                          ; 5F78 6F
-               JR L5F16                        ; 5F79 18 9B
+               JR ALLOC_1K_BLOCK               ; 5F79 18 9B
 
 ;; --------------------------------------------------------------------
-;; Walk a chain of blocks across pages, clearing each one's marker, and
-;; give back any page that ends up empty.
+;; Walk a chain of 1K blocks, releasing each, and give back any page
+;; left with none in use.
 ;;
-;; Each step pages the next page into the window, works out two
-;; addresses from H -- one of the sixteen bytes at &BFF0-&BFFF, and a
-;; two-byte link near the top of a block -- clears the marker byte,
-;; asks FREE_PAGE_IF_EMPTY whether the page still holds anything, and
-;; then reads the link: &xxFE gives the next H and &xxFF the next page.
-;; H coming back zero ends it.
-;;
-;; The block address is ((H + &40) AND &FC) + 3 over &FE, so H moves in
-;; fours and the sixteen marker bytes at &BFF0 are one per step of
-;; four -- H rotated right twice and ORed with &F0 is exactly that
-;; index.  The one special case, H = &FC, uses &EE rather than &FE.
+;; Each step pages the next page in, clears that block's marker, asks
+;; FREE_PAGE_IF_EMPTY whether the page still holds anything, then reads
+;; the link at the end of the block: the first byte is the next block's
+;; marker index, the second the next page.  A zero index ends it.  The
+;; same &BFEE exception applies, tested here as INC A : JR NZ.
 ;; --------------------------------------------------------------------
 
-; ---- FREE_PAGE_CHAIN ---- from &5596, &55DE, &5C8A, &5FA4
-FREE_PAGE_CHAIN:
+; ---- FREE_BLOCK_CHAIN ---- from &5596, &55DE, &5C8A, &5FA4
+FREE_BLOCK_CHAIN:
                OUT (HMPR),A                    ; 5F7B D3 FB
                LD A,H                          ; 5F7D 7C
                PUSH AF                         ; 5F7E F5
@@ -8067,21 +8083,15 @@ L5F93:
                EX DE,HL                        ; 5FA1 EB
                INC H                           ; 5FA2 24
                DEC H                           ; 5FA3 25
-               JR NZ,FREE_PAGE_CHAIN           ; 5FA4 20 D5
+               JR NZ,FREE_BLOCK_CHAIN          ; 5FA4 20 D5
                RET                             ; 5FA6 C9
 
 ;; --------------------------------------------------------------------
-;; OR the sixteen bytes at &BFF0-&BFFF together, and if they are all
-;; zero mark the page in the window free.
+;; OR the sixteen block markers together, and if all are clear give the
+;; whole page back to ALLOCT.
 ;;
-;; Free means a zero in ALLOCT, which the ROM's variable list describes
-;; as "MUST START AT PAGE EDGE.  32 BYTES - 1 PER PAGE" at &5100 -- one
-;; byte per page of memory.  The write goes through WRA, so the caller
-;; needs no paging of its own: WRA zeroes HMPR, windows HL up by &4000
-;; and puts it back.
-;;
-;; So the sixteen bytes at the top of a page are its occupancy: while
-;; any is non-zero something in the page is still in use.
+;; The write goes through WRA, so no paging is needed here: WRA zeroes
+;; HMPR, windows HL up by &4000 and puts it back.
 ;; --------------------------------------------------------------------
 
 ; ---- FREE_PAGE_IF_EMPTY ---- from &5F98

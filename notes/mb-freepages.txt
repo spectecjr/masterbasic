@@ -1,40 +1,57 @@
-# Giving memory pages back.
+# Memory in 1K blocks: how MasterBASIC allocates and gives back.
 
-MB &5F7B FREE_PAGE_CHAIN
+MB &5F16 ALLOC_1K_BLOCK
+MB &5F7B FREE_BLOCK_CHAIN
 MB &5FA7 FREE_PAGE_IF_EMPTY
 
-DOC FREE_PAGE_CHAIN
-    Walk a chain of blocks across pages, clearing each one's marker, and
-    give back any page that ends up empty.
+DOC ALLOC_1K_BLOCK
+    Find a free 1K block, in a page already ours or a fresh one.
 
-    Each step pages the next page into the window, works out two
-    addresses from H -- one of the sixteen bytes at &BFF0-&BFFF, and a
-    two-byte link near the top of a block -- clears the marker byte,
-    asks FREE_PAGE_IF_EMPTY whether the page still holds anything, and
-    then reads the link: &xxFE gives the next H and &xxFF the next page.
-    H coming back zero ends it.
+    HMPR is zeroed first, so the &91xx it then reads is the system
+    page's &51xx: ALLOCT, which the ROM's variable list describes as
+    "MUST START AT PAGE EDGE.  32 BYTES - 1 PER PAGE".  L starts one
+    below the current page and walks down.  Zero means the page is free
+    and gets claimed; &20 means it is already MasterBASIC's and may have
+    room; running off the end reports error 1, out of memory.
 
-    The block address is ((H + &40) AND &FC) + 3 over &FE, so H moves in
-    fours and the sixteen marker bytes at &BFF0 are one per step of
-    four -- H rotated right twice and ORed with &F0 is exactly that
-    index.  The one special case, H = &FC, uses &EE rather than &FE.
+    A newly claimed page has its top sixteen bytes zeroed.  Those
+    sixteen are one marker per 1K block: the page is divided into
+    sixteen of them, and the marker at &BFF0+n says whether block n is
+    in use.  &FF claims one.
+
+    The block itself is at ((n * 4) + &83) << 8, which steps &400 --
+    1K -- from &8300 to &BF00, and its last two bytes hold a link.  The
+    top block is the exception, because &BFF0-&BFFF is the marker array
+    itself: its link goes at &BFEE instead of &BFFE, which is the
+    CP &BF : JR Z that keeps L at &EE.
+
+DOC FREE_BLOCK_CHAIN
+    Walk a chain of 1K blocks, releasing each, and give back any page
+    left with none in use.
+
+    Each step pages the next page in, clears that block's marker, asks
+    FREE_PAGE_IF_EMPTY whether the page still holds anything, then reads
+    the link at the end of the block: the first byte is the next block's
+    marker index, the second the next page.  A zero index ends it.  The
+    same &BFEE exception applies, tested here as INC A : JR NZ.
 
 DOC FREE_PAGE_IF_EMPTY
-    OR the sixteen bytes at &BFF0-&BFFF together, and if they are all
-    zero mark the page in the window free.
+    OR the sixteen block markers together, and if all are clear give the
+    whole page back to ALLOCT.
 
-    Free means a zero in ALLOCT, which the ROM's variable list describes
-    as "MUST START AT PAGE EDGE.  32 BYTES - 1 PER PAGE" at &5100 -- one
-    byte per page of memory.  The write goes through WRA, so the caller
-    needs no paging of its own: WRA zeroes HMPR, windows HL up by &4000
-    and puts it back.
+    The write goes through WRA, so no paging is needed here: WRA zeroes
+    HMPR, windows HL up by &4000 and puts it back.
 
-    So the sixteen bytes at the top of a page are its occupancy: while
-    any is non-zero something in the page is still in use.
-
-# This routine was left unnamed on purpose a while ago, on the grounds
-# that "it builds an address in &BFF0-&BFFF and writes zero there, which
-# is clear enough as mechanism and says nothing about what it is for".
-# ALLOCT is what it was missing.  &5100 is the middle of this half's own
-# keyword names, so the LD H,&51 looked like nothing; it is an address
-# in the ROM's system page, and WRA is what makes it one.
+# What this is not.
+#
+# Only HMPR is touched, never XMPRL, so these are ordinary internal
+# pages; the external memory ports appear in exactly two places in the
+# image, SIZE_EXTERNAL_MEMORY at &77DB and the DOS's "SELECT MEGA RAM"
+# at &75B2, and neither is here.  And the sixteen bytes are at the top
+# of a page, not the start: &BFF0-&BFFF is offset &3FF0 into whichever
+# page HMPR has in the window.
+#
+# ALLOCT and the markers are two levels of the same scheme rather than
+# alternatives -- ALLOCT says which pages are MasterBASIC's, the markers
+# say which kilobyte of a page is in use, and a page goes back to ALLOCT
+# only when all sixteen of its markers are clear.
