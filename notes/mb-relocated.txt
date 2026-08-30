@@ -144,3 +144,9 @@ MB &7C57 : PUT goes to the extended PUT this half installed at &45A2
 MB &7360 : CDBUFF+&11: 66 bytes from ROM &0000, then 219 from &7385
 MB &7C1C : DCT borrowed as a bit field while no transfer is running
 MB &7C51 : dispatch on the command token in H
+
+# The block at &778B, which goes to the DOS page rather than the ROM's.
+
+MB &7790 : LMPR := DOSFLG-1, which puts the DOS page itself at &4000
+MB &7792 : so &4212 here is that page's, not this half's
+MB &779F : &5F to LMPR: both ROMs on, the system page back in section B

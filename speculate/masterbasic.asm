@@ -1136,26 +1136,16 @@ L4207:
                DJNZ L4207                      ; 420B 10 FA
 
 ;; --------------------------------------------------------------------
-;; L420D -- &420D to &4211
+;; L420D -- &420D to &421F
 ;;
-;; Takes:     nothing in registers
-;; Leaves:    A, DE
+;; Takes:     HL
+;; Leaves:    A, F, BC, DE, HL
 ;; --------------------------------------------------------------------
 
 ; ---- L420D ---- from &41FD
 L420D:
                LD DE,(STKEND+&4000)            ; 420D ED 5B 65 9C
                LD A,D                          ; 4211 7A
-
-;; --------------------------------------------------------------------
-;; L4212 -- &4212 to &421F
-;;
-;; Takes:     A, DE, HL
-;; Leaves:    F, BC, DE, HL
-;; --------------------------------------------------------------------
-
-; ---- L4212 ---- from &7792, &779C
-L4212:
                SET 7,D                         ; 4212 CB FA
                RES 6,D                         ; 4214 CB B2
                LD BC,&0005                     ; 4216 01 05 00
@@ -5041,26 +5031,16 @@ V49ED:
                OUT (C),A                       ; 49F4 ED 79
 
 ;; --------------------------------------------------------------------
-;; L49F6 -- &49F6 to &49F6
-;;
-;; Takes:     HL
-;; Leaves:    HL
-;; --------------------------------------------------------------------
-
-; ---- L49F6 ---- from &49E8, &49EB
-L49F6:
-               INC HL                          ; 49F6 23
-
-;; --------------------------------------------------------------------
-;; L49F7 -- &49F7 to &49FC
+;; L49F6 -- &49F6 to &49FC
 ;;
 ;; Takes:     B, HL
 ;; Leaves:    A, F, B, HL
 ;; Ends:      RET
 ;; --------------------------------------------------------------------
 
-; ---- L49F7 ---- from &7B15
-L49F7:
+; ---- L49F6 ---- from &49E8, &49EB
+L49F6:
+               INC HL                          ; 49F6 23
                INC HL                          ; 49F7 23
                LD A,B                          ; 49F8 78
                SUB &10                         ; 49F9 D6 10
@@ -5194,10 +5174,10 @@ L4A34:
                LD B,&03                        ; 4A4D 06 03
 
 ;; --------------------------------------------------------------------
-;; L4A4F -- &4A4F to &4A51
+;; L4A4F -- &4A4F to &4A5D
 ;;
-;; Takes:     DE
-;; Leaves:    A
+;; Takes:     B, DE, HL
+;; Leaves:    A, F, B, DE, HL
 ;;
 ;; ? calls TWO_DIGITS_FROM_DE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
@@ -5205,16 +5185,6 @@ L4A34:
 ; ---- L4A4F ---- from &4A57
 L4A4F:
                CALL TWO_DIGITS_FROM_DE         ; 4A4F CD 6A 4A
-
-;; --------------------------------------------------------------------
-;; L4A52 -- &4A52 to &4A5D
-;;
-;; Takes:     A, B, HL
-;; Leaves:    A, F, B, DE, HL
-;; --------------------------------------------------------------------
-
-; ---- L4A52 ---- from &7B67
-L4A52:
                AND A                           ; 4A52 A7
                JR Z,L4A65                      ; 4A53 28 10
                LD (HL),A                       ; 4A55 77
@@ -5443,9 +5413,9 @@ L4ADC:
                ADC A,A                         ; 4ADF 8F
 
 ;; --------------------------------------------------------------------
-;; L4AE0 -- &4AE0 to &4AE5
+;; L4AE0 -- &4AE0 to &4AE8
 ;;
-;; Takes:     A, HL
+;; Takes:     A, BC, HL
 ;; Leaves:    A, F, HL
 ;; --------------------------------------------------------------------
 
@@ -5457,16 +5427,6 @@ L4AE0:
                ADC A,A                         ; 4AE3 8F
                ADD HL,HL                       ; 4AE4 29
                ADC A,A                         ; 4AE5 8F
-
-;; --------------------------------------------------------------------
-;; L4AE6 -- &4AE6 to &4AE8
-;;
-;; Takes:     A, BC, HL
-;; Leaves:    A, F, HL
-;; --------------------------------------------------------------------
-
-; ---- L4AE6 ---- from &7B2A
-L4AE6:
                AND A                           ; 4AE6 A7
                SBC HL,BC                       ; 4AE7 ED 42
 
@@ -13079,7 +13039,7 @@ SHOW_LINE_AND_STATEMENT:
                LD HL,&50D7                     ; 5FD7 21 D7 50
 
 ;; --------------------------------------------------------------------
-;; L5FDA -- &5FDA to &5FF9
+;; L5FDA -- &5FDA to &5FFD
 ;;
 ;; Takes:     HL
 ;; Leaves:    A, F, BC, HL
@@ -13101,16 +13061,6 @@ L5FDA:
                LD A,(V406F+&4000)              ; 5FF5 3A 6F 80
                AND A                           ; 5FF8 A7
                RET Z                           ; 5FF9 C8
-
-;; --------------------------------------------------------------------
-;; L5FFA -- &5FFA to &5FFD
-;;
-;; Takes:     A
-;; Leaves:    A, F, B
-;; --------------------------------------------------------------------
-
-; ---- L5FFA ---- from &779F
-L5FFA:
                LD B,A                          ; 5FFA 47
                INC A                           ; 5FFB 3C
                JR NZ,L6020                     ; 5FFC 20 22
@@ -21958,13 +21908,13 @@ L7779:
                DI                              ; 778B F3
                LD A,(DOSFLG)                   ; 778C 3A C2 5B
                DEC A                           ; 778F 3D
-               OUT (LMPR),A                    ; 7790 D3 FA
-               LD (L4212),SP                   ; 7792 ED 73 12 42
+               OUT (LMPR),A                    ; 7790 D3 FA  LMPR := DOSFLG-1, which puts the DOS page itself at &4000
+               LD (&4212),SP                   ; 7792 ED 73 12 42  so &4212 here is that page's, not this half's
                ; the stack is being reset, so this path does not return
                LD SP,DOS_HEADER                ; 7796 31 00 80
-               CALL L7DFA                      ; 7799 CD FA 7D
-               LD HL,(L4212)                   ; 779C 2A 12 42
-               LD BC,L5FFA                     ; 779F 01 FA 5F
+               CALL &7DFA                      ; 7799 CD FA 7D
+               LD HL,(&4212)                   ; 779C 2A 12 42
+               LD BC,&5FFA                     ; 779F 01 FA 5F  &5F to LMPR: both ROMs on, the system page back in section B
                OUT (C),B                       ; 77A2 ED 41
                ; the stack is being reset, so this path does not return
                LD SP,HL                        ; 77A4 F9
@@ -23138,7 +23088,7 @@ L7B03:
                LD HL,(CHANS+&4000)             ; 7B0E 2A 4F 9C
                LD DE,PUTSWA                    ; 7B11 11 00 40  &4000 here is the window offset -- CHANS is a system variable in the page now at &8000 -- and not the XVAR that shares the address
                ADD HL,DE                       ; 7B14 19
-               LD DE,L49F7                     ; 7B15 11 F7 49
+               LD DE,&49F7                     ; 7B15 11 F7 49
                LD (HL),E                       ; 7B18 73
                INC HL                          ; 7B19 23
                LD (HL),D                       ; 7B1A 72
@@ -23152,7 +23102,7 @@ L7B03:
                LD (MNOP+&4000),DE              ; 7B22 ED 53 DC 9B
                LD DE,&0009                     ; 7B26 11 09 00
                ADD HL,DE                       ; 7B29 19
-               LD DE,L4AE6                     ; 7B2A 11 E6 4A
+               LD DE,&4AE6                     ; 7B2A 11 E6 4A
                LD (HL),E                       ; 7B2D 73
                INC HL                          ; 7B2E 23
                LD (HL),D                       ; 7B2F 72
@@ -23182,7 +23132,7 @@ L7B03:
                LD DE,L7DF0                     ; 7B5F 11 F0 7D
                LD BC,&01BE                     ; 7B62 01 BE 01
                LDIR                            ; 7B65 ED B0
-               LD HL,L4A52                     ; 7B67 21 52 4A
+               LD HL,&4A52                     ; 7B67 21 52 4A
                LD (HUDG+&4000),HL              ; 7B6A 22 7D 9C
                LD HL,&4AAC                     ; 7B6D 21 AC 4A
                LD (RST28V+&4000),HL            ; 7B70 22 F0 9A
@@ -24184,9 +24134,6 @@ L7DF0:
 ;; Leaves:    HL
 ;; Ends:      JP
 ;; --------------------------------------------------------------------
-
-; ---- L7DFA ---- from &7799
-L7DFA:
                CALL &0000                      ; 7DFA CD 00 00
                LD HL,(&4B9E)                   ; 7DFD 2A 9E 4B
                JP &0000                        ; 7E00 C3 00 00

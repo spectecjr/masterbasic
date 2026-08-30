@@ -879,6 +879,19 @@ def seeds(dos, mb):
     # after &5BFF has zeroed HMPR, and CMD_RECORD reaches the same byte
     # by name -- CALL NRWR / DEFW &4AF3 at &5BE0.
     mb.sys_low.append((0x5C3F, 0x5C4B))
+    # The three vector values INSTALL_ROM_PATCHES writes: &49F7, &4A52
+    # and &4AE6 are addresses in the ROM's system page, in the stubs it
+    # has just put there, and not in this half.  &4AAC two instructions
+    # later already read as a number because nothing here is labelled at
+    # it, which is the asymmetry that gave these away.
+    for at in (0x7B15, 0x7B2A, 0x7B67):
+        mb.sys_low.append((at, at + 3))
+    # &778B is copied to &7DAA in the DOS page and runs there.  At &7790
+    # it puts the DOS page itself at &4000 -- LMPR := DOSFLG-1 -- so from
+    # &7792 to the OUT that undoes it, a low address is the DOS page's,
+    # not this half's: &4212 is where it parks SP, and LD BC,&5FFA with
+    # OUT (C),B is the LMPR value &5F, not an address at all.
+    mb.sys_low.append((0x7792, 0x77A5))
     # The same again for the five commands HCMDV intercepts by name.
     # Each of them calls PAGE_IN_ROM1, which zeroes HMPR, so every &8xxx
     # and &9xxx operand in the group is an address in the ROM's system
