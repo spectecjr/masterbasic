@@ -114,8 +114,8 @@ MB_CMD_RECORD: EQU  &9BD8
 MB_CMD_REF:    EQU  &9662
 MB_CMD_SAVE:   EQU  &A3E6
 MB_CMD_SORT:   EQU  &860B
+MB_CMD_SPLIT_LINE: EQU  &AE62
 MB_CMD_TIME:   EQU  &886A
-MB_CTAB_USING_S: EQU  &AE62
 MB_FN_EQU:     EQU  &8D4F
 MB_FN_INARRAY: EQU  &8B3C
 MB_FN_LOCN:    EQU  &8AF0
@@ -149,8 +149,6 @@ MB_HPRTOK:     EQU  &900E
 MB_L4160:      EQU  &8160
 MB_L4200:      EQU  &8200
 MB_L42FF:      EQU  &82FF
-MB_L4F60:      EQU  &8F60
-MB_L4F68:      EQU  &8F68
 MB_L5C16:      EQU  &9C16
 MB_L6000:      EQU  &A000
 MB_L6280:      EQU  &A280
@@ -1199,6 +1197,13 @@ L42E8:
 ;; is zero, which nothing matches, so an unrecognised command always falls
 ;; through to CNF.  SYNTAX walks it with the token in A.
 ;;
+;; What is in A is whatever GCHR returned at the start of the statement, so
+;; an entry is a command token only because that is how a statement usually
+;; begins.  The table is in ascending order, and the first entry is &2F --
+;; not a token at all but the character "/", which is why it sorts below
+;; everything else.  That is MasterBASIC's SPLIT: a slash as the first
+;; non-space character after a colon cuts the line in two.
+;;
 ;; As with SAMHK, an address with bit 15 set belongs to the MasterBASIC
 ;; page: the bit is cleared and the routine is called through CALLMB.  That
 ;; is how MasterBASIC takes over PRINT, LPRINT, SAVE, MERGE, DUMP, REF,
@@ -1208,8 +1213,8 @@ L42E8:
 
 CTABN:
                DEFB 33                        ; 42EA 33 entries
-               DEFB &2F                       ; 42EB USING$ (fn)
-               DEFW MB_CTAB_USING_S+NOT_IN_THIS_PAGE
+               DEFB &2F                       ; 42EB '/'       
+               DEFW MB_CMD_SPLIT_LINE+NOT_IN_THIS_PAGE
                DEFB &86                       ; 42EE WRITE     
                DEFW WRITE
                DEFB &8C                       ; 42F1 LINE      
@@ -3280,8 +3285,6 @@ FDH4A:
                PUSH DE                         ; 4C15 D5
                LD HL,&0063                     ; 4C16 21 63 00
                AND A                           ; 4C19 A7
-
-L4C1A:
                SBC HL,BC                       ; 4C1A ED 42
                LD H,B                          ; 4C1C 60
                LD L,C                          ; 4C1D 69
@@ -3300,8 +3303,6 @@ L4C29:
 L4C2D:
                CALL PFNME                      ; 4C2D CD 09 4B  PRINT FILE NAME FOR DIR 1/2
                PUSH DE                         ; 4C30 D5
-
-L4C31:
                CALL POINT                      ; 4C31 CD AC 4F
                LD A,(HL)                       ; 4C34 7E
                AND &1F                         ; 4C35 E6 1F
@@ -3538,8 +3539,6 @@ ROFSM:
                LD C,(HL)                       ; 4D15 4E
                INC HL                          ; 4D16 23
                LD B,(HL)                       ; 4D17 46
-
-L4D18:
                LD (SAMRN),BC                   ; 4D18 ED 43 6D 42  RND NO. OF DISC USED FOR SAM
                LD A,(DRIVE)                    ; 4D1C 3A 0B 7C
                LD (TDVAR),A                    ; 4D1F 32 6F 42
@@ -3573,8 +3572,6 @@ L4D3B:
                CALL L5E70                      ; 4D3C CD 70 5E
                JP NZ,REP28                     ; 4D3F C2 8C 51  "FILE NAME USED" IF "OPEN DIR"
                CALL POINT                      ; 4D42 CD AC 4F
-
-L4D45:
                AND &1F                         ; 4D45 E6 1F
                CP &15                          ; 4D47 FE 15
                JP Z,REP28                      ; 4D49 CA 8C 51  OR IF DIR FILE
@@ -3608,8 +3605,6 @@ L4D6E:
                CALL POINT                      ; 4D71 CD AC 4F
                LD (HL),&00                     ; 4D74 36 00
                LD BC,&000F                     ; 4D76 01 0F 00
-
-L4D79:
                ADD HL,BC                       ; 4D79 09  POINT TO SAM OF FILE IN BUFFER
                LD DE,SAM                       ; 4D7A 11 0F 40  POINT TO BAM FOR DISC SO FAR
                LD B,&C3                        ; 4D7D 06 C3
@@ -4099,8 +4094,6 @@ CFSO:
 V5000:
                DEFB &5C                                                         ; 5000 \
                AND &80                         ; 5001 E6 80
-
-L5003:
                LD A,(SVA)                      ; 5003 3A 1D 41
                RET                             ; 5006 C9
 
@@ -5917,7 +5910,7 @@ PMYNAE:
                CALL PTM                        ; 588A CD 7C 57
                DEFB &22,&20,&28,&79,&2F,&6E,&2F,&61,&2F ; 588D
 
-; ---- XTRA ---- from MB &646F, MB &7AC8
+; ---- XTRA ---- from MB &646F
 XTRA:
                DEFM "e"                       ; 5896 65
                DEFB ")"+&80                   ; 5897 A9
@@ -6082,8 +6075,6 @@ TSPCE1:
 TSPCE2:
                CALL BITF5                      ; 593D CD 34 51
                RET Z                           ; 5940 C8
-
-L5941:
                CALL PMO9                       ; 5941 CD 1A 58
 
 ; ---- TSPC1 ---- from &593B, &5947
@@ -6542,7 +6533,7 @@ PCNML:
                LD A,&0D                        ; 5BB3 3E 0D
                LD B,C                          ; 5BB5 41  RELOAD COUNTER
 
-; ---- PCN2 ---- from &5BB1, MB &7330
+; ---- PCN2 ---- from &5BB1
 PCN2:
                CALL L5766                      ; 5BB6 CD 66 57  CR OR SPACE
                JR PCNML                        ; 5BB9 18 EA
@@ -6576,8 +6567,6 @@ PCN4:
                PUSH HL                         ; 5BDB E5
                XOR A                           ; 5BDC AF
                CALL PNUM4                      ; 5BDD CD 29 57  PRINT NO. OF FILES IN CURRENT DIR
-
-L5BE0:
                CALL PMOE                       ; 5BE0 CD 58 58  PRINT " File"
                POP HL                          ; 5BE3 E1
                CALL PLUR                       ; 5BE4 CD 01 5C
@@ -7959,7 +7948,7 @@ EXDATX:
                OUT (HMPR),A                    ; 622E D3 FB
                LD BC,&0058                     ; 6230 01 58 00
                LD HL,&8F10                     ; 6233 21 10 8F
-               LD DE,MB_L4F68                  ; 6236 11 68 8F
+               LD DE,&8F68                     ; 6236 11 68 8F
                CALL EXDT1                      ; 6239 CD 75 62
                POP HL                          ; 623C E1
                POP DE                          ; 623D D1
@@ -12322,7 +12311,7 @@ FRMRD6:
                CALL SELRDP                     ; 76BC CD AB 75
                EXX                             ; 76BF D9
                LD HL,RDCODE                    ; 76C0 21 C9 77
-               LD DE,MB_SOFV                   ; 76C3 11 02 80
+               LD DE,&8002                     ; 76C3 11 02 80
                LD BC,RDCE-RDCODE+1             ; 76C6 01 1E 00
                LDIR                            ; 76C9 ED B0  CREATE MOVER CODE IN UNUSED
                LD HL,&8020                     ; 76CB 21 20 80
@@ -12345,7 +12334,7 @@ FTCCL:
                INC HL                          ; 76E2 23
                LD (HL),&C9                     ; 76E3 36 C9  RET
                LD B,&3E                        ; 76E5 06 3E  MAX NUMBER OF POSSIBLE DIR
-               LD HL,MB_L4200                  ; 76E7 21 00 82  FIRST POSSIBLE DIR ENTRY
+               LD HL,&8200                     ; 76E7 21 00 82  FIRST POSSIBLE DIR ENTRY
 
 ; ---- FZDL ---- from &76EF
 FZDL:
@@ -12357,10 +12346,10 @@ FZDL:
                DJNZ FZDL                       ; 76EF 10 F9
                EXX                             ; 76F1 D9
                DJNZ FRMRDEL                    ; 76F2 10 B2
-               LD HL,MB_L42FF                  ; 76F4 21 FF 82
+               LD HL,&82FF                     ; 76F4 21 FF 82
                CALL FESET                      ; 76F7 CD F2 55  SET DTKS AND RND WORD AND NAME
                LD HL,DRAM                      ; 76FA 21 13 7D
-               LD DE,MB_V4125                  ; 76FD 11 25 81  AFTER MULTI-LDI CODE
+               LD DE,&8125                     ; 76FD 11 25 81  AFTER MULTI-LDI CODE
                LD BC,&0034                     ; 7700 01 34 00
                LD A,(HL)                       ; 7703 7E
                LDIR                            ; 7704 ED B0  COPY PAGE TABLE FROM TEMP BUFFE
@@ -13684,7 +13673,7 @@ V7D60:
                DEFB &21,&60,&BD,&11,&00,&4F,&01,&BE,&01,&ED,&B0,&11,&14,&4C,&0E ; 7D60 !`=..O.>.m0..L.
                DEFB &A1,&ED,&B0,&C9,&36,&00,&A7,&C8,&3A,&71                     ; 7D6F !m0I6.'H:q
 
-; ---- MBCOPY_775A ---- from MB &75F2, MB &75FE, MB &760A, MB &7616, MB &7622, MB &762E, MB &763A, MB &76FF ...
+; ---- MBCOPY_775A ---- from MB &75FE, MB &760A, MB &7616, MB &7622, MB &762E, MB &763A, MB &76FF, MB &7990 ...
 MBCOPY_775A:
                DEFB &5C,&1F,&D8,&3A,&A5,&5A,&CD,&DF,&3F,&2A,&A6,&5A,&ED,&4B,&72 ; 7D79 \.X:%ZM_?*&ZmKr
                DEFB &5C,&3A,&3B,&5C,&CB,&77,&28,&11,&ED,&5B,&65                 ; 7D88 \:;\Kw(.m[e

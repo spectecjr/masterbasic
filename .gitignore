@@ -13,8 +13,9 @@ __pycache__/
 /*.sym
 /*.bin
 
-# Ghidra's own lock and scratch files.  The project database itself is
-# kept, since the analysis in it is work in its own right.
+# Ghidra's lock and scratch files, should a project be opened here again.
+# The project that used to live in ghidra/ has been removed: the listings
+# in disasm/ are the analysis now, and they can be checked by assembling.
 ghidra/*.lock
 ghidra/*.lock~
 ghidra/**/*.ulock

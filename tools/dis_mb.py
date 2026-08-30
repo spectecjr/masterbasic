@@ -44,7 +44,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from disasm import Disassembler, UNKNOWN, CODE, CONT, DATA, WORD, TEXT, RST8, PARAM
-from z80 import hexn
+from z80 import hexn, CALL, CCALL
 import annotate
 import romsyms
 import sambasic
@@ -305,9 +305,12 @@ class Page(Disassembler):
             a = i.end
         if not seq:
             return 0
-        # NRRD / NRRDD / NRWR / NRWRD swap the return address into HL
-        if seq[0] == 'EX (SP),HL':
-            return 2
+        # NRRD / NRRDD / NRWR / NRWRD swap the return address into HL.
+        # NRWRHL is two bytes in front of NRWRD and moves HL into BC before
+        # falling into it, so the swap is not always the first instruction.
+        for skip in range(3):
+            if seq[skip:skip + 1] == ['EX (SP),HL']:
+                return 2
         # CMR, and the copies of it in both pages: pop the return address,
         # read a word through it, push it back past the word.
         want = ['POP HL', 'LD E,(HL)', 'INC HL', 'LD D,(HL)', 'INC HL', 'PUSH HL']
@@ -639,6 +642,18 @@ def seeds(dos, mb):
     # come out right either way, but the unnamed addresses were being
     # given the other page's labels.
     mb.no_peer.append((0x7B03, 0x7B75))
+    # HK_PROGPREP zeroes HMPR at &732E and does not put it back until
+    # &735A, and the routine it calls builds code in the ROM's own code
+    # buffer, so every &8Dxx through here is CDBUFF and not the DOS page.
+    mb.no_peer.append((0x732A, 0x7385))
+    # HK_SETUPREGS does the same at &7210: its &8D50 is CDBUFF+&50 in the
+    # ROM's system page, not the DOS page's &4D50.
+    mb.no_peer.append((0x7203, 0x7220))
+    # FORMAT: SELRDP at &76BC pages the newly reserved RAM disc page in at
+    # &8000, and the code after it builds the mover and blanks 62 directory
+    # entries there -- &8002, &8020, &8125, &8200, &82FF.  The 2.3 source
+    # writes all of those as raw hex for the same reason.
+    dos.no_peer.append((0x76BC, 0x771A))
     seed_from_tables(dos, mb)
     mb.headers[INSTALLER] = NOTES['installer']
     mb.seed(INSTALLER, 'INSTALLER')
@@ -1259,6 +1274,20 @@ def main():
                     d.labels.setdefault(at, name)
         run_both((dos, mb))
 
+    # Now that every instruction is decoded, find the stretches where HMPR
+    # is zero for real, rather than listing them by hand.
+    nz = 0
+    for d in (dos, mb):
+        found = hmpr_zero_ranges(d)
+        print('  %s: %d stretches with HMPR zero' % (d.tag, len(found)))
+        # Overlaps are harmless -- the test is any() over the list -- so
+        # every stretch goes in, including the few already there by hand.
+        d.no_peer.extend(found)
+        nz += len(found)
+    print('%d more stretches where &8000 is the system page, not the peer' % nz)
+    for d in (dos, mb):
+        d.relabel()
+
     # Name the routines that have been worked out before anything else, so
     # that the hook codes and the tables below pick the names up.
     annotate.apply(dos, annotate.DOS)
@@ -1388,6 +1417,10 @@ def main():
               % (nn, nc, nm))
     for p in problems:
         print('notes/: ' + p)
+    # CTAB's text names the routines it points at, and some of those names
+    # arrive from notes/, so it has to be composed again now they exist.
+    render_tables(dos, args.work)
+
     n = sum(autolabel(d, skip=(MBTEXT,)) for d in (dos, mb))
     n += sum(label_peer_targets(d) for d in (dos, mb))
     print('named %d further addresses' % n)
@@ -1415,10 +1448,69 @@ def main():
             with open(path, 'w') as f:
                 d.emit(f, title=header(d), segs=[(BASE, HALF)])
             print('wrote', path)
+        for p in notes.check_equates(ROOT, [
+                os.path.join(args.outdir, n)
+                for n in ('masterdos.asm', 'masterbasic.asm')]):
+            print('notes/: ' + p)
         # Only now: the speculation is written by adding to these same
         # headers and notes, so it has to come after the clean listings.
         write_speculation(dos, mb, args.outdir)
     return dos, mb
+
+
+
+def hmpr_zero_ranges(d, back=16, limit=192):
+    """Ranges where HMPR is zero, so &8000+ is the ROM's system page.
+
+    Three of these were found by hand, each after a label in the listing
+    turned out to name the wrong page, so it is worth deriving the rest
+    rather than waiting for them to be noticed.  A range runs from the
+    label the zeroing sits under -- the windowed address is usually built
+    a few instructions before the OUT that makes it mean anything -- to
+    the next write to HMPR, which is the restore.
+    """
+    addrs = sorted(d.insns)
+    out = []
+    for i, a in enumerate(addrs):
+        # By opcode, not by text: the ports are not named until later.
+        if not (d.byte(a) == 0xD3 and d.byte(a + 1) == 0xFB):
+            continue
+        prev = addrs[i - 1] if i else None
+        if prev is None:
+            continue
+        zeroed = (d.byte(prev) == 0xAF                       # XOR A
+                  or (d.byte(prev) == 0x3E and d.byte(prev + 1) == 0))
+        if not zeroed:
+            continue
+        # Walk back over the instructions that build the address, but no
+        # further than the start of the run: an instruction that does not
+        # fall through belongs to whatever came before, and its operands
+        # are read with the caller's paging, not this one's.
+        lo = prev
+        for b in reversed([x for x in addrs if prev - back <= x < prev]):
+            if not d.insns[b].falls_through():
+                break
+            lo = b
+        hi = d.insns[a].end
+        for b in addrs[i + 1:]:
+            ins = d.insns[b]
+            # Stop at the restore, at a jump or return that ends the run --
+            # HMPR is often put back by the caller, and without this the
+            # range would swallow whatever routine follows -- or at a cap.
+            if b - hi > limit or (d.byte(b) == 0xD3 and d.byte(b + 1) == 0xFB):
+                break
+            # A call can page something else in and return with it still
+            # there -- SELRDP in FORMAT does exactly that -- and this pass
+            # cannot see into it, so the run ends at the call.  Where the
+            # paging is known to survive one, notes/ or a hand-written
+            # range says so.
+            if ins.flow in (CALL, CCALL):
+                break
+            hi = ins.end
+            if not ins.falls_through():
+                break
+        out.append((lo, hi))
+    return out
 
 
 def unknown_runs(d):

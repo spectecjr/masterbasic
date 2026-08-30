@@ -185,12 +185,21 @@ of memory", which is the kind of test this makes -- but the connection
 is inference, not something the routine states.""",
 
 0x71FE: """\
-Hook code 185.  Set up four bytes in the DOS page, then a table.
+Hook code 185.  Build a routine in the ROM's code buffer.
 
-Pages HMPR to zero, copies four bytes into the DOS page at &4D50, and
-goes on to a second block at L7E03.  Saving and restoring HMPR around
-the copy is the usual sign of reaching into a page the caller had
-mapped elsewhere.
+It writes HL to XPTR, then pages HMPR to zero and copies into &4D50.
+That is not the DOS page: with HMPR zero an &8xxx is the ROM's system
+page, and &4D50 there is CDBUFF+&50 -- the buffer the ROM's variable
+table describes as being for e.g. MULTI-LDI, max length &181.
+
+What it copies is code.  The four bytes at V7221 are &21 &60 &5A &7E,
+which is LD HL,&5A60 followed by LD A,(HL), and the &61 bytes from
+L7E03 are appended straight after them.  So a routine is assembled
+head-first in the buffer, and &4D50 -- its address -- is then handed to
+STORE_BC_AT_XVAR76, which writes it through the pointer in V4076.  The
+routine at &735D builds into the same buffer at &4D11, far enough
+along to overlap this one, so the two are alternative uses of it
+rather than both being live at once.
 
 It is called from the block at &7BE0, on the path taken when FLAGX bit
 5 is set -- the ROM's INPUT-in-progress flag -- so it belongs to the

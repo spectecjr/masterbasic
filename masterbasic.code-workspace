@@ -4,5 +4,36 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {
+		"editor.rulers": [
+			64,80,120
+		]
+	},
+	"tasks": {
+		"version": "2.0.0",
+		"tasks": [
+			{
+				"label": "build masterbasic",
+				// build.sh is a bash script.  Everywhere but Windows that is just
+				// "bash"; on Windows the bash that can run it is Git for Windows',
+				// which is not on PATH -- only git.exe is -- so locate it relative
+				// to whichever git.exe PATH resolves to, falling back to the
+				// default install location.  Nothing here names a drive, a
+				// Program Files spelling, or an install directory.
+				"type": "process",
+				"command": "bash",
+				"args": ["tools/build.sh"],
+				"windows": {
+					"command": "powershell.exe",
+					"args": [
+						"-NoProfile",
+						"-Command",
+						"$b=@(Get-Command git.exe -All -EA 0|%{$d=Split-Path $_.Source;Join-Path $d '../bin/bash.exe';Join-Path $d '../../bin/bash.exe'})+(Join-Path $env:ProgramFiles 'Git/bin/bash.exe')|?{Test-Path $_}|Select -First 1;if(!$b){throw 'Git Bash not found.  Install Git for Windows.'};& $b tools/build.sh;exit $LASTEXITCODE"
+					]
+				},
+				"group": { "kind": "build", "isDefault": true },
+				"problemMatcher": []
+			}
+		]
+	}
 }

@@ -96,6 +96,13 @@ byte before the table is the number of entries; the last entry's token
 is zero, which nothing matches, so an unrecognised command always falls
 through to CNF.  SYNTAX walks it with the token in A.
 
+What is in A is whatever GCHR returned at the start of the statement, so
+an entry is a command token only because that is how a statement usually
+begins.  The table is in ascending order, and the first entry is &2F --
+not a token at all but the character "/", which is why it sorts below
+everything else.  That is MasterBASIC's SPLIT: a slash as the first
+non-space character after a colon cuts the line in two.
+
 As with SAMHK, an address with bit 15 set belongs to the MasterBASIC
 page: the bit is cleared and the routine is called through CALLMB.  That
 is how MasterBASIC takes over PRINT, LPRINT, SAVE, MERGE, DUMP, REF,
@@ -382,11 +389,15 @@ def render_ctab(dos, toks, start=0x42EA, end=0x434E):
     for _ in range(n):
         tok = dos.byte(a)
         addr = dos.word(a + 1)
-        name = toks.cmd.get(tok) or ''
-        if name in ('', '-'):
-            name = MB_TOKENS.get(tok, '')
-            if name and tok < 0x85:
-                name += ' (fn)'
+        # SYNTAX searches this table with the byte at the start of the
+        # statement, so an entry is a command token only when a statement
+        # can begin with one.  Below &85 it is a literal character.
+        if tok and tok < 0x85:
+            name = repr(chr(tok)) if 32 <= tok < 127 else ''
+        else:
+            name = toks.cmd.get(tok) or ''
+            if name in ('', '-'):
+                name = MB_TOKENS.get(tok, '')
         value, named = _entry(dos, addr)
         out.append(('%-14s DEFB %-25s ; %04X %-10s'
                     % ('', '&%02X' % tok, a, name if tok else '(end)'))
@@ -557,16 +568,19 @@ def name_tables(dos, mb, toks, hooks, ctab=0x42EA, samhk=0x44A6,
         # used, which is exactly where MasterBASIC's own commands live,
         # so a '-' has to fall through to MB_TOKENS rather than count as
         # a name.
+        # An entry below &85 is a character a statement may start with,
+        # not a token -- looking it up in a keyword table would name the
+        # routine after a keyword it has nothing to do with.  &2F is "/",
+        # the SPLIT command, and is named from notes/ instead.
+        if tok < 0x85:
+            continue
         name = toks.cmd.get(tok)
         if not name or name == '-':
             name = MB_TOKENS.get(tok)
-        if not name or not tok:
+        if not name:
             continue
-        # &2F is USING$, a function token, yet it has a CTAB entry; name
-        # that one after the table rather than after a command it is not.
-        prefix = 'CMD_' if tok >= 0x85 else 'CTAB_'
         page, a = target(dos, word)
-        added += give(page, a, prefix + sym(name))
+        added += give(page, a, 'CMD_' + sym(name))
 
     # MasterDOS names codes 128-174; this build's table runs to 185, and
     # the extra eleven are MasterBASIC's own, so they go by number.

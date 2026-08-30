@@ -1,0 +1,42 @@
+# &6E62 -- the SPLIT command, and a name that was wrong.
+
+DOC CMD_SPLIT_LINE
+    SPLIT a program line in two.  Typing a slash as the first non-space
+    character after a colon cuts the line there: the part before the
+    slash is entered into the program, and the remainder stays in the
+    editing area with a copy of the original line number.
+
+        10 PRINT "hello": GO TO 10:/ PRINT "goodbye"
+
+    leaves 10 PRINT "hello": GO TO 10 in the listing, and 10 PRINT
+    "goodbye" in the edit line with the cursor after the line number,
+    ready for a new one.  The manual describes it under "SPLIT program
+    lines"; the slash itself disappears.
+
+    The code follows that exactly.  CHAD is walked *backwards* over
+    spaces looking for the colon, and the colon is overwritten with CR
+    -- which is the cut: the ROM now sees the line as ending there, and
+    enters it.  Then ELINE gives the start of the edit line, spaces are
+    skipped forward, and the decimal digits there are accumulated the
+    usual way -- times ten by doubling twice, adding the original and
+    doubling again -- to recover the line number to copy.  Zero, or a
+    high byte of &FF, is refused as "Not understood".
+
+    WORKSP and its page are then stashed in PRPTR and PRPTRP, lengths
+    are worked out, and they are put back: PRPTR is borrowed as
+    somewhere to keep the workspace pointer while the workspace itself
+    is moved, the remainder of the line having to survive the insertion
+    of the first half into the program.
+
+    This was called CTAB_USING_S, which was wrong twice over and is
+    worth recording.  CTAB maps &2F here, and &2F is MasterBASIC's token
+    for USING$, so the naming pass took that keyword's name -- but
+    USING$ is a function, implemented at FN_USING_S, which FNVEC entry 6
+    points at.  The deeper mistake was looking &2F up as a token at all.
+    SYNTAX searches CTAB with the byte GCHR returns at the start of the
+    statement, so an entry is a command token only when the statement
+    begins with one.  &2F is ASCII "/".  That is also why this is the
+    first entry: the table is in ascending order and a character sorts
+    below every command token.
+
+MB &6E62 CMD_SPLIT_LINE

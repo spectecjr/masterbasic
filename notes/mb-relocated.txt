@@ -27,12 +27,85 @@ DOC RELOCATED_TO_46CC
 DOC RELOCATED_TO_484D
     671 bytes assembled to run at &484D, in the same way.
 
-    Subtract &3357 to get the running address.  The evidence is thinner
-    here than for its neighbour: three absolute targets fall inside
-    &484D to &4AEB as they should, but four others point into &4000-&7FFF
-    outside it.  Those may be calls into the block above, or into the
-    ROM's own workspace, or they may mean this block is only partly
-    relocated.  I have not read enough of it to say.
+    Subtract &3357 to get the running address.  This one took longer to
+    settle than its neighbour, because three absolute targets fall inside
+    &484D to &4AEB as they should while several others point elsewhere in
+    &4000-&7FFF, and that looked like a block only partly relocated.  It
+    is not.  Every one of those others is explained once you know which
+    page is at &4000 while the block runs.
+
+    It is the ROM's system page.  The block is not moved within this half
+    at all: the installer sets HMPR to zero and copies to &884D, and an
+    &8xxx with HMPR zero is the system page's own &4xxx.  So this code
+    ends up alongside the ROM's variables, in the space between HPEND at
+    &4000 and BASIC's stack at &4AFF, and it runs there with the system
+    page mapped at &4000 -- which is precisely when MasterBASIC is *not*
+    paged in.  That is the point of it.  The installer patches CHANS,
+    HUDG and RST28V to point in here, so the ROM can reach these routines
+    at times when the extension itself is not in memory, and two
+    instructions in the block are patched with MasterBASIC's own page
+    number so they can page it back in when they need it.
+
+    Read against the system page, the stray targets are ordinary:
+
+        &5BE0   PAGER, which the ROM's variable table describes as
+                fourteen bytes "reserved for paging S.R."  Called twice,
+                which is exactly what a stub outside the extension needs.
+        &4D11   CDBUFF+&11, the ROM's code buffer -- "for e.g. MULTI-LDI,
+                max len &181".  The code called there is built at run
+                time by the routine at &735D, which LDIRs 66 bytes from
+                ROM &0000 and 219 bytes from &7385 into it and then
+                patches two of them.
+        &5A9F   PROGP and &5AA0 PROG, read and written directly rather
+                than through NRRD, because with the system page at &4000
+                they are simply there.  &7350 confirms the pair: the same
+                two addresses appear as DEFW PROG and DEFW PROGP inline
+                parameters elsewhere in this half.
+
+    Two independent checks agree.  &5A9F is not even an instruction
+    boundary in this page, so reading it as a variable only makes sense
+    in the system page; and the three "correct" targets -- &49EE, &4A18,
+    &4A84 -- land on POP AF, OR D and LD A,B here, which are not entry
+    points anybody jumps to.
+
+    A third check settles the relocation itself: no label anywhere in
+    &7BA4-&7E42 is referenced from outside that range.  Every one is
+    reached only from within the block.  Nothing calls into it where it
+    sits, so it never runs in place, and the copy is the only version
+    that executes.  The helper block at &7B80 just above it is the
+    opposite -- called from &5561, &5739, &691C and &6A76 -- which is how
+    a block meant to run where it sits looks.
+
+    Two more system variables read directly here confirm the mapping a
+    fourth time: DCT at &5BB6 and FLAGS at &5C3B, both at their ROM
+    addresses with no window offset.  DCT is the ROM's disc error
+    counter, and this code treats it as a bit field -- BIT 1,L and
+    AND &05 -- so it is being borrowed as flags while no transfer is in
+    progress.
+
+    One reference is still unexplained.  &7C57 does JP Z,&45A2 out of the
+    dispatcher at &7C51, which switches on H against &94, &98, &A8, &A9,
+    &AA, &AC, &AE, &B0, &B3, &C2, &C9, &CD, &D1, &E1 and &FF, with
+    anything below &94 returning at once.  The low run matches command
+    tokens -- &94 SAVE, &98 OPEN, &B3 CLEAR -- but the high run is past
+    the token range and past the hook codes, so what H holds is not
+    settled; a captured return address, whose high byte says which
+    caller, would fit the spread better than a token does.
+
+    Whatever H is, &45A2 in the system page is below everything the
+    installer writes, and nothing found so far puts code there.  In this
+    page it is a real MasterBASIC routine -- the one that writes A to a
+    system-page byte -- and it is called as such from &7845, outside the
+    block.  But this block never runs in this page.  Left open.
 
 MB &7460 RELOCATED_TO_46CC
 MB &7BA4 RELOCATED_TO_484D
+
+MB &7C31 : PAGER in the system page, not this page's &5BE0
+MB &7D48 : PAGER again
+MB &7C45 : CDBUFF+&11 -- the code buffer built at &735D
+MB &7C3B : PROG in the system page
+MB &7C57 : unexplained -- see the note above
+MB &7360 : CDBUFF+&11: 66 bytes from ROM &0000, then 219 from &7385
+MB &7C1C : DCT borrowed as a bit field while no transfer is running
+MB &7C51 : dispatch on H -- see the note above; what H holds is not settled

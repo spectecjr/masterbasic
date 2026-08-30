@@ -409,3 +409,34 @@ def rename(pages, root):
                 problems.append('%s is &%02X here and &%02X elsewhere'
                                 % (name, value, others[name]))
     return done, problems
+
+
+EMITTED = re.compile(r'^([A-Za-z_][A-Za-z_0-9]*):\s+EQU\b')
+
+
+def check_equates(root, paths):
+    """Report EQU lines naming a symbol no listing defines.
+
+    An EQU names a symbol rather than an address, so a mistyped one
+    quietly describes a name nothing mentions.  The symbol tables are not
+    the place to check it -- ports and ROM entry points reach the listing
+    by other routes -- so this reads back what was actually written.
+    """
+    defined = set()
+    for path in paths:
+        try:
+            with open(path, encoding='utf-8') as f:
+                for line in f:
+                    m = EMITTED.match(line)
+                    if m:
+                        defined.add(m.group(1))
+        except OSError:
+            return []
+    if not defined:
+        return []
+    out = []
+    for e in load(root)[0]:
+        if e['page'] == 'EQU' and e['name'] not in defined:
+            out.append('%s: EQU %s describes no name either listing uses'
+                       % (e['where'], e['name']))
+    return out

@@ -126,7 +126,7 @@ Every one of the 32640 bytes is accounted for:
 
 | | bytes |
 |---|---|
-| Code | 28662 (87.8%) |
+| Code | 29064 (89.0%) |
 | Variables and other data | 2630 |
 | Inline call parameters | 717 |
 | Message and keyword text | 590 |
@@ -134,9 +134,11 @@ Every one of the 32640 bytes is accounted for:
 | Pointer tables | 10 |
 | Unclassified | 0 |
 
-No label lands inside an instruction. Roughly sixty routines carry descriptions
-written by hand after reading them; a further 165 carry the annotated MasterDOS
-author's, carried across where the two instruction streams still agree.
+No label lands inside an instruction. 648 routines carry a description above
+them -- some written by hand after reading the code, the rest the annotated
+MasterDOS author's, carried across where the two instruction streams still
+agree. That is a minority of the 2,177 the disassembler segments, and the
+remainder are named but not explained.
 
 ## Credit
 

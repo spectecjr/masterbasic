@@ -20,27 +20,4 @@ DOS &4691 value DISKCTL_DATA_OFS
 DOS &48C4 value DISKCTL_DATA_OFS
 DOS &4A01 value DISKCTL_DATA_OFS
 
-DOS &451A GET_DISK_PORT_BASE
-    Gets the disk port IO base, incorporating the disk controller
-    selection and disk head (side) selection bit.
-
-DOC TIRDXDCT
-    Resets the sector error retry count to 0, then tests if the current disk device
-    is a RAM drive.
-
-    (See TIRD)
-
-DOC TIRD
-    Checks if the physical disk device number corresponds to a RAM drive or
-    a floppy disk. 
-
-    Returns carry set if physical, no-carry if RAM drive.
-
-DOC DRPT
-    Logical to physical drive number mappings. 
-    
-    For example, these could be used to allow you to copy a disk
-    to a RAM drive, and then remap, so that you can pretend the RAM drive
-    is a physical one for code that expects to run from a specific drive number.
-
 

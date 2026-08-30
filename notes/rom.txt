@@ -12,7 +12,6 @@ EQU TSURPG: Sets the upper memory area to the page in A (from 0-31). Bits 7-5 of
 RENAME ULA BORDER
 EQU J_FARLDDR: Jump table entry for FARLDDR, which copies data using LDDR. A, H, L hold the source page and address, C, D, E hold the destination. PAGCOUNT/MODCOUNT are the number of bytes.
 RENAME J_IMSCSR JNCHAR
-
 EQU JNCHAR: Call SCREEN$ subroutine. Try to match a character at the provided line and column.
 EQU NUMBER: Skips an embedded invisible 6-byte number form (if present) and returns the next character.
 EQU NMISTK: The location of the stack used for non-maskable interrupts in the system page.
@@ -37,3 +36,17 @@ RENAME L452E WRITE_SELECTED_DISK_CMD
 AFTER CHECK_WRITE_STATUS: Read the drive controller status port (specific port chosen by code above)
 AFTER CHECK_READ_STATUS: Read the drive controller status port (specific port chosen by code above)
 EQU DECURPAGE: Adjusts H so that it points to 16KiB lower in memory, and decrements the HMPR page.
+EQU FIRLET: (aka NMBUFFER) - working space for a name
+EQU CLA: Current program line address (typically used for GOSUB return values).
+EQU CLAPG: Current program line address page value
+EQU LWRHS: Lower-window right-hand side boundary
+EQU PRMAIN: Main ROM Print routine entrypoint. Prints the character in A.
+EQU PRPTR: Proc address (see PRPTRP)
+EQU PRPTRP: Proc page (see PRPTR) 
+EQU SETCHADP: Sets the CHADP (current character) page, disables ROM1, and then pages it in to upper memory.  
+EQU TEMPB2: Temporary byte storage in system page (byte #2)
+EQU TEMPW1: Temporary word storage in system page (word #1)
+# EQU INP2:
+# EQU INSLV:
+
+EQU JPFSTRS: Create ASCII version of number on floating-point calculator stack in buffer at 5BA0H. On exit, DE holds 5BA0H and BC holds the number of characters in the buffer. 
