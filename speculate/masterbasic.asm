@@ -1559,7 +1559,7 @@ L431B:
                RET                             ; 432A C9
 
 ;; --------------------------------------------------------------------
-;; L432B -- &432B to &433A
+;; CHECK_PRINTER_READY -- &432B to &433A
 ;;
 ;; Takes:     BC
 ;; Leaves:    A, F
@@ -1567,9 +1567,28 @@ L431B:
 ;; Ends:      RET
 ;;
 ;; ? drives IN A,(C).
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Read the printer's busy line, from whichever port the current LPRINT
+;;     mode uses, and return it in carry.
+;;     
+;;     SORP is XVAR 6, "zero after LPRINT MODE 1, non-zero after MODE 2", so
+;;     it says which driver is in use.  Zero takes the ROM's parallel path
+;;     and reads LPTPRT1, the ROM variable holding the printer control port;
+;;     non-zero takes MasterBASIC's own and reads SPORT, XVAR 11, "the
+;;     serial driver's port", which ships as &EC.
+;;     
+;;     Like the screen blanker, this runs with the paging inverted -- the
+;;     ROM's system page at &4000, so LPTPRT1 can be read at &5A10 with no
+;;     window offset, and this half in the window, so its own XVARs are
+;;     &8006 and &800B.  That is what being called from the printer output
+;;     path means.
 ;; --------------------------------------------------------------------
+
+CHECK_PRINTER_READY:
                PUSH BC                         ; 432B C5
-               LD A,(&8006)                    ; 432C 3A 06 80
+               LD A,(SORP+&4000)               ; 432C 3A 06 80
                AND A                           ; 432F A7
                JR NZ,L433B                     ; 4330 20 09
                LD BC,(LPTPRT1)                 ; 4332 ED 4B 10 5A
@@ -1590,7 +1609,7 @@ L431B:
 
 ; ---- L433B ---- from &4330
 L433B:
-               LD A,(&800B)                    ; 433B 3A 0B 80
+               LD A,(SPORT+&4000)              ; 433B 3A 0B 80
                LD C,A                          ; 433E 4F
                LD B,&01                        ; 433F 06 01
                IN A,(C)                        ; 4341 ED 78
@@ -15165,7 +15184,7 @@ V647E:
                ADD A,B                         ; 6480 80
                LD BC,DOS_V7F77                 ; 6481 01 77 BF
                DEFB &FF                                                         ; 6484 .
-               CALL &A4E7                      ; 6485 CD E7 A4
+               CALL CLAMP_STREAM_FOR_DEVICE+&4000 ; 6485 CD E7 A4
                ; to the alternate register set and back again
                EXX                             ; 6488 D9
                PUSH AF                         ; 6489 F5
@@ -15325,12 +15344,27 @@ L64D4:
                RET                             ; 64E6 C9
 
 ;; --------------------------------------------------------------------
-;; L64E7 -- &64E7 to &64F2
+;; CLAMP_STREAM_FOR_DEVICE -- &64E7 to &64F2
 ;;
 ;; Takes:     C
 ;; Leaves:    A, F
 ;; Ends:      RET
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Return C unchanged unless DEVICE is 1, in which case anything from 5
+;;     upwards comes back as 4.  DEVICE is the ROM's own variable at &5A73,
+;;     read here with no window offset.
+;;     
+;;     Twelve bytes further on, &64F3 calls this routine as CALL &A4E7 --
+;;     through the window, at an address that is this half's own &64E7.  A
+;;     routine does not call its neighbour through a window while running
+;;     beside it, so that code is meant to execute from some other page,
+;;     with MasterBASIC mapped at &8000.  What copies it there has not been
+;;     found, which is the same gap as the region at &45A2.
 ;; --------------------------------------------------------------------
+
+CLAMP_STREAM_FOR_DEVICE:
                LD A,(DEVICE)                   ; 64E7 3A 73 5A
                DEC A                           ; 64EA 3D
                LD A,C                          ; 64EB 79
@@ -15347,7 +15381,7 @@ L64D4:
 ;; Leaves:    BC, DE
 ;; Preserves: HL (saved and restored)
 ;; --------------------------------------------------------------------
-               CALL &A4E7                      ; 64F3 CD E7 A4
+               CALL CLAMP_STREAM_FOR_DEVICE+&4000 ; 64F3 CD E7 A4
                LD C,A                          ; 64F6 4F
                ; to the alternate register set and back again
                EXX                             ; 64F7 D9

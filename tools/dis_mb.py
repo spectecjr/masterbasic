@@ -679,6 +679,13 @@ def seeds(dos, mb):
     # with the ROM's system page at &4000 and this half in the window: they
     # read SOFFCT at &5AC4 straight, and their own SOFV as &8002.
     mb.self_window.append((0x59A3, 0x5A00))
+    # The printer-ready test is the same: LPTPRT1 read straight at &5A10,
+    # and its own SORP and SPORT as &8006 and &800B.
+    mb.self_window.append((0x432B, 0x4349))
+    # &6485 calls &A4E7 and &A4AC, which are this half's own &64E7 and
+    # &64AC -- neither address is an instruction in the DOS page -- and
+    # &64E7 reads DEVICE at &5A73 straight, so the same inversion holds.
+    mb.self_window.append((0x6485, 0x64F8))
     # HK_SETUPREGS does the same at &7210: its &8D50 is CDBUFF+&50 in the
     # ROM's system page, not the DOS page's &4D50.
     mb.no_peer.append((0x7203, 0x7220))
