@@ -21402,6 +21402,15 @@ L76CD:
 ;;     way for it to know better -- they are plain LD HL,nn immediates.  They
 ;;     are not this page's routines.
 ;;     
+;;     INSLV is worth naming properly.  The ROM's variable table gives it no
+;;     comment, but STRMOV1 in the ROM does
+;;     
+;;     LD HL,(INSLV) : INC H : DEC H : JP NZ,HLJUMP
+;;     
+;;     so it is the hook on the ROM's string move: set it and the ROM jumps
+;;     there instead.  &46CC, the first installed stub, is MasterBASIC's
+;;     replacement for moving strings about.
+;;     
 ;;     MTOKV is the exception that proves it: &58B4 is well past &4BC3 and
 ;;     nothing is installed there, so that one really is an address in this
 ;;     half, to be reached with MasterBASIC paged in.
@@ -21753,6 +21762,20 @@ L77FE:
 ;;     image is a directory entry, because a SAM boots by loading the first
 ;;     file and this file is it.  So the copy is made with addresses worked
 ;;     out at run time, from something not yet read.
+;;     
+;;     The ROM copies routines into its system page from ROM 1 as a matter
+;;     of course, so the obvious question is whether this region is one of
+;;     those rather than MasterBASIC's doing.  It is not.  None of the
+;;     installed runs -- &45A2, &45C6, &45DE, &4640 -- occurs anywhere in
+;;     either ROM, and neither do the sources at &7879, &788E and &7986:
+;;     this code belongs to MasterBASIC and to nothing else.  The ROM source
+;;     has no LDIR into &45xx either.
+;;     
+;;     FARLDIR was the other candidate, since it moves between pages by page
+;;     and offset rather than by address and would hide a literal &45C6.
+;;     That does not hold up: no offset form appears either -- &05A2, &05C6,
+;;     &05DE and &06CC are absent from both halves, and the one apparent hit
+;;     is ADD A,&05 caught mid-instruction.
 ;;     
 ;;     One check worth recording because it could have invalidated all of
 ;;     this: file/SYSPAGE.bin really is a third page.  It agrees with the
