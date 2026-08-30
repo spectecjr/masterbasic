@@ -7045,9 +7045,6 @@ CMD_BLITZ:
                CALL CALL_EXPSTR                ; 5AD9 CD 7C 44
                CALL EXPECT_END_OF_STATEMENT    ; 5ADC CD D0 44
                CALL CALL_GETSTR                ; 5ADF CD 6D 44
-
-; ---- L5AE2 ---- from &772A
-L5AE2:
                EXX                             ; 5AE2 D9
 
 ;; --------------------------------------------------------------------
@@ -7079,16 +7076,10 @@ L5AEF:
                LD A,(HL)                       ; 5AF0 7E
                CP &21                          ; 5AF1 FE 21
                JP NC,REP_INTEGER_OUT_OF_RANGE  ; 5AF3 D2 A7 43
-
-; ---- L5AF6 ---- from &76F6
-L5AF6:
                LD B,A                          ; 5AF6 47
                INC HL                          ; 5AF7 23
                LD C,(HL)                       ; 5AF8 4E
                INC HL                          ; 5AF9 23
-
-; ---- L5AFA ---- from &76F0
-L5AFA:
                PUSH HL                         ; 5AFA E5
                LD A,(V4081)                    ; 5AFB 3A 81 40
                AND A                           ; 5AFE A7
@@ -7253,9 +7244,6 @@ L5BB7:
                LD (HL),B                       ; 5BB7 70
                LD H,E                          ; 5BB8 63
                INC HL                          ; 5BB9 23
-
-; ---- L5BBA ---- from &7750
-L5BBA:
                EX DE,HL                        ; 5BBA EB
 
 ; ---- L5BBB ---- from &5BCE
@@ -7271,9 +7259,6 @@ L5BBE:
 ; ---- L5BC3 ---- from &76AC
 L5BC3:
                EI                              ; 5BC3 FB
-
-; ---- L5BC4 ---- from &7740
-L5BC4:
                CALL ESCCHK                     ; 5BC4 CD 75 5B
                IN A,(HMPR)                     ; 5BC7 DB FB
                LD C,A                          ; 5BC9 4F
@@ -13028,6 +13013,24 @@ L76CD:
 ;; way for it to know better -- they are plain LD HL,nn immediates.  They
 ;; are not this page's routines.
 ;;
+;; Which page it writes into is settled by the dumps, not by reading.
+;; All five of MTOKV, EVALUV, FRAMIV, BSTKEND and INSLV hold exactly the
+;; values this routine writes -- &58B4, &4BBA, &4986, &45A1, &46CC -- in
+;; the system page afterwards, and this half's own bytes at those five
+;; addresses are unchanged from the file.  So &5AFA and its neighbours
+;; here are the ROM's variables, not this page's code, and the listing
+;; used to name them after whatever this half happens to hold there.
+;;
+;; That means the ROM's system page is at &4000 while this runs, and the
+;; DOS is in the window, since DOS_MBCOPY_778B and DOS_FIND_ROM_CODE are
+;; called at &BDAA and &BD79.  Where MasterBASIC itself is executing
+;; from in that arrangement is not established -- it cannot be at &4000,
+;; which is the whole point of the above.
+;;
+;; One operand is still wrong and cannot yet be made right: &589C at
+;; &7708 is below the ROM's variable area and unnamed there, so it comes
+;; out as this page's V589C for want of anything better.
+;;
 ;; INSLV is worth naming properly.  The ROM's variable table gives it no
 ;; comment, but STRMOV1 in the ROM does
 ;;
@@ -13062,9 +13065,9 @@ INSTALL_ROM_VECTORS:
                LD HL,&4BB0                     ; 76E7 21 B0 4B  &4BB0 in the system page -- inside the 36 bytes put at &4BA0
                LD (PRTOKV),HL                  ; 76EA 22 DE 5A
                LD HL,L58B4                     ; 76ED 21 B4 58
-               LD (L5AFA),HL                   ; 76F0 22 FA 5A
+               LD (MTOKV),HL                   ; 76F0 22 FA 5A
                LD HL,L4BBA                     ; 76F3 21 BA 4B
-               LD (L5AF6),HL                   ; 76F6 22 F6 5A
+               LD (EVALUV),HL                  ; 76F6 22 F6 5A
                LD HL,L488E                     ; 76F9 21 8E 48
                LD (CMDV),HL                    ; 76FC 22 F4 5A  CMDV gets &488E, inside the second stub
                CALL DOS_FIND_ROM_CODE          ; 76FF CD 79 BD
@@ -13083,7 +13086,7 @@ INSTALL_ROM_VECTORS:
                LD HL,&4866                     ; 7721 21 66 48  EDITV gets &4866, likewise
                LD (EDITV),HL                   ; 7724 22 EC 5A
                LD HL,L4986                     ; 7727 21 86 49
-               LD (L5AE2),HL                   ; 772A 22 E2 5A
+               LD (FRAMIV),HL                  ; 772A 22 E2 5A
                LD HL,L49A9                     ; 772D 21 A9 49
                LD (PATOUT),HL                  ; 7730 22 D2 5B
                LD HL,&3A31                     ; 7733 21 31 3A
@@ -13091,13 +13094,13 @@ INSTALL_ROM_VECTORS:
                INC L                           ; 7739 2C
                LD (DOS_PTH2),HL                ; 773A 22 39 BF
                LD HL,&45A1                     ; 773D 21 A1 45
-               LD (L5BC4),HL                   ; 7740 22 C4 5B
+               LD (BSTKEND),HL                 ; 7740 22 C4 5B
                LD (BASSTK),HL                  ; 7743 22 C6 5B  BASIC's stack moved to &45A1, clear of the installed code
                LD (HL),&FF                     ; 7746 36 FF
                LD A,&01                        ; 7748 3E 01
                LD (DOS_DRIVE),A                ; 774A 32 0B BC
                LD HL,L46CC                     ; 774D 21 CC 46  INSLV gets &46CC, the first stub's address
-               LD (L5BBA),HL                   ; 7750 22 BA 5B
+               LD (INSLV),HL                   ; 7750 22 BA 5B
                LD HL,L4AB8                     ; 7753 21 B8 4A
                LD (RST8V),HL                   ; 7756 22 EE 5A
                RET                             ; 7759 C9

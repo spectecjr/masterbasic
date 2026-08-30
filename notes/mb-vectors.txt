@@ -21,6 +21,24 @@ DOC INSTALL_ROM_VECTORS
     way for it to know better -- they are plain LD HL,nn immediates.  They
     are not this page's routines.
 
+    Which page it writes into is settled by the dumps, not by reading.
+    All five of MTOKV, EVALUV, FRAMIV, BSTKEND and INSLV hold exactly the
+    values this routine writes -- &58B4, &4BBA, &4986, &45A1, &46CC -- in
+    the system page afterwards, and this half's own bytes at those five
+    addresses are unchanged from the file.  So &5AFA and its neighbours
+    here are the ROM's variables, not this page's code, and the listing
+    used to name them after whatever this half happens to hold there.
+
+    That means the ROM's system page is at &4000 while this runs, and the
+    DOS is in the window, since DOS_MBCOPY_778B and DOS_FIND_ROM_CODE are
+    called at &BDAA and &BD79.  Where MasterBASIC itself is executing
+    from in that arrangement is not established -- it cannot be at &4000,
+    which is the whole point of the above.
+
+    One operand is still wrong and cannot yet be made right: &589C at
+    &7708 is below the ROM's variable area and unnamed there, so it comes
+    out as this page's V589C for want of anything better.
+
     INSLV is worth naming properly.  The ROM's variable table gives it no
     comment, but STRMOV1 in the ROM does
 

@@ -96,6 +96,7 @@ class Page(Disassembler):
         self.peer_seeds = []
         self.no_peer = []             # ranges where &8000+ is not the peer
         self.self_window = []         # ranges where &8000+ is this page
+        self.sys_low = []             # ranges where &4000+ is the system page
         self.rendered = []            # ranges written by a renderer
         self._inline = {}
         self.msg_calls = set()
@@ -248,6 +249,17 @@ class Page(Disassembler):
         if v is None:
             return '?'
         if self.inside(v):
+            # In code that runs with the ROM's system page at &4000, an
+            # address in this range is a ROM variable, not this page's own
+            # label.  INSTALL_ROM_VECTORS is the clear case: the values it
+            # writes to &5AFA, &5AF6, &5AE2, &5BC4 and &5BBA are found in
+            # the system page afterwards and not in this one.
+            if self._cur is not None and any(lo <= self._cur < hi
+                                             for lo, hi in self.sys_low):
+                n = self.ext_var(v)
+                if n:
+                    self.used_ext.add(n)
+                    return n
             if self._cur is not None:
                 self.xrefs.setdefault(v, set()).add(self._cur)
             n = self.labels.get(v)
@@ -691,6 +703,9 @@ def seeds(dos, mb):
     # variables are at their proper &5Axx.  No routine in this half is
     # reached from both pages, so the two conventions never meet.  These
     # are the stretches that call themselves at &8xxx.
+    # INSTALL_ROM_VECTORS runs with the ROM's system page at &4000: the
+    # vector values it writes turn up there, not in this half.
+    mb.sys_low.append((0x76DA, 0x775A))
     for lo, hi in ((0x4510, 0x4520), (0x5A3E, 0x5A64), (0x5C16, 0x5C34),
                    (0x5FD8, 0x6030), (0x63F6, 0x63FC), (0x7900, 0x7940)):
         mb.self_window.append((lo, hi))
