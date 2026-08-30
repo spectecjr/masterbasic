@@ -213,8 +213,16 @@ Three mechanisms, each meaning the file does not hold what executes.
 **The ROM code buffer.** `CDBUFF` at `&4D00` in the system page is described
 by the ROM variable table as a buffer "for e.g. MULTI-LDI, max len &181".
 `L735D` assembles a routine into it at `+&11` from 66 bytes of ROM and 219
-of MasterBASIC, then patches two; hook 185 builds a different routine at
-`+&50`. The relocated block calls `&4D11` — whatever was last built there.
+of MasterBASIC, then patches two; hook 185 and `BUILD_PAGE_IN_TRAMPOLINE`
+both build at `+&50`. The relocated block calls `&4D11` — whatever was last
+built there.
+
+The buffer is the ROM's, not MasterBASIC's, and the ROM uses it the same
+way: `POSFIRST` copies the tokeniser into it with `LD DE,TOKFIN+3 ; END OF
+THIS ROUTINE, IN CDBUFF` before running it. A dump of a booted machine
+finds a mixture — `&4D50` holding ROM 1's `NLTP`, `&4D80` holding this
+half's `&4F14`, and `&4D18` holding a byte from neither. So nothing about
+the buffer's contents can be inferred from reading any one builder.
 
 **Patch sites.** The two-byte holes filled by signature searches, and single
 bytes holding page numbers. These read as `&0000` in the listing, which is

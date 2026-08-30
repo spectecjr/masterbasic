@@ -50,6 +50,11 @@ VECTORS = (
     # bytes of MasterBASIC's &7986 -- SUB &AB then LD (FN_LOCN),A --
     # turning a token into a function index.
     (0x45A2, 'TOKEN_TO_FN_INDEX'),
+    # The ROM's code buffer.  Whatever is here was put here at run time,
+    # by the ROM copying one of its own ROM 1 routines in or by
+    # MasterBASIC building one; the two share the space.
+    (0x4D11, 'CDBUFF_11'),
+    (0x4D50, 'CDBUFF_50'),
 )
 
 
@@ -76,7 +81,17 @@ def build(image, dump=None):
 
     real = None
     if dump and os.path.exists(dump):
-        real = open(dump, 'rb').read()
+        real = bytearray(open(dump, 'rb').read())
+        # A second dump, &4C00 upward, extends the page far enough to
+        # reach CDBUFF and the ROM's own variables.
+        more = os.path.join(os.path.dirname(dump), 'SYS2.bin')
+        if os.path.exists(more):
+            blob = open(more, 'rb').read()
+            need = 0x4C00 - BASE + len(blob)
+            if len(real) < need:
+                real.extend(bytes(BLANK for _ in range(need - len(real))))
+            real[0x4C00 - BASE:0x4C00 - BASE + len(blob)] = blob
+        real = bytes(real)
         diffs = []
         for at, end, _ in placed:
             for a in range(at, min(end, BASE + len(real))):
