@@ -259,7 +259,5 @@ identified, so `LD (&45AF),A` reads as `LD (CHECK_WRITE_STATUS+1),A`.
   filling, and `&7841` either runs and is overwritten or does not run at
   all in an ordinary boot.
 
-- **The dispatcher at `&7C51`** switches on values that are command tokens
-  at the low end and something else past `&B9`.
 - **499 bytes of the DOS page** differ after boot and are largely
   unexamined; `&4131`-`&417C` alone is 75 bytes of structure.

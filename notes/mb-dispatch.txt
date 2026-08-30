@@ -1,0 +1,26 @@
+# The dispatcher in the installed block.
+
+MB &7C51 DISPATCH_ON_COMMAND_TOKEN
+
+DOC DISPATCH_ON_COMMAND_TOKEN
+    Switch on a command token in H, for the commands MasterBASIC has
+    something to add to.
+
+    Running at &48FA in the system page, not here.  Anything below &94 is
+    let through untouched, and the rest are ordinary ROM command tokens:
+
+        &94 SAVE    &A9 BLOCKS   &B0 RUN         &CD DELETE
+        &98 OPEN    &AA MODE     &B3 CLEAR       &D1 KEYIN
+        &A8 CSIZE   &AC PUT      &C2 PAUSE       &E1 POKE
+                    &AE SOUND    &C9 DEF KEYCODE
+
+    with &FD and &FF, which the ROM's table does not name, handled last.
+
+    PUT goes to TOKEN_TO_FN_INDEX, the ten bytes installed at &45A2,
+    which subtracts &AB and stores the result in FN_LOCN -- so PUT
+    arrives there as 1.
+
+    An earlier note here doubted that H held a token at all, on the
+    grounds that &C2, &C9, &CD, &D1, &E1 and &FF were past the end of the
+    range.  That was wrong: &B9 is where the hook codes stop, not the
+    tokens, and every value in the list above is a command.

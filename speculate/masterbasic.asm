@@ -23213,7 +23213,14 @@ L7BA1:
 ;;     
 ;;     So the jump goes to a real routine that turns a token into a function
 ;;     index -- and the dispatcher reaches it when H is &AC, which is &AB+1,
-;;     index one.  H is a token after all; the doubt about that was wrong.
+;;     index one.  H is a token after all.
+;;     
+;;     Every value the dispatcher tests is one: &94 SAVE, &98 OPEN, &A8
+;;     CSIZE, &A9 BLOCKS, &AA MODE, &AC PUT, &AE SOUND, &B0 RUN, &B3 CLEAR,
+;;     &C2 PAUSE, &C9 DEF KEYCODE, &CD DELETE, &D1 KEYIN, &E1 POKE, and two
+;;     the ROM does not name.  The doubt recorded here came from taking &B9
+;;     as the end of the token range, which is where the hook codes stop
+;;     rather than the tokens.
 ;;     
 ;;     The same dump settles the relocation itself, which no amount of
 ;;     reading could.  The two blocks are at &46CC and &484D, and they match
@@ -23337,11 +23344,11 @@ L7BF7:
 L7C1C:
                LD A,(DCT)                      ; 7C1C 3A B6 5B  DCT borrowed as a bit field while no transfer is running
                AND A                           ; 7C1F A7
-               JR Z,L7C51                      ; 7C20 28 2F
+               JR Z,DISPATCH_ON_COMMAND_TOKEN  ; 7C20 28 2F
                LD L,A                          ; 7C22 6F
                LD A,(FLAGS)                    ; 7C23 3A 3B 5C
                RLA                             ; 7C26 17
-               JR NC,L7C51                     ; 7C27 30 28
+               JR NC,DISPATCH_ON_COMMAND_TOKEN ; 7C27 30 28
                PUSH HL                         ; 7C29 E5
                BIT 1,L                         ; 7C2A CB 4D
                LD A,&00                        ; 7C2C 3E 00
@@ -23350,7 +23357,7 @@ L7C1C:
                POP HL                          ; 7C34 E1
                LD A,L                          ; 7C35 7D
                AND &05                         ; 7C36 E6 05
-               JR Z,L7C51                      ; 7C38 28 17
+               JR Z,DISPATCH_ON_COMMAND_TOKEN  ; 7C38 28 17
                PUSH HL                         ; 7C3A E5
                LD HL,(L5AA0)                   ; 7C3B 2A A0 5A  PROG in the system page
                PUSH HL                         ; 7C3E E5
@@ -23367,14 +23374,38 @@ L7C1C:
                POP HL                          ; 7C50 E1
 
 ;; --------------------------------------------------------------------
-;; L7C51 -- &7C51 to &7C94
+;; DISPATCH_ON_COMMAND_TOKEN -- &7C51 to &7C94
 ;;
 ;; Takes:     H
 ;; Leaves:    A, F, HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Switch on a command token in H, for the commands MasterBASIC has
+;;     something to add to.
+;;     
+;;     Running at &48FA in the system page, not here.  Anything below &94 is
+;;     let through untouched, and the rest are ordinary ROM command tokens:
+;;     
+;;     &94 SAVE    &A9 BLOCKS   &B0 RUN         &CD DELETE
+;;     &98 OPEN    &AA MODE     &B3 CLEAR       &D1 KEYIN
+;;     &A8 CSIZE   &AC PUT      &C2 PAUSE       &E1 POKE
+;;     &AE SOUND    &C9 DEF KEYCODE
+;;     
+;;     with &FD and &FF, which the ROM's table does not name, handled last.
+;;     
+;;     PUT goes to TOKEN_TO_FN_INDEX, the ten bytes installed at &45A2,
+;;     which subtracts &AB and stores the result in FN_LOCN -- so PUT
+;;     arrives there as 1.
+;;     
+;;     An earlier note here doubted that H held a token at all, on the
+;;     grounds that &C2, &C9, &CD, &D1, &E1 and &FF were past the end of the
+;;     range.  That was wrong: &B9 is where the hook codes stop, not the
+;;     tokens, and every value in the list above is a command.
 ;; --------------------------------------------------------------------
 
-; ---- L7C51 ---- from &7C20, &7C27, &7C38
-L7C51:
+; ---- DISPATCH_ON_COMMAND_TOKEN ---- from &7C20, &7C27, &7C38
+DISPATCH_ON_COMMAND_TOKEN:
                LD A,H                          ; 7C51 7C  dispatch on H -- see the note above; what H holds is not settled
                CP &94                          ; 7C52 FE 94
                RET C                           ; 7C54 D8

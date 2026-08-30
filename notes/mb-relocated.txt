@@ -110,7 +110,14 @@ DOC RELOCATED_TO_484D
 
     So the jump goes to a real routine that turns a token into a function
     index -- and the dispatcher reaches it when H is &AC, which is &AB+1,
-    index one.  H is a token after all; the doubt about that was wrong.
+    index one.  H is a token after all.
+
+    Every value the dispatcher tests is one: &94 SAVE, &98 OPEN, &A8
+    CSIZE, &A9 BLOCKS, &AA MODE, &AC PUT, &AE SOUND, &B0 RUN, &B3 CLEAR,
+    &C2 PAUSE, &C9 DEF KEYCODE, &CD DELETE, &D1 KEYIN, &E1 POKE, and two
+    the ROM does not name.  The doubt recorded here came from taking &B9
+    as the end of the token range, which is where the hook codes stop
+    rather than the tokens.
 
     The same dump settles the relocation itself, which no amount of
     reading could.  The two blocks are at &46CC and &484D, and they match
