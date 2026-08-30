@@ -1,0 +1,46 @@
+# What a booted machine actually holds.
+
+# file/MBPOST.bin is the two halves dumped after boot, in the same shape
+# as the original image, and file/SYSPAGE.bin is &4000-&4BFF of the ROM's
+# system page.  894 bytes of the two halves differ from the file: 499 in
+# the DOS page, 395 in MasterBASIC's.  Most of what follows could not
+# have been settled by reading.
+
+# CONFIRMED
+#
+# The ROM searches.  Fifteen of the signature searches are followed by a
+# plain LD (nn),HL, so their answers can be read straight out of the
+# dump.  All fifteen are exactly what running the search against the ROM
+# this project assembles predicts -- CCRESTOP, ENDOUTP, EPSUB, PRMAIN,
+# POKE2, DOCOMP, COMDF, COMLEN, LKCALL, MATCHER, LKFC and the rest.  The
+# machine that made this dump is running ROM 3.0.
+#
+# The patch sites.  Almost every difference in MasterBASIC's page is a
+# two-byte run at an address RESOLVE_ROM_ENTRIES writes to: &45F6, &56F6,
+# &59C1, &5CF2, &6517, &6594, &735E, &73B4, &73BA, &73BF, &73F8, &7429,
+# &7468, &757F, &7596.
+#
+# The stubs are patched before they are copied.  Stub one's source at
+# &7460 differs from the file in 6 bytes and stub two's at &7BA4 in 20 --
+# the same counts, at the same offsets, as the copies at &46CC and &484D
+# in the system page.
+#
+# INSTBUF.  &7DF0-&7FAD differs in 311 of its 446 bytes, which is the
+# copy out of the ROM's transfer buffer that the installer performs.
+
+# CORRECTED
+#
+# &7800-&7B05 is not overwritten at boot.  6 of its 774 bytes differ, so
+# the DOS buffers do not land there during startup.  DOS &5ADD sets up
+# HL, DE and BC and returns; something else does the copying, and only
+# when that path runs.  An earlier note here said the region "becomes DOS
+# buffers", which overstated what had been shown.
+#
+# The last LDIR in the installer had not run.  &7D00-&7DEF differs in
+# only 14 of 240 bytes and matches neither the DOS page's &4009 nor the
+# system page's, so the 240-byte copy at &7B75 has not happened by the
+# time the machine is sitting at a prompt.
+
+DOS &5ADD : a buffer address, not a routine -- the caller does the copy
+MB &7DF0 : overwritten at boot with the ROM's transfer buffer
+MB &7D00 : still holds the file's bytes on a freshly booted machine

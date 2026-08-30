@@ -165,7 +165,6 @@ MB_L6280:      EQU  &A280
 MB_L63F6:      EQU  &A3F6
 MB_L7900:      EQU  &B900
 MB_L7914:      EQU  &B914
-MB_PATCH_45A2: EQU  &B800
 MB_PUTSWA:     EQU  &8000
 MB_SOFV:       EQU  &8002
 MB_V40FF:      EQU  &80FF
@@ -10689,7 +10688,7 @@ CFPL:
 BUDT:
                CALL GETSCR                     ; 5AD7 CD 2C 49
                LD HL,RPT                       ; 5ADA 21 0D 7C
-               LD DE,MB_PATCH_45A2             ; 5ADD 11 00 B8  ALLOWS 1580H BYTES FOR SECTOR LIST
+               LD DE,&B800                     ; 5ADD 11 00 B8  a buffer address, not a routine -- the caller does the copy
                LD BC,&0306                     ; 5AE0 01 06 03  LEN OF RPT, BUF, NSR, FSA, DRAM
                RET                             ; 5AE3 C9
 

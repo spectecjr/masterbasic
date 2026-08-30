@@ -21830,15 +21830,17 @@ L77FE:
 ;;     
 ;;     A caution about the xref list on this label.  DOS &5ADD is not a
 ;;     caller: it is LD DE,&B800 setting up a destination, and the 2.3
-;;     source comments it "ALLOWS 1580H BYTES FOR SECTOR LIST".  774 bytes
-;;     of RPT, BUF, NSR, FSA and DRAM are copied there, and &B800 is this
-;;     page's &7800.  So this code is overwritten in the running system --
-;;     it is boot-time code in a region that becomes DOS buffers, the same
-;;     arrangement as the block source at &7DF0.  Nothing found so far
-;;     actually calls it; it must be reached from the boot sector.
+;;     source comments it "ALLOWS 1580H BYTES FOR SECTOR LIST".  It loads
+;;     HL, DE and BC and returns, leaving the copy to whoever called it.
+;;     
+;;     The post-boot dump has since settled what this routine does not do.
+;;     It does not write to this page's &45A2: those bytes are unchanged in
+;;     file/MBPOST.bin.  And the code the system page holds at &45A2 comes
+;;     from &7986, not from &7FA5, so it is not this routine's doing either.
+;;     What this one writes, and when it runs, is still unread -- but it is
+;;     no longer the explanation for the jump in the relocated block.
 ;; --------------------------------------------------------------------
 
-; ---- PATCH_45A2 ---- from DOS &5ADD
 PATCH_45A2:
                LD HL,&0000                     ; 7800 21 00 00
                LD BC,&0004                     ; 7803 01 04 00
@@ -21973,7 +21975,7 @@ L7822:
 L7841:
                PUSH DE                         ; 7841 D5
                LD HL,DOS_V7FA5                 ; 7842 21 A5 BF  ten bytes from the DOS page tail, a space skipper
-               LD DE,L45A2                     ; 7845 11 A2 45  ...to &45A2, which is what the relocated block jumps to
+               LD DE,L45A2                     ; 7845 11 A2 45  ...to &45A2 -- but not the &45A2 the relocated block jumps to
                LD BC,&000A                     ; 7848 01 0A 00
                LDIR                            ; 784B ED B0
                POP HL                          ; 784D E1
@@ -23353,7 +23355,7 @@ L7CF5:
 
 ; ---- L7D00 ---- from &7B78
 L7D00:
-               LD A,(L5AB7)                    ; 7D00 3A B7 5A
+               LD A,(L5AB7)                    ; 7D00 3A B7 5A  still holds the file's bytes on a freshly booted machine
                AND A                           ; 7D03 A7
                JR Z,L7D22                      ; 7D04 28 1C
                POP HL                          ; 7D06 E1
@@ -23680,7 +23682,7 @@ L7DD8:
 
 ; ---- L7DF0 ---- from &7B5F
 L7DF0:
-               CALL L4A84                      ; 7DF0 CD 84 4A  &4A84 once this block is moved, not the label shown
+               CALL L4A84                      ; 7DF0 CD 84 4A  overwritten at boot with the ROM's transfer buffer
                JP &0000                        ; 7DF3 C3 00 00
                DEFB &22,&9E,&4B,&E1                                             ; 7DF6 ".Ka  skipped: reads as LD (&4B9E),HL from here, and as part of the instruction above it
 

@@ -621,6 +621,13 @@ def seeds(dos, mb):
     # LD (nn),HL storing the pointer it hands back.
     mb._inline[0xBD79] = 6
 
+    # DOS &5ADD is LD DE,&B800 setting up a buffer address, not a
+    # reference to anything in the other page: the 2.3 source comments it
+    # "ALLOWS 1580H BYTES FOR SECTOR LIST" and the routine returns HL, DE
+    # and BC for a caller to copy with.  Naming it after whatever this
+    # half happens to hold at &7800 is worse than leaving it a number.
+    dos.no_peer.append((0x5ADD, 0x5AE0))
+
     dos.headers[0x4000] = NOTES['boot']
     dos.headers[0x4200] = NOTES['entry']
     dos.labels[DOSBUF[0]] = 'DOSBUF'

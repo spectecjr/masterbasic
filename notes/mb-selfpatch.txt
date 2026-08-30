@@ -43,13 +43,16 @@ DOC PATCH_45A2
 
     A caution about the xref list on this label.  DOS &5ADD is not a
     caller: it is LD DE,&B800 setting up a destination, and the 2.3
-    source comments it "ALLOWS 1580H BYTES FOR SECTOR LIST".  774 bytes
-    of RPT, BUF, NSR, FSA and DRAM are copied there, and &B800 is this
-    page's &7800.  So this code is overwritten in the running system --
-    it is boot-time code in a region that becomes DOS buffers, the same
-    arrangement as the block source at &7DF0.  Nothing found so far
-    actually calls it; it must be reached from the boot sector.
+    source comments it "ALLOWS 1580H BYTES FOR SECTOR LIST".  It loads
+    HL, DE and BC and returns, leaving the copy to whoever called it.
+
+    The post-boot dump has since settled what this routine does not do.
+    It does not write to this page's &45A2: those bytes are unchanged in
+    file/MBPOST.bin.  And the code the system page holds at &45A2 comes
+    from &7986, not from &7FA5, so it is not this routine's doing either.
+    What this one writes, and when it runs, is still unread -- but it is
+    no longer the explanation for the jump in the relocated block.
 
 MB &7842 : ten bytes from the DOS page tail, a space skipper
-MB &7845 : ...to &45A2, which is what the relocated block jumps to
+MB &7845 : ...to &45A2 -- but not the &45A2 the relocated block jumps to
 MB &7871 : a second run, put at &45B9
