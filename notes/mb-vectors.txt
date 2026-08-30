@@ -120,3 +120,42 @@ MB &7721 : &4866 likewise, inside the second stub
 
 MB &7275 : &50D7 is not this page's sentinel byte -- what this calls is unfound
 MB &7279 : the same call again
+
+# The hook table, resolved.
+#
+# SAMHK at &44A6 in the DOS page is the table RST &08 indexes: entry i
+# is code 128+i.  Twenty-four of its entries do not point into the DOS
+# page at all.  They hold an address &8000 higher -- &D00E for &500E --
+# which is the extension seen through the window, because MasterBASIC
+# has taken those hooks over.  Until romsyms.hook_names followed that,
+# every one of them printed as a bare number.
+#
+# What MasterBASIC takes over, with the MasterDOS source's name for the
+# slot beside it where there is one:
+#
+#   153 &4800                          188 &714F
+#   154 &5B81  HDUMMY, reserved        189 &4DC9
+#   155 &6534  HDUMMY, reserved        191 &490C
+#   156 &7159  HDUMMY, reserved
+#   157 &732A  HDUMMY, reserved        169 &500E  HPTV, print token A
+#   173 &4E96  HSLMV, SAVE/LOAD patch  170 &508A  HPFF, post-&FF
+#   174 &51DD  RCPTCH, RUN/CLEAR       171 &4FB7  HGTTK, get token
+#   175-185                            (MasterBASIC's own, see hooks.py)
+#
+# 169, 170, 171, 173 and 174 are hooks MasterDOS defines and
+# MasterBASIC replaces; 154 to 157 are the four MasterDOS leaves as
+# HDUMMY and MasterBASIC fills; 175 upwards are new.
+#
+# This closes the keyword loop.  MTOKV is set to SYS_GAP_BLOCK+&1E, the
+# stub at &58B4, whose code byte at +&1F is &AB -- HGTTK, "get token,
+# match a MasterDOS keyword".  The manual says MTOKV is "called if a
+# potential spelled-out keyword is not recognised by the ROM" and must
+# leave JGTTOK's conditions; the handler walks MBKEYS, which is in
+# JGTTOK's documented format.  Vector, stub, hook code, handler and
+# table format all agree.
+#
+# Four of the twenty-four are never raised in either half: 153, 188, 189
+# and 191.  Nothing in the image reaches them, which given the manual's
+# description of hook codes as the interface that lets "the machine code
+# programmer use SAMDOS's facilities" suggests they are there for
+# outside callers rather than for MasterBASIC's own use.

@@ -327,7 +327,10 @@ ERR_BREAK_INTO_PROGRAM: EQU  &0F
 ERR_PUT_BLOCK: EQU  &25
 HK_MCHWR:      EQU  &A7
 HK_MCHRD:      EQU  &A8
+HK_HPRTOK:     EQU  &A9
+HK_HGTTK:      EQU  &AB
 HK_HKLEN:      EQU  &AC
+HK_HCMDV:      EQU  &AD
 
 ; The manual also describes these, which no table points at, so they have
 ; not been located in the code:
@@ -14331,7 +14334,7 @@ PRTOKV_STUB:
                POP HL                          ; 7B93 E1
                LD HL,(XPTR)                    ; 7B94 2A A3 5A
                RST ERR_HOOK                    ; 7B97 CF
-               DEFB &A9                       ; 7B98 A9 hook code
+               DEFB HK_HPRTOK                 ; 7B98 A9 hook code
                RET                             ; 7B99 C9
 
 ;; --------------------------------------------------------------------
@@ -14495,14 +14498,14 @@ RELOCATED_TO_484D:
                INC HL                          ; 7BDB 23
                PUSH HL                         ; 7BDC E5
                RST ERR_HOOK                    ; 7BDD CF
-               DEFB &AF                       ; 7BDE AF hook code
+               DEFB &AF                       ; 7BDE AF hook code, handled by HK_MERGECOMPFLG
                RET                             ; 7BDF C9
 
 ; ---- L7BE0 ---- from &7BC2
 L7BE0:
                LD HL,(XPTR)                    ; 7BE0 2A A3 5A
                RST ERR_HOOK                    ; 7BE3 CF
-               DEFB &B9                       ; 7BE4 B9 hook code
+               DEFB &B9                       ; 7BE4 B9 hook code, handled by HK_SETUPREGS
                LD HL,&7FE6                     ; 7BE5 21 E6 7F
                LD (SYS_SPARE8),HL              ; 7BE8 22 59 5C
                LD H,A                          ; 7BEB 67
@@ -14511,7 +14514,7 @@ L7BE0:
                JR C,L7BF7                      ; 7BF1 38 04
                PUSH HL                         ; 7BF3 E5
                RST ERR_HOOK                    ; 7BF4 CF
-               DEFB &B8                       ; 7BF5 B8 hook code
+               DEFB &B8                       ; 7BF5 B8 hook code, handled by HK_VARSPACE
                POP HL                          ; 7BF6 E1
 
 ; ---- L7BF7 ---- from &7BF1
@@ -14558,7 +14561,7 @@ L7C1C:
                LD A,(PROGP)                    ; 7C3F 3A 9F 5A
                PUSH AF                         ; 7C42 F5
                RST ERR_HOOK                    ; 7C43 CF
-               DEFB &9D                       ; 7C44 9D hook code
+               DEFB &9D                       ; 7C44 9D hook code, handled by HK_PROGPREP
                CALL SYS_CDBUFF_11              ; 7C45 CD 11 4D  CDBUFF+&11 -- the code buffer built at &735D
                POP AF                          ; 7C48 F1
                LD (PROGP),A                    ; 7C49 32 9F 5A
@@ -14628,7 +14631,7 @@ DISPATCH_ON_COMMAND_TOKEN:
                RET NZ                          ; 7C90 C0
                POP HL                          ; 7C91 E1
                RST ERR_HOOK                    ; 7C92 CF
-               DEFB &B1                       ; 7C93 B1 hook code
+               DEFB &B1                       ; 7C93 B1 hook code, handled by HK_TOKENARG
                RET                             ; 7C94 C9
 
 ; ---- L7C95 ---- from &7C60
@@ -14659,33 +14662,33 @@ L7CA0:
 CALLBACK_HCMDV:
                POP HL                          ; 7CA6 E1
                RST ERR_HOOK                    ; 7CA7 CF
-               DEFB &AD                       ; 7CA8 AD hook code
+               DEFB HK_HCMDV                  ; 7CA8 AD hook code
                RET                             ; 7CA9 C9
 
 ; ---- L7CAA ---- from &7C74
 L7CAA:
                POP HL                          ; 7CAA E1
                RST ERR_HOOK                    ; 7CAB CF
-               DEFB &9B                       ; 7CAC 9B hook code
+               DEFB &9B                       ; 7CAC 9B hook code, handled by HK_PIXELCELL
                RET                             ; 7CAD C9
 
 ; ---- L7CAE ---- from &7C78
 L7CAE:
                POP HL                          ; 7CAE E1
                RST ERR_HOOK                    ; 7CAF CF
-               DEFB &9C                       ; 7CB0 9C hook code
+               DEFB &9C                       ; 7CB0 9C hook code, handled by HK_SWAPCHARS
                RET                             ; 7CB1 C9
 
 ; ---- L7CB2 ---- from &7C80
 L7CB2:
                POP HL                          ; 7CB2 E1
                RST ERR_HOOK                    ; 7CB3 CF
-               DEFB &B7                       ; 7CB4 B7 hook code
+               DEFB &B7                       ; 7CB4 B7 hook code, handled by HK_COMADENT
 
 ; ---- L7CB5 ---- from &7C7C
 L7CB5:
                RST ERR_HOOK                    ; 7CB5 CF
-               DEFB &B2                       ; 7CB6 B2 hook code
+               DEFB &B2                       ; 7CB6 B2 hook code, handled by HK_SKIPNAME
                LD A,&CD                        ; 7CB7 3E CD
                RET                             ; 7CB9 C9
 
@@ -14693,7 +14696,7 @@ L7CB5:
 L7CBA:
                POP HL                          ; 7CBA E1
                RST ERR_HOOK                    ; 7CBB CF
-               DEFB &AE                       ; 7CBC AE hook code
+               DEFB &AE                       ; 7CBC AE hook code, handled by HK_RCPTCH
                BIT 0,C                         ; 7CBD CB 41
                JP NZ,ANYI                      ; 7CBF C2 49 00
                LD A,(&5C5C)                    ; 7CC2 3A 5C 5C
@@ -14940,7 +14943,7 @@ L7E03:
 L7E0A:
                POP HL                          ; 7E0A E1
                RST ERR_HOOK                    ; 7E0B CF
-               DEFB &B3                       ; 7E0C B3 hook code
+               DEFB &B3                       ; 7E0C B3 hook code, handled by HK_PUTARG
                EXX                             ; 7E0D D9
                RET                             ; 7E0E C9
                PUSH AF                         ; 7E0F F5
@@ -14973,19 +14976,19 @@ L7E32:
                POP AF                          ; 7E32 F1
                RET                             ; 7E33 C9
                RST ERR_HOOK                    ; 7E34 CF
-               DEFB &B4                       ; 7E35 B4 hook code
+               DEFB &B4                       ; 7E35 B4 hook code, handled by HK_SERSEND
                RET                             ; 7E36 C9
                RST ERR_HOOK                    ; 7E37 CF
-               DEFB &B5                       ; 7E38 B5 hook code
+               DEFB &B5                       ; 7E38 B5 hook code, handled by HK_SERRECV
                EXX                             ; 7E39 D9
                PUSH BC                         ; 7E3A C5
                POP AF                          ; 7E3B F1
                RET                             ; 7E3C C9
                RST ERR_HOOK                    ; 7E3D CF
-               DEFB &B6                       ; 7E3E B6 hook code
+               DEFB &B6                       ; 7E3E B6 hook code, handled by HK_SUBCHAR
                RET                             ; 7E3F C9
                RST ERR_HOOK                    ; 7E40 CF
-               DEFB &9A                       ; 7E41 9A hook code
+               DEFB &9A                       ; 7E41 9A hook code, handled by HK_HDUMMY
                RET                             ; 7E42 C9
 
 ;; --------------------------------------------------------------------
@@ -15003,7 +15006,7 @@ L7E32:
 ; ---- GAP_BLOCK ---- from &7AC5
 GAP_BLOCK:
                RST ERR_HOOK                    ; 7E43 CF  from here to &7E6A this code is written for &5896: subtract &25AD from any address in it
-               DEFB &AA                       ; 7E44 AA hook code
+               DEFB &AA                       ; 7E44 AA hook code, handled by HK_HPFF
                EXX                             ; 7E45 D9
                PUSH BC                         ; 7E46 C5
                POP AF                          ; 7E47 F1
@@ -15024,7 +15027,7 @@ GAP_BLOCK:
                LD SP,HL                        ; 7E5E F9
                JP (IY)                         ; 7E5F FD E9
                RST ERR_HOOK                    ; 7E61 CF
-               DEFB &AB                       ; 7E62 AB hook code
+               DEFB HK_HGTTK                  ; 7E62 AB hook code
                EXX                             ; 7E63 D9
 
 ; ---- L7E64 ---- from &7177

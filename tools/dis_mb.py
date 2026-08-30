@@ -159,6 +159,10 @@ class Page(Disassembler):
         self.fpc = []
         self.declared_data = set()
         self.user_equs = {}
+        # Hook codes whose handler is a routine in this same listing, so
+        # the code cannot take the routine's name without colliding with
+        # it.  These get the number and a comment instead.
+        self.rst8_note = {}
         self.used_page_flag = False
 
     # -- the two address spaces --------------------------------------------
@@ -410,7 +414,8 @@ class Page(Disassembler):
 
     def code_note(self, v):
         if v >= 0x80:
-            return 'hook code'
+            n = self.rst8_note.get(v)
+            return 'hook code, handled by %s' % n if n else 'hook code'
         text = self.errors.get(v)
         return 'error %d, "%s"' % (v, text) if text else 'error %d' % v
 
@@ -1556,7 +1561,18 @@ def main():
     toks = name_tables(dos, mb, args.work)
     for d in (dos, mb):
         load_symbols(d, args.work)
-        d.rst8.update(romsyms.hook_names(dos, HOOK_TABLE))
+        hooks_by_code = romsyms.hook_names(dos, HOOK_TABLE)
+        # A hook MasterBASIC took over is handled by a routine in the
+        # extension's own listing, and that routine already carries the
+        # name.  Naming the code the same thing would define the symbol
+        # twice, so those become a number and a comment.
+        for page in (dos, mb):
+            taken = set(page.labels.values())
+            for code, name in hooks_by_code.items():
+                if name in taken:
+                    page.rst8_note[code] = name
+                else:
+                    page.rst8[code] = name
     render_basic(mb, args.work)
     mb.region(MBVARS2[0], MBVARS2[1], DATA)
     render_tables(dos, args.work)

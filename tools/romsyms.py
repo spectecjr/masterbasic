@@ -281,16 +281,28 @@ def hook_names(dis, table, count=64):
     `HOOK` doubles the code to index this table, discarding bit 7, so
     entry i is code 128+i.  Where the routine it points at already has a
     name the hook takes it.
+
+    Twenty-four entries do not point into this page at all.  They hold
+    an address &8000 higher -- &D00E for &500E -- which is the extension
+    seen through the window, because MasterBASIC has taken those hooks
+    over.  Resolving them against the peer is what gives the extension's
+    own hooks their names; without it every one of them stayed a bare
+    number.
     """
     out = {}
+    peer = getattr(dis, 'peer', None)
     for i in range(count):
         a = table + 2 * i
         if not dis.inside(a + 1):
             break
         target = dis.word(a)
+        home = dis
         if not dis.inside(target):
-            continue
-        name = dis.labels.get(target)
+            if peer is None or not peer.inside(target - 0x8000):
+                continue
+            target -= 0x8000
+            home = peer
+        name = home.labels.get(target)
         base = name if name else '%04X' % target
         out[128 + i] = base if base.startswith('HK_') else 'HK_' + base
     return out
