@@ -93,11 +93,30 @@ installed addresses into the ROM vector variables:
 | `CMDV` | `&488E` command dispatch | `PRTOKV` | `&4BB0` token printing |
 | `FRAMIV` | `&4986` frame interrupt | `EVALUV` | `&4BBA` function evaluation |
 
-Those roles are read out of the ROM source — `STRMOV1`, `EDITOR`,
+Those roles were read out of the ROM source — `STRMOV1`, `EDITOR`,
 `STMTLP3`, `FRAMINT`, `ERROR2`, `PRGR802`, `ABOVLETS` and the `LD IX,
 (PATOUT)` in the print path — because the ROM's own variable table leaves
-most of them without a comment. `postinstall/syspage.asm` names the
-installed code after them.
+most of them without a comment. The SAM Coupé Technical Manual gives the
+same roles directly, and adds what each is called with: `CMDV` gets "the
+code about to be syntax checked or executed (normally a command code)",
+`EVALUV` "A=current character in expression", `PRTOKV` "A=token code to
+expand and print as ASCII", and `RST8V` an error code with the alternate
+registers already selected and `CHAD`/`CHADP` already copied to
+`XPTR`/`XPTRP`. `postinstall/syspage.asm` names the installed code after
+them.
+
+**Why any of this has to be installed at all** is stated in the same
+place. The manual's advice to anyone taking a vector over is that the
+routine "must be in the system page to guarantee it is resident when the
+vector is called", and that "it is a good idea to use a short routine in
+the Heap to call a large routine in another page". That is exactly the
+shape of everything below: small resident stubs in the system page, the
+real code paged in behind them. The manual also gives the convention
+those stubs follow — a routine "making just RET will cause the normal ROM
+routine to be executed", while to take over completely you "POP the
+return address so that the ROM routine is never used". Both halves are
+visible in `PRTOKV_STUB`, which does `CP &F7 : RET C` for the ROM's own
+tokens and `POP HL` for its own.
 
 It also moves the BASIC stack down to `&45A1`, because the ROM `BSTACK` at
 `&4AFF` sits inside the second installed block and had to move.

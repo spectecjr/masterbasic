@@ -13286,6 +13286,13 @@ L76CD:
 ;; there instead.  &46CC, the first installed stub, is MasterBASIC's
 ;; replacement for moving strings about.
 ;;
+;; MTOKV's job is now known rather than guessed.  The Technical
+;; Manual: "Called if a potential spelled-out keyword is not recognised
+;; by the ROM.  On entry, DE points to the potential keyword.  On exit,
+;; conditions should match those of jump table entry JGTTOK."  So
+;; pointing it at a stub is how MasterBASIC's own keywords get
+;; recognised at all.
+;;
 ;; MTOKV looks like an exception and is not.  &58B4 is well past &4BC3,
 ;; where the installed region ends, so it was read as an address in
 ;; this half to be reached with MasterBASIC paged in.  But the forty

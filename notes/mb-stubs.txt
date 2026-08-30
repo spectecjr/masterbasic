@@ -31,6 +31,46 @@ DOC EVALUV_STUB
 # the whole trick: the ROM's vectors take an address, MasterBASIC's own
 # dispatcher takes a code, and these are the join between the two.
 #
+# Both halves of that shape are the documented contract, not something
+# these stubs invented.  The Technical Manual, on SETIYV but saying "as
+# with all the vectors":
+#
+#     your routine making just RET will cause the normal ROM routine to
+#     be executed.  Thus your code might start with a check ... and RET
+#     if so.  Otherwise, POP the return address so that the ROM routine
+#     is never used
+#
+# which is exactly PRTOKV_STUB: CP &F7 : RET C to let the ROM have it,
+# POP HL and a hook otherwise.  The manual's own worked example for
+# LPRTV even writes the second half as "POP BC ;JUNK RETURN ADDRESS".
+#
+# And it says why the stubs are small and live where they do:
+#
+#     USRPTCH must be in the system page to guarantee it is resident
+#     when the vector is called ... it is a good idea to use a short
+#     routine in the Heap to call a large routine in another page
+#
+# That is the whole architecture in two sentences: small resident stubs
+# in the system page, the real code paged in behind them.
+#
+# What each vector is called with, from the same section:
+#
+#   PRTOKV  A = token code to expand and print as ASCII
+#   EVALUV  A = current character in expression; for adding functions
+#   CMDV    A = the code about to be syntax checked or executed,
+#           "normally a command code" -- which is what
+#           DISPATCH_ON_COMMAND_TOKEN switches on, arriving in H
+#   RST8V   A = error code, alternate registers selected, CHAD and
+#           CHADP already copied to XPTR and XPTRP, DE pointing at the
+#           code byte after the RST 08H
+#   MTOKV   called when a spelled-out keyword is not recognised, DE
+#           pointing at it; exit as jump table entry JGTTOK
+#   EDITV   called before the editor is used for a line or INPUT
+#   FRAMIV  called by the frame interrupt, 50 times a second
+#
+# RST8V's entry conditions are worth keeping: XPTR being set up before
+# the vector is reached is why PRTOKV_STUB can read it straight.
+#
 # The same bytes are DUMP's greyscale tables once the block is installed
 # and this copy is dead -- see notes/mb-dumpcolour.txt.
 
