@@ -40,6 +40,14 @@ DOC INSTALL_SYSPAGE_CODE
     paging routine, which is why the relocated block calls &5BE0 twice.
     It was not calling a ROM routine at all; it was calling this.
 
+    How big KTAB is, which bounds all of this: the Technical Manual says
+    "the 69 keys and 4 shift states give 276 key [positions] in a
+    keyboard 'map'", and that KEY Posn,x takes a position of 0-275.  So
+    the table runs &58E0-&59F3, and every entry this half pokes is
+    inside it -- 97 and 106 here, 255 and 264 from the installer at
+    &76A2.  It also explains why ref/samrom/vars.asm names nothing
+    between KTAB and &5A00: it is all one table.
+
     &5896 is in a gap.  The ROM puts the DEF KEY buffer at &5800, at most
     128 bytes, and the keyboard table at &58E0, so &5880-&58DF is unused
     -- and MasterBASIC takes 40 bytes of it at &5896.  A dump of a booted
@@ -90,7 +98,7 @@ DOC GAP_BLOCK
 # Two more key assignments, done in the installer rather than in
 # INSTALL_SYSPAGE_CODE.
 
-MB &76A2 : KTAB entry 255 gets &0D -- the table starts at &58E0
+MB &76A2 : KTAB entry 255 gets &0D -- the map is 276 entries from &58E0
 MB &76A5 : and entry 264 the same
 MB &767F : &60 in ALLOCT marks this page as DOS's -- the table is at &5100
 MB &7686 : clear &4AED-&4AFF, nineteen bytes of workspace in the system page

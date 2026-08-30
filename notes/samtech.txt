@@ -55,5 +55,19 @@
 # was &00 MULT, dropped by a regex that wanted leading whitespace on a
 # line the table's own label begins.  Fixed.
 #
+# Two more confirmations, both of readings this project had made from
+# the code alone:
+#
+#   DEVICE 5A73H "0=upper window, 1=lower window, 2=printer, 3=other",
+#   which is what makes CLAMP_CHAR_HEIGHT clamping to 4 when DEVICE is 1
+#   a height limit for a four-line window rather than anything to do
+#   with streams.
+#
+#   "The 69 keys and 4 shift states give 276 key [positions] in a
+#   keyboard 'map'", with KEY Posn,x taking 0-275.  So KTAB runs
+#   &58E0-&59F3, which contains every entry this image pokes -- 97 and
+#   106 from INSTALL_SYSPAGE_CODE, 255 and 264 from the installer -- and
+#   explains why vars.asm names nothing between KTAB and &5A00.
+#
 # So: read it for the names and the prose, and check any address in it
 # against ref/samrom/vars.asm before relying on it.

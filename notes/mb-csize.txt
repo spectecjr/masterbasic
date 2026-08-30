@@ -23,10 +23,11 @@ DOC PRINT_MAGNIFIED_CHAR
     driven further than the ROM drives it.  Zeroed again on the way out.
 
     CLAMP_CHAR_HEIGHT is why the name changed.  It clamps C to 4 when
-    DEVICE is 1, and DEVICE 1 is the lower screen, which is four lines
-    deep: a character cannot be taller than the window it goes in.  Read
-    as a stream number that made no sense; read as a height it is the
-    only sensible limit there is.
+    DEVICE is 1, and the Technical Manual gives DEVICE at &5A73 as
+    "0=upper window, 1=lower window, 2=printer, 3=other" -- the lower
+    window being four lines deep, so a character cannot be taller than
+    the window it goes in.  Read as a stream number that made no sense;
+    read as a height it is the only sensible limit there is.
 
 # How the ROM reaches it, which is the general answer for this half.
 #

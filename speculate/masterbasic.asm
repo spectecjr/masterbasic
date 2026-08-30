@@ -15231,10 +15231,11 @@ CLAMP_CHAR_HEIGHT:
 ;;     driven further than the ROM drives it.  Zeroed again on the way out.
 ;;     
 ;;     CLAMP_CHAR_HEIGHT is why the name changed.  It clamps C to 4 when
-;;     DEVICE is 1, and DEVICE 1 is the lower screen, which is four lines
-;;     deep: a character cannot be taller than the window it goes in.  Read
-;;     as a stream number that made no sense; read as a height it is the
-;;     only sensible limit there is.
+;;     DEVICE is 1, and the Technical Manual gives DEVICE at &5A73 as
+;;     "0=upper window, 1=lower window, 2=printer, 3=other" -- the lower
+;;     window being four lines deep, so a character cannot be taller than
+;;     the window it goes in.  Read as a stream number that made no sense;
+;;     read as a height it is the only sensible limit there is.
 ;; --------------------------------------------------------------------
 
 PRINT_MAGNIFIED_CHAR:
@@ -21510,7 +21511,7 @@ L7689:
                LD HL,&0144                     ; 769A 21 44 01
                LD (PSLD),HL                    ; 769D 22 06 5A
                LD A,&0D                        ; 76A0 3E 0D
-               LD (&59E8),A                    ; 76A2 32 E8 59  KTAB entry 255 gets &0D -- the table starts at &58E0
+               LD (&59E8),A                    ; 76A2 32 E8 59  KTAB entry 255 gets &0D -- the map is 276 entries from &58E0
                ; self-modifying: patches the operand of the LD at &59DE
                LD (&59DF),A                    ; 76A5 32 DF 59  and entry 264 the same
                XOR A                           ; 76A8 AF
@@ -22811,6 +22812,14 @@ L799B:
 ;;     &5BE0 "for paging S.R." -- and MasterBASIC fills them with its own
 ;;     paging routine, which is why the relocated block calls &5BE0 twice.
 ;;     It was not calling a ROM routine at all; it was calling this.
+;;     
+;;     How big KTAB is, which bounds all of this: the Technical Manual says
+;;     "the 69 keys and 4 shift states give 276 key [positions] in a
+;;     keyboard 'map'", and that KEY Posn,x takes a position of 0-275.  So
+;;     the table runs &58E0-&59F3, and every entry this half pokes is
+;;     inside it -- 97 and 106 here, 255 and 264 from the installer at
+;;     &76A2.  It also explains why ref/samrom/vars.asm names nothing
+;;     between KTAB and &5A00: it is all one table.
 ;;     
 ;;     &5896 is in a gap.  The ROM puts the DEF KEY buffer at &5800, at most
 ;;     128 bytes, and the keyboard table at &58E0, so &5880-&58DF is unused
