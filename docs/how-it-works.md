@@ -142,10 +142,24 @@ intercepting one looks like.
 
 This is why MasterBASIC survives a ROM it was not built against, and the
 rule is followed without exception. Of the 69 places in the MasterBASIC
-half that call or jump into the ROM by a fixed address, 48 go to the jump
-table at `&0000`-`&01FF`, 19 to the vectors at the top of ROM 0, and 2 into
-ROM 1. **None goes into the interior of ROM 0 at all.** Anything not at a
-documented entry point is reached only after searching for it.
+half that call or jump into the ROM at a fixed address:
+
+| | |
+|---|---|
+| `&0000`-`&003F` restarts | 14 |
+| `&0040`-`&00FF` low routines | 7 |
+| `&0100`-`&018F` the jump table | 27 |
+| `&3F00`-`&3FFF` top-of-ROM vectors | 19 |
+| ROM 1 | 2 |
+| anywhere else | **0** |
+
+`PRMAIN` shows how tight the rule is. It sits at `&01CC`, which looks like
+vector territory, but the jump table ends around `&018C` and `PRMAIN` is an
+ordinary routine past it — `RST &30 / DW PROM1-&8000`, a thunk into ROM 1.
+It is never called directly anywhere in the image; it is reached only
+through the address a signature search finds. The search for it is
+`EB E9 F7` with a step of `+2`, which spans a boundary: `EX DE,HL / JP (HL)`
+ending `HLJPI`, then `PRMAIN`'s first byte.
 
 The re-entry points those searches find are mostly places to hand control
 back: `&2A96` inside `STRMOV1`, `ENDOUTP` for the printable-character
