@@ -154,7 +154,7 @@ Every one of the 32640 bytes is accounted for:
 | Pointer tables | 10 |
 | Unclassified | 0 |
 
-No label lands inside an instruction. 360 of the 2426 labelled addresses
+No label lands inside an instruction. 362 of the 2424 labelled addresses
 carry a description -- some written by hand after reading the code, the rest
 the annotated MasterDOS author's, carried across where the two instruction
 streams still agree. That is a minority of the 2,121 routines the

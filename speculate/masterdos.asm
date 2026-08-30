@@ -261,9 +261,6 @@ HEADER:
 ; ---- BOOT ---- from MB &7B75
 BOOT:
                DI                              ; 4009 F3
-
-; ---- L400A ---- from MB &7577
-L400A:
                LD HL,&0000                     ; 400A 21 00 00
                ; self-modifying: patches the operand of the LD at &5AE0
                LD (FRAMIV),HL                  ; 400D 22 E2 5A
@@ -10359,7 +10356,6 @@ NMQU2:
 COBUS:
                CALL EVFINS                     ; 59A0 CD 21 73
 
-; ---- L59A3 ---- from MB &7CF9
 L59A3:
                CALL EXDATX                     ; 59A3 CD 24 62  EXDAT AND EXX STRINGS AT 4F00/4F80
                CALL EVFINS                     ; 59A6 CD 21 73  IN SYS PAGE
@@ -12521,7 +12517,6 @@ CMD_LOAD:
                INC HL                          ; 5FB7 23
                LD (HL),C                       ; 5FB8 71
 
-; ---- L5FB9 ---- from MB &7C2E
 L5FB9:
                INC HL                          ; 5FB9 23
                LD (HL),B                       ; 5FBA 70
@@ -14382,7 +14377,6 @@ DSCHD:
 L6482:
                CALL L6633                      ; 6482 CD 33 66
 
-; ---- L6485 ---- from MB &7D30
 L6485:
                LD HL,(HKHL)                    ; 6485 2A DE 41
                LD (HD0D1),HL                   ; 6488 22 4C 41  START
@@ -14513,7 +14507,6 @@ HK_HSAVE:
                JR C,HSAVE1                     ; 64EE 38 64  JR IF "OVERWRITE?" AND N
                CALL SVHD                       ; 64F0 CD 3B 5F
 
-; ---- L64F3 ---- from MB &7D42
 L64F3:
                LD HL,(HD0D1)                   ; 64F3 2A 4C 41
                LD DE,(HD0B1)                   ; 64F6 ED 5B 4A 41
@@ -23459,19 +23452,8 @@ V7F6B:
 
 ; ---- V7F77 ---- from MB &6481
 V7F77:
-               DEFB &5A,&EB,&2A,&9A,&5A,&2B,&ED,&52,&19                         ; 7F77 Zk*.Z+mR.
-
-; ---- V7F80 ---- from MB &755C, MB &7599
-V7F80:
-               DEFB &38,&36,&28,&31,&7E,&FE,&20,&20                             ; 7F80 86(1~~  
-
-; ---- V7F88 ---- from MB &7592
-V7F88:
-               DEFB &F3,&2B                                                     ; 7F88 s+
-
-; ---- V7F8A ---- from MB &758E
-V7F8A:
-               DEFB &7E,&FE,&20,&28,&FA,&23                                     ; 7F8A ~~ (z#
+               DEFB &5A,&EB,&2A,&9A,&5A,&2B,&ED,&52,&19,&38,&36,&28,&31,&7E,&FE ; 7F77 Zk*.Z+mR.86(1~~
+               DEFB &20,&20,&F3,&2B,&7E,&FE,&20,&28,&FA,&23                     ; 7F86   s+~~ (z#
 
 ; ---- STR ---- from &5355, &5359, &5497
 STR:

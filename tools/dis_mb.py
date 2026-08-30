@@ -96,6 +96,8 @@ def _syspage_names():
         # The two bytes MasterBASIC keeps for itself in the system page,
         # in the space it freed by moving BASIC's stack down to &45A1:
         # the ROM's table put BSTACK at &4AFF, inside the second stub.
+        0x4AED: 'SYS_DH_STATE',      # &40 while a double-height pair is open
+        0x4AEE: 'SYS_CHAR_WIDTH',    # written by CSIZE beside FL6OR8
         0x4AEF: 'SYS_CHAR_HEIGHT',   # read at &49E4 to pick the output path
         0x4AF0: 'SYS_FN_INDEX',      # written by TOKEN_TO_FN_INDEX
         0x49E4: 'SYS_CHAR_OUT',      # ordinary output, or magnified
@@ -856,6 +858,17 @@ def seeds(dos, mb):
         for lo, hi in d.self_window:
             if (lo, hi) not in d.sys_low:
                 d.sys_low.append((lo, hi))
+    # The four places the installed code hands PAGER an address in this
+    # half.  They are the same four the system page shows -- &5FB9,
+    # &59A3, &6485 and &64F3 -- and each was reading as the DOS page,
+    # which has an instruction at the same offset and so supplied a
+    # label.
+    for at in (0x7C2E, 0x7CF9, 0x7D30, 0x7D42):
+        mb.self_window.append((at, at + 3))
+    # The string move's stack juggling is the opposite case: &755C to
+    # &759C puts a small stack at one end or the other of whatever page
+    # it has in the window, which is neither half and has no name.
+    mb.no_peer.append((0x755C, 0x759D))
     # And every block that gets installed: it runs at its destination in
     # the ROM's system page, so a low address in it is an address there.
     for lo, hi, _dest in RELOCATED:

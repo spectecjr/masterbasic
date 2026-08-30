@@ -1,0 +1,55 @@
+# The thirty-six bytes installed at &4BA0: six stubs, each turning a ROM
+# vector call into one of MasterBASIC's hook codes.
+
+MB &7B90 PRTOKV_STUB
+MB &7B9A EVALUV_STUB
+
+DOC PRTOKV_STUB
+    What PRTOKV points at, installed at &4BB0.
+
+    A token below &F7 is the ROM's own and gets RET C, so the ROM prints
+    it.  Anything above is MasterBASIC's: the return address is dropped,
+    XPTR is picked up, and hook &A9 raised, which reaches HPRTOK.
+
+DOC EVALUV_STUB
+    What EVALUV points at, installed at &4BBA.
+
+    &25 passes, and so does anything below &21; the rest returns with
+    carry clear for the ROM to deal with.  What is left drops the return
+    address and raises HK_HKLEN.
+
+# The block, at &7B80 in this listing and &4BA0 when it runs:
+#
+#     +&00  &40, then JR over the next stub
+#     +&03  hook &97
+#     +&06  HK_MCHWR
+#     +&09  HK_MCHRD, with EXX : PUSH BC : POP AF to fetch the flags back
+#     +&10  PRTOKV_STUB
+#     +&1A  EVALUV_STUB
+#
+# Each is three to ten bytes and does nothing but raise a hook, which is
+# the whole trick: the ROM's vectors take an address, MasterBASIC's own
+# dispatcher takes a code, and these are the join between the two.
+#
+# The same bytes are DUMP's greyscale tables once the block is installed
+# and this copy is dead -- see notes/mb-dumpcolour.txt.
+
+# PUTSWA, and where it points.
+#
+# The manual: "POKE DPEEK XVAR 0,0 will make PUT use the ROM's version of
+# PUT.  POKE DPEEK XVAR 0,172 (the code for PUT) to use MasterBASIC's
+# faster version again."
+#
+# 172 is &AC, the PUT token, and the byte it names is the operand of the
+# CP &AC at &7C55 in this listing -- &48FF once the block is installed,
+# inside DISPATCH_ON_COMMAND_TOKEN.  Zero it and the comparison can never
+# match, so PUT falls through to the ROM; put &AC back and it jumps to
+# &45A2, the extended PUT INSTALL_EXTENDED_PUT built.
+#
+# So the manual describes the switch from the outside and the dispatcher
+# is what it switches.  Two things that had been left open in
+# notes/mb-relocated.txt -- what H holds, and why &7C57 jumps to &45A2 --
+# are the same question, and this is the third witness to the answer
+# after the token table and the dump.
+
+MB &7C55 : the operand below is PUTSWA's target: &AC for our PUT, 0 for the ROM's

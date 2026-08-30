@@ -197,7 +197,6 @@ DOS_FNS56:     EQU  &8AD3
 DOS_HEADER:    EQU  &8000
 DOS_HK_SBYT:   EQU  &AF75
 DOS_ITRCK:     EQU  &95D8
-DOS_L400A:     EQU  &800A
 DOS_L4069:     EQU  &8069
 DOS_L406B:     EQU  &806B
 DOS_L406D:     EQU  &806D
@@ -213,14 +212,10 @@ DOS_L4BA0:     EQU  &8BA0
 DOS_L4D2D:     EQU  &8D2D
 DOS_L4F00:     EQU  &8F00
 DOS_L4F0D:     EQU  &8F0D
-DOS_L59A3:     EQU  &99A3
 DOS_L5E1F:     EQU  &9E1F
-DOS_L5FB9:     EQU  &9FB9
 DOS_L602A:     EQU  &A02A
 DOS_L6280:     EQU  &A280
 DOS_L6284:     EQU  &A284
-DOS_L6485:     EQU  &A485
-DOS_L64F3:     EQU  &A4F3
 DOS_L6500:     EQU  &A500
 DOS_L65C4:     EQU  &A5C4
 DOS_L68DA:     EQU  &A8DA
@@ -261,9 +256,6 @@ DOS_V7EFC:     EQU  &BEFC
 DOS_V7F0D:     EQU  &BF0D
 DOS_V7F6B:     EQU  &BF6B
 DOS_V7F77:     EQU  &BF77
-DOS_V7F80:     EQU  &BF80
-DOS_V7F88:     EQU  &BF88
-DOS_V7F8A:     EQU  &BF8A
 DOS_V7FA5:     EQU  &BFA5
 DOS_XTRA:      EQU  &9896
 
@@ -311,7 +303,9 @@ UPPER:         EQU  &DF    ; clearing bit 5 folds a letter to upper case
 SYS_CDBUFF_11: EQU  &4D11
 SYS_CHAR_HEIGHT: EQU  &4AEF
 SYS_CHAR_OUT:  EQU  &49E4
+SYS_CHAR_WIDTH: EQU  &4AEE
 SYS_CMDV_COMMAND: EQU  &488E
+SYS_DH_STATE:  EQU  &4AED
 SYS_EDITV_EDITOR: EQU  &4866
 SYS_EVALUV_EVAL_FN: EQU  &4BBA
 SYS_FN_INDEX:  EQU  &4AF0
@@ -6743,6 +6737,8 @@ L598A:
                POP BC                          ; 599F C1
                DJNZ L598A                      ; 59A0 10 E8
                RET                             ; 59A2 C9
+
+L59A3:
                LD A,&F7                        ; 59A3 3E F7
                IN A,(STAT)                     ; 59A5 DB F9
                AND &60                         ; 59A7 E6 60
@@ -10596,7 +10592,7 @@ L6A59:
 
 ; ---- BUILD_GREY_MAP ---- from &6881
 BUILD_GREY_MAP:
-               LD HL,L7B90                     ; 6A69 21 90 7B
+               LD HL,PRTOKV_STUB               ; 6A69 21 90 7B
                LD B,&19                        ; 6A6C 06 19
 
 ; ---- L6A6E ---- from &6A71
@@ -10648,7 +10644,7 @@ ASSIGN_GREY_LEVEL:
 
 ; ---- FIND_FREE_GREY_LEVEL ---- from &6AA3
 FIND_FREE_GREY_LEVEL:
-               LD HL,L7B90                     ; 6A95 21 90 7B
+               LD HL,PRTOKV_STUB               ; 6A95 21 90 7B
                LD A,D                          ; 6A98 7A
                CP &03                          ; 6A99 FE 03
                LD A,C                          ; 6A9B 79
@@ -10681,7 +10677,7 @@ GREY_LEVEL_BELOW:
                CCF                             ; 6AB6 3F
                RET NC                          ; 6AB7 D0
                LD C,A                          ; 6AB8 4F
-               LD HL,L7B90                     ; 6AB9 21 90 7B
+               LD HL,PRTOKV_STUB               ; 6AB9 21 90 7B
                ADD HL,BC                       ; 6ABC 09
                LD A,(HL)                       ; 6ABD 7E
                AND A                           ; 6ABE A7
@@ -12967,23 +12963,23 @@ L7549:
                CALL NZ,INCURPAGE               ; 7554 C4 F2 3F
                EXX                             ; 7557 D9
                LD (&4CE8),SP                   ; 7558 ED 73 E8 4C
-               LD HL,DOS_V7F80                 ; 755C 21 80 BF
+               LD HL,&BF80                     ; 755C 21 80 BF
                LD DE,&4CEA                     ; 755F 11 EA 4C
                LD BC,&000C                     ; 7562 01 0C 00
                CP &9E                          ; 7565 FE 9E
                LD A,(TEMPB2)                   ; 7567 3A CF 5A
                DEC A                           ; 756A 3D
                JR C,L7587                      ; 756B 38 1A
-               LD HL,DOS_HEADER                ; 756D 21 00 80
+               LD HL,&8000                     ; 756D 21 00 80
                AND &1F                         ; 7570 E6 1F
                LDIR                            ; 7572 ED B0
                LD HL,&47ED                     ; 7574 21 ED 47
-               LD (DOS_L400A),HL               ; 7577 22 0A 80
+               LD (&800A),HL                   ; 7577 22 0A 80
                EXX                             ; 757A D9
                LD SP,&8008                     ; 757B 31 08 80
                JP &0000                        ; 757E C3 00 00
                EXX                             ; 7581 D9
-               LD DE,DOS_HEADER                ; 7582 11 00 80
+               LD DE,&8000                     ; 7582 11 00 80
                JR L759C                        ; 7585 18 15
 
 ; ---- L7587 ---- from &756B
@@ -12991,12 +12987,12 @@ L7587:
                AND &1F                         ; 7587 E6 1F
                LDIR                            ; 7589 ED B0
                LD HL,&4804                     ; 758B 21 04 48
-               LD (DOS_V7F8A),HL               ; 758E 22 8A BF
+               LD (&BF8A),HL                   ; 758E 22 8A BF
                EXX                             ; 7591 D9
-               LD SP,DOS_V7F88                 ; 7592 31 88 BF
+               LD SP,&BF88                     ; 7592 31 88 BF
                JP &0000                        ; 7595 C3 00 00
                EXX                             ; 7598 D9
-               LD DE,DOS_V7F80                 ; 7599 11 80 BF
+               LD DE,&BF80                     ; 7599 11 80 BF
 
 ; ---- L759C ---- from &7585
 L759C:
@@ -14256,8 +14252,16 @@ L7B86:
                RET                             ; 7B8E C9
                NOP                             ; 7B8F 00
 
-; ---- L7B90 ---- from &6A69, &6A95, &6AB9
-L7B90:
+;; --------------------------------------------------------------------
+;; What PRTOKV points at, installed at &4BB0.
+;;
+;; A token below &F7 is the ROM's own and gets RET C, so the ROM prints
+;; it.  Anything above is MasterBASIC's: the return address is dropped,
+;; XPTR is picked up, and hook &A9 raised, which reaches HPRTOK.
+;; --------------------------------------------------------------------
+
+; ---- PRTOKV_STUB ---- from &6A69, &6A95, &6AB9
+PRTOKV_STUB:
                CP &F7                          ; 7B90 FE F7
                RET C                           ; 7B92 D8
                POP HL                          ; 7B93 E1
@@ -14265,6 +14269,16 @@ L7B90:
                RST ERR_HOOK                    ; 7B97 CF
                DEFB &A9                       ; 7B98 A9 hook code
                RET                             ; 7B99 C9
+
+;; --------------------------------------------------------------------
+;; What EVALUV points at, installed at &4BBA.
+;;
+;; &25 passes, and so does anything below &21; the rest returns with
+;; carry clear for the ROM to deal with.  What is left drops the return
+;; address and raises HK_HKLEN.
+;; --------------------------------------------------------------------
+
+EVALUV_STUB:
                CP &25                          ; 7B9A FE 25
                JR Z,L7BA1                      ; 7B9C 28 03
                CP &21                          ; 7B9E FE 21
@@ -14468,7 +14482,7 @@ L7C1C:
                PUSH HL                         ; 7C29 E5
                BIT 1,L                         ; 7C2A CB 4D
                LD A,&00                        ; 7C2C 3E 00
-               LD HL,DOS_L5FB9                 ; 7C2E 21 B9 9F
+               LD HL,SHOW_LINE_AND_STATEMENT+&4000 ; 7C2E 21 B9 9F
                CALL NZ,PAGER                   ; 7C31 C4 E0 5B  PAGER in the system page, not this page's &5BE0
                POP HL                          ; 7C34 E1
                LD A,L                          ; 7C35 7D
@@ -14515,11 +14529,11 @@ L7C1C:
 
 ; ---- DISPATCH_ON_COMMAND_TOKEN ---- from &7C20, &7C27, &7C38
 DISPATCH_ON_COMMAND_TOKEN:
-               LD A,H                          ; 7C51 7C  dispatch on H -- see the note above; what H holds is not settled
+               LD A,H                          ; 7C51 7C  dispatch on the command token in H
                CP &94                          ; 7C52 FE 94
                RET C                           ; 7C54 D8
-               CP &AC                          ; 7C55 FE AC
-               JP Z,SYS_TOKEN_TO_FN_INDEX      ; 7C57 CA A2 45  unexplained -- see the note above
+               CP &AC                          ; 7C55 FE AC  the operand below is PUTSWA's target: &AC for our PUT, 0 for the ROM's
+               JP Z,SYS_TOKEN_TO_FN_INDEX      ; 7C57 CA A2 45  PUT goes to the extended PUT this half installed at &45A2
                CP &AA                          ; 7C5A FE AA
                JR Z,CALLBACK_HCMDV             ; 7C5C 28 48
                CP &AE                          ; 7C5E FE AE
@@ -14658,7 +14672,7 @@ L7CF1:
 L7CF5:
                LD A,&00                        ; 7CF5 3E 00  the operand is written here at run time, from &7B0B
                OUT (HMPR),A                    ; 7CF7 D3 FB
-               CALL DOS_L59A3                  ; 7CF9 CD A3 99
+               CALL L59A3+&4000                ; 7CF9 CD A3 99
                POP AF                          ; 7CFC F1
                OUT (HMPR),A                    ; 7CFD D3 FB
                RET                             ; 7CFF C9
@@ -14674,16 +14688,16 @@ L7D00:
                CP &40                          ; 7D09 FE 40
                JR NZ,L7D11                     ; 7D0B 20 04
                INC D                           ; 7D0D 14
-               LD (&4AED),A                    ; 7D0E 32 ED 4A
+               LD (SYS_DH_STATE),A             ; 7D0E 32 ED 4A
 
 ; ---- L7D11 ---- from &7D0B
 L7D11:
                CP &42                          ; 7D11 FE 42
                JR NZ,L7D20                     ; 7D13 20 0B
-               LD A,(&4AED)                    ; 7D15 3A ED 4A
+               LD A,(SYS_DH_STATE)             ; 7D15 3A ED 4A
                SUB &40                         ; 7D18 D6 40
                JR NZ,L7D20                     ; 7D1A 20 04
-               LD (&4AED),A                    ; 7D1C 32 ED 4A
+               LD (SYS_DH_STATE),A             ; 7D1C 32 ED 4A
                DEC D                           ; 7D1F 15
 
 ; ---- L7D20 ---- from &7D13, &7D1A
@@ -14696,11 +14710,11 @@ L7D22:
                LD A,(DEVICE)                   ; 7D22 3A 73 5A
                CP &02                          ; 7D25 FE 02
                JR Z,L7D4B                      ; 7D27 28 22
-               LD A,(&4AEE)                    ; 7D29 3A EE 4A
+               LD A,(SYS_CHAR_WIDTH)           ; 7D29 3A EE 4A
                AND A                           ; 7D2C A7
                JR Z,L7D3B                      ; 7D2D 28 0C
                EXX                             ; 7D2F D9
-               LD HL,DOS_L6485                 ; 7D30 21 85 A4
+               LD HL,PRINT_SIZED_CHAR+&4000    ; 7D30 21 85 A4
                CALL &49EE                      ; 7D33 CD EE 49  &49EE once this block is moved, not the label shown
                DEC E                           ; 7D36 1D
                POP HL                          ; 7D37 E1
@@ -14714,7 +14728,7 @@ L7D3B:
                AND A                           ; 7D3E A7
                JR Z,L7D4B                      ; 7D3F 28 0A
                EXX                             ; 7D41 D9
-               LD HL,DOS_L64F3                 ; 7D42 21 F3 A4
+               LD HL,PRINT_MAGNIFIED_CHAR+&4000 ; 7D42 21 F3 A4
                LD C,A                          ; 7D45 4F
 
 L7D46:
@@ -14749,7 +14763,7 @@ L7D6F:
                LD (HL),D                       ; 7D74 72
                RET                             ; 7D75 C9
                LD D,A                          ; 7D76 57
-               LD A,(&4AEE)                    ; 7D77 3A EE 4A
+               LD A,(SYS_CHAR_WIDTH)           ; 7D77 3A EE 4A
                AND A                           ; 7D7A A7
                JR Z,L7D83                      ; 7D7B 28 06
                LD B,A                          ; 7D7D 47
@@ -14871,7 +14885,7 @@ L7E0A:
                RLA                             ; 7E14 17
                JR C,L7E32                      ; 7E15 38 1B
                PUSH DE                         ; 7E17 D5
-               LD HL,(&4AEE)                   ; 7E18 2A EE 4A
+               LD HL,(SYS_CHAR_WIDTH)          ; 7E18 2A EE 4A
                LD A,H                          ; 7E1B 7C
                CP &05                          ; 7E1C FE 05
                JR NC,L7E25                     ; 7E1E 30 05
@@ -14882,7 +14896,7 @@ L7E0A:
 ; ---- L7E25 ---- from &7E1E
 L7E25:
                LD HL,&0000                     ; 7E25 21 00 00
-               LD (&4AEE),HL                   ; 7E28 22 EE 4A
+               LD (SYS_CHAR_WIDTH),HL          ; 7E28 22 EE 4A
                LD A,(MODE)                     ; 7E2B 3A 40 5A
                CALL JMODE                      ; 7E2E CD 5A 01
 

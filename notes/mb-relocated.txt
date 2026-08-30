@@ -140,7 +140,7 @@ MB &7C31 : PAGER in the system page, not this page's &5BE0
 MB &7D48 : PAGER again
 MB &7C45 : CDBUFF+&11 -- the code buffer built at &735D
 MB &7C3B : PROG in the system page
-MB &7C57 : unexplained -- see the note above
+MB &7C57 : PUT goes to the extended PUT this half installed at &45A2
 MB &7360 : CDBUFF+&11: 66 bytes from ROM &0000, then 219 from &7385
 MB &7C1C : DCT borrowed as a bit field while no transfer is running
-MB &7C51 : dispatch on H -- see the note above; what H holds is not settled
+MB &7C51 : dispatch on the command token in H
