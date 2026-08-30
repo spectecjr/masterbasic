@@ -21393,7 +21393,7 @@ L75E6:
                LD (V4064),A                    ; 764B 32 64 40
                ; self-modifying: patches the operand of the LD at &7C2C
                LD (&7C2D),A                    ; 764E 32 2D 7C
-               CALL L7A9F                      ; 7651 CD 9F 7A
+               CALL INSTALL_SYSPAGE_CODE       ; 7651 CD 9F 7A
                CALL INSTALL_ROM_PATCHES        ; 7654 CD 00 7B
                LD HL,&7C00                     ; 7657 21 00 7C
                LD B,L                          ; 765A 45
@@ -22651,17 +22651,42 @@ L799B:
                RET                             ; 7A9E C9
 
 ;; --------------------------------------------------------------------
-;; L7A9F -- &7A9F to &7AF1
+;; INSTALL_SYSPAGE_CODE -- &7A9F to &7AF1
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      RET
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Write MasterBASIC's own code into four places in the ROM's system
+;;     page.  Called once, from &7651.  HMPR is zeroed first, so every &9xxx
+;;     below means the system page's &5xxx.
+;;     
+;;     &994A, &9941   two bytes poked with &18 and &19
+;;     PAGER          14 bytes from &7AF2
+;;     &9A12          29 bytes of DPVARS
+;;     &9896          40 bytes from &7E43
+;;     MNIP           set to &4C14
+;;     
+;;     Two of those answer questions left open elsewhere.
+;;     
+;;     PAGER is the fourteen bytes the ROM's variable table reserves at
+;;     &5BE0 "for paging S.R." -- and MasterBASIC fills them with its own
+;;     paging routine, which is why the relocated block calls &5BE0 twice.
+;;     It was not calling a ROM routine at all; it was calling this.
+;;     
+;;     &5896 is in a gap.  The ROM puts the DEF KEY buffer at &5800, at most
+;;     128 bytes, and the keyboard table at &58E0, so &5880-&58DF is unused
+;;     -- and MasterBASIC takes 40 bytes of it at &5896.  A dump of a booted
+;;     machine has exactly that: code from &5896 to &58BD and zeros either
+;;     side, matching &7E43 plus &28.
 ;; --------------------------------------------------------------------
 
-; ---- L7A9F ---- from &7651
-L7A9F:
+; ---- INSTALL_SYSPAGE_CODE ---- from &7651
+INSTALL_SYSPAGE_CODE:
                DI                              ; 7A9F F3
                IN A,(HMPR)                     ; 7AA0 DB FB
                LD C,A                          ; 7AA2 4F
@@ -22672,7 +22697,7 @@ L7A9F:
                INC A                           ; 7AAB 3C
                LD (&9941),A                    ; 7AAC 32 41 99
                LD A,C                          ; 7AAF 79
-               LD HL,L7AF2                     ; 7AB0 21 F2 7A
+               LD HL,MB_PAGER                  ; 7AB0 21 F2 7A
                LD DE,PAGER+&4000               ; 7AB3 11 E0 9B
                LD BC,&000E                     ; 7AB6 01 0E 00
                LDIR                            ; 7AB9 ED B0
@@ -22680,7 +22705,7 @@ L7A9F:
                LD DE,&9A12                     ; 7ABE 11 12 9A
                LD C,&1D                        ; 7AC1 0E 1D
                LDIR                            ; 7AC3 ED B0
-               LD HL,L7E43                     ; 7AC5 21 43 7E
+               LD HL,GAP_BLOCK                 ; 7AC5 21 43 7E
                LD DE,&9896                     ; 7AC8 11 96 98
                LD C,&28                        ; 7ACB 0E 28
                LDIR                            ; 7ACD ED B0
@@ -22706,17 +22731,23 @@ L7AE1:
                RET                             ; 7AF1 C9
 
 ;; --------------------------------------------------------------------
-;; L7AF2 -- &7AF2 to &7AFF
+;; MB_PAGER -- &7AF2 to &7AFF
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F
 ;; Ends:      RET
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     MasterBASIC's replacement for the ROM's paging subroutine, copied
+;;     into PAGER at &5BE0 where the ROM reserves fourteen bytes for one.
+;;     It saves HMPR, calls &005C, and puts HMPR back.
 ;; --------------------------------------------------------------------
 
-; ---- L7AF2 ---- from &7AB0
-L7AF2:
+; ---- MB_PAGER ---- from &7AB0
+MB_PAGER:
                ; to the alternate register set and back again
                EX AF,AF'                       ; 7AF2 08
                IN A,(HMPR)                     ; 7AF3 DB FB
@@ -22995,9 +23026,11 @@ L7BA1:
 ;;     
 ;;     Read against the system page, the stray targets are ordinary:
 ;;     
-;;     &5BE0   PAGER, which the ROM's variable table describes as
-;;     fourteen bytes "reserved for paging S.R."  Called twice,
-;;     which is exactly what a stub outside the extension needs.
+;;     &5BE0   PAGER -- but not the ROM's.  The table reserves
+;;     fourteen bytes there "for paging S.R." and
+;;     INSTALL_SYSPAGE_CODE fills them with MasterBASIC's own,
+;;     copied from &7AF2.  The two calls here are calls into
+;;     this half's code, sitting in the ROM's variable area.
 ;;     &4D11   CDBUFF+&11, the ROM's code buffer -- "for e.g. MULTI-LDI,
 ;;     max len &181".  The code called there is built at run
 ;;     time by the routine at &735D, which LDIRs 66 bytes from
@@ -23938,14 +23971,26 @@ L7E32:
                RET                             ; 7E42 C9
 
 ;; --------------------------------------------------------------------
-;; L7E43 -- &7E43 to &7E4B
+;; GAP_BLOCK -- &7E43 to &7E4B
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    registers unchanged
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Forty bytes copied into the system page at &5896, in the space the
+;;     ROM leaves between the DEF KEY buffer and the keyboard table.  It
+;;     sits immediately after the block at &7BA4 that goes to &484D, so the
+;;     three installed blocks are consecutive here and scattered there.
+;;     
+;;     In the dump it reads as RST &08 with hook &AA, then a jump to POSTFF
+;;     at &3DAD -- an address filled in by a signature search -- and further
+;;     on a write to PAGE_IN_ROM1 and a jump to INSTBUF at &4F00.  So it is
+;;     glue for reaching ROM 1, living where the ROM will never look.
 ;; --------------------------------------------------------------------
 
-; ---- L7E43 ---- from &7AC5
-L7E43:
+; ---- GAP_BLOCK ---- from &7AC5
+GAP_BLOCK:
                RST ERR_HOOK                    ; 7E43 CF
                DEFB &AA                       ; 7E44 AA hook code
                ; to the alternate register set and back again

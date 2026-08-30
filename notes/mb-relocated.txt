@@ -48,9 +48,11 @@ DOC RELOCATED_TO_484D
 
     Read against the system page, the stray targets are ordinary:
 
-        &5BE0   PAGER, which the ROM's variable table describes as
-                fourteen bytes "reserved for paging S.R."  Called twice,
-                which is exactly what a stub outside the extension needs.
+        &5BE0   PAGER -- but not the ROM's.  The table reserves
+                fourteen bytes there "for paging S.R." and
+                INSTALL_SYSPAGE_CODE fills them with MasterBASIC's own,
+                copied from &7AF2.  The two calls here are calls into
+                this half's code, sitting in the ROM's variable area.
         &4D11   CDBUFF+&11, the ROM's code buffer -- "for e.g. MULTI-LDI,
                 max len &181".  The code called there is built at run
                 time by the routine at &735D, which LDIRs 66 bytes from
