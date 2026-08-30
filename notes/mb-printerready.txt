@@ -31,3 +31,21 @@ DOC CLAMP_STREAM_FOR_DEVICE
     beside it, so that code is meant to execute from some other page,
     with MasterBASIC mapped at &8000.  What copies it there has not been
     found, which is the same gap as the region at &45A2.
+
+# The rule behind all of this.
+#
+# No routine in the MasterBASIC half is reached from both pages.  Eleven
+# are reached only from the DOS, and those run through the window: their
+# own addresses appear as &8xxx while the ROM's variables are read at
+# their proper &5Axx.  Everything else runs at &4000 and uses plain
+# addresses.  The two conventions never meet, which is why mixing them up
+# produced labels that looked plausible and were wrong.
+#
+# The clearest example of the damage: &5A5D in the printer output loop
+# read as LD HL,(DOS_BOOT), taking the other page's boot address as data.
+# It is LD HL,(ILPD), XVAR 9, "how long to wait for a not-ready printer,
+# in ~25us units" -- which is what a printer loop wants and a boot
+# address is not.
+
+MB &5A42 : the printer-ready test, called through the window
+MB &5A5D : the not-ready delay, from XVAR 9

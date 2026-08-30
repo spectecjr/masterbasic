@@ -402,7 +402,6 @@ L406B:
 L406D:
                LD A,STEP_OUT_CMD               ; 406D 3E 7B
 
-; ---- L406F ---- from MB &5FF5
 L406F:
                JR NC,L4073                     ; 406F 30 02
 
@@ -472,7 +471,7 @@ L4081:
                DJNZ L4081                      ; 4081 10 FE
                LD HL,(V40FB+&4000)             ; 4083 2A FB 80
 
-; ---- L4086 ---- from MB &5A0B, MB &5A4C
+; ---- L4086 ---- from MB &5A0B
 L4086:
                LD B,C                          ; 4086 41
                INC B                           ; 4087 04

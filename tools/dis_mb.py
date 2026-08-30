@@ -686,6 +686,14 @@ def seeds(dos, mb):
     # &64AC -- neither address is an instruction in the DOS page -- and
     # &64E7 reads DEVICE at &5A73 straight, so the same inversion holds.
     mb.self_window.append((0x6485, 0x64F8))
+    # The general rule behind all of these: a routine the DOS calls runs
+    # through the window, so its own addresses are &8xxx while the ROM's
+    # variables are at their proper &5Axx.  No routine in this half is
+    # reached from both pages, so the two conventions never meet.  These
+    # are the stretches that call themselves at &8xxx.
+    for lo, hi in ((0x4510, 0x4520), (0x5A3E, 0x5A64), (0x5C16, 0x5C34),
+                   (0x5FD8, 0x6030), (0x63F6, 0x63FC), (0x7900, 0x7940)):
+        mb.self_window.append((lo, hi))
     # HK_SETUPREGS does the same at &7210: its &8D50 is CDBUFF+&50 in the
     # ROM's system page, not the DOS page's &4D50.
     mb.no_peer.append((0x7203, 0x7220))

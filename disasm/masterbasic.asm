@@ -201,7 +201,6 @@ DOS_L400A:     EQU  &800A
 DOS_L4069:     EQU  &8069
 DOS_L406B:     EQU  &806B
 DOS_L406D:     EQU  &806D
-DOS_L406F:     EQU  &806F
 DOS_L4071:     EQU  &8071
 DOS_L407F:     EQU  &807F
 DOS_L4081:     EQU  &8081
@@ -1835,7 +1834,7 @@ CMR:
                JP &8516                        ; 4513 C3 16 85
                LD A,B                          ; 4516 78
                OR &1F                          ; 4517 F6 1F
-               LD HL,(&8076)                   ; 4519 2A 76 80
+               LD HL,(V4076+&4000)             ; 4519 2A 76 80
                DI                              ; 451C F3
                OUT (LMPR),A                    ; 451D D3 FA
                LD SP,HL                        ; 451F F9
@@ -6859,7 +6858,7 @@ L5A40:
 
 ; ---- L5A42 ---- from &5A22, &5A2E
 L5A42:
-               CALL &832B                      ; 5A42 CD 2B 83
+               CALL CHECK_PRINTER_READY+&4000  ; 5A42 CD 2B 83  the printer-ready test, called through the window
 
 ; ---- L5A45 ---- from &71D4
 L5A45:
@@ -6871,7 +6870,7 @@ L5A48:
                OUT (LMPR),A                    ; 5A48 D3 FA
                LD A,(DE)                       ; 5A4A 1A
                INC DE                          ; 5A4B 13
-               LD (DOS_L4086),DE               ; 5A4C ED 53 86 80
+               LD (V4086+&4000),DE             ; 5A4C ED 53 86 80
                LD D,A                          ; 5A50 57
                LD A,C                          ; 5A51 79
                OUT (LMPR),A                    ; 5A52 D3 FA
@@ -6884,11 +6883,11 @@ L5A54:
                DEC A                           ; 5A59 3D
                JR Z,L5A6B                      ; 5A5A 28 0F
                PUSH AF                         ; 5A5C F5
-               LD HL,(DOS_BOOT)                ; 5A5D 2A 09 80
+               LD HL,(ILPD+&4000)              ; 5A5D 2A 09 80  the not-ready delay, from XVAR 9
 
 ; ---- L5A60 ---- from &5A68
 L5A60:
-               CALL &832B                      ; 5A60 CD 2B 83
+               CALL CHECK_PRINTER_READY+&4000  ; 5A60 CD 2B 83
                JR NC,L5A0B                     ; 5A63 30 A6
 
 ; ---- L5A65 ---- from &7BB9
@@ -8126,7 +8125,7 @@ L5FDA:
                LD B,&00                        ; 5FEC 06 00
                CALL &A0E4                      ; 5FEE CD E4 A0
                LD SP,(DOS_L4071)               ; 5FF1 ED 7B 71 80
-               LD A,(DOS_L406F)                ; 5FF5 3A 6F 80
+               LD A,(V406F+&4000)              ; 5FF5 3A 6F 80
                AND A                           ; 5FF8 A7
                RET Z                           ; 5FF9 C8
 
@@ -8160,7 +8159,7 @@ CHECK_BREAK:
 
 ; ---- L6008 ---- from &6004
 L6008:
-               CALL &93B5                      ; 6008 CD B5 93
+               CALL L53B5+&4000                ; 6008 CD B5 93
                JR C,L5FFE                      ; 600B 38 F1
                LD H,&15                        ; 600D 26 15
 
@@ -8178,7 +8177,7 @@ L6016:
                LD A,H                          ; 6017 7C
                OR L                            ; 6018 B5
                RET Z                           ; 6019 C8
-               CALL &93B5                      ; 601A CD B5 93
+               CALL L53B5+&4000                ; 601A CD B5 93
                JR NC,L6016                     ; 601D 30 F7
                RET                             ; 601F C9
 
