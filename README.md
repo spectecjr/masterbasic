@@ -98,14 +98,19 @@ git submodule update --init
 | `postinstall/` | the ROM's system page as MasterBASIC leaves it |
 | `notes/` | hand-written names and descriptions, fed into both |
 | `tools/` | the disassembler and the passes that annotate it |
-| `docs/` | how it is built, the manual, the keyword and token write-ups |
+| `docs/` | how it works, how it is built, the manual, the write-ups |
 | `docs/original/` | the MasterBASIC manual as scanned, and its errata |
 | `ref/masterdos/` | annotated MasterDOS 2.3 source (submodule) |
 | `ref/samrom/` | SAM Coupé ROM 3.0 source (submodule) |
 | `dsks/` | the original disk images |
 
-[docs/disassembly.md](docs/disassembly.md) is the long form: how the listings are
-built, what each pass contributes, and what is still open.
+[docs/how-it-works.md](docs/how-it-works.md) is the narrative: what
+MasterBASIC does, how it gets the ROM to call it, how it finds the ROM in
+the first place, and what is still unexplained. Read that before the
+listings.
+
+[docs/disassembly.md](docs/disassembly.md) is the other long form: how the
+listings are built, what each pass contributes, and what is still open.
 
 ## Adding your own knowledge
 
