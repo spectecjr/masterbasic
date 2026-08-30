@@ -304,6 +304,7 @@ SYS_CDBUFF_11: EQU  &4D11
 SYS_CHAR_HEIGHT: EQU  &4AEF
 SYS_CHAR_OUT:  EQU  &49E4
 SYS_CHAR_WIDTH: EQU  &4AEE
+SYS_CMDBUF:    EQU  &4CD3
 SYS_CMDV_COMMAND: EQU  &488E
 SYS_DH_STATE:  EQU  &4AED
 SYS_EDITV_EDITOR: EQU  &4866
@@ -3363,9 +3364,6 @@ L4A7F:
                CALL PAGE_IN_OTHER_HALF         ; 4A7F CD D1 49
                PUSH AF                         ; 4A82 F5
                DEFB &CD                                                         ; 4A83 M  skipped: reads as CALL &4978 from here, and as part of the instruction above it
-
-; ---- L4A84 ---- from &4F3E
-L4A84:
                LD A,B                          ; 4A84 78
                LD C,C                          ; 4A85 49
                LD DE,DOS_DATDT                 ; 4A86 11 71 82
@@ -3853,9 +3851,6 @@ L4CD1:
 ; ---- L4CD2 ---- from &4CB6
 L4CD2:
                POP HL                          ; 4CD2 E1
-
-; ---- L4CD3 ---- from &4F06
-L4CD3:
                POP HL                          ; 4CD3 E1
                POP HL                          ; 4CD4 E1
                AND A                           ; 4CD5 A7
@@ -3878,9 +3873,6 @@ L4CDD:
 ; ---- L4CE2 ---- from &4CA6
 L4CE2:
                PUSH BC                         ; 4CE2 C5
-
-; ---- L4CE3 ---- from &4F36
-L4CE3:
                INC BC                          ; 4CE3 03
                LD A,(DE)                       ; 4CE4 1A
                LD D,A                          ; 4CE5 57
@@ -4024,7 +4016,7 @@ L4D71:
                PUSH BC                         ; 4D78 C5
                DEFB &CD,&6D                                                     ; 4D79 Mm  skipped: reads as CALL CALL_GETSTR from here, and as part of the instruction above it
 
-; ---- L4D7B ---- from &4EFD, &738C
+; ---- L4D7B ---- from &738C
 L4D7B:
                LD B,H                          ; 4D7B 44
                AND &1F                         ; 4D7C E6 1F
@@ -4306,7 +4298,17 @@ FN_RESERVED:
 ;; vector points here.
 ;;
 ;; It reads the ROM's COMAD, records the token in CURCMD, and indexes a
-;; table by token minus &90 to find the routine.
+;; table by token minus &90 to find the routine.  Six tokens are then
+;; handled by name -- &E1, &C2, &C9, &D1, &AE and &AA -- and each leaves
+;; here for a routine of MasterBASIC's own.
+;;
+;; Everything else takes the default path from &4ED4, which calls nothing.
+;; It assembles a routine in the ROM's code buffer out of three pieces --
+;; CMDBUF_PROLOGUE, eighty-eight bytes from wherever the table entry
+;; points, and CMDBUF_EPILOGUE -- fills in two operands, splices the
+;; result into the middle of the copied block, and hands the buffer's
+;; address to STORE_BC_AT_XVAR76.  A dump of a booted machine has all of
+;; it; notes/mb-cmdbuf.txt goes through it byte by byte.
 ;; --------------------------------------------------------------------
 
 HCMDV:
@@ -4347,7 +4349,7 @@ HCMDV:
                XOR A                           ; 4ED7 AF
                OUT (HMPR),A                    ; 4ED8 D3 FB
                PUSH DE                         ; 4EDA D5
-               LD HL,L4F31                     ; 4EDB 21 31 4F
+               LD HL,CMDBUF_PROLOGUE           ; 4EDB 21 31 4F  the three LDIRs below assemble a routine at &4CD3, in the ROM's system page
                LD DE,&8CD3                     ; 4EDE 11 D3 8C
                LD BC,&004D                     ; 4EE1 01 4D 00
                LDIR                            ; 4EE4 ED B0
@@ -4355,14 +4357,14 @@ HCMDV:
                LD C,&58                        ; 4EE7 0E 58
                LDIR                            ; 4EE9 ED B0
                PUSH HL                         ; 4EEB E5
-               LD HL,L4F0C                     ; 4EEC 21 0C 4F
+               LD HL,CMDBUF_EPILOGUE           ; 4EEC 21 0C 4F
                LD C,&25                        ; 4EEF 0E 25
                LDIR                            ; 4EF1 ED B0
                POP HL                          ; 4EF3 E1
                LD (&8D79),HL                   ; 4EF4 22 79 8D
                LD HL,(&8D45)                   ; 4EF7 2A 45 8D
                LD (&8D7C),HL                   ; 4EFA 22 7C 8D
-               LD HL,L4D7B                     ; 4EFD 21 7B 4D
+               LD HL,&4D7B                     ; 4EFD 21 7B 4D
 
 ; ---- L4F00 ---- from &417F, &5DE1, &5DFA
 L4F00:
@@ -4372,17 +4374,43 @@ L4F00:
 ; ---- L4F04 ---- from &5DE4
 L4F04:
                OUT (HMPR),A                    ; 4F04 D3 FB
-               LD BC,L4CD3                     ; 4F06 01 D3 4C
+               LD BC,SYS_CMDBUF                ; 4F06 01 D3 4C
                JP STORE_BC_AT_XVAR76           ; 4F09 C3 5C 6F
 
-; ---- L4F0C ---- from &4EEC
-L4F0C:
-               JP &0000                        ; 4F0C C3 00 00
+;; --------------------------------------------------------------------
+;; The thirty-seven bytes that go to &4D78, immediately after the
+;; eighty-eight copied from the table.  Its first two instructions are
+;; a JP and a CALL with zero operands, and HCMDV fills both in:
+;;
+;; &4D79 <- HL after the second LDIR, the address the copy ran to
+;; &4D7C <- the word already at &4D45
+;;
+;; In the dump they read JP &E071 and CALL &3EEA.  &E071 is one past
+;; &E070, the last byte copied, so the JP resumes the ROM 1 routine
+;; exactly where the copy left off.  &3EEA is a ROM 0 address that was
+;; sitting inside the copied block.
+;;
+;; &4D45 is the copied block's own offset &25, and after reading it
+;; HCMDV writes &4D7B there instead -- so the CALL at &4D44 in the
+;; copy, which the dump shows as CD 7B 4D, now calls this epilogue, and
+;; this epilogue calls what that CALL used to.  The routine is spliced
+;; into, not replaced.
+;;
+;; The rest of it shifts &50 bytes up by sixteen inside INSTBUF, the
+;; ROM's &4F00 buffer "for ROM1 xfer code, etc" -- LD HL,&4F4F and
+;; LD DE,&4F60 with an LDDR, both of which happen to collide with this
+;; half's own addresses and read as local labels until the block is
+;; known to be relocated.
+;; --------------------------------------------------------------------
+
+; ---- CMDBUF_EPILOGUE ---- from &4EEC
+CMDBUF_EPILOGUE:
+               JP &0000                        ; 4F0C C3 00 00  from here to &4F30 this code is written for &4D78: subtract &0194 from any address in it
                CALL &0000                      ; 4F0F CD 00 00
                LD A,(DE)                       ; 4F12 1A
                CP &04                          ; 4F13 FE 04
                LD A,C                          ; 4F15 79
-               LD HL,L4F4F                     ; 4F16 21 4F 4F
+               LD HL,&4F4F                     ; 4F16 21 4F 4F
                LD BC,&0050                     ; 4F19 01 50 00
                JR NC,L4F21                     ; 4F1C 30 03
                INC HL                          ; 4F1E 23
@@ -4391,7 +4419,7 @@ L4F0C:
 
 ; ---- L4F21 ---- from &4F1C
 L4F21:
-               LD DE,L4F60                     ; 4F21 11 60 4F
+               LD DE,&4F60                     ; 4F21 11 60 4F
                LD (DE),A                       ; 4F24 12
                DEC DE                          ; 4F25 1B
                LDDR                            ; 4F26 ED B8
@@ -4403,23 +4431,48 @@ L4F21:
                LD C,&0E                        ; 4F2E 0E 0E
                RET                             ; 4F30 C9
 
-; ---- L4F31 ---- from &4EDB
-L4F31:
-               LD A,&FF                        ; 4F31 3E FF
+;; --------------------------------------------------------------------
+;; The seventy-seven bytes HCMDV copies to &4CD3 in the ROM's system
+;; page, forty-five bytes below CDBUFF.  It is written for that address,
+;; so every number in it is a system-page address: &4A97 is a byte in
+;; the second installed stub, the CALL at &4F36 is to &4CE3, sixteen
+;; bytes into itself, and the JP at &4F3E leaves for &4A84 in that same
+;; stub.
+;;
+;; What it does there names itself.  It reads CURCMD -- which HCMDV
+;; wrote three instructions before starting the copy -- and compares it
+;; with &96; then SAVARS, NUMEND, NUMENDP and SAVARSP, the ROM's
+;; pointers into the variables area, and a subtraction of one pair from
+;; the other.  So it measures the variables area for one particular
+;; command and gets out of the way for the rest.
+;;
+;; &4F79 is not an address: LD BC,&5FFA with OUT (C),B is B to port
+;; &FA, which is &5F to LMPR -- both ROMs on, the system page in
+;; section B, the value the ROM's own boot code writes and comments as
+;; such.
+;;
+;; In the dump the copy survives except for &4D00-&4D13, the first
+;; twenty bytes of CDBUFF proper, which something later overwrote with
+;; zeroes.  Everything below CDBUFF and everything from &4D14 on is
+;; intact, which is how the &D3 at &4D18 -- an OUT the note on the
+;; shared buffer could not account for -- turns out to be the OUT
+;; (HMPR),A at &4F76.
+;; --------------------------------------------------------------------
+
+; ---- CMDBUF_PROLOGUE ---- from &4EDB
+CMDBUF_PROLOGUE:
+               LD A,&FF                        ; 4F31 3E FF  from here to &4F7D this code is written for &4CD3: subtract &025E from any address in it
                LD (&4A97),A                    ; 4F33 32 97 4A
-               CALL L4CE3                      ; 4F36 CD E3 4C
+               CALL &4CE3                      ; 4F36 CD E3 4C  &4CE3 once this block is moved, not the label shown
                LD A,(&4A97)                    ; 4F39 3A 97 4A
                INC A                           ; 4F3C 3C
                RET Z                           ; 4F3D C8
-               JP L4A84                        ; 4F3E C3 84 4A
-               LD A,(L5B74)                    ; 4F41 3A 74 5B
+               JP &4A84                        ; 4F3E C3 84 4A
+               LD A,(CURCMD)                   ; 4F41 3A 74 5B
                CP &96                          ; 4F44 FE 96
                JR NZ,L4F78                     ; 4F46 20 30
-               LD HL,(L5A82)                   ; 4F48 2A 82 5A
-               LD DE,(L5A85)                   ; 4F4B ED 5B 85 5A
-
-; ---- L4F4F ---- from &4F16
-L4F4F:
+               LD HL,(SAVARS)                  ; 4F48 2A 82 5A
+               LD DE,(NUMEND)                  ; 4F4B ED 5B 85 5A
                LD A,(NUMENDP)                  ; 4F4F 3A 84 5A
                LD C,A                          ; 4F52 4F
                LD A,(SAVARSP)                  ; 4F53 3A 81 5A
@@ -4432,9 +4485,6 @@ L4F4F:
 ; ---- L4F5E ---- from &4F57
 L4F5E:
                SBC HL,DE                       ; 4F5E ED 52
-
-; ---- L4F60 ---- from &4F21
-L4F60:
                LD A,H                          ; 4F60 7C
                DEFB &FE                                                         ; 4F61 ~
 
@@ -4448,7 +4498,7 @@ V4F62:
                OUT (HMPR),A                    ; 4F69 D3 FB
                XOR A                           ; 4F6B AF
                LD BC,&0610                     ; 4F6C 01 10 06
-               LD HL,(L5A85)                   ; 4F6F 2A 85 5A
+               LD HL,(NUMEND)                  ; 4F6F 2A 85 5A
                CALL JMKRBIG                    ; 4F72 CD 0C 01
                POP AF                          ; 4F75 F1
                OUT (HMPR),A                    ; 4F76 D3 FB
@@ -4456,7 +4506,7 @@ V4F62:
 ; ---- L4F78 ---- from &4F46, &4F63
 L4F78:
                RST NEXT_CHAR                   ; 4F78 E7
-               LD BC,L5FFA                     ; 4F79 01 FA 5F
+               LD BC,&5FFA                     ; 4F79 01 FA 5F  &5F to LMPR: both ROMs on, the system page in section B
                OUT (C),B                       ; 4F7C ED 41
 
 ; ---- L4F7E ---- from &4ED1
@@ -6946,12 +6996,9 @@ L5A6B:
                OUT (LMPR),A                    ; 5A7C D3 FA
                LD DE,(DOS_L407F)               ; 5A7E ED 5B 7F 80
 
-; ---- L5A82 ---- from &4F48, &5AD2
+; ---- L5A82 ---- from &5AD2
 L5A82:
                LD HL,(&8082)                   ; 5A82 2A 82 80
-
-; ---- L5A85 ---- from &4F4B, &4F6F
-L5A85:
                AND A                           ; 5A85 A7
                SBC HL,DE                       ; 5A86 ED 52
                JR NZ,L5A94                     ; 5A88 20 0A
@@ -7183,9 +7230,6 @@ L5B62:
                RET NZ                          ; 5B6F C0
                INC A                           ; 5B70 3C
                LD (V4084),A                    ; 5B71 32 84 40
-
-; ---- L5B74 ---- from &4F41
-L5B74:
                RET                             ; 5B74 C9
 
 ;; --------------------------------------------------------------------
@@ -8184,7 +8228,7 @@ L5FDA:
                AND A                           ; 5FF8 A7
                RET Z                           ; 5FF9 C8
 
-; ---- L5FFA ---- from &4F79, &779F
+; ---- L5FFA ---- from &779F
 L5FFA:
                LD B,A                          ; 5FFA 47
                INC A                           ; 5FFB 3C

@@ -101,6 +101,7 @@ def _syspage_names():
         0x4AEF: 'SYS_CHAR_HEIGHT',   # read at &49E4 to pick the output path
         0x4AF0: 'SYS_FN_INDEX',      # written by TOKEN_TO_FN_INDEX
         0x49E4: 'SYS_CHAR_OUT',      # ordinary output, or magnified
+        0x4CD3: 'SYS_CMDBUF',        # where HCMDV assembles a command
         0x5896: 'SYS_GAP_BLOCK',     # the forty bytes in the DKBU/KTAB gap
         0x5BE0: 'SYS_PAGER',         # the trampoline back into this half
         # The ROM's variable list has "8 SPARE" between NLASTH and
@@ -844,6 +845,11 @@ def seeds(dos, mb):
     # this half's &5896, which nothing else refers to and which was
     # decoding as a stray JR on the strength of this one operand.
     mb.sys_low.append((0x5081, 0x5084))
+    # And the two instructions that hand on the address of what HCMDV
+    # has just built: &4D7B and &4CD3 are in the ROM's system page, and
+    # this half has code of its own at both.
+    mb.sys_low.append((0x4EFD, 0x4F00))
+    mb.sys_low.append((0x4F06, 0x4F09))
     # &5FB9 rather than &5FD8: the system page calls it there, with
     # LD A,&1C : LD HL,&9FB9 : CALL PAGER at &48DA.
     # &63F6 used to be in this list and should not have been.  Its only
@@ -2057,7 +2063,10 @@ RELOCATED = ((0x7986, 0x7990, 0x45A2),   # INSTALL_EXTENDED_PUT, five runs
              (0x7BA4, 0x7E43, 0x484D),
              (0x7B80, 0x7BA4, 0x4BA0),
              (0x7E43, 0x7E6B, 0x5896),   # INSTALL_SYSPAGE_CODE
-             (0x7AF2, 0x7B00, 0x5BE0))
+             (0x7AF2, 0x7B00, 0x5BE0),
+             (0x4F31, 0x4F7E, 0x4CD3),   # HCMDV builds these two into the
+             (0x4F0C, 0x4F31, 0x4D78))   # code buffer, with 88 bytes of
+                                         # ROM 1 between them
 
 
 def note_relocated(d):

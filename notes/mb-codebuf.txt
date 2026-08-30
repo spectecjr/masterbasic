@@ -1,4 +1,8 @@
-# The ROM's code buffer, and the two routines that build into it.
+# The ROM's code buffer, and the routines that build into it.
+#
+# Four builders are known.  This file covers the one at &7206; the
+# others are BUILD_PAGE_IN_TRAMPOLINE, L735D, and HCMDV's default path,
+# which is in notes/mb-cmdbuf.txt.
 
 # CDBUFF is at &4D00 in the ROM's system page, and the ROM's own variable
 # table describes it as a code buffer "for e.g. MULTI-LDI, max len &181".

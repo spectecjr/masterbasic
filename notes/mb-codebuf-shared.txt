@@ -20,3 +20,22 @@
 # alternatives to each other.  They are sharing with the ROM.  Whatever
 # ran last is what is there, which is why nothing can be assumed about
 # the buffer's contents from reading any one builder.
+#
+# LATER.  Two of the three unexplained things above have an owner, and it
+# is a fourth builder: HCMDV's default path, which lays down &CA bytes
+# from &4CD3 -- forty-five bytes below CDBUFF -- and is described in
+# notes/mb-cmdbuf.txt.
+#
+#     &4D80 matching this half's &4F14 is that builder's third piece,
+#     copied from CMDBUF_EPILOGUE at &4F0C to &4D78.  All thirty-seven
+#     bytes match except the two operands it patches.
+#
+#     &4D18 holding &D3 is the OUT (HMPR),A at &4F76, in the first piece,
+#     copied from CMDBUF_PROLOGUE at &4F31 to &4CD3.  It is not part of
+#     an instruction belonging to something else; it is the tail of that
+#     copy, of which &4CD3-&4CFF and &4D14-&4D1F survive intact and only
+#     &4D00-&4D13 -- CDBUFF's own first twenty bytes -- were overwritten.
+#
+# The fourteen bytes at &4D50 matching ROM 1's NLTP still belong to the
+# ROM, so the point above stands: four builders and the ROM share this
+# space, and only a dump says what is in it at any moment.

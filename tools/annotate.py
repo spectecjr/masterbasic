@@ -197,7 +197,17 @@ Hook 173 -- dispatch one of MasterBASIC's commands.  The ROM's CMDV
 vector points here.
 
 It reads the ROM's COMAD, records the token in CURCMD, and indexes a
-table by token minus &90 to find the routine."""
+table by token minus &90 to find the routine.  Six tokens are then
+handled by name -- &E1, &C2, &C9, &D1, &AE and &AA -- and each leaves
+here for a routine of MasterBASIC's own.
+
+Everything else takes the default path from &4ED4, which calls nothing.
+It assembles a routine in the ROM's code buffer out of three pieces --
+CMDBUF_PROLOGUE, eighty-eight bytes from wherever the table entry
+points, and CMDBUF_EPILOGUE -- fills in two operands, splices the
+result into the middle of the copied block, and hands the buffer's
+address to STORE_BC_AT_XVAR76.  A dump of a booted machine has all of
+it; notes/mb-cmdbuf.txt goes through it byte by byte."""
 
 HEVV_DOC = """\
 Hook 172 -- evaluate a function.  The ROM's EVALUV vector points here,

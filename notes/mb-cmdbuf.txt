@@ -1,0 +1,77 @@
+# The fourth builder into the ROM's code buffer, and what it splices.
+
+# HCMDV's default path -- everything that is not one of the six tokens it
+# tests for by hand -- does not call a routine at all.  It assembles one,
+# out of three pieces, in the ROM's own buffer at &4CD3, and arranges to
+# arrive there.  The three pieces are:
+#
+#     &4D from CMDBUF_PROLOGUE at &4F31   ->  &4CD3
+#     &58 from wherever the COMAD table entry points  ->  &4D20
+#     &25 from CMDBUF_EPILOGUE at &4F0C   ->  &4D78
+#
+# Both fixed pieces are in the dump of a booted machine, byte for byte,
+# which is what turns this from a reading into a fact.  So is the middle
+# one: the eighty-eight bytes at &4D20 are ROM 1's &E019 in ROM 3.0.
+
+MB &4F31 CMDBUF_PROLOGUE
+    The seventy-seven bytes HCMDV copies to &4CD3 in the ROM's system
+    page, forty-five bytes below CDBUFF.  It is written for that address,
+    so every number in it is a system-page address: &4A97 is a byte in
+    the second installed stub, the CALL at &4F36 is to &4CE3, sixteen
+    bytes into itself, and the JP at &4F3E leaves for &4A84 in that same
+    stub.
+
+    What it does there names itself.  It reads CURCMD -- which HCMDV
+    wrote three instructions before starting the copy -- and compares it
+    with &96; then SAVARS, NUMEND, NUMENDP and SAVARSP, the ROM's
+    pointers into the variables area, and a subtraction of one pair from
+    the other.  So it measures the variables area for one particular
+    command and gets out of the way for the rest.
+
+    &4F79 is not an address: LD BC,&5FFA with OUT (C),B is B to port
+    &FA, which is &5F to LMPR -- both ROMs on, the system page in
+    section B, the value the ROM's own boot code writes and comments as
+    such.
+
+    In the dump the copy survives except for &4D00-&4D13, the first
+    twenty bytes of CDBUFF proper, which something later overwrote with
+    zeroes.  Everything below CDBUFF and everything from &4D14 on is
+    intact, which is how the &D3 at &4D18 -- an OUT the note on the
+    shared buffer could not account for -- turns out to be the OUT
+    (HMPR),A at &4F76.
+
+MB &4F0C CMDBUF_EPILOGUE
+    The thirty-seven bytes that go to &4D78, immediately after the
+    eighty-eight copied from the table.  Its first two instructions are
+    a JP and a CALL with zero operands, and HCMDV fills both in:
+
+        &4D79 <- HL after the second LDIR, the address the copy ran to
+        &4D7C <- the word already at &4D45
+
+    In the dump they read JP &E071 and CALL &3EEA.  &E071 is one past
+    &E070, the last byte copied, so the JP resumes the ROM 1 routine
+    exactly where the copy left off.  &3EEA is a ROM 0 address that was
+    sitting inside the copied block.
+
+    &4D45 is the copied block's own offset &25, and after reading it
+    HCMDV writes &4D7B there instead -- so the CALL at &4D44 in the
+    copy, which the dump shows as CD 7B 4D, now calls this epilogue, and
+    this epilogue calls what that CALL used to.  The routine is spliced
+    into, not replaced.
+
+    The rest of it shifts &50 bytes up by sixteen inside INSTBUF, the
+    ROM's &4F00 buffer "for ROM1 xfer code, etc" -- LD HL,&4F4F and
+    LD DE,&4F60 with an LDDR, both of which happen to collide with this
+    half's own addresses and read as local labels until the block is
+    known to be relocated.
+
+MB &4F79 : &5F to LMPR: both ROMs on, the system page in section B
+MB &4EDB : the three LDIRs below assemble a routine at &4CD3, in the ROM's system page
+
+# Why a table entry and not a fixed address.  The eighty-eight bytes are
+# at &E019 in ROM 3.0, &E02F in 2.1, &E027 in 1.8 and &E041 in 1.4, and
+# are absent from 1.0.  MasterBASIC never has to know which: it takes the
+# address out of the ROM's own command table, whose start COMAD holds and
+# whose entries the ROM keeps correct for itself.  That is the same
+# problem RESOLVE_ROM_ENTRIES solves by signature search, solved here for
+# free.
