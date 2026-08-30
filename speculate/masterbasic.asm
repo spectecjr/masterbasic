@@ -9132,7 +9132,7 @@ CMD_LPRINT:
                CALL L560D                      ; 5591 CD 0D 56
                AND A                           ; 5594 A7
                RET Z                           ; 5595 C8
-               JP FREE_BLOCK_CHAIN             ; 5596 C3 7B 5F
+               JP FREE_SLOT_CHAIN              ; 5596 C3 7B 5F
 
 ;; --------------------------------------------------------------------
 ;; L5599 -- &5599 to &55A6
@@ -9213,7 +9213,7 @@ L55C2:
 ;; Takes:     A, B, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? tests for CH_COLON, CH_CR; calls CALL_NEXTCHAR, NUMBER_THEN_END, FREE_BLOCK_CHAIN; falls into whatever follows rather than returning.
+;; ? tests for CH_COLON, CH_CR; calls CALL_NEXTCHAR, NUMBER_THEN_END, FREE_SLOT_CHAIN; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L55C6 ---- from &557D
@@ -9229,7 +9229,7 @@ L55C6:
                CALL NUMBER_THEN_END            ; 55D7 CD C8 44
                CALL L560D                      ; 55DA CD 0D 56
                AND A                           ; 55DD A7
-               CALL NZ,FREE_BLOCK_CHAIN        ; 55DE C4 7B 5F
+               CALL NZ,FREE_SLOT_CHAIN         ; 55DE C4 7B 5F
                CALL L5EDD                      ; 55E1 CD DD 5E
                EX DE,HL                        ; 55E4 EB
                LD HL,(V4066)                   ; 55E5 2A 66 40
@@ -11944,7 +11944,7 @@ L5C65:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      RET
 ;;
-;; ? tests for T_CLEAR, CH_COLON, CH_CR; calls CALL_NEXTCHAR, NUMBER_THEN_END, FREE_BLOCK_CHAIN.
+;; ? tests for T_CLEAR, CH_COLON, CH_CR; calls CALL_NEXTCHAR, NUMBER_THEN_END, FREE_SLOT_CHAIN.
 ;; --------------------------------------------------------------------
 
 ; ---- L5C6A ---- from &4ECC
@@ -11962,7 +11962,7 @@ L5C6A:
                LD A,(V407E)                    ; 5C83 3A 7E 40
                LD HL,(V407F)                   ; 5C86 2A 7F 40
                AND A                           ; 5C89 A7
-               CALL NZ,FREE_BLOCK_CHAIN        ; 5C8A C4 7B 5F
+               CALL NZ,FREE_SLOT_CHAIN         ; 5C8A C4 7B 5F
                CALL L5EDD                      ; 5C8D CD DD 5E
                LD (V407E),A                    ; 5C90 32 7E 40
                LD (V407F),HL                   ; 5C93 22 7F 40
@@ -12767,7 +12767,7 @@ L5F14:
                LD L,&1F                        ; 5F14 2E 1F
 
 ;; --------------------------------------------------------------------
-;; ALLOC_1K_BLOCK -- &5F16 to &5F1A
+;; ALLOC_UTILITY_SLOT -- &5F16 to &5F1A
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F, H
@@ -12776,29 +12776,44 @@ L5F14:
 ;;
 ;; Shown for this routine in disasm/:
 ;;
-;;     Find a free 1K block, in a page already ours or a fresh one.
+;;     Reserve a 1K slot in a utilities page, taking a new page if none of
+;;     the existing ones has room.
 ;;     
-;;     HMPR is zeroed first, so the &91xx it then reads is the system
-;;     page's &51xx: ALLOCT, which the ROM's variable list describes as
-;;     "MUST START AT PAGE EDGE.  32 BYTES - 1 PER PAGE".  L starts one
-;;     below the current page and walks down.  Zero means the page is free
-;;     and gets claimed; &20 means it is already MasterBASIC's and may have
-;;     room; running off the end reports error 1, out of memory.
+;;     The Technical Manual describes the scheme and the method, and this
+;;     is that method:
 ;;     
-;;     A newly claimed page has its top sixteen bytes zeroed.  Those
-;;     sixteen are one marker per 1K block: the page is divided into
-;;     sixteen of them, and the marker at &BFF0+n says whether block n is
-;;     in use.  &FF claims one.
+;;     A "Utilities" page is marked 20H.  It is divided into 16 1K
+;;     sections which can be used by assorted short utility programs.
+;;     The final 16 bytes in a utilities page (SLOTT) show which
+;;     "slots" are reserved -- a 0 shows the corresponding slot is
+;;     free, and FFH that it is reserved.  (The last slot is 16 bytes
+;;     short of 1K.)  The proper method of allocating space for a
+;;     short program is to look backwards through ALLOCT for 20H.  If
+;;     you find it switch in the indicated page and look backwards
+;;     through SLOTT for a spare slot.  Mark it and use that slot.  If
+;;     you do not find a 20H entry in ALLOCT, look for 00H; report an
+;;     error if none is found, else mark it 20H, clear the last 16
+;;     bytes of that page with zeros, and then reserve yourself some
+;;     space in the new SLOTT you have just created.
 ;;     
-;;     The block itself is at ((n * 4) + &83) << 8, which steps &400 --
-;;     1K -- from &8300 to &BF00, and its last two bytes hold a link.  The
-;;     top block is the exception, because &BFF0-&BFFF is the marker array
-;;     itself: its link goes at &BFEE instead of &BFFE, which is the
-;;     CP &BF : JR Z that keeps L at &EE.
+;;     Instruction for instruction: HMPR is zeroed so &91xx reads ALLOCT
+;;     in the system page, L starts one below the current page and walks
+;;     down with DEC L, &20 jumps to the SLOTT scan and 0 claims the page
+;;     first, and running off the end reports error 1.  A newly claimed
+;;     page has its last sixteen bytes zeroed before the scan.
+;;     
+;;     One divergence from the manual worth noting: it says to look
+;;     backwards through SLOTT, and this looks forwards, LD HL,&BFF0 then
+;;     INC L, taking the first free slot rather than the last.
+;;     
+;;     Slot n is the kilobyte at &8000+n*&400 as the page sits in the
+;;     window, and its last two bytes hold a link.  Slot 15 is the one the
+;;     manual calls sixteen bytes short: its link goes at &BFEE, because
+;;     &BFFE and &BFFF are SLOTT entries 14 and 15.
 ;; --------------------------------------------------------------------
 
-; ---- ALLOC_1K_BLOCK ---- from &5F79
-ALLOC_1K_BLOCK:
+; ---- ALLOC_UTILITY_SLOT ---- from &5F79
+ALLOC_UTILITY_SLOT:
                LD H,&91                        ; 5F16 26 91
                XOR A                           ; 5F18 AF
                OUT (HMPR),A                    ; 5F19 D3 FB
@@ -12964,10 +12979,10 @@ L5F72:
                IN A,(HMPR)                     ; 5F75 DB FB
                DEC A                           ; 5F77 3D
                LD L,A                          ; 5F78 6F
-               JR ALLOC_1K_BLOCK               ; 5F79 18 9B
+               JR ALLOC_UTILITY_SLOT           ; 5F79 18 9B
 
 ;; --------------------------------------------------------------------
-;; FREE_BLOCK_CHAIN -- &5F7B to &5F92
+;; FREE_SLOT_CHAIN -- &5F7B to &5F92
 ;;
 ;; Takes:     A, H
 ;; Leaves:    A, F, E, HL
@@ -12976,18 +12991,16 @@ L5F72:
 ;;
 ;; Shown for this routine in disasm/:
 ;;
-;;     Walk a chain of 1K blocks, releasing each, and give back any page
-;;     left with none in use.
+;;     Walk a chain of reserved slots, clearing each SLOTT entry, and give
+;;     back any page left with none reserved.
 ;;     
-;;     Each step pages the next page in, clears that block's marker, asks
-;;     FREE_PAGE_IF_EMPTY whether the page still holds anything, then reads
-;;     the link at the end of the block: the first byte is the next block's
-;;     marker index, the second the next page.  A zero index ends it.  The
-;;     same &BFEE exception applies, tested here as INC A : JR NZ.
+;;     The link at the end of each slot gives the next slot's index and the
+;;     next page; a zero index ends it.  The same &BFEE exception applies,
+;;     tested here as INC A : JR NZ.
 ;; --------------------------------------------------------------------
 
-; ---- FREE_BLOCK_CHAIN ---- from &5596, &55DE, &5C8A, &5FA4
-FREE_BLOCK_CHAIN:
+; ---- FREE_SLOT_CHAIN ---- from &5596, &55DE, &5C8A, &5FA4
+FREE_SLOT_CHAIN:
                OUT (HMPR),A                    ; 5F7B D3 FB
                LD A,H                          ; 5F7D 7C
                PUSH AF                         ; 5F7E F5
@@ -13012,7 +13025,7 @@ FREE_BLOCK_CHAIN:
 ;; Leaves:    A, F, DE, HL
 ;; Ends:      RET
 ;;
-;; ? calls FREE_PAGE_IF_EMPTY.
+;; ? calls FREE_PAGE_IF_SLOTS_CLEAR.
 ;; --------------------------------------------------------------------
 
 ; ---- L5F93 ---- from &5F8F
@@ -13021,7 +13034,7 @@ L5F93:
                XOR A                           ; 5F95 AF
                LD (DE),A                       ; 5F96 12
                PUSH HL                         ; 5F97 E5
-               CALL FREE_PAGE_IF_EMPTY         ; 5F98 CD A7 5F
+               CALL FREE_PAGE_IF_SLOTS_CLEAR   ; 5F98 CD A7 5F
                POP HL                          ; 5F9B E1
                LD D,(HL)                       ; 5F9C 56
                LD (HL),&00                     ; 5F9D 36 00
@@ -13030,26 +13043,26 @@ L5F93:
                EX DE,HL                        ; 5FA1 EB
                INC H                           ; 5FA2 24
                DEC H                           ; 5FA3 25
-               JR NZ,FREE_BLOCK_CHAIN          ; 5FA4 20 D5
+               JR NZ,FREE_SLOT_CHAIN           ; 5FA4 20 D5
                RET                             ; 5FA6 C9
 
 ;; --------------------------------------------------------------------
-;; FREE_PAGE_IF_EMPTY -- &5FA7 to &5FA9
+;; FREE_PAGE_IF_SLOTS_CLEAR -- &5FA7 to &5FA9
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    HL
 ;;
 ;; Shown for this routine in disasm/:
 ;;
-;;     OR the sixteen block markers together, and if all are clear give the
-;;     whole page back to ALLOCT.
+;;     OR the sixteen SLOTT entries together, and if all are clear write 0
+;;     over the page's ALLOCT byte, giving it back.
 ;;     
-;;     The write goes through WRA, so no paging is needed here: WRA zeroes
-;;     HMPR, windows HL up by &4000 and puts it back.
+;;     The write goes through WRA, which zeroes HMPR, windows HL up by
+;;     &4000 and puts it back, so the caller needs no paging of its own.
 ;; --------------------------------------------------------------------
 
-; ---- FREE_PAGE_IF_EMPTY ---- from &5F98
-FREE_PAGE_IF_EMPTY:
+; ---- FREE_PAGE_IF_SLOTS_CLEAR ---- from &5F98
+FREE_PAGE_IF_SLOTS_CLEAR:
                LD HL,&BFF0                     ; 5FA7 21 F0 BF
 
 ;; --------------------------------------------------------------------

@@ -1,0 +1,66 @@
+# Utility pages and SLOTT, under the SAM Technical Manual's own names.
+
+MB &5F16 ALLOC_UTILITY_SLOT
+MB &5F7B FREE_SLOT_CHAIN
+MB &5FA7 FREE_PAGE_IF_SLOTS_CLEAR
+
+DOC ALLOC_UTILITY_SLOT
+    Reserve a 1K slot in a utilities page, taking a new page if none of
+    the existing ones has room.
+
+    The Technical Manual describes the scheme and the method, and this
+    is that method:
+
+        A "Utilities" page is marked 20H.  It is divided into 16 1K
+        sections which can be used by assorted short utility programs.
+        The final 16 bytes in a utilities page (SLOTT) show which
+        "slots" are reserved -- a 0 shows the corresponding slot is
+        free, and FFH that it is reserved.  (The last slot is 16 bytes
+        short of 1K.)  The proper method of allocating space for a
+        short program is to look backwards through ALLOCT for 20H.  If
+        you find it switch in the indicated page and look backwards
+        through SLOTT for a spare slot.  Mark it and use that slot.  If
+        you do not find a 20H entry in ALLOCT, look for 00H; report an
+        error if none is found, else mark it 20H, clear the last 16
+        bytes of that page with zeros, and then reserve yourself some
+        space in the new SLOTT you have just created.
+
+    Instruction for instruction: HMPR is zeroed so &91xx reads ALLOCT
+    in the system page, L starts one below the current page and walks
+    down with DEC L, &20 jumps to the SLOTT scan and 0 claims the page
+    first, and running off the end reports error 1.  A newly claimed
+    page has its last sixteen bytes zeroed before the scan.
+
+    One divergence from the manual worth noting: it says to look
+    backwards through SLOTT, and this looks forwards, LD HL,&BFF0 then
+    INC L, taking the first free slot rather than the last.
+
+    Slot n is the kilobyte at &8000+n*&400 as the page sits in the
+    window, and its last two bytes hold a link.  Slot 15 is the one the
+    manual calls sixteen bytes short: its link goes at &BFEE, because
+    &BFFE and &BFFF are SLOTT entries 14 and 15.
+
+DOC FREE_SLOT_CHAIN
+    Walk a chain of reserved slots, clearing each SLOTT entry, and give
+    back any page left with none reserved.
+
+    The link at the end of each slot gives the next slot's index and the
+    next page; a zero index ends it.  The same &BFEE exception applies,
+    tested here as INC A : JR NZ.
+
+DOC FREE_PAGE_IF_SLOTS_CLEAR
+    OR the sixteen SLOTT entries together, and if all are clear write 0
+    over the page's ALLOCT byte, giving it back.
+
+    The write goes through WRA, which zeroes HMPR, windows HL up by
+    &4000 and puts it back, so the caller needs no paging of its own.
+
+# What uses it.
+#
+# The manual describes this pair from the outside without naming it:
+# "LPRINT CLEAR 0 has the special function of turning off
+# interrupt-driven printing and freeing the buffer space for other
+# uses".  FREE_SLOT_CHAIN is reached from &5596, straight after the call
+# that loads the print buffer's pointers into V4088 and V4089.  And
+# both LPRINT CLEAR and RECORD SOUND are documented as allocating "in 1K
+# units", rounded up, which is the slot.
