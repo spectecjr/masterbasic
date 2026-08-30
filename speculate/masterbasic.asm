@@ -21808,37 +21808,43 @@ L77FE:
 ;;     skipper that stops at a carriage return, stores where it stopped and
 ;;     sets a flag bit.
 ;;     
-;;     Which page it lands in is not settled, and the two halves of the
-;;     evidence disagree.  Nothing in this routine touches LMPR, which says
-;;     the &4000 it writes to is this page.  But the code it installs reads
-;;     and writes &5A9A and &5C3C directly, with no window offset and no
-;;     NRRD, and those are ROM system variables -- which only works with the
-;;     system page at &4000.  Both cannot be true as stated, so one of the
-;;     assumptions behind them is wrong.  Recorded rather than resolved.
+;;     Which page it lands in is answered by the dump, and not the way the
+;;     code reads.  It is the system page.
 ;;     
-;;     The obvious way out is ruled out.  If this code ran through the
-;;     window at &B800 -- which is how the DOS reaches routines in this half
-;;     -- then its &4xxx operands would be the system page and everything
-;;     would agree.  It does not: the region contains JP L7841 and CALL
-;;     L77FE, absolute targets at the addresses it is assembled for, which
-;;     only work when this page is at &4000.
+;;     file/SYSPAGE.bin has ten fragments below &46CC that can be traced to
+;;     where they came from -- nine out of this half between &7879 and
+;;     &799B, one out of the DOS page at &4296:
 ;;     
-;;     Nor does the other way out survive.  &5A9A and &5C3C are not
-;;     variables in this page that happen to share the ROM's numbering: they
-;;     are LD A,D and a DEFW, code and data belonging to this half, and
-;;     writing to them would break it.
+;;     sys &4599 <- DOS &4296      sys &4640 <- MB &78F0
+;;     sys &45A2 <- MB  &7986      sys &4680 <- MB &7930
+;;     sys &45B9 <- MB  &797C      sys &469E <- MB &794E
+;;     sys &45C6 <- MB  &7879
+;;     sys &45DE <- MB  &788E      (and &461E, &462F)
 ;;     
-;;     A caution about the xref list on this label.  DOS &5ADD is not a
-;;     caller: it is LD DE,&B800 setting up a destination, and the 2.3
-;;     source comments it "ALLOWS 1580H BYTES FOR SECTOR LIST".  It loads
-;;     HL, DE and BC and returns, leaving the copy to whoever called it.
+;;     Two of those are this routine beyond reasonable doubt: it does an
+;;     LDIR of ten bytes to &45A2 and, later, another ten to &45B9, and the
+;;     dump has exactly ten-byte fragments at both addresses.  The biases
+;;     differ from one fragment to the next, which is what a chain of LDIRs
+;;     with HL reloaded and DE walking up produces, and not what one block
+;;     copy produces.
 ;;     
-;;     The post-boot dump has since settled what this routine does not do.
-;;     It does not write to this page's &45A2: those bytes are unchanged in
-;;     file/MBPOST.bin.  And the code the system page holds at &45A2 comes
-;;     from &7986, not from &7FA5, so it is not this routine's doing either.
-;;     What this one writes, and when it runs, is still unread -- but it is
-;;     no longer the explanation for the jump in the relocated block.
+;;     Meanwhile this half own &45A2-&46CB is unchanged after boot but for
+;;     six bytes, and those six are the ROM patch sites at &45EA, &45F0 and
+;;     &45F6.  The sources at &7879-&799B are unchanged too, as sources
+;;     should be.  So the destination is not this page.
+;;     
+;;     What remains wrong is the reasoning, not the conclusion.  For those
+;;     LDIRs to reach the system page, the system page must be at &4000 when
+;;     they run -- but the code reaches them through JP L7841 at &7826, an
+;;     absolute jump that only works with this half at &4000, and nothing
+;;     between touches LMPR.  Both cannot hold.  Nothing else in either page
+;;     refers to the sources through the window either, so the copier is not
+;;     simply some other routine: no &B986, &B97C or &B879 appears anywhere.
+;;     
+;;     The likeliest remaining explanation is that this code does not run
+;;     where it is stored -- that it is itself moved before it executes, the
+;;     way the blocks at &7460 and &7BA4 are -- but nothing found so far
+;;     moves it, and the boot sector is not in this file.
 ;; --------------------------------------------------------------------
 
 PATCH_45A2:

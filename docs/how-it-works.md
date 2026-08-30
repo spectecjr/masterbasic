@@ -179,15 +179,18 @@ identified, so `LD (&45AF),A` reads as `LD (CHECK_WRITE_STATUS+1),A`.
 
 ## 7. What is not settled
 
-- **Which page `PATCH_45A2` at `&7800` writes to.** Nothing in it touches
-  `LMPR`, which says its own page; but the code it installs reads `&5A9A`
-  and `&5C3C` directly, which only works in the system page. The dump shows
-  this half `&45A2` unchanged, so it is not writing there — what it does
-  write, and when it runs, is unread.
-- **What copies eleven bytes of `&7986` into the system page at `&45A2`.**
-  That code is in the dump — `SUB &AB` then `LD (FN_LOCN),A`, turning a
-  token into a function index — and the relocated block jumps to it, but
-  the copy has not been found.
+- **How `PATCH_45A2` at `&7800` reaches the system page.** The dump settles
+  *that* it does: ten fragments below `&46CC` trace back to `&7879`-`&799B`
+  in this half, two of them ten bytes at `&45A2` and `&45B9`, which are
+  exactly this routine's first and last LDIRs. This half's own
+  `&45A2`-`&46CB` is unchanged but for three ROM patch sites. What does not
+  work is the route: those LDIRs only reach the system page if it is at
+  `&4000`, yet the code arrives via `JP L7841`, an absolute jump that needs
+  *this* half at `&4000`, and nothing between touches `LMPR`. No reference
+  to the sources through the window exists anywhere either. The likeliest
+  answer is that this code is itself moved before it runs, as the blocks at
+  `&7460` and `&7BA4` are — but nothing found so far moves it, and the boot
+  sector is not part of this file.
 - **The dispatcher at `&7C51`** switches on values that are command tokens
   at the low end and something else past `&B9`.
 - **499 bytes of the DOS page** differ after boot and are largely
