@@ -29,3 +29,20 @@ DOC COPY_THEN_APPEND_CALL
     the caller supplies the body, this supplies the ending.  HL is
     preserved across the appended copy so the caller still has the end of
     its own block.
+
+MB &4240 BYTE_TO_DECIMAL
+    A to three decimal characters, returned in B, C and A -- hundreds,
+    tens and units.  DECIMAL_DIGIT is called with DE = 100 and then with
+    DE = 10, and what is left in L is the units.  C carries the padding:
+    &20 going in, so a leading zero prints as a space, and DECIMAL_DIGIT
+    sets it to &30 as soon as a digit is non-zero, so the zeros after it
+    print as zeros.
+
+    Nothing in this listing calls it.
+
+MB &425D DECIMAL_DIGIT
+    One digit by repeated subtraction: take DE from HL counting in A
+    until it goes negative, add DE back, and return A + &30 -- or C
+    unchanged if A came out zero, which is what makes the padding above
+    work.  Slower than a shift-and-subtract division and a great deal
+    shorter, which for three digits is the right trade.

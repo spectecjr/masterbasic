@@ -1214,22 +1214,37 @@ L4220:
                RET                             ; 423F C9
 
 ;; --------------------------------------------------------------------
-;; L4240 -- &4240 to &425C
+;; BYTE_TO_DECIMAL -- &4240 to &425C
 ;;
 ;; Takes:     A, DE
 ;; Leaves:    BC, HL
 ;; Preserves: A, F, DE (saved and restored)
 ;; Ends:      RET
+;;
+;; ? calls DECIMAL_DIGIT.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     A to three decimal characters, returned in B, C and A -- hundreds,
+;;     tens and units.  DECIMAL_DIGIT is called with DE = 100 and then with
+;;     DE = 10, and what is left in L is the units.  C carries the padding:
+;;     &20 going in, so a leading zero prints as a space, and DECIMAL_DIGIT
+;;     sets it to &30 as soon as a digit is non-zero, so the zeros after it
+;;     print as zeros.
+;;     
+;;     Nothing in this listing calls it.
 ;; --------------------------------------------------------------------
+
+BYTE_TO_DECIMAL:
                PUSH DE                         ; 4240 D5
                LD H,&00                        ; 4241 26 00
                LD L,A                          ; 4243 6F
                LD DE,&0064                     ; 4244 11 64 00
                LD C,&20                        ; 4247 0E 20
-               CALL L425D                      ; 4249 CD 5D 42
+               CALL DECIMAL_DIGIT              ; 4249 CD 5D 42
                PUSH AF                         ; 424C F5
                LD DE,&000A                     ; 424D 11 0A 00
-               CALL L425D                      ; 4250 CD 5D 42
+               CALL DECIMAL_DIGIT              ; 4250 CD 5D 42
                PUSH AF                         ; 4253 F5
                LD A,L                          ; 4254 7D
                ADD A,&30                       ; 4255 C6 30
@@ -1241,14 +1256,22 @@ L4220:
                RET                             ; 425C C9
 
 ;; --------------------------------------------------------------------
-;; L425D -- &425D to &425D
+;; DECIMAL_DIGIT -- &425D to &425D
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     One digit by repeated subtraction: take DE from HL counting in A
+;;     until it goes negative, add DE back, and return A + &30 -- or C
+;;     unchanged if A came out zero, which is what makes the padding above
+;;     work.  Slower than a shift-and-subtract division and a great deal
+;;     shorter, which for three digits is the right trade.
 ;; --------------------------------------------------------------------
 
-; ---- L425D ---- from &4249, &4250
-L425D:
+; ---- DECIMAL_DIGIT ---- from &4249, &4250
+DECIMAL_DIGIT:
                XOR A                           ; 425D AF
 
 ;; --------------------------------------------------------------------
