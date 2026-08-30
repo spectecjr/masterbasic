@@ -12396,9 +12396,9 @@ L726E:
                DEFB FPC_DUP                   ; 7272 DUP
                DEFB FPC_SWOP13                ; 7273 SWOP13
                DEFB FPC_EXIT                  ; 7274 EXIT
-               CALL V50D7                      ; 7275 CD D7 50
+               CALL V50D7                      ; 7275 CD D7 50  &50D7 is not this page's sentinel byte -- what this calls is unfound
                PUSH AF                         ; 7278 F5
-               CALL V50D7                      ; 7279 CD D7 50
+               CALL V50D7                      ; 7279 CD D7 50  the same call again
                POP HL                          ; 727C E1
                SUB H                           ; 727D 94
                EX AF,AF'                       ; 727E 08

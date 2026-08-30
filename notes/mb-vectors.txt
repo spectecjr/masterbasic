@@ -85,3 +85,38 @@ MB &774D : INSLV gets &46CC, the first stub's address
 
 MB &774D : &46CC in the system page -- the string move stub, not this page's L46CC
 MB &7721 : &4866 likewise, inside the second stub
+
+# MBKEYS follows the ROM's documented keyword-list format.
+#
+# The Technical Manual, on jump table entry JGTTOK at &018A: "Try to
+# match potential spelled-out keyword pointed to by DE in a list of
+# keywords at HL+1.  The list should be in upper case, with bit 7 set on
+# the last letter of each keyword.  The A register should hold the
+# number of words in the list, plus 1."
+#
+# MBKEYS is exactly that: 28 names, upper case, bit 7 on the last letter
+# of each, and the byte at &50D7 in front of them is &A0 -- a space with
+# bit 7 set -- so HL = &50D7 puts the list at HL+1.  &5026 and &50C7 both
+# load that address before walking it, though with MasterBASIC's own
+# scan rather than JGTTOK.
+#
+# It also says what MTOKV must leave behind: "On exit, conditions should
+# match those of jump table entry JGTTOK" -- no match if the zero flag
+# is set, otherwise A = the entry number, HL at the start of the word
+# and DE just past it.
+
+# OPEN: CALL &50D7 at &7275 and &7279.
+#
+# Those two calls carry the label V50D7, which is this page's &A0
+# sentinel, and calling it would run AND B and fall into the keyword
+# text.  So the label is wrong there and what they reach is unfound.
+#
+# Checked: the system page holds part of a "GORDON TECHNOLOGY" credit
+# string at &50D7; the DOS page holds the last two bytes, EX AF,AF' and
+# RET, of its own read-a-ROM-variable routine, which is not something to
+# call; the operands are not patched at boot, being cdd750 in the file
+# and cdd750 in a dump; and the RST FPCALC list two instructions earlier
+# really does end at &7274, since &25 and &1C take no inline bytes.
+
+MB &7275 : &50D7 is not this page's sentinel byte -- what this calls is unfound
+MB &7279 : the same call again

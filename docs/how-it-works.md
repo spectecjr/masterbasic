@@ -335,5 +335,13 @@ identified, so `LD (&45AF),A` reads as `LD (CHECK_WRITE_STATUS+1),A`.
   which leaves the instructions that save `SP` unreached, though the fill
   needs them to have run.
 
+- **`CALL &50D7` at `&7275` and `&7279`.** The listing labels them
+  `V50D7`, which is this page's `&A0` keyword-list sentinel — calling it
+  would run `AND B` and fall into the keyword text, so the label is wrong
+  and the target is unfound. The system page has a credit string there,
+  the DOS page the two-byte tail of a routine, the operands are not
+  patched at boot, and the `RST FPCALC` list two instructions earlier
+  genuinely ends where the listing says.
+
 - **The DOS half**, deliberately. The work so far has been the MasterBASIC
   side; the DOS is read only where MasterBASIC reaches into it.
