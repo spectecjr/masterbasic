@@ -2361,16 +2361,22 @@ CALL_GETSTR:
                RET                             ; 4472 C9
 
 ;; --------------------------------------------------------------------
-;; L4473 -- &4473 to &4475
+;; INT_ARG_THEN_END -- &4473 to &4475
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? calls NUMBER_THEN_END; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     A numeric argument that must end the statement, wanted as an integer:
+;;     NUMBER_THEN_END, then fall into CALL_GETINT.  Two instructions, five
+;;     callers.
 ;; --------------------------------------------------------------------
 
-; ---- L4473 ---- from &5582, &612B, &653A, &6811, &715C
-L4473:
+; ---- INT_ARG_THEN_END ---- from &5582, &612B, &653A, &6811, &715C
+INT_ARG_THEN_END:
                CALL NUMBER_THEN_END            ; 4473 CD C8 44
 
 ;; --------------------------------------------------------------------
@@ -2523,16 +2529,23 @@ AT_END_OF_STATEMENT:
                RET                             ; 44C4 C9
 
 ;; --------------------------------------------------------------------
-;; L44C5 -- &44C5 to &44C7
+;; CHAR_THEN_NUMBER_THEN_END -- &44C5 to &44C7
 ;;
 ;; Takes:     A, C
 ;; Leaves:    F
 ;;
 ;; ? calls CHAR_MUST_BE_C; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     The character in C, then a number, then the end of the statement:
+;;     CHAR_MUST_BE_C, then fall into NUMBER_THEN_END.  The pair of them are
+;;     the two commonest argument shapes in the command set, written once
+;;     each.
 ;; --------------------------------------------------------------------
 
-; ---- L44C5 ---- from &550F, &5534, &63EF, &6C9B
-L44C5:
+; ---- CHAR_THEN_NUMBER_THEN_END ---- from &550F, &5534, &63EF, &6C9B
+CHAR_THEN_NUMBER_THEN_END:
                CALL CHAR_MUST_BE_C             ; 44C5 CD 5D 44
 
 ;; --------------------------------------------------------------------
@@ -5388,7 +5401,7 @@ L4A7F:
 ;; Takes:     A, BC, IY
 ;; Leaves:    A, F, BC, DE, HL
 ;;
-;; ? reaches the ROM through DOS_L65C4-&4000; calls CALLDOS, TWO_DIGITS_FROM_DE; falls into whatever follows rather than returning.
+;; ? reaches the ROM through DOS_L65C4-&4000; calls CALLDOS, TWO_DIGITS_FROM_DE, MULTIPLY_BY_60; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
                LD A,B                          ; 4A84 78
                LD C,C                          ; 4A85 49
@@ -5408,13 +5421,13 @@ L4A7F:
                LD C,A                          ; 4A9C 4F
                LD B,&00                        ; 4A9D 06 00
                ADD HL,BC                       ; 4A9F 09
-               CALL L4ADC                      ; 4AA0 CD DC 4A
+               CALL MULTIPLY_BY_60             ; 4AA0 CD DC 4A
                CALL TWO_DIGITS_FROM_DE         ; 4AA3 CD 6A 4A
                LD B,&00                        ; 4AA6 06 00
                LD C,A                          ; 4AA8 4F
                ADD HL,BC                       ; 4AA9 09
                XOR A                           ; 4AAA AF
-               CALL L4ADC                      ; 4AAB CD DC 4A
+               CALL MULTIPLY_BY_60             ; 4AAB CD DC 4A
                PUSH AF                         ; 4AAE F5
                CALL TWO_DIGITS_FROM_DE         ; 4AAF CD 6A 4A
                LD B,&00                        ; 4AB2 06 00
@@ -5465,14 +5478,25 @@ L4ACF:
                DEFB FPC_EXIT2                 ; 4ADB EXIT2
 
 ;; --------------------------------------------------------------------
-;; L4ADC -- &4ADC to &4ADF
+;; MULTIPLY_BY_60 -- &4ADC to &4ADF
 ;;
 ;; Takes:     A, HL
 ;; Leaves:    A, F, BC, HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     A:HL times sixty, with the original kept in BC.  Four doublings make
+;;     sixteen, subtracting BC once makes fifteen, and two more doublings
+;;     make sixty -- five shifts and a subtract against a multiply routine
+;;     and a constant.  The 24-bit form is what TICS needs: seconds in a
+;;     month reach 2678399.
+;;     
+;;     L4AE0 and L4AE9 are entries part of the way down it, for callers that
+;;     have their own idea of what BC holds.
 ;; --------------------------------------------------------------------
 
-; ---- L4ADC ---- from &4AA0, &4AAB
-L4ADC:
+; ---- MULTIPLY_BY_60 ---- from &4AA0, &4AAB
+MULTIPLY_BY_60:
                LD B,H                          ; 4ADC 44
                LD C,L                          ; 4ADD 4D
                ADD HL,HL                       ; 4ADE 29
@@ -8243,13 +8267,15 @@ L52BA:
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      RET
+;;
+;; ? calls OPEN_ROOM_AT_HL.
 ;; --------------------------------------------------------------------
 
 ; ---- L52C0 ---- from &52B6
 L52C0:
                CALL L5276                      ; 52C0 CD 76 52
                LD BC,&0500                     ; 52C3 01 00 05
-               CALL L58F2                      ; 52C6 CD F2 58
+               CALL OPEN_ROOM_AT_HL            ; 52C6 CD F2 58
                INC HL                          ; 52C9 23
                LD BC,&04FE                     ; 52CA 01 FE 04
                LD (HL),&00                     ; 52CD 36 00
@@ -8760,7 +8786,7 @@ L5444:
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JR
 ;;
-;; ? tests for CH_CR.
+;; ? tests for CH_CR; calls OPEN_ROOM_AT_DE.
 ;; --------------------------------------------------------------------
 
 ; ---- L5446 ---- from &543E
@@ -8793,6 +8819,8 @@ L544E:
 ;;
 ;; Takes:     BC, HL
 ;; Leaves:    A, F, DE, HL
+;;
+;; ? calls OPEN_ROOM_AT_DE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L5455 ---- from &544C
@@ -8802,7 +8830,7 @@ L5455:
                LD A,B                          ; 5459 78
                OR C                            ; 545A B1
                JR Z,L546E                      ; 545B 28 11
-               CALL L58F1                      ; 545D CD F1 58
+               CALL OPEN_ROOM_AT_DE            ; 545D CD F1 58
                EX DE,HL                        ; 5460 EB
                LD HL,(V4062)                   ; 5461 2A 62 40
 
@@ -9005,7 +9033,7 @@ L54EA:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls BYTE_ARGUMENT, CHAR_MUST_BE_C, CALL_EXPNUM; falls into whatever follows rather than returning.
+;; ? calls BYTE_ARGUMENT, CHAR_MUST_BE_C, CALL_EXPNUM, CHAR_THEN_NUMBER_THEN_END; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L5502 ---- from &54DB
@@ -9015,7 +9043,7 @@ L5502:
                CALL CHAR_MUST_BE_C             ; 5507 CD 5D 44
                CALL CALL_EXPNUM                ; 550A CD 85 44
                LD C,&8C                        ; 550D 0E 8C
-               CALL L44C5                      ; 550F CD C5 44
+               CALL CHAR_THEN_NUMBER_THEN_END  ; 550F CD C5 44
                CALL BYTE_ARGUMENT              ; 5512 CD A1 43
                PUSH AF                         ; 5515 F5
                CALL BYTE_ARGUMENT              ; 5516 CD A1 43
@@ -9051,14 +9079,14 @@ L5525:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls BYTE_ARGUMENT, SKIP_THEN_NUMBER; falls into whatever follows rather than returning.
+;; ? calls BYTE_ARGUMENT, SKIP_THEN_NUMBER, CHAR_THEN_NUMBER_THEN_END; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L552F ---- from &54CF
 L552F:
                CALL SKIP_THEN_NUMBER           ; 552F CD 82 44
                LD C,&8E                        ; 5532 0E 8E
-               CALL L44C5                      ; 5534 CD C5 44
+               CALL CHAR_THEN_NUMBER_THEN_END  ; 5534 CD C5 44
                CALL BYTE_ARGUMENT              ; 5537 CD A1 43
                PUSH AF                         ; 553A F5
                DEC A                           ; 553B 3D
@@ -9123,7 +9151,7 @@ L5551:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      JP
 ;;
-;; ? tests for T_MODE; calls CALL_NEXTCHAR.
+;; ? tests for T_MODE; calls CALL_NEXTCHAR, INT_ARG_THEN_END.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -9150,7 +9178,7 @@ CMD_LPRINT:
                CP T_MODE                       ; 557B FE AA
                JR NZ,L55C6                     ; 557D 20 47
                CALL CALL_NEXTCHAR              ; 557F CD 61 44
-               CALL L4473                      ; 5582 CD 73 44
+               CALL INT_ARG_THEN_END           ; 5582 CD 73 44
                DEC A                           ; 5585 3D
                CP &02                          ; 5586 FE 02
                JP NC,REP_INTEGER_OUT_OF_RANGE  ; 5588 D2 A7 43
@@ -10351,7 +10379,7 @@ L589F:
 ;; Preserves: BC (saved and restored)
 ;; Ends:      JR, RET
 ;;
-;; ? calls SET_DCT_COMPILE_BITS.
+;; ? calls SET_DCT_COMPILE_BITS, OPEN_ROOM_AT_DE.
 ;; --------------------------------------------------------------------
 
 ; ---- L58BF ---- from &5740
@@ -10383,7 +10411,7 @@ L58BF:
                JR NC,L58E3                     ; 58D9 30 08
                NEG                             ; 58DB ED 44
                LD C,A                          ; 58DD 4F
-               CALL L58F1                      ; 58DE CD F1 58
+               CALL OPEN_ROOM_AT_DE            ; 58DE CD F1 58
                JR L58EA                        ; 58E1 18 07
 
 ;; --------------------------------------------------------------------
@@ -10422,25 +10450,36 @@ L58EA:
                RET                             ; 58F0 C9
 
 ;; --------------------------------------------------------------------
-;; L58F1 -- &58F1 to &58F1
+;; OPEN_ROOM_AT_DE -- &58F1 to &58F1
 ;;
 ;; Takes:     DE, HL
 ;; Leaves:    DE, HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Open BC bytes at DE, through the ROM's MKRBIG -- "open A*16K + BC
+;;     bytes at HL" -- with A zeroed, so no whole pages.  EX DE,HL and fall
+;;     into OPEN_ROOM_AT_HL, which is the same for a caller that already has
+;;     the address in HL.
 ;; --------------------------------------------------------------------
 
-; ---- L58F1 ---- from &545D, &58DE
-L58F1:
+; ---- OPEN_ROOM_AT_DE ---- from &545D, &58DE
+OPEN_ROOM_AT_DE:
                EX DE,HL                        ; 58F1 EB
 
 ;; --------------------------------------------------------------------
-;; L58F2 -- &58F2 to &58F2
+;; OPEN_ROOM_AT_HL -- &58F2 to &58F2
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     The same, for a caller whose address is already in HL.
 ;; --------------------------------------------------------------------
 
-; ---- L58F2 ---- from &52C6
-L58F2:
+; ---- OPEN_ROOM_AT_HL ---- from &52C6
+OPEN_ROOM_AT_HL:
                XOR A                           ; 58F2 AF
 
 ;; --------------------------------------------------------------------
@@ -13585,7 +13624,7 @@ L6114:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      JR
 ;;
-;; ? tests for T_OFF; calls CALL_NEXTCHAR, AT_END_OF_STATEMENT, NRRD.
+;; ? tests for T_OFF; calls CALL_NEXTCHAR, INT_ARG_THEN_END, AT_END_OF_STATEMENT, NRRD.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -13613,7 +13652,7 @@ CMD_LINE:
                INC C                           ; 6125 0C
                CALL AT_END_OF_STATEMENT        ; 6126 CD BC 44
                JR Z,L6133                      ; 6129 28 08
-               CALL L4473                      ; 612B CD 73 44
+               CALL INT_ARG_THEN_END           ; 612B CD 73 44
                JR L6136                        ; 612E 18 06
 
 ;; --------------------------------------------------------------------
@@ -14787,7 +14826,7 @@ L63E0:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? tests for T_BOOT; calls BYTE_ARGUMENT, CALL_NEXTCHAR; falls into whatever follows rather than returning.
+;; ? tests for T_BOOT; calls BYTE_ARGUMENT, CALL_NEXTCHAR, CHAR_THEN_NUMBER_THEN_END; falls into whatever follows rather than returning.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -14816,7 +14855,7 @@ CMD_SAVE:
                CP T_BOOT                       ; 63E9 FE E9
                JR Z,SAVE_BOOT                  ; 63EB 28 17
                LD C,&AA                        ; 63ED 0E AA
-               CALL L44C5                      ; 63EF CD C5 44
+               CALL CHAR_THEN_NUMBER_THEN_END  ; 63EF CD C5 44
                CALL BYTE_ARGUMENT              ; 63F2 CD A1 43
                DEC A                           ; 63F5 3D
 
@@ -15323,7 +15362,7 @@ L6529:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls BYTE_ARGUMENT, EXPECT_COMMA, SKIP_THEN_NUMBER; falls into whatever follows rather than returning.
+;; ? calls BYTE_ARGUMENT, EXPECT_COMMA, INT_ARG_THEN_END, SKIP_THEN_NUMBER; falls into whatever follows rather than returning.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -15344,7 +15383,7 @@ L6529:
 HK_PIXELCELL:
                CALL SKIP_THEN_NUMBER           ; 6534 CD 82 44
                CALL EXPECT_COMMA               ; 6537 CD 50 44
-               CALL L4473                      ; 653A CD 73 44
+               CALL INT_ARG_THEN_END           ; 653A CD 73 44
                PUSH BC                         ; 653D C5
                CALL BYTE_ARGUMENT              ; 653E CD A1 43
                POP DE                          ; 6541 D1
@@ -16402,7 +16441,7 @@ CMD_DUMP:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      JR
 ;;
-;; ? calls BYTE_ARGUMENT, CALL_NEXTCHAR, CALL_EXPNUM, AT_END_OF_STATEMENT.
+;; ? calls BYTE_ARGUMENT, CALL_NEXTCHAR, INT_ARG_THEN_END, CALL_EXPNUM.
 ;; --------------------------------------------------------------------
 
 ; ---- L6806 ---- from &67FF
@@ -16411,7 +16450,7 @@ L6806:
                CALL AT_END_OF_STATEMENT        ; 6809 CD BC 44
                JR Z,L6821                      ; 680C 28 13
                CALL CALL_NEXTCHAR              ; 680E CD 61 44
-               CALL L4473                      ; 6811 CD 73 44
+               CALL INT_ARG_THEN_END           ; 6811 CD 73 44
                DEC A                           ; 6814 3D
                CP &03                          ; 6815 FE 03
                JP NC,REP_INTEGER_OUT_OF_RANGE  ; 6817 D2 A7 43
@@ -18272,11 +18311,11 @@ L6C8C:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      JP
 ;;
-;; ? calls SKIP_THEN_NUMBER, NRWR.
+;; ? calls SKIP_THEN_NUMBER, CHAR_THEN_NUMBER_THEN_END, NRWR.
 ;; --------------------------------------------------------------------
                CALL SKIP_THEN_NUMBER           ; 6C96 CD 82 44
                LD C,&8E                        ; 6C99 0E 8E
-               CALL L44C5                      ; 6C9B CD C5 44
+               CALL CHAR_THEN_NUMBER_THEN_END  ; 6C9B CD C5 44
                CALL L6DD8                      ; 6C9E CD D8 6D
                PUSH BC                         ; 6CA1 C5
                CALL L6DD8                      ; 6CA2 CD D8 6D
@@ -19886,7 +19925,7 @@ L7156:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? drives OUT (HMPR),A; calls CALL_NEXTCHAR; falls into whatever follows rather than returning.
+;; ? drives OUT (HMPR),A; calls CALL_NEXTCHAR, INT_ARG_THEN_END; falls into whatever follows rather than returning.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -19911,7 +19950,7 @@ L7156:
 
 HK_SWAPCHARS:
                CALL CALL_NEXTCHAR              ; 7159 CD 61 44
-               CALL L4473                      ; 715C CD 73 44
+               CALL INT_ARG_THEN_END           ; 715C CD 73 44
                CP &03                          ; 715F FE 03
                JP NC,REP_INTEGER_OUT_OF_RANGE  ; 7161 D2 A7 43
                DEC A                           ; 7164 3D

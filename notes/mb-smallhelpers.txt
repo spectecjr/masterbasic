@@ -76,3 +76,33 @@ MB &47E6 GET_STRING_PAGED
     page in A and an offset in DE, and if the page is not zero SET 6,D
     turns that offset into a section B address -- the same long-address
     convention LONGADDR_TO_PAGED and PAGED_TO_LONG work in.
+
+MB &4473 INT_ARG_THEN_END
+    A numeric argument that must end the statement, wanted as an integer:
+    NUMBER_THEN_END, then fall into CALL_GETINT.  Two instructions, five
+    callers.
+
+MB &44C5 CHAR_THEN_NUMBER_THEN_END
+    The character in C, then a number, then the end of the statement:
+    CHAR_MUST_BE_C, then fall into NUMBER_THEN_END.  The pair of them are
+    the two commonest argument shapes in the command set, written once
+    each.
+
+MB &4ADC MULTIPLY_BY_60
+    A:HL times sixty, with the original kept in BC.  Four doublings make
+    sixteen, subtracting BC once makes fifteen, and two more doublings
+    make sixty -- five shifts and a subtract against a multiply routine
+    and a constant.  The 24-bit form is what TICS needs: seconds in a
+    month reach 2678399.
+
+    L4AE0 and L4AE9 are entries part of the way down it, for callers that
+    have their own idea of what BC holds.
+
+MB &58F1 OPEN_ROOM_AT_DE
+    Open BC bytes at DE, through the ROM's MKRBIG -- "open A*16K + BC
+    bytes at HL" -- with A zeroed, so no whole pages.  EX DE,HL and fall
+    into OPEN_ROOM_AT_HL, which is the same for a caller that already has
+    the address in HL.
+
+MB &58F2 OPEN_ROOM_AT_HL
+    The same, for a caller whose address is already in HL.
