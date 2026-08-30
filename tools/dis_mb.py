@@ -858,6 +858,9 @@ def seeds(dos, mb):
     # this half has code of its own at both.
     mb.sys_low.append((0x4EFD, 0x4F00))
     mb.sys_low.append((0x4F06, 0x4F09))
+    # The builder's own operands: &4D71 is inside what it has just
+    # copied, in the ROM's system page, not this half's own &4D71.
+    mb.sys_low.append((0x737E, 0x7381))
     # The same again for the five commands HCMDV intercepts by name.
     # Each of them calls PAGE_IN_ROM1, which zeroes HMPR, so every &8xxx
     # and &9xxx operand in the group is an address in the ROM's system
@@ -2103,8 +2106,12 @@ RELOCATED = ((0x7986, 0x7990, 0x45A2),   # INSTALL_EXTENDED_PUT, five runs
              (0x7E43, 0x7E6B, 0x5896),   # INSTALL_SYSPAGE_CODE
              (0x7AF2, 0x7B00, 0x5BE0),
              (0x4F31, 0x4F7E, 0x4CD3),   # HCMDV builds these two into the
-             (0x4F0C, 0x4F31, 0x4D78))   # code buffer, with 88 bytes of
+             (0x4F0C, 0x4F31, 0x4D78),   # code buffer, with 88 bytes of
                                          # ROM 1 between them
+             # L735D copies &42 bytes of the ROM's DOCOMP to CDBUFF+&11
+             # and these 219 straight after them, so this block runs at
+             # &4D53: LD DE,&8D11, BC=&0042, then BC=&00DB from &7385.
+             (0x7385, 0x7460, 0x4D53))
 
 
 def note_relocated(d):

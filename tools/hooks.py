@@ -73,19 +73,27 @@ So this swaps one set of graphics characters for another and remembers
 which is in place.  Exchanging rather than copying is what lets it
 swap back with the same code.""",
 
-0x732A: """Hook code 157.  Prepare the ROM for a program that is about to change.
+0x732A: """Hook code 157.  Rebuild the compile pass for a program that has changed.
 
 Pages the ROM's system page in, clears bits 0 and 2 of the byte at
 &5BB6 -- which is DCT, though the label here reads DOS_PCN2 because
-&9BB6 is also an address in the other page -- and calls a helper with
-those bits down.  The old value is kept on the stack and its bit 0
-decides what happens next: either the ROM vector at &4D11 is pointed
-at EXPT1NUM, or a routine in the DOS page is called and its result,
-plus one, is written to PROG.
+&9BB6 is also an address in the other page -- and calls
+BUILD_COMPILER with those bits down, which assembles the replacement
+for the ROM's compile pass at CDBUFF+&11.  See notes/mb-compiler.txt.
 
-PROG is the ROM's start-of-program pointer, so the second path moves
-where BASIC thinks the program begins.  That is the strongest clue to
-what this is for, and it is still only a clue.""",
+The old value of the byte is kept on the stack, and if its bit 0 was
+clear the two bytes &18 &01 are written over the start of what was
+just built.  That is JR +1, laid over the CALL the ROM's routine
+begins with, so the copy jumps over the third byte of it and the
+ROM's CALL SCOMP never runs.
+
+Both paths then call into the DOS page and write its result, plus
+one, to PROG, the ROM's start-of-program pointer.
+
+An earlier reading of this had &4D11 as a ROM vector being pointed at
+EXPT1NUM, on the strength of &0118 being an address in the ROM's jump
+table.  It is not a vector: BUILD_COMPILER copies code there, and
+&0118 is two instruction bytes.""",
 0x53C3: """\
 Hook code 175.  Carry one bit of COMPFLG into DCT.
 

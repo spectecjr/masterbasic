@@ -3993,25 +3993,16 @@ L4D6D:
                IN A,(HMPR)                     ; 4D6D DB FB
                PUSH AF                         ; 4D6F F5
                PUSH HL                         ; 4D70 E5
-
-; ---- L4D71 ---- from &737E
-L4D71:
                CALL CALL_GETSTR                ; 4D71 CD 6D 44
                AND &1F                         ; 4D74 E6 1F
                PUSH DE                         ; 4D76 D5
                PUSH AF                         ; 4D77 F5
                PUSH BC                         ; 4D78 C5
                DEFB &CD,&6D                                                     ; 4D79 Mm  skipped: reads as CALL CALL_GETSTR from here, and as part of the instruction above it
-
-; ---- L4D7B ---- from &738C
-L4D7B:
                LD B,H                          ; 4D7B 44
                AND &1F                         ; 4D7C E6 1F
                POP HL                          ; 4D7E E1
                SBC HL,BC                       ; 4D7F ED 42
-
-; ---- L4D81 ---- from &7385
-L4D81:
                ADD HL,BC                       ; 4D81 09
                JR NC,L4D86                     ; 4D82 30 02
                LD B,H                          ; 4D84 44
@@ -4035,9 +4026,6 @@ L4D91:
                POP BC                          ; 4D94 C1
                POP HL                          ; 4D95 E1
                DEFB &18                                                         ; 4D96 .  skipped: reads as JR &4DAA from here, and as part of the instruction above it
-
-; ---- L4D97 ---- from &73C3
-L4D97:
                LD (DE),A                       ; 4D97 12
 
 ; ---- L4D98 ---- from &4DAC
@@ -4114,9 +4102,6 @@ FN_SHIFT_S:
                CALL NRWR                       ; 4DE0 CD 82 45
                DEFW PAGCOUNT                  ; 4DE3 83 5B
                IN A,(HMPR)                     ; 4DE5 DB FB
-
-; ---- L4DE7 ---- from &73B6
-L4DE7:
                LD C,A                          ; 4DE7 4F
                POP HL                          ; 4DE8 E1
                POP AF                          ; 4DE9 F1
@@ -5177,7 +5162,7 @@ L523F:
                LD (HL),E                       ; 524F 73
                INC HL                          ; 5250 23
                LD (HL),D                       ; 5251 72
-               CALL L735D                      ; 5252 CD 5D 73
+               CALL BUILD_COMPILER             ; 5252 CD 5D 73
                XOR A                           ; 5255 AF
                LD (DOS_L4D2D),A                ; 5256 32 2D 8D
                LD A,&24                        ; 5259 3E 24
@@ -7046,9 +7031,6 @@ L5A96:
                CP &7F                          ; 5A9B FE 7F
                LD A,E                          ; 5A9D 7B
                JR NZ,L5AA2                     ; 5A9E 20 02
-
-; ---- L5AA0 ---- from &7422
-L5AA0:
                ADD A,&10                       ; 5AA0 C6 10
 
 ; ---- L5AA2 ---- from &5A9E
@@ -7057,13 +7039,7 @@ L5AA2:
                JR NZ,L5AB3                     ; 5AA4 20 0D
                LD A,(DE)                       ; 5AA6 1A
                LD H,A                          ; 5AA7 67
-
-; ---- L5AA8 ---- from &739D
-L5AA8:
                INC E                           ; 5AA8 1C
-
-; ---- L5AA9 ---- from &7397
-L5AA9:
                LD A,(DE)                       ; 5AA9 1A
                LD E,&00                        ; 5AAA 1E 00
                LD D,H                          ; 5AAC 54
@@ -12701,19 +12677,27 @@ L7327:
                RET                             ; 7329 C9
 
 ;; --------------------------------------------------------------------
-;; Hook code 157.  Prepare the ROM for a program that is about to change.
+;; Hook code 157.  Rebuild the compile pass for a program that has changed.
 ;;
 ;; Pages the ROM's system page in, clears bits 0 and 2 of the byte at
 ;; &5BB6 -- which is DCT, though the label here reads DOS_PCN2 because
-;; &9BB6 is also an address in the other page -- and calls a helper with
-;; those bits down.  The old value is kept on the stack and its bit 0
-;; decides what happens next: either the ROM vector at &4D11 is pointed
-;; at EXPT1NUM, or a routine in the DOS page is called and its result,
-;; plus one, is written to PROG.
+;; &9BB6 is also an address in the other page -- and calls
+;; BUILD_COMPILER with those bits down, which assembles the replacement
+;; for the ROM's compile pass at CDBUFF+&11.  See notes/mb-compiler.txt.
 ;;
-;; PROG is the ROM's start-of-program pointer, so the second path moves
-;; where BASIC thinks the program begins.  That is the strongest clue to
-;; what this is for, and it is still only a clue.
+;; The old value of the byte is kept on the stack, and if its bit 0 was
+;; clear the two bytes &18 &01 are written over the start of what was
+;; just built.  That is JR +1, laid over the CALL the ROM's routine
+;; begins with, so the copy jumps over the third byte of it and the
+;; ROM's CALL SCOMP never runs.
+;;
+;; Both paths then call into the DOS page and write its result, plus
+;; one, to PROG, the ROM's start-of-program pointer.
+;;
+;; An earlier reading of this had &4D11 as a ROM vector being pointed at
+;; EXPT1NUM, on the strength of &0118 being an address in the ROM's jump
+;; table.  It is not a vector: BUILD_COMPILER copies code there, and
+;; &0118 is two instruction bytes.
 ;; --------------------------------------------------------------------
 
 HK_PROGPREP:
@@ -12726,7 +12710,7 @@ HK_PROGPREP:
                PUSH AF                         ; 7334 F5
                AND &FA                         ; 7335 E6 FA
                LD (HL),A                       ; 7337 77
-               CALL L735D                      ; 7338 CD 5D 73
+               CALL BUILD_COMPILER             ; 7338 CD 5D 73
                POP AF                          ; 733B F1
                RRA                             ; 733C 1F
                JR C,L7345                      ; 733D 38 06
@@ -12749,13 +12733,42 @@ L7345:
                OUT (HMPR),A                    ; 735A D3 FB
                RET                             ; 735C C9
 
-; ---- L735D ---- from &5252, &7338
-L735D:
+;; --------------------------------------------------------------------
+;; Build the replacement compile pass at CDBUFF+&11 in the ROM's system
+;; page.  Called from &5252 and from HK_PROGPREP at &7338.
+;;
+;; &42 bytes are copied from the ROM address the resolver found by
+;; signature and wrote into the LD HL at &735D -- &33DB in ROM 3.0,
+;; which ref/samrom/fn.asm calls DOCOMP -- and the 219 bytes of
+;; COMPILE_PASS follow them, so the copy runs from &4D11 to &4E2D.
+;;
+;; Three patches then retarget it, and each one can be read against the
+;; ROM source:
+;;
+;; &4D18 <- &A8   turns the copy's LD (KCURP),A into LD (PRPTRP),A
+;; &4D1E <- &A9   and its LD (KCUR),HL into LD (PRPTR),HL
+;; &4D4E <- &4D71, the word already there being kept at &4D75
+;;
+;; The ROM's COMPILE borrows KCUR and KCURP -- the editor's cursor
+;; position -- to hold CHAD across the pass.  The copy uses PRPTR and
+;; PRPTRP instead, "PROC POINTER" in the ROM's own variable table, and
+;; COMPILE_PASS reads them back at the end.  Keeping the cursor is the
+;; obvious reason; the code does not say so.
+;;
+;; On the path where bit 0 of the flag byte is clear, &733F writes &0118
+;; to &4D11 as well.  That is not a pointer: it is the two bytes 18 01,
+;; JR +1, laid over the CALL that starts the copy, so the copy begins by
+;; jumping over the third byte of it and the ROM's CALL SCOMP never
+;; runs.
+;; --------------------------------------------------------------------
+
+; ---- BUILD_COMPILER ---- from &5252, &7338
+BUILD_COMPILER:
                LD HL,&0000                     ; 735D 21 00 00  the operand is written here at run time, from &79D6
                LD DE,&8D11                     ; 7360 11 11 8D  CDBUFF+&11: 66 bytes from ROM &0000, then 219 from &7385
                LD BC,&0042                     ; 7363 01 42 00
                LDIR                            ; 7366 ED B0
-               LD HL,L7385                     ; 7368 21 85 73
+               LD HL,COMPILE_PASS              ; 7368 21 85 73
                LD C,&DB                        ; 736B 0E DB
                LDIR                            ; 736D ED B0
                LD A,&A8                        ; 736F 3E A8
@@ -12764,23 +12777,43 @@ L735D:
                LD (&8D1E),A                    ; 7375 32 1E 8D
                LD HL,(&8D4E)                   ; 7378 2A 4E 8D
                LD (&8D75),HL                   ; 737B 22 75 8D
-               LD HL,L4D71                     ; 737E 21 71 4D
+               LD HL,&4D71                     ; 737E 21 71 4D
                LD (&8D4E),HL                   ; 7381 22 4E 8D
                RET                             ; 7384 C9
 
-; ---- L7385 ---- from &7368
-L7385:
-               CALL L4D81                      ; 7385 CD 81 4D
+;; --------------------------------------------------------------------
+;; The 219 bytes that go to &4D53, immediately after the copy.  They are
+;; a rewrite of the ROM's own LABSD, and the correspondence is
+;; instruction for instruction:
+;;
+;; ROM                          here
+;; CALL COMALL                  CALL &4D81   = COMPILE_ALL
+;; XOR A / LD (COMPFLG),A       the same
+;; CALL ELCOMAL                 CALL &4D7B   = COMPILE_ELINE
+;; POP AF / LD (CLAPG),A        the same
+;; POP HL / LD (CLA),HL         the same
+;; LD HL,(KCUR)                 LD HL,(PRPTR)
+;; LD (CHAD),HL                 the same
+;; LD A,(KCURP)                 LD A,(PRPTRP)
+;; JP SETCHADP                  the same
+;;
+;; The two variables swapped here are the two the patches above swapped
+;; at the other end, which is what makes the reading of both certain.
+;; --------------------------------------------------------------------
+
+; ---- COMPILE_PASS ---- from &7368
+COMPILE_PASS:
+               CALL &4D81                      ; 7385 CD 81 4D  from here to &745F this code is written for &4D53: subtract &2632 from any address in it
                XOR A                           ; 7388 AF
                LD (COMPFLG),A                  ; 7389 32 40 5B
-               CALL L4D7B                      ; 738C CD 7B 4D
+               CALL &4D7B                      ; 738C CD 7B 4D  &4D7B once this block is moved, not the label shown
                POP AF                          ; 738F F1
                LD (CLAPG),A                    ; 7390 32 AE 5A
                POP HL                          ; 7393 E1
                LD (CLA),HL                     ; 7394 22 AF 5A
-               LD HL,(L5AA9)                   ; 7397 2A A9 5A
+               LD HL,(PRPTR)                   ; 7397 2A A9 5A
                LD (CHAD),HL                    ; 739A 22 97 5A
-               LD A,(L5AA8)                    ; 739D 3A A8 5A
+               LD A,(PRPTRP)                   ; 739D 3A A8 5A
                JP SETCHADP                     ; 73A0 C3 CE 3F
                IN A,(HMPR)                     ; 73A3 DB FB
                PUSH AF                         ; 73A5 F5
@@ -12788,13 +12821,41 @@ L7385:
                POP AF                          ; 73A9 F1
                OUT (HMPR),A                    ; 73AA D3 FB
                RET                             ; 73AC C9
+
+;; --------------------------------------------------------------------
+;; What the ROM calls ELCOMAL, at &4D7B once moved.  Six bytes: read
+;; REFFLG, CP &01, CCF -- so carry comes out clear only when REFFLG is
+;; zero, which the ROM's variable table glosses as "Z IF REF VAR BEING
+;; WORKED ON" -- and fall into COMPILE_ALL, where the carry decides
+;; whether the DEF FN table is rebuilt.
+;; --------------------------------------------------------------------
+
+COMPILE_ELINE:
                LD A,(REFFLG)                   ; 73AD 3A 76 5A
                CP &01                          ; 73B0 FE 01
                CCF                             ; 73B2 3F
 
-L73B3:
+;; --------------------------------------------------------------------
+;; What the ROM calls COMALL, at &4D81 once moved, and entered with
+;; carry set: the ROM's own source comments its CALL COMALL "(CY HERE)".
+;;
+;; CALL C,COMDF     compile the DEF FNs (the ROM's, by signature)
+;; CALL &4DE7       = BUILD_PROC_INDEX, below
+;; CALL COMLEN      how much program there is to search
+;; loop:
+;; LD D,&FD         PROC -- the ROM's LKCALL takes &FD for a PROC
+;; CALL LKCALL      find the next call to one
+;; RET C            none left
+;; CALL &4D97       = FIND_PROC_ENTRY, resolve it
+;; loop again
+;;
+;; So the program is walked once for calls, and each call is resolved
+;; against the index rather than by another search.
+;; --------------------------------------------------------------------
+
+COMPILE_ALL:
                CALL C,&0000                    ; 73B3 DC 00 00  the operand is written here at run time, from &79FD
-               CALL L4DE7                      ; 73B6 CD E7 4D
+               CALL &4DE7                      ; 73B6 CD E7 4D  &4DE7 once this block is moved, not the label shown
 
 L73B9:
                CALL &0000                      ; 73B9 CD 00 00  the operand is written here at run time, from &7A09
@@ -12807,9 +12868,26 @@ L73BE:
                CALL &0000                      ; 73BE CD 00 00  the operand is written here at run time, from &7A15
                RET C                           ; 73C1 D8
                PUSH BC                         ; 73C2 C5
-               CALL L4D97                      ; 73C3 CD 97 4D
+               CALL &4D97                      ; 73C3 CD 97 4D  &4D97 once this block is moved, not the label shown
                POP BC                          ; 73C6 C1
                JR L73BC                        ; 73C7 18 F3
+
+;; --------------------------------------------------------------------
+;; Resolve one PROC call, at &4D97 once moved.  It walks the table six
+;; bytes at a time from &E000, rejects an entry whose first character
+;; does not match the wanted one folded with AND UPPER, and for a
+;; survivor pages in the entry's own page and hands the ROM's MATCHER
+;; the address at +4 less one.  A mismatch goes round again; a zero byte
+;; ends the search.
+;;
+;; Either way it finishes at &740A, writing the page and the address
+;; into the three bytes after the pointer the ROM's LKCALL left -- whose
+;; documented exit is "HL POINTS TO LOCN FOR 'PAGE' IN CALLING BUFFER".
+;; A page of &FF is what the not-found path writes, and it gets there
+;; through the &21 skip at &7409.
+;; --------------------------------------------------------------------
+
+FIND_PROC_ENTRY:
                PUSH HL                         ; 73C9 E5
                IN A,(HMPR)                     ; 73CA DB FB
                PUSH AF                         ; 73CC F5
@@ -12878,11 +12956,31 @@ L740A:
                LD (HL),D                       ; 7416 72
                POP HL                          ; 7417 E1
                RET                             ; 7418 C9
+
+;; --------------------------------------------------------------------
+;; Build the index, at &4DE7 once moved.  It pages in PROGP, starts at
+;; PROG, and uses the ROM's LKFC with BC = &21CA: &21 is the
+;; skip-colons-and-spaces flag LKFC documents, and &CA is the DEF PROC
+;; token.  For each one found it writes six bytes:
+;;
+;; +0  the character after the token, AND &DF -- upper-cased
+;; +1  the page the program is in
+;; +2  BC from LKFC
+;; +4  DE from LKFC
+;;
+;; and a zero byte ends the table.  Where it puts it is the neat part:
+;; &E000 with HMPR set to FISCRNP, the page of screen 1.  Section D is
+;; then FISCRNP+1, so &E000 is &6000 into the screen's page pair --
+;; 24576 bytes in, which is exactly the size of a MODE 3 or 4 display.
+;; The index lives in the 8K above the screen data.
+;; --------------------------------------------------------------------
+
+BUILD_PROC_INDEX:
                LD HL,&E000                     ; 7419 21 00 E0
                PUSH HL                         ; 741C E5
                LD A,(PROGP)                    ; 741D 3A 9F 5A
                OUT (HMPR),A                    ; 7420 D3 FB
-               LD HL,(L5AA0)                   ; 7422 2A A0 5A
+               LD HL,(PROG)                    ; 7422 2A A0 5A
 
 ; ---- L7425 ---- from &7453
 L7425:
@@ -14166,7 +14264,7 @@ L799B:
                LD (&59C1),HL                   ; 79CA 22 C1 59
                CALL DOS_FIND_ROM_CODE          ; 79CD CD 79 BD
                DEFB &FF,&32,&46,&33,&00,&04   ; 79D0 signature FF 32 46 from &3300, +4  -> &33DB DOCOMP
-               LD (L735D+1),HL                 ; 79D6 22 5E 73  patches the operand of the LD at &735D
+               LD (BUILD_COMPILER+1),HL        ; 79D6 22 5E 73  patches the operand of the LD at &735D
                CALL DOS_FIND_ROM_CODE          ; 79D9 CD 79 BD
                DEFB &B0,&3E,&1F,&38,&00,&FD   ; 79DC signature B0 3E 1F from &3800, -3  -> &389E
                LD (L757E+1),HL                 ; 79E2 22 7F 75  patches the operand of the JP at &757E
@@ -14176,7 +14274,7 @@ L799B:
                LD (L7467+1),HL                 ; 79F1 22 68 74  patches the operand of the JP at &7467
                CALL DOS_FIND_ROM_CODE          ; 79F4 CD 79 BD
                DEFB &21,&00,&4F,&2F,&00,&00   ; 79F7 signature 21 00 4F from &2F00  -> &2FD2 COMDF
-               LD (L73B3+1),HL                 ; 79FD 22 B4 73  patches the operand of the CALL at &73B3
+               LD (COMPILE_ALL+1),HL           ; 79FD 22 B4 73  patches the operand of the CALL at &73B3
                CALL DOS_FIND_ROM_CODE          ; 7A00 CD 79 BD
                DEFB &3A,&40,&5B,&2F,&E0,&00   ; 7A03 signature 3A 40 5B from &2FE0  -> &3019 COMLEN
                LD (L73B9+1),HL                 ; 7A09 22 BA 73  patches the operand of the CALL at &73B9

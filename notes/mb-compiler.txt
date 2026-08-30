@@ -1,0 +1,122 @@
+# Why MasterBASIC's programs start faster.
+
+# The manual claims it under "Speed improvements":
+#
+#     "SAM BASIC keeps internal information on the locations of
+#     procedures and functions, and the values of LABELs.  This has to be
+#     updated after the program is edited, before it can be executed.  In
+#     long programs this can introduce an annoying delay before the
+#     program starts to do anything.  MasterBASIC does this updating
+#     rather faster, especially with long programs."
+#
+# This is how.  BUILD_COMPILER assembles a replacement for the ROM's
+# compile pass in the ROM's code buffer, out of 66 bytes of the ROM's own
+# routine and 219 of MasterBASIC's, and the replacement keeps an index of
+# every DEF PROC in the program instead of searching for each one.
+
+MB &735D BUILD_COMPILER
+    Build the replacement compile pass at CDBUFF+&11 in the ROM's system
+    page.  Called from &5252 and from HK_PROGPREP at &7338.
+
+    &42 bytes are copied from the ROM address the resolver found by
+    signature and wrote into the LD HL at &735D -- &33DB in ROM 3.0,
+    which ref/samrom/fn.asm calls DOCOMP -- and the 219 bytes of
+    COMPILE_PASS follow them, so the copy runs from &4D11 to &4E2D.
+
+    Three patches then retarget it, and each one can be read against the
+    ROM source:
+
+        &4D18 <- &A8   turns the copy's LD (KCURP),A into LD (PRPTRP),A
+        &4D1E <- &A9   and its LD (KCUR),HL into LD (PRPTR),HL
+        &4D4E <- &4D71, the word already there being kept at &4D75
+
+    The ROM's COMPILE borrows KCUR and KCURP -- the editor's cursor
+    position -- to hold CHAD across the pass.  The copy uses PRPTR and
+    PRPTRP instead, "PROC POINTER" in the ROM's own variable table, and
+    COMPILE_PASS reads them back at the end.  Keeping the cursor is the
+    obvious reason; the code does not say so.
+
+    On the path where bit 0 of the flag byte is clear, &733F writes &0118
+    to &4D11 as well.  That is not a pointer: it is the two bytes 18 01,
+    JR +1, laid over the CALL that starts the copy, so the copy begins by
+    jumping over the third byte of it and the ROM's CALL SCOMP never
+    runs.
+
+MB &7385 COMPILE_PASS
+    The 219 bytes that go to &4D53, immediately after the copy.  They are
+    a rewrite of the ROM's own LABSD, and the correspondence is
+    instruction for instruction:
+
+        ROM                          here
+        CALL COMALL                  CALL &4D81   = COMPILE_ALL
+        XOR A / LD (COMPFLG),A       the same
+        CALL ELCOMAL                 CALL &4D7B   = COMPILE_ELINE
+        POP AF / LD (CLAPG),A        the same
+        POP HL / LD (CLA),HL         the same
+        LD HL,(KCUR)                 LD HL,(PRPTR)
+        LD (CHAD),HL                 the same
+        LD A,(KCURP)                 LD A,(PRPTRP)
+        JP SETCHADP                  the same
+
+    The two variables swapped here are the two the patches above swapped
+    at the other end, which is what makes the reading of both certain.
+
+MB &73AD COMPILE_ELINE
+    What the ROM calls ELCOMAL, at &4D7B once moved.  Six bytes: read
+    REFFLG, CP &01, CCF -- so carry comes out clear only when REFFLG is
+    zero, which the ROM's variable table glosses as "Z IF REF VAR BEING
+    WORKED ON" -- and fall into COMPILE_ALL, where the carry decides
+    whether the DEF FN table is rebuilt.
+
+MB &73B3 COMPILE_ALL
+    What the ROM calls COMALL, at &4D81 once moved, and entered with
+    carry set: the ROM's own source comments its CALL COMALL "(CY HERE)".
+
+        CALL C,COMDF     compile the DEF FNs (the ROM's, by signature)
+        CALL &4DE7       = BUILD_PROC_INDEX, below
+        CALL COMLEN      how much program there is to search
+    loop:
+        LD D,&FD         PROC -- the ROM's LKCALL takes &FD for a PROC
+        CALL LKCALL      find the next call to one
+        RET C            none left
+        CALL &4D97       = FIND_PROC_ENTRY, resolve it
+        loop again
+
+    So the program is walked once for calls, and each call is resolved
+    against the index rather than by another search.
+
+MB &7419 BUILD_PROC_INDEX
+    Build the index, at &4DE7 once moved.  It pages in PROGP, starts at
+    PROG, and uses the ROM's LKFC with BC = &21CA: &21 is the
+    skip-colons-and-spaces flag LKFC documents, and &CA is the DEF PROC
+    token.  For each one found it writes six bytes:
+
+        +0  the character after the token, AND &DF -- upper-cased
+        +1  the page the program is in
+        +2  BC from LKFC
+        +4  DE from LKFC
+
+    and a zero byte ends the table.  Where it puts it is the neat part:
+    &E000 with HMPR set to FISCRNP, the page of screen 1.  Section D is
+    then FISCRNP+1, so &E000 is &6000 into the screen's page pair --
+    24576 bytes in, which is exactly the size of a MODE 3 or 4 display.
+    The index lives in the 8K above the screen data.
+
+MB &73C9 FIND_PROC_ENTRY
+    Resolve one PROC call, at &4D97 once moved.  It walks the table six
+    bytes at a time from &E000, rejects an entry whose first character
+    does not match the wanted one folded with AND UPPER, and for a
+    survivor pages in the entry's own page and hands the ROM's MATCHER
+    the address at +4 less one.  A mismatch goes round again; a zero byte
+    ends the search.
+
+    Either way it finishes at &740A, writing the page and the address
+    into the three bytes after the pointer the ROM's LKCALL left -- whose
+    documented exit is "HL POINTS TO LOCN FOR 'PAGE' IN CALLING BUFFER".
+    A page of &FF is what the not-found path writes, and it gets there
+    through the &21 skip at &7409.
+
+# Two of these routines have no reference anywhere in the listing, and
+# that is the point: nothing here calls them, because nothing here runs
+# them.  They are reached from &4D53 and up, in the ROM's system page,
+# through the copy BUILD_COMPILER makes.
