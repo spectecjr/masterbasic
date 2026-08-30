@@ -59,7 +59,7 @@ DOC GAP_BLOCK
 
     In the dump it reads as RST &08 with hook &AA, then a jump to POSTFF
     at &3DAD -- an address filled in by a signature search -- and further
-    on a write to PAGE_IN_ROM1 and a jump to INSTBUF at &4F00.  So it is
+    on a write to &5C59 and a jump to INSTBUF at &4F00.  So it is
     glue for reaching ROM 1, living where the ROM will never look.
 
 # A fourth installed block, and where it comes from.

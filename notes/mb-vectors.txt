@@ -65,7 +65,10 @@ DOC INSTALL_ROM_VECTORS
     code -- the ROM's table puts BSTACK at &4AFF, which is inside the
     second stub.  It had to move.
 
-    PAGE_IN_ROM1 is set to &7FE6, the same value the stub at &7BE5 writes.
+    &5C59 is set to &7FE6, the same value the stub at &7BE5 writes.
+    It was written here as PAGE_IN_ROM1, which is this half's own
+    routine at &5C59 and nothing to do with it: the ROM's variable
+    list marks &5C59-&5C60 "8 SPARE", and MasterBASIC uses them.
 
 MB &76E7 : &4BB0 in the system page -- inside the 36 bytes put at &4BA0
 MB &76FC : CMDV gets &488E, inside the second stub

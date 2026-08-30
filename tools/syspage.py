@@ -64,7 +64,7 @@ VECTORS = (
     (0x4BBA, 'EVALUV_EVAL_FN'),       # ABOVLETS, evaluating a function
     # Not a vector: DISPATCH_ON_COMMAND_TOKEN jumps here for PUT, and the
     # dump shows ten bytes of MasterBASIC's &7986 -- RST NEXT_CHAR, SUB
-    # &AB, LD (FN_LOCN),A -- turning a token into a function index.  It is
+    # &AB, LD (&4AF0),A -- turning a token into a function index.  It is
     # the first of the five runs INSTALL_EXTENDED_PUT lays down, so this
     # is where MasterBASIC's rebuilt PUT begins.
     (0x45A2, 'TOKEN_TO_FN_INDEX'),

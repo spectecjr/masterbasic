@@ -306,6 +306,25 @@ T_REF:         EQU  &CE    ; the BASIC keyword REF
 T_TO:          EQU  &8E    ; the BASIC keyword TO
 UPPER:         EQU  &DF    ; clearing bit 5 folds a letter to upper case
 
+; Numbers named in notes/, each for one instruction where
+; the same value means something else elsewhere.
+SYS_CDBUFF_11: EQU  &4D11
+SYS_CHAR_HEIGHT: EQU  &4AEF
+SYS_CHAR_OUT:  EQU  &49E4
+SYS_CMDV_COMMAND: EQU  &488E
+SYS_EDITV_EDITOR: EQU  &4866
+SYS_EVALUV_EVAL_FN: EQU  &4BBA
+SYS_FN_INDEX:  EQU  &4AF0
+SYS_FRAMIV_FRAME_INT: EQU  &4986
+SYS_GAP_BLOCK: EQU  &5896
+SYS_INSLV_STRING_MOVE: EQU  &46CC
+SYS_PAGER:     EQU  &5BE0
+SYS_PATOUT_CHAR_OUT: EQU  &49A9
+SYS_PRTOKV_PRINT_TOKEN: EQU  &4BB0
+SYS_RST8V_ERROR: EQU  &4AB8
+SYS_SPARE8:    EQU  &5C59
+SYS_TOKEN_TO_FN_INDEX: EQU  &45A2
+
 ; The byte after RST &08: a DOS error, or a hook code, which is
 ; 128 plus the index of an entry in the DOS hook table at &44A6.
 ERR_OUT_OF_MEMORY: EQU  &01
@@ -1897,18 +1916,18 @@ L4516:
                OUT (LMPR),A                    ; 451D D3 FA
                LD SP,HL                        ; 451F F9
                EI                              ; 4520 FB
-               LD HL,(PAGE_IN_ROM1)            ; 4521 2A 59 5C
-               LD (PAGE_IN_ROM1),IY            ; 4524 FD 22 59 5C
+               LD HL,(SYS_SPARE8)              ; 4521 2A 59 5C
+               LD (SYS_SPARE8),IY              ; 4524 FD 22 59 5C
                PUSH IY                         ; 4528 FD E5
                PUSH BC                         ; 452A C5
                PUSH HL                         ; 452B E5
-               LD HL,L58A4                     ; 452C 21 A4 58
+               LD HL,SYS_GAP_BLOCK+&0E         ; 452C 21 A4 58
                PUSH HL                         ; 452F E5
                PUSH DE                         ; 4530 D5
 
 L4531:
                LD A,&00                        ; 4531 3E 00  the operand is written here at run time, from &4502
-               JP L589F                        ; 4533 C3 9F 58
+               JP SYS_GAP_BLOCK+&09            ; 4533 C3 9F 58
 
 ; ---- L4536 ---- from &44FB
 L4536:
@@ -2120,9 +2139,6 @@ L4598:
 L459C:
                LD HL,DCT                       ; 459C 21 B6 5B
                CALL RDA                        ; 459F CD D1 45
-
-; ---- L45A2 ---- from &7C57
-L45A2:
                OR &05                          ; 45A2 F6 05
 
 ;; --------------------------------------------------------------------
@@ -2385,9 +2401,6 @@ L465C:
                LD B,E                          ; 4660 43
                LD HL,(V409A)                   ; 4661 2A 9A 40
                DEFB &ED,&5B,&9E                                                 ; 4664 m[.  skipped: reads as LD DE,(&409E) from here, and as part of the instruction above it
-
-; ---- L4667 ---- from &797C
-L4667:
                LD B,B                          ; 4667 40
                AND A                           ; 4668 A7
                SBC HL,DE                       ; 4669 ED 52
@@ -2430,9 +2443,6 @@ L4680:
                CALL NZ,INCURPAGE               ; 4699 C4 F2 3F
                POP DE                          ; 469C D1
                POP BC                          ; 469D C1
-
-; ---- L469E ---- from &7896
-L469E:
                DEC C                           ; 469E 0D
                JR NZ,L463B                     ; 469F 20 9A
                DJNZ L463B                      ; 46A1 10 98
@@ -2524,9 +2534,6 @@ L46DA:
                JR C,L46D4                      ; 46DE 38 F4
                JR NZ,L46CE                     ; 46E0 20 EC
                DEFB &CD                                                         ; 46E2 M  skipped: reads as CALL &4725 from here, and as part of the instruction above it
-
-; ---- L46E3 ---- from &7546
-L46E3:
                DEC H                           ; 46E3 25
                LD B,A                          ; 46E4 47
                JR C,L46D1                      ; 46E5 38 EA
@@ -2565,9 +2572,6 @@ L46FE:
                DEC C                           ; 46FE 0D
                JR Z,L46BA                      ; 46FF 28 B9
                CP (HL)                         ; 4701 BE
-
-; ---- L4702 ---- from &748E
-L4702:
                JR Z,L4708                      ; 4702 28 04
                JR NC,L46FB                     ; 4704 30 F5
                JR L46F7                        ; 4706 18 EF
@@ -2591,9 +2595,6 @@ L4717:
                LD (V409A),HL                   ; 471C 22 9A 40
                IN A,(HMPR)                     ; 471F DB FB
                LD (V409C),A                    ; 4721 32 9C 40
-
-; ---- L4724 ---- from &74B2
-L4724:
                RET                             ; 4724 C9
 
 ; ---- L4725 ---- from &46B3, &4708
@@ -2650,9 +2651,6 @@ L4759:
                JP NZ,REP_NOT_UNDERSTOOD        ; 475D C2 B0 43
                EX AF,AF'                       ; 4760 08
                IN A,(HMPR)                     ; 4761 DB FB
-
-; ---- L4763 ---- from &74DC
-L4763:
                PUSH AF                         ; 4763 F5
                EX AF,AF'                       ; 4764 08
                OUT (HMPR),A                    ; 4765 D3 FB
@@ -2662,9 +2660,6 @@ L4763:
                CALL STACK_EMPTY_STRING_OR_SLICE ; 476C CD C3 47
                LD A,B                          ; 476F 78
                CP &40                          ; 4770 FE 40
-
-; ---- L4772 ---- from &75C8
-L4772:
                JP NC,REP_STRING_TOO_LONG       ; 4772 D2 B9 43
                PUSH HL                         ; 4775 E5
                PUSH BC                         ; 4776 C5
@@ -2680,9 +2675,6 @@ L4784:
                LD A,C                          ; 4784 79
                LD (V409D),A                    ; 4785 32 9D 40
                CALL L47EE                      ; 4788 CD EE 47
-
-; ---- L478B ---- from &7497
-L478B:
                LD (V40A0),BC                   ; 478B ED 43 A0 40
                EX DE,HL                        ; 478F EB
                POP DE                          ; 4790 D1
@@ -2703,9 +2695,6 @@ L478B:
                CP &A5                          ; 47B1 FE A5
                RET Z                           ; 47B3 C8
                DEFB &DD                                                         ; 47B4 ]  skipped: reads as LD IX,&46A4 from here, and as part of the instruction above it
-
-; ---- L47B5 ---- from &7542
-L47B5:
                LD HL,L46A4                     ; 47B5 21 A4 46
                LD A,(&4745)                    ; 47B8 3A 45 47
                CP &02                          ; 47BB FE 02
@@ -2766,9 +2755,6 @@ L47E6:
                AND A                           ; 47E9 A7
                RET Z                           ; 47EA C8
                SET 6,D                         ; 47EB CB F2
-
-; ---- L47ED ---- from &7574
-L47ED:
                RET                             ; 47ED C9
 
 ; ---- L47EE ---- from &4788
@@ -2847,9 +2833,6 @@ L4824:
 ; ---- L482C ---- from &4828
 L482C:
                POP DE                          ; 482C D1
-
-; ---- L482D ---- from &7483
-L482D:
                POP HL                          ; 482D E1
                LD B,&00                        ; 482E 06 00
                JR C,L4814                      ; 4830 38 E2
@@ -2865,9 +2848,6 @@ L4834:
 ; ---- L4839 ---- from &4841
 L4839:
                LD A,(DE)                       ; 4839 1A
-
-; ---- L483A ---- from &7472
-L483A:
                EX AF,AF'                       ; 483A 08
                LD A,(HL)                       ; 483B 7E
                LD (DE),A                       ; 483C 12
@@ -2876,9 +2856,6 @@ L483A:
                INC HL                          ; 483F 23
                INC DE                          ; 4840 13
                DJNZ L4839                      ; 4841 10 F6
-
-; ---- L4843 ---- from &74E8
-L4843:
                POP DE                          ; 4843 D1
                DEC DE                          ; 4844 1B
                LD A,D                          ; 4845 7A
@@ -3223,9 +3200,6 @@ L49E0:
 ; ---- V49ED ---- from &4955
 V49ED:
                DEFB &CD                                                         ; 49ED M  skipped: reads as CALL &49F1 from here, and as part of the instruction above it
-
-; ---- L49EE ---- from &7D33
-L49EE:
                POP AF                          ; 49EE F1
                LD C,C                          ; 49EF 49
                DEC HL                          ; 49F0 2B
@@ -3270,9 +3244,6 @@ L4A0D:
                LD DE,(V4096)                   ; 4A11 ED 5B 96 40
                SET 7,D                         ; 4A15 CB FA
                DEFB &CB                                                         ; 4A17 K
-
-; ---- L4A18 ---- from &7D9B
-L4A18:
                OR D                            ; 4A18 B2
                LD HL,&0009                     ; 4A19 21 09 00
                ADD HL,DE                       ; 4A1C 19
@@ -3396,7 +3367,7 @@ L4A7F:
                PUSH AF                         ; 4A82 F5
                DEFB &CD                                                         ; 4A83 M  skipped: reads as CALL &4978 from here, and as part of the instruction above it
 
-; ---- L4A84 ---- from &4F3E, &7DF0
+; ---- L4A84 ---- from &4F3E
 L4A84:
                LD A,B                          ; 4A84 78
                LD C,C                          ; 4A85 49
@@ -3483,16 +3454,10 @@ L4AE9:
                ADD HL,HL                       ; 4AEB 29
                ADC A,A                         ; 4AEC 8F
 
-; ---- L4AED ---- from &7686, &7D0E, &7D15, &7D1C
+; ---- L4AED ---- from &7686
 L4AED:
                ADD HL,HL                       ; 4AED 29
-
-; ---- L4AEE ---- from &7D29, &7D77, &7E18, &7E28
-L4AEE:
                ADC A,A                         ; 4AEE 8F
-
-; ---- L4AEF ---- from &7D3B
-L4AEF:
                RET                             ; 4AEF C9
 
 ;; --------------------------------------------------------------------
@@ -3507,7 +3472,6 @@ L4AEF:
 ;; Manual: "LOCN function - searching memory".
 ;; --------------------------------------------------------------------
 
-; ---- FN_LOCN ---- from &789F, &78B8, &7943, &798A
 FN_LOCN:
                CALL EXPECT_NEXT_LPAREN_AND_NUMBER ; 4AF0 CD 4A 44
 
@@ -3641,9 +3605,6 @@ L4B85:
 ; ---- L4B9C ---- from &4B36, &4B3A
 L4B9C:
                AND PAGEMASK                    ; 4B9C E6 1F
-
-; ---- L4B9E ---- from &7DFD
-L4B9E:
                OUT (HMPR),A                    ; 4B9E D3 FB
                LD A,B                          ; 4BA0 78
                CP &3F                          ; 4BA1 FE 3F
@@ -3967,9 +3928,6 @@ L4D0D:
                EX AF,AF'                       ; 4D0E 08
                DEC A                           ; 4D0F 3D
                DEFB &28                                                         ; 4D10 (  skipped: reads as JR Z,&4CCA from here, and as part of the instruction above it
-
-; ---- L4D11 ---- from &7C45
-L4D11:
                CP B                            ; 4D11 B8
                EX AF,AF'                       ; 4D12 08
                INC DE                          ; 4D13 13
@@ -4412,7 +4370,7 @@ HCMDV:
                LD (&8D7C),HL                   ; 4EFA 22 7C 8D
                LD HL,L4D7B                     ; 4EFD 21 7B 4D
 
-; ---- L4F00 ---- from &417F, &5DE1, &5DFA, &7E68
+; ---- L4F00 ---- from &417F, &5DE1, &5DFA
 L4F00:
                LD (&8D45),HL                   ; 4F00 22 45 8D
                POP AF                          ; 4F03 F1
@@ -4538,7 +4496,7 @@ L4F7E:
                DEFW JMODE                     ; 4FAC 5A 01
                LD BC,&0000                     ; 4FAE 01 00 00
                CALL NRWRD                      ; 4FB1 CD 77 45
-               DEFW L4AEE                     ; 4FB4 EE 4A
+               DEFW &4AEE                     ; 4FB4 EE 4A
                RET                             ; 4FB6 C9
 
 ;; --------------------------------------------------------------------
@@ -5687,7 +5645,7 @@ L54EA:
                CALL NRWRD                      ; 54EA CD 77 45
                DEFW ANYIV                     ; 54ED 70 5B
                CALL NRWRHL                     ; 54EF CD 75 45
-               DEFW L5C5B                     ; 54F2 5B 5C
+               DEFW &5C5B                     ; 54F2 5B 5C
                POP AF                          ; 54F4 F1
                CALL NRWR                       ; 54F5 CD 82 45
                DEFW LINICOLS                  ; 54F8 00 56
@@ -5873,9 +5831,6 @@ L55FA:
                CALL L561B                      ; 55FB CD 1B 56
                POP HL                          ; 55FE E1
                POP AF                          ; 55FF F1
-
-; ---- L5600 ---- from &7CCB, &7CDD
-L5600:
                DI                              ; 5600 F3
                LD (V4085),A                    ; 5601 32 85 40
                INC HL                          ; 5604 23
@@ -6082,7 +6037,7 @@ L56DD:
                LD DE,&484D                     ; 56E7 11 4D 48
                CALL L589F                      ; 56EA CD 9F 58
                CALL NRWRD                      ; 56ED CD 77 45
-               DEFW L5A67                     ; 56F0 67 5A
+               DEFW &5A67                     ; 56F0 67 5A
                POP BC                          ; 56F2 C1
                CALL CMR                        ; 56F3 CD F0 44
 
@@ -6090,7 +6045,7 @@ L56DD:
 V56F6:
                DEFW &0000                     ; 56F6 00 00
                CALL NRRDD                      ; 56F8 CD 5F 45
-               DEFW L5A65                     ; 56FB 65 5A
+               DEFW &5A65                     ; 56FB 65 5A
                INC BC                          ; 56FD 03
                CALL NRWRD                      ; 56FE CD 77 45
                DEFW KCUR                      ; 5701 9A 5A
@@ -6441,17 +6396,14 @@ L5896:
 ; ---- L5898 ---- from &5703
 L5898:
                CALL NRRDD                      ; 5898 CD 5F 45
-               DEFW L5A67                     ; 589B 67 5A
+               DEFW &5A67                     ; 589B 67 5A
                LD D,B                          ; 589D 50
                LD E,C                          ; 589E 59
 
-; ---- L589F ---- from &4533, &56EA
+; ---- L589F ---- from &56EA
 L589F:
                CALL NRRDD                      ; 589F CD 5F 45
                DEFW CHANS                     ; 58A2 4F 5C
-
-; ---- L58A4 ---- from &452C
-L58A4:
                LD HL,&000A                     ; 58A4 21 0A 00
                ADD HL,BC                       ; 58A7 09
                CALL CMR                        ; 58A8 CD F0 44
@@ -6944,7 +6896,7 @@ L5A39:
                LD B,A                          ; 5A3E 47
                LD A,C                          ; 5A3F 79
 
-; ---- L5A40 ---- from &6B62, &6B83, &6BDF, &6C0E, &7E2B
+; ---- L5A40 ---- from &6B62, &6B83, &6BDF, &6C0E
 L5A40:
                OUT (LMPR),A                    ; 5A40 D3 FA
 
@@ -6967,7 +6919,6 @@ L5A48:
                LD A,C                          ; 5A51 79
                OUT (LMPR),A                    ; 5A52 D3 FA
 
-; ---- L5A54 ---- from &78C6, &78FD
 L5A54:
                LD A,D                          ; 5A54 7A
                CALL SEND_BYTE_TO_PRINTER+&4000 ; 5A55 CD 37 81
@@ -6981,14 +6932,8 @@ L5A54:
 L5A60:
                CALL CHECK_PRINTER_READY+&4000  ; 5A60 CD 2B 83
                JR NC,L5A0B                     ; 5A63 30 A6
-
-; ---- L5A65 ---- from &7BB9
-L5A65:
                DEC HL                          ; 5A65 2B
                LD A,H                          ; 5A66 7C
-
-; ---- L5A67 ---- from &7BA4
-L5A67:
                OR L                            ; 5A67 B5
                JR NZ,L5A60                     ; 5A68 20 F6
 
@@ -7006,9 +6951,6 @@ L5A6B:
                RET NZ                          ; 5A74 C0
                IN A,(LMPR)                     ; 5A75 DB FA
                LD C,A                          ; 5A77 4F
-
-; ---- L5A78 ---- from &788F
-L5A78:
                LD A,(&807E)                    ; 5A78 3A 7E 80
                DEC A                           ; 5A7B 3D
                OUT (LMPR),A                    ; 5A7C D3 FA
@@ -7018,7 +6960,7 @@ L5A78:
 L5A82:
                LD HL,(&8082)                   ; 5A82 2A 82 80
 
-; ---- L5A85 ---- from &4F4B, &4F6F, &7C0A
+; ---- L5A85 ---- from &4F4B, &4F6F
 L5A85:
                AND A                           ; 5A85 A7
                SBC HL,DE                       ; 5A86 ED 52
@@ -7028,29 +6970,23 @@ L5A85:
                LD H,A                          ; 5A8D 67
                LD A,(DOS_L4081)                ; 5A8E 3A 81 80
                CP H                            ; 5A91 BC
-
-; ---- L5A92 ---- from &7BF7
-L5A92:
                JR Z,L5ABE                      ; 5A92 28 2A
 
-; ---- L5A94 ---- from &5A88, &7C02
+; ---- L5A94 ---- from &5A88
 L5A94:
                LD A,D                          ; 5A94 7A
                INC A                           ; 5A95 3C
 
-; ---- L5A96 ---- from &5DB1, &7C16
+; ---- L5A96 ---- from &5DB1
 L5A96:
                AND &03                         ; 5A96 E6 03
                JR NZ,L5AB3                     ; 5A98 20 19
-
-; ---- L5A9A ---- from &7BB5
-L5A9A:
                LD A,D                          ; 5A9A 7A
                CP &7F                          ; 5A9B FE 7F
                LD A,E                          ; 5A9D 7B
                JR NZ,L5AA2                     ; 5A9E 20 02
 
-; ---- L5AA0 ---- from &7422, &7C3B, &7C4D, &7DE5
+; ---- L5AA0 ---- from &7422
 L5AA0:
                ADD A,&10                       ; 5AA0 C6 10
 
@@ -7078,13 +7014,7 @@ L5AA9:
 L5AB3:
                LD A,(DE)                       ; 5AB3 1A
                INC DE                          ; 5AB4 13
-
-; ---- L5AB5 ---- from &7D97
-L5AB5:
                CP CH_SPACE                     ; 5AB5 FE 20
-
-; ---- L5AB7 ---- from &7D00
-L5AB7:
                JR NZ,L5AC6                     ; 5AB7 20 0D
                LD A,(DE)                       ; 5AB9 1A
 
@@ -7106,9 +7036,7 @@ L5AC6:
                OUT (C),A                       ; 5ACA ED 79
                DEC B                           ; 5ACC 05
                LD A,(DE)                       ; 5ACD 1A
-
-L5ACE:
-               OUT (C),A                       ; 5ACE ED 79  the port is written here at run time, from &7514
+               OUT (C),A                       ; 5ACE ED 79
                LD C,H                          ; 5AD0 4C
                INC DE                          ; 5AD1 13
                JR L5A82                        ; 5AD2 18 AE
@@ -7335,9 +7263,6 @@ L5BB7:
 ; ---- L5BBB ---- from &5BCE
 L5BBB:
                LD HL,(V4086)                   ; 5BBB 2A 86 40
-
-; ---- L5BBE ---- from &7D89
-L5BBE:
                AND A                           ; 5BBE A7
                SBC HL,DE                       ; 5BBF ED 52
                JR NZ,L5BD0                     ; 5BC1 20 0D
@@ -7380,9 +7305,6 @@ CMD_RECORD:
                CALL NEXT_CHAR_MUST_BE_C        ; 5BDA CD 5A 44
                SUB &89                         ; 5BDD D6 89
                PUSH AF                         ; 5BDF F5
-
-; ---- L5BE0 ---- from &7C31, &7D48
-L5BE0:
                CALL NRWR                       ; 5BE0 CD 82 45
                DEFW L4AF3                     ; 5BE3 F3 4A
                POP AF                          ; 5BE5 F1
@@ -7438,7 +7360,6 @@ L5C16:
                OUT (HMPR),A                    ; 5C37 D3 FB
                CALL CMR                        ; 5C39 CD F0 44
 
-; ---- V5C3C ---- from &7D91
 V5C3C:
                DEFW GTDT                      ; 5C3C 00 50
                RET                             ; 5C3E C9
@@ -7466,7 +7387,6 @@ L5C4F:
                INC HL                          ; 5C4F 23
                LD D,(HL)                       ; 5C50 56
 
-; ---- L5C51 ---- from &7D6F
 L5C51:
                LD B,&E7                        ; 5C51 06 E7
                POP HL                          ; 5C53 E1
@@ -7483,12 +7403,9 @@ L5C56:
 ;; "OR &40 -- BIT FOR ROM1=HI (ACTIVE)".
 ;; --------------------------------------------------------------------
 
-; ---- PAGE_IN_ROM1 ---- from &4521, &4524, &5C54, &5CE4, &7BE8, &7E54
+; ---- PAGE_IN_ROM1 ---- from &5C54, &5CE4
 PAGE_IN_ROM1:
                IN A,(LMPR)                     ; 5C59 DB FA
-
-; ---- L5C5B ---- from &7CE3
-L5C5B:
                OR &40                          ; 5C5B F6 40
                OUT (LMPR),A                    ; 5C5D D3 FA
                IN A,(HMPR)                     ; 5C5F DB FB
@@ -9314,7 +9231,7 @@ L6498:
                PUSH BC                         ; 6499 C5
                PUSH DE                         ; 649A D5
                PUSH HL                         ; 649B E5
-               CALL &49E4                      ; 649C CD E4 49  &49E4 in the ROM's system page, which picks ordinary or magnified output
+               CALL SYS_CHAR_OUT               ; 649C CD E4 49  &49E4 in the ROM's system page, which picks ordinary or magnified output
                POP HL                          ; 649F E1
                LD DE,&0008                     ; 64A0 11 08 00
                ADD HL,DE                       ; 64A3 19
@@ -9583,7 +9500,7 @@ L657E:
 ; ---- L657F ---- from &6573
 L657F:
                CALL NRWR                       ; 657F CD 82 45
-               DEFW L4AEE                     ; 6582 EE 4A
+               DEFW &4AEE                     ; 6582 EE 4A
                PUSH AF                         ; 6584 F5
                LD A,B                          ; 6585 78
                CALL NRWR                       ; 6586 CD 82 45
@@ -9602,7 +9519,7 @@ V6594:
                DEFW &5A37                     ; 659B 37 5A
                POP AF                          ; 659D F1
                CALL NRWR                       ; 659E CD 82 45
-               DEFW L4AEF                     ; 65A1 EF 4A
+               DEFW &4AEF                     ; 65A1 EF 4A
                CALL NRRD                       ; 65A3 CD 6A 45
                DEFW UWBOT                     ; 65A6 3B 5A
                LD C,A                          ; 65A8 4F
@@ -12902,7 +12819,7 @@ L746A:
                EX AF,AF'                       ; 746D 08
                LD HL,(TEMPW1)                  ; 746E 2A C8 5A
                EX DE,HL                        ; 7471 EB
-               CALL L483A                      ; 7472 CD 3A 48  &483A once this block is moved, not the label shown
+               CALL &483A                      ; 7472 CD 3A 48  &483A once this block is moved, not the label shown
                EX AF,AF'                       ; 7475 08
 
 ; ---- L7476 ---- from &746B
@@ -12917,20 +12834,20 @@ L7477:
                XOR H                           ; 747D AC
                AND PAGEMASK                    ; 747E E6 1F
                LD HL,(TEMPW1)                  ; 7480 2A C8 5A
-               JP Z,L482D                      ; 7483 CA 2D 48  &482D once this block is moved, not the label shown
+               JP Z,&482D                      ; 7483 CA 2D 48  &482D once this block is moved, not the label shown
                LD A,B                          ; 7486 78
                CP &20                          ; 7487 FE 20
                JR C,L7496                      ; 7489 38 0B
                SUB &1F                         ; 748B D6 1F
                LD B,A                          ; 748D 47
-               CALL L4702                      ; 748E CD 02 47  &4702 once this block is moved, not the label shown
+               CALL &4702                      ; 748E CD 02 47  &4702 once this block is moved, not the label shown
                LD BC,&1F00                     ; 7491 01 00 1F
                JR L7477                        ; 7494 18 E1
 
 ; ---- L7496 ---- from &7489
 L7496:
                EX AF,AF'                       ; 7496 08
-               JP C,L478B                      ; 7497 DA 8B 47  &478B once this block is moved, not the label shown
+               JP C,&478B                      ; 7497 DA 8B 47  &478B once this block is moved, not the label shown
                SBC HL,BC                       ; 749A ED 42
                EX AF,AF'                       ; 749C 08
                INC HL                          ; 749D 23
@@ -12948,7 +12865,7 @@ L7496:
                SBC HL,BC                       ; 74AE ED 42
                LD B,H                          ; 74B0 44
                LD C,L                          ; 74B1 4D
-               CALL L4724                      ; 74B2 CD 24 47  &4724 once this block is moved, not the label shown
+               CALL &4724                      ; 74B2 CD 24 47  &4724 once this block is moved, not the label shown
                POP BC                          ; 74B5 C1
                JR L7477                        ; 74B6 18 BF
 
@@ -12973,13 +12890,13 @@ L74B8:
 ; ---- L74DB ---- from &74D6
 L74DB:
                PUSH HL                         ; 74DB E5
-               LD (L4763),HL                   ; 74DC 22 63 47
+               LD (&4763),HL                   ; 74DC 22 63 47
                LD A,(TEMPB2)                   ; 74DF 3A CF 5A
                AND &1F                         ; 74E2 E6 1F
                LDIR                            ; 74E4 ED B0
                POP DE                          ; 74E6 D1
                PUSH DE                         ; 74E7 D5
-               LD HL,L4843                     ; 74E8 21 43 48
+               LD HL,&4843                     ; 74E8 21 43 48
                LD C,&0A                        ; 74EB 0E 0A
                LDIR                            ; 74ED ED B0
                POP DE                          ; 74EF D1
@@ -13001,7 +12918,7 @@ L74DB:
                JR NZ,L7519                     ; 750E 20 09
                LD A,(TEMPB2)                   ; 7510 3A CF 5A
                DEC A                           ; 7513 3D
-               LD (TEMPB2),A                   ; 7514 32 CF 5A  patches the port of the OUT at &5ACE
+               LD (TEMPB2),A                   ; 7514 32 CF 5A
                SET 6,H                         ; 7517 CB F4
 
 ; ---- L7519 ---- from &750E
@@ -13015,7 +12932,7 @@ L7519:
                RES 6,H                         ; 7524 CB B4
                LD A,(TEMPB2)                   ; 7526 3A CF 5A
                INC A                           ; 7529 3C
-               LD (TEMPB2),A                   ; 752A 32 CF 5A  patches the port of the OUT at &5ACE
+               LD (TEMPB2),A                   ; 752A 32 CF 5A
                LD (TEMPW1),HL                  ; 752D 22 C8 5A
 
 ; ---- L7530 ---- from &7522
@@ -13035,9 +12952,9 @@ L7530:
                SBC HL,BC                       ; 753E ED 42
                LD B,H                          ; 7540 44
                LD C,L                          ; 7541 4D
-               CALL L47B5                      ; 7542 CD B5 47  &47B5 once this block is moved, not the label shown
+               CALL &47B5                      ; 7542 CD B5 47  &47B5 once this block is moved, not the label shown
                POP BC                          ; 7545 C1
-               JP L46E3                        ; 7546 C3 E3 46  &46E3 once this block is moved, not the label shown
+               JP &46E3                        ; 7546 C3 E3 46  &46E3 once this block is moved, not the label shown
 
 ; ---- L7549 ---- from &7535
 L7549:
@@ -13060,7 +12977,7 @@ L7549:
                LD HL,DOS_HEADER                ; 756D 21 00 80
                AND &1F                         ; 7570 E6 1F
                LDIR                            ; 7572 ED B0
-               LD HL,L47ED                     ; 7574 21 ED 47
+               LD HL,&47ED                     ; 7574 21 ED 47
                LD (DOS_L400A),HL               ; 7577 22 0A 80
                EXX                             ; 757A D9
                LD SP,&8008                     ; 757B 31 08 80
@@ -13098,7 +13015,7 @@ L75AF:
                JR Z,L75B9                      ; 75B0 28 07
                LD A,(TEMPB2)                   ; 75B2 3A CF 5A
                INC A                           ; 75B5 3C
-               LD (TEMPB2),A                   ; 75B6 32 CF 5A  patches the port of the OUT at &5ACE
+               LD (TEMPB2),A                   ; 75B6 32 CF 5A
 
 ; ---- L75B9 ---- from &75B0
 L75B9:
@@ -13111,7 +13028,7 @@ L75B9:
                JR C,L75CB                      ; 75C3 38 06
                EX AF,AF'                       ; 75C5 08
                LDDR                            ; 75C6 ED B8
-               JP L4772                        ; 75C8 C3 72 47  &4772 once this block is moved, not the label shown
+               JP &4772                        ; 75C8 C3 72 47  &4772 once this block is moved, not the label shown
 
 ; ---- L75CB ---- from &75C3
 L75CB:
@@ -13331,7 +13248,10 @@ L76CD:
 ;; code -- the ROM's table puts BSTACK at &4AFF, which is inside the
 ;; second stub.  It had to move.
 ;;
-;; PAGE_IN_ROM1 is set to &7FE6, the same value the stub at &7BE5 writes.
+;; &5C59 is set to &7FE6, the same value the stub at &7BE5 writes.
+;; It was written here as PAGE_IN_ROM1, which is this half's own
+;; routine at &5C59 and nothing to do with it: the ROM's variable
+;; list marks &5C59-&5C60 "8 SPARE", and MasterBASIC uses them.
 ;;
 ;; What was here before:
 ;;
@@ -13344,17 +13264,17 @@ INSTALL_ROM_VECTORS:
                LD (&5A69),DE                   ; 76DD ED 53 69 5A
                CALL DOS_MBCOPY_778B            ; 76E1 CD AA BD
                CALL DOS_MBCOPY_7829            ; 76E4 CD 48 BE
-               LD HL,&4BB0                     ; 76E7 21 B0 4B  &4BB0 in the system page -- inside the 36 bytes put at &4BA0
+               LD HL,SYS_PRTOKV_PRINT_TOKEN    ; 76E7 21 B0 4B  &4BB0 in the system page -- inside the 36 bytes put at &4BA0
                LD (PRTOKV),HL                  ; 76EA 22 DE 5A
-               LD HL,&58B4                     ; 76ED 21 B4 58
+               LD HL,SYS_GAP_BLOCK+&1E         ; 76ED 21 B4 58
                LD (MTOKV),HL                   ; 76F0 22 FA 5A
-               LD HL,&4BBA                     ; 76F3 21 BA 4B
+               LD HL,SYS_EVALUV_EVAL_FN        ; 76F3 21 BA 4B
                LD (EVALUV),HL                  ; 76F6 22 F6 5A
-               LD HL,&488E                     ; 76F9 21 8E 48
+               LD HL,SYS_CMDV_COMMAND          ; 76F9 21 8E 48
                LD (CMDV),HL                    ; 76FC 22 F4 5A  CMDV gets &488E, inside the second stub
                CALL DOS_FIND_ROM_CODE          ; 76FF CD 79 BD
                DEFB &5B,&D6,&5B,&3D,&00,&FC   ; 7702 signature 5B D6 5B from &3D00, -4  -> &3DAD POSTFF
-               LD (&589C),HL                   ; 7708 22 9C 58
+               LD (SYS_GAP_BLOCK+&06),HL       ; 7708 22 9C 58
                LD A,(DOS_V42B6)                ; 770B 3A B6 82
                LD C,A                          ; 770E 4F
                LD B,&F0                        ; 770F 06 F0
@@ -13364,12 +13284,12 @@ INSTALL_ROM_VECTORS:
                LD A,&04                        ; 7717 3E 04
                OUT (C),A                       ; 7719 ED 79
                LD HL,&7FE6                     ; 771B 21 E6 7F
-               LD (&5C59),HL                   ; 771E 22 59 5C
-               LD HL,&4866                     ; 7721 21 66 48  &4866 likewise, inside the second stub
+               LD (SYS_SPARE8),HL              ; 771E 22 59 5C
+               LD HL,SYS_EDITV_EDITOR          ; 7721 21 66 48  &4866 likewise, inside the second stub
                LD (EDITV),HL                   ; 7724 22 EC 5A
-               LD HL,&4986                     ; 7727 21 86 49
+               LD HL,SYS_FRAMIV_FRAME_INT      ; 7727 21 86 49
                LD (FRAMIV),HL                  ; 772A 22 E2 5A
-               LD HL,&49A9                     ; 772D 21 A9 49
+               LD HL,SYS_PATOUT_CHAR_OUT       ; 772D 21 A9 49
                LD (PATOUT),HL                  ; 7730 22 D2 5B
                LD HL,&3A31                     ; 7733 21 31 3A
                LD (DOS_PTH1),HL                ; 7736 22 13 BF
@@ -13381,9 +13301,9 @@ INSTALL_ROM_VECTORS:
                LD (HL),&FF                     ; 7746 36 FF
                LD A,&01                        ; 7748 3E 01
                LD (DOS_DRIVE),A                ; 774A 32 0B BC
-               LD HL,&46CC                     ; 774D 21 CC 46  &46CC in the system page -- the string move stub, not this page's L46CC
+               LD HL,SYS_INSLV_STRING_MOVE     ; 774D 21 CC 46  &46CC in the system page -- the string move stub, not this page's L46CC
                LD (INSLV),HL                   ; 7750 22 BA 5B
-               LD HL,&4AB8                     ; 7753 21 B8 4A
+               LD HL,SYS_RST8V_ERROR           ; 7753 21 B8 4A
                LD (RST8V),HL                   ; 7756 22 EE 5A
                RET                             ; 7759 C9
 
@@ -13730,7 +13650,7 @@ INSTALL_EXTENDED_PUT:
 BUILD_PUT_BLOCK:
                PUSH DE                         ; 7841 D5
                LD HL,DOS_V7FA5                 ; 7842 21 A5 BF  ten bytes of this half's own code, from &7986
-               LD DE,&45A2                     ; 7845 11 A2 45
+               LD DE,SYS_TOKEN_TO_FN_INDEX     ; 7845 11 A2 45
                LD BC,&000A                     ; 7848 01 0A 00
                LDIR                            ; 784B ED B0
                POP HL                          ; 784D E1  the ROM's PUT itself, 13 bytes
@@ -13756,7 +13676,7 @@ BUILD_PUT_BLOCK:
                LD C,&0A                        ; 7874 0E 0A
                LDIR                            ; 7876 ED B0
                RET                             ; 7878 C9
-               CALL GETSTR                     ; 7879 CD 24 01
+               CALL GETSTR                     ; 7879 CD 24 01  from here to &788D this code is written for &45C6: subtract &32B3 from any address in it
                LD H,D                          ; 787C 62
                LD L,E                          ; 787D 6B
                ADD HL,BC                       ; 787E 09
@@ -13771,14 +13691,14 @@ L7889:
                PUSH HL                         ; 788B E5
                PUSH DE                         ; 788C D5
                PUSH AF                         ; 788D F5
-               PUSH BC                         ; 788E C5
-               LD A,(L5A78)                    ; 788F 3A 78 5A
+               PUSH BC                         ; 788E C5  from here to &797B this code is written for &45DE: subtract &32B0 from any address in it
+               LD A,(CUSCRNP)                  ; 788F 3A 78 5A
                AND PAGEMASK                    ; 7892 E6 1F
                OUT (HMPR),A                    ; 7894 D3 FB
-               LD HL,L469E                     ; 7896 21 9E 46
+               LD HL,&469E                     ; 7896 21 9E 46
                LD DE,&F000                     ; 7899 11 00 F0
                LD BC,&002E                     ; 789C 01 2E 00
-               LD A,(FN_LOCN)                  ; 789F 3A F0 4A
+               LD A,(SYS_FN_INDEX)             ; 789F 3A F0 4A
                AND A                           ; 78A2 A7
                JR Z,L78A7                      ; 78A3 28 02
                LD C,&1D                        ; 78A5 0E 1D
@@ -13798,7 +13718,7 @@ L78A7:
                PUSH AF                         ; 78B3 F5
                OUT (HMPR),A                    ; 78B4 D3 FB
                JR Z,L78C6                      ; 78B6 28 0E
-               LD A,(FN_LOCN)                  ; 78B8 3A F0 4A
+               LD A,(SYS_FN_INDEX)             ; 78B8 3A F0 4A
                AND A                           ; 78BB A7
                LD E,&32                        ; 78BC 1E 32
                JR NZ,L78D9                     ; 78BE 20 19
@@ -13807,7 +13727,7 @@ L78A7:
 
 ; ---- L78C6 ---- from &78B6
 L78C6:
-               LD DE,(L5A54)                   ; 78C6 ED 5B 54 5A
+               LD DE,(INVERT)                  ; 78C6 ED 5B 54 5A
                LD A,E                          ; 78CA 7B
                OR D                            ; 78CB B2
                LD A,&04                        ; 78CC 3E 04
@@ -13855,7 +13775,7 @@ L78E7:
                LD IX,&F009                     ; 78F7 DD 21 09 F0
                EXX                             ; 78FB D9
                LD E,A                          ; 78FC 5F
-               LD A,(L5A54)                    ; 78FD 3A 54 5A
+               LD A,(INVERT)                   ; 78FD 3A 54 5A
 
 ; ---- L7900 ---- from DOS &549B
 L7900:
@@ -13908,7 +13828,7 @@ L793E:
 L793F:
                LD (STKEND),HL                  ; 793F 22 65 5C
                POP HL                          ; 7942 E1
-               LD A,(FN_LOCN)                  ; 7943 3A F0 4A
+               LD A,(SYS_FN_INDEX)             ; 7943 3A F0 4A
                AND A                           ; 7946 A7
                JR NZ,L794B                     ; 7947 20 02
                RST ERR_HOOK                    ; 7949 CF
@@ -13959,17 +13879,17 @@ L796B:
                INC HL                          ; 7977 23
                DJNZ L796B                      ; 7978 10 F1
                JP (IX)                         ; 797A DD E9
-               CALL L4667                      ; 797C CD 67 46
+               CALL &4667                      ; 797C CD 67 46  from here to &7985 this code is written for &45B9: subtract &33C3 from any address in it
                EXX                             ; 797F D9
                PUSH DE                         ; 7980 D5
                EXX                             ; 7981 D9
                POP HL                          ; 7982 E1
                INC HL                          ; 7983 23
                JR L799B                        ; 7984 18 15
-               POP HL                          ; 7986 E1
+               POP HL                          ; 7986 E1  from here to &798F this code is written for &45A2: subtract &33E4 from any address in it
                RST NEXT_CHAR                   ; 7987 E7
                SUB &AB                         ; 7988 D6 AB
-               LD (FN_LOCN),A                  ; 798A 32 F0 4A
+               LD (SYS_FN_INDEX),A             ; 798A 32 F0 4A
                JR NZ,RESOLVE_ROM_ENTRIES       ; 798D 20 01
                RST NEXT_CHAR                   ; 798F E7
 
@@ -14195,7 +14115,7 @@ L7AE1:
 
 ; ---- MB_PAGER ---- from &7AB0
 MB_PAGER:
-               EX AF,AF'                       ; 7AF2 08
+               EX AF,AF'                       ; 7AF2 08  from here to &7AFF this code is written for &5BE0: subtract &1F12 from any address in it
                IN A,(HMPR)                     ; 7AF3 DB FB
                PUSH AF                         ; 7AF5 F5
                EX AF,AF'                       ; 7AF6 08
@@ -14316,7 +14236,7 @@ L7B03:
 
 ; ---- L7B80 ---- from &5561, &5739, &691C, &6A76, &7B3C
 L7B80:
-               LD B,B                          ; 7B80 40
+               LD B,B                          ; 7B80 40  from here to &7BA3 this code is written for &4BA0: subtract &2FE0 from any address in it
 
 ; ---- L7B81 ---- from &5743
 L7B81:
@@ -14437,7 +14357,7 @@ L7BA1:
 ;; holds &4000-&4BFF of the ROM's system page after boot, and at &45A2
 ;; it has ten bytes that are MasterBASIC's own &7986:
 ;;
-;; POP HL : RST NEXT_CHAR : SUB &AB : LD (FN_LOCN),A : JR NZ,+1
+;; POP HL : RST NEXT_CHAR : SUB &AB : LD (&4AF0),A : JR NZ,+1
 ;; : RST NEXT_CHAR
 ;;
 ;; So the jump goes to a real routine that turns a token into a function
@@ -14468,16 +14388,16 @@ L7BA1:
 
 ; ---- RELOCATED_TO_484D ---- from &7B51
 RELOCATED_TO_484D:
-               LD HL,(L5A67)                   ; 7BA4 2A 67 5A  from here to &7E42 this code is written for &484D: subtract &3357 from any address in it
+               LD HL,(&5A67)                   ; 7BA4 2A 67 5A  from here to &7E42 this code is written for &484D: subtract &3357 from any address in it
                CALL HLJUMP                     ; 7BA7 CD 05 00
                LD HL,(LSPTR)                   ; 7BAA 2A 8B 5B
                LD BC,(&5A5E)                   ; 7BAD ED 4B 5E 5A
                AND A                           ; 7BB1 A7
                SBC HL,BC                       ; 7BB2 ED 42
                RET NC                          ; 7BB4 D0
-               LD HL,(L5A9A)                   ; 7BB5 2A 9A 5A
+               LD HL,(KCUR)                    ; 7BB5 2A 9A 5A
                DEC HL                          ; 7BB8 2B
-               LD (L5A65),HL                   ; 7BB9 22 65 5A
+               LD (&5A65),HL                   ; 7BB9 22 65 5A
                RET                             ; 7BBC C9
                LD A,(FLAGX)                    ; 7BBD 3A 71 5C
                AND &20                         ; 7BC0 E6 20
@@ -14506,7 +14426,7 @@ L7BE0:
                RST ERR_HOOK                    ; 7BE3 CF
                DEFB &B9                       ; 7BE4 B9 hook code
                LD HL,&7FE6                     ; 7BE5 21 E6 7F
-               LD (PAGE_IN_ROM1),HL            ; 7BE8 22 59 5C
+               LD (SYS_SPARE8),HL              ; 7BE8 22 59 5C
                LD H,A                          ; 7BEB 67
                LD A,(&5A89)                    ; 7BEC 3A 89 5A
                CP &BE                          ; 7BEF FE BE
@@ -14518,21 +14438,21 @@ L7BE0:
 
 ; ---- L7BF7 ---- from &7BF1
 L7BF7:
-               LD A,(L5A92)                    ; 7BF7 3A 92 5A
+               LD A,(&5A92)                    ; 7BF7 3A 92 5A
                AND &40                         ; 7BFA E6 40
                JR Z,L7C1C                      ; 7BFC 28 1E
                PUSH HL                         ; 7BFE E5
                LD HL,&C000                     ; 7BFF 21 00 C0
-               LD BC,(L5A94)                   ; 7C02 ED 4B 94 5A
+               LD BC,(ELINE)                   ; 7C02 ED 4B 94 5A
                SBC HL,BC                       ; 7C06 ED 42
                LD B,H                          ; 7C08 44
                LD C,L                          ; 7C09 4D
-               LD HL,(L5A85)                   ; 7C0A 2A 85 5A
+               LD HL,(NUMEND)                  ; 7C0A 2A 85 5A
                LD A,(NUMENDP)                  ; 7C0D 3A 84 5A
                OUT (HMPR),A                    ; 7C10 D3 FB
                XOR A                           ; 7C12 AF
                CALL JMKRBIG                    ; 7C13 CD 0C 01
-               LD A,(L5A96)                    ; 7C16 3A 96 5A
+               LD A,(CHADP)                    ; 7C16 3A 96 5A
                OUT (HMPR),A                    ; 7C19 D3 FB
                POP HL                          ; 7C1B E1
 
@@ -14549,23 +14469,23 @@ L7C1C:
                BIT 1,L                         ; 7C2A CB 4D
                LD A,&00                        ; 7C2C 3E 00
                LD HL,DOS_L5FB9                 ; 7C2E 21 B9 9F
-               CALL NZ,L5BE0                   ; 7C31 C4 E0 5B  PAGER in the system page, not this page's &5BE0
+               CALL NZ,PAGER                   ; 7C31 C4 E0 5B  PAGER in the system page, not this page's &5BE0
                POP HL                          ; 7C34 E1
                LD A,L                          ; 7C35 7D
                AND &05                         ; 7C36 E6 05
                JR Z,DISPATCH_ON_COMMAND_TOKEN  ; 7C38 28 17
                PUSH HL                         ; 7C3A E5
-               LD HL,(L5AA0)                   ; 7C3B 2A A0 5A  PROG in the system page
+               LD HL,(PROG)                    ; 7C3B 2A A0 5A  PROG in the system page
                PUSH HL                         ; 7C3E E5
                LD A,(PROGP)                    ; 7C3F 3A 9F 5A
                PUSH AF                         ; 7C42 F5
                RST ERR_HOOK                    ; 7C43 CF
                DEFB &9D                       ; 7C44 9D hook code
-               CALL L4D11                      ; 7C45 CD 11 4D  CDBUFF+&11 -- the code buffer built at &735D
+               CALL SYS_CDBUFF_11              ; 7C45 CD 11 4D  CDBUFF+&11 -- the code buffer built at &735D
                POP AF                          ; 7C48 F1
                LD (PROGP),A                    ; 7C49 32 9F 5A
                POP HL                          ; 7C4C E1
-               LD (L5AA0),HL                   ; 7C4D 22 A0 5A
+               LD (PROG),HL                    ; 7C4D 22 A0 5A
                POP HL                          ; 7C50 E1
 
 ;; --------------------------------------------------------------------
@@ -14583,7 +14503,8 @@ L7C1C:
 ;; with &FD and &FF, which the ROM's table does not name, handled last.
 ;;
 ;; PUT goes to TOKEN_TO_FN_INDEX, the ten bytes installed at &45A2,
-;; which subtracts &AB and stores the result in FN_LOCN -- so PUT
+;; which subtracts &AB and stores the result at &4AF0 in the system
+;; page -- so PUT
 ;; arrives there as 1.
 ;;
 ;; An earlier note here doubted that H held a token at all, on the
@@ -14598,7 +14519,7 @@ DISPATCH_ON_COMMAND_TOKEN:
                CP &94                          ; 7C52 FE 94
                RET C                           ; 7C54 D8
                CP &AC                          ; 7C55 FE AC
-               JP Z,L45A2                      ; 7C57 CA A2 45  unexplained -- see the note above
+               JP Z,SYS_TOKEN_TO_FN_INDEX      ; 7C57 CA A2 45  unexplained -- see the note above
                CP &AA                          ; 7C5A FE AA
                JR Z,CALLBACK_HCMDV             ; 7C5C 28 48
                CP &AE                          ; 7C5E FE AE
@@ -14702,7 +14623,7 @@ L7CBA:
                ADD A,L                         ; 7CC8 85
                LD L,A                          ; 7CC9 6F
                LD L,(HL)                       ; 7CCA 6E
-               LD A,(L5600)                    ; 7CCB 3A 00 56
+               LD A,(LINICOLS)                 ; 7CCB 3A 00 56
                LD H,A                          ; 7CCE 67
                XOR A                           ; 7CCF AF
 
@@ -14716,10 +14637,10 @@ L7CD0:
                OUT (VMPR),A                    ; 7CD7 D3 FC
                LD A,B                          ; 7CD9 78
                JP &0054                        ; 7CDA C3 54 00
-               LD A,(L5600)                    ; 7CDD 3A 00 56
+               LD A,(LINICOLS)                 ; 7CDD 3A 00 56
                INC A                           ; 7CE0 3C
                JR Z,L7CF1                      ; 7CE1 28 0E
-               LD A,(L5C5B)                    ; 7CE3 3A 5B 5C
+               LD A,(&5C5B)                    ; 7CE3 3A 5B 5C
                AND A                           ; 7CE6 A7
                JR Z,L7CF1                      ; 7CE7 28 08
                LD HL,FISCRNP                   ; 7CE9 21 9F 5C
@@ -14744,7 +14665,7 @@ L7CF5:
 
 ; ---- L7D00 ---- from &7B78
 L7D00:
-               LD A,(L5AB7)                    ; 7D00 3A B7 5A  still holds the file's bytes on a freshly booted machine
+               LD A,(DMPFG)                    ; 7D00 3A B7 5A  still holds the file's bytes on a freshly booted machine
                AND A                           ; 7D03 A7
                JR Z,L7D22                      ; 7D04 28 1C
                POP HL                          ; 7D06 E1
@@ -14753,16 +14674,16 @@ L7D00:
                CP &40                          ; 7D09 FE 40
                JR NZ,L7D11                     ; 7D0B 20 04
                INC D                           ; 7D0D 14
-               LD (L4AED),A                    ; 7D0E 32 ED 4A
+               LD (&4AED),A                    ; 7D0E 32 ED 4A
 
 ; ---- L7D11 ---- from &7D0B
 L7D11:
                CP &42                          ; 7D11 FE 42
                JR NZ,L7D20                     ; 7D13 20 0B
-               LD A,(L4AED)                    ; 7D15 3A ED 4A
+               LD A,(&4AED)                    ; 7D15 3A ED 4A
                SUB &40                         ; 7D18 D6 40
                JR NZ,L7D20                     ; 7D1A 20 04
-               LD (L4AED),A                    ; 7D1C 32 ED 4A
+               LD (&4AED),A                    ; 7D1C 32 ED 4A
                DEC D                           ; 7D1F 15
 
 ; ---- L7D20 ---- from &7D13, &7D1A
@@ -14775,12 +14696,12 @@ L7D22:
                LD A,(DEVICE)                   ; 7D22 3A 73 5A
                CP &02                          ; 7D25 FE 02
                JR Z,L7D4B                      ; 7D27 28 22
-               LD A,(L4AEE)                    ; 7D29 3A EE 4A
+               LD A,(&4AEE)                    ; 7D29 3A EE 4A
                AND A                           ; 7D2C A7
                JR Z,L7D3B                      ; 7D2D 28 0C
                EXX                             ; 7D2F D9
                LD HL,DOS_L6485                 ; 7D30 21 85 A4
-               CALL L49EE                      ; 7D33 CD EE 49  &49EE once this block is moved, not the label shown
+               CALL &49EE                      ; 7D33 CD EE 49  &49EE once this block is moved, not the label shown
                DEC E                           ; 7D36 1D
                POP HL                          ; 7D37 E1
                POP AF                          ; 7D38 F1
@@ -14789,7 +14710,7 @@ L7D22:
 
 ; ---- L7D3B ---- from &7D2D
 L7D3B:
-               LD A,(L4AEF)                    ; 7D3B 3A EF 4A
+               LD A,(SYS_CHAR_HEIGHT)          ; 7D3B 3A EF 4A
                AND A                           ; 7D3E A7
                JR Z,L7D4B                      ; 7D3F 28 0A
                EXX                             ; 7D41 D9
@@ -14798,7 +14719,7 @@ L7D3B:
 
 L7D46:
                LD A,&00                        ; 7D46 3E 00  the operand is written here at run time, from &7B4D
-               JP L5BE0                        ; 7D48 C3 E0 5B  PAGER again
+               JP PAGER                        ; 7D48 C3 E0 5B  PAGER again
 
 ; ---- L7D4B ---- from &7D27, &7D3F
 L7D4B:
@@ -14815,20 +14736,20 @@ V7D57:
 TBL_7D58:
                CP (HL)                         ; 7D58 BE
                LD E,E                          ; 7D59 5B
-               DEFW &512A,&5E5C,&5623,&53ED,L5AB5 ; 7D5A 2A 51 5C 5E 23 56 ED 53 B5 5A
+               DEFW &512A,&5E5C,&5623,&53ED,OPSTORE ; 7D5A 2A 51 5C 5E 23 56 ED 53 B5 5A
                LD DE,&4A12                     ; 7D64 11 12 4A
                JR L7D6F                        ; 7D67 18 06
                DEFB &32,&BF,&5B,&11,&1F,&4A                                     ; 7D69 2?[..J  skipped: reads as LD (&5BBF),A from here, and as part of the instruction above it
 
 ; ---- L7D6F ---- from &7D67
 L7D6F:
-               LD HL,(L5C51)                   ; 7D6F 2A 51 5C
+               LD HL,(CURCHL)                  ; 7D6F 2A 51 5C
                LD (HL),E                       ; 7D72 73
                INC HL                          ; 7D73 23
                LD (HL),D                       ; 7D74 72
                RET                             ; 7D75 C9
                LD D,A                          ; 7D76 57
-               LD A,(L4AEE)                    ; 7D77 3A EE 4A
+               LD A,(&4AEE)                    ; 7D77 3A EE 4A
                AND A                           ; 7D7A A7
                JR Z,L7D83                      ; 7D7B 28 06
                LD B,A                          ; 7D7D 47
@@ -14845,15 +14766,15 @@ L7D83:
                LD A,(DEVICE)                   ; 7D83 3A 73 5A
                DEC A                           ; 7D86 3D
                JR NZ,L7DA5                     ; 7D87 20 1C
-               LD A,(L5BBE)                    ; 7D89 3A BE 5B
+               LD A,(TVDATA)                   ; 7D89 3A BE 5B
                SUB &17                         ; 7D8C D6 17
                OR D                            ; 7D8E B2
                JR NZ,L7DA5                     ; 7D8F 20 14
-               LD A,(V5C3C)                    ; 7D91 3A 3C 5C
+               LD A,(TVFLAG)                   ; 7D91 3A 3C 5C
                RLA                             ; 7D94 17
                JR NC,L7DA5                     ; 7D95 30 0E
-               LD DE,(L5AB5)                   ; 7D97 ED 5B B5 5A
-               CALL L4A18                      ; 7D9B CD 18 4A  &4A18 once this block is moved, not the label shown
+               LD DE,(OPSTORE)                 ; 7D97 ED 5B B5 5A
+               CALL &4A18                      ; 7D9B CD 18 4A  &4A18 once this block is moved, not the label shown
                LD A,&20                        ; 7D9E 3E 20
                RST PRINT_A                     ; 7DA0 D7
                LD A,&0D                        ; 7DA1 3E 0D
@@ -14912,7 +14833,7 @@ L7DD8:
                SET 0,(HL)                      ; 7DDE CB C6
                LD A,&FF                        ; 7DE0 3E FF
                LD (COMPFLG),A                  ; 7DE2 32 40 5B
-               LD HL,(L5AA0)                   ; 7DE5 2A A0 5A
+               LD HL,(PROG)                    ; 7DE5 2A A0 5A
                LD A,(PROGP)                    ; 7DE8 3A 9F 5A
                OUT (HMPR),A                    ; 7DEB D3 FB
                LD (HL),&00                     ; 7DED 36 00
@@ -14920,14 +14841,14 @@ L7DD8:
 
 ; ---- L7DF0 ---- from &7B5F
 L7DF0:
-               CALL L4A84                      ; 7DF0 CD 84 4A  overwritten at boot with the ROM's transfer buffer
+               CALL &4A84                      ; 7DF0 CD 84 4A  overwritten at boot with the ROM's transfer buffer
                JP &0000                        ; 7DF3 C3 00 00
                DEFB &22,&9E,&4B,&E1                                             ; 7DF6 ".Ka  skipped: reads as LD (&4B9E),HL from here, and as part of the instruction above it
 
 ; ---- L7DFA ---- from &7799
 L7DFA:
                CALL &0000                      ; 7DFA CD 00 00
-               LD HL,(L4B9E)                   ; 7DFD 2A 9E 4B
+               LD HL,(&4B9E)                   ; 7DFD 2A 9E 4B
                JP &0000                        ; 7E00 C3 00 00
 
 ; ---- L7E03 ---- from &7214
@@ -14950,7 +14871,7 @@ L7E0A:
                RLA                             ; 7E14 17
                JR C,L7E32                      ; 7E15 38 1B
                PUSH DE                         ; 7E17 D5
-               LD HL,(L4AEE)                   ; 7E18 2A EE 4A
+               LD HL,(&4AEE)                   ; 7E18 2A EE 4A
                LD A,H                          ; 7E1B 7C
                CP &05                          ; 7E1C FE 05
                JR NC,L7E25                     ; 7E1E 30 05
@@ -14961,8 +14882,8 @@ L7E0A:
 ; ---- L7E25 ---- from &7E1E
 L7E25:
                LD HL,&0000                     ; 7E25 21 00 00
-               LD (L4AEE),HL                   ; 7E28 22 EE 4A
-               LD A,(L5A40)                    ; 7E2B 3A 40 5A
+               LD (&4AEE),HL                   ; 7E28 22 EE 4A
+               LD A,(MODE)                     ; 7E2B 3A 40 5A
                CALL JMODE                      ; 7E2E CD 5A 01
 
 ; ---- L7E31 ---- from &7E23
@@ -14997,13 +14918,13 @@ L7E32:
 ;;
 ;; In the dump it reads as RST &08 with hook &AA, then a jump to POSTFF
 ;; at &3DAD -- an address filled in by a signature search -- and further
-;; on a write to PAGE_IN_ROM1 and a jump to INSTBUF at &4F00.  So it is
+;; on a write to &5C59 and a jump to INSTBUF at &4F00.  So it is
 ;; glue for reaching ROM 1, living where the ROM will never look.
 ;; --------------------------------------------------------------------
 
 ; ---- GAP_BLOCK ---- from &7AC5
 GAP_BLOCK:
-               RST ERR_HOOK                    ; 7E43 CF
+               RST ERR_HOOK                    ; 7E43 CF  from here to &7E6A this code is written for &5896: subtract &25AD from any address in it
                DEFB &AA                       ; 7E44 AA hook code
                EXX                             ; 7E45 D9
                PUSH BC                         ; 7E46 C5
@@ -15017,7 +14938,7 @@ GAP_BLOCK:
                EX AF,AF'                       ; 7E51 08
                EXX                             ; 7E52 D9
                POP HL                          ; 7E53 E1
-               LD (PAGE_IN_ROM1),HL            ; 7E54 22 59 5C
+               LD (SYS_SPARE8),HL              ; 7E54 22 59 5C
                POP AF                          ; 7E57 F1
                POP HL                          ; 7E58 E1
                LD IY,&0286                     ; 7E59 FD 21 86 02
@@ -15034,7 +14955,7 @@ L7E64:
                POP AF                          ; 7E65 F1
                RET Z                           ; 7E66 C8
                RET NC                          ; 7E67 D0
-               JP L4F00                        ; 7E68 C3 00 4F
+               JP &4F00                        ; 7E68 C3 00 4F
 
 ;; ------------------------------------------------------------------
 ;; Tokenised SAM BASIC.  The end of the page holds fragments of BASIC

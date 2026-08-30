@@ -17,7 +17,8 @@ DOC DISPATCH_ON_COMMAND_TOKEN
     with &FD and &FF, which the ROM's table does not name, handled last.
 
     PUT goes to TOKEN_TO_FN_INDEX, the ten bytes installed at &45A2,
-    which subtracts &AB and stores the result in FN_LOCN -- so PUT
+    which subtracts &AB and stores the result at &4AF0 in the system
+    page -- so PUT
     arrives there as 1.
 
     An earlier note here doubted that H held a token at all, on the

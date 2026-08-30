@@ -47,6 +47,7 @@ from disasm import Disassembler, UNKNOWN, CODE, CONT, DATA, WORD, TEXT, RST8, PA
 from z80 import hexn, CALL, CCALL
 import annotate
 import romsyms
+import syspage
 import sambasic
 import xfer
 import carrydoc
@@ -84,6 +85,39 @@ REPORTERS = {'DOS': set(), 'MB': {0x43BE}}   # take the error number in A
 # through, then put &8000 on to set the flag.
 PAGE_FLAG = 'NOT_IN_THIS_PAGE'
 
+
+# Addresses in the ROM's system page that MasterBASIC itself gives a
+# meaning to.  A stretch running with that page at &4000 names these, and
+# without them such an address comes out as bare hex.  The entry points
+# come from tools/syspage.py so there is one list of them, not two.
+def _syspage_names():
+    names = {a: 'SYS_' + n for a, n in syspage.VECTORS}
+    names.update({
+        # The two bytes MasterBASIC keeps for itself in the system page,
+        # in the space it freed by moving BASIC's stack down to &45A1:
+        # the ROM's table put BSTACK at &4AFF, inside the second stub.
+        0x4AEF: 'SYS_CHAR_HEIGHT',   # read at &49E4 to pick the output path
+        0x4AF0: 'SYS_FN_INDEX',      # written by TOKEN_TO_FN_INDEX
+        0x49E4: 'SYS_CHAR_OUT',      # ordinary output, or magnified
+        0x5896: 'SYS_GAP_BLOCK',     # the forty bytes in the DKBU/KTAB gap
+        0x5BE0: 'SYS_PAGER',         # the trampoline back into this half
+        # The ROM's variable list has "8 SPARE" between NLASTH and
+        # ZIPLIB, and MasterBASIC uses them -- the same trick as the gap
+        # between the DEF KEY buffer and the keyboard table.
+        0x5C59: 'SYS_SPARE8',
+    })
+    return names
+
+
+SYSPAGE_NAMES = _syspage_names()
+
+# The small installed blocks, so an address inside one reads as an offset
+# into it.  The two large stubs are left out on purpose: they are most of
+# the installed region, and every address in them would acquire a long
+# name saying little that the relocation comment does not already say.
+SYSPAGE_BLOCKS = {(0x5896, 'SYS_GAP_BLOCK'): 0x28,
+                  (0x5BE0, 'SYS_PAGER'): 0x0E,
+                  (0x45A2, 'SYS_TOKEN_TO_FN_INDEX'): 0x0A}
 
 # A label nothing named: Lxxxx or Vxxxx, made up from the address.
 SYNTHETIC = re.compile(r'^[LV][0-9A-Fa-f]{4}$')
@@ -305,10 +339,22 @@ class Page(Disassembler):
                 if n:
                     self.used_ext.add(n)
                     return n
-                # No ROM name for it, but it is still not this page's
-                # &45A2: INSTALL_EXTENDED_PUT writes there and the bytes
-                # turn up in the system page.  Raw hex says less and is
-                # not wrong.
+                # Not a ROM name, but MasterBASIC may have given the
+                # address one of its own by installing something there.
+                n = SYSPAGE_NAMES.get(v)
+                if n:
+                    self.user_equs[n] = v
+                    return n
+                # Or it may fall inside one of the small installed
+                # blocks, where an offset says more than the number:
+                # &589F is nine bytes into the forty put in the gap
+                # between the DEF KEY buffer and the keyboard table.
+                for base, name in SYSPAGE_BLOCKS:
+                    if base < v < base + SYSPAGE_BLOCKS[(base, name)]:
+                        self.user_equs[name] = base
+                        return '%s+%s' % (name, hexn(v - base, 2))
+                # Otherwise raw hex, which says less than this page's own
+                # label would and is not wrong the way it would be.
                 return hexn(v, 4)
             if self._cur is not None:
                 self.xrefs.setdefault(v, set()).add(self._cur)
@@ -784,7 +830,11 @@ def seeds(dos, mb):
     # like a routine the DOS called.  Nothing in it addresses itself
     # through a window, and JP NC,&43A7 is REP_INTEGER_OUT_OF_RANGE in
     # this page, which is what CP &03 : JP NC wants.
-    for lo, hi in ((0x4510, 0x4520), (0x5A3E, 0x5A64), (0x5C16, 0x5C34),
+    # &4510 runs on to &4536, not &4520: it reads its own &4076 as
+    # &8076, jumps into the installed gap block at &589F, and reads and
+    # writes &5C59 -- which is a system-page variable here and this
+    # half's own PAGE_IN_ROM1 routine everywhere else.
+    for lo, hi in ((0x4510, 0x4536), (0x5A3E, 0x5A64), (0x5C16, 0x5C34),
                    (0x5FB9, 0x6030), (0x7900, 0x7940)):
         mb.self_window.append((lo, hi))
     # HK_SETUPREGS does the same at &7210: its &8D50 is CDBUFF+&50 in the
@@ -806,6 +856,11 @@ def seeds(dos, mb):
         for lo, hi in d.self_window:
             if (lo, hi) not in d.sys_low:
                 d.sys_low.append((lo, hi))
+    # And every block that gets installed: it runs at its destination in
+    # the ROM's system page, so a low address in it is an address there.
+    for lo, hi, _dest in RELOCATED:
+        if (lo, hi) not in mb.sys_low:
+            mb.sys_low.append((lo, hi))
     seed_from_tables(dos, mb)
     mb.headers[INSTALLER] = NOTES['installer']
     mb.seed(INSTALLER, 'INSTALLER')
@@ -1946,7 +2001,19 @@ def split_entries(d, rounds=8):
 # Blocks the installer copies into the ROM's system page.  Each is
 # assembled for where it lands, so its absolute operands mean addresses
 # there and the labels this listing puts on them are of the wrong page.
-RELOCATED = ((0x7460, 0x75E1, 0x46CC), (0x7BA4, 0x7E43, 0x484D))
+# Every block an installer copies into the ROM's system page, as
+# (source start, source end, where it ends up).  Code in these runs at
+# the destination with the system page at &4000, so an address in one
+# means something different from what the listing shows.
+RELOCATED = ((0x7986, 0x7990, 0x45A2),   # INSTALL_EXTENDED_PUT, five runs
+             (0x797C, 0x7986, 0x45B9),
+             (0x7879, 0x788E, 0x45C6),
+             (0x788E, 0x797C, 0x45DE),
+             (0x7460, 0x75E1, 0x46CC),   # INSTALL_ROM_PATCHES
+             (0x7BA4, 0x7E43, 0x484D),
+             (0x7B80, 0x7BA4, 0x4BA0),
+             (0x7E43, 0x7E6B, 0x5896),   # INSTALL_SYSPAGE_CODE
+             (0x7AF2, 0x7B00, 0x5BE0))
 
 
 def note_relocated(d):

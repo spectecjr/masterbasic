@@ -105,7 +105,7 @@ DOC RELOCATED_TO_484D
     holds &4000-&4BFF of the ROM's system page after boot, and at &45A2
     it has ten bytes that are MasterBASIC's own &7986:
 
-        POP HL : RST NEXT_CHAR : SUB &AB : LD (FN_LOCN),A : JR NZ,+1
+        POP HL : RST NEXT_CHAR : SUB &AB : LD (&4AF0),A : JR NZ,+1
         : RST NEXT_CHAR
 
     So the jump goes to a real routine that turns a token into a function
