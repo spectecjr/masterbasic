@@ -86,3 +86,11 @@ DOC GAP_BLOCK
 # copied there once at boot, and it is transient: &7C00 is DOSBUF, and
 # by the time a running machine can be dumped the DOS has a directory
 # buffer there again.
+
+# Two more key assignments, done in the installer rather than in
+# INSTALL_SYSPAGE_CODE.
+
+MB &76A2 : KTAB entry 255 gets &0D -- the table starts at &58E0
+MB &76A5 : and entry 264 the same
+MB &767F : mark this half's own page reserved in ALLOCT, the ROM's page table at &5100
+MB &7686 : clear &4AED-&4AFF, nineteen bytes of workspace in the system page

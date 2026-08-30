@@ -5455,10 +5455,11 @@ L4AE6:
                SBC HL,BC                       ; 4AE7 ED 42
 
 ;; --------------------------------------------------------------------
-;; L4AE9 -- &4AE9 to &4AEC
+;; L4AE9 -- &4AE9 to &4AEF
 ;;
 ;; Takes:     A, HL
 ;; Leaves:    A, F, HL
+;; Ends:      RET
 ;; --------------------------------------------------------------------
 
 ; ---- L4AE9 ---- from &55EA, &5635
@@ -5466,17 +5467,6 @@ L4AE9:
                SBC A,&00                       ; 4AE9 DE 00
                ADD HL,HL                       ; 4AEB 29
                ADC A,A                         ; 4AEC 8F
-
-;; --------------------------------------------------------------------
-;; L4AED -- &4AED to &4AEF
-;;
-;; Takes:     A, HL
-;; Leaves:    A, F, HL
-;; Ends:      RET
-;; --------------------------------------------------------------------
-
-; ---- L4AED ---- from &7686
-L4AED:
                ADD HL,HL                       ; 4AED 29
                ADC A,A                         ; 4AEE 8F
                RET                             ; 4AEF C9
@@ -9142,7 +9132,7 @@ CMD_LPRINT:
                CALL L560D                      ; 5591 CD 0D 56
                AND A                           ; 5594 A7
                RET Z                           ; 5595 C8
-               JP L5F7B                        ; 5596 C3 7B 5F
+               JP FREE_PAGE_CHAIN              ; 5596 C3 7B 5F
 
 ;; --------------------------------------------------------------------
 ;; L5599 -- &5599 to &55A6
@@ -9223,7 +9213,7 @@ L55C2:
 ;; Takes:     A, B, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? tests for CH_COLON, CH_CR; calls CALL_NEXTCHAR, NUMBER_THEN_END; falls into whatever follows rather than returning.
+;; ? tests for CH_COLON, CH_CR; calls CALL_NEXTCHAR, NUMBER_THEN_END, FREE_PAGE_CHAIN; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L55C6 ---- from &557D
@@ -9239,7 +9229,7 @@ L55C6:
                CALL NUMBER_THEN_END            ; 55D7 CD C8 44
                CALL L560D                      ; 55DA CD 0D 56
                AND A                           ; 55DD A7
-               CALL NZ,L5F7B                   ; 55DE C4 7B 5F
+               CALL NZ,FREE_PAGE_CHAIN         ; 55DE C4 7B 5F
                CALL L5EDD                      ; 55E1 CD DD 5E
                EX DE,HL                        ; 55E4 EB
                LD HL,(V4066)                   ; 55E5 2A 66 40
@@ -10892,7 +10882,7 @@ L59A3:
 ;;     &59A3-&59FF.
 ;; --------------------------------------------------------------------
 
-; ---- SCREEN_BLANK_TICK ---- from &59B1, &59BD, &59C5, &59C8, &59CD, &76A2
+; ---- SCREEN_BLANK_TICK ---- from &59B1, &59BD, &59C5, &59C8, &59CD
 SCREEN_BLANK_TICK:
                LD A,(SOFV+&4000)               ; 59E8 3A 02 80
                AND A                           ; 59EB A7
@@ -10907,10 +10897,10 @@ SCREEN_BLANK_TICK:
                INC (HL)                        ; 59FB 34
 
 ;; --------------------------------------------------------------------
-;; L59FC -- &59FC to &5A05
+;; L59FC -- &59FC to &5A0A
 ;;
 ;; Takes:     nothing in registers
-;; Leaves:    A, F, B
+;; Leaves:    A, F, BC
 ;;
 ;; ? drives IN A,(LMPR); falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
@@ -10923,16 +10913,6 @@ L59FC:
                DEC A                           ; 5A02 3D
                LD B,A                          ; 5A03 47
                IN A,(LMPR)                     ; 5A04 DB FA
-
-;; --------------------------------------------------------------------
-;; L5A06 -- &5A06 to &5A0A
-;;
-;; Takes:     A
-;; Leaves:    A, C
-;; --------------------------------------------------------------------
-
-; ---- L5A06 ---- from &769D
-L5A06:
                LD C,A                          ; 5A06 4F
                LD A,(&8008)                    ; 5A07 3A 08 80
                PUSH AF                         ; 5A0A F5
@@ -11720,10 +11700,12 @@ L5BB7:
                EX DE,HL                        ; 5BBA EB
 
 ;; --------------------------------------------------------------------
-;; L5BBB -- &5BBB to &5BC2
+;; L5BBB -- &5BBB to &5BCF
 ;;
-;; Takes:     A, DE
-;; Leaves:    A, F, HL
+;; Takes:     A, BC, DE, IY
+;; Leaves:    A, F, BC, DE, HL
+;;
+;; ? drives IN A,(HMPR); calls ESCCHK; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L5BBB ---- from &5BCE
@@ -11732,18 +11714,6 @@ L5BBB:
                AND A                           ; 5BBE A7
                SBC HL,DE                       ; 5BBF ED 52
                JR NZ,L5BD0                     ; 5BC1 20 0D
-
-;; --------------------------------------------------------------------
-;; L5BC3 -- &5BC3 to &5BCF
-;;
-;; Takes:     BC, DE, HL, IY
-;; Leaves:    A, F, BC, DE, HL
-;;
-;; ? drives IN A,(HMPR); calls ESCCHK; falls into whatever follows rather than returning.
-;; --------------------------------------------------------------------
-
-; ---- L5BC3 ---- from &76AC
-L5BC3:
                EI                              ; 5BC3 FB
                CALL ESCCHK                     ; 5BC4 CD 75 5B
                IN A,(HMPR)                     ; 5BC7 DB FB
@@ -11974,7 +11944,7 @@ L5C65:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      RET
 ;;
-;; ? tests for T_CLEAR, CH_COLON, CH_CR; calls CALL_NEXTCHAR, NUMBER_THEN_END.
+;; ? tests for T_CLEAR, CH_COLON, CH_CR; calls CALL_NEXTCHAR, NUMBER_THEN_END, FREE_PAGE_CHAIN.
 ;; --------------------------------------------------------------------
 
 ; ---- L5C6A ---- from &4ECC
@@ -11992,7 +11962,7 @@ L5C6A:
                LD A,(V407E)                    ; 5C83 3A 7E 40
                LD HL,(V407F)                   ; 5C86 2A 7F 40
                AND A                           ; 5C89 A7
-               CALL NZ,L5F7B                   ; 5C8A C4 7B 5F
+               CALL NZ,FREE_PAGE_CHAIN         ; 5C8A C4 7B 5F
                CALL L5EDD                      ; 5C8D CD DD 5E
                LD (V407E),A                    ; 5C90 32 7E 40
                LD (V407F),HL                   ; 5C93 22 7F 40
@@ -12042,7 +12012,7 @@ L5CA0:
 ;; ? drives OUT (C),A, OUT (C),B.
 ;; --------------------------------------------------------------------
 
-; ---- L5CB4 ---- from &5CBE, &766E
+; ---- L5CB4 ---- from &5CBE
 L5CB4:
                LD BC,&01FF                     ; 5CB4 01 FF 01
                DEC A                           ; 5CB7 3D
@@ -12975,16 +12945,33 @@ L5F72:
                JR L5F16                        ; 5F79 18 9B
 
 ;; --------------------------------------------------------------------
-;; L5F7B -- &5F7B to &5F92
+;; FREE_PAGE_CHAIN -- &5F7B to &5F92
 ;;
 ;; Takes:     A, H
 ;; Leaves:    A, F, E, HL
 ;;
 ;; ? drives OUT (HMPR),A; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Walk a chain of blocks across pages, clearing each one's marker, and
+;;     give back any page that ends up empty.
+;;     
+;;     Each step pages the next page into the window, works out two
+;;     addresses from H -- one of the sixteen bytes at &BFF0-&BFFF, and a
+;;     two-byte link near the top of a block -- clears the marker byte,
+;;     asks FREE_PAGE_IF_EMPTY whether the page still holds anything, and
+;;     then reads the link: &xxFE gives the next H and &xxFF the next page.
+;;     H coming back zero ends it.
+;;     
+;;     The block address is ((H + &40) AND &FC) + 3 over &FE, so H moves in
+;;     fours and the sixteen marker bytes at &BFF0 are one per step of
+;;     four -- H rotated right twice and ORed with &F0 is exactly that
+;;     index.  The one special case, H = &FC, uses &EE rather than &FE.
 ;; --------------------------------------------------------------------
 
-; ---- L5F7B ---- from &5596, &55DE, &5C8A, &5FA4
-L5F7B:
+; ---- FREE_PAGE_CHAIN ---- from &5596, &55DE, &5C8A, &5FA4
+FREE_PAGE_CHAIN:
                OUT (HMPR),A                    ; 5F7B D3 FB
                LD A,H                          ; 5F7D 7C
                PUSH AF                         ; 5F7E F5
@@ -13008,6 +12995,8 @@ L5F7B:
 ;; Takes:     A, E, HL
 ;; Leaves:    A, F, DE, HL
 ;; Ends:      RET
+;;
+;; ? calls FREE_PAGE_IF_EMPTY.
 ;; --------------------------------------------------------------------
 
 ; ---- L5F93 ---- from &5F8F
@@ -13016,7 +13005,7 @@ L5F93:
                XOR A                           ; 5F95 AF
                LD (DE),A                       ; 5F96 12
                PUSH HL                         ; 5F97 E5
-               CALL L5FA7                      ; 5F98 CD A7 5F
+               CALL FREE_PAGE_IF_EMPTY         ; 5F98 CD A7 5F
                POP HL                          ; 5F9B E1
                LD D,(HL)                       ; 5F9C 56
                LD (HL),&00                     ; 5F9D 36 00
@@ -13025,18 +13014,32 @@ L5F93:
                EX DE,HL                        ; 5FA1 EB
                INC H                           ; 5FA2 24
                DEC H                           ; 5FA3 25
-               JR NZ,L5F7B                     ; 5FA4 20 D5
+               JR NZ,FREE_PAGE_CHAIN           ; 5FA4 20 D5
                RET                             ; 5FA6 C9
 
 ;; --------------------------------------------------------------------
-;; L5FA7 -- &5FA7 to &5FA9
+;; FREE_PAGE_IF_EMPTY -- &5FA7 to &5FA9
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     OR the sixteen bytes at &BFF0-&BFFF together, and if they are all
+;;     zero mark the page in the window free.
+;;     
+;;     Free means a zero in ALLOCT, which the ROM's variable list describes
+;;     as "MUST START AT PAGE EDGE.  32 BYTES - 1 PER PAGE" at &5100 -- one
+;;     byte per page of memory.  The write goes through WRA, so the caller
+;;     needs no paging of its own: WRA zeroes HMPR, windows HL up by &4000
+;;     and puts it back.
+;;     
+;;     So the sixteen bytes at the top of a page are its occupancy: while
+;;     any is non-zero something in the page is still in use.
 ;; --------------------------------------------------------------------
 
-; ---- L5FA7 ---- from &5F98
-L5FA7:
+; ---- FREE_PAGE_IF_EMPTY ---- from &5F98
+FREE_PAGE_IF_EMPTY:
                LD HL,&BFF0                     ; 5FA7 21 F0 BF
 
 ;; --------------------------------------------------------------------
@@ -21416,7 +21419,7 @@ L766A:
                LD (HL),A                       ; 766A 77
                INC HL                          ; 766B 23
                DJNZ L766A                      ; 766C 10 FC
-               LD A,(L5CB4)                    ; 766E 3A B4 5C
+               LD A,(PRAMTP)                   ; 766E 3A B4 5C
                LD (DOS_PORT2),A                ; 7671 32 2F 81
                DEC A                           ; 7674 3D
                LD (DOS_SNPRT2),A               ; 7675 32 08 81
@@ -21424,11 +21427,11 @@ L766A:
                AND PAGEMASK                    ; 767A E6 1F
                ; self-modifying: patches the operand of the JR at &5BC1
                LD (DOSFLG),A                   ; 767C 32 C2 5B
-               LD H,&51                        ; 767F 26 51
+               LD H,&51                        ; 767F 26 51  mark this half's own page reserved in ALLOCT, the ROM's page table at &5100
                LD L,A                          ; 7681 6F
                LD (HL),&60                     ; 7682 36 60
                LD B,&13                        ; 7684 06 13
-               LD HL,L4AED                     ; 7686 21 ED 4A
+               LD HL,SYS_DH_STATE              ; 7686 21 ED 4A  clear &4AED-&4AFF, nineteen bytes of workspace in the system page
 
 ;; --------------------------------------------------------------------
 ;; L7689 -- &7689 to &76B1
@@ -21450,14 +21453,14 @@ L7689:
                DEC A                           ; 7696 3D
                LD (&82CD),A                    ; 7697 32 CD 82
                LD HL,&0144                     ; 769A 21 44 01
-               LD (L5A06),HL                   ; 769D 22 06 5A
+               LD (PSLD),HL                    ; 769D 22 06 5A
                LD A,&0D                        ; 76A0 3E 0D
-               LD (SCREEN_BLANK_TICK),A        ; 76A2 32 E8 59
+               LD (&59E8),A                    ; 76A2 32 E8 59  KTAB entry 255 gets &0D -- the table starts at &58E0
                ; self-modifying: patches the operand of the LD at &59DE
-               LD (&59DF),A                    ; 76A5 32 DF 59
+               LD (&59DF),A                    ; 76A5 32 DF 59  and entry 264 the same
                XOR A                           ; 76A8 AF
                LD (DOS_SAMCNT),A               ; 76A9 32 34 82
-               LD (L5BC3),A                    ; 76AC 32 C3 5B
+               LD (DOSCNT),A                   ; 76AC 32 C3 5B
                LD BC,&00F3                     ; 76AF 01 F3 00
 
 ;; --------------------------------------------------------------------

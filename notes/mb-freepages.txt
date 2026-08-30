@@ -1,0 +1,40 @@
+# Giving memory pages back.
+
+MB &5F7B FREE_PAGE_CHAIN
+MB &5FA7 FREE_PAGE_IF_EMPTY
+
+DOC FREE_PAGE_CHAIN
+    Walk a chain of blocks across pages, clearing each one's marker, and
+    give back any page that ends up empty.
+
+    Each step pages the next page into the window, works out two
+    addresses from H -- one of the sixteen bytes at &BFF0-&BFFF, and a
+    two-byte link near the top of a block -- clears the marker byte,
+    asks FREE_PAGE_IF_EMPTY whether the page still holds anything, and
+    then reads the link: &xxFE gives the next H and &xxFF the next page.
+    H coming back zero ends it.
+
+    The block address is ((H + &40) AND &FC) + 3 over &FE, so H moves in
+    fours and the sixteen marker bytes at &BFF0 are one per step of
+    four -- H rotated right twice and ORed with &F0 is exactly that
+    index.  The one special case, H = &FC, uses &EE rather than &FE.
+
+DOC FREE_PAGE_IF_EMPTY
+    OR the sixteen bytes at &BFF0-&BFFF together, and if they are all
+    zero mark the page in the window free.
+
+    Free means a zero in ALLOCT, which the ROM's variable list describes
+    as "MUST START AT PAGE EDGE.  32 BYTES - 1 PER PAGE" at &5100 -- one
+    byte per page of memory.  The write goes through WRA, so the caller
+    needs no paging of its own: WRA zeroes HMPR, windows HL up by &4000
+    and puts it back.
+
+    So the sixteen bytes at the top of a page are its occupancy: while
+    any is non-zero something in the page is still in use.
+
+# This routine was left unnamed on purpose a while ago, on the grounds
+# that "it builds an address in &BFF0-&BFFF and writes zero there, which
+# is clear enough as mechanism and says nothing about what it is for".
+# ALLOCT is what it was missing.  &5100 is the middle of this half's own
+# keyword names, so the LD H,&51 looked like nothing; it is an address
+# in the ROM's system page, and WRA is what makes it one.

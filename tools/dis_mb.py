@@ -819,7 +819,14 @@ def seeds(dos, mb):
     # are the stretches that call themselves at &8xxx.
     # INSTALL_ROM_VECTORS runs with the ROM's system page at &4000: the
     # vector values it writes turn up there, not in this half.
-    mb.sys_low.append((0x76DA, 0x775A))
+    # The stretch before it too: LD A,&1F : OUT (LMPR),A at &7660 is
+    # where the ROM's system page comes to &4000, and from &7664 on the
+    # code reads &5CB4, writes DOSFLG at &5BC2, marks its own page in
+    # ALLOCT at &5100 and clears &4AED-&4AFF -- its own nineteen bytes
+    # in the system page -- all at their proper addresses.  Before
+    # &7660 the writes to &7C2D and &7D55 are patches into this page,
+    # so the range cannot start any earlier.
+    mb.sys_low.append((0x7664, 0x775A))
     # INSTALL_EXTENDED_PUT is called from inside that stretch, so it runs
     # in the same arrangement: its &5BDA is the ROM's CMDADDRT and its
     # &45A2 is in the system page, not an address in this half.
