@@ -64,3 +64,6 @@ MB &76FC : CMDV gets &488E, inside the second stub
 MB &7721 : EDITV gets &4866, likewise
 MB &7743 : BASIC's stack moved to &45A1, clear of the installed code
 MB &774D : INSLV gets &46CC, the first stub's address
+
+MB &774D : &46CC in the system page -- the string move stub, not this page's L46CC
+MB &7721 : &4866 likewise, inside the second stub

@@ -1,0 +1,31 @@
+# Four small routines with several callers each.
+
+MB &4555 IS_NAME_CHAR
+MB &46C2 PAGE_ON_TWO
+MB &5D9F COPY_THEN_APPEND_CALL
+
+DOC IS_NAME_CHAR
+    Carry set if the character in A may appear in a name.
+
+    It chains onto the letter-or-digit test at &454A and adds underscore,
+    &5F, which the ROM's own classifier does not accept.  HK_SKIPNAME
+    already described this routine from the outside -- "reads forward
+    while the classifier at L4555 keeps saying the character belongs to a
+    name" -- so this is the classifier that description meant.
+
+DOC PAGE_ON_TWO
+    Move the window on by two pages and turn HL into a window address.
+
+    IN A,(HMPR), add 2, OUT, then SET 7,H.  Two pages is 32K, and the
+    address is left pointing into &8000-&BFFF at the same offset.  A is
+    preserved through the alternate set rather than the stack.
+
+DOC COPY_THEN_APPEND_CALL
+    Do the caller's LDIR, then append three bytes that are a CALL.
+
+    The three bytes at &5DAB are CD 5B 4B -- CALL &4B5B -- so whatever
+    was just copied is finished off with a call to that address.  It is
+    another of this image's run-time code builders, and the smallest:
+    the caller supplies the body, this supplies the ending.  HL is
+    preserved across the appended copy so the caller still has the end of
+    its own block.

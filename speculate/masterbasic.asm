@@ -2694,15 +2694,25 @@ IS_DIGIT:
                RET                             ; 4554 C9
 
 ;; --------------------------------------------------------------------
-;; L4555 -- &4555 to &455E
+;; IS_NAME_CHAR -- &4555 to &455E
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F
 ;; Ends:      RET
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Carry set if the character in A may appear in a name.
+;;     
+;;     It chains onto the letter-or-digit test at &454A and adds underscore,
+;;     &5F, which the ROM's own classifier does not accept.  HK_SKIPNAME
+;;     already described this routine from the outside -- "reads forward
+;;     while the classifier at L4555 keeps saying the character belongs to a
+;;     name" -- so this is the classifier that description meant.
 ;; --------------------------------------------------------------------
 
-; ---- L4555 ---- from &57C7, &585C, &6F69
-L4555:
+; ---- IS_NAME_CHAR ---- from &57C7, &585C, &6F69
+IS_NAME_CHAR:
                CALL L454A                      ; 4555 CD 4A 45
                RET C                           ; 4558 D8
                CP &5F                          ; 4559 FE 5F
@@ -3555,24 +3565,34 @@ L46BA:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JR
+;;
+;; ? calls PAGE_ON_TWO.
 ;; --------------------------------------------------------------------
 
 ; ---- L46BD ---- from &46A9
 L46BD:
-               CALL L46C2                      ; 46BD CD C2 46
+               CALL PAGE_ON_TWO                ; 46BD CD C2 46
                JR L46AB                        ; 46C0 18 E9
 
 ;; --------------------------------------------------------------------
-;; L46C2 -- &46C2 to &46CB
+;; PAGE_ON_TWO -- &46C2 to &46CB
 ;;
 ;; Takes:     A, H
 ;; Leaves:    A, F, H
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Move the window on by two pages and turn HL into a window address.
+;;     
+;;     IN A,(HMPR), add 2, OUT, then SET 7,H.  Two pages is 32K, and the
+;;     address is left pointing into &8000-&BFFF at the same offset.  A is
+;;     preserved through the alternate set rather than the stack.
 ;; --------------------------------------------------------------------
 
-; ---- L46C2 ---- from &46BD, &46F2, &4712
-L46C2:
+; ---- PAGE_ON_TWO ---- from &46BD, &46F2, &4712
+PAGE_ON_TWO:
                ; to the alternate register set and back again
                EX AF,AF'                       ; 46C2 08
                IN A,(HMPR)                     ; 46C3 DB FB
@@ -3708,11 +3728,13 @@ L46E9:
 ;; Takes:     A, C, HL
 ;; Leaves:    A, F, BC, H
 ;; Ends:      JR
+;;
+;; ? calls PAGE_ON_TWO.
 ;; --------------------------------------------------------------------
 
 ; ---- L46F2 ---- from &46D5
 L46F2:
-               CALL L46C2                      ; 46F2 CD C2 46
+               CALL PAGE_ON_TWO                ; 46F2 CD C2 46
                JR L46D7                        ; 46F5 18 E0
 
 ;; --------------------------------------------------------------------
@@ -3797,11 +3819,13 @@ L4708:
 ;; Takes:     A, C, DE, HL
 ;; Leaves:    A, F, C, HL
 ;; Ends:      JR
+;;
+;; ? calls PAGE_ON_TWO.
 ;; --------------------------------------------------------------------
 
 ; ---- L4712 ---- from &46FC
 L4712:
-               CALL L46C2                      ; 4712 CD C2 46
+               CALL PAGE_ON_TWO                ; 4712 CD C2 46
                JR L46FE                        ; 4715 18 E7
 
 ;; --------------------------------------------------------------------
@@ -10026,13 +10050,13 @@ L57BE:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls CALL_NEXTCHAR, TEST_RUNNING; falls into whatever follows rather than returning.
+;; ? calls CALL_NEXTCHAR, TEST_RUNNING, IS_NAME_CHAR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L57C4 ---- from &57CA
 L57C4:
                CALL CALL_NEXTCHAR              ; 57C4 CD 61 44
-               CALL L4555                      ; 57C7 CD 55 45
+               CALL IS_NAME_CHAR               ; 57C7 CD 55 45
                JR C,L57C4                      ; 57CA 38 F8
                CP &24                          ; 57CC FE 24
                CALL Z,CALL_NEXTCHAR            ; 57CE CC 61 44
@@ -10231,7 +10255,7 @@ L584D:
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, C, DE, HL
 ;;
-;; ? tests for CH_DOLLAR; falls into whatever follows rather than returning.
+;; ? tests for CH_DOLLAR; calls IS_NAME_CHAR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L5852 ---- from &583E
@@ -10244,7 +10268,7 @@ L5852:
                LD A,(HL)                       ; 5858 7E
                CP CH_DOLLAR                    ; 5859 FE 24
                SCF                             ; 585B 37
-               CALL NZ,L4555                   ; 585C C4 55 45
+               CALL NZ,IS_NAME_CHAR            ; 585C C4 55 45
                JR C,L586F                      ; 585F 38 0E
                EX (SP),HL                      ; 5861 E3
                DEC HL                          ; 5862 2B
@@ -12587,7 +12611,7 @@ L5D62:
 ;; Preserves: A, F (saved and restored)
 ;; Ends:      JP, JR
 ;;
-;; ? drives OUT (HMPR),A.
+;; ? drives OUT (HMPR),A; calls COPY_THEN_APPEND_CALL.
 ;; --------------------------------------------------------------------
 
 ; ---- L5D78 ---- from &4EC7
@@ -12596,11 +12620,11 @@ L5D78:
                CALL L5C4B                      ; 5D7B CD 4B 5C
                PUSH AF                         ; 5D7E F5
                LD BC,&0009                     ; 5D7F 01 09 00
-               CALL L5D9F                      ; 5D82 CD 9F 5D
+               CALL COPY_THEN_APPEND_CALL      ; 5D82 CD 9F 5D
                LD C,&16                        ; 5D85 0E 16
-               CALL L5D9F                      ; 5D87 CD 9F 5D
+               CALL COPY_THEN_APPEND_CALL      ; 5D87 CD 9F 5D
                LD C,&2C                        ; 5D8A 0E 2C
-               CALL L5D9F                      ; 5D8C CD 9F 5D
+               CALL COPY_THEN_APPEND_CALL      ; 5D8C CD 9F 5D
                LD C,&06                        ; 5D8F 0E 06
                LDIR                            ; 5D91 ED B0
                LD HL,L5DAE                     ; 5D93 21 AE 5D
@@ -12610,16 +12634,27 @@ L5D78:
                JR RESTORE_HMPR_AND_STORE       ; 5D9D 18 BD
 
 ;; --------------------------------------------------------------------
-;; L5D9F -- &5D9F to &5DAA
+;; COPY_THEN_APPEND_CALL -- &5D9F to &5DAA
 ;;
 ;; Takes:     BC, DE, HL
 ;; Leaves:    F, BC, DE
 ;; Preserves: HL (saved and restored)
 ;; Ends:      RET
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Do the caller's LDIR, then append three bytes that are a CALL.
+;;     
+;;     The three bytes at &5DAB are CD 5B 4B -- CALL &4B5B -- so whatever
+;;     was just copied is finished off with a call to that address.  It is
+;;     another of this image's run-time code builders, and the smallest:
+;;     the caller supplies the body, this supplies the ending.  HL is
+;;     preserved across the appended copy so the caller still has the end of
+;;     its own block.
 ;; --------------------------------------------------------------------
 
-; ---- L5D9F ---- from &5D82, &5D87, &5D8C
-L5D9F:
+; ---- COPY_THEN_APPEND_CALL ---- from &5D82, &5D87, &5D8C
+COPY_THEN_APPEND_CALL:
                LDIR                            ; 5D9F ED B0
                PUSH HL                         ; 5DA1 E5
                LD HL,L5DAB                     ; 5DA2 21 AB 5D
@@ -19326,13 +19361,13 @@ HK_SKIPNAME:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? reaches the ROM through CHADD; calls CALL_NEXTCHAR, NRWRD; falls into whatever follows rather than returning.
+;; ? reaches the ROM through CHADD; calls CALL_NEXTCHAR, IS_NAME_CHAR, NRWRD; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L6F66 ---- from &6F6C
 L6F66:
                CALL CALL_NEXTCHAR              ; 6F66 CD 61 44
-               CALL L4555                      ; 6F69 CD 55 45
+               CALL IS_NAME_CHAR               ; 6F69 CD 55 45
                JR C,L6F66                      ; 6F6C 38 F8
                POP BC                          ; 6F6E C1
                PUSH AF                         ; 6F6F F5
@@ -21699,7 +21734,7 @@ INSTALL_ROM_VECTORS:
                OUT (C),A                       ; 7719 ED 79
                LD HL,&7FE6                     ; 771B 21 E6 7F
                LD (PAGE_IN_ROM1),HL            ; 771E 22 59 5C
-               LD HL,&4866                     ; 7721 21 66 48  EDITV gets &4866, likewise
+               LD HL,&4866                     ; 7721 21 66 48  &4866 likewise, inside the second stub
                ; self-modifying: patches the operand of the RES at &5AEB
                LD (EDITV),HL                   ; 7724 22 EC 5A
                LD HL,L4986                     ; 7727 21 86 49
@@ -21718,7 +21753,7 @@ INSTALL_ROM_VECTORS:
                LD (HL),&FF                     ; 7746 36 FF
                LD A,&01                        ; 7748 3E 01
                LD (DOS_DRIVE),A                ; 774A 32 0B BC
-               LD HL,L46CC                     ; 774D 21 CC 46  INSLV gets &46CC, the first stub's address
+               LD HL,L46CC                     ; 774D 21 CC 46  &46CC in the system page -- the string move stub, not this page's L46CC
                LD (INSLV),HL                   ; 7750 22 BA 5B
                LD HL,L4AB8                     ; 7753 21 B8 4A
                ; self-modifying: patches the operand of the JR at &5AED
