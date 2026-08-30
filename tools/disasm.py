@@ -47,8 +47,13 @@ class Disassembler(Decoder):
         self.mark[a - self.base] = v
 
     # -- symbols -----------------------------------------------------------
-    def a16(self, v):
-        """A jump or call target: an in-image label, or an outside name."""
+    def a16(self, v, rel=False):
+        """A jump or call target: an in-image label, or an outside name.
+
+        `rel` marks a JR or DJNZ, whose target is a displacement into
+        this same code rather than an address.  Nothing here needs the
+        distinction; dis_mb does.
+        """
         if v is None:
             return '?'
         if self._cur is not None and self.inside(v):

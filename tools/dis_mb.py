@@ -200,13 +200,17 @@ class Page(Disassembler):
         return None
 
     # -- operand naming ----------------------------------------------------
-    def a16(self, v):
-        return self._name(v, self.ext_target)
+    def a16(self, v, rel=False):
+        # A JR or DJNZ target is not an address the routine names: it is
+        # this code, wherever this code happens to be paged.  Everything
+        # else -- JP, CALL, LD -- names a location, and in an inverted
+        # stretch that location is in the ROM's system page.
+        return self._name(v, self.ext_target, absolute=not rel)
 
     def mem16(self, v, at=None):
         """A memory address.  If nothing in this page claims it and the
         ROM names a system variable there, that is what it is."""
-        return self._name(v, self.ext_var, data=True)
+        return self._name(v, self.ext_var, absolute=True)
 
     def carried_name(self, a):
         """The MasterDOS source's own name for an address outside this page.
@@ -282,7 +286,7 @@ class Page(Disassembler):
                 return name + '+' + PAGE_FLAG
         return self._name(v, lambda _: None)
 
-    def _name(self, v, outside, data=False):
+    def _name(self, v, outside, absolute=False):
         if v is None:
             return '?'
         if self.inside(v):
@@ -291,11 +295,12 @@ class Page(Disassembler):
             # label.  INSTALL_ROM_VECTORS is the clear case: the values it
             # writes to &5AFA, &5AF6, &5AE2, &5BC4 and &5BBA are found in
             # the system page afterwards and not in this one.
-            # Only for data operands.  A JR or DJNZ inside one of these
-            # routines is relative, so it lands in this code wherever the
-            # code is paged, and its label is right: it was JR NZ,L433B
-            # that made the point by turning into JR NZ,&433B.
-            if data and self._cur is not None                     and any(lo <= self._cur < hi for lo, hi in self.sys_low):
+            # Absolute operands only.  A JR or DJNZ inside one of these
+            # routines lands in this code wherever the code is paged, so
+            # its label is right: it was JR NZ,L433B that made the point
+            # by turning into JR NZ,&433B.
+            if absolute and self._cur is not None and any(
+                    lo <= self._cur < hi for lo, hi in self.sys_low):
                 n = self.ext_var(v)
                 if n:
                     self.used_ext.add(n)
@@ -315,7 +320,7 @@ class Page(Disassembler):
                 self.used_ext.add(n)
                 return n
             return hexn(v, 4)
-        if data:
+        if absolute:
             n = self.carried_name(v)
             if n:
                 self.used_ext.add(n)
@@ -773,8 +778,14 @@ def seeds(dos, mb):
     mb.sys_low.append((0x7829, 0x7879))
     # &5FB9 rather than &5FD8: the system page calls it there, with
     # LD A,&1C : LD HL,&9FB9 : CALL PAGER at &48DA.
+    # &63F6 used to be in this list and should not have been.  Its only
+    # reference was DOS &54FE, which is LD HL,FTADD+&0176 -- the screen
+    # borrowed as a buffer, the same false address that made L6280 look
+    # like a routine the DOS called.  Nothing in it addresses itself
+    # through a window, and JP NC,&43A7 is REP_INTEGER_OUT_OF_RANGE in
+    # this page, which is what CP &03 : JP NC wants.
     for lo, hi in ((0x4510, 0x4520), (0x5A3E, 0x5A64), (0x5C16, 0x5C34),
-                   (0x5FB9, 0x6030), (0x63F6, 0x63FC), (0x7900, 0x7940)):
+                   (0x5FB9, 0x6030), (0x7900, 0x7940)):
         mb.self_window.append((lo, hi))
     # HK_SETUPREGS does the same at &7210: its &8D50 is CDBUFF+&50 in the
     # ROM's system page, not the DOS page's &4D50.

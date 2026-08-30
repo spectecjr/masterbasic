@@ -79,8 +79,15 @@ class Decoder:
     def n16(self, v):
         return hexn(v, 4)
 
-    def a16(self, v):
-        """A 16-bit value used as a jump or call target."""
+    def a16(self, v, rel=False):
+        """A 16-bit value used as a jump or call target.
+
+        `rel` marks the target of a JR or DJNZ, which is reached by a
+        displacement rather than an address.  Such a jump lands in this
+        same run of code whatever page it is executing from, so a
+        listing that resolves addresses against another page must leave
+        these alone.
+        """
         return hexn(v, 4)
 
     def mem16(self, v):
@@ -156,10 +163,10 @@ class Decoder:
                 d = imm8()
                 t = (addr + L + 1 + (d - 256 if d > 127 else d)) & 0xFFFF
                 if y == 2:
-                    return Insn(addr, L + 1, 'DJNZ ' + self.a16(t), CJUMP, t)
+                    return Insn(addr, L + 1, 'DJNZ ' + self.a16(t, rel=True), CJUMP, t)
                 if y == 3:
-                    return Insn(addr, L + 1, 'JR ' + self.a16(t), JUMP, t)
-                return Insn(addr, L + 1, 'JR %s,%s' % (CC[y - 4], self.a16(t)), CJUMP, t)
+                    return Insn(addr, L + 1, 'JR ' + self.a16(t, rel=True), JUMP, t)
+                return Insn(addr, L + 1, 'JR %s,%s' % (CC[y - 4], self.a16(t, rel=True)), CJUMP, t)
             if z == 1:
                 if q == 0:
                     v = imm16()

@@ -48,3 +48,44 @@ DOC PRINT_MAGNIFIED_CHAR
 # system page still at &4000 and MasterBASIC at &8000, which is why these
 # stretches read ROM variables at their proper addresses and their own at
 # &8xxx.  The system page uses it twice, here and at &48DA for &5FB9.
+
+MB &6485 PRINT_SIZED_CHAR
+MB &64AC WIDEN_CHAR_BITMAP
+
+DOC PRINT_SIZED_CHAR
+    Print one character at the size CSIZE set: widen it, then output it
+    a cell at a time.
+
+    CLAMP_CHAR_HEIGHT gives the factor, WIDEN_CHAR_BITMAP builds the
+    widened bitmap, and then the loop calls &49E4 once per cell, walking
+    HL down the built bitmap eight bytes at a time and stepping E.
+
+    &49E4 is in the ROM's system page, not this one -- this runs with
+    that page at &4000 -- and it is the routine that chooses between the
+    ROM's ordinary character output and PRINT_MAGNIFIED_CHAR here.  So
+    the path crosses between the two pages twice for every character:
+    the system page calls in at &6485, this calls back out to &49E4 per
+    cell, and that calls back in to &64F3 when the height is not 1.
+
+    The manual is the reason to believe the reading.  "INT(height/8)
+    gives the height multiplication factor -- double, triple,
+    quadruple", which is the loop count, and "the width should be
+    divisible by 8", which is what WIDEN_CHAR_BITMAP expands by.
+
+    One detail is not pinned down.  INDOPFG, the ROM's INDENTED O/P
+    FLAG, is zeroed when the factor reaches 3, and the manual says
+    "indentation of program lines is turned off when the character width
+    exceeds 40 pixels".  The two are plainly the same rule; 40 pixels is
+    five times eight and the test here is against three, so either the
+    value tested is not the width factor or the manual is rounding.  Not
+    worth guessing which.
+
+DOC WIDEN_CHAR_BITMAP
+    Expand a character's eight rows horizontally by C, building the
+    result at CDBUFF+&20 in the ROM's system page.
+
+    Each source byte is taken a bit at a time -- RLC D to fetch the bit,
+    RLA to push it into the byte being built -- with the inner count
+    B set from C each time, so one source bit becomes C output bits.
+
+MB &649C : &49E4 in the ROM's system page, which picks ordinary or magnified output

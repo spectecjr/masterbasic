@@ -1453,7 +1453,11 @@ L42B3:
 L42B6:
                ; call &493A in the other page: LMPR is switched first, so that address is how the other listing numbers it
                CALL CALLDOS                    ; 42B6 CD C1 42
-               DEFW &493A                     ; 42B9 3A 49
+               DEFB &3A                                                         ; 42B9 :
+
+; ---- V42BA ---- from &63FB
+V42BA:
+               DEFB &49                                                         ; 42BA I
                RET                             ; 42BB C9
                DEFB &00,&00,&00,&00,&00                                         ; 42BC .....  zero fill
 
@@ -5039,9 +5043,6 @@ L49E0:
 ;; Leaves:    A, F, B, HL
 ;; Ends:      JR, RET
 ;; --------------------------------------------------------------------
-
-; ---- L49E4 ---- from &649C
-L49E4:
                ADD A,&30                       ; 49E4 C6 30
                CP &3A                          ; 49E6 FE 3A
                JR NC,L49F6                     ; 49E8 30 0C
@@ -15063,7 +15064,7 @@ CMD_SAVE:
 L63F6:
                CP &03                          ; 63F6 FE 03
                JP NC,REP_INTEGER_OUT_OF_RANGE  ; 63F8 D2 A7 43
-               LD HL,&42BA                     ; 63FB 21 BA 42
+               LD HL,V42BA                     ; 63FB 21 BA 42
 
 ;; --------------------------------------------------------------------
 ;; L63FE -- &63FE to &6403
@@ -15082,7 +15083,7 @@ L63FE:
                RET                             ; 6403 C9
 
 ;; --------------------------------------------------------------------
-;; L6404 -- &6404 to &6496
+;; L6404 -- &6404 to &6484
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
@@ -15148,11 +15149,49 @@ V647E:
                ADD A,B                         ; 6480 80
                LD BC,DOS_V7F77                 ; 6481 01 77 BF
                DEFB &FF                                                         ; 6484 .
+
+;; --------------------------------------------------------------------
+;; PRINT_SIZED_CHAR -- &6485 to &6496
+;;
+;; Takes:     A, BC, DE, HL
+;; Leaves:    A, F, BC, DE, HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Print one character at the size CSIZE set: widen it, then output it
+;;     a cell at a time.
+;;     
+;;     CLAMP_CHAR_HEIGHT gives the factor, WIDEN_CHAR_BITMAP builds the
+;;     widened bitmap, and then the loop calls &49E4 once per cell, walking
+;;     HL down the built bitmap eight bytes at a time and stepping E.
+;;     
+;;     &49E4 is in the ROM's system page, not this one -- this runs with
+;;     that page at &4000 -- and it is the routine that chooses between the
+;;     ROM's ordinary character output and PRINT_MAGNIFIED_CHAR here.  So
+;;     the path crosses between the two pages twice for every character:
+;;     the system page calls in at &6485, this calls back out to &49E4 per
+;;     cell, and that calls back in to &64F3 when the height is not 1.
+;;     
+;;     The manual is the reason to believe the reading.  "INT(height/8)
+;;     gives the height multiplication factor -- double, triple,
+;;     quadruple", which is the loop count, and "the width should be
+;;     divisible by 8", which is what WIDEN_CHAR_BITMAP expands by.
+;;     
+;;     One detail is not pinned down.  INDOPFG, the ROM's INDENTED O/P
+;;     FLAG, is zeroed when the factor reaches 3, and the manual says
+;;     "indentation of program lines is turned off when the character width
+;;     exceeds 40 pixels".  The two are plainly the same rule; 40 pixels is
+;;     five times eight and the test here is against three, so either the
+;;     value tested is not the width factor or the manual is rounding.  Not
+;;     worth guessing which.
+;; --------------------------------------------------------------------
+
+PRINT_SIZED_CHAR:
                CALL CLAMP_CHAR_HEIGHT+&4000    ; 6485 CD E7 A4
                ; to the alternate register set and back again
                EXX                             ; 6488 D9
                PUSH AF                         ; 6489 F5
-               CALL L64AC+&4000                ; 648A CD AC A4
+               CALL WIDEN_CHAR_BITMAP+&4000    ; 648A CD AC A4
                POP AF                          ; 648D F1
                PUSH AF                         ; 648E F5
                CP &03                          ; 648F FE 03
@@ -15187,7 +15226,7 @@ L6498:
                PUSH BC                         ; 6499 C5
                PUSH DE                         ; 649A D5
                PUSH HL                         ; 649B E5
-               CALL L49E4                      ; 649C CD E4 49
+               CALL &49E4                      ; 649C CD E4 49  &49E4 in the ROM's system page, which picks ordinary or magnified output
                POP HL                          ; 649F E1
                LD DE,&0008                     ; 64A0 11 08 00
                ADD HL,DE                       ; 64A3 19
@@ -15200,13 +15239,22 @@ L6498:
                RET                             ; 64AB C9
 
 ;; --------------------------------------------------------------------
-;; L64AC -- &64AC to &64B8
+;; WIDEN_CHAR_BITMAP -- &64AC to &64B8
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, BC, DE, HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Expand a character's eight rows horizontally by C, building the
+;;     result at CDBUFF+&20 in the ROM's system page.
+;;     
+;;     Each source byte is taken a bit at a time -- RLC D to fetch the bit,
+;;     RLA to push it into the byte being built -- with the inner count
+;;     B set from C each time, so one source bit becomes C output bits.
 ;; --------------------------------------------------------------------
 
-L64AC:
+WIDEN_CHAR_BITMAP:
                PUSH BC                         ; 64AC C5
                PUSH DE                         ; 64AD D5
                PUSH HL                         ; 64AE E5
