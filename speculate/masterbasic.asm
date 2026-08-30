@@ -21940,8 +21940,23 @@ L77FE:
 ;;     own &7879.  The operands are not patched either: &7841-&7878 is
 ;;     unchanged after boot, so the routine reads what it says it reads.
 ;;     
-;;     What does fill the region is unfound, and the usual places have been
-;;     looked at.  &7879, &45C6, &45DE and the length 238 appear nowhere in
+;;     What does fill the region is unfound, and the search has been fairly
+;;     thorough by now.
+;;     
+;;     The DOS page's tail is not the answer and does not need explaining.
+;;     &7E00-&7FBF differs from the file in 6 bytes out of 448 after boot,
+;;     so it is static: those blocks ship in the image and are copied out of
+;;     it, not assembled into it.  There is no writer to find there.
+;;     
+;;     Nor does the copier use a literal address.  There is no LD DE,&85xx
+;;     or &86xx anywhere in either half, which is what a copy to &45C6 or
+;;     &46xx through a zeroed HMPR would look like, and no LD HL naming a
+;;     source in &78xx or &79xx.  Together with the earlier checks -- no
+;;     sixteen-bit &7879, &45C6, &45DE or 238 in either half, no window
+;;     reference to the sources, no boot code on the disk -- that leaves
+;;     only addresses worked out at run time.
+;;     
+;;     The usual places have been looked at.  &7879, &45C6, &45DE and the length 238 appear nowhere in
 ;;     either half as sixteen-bit values, so there is no table of blocks.
 ;;     No window reference to the sources exists -- no &B879, &B88E, &B986.
 ;;     The disk has no boot code to hide it in: the first sector of the
