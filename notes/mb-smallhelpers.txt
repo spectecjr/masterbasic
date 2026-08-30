@@ -46,3 +46,33 @@ MB &425D DECIMAL_DIGIT
     unchanged if A came out zero, which is what makes the padding above
     work.  Slower than a shift-and-subtract division and a great deal
     shorter, which for three digits is the right trade.
+
+MB &454A IS_LETTER_OR_DIGIT
+    Carry set if A is a letter or a digit.  IS_LETTER first, and a RET C
+    if it was one; otherwise fall into IS_DIGIT and let its answer stand.
+    IS_NAME_CHAR at &4555 is this plus whatever else a name may contain.
+
+MB &459C SET_DCT_COMPILE_BITS
+    Read DCT, OR &05, and fall into WRA to put it back -- so bits 0 and 2
+    go up.  The exact complement of what HK_PROGPREP does with AND &FA
+    before it rebuilds the compile pass, which is the best evidence that
+    those two bits are the "needs compiling" state.
+
+MB &4717 SAVE_FAR_POINTER
+    Normalise HL through the rotating window -- BIT 6,H and INCURPAGE,
+    the ROM's own step-the-page routine -- and keep the result in V409A
+    with the page it belongs to in V409C.
+
+MB &4725 COMPARE_FAR_STRINGS
+    Compare against the pointer SAVE_FAR_POINTER left, byte for byte,
+    with the two strings in different pages.  E holds the saved page and
+    D the current one, C holds HMPR, and each byte costs two OUT (C),r:
+    one to page in the saved string and read it, one to page the other
+    back and compare.  The alternate registers carry the second pointer,
+    so neither has to be reloaded round the loop.
+
+MB &47E6 GET_STRING_PAGED
+    Evaluate a string and hand back a paged address.  GETSTR leaves the
+    page in A and an offset in DE, and if the page is not zero SET 6,D
+    turns that offset into a section B address -- the same long-address
+    convention LONGADDR_TO_PAGED and PAGED_TO_LONG work in.

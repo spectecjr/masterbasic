@@ -99,6 +99,17 @@ class Symbols:
                 self._add(self.code, addr, _pick(names))
                 self._add(self.data, addr, _pick(names))
 
+    def add_rom_entry(self, value, name):
+        """A ROM address named by a comment rather than by a label.
+
+        The restarts are the case: ref/samrom/main.asm heads &0010 with
+        ";RST 10H - PRINT A" and gives the code after it no label at all,
+        so a CALL CMR / DEFW &0010 -- the same entry reached the long way
+        round -- had nothing to be called.
+        """
+        self._add(self.code, value, name)
+        self._add(self.data, value, name)
+
     def from_mdos_comments(self):
         """Names MasterDOS's source gives ROM addresses in comments."""
         for value, (name, _note) in FROM_MDOS_COMMENTS.items():
@@ -520,6 +531,7 @@ EXTRA_NOTES = {
     'HLJPI': 'ROM entry: jump to the address in HL',
     'IXJUMP': 'ROM entry: jump to the address in IX',
     'DELBC': 'ROM entry: a delay of BC iterations',
+    'PRINT_A': 'ROM entry: print the character in A',
     'STRMS': FROM_MDOS_COMMENTS[0x5C16][1],
     'RST8V': 'vector taken by RST &08 before the ROM handles it',
     'RST28V': 'vector taken by the calculator before each literal',

@@ -73,6 +73,7 @@ JMKRBIG:       EQU  &010C  ; open A*16K + BC bytes at HL
 JRECLAIM:      EQU  &0163  ; close up BC bytes at HL
 NEXTCHAR:      EQU  &0020  ; ROM entry: step CHAD and fetch the character there
 OVERF:         EQU  &5BB9  ; 'SAVE OVER' FLAG. 0 IF SAVE OVER, ELSE NZ
+PRINT_A:       EQU  &0010  ; ROM entry: print the character in A
 PROG:          EQU  &5AA0  ; address of the BASIC program
 PROGP:         EQU  &5A9F  ; page holding the BASIC program
 RDKEY:         EQU  &0169  ; read a key as INKEY$ does
@@ -5733,7 +5734,7 @@ SPC:
 L5766:
                PUSH AF                         ; 5766 F5
                CALL CMR                        ; 5767 CD B2 7B
-               DEFW &0010                     ; 576A 10 00
+               DEFW PRINT_A                   ; 576A 10 00
                POP AF                          ; 576C F1
                RET                             ; 576D C9
 

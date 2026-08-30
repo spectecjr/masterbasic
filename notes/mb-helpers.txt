@@ -48,12 +48,19 @@ DOC PAGE_IN_ROM1
     The ROM's own source names that bit where it does the same thing:
     "OR &40 -- BIT FOR ROM1=HI (ACTIVE)".
 
-DOC CALL_ROM_0010
-    Call the ROM at &0010 with ROM1 paged in.
+DOC CALL_PRINT_A
+    Print the character in A, through the ROM, with ROM1 paged in.
 
-    One of the CALL CMR / DEFW / RET wrappers, but the symbol table has
-    no name for &0010, so this one is named for the address rather than
-    for the routine.
+    One of the CALL CMR / DEFW / RET wrappers.  &0010 carries no label in
+    the ROM's map, which is why this was CALL_ROM_0010 for so long, but
+    ref/samrom/main.asm heads the three bytes there ";RST 10H - PRINT A"
+    -- so it is the same entry as the RST, reached the long way round
+    because the RST cannot page ROM1 in on the way.
+
+DOC PRINT_COUNTED_STRING
+    Print a string whose first byte is its length: LD B,(HL), then B
+    characters through CALL_PRINT_A.  Four callers, each handing it a
+    message stored that way.
 
 MB &4427 LONGADDR_TO_PAGED
 MB &62DC PAGED_TO_LONG
@@ -61,7 +68,8 @@ MB &453C IS_LETTER
 MB &53A1 FILL_WITH_C
 MB &4A6A TWO_DIGITS_FROM_DE
 MB &5C59 PAGE_IN_ROM1
-MB &69FA CALL_ROM_0010
+MB &69FA CALL_PRINT_A
+MB &69F1 PRINT_COUNTED_STRING
 
 DOC PAGE_IN_OTHER_HALF
     Put the other half of the image at &8000 and return the old HMPR.

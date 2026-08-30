@@ -2777,16 +2777,22 @@ IS_LETTER:
                RET                             ; 4549 C9
 
 ;; --------------------------------------------------------------------
-;; L454A -- &454A to &454D
+;; IS_LETTER_OR_DIGIT -- &454A to &454D
 ;;
 ;; Takes:     A
 ;; Leaves:    F
 ;;
 ;; ? calls IS_LETTER; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Carry set if A is a letter or a digit.  IS_LETTER first, and a RET C
+;;     if it was one; otherwise fall into IS_DIGIT and let its answer stand.
+;;     IS_NAME_CHAR at &4555 is this plus whatever else a name may contain.
 ;; --------------------------------------------------------------------
 
-; ---- L454A ---- from &4555, &586A
-L454A:
+; ---- IS_LETTER_OR_DIGIT ---- from &4555, &586A
+IS_LETTER_OR_DIGIT:
                CALL IS_LETTER                  ; 454A CD 3C 45
                RET C                           ; 454D D8
 
@@ -2821,6 +2827,8 @@ IS_DIGIT:
 ;; Leaves:    A, F
 ;; Ends:      RET
 ;;
+;; ? calls IS_LETTER_OR_DIGIT.
+;;
 ;; Shown for this routine in disasm/:
 ;;
 ;;     Carry set if the character in A may appear in a name.
@@ -2834,7 +2842,7 @@ IS_DIGIT:
 
 ; ---- IS_NAME_CHAR ---- from &57C7, &585C, &6F69
 IS_NAME_CHAR:
-               CALL L454A                      ; 4555 CD 4A 45
+               CALL IS_LETTER_OR_DIGIT         ; 4555 CD 4A 45
                RET C                           ; 4558 D8
                CP &5F                          ; 4559 FE 5F
                SCF                             ; 455B 37
@@ -3061,16 +3069,23 @@ L4598:
                RET                             ; 459B C9
 
 ;; --------------------------------------------------------------------
-;; L459C -- &459C to &45A1
+;; SET_DCT_COMPILE_BITS -- &459C to &45A1
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F, HL
 ;;
 ;; ? calls RDA; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Read DCT, OR &05, and fall into WRA to put it back -- so bits 0 and 2
+;;     go up.  The exact complement of what HK_PROGPREP does with AND &FA
+;;     before it rebuilds the compile pass, which is the best evidence that
+;;     those two bits are the "needs compiling" state.
 ;; --------------------------------------------------------------------
 
-; ---- L459C ---- from &5176, &58EB, &6E4F
-L459C:
+; ---- SET_DCT_COMPILE_BITS ---- from &5176, &58EB, &6E4F
+SET_DCT_COMPILE_BITS:
                LD HL,DCT                       ; 459C 21 B6 5B
                CALL RDA                        ; 459F CD D1 45
 
@@ -3582,11 +3597,13 @@ L4680:
 ;;
 ;; Takes:     HL
 ;; Leaves:    A, F
+;;
+;; ? calls SAVE_FAR_POINTER; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L46A4 ---- from &46B1, &46B8, &47B5
 L46A4:
-               CALL L4717                      ; 46A4 CD 17 47
+               CALL SAVE_FAR_POINTER           ; 46A4 CD 17 47
 
 ;; --------------------------------------------------------------------
 ;; L46A7 -- &46A7 to &46A7
@@ -3629,6 +3646,8 @@ L46AB:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JR
+;;
+;; ? calls SAVE_FAR_POINTER, COMPARE_FAR_STRINGS.
 ;; --------------------------------------------------------------------
 
 ; ---- L46AE ---- from &46BA
@@ -3636,7 +3655,7 @@ L46AE:
                CP (HL)                         ; 46AE BE
                JR C,L46A8                      ; 46AF 38 F7
                JR NZ,L46A4                     ; 46B1 20 F1
-               CALL L4725                      ; 46B3 CD 25 47
+               CALL COMPARE_FAR_STRINGS        ; 46B3 CD 25 47
                JR C,L46A7                      ; 46B6 38 EF
                JR L46A4                        ; 46B8 18 EA
 
@@ -3660,7 +3679,7 @@ L46BA:
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JR
 ;;
-;; ? calls PAGE_ON_TWO.
+;; ? calls PAGE_ON_TWO, SAVE_FAR_POINTER, COMPARE_FAR_STRINGS.
 ;; --------------------------------------------------------------------
 
 ; ---- L46BD ---- from &46A9
@@ -3714,11 +3733,13 @@ L46CD:
 ;;
 ;; Takes:     HL
 ;; Leaves:    A, F
+;;
+;; ? calls SAVE_FAR_POINTER; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L46CE ---- from &46E0, &46E7
 L46CE:
-               CALL L4717                      ; 46CE CD 17 47
+               CALL SAVE_FAR_POINTER           ; 46CE CD 17 47
 
 ;; --------------------------------------------------------------------
 ;; L46D1 -- &46D1 to &46D3
@@ -3778,6 +3799,8 @@ L46DA:
 ;; Takes:     A, C, DE, HL
 ;; Leaves:    A, F, BC, HL
 ;; Ends:      JR
+;;
+;; ? calls SAVE_FAR_POINTER.
 ;; --------------------------------------------------------------------
                DEC H                           ; 46E3 25
                LD B,A                          ; 46E4 47
@@ -3823,11 +3846,13 @@ L46F2:
 ;;
 ;; Takes:     HL
 ;; Leaves:    A, F
+;;
+;; ? calls SAVE_FAR_POINTER; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L46F7 ---- from &4706, &470D, &47AA
 L46F7:
-               CALL L4717                      ; 46F7 CD 17 47
+               CALL SAVE_FAR_POINTER           ; 46F7 CD 17 47
 
 ;; --------------------------------------------------------------------
 ;; L46FA -- &46FA to &46FA
@@ -3871,6 +3896,8 @@ L46FE:
 ;; Takes:     C, DE, HL
 ;; Leaves:    A, F, C, HL
 ;; Ends:      JR
+;;
+;; ? calls SAVE_FAR_POINTER.
 ;; --------------------------------------------------------------------
                JR Z,L4708                      ; 4702 28 04
                JR NC,L46FB                     ; 4704 30 F5
@@ -3882,11 +3909,13 @@ L46FE:
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JR
+;;
+;; ? calls SAVE_FAR_POINTER, COMPARE_FAR_STRINGS.
 ;; --------------------------------------------------------------------
 
 ; ---- L4708 ---- from &4702
 L4708:
-               CALL L4725                      ; 4708 CD 25 47
+               CALL COMPARE_FAR_STRINGS        ; 4708 CD 25 47
                JR NC,L46FA                     ; 470B 30 ED
                JR L46F7                        ; 470D 18 E8
                DEFB &10,&F0,&C9                                                 ; 470F .pI  skipped: reads as DJNZ &4701 from here, and as part of the instruction above it
@@ -3898,7 +3927,7 @@ L4708:
 ;; Leaves:    A, F, C, HL
 ;; Ends:      JR
 ;;
-;; ? calls PAGE_ON_TWO.
+;; ? calls PAGE_ON_TWO, SAVE_FAR_POINTER.
 ;; --------------------------------------------------------------------
 
 ; ---- L4712 ---- from &46FC
@@ -3907,16 +3936,22 @@ L4712:
                JR L46FE                        ; 4715 18 E7
 
 ;; --------------------------------------------------------------------
-;; L4717 -- &4717 to &4723
+;; SAVE_FAR_POINTER -- &4717 to &4723
 ;;
 ;; Takes:     HL
 ;; Leaves:    A, F
 ;;
 ;; ? drives IN A,(HMPR); falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Normalise HL through the rotating window -- BIT 6,H and INCURPAGE,
+;;     the ROM's own step-the-page routine -- and keep the result in V409A
+;;     with the page it belongs to in V409C.
 ;; --------------------------------------------------------------------
 
-; ---- L4717 ---- from &46A4, &46CE, &46F7
-L4717:
+; ---- SAVE_FAR_POINTER ---- from &46A4, &46CE, &46F7
+SAVE_FAR_POINTER:
                ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 4717 CB 74
                CALL NZ,INCURPAGE               ; 4719 C4 F2 3F
@@ -3934,7 +3969,7 @@ L4717:
                RET                             ; 4724 C9
 
 ;; --------------------------------------------------------------------
-;; L4725 -- &4725 to &4739
+;; COMPARE_FAR_STRINGS -- &4725 to &4739
 ;;
 ;; Takes:     BC, DE, HL
 ;; Leaves:    F, BC, DE
@@ -3942,10 +3977,19 @@ L4717:
 ;; Ends:      JR, RET
 ;;
 ;; ? drives IN D,(C).
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Compare against the pointer SAVE_FAR_POINTER left, byte for byte,
+;;     with the two strings in different pages.  E holds the saved page and
+;;     D the current one, C holds HMPR, and each byte costs two OUT (C),r:
+;;     one to page in the saved string and read it, one to page the other
+;;     back and compare.  The alternate registers carry the second pointer,
+;;     so neither has to be reloaded round the loop.
 ;; --------------------------------------------------------------------
 
-; ---- L4725 ---- from &46B3, &4708
-L4725:
+; ---- COMPARE_FAR_STRINGS ---- from &46B3, &4708
+COMPARE_FAR_STRINGS:
                ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 4725 CB 74
                CALL NZ,INCURPAGE               ; 4727 C4 F2 3F
@@ -4063,11 +4107,13 @@ L4759:
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
+;;
+;; ? calls GET_STRING_PAGED; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
                JP NC,REP_STRING_TOO_LONG       ; 4772 D2 B9 43
                PUSH HL                         ; 4775 E5
                PUSH BC                         ; 4776 C5
-               CALL L47E6                      ; 4777 CD E6 47
+               CALL GET_STRING_PAGED           ; 4777 CD E6 47
                LD (V409E),DE                   ; 477A ED 53 9E 40
                LD A,B                          ; 477E 78
                AND A                           ; 477F A7
@@ -4195,17 +4241,24 @@ L47E2:
                RET                             ; 47E5 C9
 
 ;; --------------------------------------------------------------------
-;; L47E6 -- &47E6 to &47ED
+;; GET_STRING_PAGED -- &47E6 to &47ED
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      RET
 ;;
 ;; ? calls CALL_GETSTR.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Evaluate a string and hand back a paged address.  GETSTR leaves the
+;;     page in A and an offset in DE, and if the page is not zero SET 6,D
+;;     turns that offset into a section B address -- the same long-address
+;;     convention LONGADDR_TO_PAGED and PAGED_TO_LONG work in.
 ;; --------------------------------------------------------------------
 
-; ---- L47E6 ---- from &4777, &47EE, &6FDF
-L47E6:
+; ---- GET_STRING_PAGED ---- from &4777, &47EE, &6FDF
+GET_STRING_PAGED:
                CALL CALL_GETSTR                ; 47E6 CD 6D 44
                AND A                           ; 47E9 A7
                RET Z                           ; 47EA C8
@@ -4218,11 +4271,13 @@ L47E6:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      RET
+;;
+;; ? calls GET_STRING_PAGED.
 ;; --------------------------------------------------------------------
 
 ; ---- L47EE ---- from &4788
 L47EE:
-               CALL L47E6                      ; 47EE CD E6 47
+               CALL GET_STRING_PAGED           ; 47EE CD E6 47
                LD A,B                          ; 47F1 78
                OR C                            ; 47F2 B1
                JP Z,REP_SUBSCRIPT_WRONG        ; 47F3 CA B6 43
@@ -4851,9 +4906,9 @@ L496A:
                CALL CALLDOS                    ; 496A CD C1 42
                DEFW NRREAD                    ; 496D AC 00
                INC HL                          ; 496F 23
-               ; call the ROM at &0010 with ROM1 paged in, and page back on the way out
+               ; call the ROM at PRINT_A with ROM1 paged in, and page back on the way out
                CALL CMR                        ; 4970 CD F0 44
-               DEFW &0010                     ; 4973 10 00
+               DEFW PRINT_A                   ; 4973 10 00
                DJNZ L496A                      ; 4975 10 F3
                RET                             ; 4977 C9
 
@@ -7415,7 +7470,7 @@ HPRTOK:
 ; ---- L502C ---- from &501C, &50D0
 L502C:
                LD A,&20                        ; 502C 3E 20
-               JP CALL_ROM_0010                ; 502E C3 FA 69
+               JP CALL_PRINT_A                 ; 502E C3 FA 69
 
 ;; --------------------------------------------------------------------
 ;; SKIP_TO_END_OF_WORD -- &5031 to &5037
@@ -7444,14 +7499,14 @@ SKIP_TO_END_OF_WORD:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      JR
 ;;
-;; ? calls CALL_ROM_0010.
+;; ? calls CALL_PRINT_A.
 ;; --------------------------------------------------------------------
 
 ; ---- L5038 ---- from &5042, &5054
 L5038:
                LD A,(HL)                       ; 5038 7E
                AND &7F                         ; 5039 E6 7F
-               CALL CALL_ROM_0010              ; 503B CD FA 69
+               CALL CALL_PRINT_A               ; 503B CD FA 69
                BIT 7,(HL)                      ; 503E CB 7E
                RET NZ                          ; 5040 C0
                INC HL                          ; 5041 23
@@ -7472,7 +7527,7 @@ L5038:
                POP AF                          ; 504A F1
                PUSH AF                         ; 504B F5
                ADD A,&30                       ; 504C C6 30
-               CALL CALL_ROM_0010              ; 504E CD FA 69
+               CALL CALL_PRINT_A               ; 504E CD FA 69
                LD HL,V505C                     ; 5051 21 5C 50
                CALL L5038                      ; 5054 CD 38 50
                POP AF                          ; 5057 F1
@@ -7794,7 +7849,7 @@ CMD_MERGE:
                CALL CALLDOS                    ; 516E CD C1 42
                DEFW DOS_EVNAM-&4000           ; 5171 CF 61
                CALL EXPECT_END_OF_STATEMENT    ; 5173 CD D0 44
-               CALL L459C                      ; 5176 CD 9C 45
+               CALL SET_DCT_COMPILE_BITS       ; 5176 CD 9C 45
                ; call &7862 in the other page: LMPR is switched first, so that address is how the other listing numbers it
                CALL CALLDOS                    ; 5179 CD C1 42
                DEFW &7862                     ; 517C 62 78
@@ -9588,7 +9643,7 @@ L56AE:
                CALL CMR                        ; 56CF CD F0 44
                DEFW PRINTSTR                  ; 56D2 13 00
                LD A,&0D                        ; 56D4 3E 0D
-               CALL CALL_ROM_0010              ; 56D6 CD FA 69
+               CALL CALL_PRINT_A               ; 56D6 CD FA 69
                POP HL                          ; 56D9 E1
                JP L574D                        ; 56DA C3 4D 57
 
@@ -10101,7 +10156,7 @@ L584D:
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, C, DE, HL
 ;;
-;; ? tests for CH_DOLLAR; calls IS_NAME_CHAR; falls into whatever follows rather than returning.
+;; ? tests for CH_DOLLAR; calls IS_LETTER_OR_DIGIT, IS_NAME_CHAR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L5852 ---- from &583E
@@ -10125,7 +10180,7 @@ L5852:
                INC HL                          ; 5867 23
                EX (SP),HL                      ; 5868 E3
                INC C                           ; 5869 0C
-               CALL NZ,L454A                   ; 586A C4 4A 45
+               CALL NZ,IS_LETTER_OR_DIGIT      ; 586A C4 4A 45
                JR NC,L5872                     ; 586D 30 03
 
 ;; --------------------------------------------------------------------
@@ -10295,6 +10350,8 @@ L589F:
 ;; Leaves:    A, F, DE, HL
 ;; Preserves: BC (saved and restored)
 ;; Ends:      JR, RET
+;;
+;; ? calls SET_DCT_COMPILE_BITS.
 ;; --------------------------------------------------------------------
 
 ; ---- L58BF ---- from &5740
@@ -10352,12 +10409,14 @@ L58E3:
 ;; Takes:     HL
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      RET
+;;
+;; ? calls SET_DCT_COMPILE_BITS.
 ;; --------------------------------------------------------------------
 
 ; ---- L58EA ---- from &58E1
 L58EA:
                PUSH HL                         ; 58EA E5
-               CALL L459C                      ; 58EB CD 9C 45
+               CALL SET_DCT_COMPILE_BITS       ; 58EB CD 9C 45
                POP DE                          ; 58EE D1
                POP BC                          ; 58EF C1
                RET                             ; 58F0 C9
@@ -16468,7 +16527,7 @@ L6871:
                LD A,&FB                        ; 6884 3E FB
                CALL CALL_STREAM                ; 6886 CD EB 69
                LD HL,GCMX1                     ; 6889 21 23 40
-               CALL L69F1                      ; 688C CD F1 69
+               CALL PRINT_COUNTED_STRING       ; 688C CD F1 69
                LD D,&00                        ; 688F 16 00
                LD A,(DUMP_MODE)                ; 6891 3A AE 40
                CP &02                          ; 6894 FE 02
@@ -16498,6 +16557,8 @@ L689E:
 ;;
 ;; Takes:     C
 ;; Leaves:    A, B, HL
+;;
+;; ? calls PRINT_COUNTED_STRING; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L68AA ---- from &69CA
@@ -16505,7 +16566,7 @@ L68AA:
                LD HL,V40AF                     ; 68AA 21 AF 40
                LD (HL),C                       ; 68AD 71
                LD HL,GCMX4                     ; 68AE 21 1C 40
-               CALL L69F1                      ; 68B1 CD F1 69
+               CALL PRINT_COUNTED_STRING       ; 68B1 CD F1 69
                LD A,(DTTH)                     ; 68B4 3A 05 40
 
 ;; --------------------------------------------------------------------
@@ -16534,7 +16595,7 @@ L68B7:
 ;; Preserves: B (saved and restored)
 ;; Ends:      JR
 ;;
-;; ? calls CALL_ROM_0010, TRANSFORM_DUMP_COORDS.
+;; ? calls PRINT_COUNTED_STRING, CALL_PRINT_A, TRANSFORM_DUMP_COORDS.
 ;; --------------------------------------------------------------------
 
 ; ---- L68C8 ---- from &68C4
@@ -16561,6 +16622,8 @@ L68CB:
 ;;
 ;; Takes:     A, D
 ;; Leaves:    A, F, B, DE, HL
+;;
+;; ? calls PRINT_COUNTED_STRING; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L68D1 ---- from &68C9, &68CE
@@ -16569,7 +16632,7 @@ L68D1:
                LD A,D                          ; 68D4 7A
                LD (V40B1),A                    ; 68D5 32 B1 40
                LD HL,GCMX2                     ; 68D8 21 14 40
-               CALL L69F1                      ; 68DB CD F1 69
+               CALL PRINT_COUNTED_STRING       ; 68DB CD F1 69
                LD A,(V409E)                    ; 68DE 3A 9E 40
                LD (V40A2),A                    ; 68E1 32 A2 40
                LD B,A                          ; 68E4 47
@@ -16588,7 +16651,7 @@ L68D1:
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls CALL_ROM_0010; falls into whatever follows rather than returning.
+;; ? calls CALL_PRINT_A; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L68F2 ---- from &68F3
@@ -16596,9 +16659,9 @@ L68F2:
                ADD HL,DE                       ; 68F2 19
                DJNZ L68F2                      ; 68F3 10 FD
                LD A,L                          ; 68F5 7D
-               CALL CALL_ROM_0010              ; 68F6 CD FA 69
+               CALL CALL_PRINT_A               ; 68F6 CD FA 69
                LD A,H                          ; 68F9 7C
-               CALL CALL_ROM_0010              ; 68FA CD FA 69
+               CALL CALL_PRINT_A               ; 68FA CD FA 69
                LD A,(V4060)                    ; 68FD 3A 60 40
                LD B,A                          ; 6900 47
                LD E,&03                        ; 6901 1E 03
@@ -16842,13 +16905,13 @@ L6988:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls CALL_ROM_0010; falls into whatever follows rather than returning.
+;; ? calls CALL_PRINT_A; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L6989 ---- from &67F8
 L6989:
                NOP                             ; 6989 00
-               CALL CALL_ROM_0010              ; 698A CD FA 69
+               CALL CALL_PRINT_A               ; 698A CD FA 69
                LD D,C                          ; 698D 51
                POP BC                          ; 698E C1
                DEC D                           ; 698F 15
@@ -16936,7 +16999,7 @@ L69AE:
 ;; Preserves: B (saved and restored)
 ;; Ends:      JP, JR
 ;;
-;; ? calls CALL_ROM_0010, TRANSFORM_DUMP_COORDS.
+;; ? calls PRINT_COUNTED_STRING, CALL_PRINT_A, TRANSFORM_DUMP_COORDS.
 ;; --------------------------------------------------------------------
 
 ; ---- L69CA ---- from &69E2
@@ -16985,12 +17048,14 @@ L69D4:
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F, B, HL
+;;
+;; ? calls PRINT_COUNTED_STRING; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L69E4 ---- from &69C6, &69DB
 L69E4:
                LD HL,GCMX3                     ; 69E4 21 34 40
-               CALL L69F1                      ; 69E7 CD F1 69
+               CALL PRINT_COUNTED_STRING       ; 69E7 CD F1 69
                XOR A                           ; 69EA AF
 
 ;; --------------------------------------------------------------------
@@ -17010,14 +17075,20 @@ CALL_STREAM:
                RET                             ; 69F0 C9
 
 ;; --------------------------------------------------------------------
-;; L69F1 -- &69F1 to &69F1
+;; PRINT_COUNTED_STRING -- &69F1 to &69F1
 ;;
 ;; Takes:     HL
 ;; Leaves:    B
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Print a string whose first byte is its length: LD B,(HL), then B
+;;     characters through CALL_PRINT_A.  Four callers, each handing it a
+;;     message stored that way.
 ;; --------------------------------------------------------------------
 
-; ---- L69F1 ---- from &688C, &68B1, &68DB, &69E7
-L69F1:
+; ---- PRINT_COUNTED_STRING ---- from &688C, &68B1, &68DB, &69E7
+PRINT_COUNTED_STRING:
                LD B,(HL)                       ; 69F1 46
 
 ;; --------------------------------------------------------------------
@@ -17027,39 +17098,41 @@ L69F1:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      RET
 ;;
-;; ? calls CALL_ROM_0010.
+;; ? calls CALL_PRINT_A.
 ;; --------------------------------------------------------------------
 
 ; ---- L69F2 ---- from &69F7
 L69F2:
                INC HL                          ; 69F2 23
                LD A,(HL)                       ; 69F3 7E
-               CALL CALL_ROM_0010              ; 69F4 CD FA 69
+               CALL CALL_PRINT_A               ; 69F4 CD FA 69
                DJNZ L69F2                      ; 69F7 10 F9
                RET                             ; 69F9 C9
 
 ;; --------------------------------------------------------------------
-;; CALL_ROM_0010 -- &69FA to &69FF
+;; CALL_PRINT_A -- &69FA to &69FF
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls CMR; falls into whatever follows rather than returning.
+;; ? reaches the ROM through PRINT_A; calls CMR; falls into whatever follows rather than returning.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
-;;     Call the ROM at &0010 with ROM1 paged in.
+;;     Print the character in A, through the ROM, with ROM1 paged in.
 ;;     
-;;     One of the CALL CMR / DEFW / RET wrappers, but the symbol table has
-;;     no name for &0010, so this one is named for the address rather than
-;;     for the routine.
+;;     One of the CALL CMR / DEFW / RET wrappers.  &0010 carries no label in
+;;     the ROM's map, which is why this was CALL_ROM_0010 for so long, but
+;;     ref/samrom/main.asm heads the three bytes there ";RST 10H - PRINT A"
+;;     -- so it is the same entry as the RST, reached the long way round
+;;     because the RST cannot page ROM1 in on the way.
 ;; --------------------------------------------------------------------
 
-; ---- CALL_ROM_0010 ---- from &502E, &503B, &504E, &56D6, &68F6, &68FA, &698A, &69F4 ...
-CALL_ROM_0010:
-               ; call the ROM at &0010 with ROM1 paged in, and page back on the way out
+; ---- CALL_PRINT_A ---- from &502E, &503B, &504E, &56D6, &68F6, &68FA, &698A, &69F4 ...
+CALL_PRINT_A:
+               ; call the ROM at PRINT_A with ROM1 paged in, and page back on the way out
                CALL CMR                        ; 69FA CD F0 44
-               DEFW &0010                     ; 69FD 10 00
+               DEFW PRINT_A                   ; 69FD 10 00
                RET                             ; 69FF C9
 
 ;; --------------------------------------------------------------------
@@ -18903,7 +18976,7 @@ L6E38:
 ; ---- L6E4C ---- from &6F04
 L6E4C:
                CALL L6E52                      ; 6E4C CD 52 6E
-               JP L459C                        ; 6E4F C3 9C 45
+               JP SET_DCT_COMPILE_BITS         ; 6E4F C3 9C 45
 
 ;; --------------------------------------------------------------------
 ;; L6E52 -- &6E52 to &6E52
@@ -19433,14 +19506,14 @@ L6FCF:
 ;; Preserves: DE (saved and restored)
 ;; Ends:      RET
 ;;
-;; ? drives IN A,(HMPR), OUT (HMPR),A; calls LONGADDR_TO_PAGED, MULTIPLY_HL_BY_DE.
+;; ? drives IN A,(HMPR), OUT (HMPR),A; calls LONGADDR_TO_PAGED, MULTIPLY_HL_BY_DE, GET_STRING_PAGED.
 ;; --------------------------------------------------------------------
 
 ; ---- L6FDD ---- from &6F9A
 L6FDD:
                PUSH DE                         ; 6FDD D5
                PUSH HL                         ; 6FDE E5
-               CALL L47E6                      ; 6FDF CD E6 47
+               CALL GET_STRING_PAGED           ; 6FDF CD E6 47
                POP HL                          ; 6FE2 E1
                PUSH BC                         ; 6FE3 C5
                PUSH BC                         ; 6FE4 C5
@@ -19956,13 +20029,13 @@ CMD_CLS:
                CALL CMR                        ; 71B9 CD F0 44
                DEFW STREAM                    ; 71BC 12 01
                LD A,&10                        ; 71BE 3E 10
-               CALL CALL_ROM_0010              ; 71C0 CD FA 69
+               CALL CALL_PRINT_A               ; 71C0 CD FA 69
                XOR A                           ; 71C3 AF
-               CALL CALL_ROM_0010              ; 71C4 CD FA 69
+               CALL CALL_PRINT_A               ; 71C4 CD FA 69
                LD A,&11                        ; 71C7 3E 11
-               CALL CALL_ROM_0010              ; 71C9 CD FA 69
+               CALL CALL_PRINT_A               ; 71C9 CD FA 69
                LD A,&0F                        ; 71CC 3E 0F
-               CALL CALL_ROM_0010              ; 71CE CD FA 69
+               CALL CALL_PRINT_A               ; 71CE CD FA 69
                LD HL,ATTRT                     ; 71D1 21 4E 5A
                LD DE,L5A45                     ; 71D4 11 45 5A
                LD BC,&0005                     ; 71D7 01 05 00
@@ -21280,6 +21353,8 @@ L7519:
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, HL, IX
 ;; Ends:      JP, JR
+;;
+;; ? calls SAVE_FAR_POINTER.
 ;; --------------------------------------------------------------------
 
 ; ---- L7530 ---- from &7522
@@ -21450,7 +21525,7 @@ L75B9:
 ;; Leaves:    A, F, BC, DE, HL, IX, IY
 ;; Ends:      JP
 ;;
-;; ? calls LONGADDR_TO_PAGED, MULTIPLY_HL_BY_DE.
+;; ? calls LONGADDR_TO_PAGED, MULTIPLY_HL_BY_DE, GET_STRING_PAGED.
 ;; --------------------------------------------------------------------
                EX DE,HL                        ; 75C1 EB
                ; to the alternate register set and back again

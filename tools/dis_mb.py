@@ -1246,6 +1246,8 @@ def load_symbols(d, work):
     if os.path.exists(rom_sym):
         syms.from_rom_equates(rom_sym)
     syms.from_mdos_comments()
+    for value, (rst_name, _note) in infer.RESTARTS.items():
+        syms.add_rom_entry(value, rst_name)
 
     sources = [os.path.join(ROOT, 'ref', 'masterdos', 'annotated-src', 'masterdos23.asm')]
     sources += sorted(glob.glob(os.path.join(ROOT, 'ref', 'samrom', '*.asm')))
@@ -1453,6 +1455,10 @@ def header(d):
                          % (d.ports[v] + ':', hexn(v, 2),
                             '; ' + note if note else '')).rstrip())
     eq = d.syms.equates(d.used_ext) if d.syms else {}
+    # A restart's name is emitted once, with the RST equates below.
+    # &0010 reached as a CMR parameter is the same address under the same
+    # name, so it must not bring a second EQU with it.
+    eq = {n: v for n, v in eq.items() if n not in d.rst_equs}
     if eq:
         head.append('')
         head.append('; SAM ROM entry points and system variables.  A page cannot')
