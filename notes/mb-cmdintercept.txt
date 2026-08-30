@@ -74,27 +74,39 @@ MB &5D32 CMD_PAUSE
     own.
 
 MB &5D62 CMD_DEF_KEYCODE
-    DEF KEYCODE, token &C9.  &8F00 is INSTBUF, the ROM's &4F00 "buffer
-    for ROM1 xfer code, etc", seen through the window that PAGE_IN_ROM1
-    is about to open; L5C4B picks the routine's real address out of the
-    two bytes after the table entry, and &91 bytes are copied there
-    behind an &E7.  Then &4A9F -- an address in the second installed stub
-    in that page -- is written into INSTBUF+&0D, and &4F00 is handed to
-    STORE_BC_AT_XVAR76.
+    DEF KEYCODE, token &C9.  &8F00 is the ROM's &4F00 seen through the
+    window PAGE_IN_ROM1 is about to open; L5C4B picks the routine's real
+    address out of the two bytes after the table entry, and &91 bytes are
+    copied there behind an &E7.  Then &4A9F -- an address in the second
+    installed stub in that page -- is written into &4F0D, and &4F00 is
+    handed to STORE_BC_AT_XVAR76.
 
-    So the ROM's own DEF KEYCODE runs from a copy with one operand
-    changed.  What that operand does is not established here.
+    The ROM's own source settles what this is.  ref/samrom/miscx2.asm
+    opens
+
+        ORG INSTBUF
+        DKP2:  CALL EXPT1NUM   ;NUMBER OF KEY CODE TO DEFINE
+
+    -- so DEF KEYCODE is one of the ROM 1 routines the ROM assembles to
+    run at INSTBUF and copies there when the command is used, and DKLN,
+    the length it copies, is DKFIN+1-DKP2.  MasterBASIC does the ROM's
+    own copy for it, prefixes an RST &20 and changes one operand.
 
 MB &5D78 CMD_KEYIN
-    KEYIN, token &D1.  The same shape as the one above, into HDR at
-    &4B00 -- the ROM's fifty-byte header buffer, borrowed because KEYIN
-    cannot be loading a file at the same time.  Three runs of &09, &16
-    and &2C bytes are copied, each followed by a three-byte CALL that
+    KEYIN, token &D1.  The same shape, into HDR at &4B00: three runs of
+    &09, &16 and &2C bytes, each followed by a three-byte CALL that
     COPY_THEN_APPEND_CALL adds, then six more and the seventeen at
     L5DAE, and &4B00 is handed on.
 
-    Three interposed calls into one copied routine, where DEF KEYCODE
-    needed one patched operand.
+    The ROM's source settles this one too -- ref/samrom/miscx1.asm has
+
+        ORG HDR
+        KEYP2:  CALL SYNTAXA
+
+    so KEYIN is assembled to run in the fifty-byte header buffer, which
+    is free because KEYIN cannot be loading a file at the same time.
+    MasterBASIC copies it there in three pieces and interposes a call
+    after each, where DEF KEYCODE needed one patched operand.
 
 # BUILD_PAGE_IN_TRAMPOLINE is POKE, token &E1, and the manual's
 # "Faster animation with POKE" is what it is for: POKE address,a$ copies

@@ -92,6 +92,7 @@ SLDEV:         EQU  &5BB7  ; DEVICE LETTER/NUMBER (TEMP)
 SPOSNL:        EQU  &5A6E  ; SCREEN POSN (LOWER) 0,19 AFTER CLS
 STKSTR:        EQU  &0127  ; push a five-byte number from A, E, D, C, B
 STREAM:        EQU  &0112  ; select the stream in A
+STRMS:         EQU  &5C16  ; the table of streams; stream zero first
 TSURPG:        EQU  &3FDF  ; Sets the upper memory area to the page in A (from 0-31). Bits 7-5 of the port are read in and preserved.
 TVFLAG:        EQU  &5C3C  ; television flags
 UNSTLEN:       EQU  &3F8C  ; ! ;1* split the calculator stack top into a page count and an offset
@@ -160,7 +161,6 @@ MB_HPRTOK:     EQU  &900E
 MB_L4160:      EQU  &8160
 MB_L4200:      EQU  &8200
 MB_L42FF:      EQU  &82FF
-MB_L5C16:      EQU  &9C16
 MB_L63F6:      EQU  &A3F6
 MB_L7900:      EQU  &B900
 MB_L7914:      EQU  &B914

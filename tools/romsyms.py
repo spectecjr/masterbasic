@@ -99,6 +99,12 @@ class Symbols:
                 self._add(self.code, addr, _pick(names))
                 self._add(self.data, addr, _pick(names))
 
+    def from_mdos_comments(self):
+        """Names MasterDOS's source gives ROM addresses in comments."""
+        for value, (name, _note) in FROM_MDOS_COMMENTS.items():
+            self._add(self.data, value, name)
+            self.vars.setdefault(value, name)
+
     def from_rom_equates(self, path):
         """ROM equates, for the variable area the DOS page hides.
 
@@ -476,6 +482,17 @@ PORT_NOTES = {
 # The sources leave some of the best-known variables uncommented -- the
 # ROM's author had no need to write down what STKEND was.  These are
 # mine, not his, and the listing says so where it prints them.
+# Addresses in the ROM's variable area that its own source leaves
+# unlabelled and MasterDOS's source names in a comment.  &5C16 is the one
+# that forced this: MasterDOS writes `LD HL,&5C16+FS ;STREAM ZERO` three
+# times, so &5C16 begins the ROM's table of streams.  Without a name for
+# it, every &9C16 in the DOS came out as a reference to MasterBASIC's own
+# &5C16, which is unrelated code that happens to sit at the same address.
+FROM_MDOS_COMMENTS = {
+    0x5C16: ('STRMS', 'the table of streams; stream zero first'),
+}
+
+
 EXTRA_NOTES = {
     'STKEND': 'end of the calculator stack',
     'WORKSP': 'address of the workspace',
@@ -503,6 +520,7 @@ EXTRA_NOTES = {
     'HLJPI': 'ROM entry: jump to the address in HL',
     'IXJUMP': 'ROM entry: jump to the address in IX',
     'DELBC': 'ROM entry: a delay of BC iterations',
+    'STRMS': FROM_MDOS_COMMENTS[0x5C16][1],
     'RST8V': 'vector taken by RST &08 before the ROM handles it',
     'RST28V': 'vector taken by the calculator before each literal',
     'PRTOKV': 'vector for printing a keyword token',

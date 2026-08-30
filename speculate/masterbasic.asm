@@ -80,6 +80,7 @@ DKP2:          EQU  &4F00  ; NUMBER OF KEY CODE TO DEFINE
 DMPFG:         EQU  &5AB7  ; IF NZ PRINT O/P DUMPED
 DOSCNT:        EQU  &5BC3  ; BIT 0 IS SET IF DOS IN CONTROL
 DOSFLG:        EQU  &5BC2  ; Z IF NO DOS LOADED
+DOSSTK:        EQU  &5C59  ; stack pointer saved across a DOS call
 EDITV:         EQU  &5AEC  ; vector taken by the editor
 ELINE:         EQU  &5A94  ; address of the edit line
 ELINEP:        EQU  &5A93  ; page holding the edit line
@@ -97,6 +98,7 @@ FRAMIV:        EQU  &5AE2  ; The Frame interrupt vector - usually this reads the
 GETCHAR:       EQU  &0018  ; ROM entry: the character at CHAD, control codes skipped
 GETINT:        EQU  &0121  ; UNSTACK WORD FROM CALCULATOR STACK TO BC. HL=BC, A=C
 GETSTR:        EQU  &0124  ; pop a string descriptor: A = page, DE = start, BC = length
+HDR:           EQU  &4B00  ; HEADER LEN=50H. ALSO USED FOR PARPRO RENAME STK
 HLJPI:         EQU  &01C7  ; ROM entry: jump to the address in HL
 HLJUMP:        EQU  &0005  ; JP (HL)
 HUDG:          EQU  &5C7D  ; The high UDG range start pointer (for chars 169+).
@@ -329,8 +331,11 @@ SYS_INSLV_STRING_MOVE: EQU  &46CC
 SYS_PAGER:     EQU  &5BE0
 SYS_PATOUT_CHAR_OUT: EQU  &49A9
 SYS_PRTOKV_PRINT_TOKEN: EQU  &4BB0
+SYS_RECORD_MODE: EQU  &4AF3
+SYS_RECORD_STATE: EQU  &4AF4
 SYS_RST8V_ERROR: EQU  &4AB8
 SYS_SPARE8:    EQU  &5C59
+SYS_STRM16_SAVE: EQU  &4AF5
 SYS_TOKEN_TO_FN_INDEX: EQU  &45A2
 
 ; The byte after RST &08: a DOS error, or a hook code, which is
@@ -2688,8 +2693,8 @@ L4516:
                ; the stack is being reset, so this path does not return
                LD SP,HL                        ; 451F F9
                EI                              ; 4520 FB
-               LD HL,(SYS_SPARE8)              ; 4521 2A 59 5C
-               LD (SYS_SPARE8),IY              ; 4524 FD 22 59 5C
+               LD HL,(DOSSTK)                  ; 4521 2A 59 5C
+               LD (DOSSTK),IY                  ; 4524 FD 22 59 5C
                PUSH IY                         ; 4528 FD E5
                PUSH BC                         ; 452A C5
                PUSH HL                         ; 452B E5
@@ -5460,12 +5465,14 @@ L4AE9:
                RET                             ; 4AEF C9
 
 ;; --------------------------------------------------------------------
-;; FN_LOCN -- &4AF0 to &4AF2
+;; FN_LOCN -- &4AF0 to &4B3B
 ;;
-;; Takes:     nothing in registers
-;; Leaves:    C
+;; Takes:     A, B, DE, HL
+;; Leaves:    A, F, BC, E, HL, IY
+;; Preserves: D (saved and restored)
+;; Ends:      JR
 ;;
-;; ? calls EXPECT_NEXT_LPAREN_AND_NUMBER; falls into whatever follows rather than returning.
+;; ? drives IN A,(HMPR), OUT (HMPR),A; calls EXPECT_NEXT_LPAREN_AND_NUMBER, EXPECT_NUMBER, NRRD.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -5482,20 +5489,6 @@ L4AE9:
 
 FN_LOCN:
                CALL EXPECT_NEXT_LPAREN_AND_NUMBER ; 4AF0 CD 4A 44
-
-;; --------------------------------------------------------------------
-;; L4AF3 -- &4AF3 to &4B3B
-;;
-;; Takes:     A, BC, DE, HL
-;; Leaves:    A, F, BC, E, HL, IY
-;; Preserves: D (saved and restored)
-;; Ends:      JR
-;;
-;; ? drives IN A,(HMPR), OUT (HMPR),A; calls EXPECT_NUMBER, NRRD.
-;; --------------------------------------------------------------------
-
-; ---- L4AF3 ---- from &5C3F
-L4AF3:
                CALL EXPECT_NUMBER              ; 4AF3 CD 4D 44
                CALL L4D33                      ; 4AF6 CD 33 4D
                RET NC                          ; 4AF9 D0
@@ -5895,7 +5888,7 @@ L4C2A:
                AND A                           ; 4C3A A7
                RET Z                           ; 4C3B C8
                EX DE,HL                        ; 4C3C EB
-               LD DE,INSTALL_ROM_PATCHES       ; 4C3D 11 00 7B
+               LD DE,INSTALL_ROM_PATCHES       ; 4C3D 11 00 7B  &7B00 is the installer's own code, dead since boot: this is the search-string buffer
                LDIR                            ; 4C40 ED B0
                RET                             ; 4C42 C9
 
@@ -6032,7 +6025,7 @@ L4C90:
                EX AF,AF'                       ; 4C9C 08
                LD B,D                          ; 4C9D 42
                LD C,E                          ; 4C9E 4B
-               LD DE,INSTALL_ROM_PATCHES       ; 4C9F 11 00 7B
+               LD DE,INSTALL_ROM_PATCHES       ; 4C9F 11 00 7B  the same buffer, searched against
                LD A,(V4061)                    ; 4CA2 3A 61 40
                AND A                           ; 4CA5 A7
                JR NZ,L4CE2                     ; 4CA6 20 3A
@@ -6948,29 +6941,19 @@ HCMDV:
                LD HL,&4D7B                     ; 4EFD 21 7B 4D
 
 ;; --------------------------------------------------------------------
-;; L4F00 -- &4F00 to &4F03
+;; L4F00 -- &4F00 to &4F0B
 ;;
 ;; Takes:     HL
-;; Leaves:    A, F
-;; --------------------------------------------------------------------
-
-; ---- L4F00 ---- from &417F, &5DE1, &5DFA
-L4F00:
-               LD (&8D45),HL                   ; 4F00 22 45 8D
-               POP AF                          ; 4F03 F1
-
-;; --------------------------------------------------------------------
-;; L4F04 -- &4F04 to &4F0B
-;;
-;; Takes:     A
-;; Leaves:    BC
+;; Leaves:    A, F, BC
 ;; Ends:      JP
 ;;
 ;; ? drives OUT (HMPR),A.
 ;; --------------------------------------------------------------------
 
-; ---- L4F04 ---- from &5DE4
-L4F04:
+; ---- L4F00 ---- from &417F
+L4F00:
+               LD (&8D45),HL                   ; 4F00 22 45 8D
+               POP AF                          ; 4F03 F1
                OUT (HMPR),A                    ; 4F04 D3 FB
                LD BC,SYS_CMDBUF                ; 4F06 01 D3 4C
                JP STORE_BC_AT_XVAR76           ; 4F09 C3 5C 6F
@@ -7368,8 +7351,6 @@ GTDT:
 ; ---- L5005 ---- from &5216
 L5005:
                ADD IY,BC                       ; 5005 FD 09
-
-L5007:
                POP DE                          ; 5007 D1
                ADD HL,DE                       ; 5008 19
                EX DE,HL                        ; 5009 EB
@@ -7428,10 +7409,8 @@ L5015:
                RRA                             ; 501B 1F
                CALL NC,L502C                   ; 501C D4 2C 50
                POP BC                          ; 501F C1
-
-L5020:
                ; write the ROM variable XPTR
-               CALL NRWRD                      ; 5020 CD 77 45  the operand is written here at run time, from &5C33
+               CALL NRWRD                      ; 5020 CD 77 45
                DEFW XPTR                      ; 5023 A3 5A
                POP BC                          ; 5025 C1
                LD HL,V50D7                     ; 5026 21 D7 50
@@ -7967,7 +7946,7 @@ OPEN_GAP_AT_LINE:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls SKIP_THEN_TEST_RUNNING, NRWR; falls into whatever follows rather than returning.
+;; ? reaches the ROM through SYS_RECORD_STATE; calls SKIP_THEN_TEST_RUNNING, NRWR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 HK_RCPTCH:
@@ -7975,9 +7954,9 @@ HK_RCPTCH:
                CALL SKIP_THEN_TEST_RUNNING     ; 51DE CD DF 44
                JR Z,L51EC                      ; 51E1 28 09
                XOR A                           ; 51E3 AF
-               ; write the ROM variable &4AF4
+               ; write the ROM variable SYS_RECORD_STATE
                CALL NRWR                       ; 51E4 CD 82 45
-               DEFW &4AF4                     ; 51E7 F4 4A
+               DEFW SYS_RECORD_STATE          ; 51E7 F4 4A
                CALL HK_VARSPACE                ; 51E9 CD 93 52
 
 ;; --------------------------------------------------------------------
@@ -9498,7 +9477,7 @@ L5667:
 L5670:
                CALL L58F9                      ; 5670 CD F9 58
                PUSH HL                         ; 5673 E5
-               LD HL,INSTALL_ROM_PATCHES       ; 5674 21 00 7B
+               LD HL,INSTALL_ROM_PATCHES       ; 5674 21 00 7B  reads the first two bytes of the buffer at &7B00
                LD B,(HL)                       ; 5677 46
                INC HL                          ; 5678 23
                LD A,(HL)                       ; 5679 7E
@@ -11737,11 +11716,11 @@ CMD_RECORD:
 ;; Takes:     A, DE, HL
 ;; Leaves:    A, F, DE, HL
 ;;
-;; ? reaches the ROM through L4AF3; calls NRWR; falls into whatever follows rather than returning.
+;; ? reaches the ROM through SYS_RECORD_MODE; calls NRWR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
-               ; write the ROM variable L4AF3
+               ; write the ROM variable SYS_RECORD_MODE
                CALL NRWR                       ; 5BE0 CD 82 45
-               DEFW L4AF3                     ; 5BE3 F3 4A
+               DEFW SYS_RECORD_MODE           ; 5BE3 F3 4A
                POP AF                          ; 5BE5 F1
                CALL Z,CALL_NEXTCHAR            ; 5BE6 CC 61 44
                ; read the ROM variable COMAD -- the word below is its address, and the call returns past it
@@ -11771,7 +11750,6 @@ CMD_RECORD:
                LD C,&0C                        ; 5C12 0E 0C
                LDIR                            ; 5C14 ED B0
 
-; ---- L5C16 ---- from DOS &6B61, DOS &6E40
 L5C16:
                POP HL                          ; 5C16 E1
                INC HL                          ; 5C17 23
@@ -11789,9 +11767,9 @@ L5C16:
                INC HL                          ; 5C28 23
                LD (HL),D                       ; 5C29 72
                LD HL,&4AF4                     ; 5C2A 21 F4 4A
-               LD (L5007+&4000),HL             ; 5C2D 22 07 90
+               LD (&9007),HL                   ; 5C2D 22 07 90
                LD HL,&4AF5                     ; 5C30 21 F5 4A
-               LD (&5022+&4000),HL             ; 5C33 22 22 90  patches the operand of the CALL at &5020
+               LD (&9022),HL                   ; 5C33 22 22 90
                POP AF                          ; 5C36 F1
                OUT (HMPR),A                    ; 5C37 D3 FB
                ; call the ROM at GTDT with ROM1 paged in, and page back on the way out
@@ -11810,7 +11788,7 @@ V5C3C:
 
 ; ---- L5C3F ---- from &5C0F
 L5C3F:
-               LD A,(L4AF3)                    ; 5C3F 3A F3 4A
+               LD A,(SYS_RECORD_MODE)          ; 5C3F 3A F3 4A
                AND A                           ; 5C42 A7
                LD A,&02                        ; 5C43 3E 02
                JR Z,L5C48                      ; 5C45 28 01
@@ -11826,7 +11804,7 @@ L5C3F:
 ; ---- L5C48 ---- from &5C45
 L5C48:
                ; self-modifying: patches the operand of the CALL at &4AF3
-               LD (&4AF4),A                    ; 5C48 32 F4 4A
+               LD (SYS_RECORD_STATE),A         ; 5C48 32 F4 4A
 
 ;; --------------------------------------------------------------------
 ;; L5C4B -- &5C4B to &5C55
@@ -12219,16 +12197,23 @@ RESTORE_HMPR_AND_STORE:
 ;;
 ;; Shown for this routine in disasm/:
 ;;
-;;     DEF KEYCODE, token &C9.  &8F00 is INSTBUF, the ROM's &4F00 "buffer
-;;     for ROM1 xfer code, etc", seen through the window that PAGE_IN_ROM1
-;;     is about to open; L5C4B picks the routine's real address out of the
-;;     two bytes after the table entry, and &91 bytes are copied there
-;;     behind an &E7.  Then &4A9F -- an address in the second installed stub
-;;     in that page -- is written into INSTBUF+&0D, and &4F00 is handed to
-;;     STORE_BC_AT_XVAR76.
+;;     DEF KEYCODE, token &C9.  &8F00 is the ROM's &4F00 seen through the
+;;     window PAGE_IN_ROM1 is about to open; L5C4B picks the routine's real
+;;     address out of the two bytes after the table entry, and &91 bytes are
+;;     copied there behind an &E7.  Then &4A9F -- an address in the second
+;;     installed stub in that page -- is written into &4F0D, and &4F00 is
+;;     handed to STORE_BC_AT_XVAR76.
 ;;     
-;;     So the ROM's own DEF KEYCODE runs from a copy with one operand
-;;     changed.  What that operand does is not established here.
+;;     The ROM's own source settles what this is.  ref/samrom/miscx2.asm
+;;     opens
+;;     
+;;     ORG INSTBUF
+;;     DKP2:  CALL EXPT1NUM   ;NUMBER OF KEY CODE TO DEFINE
+;;     
+;;     -- so DEF KEYCODE is one of the ROM 1 routines the ROM assembles to
+;;     run at INSTBUF and copies there when the command is used, and DKLN,
+;;     the length it copies, is DKFIN+1-DKP2.  MasterBASIC does the ROM's
+;;     own copy for it, prefixes an RST &20 and changes one operand.
 ;; --------------------------------------------------------------------
 
 ; ---- CMD_DEF_KEYCODE ---- from &4EC2
@@ -12255,15 +12240,20 @@ CMD_DEF_KEYCODE:
 ;;
 ;; Shown for this routine in disasm/:
 ;;
-;;     KEYIN, token &D1.  The same shape as the one above, into HDR at
-;;     &4B00 -- the ROM's fifty-byte header buffer, borrowed because KEYIN
-;;     cannot be loading a file at the same time.  Three runs of &09, &16
-;;     and &2C bytes are copied, each followed by a three-byte CALL that
+;;     KEYIN, token &D1.  The same shape, into HDR at &4B00: three runs of
+;;     &09, &16 and &2C bytes, each followed by a three-byte CALL that
 ;;     COPY_THEN_APPEND_CALL adds, then six more and the seventeen at
 ;;     L5DAE, and &4B00 is handed on.
 ;;     
-;;     Three interposed calls into one copied routine, where DEF KEYCODE
-;;     needed one patched operand.
+;;     The ROM's source settles this one too -- ref/samrom/miscx1.asm has
+;;     
+;;     ORG HDR
+;;     KEYP2:  CALL SYNTAXA
+;;     
+;;     so KEYIN is assembled to run in the fifty-byte header buffer, which
+;;     is free because KEYIN cannot be loading a file at the same time.
+;;     MasterBASIC copies it there in three pieces and interposes a call
+;;     after each, where DEF KEYCODE needed one patched operand.
 ;; --------------------------------------------------------------------
 
 ; ---- CMD_KEYIN ---- from &4EC7
@@ -12282,7 +12272,7 @@ CMD_KEYIN:
                LD HL,L5DAE                     ; 5D93 21 AE 5D
                LD C,&11                        ; 5D96 0E 11
                LDIR                            ; 5D98 ED B0
-               LD BC,&4B00                     ; 5D9A 01 00 4B
+               LD BC,HDR                       ; 5D9A 01 00 4B
                JR RESTORE_HMPR_AND_STORE       ; 5D9D 18 BD
 
 ;; --------------------------------------------------------------------
@@ -12388,7 +12378,7 @@ L5DC8:
 
 ; ---- L5DCA ---- from &5D46
 L5DCA:
-               LD A,(&4AF4)                    ; 5DCA 3A F4 4A
+               LD A,(SYS_RECORD_STATE)         ; 5DCA 3A F4 4A  from here to &5DD0 this code is written for &500D: subtract &0DBD from any address in it
                BIT 1,A                         ; 5DCD CB 4F
                JR NZ,L5DEE                     ; 5DCF 20 1D
 
@@ -12401,7 +12391,7 @@ L5DCA:
 
 ; ---- L5DD1 ---- from &5D52
 L5DD1:
-               JR Z,L5DD8                      ; 5DD1 28 05
+               JR Z,L5DD8                      ; 5DD1 28 05  from here to &5E1E this code is written for &5024: subtract &0DAD from any address in it
                DEC BC                          ; 5DD3 0B
                LD A,B                          ; 5DD4 78
                OR C                            ; 5DD5 B1
@@ -12431,8 +12421,8 @@ L5DD8:
 L5DDE:
                POP HL                          ; 5DDE E1
                LD L,&20                        ; 5DDF 2E 20
-               LD (L4F00),HL                   ; 5DE1 22 00 4F
-               LD HL,L4F04                     ; 5DE4 21 04 4F
+               LD (DKP2),HL                    ; 5DE1 22 00 4F
+               LD HL,&4F04                     ; 5DE4 21 04 4F
 
 ;; --------------------------------------------------------------------
 ;; L5DE7 -- &5DE7 to &5DED
@@ -12443,7 +12433,7 @@ L5DDE:
 
 ; ---- L5DE7 ---- from &5CD8
 L5DE7:
-               LD A,(&4AF4)                    ; 5DE7 3A F4 4A
+               LD A,(SYS_RECORD_STATE)         ; 5DE7 3A F4 4A
                AND A                           ; 5DEA A7
                RET Z                           ; 5DEB C8
                PUSH HL                         ; 5DEC E5
@@ -12465,7 +12455,7 @@ L5DEE:
                ADD HL,BC                       ; 5DF5 09
                CALL HLJUMP                     ; 5DF6 CD 05 00
                POP HL                          ; 5DF9 E1
-               LD DE,L4F00                     ; 5DFA 11 00 4F
+               LD DE,DKP2                      ; 5DFA 11 00 4F
                AND A                           ; 5DFD A7
                SBC HL,DE                       ; 5DFE ED 52
                DEC HL                          ; 5E00 2B
@@ -12476,7 +12466,7 @@ L5DEE:
                LD A,&02                        ; 5E07 3E 02
                CALL STREAM                     ; 5E09 CD 12 01
                LD HL,STRM16NM                  ; 5E0C 21 76 5B
-               LD DE,&4AF5                     ; 5E0F 11 F5 4A
+               LD DE,SYS_STRM16_SAVE           ; 5E0F 11 F5 4A
                LD B,&0B                        ; 5E12 06 0B
 
 ;; --------------------------------------------------------------------
@@ -16274,7 +16264,7 @@ L67AE:
 
 ; ---- L67B7 ---- from &67AF
 L67B7:
-               LD DE,INSTALL_ROM_PATCHES       ; 67B7 11 00 7B
+               LD DE,INSTALL_ROM_PATCHES       ; 67B7 11 00 7B  the buffer again, not a call into the installer
                PUSH HL                         ; 67BA E5
                PUSH DE                         ; 67BB D5
                LDI                             ; 67BC ED A0
@@ -21862,7 +21852,7 @@ INSTALL_ROM_VECTORS:
                LD A,&04                        ; 7717 3E 04
                OUT (C),A                       ; 7719 ED 79
                LD HL,&7FE6                     ; 771B 21 E6 7F
-               LD (SYS_SPARE8),HL              ; 771E 22 59 5C
+               LD (DOSSTK),HL                  ; 771E 22 59 5C
                LD HL,SYS_EDITV_EDITOR          ; 7721 21 66 48  &4866 likewise, inside the second stub
                ; self-modifying: patches the operand of the RES at &5AEB
                LD (EDITV),HL                   ; 7724 22 EC 5A
@@ -23127,6 +23117,32 @@ MB_PAGER:
 ;;     it repoints HUDG and RST28V.  That is the mechanism behind the
 ;;     extension seeing every character printed and every calculator
 ;;     literal executed.
+;;     
+;;     ONE MORE THING THIS ROUTINE IS.  It is called once, from &7654,
+;;     inside the installer that runs at boot -- and after that its bytes
+;;     are free.  MasterBASIC uses them: nineteen of the twenty-one
+;;     references to &7B00 in this listing are not calls but loads, and
+;;     they treat it as a buffer.
+;;     
+;;     L4C2A gets a string, refuses one longer than 255 bytes, keeps
+;;     the length in V4098 and LDIRs the text to &7B00.
+;;     &4C9F, &4CC3, &4D08, &4D1F, &5733 and &5838 point DE at it and
+;;     search or compare against what is there -- &4CAA is a CPIR
+;;     against a byte read from it.
+;;     &5674 and &577C read the first two bytes back.
+;;     &66B0 and &66AA write two words into &7B01 and &7B03, over the
+;;     IN and the XOR this routine starts with.
+;;     
+;;     So `LD DE,INSTALL_ROM_PATCHES` in the middle of a command is not a
+;;     reference to this routine at all: it is the search-string buffer,
+;;     which happens to be built out of a routine that has already done its
+;;     job.  The same trick as the DEF KEY gap and the ROM's eight spare
+;;     variables, played on its own code.
+;;     
+;;     Nothing marks the boundary, so how much of it is buffer is set by
+;;     the longest string allowed rather than by anything here: 255 bytes
+;;     from &7B00 reaches &7BFE, past the two blocks at &7B80 and &7BA4
+;;     that the installer has by then already copied out.
 ;; --------------------------------------------------------------------
 
 ; ---- INSTALL_ROM_PATCHES ---- from &4C3D, &4C9F, &4CC3, &4D08, &4D1F, &5674, &5733, &577C ...
@@ -23503,7 +23519,7 @@ L7BE0:
                RST ERR_HOOK                    ; 7BE3 CF
                DEFB &B9                       ; 7BE4 B9 hook code, handled by HK_SETUPREGS
                LD HL,&7FE6                     ; 7BE5 21 E6 7F
-               LD (SYS_SPARE8),HL              ; 7BE8 22 59 5C
+               LD (DOSSTK),HL                  ; 7BE8 22 59 5C
                LD H,A                          ; 7BEB 67
                LD A,(&5A89)                    ; 7BEC 3A 89 5A
                CP &BE                          ; 7BEF FE BE
@@ -23681,7 +23697,7 @@ L7C95:
 
 ; ---- L7CA0 ---- from &7C64
 L7CA0:
-               LD HL,(&4AF4)                   ; 7CA0 2A F4 4A
+               LD HL,(SYS_RECORD_STATE)        ; 7CA0 2A F4 4A
                INC L                           ; 7CA3 2C
                DEC L                           ; 7CA4 2D
                RET Z                           ; 7CA5 C8
@@ -24398,7 +24414,7 @@ GAP_BLOCK:
                ; to the alternate register set and back again
                EXX                             ; 7E52 D9
                POP HL                          ; 7E53 E1
-               LD (SYS_SPARE8),HL              ; 7E54 22 59 5C
+               LD (DOSSTK),HL                  ; 7E54 22 59 5C
                POP AF                          ; 7E57 F1
                POP HL                          ; 7E58 E1
                LD IY,&0286                     ; 7E59 FD 21 86 02
@@ -24435,7 +24451,7 @@ L7E64:
                POP AF                          ; 7E65 F1
                RET Z                           ; 7E66 C8
                RET NC                          ; 7E67 D0
-               JP &4F00                        ; 7E68 C3 00 4F
+               JP DKP2                         ; 7E68 C3 00 4F
 
 ;; ------------------------------------------------------------------
 ;; Tokenised SAM BASIC.  The end of the page holds fragments of BASIC

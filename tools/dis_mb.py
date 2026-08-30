@@ -100,6 +100,10 @@ def _syspage_names():
         0x4AEE: 'SYS_CHAR_WIDTH',    # written by CSIZE beside FL6OR8
         0x4AEF: 'SYS_CHAR_HEIGHT',   # read at &49E4 to pick the output path
         0x4AF0: 'SYS_FN_INDEX',      # written by TOKEN_TO_FN_INDEX
+        # RECORD SOUND keeps its state in the same nineteen bytes.
+        0x4AF3: 'SYS_RECORD_MODE',   # CMD_RECORD writes the token less &89
+        0x4AF4: 'SYS_RECORD_STATE',  # 0 = not recording, else 1 or 2
+        0x4AF5: 'SYS_STRM16_SAVE',   # 11 bytes swapped with STRM16NM
         0x49E4: 'SYS_CHAR_OUT',      # ordinary output, or magnified
         0x4CD3: 'SYS_CMDBUF',        # where HCMDV assembles a command
         0x5896: 'SYS_GAP_BLOCK',     # the forty bytes in the DKBU/KTAB gap
@@ -351,6 +355,16 @@ class Page(Disassembler):
             if absolute and self._cur is not None and any(
                     lo <= self._cur < hi for lo, hi in self.sys_low):
                 n = self.ext_var(v)
+                if n:
+                    self.used_ext.add(n)
+                    return n
+                # The variable table stops at &5000 -- below that an
+                # address is more often a page's own than the ROM's --
+                # but in a stretch that runs with the system page at
+                # &4000 there is nothing else it can be, so the ROM's
+                # equates for &4000-&4FFF are good here: HDR, CDBUFF,
+                # INSTBUF and the rest.
+                n = self.ext_datum(v)
                 if n:
                     self.used_ext.add(n)
                     return n
@@ -861,6 +875,10 @@ def seeds(dos, mb):
     # The builder's own operands: &4D71 is inside what it has just
     # copied, in the ROM's system page, not this half's own &4D71.
     mb.sys_low.append((0x737E, 0x7381))
+    # &5C3F reads and writes two of those bytes: it is called from &5C0F,
+    # after &5BFF has zeroed HMPR, and CMD_RECORD reaches the same byte
+    # by name -- CALL NRWR / DEFW &4AF3 at &5BE0.
+    mb.sys_low.append((0x5C3F, 0x5C4B))
     # The same again for the five commands HCMDV intercepts by name.
     # Each of them calls PAGE_IN_ROM1, which zeroes HMPR, so every &8xxx
     # and &9xxx operand in the group is an address in the ROM's system
@@ -893,9 +911,17 @@ def seeds(dos, mb):
     # &8076, jumps into the installed gap block at &589F, and reads and
     # writes &5C59 -- which is a system-page variable here and this
     # half's own PAGE_IN_ROM1 routine everywhere else.
-    for lo, hi in ((0x4510, 0x4536), (0x5A3E, 0x5A64), (0x5C16, 0x5C34),
+    for lo, hi in ((0x4510, 0x4536), (0x5A3E, 0x5A64),
                    (0x5FB9, 0x6030), (0x7900, 0x7940)):
         mb.self_window.append((lo, hi))
+    # &5C16 used to be in that list and should not have been.  &5BFF is
+    # XOR A : OUT (HMPR),A, so from &5C02 on the window holds the ROM's
+    # system page and not this half: LD DE,&9000 there is where the block
+    # being built goes, and the two stores at &5C2D and &5C33 patch
+    # operands inside it, at the system page's &5007 and &5022.  Read as
+    # self_window they became this half's &5007 and &5022, and the second
+    # of those landed inside a CALL and was reported as a self-patch.
+    mb.no_peer.append((0x5C02, 0x5C36))
     # HK_SETUPREGS does the same at &7210: its &8D50 is CDBUFF+&50 in the
     # ROM's system page, not the DOS page's &4D50.
     mb.no_peer.append((0x7203, 0x7220))
@@ -1196,6 +1222,7 @@ def load_symbols(d, work):
             syms.from_jump_table(open(rom_bin, 'rb').read(), rom_map)
     if os.path.exists(rom_sym):
         syms.from_rom_equates(rom_sym)
+    syms.from_mdos_comments()
 
     sources = [os.path.join(ROOT, 'ref', 'masterdos', 'annotated-src', 'masterdos23.asm')]
     sources += sorted(glob.glob(os.path.join(ROOT, 'ref', 'samrom', '*.asm')))
@@ -2111,7 +2138,12 @@ RELOCATED = ((0x7986, 0x7990, 0x45A2),   # INSTALL_EXTENDED_PUT, five runs
              # L735D copies &42 bytes of the ROM's DOCOMP to CDBUFF+&11
              # and these 219 straight after them, so this block runs at
              # &4D53: LD DE,&8D11, BC=&0042, then BC=&00DB from &7385.
-             (0x7385, 0x7460, 0x4D53))
+             (0x7385, 0x7460, 0x4D53),
+             # CMD_PAUSE builds at &5000 in the system page: &E7, six
+             # bytes of the ROM's routine, &F5, five more, these seven,
+             # sixteen more, and these seventy-eight.
+             (0x5DCA, 0x5DD1, 0x500D),
+             (0x5DD1, 0x5E1F, 0x5024))
 
 
 def note_relocated(d):

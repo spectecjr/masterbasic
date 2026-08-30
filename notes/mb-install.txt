@@ -39,6 +39,37 @@ MB &7B00 INSTALL_ROM_PATCHES
     extension seeing every character printed and every calculator
     literal executed.
 
+    ONE MORE THING THIS ROUTINE IS.  It is called once, from &7654,
+    inside the installer that runs at boot -- and after that its bytes
+    are free.  MasterBASIC uses them: nineteen of the twenty-one
+    references to &7B00 in this listing are not calls but loads, and
+    they treat it as a buffer.
+
+        L4C2A gets a string, refuses one longer than 255 bytes, keeps
+        the length in V4098 and LDIRs the text to &7B00.
+        &4C9F, &4CC3, &4D08, &4D1F, &5733 and &5838 point DE at it and
+        search or compare against what is there -- &4CAA is a CPIR
+        against a byte read from it.
+        &5674 and &577C read the first two bytes back.
+        &66B0 and &66AA write two words into &7B01 and &7B03, over the
+        IN and the XOR this routine starts with.
+
+    So `LD DE,INSTALL_ROM_PATCHES` in the middle of a command is not a
+    reference to this routine at all: it is the search-string buffer,
+    which happens to be built out of a routine that has already done its
+    job.  The same trick as the DEF KEY gap and the ROM's eight spare
+    variables, played on its own code.
+
+    Nothing marks the boundary, so how much of it is buffer is set by
+    the longest string allowed rather than by anything here: 255 bytes
+    from &7B00 reaches &7BFE, past the two blocks at &7B80 and &7BA4
+    that the installer has by then already copied out.
+
 MB &7B11 : &4000 here is the window offset -- CHANS is a system variable in the page now at &8000 -- and not the XVAR that shares the address
+
+MB &4C3D : &7B00 is the installer's own code, dead since boot: this is the search-string buffer
+MB &4C9F : the same buffer, searched against
+MB &5674 : reads the first two bytes of the buffer at &7B00
+MB &67B7 : the buffer again, not a call into the installer
 
 MB &7B03 : from here to &7B73 the ROM's system page is at &8000
