@@ -53,6 +53,7 @@ VECTORS = (
     # The ROM's code buffer.  Whatever is here was put here at run time,
     # by the ROM copying one of its own ROM 1 routines in or by
     # MasterBASIC building one; the two share the space.
+    (0x4C14, 'MNIP_MAIN_INPUT'),   # INSTALL_SYSPAGE_CODE points MNIP here
     (0x4D11, 'CDBUFF_11'),
     (0x4D50, 'CDBUFF_50'),
 )

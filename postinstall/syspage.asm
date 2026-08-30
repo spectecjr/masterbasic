@@ -966,6 +966,8 @@ S4BC1:
                RST &38                         ; 4C0E FF
                LD C,&00                        ; 4C0F 0E 00
                DEFS 3                         ; 4C11 3 NOPs
+
+MNIP_MAIN_INPUT:
                LD A,(&5C3C)                    ; 4C14 3A 3C 5C
                AND &08                         ; 4C17 E6 08
                CALL NZ,&0576                   ; 4C19 C4 76 05

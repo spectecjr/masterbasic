@@ -61,3 +61,25 @@ DOC GAP_BLOCK
     at &3DAD -- an address filled in by a signature search -- and further
     on a write to PAGE_IN_ROM1 and a jump to INSTBUF at &4F00.  So it is
     glue for reaching ROM 1, living where the ROM will never look.
+
+# A fourth installed block, and where it comes from.
+#
+# The tail of INSTALL_SYSPAGE_CODE writes three more values into the
+# system page, each from an operand that is zero in the file and filled
+# in at boot:
+#
+#     &4C1A <- EDPRT      &0576
+#     &4C31 <- EDLP+7     &02CB
+#     &4C5F <- KYIP2+12   &0516
+#
+# The dump has all three in place.  They are not variables: they are
+# operands inside a routine at &4C14, which is what MNIP is set to four
+# instructions earlier -- the ROM's vector for its main input routine.
+# &4C14+6 is &4C1A, and the instruction there is CALL NZ,&0576.
+#
+# The routine itself comes from the DOS page at &7F1E, not from this
+# half.  So the DOS page's tail holds blocks destined for the system
+# page, which is also where PATCH_45A2 reads its sources -- &7E98,
+# &7EA6, &7F6B and &7FA5 are all in the same stretch.  Whatever
+# assembles that tail is worth finding: it is the supplier for at least
+# two installers.
