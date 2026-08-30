@@ -1,0 +1,125 @@
+# How DUMP reads the screen and turns sixteen colours into grey.
+#
+# Read by hand from &6A00-&6AD3 and &6C2F-&6C7A.  DUMP 1-3 are the
+# shaded dumps, and shading means two things: reading the colour of one
+# pixel whatever mode the screen is in, and deciding what grey each of
+# the sixteen palette colours should print as.
+
+MB &405C DUMP_ORIENT
+MB &40AE DUMP_MODE
+
+MB &6A00 TRANSFORM_DUMP_COORDS
+MB &6A13 SCREEN_PIXEL_COLOUR
+MB &6A39 READ_PIXEL_NIBBLE
+MB &6A48 ATTRIBUTE_PIXEL_COLOUR
+MB &6C2F MODE1_PIXEL_AND_ATTR
+MB &6C38 MODE1_SCREEN_ADDRESS
+MB &6C53 MODE1_ATTR_ADDRESS
+MB &6C5D MODE2_PIXEL_AND_ATTR
+MB &6C65 MODE2_SCREEN_ADDRESS
+MB &6A69 BUILD_GREY_MAP
+MB &6A8C ASSIGN_GREY_LEVEL
+MB &6A95 FIND_FREE_GREY_LEVEL
+MB &6AA8 GREY_LEVEL_ABOVE
+MB &6AB4 GREY_LEVEL_BELOW
+MB &6AC3 PALETTE_INTENSITY
+
+DOC DUMP_MODE
+    The screen mode DUMP is working in, 0 to 3 for MODE 1 to MODE 4.
+
+    Read straight out of the ROM's own MODE at &683B, so it is the
+    ROM's numbering and not MasterBASIC's.
+
+DOC DUMP_ORIENT
+    Which way round the shaded dump goes: 1 upside down, 2 straight, 3
+    sideways.
+
+    Taken from SDORI if the user has set it, and otherwise chosen at
+    &6844: MODE 3 always gets 1, and past that it depends on which of
+    DUMP 1-3 was asked for.
+
+DOC TRANSFORM_DUMP_COORDS
+    Turn the dump's own coordinates in BC into screen coordinates.
+
+    Three cases, and they are the three orientations: 1 mirrors the row
+    with &BF minus B, 3 exchanges B and C to lay the picture sideways,
+    and 2 does neither.  All three fall into SCREEN_PIXEL_COLOUR.
+
+DOC SCREEN_PIXEL_COLOUR
+    Read the colour of the pixel at BC, in whichever screen mode.
+
+    Four modes, three ways of storing a pixel, so this splits three
+    ways on DUMP_MODE:
+
+        0, 1   MODE 1 and 2, a bitmap with attributes elsewhere
+        2      MODE 3, four pixels to a byte
+        3      MODE 4, two pixels to a byte
+
+    MODE 4 is READ_PIXEL_NIBBLE by itself: the answer is a whole nibble
+    and is already the colour.  MODE 3 reads the nibble the same way and
+    then takes half of it, choosing which half by bit 0 of the row, and
+    exchanges 1 and 2 on the way out -- the two bits come out of the
+    byte in the opposite order from the palette index, and 0 and 3 are
+    the same either way round, which is why only the middle two move.
+
+DOC READ_PIXEL_NIBBLE
+    Fetch the byte holding pixel BC and shift the wanted nibble down.
+
+    SCF : RR B : RR C halves BC and sets bit 15 of it in one go, so the
+    address is &8000 plus BC/2 -- two pixels to a byte, and the screen
+    paged into the window.  The bit shifted out of C says which nibble,
+    and the four RRCAs bring the high one down.
+
+DOC ATTRIBUTE_PIXEL_COLOUR
+    The MODE 1 and MODE 2 case: one bit of a bitmap, coloured by an
+    attribute byte.
+
+    MODE1_PIXEL_AND_ATTR or MODE2_PIXEL_AND_ATTR leaves the byte in B
+    and its attribute in L.  The bit wanted is (C AND 7) + 1 rotations
+    away, and the answer is L AND 7 for ink or L shifted down three for
+    paper, with bit 6 of the attribute adding 8 for bright.
+
+DOC MODE1_SCREEN_ADDRESS
+    Row B, column C to a MODE 1 display address in the window.
+
+    The OR &80 : XOR L : AND &F8 : XOR L is the Spectrum's thirds-and-
+    rows interleave, so the display file is at &8000-&97FF as this sees
+    it and MODE1_ATTR_ADDRESS puts the attributes above it at &9800.
+
+DOC MODE2_SCREEN_ADDRESS
+    The same for MODE 2, where the layout is linear and the attributes
+    sit &2000 higher -- which is the SET 5,H in the caller.
+
+DOC BUILD_GREY_MAP
+    Give each of the sixteen palette colours a grey level to print as.
+
+    Twenty-five levels, one byte each at &7B90 marking whether that
+    level is taken, and a sixteen-byte answer built at &7B80.  For each
+    entry of the ROM's PALTAB in turn, PALETTE_INTENSITY works out how
+    bright the colour is and ASSIGN_GREY_LEVEL claims a level for it.
+
+    &7B80 is not scratch space in the file.  It is the thirty-six bytes
+    installed in the system page at &4BA0 -- the stubs PRTOKV and
+    others point at.  Once they are installed the copy here is dead, and
+    DUMP takes it over: sixteen bytes of map over the block and
+    twenty-five of level flags reaching five bytes past its end.
+
+DOC PALETTE_INTENSITY
+    How bright a SAM palette byte is, 0 to 49.
+
+    The three high colour bits are worth four each and the three low
+    ones two, which is the AND &70 shifted down twice and the AND &07
+    doubled, and bit 3 -- bright -- adds seven on top.
+
+DOC ASSIGN_GREY_LEVEL
+    Halve the intensity to get a level 0 to 24, then take that level or
+    the nearest free one.
+
+DOC FIND_FREE_GREY_LEVEL
+    Look for an unclaimed level, trying the wanted one first and then
+    up to three either side.
+
+    GREY_LEVEL_ABOVE and GREY_LEVEL_BELOW are the two probes; each
+    returns carry set with the level in A if it was free.  If nothing
+    within three is free the wanted level is claimed anyway, which can
+    give two colours the same grey.

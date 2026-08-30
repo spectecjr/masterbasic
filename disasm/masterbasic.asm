@@ -523,8 +523,17 @@ ACRSU:
 ;; --------------------------------------------------------------------
                DEFB &00,&00                                                     ; 405A ..
 
-; ---- V405C ---- from &6857, &6A00
-V405C:
+;; --------------------------------------------------------------------
+;; Which way round the shaded dump goes: 1 upside down, 2 straight, 3
+;; sideways.
+;;
+;; Taken from SDORI if the user has set it, and otherwise chosen at
+;; &6844: MODE 3 always gets 1, and past that it depends on which of
+;; DUMP 1-3 was asked for.
+;; --------------------------------------------------------------------
+
+; ---- DUMP_ORIENT ---- from &6857, &6A00
+DUMP_ORIENT:
                DEFB &00                                                         ; 405C .
 
 ; ---- V405D ---- from &6871, &6896
@@ -730,8 +739,15 @@ V40AB:
 V40AD:
                DEFB &00                                                         ; 40AD .
 
-; ---- V40AE ---- from &6840, &6891, &69B5, &6A13, &6CA5
-V40AE:
+;; --------------------------------------------------------------------
+;; The screen mode DUMP is working in, 0 to 3 for MODE 1 to MODE 4.
+;;
+;; Read straight out of the ROM's own MODE at &683B, so it is the
+;; ROM's numbering and not MasterBASIC's.
+;; --------------------------------------------------------------------
+
+; ---- DUMP_MODE ---- from &6840, &6891, &69B5, &6A13, &6CA5
+DUMP_MODE:
                DEFB &00                                                         ; 40AE .
 
 ; ---- V40AF ---- from &68AA, &690F
@@ -10026,7 +10042,7 @@ L6827:
                JP NC,REP_INTEGER_OUT_OF_RANGE  ; 6838 D2 A7 43
                CALL NRRD                       ; 683B CD 6A 45
                DEFW MODE                      ; 683E 40 5A
-               LD (V40AE),A                    ; 6840 32 AE 40
+               LD (DUMP_MODE),A                ; 6840 32 AE 40
                LD B,A                          ; 6843 47
                CP &02                          ; 6844 FE 02
                JR Z,L6851                      ; 6846 28 09
@@ -10044,7 +10060,7 @@ L6851:
 
 ; ---- L6857 ---- from &684C, &6853
 L6857:
-               LD (V405C),A                    ; 6857 32 5C 40
+               LD (DUMP_ORIENT),A              ; 6857 32 5C 40
                LD HL,(SDLHS)                   ; 685A 2A 10 40
                LD DE,(SDTOP)                   ; 685D ED 5B 12 40
                CP &03                          ; 6861 FE 03
@@ -10068,13 +10084,13 @@ L6871:
                DEFW CUSCRNP                   ; 687B 78 5A
                AND PAGEMASK                    ; 687D E6 1F
                OUT (HMPR),A                    ; 687F D3 FB
-               CALL L6A69                      ; 6881 CD 69 6A
+               CALL BUILD_GREY_MAP             ; 6881 CD 69 6A
                LD A,&FB                        ; 6884 3E FB
                CALL CALL_STREAM                ; 6886 CD EB 69
                LD HL,GCMX1                     ; 6889 21 23 40
                CALL L69F1                      ; 688C CD F1 69
                LD D,&00                        ; 688F 16 00
-               LD A,(V40AE)                    ; 6891 3A AE 40
+               LD A,(DUMP_MODE)                ; 6891 3A AE 40
                CP &02                          ; 6894 FE 02
                LD A,(V405D)                    ; 6896 3A 5D 40
                JR NZ,L689E                     ; 6899 20 03
@@ -10165,7 +10181,7 @@ L6903:
 ; ---- L6915 ---- from &6986
 L6915:
                PUSH BC                         ; 6915 C5
-               CALL L6A00                      ; 6916 CD 00 6A
+               CALL TRANSFORM_DUMP_COORDS      ; 6916 CD 00 6A
                LD C,A                          ; 6919 4F
                LD B,&00                        ; 691A 06 00
                LD HL,L7B80                     ; 691C 21 80 7B
@@ -10313,7 +10329,7 @@ L69AE:
                LD A,(V40AB)                    ; 69AE 3A AB 40
                DEC A                           ; 69B1 3D
                JP NZ,L68B7                     ; 69B2 C2 B7 68
-               LD A,(V40AE)                    ; 69B5 3A AE 40
+               LD A,(DUMP_MODE)                ; 69B5 3A AE 40
                CP &02                          ; 69B8 FE 02
                LD B,C                          ; 69BA 41
                JR NZ,L69D4                     ; 69BB 20 17
@@ -10389,18 +10405,26 @@ CALL_ROM_0010:
                DEFW &0010                     ; 69FD 10 00
                RET                             ; 69FF C9
 
-; ---- L6A00 ---- from &6916
-L6A00:
-               LD A,(V405C)                    ; 6A00 3A 5C 40
+;; --------------------------------------------------------------------
+;; Turn the dump's own coordinates in BC into screen coordinates.
+;;
+;; Three cases, and they are the three orientations: 1 mirrors the row
+;; with &BF minus B, 3 exchanges B and C to lay the picture sideways,
+;; and 2 does neither.  All three fall into SCREEN_PIXEL_COLOUR.
+;; --------------------------------------------------------------------
+
+; ---- TRANSFORM_DUMP_COORDS ---- from &6916
+TRANSFORM_DUMP_COORDS:
+               LD A,(DUMP_ORIENT)              ; 6A00 3A 5C 40
                DEC A                           ; 6A03 3D
                JR Z,L6A0F                      ; 6A04 28 09
                DEC A                           ; 6A06 3D
-               JR Z,L6A13                      ; 6A07 28 0A
+               JR Z,SCREEN_PIXEL_COLOUR        ; 6A07 28 0A
                DEC A                           ; 6A09 3D
                LD A,C                          ; 6A0A 79
                LD C,B                          ; 6A0B 48
                LD B,A                          ; 6A0C 47
-               JR Z,L6A13                      ; 6A0D 28 04
+               JR Z,SCREEN_PIXEL_COLOUR        ; 6A0D 28 04
 
 ; ---- L6A0F ---- from &6A04
 L6A0F:
@@ -10408,18 +10432,36 @@ L6A0F:
                SUB B                           ; 6A11 90
                LD B,A                          ; 6A12 47
 
-; ---- L6A13 ---- from &6A07, &6A0D, &6CF6, &6D02
-L6A13:
-               LD A,(V40AE)                    ; 6A13 3A AE 40
+;; --------------------------------------------------------------------
+;; Read the colour of the pixel at BC, in whichever screen mode.
+;;
+;; Four modes, three ways of storing a pixel, so this splits three
+;; ways on DUMP_MODE:
+;;
+;; 0, 1   MODE 1 and 2, a bitmap with attributes elsewhere
+;; 2      MODE 3, four pixels to a byte
+;; 3      MODE 4, two pixels to a byte
+;;
+;; MODE 4 is READ_PIXEL_NIBBLE by itself: the answer is a whole nibble
+;; and is already the colour.  MODE 3 reads the nibble the same way and
+;; then takes half of it, choosing which half by bit 0 of the row, and
+;; exchanges 1 and 2 on the way out -- the two bits come out of the
+;; byte in the opposite order from the palette index, and 0 and 3 are
+;; the same either way round, which is why only the middle two move.
+;; --------------------------------------------------------------------
+
+; ---- SCREEN_PIXEL_COLOUR ---- from &6A07, &6A0D, &6CF6, &6D02
+SCREEN_PIXEL_COLOUR:
+               LD A,(DUMP_MODE)                ; 6A13 3A AE 40
                CP &02                          ; 6A16 FE 02
-               JR C,L6A48                      ; 6A18 38 2E
-               JR NZ,L6A39                     ; 6A1A 20 1D
+               JR C,ATTRIBUTE_PIXEL_COLOUR     ; 6A18 38 2E
+               JR NZ,READ_PIXEL_NIBBLE         ; 6A1A 20 1D
                LD H,C                          ; 6A1C 61
                LD A,(V40AA)                    ; 6A1D 3A AA 40
                SRL C                           ; 6A20 CB 39
                ADD A,C                         ; 6A22 81
                LD C,A                          ; 6A23 4F
-               CALL L6A39                      ; 6A24 CD 39 6A
+               CALL READ_PIXEL_NIBBLE          ; 6A24 CD 39 6A
                BIT 0,H                         ; 6A27 CB 44
                JR NZ,L6A2D                     ; 6A29 20 02
                RRCA                            ; 6A2B 0F
@@ -10437,8 +10479,17 @@ L6A2D:
                DEC A                           ; 6A37 3D
                RET                             ; 6A38 C9
 
-; ---- L6A39 ---- from &6A1A, &6A24
-L6A39:
+;; --------------------------------------------------------------------
+;; Fetch the byte holding pixel BC and shift the wanted nibble down.
+;;
+;; SCF : RR B : RR C halves BC and sets bit 15 of it in one go, so the
+;; address is &8000 plus BC/2 -- two pixels to a byte, and the screen
+;; paged into the window.  The bit shifted out of C says which nibble,
+;; and the four RRCAs bring the high one down.
+;; --------------------------------------------------------------------
+
+; ---- READ_PIXEL_NIBBLE ---- from &6A1A, &6A24
+READ_PIXEL_NIBBLE:
                SCF                             ; 6A39 37
                RR B                            ; 6A3A CB 18
                RR C                            ; 6A3C CB 19
@@ -10457,16 +10508,26 @@ L6A45:
                AND &0F                         ; 6A45 E6 0F
                RET                             ; 6A47 C9
 
-; ---- L6A48 ---- from &6A18
-L6A48:
+;; --------------------------------------------------------------------
+;; The MODE 1 and MODE 2 case: one bit of a bitmap, coloured by an
+;; attribute byte.
+;;
+;; MODE1_PIXEL_AND_ATTR or MODE2_PIXEL_AND_ATTR leaves the byte in B
+;; and its attribute in L.  The bit wanted is (C AND 7) + 1 rotations
+;; away, and the answer is L AND 7 for ink or L shifted down three for
+;; paper, with bit 6 of the attribute adding 8 for bright.
+;; --------------------------------------------------------------------
+
+; ---- ATTRIBUTE_PIXEL_COLOUR ---- from &6A18
+ATTRIBUTE_PIXEL_COLOUR:
                AND A                           ; 6A48 A7
                JR Z,L6A4F                      ; 6A49 28 04
-               CALL L6C5D                      ; 6A4B CD 5D 6C
+               CALL MODE2_PIXEL_AND_ATTR       ; 6A4B CD 5D 6C
                SCF                             ; 6A4E 37
 
 ; ---- L6A4F ---- from &6A49
 L6A4F:
-               CALL NC,L6C2F                   ; 6A4F D4 2F 6C
+               CALL NC,MODE1_PIXEL_AND_ATTR    ; 6A4F D4 2F 6C
                LD A,C                          ; 6A52 79
                AND &07                         ; 6A53 E6 07
                INC A                           ; 6A55 3C
@@ -10487,8 +10548,23 @@ L6A59:
                OR &08                          ; 6A66 F6 08
                RET                             ; 6A68 C9
 
-; ---- L6A69 ---- from &6881
-L6A69:
+;; --------------------------------------------------------------------
+;; Give each of the sixteen palette colours a grey level to print as.
+;;
+;; Twenty-five levels, one byte each at &7B90 marking whether that
+;; level is taken, and a sixteen-byte answer built at &7B80.  For each
+;; entry of the ROM's PALTAB in turn, PALETTE_INTENSITY works out how
+;; bright the colour is and ASSIGN_GREY_LEVEL claims a level for it.
+;;
+;; &7B80 is not scratch space in the file.  It is the thirty-six bytes
+;; installed in the system page at &4BA0 -- the stubs PRTOKV and
+;; others point at.  Once they are installed the copy here is dead, and
+;; DUMP takes it over: sixteen bytes of map over the block and
+;; twenty-five of level flags reaching five bytes past its end.
+;; --------------------------------------------------------------------
+
+; ---- BUILD_GREY_MAP ---- from &6881
+BUILD_GREY_MAP:
                LD HL,L7B90                     ; 6A69 21 90 7B
                LD B,&19                        ; 6A6C 06 19
 
@@ -10505,7 +10581,7 @@ L6A79:
                PUSH DE                         ; 6A79 D5
                PUSH HL                         ; 6A7A E5
                CALL RDA                        ; 6A7B CD D1 45
-               CALL L6A8C                      ; 6A7E CD 8C 6A
+               CALL ASSIGN_GREY_LEVEL          ; 6A7E CD 8C 6A
                POP HL                          ; 6A81 E1
                POP DE                          ; 6A82 D1
                LD (DE),A                       ; 6A83 12
@@ -10516,34 +10592,49 @@ L6A79:
                JR NZ,L6A79                     ; 6A89 20 EE
                RET                             ; 6A8B C9
 
-; ---- L6A8C ---- from &6A7E
-L6A8C:
-               CALL L6AC3                      ; 6A8C CD C3 6A
+;; --------------------------------------------------------------------
+;; Halve the intensity to get a level 0 to 24, then take that level or
+;; the nearest free one.
+;; --------------------------------------------------------------------
+
+; ---- ASSIGN_GREY_LEVEL ---- from &6A7E
+ASSIGN_GREY_LEVEL:
+               CALL PALETTE_INTENSITY          ; 6A8C CD C3 6A
                SRL A                           ; 6A8F CB 3F
                LD C,A                          ; 6A91 4F
                LD B,&00                        ; 6A92 06 00
                LD D,B                          ; 6A94 50
 
-; ---- L6A95 ---- from &6AA3
-L6A95:
+;; --------------------------------------------------------------------
+;; Look for an unclaimed level, trying the wanted one first and then
+;; up to three either side.
+;;
+;; GREY_LEVEL_ABOVE and GREY_LEVEL_BELOW are the two probes; each
+;; returns carry set with the level in A if it was free.  If nothing
+;; within three is free the wanted level is claimed anyway, which can
+;; give two colours the same grey.
+;; --------------------------------------------------------------------
+
+; ---- FIND_FREE_GREY_LEVEL ---- from &6AA3
+FIND_FREE_GREY_LEVEL:
                LD HL,L7B90                     ; 6A95 21 90 7B
                LD A,D                          ; 6A98 7A
                CP &03                          ; 6A99 FE 03
                LD A,C                          ; 6A9B 79
                RET NC                          ; 6A9C D0
                PUSH BC                         ; 6A9D C5
-               CALL L6AA8                      ; 6A9E CD A8 6A
+               CALL GREY_LEVEL_ABOVE           ; 6A9E CD A8 6A
                POP BC                          ; 6AA1 C1
                INC D                           ; 6AA2 14
-               JR NC,L6A95                     ; 6AA3 30 F0
+               JR NC,FIND_FREE_GREY_LEVEL      ; 6AA3 30 F0
                LD (HL),&01                     ; 6AA5 36 01
                RET                             ; 6AA7 C9
 
-; ---- L6AA8 ---- from &6A9E
-L6AA8:
+; ---- GREY_LEVEL_ABOVE ---- from &6A9E
+GREY_LEVEL_ABOVE:
                ADD A,D                         ; 6AA8 82
                CP &19                          ; 6AA9 FE 19
-               JR NC,L6AB4                     ; 6AAB 30 07
+               JR NC,GREY_LEVEL_BELOW          ; 6AAB 30 07
                LD C,A                          ; 6AAD 4F
                ADD HL,BC                       ; 6AAE 09
                LD A,(HL)                       ; 6AAF 7E
@@ -10552,8 +10643,8 @@ L6AA8:
                LD A,C                          ; 6AB2 79
                RET Z                           ; 6AB3 C8
 
-; ---- L6AB4 ---- from &6AAB
-L6AB4:
+; ---- GREY_LEVEL_BELOW ---- from &6AAB
+GREY_LEVEL_BELOW:
                SUB D                           ; 6AB4 92
                SUB D                           ; 6AB5 92
                CCF                             ; 6AB6 3F
@@ -10568,8 +10659,16 @@ L6AB4:
                SCF                             ; 6AC1 37
                RET                             ; 6AC2 C9
 
-; ---- L6AC3 ---- from &6A8C
-L6AC3:
+;; --------------------------------------------------------------------
+;; How bright a SAM palette byte is, 0 to 49.
+;;
+;; The three high colour bits are worth four each and the three low
+;; ones two, which is the AND &70 shifted down twice and the AND &07
+;; doubled, and bit 3 -- bright -- adds seven on top.
+;; --------------------------------------------------------------------
+
+; ---- PALETTE_INTENSITY ---- from &6A8C
+PALETTE_INTENSITY:
                LD C,A                          ; 6AC3 4F
                AND &07                         ; 6AC4 E6 07
                ADD A,A                         ; 6AC6 87
@@ -10865,16 +10964,24 @@ L6C20:
                LD H,A                          ; 6C2D 67
                RET                             ; 6C2E C9
 
-; ---- L6C2F ---- from &6A4F, &6D6A
-L6C2F:
-               CALL L6C38                      ; 6C2F CD 38 6C
+; ---- MODE1_PIXEL_AND_ATTR ---- from &6A4F, &6D6A
+MODE1_PIXEL_AND_ATTR:
+               CALL MODE1_SCREEN_ADDRESS       ; 6C2F CD 38 6C
                LD B,(HL)                       ; 6C32 46
-               CALL L6C53                      ; 6C33 CD 53 6C
+               CALL MODE1_ATTR_ADDRESS         ; 6C33 CD 53 6C
                LD L,(HL)                       ; 6C36 6E
                RET                             ; 6C37 C9
 
-; ---- L6C38 ---- from &6C2F, &6C82
-L6C38:
+;; --------------------------------------------------------------------
+;; Row B, column C to a MODE 1 display address in the window.
+;;
+;; The OR &80 : XOR L : AND &F8 : XOR L is the Spectrum's thirds-and-
+;; rows interleave, so the display file is at &8000-&97FF as this sees
+;; it and MODE1_ATTR_ADDRESS puts the attributes above it at &9800.
+;; --------------------------------------------------------------------
+
+; ---- MODE1_SCREEN_ADDRESS ---- from &6C2F, &6C82
+MODE1_SCREEN_ADDRESS:
                LD L,B                          ; 6C38 68
                LD A,B                          ; 6C39 78
                OR A                            ; 6C3A B7
@@ -10899,8 +11006,8 @@ L6C38:
                LD L,A                          ; 6C51 6F
                RET                             ; 6C52 C9
 
-; ---- L6C53 ---- from &6C33, &6D3E
-L6C53:
+; ---- MODE1_ATTR_ADDRESS ---- from &6C33, &6D3E
+MODE1_ATTR_ADDRESS:
                LD A,H                          ; 6C53 7C
                RRA                             ; 6C54 1F
                RRA                             ; 6C55 1F
@@ -10910,16 +11017,21 @@ L6C53:
                LD H,A                          ; 6C5B 67
                RET                             ; 6C5C C9
 
-; ---- L6C5D ---- from &6A4B, &6D65
-L6C5D:
-               CALL L6C65                      ; 6C5D CD 65 6C
+; ---- MODE2_PIXEL_AND_ATTR ---- from &6A4B, &6D65
+MODE2_PIXEL_AND_ATTR:
+               CALL MODE2_SCREEN_ADDRESS       ; 6C5D CD 65 6C
                LD B,(HL)                       ; 6C60 46
                SET 5,H                         ; 6C61 CB EC
                LD L,(HL)                       ; 6C63 6E
                RET                             ; 6C64 C9
 
-; ---- L6C65 ---- from &6C5D, &6C7E
-L6C65:
+;; --------------------------------------------------------------------
+;; The same for MODE 2, where the layout is linear and the attributes
+;; sit &2000 higher -- which is the SET 5,H in the caller.
+;; --------------------------------------------------------------------
+
+; ---- MODE2_SCREEN_ADDRESS ---- from &6C5D, &6C7E
+MODE2_SCREEN_ADDRESS:
                LD H,B                          ; 6C65 60
                LD L,C                          ; 6C66 69
                LD A,L                          ; 6C67 7D
@@ -10940,12 +11052,12 @@ L6C65:
 L6C7B:
                AND A                           ; 6C7B A7
                JR Z,L6C82                      ; 6C7C 28 04
-               CALL L6C65                      ; 6C7E CD 65 6C
+               CALL MODE2_SCREEN_ADDRESS       ; 6C7E CD 65 6C
                SCF                             ; 6C81 37
 
 ; ---- L6C82 ---- from &6C7C
 L6C82:
-               CALL NC,L6C38                   ; 6C82 D4 38 6C
+               CALL NC,MODE1_SCREEN_ADDRESS    ; 6C82 D4 38 6C
                LD A,C                          ; 6C85 79
                AND &07                         ; 6C86 E6 07
                INC A                           ; 6C88 3C
@@ -10969,7 +11081,7 @@ L6C8C:
                CALL L6DD8                      ; 6C9E CD D8 6D
                PUSH BC                         ; 6CA1 C5
                CALL L6DD8                      ; 6CA2 CD D8 6D
-               LD (V40AE),A                    ; 6CA5 32 AE 40
+               LD (DUMP_MODE),A                ; 6CA5 32 AE 40
                POP HL                          ; 6CA8 E1
                PUSH HL                         ; 6CA9 E5
                PUSH BC                         ; 6CAA C5
@@ -11038,7 +11150,7 @@ L6CF1:
                EXX                             ; 6CF2 D9
                OUT (C),H                       ; 6CF3 ED 61
                EXX                             ; 6CF5 D9
-               CALL L6A13                      ; 6CF6 CD 13 6A
+               CALL SCREEN_PIXEL_COLOUR        ; 6CF6 CD 13 6A
                LD E,A                          ; 6CF9 5F
                EX AF,AF'                       ; 6CFA 08
                JR L6D0D                        ; 6CFB 18 10
@@ -11049,7 +11161,7 @@ L6CFD:
                EXX                             ; 6CFE D9
                OUT (C),H                       ; 6CFF ED 61
                EXX                             ; 6D01 D9
-               CALL L6A13                      ; 6D02 CD 13 6A
+               CALL SCREEN_PIXEL_COLOUR        ; 6D02 CD 13 6A
                CP E                            ; 6D05 BB
                JR Z,L6D0D                      ; 6D06 28 05
                EX AF,AF'                       ; 6D08 08
@@ -11099,7 +11211,7 @@ L6D0F:
                JR NZ,L6D44                     ; 6D39 20 09
                AND A                           ; 6D3B A7
                JR NZ,L6D47                     ; 6D3C 20 09
-               CALL L6C53                      ; 6D3E CD 53 6C
+               CALL MODE1_ATTR_ADDRESS         ; 6D3E CD 53 6C
                LD (HL),D                       ; 6D41 72
                JR L6D4A                        ; 6D42 18 06
 
@@ -11142,12 +11254,12 @@ L6D5C:
                DEC B                           ; 6D61 05
                EXX                             ; 6D62 D9
                JR Z,L6D6A                      ; 6D63 28 05
-               CALL L6C5D                      ; 6D65 CD 5D 6C
+               CALL MODE2_PIXEL_AND_ATTR       ; 6D65 CD 5D 6C
                JR L6D6D                        ; 6D68 18 03
 
 ; ---- L6D6A ---- from &6D63
 L6D6A:
-               CALL L6C2F                      ; 6D6A CD 2F 6C
+               CALL MODE1_PIXEL_AND_ATTR       ; 6D6A CD 2F 6C
 
 ; ---- L6D6D ---- from &6D68
 L6D6D:
@@ -13277,6 +13389,45 @@ L7779:
 
 MSG_EXTERNAL_MEMORY:
                DEFB &4B,&20,&45,&78,&74,&65,&72,&6E,&61,&6C,&20,&4D,&65,&6D,&6F,&72,&79,&0D ; 77C9
+
+;; --------------------------------------------------------------------
+;; Walk the external memory pages, find which of them are there, and
+;; clear the ones that are.
+;;
+;; HMPR gets bit 7 set so that the window at &8000 shows external
+;; memory rather than an ordinary page, and then C counts from 0 right
+;; round to 0 again, each value written to XMPRL to bring that page
+;; into the window.  The test is the obvious one done properly: write
+;; zero to the first byte and read it back, then write one and read it
+;; back.  A page that fails either branches to &7817, and one that
+;; passes goes through the fill instead; both then come back to &781B
+;; to try the next page.
+;;
+;; Where the count ends up is not shown here -- neither path visibly
+;; increments anything -- but this is the routine the message above
+;; belongs to, and it is the only thing in either half that walks XMPRL.
+;;
+;; Two things about it do not close, and are worth writing down rather
+;; than smoothing over.
+;;
+;; Nothing calls it.  &77DB has no reference anywhere in either half,
+;; it is not among the four addresses the DOS calls in the copied
+;; block, and neither &77DB nor &B7DB nor the copy's &7DFA appears as a
+;; word in either page, so it is not reached through a table either.
+;; The trace only found it by running on out of the message above.  It
+;; is not installed anywhere else: a dump of a booted machine has this
+;; code at &77DB and nowhere else, and the system page has neither the
+;; code nor the message.
+;;
+;; And the flow through the fill does not join up.  CALL &7806 at &77F5
+;; cannot return -- STACK_FILL_LOOP ends by putting SP back and jumping
+;; to &781B -- so &77F8-&77FD is not reached that way.  Yet &7814 takes
+;; the restored SP out of the alternate HL, and &77F8-&77FC is the only
+;; place that puts it there.  Either the caller sets it up, or one of
+;; the two entries is reached some way this listing does not show.
+;; --------------------------------------------------------------------
+
+SIZE_EXTERNAL_MEMORY:
                IN A,(HMPR)                     ; 77DB DB FB
                PUSH AF                         ; 77DD F5
                OR &80                          ; 77DE F6 80
@@ -13297,7 +13448,7 @@ L77E4:
                CP (HL)                         ; 77F1 BE
                JR NZ,L7817                     ; 77F2 20 23
                LD A,C                          ; 77F4 79
-               CALL L7806                      ; 77F5 CD 06 78
+               CALL STACK_FILL_LOOP            ; 77F5 CD 06 78
                LD HL,&0000                     ; 77F8 21 00 00
                ADD HL,SP                       ; 77FB 39
                EXX                             ; 77FC D9
@@ -13307,11 +13458,24 @@ L77E4:
 L77FE:
                NOP                             ; 77FE 00
                RET NZ                          ; 77FF C0
+
+;; --------------------------------------------------------------------
+;; Clear the whole 16K window, by pushing.
+;;
+;; SP is saved in the alternate HL, pointed at the top of the window,
+;; and HL set to zero; then STACK_FILL_LOOP pushes it 8192 times, which
+;; is 16384 bytes, walking down through the page.  Eight PUSHes to a
+;; DJNZ and BC counted as &00 then 4 make exactly one page.  Nothing is
+;; faster on a Z80, which is why the stack pointer gets borrowed for
+;; it.
+;; --------------------------------------------------------------------
+
+FILL_PAGE_WITH_ZERO:
                LD HL,&0000                     ; 7800 21 00 00
                LD BC,&0004                     ; 7803 01 04 00
 
-; ---- L7806 ---- from &77F5, &780E, &7811
-L7806:
+; ---- STACK_FILL_LOOP ---- from &77F5, &780E, &7811
+STACK_FILL_LOOP:
                PUSH HL                         ; 7806 E5
                PUSH HL                         ; 7807 E5
                PUSH HL                         ; 7808 E5
@@ -13320,9 +13484,9 @@ L7806:
                PUSH HL                         ; 780B E5
                PUSH HL                         ; 780C E5
                PUSH HL                         ; 780D E5
-               DJNZ L7806                      ; 780E 10 F6
+               DJNZ STACK_FILL_LOOP            ; 780E 10 F6
                DEC C                           ; 7810 0D
-               JR NZ,L7806                     ; 7811 20 F3
+               JR NZ,STACK_FILL_LOOP           ; 7811 20 F3
                EXX                             ; 7813 D9
                LD SP,HL                        ; 7814 F9
                JR L781B                        ; 7815 18 04

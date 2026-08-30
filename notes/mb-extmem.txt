@@ -9,3 +9,55 @@ MB &77C9-&77DA text MSG_EXTERNAL_MEMORY
     The trace ran past the unconditional jump into the text and decoded
     it, so the listing showed LD C,B, LD (HL),E and a string of nonsense
     where a message should be.
+
+# What follows the message: the code that counts the memory it reports.
+
+MB &77DB SIZE_EXTERNAL_MEMORY
+MB &7800 FILL_PAGE_WITH_ZERO
+MB &7806 STACK_FILL_LOOP
+
+DOC SIZE_EXTERNAL_MEMORY
+    Walk the external memory pages, find which of them are there, and
+    clear the ones that are.
+
+    HMPR gets bit 7 set so that the window at &8000 shows external
+    memory rather than an ordinary page, and then C counts from 0 right
+    round to 0 again, each value written to XMPRL to bring that page
+    into the window.  The test is the obvious one done properly: write
+    zero to the first byte and read it back, then write one and read it
+    back.  A page that fails either branches to &7817, and one that
+    passes goes through the fill instead; both then come back to &781B
+    to try the next page.
+
+    Where the count ends up is not shown here -- neither path visibly
+    increments anything -- but this is the routine the message above
+    belongs to, and it is the only thing in either half that walks XMPRL.
+
+    Two things about it do not close, and are worth writing down rather
+    than smoothing over.
+
+    Nothing calls it.  &77DB has no reference anywhere in either half,
+    it is not among the four addresses the DOS calls in the copied
+    block, and neither &77DB nor &B7DB nor the copy's &7DFA appears as a
+    word in either page, so it is not reached through a table either.
+    The trace only found it by running on out of the message above.  It
+    is not installed anywhere else: a dump of a booted machine has this
+    code at &77DB and nowhere else, and the system page has neither the
+    code nor the message.
+
+    And the flow through the fill does not join up.  CALL &7806 at &77F5
+    cannot return -- STACK_FILL_LOOP ends by putting SP back and jumping
+    to &781B -- so &77F8-&77FD is not reached that way.  Yet &7814 takes
+    the restored SP out of the alternate HL, and &77F8-&77FC is the only
+    place that puts it there.  Either the caller sets it up, or one of
+    the two entries is reached some way this listing does not show.
+
+DOC FILL_PAGE_WITH_ZERO
+    Clear the whole 16K window, by pushing.
+
+    SP is saved in the alternate HL, pointed at the top of the window,
+    and HL set to zero; then STACK_FILL_LOOP pushes it 8192 times, which
+    is 16384 bytes, walking down through the page.  Eight PUSHes to a
+    DJNZ and BC counted as &00 then 4 make exactly one page.  Nothing is
+    faster on a Z80, which is why the stack pointer gets borrowed for
+    it.
