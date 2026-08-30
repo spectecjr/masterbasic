@@ -58,6 +58,23 @@ MB &61F8 EMIT_RUN_PAIR
 # and M23PAPP correctly and turned two working calls into calls on
 # character data, which is not a trade worth making.
 #
+# What the DE values are, which sharpens the question rather than
+# answering it: &5A16 and &5A1F are GCM1 and GCM2, the graphic dump
+# control strings, and the manual says of that family "first byte is the
+# number of characters to send".  So &500B should be a routine that
+# sends a counted control string to the printer, and both calls are
+# handing it one.
+#
+# GTDT at &5000, which &500B sits inside, is a trampoline:
+#
+#     POP IY : LD BC,&0011 : ADD IY,BC : POP DE : ADD HL,DE
+#     EX DE,HL : LD (HL),&FF : JP (IY)
+#
+# It takes its own return address into IY, steps it on by 17, and jumps
+# there -- so the caller's next 17 bytes are data it skips.  &5005 is the
+# entry for when IY is already set, and &5221 pushes &500B and &5005 as
+# return addresses before letting something RET into them.
+#
 # The thing to check next is &500B itself.  &500A is DEFB &36 skipped,
 # the LD (HL),&FF idiom, so &500B is the &FF of that instruction and
 # reads as RST &38 followed by JP (IY) -- which is a strange thing to
