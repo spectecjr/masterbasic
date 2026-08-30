@@ -1,0 +1,39 @@
+# How MasterBASIC gets the ROM to call it.
+
+MB &76DA INSTALL_ROM_VECTORS
+    Point the ROM's vectors at the code installed in the system page.
+
+DOC INSTALL_ROM_VECTORS
+    Run after the stubs have been copied into the ROM's system page, this
+    is what makes them reachable: it writes their addresses into the ROM's
+    own vector variables, so the ROM calls MasterBASIC without knowing it.
+
+        PRTOKV  &4BB0     EDITV   &4866     BSTKEND &45A1
+        MTOKV   &58B4     FRAMIV  &4986     BASSTK  &45A1
+        EVALUV  &4BBA     PATOUT  &49A9     INSLV   &46CC
+        CMDV    &488E     RST8V   &4AB8
+
+    Read those against the system page, not this one.  &46CC is where the
+    first stub was copied, &4866, &4986, &49A9 and &4AB8 all fall inside
+    the second at &484D-&4AEB, and &4BB0 and &4BBA inside the 36 bytes put
+    at &4BA0.  The listing writes them as L4866, L4986, L46CC and so on
+    because they are addresses in range for this half too, and there is no
+    way for it to know better -- they are plain LD HL,nn immediates.  They
+    are not this page's routines.
+
+    MTOKV is the exception that proves it: &58B4 is well past &4BC3 and
+    nothing is installed there, so that one really is an address in this
+    half, to be reached with MasterBASIC paged in.
+
+    BSTKEND and BASSTK are both set to &45A1 and &FF is written there, so
+    MasterBASIC moves BASIC's stack down to just below its own installed
+    code -- the ROM's table puts BSTACK at &4AFF, which is inside the
+    second stub.  It had to move.
+
+    PAGE_IN_ROM1 is set to &7FE6, the same value the stub at &7BE5 writes.
+
+MB &76E7 : &4BB0 in the system page -- inside the 36 bytes put at &4BA0
+MB &76FC : CMDV gets &488E, inside the second stub
+MB &7721 : EDITV gets &4866, likewise
+MB &7743 : BASIC's stack moved to &45A1, clear of the installed code
+MB &774D : INSLV gets &46CC, the first stub's address

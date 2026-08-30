@@ -75,7 +75,6 @@ EVALUV:        EQU  &5AF6  ; vector for evaluating an expression
 EXPEXP:        EQU  &011E  ; evaluate an expression of either type
 EXPNUM:        EQU  &0118  ; evaluate a numeric expression at (CHADD)
 EXPSTR:        EQU  &011B  ; evaluate a string expression
-FIRLET:        EQU  &5140  ; (aka NMBUFFER) - working space for a name
 FISCRNP:       EQU  &5C9F  ; PAGE OF SCREEN 1
 FL6OR8:        EQU  &5A35  ; 00=6 BIT CHARS IN MODE 2, NZ=8 BIT
 FLAGS:         EQU  &5C3B  ; bit 7 set while running, clear while syntax-checking
@@ -192,6 +191,7 @@ DOS_EVNAM:     EQU  &A1CF
 DOS_EVNUMX:    EQU  &A2AF
 DOS_FFHL:      EQU  &8100
 DOS_FFPG:      EQU  &9AB7
+DOS_FIND_ROM_CODE: EQU  &BD79
 DOS_FNS56:     EQU  &8AD3
 DOS_FSTR1:     EQU  &8137
 DOS_HEADER:    EQU  &8000
@@ -217,7 +217,6 @@ DOS_L4D2D:     EQU  &8D2D
 DOS_L4F00:     EQU  &8F00
 DOS_L4F0D:     EQU  &8F0D
 DOS_L59A3:     EQU  &99A3
-DOS_L5C22:     EQU  &9C22
 DOS_L5E1F:     EQU  &9E1F
 DOS_L5FB9:     EQU  &9FB9
 DOS_L602A:     EQU  &A02A
@@ -235,7 +234,6 @@ DOS_MBCOPY_775A: EQU  &BD79
 DOS_MBCOPY_7774: EQU  &BD93
 DOS_MBCOPY_778B: EQU  &BDAA
 DOS_MBCOPY_7829: EQU  &BE48
-DOS_MBCOPY_7903: EQU  &BF22
 DOS_NEXTST:    EQU  &821E
 DOS_PCN2:      EQU  &9BB6
 DOS_PLNS:      EQU  &908E
@@ -316,10 +314,8 @@ UPPER:         EQU  &DF    ; clearing bit 5 folds a letter to upper case
 ; 128 plus the index of an entry in the DOS hook table at &44A6.
 ERR_OUT_OF_MEMORY: EQU  &01
 ERR_NEXT_WITHOUT_FOR: EQU  &05
-ERR_RETURN_WITHOUT_GOSUB: EQU  &08
 ERR_BREAK_INTO_PROGRAM: EQU  &0F
 ERR_PUT_BLOCK: EQU  &25
-HK_HLOAD:      EQU  &82
 HK_MCHWR:      EQU  &A7
 HK_MCHRD:      EQU  &A8
 HK_HKLEN:      EQU  &AC
@@ -4333,7 +4329,7 @@ HCMDV:
                LD (&8D7C),HL                   ; 4EFA 22 7C 8D
                LD HL,L4D7B                     ; 4EFD 21 7B 4D
 
-; ---- L4F00 ---- from &417F, &5DE1, &5DFA, &79F7, &7E68
+; ---- L4F00 ---- from &417F, &5DE1, &5DFA, &7E68
 L4F00:
                LD (&8D45),HL                   ; 4F00 22 45 8D
                POP AF                          ; 4F03 F1
@@ -6335,7 +6331,11 @@ L5896:
 ; ---- L5898 ---- from &5703
 L5898:
                CALL NRRDD                      ; 5898 CD 5F 45
-               DEFW L5A67                     ; 589B 67 5A
+               DEFB &67                                                         ; 589B g
+
+; ---- V589C ---- from &7708
+V589C:
+               DEFB &5A                                                         ; 589C Z
                LD D,B                          ; 589D 50
                LD E,C                          ; 589E 59
 
@@ -6915,7 +6915,7 @@ L5AB3:
 L5AB5:
                CP CH_SPACE                     ; 5AB5 FE 20
 
-; ---- L5AB7 ---- from &6512, &7625, &7D00
+; ---- L5AB7 ---- from &6512, &7D00
 L5AB7:
                JR NZ,L5AC6                     ; 5AB7 20 0D
                LD A,(DE)                       ; 5AB9 1A
@@ -12725,44 +12725,23 @@ L75E6:
                LD L,&00                        ; 75F8 2E 00
                JP M,&F022                      ; 75FA FA 22 F0
                LD B,L                          ; 75FD 45
-               CALL DOS_MBCOPY_775A            ; 75FE CD 79 BD
-               LD A,(BC)                       ; 7601 0A
-               CP CH_SPACE                     ; 7602 FE 20
-               DJNZ L7606                      ; 7604 10 00
-
-; ---- L7606 ---- from &7604
-L7606:
-               PUSH AF                         ; 7606 F5
+               CALL DOS_FIND_ROM_CODE          ; 75FE CD 79 BD
+               DEFB &0A,&FE,&20,&10,&00,&F5   ; 7601 signature 0A FE 20 from &1000, then -11
                LD (V45F6),HL                   ; 7607 22 F6 45
-               CALL DOS_MBCOPY_775A            ; 760A CD 79 BD
-               LD D,(HL)                       ; 760D 56
-               LD E,D                          ; 760E 5A
-               RET                             ; 760F C9
-               DEFB &3C,&00                                                     ; 7610 <.  skipped: reads as INC A from here, and as part of the instruction above it
-               INC BC                          ; 7612 03
+               CALL DOS_FIND_ROM_CODE          ; 760A CD 79 BD
+               DEFB &56,&5A,&C9,&3C,&00,&03   ; 760D signature 56 5A C9 from &3C00, then +3
                LD (&7DA7),HL                   ; 7613 22 A7 7D
-               CALL DOS_MBCOPY_775A            ; 7616 CD 79 BD
-               SUB &06                         ; 7619 D6 06
-               LD (&00D7),A                    ; 761B 32 D7 00
-               DEC B                           ; 761E 05
+               CALL DOS_FIND_ROM_CODE          ; 7616 CD 79 BD
+               DEFB &D6,&06,&32,&D7,&00,&05   ; 7619 signature D6 06 32 from &D700, then +5
                LD (V6594),HL                   ; 761F 22 94 65
-               CALL DOS_MBCOPY_775A            ; 7622 CD 79 BD
-               LD A,(L5AB7)                    ; 7625 3A B7 5A
-               IN A,(&00)                      ; 7628 DB 00
-               NOP                             ; 762A 00
+               CALL DOS_FIND_ROM_CODE          ; 7622 CD 79 BD
+               DEFB &3A,&B7,&5A,&DB,&00,&00   ; 7625 signature 3A B7 5A from &DB00
                LD (&7D4C),HL                   ; 762B 22 4C 7D
-               CALL DOS_MBCOPY_775A            ; 762E CD 79 BD
-               NOP                             ; 7631 00
-               SCF                             ; 7632 37
-               RET                             ; 7633 C9
-               DEFB &3C,&00                                                     ; 7634 <.  skipped: reads as INC A from here, and as part of the instruction above it
-               INC BC                          ; 7636 03
+               CALL DOS_FIND_ROM_CODE          ; 762E CD 79 BD
+               DEFB &00,&37,&C9,&3C,&00,&03   ; 7631 signature 00 37 C9 from &3C00, then +3
                LD (&6517),HL                   ; 7637 22 17 65
-               CALL DOS_MBCOPY_775A            ; 763A CD 79 BD
-               EX DE,HL                        ; 763D EB
-               JP (HL)                         ; 763E E9
-               RST &30                         ; 763F F7
-               LD BC,&0280                     ; 7640 01 80 02
+               CALL DOS_FIND_ROM_CODE          ; 763A CD 79 BD
+               DEFB &EB,&E9,&F7,&01,&80,&02   ; 763D signature EB E9 F7 from &0180, then +2
                LD (&7D55),HL                   ; 7643 22 55 7D
                IN A,(LMPR)                     ; 7646 DB FA
                INC A                           ; 7648 3C
@@ -12856,32 +12835,62 @@ L76CD:
                PUSH DE                         ; 76D1 D5
                PUSH HL                         ; 76D2 E5
                BIT 7,H                         ; 76D3 CB 7C
-               JR Z,L76DA                      ; 76D5 28 03
+               JR Z,INSTALL_ROM_VECTORS        ; 76D5 28 03
                EX DE,HL                        ; 76D7 EB
                LD D,B                          ; 76D8 50
                LD E,C                          ; 76D9 59
 
-; ---- L76DA ---- from &76D5
-L76DA:
+;; --------------------------------------------------------------------
+;; Run after the stubs have been copied into the ROM's system page, this
+;; is what makes them reachable: it writes their addresses into the ROM's
+;; own vector variables, so the ROM calls MasterBASIC without knowing it.
+;;
+;; PRTOKV  &4BB0     EDITV   &4866     BSTKEND &45A1
+;; MTOKV   &58B4     FRAMIV  &4986     BASSTK  &45A1
+;; EVALUV  &4BBA     PATOUT  &49A9     INSLV   &46CC
+;; CMDV    &488E     RST8V   &4AB8
+;;
+;; Read those against the system page, not this one.  &46CC is where the
+;; first stub was copied, &4866, &4986, &49A9 and &4AB8 all fall inside
+;; the second at &484D-&4AEB, and &4BB0 and &4BBA inside the 36 bytes put
+;; at &4BA0.  The listing writes them as L4866, L4986, L46CC and so on
+;; because they are addresses in range for this half too, and there is no
+;; way for it to know better -- they are plain LD HL,nn immediates.  They
+;; are not this page's routines.
+;;
+;; MTOKV is the exception that proves it: &58B4 is well past &4BC3 and
+;; nothing is installed there, so that one really is an address in this
+;; half, to be reached with MasterBASIC paged in.
+;;
+;; BSTKEND and BASSTK are both set to &45A1 and &FF is written there, so
+;; MasterBASIC moves BASIC's stack down to just below its own installed
+;; code -- the ROM's table puts BSTACK at &4AFF, which is inside the
+;; second stub.  It had to move.
+;;
+;; PAGE_IN_ROM1 is set to &7FE6, the same value the stub at &7BE5 writes.
+;;
+;; What was here before:
+;;
+;;     Point the ROM's vectors at the code installed in the system page.
+;; --------------------------------------------------------------------
+
+; ---- INSTALL_ROM_VECTORS ---- from &76D5
+INSTALL_ROM_VECTORS:
                LD (DOS_NEXTST),HL              ; 76DA 22 1E 82
                LD (&5A69),DE                   ; 76DD ED 53 69 5A
                CALL DOS_MBCOPY_778B            ; 76E1 CD AA BD
                CALL DOS_MBCOPY_7829            ; 76E4 CD 48 BE
-               LD HL,&4BB0                     ; 76E7 21 B0 4B
+               LD HL,&4BB0                     ; 76E7 21 B0 4B  &4BB0 in the system page -- inside the 36 bytes put at &4BA0
                LD (PRTOKV),HL                  ; 76EA 22 DE 5A
                LD HL,L58B4                     ; 76ED 21 B4 58
                LD (L5AFA),HL                   ; 76F0 22 FA 5A
                LD HL,L4BBA                     ; 76F3 21 BA 4B
                LD (L5AF6),HL                   ; 76F6 22 F6 5A
                LD HL,L488E                     ; 76F9 21 8E 48
-               LD (CMDV),HL                    ; 76FC 22 F4 5A
-               CALL DOS_MBCOPY_775A            ; 76FF CD 79 BD
-               LD E,E                          ; 7702 5B
-               SUB &5B                         ; 7703 D6 5B
-               DEC A                           ; 7705 3D
-               NOP                             ; 7706 00
-               CALL M,DOS_L5C22                ; 7707 FC 22 9C
-               LD E,B                          ; 770A 58
+               LD (CMDV),HL                    ; 76FC 22 F4 5A  CMDV gets &488E, inside the second stub
+               CALL DOS_FIND_ROM_CODE          ; 76FF CD 79 BD
+               DEFB &5B,&D6,&5B,&3D,&00,&FC   ; 7702 signature 5B D6 5B from &3D00, then -4
+               LD (V589C),HL                   ; 7708 22 9C 58
                LD A,(DOS_V42B6)                ; 770B 3A B6 82
                LD C,A                          ; 770E 4F
                LD B,&F0                        ; 770F 06 F0
@@ -12892,7 +12901,7 @@ L76DA:
                OUT (C),A                       ; 7719 ED 79
                LD HL,&7FE6                     ; 771B 21 E6 7F
                LD (PAGE_IN_ROM1),HL            ; 771E 22 59 5C
-               LD HL,&4866                     ; 7721 21 66 48
+               LD HL,&4866                     ; 7721 21 66 48  EDITV gets &4866, likewise
                LD (EDITV),HL                   ; 7724 22 EC 5A
                LD HL,L4986                     ; 7727 21 86 49
                LD (L5AE2),HL                   ; 772A 22 E2 5A
@@ -12904,11 +12913,11 @@ L76DA:
                LD (DOS_PTH2),HL                ; 773A 22 39 BF
                LD HL,&45A1                     ; 773D 21 A1 45
                LD (L5BC4),HL                   ; 7740 22 C4 5B
-               LD (BASSTK),HL                  ; 7743 22 C6 5B
+               LD (BASSTK),HL                  ; 7743 22 C6 5B  BASIC's stack moved to &45A1, clear of the installed code
                LD (HL),&FF                     ; 7746 36 FF
                LD A,&01                        ; 7748 3E 01
                LD (DOS_DRIVE),A                ; 774A 32 0B BC
-               LD HL,L46CC                     ; 774D 21 CC 46
+               LD HL,L46CC                     ; 774D 21 CC 46  INSLV gets &46CC, the first stub's address
                LD (L5BBA),HL                   ; 7750 22 BA 5B
                LD HL,L4AB8                     ; 7753 21 B8 4A
                LD (RST8V),HL                   ; 7756 22 EE 5A
@@ -12916,7 +12925,7 @@ L76DA:
 
 ;; --------------------------------------------------------------------
 ;; Copied to &7D79 in the DOS page by the boot sector, and
-;; called there from 26 sites in this page as DOS_MBCOPY_775A.  The
+;; called there from 27 sites in this page as DOS_MBCOPY_775A.  The
 ;; bytes the file holds at &7D79 in the DOS page are not
 ;; these: they are whatever was in its buffers when the image
 ;; was saved, and the copy overwrites them at boot.
@@ -13377,11 +13386,8 @@ L796B:
 
 ; ---- L7990 ---- from &75EF, &798D
 L7990:
-               CALL DOS_MBCOPY_775A            ; 7990 CD 79 BD
-               RET                             ; 7993 C9
-               EX (SP),HL                      ; 7994 E3
-               CALL &3010                      ; 7995 CD 10 30
-               INC BC                          ; 7998 03
+               CALL DOS_FIND_ROM_CODE          ; 7990 CD 79 BD
+               DEFB &C9,&E3,&CD,&10,&30,&03   ; 7993 signature C9 E3 CD from &1030, then +3
                LD E,(HL)                       ; 7999 5E
                INC HL                          ; 799A 23
 
@@ -13389,127 +13395,60 @@ L7990:
 L799B:
                LD D,(HL)                       ; 799B 56
                INC HL                          ; 799C 23
-               DEFB &ED,&53,&FB                                                 ; 799D mS{  skipped: reads as LD (&7DFB),DE from here, and as part of the instruction above it
-
-; ---- L79A0 ---- from &7A1E
-L79A0:
-               LD A,L                          ; 79A0 7D
+               LD (&7DFB),DE                   ; 799D ED 53 FB 7D
                INC HL                          ; 79A1 23
                LD (&7E01),HL                   ; 79A2 22 01 7E
-               CALL DOS_MBCOPY_775A            ; 79A5 CD 79 BD
-               JR NZ,L79B2                     ; 79A8 20 08
-               LD A,B                          ; 79AA 78
-               INC BC                          ; 79AB 03
-               LD (HL),B                       ; 79AC 70
-               LD (BC),A                       ; 79AD 02
+               CALL DOS_FIND_ROM_CODE          ; 79A5 CD 79 BD
+               DEFB &20,&08,&78,&03,&70,&02   ; 79A8 signature 20 08 78 from &0370, then +2
                LD (V56F6),HL                   ; 79AE 22 F6 56
-               DEFB &CD                                                         ; 79B1 M  skipped: reads as CALL DOS_MBCOPY_775A from here, and as part of the instruction above it
-
-; ---- L79B2 ---- from &79A8
-L79B2:
-               LD A,C                          ; 79B2 79
-               CP L                            ; 79B3 BD
-               INC B                           ; 79B4 04
-               RST FPCALC                      ; 79B5 EF
-               LD B,&12                        ; 79B6 06 12
-               NOP                             ; 79B8 00
-               DEFB &FF                                                         ; 79B9 .
+               CALL DOS_FIND_ROM_CODE          ; 79B1 CD 79 BD
+               DEFB &04,&EF,&06,&12,&00,&FF   ; 79B4 signature 04 EF 06 from &1200, then -1
                LD (&5CF2),HL                   ; 79BA 22 F2 5C
-               CALL DOS_MBCOPY_775A            ; 79BD CD 79 BD
-               POP AF                          ; 79C0 F1
-               LD C,&FB                        ; 79C1 0E FB
-               DEC B                           ; 79C3 05
-               RET P                           ; 79C4 F0
-               LD BC,&C67D                     ; 79C5 01 7D C6
-               LD (DE),A                       ; 79C8 12
+               CALL DOS_FIND_ROM_CODE          ; 79BD CD 79 BD
+               DEFB &F1,&0E,&FB,&05,&F0,&01   ; 79C0 signature F1 0E FB from &05F0, then +1
+               LD A,L                          ; 79C6 7D
+               ADD A,&12                       ; 79C7 C6 12
                LD H,A                          ; 79C9 67
                LD (&59C1),HL                   ; 79CA 22 C1 59
-               CALL DOS_MBCOPY_775A            ; 79CD CD 79 BD
-               DEFB &FF                                                         ; 79D0 .
-               LD (&3346),A                    ; 79D1 32 46 33
-               NOP                             ; 79D4 00
-               INC B                           ; 79D5 04
+               CALL DOS_FIND_ROM_CODE          ; 79CD CD 79 BD
+               DEFB &FF,&32,&46,&33,&00,&04   ; 79D0 signature FF 32 46 from &3300, then +4
                LD (&735E),HL                   ; 79D6 22 5E 73
-               CALL DOS_MBCOPY_775A            ; 79D9 CD 79 BD
-               OR B                            ; 79DC B0
-               LD A,&1F                        ; 79DD 3E 1F
-               JR C,L79E1                      ; 79DF 38 00
-
-; ---- L79E1 ---- from &79DF
-L79E1:
-               LD (&757F),IY                   ; 79E1 FD 22 7F 75
+               CALL DOS_FIND_ROM_CODE          ; 79D9 CD 79 BD
+               DEFB &B0,&3E,&1F,&38,&00,&FD   ; 79DC signature B0 3E 1F from &3800, then -3
+               LD (&757F),HL                   ; 79E2 22 7F 75
                LD (&7596),HL                   ; 79E5 22 96 75
-               CALL DOS_MBCOPY_775A            ; 79E8 CD 79 BD
-               JP NZ,HLJUMP                    ; 79EB C2 05 00
-               LD HL,(&0300)                   ; 79EE 2A 00 03
+               CALL DOS_FIND_ROM_CODE          ; 79E8 CD 79 BD
+               DEFB &C2,&05,&00,&2A,&00,&03   ; 79EB signature C2 05 00 from &2A00, then +3
                LD (&7468),HL                   ; 79F1 22 68 74
-               CALL DOS_MBCOPY_775A            ; 79F4 CD 79 BD
-               LD HL,L4F00                     ; 79F7 21 00 4F
-               CPL                             ; 79FA 2F
-               NOP                             ; 79FB 00
-               NOP                             ; 79FC 00
+               CALL DOS_FIND_ROM_CODE          ; 79F4 CD 79 BD
+               DEFB &21,&00,&4F,&2F,&00,&00   ; 79F7 signature 21 00 4F from &2F00
                LD (&73B4),HL                   ; 79FD 22 B4 73
-               CALL DOS_MBCOPY_775A            ; 7A00 CD 79 BD
-               LD A,(COMPFLG)                  ; 7A03 3A 40 5B
-               CPL                             ; 7A06 2F
-               RET PO                          ; 7A07 E0
-               NOP                             ; 7A08 00
+               CALL DOS_FIND_ROM_CODE          ; 7A00 CD 79 BD
+               DEFB &3A,&40,&5B,&2F,&E0,&00   ; 7A03 signature 3A 40 5B from &2FE0
                LD (&73BA),HL                   ; 7A09 22 BA 73
-               CALL DOS_MBCOPY_775A            ; 7A0C CD 79 BD
-               LD A,D                          ; 7A0F 7A
-               CPIR                            ; 7A10 ED B1
-               JR NC,L7A14                     ; 7A12 30 00
-
-; ---- L7A14 ---- from &7A12
-L7A14:
-               CALL M,DOS_MBCOPY_7903          ; 7A14 FC 22 BF
-               LD (HL),E                       ; 7A17 73
-               CALL DOS_MBCOPY_775A            ; 7A18 CD 79 BD
-               LD HL,FIRLET                    ; 7A1B 21 40 51
-               JR NC,L79A0                     ; 7A1E 30 80
-               NOP                             ; 7A20 00
+               CALL DOS_FIND_ROM_CODE          ; 7A0C CD 79 BD
+               DEFB &7A,&ED,&B1,&30,&00,&FC   ; 7A0F signature 7A ED B1 from &3000, then -4
+               LD (&73BF),HL                   ; 7A15 22 BF 73
+               CALL DOS_FIND_ROM_CODE          ; 7A18 CD 79 BD
+               DEFB &21,&40,&51,&30,&80,&00   ; 7A1B signature 21 40 51 from &3080
                LD (&73F8),HL                   ; 7A21 22 F8 73
-               CALL DOS_MBCOPY_775A            ; 7A24 CD 79 BD
-               LD A,(HL)                       ; 7A27 7E
-               ADD A,&01                       ; 7A28 C6 01
-               INC SP                          ; 7A2A 33
-               RET PO                          ; 7A2B E0
-               NOP                             ; 7A2C 00
+               CALL DOS_FIND_ROM_CODE          ; 7A24 CD 79 BD
+               DEFB &7E,&C6,&01,&33,&E0,&00   ; 7A27 signature 7E C6 01 from &33E0
                LD (&7429),HL                   ; 7A2D 22 29 74
-               CALL DOS_MBCOPY_775A            ; 7A30 CD 79 BD
-               RST ERR_HOOK                    ; 7A33 CF
-               DEFB HK_HLOAD                  ; 7A34 82 hook code
-               RET                             ; 7A35 C9
-               JP PO,&0400                     ; 7A36 E2 00 04
+               CALL DOS_FIND_ROM_CODE          ; 7A30 CD 79 BD
+               DEFB &CF,&82,&C9,&E2,&00,&04   ; 7A33 signature CF 82 C9 from &E200, then +4
                LD (L7DBF+1),HL                 ; 7A39 22 C0 7D  patches the operand of the JP at &7DBF
-               CALL DOS_MBCOPY_775A            ; 7A3C CD 79 BD
-               LD A,C                          ; 7A3F 79
-               AND &60                         ; 7A40 E6 60
-               INC DE                          ; 7A42 13
-               NOP                             ; 7A43 00
-               RET M                           ; 7A44 F8
+               CALL DOS_FIND_ROM_CODE          ; 7A3C CD 79 BD
+               DEFB &79,&E6,&60,&13,&00,&F8   ; 7A3F signature 79 E6 60 from &1300, then -8
                LD (V45EA),HL                   ; 7A45 22 EA 45
-               CALL DOS_MBCOPY_775A            ; 7A48 CD 79 BD
-               RET                             ; 7A4B C9
-               RST ERR_HOOK                    ; 7A4C CF
-               DEFB ERR_RETURN_WITHOUT_GOSUB  ; 7A4D 08 error 8, "RETURN without GOSUB"
-               ADD HL,DE                       ; 7A4E 19
-               NOP                             ; 7A4F 00
-               LD B,&22                        ; 7A50 06 22
-               LD C,(HL)                       ; 7A52 4E
-               LD D,E                          ; 7A53 53
-               CALL DOS_MBCOPY_775A            ; 7A54 CD 79 BD
-               RET Z                           ; 7A57 C8
-               SCF                             ; 7A58 37
-               JR L7A73                        ; 7A59 18 18
-               ADD A,B                         ; 7A5B 80
-               DEC BC                          ; 7A5C 0B
+               CALL DOS_FIND_ROM_CODE          ; 7A48 CD 79 BD
+               DEFB &C9,&CF,&08,&19,&00,&06   ; 7A4B signature C9 CF 08 from &1900, then +6
+               LD (&534E),HL                   ; 7A51 22 4E 53
+               CALL DOS_FIND_ROM_CODE          ; 7A54 CD 79 BD
+               DEFB &C8,&37,&18,&18,&80,&0B   ; 7A57 signature C8 37 18 from &1880, then +11
                LD (&5322),HL                   ; 7A5D 22 22 53
-               CALL DOS_MBCOPY_775A            ; 7A60 CD 79 BD
-               JP NC,&0008                     ; 7A63 D2 08 00
-               INC C                           ; 7A66 0C
-               ADD A,B                         ; 7A67 80
-               NOP                             ; 7A68 00
+               CALL DOS_FIND_ROM_CODE          ; 7A60 CD 79 BD
+               DEFB &D2,&08,&00,&0C,&80,&00   ; 7A63 signature D2 08 00 from &0C80
                PUSH HL                         ; 7A69 E5
                DEC HL                          ; 7A6A 2B
                LD D,(HL)                       ; 7A6B 56
@@ -13518,34 +13457,20 @@ L7A14:
                EX DE,HL                        ; 7A6E EB
                LD (L7DC5+1),HL                 ; 7A6F 22 C6 7D  patches the operand of the CALL at &7DC5
                POP HL                          ; 7A72 E1
-
-; ---- L7A73 ---- from &7A59
-L7A73:
                INC HL                          ; 7A73 23
                INC HL                          ; 7A74 23
                INC HL                          ; 7A75 23
                INC HL                          ; 7A76 23
                LD (L7DD8+1),HL                 ; 7A77 22 D9 7D  patches the operand of the JP at &7DD8
-               CALL DOS_MBCOPY_775A            ; 7A7A CD 79 BD
-               CP A                            ; 7A7D BF
-               RET                             ; 7A7E C9
-               DEFB &F7,&05,&00                                                 ; 7A7F w..  skipped: reads as RST &30 from here, and as part of the instruction above it
-               LD (BC),A                       ; 7A82 02
+               CALL DOS_FIND_ROM_CODE          ; 7A7A CD 79 BD
+               DEFB &BF,&C9,&F7,&05,&00,&02   ; 7A7D signature BF C9 F7 from &0500, then +2
                LD (L7AD5+1),HL                 ; 7A83 22 D6 7A  patches the operand of the LD at &7AD5
-               CALL DOS_MBCOPY_775A            ; 7A86 CD 79 BD
-               RES 5,(HL)                      ; 7A89 CB AE
-               PUSH AF                         ; 7A8B F5
-               INC B                           ; 7A8C 04
-               ADD A,B                         ; 7A8D 80
-               LD (BC),A                       ; 7A8E 02
+               CALL DOS_FIND_ROM_CODE          ; 7A86 CD 79 BD
+               DEFB &CB,&AE,&F5,&04,&80,&02   ; 7A89 signature CB AE F5 from &0480, then +2
                LD (L7ADB+1),HL                 ; 7A8F 22 DC 7A  patches the operand of the LD at &7ADB
-               CALL DOS_MBCOPY_775A            ; 7A92 CD 79 BD
-               POP AF                          ; 7A95 F1
-               CP &16                          ; 7A96 FE 16
-               LD (BC),A                       ; 7A98 02
-               ADD A,B                         ; 7A99 80
-               CALL M,&E222                    ; 7A9A FC 22 E2
-               LD A,D                          ; 7A9D 7A
+               CALL DOS_FIND_ROM_CODE          ; 7A92 CD 79 BD
+               DEFB &F1,&FE,&16,&02,&80,&FC   ; 7A95 signature F1 FE 16 from &0280, then -4
+               LD (L7AE1+1),HL                 ; 7A9B 22 E2 7A  patches the operand of the LD at &7AE1
                RET                             ; 7A9E C9
 
 ; ---- L7A9F ---- from &7651
@@ -13582,7 +13507,9 @@ L7AD5:
 L7ADB:
                LD HL,&0000                     ; 7ADB 21 00 00  the operand is written here at run time, from &7A8F
                LD (&8C5F),HL                   ; 7ADE 22 5F 8C
-               LD HL,&0000                     ; 7AE1 21 00 00
+
+L7AE1:
+               LD HL,&0000                     ; 7AE1 21 00 00  the operand is written here at run time, from &7A9B
                LD (&8C31),HL                   ; 7AE4 22 31 8C
                LD C,A                          ; 7AE7 4F
                LD A,(ACRSU)                    ; 7AE8 3A 59 40
@@ -13822,11 +13749,19 @@ L7BA1:
 ;; settled; a captured return address, whose high byte says which
 ;; caller, would fit the spread better than a token does.
 ;;
-;; Whatever H is, &45A2 in the system page is below everything the
-;; installer writes, and nothing found so far puts code there.  In this
-;; page it is a real MasterBASIC routine -- the one that writes A to a
-;; system-page byte -- and it is called as such from &7845, outside the
-;; block.  But this block never runs in this page.  Left open.
+;; &45A2 is now located, if not explained.  INSTALL_ROM_VECTORS sets
+;; both BSTKEND and BASSTK to &45A1 and writes &FF there, moving BASIC's
+;; stack down to sit just below the installed code -- it had to move,
+;; because the ROM's own BSTACK at &4AFF is inside the second stub.  So
+;; &45A2 is the byte immediately above the base of the relocated BASIC
+;; stack, not the unclaimed heap it looked like.
+;;
+;; That still does not explain jumping to it.  In this page &45A2 is a
+;; real MasterBASIC routine -- the one that writes A to a system-page
+;; byte, called as such from &7845 -- but this block never runs in this
+;; page.  Either something builds code at the foot of the stack the way
+;; &735D and hook 185 build code in CDBUFF, or the dispatcher is reached
+;; with this half paged in after all.  Left open, but narrowed.
 ;; --------------------------------------------------------------------
 
 ; ---- RELOCATED_TO_484D ---- from &7B51

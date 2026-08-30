@@ -92,11 +92,19 @@ DOC RELOCATED_TO_484D
     settled; a captured return address, whose high byte says which
     caller, would fit the spread better than a token does.
 
-    Whatever H is, &45A2 in the system page is below everything the
-    installer writes, and nothing found so far puts code there.  In this
-    page it is a real MasterBASIC routine -- the one that writes A to a
-    system-page byte -- and it is called as such from &7845, outside the
-    block.  But this block never runs in this page.  Left open.
+    &45A2 is now located, if not explained.  INSTALL_ROM_VECTORS sets
+    both BSTKEND and BASSTK to &45A1 and writes &FF there, moving BASIC's
+    stack down to sit just below the installed code -- it had to move,
+    because the ROM's own BSTACK at &4AFF is inside the second stub.  So
+    &45A2 is the byte immediately above the base of the relocated BASIC
+    stack, not the unclaimed heap it looked like.
+
+    That still does not explain jumping to it.  In this page &45A2 is a
+    real MasterBASIC routine -- the one that writes A to a system-page
+    byte, called as such from &7845 -- but this block never runs in this
+    page.  Either something builds code at the foot of the stack the way
+    &735D and hook 185 build code in CDBUFF, or the dispatcher is reached
+    with this half paged in after all.  Left open, but narrowed.
 
 MB &7460 RELOCATED_TO_46CC
 MB &7BA4 RELOCATED_TO_484D

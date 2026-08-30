@@ -387,7 +387,11 @@ class Page(Disassembler):
                 if tgt in self.msg_calls:
                     self._message(nxt)
                     return
-                n = self.inline_len(tgt) if self.inside(tgt) else 0
+                # A routine copied into the other page is called through
+                # the window, so its inline parameters cannot be sniffed
+                # from here -- the length has to be registered by address.
+                n = (self.inline_len(tgt) if self.inside(tgt)
+                     else self._inline.get(tgt, 0))
                 if n:
                     nxt = self._run(nxt, n, PARAM)
                 if tgt in self.dead_calls:
@@ -608,6 +612,14 @@ def seeds(dos, mb):
     if 'DERR' in rev:
         dos._inline[rev['DERR']] = 1
         dos.dead_calls.add(rev['DERR'])
+
+    # The search helper this half keeps at &775A is copied into the DOS
+    # page and called there, at &BD79 through the window, by 27 sites.  It
+    # pops its return address and reads three bytes, an address and a
+    # signed offset -- six in all -- so six bytes after every one of those
+    # calls are parameters, not code.  Every site is followed by an
+    # LD (nn),HL storing the pointer it hands back.
+    mb._inline[0xBD79] = 6
 
     dos.headers[0x4000] = NOTES['boot']
     dos.headers[0x4200] = NOTES['entry']
@@ -1438,6 +1450,9 @@ def main():
     for p in rp:
         print('notes/: ' + p)
 
+    print('%d signature searches given their parameters'
+          % sum(note_signature_calls(d) for d in (dos, mb)))
+
     if args.outdir:
         for d, name in ((dos, 'masterdos.asm'), (mb, 'masterbasic.asm')):
             d.relabel()
@@ -1511,6 +1526,37 @@ def hmpr_zero_ranges(d, back=16, limit=192):
                 break
         out.append((lo, hi))
     return out
+
+
+
+MBCOPY_FIND = 0xBD79          # the signature search, in the DOS page
+
+
+def note_signature_calls(d):
+    """Render the six bytes after the ROM signature search as what they are.
+
+    Three bytes of signature -- a byte and then a word, both big-endian as
+    the search compares them -- the address to start looking from, and a
+    signed offset applied to whatever it finds.
+    """
+    if d.tag != 'MB':
+        return 0
+    n = 0
+    for a, ins in sorted(d.insns.items()):
+        if not (ins.text.startswith('CALL') and ins.target == MBCOPY_FIND):
+            continue
+        p = ins.end
+        if p + 6 > d.limit:
+            continue
+        b = [d.byte(p + i) for i in range(6)]
+        off = b[5] - 256 if b[5] > 127 else b[5]
+        d.renderers[p] = (p + 6, ('%-14s DEFB %-25s ; %04X %s' + chr(10)) % (
+            '', ','.join(hexn(x, 2) for x in b), p,
+            'signature %02X %02X %02X from %s%s'
+            % (b[0], b[1], b[2], hexn(b[3] << 8 | b[4], 4),
+               ', then %+d' % off if off else '')))
+        n += 1
+    return n
 
 
 def unknown_runs(d):

@@ -1,0 +1,41 @@
+# How MasterBASIC finds its way around the ROM.
+
+RENAME MBCOPY_775A FIND_ROM_CODE
+
+DOC MBCOPY_775A
+    Find a three-byte instruction sequence in the ROM and hand back a
+    pointer to it, adjusted by a signed offset.
+
+    MasterBASIC does not hard-code the ROM addresses it needs to call and
+    patch.  It searches for them, by the opcodes that are there.  This
+    half keeps the routine at &775A, the boot copies it into the DOS page
+    at &7D79, and 27 sites call it there through the window at &BD79.
+
+    Six inline bytes follow every one of those calls:
+
+        byte 0      the first byte of the signature
+        bytes 1,2   the two after it
+        bytes 3,4   the address to start searching from, high byte first
+        byte 5      a signed offset added to whatever is found
+
+    The search at &7774 keeps a three-byte sliding window -- the oldest
+    byte in A, the newer two in DE -- and steps forward until the oldest
+    matches and DE matches BC.  The caller always follows the call with an
+    LD (nn),HL, so the pointer goes straight into a variable.
+
+    The signatures are ordinary Z80:
+
+        3A B7 5A    LD A,(&5AB7)              searched from &DB00
+        0A FE 20    LD A,(BC) : CP " "        searched from &1000
+        56 5A C9    LD D,(HL) : LD E,D : RET  searched from &3C00
+        00 37 C9    NOP : SCF : RET           searched from &3C00
+
+    The start addresses say which ROM: &1000 and &3C00 are in ROM 0,
+    &D700 and &DB00 in ROM 1 at &C000.  So both halves of the ROM are
+    searched, and the offsets step from the signature to whatever the
+    caller actually wants -- the entry point above it, or the operand
+    inside it.
+
+    One result is worth following.  The search at &75FE stores its pointer
+    in V45F6, which is the DEFW of the CALL CMR at L45F3: that call has no
+    fixed target at all, and goes wherever the signature was found.

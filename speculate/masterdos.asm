@@ -11138,9 +11138,6 @@ L5C1B:
                INC HL                          ; 5C1C 23
                CALL L5766                      ; 5C1D CD 66 57
                DJNZ L5C1B                      ; 5C20 10 F9
-
-; ---- L5C22 ---- from MB &7707
-L5C22:
                RET                             ; 5C22 C9
 
 ;; --------------------------------------------------------------------
@@ -23321,8 +23318,47 @@ V7D60:
                DEFB &21,&60,&BD,&11,&00,&4F,&01,&BE,&01,&ED,&B0,&11,&14,&4C,&0E ; 7D60 !`=..O.>.m0..L.
                DEFB &A1,&ED,&B0,&C9,&36,&00,&A7,&C8,&3A,&71                     ; 7D6F !m0I6.'H:q
 
-; ---- MBCOPY_775A ---- from MB &75FE, MB &760A, MB &7616, MB &7622, MB &762E, MB &763A, MB &76FF, MB &7990 ...
-MBCOPY_775A:
+;; --------------------------------------------------------------------
+;; Find a three-byte instruction sequence in the ROM and hand back a
+;; pointer to it, adjusted by a signed offset.
+;;
+;; MasterBASIC does not hard-code the ROM addresses it needs to call and
+;; patch.  It searches for them, by the opcodes that are there.  This
+;; half keeps the routine at &775A, the boot copies it into the DOS page
+;; at &7D79, and 27 sites call it there through the window at &BD79.
+;;
+;; Six inline bytes follow every one of those calls:
+;;
+;; byte 0      the first byte of the signature
+;; bytes 1,2   the two after it
+;; bytes 3,4   the address to start searching from, high byte first
+;; byte 5      a signed offset added to whatever is found
+;;
+;; The search at &7774 keeps a three-byte sliding window -- the oldest
+;; byte in A, the newer two in DE -- and steps forward until the oldest
+;; matches and DE matches BC.  The caller always follows the call with an
+;; LD (nn),HL, so the pointer goes straight into a variable.
+;;
+;; The signatures are ordinary Z80:
+;;
+;; 3A B7 5A    LD A,(&5AB7)              searched from &DB00
+;; 0A FE 20    LD A,(BC) : CP " "        searched from &1000
+;; 56 5A C9    LD D,(HL) : LD E,D : RET  searched from &3C00
+;; 00 37 C9    NOP : SCF : RET           searched from &3C00
+;;
+;; The start addresses say which ROM: &1000 and &3C00 are in ROM 0,
+;; &D700 and &DB00 in ROM 1 at &C000.  So both halves of the ROM are
+;; searched, and the offsets step from the signature to whatever the
+;; caller actually wants -- the entry point above it, or the operand
+;; inside it.
+;;
+;; One result is worth following.  The search at &75FE stores its pointer
+;; in V45F6, which is the DEFW of the CALL CMR at L45F3: that call has no
+;; fixed target at all, and goes wherever the signature was found.
+;; --------------------------------------------------------------------
+
+; ---- FIND_ROM_CODE ---- from MB &75FE, MB &760A, MB &7616, MB &7622, MB &762E, MB &763A, MB &76FF, MB &7990 ...
+FIND_ROM_CODE:
                DEFB &5C,&1F,&D8,&3A,&A5,&5A,&CD,&DF,&3F,&2A,&A6,&5A,&ED,&4B,&72 ; 7D79 \.X:%ZM_?*&ZmKr
                DEFB &5C,&3A,&3B,&5C,&CB,&77,&28,&11,&ED,&5B,&65                 ; 7D88 \:;\Kw(.m[e
 
@@ -23389,9 +23425,6 @@ V7F0D:
 ; ---- PTH1 ---- from &741B, MB &7736
 PTH1:
                DEFB &1C,&08,&00,&08,&10,&20,&22,&1C,&00,&A9,&AA,&3A,&3C,&5C,&E6 ; 7F13 ..... "..)*:<\f
-
-; ---- MBCOPY_7903 ---- from MB &7A14
-MBCOPY_7903:
                DEFB &08,&C4,&00,&00,&21,&3B,&5C,&A7,&CB,&6E,&C8,&3A,&08,&5C,&CB ; 7F22 .D..!;\'KnH:.\K
                DEFB &AE,&E5,&21,&0A,&00,&39,&5E,&23                             ; 7F31 .e!..9^#
 
