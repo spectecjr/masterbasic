@@ -49,7 +49,16 @@ each one is for, every guess marked with a leading `?`. It is useful for finding
 your way around 2,177 routines; it is not evidence. Its
 [README](speculate/README.md) sets out where it is wrong and why.
 
-Both sets assemble to the original bytes — everything added is a comment — so all
+**`postinstall/` is a third kind again: a reconstruction.** MasterBASIC
+copies two blocks into the ROM's own system page at boot and points
+CMDV, EDITV, RST8V and five more vectors at them, so the code the ROM
+actually calls lives at &46CC and &484D and appears in `disasm/` only at
+the addresses it was stored at. `tools/syspage.py` builds that page and
+disassembles it where it really runs. It cannot be verified by
+assembling -- there is no original to compare it with -- and it says so
+at the top of itself.
+
+Both `disasm/` and `speculate/` assemble to the original bytes — everything added is a comment — so all
 four files are checked on every build.
 
 ## Rebuilding
@@ -86,6 +95,7 @@ git submodule update --init
 | `file/` | the image being disassembled |
 | `disasm/` | the two listings — **start here** |
 | `speculate/` | the same, with a reading of every routine |
+| `postinstall/` | the ROM's system page as MasterBASIC leaves it |
 | `notes/` | hand-written names and descriptions, fed into both |
 | `tools/` | the disassembler and the passes that annotate it |
 | `docs/` | how it is built, the manual, the keyword and token write-ups |
