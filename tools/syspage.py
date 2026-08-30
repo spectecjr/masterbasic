@@ -13,6 +13,7 @@ much a part of the result as the code.
 
 import os
 import sys
+import textwrap
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -23,14 +24,26 @@ BASE, TOP = 0x4000, 0x8000
 HALF = 16320
 BLANK = 0xFF
 
-# Where the installer puts things.  Each is (source half, from, to, at):
-# see INSTALL_ROM_PATCHES at &7B03 in disasm/masterbasic.asm, which sets
-# HMPR to zero and so writes &8xxx meaning the system page's &4xxx.
+# Where the installers put things.  Each is (source half, from, to, at).
+# The first three are INSTALL_ROM_PATCHES at &7B03 in
+# disasm/masterbasic.asm, which sets HMPR to zero and so writes &8xxx
+# meaning the system page's &4xxx.
 COPIES = (
     ('MB', 0x7460, 0x75E1, 0x46CC, 'first stub, from &7460'),
     ('MB', 0x7BA4, 0x7E43, 0x484D, 'second stub, from &7BA4'),
     ('MB', 0x7B80, 0x7BA4, 0x4BA0, 'the 36 bytes from &7B80'),
+    # INSTALL_SYSPAGE_CODE at &7A9F, which zeroes HMPR the same way and
+    # so writes &9xxx meaning &5xxx.
+    ('MB', 0x7E43, 0x7E6B, 0x5896, 'the 40 bytes from &7E43, in the gap '
+     'the ROM leaves between the DEF KEY buffer and the keyboard table'),
+    ('MB', 0x7AF2, 0x7B00, 0x5BE0, "MasterBASIC's own paging routine, in "
+     'the fourteen bytes the ROM reserves at PAGER'),
 )
+
+# INSTALL_EXTENDED_PUT at &7829 fills &45A2-&46CB and is deliberately not
+# in COPIES: two of its five runs are lifted out of the ROM's own PUT,
+# wherever the signature search found it, so the block cannot be
+# assembled from this image alone.  A dump has it; the model does not.
 
 # The vectors INSTALL_ROM_VECTORS points into this page, and so the
 # entry points worth tracing from.
@@ -46,9 +59,11 @@ VECTORS = (
     (0x4AB8, 'RST8V_ERROR'),          # ERROR2, where RST &08 ends up
     (0x4BB0, 'PRTOKV_PRINT_TOKEN'),   # PRGR802, printing a keyword
     (0x4BBA, 'EVALUV_EVAL_FN'),       # ABOVLETS, evaluating a function
-    # Not a vector: the relocated block jumps here, and the dump shows ten
-    # bytes of MasterBASIC's &7986 -- SUB &AB then LD (FN_LOCN),A --
-    # turning a token into a function index.
+    # Not a vector: DISPATCH_ON_COMMAND_TOKEN jumps here for PUT, and the
+    # dump shows ten bytes of MasterBASIC's &7986 -- RST NEXT_CHAR, SUB
+    # &AB, LD (FN_LOCN),A -- turning a token into a function index.  It is
+    # the first of the five runs INSTALL_EXTENDED_PUT lays down, so this
+    # is where MasterBASIC's rebuilt PUT begins.
     (0x45A2, 'TOKEN_TO_FN_INDEX'),
     # The ROM's code buffer.  Whatever is here was put here at run time,
     # by the ROM copying one of its own ROM 1 routines in or by
@@ -75,6 +90,7 @@ def build(image, dump=None):
     halves = {'DOS': raw[:HALF], 'MB': raw[HALF:]}
     mem = bytearray([BLANK]) * (TOP - BASE)
     placed = []
+    agree = None
     for tag, lo, hi, at, why in COPIES:
         chunk = halves[tag][lo - BASE:hi - BASE]
         mem[at - BASE:at - BASE + len(chunk)] = chunk
@@ -94,10 +110,18 @@ def build(image, dump=None):
             real[0x4C00 - BASE:0x4C00 - BASE + len(blob)] = blob
         real = bytes(real)
         diffs = []
+        checked = 0
         for at, end, _ in placed:
             for a in range(at, min(end, BASE + len(real))):
+                checked += 1
                 if real[a - BASE] != mem[a - BASE]:
                     diffs.append(a)
+        # Every difference so far has been a hole the image carries as
+        # zero and the machine carries filled in.  Worth checking rather
+        # than asserting, because a difference that is not one would mean
+        # the copy rules are wrong somewhere.
+        holes = sum(1 for a in diffs if mem[a - BASE] == 0)
+        agree = (len(diffs), checked, holes)
         # The dump wins: it is the machine, and the model is only a way of
         # explaining it.  Every byte it covers is taken from it.
         for i, b in enumerate(real):
@@ -106,14 +130,14 @@ def build(image, dump=None):
         placed.append((BASE, BASE + len(real), 'from the dump'))
         print('dump covers &%04X-&%04X; the copy rules predicted it to '
               'within %d bytes' % (BASE, BASE + len(real) - 1, len(diffs)))
-    return mem, placed, real
+    return mem, placed, real, agree
 
 
 def main():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     image = os.path.join(root, 'file', 'MasterBasicMasterDos.bin')
     dump = os.path.join(root, 'file', 'SYSPAGE.bin')
-    mem, placed, real = build(image, dump)
+    mem, placed, real, agree = build(image, dump)
     d = SysPage(mem)
     # Everything the installer does not write is not code, and the trace
     # must not wander into it: &FF decodes as RST &38 and would swallow
@@ -156,11 +180,37 @@ def main():
             else:
                 segs.append((at, end - at))
     with open(path, 'w') as f:
-        f.write(HEAD % (covered, sum(e - s for s, e, _ in placed)))
+        f.write(HEAD % (agreement(agree), covered,
+                        sum(e - s for s, e, _ in placed)))
         d.emit(f, segs=segs)
     print('wrote', path)
     print('%d bytes placed, %d reached as code from the vectors'
           % (sum(e - s for s, e, _ in placed), covered))
+
+
+def agreement(agree):
+    """How well the model matched the dump, counted rather than
+    remembered: the figures move whenever a copy rule is added, and a
+    stale number in a header is worse than no number at all."""
+    if agree is None:
+        return ('; There is no dump here, so what follows is the model and'
+                ' nothing\n; has checked it.\n')
+    diffs, checked, holes = agree
+    lead = ('; The two agree to within %d bytes across the %d the copy rules '
+            'cover, ' % (diffs, checked))
+    if holes == diffs:
+        body = ('and every one of those %d is a byte the image carries as '
+                'zero and the machine carries filled in -- the boot-time '
+                'patches: ROM addresses RESOLVE_ROM_ENTRIES finds by '
+                'signature, and single bytes holding MasterBASIC own page '
+                'number, two of which land exactly on L7CF5+1 and L7D46+1, '
+                'the operands the installer is seen to patch.' % diffs)
+    else:
+        body = ('but only %d of those %d are zeroes the machine fills in, so '
+                '%d are something else and the copy rules are wrong '
+                'somewhere.' % (holes, diffs, diffs - holes))
+    return textwrap.fill(lead + body, 71,
+                         initial_indent='', subsequent_indent='; ') + '\n'
 
 
 HEAD = """\
@@ -177,13 +227,7 @@ HEAD = """\
 ; assembled from the copy rules read out of the installer, which is a
 ; model and can be wrong.  The build says which happened.
 ;
-; The two agree to within 26 bytes across the 1092 the copies cover, and
-; every one of those 26 is a boot-time patch the model does not apply:
-; ROM addresses that RESOLVE_ROM_ENTRIES finds by signature, and three
-; single bytes holding MasterBASIC's own page number -- two of which land
-; exactly on L7CF5+1 and L7D46+1, the operands the installer is seen to
-; patch.
-;
+%s;
 ; %d bytes are reached as code from the entry points below; %d bytes were
 ; placed in total.
 """

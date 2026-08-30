@@ -592,7 +592,12 @@ python -m pip install pyz80
 tools/build.sh
 ```
 
-Exit status is 0 only if both halves came back byte-identical.
+Exit status is 0 only if all four listings came back byte-identical -- the two
+in `disasm/` and the two in `speculate/`.
+
+The run also rebuilds `postinstall/syspage.asm`, which cannot be checked that
+way because there is no original to compare it with, and prints the byte census
+and description count that the tables above are set from.
 
 ## Tools
 
@@ -610,4 +615,13 @@ Exit status is 0 only if both halves came back byte-identical.
 | `tools/notes.py` | Reads your own labels and descriptions from `notes/*.txt` |
 | `tools/features.py` | What the manual says each named routine does |
 | `tools/dis_mb.py` | This image: the two pages, the calling conventions, the seeding passes |
+| `tools/nrfam.py` | The `NR` family, which is how a page reaches the ROM's system variables |
+| `tools/hooks.py` | The fourteen hook codes MasterBASIC adds and the DOS's source does not name |
+| `tools/fpcalc.py` | The floating-point calculator's literal streams, which follow `RST FPCALC` instead of instructions |
+| `tools/serial.py` | The serial driver, read against the SCC2691 datasheet |
+| `tools/serial_note.py` | What the DOS's own "serial" names turn out to mean |
+| `tools/syspage.py` | Builds `postinstall/syspage.asm`: the ROM's system page as MasterBASIC leaves it |
+| `tools/regs.py` | What each instruction reads and writes, for deriving register contracts |
+| `tools/speculate.py` | Builds `speculate/`: a reading of every routine, marked as such |
+| `tools/specrender.py` | Turns that analysis into the text `speculate/` carries |
 | `tools/build.sh` | Regenerate and verify |

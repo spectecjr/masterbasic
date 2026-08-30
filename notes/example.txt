@@ -4,7 +4,8 @@
 # listings.  Delete this file or edit it; add as many .txt files as you
 # like and they are read in filename order.
 #
-# Four kinds of line.  See the top of tools/notes.py for the full rules.
+# Eight kinds of line, numbered below.  See the top of tools/notes.py
+# for the full rules.
 
 # 1. Name a routine, and describe it on the indented lines below.
 #
@@ -22,6 +23,9 @@
 #
 #    DOS &4220-&42BC data DVAR
 #    MB  &7E6B-&7FBF text
+#    MB  &4349-&43A0 code
+#
+#    data, text and code are the three kinds a range can be marked.
 
 # Addresses are as the listings write them: &4000-&7FBF for either page,
 # and a range includes both ends.  The page is MB or DOS.
@@ -49,3 +53,15 @@
 #        whichever drive and side is selected.
 #
 #    DOCUMENT is accepted as a longer spelling of DOC.
+
+# 7. Name the number in one instruction, where the same value means
+#    something different elsewhere in the listing.
+#
+#    DOS &4835 value DISKCTL_0_BASE
+#
+#    The number is read back out of the instruction, so the equate this
+#    creates cannot disagree with what is actually assembled.
+
+# 8. Change a name everywhere it is written, whoever gave it.
+#
+#    RENAME ULA BORDER

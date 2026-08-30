@@ -6,7 +6,8 @@ the code.  This is the way in for knowledge that comes from a person
 instead, and it is deliberately a plain text file rather than another
 Python module, so that adding a name costs one line and no imports.
 
-Four kinds of entry, one per line, blank lines and # comments ignored:
+Eight kinds of entry, one per line, blank lines and # comments ignored
+(a range takes one of three markers, which is why the list runs longer):
 
     MB &5934 SERINIT              name a routine (or any address)
         Set up the SCC2691.       indented lines below become its header
@@ -17,6 +18,7 @@ Four kinds of entry, one per line, blank lines and # comments ignored:
 
     DOS &4220-&42BC data DVAR     mark a range as data, and name its start
     MB &7E6B-&7FBF text           mark a range as text
+    MB &4349-&43A0 code           mark a range as code
 
     DOS &4835 value DISKCTL_0_BASE
                                   name the number in that one instruction,
@@ -25,6 +27,17 @@ Four kinds of entry, one per line, blank lines and # comments ignored:
 
     EQU STKEND : end of the calculator stack
                                   describe a ROM name in the equate block
+
+    AFTER CHECK_WRITE_STATUS : read the status through the patched port
+                                  comment the instruction a label sits on,
+                                  without looking its address up; +n steps
+                                  on n instructions first
+
+    DOC CHECK_WRITE_STATUS        head a routine by name rather than by
+        The indented lines        address, so a rename does not strand it
+        below become its header.
+
+    RENAME ULA BORDER             change a name everywhere it is written
 
 The page is MB or DOS.  Addresses are as the listings write them, so
 &4000-&7FBF, and a range is inclusive of both ends.

@@ -50,10 +50,12 @@ your way around 2,143 routines; it is not evidence. Its
 [README](speculate/README.md) sets out where it is wrong and why.
 
 **`postinstall/` is a third kind again: a reconstruction.** MasterBASIC
-copies two blocks into the ROM's own system page at boot and points
+builds seven blocks into the ROM's own system page at boot and points
 CMDV, EDITV, RST8V and five more vectors at them, so the code the ROM
-actually calls lives at &46CC and &484D and appears in `disasm/` only at
-the addresses it was stored at. `tools/syspage.py` builds that page and
+actually calls lives at `&45A2`, `&46CC`, `&484D` and `&4BA0` and appears
+in `disasm/` only at the addresses it was stored at -- and one of the
+blocks is not stored here at all, being assembled partly out of the ROM's
+own `PUT`. `tools/syspage.py` builds that page and
 disassembles it where it really runs. It cannot be verified by
 assembling -- there is no original to compare it with -- and it says so
 at the top of itself.
@@ -79,8 +81,10 @@ speculate/masterbasic.asm: BYTE-IDENTICAL
 
 The build assembles the annotated MasterDOS source and the SAM ROM first, for
 their symbol tables and BASIC token tables, then disassembles the image against
-them, then reassembles everything it wrote and compares. Nothing is left to be
-checked by eye.
+them, rebuilds `postinstall/`, then reassembles everything it wrote and
+compares. It prints the byte census and the description count as it goes, so
+the figures below are measured on every run rather than remembered. Nothing is
+left to be checked by eye.
 
 The two reference trees are submodules:
 
@@ -103,6 +107,7 @@ git submodule update --init
 | `ref/masterdos/` | annotated MasterDOS 2.3 source (submodule) |
 | `ref/samrom/` | SAM Coupé ROM 3.0 source (submodule) |
 | `dsks/` | the original disk images |
+| `design/` | what this project set out to do |
 
 [docs/how-it-works.md](docs/how-it-works.md) is the narrative: what
 MasterBASIC does, how it gets the ROM to call it, how it finds the ROM in
@@ -128,7 +133,7 @@ DOS &4220-&42BC data DVAR
 DOS &4835 value DISKCTL_0_BASE
 ```
 
-Nine kinds of entry, by address or by label name. Hand-written entries beat
+Eight kinds of entry, by address or by label name. Hand-written entries beat
 anything the tools worked out, and a disagreement is reported rather than
 resolved silently — as is a name that matches nothing, or one that matches an
 address in both pages. A typo is reported and skipped; it cannot break the build.

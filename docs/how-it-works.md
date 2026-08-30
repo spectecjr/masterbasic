@@ -51,20 +51,37 @@ hardware:* the source at `&7460` differs from the file in six bytes and the
 source at `&7BA4` in twenty, and the installed copies at `&46CC` and
 `&484D` differ in the same six and twenty, at the same offsets.
 
-**Install into the system page.** `INSTALL_ROM_PATCHES` at `&7B03` sets
-`HMPR` to zero — so every `&8xxx` in it means the system page `&4xxx` — and
-copies:
+**Install into the system page.** Three routines do this between them, and
+what they leave behind is one nearly continuous region from `&45A2` to
+`&4AEB`, a second at `&4BA0`, and a scattering elsewhere:
 
-| from | to | bytes |
-|---|---|---|
-| `&7460` | `&46CC` | 385 |
-| `&7BA4` | `&484D` | 671 |
-| `&7B80` | `&4BA0` | 36 |
+| from | to | bytes | by |
+|---|---|---|---|
+| five runs, two of them the ROM's own `PUT` | `&45A2` | 298 | `INSTALL_EXTENDED_PUT` `&7829` |
+| `&7460` | `&46CC` | 385 | `INSTALL_ROM_PATCHES` `&7B03` |
+| `&7BA4` | `&484D` | 671 | `INSTALL_ROM_PATCHES` |
+| `&7B80` | `&4BA0` | 36 | `INSTALL_ROM_PATCHES` |
+| `&7E43` | `&5896` | 40 | `INSTALL_SYSPAGE_CODE` `&7A9F` |
+| `DPVARS` and the XVARs after it | `&5A12` | 29 | `INSTALL_SYSPAGE_CODE` |
+| `&7AF2` | `PAGER` `&5BE0` | 14 | `INSTALL_SYSPAGE_CODE` |
+| `&18` and `&19` | `KTAB`+97, +106 | 2 | `INSTALL_SYSPAGE_CODE` |
 
-It also patches two instructions in the second block with MasterBASIC own
-page number, so they can page the extension back in when needed. *Confirmed
-on hardware:* those bytes hold `&1C` in the dump, at `L7CF5+1` and
-`L7D46+1` exactly.
+`INSTALL_ROM_PATCHES` sets `HMPR` to zero first, so every `&8xxx` in it
+means the system page's `&4xxx`; `INSTALL_SYSPAGE_CODE` does the same and
+its `&9xxx` mean `&5xxx`.
+
+Three of those are worth a word. `&5896` is in the 128 bytes the ROM leaves
+unused between the `DEF KEY` buffer at `&5800` and the keyboard table at
+`&58E0` — the only place MasterBASIC installs code outside `&45A2`-`&4BC3`.
+`PAGER` is the fourteen bytes the ROM's variable table reserves "for paging
+S.R.", which MasterBASIC fills with its own. And the two poked bytes are
+`KEY` assignments done by writing the table directly, which is where the
+editor's word-left and word-right come from.
+
+`INSTALL_ROM_PATCHES` also patches two instructions in the `&484D` block
+with MasterBASIC's own page number, so they can page the extension back in
+when needed. *Confirmed on hardware:* those bytes hold `&1C` in the dump,
+at `L7CF5+1` and `L7D46+1` exactly.
 
 **Point the ROM at it.** `INSTALL_ROM_VECTORS` at `&76DA` writes the
 installed addresses into the ROM vector variables:
@@ -250,8 +267,8 @@ identified, so `LD (&45AF),A` reads as `LD (CHECK_WRITE_STATUS+1),A`.
 
 | what | where |
 |---|---|
-| boot and installation | `INSTALL_ROM_PATCHES` `&7B03`, `INSTALL_ROM_VECTORS` `&76DA`, `RESOLVE_ROM_ENTRIES` `&7990` |
-| the code the ROM calls | `postinstall/syspage.asm`; sources at `&7460`, `&7BA4` |
+| boot and installation | `INSTALL_ROM_PATCHES` `&7B03`, `INSTALL_ROM_VECTORS` `&76DA`, `RESOLVE_ROM_ENTRIES` `&7990`, `INSTALL_SYSPAGE_CODE` `&7A9F`, `INSTALL_EXTENDED_PUT` `&7829` |
+| the code the ROM calls | `postinstall/syspage.asm`; sources at `&7460`, `&7BA4`, `&7B80`, `&7E43` |
 | command dispatch | `CTAB` `&42EA`, `SYNTAX`, `CMD_*` |
 | functions | `FNVEC` `&78EB`, `FN_*` |
 | hooks | `SAMHK` `&44A6`, `HK_*` |
@@ -260,9 +277,21 @@ identified, so `LD (&45AF),A` reads as `LD (CHECK_WRITE_STATUS+1),A`.
 | line editing | `CMD_SPLIT_LINE`, `OPEN_GAP_AT_LINE`, `FIND_LINE_*` |
 | disc | `notes/disk.txt`, `notes/diskcmd.txt`, the DOS half |
 | serial | `SERINIT`, `SERCMD`, `SPORT` |
+| printer dumps | `SCREEN_PIXEL_COLOUR`, `BUILD_GREY_MAP`, `notes/mb-dump.txt`, `notes/mb-dumpcolour.txt` |
 | the calculator | `FPCALC`, `FPC_*` |
 
 ## 7. What is not settled
 
 - **499 bytes of the DOS page** differ after boot and are largely
   unexamined; `&4131`-`&417C` alone is 75 bytes of structure.
+
+- **Nothing calls `SIZE_EXTERNAL_MEMORY` at `&77DB`.** It has no reference
+  in either half, is not one of the addresses the DOS calls in the copied
+  block, does not appear as a table word, and is installed nowhere else.
+  The trace found it only by running on out of the message it belongs to.
+  Its own flow does not close either: the `CALL` at `&77F5` cannot return,
+  which leaves the instructions that save `SP` unreached, though the fill
+  needs them to have run.
+
+- **The DOS half**, deliberately. The work so far has been the MasterBASIC
+  side; the DOS is read only where MasterBASIC reaches into it.

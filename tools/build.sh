@@ -61,6 +61,11 @@ echo "SAM ROM 3.0: built, token tables taken from it"
 # --- the disassembly -------------------------------------------------------
 python "$here/dis_mb.py" "$work" -o "$out" || exit 1
 
+# --- the system page as MasterBASIC leaves it ------------------------------
+# Not checkable by assembling -- there is no original -- but it has to be
+# regenerated here or it drifts away from the listings it is derived from.
+python "$here/syspage.py" || exit 1
+
 # --- prove it round-trips --------------------------------------------------
 for half in masterdos masterbasic; do
     pyz80 --obj="$work/$half.out" -o "$work/$half.dsk" "$out/$half.asm"         >"$work/$half.log" 2>&1 || {
