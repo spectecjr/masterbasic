@@ -61,3 +61,16 @@ DOC MBCOPY_775A
     One result is worth following.  The search at &75FE stores its pointer
     in V45F6, which is the DEFW of the CALL CMR at L45F3: that call has no
     fixed target at all, and goes wherever the signature was found.
+
+# A rule that holds without exception.
+#
+# Of the 69 fixed-address calls and jumps into the ROM from this half, 48
+# go to the jump table at &0000-&01FF, 19 to the vectors at the top of
+# ROM 0, and 2 into ROM 1.  Not one goes into the interior of ROM 0.
+#
+# Everything else is found by signature, and what the searches find is
+# mostly a way back in rather than a way in: &2A96 is eight bytes inside
+# STRMOV1, ENDOUTP is where the printable-character path rejoins, &389E
+# is inside BUFMV2.  MasterBASIC knows the ROM's front doors already.
+# What it has to search for is the exact instruction inside a routine at
+# which it wants to resume.

@@ -140,7 +140,18 @@ named entry point — `INSERTLN`, `PRMAIN`, `LOOKVARS`, `MATCHER`, `POKE2`,
 MasterBASIC takes over. The other ten land inside a routine, which is what
 intercepting one looks like.
 
-This is why MasterBASIC survives a ROM it was not built against.
+This is why MasterBASIC survives a ROM it was not built against, and the
+rule is followed without exception. Of the 69 places in the MasterBASIC
+half that call or jump into the ROM by a fixed address, 48 go to the jump
+table at `&0000`-`&01FF`, 19 to the vectors at the top of ROM 0, and 2 into
+ROM 1. **None goes into the interior of ROM 0 at all.** Anything not at a
+documented entry point is reached only after searching for it.
+
+The re-entry points those searches find are mostly places to hand control
+back: `&2A96` inside `STRMOV1`, `ENDOUTP` for the printable-character
+path, `&389E` inside `BUFMV2`. So the searches are not looking for the
+front doors of ROM routines, which are already known — they are looking
+for the exact point *inside* one at which MasterBASIC wants to rejoin it.
 
 **Through fixed entry points.** `CMR` followed by `DEFW <ROM address>`.
 One of these, at `L45F3`, has no fixed target at all: its `DEFW` is written
