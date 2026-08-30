@@ -1,0 +1,155 @@
+# Small helpers everything else leans on.  Read by hand.
+
+DOC LONGADDR_TO_PAGED
+    Turn a long address into a page number and a windowed address.
+
+    Takes a 64K bank in A and a 16-bit offset in HL, and returns the 16K
+    page holding that byte in A with HL moved into &8000-&BFFF, ready
+    for HMPR.  The top two bits of HL choose which of the bank's four
+    pages, which is what the two RL H / RLA pairs move into A; the SCF
+    before the last RR H is what forces bit 7 of H and puts the address
+    in the window.
+
+    Bank 5 offset &2000 comes out as page 20 at &A000.  PAGED_TO_LONG
+    is the exact inverse.
+
+    Worked out by running the shifts rather than by reading them: the
+    sequence is short but the carry is doing three different jobs.
+
+DOC PAGED_TO_LONG
+    The inverse of LONGADDR_TO_PAGED: page in A and a windowed address
+    in HL become a 64K bank and a 16-bit offset.  The AND &07 at the end
+    is what says the result is a bank number, since eight 64K banks
+    cover the 512K a SAM can hold.
+
+DOC IS_LETTER
+    Carry set if A is a letter, clear if it is not.
+
+    Four compares with CCF between them, bracketing "A" to "Z" and then
+    "a" to "z".  Nothing else is accepted, so a digit or an underscore
+    fails -- which is why the callers that scan a name test the first
+    character with this and later characters with something looser.
+
+DOC FILL_WITH_C
+    Write C into B bytes from HL upwards.
+
+DOC TWO_DIGITS_FROM_DE
+    Read two ASCII digits from (DE) and return 0 to 99 in A.
+
+    The first digit is multiplied by ten the cheap way -- doubled twice
+    and added to itself makes five times, then doubled -- and the second
+    is added on.  DE is stepped three times in all, so it ends past the
+    separator that follows the pair.  That is what makes it read a date
+    or a time straight out of a "00/00/00" template.
+
+DOC PAGE_IN_ROM1
+    Set bit 6 of LMPR, which pages ROM1 in, and save the old HMPR in C.
+
+    The ROM's own source names that bit where it does the same thing:
+    "OR &40 -- BIT FOR ROM1=HI (ACTIVE)".
+
+DOC CALL_ROM_0010
+    Call the ROM at &0010 with ROM1 paged in.
+
+    One of the CALL CMR / DEFW / RET wrappers, but the symbol table has
+    no name for &0010, so this one is named for the address rather than
+    for the routine.
+
+MB &4427 LONGADDR_TO_PAGED
+MB &62DC PAGED_TO_LONG
+MB &453C IS_LETTER
+MB &53A1 FILL_WITH_C
+MB &4A6A TWO_DIGITS_FROM_DE
+MB &5C59 PAGE_IN_ROM1
+MB &69FA CALL_ROM_0010
+
+DOC PAGE_IN_OTHER_HALF
+    Put the other half of the image at &8000 and return the old HMPR.
+
+    &42CD is the byte the boot sector patched with the other page's
+    number less one, so reading it and adding one gives that page.  The
+    PUSH AF at the top and the POP AF at the bottom are not saving the
+    port across the call -- they are how the old value gets back into A
+    to be returned, for the caller to put back later.
+
+DOC RESTORE_HMPR_AND_STORE
+    Put HMPR back from the stack, then fall into STORE_BC_AT_XVAR76.
+
+DOC STORE_BC_AT_XVAR76
+    Write BC to the ROM system variable whose address is held in the
+    two bytes at &4076.
+
+DOC SKIP_TO_END_OF_WORD
+    Step HL past a run of characters, stopping after the one with bit 7
+    set.  That is how every word list in this image is terminated.
+
+DOC WRITE_NEXT_NIBBLE
+    Write four bits into a packed stream.
+
+    The pointer, the phase counter and the mask live in the alternate
+    registers, so a caller keeps HL, DE and BC.  D' counts the calls: on
+    an odd one the value is rotated into the high half and the whole byte
+    planted, on an even one XOR (HL) / AND E / XOR (HL) merges it into
+    the low half, keeping the bits E does not select.  Only then does the
+    pointer move on, so one byte holds two values.
+
+    Four bits is one MODE 4 pixel, which is the likeliest thing being
+    packed here, though nothing in the routine says so.
+
+DOC READ_NEXT_NIBBLE
+    Read four bits from a packed stream: the mirror of the routine
+    above, stepping the same way and masking with E'.
+
+DOC STACK_PAGE0_STRING
+    Stack a string descriptor for a block in page 0.
+
+    The ROM's STKSTORE wants the page in A, the address in DE and the
+    length in BC.  This builds them from two bytes: the address becomes
+    C times 256 and the length the old B, with the page forced to zero.
+    A whole-page-aligned block in the system page is what that describes.
+
+MB &49D1 PAGE_IN_OTHER_HALF
+MB &5D5C RESTORE_HMPR_AND_STORE
+MB &6F5C STORE_BC_AT_XVAR76
+MB &5031 SKIP_TO_END_OF_WORD
+MB &6202 WRITE_NEXT_NIBBLE
+MB &6367 READ_NEXT_NIBBLE
+MB &4C6B STACK_PAGE0_STRING
+
+DOC MULTIPLY_HL_BY_DE
+    Multiply HL by DE into the 24-bit result A:HL, carry set if it will
+    not fit.
+
+    Shift and add, sixteen times round.  The multiplier is moved into IY
+    so that HL is free to be the low half of the accumulator, and A the
+    top eight bits; C is zeroed at the start and never touched again, so
+    the ADC A,C in the loop is really just adding the carry.  Either the
+    shift or the add overflowing returns immediately with carry set, and
+    the AND A at the end is what clears it on the way out of a good one.
+
+DOC IS_DIGIT
+    Carry set if A is an ASCII digit, clear if it is not.
+
+    The companion to IS_LETTER, and the same trick: compare against the
+    character after the range, then against the first one, with CCF to
+    turn "below the top" into "inside".
+
+DOC FORCE_CASE_BYTE
+    Force the case of one letter at (DE), leaving anything else alone.
+
+    IS_LETTER decides whether to touch it at all; then OR H sets the bits
+    H selects and XOR L clears the ones L selects, so the caller chooses
+    what happens by what it puts in HL.  &20 in both makes upper case,
+    &20 in H alone lower case, &20 in L alone swaps it.  That is the
+    machinery behind SHIFT$.
+
+DOC CALLBACK_HCMDV
+    Drop the ROM's return address and call MasterBASIC's hook 173.
+
+    One of the stubs living in the ROM's own page, where the extension
+    cannot be called directly, so RST &08 is the only way home.
+
+MB &4433 MULTIPLY_HL_BY_DE
+MB &454E IS_DIGIT
+MB &4E1D FORCE_CASE_BYTE
+MB &7CA6 CALLBACK_HCMDV

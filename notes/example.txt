@@ -1,0 +1,51 @@
+# notes/*.txt -- hand-written labels and descriptions.
+#
+# Anything in this folder is read by tools/notes.py and applied to both
+# listings.  Delete this file or edit it; add as many .txt files as you
+# like and they are read in filename order.
+#
+# Four kinds of line.  See the top of tools/notes.py for the full rules.
+
+# 1. Name a routine, and describe it on the indented lines below.
+#
+#    MB &5934 SERINIT
+#        Set up the SCC2691 for LPRINT MODE 2.
+#
+#        C is SPORT, the port the Comms Interface is jumpered to, and B
+#        selects one of the chip's eight registers.
+
+# 2. Comment a single instruction.
+#
+#    MB &593F : CR = &10, reset the MR pointer
+
+# 3. Mark a range, and optionally name its start.
+#
+#    DOS &4220-&42BC data DVAR
+#    MB  &7E6B-&7FBF text
+
+# Addresses are as the listings write them: &4000-&7FBF for either page,
+# and a range includes both ends.  The page is MB or DOS.
+
+# 4. Describe one of the ROM names in the equate block at the top of a
+#    listing.  No address: these are named, not placed.
+#
+#    EQU STKEND : end of the calculator stack
+
+# 5. Comment the instruction a label sits on, by name rather than by
+#    address.  +n steps on n instructions from there.
+#
+#    AFTER CHECK_WRITE_STATUS : read the controller status
+#    AFTER CHECK_WRITE_STATUS+1 : carry now holds DRQ
+#
+#    ADDCOMMENTAFTER is accepted as a longer spelling of AFTER.
+
+# 6. Head a routine by name rather than by address.  The indented lines
+#    below become its description, exactly as for the address form.
+#
+#    DOC CHECK_WRITE_STATUS
+#        Waits for the controller to be ready for the next byte.
+#
+#        The port is patched in by the caller, so this routine works for
+#        whichever drive and side is selected.
+#
+#    DOCUMENT is accepted as a longer spelling of DOC.

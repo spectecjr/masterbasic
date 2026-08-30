@@ -1,0 +1,44 @@
+# The ROM patch installer at &7B00.  Read by hand.
+
+MB &7B00 INSTALL_ROM_PATCHES
+    Rewrite parts of the ROM's system page so that MasterBASIC's code
+    runs where the ROM's used to.
+
+    HMPR is saved in C and set to zero, which puts the ROM's system page
+    at &8000 for the whole of the routine -- so every &8xxx below is an
+    address in that page, not in the DOS.  It is put back at &7B73.
+
+    LMPR holds the page at &0000, so the page at &4000 is one higher:
+    that is MasterBASIC's own page number, and it is patched into two
+    instructions in the block about to be copied out, which will need to
+    page this half back in once they are running elsewhere.
+
+    Three blocks are then copied into that page and one is copied back
+    out of it.  Their addresses are worth writing down, because the
+    ROM's own variable table names what is there.  An address of &8xxx
+    while HMPR is zero is &4xxx as the ROM's table numbers it, so:
+
+        &7460 -> &46CC   385 bytes, into the area between the heap end
+                         and BASIC's stack
+        &7B80 -> &4BA0    36 bytes, past the loaded-header buffer
+        &7BA4 -> &484D   671 bytes, into the same heap and stack area
+        &4F00 -> &7DF0   446 bytes, the other way: INSTBUF, which the
+                         ROM's table calls its buffer for ROM1 transfer
+                         code, saved into this page
+
+    The last LDIR, after the paging has been restored, takes 240 bytes
+    of the DOS's boot sector to &7D00.  Both of the copies that run the
+    other way look like the originals being kept so they can be put
+    back, but nothing here proves that -- no restoring code has been
+    read yet, and until it has, treat it as the likeliest reading of two
+    copies that go the wrong way rather than as a fact.
+
+    Between the copies it reaches the ROM's channel table through CHANS
+    and writes MasterBASIC's own routines into three of its vectors, and
+    it repoints HUDG and RST28V.  That is the mechanism behind the
+    extension seeing every character printed and every calculator
+    literal executed.
+
+MB &7B11 : &4000 here is the window offset -- CHANS is a system variable in the page now at &8000 -- and not the XVAR that shares the address
+
+MB &7B03 : from here to &7B73 the ROM's system page is at &8000

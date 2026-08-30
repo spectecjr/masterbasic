@@ -1,0 +1,39 @@
+# ROM names the sources leave uncommented.  Supplied by hand; see
+# docs/disassembly.md, "What the equates mean".
+
+EQU ANYI : The ROM's default maskable interrupt handler, reached through ANYIV
+EQU FRAMIV : The Frame interrupt vector - usually this reads the keyboard, and updates the frame counter.
+EQU ALLOCT: The memory page allocation table.
+EQU INCURPDE: Increments the upper RAM page, adjusting DE to make sure it's not in the range C000-FFFF. Uses A, alters D.
+EQU ROM_CHKHL: Checks if HL is in the range C000-FFFF, and if so, adjusts it back into the range 8000-BFFF, and increments the upper page. 
+EQU TSURPG: Sets the upper memory area to the page in A (from 0-31). Bits 7-5 of the port are read in and preserved.
+# Port 254 is the keyboard on the way in and the border on the way out.
+# MasterDOS's source calls it ULA and only ever writes to it.
+RENAME ULA BORDER
+EQU J_FARLDDR: Jump table entry for FARLDDR, which copies data using LDDR. A, H, L hold the source page and address, C, D, E hold the destination. PAGCOUNT/MODCOUNT are the number of bytes.
+RENAME J_IMSCSR JNCHAR
+
+EQU JNCHAR: Call SCREEN$ subroutine. Try to match a character at the provided line and column.
+EQU NUMBER: Skips an embedded invisible 6-byte number form (if present) and returns the next character.
+EQU NMISTK: The location of the stack used for non-maskable interrupts in the system page.
+RENAME MODET JMODE
+EQU JMODE: Set screen MODE that is in the A register (0-3 gives MODEs 1-4). 
+EQU HUDG: The high UDG range start pointer (for chars 169+).
+RENAME LRPORT LMPR
+RENAME VIDPORT VMPR
+RENAME URPORT HMPR
+RENAME CLUTPORT CLUT
+RENAME MRPRT XMPRL
+EQU XMPRL: External memory lower port address
+RENAME MDIPORT MIDI
+RENAME KEYPORT KEYBOARD
+RENAME SNDPORT SOUND
+RENAME STATPORT STAT
+EQU COMM: Disk 0 Side 0 Command Register
+EQU TRCK: Disk 0 Side 0 Track Register
+EQU SECT: Disk 0 Side 0 Sector Register
+RENAME L4526 READ_SELECTED_DISK_STATUS
+RENAME L452E WRITE_SELECTED_DISK_CMD
+AFTER CHECK_WRITE_STATUS: Read the drive controller status port (specific port chosen by code above)
+AFTER CHECK_READ_STATUS: Read the drive controller status port (specific port chosen by code above)
+EQU DECURPAGE: Adjusts H so that it points to 16KiB lower in memory, and decrements the HMPR page.

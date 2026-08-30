@@ -1,0 +1,34 @@
+# Editing the BASIC program, &5188.  Read by hand.
+
+DOC OPEN_GAP_AT_LINE
+    Make room in the BASIC program at a given line, and measure how much
+    the program moved.
+
+    The line numbered BC is found through FIND_LINE_FROM_START, the byte
+    at its start is saved and &FF planted in its place -- &FF is above
+    any real line number's high byte, so while it is there the walk
+    below treats that point as the end of the program.  The ROM's MKRBIG
+    then opens the gap, and a routine in the DOS page is called with the
+    paging saved around it.
+
+    Afterwards the same line is found twice more and the two long
+    addresses are subtracted as 24-bit values, page and all, through
+    PAGED_TO_LONG.  A difference of zero means nothing moved and the
+    routine returns; otherwise the difference is handed to
+    LONGADDR_TO_PAGED and passed to the ROM.
+
+    The difference is then handed to LONGADDR_TO_PAGED and given to the
+    ROM's RECLAIM2, which takes the leftover back out again.  So the
+    routine opens more room than it needs, lets the DOS fill what it
+    will, and returns the rest.
+
+    The call that does it is worth a second look.  It asks the ROM for
+    &0162, which is not an entry point: the ROM has RST &30 at &0160 and
+    a DW after it, and &0162 is that word's high byte.  It happens to be
+    &72, which is LD (HL),D, and the three bytes after it are JP
+    RECLAIM2.  So entering one byte early buys a free store of D at (HL)
+    before the reclaim -- the same trick this image plays on itself all
+    over, here played on the ROM.
+
+MB &5188 OPEN_GAP_AT_LINE
+MB &51D7 : &0162 is the high byte of the ROM's DW at &0161, which is LD (HL),D, and falls into JP RECLAIM2 at &0163

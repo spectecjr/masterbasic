@@ -1,0 +1,39 @@
+# The run-length encoder behind DUMP, &61D2-&62A1.  Read by hand.
+#
+# The nibble stream WRITE_NEXT_NIBBLE fills is not pixels: it is pairs
+# of four-bit values, a run length and then the byte that repeats.
+# READ_NEXT_NIBBLE at &6367 takes them back out again.
+
+DOC NEXT_SCREEN_BYTE
+    Step to the byte below the current one on screen.
+
+    The display file is laid out the way a Spectrum's is, so moving down
+    a pixel row is INC H until the row crosses into the next third, and
+    the INC L / DEC H / DEC H around it is that carry being fixed up.
+    Reading a column downwards is the order a printer wants its bit
+    image in, which is why the encoder above walks the screen this way
+    rather than along each line.
+
+DOC COUNT_RUN
+    Count how many bytes below this one are the same, up to 139.
+
+    B starts at &8B and counts down while NEXT_SCREEN_BYTE keeps
+    returning the byte held in E, so &8C minus B is the length of the
+    run.  The odd starting value is what makes the arithmetic below come
+    out with the short cases first.
+
+DOC ENCODE_RUN
+    Write one run to the nibble stream.
+
+    A run shorter than four is not worth encoding and goes elsewhere.
+    From four to eleven it fits in a single nibble pair.  Longer than
+    that and the length is split, the top half rotated into place and
+    emitted first, so a long run costs three nibbles instead of two.
+
+DOC EMIT_RUN_PAIR
+    Write a run as two nibbles: the count in C, then the value in E.
+
+MB &627E NEXT_SCREEN_BYTE
+MB &61D2 COUNT_RUN
+MB &61DE ENCODE_RUN
+MB &61F8 EMIT_RUN_PAIR

@@ -1,0 +1,107 @@
+# MasterBASIC's parser front end, &43A1-&44E2.
+#
+# Read by hand from the code, not derived.  Every MasterBASIC keyword
+# routine is entered twice by the ROM -- once to check the syntax of the
+# line and once to run it -- and this block is the machinery that lets
+# one routine serve both passes.
+#
+# Confidence: the polarity of the running/checking test is not a guess.
+# MasterDOS carries the same routine under the name CFSO, and its
+# annotated source says "NZ when running, Z while the line's syntax is
+# being checked".
+
+DOC TEST_RUNNING
+    Which of the ROM's two passes is this?
+
+    Returns NZ while the line is being run and Z while its syntax is
+    being checked.  A is preserved across the call, which is the reason
+    for the two accesses to the scratch byte at &4095 rather than a
+    PUSH: the value is in A on entry to most callers.
+
+    MasterDOS has the same routine as CFSO, differing only in which
+    scratch byte it borrows.
+
+DOC AT_END_OF_STATEMENT
+    Z if the current character ends the statement.
+
+    Fetches the character at CHAD without stepping past it and compares
+    it with CR and then with ":".  Either satisfies the test, so a
+    command may be followed by another on the same line.
+
+DOC EXPECT_END_OF_STATEMENT
+    Require the end of the statement, and finish the syntax pass here.
+
+    Reports "Not understood" if anything follows.  On the checking pass
+    it goes on to ENDS in the DOS page, which tells the ROM the command
+    is complete and resets the stack, so it never comes back.  On the
+    running pass it returns, and the caller does the work.
+
+    This is the standard tail of a MasterBASIC keyword that takes no
+    arguments, which is why eighteen routines end in it.
+
+DOC CHAR_MUST_BE_C
+    Require the current character to be the one in C, or report
+    "Not understood".  The character is not stepped past.
+
+DOC NEXT_CHAR_MUST_BE_C
+    Step to the next character and require it to be the one in C.
+
+DOC EXPECT_NEXT_LPAREN
+    Step to the next character and require it to be "(".
+
+    The NEXT in the name is the difference between this and its two
+    partners below: the bracket after a function keyword is reached by
+    stepping, because CHAD still points at the keyword itself, while a
+    comma or a closing bracket comes after an expression the ROM has
+    already evaluated, so the parser is standing on it and compares
+    without stepping.
+
+DOC EXPECT_COMMA
+    Require the current character to be ",".
+
+DOC EXPECT_RPAREN
+    Require the current character to be ")".
+
+DOC EXPECT_NEXT_LPAREN_AND_NUMBER
+    Step to the next character, require it to be "(", then evaluate a
+    numeric expression, leaving its value on the calculator stack.
+
+DOC EXPECT_NUMBER
+    Evaluate a numeric expression through the ROM.
+
+DOC SKIP_THEN_NUMBER
+    Step past the keyword, then evaluate a numeric expression.
+
+DOC NUMBER_THEN_END
+    Evaluate a numeric expression and require the statement to end.
+
+DOC SKIP_THEN_END
+    Step past the keyword and require the statement to end.
+
+DOC SKIP_THEN_TEST_RUNNING
+    Step past the keyword, then report which pass this is.
+
+DOC BYTE_ARGUMENT
+    Evaluate an integer and say whether it fits in a byte.
+
+    INC B then DEC B sets Z from the high half of the value the ROM
+    left in BC, so Z means the number is below 256.  The RET Z below it
+    is where callers that only accept a byte give up.
+
+# The addresses these names belong to.
+
+MB &43A1 BYTE_ARGUMENT
+MB &444A EXPECT_NEXT_LPAREN_AND_NUMBER
+MB &444D EXPECT_NUMBER
+MB &4450 EXPECT_COMMA
+MB &4454 EXPECT_RPAREN
+MB &4458 EXPECT_NEXT_LPAREN
+MB &445A NEXT_CHAR_MUST_BE_C
+MB &445D CHAR_MUST_BE_C
+MB &4482 SKIP_THEN_NUMBER
+MB &44BC AT_END_OF_STATEMENT
+MB &44C8 NUMBER_THEN_END
+MB &44CD SKIP_THEN_END
+MB &44D0 EXPECT_END_OF_STATEMENT
+MB &44DF SKIP_THEN_TEST_RUNNING
+MB &44E2 TEST_RUNNING

@@ -1,0 +1,16 @@
+
+{
+ "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build masterbasic",
+      "type": "shell",
+      "command": "bash tools/build.sh",
+      "options": {
+        "shell": { "executable": "C:\\Program Files\\Git\\bin\\bash.exe", "args": ["-c"] }
+      },
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": []
+    }
+  ]
+}

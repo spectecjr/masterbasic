@@ -1,0 +1,38 @@
+# Two blocks that are assembled to run somewhere else.
+
+DOC RELOCATED_TO_46CC
+    385 bytes assembled to run at &46CC, not here.
+
+    The installer copies this block into the ROM's system page, and it
+    is written for the address it lands at rather than the one it sits
+    at: MB &7460 becomes &46CC, so subtract &2D94 from any address in
+    the listing between here and &75E0 to get the address the code will
+    actually be running at.
+
+    That is not a guess.  Every absolute CALL and JP in the block --
+    eight of them -- targets an address inside &46CC to &484C, which is
+    exactly the range the copy covers, and not one targets anywhere else
+    in &4000-&7FFF.  A block written for where it sits could not do
+    that.
+
+    So the labels the listing puts on those operands are wrong, and
+    unavoidably so: L483A and L4702 name addresses in *this* page, while
+    the code means &483A and &4702 in the page it is copied to.  Read
+    them as raw numbers.  Relative jumps are unaffected, which is why
+    the block is mostly JR.
+
+    The block ends exactly where the resident helper block at &75E1
+    begins, so the two are neighbours, both written to be moved.
+
+DOC RELOCATED_TO_484D
+    671 bytes assembled to run at &484D, in the same way.
+
+    Subtract &3357 to get the running address.  The evidence is thinner
+    here than for its neighbour: three absolute targets fall inside
+    &484D to &4AEB as they should, but four others point into &4000-&7FFF
+    outside it.  Those may be calls into the block above, or into the
+    ROM's own workspace, or they may mean this block is only partly
+    relocated.  I have not read enough of it to say.
+
+MB &7460 RELOCATED_TO_46CC
+MB &7BA4 RELOCATED_TO_484D

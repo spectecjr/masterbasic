@@ -1,0 +1,45 @@
+# Border color change routine
+
+DOS &5152 SETBORDER_BORDCR
+    Sets the border color to the current value of the BORDCR system variable, which contains an
+    attribute color selected to contrast with the current border color. (Compare with BORDCOL, which
+    stores the actual border color). 
+
+    The value of SOFF is preserved.
+
+DOS &4536 CKDE
+    (PGES1) is a page number, and DE is an offset in the range 0000-7FFF.
+
+    On entry, DE is about to be decremented. The routine checks if DE would cross
+    a page boundary as it is decremented.
+    
+    If it would, the PGES1 value is decremented, and the DE value is adjusted upwards by 16K.
+
+DOS &4539 ADJUST_PAGE_DE
+    Similar to CKDE, except it always perfoms the adjustment and doesn't check if DE
+    is about to cross a page boundary first.
+
+DOS &4558 WAIT_DC_READY_BEFORE_CMD
+    Wait for the disk controller to be ready before continuing.
+
+RENAME SDC1 POST_CMD_WAIT
+
+RENAME L455B WRITE_DRIVE_CMD_AND_DELAY
+
+RENAME WSA2 WRITE_DATA_LOOP
+
+DOS &45AE CHECK_WRITE_STATUS
+    Checks the command status to see if the write is complete, and if not, loops until the
+    controller is ready to write another byte.
+
+    The status port to use is set by self-modifying code. This ensures that the
+    correct drive is used, and the correct drive-head is energized.
+
+DOS &45D9 CHECK_READ_STATUS
+    Checks the command status to see if the read op is complete, and if not, loops until the
+    controller has read another byte from the disk.
+
+    The status port to use is set by self-modifying code. This ensures that the
+    correct drive is used, and the correct drive-head is energized.
+
+RENAME RSA2 READ_DATA_LOOP

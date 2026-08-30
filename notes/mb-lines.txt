@@ -1,0 +1,44 @@
+# Finding a line in the BASIC program, &58FD-&5933.  Read by hand.
+#
+# The program does not have to fit in the 16K a page shows at once, so
+# every step through it has to be ready to move HMPR on.  That is what
+# separates this from the equivalent loop in a Spectrum.
+
+DOC FIND_LINE_FROM_START
+    Find the first BASIC line numbered BC or higher, from the top of the
+    program.
+
+    PROG and PROGP are the ROM's address and page for the program, so
+    reading both gives a full long address; the page is then made
+    current and the search below runs from there.  BC survives the two
+    ROM accesses by being pushed around them.
+
+DOC FIND_LINE_FROM_HL
+    The same search, but starting at the line HL points at in page A.
+
+    &409E keeps the address of the line under test, because HL is about
+    to be walked forward and the answer wanted is where the line began.
+
+DOC NEXT_LINE
+    Step to the line after the one at HL, changing page if need be.
+
+    Bit 6 of H set means HL has walked past the end of the 16K the page
+    shows, so INCURPAGE moves to the next one.  The two bytes at offset
+    two are the line's length, which is added to reach the line after
+    it -- so the walk never has to look at the line's contents.
+
+DOC COMPARE_LINE_NUMBER
+    Compare the line at HL with the number in BC, high byte first.
+
+    A line number is stored the other way round from everything else on
+    a Z80, so the two halves are compared separately: below BC and the
+    walk goes on, above it and the search is over, equal on the high
+    byte and the low one decides.
+
+    On the way out DE holds the address the line started at, which is
+    the answer the callers want.
+
+MB &58FD FIND_LINE_FROM_START
+MB &590B FIND_LINE_FROM_HL
+MB &5913 NEXT_LINE
+MB &5922 COMPARE_LINE_NUMBER

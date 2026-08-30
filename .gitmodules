@@ -1,0 +1,6 @@
+[submodule "ref/masterdos"]
+	path = ref/masterdos
+	url = https://github.com/dandoore/masterdos
+[submodule "ref/samrom"]
+	path = ref/samrom
+	url = https://github.com/simonowen/samrom

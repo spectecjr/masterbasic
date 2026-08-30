@@ -1,0 +1,26 @@
+# Python bytecode from the tools in tools/.
+__pycache__/
+*.py[cod]
+
+# pyz80 leftovers.  tools/build.sh assembles into a temporary directory
+# and cleans up after itself, so these should never appear -- but they do
+# if you run pyz80 by hand to look at something.  Scoped to the root so
+# that the source images in dsks/ are not caught by the .dsk rule.
+/*.dsk
+/*.out
+/*.lst
+/*.map
+/*.sym
+/*.bin
+
+# Ghidra's own lock and scratch files.  The project database itself is
+# kept, since the analysis in it is work in its own right.
+ghidra/*.lock
+ghidra/*.lock~
+ghidra/**/*.ulock
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+*.swp
+*~

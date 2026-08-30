@@ -1,0 +1,22 @@
+# The WD1772 command codes.  MasterDOS names them, but tersely, and it
+# writes the number rather than the name in six places.  The names below
+# follow the DISKCTL_ style; change any of them with one RENAME line.
+
+RENAME RADD READ_ADDRESS_CMD
+RENAME DRSEC READ_SECTOR_CMD
+RENAME DWSEC WRITE_SECTOR_CMD
+RENAME WTRK WRITE_TRACK_CMD
+RENAME STPIN STEP_IN_CMD
+RENAME STPOUT STEP_OUT_CMD
+
+# The places the number was written instead of the name.  &5DF1 also
+# holds &80, but it goes to HSTR1 as a filespec flag and is not a disk
+# command, so it is left alone.
+
+DOS &406D value STEP_OUT_CMD
+DOS &4071 value STEP_IN_CMD
+DOS &407B value READ_SECTOR_CMD
+DOS &4568 value READ_ADDRESS_CMD
+
+# The WD1772's type IV command.  MasterDOS has no name for it.
+DOS &47CA value FORCE_INTERRUPT_CMD
