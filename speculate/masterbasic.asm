@@ -21290,25 +21290,25 @@ L75E6:
                JP M,&F022                      ; 75FA FA 22 F0
                LD B,L                          ; 75FD 45
                CALL DOS_FIND_ROM_CODE          ; 75FE CD 79 BD
-               DEFB &0A,&FE,&20,&10,&00,&F5   ; 7601 signature 0A FE 20 from &1000, then -11
+               DEFB &0A,&FE,&20,&10,&00,&F5   ; 7601 signature 0A FE 20 from &1000, -11  -> &10A0 INSERTLN
                LD (V45F6),HL                   ; 7607 22 F6 45
                CALL DOS_FIND_ROM_CODE          ; 760A CD 79 BD
-               DEFB &56,&5A,&C9,&3C,&00,&03   ; 760D signature 56 5A C9 from &3C00, then +3
+               DEFB &56,&5A,&C9,&3C,&00,&03   ; 760D signature 56 5A C9 from &3C00, +3  -> &3DA7 CCRESTOP
                ; self-modifying: patches the operand of the JP at &7DA6
                LD (&7DA7),HL                   ; 7613 22 A7 7D
                CALL DOS_FIND_ROM_CODE          ; 7616 CD 79 BD
-               DEFB &D6,&06,&32,&D7,&00,&05   ; 7619 signature D6 06 32 from &D700, then +5
+               DEFB &D6,&06,&32,&D7,&00,&05   ; 7619 signature D6 06 32 from &D700, +5  -> &D80E
                LD (V6594),HL                   ; 761F 22 94 65
                CALL DOS_FIND_ROM_CODE          ; 7622 CD 79 BD
-               DEFB &3A,&B7,&5A,&DB,&00,&00   ; 7625 signature 3A B7 5A from &DB00
+               DEFB &3A,&B7,&5A,&DB,&00,&00   ; 7625 signature 3A B7 5A from &DB00  -> &DC77 ENDOUTP
                ; self-modifying: patches the operand of the JP at &7D4B
                LD (&7D4C),HL                   ; 762B 22 4C 7D
                CALL DOS_FIND_ROM_CODE          ; 762E CD 79 BD
-               DEFB &00,&37,&C9,&3C,&00,&03   ; 7631 signature 00 37 C9 from &3C00, then +3
+               DEFB &00,&37,&C9,&3C,&00,&03   ; 7631 signature 00 37 C9 from &3C00, +3  -> &3C39 EPSUB
                ; self-modifying: patches the operand of the CALL at &6516
                LD (&6517),HL                   ; 7637 22 17 65
                CALL DOS_FIND_ROM_CODE          ; 763A CD 79 BD
-               DEFB &EB,&E9,&F7,&01,&80,&02   ; 763D signature EB E9 F7 from &0180, then +2
+               DEFB &EB,&E9,&F7,&01,&80,&02   ; 763D signature EB E9 F7 from &0180, +2  -> &01CC PRMAIN
                ; self-modifying: patches the operand of the JP at &7D54
                LD (&7D55),HL                   ; 7643 22 55 7D
                IN A,(LMPR)                     ; 7646 DB FA
@@ -21528,7 +21528,7 @@ INSTALL_ROM_VECTORS:
                ; self-modifying: patches the operand of the JP at &5AF3
                LD (CMDV),HL                    ; 76FC 22 F4 5A  CMDV gets &488E, inside the second stub
                CALL DOS_FIND_ROM_CODE          ; 76FF CD 79 BD
-               DEFB &5B,&D6,&5B,&3D,&00,&FC   ; 7702 signature 5B D6 5B from &3D00, then -4
+               DEFB &5B,&D6,&5B,&3D,&00,&FC   ; 7702 signature 5B D6 5B from &3D00, -4  -> &3DAD POSTFF
                LD (V589C),HL                   ; 7708 22 9C 58
                LD A,(DOS_V42B6)                ; 770B 3A B6 82
                LD C,A                          ; 770E 4F
@@ -22429,7 +22429,7 @@ L796B:
 ; ---- RESOLVE_ROM_ENTRIES ---- from &75EF, &798D
 RESOLVE_ROM_ENTRIES:
                CALL DOS_FIND_ROM_CODE          ; 7990 CD 79 BD
-               DEFB &C9,&E3,&CD,&10,&30,&03   ; 7993 signature C9 E3 CD from &1030, then +3
+               DEFB &C9,&E3,&CD,&10,&30,&03   ; 7993 signature C9 E3 CD from &1030, +3  -> &1066
                LD E,(HL)                       ; 7999 5E
                INC HL                          ; 799A 23
 
@@ -22450,70 +22450,70 @@ L799B:
                ; self-modifying: patches the operand of the JP at &7E00
                LD (&7E01),HL                   ; 79A2 22 01 7E
                CALL DOS_FIND_ROM_CODE          ; 79A5 CD 79 BD
-               DEFB &20,&08,&78,&03,&70,&02   ; 79A8 signature 20 08 78 from &0370, then +2
+               DEFB &20,&08,&78,&03,&70,&02   ; 79A8 signature 20 08 78 from &0370, +2  -> &038B EDKY1
                LD (V56F6),HL                   ; 79AE 22 F6 56
                CALL DOS_FIND_ROM_CODE          ; 79B1 CD 79 BD
-               DEFB &04,&EF,&06,&12,&00,&FF   ; 79B4 signature 04 EF 06 from &1200, then -1
+               DEFB &04,&EF,&06,&12,&00,&FF   ; 79B4 signature 04 EF 06 from &1200, -1  -> &1226 POKE2
                ; self-modifying: patches the operand of the LD at &5CF1
                LD (&5CF2),HL                   ; 79BA 22 F2 5C
                CALL DOS_FIND_ROM_CODE          ; 79BD CD 79 BD
-               DEFB &F1,&0E,&FB,&05,&F0,&01   ; 79C0 signature F1 0E FB from &05F0, then +1
+               DEFB &F1,&0E,&FB,&05,&F0,&01   ; 79C0 signature F1 0E FB from &05F0, +1  -> &0604 AULLP
                LD A,L                          ; 79C6 7D
                ADD A,&12                       ; 79C7 C6 12
                LD H,A                          ; 79C9 67
                ; self-modifying: patches the operand of the LD at &59C0
                LD (&59C1),HL                   ; 79CA 22 C1 59
                CALL DOS_FIND_ROM_CODE          ; 79CD CD 79 BD
-               DEFB &FF,&32,&46,&33,&00,&04   ; 79D0 signature FF 32 46 from &3300, then +4
+               DEFB &FF,&32,&46,&33,&00,&04   ; 79D0 signature FF 32 46 from &3300, +4  -> &33DB DOCOMP
                ; self-modifying: patches the operand of the LD at &735D
                LD (&735E),HL                   ; 79D6 22 5E 73
                CALL DOS_FIND_ROM_CODE          ; 79D9 CD 79 BD
-               DEFB &B0,&3E,&1F,&38,&00,&FD   ; 79DC signature B0 3E 1F from &3800, then -3
+               DEFB &B0,&3E,&1F,&38,&00,&FD   ; 79DC signature B0 3E 1F from &3800, -3  -> &389E
                ; self-modifying: patches the operand of the JP at &757E
                LD (&757F),HL                   ; 79E2 22 7F 75
                ; self-modifying: patches the operand of the JP at &7595
                LD (&7596),HL                   ; 79E5 22 96 75
                CALL DOS_FIND_ROM_CODE          ; 79E8 CD 79 BD
-               DEFB &C2,&05,&00,&2A,&00,&03   ; 79EB signature C2 05 00 from &2A00, then +3
+               DEFB &C2,&05,&00,&2A,&00,&03   ; 79EB signature C2 05 00 from &2A00, +3  -> &2A96
                ; self-modifying: patches the operand of the JP at &7467
                LD (&7468),HL                   ; 79F1 22 68 74
                CALL DOS_FIND_ROM_CODE          ; 79F4 CD 79 BD
-               DEFB &21,&00,&4F,&2F,&00,&00   ; 79F7 signature 21 00 4F from &2F00
+               DEFB &21,&00,&4F,&2F,&00,&00   ; 79F7 signature 21 00 4F from &2F00  -> &2FD2 COMDF
                ; self-modifying: patches the operand of the CALL at &73B3
                LD (&73B4),HL                   ; 79FD 22 B4 73
                CALL DOS_FIND_ROM_CODE          ; 7A00 CD 79 BD
-               DEFB &3A,&40,&5B,&2F,&E0,&00   ; 7A03 signature 3A 40 5B from &2FE0
+               DEFB &3A,&40,&5B,&2F,&E0,&00   ; 7A03 signature 3A 40 5B from &2FE0  -> &3019 COMLEN
                ; self-modifying: patches the operand of the CALL at &73B9
                LD (&73BA),HL                   ; 7A09 22 BA 73
                CALL DOS_FIND_ROM_CODE          ; 7A0C CD 79 BD
-               DEFB &7A,&ED,&B1,&30,&00,&FC   ; 7A0F signature 7A ED B1 from &3000, then -4
+               DEFB &7A,&ED,&B1,&30,&00,&FC   ; 7A0F signature 7A ED B1 from &3000, -4  -> &304C LKCALL
                ; self-modifying: patches the operand of the CALL at &73BE
                LD (&73BF),HL                   ; 7A15 22 BF 73
                CALL DOS_FIND_ROM_CODE          ; 7A18 CD 79 BD
-               DEFB &21,&40,&51,&30,&80,&00   ; 7A1B signature 21 40 51 from &3080
+               DEFB &21,&40,&51,&30,&80,&00   ; 7A1B signature 21 40 51 from &3080  -> &3113 MATCHER
                ; self-modifying: patches the operand of the CALL at &73F7
                LD (&73F8),HL                   ; 7A21 22 F8 73
                CALL DOS_FIND_ROM_CODE          ; 7A24 CD 79 BD
-               DEFB &7E,&C6,&01,&33,&E0,&00   ; 7A27 signature 7E C6 01 from &33E0
+               DEFB &7E,&C6,&01,&33,&E0,&00   ; 7A27 signature 7E C6 01 from &33E0  -> &343C LKFC
                ; self-modifying: patches the operand of the CALL at &7428
                LD (&7429),HL                   ; 7A2D 22 29 74
                CALL DOS_FIND_ROM_CODE          ; 7A30 CD 79 BD
-               DEFB &CF,&82,&C9,&E2,&00,&04   ; 7A33 signature CF 82 C9 from &E200, then +4
+               DEFB &CF,&82,&C9,&E2,&00,&04   ; 7A33 signature CF 82 C9 from &E200, +4  -> &E2BA
                ; self-modifying: patches the operand of the JP at &7DBF
                LD (L7DBF+1),HL                 ; 7A39 22 C0 7D  patches the operand of the JP at &7DBF
                CALL DOS_FIND_ROM_CODE          ; 7A3C CD 79 BD
-               DEFB &79,&E6,&60,&13,&00,&F8   ; 7A3F signature 79 E6 60 from &1300, then -8
+               DEFB &79,&E6,&60,&13,&00,&F8   ; 7A3F signature 79 E6 60 from &1300, -8  -> &13AA LOOKVARS
                LD (V45EA),HL                   ; 7A45 22 EA 45
                CALL DOS_FIND_ROM_CODE          ; 7A48 CD 79 BD
-               DEFB &C9,&CF,&08,&19,&00,&06   ; 7A4B signature C9 CF 08 from &1900, then +6
+               DEFB &C9,&CF,&08,&19,&00,&06   ; 7A4B signature C9 CF 08 from &1900, +6  -> &19E1
                ; self-modifying: patches the operand of the LD at &534D
                LD (&534E),HL                   ; 7A51 22 4E 53
                CALL DOS_FIND_ROM_CODE          ; 7A54 CD 79 BD
-               DEFB &C8,&37,&18,&18,&80,&0B   ; 7A57 signature C8 37 18 from &1880, then +11
+               DEFB &C8,&37,&18,&18,&80,&0B   ; 7A57 signature C8 37 18 from &1880, +11  -> &192D
                ; self-modifying: patches the operand of the LD at &5321
                LD (&5322),HL                   ; 7A5D 22 22 53
                CALL DOS_FIND_ROM_CODE          ; 7A60 CD 79 BD
-               DEFB &D2,&08,&00,&0C,&80,&00   ; 7A63 signature D2 08 00 from &0C80
+               DEFB &D2,&08,&00,&0C,&80,&00   ; 7A63 signature D2 08 00 from &0C80  -> &0D4A
                PUSH HL                         ; 7A69 E5
                DEC HL                          ; 7A6A 2B
                LD D,(HL)                       ; 7A6B 56
@@ -22530,15 +22530,15 @@ L799B:
                ; self-modifying: patches the operand of the JP at &7DD8
                LD (L7DD8+1),HL                 ; 7A77 22 D9 7D  patches the operand of the JP at &7DD8
                CALL DOS_FIND_ROM_CODE          ; 7A7A CD 79 BD
-               DEFB &BF,&C9,&F7,&05,&00,&02   ; 7A7D signature BF C9 F7 from &0500, then +2
+               DEFB &BF,&C9,&F7,&05,&00,&02   ; 7A7D signature BF C9 F7 from &0500, +2  -> &0576 EDPRT
                ; self-modifying: patches the operand of the LD at &7AD5
                LD (L7AD5+1),HL                 ; 7A83 22 D6 7A  patches the operand of the LD at &7AD5
                CALL DOS_FIND_ROM_CODE          ; 7A86 CD 79 BD
-               DEFB &CB,&AE,&F5,&04,&80,&02   ; 7A89 signature CB AE F5 from &0480, then +2
+               DEFB &CB,&AE,&F5,&04,&80,&02   ; 7A89 signature CB AE F5 from &0480, +2  -> &0516
                ; self-modifying: patches the operand of the LD at &7ADB
                LD (L7ADB+1),HL                 ; 7A8F 22 DC 7A  patches the operand of the LD at &7ADB
                CALL DOS_FIND_ROM_CODE          ; 7A92 CD 79 BD
-               DEFB &F1,&FE,&16,&02,&80,&FC   ; 7A95 signature F1 FE 16 from &0280, then -4
+               DEFB &F1,&FE,&16,&02,&80,&FC   ; 7A95 signature F1 FE 16 from &0280, -4  -> &02CB
                ; self-modifying: patches the operand of the LD at &7AE1
                LD (L7AE1+1),HL                 ; 7A9B 22 E2 7A  patches the operand of the LD at &7AE1
                RET                             ; 7A9E C9

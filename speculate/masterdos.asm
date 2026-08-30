@@ -23352,6 +23352,28 @@ V7D60:
 ;; caller actually wants -- the entry point above it, or the operand
 ;; inside it.
 ;;
+;; The build now resolves every one of them against the ROM it
+;; assembles from ref/samrom, and prints the answer beside the
+;; signature.  All 27 are found, which is as good a check on this
+;; reading as could be asked for: the parameter layout, the byte order,
+;; the choice of ROM 0 or ROM 1 from the start address, and the signed
+;; step all have to be right for that to happen.
+;;
+;; Seventeen of the 27 land exactly on a named entry point --
+;;
+;; INSERTLN  PRMAIN    LOOKVARS  MATCHER   POKE2    EDPRT
+;; ENDOUTP   DOCOMP    COMDF     COMLEN    LKCALL   LKFC
+;; EPSUB     CCRESTOP  POSTFF    EDKY1     AULLP
+;;
+;; -- which is a fair description of what MasterBASIC replaces: line
+;; insertion, printing, variable lookup, comparison and editing.  The
+;; other ten land inside a routine rather than at its door, which is
+;; what patching into the middle of one looks like.
+;;
+;; Those answers belong to ROM 3.0.  Another ROM would put the same
+;; code elsewhere and the searches would find it there, which is the
+;; entire point of doing it this way.
+;;
 ;; One result is worth following.  The search at &75FE stores its pointer
 ;; in V45F6, which is the DEFW of the CALL CMR at L45F3: that call has no
 ;; fixed target at all, and goes wherever the signature was found.

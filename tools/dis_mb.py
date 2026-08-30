@@ -1451,7 +1451,7 @@ def main():
         print('notes/: ' + p)
 
     print('%d signature searches given their parameters'
-          % sum(note_signature_calls(d) for d in (dos, mb)))
+          % sum(note_signature_calls(d, args.work) for d in (dos, mb)))
 
     if args.outdir:
         for d, name in ((dos, 'masterdos.asm'), (mb, 'masterbasic.asm')):
@@ -1532,7 +1532,7 @@ def hmpr_zero_ranges(d, back=16, limit=192):
 MBCOPY_FIND = 0xBD79          # the signature search, in the DOS page
 
 
-def note_signature_calls(d):
+def note_signature_calls(d, work=None):
     """Render the six bytes after the ROM signature search as what they are.
 
     Three bytes of signature -- a byte and then a word, both big-endian as
@@ -1541,6 +1541,39 @@ def note_signature_calls(d):
     """
     if d.tag != 'MB':
         return 0
+    # Resolve each signature against the ROM this build assembled, so the
+    # listing can say which entry point the search actually finds.  That
+    # answer belongs to ROM 3.0: finding it by signature is the whole
+    # point of the mechanism, and another ROM would land elsewhere.
+    rom, sym = b'', {}
+    if work:
+        try:
+            rom = open(os.path.join(work, 'samrom.bin'), 'rb').read()
+            for line in open(os.path.join(work, 'samrom.map'),
+                             encoding='utf-8', errors='replace'):
+                m = re.match(r'^([0-9A-F]{4})=(\S+)', line.strip())
+                if m:
+                    sym.setdefault(int(m.group(1), 16), m.group(2))
+        except OSError:
+            rom = b''
+
+    def resolve(sig, start, step):
+        if not rom:
+            return ''
+        if start < 0x4000:
+            base, lo, hi = 0, start, 0x4000
+        elif 0xC000 <= start <= 0xFFFF:
+            base, lo, hi = 0xC000, start - 0xC000 + 0x4000, 0x8000
+        else:
+            return ''
+        i = rom.find(sig, lo, hi)
+        if i < 0:
+            return '  -- not in this ROM'
+        at = i if not base else i - 0x4000 + 0xC000
+        got = (at + step) & 0xFFFF
+        name = sym.get(got)
+        return '  -> %s%s' % (hexn(got, 4), ' ' + name if name else '')
+
     n = 0
     for a, ins in sorted(d.insns.items()):
         if not (ins.text.startswith('CALL') and ins.target == MBCOPY_FIND):
@@ -1552,9 +1585,10 @@ def note_signature_calls(d):
         off = b[5] - 256 if b[5] > 127 else b[5]
         d.renderers[p] = (p + 6, ('%-14s DEFB %-25s ; %04X %s' + chr(10)) % (
             '', ','.join(hexn(x, 2) for x in b), p,
-            'signature %02X %02X %02X from %s%s'
+            'signature %02X %02X %02X from %s%s%s'
             % (b[0], b[1], b[2], hexn(b[3] << 8 | b[4], 4),
-               ', then %+d' % off if off else '')))
+               ', %+d' % off if off else '',
+               resolve(bytes(b[0:3]), b[3] << 8 | b[4], off))))
         n += 1
     return n
 
