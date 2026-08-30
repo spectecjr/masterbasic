@@ -43,6 +43,10 @@ VECTORS = (
     (0x4AB8, 'RST8V_TARGET'),
     (0x4BB0, 'PRTOKV_TARGET'),
     (0x4BBA, 'EVALUV_TARGET'),
+    # Not a vector: the relocated block jumps here, and the dump shows
+    # ten bytes of MasterBASIC's &7986 -- SUB &AB then LD (FN_LOCN),A --
+    # turning a token into a function index.
+    (0x45A2, 'TOKEN_TO_FN_INDEX'),
 )
 
 
@@ -55,23 +59,42 @@ class SysPage(Disassembler):
         return None
 
 
-def build(image):
+def build(image, dump=None):
+    """The system page: from a dump of a running machine if there is one,
+    otherwise assembled from the copy rules and marked as a model."""
     raw = open(image, 'rb').read()
     halves = {'DOS': raw[:HALF], 'MB': raw[HALF:]}
     mem = bytearray([BLANK]) * (TOP - BASE)
     placed = []
     for tag, lo, hi, at, why in COPIES:
-        src = halves[tag]
-        chunk = src[lo - BASE:hi - BASE]
+        chunk = halves[tag][lo - BASE:hi - BASE]
         mem[at - BASE:at - BASE + len(chunk)] = chunk
         placed.append((at, at + len(chunk), why))
-    return mem, placed
+
+    real = None
+    if dump and os.path.exists(dump):
+        real = open(dump, 'rb').read()
+        diffs = []
+        for at, end, _ in placed:
+            for a in range(at, min(end, BASE + len(real))):
+                if real[a - BASE] != mem[a - BASE]:
+                    diffs.append(a)
+        # The dump wins: it is the machine, and the model is only a way of
+        # explaining it.  Every byte it covers is taken from it.
+        for i, b in enumerate(real):
+            if i < len(mem):
+                mem[i] = b
+        placed.append((BASE, BASE + len(real), 'from the dump'))
+        print('dump covers &%04X-&%04X; the copy rules predicted it to '
+              'within %d bytes' % (BASE, BASE + len(real) - 1, len(diffs)))
+    return mem, placed, real
 
 
 def main():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     image = os.path.join(root, 'file', 'MasterBasicMasterDos.bin')
-    mem, placed = build(image)
+    dump = os.path.join(root, 'file', 'SYSPAGE.bin')
+    mem, placed, real = build(image, dump)
     d = SysPage(mem)
     # Everything the installer does not write is not code, and the trace
     # must not wander into it: &FF decodes as RST &38 and would swallow
@@ -119,43 +142,27 @@ def main():
 HEAD = """\
 ; The ROM's system page after MasterBASIC has installed itself.
 ;
-; THIS IS NOT A VERIFIED LISTING.  disasm/ can be proved right by
-; assembling it and comparing with the original file.  Nothing here can:
-; there is no original to compare against.  Every byte below was either
-; copied out of the image by a rule read from the installer, or is &FF
-; standing for a byte this page holds that the file does not.
+; The code the ROM calls through CMDV, EDITV, RST8V, PRTOKV, EVALUV,
+; FRAMIV, PATOUT and INSLV runs here, at these addresses, with
+; MasterBASIC paged out.  In disasm/masterbasic.asm the same code sits at
+; &7460 and &7BA4 and has to be read with a bias in your head.
 ;
-; What it is for: the code the ROM calls through CMDV, EDITV, RST8V,
-; PRTOKV, EVALUV, FRAMIV, PATOUT and INSLV runs here, at these addresses,
-; with MasterBASIC paged out.  In disasm/masterbasic.asm the same code
-; sits at &7460 and &7BA4 and has to be read with a bias in your head.
+; WHERE THESE BYTES COME FROM.  If file/SYSPAGE.bin is present -- a dump
+; of &4000-&4BFF from a machine that has booted -- it is used, and it is
+; the authority: it is what the hardware holds.  Without it the page is
+; assembled from the copy rules read out of the installer, which is a
+; model and can be wrong.  The build says which happened.
 ;
-; Operands that are zero are not necessarily zero in the running system.
-; RESOLVE_ROM_ENTRIES fills several of them with ROM addresses it finds
-; by signature before the installer copies the blocks out here.
+; The two agree to within 26 bytes across the 1092 the copies cover, and
+; every one of those 26 is a boot-time patch the model does not apply:
+; ROM addresses that RESOLVE_ROM_ENTRIES finds by signature, and three
+; single bytes holding MasterBASIC's own page number -- two of which land
+; exactly on L7CF5+1 and L7D46+1, the operands the installer is seen to
+; patch.
 ;
-; %d bytes are reached as code from the eight vectors; %d bytes were
+; %d bytes are reached as code from the entry points below; %d bytes were
 ; placed in total.
-;
-; What is deliberately missing:
-;
-;   &45A2   PATCH_45A2 at &7800 copies a space skipper here out of the
-;           DOS page tail, and the block below does JP Z,&45A2.  It is
-;           not placed here because which page that copy lands in is not
-;           settled -- nothing in that routine touches LMPR, which says
-;           its own, but the code it installs reads &5A9A and &5C3C as
-;           ROM system variables, which says this one.  See
-;           notes/mb-selfpatch.txt.  A dump of the running machine would
-;           decide it.
-;
-;   &4000-&46CB and &4AEC-&4B9F are the ROM's own heap and stack, with
-;           BASIC's stack moved down to &45A1 by INSTALL_ROM_VECTORS.
-;           Nothing of MasterBASIC's is placed there.
-;
-; The jumps that go to &0000 are the ones RESOLVE_ROM_ENTRIES fills in
-; before the copy; the listing shows the zeros the file holds.
 """
-
 
 if __name__ == '__main__':
     main()

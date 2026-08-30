@@ -13841,19 +13841,30 @@ L7BA1:
 ;; settled; a captured return address, whose high byte says which
 ;; caller, would fit the spread better than a token does.
 ;;
-;; &45A2 is now located, if not explained.  INSTALL_ROM_VECTORS sets
-;; both BSTKEND and BASSTK to &45A1 and writes &FF there, moving BASIC's
-;; stack down to sit just below the installed code -- it had to move,
-;; because the ROM's own BSTACK at &4AFF is inside the second stub.  So
-;; &45A2 is the byte immediately above the base of the relocated BASIC
-;; stack, not the unclaimed heap it looked like.
+;; &45A2 is settled, by a dump of a running machine.  file/SYSPAGE.bin
+;; holds &4000-&4BFF of the ROM's system page after boot, and at &45A2
+;; it has ten bytes that are MasterBASIC's own &7986:
 ;;
-;; That still does not explain jumping to it.  In this page &45A2 is a
-;; real MasterBASIC routine -- the one that writes A to a system-page
-;; byte, called as such from &7845 -- but this block never runs in this
-;; page.  Either something builds code at the foot of the stack the way
-;; &735D and hook 185 build code in CDBUFF, or the dispatcher is reached
-;; with this half paged in after all.  Left open, but narrowed.
+;; POP HL : RST NEXT_CHAR : SUB &AB : LD (FN_LOCN),A : JR NZ,+1
+;; : RST NEXT_CHAR
+;;
+;; So the jump goes to a real routine that turns a token into a function
+;; index -- and the dispatcher reaches it when H is &AC, which is &AB+1,
+;; index one.  H is a token after all; the doubt about that was wrong.
+;;
+;; The same dump settles the relocation itself, which no amount of
+;; reading could.  The two blocks are at &46CC and &484D, and they match
+;; the file to within 6 bytes of 385 and 20 of 671; the 36 bytes at
+;; &4BA0 match exactly.  Every one of the differences is a boot-time
+;; patch that can be named: ROM addresses RESOLVE_ROM_ENTRIES found by
+;; signature -- &2A96 at &46D4, &389E at &47EB and &4802, ENDOUTP at
+;; &49F5, PRMAIN at &49FE, CCRESTOP at &4A50 -- and three single bytes
+;; of &1C, MasterBASIC's page number, two of them landing exactly on
+;; L7CF5+1 and L7D46+1, which are the operands the installer patches.
+;;
+;; What copies those ten bytes to &45A2 is not yet found.  It is a small
+;; deliberate copy, not part of a block: the correspondence with &7986
+;; runs for eleven bytes and stops.
 ;; --------------------------------------------------------------------
 
 ; ---- RELOCATED_TO_484D ---- from &7B51
