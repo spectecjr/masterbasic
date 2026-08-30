@@ -3663,9 +3663,6 @@ L4847:
                CALL GRPNT                      ; 4847 CD B1 4F
                LD A,C                          ; 484A 79
                CP &FE                          ; 484B FE FE
-
-; ---- L484D ---- from MB &6466
-L484D:
                RET NZ                          ; 484D C0
                LD A,B                          ; 484E 78
                CP &01                          ; 484F FE 01
@@ -5055,9 +5052,6 @@ L4B8B:
                DEC HL                          ; 4B9D 2B
                DEC HL                          ; 4B9E 2B
                LD A,(HL)                       ; 4B9F 7E  DIRECTORY TAG - BYTE FE
-
-; ---- L4BA0 ---- from MB &645D
-L4BA0:
                LD HL,&000B                     ; 4BA0 21 0B 00
                ADD HL,BC                       ; 4BA3 09
                LD B,(HL)                       ; 4BA4 46
@@ -9838,7 +9832,6 @@ PMYNAE:
                CALL PTM                        ; 588A CD 7C 57
                DEFB &22,&20,&28,&79,&2F,&6E,&2F,&61,&2F ; 588D
 
-; ---- XTRA ---- from MB &646F
 XTRA:
                DEFM "e"                       ; 5896 65
                DEFB ")"+&80                   ; 5897 A9
@@ -23265,7 +23258,6 @@ V7CE6:
 V7CEF:
                DEFB &CE,&66,&21,&F9,&B8,&06,&07,&73                             ; 7CEF Nf!y8..s
 
-; ---- V7CF7 ---- from MB &6430
 V7CF7:
                DEFB &23,&72,&23,&10,&FA,&21,&33,&B5                             ; 7CF7 #r#.z!35
 
@@ -23384,7 +23376,6 @@ V7DE5:
 V7DE8:
                DEFB &3E,&20,&1E,&00,&08,&14,&00,&1A                             ; 7DE8 > ......
 
-; ---- V7DF0 ---- from MB &6442
 V7DF0:
                DEFB &26,&26,&1A,&00,&00,&14,&00,&1A,&26,&26,&1A,&00,&18,&04,&00 ; 7DF0 &&......&&.....
                DEFB &1A,&26,&26,&1A,&00,&00,&18,&14,&1A,&26,&26,&1A,&00,&00,&00 ; 7DFF .&&......&&....

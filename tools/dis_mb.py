@@ -892,6 +892,16 @@ def seeds(dos, mb):
     # not this half's: &4212 is where it parks SP, and LD BC,&5FFA with
     # OUT (C),B is the LMPR value &5F, not an address at all.
     mb.sys_low.append((0x7792, 0x77A5))
+    # SAVE BOOT hands SVBLK eight blocks, and which page each is in is
+    # set by the routine it calls rather than by the operand: L42A6
+    # zeroes HMPR, so &8xxx there is the ROM's system page, and L42A9
+    # sets HMPR to LMPR+1, so &8xxx is this half.  Only L42AD leaves the
+    # DOS in the window, which is the one arrangement the operand's
+    # default naming assumes.
+    for at in (0x6430, 0x6442, 0x6454):
+        mb.self_window.append((at, at + 3))
+    for at in (0x644B, 0x645D, 0x6466, 0x646F):
+        mb.no_peer.append((at, at + 3))
     # The same again for the five commands HCMDV intercepts by name.
     # Each of them calls PAGE_IN_ROM1, which zeroes HMPR, so every &8xxx
     # and &9xxx operand in the group is an address in the ROM's system

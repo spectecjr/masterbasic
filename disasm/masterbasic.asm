@@ -207,9 +207,7 @@ DOS_L4081:     EQU  &8081
 DOS_L4086:     EQU  &8086
 DOS_L4088:     EQU  &8088
 DOS_L4089:     EQU  &8089
-DOS_L484D:     EQU  &884D
 DOS_L4856:     EQU  &8856
-DOS_L4BA0:     EQU  &8BA0
 DOS_L4D2D:     EQU  &8D2D
 DOS_L602A:     EQU  &A02A
 DOS_L6280:     EQU  &A280
@@ -243,10 +241,8 @@ DOS_V4222:     EQU  &8222
 DOS_V42B6:     EQU  &82B6
 DOS_V42E2:     EQU  &82E2
 DOS_V5000:     EQU  &9000
-DOS_V7CF7:     EQU  &BCF7
 DOS_V7CFF:     EQU  &BCFF
 DOS_V7DE8:     EQU  &BDE8
-DOS_V7DF0:     EQU  &BDF0
 DOS_V7E98:     EQU  &BE98
 DOS_V7EA6:     EQU  &BEA6
 DOS_V7EFC:     EQU  &BEFC
@@ -254,7 +250,6 @@ DOS_V7F0D:     EQU  &BF0D
 DOS_V7F6B:     EQU  &BF6B
 DOS_V7F77:     EQU  &BF77
 DOS_V7FA5:     EQU  &BFA5
-DOS_XTRA:      EQU  &9896
 
 ; The ROM's restarts, under the names its own source gives
 ; them.  A restart is a one-byte call to a fixed address, so
@@ -1181,18 +1176,34 @@ FN_SCRAD:
                DEFW DOS_L65C4-&4000           ; 42A3 C4 65
                RET                             ; 42A5 C9
 
-; ---- L42A6 ---- from &6451, &6463, &646C, &6475
-L42A6:
+;; --------------------------------------------------------------------
+;; HMPR := 0, so &8000-&BFFF is the ROM's system page, then save DE
+;; bytes from HL through the DOS's SVBLK.
+;; --------------------------------------------------------------------
+
+; ---- SAVE_BLOCK_FROM_SYSPAGE ---- from &6451, &6463, &646C, &6475
+SAVE_BLOCK_FROM_SYSPAGE:
                XOR A                           ; 42A6 AF
                JR L42B3                        ; 42A7 18 0A
 
-; ---- L42A9 ---- from &6436, &6448, &645A
-L42A9:
+;; --------------------------------------------------------------------
+;; HMPR := LMPR+1, which is this half's own page number, so &8000-&BFFF
+;; is this half seen from itself.
+;; --------------------------------------------------------------------
+
+; ---- SAVE_BLOCK_FROM_THIS_PAGE ---- from &6436, &6448, &645A
+SAVE_BLOCK_FROM_THIS_PAGE:
                IN A,(LMPR)                     ; 42A9 DB FA
                JR L42B0                        ; 42AB 18 03
 
-; ---- L42AD ---- from &643F
-L42AD:
+;; --------------------------------------------------------------------
+;; HMPR := the byte at &42CD plus one -- the boot sector patched that
+;; byte with the DOS page less one -- so &8000-&BFFF is the DOS page,
+;; the one arrangement an &8xxx operand means by default.
+;; --------------------------------------------------------------------
+
+; ---- SAVE_BLOCK_FROM_DOS_PAGE ---- from &643F
+SAVE_BLOCK_FROM_DOS_PAGE:
                LD A,(&42CD)                    ; 42AD 3A CD 42
 
 ; ---- L42B0 ---- from &42AB
@@ -1202,7 +1213,7 @@ L42B0:
 
 ; ---- L42B3 ---- from &42A7
 L42B3:
-               OUT (HMPR),A                    ; 42B3 D3 FB
+               OUT (HMPR),A                    ; 42B3 D3 FB  and here they meet: page set, A zeroed, and SVBLK called through CALLDOS
                XOR A                           ; 42B5 AF
 
 ; ---- L42B6 ---- from &497D
@@ -9241,7 +9252,7 @@ L63E0:
 CMD_SAVE:
                CALL CALL_NEXTCHAR              ; 63E6 CD 61 44
                CP T_BOOT                       ; 63E9 FE E9
-               JR Z,L6404                      ; 63EB 28 17
+               JR Z,SAVE_BOOT                  ; 63EB 28 17
                LD C,&AA                        ; 63ED 0E AA
                CALL L44C5                      ; 63EF CD C5 44
                CALL BYTE_ARGUMENT              ; 63F2 CD A1 43
@@ -9259,8 +9270,62 @@ L63FE:
                DEFW NRWRITE                   ; 6401 0D 00
                RET                             ; 6403 C9
 
-; ---- L6404 ---- from &63EB
-L6404:
+;; --------------------------------------------------------------------
+;; SAVE BOOT, reached from CMD_SAVE when the next token is BOOT.
+;;
+;; EVNAM and EVFINS in the DOS page take the filename, &4D24 opens the
+;; file, and seven bytes from V647E are put at the DOS's &7CFF.  Then
+;; eight blocks are handed to the DOS's SVBLK -- "save a block to the
+;; open file" -- through the three routines below, which differ only in
+;; which page they put in the window first:
+;;
+;; from        page              length   goes to
+;; &7CF7       this half           &0100  DOS  &4000-&40FF
+;; &4100       the DOS page        &3C60  DOS  &4100-&7D5F
+;; &7DF0       this half           &01BE  DOS  &7D60-&7F1D
+;; &4C14       the system page     &00A2  DOS  &7F1E-&7FBF
+;; &4000       this half           &3B80  MB   &4000-&7B7F
+;; &4BA0       the system page     &0024  MB   &7B80-&7BA3
+;; &484D       the system page     &029F  MB   &7BA4-&7E42
+;; &5896       the system page     &017D  MB   &7E43-&7FBF
+;;
+;; &0100 + &3C60 + &01BE + &00A2 is &3FC0, and so is &3B80 + &0024 +
+;; &029F + &017D: two halves of 16320 bytes each, which is the file.
+;;
+;; THREE THINGS THIS SETTLES.
+;;
+;; The three system-page blocks are read back out of the system page,
+;; not kept here.  &4BA0, &484D and &5896 are exactly where
+;; INSTALL_ROM_PATCHES and INSTALL_SYSPAGE_CODE put the blocks from
+;; &7B80, &7BA4 and &7E43, and the lengths match to the byte for the
+;; first two.  So the file's copy of an installed block is whatever the
+;; system page held when SAVE BOOT ran, which is why a KEY assignment
+;; or a DUMP setting survives into the new file without anything having
+;; to copy it back here first.
+;;
+;; The two copies that go the wrong way at boot are for this.
+;; notes/mb-install.txt had to leave them as "the likeliest reading of
+;; two copies that go the wrong way": INSTALL_ROM_PATCHES saves INSTBUF
+;; into this page at &7DF0 and the DOS's boot sector at &7D00, and
+;; nothing was seen to read them back.  This reads them back.  &7CF7
+;; and &7DF0 are the first and third blocks in the list, and they are
+;; the DOS's &4000-&40FF and part of its tail -- the two pieces of the
+;; DOS that the machine no longer holds in the DOS page once it has
+;; booted.
+;;
+;; The last block is a filler.  &3B80 + &0024 + &029F leaves 381 bytes
+;; to make 16320, and &017D is 381; its source is &5896 because that is
+;; where the previous block's neighbour begins, and it runs on through
+;; the DEF KEY gap, the keyboard table and up to the DUMP settings at
+;; &5A12.  In the file this project reads, the 341 bytes after the
+;; installed forty are a fragment of somebody's BASIC program -- "TOTAL
+;; FRAMES", "moveinf" -- so this image was never written by SAVE BOOT:
+;; it is the shipped original, with whatever was in memory at the time
+;; left in the gap.
+;; --------------------------------------------------------------------
+
+; ---- SAVE_BOOT ---- from &63EB
+SAVE_BOOT:
                CALL CALL_NEXTCHAR              ; 6404 CD 61 44
                CALL CALLDOS                    ; 6407 CD C1 42
                DEFW DOS_EVNAM-&4000           ; 640A CF 61
@@ -9279,30 +9344,30 @@ L6404:
                LD DE,DOS_V7CFF                 ; 6428 11 FF BC
                LD BC,&0007                     ; 642B 01 07 00
                LDIR                            ; 642E ED B0
-               LD HL,DOS_V7CF7                 ; 6430 21 F7 BC
+               LD HL,L7CF7+&4000               ; 6430 21 F7 BC
                LD DE,&0100                     ; 6433 11 00 01
-               CALL L42A9                      ; 6436 CD A9 42
+               CALL SAVE_BLOCK_FROM_THIS_PAGE  ; 6436 CD A9 42
                LD HL,DOS_FFHL                  ; 6439 21 00 81
                LD DE,&3C60                     ; 643C 11 60 3C
-               CALL L42AD                      ; 643F CD AD 42
-               LD HL,DOS_V7DF0                 ; 6442 21 F0 BD
+               CALL SAVE_BLOCK_FROM_DOS_PAGE   ; 643F CD AD 42
+               LD HL,L7DF0+&4000               ; 6442 21 F0 BD
                LD DE,&01BE                     ; 6445 11 BE 01
-               CALL L42A9                      ; 6448 CD A9 42
+               CALL SAVE_BLOCK_FROM_THIS_PAGE  ; 6448 CD A9 42
                LD HL,&8C14                     ; 644B 21 14 8C
                LD DE,&00A2                     ; 644E 11 A2 00
-               CALL L42A6                      ; 6451 CD A6 42
-               LD HL,DOS_HEADER                ; 6454 21 00 80
+               CALL SAVE_BLOCK_FROM_SYSPAGE    ; 6451 CD A6 42
+               LD HL,PUTSWA+&4000              ; 6454 21 00 80
                LD DE,&3B80                     ; 6457 11 80 3B
-               CALL L42A9                      ; 645A CD A9 42
-               LD HL,DOS_L4BA0                 ; 645D 21 A0 8B
+               CALL SAVE_BLOCK_FROM_THIS_PAGE  ; 645A CD A9 42
+               LD HL,&8BA0                     ; 645D 21 A0 8B
                LD DE,&0024                     ; 6460 11 24 00
-               CALL L42A6                      ; 6463 CD A6 42
-               LD HL,DOS_L484D                 ; 6466 21 4D 88
+               CALL SAVE_BLOCK_FROM_SYSPAGE    ; 6463 CD A6 42
+               LD HL,&884D                     ; 6466 21 4D 88
                LD DE,&029F                     ; 6469 11 9F 02
-               CALL L42A6                      ; 646C CD A6 42
-               LD HL,DOS_XTRA                  ; 646F 21 96 98
+               CALL SAVE_BLOCK_FROM_SYSPAGE    ; 646C CD A6 42
+               LD HL,&9896                     ; 646F 21 96 98
                LD DE,&017D                     ; 6472 11 7D 01
-               CALL L42A6                      ; 6475 CD A6 42
+               CALL SAVE_BLOCK_FROM_SYSPAGE    ; 6475 CD A6 42
                CALL CALLDOS                    ; 6478 CD C1 42
                DEFW DOS_SCFSM-&4000           ; 647B F8 4D
                RET                             ; 647D C9
@@ -15050,6 +15115,8 @@ L7CF1:
 
 L7CF5:
                LD A,&00                        ; 7CF5 3E 00  the operand is written here at run time, from &7B0B
+
+L7CF7:
                OUT (HMPR),A                    ; 7CF7 D3 FB
                CALL L59A3+&4000                ; 7CF9 CD A3 99
                POP AF                          ; 7CFC F1

@@ -2425,8 +2425,6 @@ L4847:
                CALL GRPNT                      ; 4847 CD B1 4F
                LD A,C                          ; 484A 79
                CP &FE                          ; 484B FE FE
-
-L484D:
                RET NZ                          ; 484D C0
                LD A,B                          ; 484E 78
                CP &01                          ; 484F FE 01
@@ -3210,8 +3208,6 @@ L4B8B:
                DEC HL                          ; 4B9D 2B
                DEC HL                          ; 4B9E 2B
                LD A,(HL)                       ; 4B9F 7E  DIRECTORY TAG - BYTE FE
-
-L4BA0:
                LD HL,&000B                     ; 4BA0 21 0B 00
                ADD HL,BC                       ; 4BA3 09
                LD B,(HL)                       ; 4BA4 46
@@ -5901,7 +5897,6 @@ PMYNAE:
                CALL PTM                        ; 588A CD 7C 57
                DEFB &22,&20,&28,&79,&2F,&6E,&2F,&61,&2F ; 588D
 
-; ---- XTRA ---- from MB &646F
 XTRA:
                DEFM "e"                       ; 5896 65
                DEFB ")"+&80                   ; 5897 A9
