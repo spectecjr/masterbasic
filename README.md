@@ -6,9 +6,17 @@ original file byte for byte.
 
 ## What the file is
 
-`file/MasterBasicMasterDos.bin` is a SAM Coupé CODE file of 32640 bytes — 64
-sectors of 510 payload bytes, with a nine-byte header that is part of the loaded
-image rather than something to skip.
+`file/MasterBasicMasterDos.bin` is a SAM Coupé CODE file of 32640 bytes: a
+nine-byte header followed by the 32631 bytes it declares.
+
+The sector chain has already been followed. A disc sector holds 510 bytes of
+payload and two link bytes naming the next one, and those links are **not** in
+this file — 64 × 510 is exactly 32640, where 64 × 512 would be 32768. So it is
+the payloads concatenated, nothing more.
+
+The header is part of the loaded image rather than something to skip: it sits at
+offset 0 of the first half, so `BOOT` begins at `&4009` and `&4000`–`&4008` is
+the header itself.
 
 It is **two 16320-byte halves that end up in different RAM pages**, and that is
 the one thing to understand before reading any of it:
