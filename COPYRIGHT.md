@@ -29,7 +29,7 @@ burned in this effort.
 
 No claim is made to copyright over any of the original material written by Dr.
 Andy J. Wright, and nothing in this should be considered as allowing anyone to
-make derivative works of *his* work.
+make derivative works of *his* work, which includes the binary, and the assembly language source code.
 
 For all of these other pieces, Simon Cooke asserts his copyright over them -
 
@@ -39,3 +39,7 @@ Copyright (c) 2026 Simon Cooke, all rights reserved.
 long as you provide attribution.
 
 -- Simon Cooke, Seattle, Washington, USA, August 2026.
+
+## Remarks
+
+In other news, writing licenses to appropriately preserve copyright is occasionally painful, and licenses don't have teeth without copyright to back them, so here we are.
