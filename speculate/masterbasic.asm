@@ -224,12 +224,8 @@ DOS_L4088:     EQU  &8088
 DOS_L4089:     EQU  &8089
 DOS_L484D:     EQU  &884D
 DOS_L4856:     EQU  &8856
-DOS_L4B00:     EQU  &8B00
 DOS_L4BA0:     EQU  &8BA0
 DOS_L4D2D:     EQU  &8D2D
-DOS_L4F00:     EQU  &8F00
-DOS_L4F0D:     EQU  &8F0D
-DOS_L5E1F:     EQU  &9E1F
 DOS_L602A:     EQU  &A02A
 DOS_L6280:     EQU  &A280
 DOS_L6284:     EQU  &A284
@@ -261,7 +257,6 @@ DOS_V40F9:     EQU  &80F9
 DOS_V4222:     EQU  &8222
 DOS_V42B6:     EQU  &82B6
 DOS_V42E2:     EQU  &82E2
-DOS_V4D50:     EQU  &8D50
 DOS_V5000:     EQU  &9000
 DOS_V7CF7:     EQU  &BCF7
 DOS_V7CFF:     EQU  &BCFF
@@ -318,6 +313,7 @@ UPPER:         EQU  &DF    ; clearing bit 5 folds a letter to upper case
 ; Numbers named in notes/, each for one instruction where
 ; the same value means something else elsewhere.
 SYS_CDBUFF_11: EQU  &4D11
+SYS_CDBUFF_50: EQU  &4D50
 SYS_CHAR_HEIGHT: EQU  &4AEF
 SYS_CHAR_OUT:  EQU  &49E4
 SYS_CHAR_WIDTH: EQU  &4AEE
@@ -5323,12 +5319,12 @@ L4A7F:
                DEFB &CD                                                         ; 4A83 M  skipped: reads as CALL &4978 from here, and as part of the instruction above it
 
 ;; --------------------------------------------------------------------
-;; L4A84 -- &4A84 to &4A9E
+;; L4A84 -- &4A84 to &4ACE
 ;;
-;; Takes:     BC
+;; Takes:     A, BC, IY
 ;; Leaves:    A, F, BC, DE, HL
 ;;
-;; ? calls TWO_DIGITS_FROM_DE; falls into whatever follows rather than returning.
+;; ? reaches the ROM through DOS_L65C4-&4000; calls CALLDOS, TWO_DIGITS_FROM_DE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
                LD A,B                          ; 4A84 78
                LD C,C                          ; 4A85 49
@@ -5347,18 +5343,6 @@ L4A7F:
                CALL TWO_DIGITS_FROM_DE         ; 4A99 CD 6A 4A
                LD C,A                          ; 4A9C 4F
                LD B,&00                        ; 4A9D 06 00
-
-;; --------------------------------------------------------------------
-;; L4A9F -- &4A9F to &4ACE
-;;
-;; Takes:     A, BC, DE, HL, IY
-;; Leaves:    A, F, BC, DE, HL
-;;
-;; ? reaches the ROM through DOS_L65C4-&4000; calls CALLDOS, TWO_DIGITS_FROM_DE; falls into whatever follows rather than returning.
-;; --------------------------------------------------------------------
-
-; ---- L4A9F ---- from &5D6E
-L4A9F:
                ADD HL,BC                       ; 4A9F 09
                CALL L4ADC                      ; 4AA0 CD DC 4A
                CALL TWO_DIGITS_FROM_DE         ; 4AA3 CD 6A 4A
@@ -5500,12 +5484,14 @@ FN_LOCN:
                CALL EXPECT_NEXT_LPAREN_AND_NUMBER ; 4AF0 CD 4A 44
 
 ;; --------------------------------------------------------------------
-;; L4AF3 -- &4AF3 to &4AFF
+;; L4AF3 -- &4AF3 to &4B3B
 ;;
 ;; Takes:     A, BC, DE, HL
-;; Leaves:    A, F, BC, DE, HL, IY
+;; Leaves:    A, F, BC, E, HL, IY
+;; Preserves: D (saved and restored)
+;; Ends:      JR
 ;;
-;; ? drives IN A,(HMPR); calls EXPECT_NUMBER; falls into whatever follows rather than returning.
+;; ? drives IN A,(HMPR), OUT (HMPR),A; calls EXPECT_NUMBER, NRRD.
 ;; --------------------------------------------------------------------
 
 ; ---- L4AF3 ---- from &5C3F
@@ -5516,20 +5502,6 @@ L4AF3:
                LD HL,L4C43                     ; 4AFA 21 43 4C
                PUSH HL                         ; 4AFD E5
                IN A,(HMPR)                     ; 4AFE DB FB
-
-;; --------------------------------------------------------------------
-;; L4B00 -- &4B00 to &4B3B
-;;
-;; Takes:     A, BC, DE, HL
-;; Leaves:    A, F, BC, E, HL, IY
-;; Preserves: D (saved and restored)
-;; Ends:      JR
-;;
-;; ? drives OUT (HMPR),A; calls NRRD.
-;; --------------------------------------------------------------------
-
-; ---- L4B00 ---- from &5D9A
-L4B00:
                PUSH AF                         ; 4B00 F5
                CALL L4C2A                      ; 4B01 CD 2A 4C
                CALL L4C76                      ; 4B04 CD 76 4C
@@ -5725,7 +5697,7 @@ L4B9C:
 
 ; ---- L4BA3 ---- from &4C33
 L4BA3:
-               LD A,&2A                        ; 4BA3 3E 2A
+               LD A,&2A                        ; 4BA3 3E 2A  error 42, "String too long"
                JP NC,REPORT                    ; 4BA5 D2 BE 43
                LD (V409E),HL                   ; 4BA8 22 9E 40
                LD (V40A0),BC                   ; 4BAB ED 43 A0 40
@@ -6408,9 +6380,6 @@ FN_EQU:
 ;;
 ;; ? calls EXPECT_COMMA, EXPECT_RPAREN, CALL_EXPSTR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
-
-; ---- L4D53 ---- from &5D2F
-L4D53:
                LD A,H                          ; 4D53 7C
                LD B,H                          ; 4D54 44
                CALL EXPECT_COMMA               ; 4D55 CD 50 44
@@ -6927,9 +6896,14 @@ FN_RESERVED:
 ;;     vector points here.
 ;;     
 ;;     It reads the ROM's COMAD, records the token in CURCMD, and indexes a
-;;     table by token minus &90 to find the routine.  Six tokens are then
-;;     handled by name -- &E1, &C2, &C9, &D1, &AE and &AA -- and each leaves
-;;     here for a routine of MasterBASIC's own.
+;;     table by token minus &90 to find the routine.  Six of the ROM's own
+;;     commands are then tested for by name and leave here for a routine of
+;;     MasterBASIC's:
+;;     
+;;         &AA MODE     &C2 PAUSE        &D1 KEYIN
+;;         &AE SOUND    &C9 DEF KEYCODE  &E1 POKE
+;;     
+;;     notes/mb-cmdintercept.txt says what each of them does with it.
 ;;     
 ;;     Everything else takes the default path from &4ED4, which calls nothing.
 ;;     It assembles a routine in the ROM's code buffer out of three pieces --
@@ -6966,15 +6940,15 @@ HCMDV:
                CP &E1                          ; 4EB6 FE E1
                JP Z,BUILD_PAGE_IN_TRAMPOLINE   ; 4EB8 CA DF 5C
                CP &C2                          ; 4EBB FE C2
-               JP Z,L5D32                      ; 4EBD CA 32 5D
+               JP Z,CMD_PAUSE                  ; 4EBD CA 32 5D
                CP &C9                          ; 4EC0 FE C9
-               JP Z,L5D62                      ; 4EC2 CA 62 5D
+               JP Z,CMD_DEF_KEYCODE            ; 4EC2 CA 62 5D
                CP &D1                          ; 4EC5 FE D1
-               JP Z,L5D78                      ; 4EC7 CA 78 5D
+               JP Z,CMD_KEYIN                  ; 4EC7 CA 78 5D
                CP &AE                          ; 4ECA FE AE
-               JP Z,L5C6A                      ; 4ECC CA 6A 5C
+               JP Z,CMD_SOUND                  ; 4ECC CA 6A 5C
                CP &AA                          ; 4ECF FE AA
-               JP Z,L4F7E                      ; 4ED1 CA 7E 4F
+               JP Z,CMD_MODE                   ; 4ED1 CA 7E 4F
                IN A,(HMPR)                     ; 4ED4 DB FB
                PUSH AF                         ; 4ED6 F5
                XOR A                           ; 4ED7 AF
@@ -7213,23 +7187,49 @@ L4F78:
                OUT (C),B                       ; 4F7C ED 41
 
 ;; --------------------------------------------------------------------
-;; L4F7E -- &4F7E to &4FB6
+;; CMD_MODE -- &4F7E to &4FB6
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? reaches the ROM through SCPTR; calls BYTE_ARGUMENT, SKIP_THEN_NUMBER, EXPECT_END_OF_STATEMENT, NRRDD; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     MODE, token &AA.  Reads the number, expects the end of the statement,
+;;     and rejects anything outside 1 to 4 with error 34 -- which the ROM's
+;;     own message table gives as "screen mode", and which is the single
+;;     strongest confirmation that this is what the token is.
+;;     
+;;     What it does before handing on is update SCLIST.  The ROM's variable
+;;     table describes SCLIST as "(16) SCREENS LIST.  MODE/PAGE OF SCREENS
+;;     1-16, OR FFH" and SCPTR as the address of the current screen's entry
+;;     in it, so one byte holds both the mode and the page of a screen.
+;;     This reads that byte through NRRDD and RDA, replaces bits 5 and 6
+;;     with the mode -- three RRCAs put it there, and XOR/AND &9F/XOR merges
+;;     it without disturbing the page in the low five bits -- and writes it
+;;     back with WRA.
+;;     
+;;     Only then does it call the ROM's own JMODE, through CMR.  The last
+;;     thing it does is write zero to SYS_CHAR_WIDTH, the byte in the system
+;;     page that CSIZE keeps its character width in, so a MODE puts the
+;;     character size back to the default.
+;;     
+;;     The ROM updates a screen's SCLIST entry when it switches away from
+;;     it, in SCREEN; doing it here as well keeps the current screen's entry
+;;     right at the moment the mode changes rather than at the next switch.
+;;     That is a reading of why, not something the code states.
 ;; --------------------------------------------------------------------
 
-; ---- L4F7E ---- from &4ED1
-L4F7E:
+; ---- CMD_MODE ---- from &4ED1
+CMD_MODE:
                CALL SKIP_THEN_NUMBER           ; 4F7E CD 82 44
                CALL EXPECT_END_OF_STATEMENT    ; 4F81 CD D0 44
                CALL BYTE_ARGUMENT              ; 4F84 CD A1 43
                DEC A                           ; 4F87 3D
                LD B,A                          ; 4F88 47
                CP &04                          ; 4F89 FE 04
-               LD A,&22                        ; 4F8B 3E 22
+               LD A,&22                        ; 4F8B 3E 22  error 34, "screen mode"
                JP NC,REPORT                    ; 4F8D D2 BE 43
                LD A,B                          ; 4F90 78
                PUSH AF                         ; 4F91 F5
@@ -7253,9 +7253,9 @@ L4F7E:
                CALL CMR                        ; 4FA9 CD F0 44
                DEFW JMODE                     ; 4FAC 5A 01
                LD BC,&0000                     ; 4FAE 01 00 00
-               ; write the ROM variable &4AEE
+               ; write the ROM variable SYS_CHAR_WIDTH
                CALL NRWRD                      ; 4FB1 CD 77 45
-               DEFW &4AEE                     ; 4FB4 EE 4A
+               DEFW SYS_CHAR_WIDTH            ; 4FB4 EE 4A
                RET                             ; 4FB6 C9
 
 ;; --------------------------------------------------------------------
@@ -11635,7 +11635,7 @@ ESCCHK:
                IN A,(STAT)                     ; 5B77 DB F9
                AND &20                         ; 5B79 E6 20
                RET NZ                          ; 5B7B C0
-               LD A,&54                        ; 5B7C 3E 54
+               LD A,&54                        ; 5B7C 3E 54  error 84, "Escape requested"
                JP REPORT                       ; 5B7E C3 BE 43
 
 ;; --------------------------------------------------------------------
@@ -11947,17 +11947,34 @@ L5C65:
                RET                             ; 5C69 C9
 
 ;; --------------------------------------------------------------------
-;; L5C6A -- &5C6A to &5C9C
+;; CMD_SOUND -- &5C6A to &5C9C
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      RET
 ;;
 ;; ? tests for T_CLEAR, CH_COLON, CH_CR; calls CALL_NEXTCHAR, NUMBER_THEN_END, FREE_SLOT_CHAIN.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     SOUND, token &AE -- and the reason for taking it over is in the
+;;     manual, which documents SOUND CLEAR and SOUND CLEAR size:
+;;     
+;;     "SOUND CLEAR used on its own will clear the buffer ... To change
+;;     the sound buffer size, simply use SOUND CLEAR with a different
+;;     value.  SOUND CLEAR 0 will delete the buffer and free the memory
+;;     for other uses."
+;;     
+;;     The code is that sentence.  The next character is compared with the
+;;     ROM's CLEAR token and anything else leaves for L5CC1, the ordinary
+;;     SOUND; a colon or carriage return goes to L5C9D, which is SOUND CLEAR
+;;     with no argument; otherwise a number is read and the buffer is
+;;     reallocated -- FREE_SLOT_CHAIN gives the old one back if there was
+;;     one, and the new page and address are written to four XVARs.
 ;; --------------------------------------------------------------------
 
-; ---- L5C6A ---- from &4ECC
-L5C6A:
+; ---- CMD_SOUND ---- from &4ECC
+CMD_SOUND:
                CALL CALL_NEXTCHAR              ; 5C6A CD 61 44
                CP T_CLEAR                      ; 5C6D FE B3
                JP NZ,L5CC1                     ; 5C6F C2 C1 5C
@@ -12104,7 +12121,7 @@ L5CC1:
 ; ---- BUILD_PAGE_IN_TRAMPOLINE ---- from &4EB8
 BUILD_PAGE_IN_TRAMPOLINE:
                LD B,&E7                        ; 5CDF 06 E7
-               LD HL,DOS_V4D50                 ; 5CE1 21 50 8D
+               LD HL,&8D50                     ; 5CE1 21 50 8D
                CALL PAGE_IN_ROM1               ; 5CE4 CD 59 5C
                PUSH AF                         ; 5CE7 F5
                LD BC,&0009                     ; 5CE8 01 09 00
@@ -12154,23 +12171,36 @@ BUILD_PAGE_IN_TRAMPOLINE:
 ;;
 ;; ? calls EXPECT_COMMA, EXPECT_RPAREN, CALL_EXPSTR.
 ;; --------------------------------------------------------------------
-               LD DE,&4D50                     ; 5D20 11 50 4D  where the trampoline lands, with this half paged in at &8000
+               LD DE,SYS_CDBUFF_50             ; 5D20 11 50 4D  where the trampoline lands, with this half paged in at &8000
                LD BC,&0015                     ; 5D23 01 15 00
                LDIR                            ; 5D26 ED B0
-               LD HL,DOS_L5E1F                 ; 5D28 21 1F 9E
+               LD HL,L5E1F+&4000               ; 5D28 21 1F 9E
                LD C,&45                        ; 5D2B 0E 45
                LDIR                            ; 5D2D ED B0
-               JP L4D53                        ; 5D2F C3 53 4D
+               JP &4D53                        ; 5D2F C3 53 4D
 
 ;; --------------------------------------------------------------------
-;; L5D32 -- &5D32 to &5D56
+;; CMD_PAUSE -- &5D32 to &5D56
 ;;
 ;; Takes:     A, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     PAUSE, token &C2.  It parses nothing: it builds.  L5C56 puts &5000 in
+;;     the system page in HL and PAGE_IN_ROM1 writes &E7 -- RST &20, the
+;;     ROM's next-character restart -- as the first byte, then six bytes are
+;;     copied in, &F5 (PUSH AF) is planted, five more bytes, seven from
+;;     L5DCA, sixteen more and &4E from L5DD1.
+;;     
+;;     The manual says why PAUSE and not just SOUND: with RECORD SOUND on,
+;;     "the SOUNDs and the PAUSEs that determine their length" both have to
+;;     add codes to the string being recorded, so PAUSE needs a hook of its
+;;     own.
 ;; --------------------------------------------------------------------
 
-; ---- L5D32 ---- from &4EBD
-L5D32:
+; ---- CMD_PAUSE ---- from &4EBD
+CMD_PAUSE:
                LD B,&E7                        ; 5D32 06 E7
                CALL L5C56                      ; 5D34 CD 56 5C
                PUSH AF                         ; 5D37 F5
@@ -12224,7 +12254,7 @@ RESTORE_HMPR_AND_STORE:
                JP STORE_BC_AT_XVAR76           ; 5D5F C3 5C 6F
 
 ;; --------------------------------------------------------------------
-;; L5D62 -- &5D62 to &5D77
+;; CMD_DEF_KEYCODE -- &5D62 to &5D77
 ;;
 ;; Takes:     A, DE
 ;; Leaves:    BC, DE, HL
@@ -12232,22 +12262,35 @@ RESTORE_HMPR_AND_STORE:
 ;; Ends:      JP, JR
 ;;
 ;; ? drives OUT (HMPR),A.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     DEF KEYCODE, token &C9.  &8F00 is INSTBUF, the ROM's &4F00 "buffer
+;;     for ROM1 xfer code, etc", seen through the window that PAGE_IN_ROM1
+;;     is about to open; L5C4B picks the routine's real address out of the
+;;     two bytes after the table entry, and &91 bytes are copied there
+;;     behind an &E7.  Then &4A9F -- an address in the second installed stub
+;;     in that page -- is written into INSTBUF+&0D, and &4F00 is handed to
+;;     STORE_BC_AT_XVAR76.
+;;     
+;;     So the ROM's own DEF KEYCODE runs from a copy with one operand
+;;     changed.  What that operand does is not established here.
 ;; --------------------------------------------------------------------
 
-; ---- L5D62 ---- from &4EC2
-L5D62:
-               LD HL,DOS_L4F00                 ; 5D62 21 00 8F
+; ---- CMD_DEF_KEYCODE ---- from &4EC2
+CMD_DEF_KEYCODE:
+               LD HL,&8F00                     ; 5D62 21 00 8F
                CALL L5C4B                      ; 5D65 CD 4B 5C
                PUSH AF                         ; 5D68 F5
                LD BC,&0091                     ; 5D69 01 91 00
                LDIR                            ; 5D6C ED B0
-               LD HL,L4A9F                     ; 5D6E 21 9F 4A
-               LD (DOS_L4F0D),HL               ; 5D71 22 0D 8F
+               LD HL,&4A9F                     ; 5D6E 21 9F 4A
+               LD (&8F0D),HL                   ; 5D71 22 0D 8F
                LD B,&4F                        ; 5D74 06 4F
                JR RESTORE_HMPR_AND_STORE       ; 5D76 18 E4
 
 ;; --------------------------------------------------------------------
-;; L5D78 -- &5D78 to &5D9E
+;; CMD_KEYIN -- &5D78 to &5D9E
 ;;
 ;; Takes:     A, DE
 ;; Leaves:    BC, DE, HL
@@ -12255,11 +12298,23 @@ L5D62:
 ;; Ends:      JP, JR
 ;;
 ;; ? drives OUT (HMPR),A; calls COPY_THEN_APPEND_CALL.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     KEYIN, token &D1.  The same shape as the one above, into HDR at
+;;     &4B00 -- the ROM's fifty-byte header buffer, borrowed because KEYIN
+;;     cannot be loading a file at the same time.  Three runs of &09, &16
+;;     and &2C bytes are copied, each followed by a three-byte CALL that
+;;     COPY_THEN_APPEND_CALL adds, then six more and the seventeen at
+;;     L5DAE, and &4B00 is handed on.
+;;     
+;;     Three interposed calls into one copied routine, where DEF KEYCODE
+;;     needed one patched operand.
 ;; --------------------------------------------------------------------
 
-; ---- L5D78 ---- from &4EC7
-L5D78:
-               LD HL,DOS_L4B00                 ; 5D78 21 00 8B
+; ---- CMD_KEYIN ---- from &4EC7
+CMD_KEYIN:
+               LD HL,&8B00                     ; 5D78 21 00 8B
                CALL L5C4B                      ; 5D7B CD 4B 5C
                PUSH AF                         ; 5D7E F5
                LD BC,&0009                     ; 5D7F 01 09 00
@@ -12273,7 +12328,7 @@ L5D78:
                LD HL,L5DAE                     ; 5D93 21 AE 5D
                LD C,&11                        ; 5D96 0E 11
                LDIR                            ; 5D98 ED B0
-               LD BC,L4B00                     ; 5D9A 01 00 4B
+               LD BC,&4B00                     ; 5D9A 01 00 4B
                JR RESTORE_HMPR_AND_STORE       ; 5D9D 18 BD
 
 ;; --------------------------------------------------------------------
@@ -12497,6 +12552,8 @@ L5E14:
 ;; Takes:     A, C, DE, HL
 ;; Leaves:    A, F, HL
 ;; --------------------------------------------------------------------
+
+L5E1F:
                AND &1F                         ; 5E1F E6 1F
                CP C                            ; 5E21 B9
                JR NZ,L5E27                     ; 5E22 20 03
@@ -12860,7 +12917,7 @@ L5F1B:
                JR Z,L5F38                      ; 5F21 28 15
                DEC L                           ; 5F23 2D
                JR NZ,L5F1B                     ; 5F24 20 F5
-               LD A,&01                        ; 5F26 3E 01
+               LD A,&01                        ; 5F26 3E 01  error 1, "Out of memory"
                JP REPORT                       ; 5F28 C3 BE 43
 
 ;; --------------------------------------------------------------------
@@ -15450,7 +15507,7 @@ L6572:
 
 ; ---- L6579 ---- from &6546, &654A
 L6579:
-               LD A,&1E                        ; 6579 3E 1E
+               LD A,&1E                        ; 6579 3E 1E  error 30, "Integer out of range"
                JP REPORT                       ; 657B C3 BE 43
 
 ;; --------------------------------------------------------------------
@@ -15470,14 +15527,14 @@ L657E:
 ;; Takes:     A, DE, HL
 ;; Leaves:    A, F, DE, HL
 ;;
-;; ? calls NRWR; falls into whatever follows rather than returning.
+;; ? reaches the ROM through SYS_CHAR_WIDTH; calls NRWR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L657F ---- from &6573
 L657F:
-               ; write the ROM variable &4AEE
+               ; write the ROM variable SYS_CHAR_WIDTH
                CALL NRWR                       ; 657F CD 82 45
-               DEFW &4AEE                     ; 6582 EE 4A
+               DEFW SYS_CHAR_WIDTH            ; 6582 EE 4A
                PUSH AF                         ; 6584 F5
                LD A,B                          ; 6585 78
                ; write the ROM variable FL6OR8
@@ -15498,9 +15555,9 @@ V6594:
                CALL NRWR                       ; 6598 CD 82 45
                DEFW &5A37                     ; 659B 37 5A
                POP AF                          ; 659D F1
-               ; write the ROM variable &4AEF
+               ; write the ROM variable SYS_CHAR_HEIGHT
                CALL NRWR                       ; 659E CD 82 45
-               DEFW &4AEF                     ; 65A1 EF 4A
+               DEFW SYS_CHAR_HEIGHT           ; 65A1 EF 4A
                ; read the ROM variable UWBOT -- the word below is its address, and the call returns past it
                CALL NRRD                       ; 65A3 CD 6A 45
                DEFW UWBOT                     ; 65A6 3B 5A
@@ -18758,7 +18815,7 @@ L6DD8:
 
 ; ---- L6DF7 ---- from &6DDE, &6DE8
 L6DF7:
-               LD A,&2B                        ; 6DF7 3E 2B
+               LD A,&2B                        ; 6DF7 3E 2B  error 43, "screen number"
                JP REPORT                       ; 6DF9 C3 BE 43
 
 ;; --------------------------------------------------------------------
@@ -24020,7 +24077,7 @@ L7DD8:
 ;; --------------------------------------------------------------------
 ;; L7DF0 -- &7DF0 to &7DF9
 ;;
-;; Takes:     BC
+;; Takes:     A, BC, IY
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JP
 ;; --------------------------------------------------------------------

@@ -1,0 +1,102 @@
+# The six ROM commands MasterBASIC takes over.
+
+# HCMDV is what CMDV points at, so the ROM calls it before executing any
+# command at all.  Six tokens are tested by name there and leave for a
+# routine of MasterBASIC's own; everything else takes the builder path in
+# notes/mb-cmdbuf.txt.
+#
+# The tokens are the ROM's, and two independent sources agree on them --
+# the keyword tables KWDSA0, KWDSC0 and KWDSE0 in ref/samrom/text.asm,
+# and the token table in the MasterBASIC manual itself:
+#
+#     &AA  MODE          CMD_MODE
+#     &AE  SOUND         CMD_SOUND
+#     &C2  PAUSE         CMD_PAUSE
+#     &C9  DEF KEYCODE   CMD_DEF_KEYCODE
+#     &D1  KEYIN         CMD_KEYIN
+#     &E1  POKE          BUILD_PAGE_IN_TRAMPOLINE
+#
+# Five of the six do the same kind of thing: they copy the ROM's own
+# routine out of ROM 1 into a buffer in the system page, alter it, and
+# return into the copy.  Only MODE and SOUND parse anything themselves.
+
+MB &4F7E CMD_MODE
+    MODE, token &AA.  Reads the number, expects the end of the statement,
+    and rejects anything outside 1 to 4 with error 34 -- which the ROM's
+    own message table gives as "screen mode", and which is the single
+    strongest confirmation that this is what the token is.
+
+    What it does before handing on is update SCLIST.  The ROM's variable
+    table describes SCLIST as "(16) SCREENS LIST.  MODE/PAGE OF SCREENS
+    1-16, OR FFH" and SCPTR as the address of the current screen's entry
+    in it, so one byte holds both the mode and the page of a screen.
+    This reads that byte through NRRDD and RDA, replaces bits 5 and 6
+    with the mode -- three RRCAs put it there, and XOR/AND &9F/XOR merges
+    it without disturbing the page in the low five bits -- and writes it
+    back with WRA.
+
+    Only then does it call the ROM's own JMODE, through CMR.  The last
+    thing it does is write zero to SYS_CHAR_WIDTH, the byte in the system
+    page that CSIZE keeps its character width in, so a MODE puts the
+    character size back to the default.
+
+    The ROM updates a screen's SCLIST entry when it switches away from
+    it, in SCREEN; doing it here as well keeps the current screen's entry
+    right at the moment the mode changes rather than at the next switch.
+    That is a reading of why, not something the code states.
+
+MB &5C6A CMD_SOUND
+    SOUND, token &AE -- and the reason for taking it over is in the
+    manual, which documents SOUND CLEAR and SOUND CLEAR size:
+
+        "SOUND CLEAR used on its own will clear the buffer ... To change
+        the sound buffer size, simply use SOUND CLEAR with a different
+        value.  SOUND CLEAR 0 will delete the buffer and free the memory
+        for other uses."
+
+    The code is that sentence.  The next character is compared with the
+    ROM's CLEAR token and anything else leaves for L5CC1, the ordinary
+    SOUND; a colon or carriage return goes to L5C9D, which is SOUND CLEAR
+    with no argument; otherwise a number is read and the buffer is
+    reallocated -- FREE_SLOT_CHAIN gives the old one back if there was
+    one, and the new page and address are written to four XVARs.
+
+MB &5D32 CMD_PAUSE
+    PAUSE, token &C2.  It parses nothing: it builds.  L5C56 puts &5000 in
+    the system page in HL and PAGE_IN_ROM1 writes &E7 -- RST &20, the
+    ROM's next-character restart -- as the first byte, then six bytes are
+    copied in, &F5 (PUSH AF) is planted, five more bytes, seven from
+    L5DCA, sixteen more and &4E from L5DD1.
+
+    The manual says why PAUSE and not just SOUND: with RECORD SOUND on,
+    "the SOUNDs and the PAUSEs that determine their length" both have to
+    add codes to the string being recorded, so PAUSE needs a hook of its
+    own.
+
+MB &5D62 CMD_DEF_KEYCODE
+    DEF KEYCODE, token &C9.  &8F00 is INSTBUF, the ROM's &4F00 "buffer
+    for ROM1 xfer code, etc", seen through the window that PAGE_IN_ROM1
+    is about to open; L5C4B picks the routine's real address out of the
+    two bytes after the table entry, and &91 bytes are copied there
+    behind an &E7.  Then &4A9F -- an address in the second installed stub
+    in that page -- is written into INSTBUF+&0D, and &4F00 is handed to
+    STORE_BC_AT_XVAR76.
+
+    So the ROM's own DEF KEYCODE runs from a copy with one operand
+    changed.  What that operand does is not established here.
+
+MB &5D78 CMD_KEYIN
+    KEYIN, token &D1.  The same shape as the one above, into HDR at
+    &4B00 -- the ROM's fifty-byte header buffer, borrowed because KEYIN
+    cannot be loading a file at the same time.  Three runs of &09, &16
+    and &2C bytes are copied, each followed by a three-byte CALL that
+    COPY_THEN_APPEND_CALL adds, then six more and the seventeen at
+    L5DAE, and &4B00 is handed on.
+
+    Three interposed calls into one copied routine, where DEF KEYCODE
+    needed one patched operand.
+
+# BUILD_PAGE_IN_TRAMPOLINE is POKE, token &E1, and the manual's
+# "Faster animation with POKE" is what it is for: POKE address,a$ copies
+# a string straight into memory, which needs a page in the window and so
+# a trampoline built where both pages can be reached from.

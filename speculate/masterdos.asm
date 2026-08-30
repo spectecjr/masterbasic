@@ -182,6 +182,7 @@ DISKCTL_0_BASE: EQU  &E0
 DISKCTL_1_BASE: EQU  &F0
 DISKCTL_DATA_OFS: EQU  &03
 FORCE_INTERRUPT_CMD: EQU  &D0
+SYS_CHAR_WIDTH: EQU  &4AEE
 
 ; Constants under MasterDOS's own names, from the annotated
 ; source.  Each one is written where the listing would have
@@ -4745,7 +4746,7 @@ TSTD:
 ;; Ends:      RET
 ;; --------------------------------------------------------------------
 
-; ---- L4B00 ---- from &604A, MB &5D78
+; ---- L4B00 ---- from &604A
 L4B00:
                POP HL                          ; 4B00 E1
                RET                             ; 4B01 C9
@@ -5693,11 +5694,7 @@ L4D3B:
                JP Z,REP28                      ; 4D49 CA 8C 51  OR IF DIR FILE
                ; read the ROM variable OVERF -- the word below is its address, and the call returns past it
                CALL NRRD                       ; 4D4C CD 5E 50
-               DEFB &B9                                                         ; 4D4F 9
-
-; ---- V4D50 ---- from MB &5CE1
-V4D50:
-               DEFB &5B                                                         ; 4D50 [
+               DEFW OVERF                     ; 4D4F B9 5B
                AND A                           ; 4D51 A7
                JR Z,L4D6E                      ; 4D52 28 1A  NO "OVERWRITE? Y/N" IF SAVE OVER
                PUSH HL                         ; 4D54 E5
@@ -6155,18 +6152,12 @@ L4EE3:
                DEC HL                          ; 4EFA 2B
                LD DE,STR-30                    ; 4EFB 11 72 7F
                LD C,&2A                        ; 4EFE 0E 2A
-
-; ---- L4F00 ---- from MB &5D62
-L4F00:
                LDIR                            ; 4F00 ED B0  210-251 WITH SNP REGS AT STR-20
                CALL NMMOV                      ; 4F02 CD 58 4F
                POP AF                          ; 4F05 F1
                JR Z,GTFL7                      ; 4F06 28 39  JR IF NOT ZX FILE
                LD B,&0B                        ; 4F08 06 0B
                CALL LCNTA                      ; 4F0A CD 65 4F
-
-; ---- L4F0D ---- from MB &5D71
-L4F0D:
                LD B,&16                        ; 4F0D 06 16
                LD A,&FF                        ; 4F0F 3E FF
                CALL L4F67                      ; 4F11 CD 67 4F
@@ -11294,7 +11285,7 @@ PCT2:
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, B, HL
 ;;
-;; ? calls NRRD; falls into whatever follows rather than returning.
+;; ? reaches the ROM through SYS_CHAR_WIDTH; calls NRRD; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L5C8B ---- from &5BA1
@@ -11303,9 +11294,9 @@ L5C8B:
                LD B,A                          ; 5C8E 47
                AND A                           ; 5C8F A7
                RET NZ                          ; 5C90 C0  RET IF FIXED NUMBER ELSE
-               ; read the ROM variable &4AEE -- the word below is its address, and the call returns past it
+               ; read the ROM variable SYS_CHAR_WIDTH -- the word below is its address, and the call returns past it
                CALL NRRD                       ; 5C91 CD 5E 50
-               DEFW &4AEE                     ; 5C94 EE 4A
+               DEFW SYS_CHAR_WIDTH            ; 5C94 EE 4A
                AND A                           ; 5C96 A7
                LD A,&00                        ; 5C97 3E 00
                JR NZ,L5CA3                     ; 5C99 20 08
@@ -11883,7 +11874,6 @@ L5E0D:
                LD C,(HL)                       ; 5E1D 4E
                INC HL                          ; 5E1E 23
 
-; ---- L5E1F ---- from MB &5D28
 L5E1F:
                LD B,(HL)                       ; 5E1F 46
                INC HL                          ; 5E20 23

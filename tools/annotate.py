@@ -197,9 +197,14 @@ Hook 173 -- dispatch one of MasterBASIC's commands.  The ROM's CMDV
 vector points here.
 
 It reads the ROM's COMAD, records the token in CURCMD, and indexes a
-table by token minus &90 to find the routine.  Six tokens are then
-handled by name -- &E1, &C2, &C9, &D1, &AE and &AA -- and each leaves
-here for a routine of MasterBASIC's own.
+table by token minus &90 to find the routine.  Six of the ROM's own
+commands are then tested for by name and leave here for a routine of
+MasterBASIC's:
+
+    &AA MODE     &C2 PAUSE        &D1 KEYIN
+    &AE SOUND    &C9 DEF KEYCODE  &E1 POKE
+
+notes/mb-cmdintercept.txt says what each of them does with it.
 
 Everything else takes the default path from &4ED4, which calls nothing.
 It assembles a routine in the ROM's code buffer out of three pieces --

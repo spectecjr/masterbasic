@@ -318,6 +318,14 @@ class Page(Disassembler):
         if n:
             self.used_ext.add(n)
             return n
+        # The ROM has no name for it, but MasterBASIC may have given the
+        # address one by putting something there: an NR parameter is
+        # always an address in the ROM's system page, so &4AEE here is
+        # that page's byte and not this half's.
+        n = SYSPAGE_NAMES.get(v)
+        if n:
+            self.user_equs[n] = v
+            return n
         # A stored pointer with bit 15 set is the other page's, the
         # convention INDJP and CTAB both use.
         if v & 0x8000 and self.peer and self.peer.inside(v & 0x7FFF):
@@ -850,6 +858,26 @@ def seeds(dos, mb):
     # this half has code of its own at both.
     mb.sys_low.append((0x4EFD, 0x4F00))
     mb.sys_low.append((0x4F06, 0x4F09))
+    # The same again for the five commands HCMDV intercepts by name.
+    # Each of them calls PAGE_IN_ROM1, which zeroes HMPR, so every &8xxx
+    # and &9xxx operand in the group is an address in the ROM's system
+    # page and not in the DOS: &8D50 is CDBUFF+&50, &8F00 is INSTBUF and
+    # &8B00 is HDR, the ROM's header buffer.
+    for lo, hi in ((0x5CE1, 0x5CE4), (0x5D62, 0x5D65),
+                   (0x5D71, 0x5D74), (0x5D78, 0x5D7B)):
+        mb.no_peer.append((lo, hi))
+    # And their low operands, which are addresses in that page too: the
+    # &4B00 handed on at &5D9A is HDR again, not this half's own &4B00 --
+    # which nothing else refers to, and which was decoding as eighty-nine
+    # bytes of code on the strength of that one operand.
+    mb.sys_low.append((0x5D6E, 0x5D71))
+    mb.sys_low.append((0x5D9A, 0x5D9D))
+    # &5D20 is not reached from the code above it: the trampoline built
+    # at &4D50 jumps to &9D20, which is this address seen from a page
+    # where this half sits at &8000.  So it runs with this half in the
+    # window and the ROM's system page at &4000 -- LD DE,&4D50 and
+    # JP &4D53 are in that page, and its &9E1F is this half's own &5E1F.
+    mb.self_window.append((0x5D20, 0x5D32))
     # &5FB9 rather than &5FD8: the system page calls it there, with
     # LD A,&1C : LD HL,&9FB9 : CALL PAGER at &48DA.
     # &63F6 used to be in this list and should not have been.  Its only
@@ -1281,7 +1309,17 @@ def annotate_errors(d, reporters):
                 n += 1
                 break
             i = d.decode(p)
-            if i is None or not d.inside(i.end - 1) or not i.falls_through():
+            if i is None or not d.inside(i.end - 1):
+                break
+            # Or a jump or call to the reporter rather than a fall-in.
+            # The number still reaches it in A, so the comment is as good;
+            # the name is not, because a conditional jump is one exit from
+            # a routine and not an entry point for that error.
+            if i.target in reporters and i.text.startswith(('JP', 'CALL')):
+                d.comments.setdefault(a, 'error %d, "%s"' % (code, text))
+                n += 1
+                break
+            if not i.falls_through():
                 break
             p = i.end
     return n
