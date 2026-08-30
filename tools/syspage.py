@@ -23,6 +23,9 @@ from z80 import hexn
 BASE, TOP = 0x4000, 0x8000
 HALF = 16320
 BLANK = 0xFF
+# How far to follow an entry point that no copy rule accounts for -- the
+# ROM's code buffer and MNIP, whose contents are built at run time.
+LOOSE_VECTOR = 128
 
 # Where the installers put things.  Each is (source half, from, to, at).
 # The first three are INSTALL_ROM_PATCHES at &7B03 in
@@ -142,9 +145,18 @@ def main():
     # Everything the installer does not write is not code, and the trace
     # must not wander into it: &FF decodes as RST &38 and would swallow
     # the whole page.
+    # Only what an installer actually wrote, plus a bounded run at each
+    # of the extra entry points.  With a dump present `placed` covers the
+    # whole page, and letting the trace loose on that walks it straight
+    # out of the installed blocks and into the ROM's own data: &4BF2 is
+    # the text "19456," and was decoding as code, one line of which read
+    # CALL NC,&8E05 -- an entry into MasterBASIC that does not exist.
     inside = set()
-    for at, end, _ in placed:
-        inside.update(range(at, end))
+    for tag, lo, hi, at, why in COPIES:
+        inside.update(range(at, at + (hi - lo)))
+    for at, name in VECTORS:
+        if at not in inside:
+            inside.update(range(at, min(at + LOOSE_VECTOR, TOP)))
     for a in range(BASE, TOP):
         if a not in inside:
             d.setm(a, DATA)

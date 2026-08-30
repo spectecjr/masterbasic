@@ -111,6 +111,29 @@ runs in the system page with MasterBASIC paged *out*, which is why it is
 written for `&46CC` and `&484D` rather than where it is stored.
 `postinstall/syspage.asm` shows it at its real addresses.
 
+**And back again, through `PAGER`.** The installed code is not self-contained:
+four times it reaches back into MasterBASIC, which by then is paged out. It gets
+there through `PAGER` — the fourteen bytes `INSTALL_SYSPAGE_CODE` writes into the
+space the ROM reserves at `&5BE0` "for paging S.R.", which take a page in `A` and
+an address in `HL`, page it in, call it, and put the paging back.
+
+| from | to | what |
+|---|---|---|
+| `&48DA` | `&5FB9` | `SHOW_LINE_AND_STATEMENT` — the `LINE` command, once a statement |
+| `&49A2` | `&59A3` | the screen blanker's tick, from the frame interrupt |
+| `&49D9` | `&6485` | the character output path |
+| `&49EB` | `&64F3` | `PRINT_MAGNIFIED_CHAR`, when the height is not 1 |
+
+Each address is MasterBASIC's own plus `&4000`, because the extension is in the
+window while the system page is at `&4000`. Three go through `PAGER` with `A`
+holding `&1C`; the frame interrupt does the same by hand, since it is already
+saving the paging.
+
+That is the whole list — the system page reaches into MasterBASIC at four points
+and nowhere else. It also means the inverted paging is not a property of
+particular routines but of being called this way, which is what the
+`self_window` ranges in `tools/dis_mb.py` record.
+
 **`CTAB` and `SYNTAX`.** When the ROM meets a command it does not
 understand it reports an error, and the DOS intercepts. `SYNTAX` takes the
 byte at the start of the statement and walks `CTAB` at `&42EA` — a count,

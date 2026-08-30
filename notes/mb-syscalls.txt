@@ -1,0 +1,41 @@
+# Every point at which the ROM's installed code reaches back into
+# MasterBASIC.  There are four, and this is all of them.
+
+MB &5FB9 SHOW_LINE_AND_STATEMENT
+
+DOC SHOW_LINE_AND_STATEMENT
+    Display the line and statement number a program has reached: the
+    LINE command, "called TRACE or TRON in some other BASICs".
+
+    PPC is the line, and B coming back as &FF means a direct command
+    with no line to show, which is the INC B : RET Z.  Then SP is moved
+    into the window, a value is chosen from the screen mode in VMPR --
+    one of three, tested by bits 6 and 5 -- the number is printed, then
+    a colon, then SUBPPC.  The manual puts the display "on the lower
+    right-hand side of the screen, in PEN 0 on PAPER 15".
+
+    The system page calls it once a statement, from &48DA in the CMDV
+    block, guarded by bit 1 of a settings byte -- which is what LINE and
+    LINE OFF turn on and off.
+
+# The four entry points, read out of postinstall/syspage.asm.
+#
+#   &99A3 -> &59A3  the screen blanker's tick, from the frame interrupt
+#   &9FB9 -> &5FB9  SHOW_LINE_AND_STATEMENT, once a statement
+#   &A485 -> &6485  from &49D9, in the character output path
+#   &A4F3 -> &64F3  PRINT_MAGNIFIED_CHAR, when the height is not 1
+#
+# Each is MasterBASIC's own address plus &4000, because the extension is
+# in the window while the ROM's system page is at &4000.  Three go
+# through PAGER at &5BE0 with A holding &1C, MasterBASIC's page; the
+# fourth, the frame interrupt, does the same by hand -- IN A,(HMPR),
+# push it, LD A,&1C, OUT (HMPR),A, call, restore.
+#
+# So the inverted arrangement is not a property of particular routines.
+# It is what being called this way means, and the self_window ranges in
+# tools/dis_mb.py are the stretches reached through it.
+#
+# Two other groups of &8xxx and &BFxx in the system page are not
+# MasterBASIC: &8000/&8008/&800A and &BF80/&BF88/&BF8A are the string
+# move putting a small stack at one end or the other of whatever page it
+# has in the window, picking the end from the direction of the move.

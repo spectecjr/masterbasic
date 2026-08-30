@@ -8164,6 +8164,24 @@ L5FAA:
                LD H,&51                        ; 5FB3 26 51
                XOR A                           ; 5FB5 AF
                JP WRA                          ; 5FB6 C3 A4 45
+
+;; --------------------------------------------------------------------
+;; Display the line and statement number a program has reached: the
+;; LINE command, "called TRACE or TRON in some other BASICs".
+;;
+;; PPC is the line, and B coming back as &FF means a direct command
+;; with no line to show, which is the INC B : RET Z.  Then SP is moved
+;; into the window, a value is chosen from the screen mode in VMPR --
+;; one of three, tested by bits 6 and 5 -- the number is printed, then
+;; a colon, then SUBPPC.  The manual puts the display "on the lower
+;; right-hand side of the screen, in PEN 0 on PAPER 15".
+;;
+;; The system page calls it once a statement, from &48DA in the CMDV
+;; block, guarded by bit 1 of a settings byte -- which is what LINE and
+;; LINE OFF turn on and off.
+;; --------------------------------------------------------------------
+
+SHOW_LINE_AND_STATEMENT:
                LD BC,(PPC)                     ; 5FB9 ED 4B 45 5C
                INC B                           ; 5FBD 04
                RET Z                           ; 5FBE C8
