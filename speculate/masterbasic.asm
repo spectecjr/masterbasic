@@ -12716,7 +12716,7 @@ L5EDD:
 ;; Preserves: C (saved and restored)
 ;; Ends:      RET
 ;;
-;; ? drives IN A,(HMPR), OUT (HMPR),A.
+;; ? drives IN A,(HMPR), OUT (HMPR),A; calls FIND_SLOTS.
 ;; --------------------------------------------------------------------
 
 ; ---- L5EE2 ---- from &5EF8
@@ -12743,10 +12743,10 @@ L5EE2:
                PUSH AF                         ; 5EFE F5
                PUSH BC                         ; 5EFF C5
                LD B,&00                        ; 5F00 06 00
-               CALL L5F14                      ; 5F02 CD 14 5F
+               CALL FIND_SLOTS                 ; 5F02 CD 14 5F
                POP BC                          ; 5F05 C1
                LD B,&20                        ; 5F06 06 20
-               CALL L5F14                      ; 5F08 CD 14 5F
+               CALL FIND_SLOTS                 ; 5F08 CD 14 5F
                EX DE,HL                        ; 5F0B EB
                POP AF                          ; 5F0C F1
                OUT (HMPR),A                    ; 5F0D D3 FB
@@ -12756,14 +12756,14 @@ L5EE2:
                RET                             ; 5F13 C9
 
 ;; --------------------------------------------------------------------
-;; L5F14 -- &5F14 to &5F15
+;; FIND_SLOTS -- &5F14 to &5F15
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    L
 ;; --------------------------------------------------------------------
 
-; ---- L5F14 ---- from &5F02, &5F08
-L5F14:
+; ---- FIND_SLOTS ---- from &5F02, &5F08
+FIND_SLOTS:
                LD L,&1F                        ; 5F14 2E 1F
 
 ;; --------------------------------------------------------------------
@@ -12797,10 +12797,22 @@ L5F14:
 ;;     space in the new SLOTT you have just created.
 ;;     
 ;;     Instruction for instruction: HMPR is zeroed so &91xx reads ALLOCT
-;;     in the system page, L starts one below the current page and walks
-;;     down with DEC L, &20 jumps to the SLOTT scan and 0 claims the page
-;;     first, and running off the end reports error 1.  A newly claimed
-;;     page has its last sixteen bytes zeroed before the scan.
+;;     in the system page; FIND_SLOTS enters with L = &1F, the top page,
+;;     and DEC L walks down, which is the manual's "look backwards"; &20
+;;     jumps to the SLOTT scan and 0 claims the page first; running off the
+;;     end reports error 1.  A newly claimed page has its last sixteen
+;;     bytes zeroed before the scan, and is marked with B, which the caller
+;;     sets to &20 -- the manual's "mark it 20H".
+;;     
+;;     The caller runs it twice.  B = 0 first, which skips every write and
+;;     so asks whether the slots can be found at all, then B = &20 to
+;;     reserve them.  C carries how many are wanted and DEC C : RET Z ends
+;;     it, and C is worked out just above by dividing the byte count by
+;;     1024 and adding one -- "the number you supply is rounded up".
+;;     
+;;     The continuation path is the other DEC L: when a page turns out to
+;;     be full, &5F75 restarts the ALLOCT scan from below the page it had
+;;     in the window rather than from &1F again.
 ;;     
 ;;     One divergence from the manual worth noting: it says to look
 ;;     backwards through SLOTT, and this looks forwards, LD HL,&BFF0 then
@@ -21450,7 +21462,7 @@ L766A:
                AND PAGEMASK                    ; 767A E6 1F
                ; self-modifying: patches the operand of the JR at &5BC1
                LD (DOSFLG),A                   ; 767C 32 C2 5B
-               LD H,&51                        ; 767F 26 51  mark this half's own page reserved in ALLOCT, the ROM's page table at &5100
+               LD H,&51                        ; 767F 26 51  &60 in ALLOCT marks this page as DOS's -- the table is at &5100
                LD L,A                          ; 7681 6F
                LD (HL),&60                     ; 7682 36 60
                LD B,&13                        ; 7684 06 13

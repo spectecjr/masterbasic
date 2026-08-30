@@ -1,0 +1,40 @@
+# The SAM Coupe Technical Manual as a source, and where it is wrong.
+#
+#     https://sam.speccy.cz/systech/sam-coupe_tech-man_v3-0.pdf
+#
+# Not a submodule, because it is a scanned PDF rather than something
+# that can be assembled or diffed.  Worth knowing about, because it
+# names things neither reference source does: ALLOCT's byte values,
+# SLOTT and utility pages, and the ROM vectors.
+#
+# It confirms, in its own words, things this project had derived:
+#
+#     CMDADDRT  5BDAH  (2) Start of command address table.
+#         which is what INSTALL_EXTENDED_PUT reads to find the ROM's PUT
+#     PAGER     5BE0H  (14) Reserved for paging subroutine.
+#         fourteen bytes, exactly the block INSTALL_SYSPAGE_CODE fills
+#     INSLV     (2) Block move vector.
+#         which the ROM source only showed by how STRMOV1 uses it
+#     DOSFLG    5BC2H  Zero if no DOS loaded, else page number
+#     DOSCNT    5BC3H  Bit 0 is set if DOS is in control
+#
+# KNOWN TYPOS.  Online copies carry errors; these are the ones met so
+# far, all in the system variable tables.
+#
+#   INSLV is given as "BBBAH".  It is 5BBAH -- the entry sits between
+#   OVERF at 5BB9H and STRLOCN at 5BBCH, and is two bytes.
+#
+#   5AFAH is MTOFCV in the table and MTOKV in the prose that describes
+#   it.  This project uses MTOKV.
+#
+#   DKDEF is given as 5BDCH, which is also MNOP's address.  It belongs
+#   at 5BCEH, between FPSBOT at 5BCAH and DKLIM at 5BD0H.
+#
+#   BSTKEND and BASSTK are both given as 5BC4H.
+#
+#   In the 5C4FH-5C56H run the descriptions are shifted from the names
+#   by two rows: CURCHL is described as "number of line with > cursor",
+#   DEFADD as "start of channels area", and so on.
+#
+# So: read it for the names and the prose, and check any address in it
+# against ref/samrom/vars.asm before relying on it.
