@@ -258,7 +258,7 @@ HEADER:
 ;; Leaves:    HL
 ;; --------------------------------------------------------------------
 
-; ---- BOOT ---- from MB &5A5D, MB &7B75
+; ---- BOOT ---- from MB &7B75
 BOOT:
                DI                              ; 4009 F3
 
@@ -397,14 +397,13 @@ L4069:
 L406B:
                JR Z,L407B                      ; 406B 28 0E
 
-; ---- L406D ---- from MB &5FDA, MB &6052, MB &6077, MB &60D3, MB &60D8
+; ---- L406D ---- from MB &6052, MB &6077, MB &60D3, MB &60D8
 L406D:
                LD A,STEP_OUT_CMD               ; 406D 3E 7B
 
 L406F:
                JR NC,L4073                     ; 406F 30 02
 
-; ---- L4071 ---- from MB &5FBF, MB &5FF1
 L4071:
                LD A,STEP_IN_CMD                ; 4071 3E 5B
 
@@ -785,7 +784,7 @@ HSTR1:
 DSTR1:
                DEFB &00                                                         ; 4136 .  drive
 
-; ---- FSTR1 ---- from &67B9, &67C2, &67CD, &699E, &6A91, &6BA5, &6BE6, MB &5A55
+; ---- FSTR1 ---- from &67B9, &67C2, &67CD, &699E, &6A91, &6BA5, &6BE6
 FSTR1:
                DEFB &00                                                         ; 4137 .  file number, or &FF for "by name"
 
@@ -12619,7 +12618,7 @@ DLVM1:
 LAB2:
                PUSH BC                         ; 6029 C5
 
-; ---- L602A ---- from MB &5FE2, MB &6101
+; ---- L602A ---- from MB &6101
 L602A:
                PUSH DE                         ; 602A D5
                CALL AHLN                       ; 602B CD 7E 60
@@ -12940,7 +12939,6 @@ WFOD3X:
                LD B,&04                        ; 610F 06 04  LOW DTK LIMIT
                LD A,(DSTR1)                    ; 6111 3A 36 41
 
-; ---- L6114 ---- from MB &5FE8
 L6114:
                CP &03                          ; 6114 FE 03
                JR C,WFOD00                     ; 6116 38 0E

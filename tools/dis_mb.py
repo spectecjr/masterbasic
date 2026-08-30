@@ -191,7 +191,12 @@ class Page(Disassembler):
                                        for lo, hi in self.self_window):
             return None
         if PEER <= a < PEER + HALF:
-            return self.labels.get(a - PEER + BASE)
+            # Whether this page has a label there or not, the address is
+            # this page's: nothing else is in the window.  Falling
+            # through on a missing label let the peer claim it, which is
+            # how &806D at &5FDA came out as DOS_L406D while &806F two
+            # instructions later came out as V406F+&4000.
+            return self.labels.get(a - PEER + BASE) or hexn(a - PEER + BASE, 4)
         return None
 
     # -- operand naming ----------------------------------------------------
@@ -286,8 +291,11 @@ class Page(Disassembler):
             # label.  INSTALL_ROM_VECTORS is the clear case: the values it
             # writes to &5AFA, &5AF6, &5AE2, &5BC4 and &5BBA are found in
             # the system page afterwards and not in this one.
-            if self._cur is not None and any(lo <= self._cur < hi
-                                             for lo, hi in self.sys_low):
+            # Only for data operands.  A JR or DJNZ inside one of these
+            # routines is relative, so it lands in this code wherever the
+            # code is paged, and its label is right: it was JR NZ,L433B
+            # that made the point by turning into JR NZ,&433B.
+            if data and self._cur is not None                     and any(lo <= self._cur < hi for lo, hi in self.sys_low):
                 n = self.ext_var(v)
                 if n:
                     self.used_ext.add(n)
@@ -713,6 +721,14 @@ def seeds(dos, mb):
     mb.labels[MBKEYS[0]] = 'MBKEYS'
     mb.headers[MBKEYS[0]] = NOTES['keywords']
     mb.region(MBKEYS[0], MBKEYS[1], TEXT)
+    # &5A55 calls &8137, which under the inversion there is this page's
+    # own &4137.  Nothing reaches it at &4137, so the trace left it
+    # sitting in the variable block as data -- and while the call was
+    # being credited to the DOS page there was no reason to look.  It is
+    # thirty-four bytes of code.
+    mb.seed(0x4137, 'SEND_BYTE_TO_PRINTER')
+    # Reached the same way, from &5FE8 as &A114.
+    mb.seed(0x6114)
     mb.labels[MBTEXT[0]] = 'MBTEXT'
     mb.headers[MBTEXT[0]] = NOTES['tail']
     mb.region(MBTEXT[0], MBTEXT[1], DATA)
@@ -739,7 +755,10 @@ def seeds(dos, mb):
     # &6485 calls &A4E7 and &A4AC, which are this half's own &64E7 and
     # &64AC -- neither address is an instruction in the DOS page -- and
     # &64E7 reads DEVICE at &5A73 straight, so the same inversion holds.
-    mb.self_window.append((0x6485, 0x64F8))
+    # It runs on to &6533: PRINT_MAGNIFIED_CHAR builds each cell in
+    # SCRNBUF at &5188 and steps DHADJ at &5B82, both of which read as
+    # this page's own code and data without this.
+    mb.self_window.append((0x6485, 0x6534))
     # The general rule behind all of these: a routine the DOS calls runs
     # through the window, so its own addresses are &8xxx while the ROM's
     # variables are at their proper &5Axx.  No routine in this half is
@@ -752,8 +771,10 @@ def seeds(dos, mb):
     # in the same arrangement: its &5BDA is the ROM's CMDADDRT and its
     # &45A2 is in the system page, not an address in this half.
     mb.sys_low.append((0x7829, 0x7879))
+    # &5FB9 rather than &5FD8: the system page calls it there, with
+    # LD A,&1C : LD HL,&9FB9 : CALL PAGER at &48DA.
     for lo, hi in ((0x4510, 0x4520), (0x5A3E, 0x5A64), (0x5C16, 0x5C34),
-                   (0x5FD8, 0x6030), (0x63F6, 0x63FC), (0x7900, 0x7940)):
+                   (0x5FB9, 0x6030), (0x63F6, 0x63FC), (0x7900, 0x7940)):
         mb.self_window.append((lo, hi))
     # HK_SETUPREGS does the same at &7210: its &8D50 is CDBUFF+&50 in the
     # ROM's system page, not the DOS page's &4D50.
@@ -763,6 +784,17 @@ def seeds(dos, mb):
     # entries there -- &8002, &8020, &8125, &8200, &82FF.  The 2.3 source
     # writes all of those as raw hex for the same reason.
     dos.no_peer.append((0x76BC, 0x771A))
+    # self_window and sys_low are two halves of one arrangement: if this
+    # page is in the window then something else is at &4000, and in every
+    # case found so far that something is the ROM's system page.  The
+    # &64xx run is what made the point -- it reads DEVICE at &5A73 and
+    # DMPFG at &5AB7 straight, and calls itself at &A4E7 -- so a range
+    # registered as one is registered as both.  sys_low alone stays
+    # possible, and means the DOS is in the window instead.
+    for d in (dos, mb):
+        for lo, hi in d.self_window:
+            if (lo, hi) not in d.sys_low:
+                d.sys_low.append((lo, hi))
     seed_from_tables(dos, mb)
     mb.headers[INSTALLER] = NOTES['installer']
     mb.seed(INSTALLER, 'INSTALLER')
@@ -956,10 +988,21 @@ def autolabel(d, skip=()):
     # references need a name at the address they really mean.
     for a, insn in d.insns.items():
         v = insn.target
-        if a >= BOOT_END or v is None or not (PEER <= v < PEER + HALF):
+        # The same holds wherever this page runs in the window, not only
+        # in the boot sector: &5FE2 calls &A02A, and without this the
+        # target had no name and the cross-reference was invisible.
+        here = a < BOOT_END or any(lo <= a < hi for lo, hi in d.self_window)
+        if not here or v is None or not (PEER <= v < PEER + HALF):
             continue
         t = v - PEER + BASE
         if t in d.labels or not d.inside(t):
+            continue
+        # Not into the middle of an instruction: &5C33 writes to &9022,
+        # which is the operand of the CALL at &5020, and a label there
+        # would be a misalignment report rather than a name.  The patch
+        # detector names the instruction that owns it instead, the way
+        # label_peer_targets has always done for the other page.
+        if d.m(t) == CONT:
             continue
         d.labels[t] = ('L%04X' if d._starts_insn(t) else 'V%04X') % t
         added += 1
@@ -1933,24 +1976,60 @@ def note_patched_ports(d, NEAR_PATCH=1024):
     n = 0
     for a, ins in sorted(d.insns.items()):
         text = d.overrides.get(a, ins.text)
-        m = re.match(r'^LD \((?:&[0-9A-F]{4}|[A-Za-z_]\w*)(?:\+\d)?\),'
+        # The +&4000 form too: by the time this runs, a write through the
+        # window has already been named, so LD (&9022),HL reads as
+        # LD (V5022+&4000),HL and the older pattern missed it.
+        m = re.match(r'^LD \((?:&[0-9A-F]{4}|[A-Za-z_]\w*)'
+                     r'(?:\+&?[0-9A-F]+)?\),'
                      r'(A|HL|DE|BC|IX|IY|SP)$', text)
-        if not m or ins.target is None or not d.inside(ins.target):
+        if not m or ins.target is None:
             continue
-        owner = ins.target - 1
+        tgt = ins.target
+        # Where this page runs in the window, a write to &9022 is a write
+        # to its own &5022, and that is a patch like any other -- &5C33
+        # does exactly that.  Without following it the address gets a
+        # label in the middle of the instruction it patches, which the
+        # misalignment report then reports as a fault.
+        windowed = PEER <= tgt < PEER + HALF             and any(lo <= a < hi for lo, hi in d.self_window)
+        if windowed:
+            tgt -= PEER - BASE
+        if not d.inside(tgt):
+            continue
+        # A low address written from a stretch that runs with the ROM's
+        # system page at &4000 is not in this page at all, so whatever it
+        # appears to land inside is a coincidence.  &793F is the one that
+        # showed it: LD (&5C65),HL read as patching the port of the OUT
+        # at &5C63, which is two bytes long and does not reach &5C65, and
+        # is really LD (STKEND),HL.
+        if not windowed and any(lo <= a < hi for lo, hi in d.sys_low):
+            continue
+        # A write that lands on the start of an instruction is replacing
+        # code, not patching an operand, and the instruction before it is
+        # not its owner.  &5C2D writes to &5007, which is a POP DE, and
+        # the walk back was blaming the ADD IY,BC at &5005 -- a two-byte
+        # instruction with no operand at all.
+        if d._starts_insn(tgt):
+            continue
+        owner = tgt - 1
         while owner > d.base and not d._starts_insn(owner):
             owner -= 1
         if not d._starts_insn(owner):
             continue
         victim = d.overrides.get(owner, d.insns[owner].text)
         port = victim.startswith(('IN ', 'OUT '))
-        if not port:
+        if not port and not windowed:
             # Beyond the ports, a write into another instruction is only
             # taken as self-modifying code when it is close by.  Most of
             # the addresses that land inside an instruction are ROM
             # system variables -- the ROM's variables and a page occupy
             # the same &4000-&7FFF -- and those coincidences outnumber
             # the real thing by better than two to one.
+            #
+            # A write through the window needs none of that care: an
+            # address reached as &9022 from a routine running at &8000 is
+            # this page's &5022 and nothing else, so distance says
+            # nothing.  &5C33 patches &5020 from three thousand bytes
+            # away and is still a patch.
             if abs(a - owner) >= NEAR_PATCH:
                 continue
             if not re.match(r'^LD \(&[0-9A-F]{4}\),', text):

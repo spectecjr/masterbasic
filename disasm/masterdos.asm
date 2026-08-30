@@ -241,7 +241,7 @@ HEADER:
                DEFB &01                       ; 4007 whole 16K pages, so 32631 bytes in all
                DEFB &63                       ; 4008 start page (99)
 
-; ---- BOOT ---- from MB &5A5D, MB &7B75
+; ---- BOOT ---- from MB &7B75
 BOOT:
                DI                              ; 4009 F3
 
@@ -587,7 +587,7 @@ HSTR1:
 DSTR1:
                DEFB &00                                                         ; 4136 .  drive
 
-; ---- FSTR1 ---- from &67B9, &67C2, &67CD, &699E, &6A91, &6BA5, &6BE6, MB &5A55
+; ---- FSTR1 ---- from &67B9, &67C2, &67CD, &699E, &6A91, &6BA5, &6BE6
 FSTR1:
                DEFB &00                                                         ; 4137 .  file number, or &FF for "by name"
 

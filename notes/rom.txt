@@ -14,7 +14,7 @@ EQU J_FARLDDR: Jump table entry for FARLDDR, which copies data using LDDR. A, H,
 RENAME J_IMSCSR JNCHAR
 EQU JNCHAR: Call SCREEN$ subroutine. Try to match a character at the provided line and column.
 EQU NUMBER: Skips an embedded invisible 6-byte number form (if present) and returns the next character.
-EQU NMISTK: The location of the stack used for non-maskable interrupts in the system page.
+EQU SCRNBUF: Eight bytes at &5188. The ROM's source gives the address two names: NMISTK, the stack used for non-maskable interrupts, and SCRNBUF, "8 BYTES USED BY SCREEN$ FOR COMP. FORM". SCRNBUF is the one this listing needs -- PRINT_MAGNIFIED_CHAR builds a character cell there and knows it is full when the pointer reaches CHARSVAL at &5190.
 RENAME MODET JMODE
 EQU JMODE: Set screen MODE that is in the A register (0-3 gives MODEs 1-4). 
 EQU HUDG: The high UDG range start pointer (for chars 169+).

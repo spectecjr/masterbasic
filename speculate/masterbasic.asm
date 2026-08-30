@@ -170,6 +170,7 @@ RST8V:         EQU  &5AEE  ; vector taken by RST &08 before the ROM handles it
 SAVARS:        EQU  &5A82  ; ;SAVARS/NUMEND/NVARS MUST BE IN ORDER
 SAVARSP:       EQU  &5A81  ; page holding the string and array area
 SCPTR:         EQU  &5C9D  ; ADDR OF CURRENT SCREEN IN SCLIST
+SCRNBUF:       EQU  &5188  ; Eight bytes at &5188. The ROM's source gives the address two names: NMISTK, the stack used for non-maskable interrupts, and SCRNBUF, "8 BYTES USED BY SCREEN$ FOR COMP. FORM". SCRNBUF is the one this listing needs -- PRINT_MAGNIFIED_CHAR builds a character cell there and knows it is full when the pointer reaches CHARSVAL at &5190.
 SETCHADP:      EQU  &3FCE  ; Sets the CHADP (current character) page, disables ROM1, and then pages it in to upper memory.
 SOFFCT:        EQU  &5AC4  ; COUNTER FOR SCREEN OFF
 SPSTORE:       EQU  &5AD2  ; SP STORE EXCLUSIVE TO INTERRUPTS
@@ -210,7 +211,6 @@ DOS_FFHL:      EQU  &8100
 DOS_FFPG:      EQU  &9AB7
 DOS_FIND_ROM_CODE: EQU  &BD79
 DOS_FNS56:     EQU  &8AD3
-DOS_FSTR1:     EQU  &8137
 DOS_HEADER:    EQU  &8000
 DOS_HK_SBYT:   EQU  &AF75
 DOS_ITRCK:     EQU  &95D8
@@ -218,7 +218,6 @@ DOS_L400A:     EQU  &800A
 DOS_L4069:     EQU  &8069
 DOS_L406B:     EQU  &806B
 DOS_L406D:     EQU  &806D
-DOS_L4071:     EQU  &8071
 DOS_L407F:     EQU  &807F
 DOS_L4081:     EQU  &8081
 DOS_L4086:     EQU  &8086
@@ -235,7 +234,6 @@ DOS_L59A3:     EQU  &99A3
 DOS_L5E1F:     EQU  &9E1F
 DOS_L5FB9:     EQU  &9FB9
 DOS_L602A:     EQU  &A02A
-DOS_L6114:     EQU  &A114
 DOS_L6280:     EQU  &A280
 DOS_L6284:     EQU  &A284
 DOS_L6485:     EQU  &A485
@@ -587,11 +585,17 @@ V4066:
 
 ; ---- V4068 ---- from &75E1
 V4068:
-               DEFB &00,&00,&00,&00,&00,&00,&00                                 ; 4068 .......
+               DEFB &00,&00,&00,&00,&00                                         ; 4068 .....
+
+V406D:
+               DEFB &00,&00                                                     ; 406D ..
 
 ; ---- V406F ---- from &614A
 V406F:
-               DEFB &00,&00,&00,&00                                             ; 406F ....
+               DEFB &00,&00                                                     ; 406F ..
+
+V4071:
+               DEFB &00,&00                                                     ; 4071 ..
 
 SOFCOUNT:
                DEFB &00                                                         ; 4073 .
@@ -811,13 +815,70 @@ V4132:
 
 ; ---- V4135 ---- from &489F
 V4135:
-               DEFB &30,&30,&C5,&4F,&3A                                         ; 4135 00EO:
+               DEFB &30,&30                                                     ; 4135 00
 
-; ---- V413A ---- from &6414
-V413A:
-               DEFB &06,&80,&A7,&79,&20,&0F,&ED,&4B,&10,&5A,&0D,&ED,&79,&0C,&ED ; 413A ..'y .mK.Z.my.m
-               DEFB &41,&05,&ED,&41,&C1,&C9,&ED,&4B,&0B,&80,&06,&03,&ED,&79,&C1 ; 4149 A.mAAImK....myA
-               DEFB &C9                                                         ; 4158 I
+;; --------------------------------------------------------------------
+;; SEND_BYTE_TO_PRINTER -- &4137 to &414E
+;;
+;; Takes:     A, BC
+;; Leaves:    A, F
+;; Preserves: BC (saved and restored)
+;; Ends:      RET
+;;
+;; ? drives OUT (C),A, OUT (C),B.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Send the byte in A to whichever printer LPRINT MODE selected.
+;;     
+;;     SORP again: zero takes the parallel path, which reads the port pair
+;;     out of the ROM's LPTPRT1, writes the data one port below it and then
+;;     strobes with B and B-1; non-zero takes the serial path, which reads
+;;     SPORT and writes to register 3 of the SCC2691.
+;;     
+;;     It sat in the middle of the variable block as data until now, because
+;;     nothing reaches it at &4137.  The one call is &5A55, which does
+;;     CALL &8137 -- this page through the window -- and while that was
+;;     being credited to the DOS page it read as a call to DOS_FSTR1, a
+;;     one-byte variable holding a file number.  Following the window
+;;     instead makes it thirty-four bytes of obvious code, and gives the
+;;     printer loop above the routine it was plainly missing.
+;; --------------------------------------------------------------------
+
+SEND_BYTE_TO_PRINTER:
+               PUSH BC                         ; 4137 C5
+               LD C,A                          ; 4138 4F
+               LD A,(SORP+&4000)               ; 4139 3A 06 80
+               AND A                           ; 413C A7
+               LD A,C                          ; 413D 79
+               JR NZ,L414F                     ; 413E 20 0F
+               LD BC,(LPTPRT1)                 ; 4140 ED 4B 10 5A
+               DEC C                           ; 4144 0D
+               OUT (C),A                       ; 4145 ED 79
+               INC C                           ; 4147 0C
+               OUT (C),B                       ; 4148 ED 41
+               DEC B                           ; 414A 05
+               OUT (C),B                       ; 414B ED 41
+               POP BC                          ; 414D C1
+               RET                             ; 414E C9
+
+;; --------------------------------------------------------------------
+;; L414F -- &414F to &4158
+;;
+;; Takes:     A
+;; Leaves:    BC
+;; Ends:      RET
+;;
+;; ? drives OUT (C),A.
+;; --------------------------------------------------------------------
+
+; ---- L414F ---- from &413E
+L414F:
+               LD BC,(SPORT+&4000)             ; 414F ED 4B 0B 80
+               LD B,&03                        ; 4153 06 03
+               OUT (C),A                       ; 4155 ED 79
+               POP BC                          ; 4157 C1
+               RET                             ; 4158 C9
 
 ;; --------------------------------------------------------------------
 ;; FN_SVAL_S -- &4159 to &4178
@@ -1392,11 +1453,7 @@ L42B3:
 L42B6:
                ; call &493A in the other page: LMPR is switched first, so that address is how the other listing numbers it
                CALL CALLDOS                    ; 42B6 CD C1 42
-               DEFB &3A                                                         ; 42B9 :
-
-; ---- V42BA ---- from &63FB
-V42BA:
-               DEFB &49                                                         ; 42BA I
+               DEFW &493A                     ; 42B9 3A 49
                RET                             ; 42BB C9
                DEFB &00,&00,&00,&00,&00                                         ; 42BC .....  zero fill
 
@@ -2593,7 +2650,7 @@ CMR:
                OUT (HMPR),A                    ; 450B D3 FB
                LD IY,&0000                     ; 450D FD 21 00 00
                ADD IY,SP                       ; 4511 FD 39
-               JP &8516                        ; 4513 C3 16 85
+               JP L4516+&4000                  ; 4513 C3 16 85
 
 ;; --------------------------------------------------------------------
 ;; L4516 -- &4516 to &4535
@@ -2604,6 +2661,8 @@ CMR:
 ;;
 ;; ? drives OUT (LMPR),A.
 ;; --------------------------------------------------------------------
+
+L4516:
                LD A,B                          ; 4516 78
                OR &1F                          ; 4517 F6 1F
                LD HL,(V4076+&4000)             ; 4519 2A 76 80
@@ -3963,9 +4022,7 @@ L4759:
                JP NZ,REP_NOT_UNDERSTOOD        ; 475D C2 B0 43
                ; to the alternate register set and back again
                EX AF,AF'                       ; 4760 08
-
-L4761:
-               IN A,(HMPR)                     ; 4761 DB FB  the port is written here at run time, from &74DC
+               IN A,(HMPR)                     ; 4761 DB FB
 
 ;; --------------------------------------------------------------------
 ;; L4763 -- &4763 to &4771
@@ -7407,6 +7464,8 @@ GTDT:
 ; ---- L5005 ---- from &5216
 L5005:
                ADD IY,BC                       ; 5005 FD 09
+
+L5007:
                POP DE                          ; 5007 D1
                ADD HL,DE                       ; 5008 19
                EX DE,HL                        ; 5009 EB
@@ -7465,8 +7524,10 @@ L5015:
                RRA                             ; 501B 1F
                CALL NC,L502C                   ; 501C D4 2C 50
                POP BC                          ; 501F C1
+
+L5020:
                ; write the ROM variable XPTR
-               CALL NRWRD                      ; 5020 CD 77 45
+               CALL NRWRD                      ; 5020 CD 77 45  the operand is written here at run time, from &5C33
                DEFW XPTR                      ; 5023 A3 5A
                POP BC                          ; 5025 C1
                LD HL,V50D7                     ; 5026 21 D7 50
@@ -7695,7 +7756,7 @@ L50D4:
                POP BC                          ; 50D5 C1
                RET                             ; 50D6 C9
 
-; ---- V50D7 ---- from &5026, &50C7, &5FD7, &7275, &7279
+; ---- V50D7 ---- from &5026, &50C7, &7275, &7279
 V50D7:
                DEFB &A0                       ; 50D7
 
@@ -7934,7 +7995,7 @@ L5184:
 ;;     over, here played on the ROM.
 ;; --------------------------------------------------------------------
 
-; ---- OPEN_GAP_AT_LINE ---- from &64FB, &650F, &6526, &6B8B, &6B96, &6BA5
+; ---- OPEN_GAP_AT_LINE ---- from &6B8B, &6B96, &6BA5
 OPEN_GAP_AT_LINE:
                CALL FIND_LINE_FROM_START       ; 5188 CD FD 58
                POP BC                          ; 518B C1
@@ -9358,26 +9419,16 @@ L560D:
                LD HL,(V4086)                   ; 5611 2A 86 40
 
 ;; --------------------------------------------------------------------
-;; L5614 -- &5614 to &5616
+;; L5614 -- &5614 to &561A
 ;;
-;; Takes:     A
+;; Takes:     A, HL
 ;; Leaves:    registers unchanged
+;; Ends:      RET
 ;; --------------------------------------------------------------------
 
 ; ---- L5614 ---- from &5608
 L5614:
                LD (V4088),A                    ; 5614 32 88 40
-
-;; --------------------------------------------------------------------
-;; L5617 -- &5617 to &561A
-;;
-;; Takes:     HL
-;; Leaves:    registers unchanged
-;; Ends:      RET
-;; --------------------------------------------------------------------
-
-; ---- L5617 ---- from &5FD0
-L5617:
                LD (V4089),HL                   ; 5617 22 89 40
                RET                             ; 561A C9
 
@@ -10891,10 +10942,10 @@ L598A:
                IN A,(STAT)                     ; 59A5 DB F9
                AND &60                         ; 59A7 E6 60
                JP Z,&0066                      ; 59A9 CA 66 00
-               LD A,(V5C3C)                    ; 59AC 3A 3C 5C
+               LD A,(TVFLAG)                   ; 59AC 3A 3C 5C
                CP &10                          ; 59AF FE 10
                JR NZ,SCREEN_BLANK_TICK         ; 59B1 20 35
-               LD HL,(L5AD2)                   ; 59B3 2A D2 5A
+               LD HL,(SPSTORE)                 ; 59B3 2A D2 5A
                LD BC,&0007                     ; 59B6 01 07 00
                ADD HL,BC                       ; 59B9 09
                LD A,(HL)                       ; 59BA 7E
@@ -10917,7 +10968,7 @@ L598A:
                PUSH HL                         ; 59D2 E5
                LD DE,(&4BFA)                   ; 59D3 ED 5B FA 4B
                INC D                           ; 59D7 14
-               LD HL,(L5AD2)                   ; 59D8 2A D2 5A
+               LD HL,(SPSTORE)                 ; 59D8 2A D2 5A
                LD (HL),E                       ; 59DB 73
                INC HL                          ; 59DC 23
                LD (HL),D                       ; 59DD 72
@@ -10989,9 +11040,7 @@ L59FC:
                JR Z,L5A6B                      ; 5A00 28 69
                DEC A                           ; 5A02 3D
                LD B,A                          ; 5A03 47
-
-L5A04:
-               IN A,(LMPR)                     ; 5A04 DB FA  the port is written here at run time, from &769D
+               IN A,(LMPR)                     ; 5A04 DB FA
 
 ;; --------------------------------------------------------------------
 ;; L5A06 -- &5A06 to &5A0A
@@ -11195,7 +11244,7 @@ L5A48:
 ; ---- L5A54 ---- from &78C6, &78FD
 L5A54:
                LD A,D                          ; 5A54 7A
-               CALL DOS_FSTR1                  ; 5A55 CD 37 81
+               CALL SEND_BYTE_TO_PRINTER+&4000 ; 5A55 CD 37 81
                POP AF                          ; 5A58 F1
                DEC A                           ; 5A59 3D
                JR Z,L5A6B                      ; 5A5A 28 0F
@@ -11278,7 +11327,7 @@ L5A6B:
 ;; ? drives OUT (LMPR),A; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- L5A78 ---- from &788F, &7902
+; ---- L5A78 ---- from &788F
 L5A78:
                LD A,(&807E)                    ; 5A78 3A 7E 80
                DEC A                           ; 5A7B 3D
@@ -11451,7 +11500,7 @@ L5AB5:
 ;; Leaves:    A, DE
 ;; --------------------------------------------------------------------
 
-; ---- L5AB7 ---- from &6512, &7D00
+; ---- L5AB7 ---- from &7D00
 L5AB7:
                JR NZ,L5AC6                     ; 5AB7 20 0D
                LD A,(DE)                       ; 5AB9 1A
@@ -11478,12 +11527,13 @@ L5ABE:
                RET                             ; 5AC5 C9
 
 ;; --------------------------------------------------------------------
-;; L5AC6 -- &5AC6 to &5AD1
+;; L5AC6 -- &5AC6 to &5AD3
 ;;
 ;; Takes:     A, C, DE
-;; Leaves:    A, F, BC, DE, H
+;; Leaves:    A, F, BC, DE, HL
+;; Ends:      JR, RET
 ;;
-;; ? drives OUT (C),A; falls into whatever follows rather than returning.
+;; ? drives IN A,(LMPR), OUT (C),A.
 ;; --------------------------------------------------------------------
 
 ; ---- L5AC6 ---- from &5AB7
@@ -11498,19 +11548,6 @@ L5ACE:
                OUT (C),A                       ; 5ACE ED 79  the port is written here at run time, from &7514
                LD C,H                          ; 5AD0 4C
                INC DE                          ; 5AD1 13
-
-;; --------------------------------------------------------------------
-;; L5AD2 -- &5AD2 to &5AD3
-;;
-;; Takes:     A, C, DE
-;; Leaves:    A, F, DE, HL
-;; Ends:      JR, RET
-;;
-;; ? drives IN A,(LMPR), OUT (LMPR),A.
-;; --------------------------------------------------------------------
-
-; ---- L5AD2 ---- from &59B3, &59D8
-L5AD2:
                JR L5A82                        ; 5AD2 18 AE
 
 ;; --------------------------------------------------------------------
@@ -11813,26 +11850,16 @@ ESCCHK:
                JP REPORT                       ; 5B7E C3 BE 43
 
 ;; --------------------------------------------------------------------
-;; HK_HDUMMY -- &5B81 to &5B81
+;; HK_HDUMMY -- &5B81 to &5BA3
 ;;
-;; Takes:     A
-;; Leaves:    B
-;; --------------------------------------------------------------------
-
-HK_HDUMMY:
-               LD B,A                          ; 5B81 47
-
-;; --------------------------------------------------------------------
-;; L5B82 -- &5B82 to &5BA3
-;;
-;; Takes:     BC, DE, HL, IY
+;; Takes:     A, C, DE, HL, IY
 ;; Leaves:    A, F, BC, DE, HL
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A; calls ESCCHK; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- L5B82 ---- from &6519, &651E, &6530
-L5B82:
+HK_HDUMMY:
+               LD B,A                          ; 5B81 47
                CALL ESCCHK                     ; 5B82 CD 75 5B
                IN A,(HMPR)                     ; 5B85 DB FB
                PUSH AF                         ; 5B87 F5
@@ -11984,7 +12011,7 @@ CMD_RECORD:
                PUSH AF                         ; 5BDF F5
 
 ;; --------------------------------------------------------------------
-;; L5BE0 -- &5BE0 to &5C35
+;; L5BE0 -- &5BE0 to &5C3E
 ;;
 ;; Takes:     A, DE, HL
 ;; Leaves:    A, F, DE, HL
@@ -12044,33 +12071,21 @@ L5C16:
                INC HL                          ; 5C28 23
                LD (HL),D                       ; 5C29 72
                LD HL,&4AF4                     ; 5C2A 21 F4 4A
-               LD (&9007),HL                   ; 5C2D 22 07 90
+               LD (L5007+&4000),HL             ; 5C2D 22 07 90
                LD HL,&4AF5                     ; 5C30 21 F5 4A
-               LD (&9022),HL                   ; 5C33 22 22 90
-
-;; --------------------------------------------------------------------
-;; L5C36 -- &5C36 to &5C3E
-;;
-;; Takes:     BC, DE, HL
-;; Leaves:    A, F, BC, DE, HL, IY
-;;
-;; ? reaches the ROM through GTDT; drives OUT (HMPR),A; calls CMR; falls into whatever follows rather than returning.
-;; --------------------------------------------------------------------
-
-; ---- L5C36 ---- from &602A
-L5C36:
+               LD (&5022+&4000),HL             ; 5C33 22 22 90  patches the operand of the CALL at &5020
                POP AF                          ; 5C36 F1
                OUT (HMPR),A                    ; 5C37 D3 FB
                ; call the ROM at GTDT with ROM1 paged in, and page back on the way out
                CALL CMR                        ; 5C39 CD F0 44
 
-; ---- V5C3C ---- from &59AC, &7D91
+; ---- V5C3C ---- from &7D91
 V5C3C:
                DEFW GTDT                      ; 5C3C 00 50
                RET                             ; 5C3E C9
 
 ;; --------------------------------------------------------------------
-;; L5C3F -- &5C3F to &5C44
+;; L5C3F -- &5C3F to &5C47
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F
@@ -12081,27 +12096,7 @@ L5C3F:
                LD A,(L4AF3)                    ; 5C3F 3A F3 4A
                AND A                           ; 5C42 A7
                LD A,&02                        ; 5C43 3E 02
-
-;; --------------------------------------------------------------------
-;; L5C45 -- &5C45 to &5C46
-;;
-;; Takes:     nothing in registers
-;; Leaves:    registers unchanged
-;; --------------------------------------------------------------------
-
-; ---- L5C45 ---- from &5FB9
-L5C45:
                JR Z,L5C48                      ; 5C45 28 01
-
-;; --------------------------------------------------------------------
-;; L5C47 -- &5C47 to &5C47
-;;
-;; Takes:     A
-;; Leaves:    A, F
-;; --------------------------------------------------------------------
-
-; ---- L5C47 ---- from &5FE5
-L5C47:
                DEC A                           ; 5C47 3D
 
 ;; --------------------------------------------------------------------
@@ -12180,12 +12175,13 @@ PAGE_IN_ROM1:
                IN A,(LMPR)                     ; 5C59 DB FA
 
 ;; --------------------------------------------------------------------
-;; L5C5B -- &5C5B to &5C64
+;; L5C5B -- &5C5B to &5C69
 ;;
-;; Takes:     A
-;; Leaves:    A, F, C
+;; Takes:     A, B, DE, HL
+;; Leaves:    A, F, C, DE, HL
+;; Ends:      RET
 ;;
-;; ? drives IN A,(HMPR), OUT (HMPR),A; falls into whatever follows rather than returning.
+;; ? drives IN A,(HMPR), OUT (HMPR),A.
 ;; --------------------------------------------------------------------
 
 ; ---- L5C5B ---- from &7CE3
@@ -12195,19 +12191,8 @@ L5C5B:
                IN A,(HMPR)                     ; 5C5F DB FB
                LD C,A                          ; 5C61 4F
                XOR A                           ; 5C62 AF
+               OUT (HMPR),A                    ; 5C63 D3 FB
 
-L5C63:
-               OUT (HMPR),A                    ; 5C63 D3 FB  the port is written here at run time, from &793F
-
-;; --------------------------------------------------------------------
-;; L5C65 -- &5C65 to &5C69
-;;
-;; Takes:     BC, DE, HL
-;; Leaves:    A, DE, HL
-;; Ends:      RET
-;; --------------------------------------------------------------------
-
-; ---- L5C65 ---- from &7917, &793F
 L5C65:
                LD A,C                          ; 5C65 79
                LD (HL),B                       ; 5C66 70
@@ -13318,21 +13303,21 @@ L5FAA:
 ;;
 ;; ? drives IN A,(VMPR); falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
-               LD BC,(L5C45)                   ; 5FB9 ED 4B 45 5C
+               LD BC,(PPC)                     ; 5FB9 ED 4B 45 5C
                INC B                           ; 5FBD 04
                RET Z                           ; 5FBE C8
-               LD (DOS_L4071),SP               ; 5FBF ED 73 71 80
+               LD (V4071+&4000),SP             ; 5FBF ED 73 71 80
                ; the stack is being reset, so this path does not return
-               LD SP,&8300                     ; 5FC3 31 00 83
+               LD SP,HK_SERSEND+&4000          ; 5FC3 31 00 83
                DEC B                           ; 5FC6 05
                LD HL,&5860                     ; 5FC7 21 60 58
                IN A,(VMPR)                     ; 5FCA DB FC
                BIT 6,A                         ; 5FCC CB 77
                JR NZ,L5FDA                     ; 5FCE 20 0A
-               LD HL,L5617                     ; 5FD0 21 17 56
+               LD HL,&5617                     ; 5FD0 21 17 56
                BIT 5,A                         ; 5FD3 CB 6F
                JR NZ,L5FDA                     ; 5FD5 20 03
-               LD HL,V50D7                     ; 5FD7 21 D7 50
+               LD HL,&50D7                     ; 5FD7 21 D7 50
 
 ;; --------------------------------------------------------------------
 ;; L5FDA -- &5FDA to &5FF9
@@ -13343,17 +13328,17 @@ L5FAA:
 
 ; ---- L5FDA ---- from &5FCE, &5FD5
 L5FDA:
-               LD (DOS_L406D),HL               ; 5FDA 22 6D 80
-               CALL &A0E1                      ; 5FDD CD E1 A0
+               LD (V406D+&4000),HL             ; 5FDA 22 6D 80
+               CALL L60E1+&4000                ; 5FDD CD E1 A0
                LD A,&3A                        ; 5FE0 3E 3A
-               CALL DOS_L602A                  ; 5FE2 CD 2A A0
-               LD A,(L5C47)                    ; 5FE5 3A 47 5C
-               LD HL,DOS_L6114                 ; 5FE8 21 14 A1
+               CALL L602A+&4000                ; 5FE2 CD 2A A0
+               LD A,(SUBPPC)                   ; 5FE5 3A 47 5C
+               LD HL,L6114+&4000               ; 5FE8 21 14 A1
                LD C,A                          ; 5FEB 4F
                LD B,&00                        ; 5FEC 06 00
-               CALL &A0E4                      ; 5FEE CD E4 A0
+               CALL L60E4+&4000                ; 5FEE CD E4 A0
                ; the stack is being reset, so this path does not return
-               LD SP,(DOS_L4071)               ; 5FF1 ED 7B 71 80
+               LD SP,(V4071+&4000)             ; 5FF1 ED 7B 71 80
                LD A,(V406F+&4000)              ; 5FF5 3A 6F 80
                AND A                           ; 5FF8 A7
                RET Z                           ; 5FF9 C8
@@ -13491,7 +13476,9 @@ L6022:
 ;;
 ;; ? drives IN A,(LMPR), IN A,(VMPR); falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
-               LD DE,(L5C36)                   ; 602A ED 5B 36 5C
+
+L602A:
+               LD DE,(CHARS)                   ; 602A ED 5B 36 5C
                ADD A,A                         ; 602E 87
                LD L,A                          ; 602F 6F
                LD H,&00                        ; 6030 26 00
@@ -13704,7 +13691,11 @@ L60DB:
 ;; Takes:     BC
 ;; Leaves:    E, HL
 ;; --------------------------------------------------------------------
+
+L60E1:
                LD HL,&A10E                     ; 60E1 21 0E A1
+
+L60E4:
                LD E,&20                        ; 60E4 1E 20
                PUSH BC                         ; 60E6 C5
 
@@ -13802,7 +13793,11 @@ L610E:
                RET P                           ; 610E F0
                RET C                           ; 610F D8
                JR L610E                        ; 6110 18 FC
-               DEFB &9C,&FF,&F6,&FF,&00                                         ; 6112 ..v..  skipped: reads as SBC A,H from here, and as part of the instruction above it
+               DEFB &9C,&FF                                                     ; 6112 ..  skipped: reads as SBC A,H from here, and as part of the instruction above it
+
+L6114:
+               OR &FF                          ; 6114 F6 FF
+               NOP                             ; 6116 00
 
 ;; --------------------------------------------------------------------
 ;; CMD_LINE -- &6117 to &612F
@@ -15050,7 +15045,7 @@ CMD_SAVE:
 L63F6:
                CP &03                          ; 63F6 FE 03
                JP NC,REP_INTEGER_OUT_OF_RANGE  ; 63F8 D2 A7 43
-               LD HL,V42BA                     ; 63FB 21 BA 42
+               LD HL,&42BA                     ; 63FB 21 BA 42
 
 ;; --------------------------------------------------------------------
 ;; L63FE -- &63FE to &6403
@@ -15087,7 +15082,7 @@ L6404:
                ; call DOS_EVFINS-&4000 in the other page: LMPR is switched first, so that address is how the other listing numbers it
                CALL CALLDOS                    ; 640F CD C1 42
                DEFW DOS_EVFINS-&4000          ; 6412 21 73
-               LD HL,V413A                     ; 6414 21 3A 41
+               LD HL,&413A                     ; 6414 21 3A 41
                LD A,&13                        ; 6417 3E 13
                ; call &4D24 in the other page: LMPR is switched first, so that address is how the other listing numbers it
                CALL CALLDOS                    ; 6419 CD C1 42
@@ -15135,11 +15130,11 @@ V647E:
                ADD A,B                         ; 6480 80
                LD BC,DOS_V7F77                 ; 6481 01 77 BF
                DEFB &FF                                                         ; 6484 .
-               CALL CLAMP_STREAM_FOR_DEVICE+&4000 ; 6485 CD E7 A4
+               CALL CLAMP_CHAR_HEIGHT+&4000    ; 6485 CD E7 A4
                ; to the alternate register set and back again
                EXX                             ; 6488 D9
                PUSH AF                         ; 6489 F5
-               CALL &A4AC                      ; 648A CD AC A4
+               CALL L64AC+&4000                ; 648A CD AC A4
                POP AF                          ; 648D F1
                PUSH AF                         ; 648E F5
                CP &03                          ; 648F FE 03
@@ -15192,6 +15187,8 @@ L6498:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, BC, DE, HL
 ;; --------------------------------------------------------------------
+
+L64AC:
                PUSH BC                         ; 64AC C5
                PUSH DE                         ; 64AD D5
                PUSH HL                         ; 64AE E5
@@ -15295,7 +15292,7 @@ L64D4:
                RET                             ; 64E6 C9
 
 ;; --------------------------------------------------------------------
-;; CLAMP_STREAM_FOR_DEVICE -- &64E7 to &64F2
+;; CLAMP_CHAR_HEIGHT -- &64E7 to &64F2
 ;;
 ;; Takes:     C
 ;; Leaves:    A, F
@@ -15316,7 +15313,7 @@ L64D4:
 ;;     out to be INSTALL_EXTENDED_PUT and is settled.
 ;; --------------------------------------------------------------------
 
-CLAMP_STREAM_FOR_DEVICE:
+CLAMP_CHAR_HEIGHT:
                LD A,(DEVICE)                   ; 64E7 3A 73 5A
                DEC A                           ; 64EA 3D
                LD A,C                          ; 64EB 79
@@ -15327,13 +15324,39 @@ CLAMP_STREAM_FOR_DEVICE:
                RET                             ; 64F2 C9
 
 ;; --------------------------------------------------------------------
-;; L64F3 -- &64F3 to &64FF
+;; PRINT_MAGNIFIED_CHAR -- &64F3 to &64FF
 ;;
 ;; Takes:     A, B, DE, HL
 ;; Leaves:    BC, DE
 ;; Preserves: HL (saved and restored)
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Print one character C cells tall, by building each cell in the ROM's
+;;     own SCRNBUF and handing it to the ROM's character output.
+;;     
+;;     Eight source rows, each written C times running into the buffer at
+;;     SCRNBUF, so the character comes out C times its height.  The buffer
+;;     is eight bytes and the code knows where it ends by testing E against
+;;     &90 -- which is CHARSVAL, the next variable along, so the test is
+;;     exactly "the cell is full".
+;;     
+;;     Each time it fills, DMPFG decides whether output is going to the
+;;     printer, the ROM's character routine is called through a hole the
+;;     signature search filled, and DHADJ goes up by eight.  DHADJ is the
+;;     ROM's own DOUBLE HEIGHT ADJ, "0 unless bottom of DH char o/ped", so
+;;     what MasterBASIC is doing here is the ROM's double-height mechanism
+;;     driven further than the ROM drives it.  Zeroed again on the way out.
+;;     
+;;     CLAMP_CHAR_HEIGHT is why the name changed.  It clamps C to 4 when
+;;     DEVICE is 1, and DEVICE 1 is the lower screen, which is four lines
+;;     deep: a character cannot be taller than the window it goes in.  Read
+;;     as a stream number that made no sense; read as a height it is the
+;;     only sensible limit there is.
 ;; --------------------------------------------------------------------
-               CALL CLAMP_STREAM_FOR_DEVICE+&4000 ; 64F3 CD E7 A4
+
+PRINT_MAGNIFIED_CHAR:
+               CALL CLAMP_CHAR_HEIGHT+&4000    ; 64F3 CD E7 A4
                LD C,A                          ; 64F6 4F
                ; to the alternate register set and back again
                EXX                             ; 64F7 D9
@@ -15341,7 +15364,7 @@ CLAMP_STREAM_FOR_DEVICE:
                ; to the alternate register set and back again
                EXX                             ; 64F9 D9
                POP HL                          ; 64FA E1
-               LD DE,OPEN_GAP_AT_LINE          ; 64FB 11 88 51
+               LD DE,SCRNBUF                   ; 64FB 11 88 51
                LD B,&08                        ; 64FE 06 08
 
 ;; --------------------------------------------------------------------
@@ -15378,20 +15401,20 @@ L6502:
                EXX                             ; 650C D9
                PUSH BC                         ; 650D C5
                PUSH DE                         ; 650E D5
-               LD HL,OPEN_GAP_AT_LINE          ; 650F 21 88 51
-               LD A,(L5AB7)                    ; 6512 3A B7 5A
+               LD HL,SCRNBUF                   ; 650F 21 88 51
+               LD A,(DMPFG)                    ; 6512 3A B7 5A
                AND A                           ; 6515 A7
                CALL Z,&0000                    ; 6516 CC 00 00
-               LD A,(L5B82)                    ; 6519 3A 82 5B
+               LD A,(DHADJ)                    ; 6519 3A 82 5B
                ADD A,&08                       ; 651C C6 08
-               LD (L5B82),A                    ; 651E 32 82 5B
+               LD (DHADJ),A                    ; 651E 32 82 5B
                POP DE                          ; 6521 D1
                POP BC                          ; 6522 C1
                ; to the alternate register set and back again
                EXX                             ; 6523 D9
                POP BC                          ; 6524 C1
                POP HL                          ; 6525 E1
-               LD DE,OPEN_GAP_AT_LINE          ; 6526 11 88 51
+               LD DE,SCRNBUF                   ; 6526 11 88 51
 
 ;; --------------------------------------------------------------------
 ;; L6529 -- &6529 to &6533
@@ -15408,7 +15431,7 @@ L6529:
                INC HL                          ; 652C 23
                DJNZ L6500                      ; 652D 10 D1
                XOR A                           ; 652F AF
-               LD (L5B82),A                    ; 6530 32 82 5B
+               LD (DHADJ),A                    ; 6530 32 82 5B
                RET                             ; 6533 C9
 
 ;; --------------------------------------------------------------------
@@ -21167,7 +21190,7 @@ L74B8:
 ; ---- L74DB ---- from &74D6
 L74DB:
                PUSH HL                         ; 74DB E5
-               LD (L4761+2),HL                 ; 74DC 22 63 47  patches the port of the IN at &4761
+               LD (L4763),HL                   ; 74DC 22 63 47
                LD A,(TEMPB2)                   ; 74DF 3A CF 5A
                AND &1F                         ; 74E2 E6 1F
                LDIR                            ; 74E4 ED B0
@@ -21595,7 +21618,7 @@ L7689:
                DEC A                           ; 7696 3D
                LD (&82CD),A                    ; 7697 32 CD 82
                LD HL,&0144                     ; 769A 21 44 01
-               LD (L5A06),HL                   ; 769D 22 06 5A  patches the port of the IN at &5A04
+               LD (L5A06),HL                   ; 769D 22 06 5A
                LD A,&0D                        ; 76A0 3E 0D
                LD (SCREEN_BLANK_TICK),A        ; 76A2 32 E8 59
                ; self-modifying: patches the operand of the LD at &59DE
@@ -22469,7 +22492,7 @@ L7900:
                ; to the alternate register set and back again
                EX AF,AF'                       ; 7900 08
                LD C,A                          ; 7901 4F
-               LD A,(L5A78)                    ; 7902 3A 78 5A
+               LD A,(CUSCRNP)                  ; 7902 3A 78 5A
                AND PAGEMASK                    ; 7905 E6 1F
                OUT (HMPR),A                    ; 7907 D3 FB
                POP AF                          ; 7909 F1
@@ -22491,7 +22514,7 @@ L7914:
 ;; Preserves: HL (saved and restored)
 ;; Ends:      RET
 ;; --------------------------------------------------------------------
-               LD HL,(L5C65)                   ; 7917 2A 65 5C
+               LD HL,(STKEND)                  ; 7917 2A 65 5C
                PUSH HL                         ; 791A E5
                CALL GETSTR                     ; 791B CD 24 01
                LD H,D                          ; 791E 62
@@ -22541,7 +22564,7 @@ L793E:
 
 ; ---- L793F ---- from &793B
 L793F:
-               LD (L5C65),HL                   ; 793F 22 65 5C  patches the port of the OUT at &5C63
+               LD (STKEND),HL                  ; 793F 22 65 5C
                POP HL                          ; 7942 E1
                LD A,(FN_LOCN)                  ; 7943 3A F0 4A
                AND A                           ; 7946 A7

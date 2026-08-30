@@ -1,0 +1,50 @@
+# Magnified characters, and the trampoline the ROM uses to reach them.
+
+RENAME CLAMP_STREAM_FOR_DEVICE CLAMP_CHAR_HEIGHT
+RENAME NMISTK SCRNBUF
+
+MB &64F3 PRINT_MAGNIFIED_CHAR
+
+DOC PRINT_MAGNIFIED_CHAR
+    Print one character C cells tall, by building each cell in the ROM's
+    own SCRNBUF and handing it to the ROM's character output.
+
+    Eight source rows, each written C times running into the buffer at
+    SCRNBUF, so the character comes out C times its height.  The buffer
+    is eight bytes and the code knows where it ends by testing E against
+    &90 -- which is CHARSVAL, the next variable along, so the test is
+    exactly "the cell is full".
+
+    Each time it fills, DMPFG decides whether output is going to the
+    printer, the ROM's character routine is called through a hole the
+    signature search filled, and DHADJ goes up by eight.  DHADJ is the
+    ROM's own DOUBLE HEIGHT ADJ, "0 unless bottom of DH char o/ped", so
+    what MasterBASIC is doing here is the ROM's double-height mechanism
+    driven further than the ROM drives it.  Zeroed again on the way out.
+
+    CLAMP_CHAR_HEIGHT is why the name changed.  It clamps C to 4 when
+    DEVICE is 1, and DEVICE 1 is the lower screen, which is four lines
+    deep: a character cannot be taller than the window it goes in.  Read
+    as a stream number that made no sense; read as a height it is the
+    only sensible limit there is.
+
+# How the ROM reaches it, which is the general answer for this half.
+#
+# &64F3 has no caller in either page.  It has one in the ROM's system
+# page, and postinstall/syspage.asm shows it:
+#
+#     S49E4: LD A,(&4AEF) : AND A : JR Z,+
+#            EXX : LD HL,&A4F3
+#     S49EE: LD C,A : LD A,&1C : JP PAGER
+#
+# &4AEF holds the character height, zero for ordinary output.  HL is the
+# routine as seen through the window, A is MasterBASIC's page, and PAGER
+# at &5BE0 is the fourteen bytes INSTALL_SYSPAGE_CODE puts in the space
+# the ROM reserves "for paging S.R.".  It saves HMPR, calls &005C to page
+# A in and jump to HL, and puts HMPR back.
+#
+# That is the trampoline, and it explains the whole inverted arrangement
+# rather than one routine: everything reached this way runs with the ROM's
+# system page still at &4000 and MasterBASIC at &8000, which is why these
+# stretches read ROM variables at their proper addresses and their own at
+# &8xxx.  The system page uses it twice, here and at &48DA for &5FB9.
