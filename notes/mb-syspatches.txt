@@ -77,9 +77,12 @@ DOC GAP_BLOCK
 # instructions earlier -- the ROM's vector for its main input routine.
 # &4C14+6 is &4C1A, and the instruction there is CALL NZ,&0576.
 #
-# The routine itself comes from the DOS page at &7F1E, not from this
-# half.  So the DOS page's tail holds blocks destined for the system
-# page, which is also where PATCH_45A2 reads its sources -- &7E98,
-# &7EA6, &7F6B and &7FA5 are all in the same stretch.  Whatever
-# assembles that tail is worth finding: it is the supplier for at least
-# two installers.
+# The routine itself comes from the DOS page at &7F1E, which is where
+# this half's own &78FF has been by then: the boot sector copies
+# &75E1-&798F of this half into the DOS page at &7C00, so a window
+# address minus &61F is the address in this listing.  That is the same
+# stretch INSTALL_EXTENDED_PUT reads its sources from, and it answers
+# what assembles the DOS page's tail -- nothing does.  It is this half,
+# copied there once at boot, and it is transient: &7C00 is DOSBUF, and
+# by the time a running machine can be dumped the DOS has a directory
+# buffer there again.

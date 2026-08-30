@@ -46,7 +46,7 @@ established, they say so rather than guessing.
 **`speculate/` is a reading, not a record.** It is the same two listings with a
 derived register contract on every routine and a machine-composed guess at what
 each one is for, every guess marked with a leading `?`. It is useful for finding
-your way around 2,177 routines; it is not evidence. Its
+your way around 2,143 routines; it is not evidence. Its
 [README](speculate/README.md) sets out where it is wrong and why.
 
 **`postinstall/` is a third kind again: a reconstruction.** MasterBASIC
@@ -141,19 +141,20 @@ Every one of the 32640 bytes is accounted for:
 
 | | bytes |
 |---|---|
-| Code | 29064 (89.0%) |
-| Variables and other data | 2630 |
-| Inline call parameters | 717 |
-| Message and keyword text | 590 |
-| `RST &08` codes | 31 |
+| Code | 28339 (86.8%) |
+| Variables and other data | 2673 |
+| Inline call parameters | 893 |
+| Message and keyword text | 696 |
+| `RST &08` codes | 29 |
 | Pointer tables | 10 |
 | Unclassified | 0 |
 
-No label lands inside an instruction. 648 routines carry a description above
-them -- some written by hand after reading the code, the rest the annotated
-MasterDOS author's, carried across where the two instruction streams still
-agree. That is a minority of the 2,177 the disassembler segments, and the
-remainder are named but not explained.
+No label lands inside an instruction. 341 of the 2453 labelled addresses
+carry a description -- some written by hand after reading the code, the rest
+the annotated MasterDOS author's, carried across where the two instruction
+streams still agree. That is a minority of the 2,143 routines the
+disassembler segments, and the remainder are named but not explained.
+The build prints these counts, so they are measured rather than remembered.
 
 ## Credit
 

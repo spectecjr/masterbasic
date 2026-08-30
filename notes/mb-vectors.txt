@@ -35,9 +35,11 @@ DOC INSTALL_ROM_VECTORS
     from in that arrangement is not established -- it cannot be at &4000,
     which is the whole point of the above.
 
-    One operand is still wrong and cannot yet be made right: &589C at
-    &7708 is below the ROM's variable area and unnamed there, so it comes
-    out as this page's V589C for want of anything better.
+    &589C at &7708 used to come out as this page's V589C for want of
+    anything better.  It is a patch site: the forty bytes copied to
+    &5896 hold JP C,&0000 at &589B, and the signature search two
+    instructions earlier finds POSTFF, so this writes POSTFF into that
+    JP.  The dump has &3DAD there.
 
     INSLV is worth naming properly.  The ROM's variable table gives it no
     comment, but STRMOV1 in the ROM does
@@ -48,9 +50,15 @@ DOC INSTALL_ROM_VECTORS
     there instead.  &46CC, the first installed stub, is MasterBASIC's
     replacement for moving strings about.
 
-    MTOKV is the exception that proves it: &58B4 is well past &4BC3 and
-    nothing is installed there, so that one really is an address in this
-    half, to be reached with MasterBASIC paged in.
+    MTOKV looks like an exception and is not.  &58B4 is well past &4BC3,
+    where the installed region ends, so it was read as an address in
+    this half to be reached with MasterBASIC paged in.  But the forty
+    bytes at &5896 reach to &58BD, and &58B4 is the second stub in them:
+    RST ERR_HOOK, hook code &AB, then EXX : PUSH BC : POP AF to bring
+    the returned flags back.  So MTOKV points into the system page like
+    all the others -- into the gap between the DEF KEY buffer and the
+    keyboard table, which is the one place MasterBASIC installs code
+    outside &45A2-&4BC3.
 
     BSTKEND and BASSTK are both set to &45A1 and &FF is written there, so
     MasterBASIC moves BASIC's stack down to just below its own installed

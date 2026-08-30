@@ -1,111 +1,98 @@
-# Code at &45A2, and what happens to &7800 afterwards.
+# The block at &45A2 in the system page: MasterBASIC's extended PUT.
 
-MB &7800 PATCH_45A2
+MB &7829 INSTALL_EXTENDED_PUT
+MB &7841 BUILD_PUT_BLOCK
 
-DOC PATCH_45A2
-    LDIR a run of blocks out of the tail of the DOS page into &45A2 and
-    upwards: ten bytes, then thirteen, thirteen, eight, twenty-one,
-    three, and &EE more, DE walking up as it goes, with a second run put
-    at &45B9.  The sources are &7E98, &7EA6, &7F6B and &7FA5 in the DOS
-    page.
+DOC INSTALL_EXTENDED_PUT
+    Build MasterBASIC's replacement for the ROM's PUT command in the
+    ROM's system page at &45A2-&46CB, out of five sources, two of which
+    are the ROM's own PUT.
 
-    This settles half of an old question.  The dispatcher in the
-    relocated block does JP Z,&45A2, and that had been left open on the
-    grounds that nothing appeared to put code at &45A2.  Something does.
-    The ten bytes from &7FA5 are
+    INSTALL_ROM_VECTORS calls this at &76E4, so it runs in the same
+    arrangement that stretch does: the ROM's system page at &4000 and the
+    DOS page in the window.  That is what makes the addresses here read
+    the way they do.  &5BDA low is the ROM's CMDADDRT, not this half's
+    &5BDA; &45A2 low is in the system page; and &BFA5, &BE98 and &BEAD in
+    the window are the DOS page, where the boot sector has already put a
+    copy of this half's &75E1-&798F.  Subtract &61F from a window address
+    and you have the address in this listing that the bytes came from.
 
-        CP " " : JR Z,-6 : DEC HL : DEC HL : INC HL : LD A,(HL) : CP " "
+    First it finds the ROM's PUT.  CMDADDRT holds the address of the
+    ROM's command address table -- &FD65 on a 3.0 machine, in ROM 1 --
+    and the table is indexed by token minus &90.  PUT is token &AC, so
+    entry 28 is at offset &38, which is the LD BC,&0038.  The word there
+    is &295B, and the ROM source calls that PUT.
 
-    continuing into the next block as JR Z,+4 : CP &0D : JR NZ,-10 :
-    LD (&5A9A),HL : LD HL,&5C3C : SET 3,(HL) : CP A : RET.  A space
-    skipper that stops at a carriage return, stores where it stopped and
-    sets a flag bit.
+    Then it patches four operands into the copy of the block sitting in
+    the DOS page, all of them calls back into the middle of the ROM's own
+    PUT, each written as an offset from wherever PUT turned out to be:
 
-    Which page it lands in is answered by the dump: the system page.  And
-    the routine turns out to fill it exactly up to where the stubs begin.
+        &BEFC <- PUT+&8D    OVER0LP     patched at &78DD in this listing
+        &BF0D <- PUT-&14    GPVARS                    &78EE
+        &BEA6 <- PUT+&1A                              &7887
+        &BF6B <- PUT+&0D                              &794C
 
-    Reading the LDIRs and following DE, which walks upward and is never
-    reloaded except once at the end:
+    Then it falls into BUILD_PUT_BLOCK, which assembles 298 bytes:
 
-        10 bytes to &45A2      21 bytes to &45C6
-        13 bytes to &45AC       3 bytes to &45DB
-        13 bytes to &45B9     238 bytes to &45DE-&46CB
-                               10 bytes to &45B9 again
+        &45A2   10 bytes   from this half's &7986
+        &45AC   13 bytes   from the ROM, at PUT
+        &45B9   13 bytes   from the ROM, at PUT+13   (overwritten below)
+        &45C6   21 bytes   from this half's &7879
+        &45DB    3 bytes   from the ROM, at PUT+34   (8 bytes skipped)
+        &45DE  238 bytes   from this half's &788E
+        &45B9   10 bytes   from this half's &797C
 
-    &45DE plus 238 is &46CC, which is where INSTALL_ROM_PATCHES puts the
-    first stub.  So this routine and that one fill a single continuous
-    region, &45A2 to &4AEB, and the ROM vectors point into both halves of
-    it -- INSLV at &46CC into the stub, and the relocated block jumping
-    to &45A2 into this.
+    So MasterBASIC does not replace PUT so much as rebuild it: it keeps
+    three fragments of the ROM's code, splices its own around them, and
+    relocates the joins to suit whichever ROM it finds itself on.  &45DE
+    plus 238 is &46CC, where INSTALL_ROM_PATCHES puts its first stub, so
+    the two fill one continuous region &45A2-&4AEB.
 
-    The dump agrees fragment for fragment.  Every destination above has a
-    matching run in file/SYSPAGE.bin, traceable back to &7879-&799B in
-    this half, with the biases differing from one to the next exactly as
-    a chain of LDIRs with HL reloaded would produce.  The caller sets up
-    the first source: the DEFB &21 at &7821 is LD HL,&4296 hiding behind
-    the skip idiom, and sys &4599 does hold nine bytes of DOS &4296.
+    All 298 bytes have been reproduced exactly from those five sources
+    and checked against file/SYSPAGE.bin, with the four patches applied.
+    Nothing is left over.
 
-    Meanwhile this half own &45A2-&46CB is unchanged after boot but for
-    six bytes, and those six are the ROM patch sites at &45EA, &45F0 and
-    &45F6.  The sources at &7879-&799B are unchanged too, as sources
-    should be.
+    What this corrects
+    ------------------
+    The reading recorded here before was that the destinations were right
+    and the contents wrong, and that the copier was somewhere else and
+    unfound.  Three mistakes, each of which looked like evidence:
 
-    And yet this is not the routine that produced what the dump holds.
-    The destinations are right and the contents are wrong.
+    Two of the four addresses taken for LDIR sources were not sources.
+    LD (&BF6B),HL and LD (&BEA6),HL are stores -- the relocation patches
+    above -- and testing them as sources could only ever fail.
 
-    Each LDIR reads from &BFA5, &BE98, &BF6B and &BEA6.  All four were
-    tested against both pages, in both the file and the post-boot dump --
-    eight readings -- and none of them holds what the system page ends up
-    with.  DOS &7E98 is 22 1E 02 00 14 00 1C 22, which reads as a table;
-    the system page at &45C6 holds CD 24 01 62 6B 09, which is this half
-    own &7879.  The operands are not patched either: &7841-&7878 is
-    unchanged after boot, so the routine reads what it says it reads.
+    The two that really are sources were read out of the file rather than
+    out of memory.  The boot sector copies &75E1-&798F of this half into
+    the DOS page at &7C00 before any of this runs, so DOS &7E98 holds
+    this half's &7879 by then.  The file's own DOS &7E98 is buffer
+    contents from whenever the image was saved, and that is what got
+    compared.
 
-    What does fill the region is unfound, and the search has been fairly
-    thorough by now.
+    And the runs that matched nothing in either page matched nothing
+    because they are not in either page.  They are in the ROM.  The
+    earlier check that "none of the installed runs occurs anywhere in
+    either ROM" tested &45A2, &45C6, &45DE and &4640, which are the
+    MasterBASIC-sourced fragments; the ROM-sourced ones at &45AC and
+    &45DB were not among them.
 
-    The DOS page's tail is not the answer and does not need explaining.
-    &7E00-&7FBF differs from the file in 6 bytes out of 448 after boot,
-    so it is static: those blocks ship in the image and are copied out of
-    it, not assembled into it.  There is no writer to find there.
+    The block copied to the DOS page is worth one more line, because it
+    explains why none of this can be seen in a dump.  It is transient.
+    &7C00 is DOSBUF, and post-boot the DOS page holds a directory buffer
+    there again -- 347 of its 944 bytes differ from the file, and the
+    copied block is not present at any offset in either page.  So
+    everything reached through it, the twenty-seven DOS_FIND_ROM_CODE
+    calls included, runs at install time and never again.
 
-    Nor does the copier use a literal address.  There is no LD DE,&85xx
-    or &86xx anywhere in either half, which is what a copy to &45C6 or
-    &46xx through a zeroed HMPR would look like, and no LD HL naming a
-    source in &78xx or &79xx.  Together with the earlier checks -- no
-    sixteen-bit &7879, &45C6, &45DE or 238 in either half, no window
-    reference to the sources, no boot code on the disk -- that leaves
-    only addresses worked out at run time.
-
-    The usual places have been looked at.  &7879, &45C6, &45DE and the length 238 appear nowhere in
-    either half as sixteen-bit values, so there is no table of blocks.
-    No window reference to the sources exists -- no &B879, &B88E, &B986.
-    The disk has no boot code to hide it in: the first sector of the
-    image is a directory entry, because a SAM boots by loading the first
-    file and this file is it.  So the copy is made with addresses worked
-    out at run time, from something not yet read.
-
-    The ROM copies routines into its system page from ROM 1 as a matter
-    of course, so the obvious question is whether this region is one of
-    those rather than MasterBASIC's doing.  It is not.  None of the
-    installed runs -- &45A2, &45C6, &45DE, &4640 -- occurs anywhere in
-    either ROM, and neither do the sources at &7879, &788E and &7986:
-    this code belongs to MasterBASIC and to nothing else.  The ROM source
-    has no LDIR into &45xx either.
-
-    FARLDIR was the other candidate, since it moves between pages by page
-    and offset rather than by address and would hide a literal &45C6.
-    That does not hold up: no offset form appears either -- &05A2, &05C6,
-    &05DE and &06CC are absent from both halves, and the one apparent hit
-    is ADD A,&05 caught mid-instruction.
-
-    One check worth recording because it could have invalidated all of
-    this: file/SYSPAGE.bin really is a third page.  It agrees with the
-    MasterBASIC half in 7 per cent of its bytes and with the DOS half in
-    8, which is chance.  Had the SAVE caught this half instead -- and
-    MasterBASIC was the thing running the SAVE -- every conclusion drawn
-    from it would have been wrong.
-
-MB &7842 : ten bytes from the DOS page tail, a space skipper
-MB &7845 : ...to &45A2 -- but not the &45A2 the relocated block jumps to
-MB &7871 : a second run, put at &45B9
+MB &7829 : CMDADDRT, the ROM's command address table pointer
+MB &782C : token &AC, PUT, is entry 28 of the table
+MB &7837 : patch a call to OVER0LP into the block
+MB &783E : patch a call to GPVARS into the block
+MB &7842 : ten bytes of this half's own code, from &7986
+MB &784D : the ROM's PUT itself, 13 bytes
+MB &7852 : patch PUT+&0D into the block
+MB &7859 : patch PUT+&1A into the block
+MB &7860 : this half's &7879, 21 bytes
+MB &7868 : the ROM's PUT again, 3 bytes from PUT+34
+MB &786D : the bulk of it, 238 bytes from this half's &788E
+MB &7871 : and ten bytes over &45B9, replacing the ROM's second fragment

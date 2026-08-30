@@ -2835,7 +2835,7 @@ NRWRHL:
 ;; register tracking below cannot be trusted: read it as a list of what
 ;; is touched, not of what is destroyed.
 ;;
-;; Takes:     DE, HL
+;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, HL
 ;; Preserves: DE (saved and restored)
 ;; Ends:      JR, RET
@@ -2960,7 +2960,7 @@ L459C:
 ;; Leaves:    A, F
 ;; --------------------------------------------------------------------
 
-; ---- L45A2 ---- from &7845, &7C57
+; ---- L45A2 ---- from &7C57
 L45A2:
                OR &05                          ; 45A2 F6 05
 
@@ -3001,12 +3001,13 @@ WRA:
                JR PPXR                         ; 45B1 18 29
 
 ;; --------------------------------------------------------------------
-;; WRTBC -- &45B3 to &45B8
+;; WRTBC -- &45B3 to &45C1
 ;;
-;; Takes:     nothing in registers
-;; Leaves:    A, F
+;; Takes:     BC, HL
+;; Leaves:    A, F, HL
+;; Ends:      JR, RET
 ;;
-;; ? drives IN A,(HMPR), OUT (HMPR),A; falls into whatever follows rather than returning.
+;; ? drives IN A,(HMPR), OUT (HMPR),A.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -3024,19 +3025,6 @@ WRTBC:
                EX AF,AF'                       ; 45B5 08
                XOR A                           ; 45B6 AF
                OUT (HMPR),A                    ; 45B7 D3 FB
-
-;; --------------------------------------------------------------------
-;; L45B9 -- &45B9 to &45C1
-;;
-;; Takes:     A, BC, HL
-;; Leaves:    A, F, HL
-;; Ends:      JR, RET
-;;
-;; ? drives OUT (HMPR),A.
-;; --------------------------------------------------------------------
-
-; ---- L45B9 ---- from &7871
-L45B9:
                ; HMPR is 0, so setting bit 7 and clearing bit 6 turns an address in &4000-&7FFF into the same byte of the ROM's system page at &8000-&BFFF
                SET 7,H                         ; 45B9 CB FC
                RES 6,H                         ; 45BB CB B4
@@ -3575,12 +3563,13 @@ L46BD:
                JR L46AB                        ; 46C0 18 E9
 
 ;; --------------------------------------------------------------------
-;; PAGE_ON_TWO -- &46C2 to &46CB
+;; PAGE_ON_TWO -- &46C2 to &46CC
 ;;
 ;; Takes:     A, H
 ;; Leaves:    A, F, H
+;; Ends:      RET
 ;;
-;; ? drives IN A,(HMPR), OUT (HMPR),A; falls into whatever follows rather than returning.
+;; ? drives IN A,(HMPR), OUT (HMPR),A.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -3601,17 +3590,6 @@ PAGE_ON_TWO:
                ; to the alternate register set and back again
                EX AF,AF'                       ; 46C9 08
                SET 7,H                         ; 46CA CB FC
-
-;; --------------------------------------------------------------------
-;; L46CC -- &46CC to &46CC
-;;
-;; Takes:     nothing in registers
-;; Leaves:    registers unchanged
-;; Ends:      RET
-;; --------------------------------------------------------------------
-
-; ---- L46CC ---- from &774D
-L46CC:
                RET                             ; 46CC C9
 
 ;; --------------------------------------------------------------------
@@ -4517,12 +4495,12 @@ CMD_TIME:
                LD E,&00                        ; 4880 1E 00
 
 ;; --------------------------------------------------------------------
-;; L4882 -- &4882 to &488D
+;; L4882 -- &4882 to &48AA
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? drives OUT (C),E; calls SKIP_THEN_END; falls into whatever follows rather than returning.
+;; ? drives OUT (C),E; calls CALL_GETINT, SKIP_THEN_END, TWO_DIGITS_FROM_DE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L4882 ---- from &487A
@@ -4532,18 +4510,6 @@ L4882:
                OUT (C),E                       ; 4888 ED 59
                LD HL,V4075                     ; 488A 21 75 40
                LD A,(HL)                       ; 488D 7E
-
-;; --------------------------------------------------------------------
-;; L488E -- &488E to &48AA
-;;
-;; Takes:     A, BC, DE, HL
-;; Leaves:    A, F, BC, DE, HL, IY
-;;
-;; ? calls CALL_GETINT, TWO_DIGITS_FROM_DE; falls into whatever follows rather than returning.
-;; --------------------------------------------------------------------
-
-; ---- L488E ---- from &76F9
-L488E:
                LD (HL),E                       ; 488E 73
                CP E                            ; 488F BB
                RET Z                           ; 4890 C8
@@ -4853,7 +4819,7 @@ L4978:
                LD IY,L49DC                     ; 4978 FD 21 DC 49
 
 ;; --------------------------------------------------------------------
-;; L497C -- &497C to &4985
+;; L497C -- &497C to &498F
 ;;
 ;; Takes:     BC, DE, HL, IY
 ;; Leaves:    F, BC, DE, HL
@@ -4869,16 +4835,6 @@ L497C:
                CALL CALLDOS                    ; 4980 CD C1 42
                DEFW NRREAD                    ; 4983 AC 00
                POP HL                          ; 4985 E1
-
-;; --------------------------------------------------------------------
-;; L4986 -- &4986 to &498F
-;;
-;; Takes:     A, HL
-;; Leaves:    A, F, BC, HL
-;; --------------------------------------------------------------------
-
-; ---- L4986 ---- from &7727
-L4986:
                AND A                           ; 4986 A7
                RET Z                           ; 4987 C8
                DI                              ; 4988 F3
@@ -4913,12 +4869,13 @@ L4990:
                RET                             ; 49A2 C9
 
 ;; --------------------------------------------------------------------
-;; L49A3 -- &49A3 to &49A8
+;; L49A3 -- &49A3 to &49D0
 ;;
-;; Takes:     A
-;; Leaves:    B
+;; Takes:     A, C
+;; Leaves:    A, F, B, HL
+;; Ends:      RET
 ;;
-;; ? calls PAGE_IN_OTHER_HALF; falls into whatever follows rather than returning.
+;; ? drives OUT (C),A, OUT (HMPR),A; calls PAGE_IN_OTHER_HALF.
 ;; --------------------------------------------------------------------
 
 ; ---- L49A3 ---- from &4998
@@ -4926,19 +4883,6 @@ L49A3:
                CALL PAGE_IN_OTHER_HALF         ; 49A3 CD D1 49
                PUSH AF                         ; 49A6 F5
                LD B,&50                        ; 49A7 06 50
-
-;; --------------------------------------------------------------------
-;; L49A9 -- &49A9 to &49D0
-;;
-;; Takes:     C
-;; Leaves:    A, F, B, HL
-;; Ends:      RET
-;;
-;; ? drives OUT (C),A, OUT (HMPR),A.
-;; --------------------------------------------------------------------
-
-; ---- L49A9 ---- from &772D
-L49A9:
                LD HL,DOS_TIMDT                 ; 49A9 21 80 82
                CALL IYJUMP                     ; 49AC CD 06 00
                CALL IYJUMP                     ; 49AF CD 06 00
@@ -5392,12 +5336,12 @@ L4A84:
                LD B,&00                        ; 4A9D 06 00
 
 ;; --------------------------------------------------------------------
-;; L4A9F -- &4A9F to &4AB7
+;; L4A9F -- &4A9F to &4ACE
 ;;
-;; Takes:     A, BC, DE, HL
-;; Leaves:    A, F, BC, HL
+;; Takes:     A, BC, DE, HL, IY
+;; Leaves:    A, F, BC, DE, HL
 ;;
-;; ? calls TWO_DIGITS_FROM_DE; falls into whatever follows rather than returning.
+;; ? reaches the ROM through DOS_L65C4-&4000; calls CALLDOS, TWO_DIGITS_FROM_DE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L4A9F ---- from &5D6E
@@ -5417,18 +5361,6 @@ L4A9F:
                POP AF                          ; 4AB5 F1
                ADD HL,BC                       ; 4AB6 09
                ADC A,B                         ; 4AB7 88
-
-;; --------------------------------------------------------------------
-;; L4AB8 -- &4AB8 to &4ACE
-;;
-;; Takes:     BC, DE, HL, IY
-;; Leaves:    F, BC, DE, HL
-;;
-;; ? reaches the ROM through DOS_L65C4-&4000; calls CALLDOS; falls into whatever follows rather than returning.
-;; --------------------------------------------------------------------
-
-; ---- L4AB8 ---- from &7753
-L4AB8:
                ; call DOS_L65C4-&4000 in the other page: LMPR is switched first, so that address is how the other listing numbers it
                CALL CALLDOS                    ; 4AB8 CD C1 42
                DEFW DOS_L65C4-&4000           ; 4ABB C4 65
@@ -5811,7 +5743,7 @@ L4B9E:
                CP &3F                          ; 4BA1 FE 3F
 
 ;; --------------------------------------------------------------------
-;; L4BA3 -- &4BA3 to &4BB9
+;; L4BA3 -- &4BA3 to &4BBD
 ;;
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, HL
@@ -5836,16 +5768,6 @@ L4BA3:
                POP BC                          ; 4BB7 C1
                DEC BC                          ; 4BB8 0B
                POP HL                          ; 4BB9 E1
-
-;; --------------------------------------------------------------------
-;; L4BBA -- &4BBA to &4BBD
-;;
-;; Takes:     BC, HL
-;; Leaves:    F, HL
-;; --------------------------------------------------------------------
-
-; ---- L4BBA ---- from &76F3
-L4BBA:
                SCF                             ; 4BBA 37
                SBC HL,BC                       ; 4BBB ED 42
                INC HL                          ; 4BBD 23
@@ -9057,7 +8979,7 @@ CMD_ALTER:
 ;; --------------------------------------------------------------------
 ;; L54EA -- &54EA to &5501
 ;;
-;; Takes:     DE, HL
+;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, HL
 ;;
 ;; ? reaches the ROM through ANYIV; calls NRWRD; falls into whatever follows rather than returning.
@@ -10416,11 +10338,7 @@ L5896:
 L5898:
                ; read the ROM variable L5A67 -- the word below is its address, and the call returns past it
                CALL NRRDD                      ; 5898 CD 5F 45
-               DEFB &67                                                         ; 589B g
-
-; ---- V589C ---- from &7708
-V589C:
-               DEFB &5A                                                         ; 589C Z
+               DEFW L5A67                     ; 589B 67 5A
                LD D,B                          ; 589D 50
                LD E,C                          ; 589E 59
 
@@ -10440,7 +10358,7 @@ L589F:
                DEFW CHANS                     ; 58A2 4F 5C
 
 ;; --------------------------------------------------------------------
-;; L58A4 -- &58A4 to &58B3
+;; L58A4 -- &58A4 to &58BE
 ;;
 ;; Takes:     A, BC, DE
 ;; Leaves:    A, F, BC, DE, HL, IY
@@ -10460,18 +10378,6 @@ L58A4:
                PUSH HL                         ; 58AF E5
                CALL WRA                        ; 58B0 CD A4 45
                POP HL                          ; 58B3 E1
-
-;; --------------------------------------------------------------------
-;; L58B4 -- &58B4 to &58BE
-;;
-;; Takes:     A, BC, DE, HL
-;; Leaves:    A, F, BC, DE, HL, IY
-;;
-;; ? reaches the ROM through NRREAD; calls CMR; falls into whatever follows rather than returning.
-;; --------------------------------------------------------------------
-
-; ---- L58B4 ---- from &76ED
-L58B4:
                INC HL                          ; 58B4 23
                ; call the ROM at NRREAD with ROM1 paged in, and page back on the way out
                CALL CMR                        ; 58B5 CD F0 44
@@ -12031,10 +11937,12 @@ L5BD0:
                RET                             ; 5BD7 C9
 
 ;; --------------------------------------------------------------------
-;; CMD_RECORD -- &5BD8 to &5BD9
+;; CMD_RECORD -- &5BD8 to &5BDF
 ;;
-;; Takes:     nothing in registers
-;; Leaves:    C
+;; Takes:     A, B, DE, HL
+;; Leaves:    A, F, BC, DE, HL, IY
+;;
+;; ? calls NEXT_CHAR_MUST_BE_C; falls into whatever follows rather than returning.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -12055,18 +11963,6 @@ L5BD0:
 
 CMD_RECORD:
                LD C,&AE                        ; 5BD8 0E AE
-
-;; --------------------------------------------------------------------
-;; L5BDA -- &5BDA to &5BDF
-;;
-;; Takes:     A, BC, DE, HL
-;; Leaves:    A, F, BC, DE, HL, IY
-;;
-;; ? calls NEXT_CHAR_MUST_BE_C; falls into whatever follows rather than returning.
-;; --------------------------------------------------------------------
-
-; ---- L5BDA ---- from &7829
-L5BDA:
                CALL NEXT_CHAR_MUST_BE_C        ; 5BDA CD 5A 44
                SUB &89                         ; 5BDD D6 89
                PUSH AF                         ; 5BDF F5
@@ -12263,7 +12159,7 @@ L5C56:
 ;;     "OR &40 -- BIT FOR ROM1=HI (ACTIVE)".
 ;; --------------------------------------------------------------------
 
-; ---- PAGE_IN_ROM1 ---- from &4521, &4524, &5C54, &5CE4, &771E, &7BE8, &7E54
+; ---- PAGE_IN_ROM1 ---- from &4521, &4524, &5C54, &5CE4, &7BE8, &7E54
 PAGE_IN_ROM1:
                IN A,(LMPR)                     ; 5C59 DB FA
 
@@ -19248,7 +19144,7 @@ V6F22:
 ;; --------------------------------------------------------------------
 ;; L6F34 -- &6F34 to &6F3D
 ;;
-;; Takes:     E, HL
+;; Takes:     BC, E, HL
 ;; Leaves:    A, F, E, HL
 ;; Ends:      RET
 ;;
@@ -21675,9 +21571,11 @@ L76CD:
 ;;     from in that arrangement is not established -- it cannot be at &4000,
 ;;     which is the whole point of the above.
 ;;     
-;;     One operand is still wrong and cannot yet be made right: &589C at
-;;     &7708 is below the ROM's variable area and unnamed there, so it comes
-;;     out as this page's V589C for want of anything better.
+;;     &589C at &7708 used to come out as this page's V589C for want of
+;;     anything better.  It is a patch site: the forty bytes copied to
+;;     &5896 hold JP C,&0000 at &589B, and the signature search two
+;;     instructions earlier finds POSTFF, so this writes POSTFF into that
+;;     JP.  The dump has &3DAD there.
 ;;     
 ;;     INSLV is worth naming properly.  The ROM's variable table gives it no
 ;;     comment, but STRMOV1 in the ROM does
@@ -21688,9 +21586,15 @@ L76CD:
 ;;     there instead.  &46CC, the first installed stub, is MasterBASIC's
 ;;     replacement for moving strings about.
 ;;     
-;;     MTOKV is the exception that proves it: &58B4 is well past &4BC3 and
-;;     nothing is installed there, so that one really is an address in this
-;;     half, to be reached with MasterBASIC paged in.
+;;     MTOKV looks like an exception and is not.  &58B4 is well past &4BC3,
+;;     where the installed region ends, so it was read as an address in
+;;     this half to be reached with MasterBASIC paged in.  But the forty
+;;     bytes at &5896 reach to &58BD, and &58B4 is the second stub in them:
+;;     RST ERR_HOOK, hook code &AB, then EXX : PUSH BC : POP AF to bring
+;;     the returned flags back.  So MTOKV points into the system page like
+;;     all the others -- into the gap between the DEF KEY buffer and the
+;;     keyboard table, which is the one place MasterBASIC installs code
+;;     outside &45A2-&4BC3.
 ;;     
 ;;     BSTKEND and BASSTK are both set to &45A1 and &FF is written there, so
 ;;     MasterBASIC moves BASIC's stack down to just below its own installed
@@ -21714,16 +21618,16 @@ INSTALL_ROM_VECTORS:
                LD HL,&4BB0                     ; 76E7 21 B0 4B  &4BB0 in the system page -- inside the 36 bytes put at &4BA0
                ; self-modifying: patches the operand of the CALL at &5ADC
                LD (PRTOKV),HL                  ; 76EA 22 DE 5A
-               LD HL,L58B4                     ; 76ED 21 B4 58
+               LD HL,&58B4                     ; 76ED 21 B4 58
                LD (MTOKV),HL                   ; 76F0 22 FA 5A
-               LD HL,L4BBA                     ; 76F3 21 BA 4B
+               LD HL,&4BBA                     ; 76F3 21 BA 4B
                LD (EVALUV),HL                  ; 76F6 22 F6 5A
-               LD HL,L488E                     ; 76F9 21 8E 48
+               LD HL,&488E                     ; 76F9 21 8E 48
                ; self-modifying: patches the operand of the JP at &5AF3
                LD (CMDV),HL                    ; 76FC 22 F4 5A  CMDV gets &488E, inside the second stub
                CALL DOS_FIND_ROM_CODE          ; 76FF CD 79 BD
                DEFB &5B,&D6,&5B,&3D,&00,&FC   ; 7702 signature 5B D6 5B from &3D00, -4  -> &3DAD POSTFF
-               LD (V589C),HL                   ; 7708 22 9C 58
+               LD (&589C),HL                   ; 7708 22 9C 58
                LD A,(DOS_V42B6)                ; 770B 3A B6 82
                LD C,A                          ; 770E 4F
                LD B,&F0                        ; 770F 06 F0
@@ -21733,13 +21637,13 @@ INSTALL_ROM_VECTORS:
                LD A,&04                        ; 7717 3E 04
                OUT (C),A                       ; 7719 ED 79
                LD HL,&7FE6                     ; 771B 21 E6 7F
-               LD (PAGE_IN_ROM1),HL            ; 771E 22 59 5C
+               LD (&5C59),HL                   ; 771E 22 59 5C
                LD HL,&4866                     ; 7721 21 66 48  &4866 likewise, inside the second stub
                ; self-modifying: patches the operand of the RES at &5AEB
                LD (EDITV),HL                   ; 7724 22 EC 5A
-               LD HL,L4986                     ; 7727 21 86 49
+               LD HL,&4986                     ; 7727 21 86 49
                LD (FRAMIV),HL                  ; 772A 22 E2 5A
-               LD HL,L49A9                     ; 772D 21 A9 49
+               LD HL,&49A9                     ; 772D 21 A9 49
                ; self-modifying: patches the operand of the LD at &5BD0
                LD (PATOUT),HL                  ; 7730 22 D2 5B
                LD HL,&3A31                     ; 7733 21 31 3A
@@ -21753,9 +21657,9 @@ INSTALL_ROM_VECTORS:
                LD (HL),&FF                     ; 7746 36 FF
                LD A,&01                        ; 7748 3E 01
                LD (DOS_DRIVE),A                ; 774A 32 0B BC
-               LD HL,L46CC                     ; 774D 21 CC 46  &46CC in the system page -- the string move stub, not this page's L46CC
+               LD HL,&46CC                     ; 774D 21 CC 46  &46CC in the system page -- the string move stub, not this page's L46CC
                LD (INSLV),HL                   ; 7750 22 BA 5B
-               LD HL,L4AB8                     ; 7753 21 B8 4A
+               LD HL,&4AB8                     ; 7753 21 B8 4A
                ; self-modifying: patches the operand of the JR at &5AED
                LD (RST8V),HL                   ; 7756 22 EE 5A
                RET                             ; 7759 C9
@@ -21954,130 +21858,16 @@ L77E4:
                DEFB &31                                                         ; 77FD 1  skipped: reads as LD SP,&C000 from here, and as part of the instruction above it
 
 ;; --------------------------------------------------------------------
-;; L77FE -- &77FE to &77FF
+;; L77FE -- &77FE to &7805
 ;;
 ;; Takes:     nothing in registers
-;; Leaves:    registers unchanged
+;; Leaves:    BC, HL
 ;; --------------------------------------------------------------------
 
 ; ---- L77FE ---- from &7818
 L77FE:
                NOP                             ; 77FE 00
                RET NZ                          ; 77FF C0
-
-;; --------------------------------------------------------------------
-;; PATCH_45A2 -- &7800 to &7805
-;;
-;; Takes:     nothing in registers
-;; Leaves:    BC, HL
-;;
-;; Shown for this routine in disasm/:
-;;
-;;     LDIR a run of blocks out of the tail of the DOS page into &45A2 and
-;;     upwards: ten bytes, then thirteen, thirteen, eight, twenty-one,
-;;     three, and &EE more, DE walking up as it goes, with a second run put
-;;     at &45B9.  The sources are &7E98, &7EA6, &7F6B and &7FA5 in the DOS
-;;     page.
-;;     
-;;     This settles half of an old question.  The dispatcher in the
-;;     relocated block does JP Z,&45A2, and that had been left open on the
-;;     grounds that nothing appeared to put code at &45A2.  Something does.
-;;     The ten bytes from &7FA5 are
-;;     
-;;     CP " " : JR Z,-6 : DEC HL : DEC HL : INC HL : LD A,(HL) : CP " "
-;;     
-;;     continuing into the next block as JR Z,+4 : CP &0D : JR NZ,-10 :
-;;     LD (&5A9A),HL : LD HL,&5C3C : SET 3,(HL) : CP A : RET.  A space
-;;     skipper that stops at a carriage return, stores where it stopped and
-;;     sets a flag bit.
-;;     
-;;     Which page it lands in is answered by the dump: the system page.  And
-;;     the routine turns out to fill it exactly up to where the stubs begin.
-;;     
-;;     Reading the LDIRs and following DE, which walks upward and is never
-;;     reloaded except once at the end:
-;;     
-;;     10 bytes to &45A2      21 bytes to &45C6
-;;     13 bytes to &45AC       3 bytes to &45DB
-;;     13 bytes to &45B9     238 bytes to &45DE-&46CB
-;;     10 bytes to &45B9 again
-;;     
-;;     &45DE plus 238 is &46CC, which is where INSTALL_ROM_PATCHES puts the
-;;     first stub.  So this routine and that one fill a single continuous
-;;     region, &45A2 to &4AEB, and the ROM vectors point into both halves of
-;;     it -- INSLV at &46CC into the stub, and the relocated block jumping
-;;     to &45A2 into this.
-;;     
-;;     The dump agrees fragment for fragment.  Every destination above has a
-;;     matching run in file/SYSPAGE.bin, traceable back to &7879-&799B in
-;;     this half, with the biases differing from one to the next exactly as
-;;     a chain of LDIRs with HL reloaded would produce.  The caller sets up
-;;     the first source: the DEFB &21 at &7821 is LD HL,&4296 hiding behind
-;;     the skip idiom, and sys &4599 does hold nine bytes of DOS &4296.
-;;     
-;;     Meanwhile this half own &45A2-&46CB is unchanged after boot but for
-;;     six bytes, and those six are the ROM patch sites at &45EA, &45F0 and
-;;     &45F6.  The sources at &7879-&799B are unchanged too, as sources
-;;     should be.
-;;     
-;;     And yet this is not the routine that produced what the dump holds.
-;;     The destinations are right and the contents are wrong.
-;;     
-;;     Each LDIR reads from &BFA5, &BE98, &BF6B and &BEA6.  All four were
-;;     tested against both pages, in both the file and the post-boot dump --
-;;     eight readings -- and none of them holds what the system page ends up
-;;     with.  DOS &7E98 is 22 1E 02 00 14 00 1C 22, which reads as a table;
-;;     the system page at &45C6 holds CD 24 01 62 6B 09, which is this half
-;;     own &7879.  The operands are not patched either: &7841-&7878 is
-;;     unchanged after boot, so the routine reads what it says it reads.
-;;     
-;;     What does fill the region is unfound, and the search has been fairly
-;;     thorough by now.
-;;     
-;;     The DOS page's tail is not the answer and does not need explaining.
-;;     &7E00-&7FBF differs from the file in 6 bytes out of 448 after boot,
-;;     so it is static: those blocks ship in the image and are copied out of
-;;     it, not assembled into it.  There is no writer to find there.
-;;     
-;;     Nor does the copier use a literal address.  There is no LD DE,&85xx
-;;     or &86xx anywhere in either half, which is what a copy to &45C6 or
-;;     &46xx through a zeroed HMPR would look like, and no LD HL naming a
-;;     source in &78xx or &79xx.  Together with the earlier checks -- no
-;;     sixteen-bit &7879, &45C6, &45DE or 238 in either half, no window
-;;     reference to the sources, no boot code on the disk -- that leaves
-;;     only addresses worked out at run time.
-;;     
-;;     The usual places have been looked at.  &7879, &45C6, &45DE and the length 238 appear nowhere in
-;;     either half as sixteen-bit values, so there is no table of blocks.
-;;     No window reference to the sources exists -- no &B879, &B88E, &B986.
-;;     The disk has no boot code to hide it in: the first sector of the
-;;     image is a directory entry, because a SAM boots by loading the first
-;;     file and this file is it.  So the copy is made with addresses worked
-;;     out at run time, from something not yet read.
-;;     
-;;     The ROM copies routines into its system page from ROM 1 as a matter
-;;     of course, so the obvious question is whether this region is one of
-;;     those rather than MasterBASIC's doing.  It is not.  None of the
-;;     installed runs -- &45A2, &45C6, &45DE, &4640 -- occurs anywhere in
-;;     either ROM, and neither do the sources at &7879, &788E and &7986:
-;;     this code belongs to MasterBASIC and to nothing else.  The ROM source
-;;     has no LDIR into &45xx either.
-;;     
-;;     FARLDIR was the other candidate, since it moves between pages by page
-;;     and offset rather than by address and would hide a literal &45C6.
-;;     That does not hold up: no offset form appears either -- &05A2, &05C6,
-;;     &05DE and &06CC are absent from both halves, and the one apparent hit
-;;     is ADD A,&05 caught mid-instruction.
-;;     
-;;     One check worth recording because it could have invalidated all of
-;;     this: file/SYSPAGE.bin really is a third page.  It agrees with the
-;;     MasterBASIC half in 7 per cent of its bytes and with the DOS half in
-;;     8, which is chance.  Had the SAVE caught this half instead -- and
-;;     MasterBASIC was the thing running the SAVE -- every conclusion drawn
-;;     from it would have been wrong.
-;; --------------------------------------------------------------------
-
-PATCH_45A2:
                LD HL,&0000                     ; 7800 21 00 00
                LD BC,&0004                     ; 7803 01 04 00
 
@@ -22114,7 +21904,7 @@ L7806:
 ;; L7817 -- &7817 to &781A
 ;;
 ;; Takes:     C
-;; Leaves:    A
+;; Leaves:    A, BC, HL
 ;; --------------------------------------------------------------------
 
 ; ---- L7817 ---- from &77ED, &77F2
@@ -22141,37 +21931,120 @@ L781B:
                SUB (HL)                        ; 7822 96
                LD B,D                          ; 7823 42
                LD E,&20                        ; 7824 1E 20
-               JP L7841                        ; 7826 C3 41 78
+               JP BUILD_PUT_BLOCK              ; 7826 C3 41 78
 
 ;; --------------------------------------------------------------------
-;; L7829 -- &7829 to &7840
+;; INSTALL_EXTENDED_PUT -- &7829 to &7840
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    F, BC, DE, HL
 ;;
 ;; Shown for this routine in disasm/:
 ;;
-;;     Copied to &7E48 in the DOS page by the boot sector, and
-;;     called there from 1 site in this page as DOS_MBCOPY_7829.  The
-;;     bytes the file holds at &7E48 in the DOS page are not
-;;     these: they are whatever was in its buffers when the image
-;;     was saved, and the copy overwrites them at boot.
+;;     Build MasterBASIC's replacement for the ROM's PUT command in the
+;;     ROM's system page at &45A2-&46CB, out of five sources, two of which
+;;     are the ROM's own PUT.
+;;     
+;;     INSTALL_ROM_VECTORS calls this at &76E4, so it runs in the same
+;;     arrangement that stretch does: the ROM's system page at &4000 and the
+;;     DOS page in the window.  That is what makes the addresses here read
+;;     the way they do.  &5BDA low is the ROM's CMDADDRT, not this half's
+;;     &5BDA; &45A2 low is in the system page; and &BFA5, &BE98 and &BEAD in
+;;     the window are the DOS page, where the boot sector has already put a
+;;     copy of this half's &75E1-&798F.  Subtract &61F from a window address
+;;     and you have the address in this listing that the bytes came from.
+;;     
+;;     First it finds the ROM's PUT.  CMDADDRT holds the address of the
+;;     ROM's command address table -- &FD65 on a 3.0 machine, in ROM 1 --
+;;     and the table is indexed by token minus &90.  PUT is token &AC, so
+;;     entry 28 is at offset &38, which is the LD BC,&0038.  The word there
+;;     is &295B, and the ROM source calls that PUT.
+;;     
+;;     Then it patches four operands into the copy of the block sitting in
+;;     the DOS page, all of them calls back into the middle of the ROM's own
+;;     PUT, each written as an offset from wherever PUT turned out to be:
+;;     
+;;     &BEFC <- PUT+&8D    OVER0LP     patched at &78DD in this listing
+;;     &BF0D <- PUT-&14    GPVARS                    &78EE
+;;     &BEA6 <- PUT+&1A                              &7887
+;;     &BF6B <- PUT+&0D                              &794C
+;;     
+;;     Then it falls into BUILD_PUT_BLOCK, which assembles 298 bytes:
+;;     
+;;     &45A2   10 bytes   from this half's &7986
+;;     &45AC   13 bytes   from the ROM, at PUT
+;;     &45B9   13 bytes   from the ROM, at PUT+13   (overwritten below)
+;;     &45C6   21 bytes   from this half's &7879
+;;     &45DB    3 bytes   from the ROM, at PUT+34   (8 bytes skipped)
+;;     &45DE  238 bytes   from this half's &788E
+;;     &45B9   10 bytes   from this half's &797C
+;;     
+;;     So MasterBASIC does not replace PUT so much as rebuild it: it keeps
+;;     three fragments of the ROM's code, splices its own around them, and
+;;     relocates the joins to suit whichever ROM it finds itself on.  &45DE
+;;     plus 238 is &46CC, where INSTALL_ROM_PATCHES puts its first stub, so
+;;     the two fill one continuous region &45A2-&4AEB.
+;;     
+;;     All 298 bytes have been reproduced exactly from those five sources
+;;     and checked against file/SYSPAGE.bin, with the four patches applied.
+;;     Nothing is left over.
+;;     
+;;     What this corrects
+;;     The reading recorded here before was that the destinations were right
+;;     and the contents wrong, and that the copier was somewhere else and
+;;     unfound.  Three mistakes, each of which looked like evidence:
+;;     
+;;     Two of the four addresses taken for LDIR sources were not sources.
+;;     LD (&BF6B),HL and LD (&BEA6),HL are stores -- the relocation patches
+;;     above -- and testing them as sources could only ever fail.
+;;     
+;;     The two that really are sources were read out of the file rather than
+;;     out of memory.  The boot sector copies &75E1-&798F of this half into
+;;     the DOS page at &7C00 before any of this runs, so DOS &7E98 holds
+;;     this half's &7879 by then.  The file's own DOS &7E98 is buffer
+;;     contents from whenever the image was saved, and that is what got
+;;     compared.
+;;     
+;;     And the runs that matched nothing in either page matched nothing
+;;     because they are not in either page.  They are in the ROM.  The
+;;     earlier check that "none of the installed runs occurs anywhere in
+;;     either ROM" tested &45A2, &45C6, &45DE and &4640, which are the
+;;     MasterBASIC-sourced fragments; the ROM-sourced ones at &45AC and
+;;     &45DB were not among them.
+;;     
+;;     The block copied to the DOS page is worth one more line, because it
+;;     explains why none of this can be seen in a dump.  It is transient.
+;;     &7C00 is DOSBUF, and post-boot the DOS page holds a directory buffer
+;;     there again -- 347 of its 944 bytes differ from the file, and the
+;;     copied block is not present at any offset in either page.  So
+;;     everything reached through it, the twenty-seven DOS_FIND_ROM_CODE
+;;     calls included, runs at install time and never again.
+;;     
+;;     What was here before:
+;;     
+;;         Copied to &7E48 in the DOS page by the boot sector, and
+;;         called there from 1 site in this page as DOS_MBCOPY_7829.  The
+;;         bytes the file holds at &7E48 in the DOS page are not
+;;         these: they are whatever was in its buffers when the image
+;;         was saved, and the copy overwrites them at boot.
 ;; --------------------------------------------------------------------
-               LD HL,(L5BDA)                   ; 7829 2A DA 5B
-               LD BC,&0038                     ; 782C 01 38 00
+
+INSTALL_EXTENDED_PUT:
+               LD HL,(CMDADDRT)                ; 7829 2A DA 5B  CMDADDRT, the ROM's command address table pointer
+               LD BC,&0038                     ; 782C 01 38 00  token &AC, PUT, is entry 28 of the table
                ADD HL,BC                       ; 782F 09
                LD E,(HL)                       ; 7830 5E
                INC HL                          ; 7831 23
                LD D,(HL)                       ; 7832 56
                LD HL,&008D                     ; 7833 21 8D 00
                ADD HL,DE                       ; 7836 19
-               LD (DOS_V7EFC),HL               ; 7837 22 FC BE
+               LD (DOS_V7EFC),HL               ; 7837 22 FC BE  patch a call to OVER0LP into the block
                LD HL,&FFEC                     ; 783A 21 EC FF
                ADD HL,DE                       ; 783D 19
-               LD (DOS_V7F0D),HL               ; 783E 22 0D BF
+               LD (DOS_V7F0D),HL               ; 783E 22 0D BF  patch a call to GPVARS into the block
 
 ;; --------------------------------------------------------------------
-;; L7841 -- &7841 to &7878
+;; BUILD_PUT_BLOCK -- &7841 to &7878
 ;;
 ;; This routine moves the return address about with EX (SP),HL, so the
 ;; register tracking below cannot be trusted: read it as a list of what
@@ -22182,33 +22055,33 @@ L781B:
 ;; Ends:      RET
 ;; --------------------------------------------------------------------
 
-; ---- L7841 ---- from &7826
-L7841:
+; ---- BUILD_PUT_BLOCK ---- from &7826
+BUILD_PUT_BLOCK:
                PUSH DE                         ; 7841 D5
-               LD HL,DOS_V7FA5                 ; 7842 21 A5 BF  ten bytes from the DOS page tail, a space skipper
-               LD DE,L45A2                     ; 7845 11 A2 45  ...to &45A2 -- but not the &45A2 the relocated block jumps to
+               LD HL,DOS_V7FA5                 ; 7842 21 A5 BF  ten bytes of this half's own code, from &7986
+               LD DE,&45A2                     ; 7845 11 A2 45
                LD BC,&000A                     ; 7848 01 0A 00
                LDIR                            ; 784B ED B0
-               POP HL                          ; 784D E1
+               POP HL                          ; 784D E1  the ROM's PUT itself, 13 bytes
                LD C,&0D                        ; 784E 0E 0D
                LDIR                            ; 7850 ED B0
-               LD (DOS_V7F6B),HL               ; 7852 22 6B BF
+               LD (DOS_V7F6B),HL               ; 7852 22 6B BF  patch PUT+&0D into the block
                LD C,&0D                        ; 7855 0E 0D
                LDIR                            ; 7857 ED B0
-               LD (DOS_V7EA6),HL               ; 7859 22 A6 BE
+               LD (DOS_V7EA6),HL               ; 7859 22 A6 BE  patch PUT+&1A into the block
                LD C,&08                        ; 785C 0E 08
                ADD HL,BC                       ; 785E 09
                PUSH HL                         ; 785F E5
-               LD HL,DOS_V7E98                 ; 7860 21 98 BE
+               LD HL,DOS_V7E98                 ; 7860 21 98 BE  this half's &7879, 21 bytes
                LD C,&15                        ; 7863 0E 15
                LDIR                            ; 7865 ED B0
                EX (SP),HL                      ; 7867 E3
-               LD C,&03                        ; 7868 0E 03
+               LD C,&03                        ; 7868 0E 03  the ROM's PUT again, 3 bytes from PUT+34
                LDIR                            ; 786A ED B0
                POP HL                          ; 786C E1
-               LD C,&EE                        ; 786D 0E EE
+               LD C,&EE                        ; 786D 0E EE  the bulk of it, 238 bytes from this half's &788E
                LDIR                            ; 786F ED B0
-               LD DE,L45B9                     ; 7871 11 B9 45  a second run, put at &45B9
+               LD DE,&45B9                     ; 7871 11 B9 45  and ten bytes over &45B9, replacing the ROM's second fragment
                LD C,&0A                        ; 7874 0E 0A
                LDIR                            ; 7876 ED B0
                RET                             ; 7878 C9

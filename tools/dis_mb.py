@@ -260,6 +260,11 @@ class Page(Disassembler):
                 if n:
                     self.used_ext.add(n)
                     return n
+                # No ROM name for it, but it is still not this page's
+                # &45A2: INSTALL_EXTENDED_PUT writes there and the bytes
+                # turn up in the system page.  Raw hex says less and is
+                # not wrong.
+                return hexn(v, 4)
             if self._cur is not None:
                 self.xrefs.setdefault(v, set()).add(self._cur)
             n = self.labels.get(v)
@@ -706,6 +711,10 @@ def seeds(dos, mb):
     # INSTALL_ROM_VECTORS runs with the ROM's system page at &4000: the
     # vector values it writes turn up there, not in this half.
     mb.sys_low.append((0x76DA, 0x775A))
+    # INSTALL_EXTENDED_PUT is called from inside that stretch, so it runs
+    # in the same arrangement: its &5BDA is the ROM's CMDADDRT and its
+    # &45A2 is in the system page, not an address in this half.
+    mb.sys_low.append((0x7829, 0x7879))
     for lo, hi in ((0x4510, 0x4520), (0x5A3E, 0x5A64), (0x5C16, 0x5C34),
                    (0x5FD8, 0x6030), (0x63F6, 0x63FC), (0x7900, 0x7940)):
         mb.self_window.append((lo, hi))
@@ -1119,6 +1128,29 @@ def report(d, note=''):
     print('%-4s %-8s code %d/%d bytes (%.1f%%)' % (d.tag, note, n, tot, 100.0 * n / tot))
 
 
+CENSUS = (('Code', (CODE, CONT)), ('Variables and other data', (DATA,)),
+          ('Inline call parameters', (PARAM,)), ('Message and keyword text', (TEXT,)),
+          ('RST &08 codes', (RST8,)), ('Pointer tables', (WORD,)),
+          ('Unclassified', (UNKNOWN,)))
+
+
+def census(pages):
+    """Every byte of the image by what the listing makes of it.
+
+    The counts in README.md and docs/disassembly.md are this table, so
+    that they can be checked rather than remembered."""
+    tot = sum(len(d.mark) for d in pages)
+    print('byte census, %d bytes:' % tot)
+    for name, kinds in CENSUS:
+        n = sum(sum(1 for v in d.mark if v in kinds) for d in pages)
+        pct = '  (%.1f%%)' % (100.0 * n / tot) if name == 'Code' else ''
+        print('    %-26s %6d%s' % (name, n, pct))
+    labels = sum(len(d.labels) for d in pages)
+    described = sum(sum(1 for a in d.headers if a in d.labels) for d in pages)
+    print('    %-26s %6d of %d labelled addresses'
+          % ('described', described, labels))
+
+
 def analyse(d):
     report(d, 'trace')
     repair(d)
@@ -1520,6 +1552,9 @@ def main():
             print('notes/: ' + p)
         # Only now: the speculation is written by adding to these same
         # headers and notes, so it has to come after the clean listings.
+        # Before the speculation pass, which puts a header on every
+        # routine in its own listings and would count as description.
+        census((dos, mb))
         write_speculation(dos, mb, args.outdir)
     return dos, mb
 

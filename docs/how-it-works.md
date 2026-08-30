@@ -224,6 +224,21 @@ finds a mixture — `&4D50` holding ROM 1's `NLTP`, `&4D80` holding this
 half's `&4F14`, and `&4D18` holding a byte from neither. So nothing about
 the buffer's contents can be inferred from reading any one builder.
 
+**A command rebuilt from the ROM's own code.** `INSTALL_EXTENDED_PUT` at
+`&7829` is the clearest case, because every byte of the result can be
+checked. It reads `CMDADDRT` to find the ROM's command address table
+(`&FD65`, in ROM 1, indexed by token minus `&90`), takes entry 28 — `PUT`,
+token `&AC` — and finds the ROM's `PUT` at `&295B`. It then patches four
+calls back into the middle of `PUT` as offsets from wherever `PUT` turned
+out to be, and assembles 298 bytes at `&45A2`-`&46CB` in the system page
+out of five runs: three of its own code, and two lifted straight out of the
+ROM's `PUT`. So MasterBASIC's `PUT` is not a replacement but a rebuild,
+keeping fragments of the original and splicing its own around them — which
+is why it survives a ROM whose `PUT` is at a different address.
+
+All 298 bytes have been reproduced from those sources and matched against
+`file/SYSPAGE.bin` exactly.
+
 **Patch sites.** The two-byte holes filled by signature searches, and single
 bytes holding page numbers. These read as `&0000` in the listing, which is
 what was assembled, not what runs.
@@ -248,16 +263,6 @@ identified, so `LD (&45AF),A` reads as `LD (CHECK_WRITE_STATUS+1),A`.
 | the calculator | `FPCALC`, `FPC_*` |
 
 ## 7. What is not settled
-
-- **What fills `&45A2`-`&46CB` in the system page.** The dump shows that
-  region holding `&7879`-`&799B` from the MasterBASIC half, filled right up
-  to `&46CC` where the first stub begins, so the two form one continuous
-  installed area. The routine at `&7841` has exactly that destination
-  layout — 21 bytes to `&45C6`, 3 to `&45DB`, 238 to `&45DE` — but reads
-  its sources from the DOS page, and those bytes are not what is there.
-  So something with the same shape and different sources does the real
-  filling, and `&7841` either runs and is overwritten or does not run at
-  all in an ordinary boot.
 
 - **499 bytes of the DOS page** differ after boot and are largely
   unexamined; `&4131`-`&417C` alone is 75 bytes of structure.
