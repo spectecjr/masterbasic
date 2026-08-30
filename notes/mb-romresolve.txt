@@ -33,9 +33,10 @@ DOC RESOLVE_ROM_ENTRIES
     self-patching, and the operands the listing shows at those addresses
     are the shipped zeros rather than what runs.
 
-    After the last search it pages the system page in and pokes &18 and
-    &19 into &594A and &5941 there, which is a jump opcode and its
-    neighbour: two more patches, in the ROM's own workspace this time.
+    The routine that follows it, INSTALL_SYSPAGE_CODE, pokes &18 and &19
+    into &594A and &5941.  Those are not opcodes and not part of this
+    routine: they are entries 106 and 97 of the ROM's key table, being
+    given the codes for word-left and word-right.
 
 MB &7993 : the first of twenty searches
 MB &799D : two of these results fill the JP &0000 operands in the stub

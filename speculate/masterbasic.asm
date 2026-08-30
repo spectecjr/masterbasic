@@ -22528,9 +22528,10 @@ L796B:
 ;;     self-patching, and the operands the listing shows at those addresses
 ;;     are the shipped zeros rather than what runs.
 ;;     
-;;     After the last search it pages the system page in and pokes &18 and
-;;     &19 into &594A and &5941 there, which is a jump opcode and its
-;;     neighbour: two more patches, in the ROM's own workspace this time.
+;;     The routine that follows it, INSTALL_SYSPAGE_CODE, pokes &18 and &19
+;;     into &594A and &5941.  Those are not opcodes and not part of this
+;;     routine: they are entries 106 and 97 of the ROM's key table, being
+;;     given the codes for word-left and word-right.
 ;; --------------------------------------------------------------------
 
 ; ---- RESOLVE_ROM_ENTRIES ---- from &75EF, &798D
@@ -22671,7 +22672,25 @@ L799B:
 ;;     &9896          40 bytes from &7E43
 ;;     MNIP           set to &4C14
 ;;     
-;;     Two of those answer questions left open elsewhere.
+;;     All four are identifiable.
+;;     
+;;     The two poked bytes are keyboard assignments.  KTAB, the ROM's key
+;;     table, starts at &58E0, so &5941 is entry 97 and &594A is entry 106 --
+;;     and the manual says MasterBASIC "does the equivalent of KEY 36+70,24
+;;     and KEY 27+70,25 to assign these codes to the shifted left and right
+;;     cursors".  36+70 is 106 and 27+70 is 97, and the values written are
+;;     24 and 25.  So this is those two KEY statements, done by writing into
+;;     the table directly.  The codes drive word-left and word-right in the
+;;     editor.
+;;     
+;;     The 29 bytes to &5A12 are the DUMP settings.  The ROM's variable
+;;     table marks everything from LPTPRT1 to TABVAR with the single comment
+;;     "ALL reserved for DUMP", and what goes there is DPVARS and the XVARs
+;;     after it -- GCMX1, GCMX2B, GCMX3, DMPTL -- two of which this listing
+;;     already described as "copied to the ROM at BOOT" without saying by
+;;     what.  This is by what.
+;;     
+;;     The other two answer questions left open elsewhere.
 ;;     
 ;;     PAGER is the fourteen bytes the ROM's variable table reserves at
 ;;     &5BE0 "for paging S.R." -- and MasterBASIC fills them with its own
