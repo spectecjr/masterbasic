@@ -21737,24 +21737,29 @@ L77FE:
 ;;     And yet this is not the routine that produced what the dump holds.
 ;;     The destinations are right and the contents are wrong.
 ;;     
-;;     Each LDIR here reads from the DOS page -- &BE98, &BF6B, &BEA6, &BFA5,
-;;     which are &7E98, &7F6B, &7EA6 and &7FA5 there -- and those bytes are
-;;     not what ends up in the system page.  DOS &7E98 is 22 1E 02 00 14 00
-;;     1C 22, which reads as a table; the system page at &45C6 holds this
-;;     half own &7879, which is code.  The same mismatch holds for all four.
+;;     Each LDIR reads from &BFA5, &BE98, &BF6B and &BEA6.  All four were
+;;     tested against both pages, in both the file and the post-boot dump --
+;;     eight readings -- and none of them holds what the system page ends up
+;;     with.  DOS &7E98 is 22 1E 02 00 14 00 1C 22, which reads as a table;
+;;     the system page at &45C6 holds CD 24 01 62 6B 09, which is this half
+;;     own &7879.  The operands are not patched either: &7841-&7878 is
+;;     unchanged after boot, so the routine reads what it says it reads.
 ;;     
-;;     So two things fill the same addresses.  The layout below matches the
-;;     dump exactly -- 21 bytes to &45C6, 3 to &45DB, 238 to &45DE, ending
-;;     at &46CC where the first stub starts -- while the content matches a
-;;     different source entirely.  Either this routine runs and is then
-;;     overwritten by another with the same shape, or it does not run in an
-;;     ordinary boot and something else with the same layout does.
+;;     What does fill the region is unfound, and the usual places have been
+;;     looked at.  &7879, &45C6, &45DE and the length 238 appear nowhere in
+;;     either half as sixteen-bit values, so there is no table of blocks.
+;;     No window reference to the sources exists -- no &B879, &B88E, &B986.
+;;     The disk has no boot code to hide it in: the first sector of the
+;;     image is a directory entry, because a SAM boots by loading the first
+;;     file and this file is it.  So the copy is made with addresses worked
+;;     out at run time, from something not yet read.
 ;;     
-;;     That also disposes of the paging contradiction recorded here before.
-;;     It rested on this routine being the copier, and it is not.  Whatever
-;;     fills &45C6-&46CB reads &7879-&799B out of this half, so it runs with
-;;     this half reachable, and writes into the system page; nothing about
-;;     the code at &7841 constrains how that is arranged.
+;;     One check worth recording because it could have invalidated all of
+;;     this: file/SYSPAGE.bin really is a third page.  It agrees with the
+;;     MasterBASIC half in 7 per cent of its bytes and with the DOS half in
+;;     8, which is chance.  Had the SAVE caught this half instead -- and
+;;     MasterBASIC was the thing running the SAVE -- every conclusion drawn
+;;     from it would have been wrong.
 ;; --------------------------------------------------------------------
 
 PATCH_45A2:

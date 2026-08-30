@@ -50,3 +50,4 @@ EQU TEMPW1: Temporary word storage in system page (word #1)
 # EQU INSLV:
 
 EQU JPFSTRS: Create ASCII version of number on floating-point calculator stack in buffer at 5BA0H. On exit, DE holds 5BA0H and BC holds the number of characters in the buffer. 
+EQU BSKTEND: End of BASIC's GOSUB, DO and PROC stack.
