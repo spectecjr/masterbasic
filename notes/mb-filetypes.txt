@@ -1,0 +1,15 @@
+# The file type names, which were being read as instructions.
+
+MB &4349-&43A0 text FILETYPE_NAMES
+    The names DIR prints for each SAM file type, each word ended by bit 7
+    of its last character in the usual way -- BASIC, SNP 48K, MD.FILE,
+    SPECIAL, SNP 128K, OPENTYPE, N/A, EXECUTE, DIR -- with a type byte
+    ahead of each.
+
+    The trace reached this and decoded 88 bytes of it as code, so the
+    listing used to show AND B, LD A,(BC), JP L440A and a JR into the
+    middle of a word.  It sits between the printer status check that ends
+    with RET at &4348 and the parser front end that starts at &43A1, and
+    nothing jumps into it: the two labels it appeared to define, L4391 and
+    L440A, were only ever referenced from inside the table itself, which
+    is what a false decode looks like from the outside.

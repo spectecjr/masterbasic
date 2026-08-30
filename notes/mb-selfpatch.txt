@@ -21,43 +21,43 @@ DOC PATCH_45A2
     skipper that stops at a carriage return, stores where it stopped and
     sets a flag bit.
 
-    Which page it lands in is answered by the dump, and not the way the
-    code reads.  It is the system page.
+    Which page it lands in is answered by the dump: the system page.  And
+    the routine turns out to fill it exactly up to where the stubs begin.
 
-    file/SYSPAGE.bin has ten fragments below &46CC that can be traced to
-    where they came from -- nine out of this half between &7879 and
-    &799B, one out of the DOS page at &4296:
+    Reading the LDIRs and following DE, which walks upward and is never
+    reloaded except once at the end:
 
-        sys &4599 <- DOS &4296      sys &4640 <- MB &78F0
-        sys &45A2 <- MB  &7986      sys &4680 <- MB &7930
-        sys &45B9 <- MB  &797C      sys &469E <- MB &794E
-        sys &45C6 <- MB  &7879
-        sys &45DE <- MB  &788E      (and &461E, &462F)
+        10 bytes to &45A2      21 bytes to &45C6
+        13 bytes to &45AC       3 bytes to &45DB
+        13 bytes to &45B9     238 bytes to &45DE-&46CB
+                               10 bytes to &45B9 again
 
-    Two of those are this routine beyond reasonable doubt: it does an
-    LDIR of ten bytes to &45A2 and, later, another ten to &45B9, and the
-    dump has exactly ten-byte fragments at both addresses.  The biases
-    differ from one fragment to the next, which is what a chain of LDIRs
-    with HL reloaded and DE walking up produces, and not what one block
-    copy produces.
+    &45DE plus 238 is &46CC, which is where INSTALL_ROM_PATCHES puts the
+    first stub.  So this routine and that one fill a single continuous
+    region, &45A2 to &4AEB, and the ROM vectors point into both halves of
+    it -- INSLV at &46CC into the stub, and the relocated block jumping
+    to &45A2 into this.
+
+    The dump agrees fragment for fragment.  Every destination above has a
+    matching run in file/SYSPAGE.bin, traceable back to &7879-&799B in
+    this half, with the biases differing from one to the next exactly as
+    a chain of LDIRs with HL reloaded would produce.  The caller sets up
+    the first source: the DEFB &21 at &7821 is LD HL,&4296 hiding behind
+    the skip idiom, and sys &4599 does hold nine bytes of DOS &4296.
 
     Meanwhile this half own &45A2-&46CB is unchanged after boot but for
     six bytes, and those six are the ROM patch sites at &45EA, &45F0 and
     &45F6.  The sources at &7879-&799B are unchanged too, as sources
-    should be.  So the destination is not this page.
+    should be.
 
-    What remains wrong is the reasoning, not the conclusion.  For those
-    LDIRs to reach the system page, the system page must be at &4000 when
-    they run -- but the code reaches them through JP L7841 at &7826, an
-    absolute jump that only works with this half at &4000, and nothing
-    between touches LMPR.  Both cannot hold.  Nothing else in either page
-    refers to the sources through the window either, so the copier is not
-    simply some other routine: no &B986, &B97C or &B879 appears anywhere.
-
-    The likeliest remaining explanation is that this code does not run
-    where it is stored -- that it is itself moved before it executes, the
-    way the blocks at &7460 and &7BA4 are -- but nothing found so far
-    moves it, and the boot sector is not in this file.
+    What is still wrong is the route, not the destination.  These LDIRs
+    only reach the system page with it at &4000, but the routine is
+    entered by JP L7841 at &7826, an absolute jump that needs this half
+    at &4000, and nothing between touches LMPR.  The sources are read as
+    plain &79xx rather than through the window, which says this half is
+    at &4000; the destinations land in the system page, which says it is
+    not.  Both readings cannot hold and the code as written supports each
+    of them.
 
 MB &7842 : ten bytes from the DOS page tail, a space skipper
 MB &7845 : ...to &45A2 -- but not the &45A2 the relocated block jumps to

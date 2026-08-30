@@ -1,0 +1,11 @@
+# A message that was being read as instructions.
+
+MB &77C9-&77DA text MSG_EXTERNAL_MEMORY
+    "K External Memory" and a carriage return, eighteen bytes -- which is
+    what the LD BC,&0012 three instructions earlier is counting.  The
+    JP &0013 at &77C6 is PRINTSTR, so the run before it prints a number
+    and this supplies the rest of the line.
+
+    The trace ran past the unconditional jump into the text and decoded
+    it, so the listing showed LD C,B, LD (HL),E and a string of nonsense
+    where a message should be.

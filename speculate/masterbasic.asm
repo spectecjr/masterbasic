@@ -1534,12 +1534,13 @@ HK_SERRECV:
                LD B,&01                        ; 4319 06 01
 
 ;; --------------------------------------------------------------------
-;; L431B -- &431B to &4329
+;; L431B -- &431B to &432A
 ;;
 ;; Takes:     BC, DE, HL, IY
 ;; Leaves:    A, F, BC, DE, HL
+;; Ends:      RET
 ;;
-;; ? drives IN A,(C); calls ESCCHK; falls into whatever follows rather than returning.
+;; ? drives IN A,(C); calls ESCCHK.
 ;; --------------------------------------------------------------------
 
 ; ---- L431B ---- from &4321
@@ -1553,17 +1554,6 @@ L431B:
                SCF                             ; 4327 37
                PUSH AF                         ; 4328 F5
                POP BC                          ; 4329 C1
-
-;; --------------------------------------------------------------------
-;; L432A -- &432A to &432A
-;;
-;; Takes:     nothing in registers
-;; Leaves:    registers unchanged
-;; Ends:      RET
-;; --------------------------------------------------------------------
-
-; ---- L432A ---- from &435D
-L432A:
                RET                             ; 432A C9
 
 ;; --------------------------------------------------------------------
@@ -1587,7 +1577,7 @@ L432A:
                RET                             ; 433A C9
 
 ;; --------------------------------------------------------------------
-;; L433B -- &433B to &4348
+;; L433B -- &433B to &43A0
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F, BC
@@ -1608,98 +1598,52 @@ L433B:
                RET                             ; 4348 C9
 
 ;; --------------------------------------------------------------------
-;; L4349 -- &4349 to &4351
+;; The names DIR prints for each SAM file type, each word ended by bit 7
+;; of its last character in the usual way -- BASIC, SNP 48K, MD.FILE,
+;; SPECIAL, SNP 128K, OPENTYPE, N/A, EXECUTE, DIR -- with a type byte
+;; ahead of each.
 ;;
-;; Takes:     A, BC, DE, HL
-;; Leaves:    A, F, BC, D, HL
-;; Ends:      JP, RET
-;; --------------------------------------------------------------------
-               AND B                           ; 4349 A0
-               LD A,(BC)                       ; 434A 0A
-               LD B,D                          ; 434B 42
-               LD B,C                          ; 434C 41
-               LD D,E                          ; 434D 53
-               LD C,C                          ; 434E 49
-               JP L440A                        ; 434F C3 0A 44
-
-;; --------------------------------------------------------------------
-;; L4352 -- &4352 to &4390
-;;
-;; Takes:     A, BC, DE, HL, IY
-;; Leaves:    A, F, BC, DE, HL
-;; --------------------------------------------------------------------
-               ADC A,C                         ; 4352 89
-               LD A,(BC)                       ; 4353 0A
-               INC H                           ; 4354 24
-               ADC A,C                         ; 4355 89
-               ADC A,D                         ; 4356 8A
-               LD A,(BC)                       ; 4357 0A
-               LD D,E                          ; 4358 53
-               LD C,(HL)                       ; 4359 4E
-               LD D,B                          ; 435A 50
-               JR NZ,L4391                     ; 435B 20 34
-               JR C,L432A                      ; 435D 38 CB
-               LD C,L                          ; 435F 4D
-               LD B,H                          ; 4360 44
-               LD L,&46                        ; 4361 2E 46
-               LD C,C                          ; 4363 49
-               LD C,H                          ; 4364 4C
-               PUSH BC                         ; 4365 C5
-               LD A,(BC)                       ; 4366 0A
-               ADC A,E                         ; 4367 8B
-               LD D,E                          ; 4368 53
-               LD D,B                          ; 4369 50
-               LD B,L                          ; 436A 45
-               LD B,E                          ; 436B 43
-               LD C,C                          ; 436C 49
-               LD B,C                          ; 436D 41
-               CALL Z,L530A                    ; 436E CC 0A 53
-               LD C,(HL)                       ; 4371 4E
-               LD D,B                          ; 4372 50
-               JR NZ,L43A6                     ; 4373 20 31
-               LD (&CB38),A                    ; 4375 32 38 CB
-               LD C,A                          ; 4378 4F
-               LD D,B                          ; 4379 50
-               LD B,L                          ; 437A 45
-               LD C,(HL)                       ; 437B 4E
-               LD D,H                          ; 437C 54
-               LD E,C                          ; 437D 59
-               LD D,B                          ; 437E 50
-               PUSH BC                         ; 437F C5
-               LD C,(HL)                       ; 4380 4E
-               CPL                             ; 4381 2F
-               LD B,C                          ; 4382 41
-               JR NZ,V43CA                     ; 4383 20 45
-               LD E,B                          ; 4385 58
-               LD B,L                          ; 4386 45
-               LD B,E                          ; 4387 43
-               LD D,L                          ; 4388 55
-               LD D,H                          ; 4389 54
-               PUSH BC                         ; 438A C5
-               ADC A,B                         ; 438B 88
-               ADC A,B                         ; 438C 88
-               ADC A,B                         ; 438D 88
-               ADC A,B                         ; 438E 88
-               LD B,D                          ; 438F 42
-               LD B,C                          ; 4390 41
-
-;; --------------------------------------------------------------------
-;; L4391 -- &4391 to &43A0
-;;
-;; Takes:     C, E
-;; Leaves:    C, D
-;; Ends:      JP
+;; The trace reached this and decoded 88 bytes of it as code, so the
+;; listing used to show AND B, LD A,(BC), JP L440A and a JR into the
+;; middle of a word.  It sits between the printer status check that ends
+;; with RET at &4348 and the parser front end that starts at &43A1, and
+;; nothing jumps into it: the two labels it appeared to define, L4391 and
+;; L440A, were only ever referenced from inside the table itself, which
+;; is what a false decode looks like from the outside.
 ;; --------------------------------------------------------------------
 
-; ---- L4391 ---- from &435B
-L4391:
-               LD D,E                          ; 4391 53
-               LD C,C                          ; 4392 49
-               JP &8944                        ; 4393 C3 44 89
-               DEFB &24,&89,&C3,&8B,&20,&20,&20,&20,&44,&49,&D2                 ; 4396 $.C.    DIR  skipped: reads as INC H from here, and as part of the instruction above it
+FILETYPE_NAMES:
+               DEFB &A0                       ; 4349
+               DEFB &0A,&42,&41,&53,&49,&C3   ; 434A
+               DEFB &0A,&44,&89               ; 4350
+               DEFB &0A,&24,&89               ; 4353
+               DEFB &8A                       ; 4356
+               DEFB &0A,&53,&4E,&50,&20,&34,&38,&CB ; 4357
+               DEFM "MD.FIL"                  ; 435F 4D 44 2E 46 49 4C
+               DEFB "E"+&80                   ; 4365 C5
+               DEFB &0A,&8B                   ; 4366
+               DEFM "SPECIA"                  ; 4368 53 50 45 43 49 41
+               DEFB "L"+&80                   ; 436E CC
+               DEFB &0A,&53,&4E,&50,&20,&31,&32,&38,&CB ; 436F
+               DEFM "OPENTYP"                 ; 4378 4F 50 45 4E 54 59 50
+               DEFB "E"+&80                   ; 437F C5
+               DEFM "N/A EXECUT"              ; 4380 4E 2F 41 20 45 58 45 43
+               DEFB "E"+&80                   ; 438A C5
+               DEFB &88                       ; 438B
+               DEFB &88                       ; 438C
+               DEFB &88                       ; 438D
+               DEFB &88                       ; 438E
+               DEFM "BASI"                    ; 438F 42 41 53 49
+               DEFB "C"+&80                   ; 4393 C3
+               DEFB &44,&89                   ; 4394
+               DEFB &24,&89                   ; 4396
+               DEFB &C3                       ; 4398
+               DEFB &8B                       ; 4399
+               DEFM "    DI"                  ; 439A 20 20 20 20 44 49
+               DEFB "R"+&80                   ; 43A0 D2
 
 ;; --------------------------------------------------------------------
-;; BYTE_ARGUMENT -- &43A1 to &43A5
+;; BYTE_ARGUMENT -- &43A1 to &43A6
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
@@ -1720,16 +1664,6 @@ BYTE_ARGUMENT:
                CALL CALL_GETINT                ; 43A1 CD 76 44
                INC B                           ; 43A4 04
                DEC B                           ; 43A5 05
-
-;; --------------------------------------------------------------------
-;; L43A6 -- &43A6 to &43A6
-;;
-;; Takes:     nothing in registers
-;; Leaves:    registers unchanged
-;; --------------------------------------------------------------------
-
-; ---- L43A6 ---- from &4373
-L43A6:
                RET Z                           ; 43A6 C8
 
 ;; --------------------------------------------------------------------
@@ -1868,11 +1802,7 @@ L43C3:
                PUSH AF                         ; 43C5 F5
                ; read the ROM variable STRLOCN -- the word below is its address, and the call returns past it
                CALL NRRDD                      ; 43C6 CD 5F 45
-               DEFB &BC                                                         ; 43C9 <
-
-; ---- V43CA ---- from &4383
-V43CA:
-               DEFB &5B                                                         ; 43CA [
+               DEFW STRLOCN                   ; 43C9 BC 5B
                LD H,B                          ; 43CB 60
                LD L,C                          ; 43CC 69
                LD C,(HL)                       ; 43CD 4E
@@ -1920,10 +1850,11 @@ L43E2:
                JR NZ,REP_ARGUMENT              ; 43EE 20 CC
 
 ;; --------------------------------------------------------------------
-;; L43F0 -- &43F0 to &4409
+;; L43F0 -- &43F0 to &440C
 ;;
 ;; Takes:     C, HL
 ;; Leaves:    A, F, BC, DE, HL
+;; Ends:      RET
 ;; --------------------------------------------------------------------
 
 ; ---- L43F0 ---- from &43EA
@@ -1950,17 +1881,6 @@ L43F0:
                LD E,(HL)                       ; 4407 5E
                INC HL                          ; 4408 23
                LD D,(HL)                       ; 4409 56
-
-;; --------------------------------------------------------------------
-;; L440A -- &440A to &440C
-;;
-;; Takes:     HL
-;; Leaves:    F, HL
-;; Ends:      RET
-;; --------------------------------------------------------------------
-
-; ---- L440A ---- from &434F
-L440A:
                INC HL                          ; 440A 23
                SCF                             ; 440B 37
                RET                             ; 440C C9
@@ -8382,12 +8302,12 @@ L52EE:
                RET                             ; 52FC C9
 
 ;; --------------------------------------------------------------------
-;; HK_TOKENARG -- &52FD to &5309
+;; HK_TOKENARG -- &52FD to &5314
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls CALL_NEXTCHAR; falls into whatever follows rather than returning.
+;; ? reaches the ROM through DOS_POINTC-&4000; calls CALLDOS, CALL_NEXTCHAR; falls into whatever follows rather than returning.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -8408,18 +8328,6 @@ HK_TOKENARG:
                JR Z,L531E                      ; 5305 28 17
                DEC A                           ; 5307 3D
                JR Z,L5315                      ; 5308 28 0B
-
-;; --------------------------------------------------------------------
-;; L530A -- &530A to &5314
-;;
-;; Takes:     A, BC, DE, HL, IY
-;; Leaves:    F, BC, DE, HL
-;;
-;; ? reaches the ROM through DOS_POINTC-&4000; calls CALLDOS; falls into whatever follows rather than returning.
-;; --------------------------------------------------------------------
-
-; ---- L530A ---- from &436E
-L530A:
                CP &15                          ; 530A FE 15
                JP NZ,REP_NOT_UNDERSTOOD        ; 530C C2 B0 43
                ; call DOS_POINTC-&4000 in the other page: LMPR is switched first, so that address is how the other listing numbers it
@@ -21661,7 +21569,7 @@ L7779:
                RET                             ; 778A C9
 
 ;; --------------------------------------------------------------------
-;; L778B -- &778B to &77C8
+;; L778B -- &778B to &77E3
 ;;
 ;; Takes:     DE
 ;; Leaves:    A, F, BC, DE, HL
@@ -21711,29 +21619,18 @@ L7779:
                JP PRINTSTR                     ; 77C6 C3 13 00
 
 ;; --------------------------------------------------------------------
-;; L77C9 -- &77C9 to &77E3
+;; "K External Memory" and a carriage return, eighteen bytes -- which is
+;; what the LD BC,&0012 three instructions earlier is counting.  The
+;; JP &0013 at &77C6 is PRINTSTR, so the run before it prints a number
+;; and this supplies the rest of the line.
 ;;
-;; Takes:     B, DE, HL
-;; Leaves:    A, F, C, HL
-;;
-;; ? drives IN A,(HMPR), OUT (HMPR),A; falls into whatever follows rather than returning.
+;; The trace ran past the unconditional jump into the text and decoded
+;; it, so the listing showed LD C,B, LD (HL),E and a string of nonsense
+;; where a message should be.
 ;; --------------------------------------------------------------------
-               LD C,E                          ; 77C9 4B
-               JR NZ,L7811                     ; 77CA 20 45
-               LD A,B                          ; 77CC 78
-               LD (HL),H                       ; 77CD 74
-               LD H,L                          ; 77CE 65
-               LD (HL),D                       ; 77CF 72
-               LD L,(HL)                       ; 77D0 6E
-               LD H,C                          ; 77D1 61
-               LD L,H                          ; 77D2 6C
-               JR NZ,L7822                     ; 77D3 20 4D
-               LD H,L                          ; 77D5 65
-               LD L,L                          ; 77D6 6D
-               LD L,A                          ; 77D7 6F
-               LD (HL),D                       ; 77D8 72
-               LD A,C                          ; 77D9 79
-               DEC C                           ; 77DA 0D
+
+MSG_EXTERNAL_MEMORY:
+               DEFB &4B,&20,&45,&78,&74,&65,&72,&6E,&61,&6C,&20,&4D,&65,&6D,&6F,&72,&79,&0D ; 77C9
                IN A,(HMPR)                     ; 77DB DB FB
                PUSH AF                         ; 77DD F5
                OR &80                          ; 77DE F6 80
@@ -21808,43 +21705,43 @@ L77FE:
 ;;     skipper that stops at a carriage return, stores where it stopped and
 ;;     sets a flag bit.
 ;;     
-;;     Which page it lands in is answered by the dump, and not the way the
-;;     code reads.  It is the system page.
+;;     Which page it lands in is answered by the dump: the system page.  And
+;;     the routine turns out to fill it exactly up to where the stubs begin.
 ;;     
-;;     file/SYSPAGE.bin has ten fragments below &46CC that can be traced to
-;;     where they came from -- nine out of this half between &7879 and
-;;     &799B, one out of the DOS page at &4296:
+;;     Reading the LDIRs and following DE, which walks upward and is never
+;;     reloaded except once at the end:
 ;;     
-;;     sys &4599 <- DOS &4296      sys &4640 <- MB &78F0
-;;     sys &45A2 <- MB  &7986      sys &4680 <- MB &7930
-;;     sys &45B9 <- MB  &797C      sys &469E <- MB &794E
-;;     sys &45C6 <- MB  &7879
-;;     sys &45DE <- MB  &788E      (and &461E, &462F)
+;;     10 bytes to &45A2      21 bytes to &45C6
+;;     13 bytes to &45AC       3 bytes to &45DB
+;;     13 bytes to &45B9     238 bytes to &45DE-&46CB
+;;     10 bytes to &45B9 again
 ;;     
-;;     Two of those are this routine beyond reasonable doubt: it does an
-;;     LDIR of ten bytes to &45A2 and, later, another ten to &45B9, and the
-;;     dump has exactly ten-byte fragments at both addresses.  The biases
-;;     differ from one fragment to the next, which is what a chain of LDIRs
-;;     with HL reloaded and DE walking up produces, and not what one block
-;;     copy produces.
+;;     &45DE plus 238 is &46CC, which is where INSTALL_ROM_PATCHES puts the
+;;     first stub.  So this routine and that one fill a single continuous
+;;     region, &45A2 to &4AEB, and the ROM vectors point into both halves of
+;;     it -- INSLV at &46CC into the stub, and the relocated block jumping
+;;     to &45A2 into this.
+;;     
+;;     The dump agrees fragment for fragment.  Every destination above has a
+;;     matching run in file/SYSPAGE.bin, traceable back to &7879-&799B in
+;;     this half, with the biases differing from one to the next exactly as
+;;     a chain of LDIRs with HL reloaded would produce.  The caller sets up
+;;     the first source: the DEFB &21 at &7821 is LD HL,&4296 hiding behind
+;;     the skip idiom, and sys &4599 does hold nine bytes of DOS &4296.
 ;;     
 ;;     Meanwhile this half own &45A2-&46CB is unchanged after boot but for
 ;;     six bytes, and those six are the ROM patch sites at &45EA, &45F0 and
 ;;     &45F6.  The sources at &7879-&799B are unchanged too, as sources
-;;     should be.  So the destination is not this page.
+;;     should be.
 ;;     
-;;     What remains wrong is the reasoning, not the conclusion.  For those
-;;     LDIRs to reach the system page, the system page must be at &4000 when
-;;     they run -- but the code reaches them through JP L7841 at &7826, an
-;;     absolute jump that only works with this half at &4000, and nothing
-;;     between touches LMPR.  Both cannot hold.  Nothing else in either page
-;;     refers to the sources through the window either, so the copier is not
-;;     simply some other routine: no &B986, &B97C or &B879 appears anywhere.
-;;     
-;;     The likeliest remaining explanation is that this code does not run
-;;     where it is stored -- that it is itself moved before it executes, the
-;;     way the blocks at &7460 and &7BA4 are -- but nothing found so far
-;;     moves it, and the boot sector is not in this file.
+;;     What is still wrong is the route, not the destination.  These LDIRs
+;;     only reach the system page with it at &4000, but the routine is
+;;     entered by JP L7841 at &7826, an absolute jump that needs this half
+;;     at &4000, and nothing between touches LMPR.  The sources are read as
+;;     plain &79xx rather than through the window, which says this half is
+;;     at &4000; the destinations land in the system page, which says it is
+;;     not.  Both readings cannot hold and the code as written supports each
+;;     of them.
 ;; --------------------------------------------------------------------
 
 PATCH_45A2:
@@ -21852,10 +21749,13 @@ PATCH_45A2:
                LD BC,&0004                     ; 7803 01 04 00
 
 ;; --------------------------------------------------------------------
-;; L7806 -- &7806 to &7810
+;; L7806 -- &7806 to &7816
 ;;
-;; Takes:     BC, HL
-;; Leaves:    F, BC
+;; Takes:     BC, DE, HL
+;; Leaves:    A, F, BC, DE, HL
+;; Ends:      JR
+;;
+;; ? drives OUT (HMPR),A.
 ;; --------------------------------------------------------------------
 
 ; ---- L7806 ---- from &77F5, &780E, &7811
@@ -21870,19 +21770,6 @@ L7806:
                PUSH HL                         ; 780D E5
                DJNZ L7806                      ; 780E 10 F6
                DEC C                           ; 7810 0D
-
-;; --------------------------------------------------------------------
-;; L7811 -- &7811 to &7816
-;;
-;; Takes:     BC, DE, HL
-;; Leaves:    A, F, BC, DE, HL
-;; Ends:      JR
-;;
-;; ? drives OUT (HMPR),A.
-;; --------------------------------------------------------------------
-
-; ---- L7811 ---- from &77CA
-L7811:
                JR NZ,L7806                     ; 7811 20 F3
                ; to the alternate register set and back again
                EXX                             ; 7813 D9
@@ -21903,7 +21790,7 @@ L7817:
                CALL L77FE                      ; 7818 CD FE 77
 
 ;; --------------------------------------------------------------------
-;; L781B -- &781B to &7821
+;; L781B -- &781B to &7828
 ;;
 ;; Takes:     C
 ;; Leaves:    A, F, C
@@ -21918,21 +21805,6 @@ L781B:
                POP AF                          ; 781E F1
                OUT (HMPR),A                    ; 781F D3 FB
                DEFB &21                                                         ; 7821 !  skipped: reads as LD HL,&4296 from here, and as part of the instruction above it
-
-;; --------------------------------------------------------------------
-;; L7822 -- &7822 to &7828
-;;
-;; This routine moves the return address about with EX (SP),HL, so the
-;; register tracking below cannot be trusted: read it as a list of what
-;; is touched, not of what is destroyed.
-;;
-;; Takes:     A, D, HL
-;; Leaves:    A, F, BC, DE, HL
-;; Ends:      JP, RET
-;; --------------------------------------------------------------------
-
-; ---- L7822 ---- from &77D3
-L7822:
                SUB (HL)                        ; 7822 96
                LD B,D                          ; 7823 42
                LD E,&20                        ; 7824 1E 20
