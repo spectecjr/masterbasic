@@ -419,7 +419,7 @@ L4071:
 ;; ? drives OUT (C),A; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- L4073 ---- from &406F, MB &59EE
+; ---- L4073 ---- from &406F
 L4073:
                OUT (C),A                       ; 4073 ED 79
                LD B,&14                        ; 4075 06 14

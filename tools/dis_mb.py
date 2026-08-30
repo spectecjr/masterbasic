@@ -95,6 +95,7 @@ class Page(Disassembler):
         self.peer = None
         self.peer_seeds = []
         self.no_peer = []             # ranges where &8000+ is not the peer
+        self.self_window = []         # ranges where &8000+ is this page
         self.rendered = []            # ranges written by a renderer
         self._inline = {}
         self.msg_calls = set()
@@ -171,8 +172,17 @@ class Page(Disassembler):
         return name
 
     def boot_self(self, a, frm=None):
-        """Inside the boot sector, &8000 and up is this page &4000 higher."""
-        if frm is None or frm >= BOOT_END:
+        """Where &8000 and up is this page seen &4000 higher, not the peer.
+
+        True throughout the boot sector, and true again in code that runs
+        with this half in the window rather than at &4000 -- the interrupt
+        path does, which is how it can read the ROM's own variables at
+        their proper addresses and its own at &8xxx in the same routine.
+        """
+        if frm is None:
+            return None
+        if frm >= BOOT_END and not any(lo <= frm < hi
+                                       for lo, hi in self.self_window):
             return None
         if PEER <= a < PEER + HALF:
             return self.labels.get(a - PEER + BASE)
@@ -665,6 +675,10 @@ def seeds(dos, mb):
     # &735A, and the routine it calls builds code in the ROM's own code
     # buffer, so every &8Dxx through here is CDBUFF and not the DOS page.
     mb.no_peer.append((0x732A, 0x7385))
+    # The screen-blanker tick and its neighbours run from the interrupt,
+    # with the ROM's system page at &4000 and this half in the window: they
+    # read SOFFCT at &5AC4 straight, and their own SOFV as &8002.
+    mb.self_window.append((0x59A3, 0x5A00))
     # HK_SETUPREGS does the same at &7210: its &8D50 is CDBUFF+&50 in the
     # ROM's system page, not the DOS page's &4D50.
     mb.no_peer.append((0x7203, 0x7220))

@@ -203,7 +203,6 @@ DOS_L406B:     EQU  &806B
 DOS_L406D:     EQU  &806D
 DOS_L406F:     EQU  &806F
 DOS_L4071:     EQU  &8071
-DOS_L4073:     EQU  &8073
 DOS_L407F:     EQU  &807F
 DOS_L4081:     EQU  &8081
 DOS_L4086:     EQU  &8086
@@ -567,7 +566,10 @@ V4068:
 
 ; ---- V406F ---- from &614A
 V406F:
-               DEFB &00,&00,&00,&00,&00                                         ; 406F .....
+               DEFB &00,&00,&00,&00                                             ; 406F ....
+
+SOFCOUNT:
+               DEFB &00                                                         ; 4073 .
 
 ; ---- V4074 ---- from &7167, &716E
 V4074:
@@ -6683,24 +6685,24 @@ L598A:
                JP Z,&0066                      ; 59A9 CA 66 00
                LD A,(V5C3C)                    ; 59AC 3A 3C 5C
                CP &10                          ; 59AF FE 10
-               JR NZ,L59E8                     ; 59B1 20 35
+               JR NZ,SCREEN_BLANK_TICK         ; 59B1 20 35
                LD HL,(L5AD2)                   ; 59B3 2A D2 5A
                LD BC,&0007                     ; 59B6 01 07 00
                ADD HL,BC                       ; 59B9 09
                LD A,(HL)                       ; 59BA 7E
                CP &06                          ; 59BB FE 06
-               JR NZ,L59E8                     ; 59BD 20 29
+               JR NZ,SCREEN_BLANK_TICK         ; 59BD 20 29
                DEC HL                          ; 59BF 2B
                LD BC,&0000                     ; 59C0 01 00 00
                LD A,(HL)                       ; 59C3 7E
                CP C                            ; 59C4 B9
-               JR C,L59E8                      ; 59C5 38 21
+               JR C,SCREEN_BLANK_TICK          ; 59C5 38 21
                CP B                            ; 59C7 B8
-               JR NC,L59E8                     ; 59C8 30 1E
+               JR NC,SCREEN_BLANK_TICK         ; 59C8 30 1E
                DEC HL                          ; 59CA 2B
                LD A,(HL)                       ; 59CB 7E
                CP D                            ; 59CC BA
-               JR NC,L59E8                     ; 59CD 30 19
+               JR NC,SCREEN_BLANK_TICK         ; 59CD 30 19
                POP HL                          ; 59CF E1
                POP BC                          ; 59D0 C1
                PUSH AF                         ; 59D1 F5
@@ -6718,12 +6720,36 @@ L598A:
                INC HL                          ; 59E6 23
                LD (HL),D                       ; 59E7 72
 
-; ---- L59E8 ---- from &59B1, &59BD, &59C5, &59C8, &59CD, &76A2
-L59E8:
-               LD A,(&8002)                    ; 59E8 3A 02 80
+;; --------------------------------------------------------------------
+;; Count down towards blanking the screen, once per interrupt.
+;;
+;; SOFV is XVAR 2, described in the listing as the screen blanking delay
+;; -- "12 is about a minute, 0 the normal 22".  If it is zero this does
+;; nothing.  Otherwise SOFCOUNT is decremented, and when it reaches zero
+;; it is reloaded from SOFV and the ROM's own SOFFCT at &5AC4 -- which
+;; the ROM's variable table calls the counter for screen off -- is
+;; decremented in turn.
+;;
+;; The routine is worth reading for what it says about paging.  It reads
+;; SOFFCT at &5AC4 directly, with no window offset and no NRRD, which
+;; only works with the ROM's system page at &4000; and it reads its own
+;; SOFV as &8002, which only works with this half in the window.  Both
+;; at once, in four instructions.  So this code runs from the interrupt,
+;; where the system page is mapped low and MasterBASIC is reached
+;; through the window -- the opposite of the arrangement everywhere else
+;; in this half.
+;;
+;; That is why the listing used to call SOFCOUNT "DOS_L4073": an &80xx
+;; here is this page, not the other one, and the tools now know it for
+;; &59A3-&59FF.
+;; --------------------------------------------------------------------
+
+; ---- SCREEN_BLANK_TICK ---- from &59B1, &59BD, &59C5, &59C8, &59CD, &76A2
+SCREEN_BLANK_TICK:
+               LD A,(SOFV+&4000)               ; 59E8 3A 02 80
                AND A                           ; 59EB A7
                JR Z,L59FC                      ; 59EC 28 0E
-               LD HL,DOS_L4073                 ; 59EE 21 73 80
+               LD HL,SOFCOUNT+&4000            ; 59EE 21 73 80
                DEC (HL)                        ; 59F1 35
                JR NZ,L59FC                     ; 59F2 20 08
                LD (HL),A                       ; 59F4 77
@@ -6734,7 +6760,7 @@ L59E8:
 
 ; ---- L59FC ---- from &59EC, &59F2, &59F9
 L59FC:
-               LD A,(&8085)                    ; 59FC 3A 85 80
+               LD A,(V4085+&4000)              ; 59FC 3A 85 80
                AND A                           ; 59FF A7
                JR Z,L5A6B                      ; 5A00 28 69
                DEC A                           ; 5A02 3D
@@ -12907,7 +12933,7 @@ L7689:
                LD HL,&0144                     ; 769A 21 44 01
                LD (L5A06),HL                   ; 769D 22 06 5A  patches the port of the IN at &5A04
                LD A,&0D                        ; 76A0 3E 0D
-               LD (L59E8),A                    ; 76A2 32 E8 59
+               LD (SCREEN_BLANK_TICK),A        ; 76A2 32 E8 59
                LD (&59DF),A                    ; 76A5 32 DF 59
                XOR A                           ; 76A8 AF
                LD (DOS_SAMCNT),A               ; 76A9 32 34 82

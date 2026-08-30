@@ -1,0 +1,27 @@
+# The screen blanker, and code that runs with itself in the window.
+
+MB &4073 SOFCOUNT
+MB &59E8 SCREEN_BLANK_TICK
+
+DOC SCREEN_BLANK_TICK
+    Count down towards blanking the screen, once per interrupt.
+
+    SOFV is XVAR 2, described in the listing as the screen blanking delay
+    -- "12 is about a minute, 0 the normal 22".  If it is zero this does
+    nothing.  Otherwise SOFCOUNT is decremented, and when it reaches zero
+    it is reloaded from SOFV and the ROM's own SOFFCT at &5AC4 -- which
+    the ROM's variable table calls the counter for screen off -- is
+    decremented in turn.
+
+    The routine is worth reading for what it says about paging.  It reads
+    SOFFCT at &5AC4 directly, with no window offset and no NRRD, which
+    only works with the ROM's system page at &4000; and it reads its own
+    SOFV as &8002, which only works with this half in the window.  Both
+    at once, in four instructions.  So this code runs from the interrupt,
+    where the system page is mapped low and MasterBASIC is reached
+    through the window -- the opposite of the arrangement everywhere else
+    in this half.
+
+    That is why the listing used to call SOFCOUNT "DOS_L4073": an &80xx
+    here is this page, not the other one, and the tools now know it for
+    &59A3-&59FF.
