@@ -1812,21 +1812,32 @@ L43C3:
                JR L43E2                        ; 43D3 18 0D
 
 ;; --------------------------------------------------------------------
-;; L43D5 -- &43D5 to &43E1
+;; FIND_VARIABLE -- &43D5 to &43E1
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? drives IN A,(HMPR); calls TEST_RUNNING; falls into whatever follows rather than returning.
+;; ? drives IN A,(HMPR); calls TEST_RUNNING, CALL_LOOKVARS; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Look a variable up and complain if it is not there.
+;;     
+;;     Returns immediately while the line is only being syntax-checked.
+;;     Otherwise it saves HMPR, calls the ROM's LOOKVARS through the thunk
+;;     above, and reports "Not found" if that comes back with Z.  What
+;;     follows reads FLAGS bit 6 -- the ROM's numeric-or-string flag -- and
+;;     the type bits in C, and refuses the combination that does not make
+;;     sense with "Argument".
 ;; --------------------------------------------------------------------
 
-; ---- L43D5 ---- from &4759, &484C, &4B45, &700F, &7055
-L43D5:
+; ---- FIND_VARIABLE ---- from &4759, &484C, &4B45, &700F, &7055
+FIND_VARIABLE:
                CALL TEST_RUNNING               ; 43D5 CD E2 44
                JR Z,L4422                      ; 43D8 28 48
                IN A,(HMPR)                     ; 43DA DB FB
                PUSH AF                         ; 43DC F5
-               CALL L45E7                      ; 43DD CD E7 45
+               CALL CALL_LOOKVARS              ; 43DD CD E7 45
                JR Z,REP_NOT_FOUND              ; 43E0 28 D1
 
 ;; --------------------------------------------------------------------
@@ -3126,16 +3137,33 @@ GTHL:
                RET                             ; 45E6 C9
 
 ;; --------------------------------------------------------------------
-;; L45E7 -- &45E7 to &45EC
+;; CALL_LOOKVARS -- &45E7 to &45EC
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? calls CMR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Call the ROM's variable lookup.  Three identical six-byte thunks sit
+;;     here in a row -- CALL CMR, a word, RET -- and each word is zero in
+;;     the file and filled in at boot by a signature search:
+;;     
+;;     &45EA -> &13AA LOOKVARS
+;;     &45F0 -> &2E69 SLICING
+;;     &45F6 -> &10A0 INSERTLN
+;;     
+;;     Those are read out of a dump of a running machine, so they are what
+;;     this ROM gives; another ROM would put the same three routines
+;;     somewhere else and the searches would find them there.
+;;     
+;;     None of the three could have been hard-coded: all are inside ROM 0,
+;;     which nothing in this half ever addresses directly.
 ;; --------------------------------------------------------------------
 
-; ---- L45E7 ---- from &43DD
-L45E7:
+; ---- CALL_LOOKVARS ---- from &43DD
+CALL_LOOKVARS:
                ; call the ROM at &0000 with ROM1 paged in, and page back on the way out
                CALL CMR                        ; 45E7 CD F0 44
 
@@ -3145,7 +3173,7 @@ V45EA:
                RET                             ; 45EC C9
 
 ;; --------------------------------------------------------------------
-;; L45ED -- &45ED to &45F2
+;; CALL_SLICING -- &45ED to &45F2
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
@@ -3153,15 +3181,15 @@ V45EA:
 ;; ? calls CMR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- L45ED ---- from &47D7
-L45ED:
+; ---- CALL_SLICING ---- from &47D7
+CALL_SLICING:
                ; call the ROM at &0000 with ROM1 paged in, and page back on the way out
                CALL CMR                        ; 45ED CD F0 44
                DEFW &0000                     ; 45F0 00 00
                RET                             ; 45F2 C9
 
 ;; --------------------------------------------------------------------
-;; L45F3 -- &45F3 to &45F8
+;; CALL_INSERTLN -- &45F3 to &45F8
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
@@ -3169,8 +3197,8 @@ L45ED:
 ;; ? calls CMR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- L45F3 ---- from &6EDD
-L45F3:
+; ---- CALL_INSERTLN ---- from &6EDD
+CALL_INSERTLN:
                ; call the ROM at &0000 with ROM1 paged in, and page back on the way out
                CALL CMR                        ; 45F3 CD F0 44
 
@@ -3887,12 +3915,12 @@ L4748:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? drives IN A,(HMPR); falls into whatever follows rather than returning.
+;; ? drives IN A,(HMPR); calls FIND_VARIABLE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L4759 ---- from &462D
 L4759:
-               CALL L43D5                      ; 4759 CD D5 43
+               CALL FIND_VARIABLE              ; 4759 CD D5 43
                RET NC                          ; 475C D0
                JP NZ,REP_NOT_UNDERSTOOD        ; 475D C2 B0 43
                ; to the alternate register set and back again
@@ -4010,7 +4038,7 @@ L47B5:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? tests for CH_CR, CH_COLON, CH_LPAREN; calls CALL_STKSTR, CALL_NEXTCHAR, CALL_GETCHAR; falls into whatever follows rather than returning.
+;; ? tests for CH_CR, CH_COLON, CH_LPAREN; calls CALL_STKSTR, CALL_NEXTCHAR, CALL_GETCHAR, CALL_SLICING; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L47C3 ---- from &4767, &476C, &6F8E
@@ -4027,7 +4055,7 @@ L47C3:
                JR Z,L47E2                      ; 47D1 28 0F
                CP CH_COLON                     ; 47D3 FE 3A
                JR Z,L47E2                      ; 47D5 28 0B
-               CALL L45ED                      ; 47D7 CD ED 45
+               CALL CALL_SLICING               ; 47D7 CD ED 45
                CALL CALL_NEXTCHAR              ; 47DA CD 61 44
                CP CH_LPAREN                    ; 47DD FE 28
                CALL Z,CALL_NEXTCHAR            ; 47DF CC 61 44
@@ -4315,11 +4343,13 @@ L4843:
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
+;;
+;; ? calls FIND_VARIABLE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L484C ---- from &6F82
 L484C:
-               CALL L43D5                      ; 484C CD D5 43
+               CALL FIND_VARIABLE              ; 484C CD D5 43
 
 ;; --------------------------------------------------------------------
 ;; L484F -- &484F to &485A
@@ -5568,7 +5598,7 @@ L4B00:
 ;; Takes:     A, B, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? drives OUT (HMPR),A; calls EXPECT_NEXT_LPAREN, TEST_RUNNING; falls into whatever follows rather than returning.
+;; ? drives OUT (HMPR),A; calls FIND_VARIABLE, EXPECT_NEXT_LPAREN, TEST_RUNNING; falls into whatever follows rather than returning.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -5594,7 +5624,7 @@ FN_INARRAY:
                CALL TEST_RUNNING               ; 4B3F CD E2 44
                JR Z,L4B85                      ; 4B42 28 41
                PUSH HL                         ; 4B44 E5
-               CALL L43D5                      ; 4B45 CD D5 43
+               CALL FIND_VARIABLE              ; 4B45 CD D5 43
                LD HL,STACK_PAGE0_STRING        ; 4B48 21 6B 4C
                EX (SP),HL                      ; 4B4B E3
                PUSH AF                         ; 4B4C F5
@@ -13345,20 +13375,37 @@ L5FFA:
                JR NZ,L6020                     ; 5FFC 20 22
 
 ;; --------------------------------------------------------------------
-;; L5FFE -- &5FFE to &6007
+;; L5FFE -- &5FFE to &5FFF
 ;;
 ;; Takes:     nothing in registers
-;; Leaves:    A, F
-;;
-;; ? drives IN A,(STAT); falls into whatever follows rather than returning.
+;; Leaves:    A
 ;; --------------------------------------------------------------------
 
 ; ---- L5FFE ---- from &600B
 L5FFE:
                LD A,&F7                        ; 5FFE 3E F7
 
-; ---- L6000 ---- from DOS &5B81, DOS &5B93, DOS &5C33, DOS &7936
-L6000:
+;; --------------------------------------------------------------------
+;; CHECK_BREAK -- &6000 to &6007
+;;
+;; Takes:     nothing in registers
+;; Leaves:    A, F
+;;
+;; ? drives IN A,(STAT); falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Report "BREAK into program" if the key is down, otherwise return.
+;;     
+;;     IN A,(STAT), bit 5, and the sense is active low: set means not
+;;     pressed.  Called from four places in the DOS, which is where the long
+;;     operations are -- the DOS does the same test itself at &502A, with
+;;     LD A,&F7 to select the key row first and DERR &54 instead of the
+;;     error restart.
+;; --------------------------------------------------------------------
+
+; ---- CHECK_BREAK ---- from DOS &5B81, DOS &5B93, DOS &5C33, DOS &7936
+CHECK_BREAK:
                IN A,(STAT)                     ; 6000 DB F9
                AND &20                         ; 6002 E6 20
                JR NZ,L6008                     ; 6004 20 02
@@ -19043,7 +19090,7 @@ L6E98:
                DEFW WORKSP                    ; 6ED9 91 5A
                LD B,H                          ; 6EDB 44
                LD C,L                          ; 6EDC 4D
-               CALL L45F3                      ; 6EDD CD F3 45
+               CALL CALL_INSERTLN              ; 6EDD CD F3 45
                ; read the ROM variable PRPTR -- the word below is its address, and the call returns past it
                CALL NRRDD                      ; 6EE0 CD 5F 45
                DEFW PRPTR                     ; 6EE3 A9 5A
@@ -19403,13 +19450,13 @@ L6FDD:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? reaches the ROM through STRLOCN; calls CALL_NEXTCHAR, NRRDD; falls into whatever follows rather than returning.
+;; ? reaches the ROM through STRLOCN; calls FIND_VARIABLE, CALL_NEXTCHAR, NRRDD; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L700C ---- from &6E01
 L700C:
                CALL CALL_NEXTCHAR              ; 700C CD 61 44
-               CALL L43D5                      ; 700F CD D5 43
+               CALL FIND_VARIABLE              ; 700F CD D5 43
                JR NC,L704F                     ; 7012 30 3B
                JP NZ,REP_NOT_UNDERSTOOD        ; 7014 C2 B0 43
                PUSH AF                         ; 7017 F5
@@ -19480,14 +19527,14 @@ L7046:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? reaches the ROM through PRPTRP; drives IN A,(HMPR); calls EXPECT_COMMA, CALL_GETCHAR, NRWR; falls into whatever follows rather than returning.
+;; ? reaches the ROM through PRPTRP; drives IN A,(HMPR); calls FIND_VARIABLE, EXPECT_COMMA, CALL_GETCHAR, NRWR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L704F ---- from &7012
 L704F:
                CALL CALL_GETCHAR               ; 704F CD 67 44
                CALL EXPECT_COMMA               ; 7052 CD 50 44
-               CALL L43D5                      ; 7055 CD D5 43
+               CALL FIND_VARIABLE              ; 7055 CD D5 43
                JR NC,L70B0                     ; 7058 30 56
                JP NZ,REP_NOT_UNDERSTOOD        ; 705A C2 B0 43
                PUSH AF                         ; 705D F5

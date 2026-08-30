@@ -1,0 +1,42 @@
+# Three calls into the ROM with no target until boot.
+
+MB &45E7 CALL_LOOKVARS
+MB &45ED CALL_SLICING
+MB &45F3 CALL_INSERTLN
+MB &6000 CHECK_BREAK
+MB &43D5 FIND_VARIABLE
+
+DOC CALL_LOOKVARS
+    Call the ROM's variable lookup.  Three identical six-byte thunks sit
+    here in a row -- CALL CMR, a word, RET -- and each word is zero in
+    the file and filled in at boot by a signature search:
+
+        &45EA -> &13AA LOOKVARS
+        &45F0 -> &2E69 SLICING
+        &45F6 -> &10A0 INSERTLN
+
+    Those are read out of a dump of a running machine, so they are what
+    this ROM gives; another ROM would put the same three routines
+    somewhere else and the searches would find them there.
+
+    None of the three could have been hard-coded: all are inside ROM 0,
+    which nothing in this half ever addresses directly.
+
+DOC CHECK_BREAK
+    Report "BREAK into program" if the key is down, otherwise return.
+
+    IN A,(STAT), bit 5, and the sense is active low: set means not
+    pressed.  Called from four places in the DOS, which is where the long
+    operations are -- the DOS does the same test itself at &502A, with
+    LD A,&F7 to select the key row first and DERR &54 instead of the
+    error restart.
+
+DOC FIND_VARIABLE
+    Look a variable up and complain if it is not there.
+
+    Returns immediately while the line is only being syntax-checked.
+    Otherwise it saves HMPR, calls the ROM's LOOKVARS through the thunk
+    above, and reports "Not found" if that comes back with Z.  What
+    follows reads FLAGS bit 6 -- the ROM's numeric-or-string flag -- and
+    the type bits in C, and refuses the combination that does not make
+    sense with "Argument".

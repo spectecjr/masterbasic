@@ -100,6 +100,7 @@ NOT_IN_THIS_PAGE: EQU  &4000
 ; this one is at &4000.  The names are its own labels.  A stored
 ; pointer written as NAME+&4000 has bit 15 set, the flag INDJP
 ; and CTAB use to mean "not in this page".
+MB_CHECK_BREAK: EQU  &A000
 MB_CMD_ALTER:  EQU  &94CA
 MB_CMD_BLITZ:  EQU  &9AD4
 MB_CMD_CLS:    EQU  &B1A4
@@ -150,7 +151,6 @@ MB_L4160:      EQU  &8160
 MB_L4200:      EQU  &8200
 MB_L42FF:      EQU  &82FF
 MB_L5C16:      EQU  &9C16
-MB_L6000:      EQU  &A000
 MB_L6280:      EQU  &A280
 MB_L63F6:      EQU  &A3F6
 MB_L7900:      EQU  &B900
@@ -6494,7 +6494,7 @@ L5B70:
                CALL SETBORDER_BORDCR           ; 5B78 CD 52 51  DIR TO BUFFER
                CALL PDIRH                      ; 5B7B CD 09 5C  PRINT HEADER
                LD HL,(PTRSCR)                  ; 5B7E 2A 2C 41
-               LD DE,MB_L6000                  ; 5B81 11 00 A0
+               LD DE,MB_CHECK_BREAK            ; 5B81 11 00 A0
                AND A                           ; 5B84 A7
                SBC HL,DE                       ; 5B85 ED 52  HL=TEXT LEN (1SL
                JR Z,PCN3                       ; 5B87 28 32  L5AA9 ? L5AA9 ? L5AA9_PCN3 ?  ;*
@@ -6507,7 +6507,7 @@ L5A80:
                INC DE                          ; 5B8E 13  *
                SBC HL,BC                       ; 5B8F ED 42  *
                JR NZ,L5A80                     ; 5B91 20 FB  L5A80 = L5A80 = L5A80         ;*
-               LD HL,MB_L6000                  ; 5B93 21 00 A0  HL=START, DE=FILES
+               LD HL,MB_CHECK_BREAK            ; 5B93 21 00 A0  HL=START, DE=FILES
                LD A,(SRTFG)                    ; 5B96 3A 29 42
                AND A                           ; 5B99 A7
                JR Z,L5BA1                      ; 5B9A 28 05
@@ -6630,7 +6630,7 @@ ZDVS:
 ; ---- DITOB ---- from &5B75, &7930, &7996
 DITOB:
                CALL GETSCR                     ; 5C30 CD 2C 49
-               LD HL,MB_L6000                  ; 5C33 21 00 A0
+               LD HL,MB_CHECK_BREAK            ; 5C33 21 00 A0
                LD (PTRSCR),HL                  ; 5C36 22 2C 41  INIT BUFFER PTR
                LD A,&02                        ; 5C39 3E 02
                JP FDHR                         ; 5C3B C3 31 4B  SIMPLE DIR TO SCREEN BUFFER
@@ -12916,7 +12916,7 @@ FNDI2:
 FNDI3:
                CALL DITOB                      ; 7930 CD 30 5C  DIR TO BUFFER
                LD HL,(PTRSCR)                  ; 7933 2A 2C 41
-               LD DE,MB_L6000                  ; 7936 11 00 A0
+               LD DE,MB_CHECK_BREAK            ; 7936 11 00 A0
                AND A                           ; 7939 A7
                SBC HL,DE                       ; 793A ED 52  HL=TEXT LEN (10 PER NAME)
                LD B,H                          ; 793C 44
