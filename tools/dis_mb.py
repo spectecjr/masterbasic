@@ -2143,6 +2143,32 @@ def note_patched_ports(d, NEAR_PATCH=1024):
     placeholder that is never executed.
     """
     n = 0
+    # A store that follows a signature search is a patch by construction,
+    # however far away it lands: the search returns a ROM address in HL
+    # and the only thing to do with it is write it into the operand of
+    # the instruction that will use it.  The resolver does that
+    # twenty-odd times from one end of the page to the other, so the
+    # distance rule below would throw all of them away.
+    resolved = set()
+    for a, ins in d.insns.items():
+        if not ins.text.startswith('CALL'):
+            continue
+        p = ins.end
+        while d.inside(p) and d.m(p) == PARAM:
+            p += 1
+        if p - ins.end != 6:            # the signature search's six bytes
+            continue
+        # One result can fill two operands: &79E2 and &79E5 write the
+        # same HL to &757F and &7596.  So take the whole run of stores.
+        while True:
+            resolved.add(p)
+            nxt = d.insns.get(p)
+            if nxt is None or not re.match(
+                    r'^LD \((?:&[0-9A-F]{4}|[A-Za-z_]\w*)'
+                    r'(?:\+&?[0-9A-F]+)?\),(HL|DE)$',
+                    d.overrides.get(p, nxt.text)):
+                break
+            p = nxt.end
     for a, ins in sorted(d.insns.items()):
         text = d.overrides.get(a, ins.text)
         # The +&4000 form too: by the time this runs, a write through the
@@ -2186,7 +2212,7 @@ def note_patched_ports(d, NEAR_PATCH=1024):
             continue
         victim = d.overrides.get(owner, d.insns[owner].text)
         port = victim.startswith(('IN ', 'OUT '))
-        if not port and not windowed:
+        if not port and not windowed and a not in resolved:
             # Beyond the ports, a write into another instruction is only
             # taken as self-modifying code when it is close by.  Most of
             # the addresses that land inside an instruction are ROM
