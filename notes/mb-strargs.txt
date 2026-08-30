@@ -1,0 +1,23 @@
+# Parsing an optional string slice.
+
+MB &47C3 STACK_EMPTY_STRING_OR_SLICE
+
+DOC STACK_EMPTY_STRING_OR_SLICE
+    Put an empty string on the calculator stack, and apply a slice to it
+    if one follows.
+
+        XOR A : LD D,A : LD E,A : CALL STKSTR   -- a string of length
+                                                   zero at address zero
+        CP CH_CR    : JR Z,done
+        CP CH_COLON : JR Z,done
+        CALL SLICING
+        CALL NEXTCHAR : CP "(" : CALL Z,NEXTCHAR
+
+    So at the end of a statement the result is the empty string, and
+    otherwise the ROM's SLICING is left to read whatever subscript is
+    there.  Both of the ROM routines it uses -- STKSTR and SLICING --
+    are reached through thunks whose targets are found by signature
+    search at boot.
+
+    Everything is preserved: BC, DE and HL are pushed on entry and popped
+    on both exits.

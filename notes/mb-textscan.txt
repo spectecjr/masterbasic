@@ -1,0 +1,31 @@
+# Scanning program text.
+
+MB &5876 SCAN_TEXT_FOR_D_OR_E
+MB &569B SCAN_TEXT_PAGED
+
+DOC SCAN_TEXT_FOR_D_OR_E
+    Walk forward through BASIC text looking for either of two
+    characters, given in D and E.
+
+        INC HL : LD A,(HL) : CALL NUMBER
+
+    NUMBER is the ROM routine that steps over the invisible six-byte
+    binary form a number carries in a program line, so the scan never
+    trips over one and never matches a byte inside one.
+
+    A carriage return ends it with carry set.  A quote makes it skip to
+    the matching quote, so a delimiter inside a string is not found.
+    Otherwise A is compared with D and then E, returning on either, and
+    the loop stops at &FF.
+
+    Returns: carry set if the line ended, clear if D or E was found, with
+    HL on the character.
+
+DOC SCAN_TEXT_PAGED
+    The same scan, carried across a 16K boundary.
+
+    It calls SCAN_TEXT_FOR_D_OR_E and, on the way out, tests bit 6 of H
+    -- the bit that says the pointer has run past the end of the window
+    -- and if so calls INCURPAGE and clears it, so the walk continues in
+    the next page.  That is the standard way this image steps a pointer
+    through memory it can only see 16K of at a time.

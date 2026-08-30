@@ -2588,10 +2588,10 @@ L4763:
                PUSH AF                         ; 4763 F5
                EX AF,AF'                       ; 4764 08
                OUT (HMPR),A                    ; 4765 D3 FB
-               CALL L47C3                      ; 4767 CD C3 47
+               CALL STACK_EMPTY_STRING_OR_SLICE ; 4767 CD C3 47
                LD B,D                          ; 476A 42
                LD C,E                          ; 476B 4B
-               CALL L47C3                      ; 476C CD C3 47
+               CALL STACK_EMPTY_STRING_OR_SLICE ; 476C CD C3 47
                LD A,B                          ; 476F 78
                CP &40                          ; 4770 FE 40
 
@@ -2645,8 +2645,29 @@ L47B5:
                LD IX,L46CD                     ; 47BE DD 21 CD 46
                RET                             ; 47C2 C9
 
-; ---- L47C3 ---- from &4767, &476C, &6F8E
-L47C3:
+;; --------------------------------------------------------------------
+;; Put an empty string on the calculator stack, and apply a slice to it
+;; if one follows.
+;;
+;; XOR A : LD D,A : LD E,A : CALL STKSTR   -- a string of length
+;; zero at address zero
+;; CP CH_CR    : JR Z,done
+;; CP CH_COLON : JR Z,done
+;; CALL SLICING
+;; CALL NEXTCHAR : CP "(" : CALL Z,NEXTCHAR
+;;
+;; So at the end of a statement the result is the empty string, and
+;; otherwise the ROM's SLICING is left to read whatever subscript is
+;; there.  Both of the ROM routines it uses -- STKSTR and SLICING --
+;; are reached through thunks whose targets are found by signature
+;; search at boot.
+;;
+;; Everything is preserved: BC, DE and HL are pushed on entry and popped
+;; on both exits.
+;; --------------------------------------------------------------------
+
+; ---- STACK_EMPTY_STRING_OR_SLICE ---- from &4767, &476C, &6F8E
+STACK_EMPTY_STRING_OR_SLICE:
                PUSH BC                         ; 47C3 C5
                PUSH DE                         ; 47C4 D5
                PUSH HL                         ; 47C5 E5
@@ -5570,7 +5591,7 @@ L5484:
                LD H,B                          ; 54C4 60
                LD L,C                          ; 54C5 69
                DEC HL                          ; 54C6 2B
-               JP L569B                        ; 54C7 C3 9B 56
+               JP SCAN_TEXT_PAGED              ; 54C7 C3 9B 56
 
 ;; --------------------------------------------------------------------
 ;; ALTER -- the ALTER command, token 250.  Three unrelated jobs.
@@ -5950,9 +5971,19 @@ L5687:
                INC HL                          ; 5699 23
                INC HL                          ; 569A 23
 
-; ---- L569B ---- from &54C7, &56B1, &574F
-L569B:
-               CALL L5876                      ; 569B CD 76 58
+;; --------------------------------------------------------------------
+;; The same scan, carried across a 16K boundary.
+;;
+;; It calls SCAN_TEXT_FOR_D_OR_E and, on the way out, tests bit 6 of H
+;; -- the bit that says the pointer has run past the end of the window
+;; -- and if so calls INCURPAGE and clears it, so the walk continues in
+;; the next page.  That is the standard way this image steps a pointer
+;; through memory it can only see 16K of at a time.
+;; --------------------------------------------------------------------
+
+; ---- SCAN_TEXT_PAGED ---- from &54C7, &56B1, &574F
+SCAN_TEXT_PAGED:
+               CALL SCAN_TEXT_FOR_D_OR_E       ; 569B CD 76 58
                JR NC,L56AE                     ; 569E 30 0E
                EX (SP),HL                      ; 56A0 E3
                BIT 6,H                         ; 56A1 CB 74
@@ -5969,7 +6000,7 @@ L56AB:
 ; ---- L56AE ---- from &569E
 L56AE:
                CALL L5836                      ; 56AE CD 36 58
-               JR NZ,L569B                     ; 56B1 20 E8
+               JR NZ,SCAN_TEXT_PAGED           ; 56B1 20 E8
                LD A,(V4094)                    ; 56B3 3A 94 40
                SLA A                           ; 56B6 CB 27
                JP C,L572F                      ; 56B8 DA 2F 57
@@ -6070,7 +6101,7 @@ L574C:
 L574D:
                POP DE                          ; 574D D1
                DEC HL                          ; 574E 2B
-               JP L569B                        ; 574F C3 9B 56
+               JP SCAN_TEXT_PAGED              ; 574F C3 9B 56
 
 ; ---- L5752 ---- from &556F, &566A
 L5752:
@@ -6302,8 +6333,27 @@ L5872:
                POP DE                          ; 5874 D1
                RET                             ; 5875 C9
 
-; ---- L5876 ---- from &569B, &5893, &5896
-L5876:
+;; --------------------------------------------------------------------
+;; Walk forward through BASIC text looking for either of two
+;; characters, given in D and E.
+;;
+;; INC HL : LD A,(HL) : CALL NUMBER
+;;
+;; NUMBER is the ROM routine that steps over the invisible six-byte
+;; binary form a number carries in a program line, so the scan never
+;; trips over one and never matches a byte inside one.
+;;
+;; A carriage return ends it with carry set.  A quote makes it skip to
+;; the matching quote, so a delimiter inside a string is not found.
+;; Otherwise A is compared with D and then E, returning on either, and
+;; the loop stops at &FF.
+;;
+;; Returns: carry set if the line ended, clear if D or E was found, with
+;; HL on the character.
+;; --------------------------------------------------------------------
+
+; ---- SCAN_TEXT_FOR_D_OR_E ---- from &569B, &5893, &5896
+SCAN_TEXT_FOR_D_OR_E:
                INC HL                          ; 5876 23
                LD A,(HL)                       ; 5877 7E
                CALL NUMBER                     ; 5878 CD A2 00
@@ -6330,12 +6380,12 @@ L588E:
                CP E                            ; 5890 BB
                RET Z                           ; 5891 C8
                INC A                           ; 5892 3C
-               JR NZ,L5876                     ; 5893 20 E1
+               JR NZ,SCAN_TEXT_FOR_D_OR_E      ; 5893 20 E1
                INC HL                          ; 5895 23
 
 ; ---- L5896 ---- from &5081
 L5896:
-               JR L5876                        ; 5896 18 DE
+               JR SCAN_TEXT_FOR_D_OR_E         ; 5896 18 DE
 
 ; ---- L5898 ---- from &5703
 L5898:
@@ -11593,7 +11643,7 @@ L6F66:
                PUSH AF                         ; 6F8A F5
                EX AF,AF'                       ; 6F8B 08
                OUT (HMPR),A                    ; 6F8C D3 FB
-               CALL L47C3                      ; 6F8E CD C3 47
+               CALL STACK_EMPTY_STRING_OR_SLICE ; 6F8E CD C3 47
                PUSH HL                         ; 6F91 E5
 
 ; ---- L6F92 ---- from &6F85
