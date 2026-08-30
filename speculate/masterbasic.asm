@@ -7549,7 +7549,7 @@ L5066:
                INC HL                          ; 507B 23
                LD D,(HL)                       ; 507C 56
                LD (OPSTORE+&4000),DE           ; 507D ED 53 B5 9A
-               LD DE,L5896                     ; 5081 11 96 58
+               LD DE,SYS_GAP_BLOCK             ; 5081 11 96 58
                LD (HL),D                       ; 5084 72
                DEC HL                          ; 5085 2B
                LD (HL),E                       ; 5086 73
@@ -10254,10 +10254,11 @@ L588A:
                JR NZ,L588A                     ; 588C 20 FC
 
 ;; --------------------------------------------------------------------
-;; L588E -- &588E to &5895
+;; L588E -- &588E to &5897
 ;;
 ;; Takes:     A, DE, HL
 ;; Leaves:    A, F, HL
+;; Ends:      JR
 ;; --------------------------------------------------------------------
 
 ; ---- L588E ---- from &5881, &5888
@@ -10269,17 +10270,6 @@ L588E:
                INC A                           ; 5892 3C
                JR NZ,SCAN_TEXT_FOR_D_OR_E      ; 5893 20 E1
                INC HL                          ; 5895 23
-
-;; --------------------------------------------------------------------
-;; L5896 -- &5896 to &5897
-;;
-;; Takes:     nothing in registers
-;; Leaves:    registers unchanged
-;; Ends:      JR
-;; --------------------------------------------------------------------
-
-; ---- L5896 ---- from &5081
-L5896:
                JR SCAN_TEXT_FOR_D_OR_E         ; 5896 18 DE
 
 ;; --------------------------------------------------------------------
@@ -22887,6 +22877,21 @@ L7AE1:
 ;;     MasterBASIC's replacement for the ROM's paging subroutine, copied
 ;;     into PAGER at &5BE0 where the ROM reserves fourteen bytes for one.
 ;;     It saves HMPR, calls &005C, and puts HMPR back.
+;;     
+;;     &005C is three bytes the ROM source leaves unlabelled: OUT (&FB),A
+;;     then JP (HL).  ref/samrom/main.asm has them between the
+;;     DB 0 that follows ANYI, the interrupt handler, and DELBC, and every
+;;     ROM image in
+;;     ref/samrom/roms from 1.8 on holds D3 FB E9 at exactly &005C, so the
+;;     address is certain rather than inferred.
+;;     
+;;     That fixes the calling convention: A is the page, HL is the address,
+;;     and CALL &005C makes it a subroutine call -- the JP (HL) runs the
+;;     routine and the routine's own RET returns to whoever called &005C.
+;;     All MB_PAGER adds is saving HMPR before and restoring it after, which
+;;     is what the four EX AF,AF' are for: A carries the wanted page in and
+;;     the saved HMPR out, and the alternate accumulator is the only free
+;;     place to hold one while the other is in use.
 ;; --------------------------------------------------------------------
 
 ; ---- MB_PAGER ---- from &7AB0

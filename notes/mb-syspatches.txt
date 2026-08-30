@@ -59,6 +59,21 @@ DOC MB_PAGER
     into PAGER at &5BE0 where the ROM reserves fourteen bytes for one.
     It saves HMPR, calls &005C, and puts HMPR back.
 
+    &005C is three bytes the ROM source leaves unlabelled: OUT (&FB),A
+    then JP (HL).  ref/samrom/main.asm has them between the
+    DB 0 that follows ANYI, the interrupt handler, and DELBC, and every
+    ROM image in
+    ref/samrom/roms from 1.8 on holds D3 FB E9 at exactly &005C, so the
+    address is certain rather than inferred.
+
+    That fixes the calling convention: A is the page, HL is the address,
+    and CALL &005C makes it a subroutine call -- the JP (HL) runs the
+    routine and the routine's own RET returns to whoever called &005C.
+    All MB_PAGER adds is saving HMPR before and restoring it after, which
+    is what the four EX AF,AF' are for: A carries the wanted page in and
+    the saved HMPR out, and the alternate accumulator is the only free
+    place to hold one while the other is in use.
+
 DOC GAP_BLOCK
     Forty bytes copied into the system page at &5896, in the space the
     ROM leaves between the DEF KEY buffer and the keyboard table.  It

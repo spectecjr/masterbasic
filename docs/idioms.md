@@ -26,14 +26,32 @@ fact is behind two thirds of what follows.
 
 ## 1. Windowing an address
 
-To reach the system page's `&5A97` while something else is at `&4000`, set
-`HMPR` to 0 and add `&4000`:
+To reach a system variable while something else is at `&4000`, put the system
+page in the window and add `&4000` to the address. `L5066` does the whole thing
+twice over in one stretch — it points the ROM's current output channel at
+MasterBASIC's own code and keeps the old address:
 
 ```asm
-XOR A
-OUT (HMPR),A            ; the system page is now at &8000
-SET 7,H                 ; &5A97 -> &DA97
-RES 6,H                 ;       -> &9A97
+L5066:
+      CALL CALLDOS                    ; 5066  (the block starts here)
+      DEFW &7859                      ; 5069
+      LD BC,&00FB                     ; 506B  B = 0, C = HMPR
+      IN E,(C)                        ; 506E  the old paging, kept in E
+      OUT (C),B                       ; 5070  the system page is now at &8000
+      LD B,E                          ; 5072  and kept in B for the way out
+      LD HL,(CURCHL+&4000)            ; 5073  the ROM's CURCHL, read at &9C51
+      SET 7,H                         ; 5076  what it points at is a system-page
+      RES 6,H                         ; 5078  address too, so window that as well
+      LD E,(HL)                       ; 507A  the channel's output routine
+      INC HL                          ; 507B
+      LD D,(HL)                       ; 507C
+      LD (OPSTORE+&4000),DE           ; 507D  saved in a ROM variable
+      LD DE,SYS_GAP_BLOCK             ; 5081  MasterBASIC's own, at &5896
+      LD (HL),D                       ; 5084  written in the channel's place
+      DEC HL                          ; 5085
+      LD (HL),E                       ; 5086
+      OUT (C),B                       ; 5087  paging back as it was
+      RET                             ; 5089
 ```
 
 `SET 7,H` then `RES 6,H` adds `&4000` for any address in `&4000`-`&7FFF`,
@@ -41,25 +59,37 @@ without needing a spare register and without disturbing the carry flag the way
 `ADD HL,DE` would. The pair is worth recognising on sight: **`SET 7,H` /
 `RES 6,H` means "the same byte, seen in the window".**
 
-In the listings such an address is written `NAME+&4000`, so `ILPD+&4000` is
-`&8009` in the bytes.
+In the listings such an address is written `NAME+&4000`, so `CURCHL+&4000` is
+`&9C51` in the bytes and `OPSTORE+&4000` is `&9AB5`.
+
+Two smaller things in the same block. `LD BC,&00FB` with `IN E,(C)` and
+`OUT (C),B` keeps the port in one register pair and both paging values in the
+other, so the old setting never has to be stored anywhere. And `SYS_GAP_BLOCK`
+is a name this project gives, not the ROM's: the operand is `&5896`, an address
+in *the system page* — the forty bytes MasterBASIC installs in the gap the ROM
+leaves between the DEF KEY buffer and the keyboard table — while `&5896` in
+MasterBASIC's own page is the middle of an unrelated text scan. The
+disassembler is told about this one operand; without that it reads the number as
+a local address and invents a label for it, which is the problem above all over
+again.
 
 ## 2. The `NR` family — reading a system variable from anywhere
 
 Because the windowing above needs `HMPR` saved, changed and restored, it is
-wrapped up. `WRA` at `&45A4` is the whole pattern in eleven bytes:
+wrapped up. `WRA` is the whole pattern in fifteen bytes:
 
 ```asm
-WRA:  PUSH AF                 ; 45A4  the value to write
-      IN A,(HMPR)             ; 45A5  save the current paging
-      EX AF,AF'               ; 45A7  keep it in A' -- AF is needed
-      XOR A                   ; 45A8
-      OUT (HMPR),A            ; 45A9  system page into the window
-      SET 7,H                 ; 45AB  window HL
-      RES 6,H                 ; 45AD
-      POP AF                  ; 45AF  the value again
-      LD (HL),A               ; 45B0  the actual write
-      JR PPXR                 ; 45B1  restore HMPR and return
+WRA:
+      PUSH AF                         ; 45A4  the value to write
+      IN A,(HMPR)                     ; 45A5  save the current paging
+      EX AF,AF'                       ; 45A7  keep it in A' — AF is needed
+      XOR A                           ; 45A8
+      OUT (HMPR),A                    ; 45A9  system page into the window
+      SET 7,H                         ; 45AB  window HL
+      RES 6,H                         ; 45AD
+      POP AF                          ; 45AF  the value again
+      LD (HL),A                       ; 45B0  the actual write
+      JR PPXR                         ; 45B1  restore HMPR and return
 ```
 
 The caller passes an address in `HL` at its *proper* value and never thinks
@@ -73,14 +103,15 @@ The `NR` entry points take the variable's address as *data following the call*,
 not in a register:
 
 ```asm
-CALL NRRD               ; 4292
-DEFW CUSCRNP            ; 4295  -- read the ROM's CUSCRNP into A
+      CALL NRRD                       ; 4292
+      DEFW CUSCRNP                    ; 4295  — read the ROM's CUSCRNP into A
 ```
 
 The trick that makes it work is one instruction:
 
 ```asm
-NRRD: EX (SP),HL        ; 456A
+NRRD:
+      EX (SP),HL                      ; 456A
 ```
 
 `EX (SP),HL` exchanges `HL` with the return address the `CALL` pushed. So
@@ -95,8 +126,8 @@ The same convention carries `CMR` (call the ROM with ROM 1 paged in), `CALLDOS`
 ## 4. `RST &08` plus a byte — the hook interface
 
 ```asm
-RST ERR_HOOK            ; 7B97  = RST &08
-DEFB HK_HPRTOK          ; 7B98  hook code &A9
+      RST ERR_HOOK                    ; 7B97  = RST &08
+      DEFB HK_HPRTOK                  ; 7B98  hook code &A9
 ```
 
 A restart is one byte and the code after it is one more, so a hook call costs two
@@ -120,13 +151,14 @@ to finish, and the Technical Manual states both:
 Both halves in ten bytes, from the stub `PRTOKV` points at:
 
 ```asm
-CP &F7                  ; 7B90  is this one of the ROM's own tokens?
-RET C                   ; 7B92  yes -- returning lets the ROM print it
-POP HL                  ; 7B93  no -- drop the return address
-LD HL,(XPTR)            ; 7B94
-RST ERR_HOOK            ; 7B97  and handle it here instead
-DEFB HK_HPRTOK          ; 7B98
-RET                     ; 7B99
+PRTOKV_STUB:
+      CP &F7                          ; 7B90  is this one of the ROM's own tokens?
+      RET C                           ; 7B92  yes — returning lets the ROM print it
+      POP HL                          ; 7B93  no — drop the return address
+      LD HL,(XPTR)                    ; 7B94
+      RST ERR_HOOK                    ; 7B97  and handle it here instead
+      DEFB HK_HPRTOK                  ; 7B98
+      RET                             ; 7B99
 ```
 
 The manual's own worked example writes the second half as
@@ -137,14 +169,18 @@ The manual's own worked example writes the second half as
 Walking a structure longer than 16K, from the Technical Manual:
 
 ```asm
-BIT 6,H                 ; has HL crossed from section C into D?
-JR Z,LAB1
-IN A,(HMPAGE)
-INC A
-OUT (HMPAGE)            ; next page
-RES 6,H                 ; and HL back &4000 lower, onto the same byte
+      BIT 6,H                         ; has HL crossed from section C into D?
+      JR Z,LAB1
+      IN A,(HMPAGE)
+      INC A
+      OUT (HMPAGE)                    ; next page
+      RES 6,H                         ; and HL back &4000 lower, onto the same byte
 LAB1:
 ```
+
+`HMPAGE` is the manual's name for the port the listings call `HMPR`, and the
+`OUT (HMPAGE)` without an operand is the manual's own typo, reproduced here as
+it stands.
 
 The ROM keeps C and D as "a rotating window onto memory", so a pointer only ever
 needs checking once per iteration. It is safe because the page number's low five
@@ -162,18 +198,19 @@ address. The Spectrum-style layout interleaves the row bits, and the code does i
 twice with the same three-instruction trick:
 
 ```asm
-LD L,B                  ; 6C38  keep the row
-LD A,B                  ; 6C39
-OR A                    ; 6C3A  clears carry, so RRA shifts in a zero
-RRA                     ; 6C3B
-RRA                     ; 6C3C
-RRA                     ; 6C3D  row >> 3
-AND &1F                 ; 6C3E  keep five bits
-OR &80                  ; 6C40  the display file base
-XOR L                   ; 6C42  <-- the merge
-AND &F8                 ; 6C43
-XOR L                   ; 6C45
-LD H,A                  ; 6C46
+MODE1_SCREEN_ADDRESS:
+      LD L,B                          ; 6C38  keep the row
+      LD A,B                          ; 6C39
+      OR A                            ; 6C3A  clears carry, so RRA shifts in a zero
+      RRA                             ; 6C3B
+      RRA                             ; 6C3C
+      RRA                             ; 6C3D  row >> 3
+      AND &1F                         ; 6C3E  keep five bits
+      OR &80                          ; 6C40  the display file base
+      XOR L                           ; 6C42  <-- the merge
+      AND &F8                         ; 6C43
+      XOR L                           ; 6C45
+      LD H,A                          ; 6C46
 ```
 
 `XOR L : AND mask : XOR L` is **"take the masked bits from `A`, the rest from
@@ -188,7 +225,7 @@ Three bytes, no spare register, and it does not touch the carry. The alternative
 — `AND mask` on one, `AND` the complement on the other, `OR` them — needs a
 fourth instruction and somewhere to keep the intermediate.
 
-The second use, ten instructions later, merges the column the same way with
+The second use, eight instructions later, merges the column the same way with
 `AND &C7`, sandwiched between rotates that put the bits where the mask expects
 them.
 
@@ -198,21 +235,27 @@ Two entry points, where the later one needs a register loaded and the earlier on
 does not:
 
 ```asm
-LD B,A                  ; 7408
-DEFB &21                ; 7409  the opcode of LD HL,nn
+      IN A,(HMPR)                     ; 7402
+      AND PAGEMASK                    ; 7404  the page number alone
+      OR &80                          ; 7406
+      LD B,A                          ; 7408
+      DEFB &21                        ; 7409  the opcode of LD HL,nn
 L740A:
-LD B,&FF                ; 740A  which is the two bytes this instruction is
-POP AF                  ; 740C
+      LD B,&FF                        ; 740A  which is the two bytes this
+      POP AF                          ; 740C  instruction is made of
+      OUT (HMPR),A                    ; 740D
 ```
 
 Falling in from `&7408` executes `21 06 FF` — `LD HL,&FF06` — whose operand
-swallows the `LD B,&FF`. Jumping to `&740A` executes the `LD B,&FF` instead. One
-byte instead of a `JR`, and `HL` is scratch on that path.
+swallows the `LD B,&FF`, so `B` keeps the page number just computed. Jumping to
+`L740A` from `&73E3` executes the `LD B,&FF` instead, and `B` is `&FF`. One byte
+instead of a `JR`, and `HL` is scratch on that path.
 
 `&3E` (`LD A,n`) does the same for one swallowed byte, and `&36` (`LD (HL),n`)
 appears too. In the listings the swallowed opcode is written as a `DEFB` with a
 note saying what it also reads as, because only one of the two readings can be
-written down.
+written down — here, *skipped: reads as LD HL,&FF06 from here, and as part of
+the instruction above it*.
 
 ## 9. Self-modifying operands
 
@@ -220,7 +263,9 @@ Port numbers and jump targets are poked into instructions rather than kept in
 variables:
 
 ```asm
-LD (L4531+1),A          ; 4502  patches the operand of the LD at &4531
+      IN A,(HMPR)                     ; 4500
+      LD (L4531+1),A                  ; 4502  patches the operand of the LD at &4531
+      IN A,(LMPR)                     ; 4505
 ```
 
 Written `LABEL+1` wherever the instruction it patches could be identified,
@@ -231,29 +276,54 @@ treated as this idiom.
 
 ## 10. Calling into another page
 
-An address alone is not enough — the page has to come with it. `PAGER`, which the
-ROM reserves fourteen bytes for at `&5BE0` and MasterBASIC fills:
+An address alone is not enough — the page has to come with it. `MB_PAGER` is
+MasterBASIC's replacement for the paging subroutine the ROM reserves fourteen
+bytes for at `PAGER`, `&5BE0`. It is assembled here and copied there at boot,
+which is why the addresses below are `&7AFx`:
 
 ```asm
-S5BE0: EX AF,AF'        ; 5BE0  keep the wanted page in A'
-       IN A,(&FB)       ; 5BE1  save HMPR
-       PUSH AF          ; 5BE3
-       EX AF,AF'        ; 5BE4  the wanted page back into A
-       CALL &005C       ; 5BE5  ROM: page A in, call HL
-       EX AF,AF'        ; 5BE8
-       POP AF           ; 5BE9
-       OUT (&FB),A      ; 5BEA  paging back as it was
-       EX AF,AF'        ; 5BEC
-       RET              ; 5BED
+MB_PAGER:
+      EX AF,AF'                       ; 7AF2  the wanted page, kept in A'
+      IN A,(HMPR)                     ; 7AF3  the current paging
+      PUSH AF                         ; 7AF5  saved across the call
+      EX AF,AF'                       ; 7AF6  the wanted page back into A
+      CALL &005C                      ; 7AF7
+      EX AF,AF'                       ; 7AFA
+      POP AF                          ; 7AFB
+      OUT (HMPR),A                    ; 7AFC  paging back as it was
+      EX AF,AF'                       ; 7AFE
+      RET                             ; 7AFF
 ```
 
-and the call looks like:
+`&005C` is three bytes in ROM 0, unlabelled in the ROM source and identical in
+every image in `ref/samrom/roms/` from 1.8 on:
 
 ```asm
-LD HL,&A485             ; 49D9  the routine, as seen through the window
-LD A,&1C                ;       the page it lives in
-JP PAGER
+      OUT (&FB),A                     ; 005C  D3 FB
+      JP (HL)                         ; 005E  E9
 ```
+
+So the ROM's convention is `A` = page, `HL` = address, and `CALL &005C` turns it
+into a subroutine call: the `JP (HL)` runs the routine, whose own `RET` comes
+back here, to the instruction after the `CALL`. `MB_PAGER` adds nothing to it
+but the save and restore of `HMPR` around it.
+
+The call side, from the code that ends up in the system page:
+
+```asm
+      LD HL,&A485                     ; 49D9  the routine, seen through the window
+      CALL S49EE                      ; 49DC
+      ...
+S49EE:
+      LD C,A                          ; 49EE
+      LD A,&1C                        ; 49EF  MasterBASIC's page number
+      JP S5BE0                        ; 49F1  = PAGER
+```
+
+`&A485` is `&6485` in MasterBASIC's own page and `&1C` is the page it lives in;
+neither means anything without the other. `S49EE` exists because two callers
+want the same page and different addresses — `&A485` here, `&A4F3` three
+instructions later — so only the `LD HL` differs.
 
 Four `EX AF,AF'` looks wasteful and is not: `A` is both the page number going in
 and the saved `HMPR` coming back, and the alternate accumulator is the only free
@@ -264,17 +334,22 @@ place to keep one while using the other.
 MasterBASIC calls almost no fixed address inside ROM 0. Instead:
 
 ```asm
-CALL DOS_FIND_ROM_CODE  ; 75FE
-DEFB &0A,&FE,&20,&10,&00,&F5
-;    ^^^^^^^^^^^^^^^^  three bytes to match
-;                      ^^^^^^^^^  where to start looking, big-endian
-;                                 ^^^  a signed step from the match
+      CALL DOS_FIND_ROM_CODE          ; 75FE
+      DEFB &0A,&FE,&20,&10,&00,&F5    ; 7601  signature 0A FE 20 from &1000, -11
+      LD (V45F6),HL                   ; 7607                     -> &10A0 INSERTLN
+      CALL DOS_FIND_ROM_CODE          ; 760A
+      DEFB &56,&5A,&C9,&3C,&00,&03    ; 760D  signature 56 5A C9 from &3C00, +3
+      LD (&7DA7),HL                   ; 7613                     -> &3DA7 CCRESTOP
 ```
 
 Six inline bytes in the convention of idiom 3: a three-byte instruction
-signature, a start address, and an offset. Every call site is followed by
+signature to match, a start address to scan from, and a signed step from the
+match to the address actually wanted. Every call site is followed by
 `LD (nn),HL`, storing the answer into the operand of the instruction that will
-use it — idiom 9. This is what lets one binary work across ROM versions.
+use it — idiom 9. The listing resolves each search against the ROM images in
+`ref/samrom/roms/` and names what it found, which is where `INSERTLN` and
+`CCRESTOP` in those comments come from. This is what lets one binary work across
+ROM versions.
 
 ## 12. Clearing memory with the stack pointer
 
@@ -283,20 +358,20 @@ per-byte loop overhead:
 
 ```asm
 FILL_PAGE_WITH_ZERO:
-      LD HL,&0000       ; 7800  the value to write
-      LD BC,&0004       ; 7803  B=0 (256 iterations), C=4
+      LD HL,&0000                     ; 7800  the value to write
+      LD BC,&0004                     ; 7803  B = 0 (256 iterations), C = 4
 STACK_FILL_LOOP:
-      PUSH HL           ; 7806  eight at a time
+      PUSH HL                         ; 7806  eight at a time
       PUSH HL
       PUSH HL
       PUSH HL
       PUSH HL
       PUSH HL
       PUSH HL
-      PUSH HL           ; 780D
-      DJNZ STACK_FILL_LOOP     ; 780E  256 times = 4096 bytes
-      DEC C             ; 7810
-      JR NZ,STACK_FILL_LOOP    ; 7811  four times = 16384, one page
+      PUSH HL                         ; 780D
+      DJNZ STACK_FILL_LOOP            ; 780E  256 times = 4096 bytes
+      DEC C                           ; 7810
+      JR NZ,STACK_FILL_LOOP           ; 7811  four times = 16384, one page
 ```
 
 8 × 256 × 4 is exactly 16K. `SP` has to be saved and restored around it and

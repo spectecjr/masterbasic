@@ -836,6 +836,14 @@ def seeds(dos, mb):
     # in the same arrangement: its &5BDA is the ROM's CMDADDRT and its
     # &45A2 is in the system page, not an address in this half.
     mb.sys_low.append((0x7829, 0x7879))
+    # One instruction, not a routine: &5081 hands the ROM a pointer.
+    # The code around it has zeroed HMPR, so its own &5xxx are still its
+    # own -- but the word it writes goes into what CURCHL points at, and
+    # the ROM will follow that with its system page at &4000.  So &5896
+    # there is the forty bytes installed in the gap before KTAB, and not
+    # this half's &5896, which nothing else refers to and which was
+    # decoding as a stray JR on the strength of this one operand.
+    mb.sys_low.append((0x5081, 0x5084))
     # &5FB9 rather than &5FD8: the system page calls it there, with
     # LD A,&1C : LD HL,&9FB9 : CALL PAGER at &48DA.
     # &63F6 used to be in this list and should not have been.  Its only
