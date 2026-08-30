@@ -8797,7 +8797,6 @@ L6277:
 NEXT_SCREEN_BYTE:
                BIT 0,H                         ; 627E CB 44
 
-; ---- L6280 ---- from DOS &45FC, DOS &499B, DOS &49CC, DOS &5552, DOS &5568, DOS &55A3, DOS &55BF
 L6280:
                JR Z,L6287                      ; 6280 28 05
                INC L                           ; 6282 2C
@@ -9318,8 +9317,9 @@ L64D4:
 ;; through the window, at an address that is this half's own &64E7.  A
 ;; routine does not call its neighbour through a window while running
 ;; beside it, so that code is meant to execute from some other page,
-;; with MasterBASIC mapped at &8000.  What copies it there has not been
-;; found, which is the same gap as the region at &45A2.
+;; with MasterBASIC mapped at &8000.  What copies it there is still not
+;; found.  It is not the same gap as the region at &45A2, which turned
+;; out to be INSTALL_EXTENDED_PUT and is settled.
 ;; --------------------------------------------------------------------
 
 CLAMP_STREAM_FOR_DEVICE:

@@ -85,6 +85,10 @@ REPORTERS = {'DOS': set(), 'MB': {0x43BE}}   # take the error number in A
 PAGE_FLAG = 'NOT_IN_THIS_PAGE'
 
 
+# A label nothing named: Lxxxx or Vxxxx, made up from the address.
+SYNTHETIC = re.compile(r'^[LV][0-9A-Fa-f]{4}$')
+
+
 class Page(Disassembler):
     """One of the two halves, at &4000, with the other half at &8000."""
 
@@ -97,6 +101,7 @@ class Page(Disassembler):
         self.no_peer = []             # ranges where &8000+ is not the peer
         self.self_window = []         # ranges where &8000+ is this page
         self.sys_low = []             # ranges where &4000+ is the system page
+        self.carried_by_value = {}    # address -> the MasterDOS source's name
         self.rendered = []            # ranges written by a renderer
         self._inline = {}
         self.msg_calls = set()
@@ -196,7 +201,34 @@ class Page(Disassembler):
     def mem16(self, v, at=None):
         """A memory address.  If nothing in this page claims it and the
         ROM names a system variable there, that is what it is."""
-        return self._name(v, self.ext_var)
+        return self._name(v, self.ext_var, data=True)
+
+    def carried_name(self, a):
+        """The MasterDOS source's own name for an address outside this page.
+
+        &A280 is the case that found this.  Six of the seven LD HL,&A280
+        in the DOS come out as FTADD, the author's name for the screen
+        borrowed as a buffer -- '(SCR in section C)' is his comment on
+        it -- and the seventh, where the instruction streams had diverged
+        and the name could not be carried, came out as MB_L6280: a call
+        into the extension that does not exist.  A synthetic peer label
+        is no evidence against a name the author wrote down, which is the
+        same rule windowed_var already applies.
+        """
+        # Only in the window.  Outside it a small number is as likely to
+        # be a count as an address, and the MasterDOS source has equates
+        # for lengths too: without this, LD BC,&000F comes out as BUFL
+        # and LD BC,&0008 -- the author's own comment on which is
+        # "STR LEN" -- comes out as RDLIM.
+        if not PEER <= a < PEER + (TOP - BASE):
+            return None
+        name = self.carried_by_value.get(a)
+        if not name:
+            return None
+        peer = self.peer.labels.get(self.peer_addr(a, self._cur))             if self.peer else None
+        if peer and not SYNTHETIC.match(peer):
+            return None
+        return name
 
     def imm16(self, v, at=None):
         return self.mem16(v)
@@ -245,7 +277,7 @@ class Page(Disassembler):
                 return name + '+' + PAGE_FLAG
         return self._name(v, lambda _: None)
 
-    def _name(self, v, outside):
+    def _name(self, v, outside, data=False):
         if v is None:
             return '?'
         if self.inside(v):
@@ -275,6 +307,11 @@ class Page(Disassembler):
                 self.used_ext.add(n)
                 return n
             return hexn(v, 4)
+        if data:
+            n = self.carried_name(v)
+            if n:
+                self.used_ext.add(n)
+                return n
         n = self.boot_self(v, self._cur)
         if n:
             return n + '+&4000'
@@ -1420,6 +1457,11 @@ def main():
     print('named the operands of %d instructions, needing %d equates; '
           '%d variables took their MasterDOS name' % (nops, nequ, nprom))
     dos.changed_routines = changed
+    # The author's own names for addresses outside this page, so that a
+    # synthetic peer label cannot displace one.  See Page.carried_name.
+    for name, value in dos.mdos_equs.items():
+        if not dos.inside(value):
+            dos.carried_by_value.setdefault(value, name)
     # The NR family sits in both pages at different addresses, so it is
     # documented by name.  L4575 is NRWRD's other entry point: it copies
     # HL into BC and falls in, which nothing else in the listing says.

@@ -161,7 +161,6 @@ MB_L4160:      EQU  &8160
 MB_L4200:      EQU  &8200
 MB_L42FF:      EQU  &82FF
 MB_L5C16:      EQU  &9C16
-MB_L6280:      EQU  &A280
 MB_L63F6:      EQU  &A3F6
 MB_L7900:      EQU  &B900
 MB_L7914:      EQU  &B914
@@ -2616,7 +2615,7 @@ L45E2:
 L45F9:
                DEC A                           ; 45F9 3D
                JR NZ,L4612                     ; 45FA 20 16
-               LD HL,MB_L6280                  ; 45FC 21 80 A2
+               LD HL,FTADD                     ; 45FC 21 80 A2
 
 ;; --------------------------------------------------------------------
 ;; L45FF -- &45FF to &4611

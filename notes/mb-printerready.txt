@@ -29,17 +29,25 @@ DOC CLAMP_STREAM_FOR_DEVICE
     through the window, at an address that is this half's own &64E7.  A
     routine does not call its neighbour through a window while running
     beside it, so that code is meant to execute from some other page,
-    with MasterBASIC mapped at &8000.  What copies it there has not been
-    found, which is the same gap as the region at &45A2.
+    with MasterBASIC mapped at &8000.  What copies it there is still not
+    found.  It is not the same gap as the region at &45A2, which turned
+    out to be INSTALL_EXTENDED_PUT and is settled.
 
 # The rule behind all of this.
 #
-# No routine in the MasterBASIC half is reached from both pages.  Eleven
+# No routine in the MasterBASIC half is reached from both pages.  Ten
 # are reached only from the DOS, and those run through the window: their
 # own addresses appear as &8xxx while the ROM's variables are read at
 # their proper &5Axx.  Everything else runs at &4000 and uses plain
 # addresses.  The two conventions never meet, which is why mixing them up
 # produced labels that looked plausible and were wrong.
+#
+# It was eleven until L6280 turned out not to be one of them.  The seven
+# DOS references to it were all LD HL,&A280, and &A280 is FTADD, which
+# the MasterDOS source comments as "(SCR in section C)" -- the screen,
+# borrowed as a file-table buffer.  A data address, not a call, and it
+# only read as one because a synthetic peer label was allowed to stand
+# where the author had written a name.  See Page.carried_name.
 #
 # The clearest example of the damage: &5A5D in the printer output loop
 # read as LD HL,(DOS_BOOT), taking the other page's boot address as data.
