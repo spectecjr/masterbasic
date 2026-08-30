@@ -7137,9 +7137,6 @@ L4F5E:
                SBC HL,DE                       ; 4F5E ED 52
                LD A,H                          ; 4F60 7C
                DEFB &FE                                                         ; 4F61 ~
-
-; ---- V4F62 ---- from &6BFE
-V4F62:
                DEFB &06                                                         ; 4F62 .  skipped: reads as LD B,&30 from here, and as part of the instruction above it
                JR NC,L4F78                     ; 4F63 30 13
                IN A,(HMPR)                     ; 4F65 DB FB
@@ -7387,7 +7384,7 @@ L5005:
 ;; Ends:      JP (HL)
 ;; --------------------------------------------------------------------
 
-; ---- L500B ---- from &5221, &6B4A, &6B5F
+; ---- L500B ---- from &5221
 L500B:
                RST &38                         ; 500B FF
                ; dispatch: the address was worked out above
@@ -7422,9 +7419,6 @@ HPRTOK:
 ;;
 ;; ? reaches the ROM through FLAGS; calls NRRD; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
-
-; ---- L5015 ---- from &6B9F, &6BF8
-L5015:
                PUSH HL                         ; 5015 E5
                ; read the ROM variable FLAGS -- the word below is its address, and the call returns past it
                CALL NRRD                       ; 5016 CD 6A 45
@@ -7453,10 +7447,10 @@ L502C:
                JP CALL_ROM_0010                ; 502E C3 FA 69
 
 ;; --------------------------------------------------------------------
-;; SKIP_TO_END_OF_WORD -- &5031 to &5035
+;; SKIP_TO_END_OF_WORD -- &5031 to &5037
 ;;
-;; Takes:     HL
-;; Leaves:    A, F, HL
+;; Takes:     B, HL
+;; Leaves:    A, F, B, HL
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -7470,16 +7464,6 @@ SKIP_TO_END_OF_WORD:
                INC HL                          ; 5032 23
                RLA                             ; 5033 17
                JR NC,SKIP_TO_END_OF_WORD       ; 5034 30 FB
-
-;; --------------------------------------------------------------------
-;; L5036 -- &5036 to &5037
-;;
-;; Takes:     B
-;; Leaves:    B
-;; --------------------------------------------------------------------
-
-; ---- L5036 ---- from &6BAE
-L5036:
                DJNZ SKIP_TO_END_OF_WORD        ; 5036 10 F9
 
 ;; --------------------------------------------------------------------
@@ -7901,7 +7885,6 @@ L5184:
 ;;     over, here played on the ROM.
 ;; --------------------------------------------------------------------
 
-; ---- OPEN_GAP_AT_LINE ---- from &6B8B, &6B96, &6BA5
 OPEN_GAP_AT_LINE:
                CALL FIND_LINE_FROM_START       ; 5188 CD FD 58
                POP BC                          ; 518B C1
@@ -10930,48 +10913,18 @@ L59FC:
                PUSH AF                         ; 5A0A F5
 
 ;; --------------------------------------------------------------------
-;; L5A0B -- &5A0B to &5A11
+;; L5A0B -- &5A0B to &5A1D
 ;;
-;; Takes:     nothing in registers
-;; Leaves:    DE, HL
+;; Takes:     A, B
+;; Leaves:    A, F, DE, HL
 ;; --------------------------------------------------------------------
 
 ; ---- L5A0B ---- from &5A63
 L5A0B:
                LD DE,(DOS_L4086)               ; 5A0B ED 5B 86 80
                LD HL,(DOS_L4089)               ; 5A0F 2A 89 80
-
-;; --------------------------------------------------------------------
-;; L5A12 -- &5A12 to &5A12
-;;
-;; Takes:     A
-;; Leaves:    A, F
-;; --------------------------------------------------------------------
-
-; ---- L5A12 ---- from &6B54
-L5A12:
                AND A                           ; 5A12 A7
-
-;; --------------------------------------------------------------------
-;; L5A13 -- &5A13 to &5A14
-;;
-;; Takes:     DE, HL
-;; Leaves:    F, HL
-;; --------------------------------------------------------------------
-
-; ---- L5A13 ---- from &6B67
-L5A13:
                SBC HL,DE                       ; 5A13 ED 52
-
-;; --------------------------------------------------------------------
-;; L5A15 -- &5A15 to &5A1D
-;;
-;; Takes:     B
-;; Leaves:    A, F
-;; --------------------------------------------------------------------
-
-; ---- L5A15 ---- from &6B50, &6BA8, &6BEE
-L5A15:
                JR NZ,L5A1E                     ; 5A15 20 07
                LD A,(DOS_L4088)                ; 5A17 3A 88 80
                DEC A                           ; 5A1A 3D
@@ -10979,49 +10932,29 @@ L5A15:
                JR Z,L5A6A                      ; 5A1C 28 4C
 
 ;; --------------------------------------------------------------------
-;; L5A1E -- &5A1E to &5A1E
+;; L5A1E -- &5A1E to &5A2B
 ;;
-;; Takes:     D
-;; Leaves:    A
+;; Takes:     DE
+;; Leaves:    A, F
 ;; --------------------------------------------------------------------
 
 ; ---- L5A1E ---- from &5A15
 L5A1E:
                LD A,D                          ; 5A1E 7A
-
-;; --------------------------------------------------------------------
-;; L5A1F -- &5A1F to &5A26
-;;
-;; Takes:     A, D
-;; Leaves:    A, F
-;; --------------------------------------------------------------------
-
-; ---- L5A1F ---- from &6B5C
-L5A1F:
                INC A                           ; 5A1F 3C
                AND &03                         ; 5A20 E6 03
                JR NZ,L5A42                     ; 5A22 20 1E
                LD A,D                          ; 5A24 7A
                CP &7F                          ; 5A25 FE 7F
-
-;; --------------------------------------------------------------------
-;; L5A27 -- &5A27 to &5A2B
-;;
-;; Takes:     E
-;; Leaves:    A, F
-;; --------------------------------------------------------------------
-
-; ---- L5A27 ---- from &6C01
-L5A27:
                LD A,E                          ; 5A27 7B
                JR NZ,L5A2C                     ; 5A28 20 02
                ADD A,&10                       ; 5A2A C6 10
 
 ;; --------------------------------------------------------------------
-;; L5A2C -- &5A2C to &5A38
+;; L5A2C -- &5A2C to &5A41
 ;;
-;; Takes:     A, B, DE
-;; Leaves:    A, F, E, H
+;; Takes:     A, BC, DE
+;; Leaves:    A, F, B, DE, H
 ;;
 ;; ? drives OUT (LMPR),A; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
@@ -11037,33 +10970,11 @@ L5A2C:
                INC E                           ; 5A35 1C
                LD A,(DE)                       ; 5A36 1A
                LD E,&00                        ; 5A37 1E 00
-
-;; --------------------------------------------------------------------
-;; L5A39 -- &5A39 to &5A3F
-;;
-;; Takes:     A, C, H
-;; Leaves:    A, F, B, D
-;; --------------------------------------------------------------------
-
-; ---- L5A39 ---- from &6B34
-L5A39:
                LD D,H                          ; 5A39 54
                LD (&8085),A                    ; 5A3A 32 85 80
                DEC A                           ; 5A3D 3D
                LD B,A                          ; 5A3E 47
                LD A,C                          ; 5A3F 79
-
-;; --------------------------------------------------------------------
-;; L5A40 -- &5A40 to &5A41
-;;
-;; Takes:     A
-;; Leaves:    registers unchanged
-;;
-;; ? drives OUT (LMPR),A; falls into whatever follows rather than returning.
-;; --------------------------------------------------------------------
-
-; ---- L5A40 ---- from &6B62, &6B83, &6BDF, &6C0E
-L5A40:
                OUT (LMPR),A                    ; 5A40 D3 FA
 
 ;; --------------------------------------------------------------------
@@ -11078,28 +10989,18 @@ L5A42:
                CALL CHECK_PRINTER_READY+&4000  ; 5A42 CD 2B 83  the printer-ready test, called through the window
 
 ;; --------------------------------------------------------------------
-;; L5A45 -- &5A45 to &5A47
+;; L5A45 -- &5A45 to &5A5F
 ;;
-;; Takes:     B
-;; Leaves:    A
+;; Takes:     BC, DE
+;; Leaves:    A, F, DE, HL
+;;
+;; ? drives OUT (LMPR),A; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L5A45 ---- from &71D4
 L5A45:
                JR C,L5A6A                      ; 5A45 38 23
                LD A,B                          ; 5A47 78
-
-;; --------------------------------------------------------------------
-;; L5A48 -- &5A48 to &5A5F
-;;
-;; Takes:     A, C, DE
-;; Leaves:    A, F, DE, HL
-;;
-;; ? drives OUT (LMPR),A; falls into whatever follows rather than returning.
-;; --------------------------------------------------------------------
-
-; ---- L5A48 ---- from &6B8E
-L5A48:
                OUT (LMPR),A                    ; 5A48 D3 FA
                LD A,(DE)                       ; 5A4A 1A
                INC DE                          ; 5A4B 13
@@ -12689,14 +12590,14 @@ L5E85:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? reaches the ROM through V4F62; calls CMR; falls into whatever follows rather than returning.
+;; ? calls CMR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L5EC8 ---- from &5EBA
 L5EC8:
-               ; call the ROM at V4F62 with ROM1 paged in, and page back on the way out
+               ; call the ROM at &4F62 with ROM1 paged in, and page back on the way out
                CALL CMR                        ; 5EC8 CD F0 44
-               DEFW V4F62                     ; 5ECB 62 4F
+               DEFW &4F62                     ; 5ECB 62 4F
                RET                             ; 5ECD C9
 
 ;; --------------------------------------------------------------------
@@ -16471,9 +16372,9 @@ L6821:
 ; ---- L6827 ---- from &681F
 L6827:
                CP &05                          ; 6827 FE 05
-               JP Z,L6AD4                      ; 6829 CA D4 6A
+               JP Z,CMD_DUMP_5                 ; 6829 CA D4 6A
                CP &04                          ; 682C FE 04
-               JP Z,L6AD6                      ; 682E CA D6 6A
+               JP Z,CMD_DUMP_4                 ; 682E CA D6 6A
                LD H,A                          ; 6831 67
                LD (V409E),HL                   ; 6832 22 9E 40
                DEC A                           ; 6835 3D
@@ -17571,34 +17472,52 @@ PALETTE_INTENSITY:
                RET                             ; 6AD3 C9
 
 ;; --------------------------------------------------------------------
-;; L6AD4 -- &6AD4 to &6AD5
+;; CMD_DUMP_5 -- &6AD4 to &6AD5
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    F
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     DUMP 5, the text dump.  Sets carry and falls into the installer
+;;     below, which is what picks the &4F00 entry rather than the &4F49
+;;     one.  The manual: "the computer reads any characters it can
+;;     recognize from the current screen window and sends them as single
+;;     bytes".
 ;; --------------------------------------------------------------------
 
-; ---- L6AD4 ---- from &6829
-L6AD4:
+; ---- CMD_DUMP_5 ---- from &6829
+CMD_DUMP_5:
                SCF                             ; 6AD4 37
                DEFB &3E                                                         ; 6AD5 >
 
 ;; --------------------------------------------------------------------
-;; L6AD6 -- &6AD6 to &6AF2
+;; CMD_DUMP_4 -- &6AD6 to &6AF2
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? reaches the ROM through INP2; drives IN A,(HMPR), OUT (HMPR),A; calls CMR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     DUMP 4, the unshaded graphic dump, and the common installer for both.
+;;     Carry is clear on this path.  HMPR is zeroed, &0136 bytes are copied
+;;     from DUMP_TEXT to &8F00 -- the ROM's INSTBUF at &4F00 -- and the copy
+;;     is called through CMR at &4F00 for DUMP 5 or &4F49 for DUMP 4.  The
+;;     inline parameters of those two calls read DKP2 and INP2, which are
+;;     the ROM's own names for what it assembles at those addresses; here
+;;     they are the block that has just been copied over them.
 ;; --------------------------------------------------------------------
 
-; ---- L6AD6 ---- from &682E
-L6AD6:
+; ---- CMD_DUMP_4 ---- from &682E
+CMD_DUMP_4:
                AND A                           ; 6AD6 A7
                IN A,(HMPR)                     ; 6AD7 DB FB
                PUSH AF                         ; 6AD9 F5
                XOR A                           ; 6ADA AF
                OUT (HMPR),A                    ; 6ADB D3 FB
-               LD HL,L6AF9                     ; 6ADD 21 F9 6A
+               LD HL,DUMP_TEXT                 ; 6ADD 21 F9 6A
                LD DE,&8F00                     ; 6AE0 11 00 8F
                LD BC,&0136                     ; 6AE3 01 36 01
                LDIR                            ; 6AE6 ED B0
@@ -17627,15 +17546,27 @@ L6AF3:
                RET                             ; 6AF8 C9
 
 ;; --------------------------------------------------------------------
-;; L6AF9 -- &6AF9 to &6B13
+;; DUMP_TEXT -- &6AF9 to &6B13
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A, BC, DE, HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     DUMP 5's half of the block, at &4F00 once moved.  It saves PRRHS,
+;;     sets it to &FF so nothing wraps, selects stream 3, and reads UWRHS,
+;;     UWLHS, UWTOP and UWBOT -- the four bytes bounding the upper screen
+;;     window -- into C, E, D and B.  The loop then calls the ROM's JNCHAR
+;;     at &0184 for each position, which is SCREEN$: the manual says "the
+;;     ROM's SCREEN$ routine is used ... an uncoloured version is compared
+;;     with the character set in an attempt to match the character", and a
+;;     failure prints a space.  DEVICE is zeroed around each call and put
+;;     back.
 ;; --------------------------------------------------------------------
 
-; ---- L6AF9 ---- from &6ADD
-L6AF9:
-               LD A,(PRRHS)                    ; 6AF9 3A 0E 5A
+; ---- DUMP_TEXT ---- from &6ADD
+DUMP_TEXT:
+               LD A,(PRRHS)                    ; 6AF9 3A 0E 5A  from here to &6C2E this code is written for &4F00: subtract &1BF9 from any address in it
                PUSH AF                         ; 6AFC F5
                LD A,&FF                        ; 6AFD 3E FF
                ; self-modifying: patches the operand of the LD at &5A0B
@@ -17696,7 +17627,7 @@ L6B26:
                JR NZ,L6B14                     ; 6B2F 20 E3
                LD A,&0D                        ; 6B31 3E 0D
                RST PRINT_A                     ; 6B33 D7
-               LD A,(L5A39)                    ; 6B34 3A 39 5A
+               LD A,(UWLHS)                    ; 6B34 3A 39 5A
                LD E,A                          ; 6B37 5F
                LD A,D                          ; 6B38 7A
                INC D                           ; 6B39 14
@@ -17708,19 +17639,31 @@ L6B26:
                RET                             ; 6B41 C9
 
 ;; --------------------------------------------------------------------
-;; L6B42 -- &6B42 to &6B59
+;; DUMP_UNSHADED -- &6B42 to &6B59
 ;;
 ;; Takes:     IY
 ;; Leaves:    A, F, DE, HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     DUMP 4's half, at &4F49 once moved.  Selects stream &FB and works
+;;     through the ROM's dump control strings -- &5A16 and &5A1F are GCM1
+;;     and GCM2, whose first byte is the number of characters to send --
+;;     switching on MODE at &5A40 and on the settings at &5A12 and &5A15.
+;;     The manual calls it "an unshaded dump in which anything which is the
+;;     current PAPER colour comes out white, and anything else comes out
+;;     black", and points at the User's Guide for the SVARs that size it.
 ;; --------------------------------------------------------------------
+
+DUMP_UNSHADED:
                LD A,&FB                        ; 6B42 3E FB
                CALL STREAM                     ; 6B44 CD 12 01
                LD DE,&5A16                     ; 6B47 11 16 5A
-               CALL L500B                      ; 6B4A CD 0B 50
+               CALL &500B                      ; 6B4A CD 0B 50  &500B once this block is moved, not the label shown
                LD HL,(&5A2D)                   ; 6B4D 2A 2D 5A
-               LD A,(L5A15)                    ; 6B50 3A 15 5A
+               LD A,(&5A15)                    ; 6B50 3A 15 5A
                DEC A                           ; 6B53 3D
-               LD A,(L5A12)                    ; 6B54 3A 12 5A
+               LD A,(&5A12)                    ; 6B54 3A 12 5A
                JR Z,L6B5A                      ; 6B57 28 01
                ADD A,A                         ; 6B59 87
 
@@ -17735,11 +17678,11 @@ L6B26:
 L6B5A:
                LD C,A                          ; 6B5A 4F
                PUSH HL                         ; 6B5B E5
-               LD DE,L5A1F                     ; 6B5C 11 1F 5A
-               CALL L500B                      ; 6B5F CD 0B 50
-               LD A,(L5A40)                    ; 6B62 3A 40 5A
+               LD DE,&5A1F                     ; 6B5C 11 1F 5A
+               CALL &500B                      ; 6B5F CD 0B 50  &500B once this block is moved, not the label shown
+               LD A,(MODE)                     ; 6B62 3A 40 5A
                CP &02                          ; 6B65 FE 02
-               LD A,(L5A13)                    ; 6B67 3A 13 5A
+               LD A,(&5A13)                    ; 6B67 3A 13 5A
                JR NZ,L6B6D                     ; 6B6A 20 01
                ADD A,A                         ; 6B6C 87
 
@@ -17790,13 +17733,13 @@ L6B75:
 L6B81:
                PUSH BC                         ; 6B81 C5
                PUSH HL                         ; 6B82 E5
-               LD A,(L5A40)                    ; 6B83 3A 40 5A
+               LD A,(MODE)                     ; 6B83 3A 40 5A
                CP &02                          ; 6B86 FE 02
                JR C,L6B96                      ; 6B88 38 0C
                ; to the alternate register set and back again
                EXX                             ; 6B8A D9
-               LD HL,OPEN_GAP_AT_LINE          ; 6B8B 21 88 51
-               LD A,(L5A48)                    ; 6B8E 3A 48 5A
+               LD HL,SCRNBUF                   ; 6B8B 21 88 51
+               LD A,(M23PAPP)                  ; 6B8E 3A 48 5A
                CALL J_GRCOMP                   ; 6B91 CD 87 01
                JR L6BA5                        ; 6B94 18 0F
 
@@ -17809,7 +17752,7 @@ L6B81:
 
 ; ---- L6B96 ---- from &6B88
 L6B96:
-               LD DE,OPEN_GAP_AT_LINE          ; 6B96 11 88 51
+               LD DE,SCRNBUF                   ; 6B96 11 88 51
                LD B,&08                        ; 6B99 06 08
 
 ;; --------------------------------------------------------------------
@@ -17823,7 +17766,7 @@ L6B96:
 L6B9B:
                CALL SREAD                      ; 6B9B CD BB 3F
                LD (DE),A                       ; 6B9E 12
-               CALL L5015                      ; 6B9F CD 15 50
+               CALL &5015                      ; 6B9F CD 15 50  &5015 once this block is moved, not the label shown
                INC DE                          ; 6BA2 13
                DJNZ L6B9B                      ; 6BA3 10 F6
 
@@ -17836,11 +17779,11 @@ L6B9B:
 
 ; ---- L6BA5 ---- from &6B94
 L6BA5:
-               LD HL,OPEN_GAP_AT_LINE          ; 6BA5 21 88 51
-               LD A,(L5A15)                    ; 6BA8 3A 15 5A
+               LD HL,SCRNBUF                   ; 6BA5 21 88 51
+               LD A,(&5A15)                    ; 6BA8 3A 15 5A
                DEC A                           ; 6BAB 3D
                JR Z,L6BBD                      ; 6BAC 28 0F
-               LD DE,L5036                     ; 6BAE 11 36 50
+               LD DE,&5036                     ; 6BAE 11 36 50
                PUSH DE                         ; 6BB1 D5
                LD B,&08                        ; 6BB2 06 08
 
@@ -17935,7 +17878,7 @@ L6BD5:
                POP HL                          ; 6BDC E1
                POP BC                          ; 6BDD C1
                INC HL                          ; 6BDE 23
-               LD A,(L5A40)                    ; 6BDF 3A 40 5A
+               LD A,(MODE)                     ; 6BDF 3A 40 5A
                CP &02                          ; 6BE2 FE 02
                JR C,L6BEB                      ; 6BE4 38 05
                INC HL                          ; 6BE6 23
@@ -17954,7 +17897,7 @@ L6BD5:
 L6BEB:
                DJNZ L6B81                      ; 6BEB 10 94
                POP HL                          ; 6BED E1
-               LD A,(L5A15)                    ; 6BEE 3A 15 5A
+               LD A,(&5A15)                    ; 6BEE 3A 15 5A
                LD B,&08                        ; 6BF1 06 08
                DEC A                           ; 6BF3 3D
                JR Z,L6BF8                      ; 6BF4 28 02
@@ -17969,11 +17912,11 @@ L6BEB:
 
 ; ---- L6BF8 ---- from &6BF4, &6BFB
 L6BF8:
-               CALL L5015                      ; 6BF8 CD 15 50
+               CALL &5015                      ; 6BF8 CD 15 50  &5015 once this block is moved, not the label shown
                DJNZ L6BF8                      ; 6BFB 10 FB
                DEC C                           ; 6BFD 0D
-               JP NZ,V4F62                     ; 6BFE C2 62 4F
-               LD DE,L5A27                     ; 6C01 11 27 5A
+               JP NZ,&4F62                     ; 6BFE C2 62 4F  &4F62 once this block is moved, not the label shown
+               LD DE,&5A27                     ; 6C01 11 27 5A
                PUSH BC                         ; 6C04 C5
                LD A,(DE)                       ; 6C05 1A
                LD B,A                          ; 6C06 47
@@ -18001,7 +17944,7 @@ L6C07:
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F
 ;; --------------------------------------------------------------------
-               LD A,(L5A40)                    ; 6C0E 3A 40 5A
+               LD A,(MODE)                     ; 6C0E 3A 40 5A
                AND A                           ; 6C11 A7
                JR Z,L6C20                      ; 6C12 28 0C
                DEC A                           ; 6C14 3D

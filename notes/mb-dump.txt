@@ -38,45 +38,63 @@ MB &61D2 COUNT_RUN
 MB &61DE ENCODE_RUN
 MB &61F8 EMIT_RUN_PAIR
 
-# OPEN: what page is at &4000 in DUMP 5, the text dump.
+# ANSWERED: the ROM's system page is at &4000, and &500B is not this
+# half's.
 #
-# &6AF9-&6BE0 reads what look like the ROM's own dump variables straight
-# -- &5A12, &5A13, &5A15, &5A1F, &5A2D, &5A39, &5A40 -- and the
-# Technical Manual names that whole run: DMPLEN, DMPWID, DMPWM, DMPHM,
-# GCM2, DMPTL, UWLHS and MODE, with DEVICE at &5A73 and PRRHS at &5A0E
-# a few instructions away.  Reading them at those addresses needs the
-# ROM's system page at &4000.
+# The question was how &6AF9-&6BE0 could read the ROM's dump variables
+# straight -- &5A12, &5A13, &5A15, &5A1F, &5A2D, &5A39, &5A40, with
+# DEVICE and PRRHS nearby -- and still CALL &500B and &5015, which look
+# like addresses in this page.  Both are true, because the block is not
+# executed here at all.
 #
-# It cannot have it.  The same stretch does CALL &500B at &6B4A and
-# &6B5F and CALL &5015 at &6B9F, and those are this half's own routines
-# next to HPRTOK; &500B is also called from &5221, which is ordinary
-# code.  In the system page &500B holds character bitmap data --
-# 00 08 14 00 1C 22 22 1C -- so it is not a call target there.
+# CMD_DUMP_4 and CMD_DUMP_5 both reach &6AD6, which zeroes HMPR and
+# copies &0136 bytes from &6AF9 to &8F00 -- INSTBUF, the ROM's &4F00 --
+# and then calls it there through CMR.  So the block runs at &4F00 with
+# the ROM's page mapped, its variables are the ROM's, and &500B and
+# &5015 are &10B and &115 bytes into the block itself.  The &4F62 that
+# &6BFE jumps to is &62 bytes into it, which is why that came out as a
+# label in the middle of the PUT installer's source.
 #
-# So one of the two readings is wrong and I cannot yet say which.  A
-# sys_low range was tried and reverted: it named UWLHS, MODE, SCRNBUF
-# and M23PAPP correctly and turned two working calls into calls on
-# character data, which is not a trade worth making.
+# The manual says the same thing in one aside: "This DUMP, and the
+# equivalent of DUMP 5, were at one time built into the ROM, but had to
+# be discarded because of lack of room."  What MasterBASIC does is put
+# them back where they were meant to run.
 #
-# What the DE values are, which sharpens the question rather than
-# answering it: &5A16 and &5A1F are GCM1 and GCM2, the graphic dump
-# control strings, and the manual says of that family "first byte is the
-# number of characters to send".  So &500B should be a routine that
-# sends a counted control string to the printer, and both calls are
-# handing it one.
-#
-# GTDT at &5000, which &500B sits inside, is a trampoline:
-#
-#     POP IY : LD BC,&0011 : ADD IY,BC : POP DE : ADD HL,DE
-#     EX DE,HL : LD (HL),&FF : JP (IY)
-#
-# It takes its own return address into IY, steps it on by 17, and jumps
-# there -- so the caller's next 17 bytes are data it skips.  &5005 is the
-# entry for when IY is already set, and &5221 pushes &500B and &5005 as
-# return addresses before letting something RET into them.
-#
-# The thing to check next is &500B itself.  &500A is DEFB &36 skipped,
-# the LD (HL),&FF idiom, so &500B is the &FF of that instruction and
-# reads as RST &38 followed by JP (IY) -- which is a strange thing to
-# CALL, and may mean the entry point is misaligned rather than the
-# paging misread.
+# Registering the block as relocated names UWLHS, MODE, M23PAPP and
+# SCRNBUF, and clears thirteen labels this half never had a use for.
+
+MB &6AD4 CMD_DUMP_5
+    DUMP 5, the text dump.  Sets carry and falls into the installer
+    below, which is what picks the &4F00 entry rather than the &4F49
+    one.  The manual: "the computer reads any characters it can
+    recognize from the current screen window and sends them as single
+    bytes".
+
+MB &6AD6 CMD_DUMP_4
+    DUMP 4, the unshaded graphic dump, and the common installer for both.
+    Carry is clear on this path.  HMPR is zeroed, &0136 bytes are copied
+    from DUMP_TEXT to &8F00 -- the ROM's INSTBUF at &4F00 -- and the copy
+    is called through CMR at &4F00 for DUMP 5 or &4F49 for DUMP 4.  The
+    inline parameters of those two calls read DKP2 and INP2, which are
+    the ROM's own names for what it assembles at those addresses; here
+    they are the block that has just been copied over them.
+
+MB &6AF9 DUMP_TEXT
+    DUMP 5's half of the block, at &4F00 once moved.  It saves PRRHS,
+    sets it to &FF so nothing wraps, selects stream 3, and reads UWRHS,
+    UWLHS, UWTOP and UWBOT -- the four bytes bounding the upper screen
+    window -- into C, E, D and B.  The loop then calls the ROM's JNCHAR
+    at &0184 for each position, which is SCREEN$: the manual says "the
+    ROM's SCREEN$ routine is used ... an uncoloured version is compared
+    with the character set in an attempt to match the character", and a
+    failure prints a space.  DEVICE is zeroed around each call and put
+    back.
+
+MB &6B42 DUMP_UNSHADED
+    DUMP 4's half, at &4F49 once moved.  Selects stream &FB and works
+    through the ROM's dump control strings -- &5A16 and &5A1F are GCM1
+    and GCM2, whose first byte is the number of characters to send --
+    switching on MODE at &5A40 and on the settings at &5A12 and &5A15.
+    The manual calls it "an unshaded dump in which anything which is the
+    current PAPER colour comes out white, and anything else comes out
+    black", and points at the User's Guide for the SVARs that size it.
