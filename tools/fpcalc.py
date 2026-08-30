@@ -22,7 +22,10 @@ because that is not something a table can be read off.
 import os
 import re
 
-TABLE = re.compile(r'^\s+DW\s+\w+\s*;([0-9A-F]{2})\s+(\S.*?)\s*$')
+# The first entry carries the table's label -- FPATAB: DW FPMULT ;00
+# MULT -- so the line does not begin with whitespace, and requiring
+# that dropped code &00 from the table entirely.
+TABLE = re.compile(r'^(?:\w+:)?\s+DW\s+\w+\s*;([0-9A-F]{2})\s+(\S.*?)\s*$')
 CLEAN = re.compile(r'^[A-Za-z][A-Za-z0-9]*$')
 
 # Literals that eat bytes of their own.  SOMELIT is special: its first

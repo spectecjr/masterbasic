@@ -36,5 +36,24 @@
 #   by two rows: CURCHL is described as "number of line with > cursor",
 #   DEFADD as "start of channels area", and so on.
 #
+#   In the floating point calculator table: SQN for SGN at &42, SOR for
+#   SQR at &43, JFFALSE for JPFALSE at &1F, and "SWOp13" with a lower
+#   case p at &1C.  &0F is given as NOTE where the string series has
+#   SNOTE for the same comparison, so the numeric name looks a letter
+#   short, though that one is a guess.
+#
+# WHAT IT CONFIRMED.  The calculator section was read against
+# tools/fpcalc.py, which takes its table from ref/samrom/fpcmain.asm.
+# Every code that eats bytes of its own agrees: JPTRUE, JPFALSE, JUMP
+# and LDBREG take one, ONELIT one, FIVELIT five, LKADDRB and LKADDRW two,
+# and SOMELIT a count byte followed by that many.  DUP and SWOP13 take
+# none, which is what makes the RST FPCALC list at &7271 end where the
+# listing says it does -- the point the CALL &50D7 question turned on.
+#
+# The ROM source is much the fuller of the two: 150 codes against the
+# manual's 74, and the only code the manual had that the project did not
+# was &00 MULT, dropped by a regex that wanted leading whitespace on a
+# line the table's own label begins.  Fixed.
+#
 # So: read it for the names and the prose, and check any address in it
 # against ref/samrom/vars.asm before relying on it.
