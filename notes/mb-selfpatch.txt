@@ -1,0 +1,55 @@
+# Code at &45A2, and what happens to &7800 afterwards.
+
+MB &7800 PATCH_45A2
+
+DOC PATCH_45A2
+    LDIR a run of blocks out of the tail of the DOS page into &45A2 and
+    upwards: ten bytes, then thirteen, thirteen, eight, twenty-one,
+    three, and &EE more, DE walking up as it goes, with a second run put
+    at &45B9.  The sources are &7E98, &7EA6, &7F6B and &7FA5 in the DOS
+    page.
+
+    This settles half of an old question.  The dispatcher in the
+    relocated block does JP Z,&45A2, and that had been left open on the
+    grounds that nothing appeared to put code at &45A2.  Something does.
+    The ten bytes from &7FA5 are
+
+        CP " " : JR Z,-6 : DEC HL : DEC HL : INC HL : LD A,(HL) : CP " "
+
+    continuing into the next block as JR Z,+4 : CP &0D : JR NZ,-10 :
+    LD (&5A9A),HL : LD HL,&5C3C : SET 3,(HL) : CP A : RET.  A space
+    skipper that stops at a carriage return, stores where it stopped and
+    sets a flag bit.
+
+    Which page it lands in is not settled, and the two halves of the
+    evidence disagree.  Nothing in this routine touches LMPR, which says
+    the &4000 it writes to is this page.  But the code it installs reads
+    and writes &5A9A and &5C3C directly, with no window offset and no
+    NRRD, and those are ROM system variables -- which only works with the
+    system page at &4000.  Both cannot be true as stated, so one of the
+    assumptions behind them is wrong.  Recorded rather than resolved.
+
+    The obvious way out is ruled out.  If this code ran through the
+    window at &B800 -- which is how the DOS reaches routines in this half
+    -- then its &4xxx operands would be the system page and everything
+    would agree.  It does not: the region contains JP L7841 and CALL
+    L77FE, absolute targets at the addresses it is assembled for, which
+    only work when this page is at &4000.
+
+    Nor does the other way out survive.  &5A9A and &5C3C are not
+    variables in this page that happen to share the ROM's numbering: they
+    are LD A,D and a DEFW, code and data belonging to this half, and
+    writing to them would break it.
+
+    A caution about the xref list on this label.  DOS &5ADD is not a
+    caller: it is LD DE,&B800 setting up a destination, and the 2.3
+    source comments it "ALLOWS 1580H BYTES FOR SECTOR LIST".  774 bytes
+    of RPT, BUF, NSR, FSA and DRAM are copied there, and &B800 is this
+    page's &7800.  So this code is overwritten in the running system --
+    it is boot-time code in a region that becomes DOS buffers, the same
+    arrangement as the block source at &7DF0.  Nothing found so far
+    actually calls it; it must be reached from the boot sector.
+
+MB &7842 : ten bytes from the DOS page tail, a space skipper
+MB &7845 : ...to &45A2, which is what the relocated block jumps to
+MB &7871 : a second run, put at &45B9

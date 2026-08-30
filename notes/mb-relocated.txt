@@ -68,6 +68,13 @@ DOC RELOCATED_TO_484D
     &4A84 -- land on POP AF, OR D and LD A,B here, which are not entry
     points anybody jumps to.
 
+    The JP &0000 and CALL &0000 operands scattered through the block are
+    accounted for.  RESOLVE_ROM_ENTRIES writes ROM addresses it found by
+    signature into &7DFB and &7E01 among others, which are those very
+    operand bytes, and it does so before the installer copies the block
+    out.  The zeros in the listing are what was assembled; the block is
+    complete by the time it runs.
+
     A third check settles the relocation itself: no label anywhere in
     &7BA4-&7E42 is referenced from outside that range.  Every one is
     reached only from within the block.  Nothing calls into it where it

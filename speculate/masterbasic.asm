@@ -21270,6 +21270,8 @@ INSTALLER:
 ;;
 ;; Takes:     A, B, HL
 ;; Leaves:    A, F, BC, DE, HL
+;;
+;; ? calls RESOLVE_ROM_ENTRIES; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L75E6 ---- from &75E7
@@ -21278,7 +21280,7 @@ L75E6:
                DJNZ L75E6                      ; 75E7 10 FD
                LD A,(SORP)                     ; 75E9 3A 06 40
                CALL L5599                      ; 75EC CD 99 55
-               CALL L7990                      ; 75EF CD 90 79
+               CALL RESOLVE_ROM_ENTRIES        ; 75EF CD 90 79
                DEFW &79CD                     ; 75F2 CD 79
                CP L                            ; 75F4 BD
                PUSH AF                         ; 75F5 F5
@@ -21769,10 +21771,10 @@ L77E4:
                DEFB &31                                                         ; 77FD 1  skipped: reads as LD SP,&C000 from here, and as part of the instruction above it
 
 ;; --------------------------------------------------------------------
-;; L77FE -- &77FE to &7805
+;; L77FE -- &77FE to &77FF
 ;;
 ;; Takes:     nothing in registers
-;; Leaves:    BC, HL
+;; Leaves:    registers unchanged
 ;; --------------------------------------------------------------------
 
 ; ---- L77FE ---- from &7818
@@ -21780,8 +21782,64 @@ L77FE:
                NOP                             ; 77FE 00
                RET NZ                          ; 77FF C0
 
-; ---- L7800 ---- from DOS &5ADD
-L7800:
+;; --------------------------------------------------------------------
+;; PATCH_45A2 -- &7800 to &7805
+;;
+;; Takes:     nothing in registers
+;; Leaves:    BC, HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     LDIR a run of blocks out of the tail of the DOS page into &45A2 and
+;;     upwards: ten bytes, then thirteen, thirteen, eight, twenty-one,
+;;     three, and &EE more, DE walking up as it goes, with a second run put
+;;     at &45B9.  The sources are &7E98, &7EA6, &7F6B and &7FA5 in the DOS
+;;     page.
+;;     
+;;     This settles half of an old question.  The dispatcher in the
+;;     relocated block does JP Z,&45A2, and that had been left open on the
+;;     grounds that nothing appeared to put code at &45A2.  Something does.
+;;     The ten bytes from &7FA5 are
+;;     
+;;     CP " " : JR Z,-6 : DEC HL : DEC HL : INC HL : LD A,(HL) : CP " "
+;;     
+;;     continuing into the next block as JR Z,+4 : CP &0D : JR NZ,-10 :
+;;     LD (&5A9A),HL : LD HL,&5C3C : SET 3,(HL) : CP A : RET.  A space
+;;     skipper that stops at a carriage return, stores where it stopped and
+;;     sets a flag bit.
+;;     
+;;     Which page it lands in is not settled, and the two halves of the
+;;     evidence disagree.  Nothing in this routine touches LMPR, which says
+;;     the &4000 it writes to is this page.  But the code it installs reads
+;;     and writes &5A9A and &5C3C directly, with no window offset and no
+;;     NRRD, and those are ROM system variables -- which only works with the
+;;     system page at &4000.  Both cannot be true as stated, so one of the
+;;     assumptions behind them is wrong.  Recorded rather than resolved.
+;;     
+;;     The obvious way out is ruled out.  If this code ran through the
+;;     window at &B800 -- which is how the DOS reaches routines in this half
+;;     -- then its &4xxx operands would be the system page and everything
+;;     would agree.  It does not: the region contains JP L7841 and CALL
+;;     L77FE, absolute targets at the addresses it is assembled for, which
+;;     only work when this page is at &4000.
+;;     
+;;     Nor does the other way out survive.  &5A9A and &5C3C are not
+;;     variables in this page that happen to share the ROM's numbering: they
+;;     are LD A,D and a DEFW, code and data belonging to this half, and
+;;     writing to them would break it.
+;;     
+;;     A caution about the xref list on this label.  DOS &5ADD is not a
+;;     caller: it is LD DE,&B800 setting up a destination, and the 2.3
+;;     source comments it "ALLOWS 1580H BYTES FOR SECTOR LIST".  774 bytes
+;;     of RPT, BUF, NSR, FSA and DRAM are copied there, and &B800 is this
+;;     page's &7800.  So this code is overwritten in the running system --
+;;     it is boot-time code in a region that becomes DOS buffers, the same
+;;     arrangement as the block source at &7DF0.  Nothing found so far
+;;     actually calls it; it must be reached from the boot sector.
+;; --------------------------------------------------------------------
+
+; ---- PATCH_45A2 ---- from DOS &5ADD
+PATCH_45A2:
                LD HL,&0000                     ; 7800 21 00 00
                LD BC,&0004                     ; 7803 01 04 00
 
@@ -21828,7 +21886,7 @@ L7811:
 ;; L7817 -- &7817 to &781A
 ;;
 ;; Takes:     C
-;; Leaves:    A, BC, HL
+;; Leaves:    A
 ;; --------------------------------------------------------------------
 
 ; ---- L7817 ---- from &77ED, &77F2
@@ -21914,8 +21972,8 @@ L7822:
 ; ---- L7841 ---- from &7826
 L7841:
                PUSH DE                         ; 7841 D5
-               LD HL,DOS_V7FA5                 ; 7842 21 A5 BF
-               LD DE,L45A2                     ; 7845 11 A2 45
+               LD HL,DOS_V7FA5                 ; 7842 21 A5 BF  ten bytes from the DOS page tail, a space skipper
+               LD DE,L45A2                     ; 7845 11 A2 45  ...to &45A2, which is what the relocated block jumps to
                LD BC,&000A                     ; 7848 01 0A 00
                LDIR                            ; 784B ED B0
                POP HL                          ; 784D E1
@@ -21937,7 +21995,7 @@ L7841:
                POP HL                          ; 786C E1
                LD C,&EE                        ; 786D 0E EE
                LDIR                            ; 786F ED B0
-               LD DE,L45B9                     ; 7871 11 B9 45
+               LD DE,L45B9                     ; 7871 11 B9 45  a second run, put at &45B9
                LD C,&0A                        ; 7874 0E 0A
                LDIR                            ; 7876 ED B0
                RET                             ; 7878 C9
@@ -22322,18 +22380,54 @@ L796B:
                RST NEXT_CHAR                   ; 7987 E7
                SUB &AB                         ; 7988 D6 AB
                LD (FN_LOCN),A                  ; 798A 32 F0 4A
-               JR NZ,L7990                     ; 798D 20 01
+               JR NZ,RESOLVE_ROM_ENTRIES       ; 798D 20 01
                RST NEXT_CHAR                   ; 798F E7
 
 ;; --------------------------------------------------------------------
-;; L7990 -- &7990 to &799A
+;; RESOLVE_ROM_ENTRIES -- &7990 to &799A
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    registers unchanged
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Find twenty ROM entry points by signature and patch them into the
+;;     code that calls them.
+;;     
+;;     Called from &75EF and &798D.  Each step is a call to FIND_ROM_CODE
+;;     with six inline bytes -- three opcodes to look for, where to start
+;;     looking, and a signed step -- followed by an LD (nn),HL that drops
+;;     the answer into a patch site.  MasterBASIC therefore contains almost
+;;     no hard-coded ROM addresses.  It knows what the ROM's code looks
+;;     like, not where it is.
+;;     
+;;     The signatures are ordinary instructions:
+;;     
+;;     C9 E3 CD    RET : EX (SP),HL : CALL   from &1030, +3
+;;     20 08 78    JR NZ,+8 : LD A,B         from &0370, +2
+;;     3A 40 5B    LD A,(&5B40)              from &2FE0
+;;     7A ED B1    LD A,D : CPIR             from &3000, -4
+;;     21 40 51    LD HL,&5140               from &3080
+;;     
+;;     Two of the destinations matter more than the rest.  &7DFB and &7E01
+;;     are inside the block at &7BA4 that gets copied into the system page,
+;;     and they are the operand bytes of the JP &0000 instructions in it.
+;;     So the stub's empty jumps are not patched at run time by something
+;;     unknown: they are filled in here, before the block is copied out.
+;;     That is the whole of what was left open about those operands.
+;;     
+;;     The rest land in this page's own call sites -- &735E, &7468, &757F,
+;;     &7596, &73B4, &73BA, &73BF, V56F6 and others -- so the routine is
+;;     self-patching, and the operands the listing shows at those addresses
+;;     are the shipped zeros rather than what runs.
+;;     
+;;     After the last search it pages the system page in and pokes &18 and
+;;     &19 into &594A and &5941 there, which is a jump opcode and its
+;;     neighbour: two more patches, in the ROM's own workspace this time.
 ;; --------------------------------------------------------------------
 
-; ---- L7990 ---- from &75EF, &798D
-L7990:
+; ---- RESOLVE_ROM_ENTRIES ---- from &75EF, &798D
+RESOLVE_ROM_ENTRIES:
                CALL DOS_FIND_ROM_CODE          ; 7990 CD 79 BD
                DEFB &C9,&E3,&CD,&10,&30,&03   ; 7993 signature C9 E3 CD from &1030, then +3
                LD E,(HL)                       ; 7999 5E
@@ -22351,7 +22445,7 @@ L799B:
                LD D,(HL)                       ; 799B 56
                INC HL                          ; 799C 23
                ; self-modifying: patches the operand of the CALL at &7DFA
-               LD (&7DFB),DE                   ; 799D ED 53 FB 7D
+               LD (&7DFB),DE                   ; 799D ED 53 FB 7D  two of these results fill the JP &0000 operands in the stub
                INC HL                          ; 79A1 23
                ; self-modifying: patches the operand of the JP at &7E00
                LD (&7E01),HL                   ; 79A2 22 01 7E
@@ -22467,7 +22561,7 @@ L7A9F:
                XOR A                           ; 7AA3 AF
                OUT (HMPR),A                    ; 7AA4 D3 FB
                LD A,&18                        ; 7AA6 3E 18
-               LD (&994A),A                    ; 7AA8 32 4A 99
+               LD (&994A),A                    ; 7AA8 32 4A 99  &18 is JR -- patching the system page directly
                INC A                           ; 7AAB 3C
                LD (&9941),A                    ; 7AAC 32 41 99
                LD A,C                          ; 7AAF 79
@@ -22813,6 +22907,13 @@ L7BA1:
 ;;     in the system page; and the three "correct" targets -- &49EE, &4A18,
 ;;     &4A84 -- land on POP AF, OR D and LD A,B here, which are not entry
 ;;     points anybody jumps to.
+;;     
+;;     The JP &0000 and CALL &0000 operands scattered through the block are
+;;     accounted for.  RESOLVE_ROM_ENTRIES writes ROM addresses it found by
+;;     signature into &7DFB and &7E01 among others, which are those very
+;;     operand bytes, and it does so before the installer copies the block
+;;     out.  The zeros in the listing are what was assembled; the block is
+;;     complete by the time it runs.
 ;;     
 ;;     A third check settles the relocation itself: no label anywhere in
 ;;     &7BA4-&7E42 is referenced from outside that range.  Every one is
