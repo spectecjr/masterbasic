@@ -377,9 +377,73 @@ STACK_FILL_LOOP:
 8 × 256 × 4 is exactly 16K. `SP` has to be saved and restored around it and
 interrupts disabled, which is the price; eleven T-states per byte is the return.
 
+## 13. `LMPR := &1F`, and how to tell that code is not where it looks
+
+`LMPR`'s low five bits select the page at `&0000`, and **section B is that page
+plus one**. So the value `&1F` — page 31 — puts page 32 in section B, and 32
+wraps to 0. `&1F` is how you spell "the ROM's own arrangement": ROM 0 at
+`&0000` (bit 5 clear leaves it enabled) and the system page at `&4000`.
+
+The ROM's source writes the same value with ROM 1 added and says so:
+
+```asm
+PAGE1F:    EQU &1F
+           ...
+           LD A,PAGE1F+&40
+           OUT (250),A       ;BOTH ROMS ON, PAGE ZERO IN SECTION B
+```
+
+Two forms appear in the listings. The direct one:
+
+```asm
+      LD A,&1F                        ; 7253
+      OUT (LMPR),A                    ; 7255
+```
+
+and the one that hides in a register pair, where `&FA` is the port and `&5F` is
+`&1F` with ROM 1 on:
+
+```asm
+      LD BC,&5FFA                     ; 4F79  C = LMPR, B = &5F
+      OUT (C),B                       ; 4F7C
+```
+
+That second form is worth knowing on sight for a separate reason: `&5FFA` looks
+exactly like an address, and read as one it invents a label. It did, twice,
+before either site was understood.
+
+**Now the useful part.** A routine that executes this instruction *cannot be
+running in section B* — it would page itself out between the `OUT` and the next
+fetch. So wherever it appears, the code around it is running somewhere else:
+through the `&8000` window, or from a copy in another page.
+
+That single observation settles addresses that otherwise have nowhere to come
+from. `USING$` copies 231 bytes of itself to `&5000` in the system page and
+calls them there; two instructions past its `LD A,&1F` are
+
+```asm
+      CALL &50D7                      ; 7275
+```
+
+which is not an address in MasterBASIC at all — it is `&D7` bytes into the copy,
+whose source sits at `&731A`. That call was the last thing in this project's
+notes marked as unexplained, and it was unexplained only because the search for
+it had assumed the code ran where it was written.
+
+**The companion tell**, for a block with no such instruction: look at where its
+absolute `CALL`s and `JP`s land. Code written for the address it sits at will
+jump all over the page. A relocated block's jumps all fall inside one narrow
+range — the range the copy covers — and none outside it. That is what identified
+the 385 bytes at `&7460`, and it is a stronger signal than it sounds: eight
+jumps landing inside 385 bytes by chance is not something to explain away.
+
+Sixteen blocks in this image are written for an address they are not stored at.
+Between them they hold about 2400 bytes, and every one of them was read wrong
+until it was found.
+
 ## Reading the listings with this in mind
 
-Three consequences worth holding on to:
+Four consequences worth holding on to:
 
 - **An address in `&4000`-`&7FBF` is ambiguous** until you know which page is at
   `&4000` in that stretch. `&5C59` is a routine in MasterBASIC *and* part of the
@@ -390,3 +454,6 @@ Three consequences worth holding on to:
   whatever was last paged in. The same question, one section along.
 - **Data after a `CALL` is normal**, so an operand that looks like nonsense is
   usually a parameter belonging to the instruction above it.
+- **Code is not always where it is stored.** Sixteen blocks here are assembled
+  for an address they are copied to, and in those the listing's own labels are
+  the wrong ones by construction.
