@@ -292,10 +292,21 @@ Three mechanisms, each meaning the file does not hold what executes.
 
 **The ROM code buffer.** `CDBUFF` at `&4D00` in the system page is described
 by the ROM variable table as a buffer "for e.g. MULTI-LDI, max len &181".
-`L735D` assembles a routine into it at `+&11` from 66 bytes of ROM and 219
-of MasterBASIC, then patches two; hook 185 and `BUILD_PAGE_IN_TRAMPOLINE`
-both build at `+&50`. The relocated block calls `&4D11` — whatever was last
-built there.
+Four routines build into it. `BUILD_COMPILER` assembles the replacement
+compile pass at `+&11`, from 66 bytes of the ROM's `DOCOMP` and 219 of its
+own; hook 185 and `BUILD_PAGE_IN_TRAMPOLINE` both build at `+&50`; and
+`HCMDV`'s default path builds at `&4CD3`, forty-five bytes *below* the
+buffer, out of a prologue, 88 bytes taken from ROM 1, and an epilogue.
+
+That last one is the clearest example of the whole mechanism, because a
+dump proves every byte of it. Both fixed pieces are in `file/SYS2.bin`
+exactly as the listing holds them, the middle 88 are ROM 1's `&E019` in
+ROM 3.0 — the same code sits at `&E02F` in 2.1 and `&E041` in 1.4, which
+is why the address is taken from the ROM's own table rather than searched
+for — and the two operands it patches read `JP &E071` and `CALL &3EEA`,
+resuming the ROM 1 routine one byte past where the copy stopped and
+calling what the copy used to call. MasterBASIC splices itself into the
+middle of a ROM routine.
 
 The buffer is the ROM's, not MasterBASIC's, and the ROM uses it the same
 way: `POSFIRST` copies the tokeniser into it with `LD DE,TOKFIN+3 ; END OF
@@ -342,11 +353,21 @@ identified, so `LD (&45AF),A` reads as `LD (CHECK_WRITE_STATUS+1),A`.
 | serial | `SERINIT`, `SERCMD`, `SPORT` |
 | printer dumps | `SCREEN_PIXEL_COLOUR`, `BUILD_GREY_MAP`, `notes/mb-dump.txt`, `notes/mb-dumpcolour.txt` |
 | the calculator | `FPCALC`, `FPC_*` |
+| saving the image | `SAVE_BOOT` `&6404`, `notes/mb-saveboot.txt` |
+| file compression | `SET_COMPRESSION_MODE`, `COMPRESS_FILE`, `COMPRESS_SCREEN_FILE`, `GET_WORK_PAGE` |
+| the compile pass | `BUILD_COMPILER` `&735D`, `notes/mb-compiler.txt` |
+| commands taken from the ROM | `notes/mb-cmdintercept.txt`; `CMD_MODE`, `CMD_SOUND`, `CMD_PAUSE`, `CMD_KEYIN`, `CMD_DEF_KEYCODE` |
+| searching | `PARSE_REFERENCE`, `MATCH_REFERENCE`, `SEARCH_MEMORY`, `PARSE_LINE_RANGE` |
 
 ## 7. What is not settled
 
-- **499 bytes of the DOS page** differ after boot and are largely
-  unexamined; `&4131`-`&417C` alone is 75 bytes of structure.
+- **A 381-byte copy with no copier.** After boot, MasterBASIC's
+  `&7E43`-`&7FBF` is an exact copy of the ROM's system page at
+  `&5896`-`&5A12` — the DEF KEY gap, the whole keyboard table and the DUMP
+  settings. Nothing in either half loads those addresses for such a copy;
+  the three literal loads that exist are `SAVE_BOOT`'s own source, the
+  channel pointer, and the installer's forty bytes going the other way.
+  `notes/mb-postboot.txt` lists what has been ruled out.
 
 - **Nothing calls `SIZE_EXTERNAL_MEMORY` at `&77DB`.** It has no reference
   in either half, is not one of the addresses the DOS calls in the copied
@@ -356,13 +377,26 @@ identified, so `LD (&45AF),A` reads as `LD (CHECK_WRITE_STATUS+1),A`.
   which leaves the instructions that save `SP` unreached, though the fill
   needs them to have run.
 
-- **`CALL &50D7` at `&7275` and `&7279`.** The listing labels them
-  `V50D7`, which is this page's `&A0` keyword-list sentinel — calling it
-  would run `AND B` and fall into the keyword text, so the label is wrong
-  and the target is unfound. The system page has a credit string there,
-  the DOS page the two-byte tail of a routine, the operands are not
-  patched at boot, and the `RST FPCALC` list two instructions earlier
-  genuinely ends where the listing says.
-
 - **The DOS half**, deliberately. The work so far has been the MasterBASIC
-  side; the DOS is read only where MasterBASIC reaches into it.
+  side; the DOS is read only where MasterBASIC reaches into it. Its
+  remaining 67 unnamed call targets are not a tooling gap — see the note
+  at the end of `notes/mb-smallhelpers.txt`.
+
+### Settled since this section was written
+
+- The **499 bytes of the DOS page** that differ after boot are now
+  accounted for in full: 341 are `DCHAN`, `FSA` and `DRAM`, the disk
+  channel record and its buffers; 150 are the DOS's working variables and
+  `UIFA`; 6 are the two path strings; and the last 2 are `INDJP`'s own
+  self-modified `CALLMB` operand, which holds `HCMDV` because that is the
+  last cross-page dispatch a machine at a prompt performed.
+
+- **`CALL &50D7` at `&7275`** is a call inside the block itself once it
+  has moved. `FN_USING_S` copies 231 bytes to `&5000` in the system page
+  and runs them there, so `&50D7` is `&D7` bytes in, from `&731A`.
+
+- **Which caller the run-length encoder serves.** It is `SAVE MODE`'s, and
+  it walks a display layout because the file it is compressing is a
+  `SCREEN$`. The DOS's `HK_HSAVE` picks between two compressors on DVAR
+  154 and the file type, which is the manual's three `SAVE MODE`s exactly.
+  The two halves of that looked contradictory for a while and were not.

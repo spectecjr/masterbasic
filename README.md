@@ -116,8 +116,9 @@ listings.
 
 [docs/idioms.md](docs/idioms.md) collects the tricks that recur across the
 image, the SAM ROM and MasterDOS -- the paging conventions, inline call
-parameters, the `&21` skip, bit merges, self-modifying operands -- each with
-the code and a line-by-line reading. Worth having open beside the listings.
+parameters, the `&21` skip, bit merges, self-modifying operands, and how to
+tell that a block of code is not running where it is stored -- each with the
+code and a line-by-line reading. Worth having open beside the listings.
 
 [docs/disassembly.md](docs/disassembly.md) is the other long form: how the
 listings are built, what each pass contributes, and what is still open.
