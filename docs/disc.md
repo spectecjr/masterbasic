@@ -181,6 +181,46 @@ store and the increment in one. The asymmetry is the Z80's: there is no
 instruction that reads a port into `(HL)` *and* leaves the value where the
 status test can reach it.
 
+## The other kind of drive
+
+Both `READ_SECTOR` and `WRITE_SECTOR` branch away at their first test, and
+the branch is not an error path — it is the whole of the RAM disc support:
+
+```asm
+      CALL TIRDXDCT                   ; 45B7
+      JP NC,RDRSCT                    ; 45BA  drives 3 to 7 go here
+```
+
+`RDRSCT` at `&7533` is the author's own name for it, from the part of the
+source `ref/masterdos/docs/ram-discs.md` calls `RAMD`, and what it does is
+the design in one routine: the sector is a **memory copy**.
+
+```asm
+RDRS2:
+      PUSH DE / PUSH HL / PUSH BC     ; 7544
+      CALL RDADR                      ; 7547  where is that sector, in pages?
+      LD BC,&0200                     ; 754A
+      LD DE,DRAM                      ; 754D
+      LDIR                            ; 7550
+```
+
+`RDADR` turns a track and sector into a page and an offset; `LDIR` moves the
+512 bytes into the same `DRAM` buffer a floppy read would have filled. Above
+that line nothing knows the difference — the reference documentation puts it
+the same way: "**nothing above that level knows the difference**. A RAM disc
+has a directory, a sector map, subdirectories, a name and a path exactly as a
+floppy does."
+
+One instruction in the shipped code is not in the reference source. There
+`RDRSCT` runs `CALL GTBUF` straight into `LD BC,&0200`; here `SDCHK2` goes
+between them, and its own comments give the test — "RET IF HL IN DRAM" and
+"CY IF HL WILL CROSS PAGE BOUNDARY". A destination that would run off the end
+of a page is bounced through `DRAM`; one that will not is read into the
+caller's buffer directly, saving the copy. That difference is worth knowing
+about generally: the reference source and this binary are the same version
+but not the same build, and they drift — `DWAIT` is at `&4495` in the source
+and `&4564` here, and by `&6466` the gap has grown to `&204`.
+
 ## Following a file
 
 A file is a chain of sectors, each holding the track and sector of the next

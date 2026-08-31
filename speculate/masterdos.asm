@@ -2537,7 +2537,7 @@ CHECK_WRITE_STATUS:
 ; ---- READ_SECTOR ---- from &4602, &4633, &48FF, &4E08, &5558, &5582, &5A14, &5D62 ...
 READ_SECTOR:
                CALL TIRDXDCT                   ; 45B7 CD 56 61
-               JP NC,READ_WITH_ADDRESS_CHECK   ; 45BA D2 33 75
+               JP NC,RDRSCT                    ; 45BA D2 33 75
 
 ;; --------------------------------------------------------------------
 ;; L45BD -- &45BD to &45C7
@@ -20652,7 +20652,7 @@ RDW4:
 ;; Takes:     DE, IX
 ;; Leaves:    A, F, BC, DE, HL
 ;;
-;; ? calls READ_WITH_ADDRESS_CHECK; falls into whatever follows rather than returning.
+;; ? calls RDRSCT; falls into whatever follows rather than returning.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -20670,7 +20670,7 @@ RDW4:
 
 ; ---- RDSSAD ---- from &4685
 RDSSAD:
-               CALL READ_WITH_ADDRESS_CHECK    ; 74EA CD 33 75  HL=DATA START
+               CALL RDRSCT                     ; 74EA CD 33 75  HL=DATA START
                PUSH DE                         ; 74ED D5
                PUSH HL                         ; 74EE E5
                LD DE,(TEMPW1)                  ; 74EF ED 5B 12 42
@@ -20760,7 +20760,7 @@ RDS3:
 ;; Takes:     DE, IX
 ;; Leaves:    A, F, BC, DE, HL
 ;;
-;; ? calls READ_WITH_ADDRESS_CHECK; falls into whatever follows rather than returning.
+;; ? calls RDRSCT; falls into whatever follows rather than returning.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -20771,7 +20771,7 @@ RDS3:
 
 ; ---- NRDRSCT ---- from &4638
 NRDRSCT:
-               CALL READ_WITH_ADDRESS_CHECK    ; 7516 CD 33 75
+               CALL RDRSCT                     ; 7516 CD 33 75
                PUSH DE                         ; 7519 D5
                PUSH HL                         ; 751A E5
                EX DE,HL                        ; 751B EB
@@ -20825,7 +20825,7 @@ L752E:
                RET                             ; 7532 C9
 
 ;; --------------------------------------------------------------------
-;; READ_WITH_ADDRESS_CHECK -- &7533 to &7540
+;; RDRSCT -- &7533 to &7540
 ;;
 ;; Takes:     DE, IX
 ;; Leaves:    A, F, BC, HL
@@ -20836,12 +20836,22 @@ L752E:
 ;;
 ;; Shown for this routine in disasm/:
 ;;
-;;     Get the buffer, then SDCHK2 decides between two ways of reading: the
-;;     checked path through READ_ADDRESS_CLEAR, or a straight &0200 bytes.
+;;     Read a sector from a RAM disc -- the author's own name, from the part
+;;     of the source ref/masterdos/docs/ram-discs.md calls RAMD.  Every disk
+;;     operation starts with TIRD, and for drives 3 to 7 it comes here
+;;     instead of touching a controller at all.
+;;     
+;;     The shipped code has one thing the reference source does not.  There
+;;     RDRSCT is CALL GTBUF then LD BC,&0200 straight into RDRS2; here
+;;     SDCHK2 goes between them, and its own comments say what it decides --
+;;     "RET IF HL IN DRAM" and "CY IF HL WILL CROSS PAGE BOUNDARY".  A
+;;     destination that would run off the end of a page takes the long way
+;;     round through DRAM; one that will not is read into the caller's
+;;     buffer directly.
 ;; --------------------------------------------------------------------
 
-; ---- READ_WITH_ADDRESS_CHECK ---- from &45BA, &74EA, &7516
-READ_WITH_ADDRESS_CHECK:
+; ---- RDRSCT ---- from &45BA, &74EA, &7516
+RDRSCT:
                CALL GTBUF                      ; 7533 CD A0 4F
                CALL SDCHK2                     ; 7536 CD B9 77
                JR C,L7541                      ; 7539 38 06
@@ -20854,6 +20864,13 @@ READ_WITH_ADDRESS_CHECK:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    BC
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     The copy itself, and it is an LDIR: RDADR works out where the sector
+;;     lives in the RAM disc's pages, and &0200 bytes move from there to
+;;     DRAM.  A RAM disc read is a memory copy with the same interface as a
+;;     floppy read, which is the whole point of the design.
 ;; --------------------------------------------------------------------
 
 ; ---- L7541 ---- from &7539

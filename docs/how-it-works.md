@@ -385,10 +385,10 @@ is classified. What follows is what naming did not answer.
 - **The DOS half** is still read mainly where MasterBASIC reaches into it.
   Every routine either half calls has a name, and
   [disc.md](disc.md) now follows a read and a write end to end; what is
-  left thin is everything either side of those two paths -- formatting,
-  the directory as a structure, and the RAM discs, which the read path
-  branches away to at its first instruction and this project has not
-  followed.
+  left thin is everything either side of those two paths -- formatting and
+  the directory as a structure.  The RAM discs are followed as far as the
+  sector: drives 3 to 7 divert at the first test of every read and write,
+  and RDRSCT turns the transfer into an LDIR.
 
 ### Settled since this section was written
 

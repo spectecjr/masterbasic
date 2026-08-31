@@ -301,9 +301,25 @@ DOS &730B PREPARE_DIRECTORY_WRITE
     SNDFL, error 32 if it fails, bit 2 of FLAG3 down, and then POINT and
     the type byte masked -- the run-up every directory write shares.
 
-DOS &7533 READ_WITH_ADDRESS_CHECK
-    Get the buffer, then SDCHK2 decides between two ways of reading: the
-    checked path through READ_ADDRESS_CLEAR, or a straight &0200 bytes.
+DOS &7533 RDRSCT
+    Read a sector from a RAM disc -- the author's own name, from the part
+    of the source ref/masterdos/docs/ram-discs.md calls RAMD.  Every disk
+    operation starts with TIRD, and for drives 3 to 7 it comes here
+    instead of touching a controller at all.
+
+    The shipped code has one thing the reference source does not.  There
+    RDRSCT is CALL GTBUF then LD BC,&0200 straight into RDRS2; here
+    SDCHK2 goes between them, and its own comments say what it decides --
+    "RET IF HL IN DRAM" and "CY IF HL WILL CROSS PAGE BOUNDARY".  A
+    destination that would run off the end of a page takes the long way
+    round through DRAM; one that will not is read into the caller's
+    buffer directly.
+
+DOS &7541 RDRS2
+    The copy itself, and it is an LDIR: RDADR works out where the sector
+    lives in the RAM disc's pages, and &0200 bytes move from there to
+    DRAM.  A RAM disc read is a memory copy with the same interface as a
+    floppy read, which is the whole point of the design.
 
 DOS &778F READ_ADDRESS_CLEAR
 DOS &7799 READ_ADDRESS_SET
