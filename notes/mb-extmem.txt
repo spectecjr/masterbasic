@@ -45,6 +45,18 @@ DOC SIZE_EXTERNAL_MEMORY
     code at &77DB and nowhere else, and the system page has neither the
     code nor the message.
 
+    Nor does any other DOS call it.  dsks/MasterBasic1.7.dsk carries two
+    more of them -- samdos2, which is SAMDOS 2, and MBMC, a third
+    bootable image that is neither -- and the same MasterBASIC runs with
+    them: MBASC on that disk is this half byte for byte, all 16320 of
+    them, so there is no variant of this code in which the routine might
+    be reached.  Searching all five binaries and all three dumps for
+    &77DB, &F7DB and &B7DB as a stored word finds nothing at all.
+
+    So on the evidence available it is dead code, and the only thing
+    left that could overturn that is a caller outside every binary this
+    project has -- see docs/evidence-wanted.md.
+
     And the flow through the fill does not join up.  CALL &7806 at &77F5
     cannot return -- STACK_FILL_LOOP ends by putting SP back and jumping
     to &781B -- so &77F8-&77FD is not reached that way.  Yet &7814 takes

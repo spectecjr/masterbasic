@@ -372,13 +372,15 @@ is classified. What follows is what naming did not answer.
   channel pointer, and the installer's forty bytes going the other way.
   `notes/mb-postboot.txt` lists what has been ruled out.
 
-- **Nothing calls `SIZE_EXTERNAL_MEMORY` at `&77DB`.** It has no reference
-  in either half, is not one of the addresses the DOS calls in the copied
-  block, does not appear as a table word, and is installed nowhere else.
-  The trace found it only by running on out of the message it belongs to.
-  Its own flow does not close either: the `CALL` at `&77F5` cannot return,
-  which leaves the instructions that save `SP` unreached, though the fill
-  needs them to have run.
+- **`SIZE_EXTERNAL_MEMORY` at `&77DB` looks like dead code.** Nothing
+  references it in either half, in either of the two other DOS binaries on
+  `dsks/MasterBasic1.7.dsk`, or in any of the three dumps — searched as a
+  call target and as a stored word in all three of its plain, flagged and
+  windowed forms. And `MBASC` on that disk is this MasterBASIC byte for
+  byte, so there is no variant in which it might be reached. Its own flow
+  does not close either: the `CALL` at `&77F5` cannot return, which leaves
+  the instructions that save `SP` unreached, though the fill needs them to
+  have run. What would overturn this is a caller outside every binary here.
 
 - **The DOS half** is still read mainly where MasterBASIC reaches into it.
   Every routine either half calls has a name, and

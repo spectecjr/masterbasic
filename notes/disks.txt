@@ -1,0 +1,37 @@
+# What else is on the disk images, and what it settles.
+
+# dsks/ holds three images.  Files come out of them by following the
+# sector chain -- each 512-byte sector is 510 bytes of data and then the
+# track and sector of the next -- and the directory is two 256-byte
+# entries per sector across track 0.
+
+# dsks/MasterBasic1.7.dsk
+#
+#   samdos2   type 19, 10200 bytes   SAMDOS 2
+#   MBMC      type 19, 16311 bytes   loads at &8009, start page 97
+#   MBASC     type 19, 16320 bytes   loads at &BFC0, start page 97
+#   autoMBM   type 16                a BASIC loader
+#   ...and the demonstration programs the manual refers to: alter, edit,
+#   sort, join, inarray, sval, the sound and PUT examples
+#
+# MBASC is this project's MasterBASIC half, byte for byte -- all 16320
+# of them, once its own nine-byte header is skipped.  So the same binary
+# ships paired with SAMDOS and with MasterDOS, and there is no second
+# build of MasterBASIC 1.7 to compare against.
+#
+# MBMC is a bootable DOS image and is not MasterDOS 2.3: its header
+# gives a load address of &8009 and a length of &3FB7, the same shape as
+# the DOS half of the combined file, but the bytes do not match.  It has
+# not been read.
+#
+# What that pair settles: nothing in samdos2 or MBMC calls MasterBASIC's
+# SIZE_EXTERNAL_MEMORY either.  See notes/mb-extmem.txt.
+
+# dsks/MasterDOS2_3_MasterBasic1_7.mgt
+#
+#   the combined file this project disassembles.
+
+# dsks/liveboottest.mgt
+#
+#   MBPOST, SYSPAGE and SYS2 -- the three dumps already in file/, saved
+#   as CODE files.  Nothing new.
