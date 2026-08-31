@@ -120,6 +120,10 @@ parameters, the `&21` skip, bit merges, self-modifying operands, and how to
 tell that a block of code is not running where it is stored -- each with the
 code and a line-by-line reading. Worth having open beside the listings.
 
+[docs/evidence-wanted.md](docs/evidence-wanted.md) is the short list of things
+this project cannot settle by reading -- what to capture on a real machine or
+an emulator, and what each would decide.
+
 [docs/disc.md](docs/disc.md) follows one read and one write all the way down,
 from the BASIC statement to the bytes moving through the WD1772 -- the layer
 the other documents leave to the DOS.
