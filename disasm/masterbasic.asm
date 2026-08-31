@@ -3221,7 +3221,7 @@ L4942:
                CALL IS_DIGIT                   ; 4948 CD 4E 45
                JR NC,L4942                     ; 494B 30 F5
                DJNZ L492F                      ; 494D 10 E0
-               CALL L4A0D                      ; 494F CD 0D 4A
+               CALL READ_CLOCK_FIELDS          ; 494F CD 0D 4A
                JP C,REP_INTEGER_OUT_OF_RANGE   ; 4952 DA A7 43
 
 ; ---- L4955 ---- from &4916
@@ -3413,8 +3413,15 @@ L49FF:
                LD (DE),A                       ; 4A0B 12
                RET                             ; 4A0C C9
 
-; ---- L4A0D ---- from &494F
-L4A0D:
+;; --------------------------------------------------------------------
+;; Three two-digit fields out of the DOS's buffer.  The other half is
+;; paged in, the pointer at V4096 is windowed with SET 7,D and RES 6,D,
+;; nine bytes in is where the fields start, and TWO_DIGITS_FROM_DE reads
+;; each one and steps over the separator between them.
+;; --------------------------------------------------------------------
+
+; ---- READ_CLOCK_FIELDS ---- from &494F
+READ_CLOCK_FIELDS:
                CALL PAGE_IN_OTHER_HALF         ; 4A0D CD D1 49
                PUSH AF                         ; 4A10 F5
                LD DE,(V4096)                   ; 4A11 ED 5B 96 40
@@ -4117,7 +4124,7 @@ L4CFD:
                PUSH AF                         ; 4CFD F5
                EX AF,AF'                       ; 4CFE 08
                LD DE,(V40A6)                   ; 4CFF ED 5B A6 40
-               CALL L4D2A                      ; 4D03 CD 2A 4D
+               CALL COMPARE_TO_TERMINATOR      ; 4D03 CD 2A 4D
                JR NZ,L4CDB                     ; 4D06 20 D3
                LD DE,INSTALL_ROM_PATCHES       ; 4D08 11 00 7B
                PUSH HL                         ; 4D0B E5
@@ -4152,8 +4159,14 @@ L4D26:
                CP E                            ; 4D28 BB
                RET Z                           ; 4D29 C8
 
-; ---- L4D2A ---- from &4D03
-L4D2A:
+;; --------------------------------------------------------------------
+;; Walk BC bytes from HL -- B in the inner loop, C in the outer, so a
+;; count over 255 costs nothing extra -- and return with the flags from
+;; comparing the last byte read against E.
+;; --------------------------------------------------------------------
+
+; ---- COMPARE_TO_TERMINATOR ---- from &4D03
+COMPARE_TO_TERMINATOR:
                LD A,(HL)                       ; 4D2A 7E
                INC HL                          ; 4D2B 23
                DJNZ L4D26                      ; 4D2C 10 F8
@@ -6021,7 +6034,7 @@ L5546:
                LD HL,FN_SCRAD                  ; 5549 21 8E 42
                ADD HL,BC                       ; 554C 09
                POP AF                          ; 554D F1
-               JP L63FE                        ; 554E C3 FE 63
+               JP WRITE_DOS_BYTE               ; 554E C3 FE 63
 
 ; ---- L5551 ---- from &54D3
 L5551:
@@ -6378,7 +6391,7 @@ L56DD:
                CALL NRWRHL                     ; 56E2 CD 75 45
                DEFW &5A5E                     ; 56E5 5E 5A
                LD DE,&484D                     ; 56E7 11 4D 48
-               CALL L589F                      ; 56EA CD 9F 58
+               CALL EXCHANGE_CHANNEL_WORD      ; 56EA CD 9F 58
                CALL NRWRD                      ; 56ED CD 77 45
                DEFW &5A67                     ; 56F0 67 5A
                POP BC                          ; 56F2 C1
@@ -6448,7 +6461,7 @@ L572F:
                LD C,(HL)                       ; 573C 4E
                LD B,&00                        ; 573D 06 00
                POP HL                          ; 573F E1
-               CALL L58BF                      ; 5740 CD BF 58
+               CALL STEP_BY_TABLE_ENTRY        ; 5740 CD BF 58
                LD HL,L7B81                     ; 5743 21 81 7B
                LD A,B                          ; 5746 78
                OR C                            ; 5747 B1
@@ -6811,8 +6824,15 @@ L5898:
                LD D,B                          ; 589D 50
                LD E,C                          ; 589E 59
 
-; ---- L589F ---- from &56EA
-L589F:
+;; --------------------------------------------------------------------
+;; Swap a word with the one ten bytes into the ROM's channel table: read
+;; it with the ROM's NRREAD, write the caller's in with WRA, and hand
+;; back what was there.  Exchanging rather than writing is what lets the
+;; same routine put it back.
+;; --------------------------------------------------------------------
+
+; ---- EXCHANGE_CHANNEL_WORD ---- from &56EA
+EXCHANGE_CHANNEL_WORD:
                CALL NRRDD                      ; 589F CD 5F 45
                DEFW CHANS                     ; 58A2 4F 5C
                LD HL,&000A                     ; 58A4 21 0A 00
@@ -6831,8 +6851,14 @@ L589F:
                LD A,D                          ; 58BB 7A
                JP WRA                          ; 58BC C3 A4 45
 
-; ---- L58BF ---- from &5740
-L58BF:
+;; --------------------------------------------------------------------
+;; Take C from A and return if nothing is left, then read the word two
+;; bytes on as the next step and negate what remains.  Named for what it
+;; does; the table it walks is not established here.
+;; --------------------------------------------------------------------
+
+; ---- STEP_BY_TABLE_ENTRY ---- from &5740
+STEP_BY_TABLE_ENTRY:
                SUB C                           ; 58BF 91
                RET Z                           ; 58C0 C8
                INC HL                          ; 58C1 23
@@ -9015,11 +9041,11 @@ L6143:
 ;; --------------------------------------------------------------------
 
 COMPRESS_SCREEN_FILE:
-               CALL L63C5                      ; 614E CD C5 63
+               CALL PICK_COMPRESSION_CONSTANTS ; 614E CD C5 63
                PUSH DE                         ; 6151 D5
                SBC HL,BC                       ; 6152 ED 42
                PUSH HL                         ; 6154 E5
-               CALL L61A0                      ; 6155 CD A0 61
+               CALL ENCODE_SCREEN              ; 6155 CD A0 61
                LD DE,&E500                     ; 6158 11 00 E5
                AND A                           ; 615B A7
                SBC HL,DE                       ; 615C ED 52
@@ -9084,8 +9110,18 @@ L6196:
                DJNZ L6196                      ; 619D 10 F7
                RET                             ; 619F C9
 
-; ---- L61A0 ---- from &6155
-L61A0:
+;; --------------------------------------------------------------------
+;; The encoder's driver.  SCAN_NIBBLE_TABLE picks a value into C, the
+;; alternate registers take DE = &000F and HL = &E500 for the output
+;; stream, and that value is written out first through
+;; WRITE_NEXT_NIBBLE -- so the stream begins by saying what the run
+;; encoding is relative to.  Then HL counts nibbles from zero and each
+;; one is read and handed to ENCODE_ONE_NIBBLE, until H comes round to
+;; &FF.
+;; --------------------------------------------------------------------
+
+; ---- ENCODE_SCREEN ---- from &6155
+ENCODE_SCREEN:
                CALL SCAN_NIBBLE_TABLE          ; 61A0 CD 37 62
                LD C,A                          ; 61A3 4F
                EXX                             ; 61A4 D9
@@ -9098,7 +9134,7 @@ L61A0:
 ; ---- L61B2 ---- from &61BA
 L61B2:
                CALL READ_NIBBLE_AT_HL          ; 61B2 CD 88 62
-               CALL L61C2                      ; 61B5 CD C2 61
+               CALL ENCODE_ONE_NIBBLE          ; 61B5 CD C2 61
                LD A,H                          ; 61B8 7C
                INC A                           ; 61B9 3C
                JR NZ,L61B2                     ; 61BA 20 F6
@@ -9108,8 +9144,16 @@ L61B2:
                INC HL                          ; 61C0 23
                RET                             ; 61C1 C9
 
-; ---- L61C2 ---- from &61B5
-L61C2:
+;; --------------------------------------------------------------------
+;; One nibble of the source.  If it does not match the value in C it
+;; goes straight to COUNT_RUN; if it does, the long-run path counts up
+;; to &88 more of the same through NEXT_SCREEN_BYTE and leaves for
+;; ENCODE_RUN as soon as one differs.  The two cases are what make the
+;; common value cheaper than the rest.
+;; --------------------------------------------------------------------
+
+; ---- ENCODE_ONE_NIBBLE ---- from &61B5
+ENCODE_ONE_NIBBLE:
                CP C                            ; 61C2 B9
                JR NZ,COUNT_RUN                 ; 61C3 20 0D
                LD B,&88                        ; 61C5 06 88
@@ -9410,12 +9454,12 @@ L629D:
                LD H,L                          ; 62A4 65
                RET                             ; 62A5 C9
                PUSH HL                         ; 62A6 E5
-               CALL L63C5                      ; 62A7 CD C5 63
+               CALL PICK_COMPRESSION_CONSTANTS ; 62A7 CD C5 63
                POP AF                          ; 62AA F1
                PUSH DE                         ; 62AB D5
                CALL PAGED_TO_LONG              ; 62AC CD DC 62
                LD (V407B),HL                   ; 62AF 22 7B 40
-               CALL L6390                      ; 62B2 CD 90 63
+               CALL CHECK_ROOM_FOR_OUTPUT      ; 62B2 CD 90 63
                CALL EXPAND_COMPRESSED_FILE     ; 62B5 CD E9 62
                POP DE                          ; 62B8 D1
 
@@ -9642,7 +9686,7 @@ L6375:
                EXX                             ; 6380 D9
                RET NZ                          ; 6381 C0
                PUSH AF                         ; 6382 F5
-               CALL L6390                      ; 6383 CD 90 63
+               CALL CHECK_ROOM_FOR_OUTPUT      ; 6383 CD 90 63
                POP AF                          ; 6386 F1
                EXX                             ; 6387 D9
                LD HL,&E500                     ; 6388 21 00 E5
@@ -9650,8 +9694,14 @@ L6375:
                EXX                             ; 638E D9
                RET                             ; 638F C9
 
-; ---- L6390 ---- from &62B2, &6383
-L6390:
+;; --------------------------------------------------------------------
+;; Compare what is left of the work area against &1900 and take the
+;; short path if there is less, with the caller's registers saved around
+;; it.  V407B is where the running total lives.
+;; --------------------------------------------------------------------
+
+; ---- CHECK_ROOM_FOR_OUTPUT ---- from &62B2, &6383
+CHECK_ROOM_FOR_OUTPUT:
                PUSH HL                         ; 6390 E5
                PUSH DE                         ; 6391 D5
                PUSH BC                         ; 6392 C5
@@ -9690,8 +9740,15 @@ L63A6:
                POP HL                          ; 63C3 E1
                RET                             ; 63C4 C9
 
-; ---- L63C5 ---- from &614E, &62A7
-L63C5:
+;; --------------------------------------------------------------------
+;; Load the three constants the compressor works to -- H, BC and DE --
+;; with one set or the other depending on the flag in A: &33, &1B00 and
+;; CEXTAB windowed for the first, &6D, &38 and &B8 for the second.  One
+;; routine so the two paths through the encoder share their setup.
+;; --------------------------------------------------------------------
+
+; ---- PICK_COMPRESSION_CONSTANTS ---- from &614E, &62A7
+PICK_COMPRESSION_CONSTANTS:
                PUSH DE                         ; 63C5 D5
                LD H,&33                        ; 63C6 26 33
                LD BC,&1B00                     ; 63C8 01 00 1B
@@ -9761,8 +9818,15 @@ SET_COMPRESSION_MODE:
                JP NC,REP_INTEGER_OUT_OF_RANGE  ; 63F8 D2 A7 43
                LD HL,DVAR_CMPFG                ; 63FB 21 BA 42
 
-; ---- L63FE ---- from &554E, &65D3
-L63FE:
+;; --------------------------------------------------------------------
+;; Write A to the address in HL in the DOS page, through CALLDOS and the
+;; ROM's NRWRITE.  Three instructions, and the reason for the detour is
+;; that the write has to happen after the pages have swapped, which is
+;; why SET_COMPRESSION_MODE falls into it rather than storing directly.
+;; --------------------------------------------------------------------
+
+; ---- WRITE_DOS_BYTE ---- from &554E, &65D3
+WRITE_DOS_BYTE:
                CALL CALLDOS                    ; 63FE CD C1 42
                DEFW NRWRITE                   ; 6401 0D 00
                RET                             ; 6403 C9
@@ -10264,7 +10328,7 @@ L65CB:
                JR NC,L65CB                     ; 65CD 30 FC
                LD A,C                          ; 65CF 79
                LD HL,&5C98                     ; 65D0 21 98 5C
-               CALL L63FE                      ; 65D3 CD FE 63
+               CALL WRITE_DOS_BYTE             ; 65D3 CD FE 63
                LD C,A                          ; 65D6 4F
                XOR A                           ; 65D7 AF
 
@@ -10542,7 +10606,7 @@ L66D9:
                IN A,(HMPR)                     ; 66DC DB FB
                PUSH AF                         ; 66DE F5
                LD DE,PUTSWA                    ; 66DF 11 00 40
-               CALL L66F2                      ; 66E2 CD F2 66
+               CALL EXPAND_INTO_WORK_PAGE      ; 66E2 CD F2 66
                POP AF                          ; 66E5 F1
                INC A                           ; 66E6 3C
                OUT (HMPR),A                    ; 66E7 D3 FB
@@ -10558,13 +10622,20 @@ L66EF:
                OR E                            ; 66F0 B3
                RET Z                           ; 66F1 C8
 
-; ---- L66F2 ---- from &66E2
-L66F2:
+;; --------------------------------------------------------------------
+;; Set up to expand a file: take a work page through GET_WORK_PAGE --
+;; which falls back on the display if there is none free -- read the
+;; counted string that heads the data, and clear the ROM's PAGCOUNT
+;; before the run begins.
+;; --------------------------------------------------------------------
+
+; ---- EXPAND_INTO_WORK_PAGE ---- from &66E2
+EXPAND_INTO_WORK_PAGE:
                PUSH HL                         ; 66F2 E5
                IN A,(HMPR)                     ; 66F3 DB FB
                PUSH AF                         ; 66F5 F5
                CALL GET_WORK_PAGE              ; 66F6 CD D7 67
-               CALL L6726                      ; 66F9 CD 26 67
+               CALL READ_COUNTED_STRING        ; 66F9 CD 26 67
                XOR A                           ; 66FC AF
                CALL NRWR                       ; 66FD CD 82 45
                DEFW PAGCOUNT                  ; 6700 83 5B
@@ -10587,8 +10658,14 @@ L66F2:
                OUT (HMPR),A                    ; 6723 D3 FB
                RET                             ; 6725 C9
 
-; ---- L6726 ---- from &66F9
-L6726:
+;; --------------------------------------------------------------------
+;; Read a length byte from the open file through the DOS's LBYT, then
+;; that many bytes after it, into the buffer at &7B00 -- the installer's
+;; dead bytes again.
+;; --------------------------------------------------------------------
+
+; ---- READ_COUNTED_STRING ---- from &66F9
+READ_COUNTED_STRING:
                CALL CALLDOS                    ; 6726 CD C1 42
                DEFW DOS_LBYT-&4000            ; 6729 F6 6F
                LD B,A                          ; 672B 47

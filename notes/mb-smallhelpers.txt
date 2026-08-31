@@ -422,3 +422,36 @@ MB &5629 IS_CHANNEL_OURS
     inside the second installed stub, in the ROM's system page, not this
     half -- so the test is whether the channel is still pointed at what
     the installer put there.
+
+MB &4A0D READ_CLOCK_FIELDS
+    Three two-digit fields out of the DOS's buffer.  The other half is
+    paged in, the pointer at V4096 is windowed with SET 7,D and RES 6,D,
+    nine bytes in is where the fields start, and TWO_DIGITS_FROM_DE reads
+    each one and steps over the separator between them.
+
+MB &4D2A COMPARE_TO_TERMINATOR
+    Walk BC bytes from HL -- B in the inner loop, C in the outer, so a
+    count over 255 costs nothing extra -- and return with the flags from
+    comparing the last byte read against E.
+
+MB &589F EXCHANGE_CHANNEL_WORD
+    Swap a word with the one ten bytes into the ROM's channel table: read
+    it with the ROM's NRREAD, write the caller's in with WRA, and hand
+    back what was there.  Exchanging rather than writing is what lets the
+    same routine put it back.
+
+MB &58BF STEP_BY_TABLE_ENTRY
+    Take C from A and return if nothing is left, then read the word two
+    bytes on as the next step and negate what remains.  Named for what it
+    does; the table it walks is not established here.
+
+MB &63FE WRITE_DOS_BYTE
+    Write A to the address in HL in the DOS page, through CALLDOS and the
+    ROM's NRWRITE.  Three instructions, and the reason for the detour is
+    that the write has to happen after the pages have swapped, which is
+    why SET_COMPRESSION_MODE falls into it rather than storing directly.
+
+MB &6726 READ_COUNTED_STRING
+    Read a length byte from the open file through the DOS's LBYT, then
+    that many bytes after it, into the buffer at &7B00 -- the installer's
+    dead bytes again.
