@@ -408,6 +408,52 @@ Only jump and call targets, and inline parameters, are named from the ROM.
 Runs of three or more `NOP`s are written as `DEFS n` — pyz80 zero-fills, so this
 round-trips, and in the DOS's variable area that is what the bytes are.
 
+## Internal labels
+
+Every address either listing refers to gets a name. Most of them are named by
+something — MasterDOS's symbol table, the dispatch tables, the hook list, a
+file in `notes/` — but a few hundred are internal branch targets that nothing
+names, and those used to read `L45D9`: the address, which the address column
+already gives.
+
+They now carry the routine they belong to, and a suffix where the flow says
+what they are with certainty:
+
+| suffix | when | count |
+|---|---|---|
+| `_LOOP` | a branch comes back to it | 276 |
+| `_DONE` | it returns within a few instructions | 60 |
+| `_FAIL` | it reports an error | 8 |
+| `_1`, `_2`, … | none of the above is certain | 527 |
+
+So `CHECK_BREAK_LOOP2` says more than `L6016` did, and `BOOT_17` at least says
+whose it is. Nothing here is a reading of what the code means: the three
+suffixes are properties of the flow graph, and where the graph says nothing
+the label gets a number rather than a guess. A name in `notes/` still beats
+all of it — those are applied first, and an address named there never becomes
+synthetic in the first place.
+
+Which routine a label belongs to is the label above it, except where every
+reference to it comes from one routine that starts earlier: a routine can
+have a named loop inside it that something else calls, and a branch landing
+past that loop still belongs to the routine that made the branch.
+
+### Why a branch is taken
+
+The header over each label says which addresses reach it. It now also says on
+what, where that can be read off the instruction in front of the branch:
+
+```
+; ---- CHECK_BREAK_LOOP3 ---- from &5FFC when A is not 0, &6027 when B is not 0 yet
+```
+
+The search steps back over instructions that leave the flags alone and stops
+at any address something else can jump to, since past that the flags are not
+this code's to know. `CP`, `SUB`, `AND`, `OR A`, `XOR`, `BIT`, `INC`, `DEC`,
+the rotates and shifts, the block instructions and `DJNZ` are read; anything
+else says nothing rather than something vague. That covers 1006 branches.
+
+
 ## The BASIC at the end of the extension page
 
 `&7E6B`–`&7FBF` (`MBTEXT`) is not code but tokenised SAM BASIC: fragments of

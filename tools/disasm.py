@@ -271,7 +271,10 @@ class Disassembler(Decoder):
 
     def _label(self, w, a):
         if a in self.labels:
-            refs = [hexn(r, 4) for r in sorted(self.xrefs.get(a, ()))]
+            why = getattr(self, 'ref_reason', {})
+            refs = [hexn(r, 4)
+                    + (' when ' + why[(a, r)] if (a, r) in why else '')
+                    for r in sorted(self.xrefs.get(a, ()))]
             # References from the other page count too: a few variables are
             # only ever touched from there.
             refs += ['%s &%04X' % (tag, r)

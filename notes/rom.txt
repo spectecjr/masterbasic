@@ -31,8 +31,8 @@ RENAME STATPORT STAT
 EQU COMM: Disk 0 Side 0 Command Register
 EQU TRCK: Disk 0 Side 0 Track Register
 EQU SECT: Disk 0 Side 0 Sector Register
-RENAME L4526 READ_SELECTED_DISK_STATUS
-RENAME L452E WRITE_SELECTED_DISK_CMD
+DOS &4526 READ_SELECTED_DISK_STATUS
+DOS &452E WRITE_SELECTED_DISK_CMD
 AFTER CHECK_WRITE_STATUS: Read the drive controller status port (specific port chosen by code above)
 AFTER CHECK_READ_STATUS: Read the drive controller status port (specific port chosen by code above)
 EQU DECURPAGE: Adjusts H so that it points to 16KiB lower in memory, and decrements the HMPR page.

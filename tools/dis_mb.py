@@ -39,6 +39,7 @@ import argparse
 import glob
 import re
 import io
+import bisect
 import os
 import sys
 
@@ -1375,6 +1376,188 @@ def name_tables(dos, mb, work):
     return toks
 
 
+# Instructions that leave the flags exactly as they were, so a test can be
+# looked for behind them.  LD A,I and LD A,R set them; POP AF replaces them.
+FLAG_NEUTRAL = re.compile(r"""^(?:
+      LD\ (?!A,[IR]$)  | PUSH\  | POP\ (?!AF$) | EX\  | EXX$
+    | NOP$ | DI$ | EI$ | OUT\   | IM\
+)""", re.X)
+
+
+def _condition(setter, cc):
+    """What a test means, read off the instruction in front of the branch.
+
+    Only readings that are certain are here.  Anything else returns None
+    and the branch is left to speak for itself.
+    """
+    m = re.match(r'^(CP|SUB) (.+)$', setter)
+    if m:
+        v = m.group(2)
+        return {'Z': 'A = %s' % v, 'NZ': 'A <> %s' % v,
+                'C': 'A < %s' % v, 'NC': 'A >= %s' % v}.get(cc)
+    if setter in ('OR A', 'AND A'):
+        return {'Z': 'A = 0', 'NZ': 'A <> 0',
+                'P': 'A < &80', 'M': 'A >= &80'}.get(cc)
+    m = re.match(r'^AND (.+)$', setter)
+    if m:
+        return {'Z': 'no bit of %s is set' % m.group(1),
+                'NZ': 'a bit of %s is set' % m.group(1)}.get(cc)
+    m = re.match(r'^XOR (.+)$', setter)
+    if m:
+        return {'Z': 'A = %s' % m.group(1),
+                'NZ': 'A <> %s' % m.group(1)}.get(cc)
+    m = re.match(r'^BIT (\d),(.+)$', setter)
+    if m:
+        return {'Z': 'bit %s of %s clear' % m.groups(),
+                'NZ': 'bit %s of %s set' % m.groups()}.get(cc)
+    m = re.match(r'^DEC ([A-EHL]|IXH|IXL|IYH|IYL)$', setter)
+    if m:
+        return {'Z': '%s reaches 0' % m.group(1),
+                'NZ': '%s is not 0 yet' % m.group(1)}.get(cc)
+    m = re.match(r'^INC ([A-EHL])$', setter)
+    if m:
+        return {'Z': '%s wraps to 0' % m.group(1),
+                'NZ': '%s is not 0' % m.group(1)}.get(cc)
+    if setter in ('RRA', 'RRCA'):
+        return {'C': 'bit 0 was set', 'NC': 'bit 0 was clear'}.get(cc)
+    if setter in ('RLA', 'RLCA'):
+        return {'C': 'bit 7 was set', 'NC': 'bit 7 was clear'}.get(cc)
+    m = re.match(r'^(SRL|RR|RRC) (.+)$', setter)
+    if m:
+        return {'C': 'bit 0 of %s was set' % m.group(2),
+                'NC': 'bit 0 of %s was clear' % m.group(2)}.get(cc)
+    m = re.match(r'^(SLA|RL|RLC) (.+)$', setter)
+    if m:
+        return {'C': 'bit 7 of %s was set' % m.group(2),
+                'NC': 'bit 7 of %s was clear' % m.group(2)}.get(cc)
+    if setter in ('CPI', 'CPIR', 'CPD', 'CPDR'):
+        return {'Z': 'a match', 'NZ': 'no match',
+                'PO': 'the count ran out'}.get(cc)
+    if setter in ('LDI', 'LDIR', 'LDD', 'LDDR'):
+        return {'PO': 'the count ran out'}.get(cc)
+    return None
+
+
+def explain_branches(d):
+    """Record why each conditional branch is taken, for the label it lands on.
+
+    The listing already says which addresses reach a label; this says on
+    what.  The test is looked for immediately behind the branch, stepping
+    back over instructions that leave the flags alone and stopping at any
+    address something else can jump to -- past that the flags are not this
+    code's to know.
+    """
+    d.ref_reason = {}
+    order = sorted(d.insns)
+    where = {a: i for i, a in enumerate(order)}
+    n = 0
+    for a in order:
+        i = d.insns[a]
+        if i.target is None or not d.inside(i.target):
+            continue
+        if i.text.startswith('DJNZ'):
+            d.ref_reason[(i.target, a)] = 'B is not 0 yet'
+            n += 1
+            continue
+        m = re.match(r'^(?:JP|JR|CALL) (NZ|Z|NC|C|PO|PE|P|M),', i.text)
+        if not m:
+            continue
+        k = where[a]
+        while k > 0:
+            k -= 1
+            prev = d.insns[order[k]]
+            if not FLAG_NEUTRAL.match(prev.text):
+                why = _condition(prev.text, m.group(1))
+                if why:
+                    d.ref_reason[(i.target, a)] = why
+                    n += 1
+                break
+            if order[k] in d.labels:      # flow can join here: stop looking
+                break
+    return n
+
+
+def name_synthetic_labels(d):
+    """Replace Lxxxx with a name that says whose it is.
+
+    Every one of these is an internal branch target the trace found and
+    nothing named.  Lxxxx says only where it is, which the address column
+    says already.  What can be told without guessing is which routine it
+    sits in, and -- from the shape of the flow around it -- whether it is a
+    loop head, a plain return, or an error exit.  Anything less certain
+    than those three gets a number, which at least carries the routine.
+    """
+    heads = sorted(a for a, name in d.labels.items()
+                   if a in d.insns and not SYNTHETIC.match(name))
+    if not heads:
+        return 0
+    order = sorted(d.insns)
+    where = {a: i for i, a in enumerate(order)}
+    taken = set(d.labels.values())
+    def head_above(a):
+        k = bisect.bisect_right(heads, a) - 1
+        return heads[k] if k >= 0 else None
+
+    groups = {}
+    for a in sorted(d.labels):
+        if a not in d.insns or not SYNTHETIC.match(d.labels[a]):
+            continue
+        owner = head_above(a)
+        if owner is None:
+            continue
+        # The label above is not always whose the label is.  A routine can
+        # have a named loop inside it that something else calls, and a
+        # branch landing past that loop still belongs to the routine that
+        # made the branch.  Where every reference agrees on one routine and
+        # it starts earlier, that one wins.
+        from_ = set(head_above(r) for r in d.xrefs.get(a, ()))
+        from_.discard(None)
+        if len(from_) == 1:
+            other = from_.pop()
+            if other < owner:
+                owner = other
+        groups.setdefault(owner, []).append(a)
+
+    def shape(a):
+        if any(r > a for r in d.xrefs.get(a, ())):
+            return 'LOOP'
+        for j in range(where[a], min(where[a] + 4, len(order))):
+            t = d.insns[order[j]]
+            if t.text.startswith('RST ERR_HOOK') or re.match(
+                    r'^(?:JP|JR|CALL) (?:[A-Z]+,)?(?:REP_|ERR_)', t.text):
+                return 'FAIL'
+            if t.text == 'RET':
+                return 'DONE'
+            if not t.falls_through():
+                return None
+        return None
+
+    renamed = 0
+    for head, members in groups.items():
+        base = d.labels[head]
+        counter = 0
+        for a in members:
+            kind = shape(a)
+            if kind:
+                name = '%s_%s' % (base, kind)
+                if name in taken:
+                    i = 2
+                    while '%s%d' % (name, i) in taken:
+                        i += 1
+                    name = '%s%d' % (name, i)
+            else:
+                counter += 1
+                name = '%s_%d' % (base, counter)
+                while name in taken:
+                    counter += 1
+                    name = '%s_%d' % (base, counter)
+            taken.discard(d.labels[a])
+            taken.add(name)
+            d.labels[a] = name
+            renamed += 1
+    return renamed
+
+
 def decode_marked_code(d):
     """Decode runs a note marked `code` that the trace never reached.
 
@@ -1929,6 +2112,10 @@ def main():
     n = sum(autolabel(d, skip=(MBTEXT,)) for d in (dos, mb))
     n += sum(label_peer_targets(d) for d in (dos, mb))
     print('named %d further addresses' % n)
+    print('%d internal labels named after the routine they belong to'
+          % sum(name_synthetic_labels(d) for d in (dos, mb)))
+    print('%d branches say what the test behind them was'
+          % sum(explain_branches(d) for d in (dos, mb)))
 
     # After autolabel, so the label a patch refers to is the final one.
     print('%d operands in relocated blocks told what they mean'
