@@ -9910,6 +9910,44 @@ WRITE_DOS_BYTE:
 ;; shipped original, with whatever was in memory at the time left in the
 ;; gap.  A machine that boots it fills the gap in for itself, which is
 ;; how a keyboard table gets there at all.
+;;
+;; THE ALTERNATE CHARACTER SET RIDES IN THE THIRD BLOCK.
+;;
+;; The manual promises, under BLOCKS 2, that
+;;
+;; BLOCKS 2 / LOAD "newset" CODE UDG CHR$ 128 / BLOCKS 0
+;; SAVE BOOT "filename"
+;;
+;; "SAVEs MasterDOS with the new character set included within it".
+;; XVAR 87 ALTUDG is documented as the displacement of that set from
+;; XVAR 0, it reads &3E64 in the shipped image and in MBPOST, and
+;; HK_SWAPCHARS exchanges 328 bytes -- 41 characters, CHR$ 128-168,
+;; exactly the range the manual gives -- between the ROM's UDG area at
+;; the system page's &5490 and &7E64 in this half.  So the set lives at
+;; MB &7E64-&7FAB.
+;;
+;; That is inside the eighth block's destination, &7E43-&7FBF, which is
+;; filled from the system page's &5896 and therefore cannot be
+;; carrying it.  It is the THIRD block that saves the set: &7DF0 plus
+;; 446 bytes covers &7DF0-&7FAD, and MB &7E64 falls 116 bytes into it,
+;; at file offset 15828 -- an address that reads as DOS &7DD4.
+;;
+;; Checked, and it is not a near miss.  The 328 bytes there are byte
+;; for byte the system page's &4F74-&50BB, in the shipped image and in
+;; MBPOST alike, which is where a booted machine keeps the set that is
+;; not currently displayed.  The set that IS displayed sits at the
+;; system page's &5490 and differs from it in 247 of the 328 bytes:
+;; two different character sets, as they should be.  Reading &54A0 as
+;; a glyph gives 0C 10 1C 22 3E 20 1E 00, an acute accent over an e --
+;; CP437 position 130, "an IBM standard foreign character set" just as
+;; the manual says.
+;;
+;; So the file holds the set once, in the DOS half's tail, and the MB
+;; half's own copy of that memory is overwritten by the eighth block.
+;; Anything looking for a character set at the file's MB &7E64 finds
+;; the system page's &58B7 instead, which is zero, and this is what
+;; made XVAR 87 look like it pointed at nothing.  It points correctly;
+;; the file just does not store that memory where its address says.
 ;; --------------------------------------------------------------------
 
 ; ---- SAVE_BOOT ---- from &63EB
@@ -16105,7 +16143,7 @@ L7DD8:
 
 ; ---- L7DF0 ---- from &7B5F
 L7DF0:
-               CALL &4A84                      ; 7DF0 CD 84 4A  the installer saves the ROM's transfer buffer here, and SAVE BOOT reads it back out as its third block
+               CALL &4A84                      ; 7DF0 CD 84 4A  the installer saves the ROM's transfer buffer here, and SAVE BOOT reads it back out as its third block -- which also carries the alternate character set at &7E64, see notes/mb-saveboot.txt
                JP &0000                        ; 7DF3 C3 00 00
                DEFB &22,&9E,&4B,&E1                                             ; 7DF6 ".Ka  skipped: reads as LD (&4B9E),HL from here, and as part of the instruction above it
                CALL &0000                      ; 7DFA CD 00 00

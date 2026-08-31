@@ -96,5 +96,5 @@
 # against parts of the file that are not block 5's source.  They may
 # well be true; they are not shown by this file.
 
-MB &7DF0 : the installer saves the ROM's transfer buffer here, and SAVE BOOT reads it back out as its third block
+MB &7DF0 : the installer saves the ROM's transfer buffer here, and SAVE BOOT reads it back out as its third block -- which also carries the alternate character set at &7E64, see notes/mb-saveboot.txt
 MB &7D00 : and the DOS's boot sector here, which is the first block
