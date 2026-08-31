@@ -614,7 +614,28 @@ def find_xpage_call(d):
     if i < 0:
         return None
     a = BASE + i
-    return a if d._starts_insn(a) else None
+    if not d._starts_insn(a):
+        return None
+    # Callers may enter in front of the pattern.  The DOS's CALLMB does:
+    # it loads IY from &7FFC first, so the eleven bytes start at &42C1
+    # while every CALL to it says &42BD, and matching on the pattern
+    # alone found none of its twenty-two parameters.  Walk back over
+    # instructions that fall straight into it and take the earliest that
+    # anything calls.
+    best = a
+    p = a
+    for _ in range(4):
+        q = p - 1
+        while q > d.base and not d._starts_insn(q):
+            q -= 1
+        ins = d.insns.get(q)
+        if ins is None or ins.end != p or not ins.falls_through():
+            break
+        p = q
+        if any(i.target == q for i in d.insns.values()
+               if i.text.startswith('CALL')):
+            best = q
+    return best
 
 
 def xpage_params(d, at):

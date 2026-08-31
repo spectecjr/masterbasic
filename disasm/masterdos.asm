@@ -102,6 +102,7 @@ NOT_IN_THIS_PAGE: EQU  &4000
 ; this one is at &4000.  The names are its own labels.  A stored
 ; pointer written as NAME+&4000 has bit 15 set, the flag INDJP
 ; and CTAB use to mean "not in this page".
+MB_BYTE_TO_DECIMAL: EQU  &8240
 MB_CHECK_BREAK: EQU  &A000
 MB_CMD_ALTER:  EQU  &94CA
 MB_CMD_BLITZ:  EQU  &9AD4
@@ -119,6 +120,10 @@ MB_CMD_SAVE:   EQU  &A3E6
 MB_CMD_SORT:   EQU  &860B
 MB_CMD_SPLIT_LINE: EQU  &AE62
 MB_CMD_TIME:   EQU  &886A
+MB_COMPRESS_FILE: EQU  &A5EA
+MB_COMPRESS_SCREEN_FILE: EQU  &A14E
+MB_EXPR_TO_32BIT: EQU  &848B
+MB_FIND_LINE_FROM_START: EQU  &98FD
 MB_FN_EQU:     EQU  &8D4F
 MB_FN_INARRAY: EQU  &8B3C
 MB_FN_LOCN:    EQU  &8AF0
@@ -152,11 +157,14 @@ MB_HPRTOK:     EQU  &900E
 MB_L4160:      EQU  &8160
 MB_L4200:      EQU  &8200
 MB_L42FF:      EQU  &82FF
+MB_L4978:      EQU  &8978
 MB_L7900:      EQU  &B900
 MB_L7914:      EQU  &B914
+MB_MULTIPLY_BY_24: EQU  &85F9
 MB_PREPARE_ROM1_COPY: EQU  &9C4B
 MB_PUTSWA:     EQU  &8000
 MB_SET_COMPRESSION_MODE: EQU  &A3F6
+MB_SET_DCT_COMPILE_BITS: EQU  &859C
 MB_SOFV:       EQU  &8002
 MB_SUBSTITUTE_PRINTER_CHAR: EQU  &9973
 MB_V40FF:      EQU  &80FF
@@ -4730,7 +4738,7 @@ V51A6:
 ; ---- L51A7 ---- from &51BA, &51CC
 L51A7:
                CALL CALLMB                     ; 51A7 CD BD 42
-               DEFW &4240                     ; 51AA 40 42
+               DEFW MB_BYTE_TO_DECIMAL-&4000  ; 51AA 40 42
                RET                             ; 51AC C9
 
 ;; --------------------------------------------------------------------
@@ -7013,7 +7021,7 @@ L5E0D:
                JP Z,L6091                      ; 5E0E CA 91 60
                DEC B                           ; 5E11 05
                CALL CALLMB                     ; 5E12 CD BD 42
-               DEFW &58FD                     ; 5E15 FD 58
+               DEFW MB_FIND_LINE_FROM_START-&4000 ; 5E15 FD 58
                LD A,(HL)                       ; 5E17 7E
                INC A                           ; 5E18 3C
                JR Z,L5E22                      ; 5E19 28 07
@@ -7366,7 +7374,7 @@ CMD_LOAD:
                CALL SDTKS                      ; 5F83 CD 55 74
                POP HL                          ; 5F86 E1
                CALL CALLMB                     ; 5F87 CD BD 42
-               DEFW TDVAR                     ; 5F8A 6F 42
+               DEFW &426F                     ; 5F8A 6F 42
                PUSH AF                         ; 5F8C F5
                LD A,(DTKS)                     ; 5F8D 3A 30 42
                DEC A                           ; 5F90 3D
@@ -8532,7 +8540,7 @@ L651C:
                LD HL,(HD0D1)                   ; 651C 2A 4C 41
                LD A,(PGES1)                    ; 651F 3A 50 41
                CALL CALLMB                     ; 6522 CD BD 42
-               DEFW &65EA                     ; 6525 EA 65
+               DEFW MB_COMPRESS_FILE-&4000    ; 6525 EA 65
                JR L6549                        ; 6527 18 20
 
 ; ---- L6529 ---- from &651A
@@ -8541,7 +8549,7 @@ L6529:
                INC HL                          ; 652B 23
                LD A,(HL)                       ; 652C 7E
                CALL CALLMB                     ; 652D CD BD 42
-               DEFW &614E                     ; 6530 4E 61
+               DEFW MB_COMPRESS_SCREEN_FILE-&4000 ; 6530 4E 61
                CALL FPTR                       ; 6532 CD 35 70
                LD BC,&FFF7                     ; 6535 01 F7 FF
                ADD HL,BC                       ; 6538 09
@@ -9663,7 +9671,7 @@ L6AD2:
 ; ---- L6AE4 ---- from &681A, &6D63
 L6AE4:
                CALL CALLMB                     ; 6AE4 CD BD 42
-               DEFW &459C                     ; 6AE7 9C 45
+               DEFW MB_SET_DCT_COMPILE_BITS-&4000 ; 6AE7 9C 45
                RET                             ; 6AE9 C9
 
 ; ---- L6AEA ---- from &5E07, &6AC4
@@ -10740,7 +10748,7 @@ POINTC:
                CP &A6                          ; 7081 FE A6  OVER
                JP Z,PTREC                      ; 7083 CA 08 71
                CALL CALLMB                     ; 7086 CD BD 42  BC=X MOD 64K, DE=X DIV 64K
-               DEFW ZFSP                      ; 7089 8B 44
+               DEFW MB_EXPR_TO_32BIT-&4000    ; 7089 8B 44
                CALL CEOS                       ; 708B CD 07 50
                PUSH BC                         ; 708E C5
                PUSH DE                         ; 708F D5
@@ -13341,7 +13349,7 @@ L7B23:
 ; ---- L7B35 ---- from &7B2D, &7B30
 L7B35:
                CALL CALLMB                     ; 7B35 CD BD 42
-               DEFW L45F9                     ; 7B38 F9 45
+               DEFW MB_MULTIPLY_BY_24-&4000   ; 7B38 F9 45
                LD C,(HL)                       ; 7B3A 4E
                EX DE,HL                        ; 7B3B EB
                LD B,&00                        ; 7B3C 06 00
@@ -13440,7 +13448,7 @@ FNDATE:
                POP HL                          ; 7B8A E1  STR START
                CALL FABORT                     ; 7B8B CD AA 7A
                CALL CALLMB                     ; 7B8E CD BD 42
-               DEFW &4978                     ; 7B91 78 49
+               DEFW MB_L4978-&4000            ; 7B91 78 49
                LD BC,&0008                     ; 7B93 01 08 00  STR LEN
                JR HPTH2                        ; 7B96 18 06
 

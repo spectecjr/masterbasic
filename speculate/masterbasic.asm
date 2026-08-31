@@ -2444,13 +2444,23 @@ CALL_EXPNUM:
                RET                             ; 448A C9
 
 ;; --------------------------------------------------------------------
-;; L448B -- &448B to &4491
+;; EXPR_TO_32BIT -- &448B to &4491
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? calls CALL_EXPNUM, TEST_RUNNING; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Evaluate a number and split it into 32 bits, for a caller in the DOS.
+;;     CALL_EXPNUM, then TEST_RUNNING so that syntax time returns without
+;;     doing the work, then fall into GET_LONG_INTEGER.  MasterDOS's own
+;;     comment on the call site says what comes back: "BC=X MOD 64K, DE=X
+;;     DIV 64K".
 ;; --------------------------------------------------------------------
+
+EXPR_TO_32BIT:
                CALL CALL_EXPNUM                ; 448B CD 85 44
                CALL TEST_RUNNING               ; 448E CD E2 44
                RET Z                           ; 4491 C8
@@ -3389,12 +3399,21 @@ V45F6:
                RET                             ; 45F8 C9
 
 ;; --------------------------------------------------------------------
-;; L45F9 -- &45F9 to &460A
+;; MULTIPLY_BY_24 -- &45F9 to &460A
 ;;
 ;; Takes:     A, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      RET
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     A:HL times twenty-four, with the original kept in BC: double, add BC
+;;     back for three, then three more doublings.  The companion to
+;;     MULTIPLY_BY_60 -- hours in a day where that one has seconds in a
+;;     minute -- and like it, reached from the DOS.
 ;; --------------------------------------------------------------------
+
+MULTIPLY_BY_24:
                LD B,H                          ; 45F9 44
                LD C,L                          ; 45FA 4D
                ADD HL,HL                       ; 45FB 29
@@ -4287,7 +4306,7 @@ GET_STRING_PAGED:
                RET                             ; 47ED C9
 
 ;; --------------------------------------------------------------------
-;; GET_NONEMPTY_STRING -- &47EE to &47FF
+;; GET_NONEMPTY_STRING -- &47EE to &47FA
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
@@ -4314,7 +4333,16 @@ GET_NONEMPTY_STRING:
                RET Z                           ; 47F8 C8
                INC B                           ; 47F9 04
                RET                             ; 47FA C9
-               DEFB &01,&0A,&00,&79,&FE                                         ; 47FB ...y~  skipped: reads as LD BC,&000A from here, and as part of the instruction above it
+
+;; --------------------------------------------------------------------
+;; L47FB -- &47FB to &47FF
+;;
+;; Takes:     nothing in registers
+;; Leaves:    A, BC
+;; --------------------------------------------------------------------
+               LD BC,&000A                     ; 47FB 01 0A 00
+               LD A,C                          ; 47FE 79
+               DEFB &FE                                                         ; 47FF ~
 
 ;; --------------------------------------------------------------------
 ;; HK_HORDER -- &4800 to &4806
@@ -15874,11 +15902,46 @@ L65E7:
                JR L6654                        ; 65E8 18 6A
 
 ;; --------------------------------------------------------------------
-;; L65EA -- &65EA to &65F0
+;; COMPRESS_FILE -- &65EA to &65F0
 ;;
 ;; Takes:     A, BC
 ;; Leaves:    A, F
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     The other compressor, and the manual describes the pair of them
+;;     precisely:
+;;     
+;;     SAVE MODE 1 -- "SAVE normally, no compression."
+;;     SAVE MODE 2 -- "Compress SCREEN, CODE and array files.  The
+;;     method used is fairly fast but it requires at
+;;     least one 16K page of memory as a working area
+;;     during both SAVE and LOAD."
+;;     SAVE MODE 3 -- "As above, except that a slower but more
+;;     intelligent routine is used to compress SCREEN$
+;;     files ... Another advantage of this alternative
+;;     screen compression method is that it does not
+;;     require a spare memory page.  CODE and array
+;;     files are handled just as they are by SAVE
+;;     MODE 2."
+;;     
+;;     which is the DOS's branch, one line at a time.  CMPFG is the mode
+;;     less one, so:
+;;     
+;;     CMPFG 0                     no compression at all
+;;     CMPFG 1                     this routine, whatever the type
+;;     CMPFG 2, type &14 SCREEN$   COMPRESS_SCREEN_FILE instead
+;;     CMPFG 2, any other type     this routine
+;;     
+;;     So this is the fast one that wants a spare page, and
+;;     COMPRESS_SCREEN_FILE the slower screen-only one that does not -- and
+;;     that is why the latter works through a nibble stream at &E500 in the
+;;     window rather than filling a page of its own.
+;;     
+;;     The DOS reaches it as CALL CALLMB / DEFW &65EA from HK_HSAVE.
 ;; --------------------------------------------------------------------
+
+COMPRESS_FILE:
                LD (V40A0),BC                   ; 65EA ED 43 A0 40
                AND A                           ; 65EE A7
                JR Z,L6607                      ; 65EF 28 16

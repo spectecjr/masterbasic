@@ -241,3 +241,16 @@ MB &4C76 GET_PAGED_ADDRESS
     shifted three places -- RL H with RLA, three times, to carry the top
     bits into the page, then three RR H with a SCF before the last, which
     puts the address back in a section with its top bit set.
+
+MB &448B EXPR_TO_32BIT
+    Evaluate a number and split it into 32 bits, for a caller in the DOS.
+    CALL_EXPNUM, then TEST_RUNNING so that syntax time returns without
+    doing the work, then fall into GET_LONG_INTEGER.  MasterDOS's own
+    comment on the call site says what comes back: "BC=X MOD 64K, DE=X
+    DIV 64K".
+
+MB &45F9 MULTIPLY_BY_24
+    A:HL times twenty-four, with the original kept in BC: double, add BC
+    back for three, then three more doublings.  The companion to
+    MULTIPLY_BY_60 -- hours in a day where that one has seconds in a
+    minute -- and like it, reached from the DOS.

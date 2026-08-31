@@ -180,3 +180,35 @@ MB &614E COMPRESS_SCREEN_FILE
 MB &6172 SEND_COMPRESSED_BLOCK
     Hand what the encoder produced to the DOS, with the registers and the
     paging saved around it.
+
+MB &65EA COMPRESS_FILE
+    The other compressor, and the manual describes the pair of them
+    precisely:
+
+        SAVE MODE 1 -- "SAVE normally, no compression."
+        SAVE MODE 2 -- "Compress SCREEN, CODE and array files.  The
+                       method used is fairly fast but it requires at
+                       least one 16K page of memory as a working area
+                       during both SAVE and LOAD."
+        SAVE MODE 3 -- "As above, except that a slower but more
+                       intelligent routine is used to compress SCREEN$
+                       files ... Another advantage of this alternative
+                       screen compression method is that it does not
+                       require a spare memory page.  CODE and array
+                       files are handled just as they are by SAVE
+                       MODE 2."
+
+    which is the DOS's branch, one line at a time.  CMPFG is the mode
+    less one, so:
+
+        CMPFG 0                     no compression at all
+        CMPFG 1                     this routine, whatever the type
+        CMPFG 2, type &14 SCREEN$   COMPRESS_SCREEN_FILE instead
+        CMPFG 2, any other type     this routine
+
+    So this is the fast one that wants a spare page, and
+    COMPRESS_SCREEN_FILE the slower screen-only one that does not -- and
+    that is why the latter works through a nibble stream at &E500 in the
+    window rather than filling a page of its own.
+
+    The DOS reaches it as CALL CALLMB / DEFW &65EA from HK_HSAVE.
