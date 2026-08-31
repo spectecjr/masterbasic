@@ -98,9 +98,10 @@ then falls into `TIRD`, which the listing describes as "checks if the physical
 disk device number corresponds to a RAM drive or a floppy disk. Returns carry
 set if physical, no-carry if RAM drive". So the very first thing a read does
 is branch between the two kinds of device, and the listing's own comment on
-`&4589` says where the other one goes: "a RAM disc: copy pages instead". `RSSR` calls `CTAS` to
-position, disables interrupts, and issues `READ_SECTOR_CMD`, which the
-listing's own equate gives as `&80`.
+`&4589` says where the other one goes: "a RAM disc: copy pages instead".
+
+`RSSR` calls `CTAS` to position, disables interrupts, and issues
+`READ_SECTOR_CMD`, which the listing's own equate gives as `&80`.
 
 `RETRY_OR_GIVE_UP` at `&46C6` is the loop's other half: `AND &0E` keeps the
 controller's error bits, any of them leaves for the error path, and otherwise
