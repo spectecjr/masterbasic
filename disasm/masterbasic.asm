@@ -189,6 +189,7 @@ DOS_CEOS:      EQU  &9007
 DOS_DATDT:     EQU  &8271
 DOS_DRIVE:     EQU  &BC0B
 DOS_ENDS:      EQU  &9010
+DOS_EVAL_STRING_IF_RUNNING: EQU  &A284
 DOS_EVFINS:    EQU  &B321
 DOS_EVNAM:     EQU  &A1CF
 DOS_EVNUMX:    EQU  &A2AF
@@ -210,7 +211,6 @@ DOS_L4089:     EQU  &8089
 DOS_L4D2D:     EQU  &8D2D
 DOS_L602A:     EQU  &A02A
 DOS_L6280:     EQU  &A280
-DOS_L6284:     EQU  &A284
 DOS_L6500:     EQU  &A500
 DOS_L65C4:     EQU  &A5C4
 DOS_L68DA:     EQU  &A8DA
@@ -3188,7 +3188,7 @@ L4918:
                CALL AT_END_OF_STATEMENT        ; 4918 CD BC 44
                JR Z,L495B                      ; 491B 28 3E
                CALL CALLDOS                    ; 491D CD C1 42
-               DEFW DOS_L6284-&4000           ; 4920 84 62
+               DEFW DOS_EVAL_STRING_IF_RUNNING-&4000 ; 4920 84 62
                PUSH HL                         ; 4922 E5
                CALL EXPECT_END_OF_STATEMENT    ; 4923 CD D0 44
                POP AF                          ; 4926 F1

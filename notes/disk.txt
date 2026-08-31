@@ -157,3 +157,75 @@ DOS &56D0 PRINT_TWO_FIELDS
 DOS &56DE PRINT_FIELD
     One field as a decimal number through the ROM's PNUM2, with HL, DE
     and BC all saved around it, so the caller's pointer survives.
+
+DOS &5766 PRINT_A_KEEPING_IT
+    Print A through the ROM and give it back unchanged.  PUSH AF round a
+    CMR to PRINT_A, and it is the most-called routine of its kind in this
+    half: everything that prints a character and then wants to look at it
+    again goes through here.
+
+DOS &576E PRINT_WORD_AND_SPACE
+    A bit-7-terminated word and then a space, the space through the ROM's
+    SPC.
+
+DOS &5774 SKIP_B_WORDS
+    Step HL over B words, each ending at the character with bit 7 set.
+    The RLA is the test and the two jumps are the two loops -- inner over
+    a word, outer over the count -- with no counter of its own.
+
+DOS &5815 PRINT_HEADINGS
+    The directory's column headings, laid out as a row of CALL PTM with
+    the text following each one inline.
+
+DOS &597B EVAL_NAME_PAIR
+    A filename, then optionally a second after a comma; without one, &8E
+    stands in as the separator so the code below need not care which
+    happened.
+
+DOS &5C1B PRINT_B_CHARACTERS
+    B characters from HL, each through PRINT_A_KEEPING_IT.
+
+DOS &5C8B COLUMNS_FOR_DIRECTORY
+    How many columns a directory listing gets: DCOLS if it is set, and
+    otherwise MasterBASIC's SYS_CHAR_WIDTH read out of the system page --
+    so a narrower character size gives a wider listing.
+
+DOS &5D27 WRITE_BYTE_IF_OPEN
+    Check the channel is open through OHASR, and if it is, store A and
+    leave for WSAD to write the sector.
+
+DOS &5E70 CALL_ROM_66CB
+    HLFG with &66CB after it -- the inline-parameter convention again,
+    with the ROM 1 address as the word.
+
+DOS &6284 EVAL_STRING_IF_RUNNING
+    A string expression, then CFSO so that syntax time returns without
+    fetching it, and GETSTR only if the program is really running.  The
+    page comes back in SVC.
+
+DOS &6336 REQUIRE_SECTOR
+    RXSS, and anything but Z is error 10.  Three callers use it as the
+    "the sector had better be there" step before going on.
+
+DOS &6482 HOOK_ARGS_TO_HEADER
+    Unpack the registers a hook was called with -- HKHL, HKBC and HKDE --
+    into the header fields HD0D1 and PGES1, clearing bit 7 of D on the
+    way, which is the flag the caller used to mark a paged address.
+
+DOS &6633 READ_SAVED_SECTOR
+    Take the track and sector out of SVDE and read it, then leave for
+    &5F4D rather than returning.
+
+DOS &6701 DEFAULT_FILE_TYPE
+    GTDEF, and if the type byte is &FF -- nothing chosen -- write &54 in
+    its place before going on.
+
+DOS &67FC CHANNEL_LENGTH_AND_FLAGS
+    Take the two-byte length at (IX+&09) into BC and then look at the
+    channel's flags: bit 1 through BITF1 sends it one way, and otherwise
+    bit 5 of (IX+&04) is tested and the whole flag byte cleared.
+
+DOS &68AB FIRST_DISC_CHANNEL
+    Point IX at the channel table plus &1E -- CHANS read through the
+    window and the offset added -- and return Z at once if the first byte
+    is a carriage return, which is the DOS's empty-channel marker.

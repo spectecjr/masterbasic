@@ -4969,11 +4969,13 @@ PFNM15:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      RET
+;;
+;; ? calls PRINT_A_KEEPING_IT.
 ;; --------------------------------------------------------------------
 
 ; ---- PFNM2 ---- from &4B24
 PFNM2:
-               CALL L5766                      ; 4B29 CD 66 57
+               CALL PRINT_A_KEEPING_IT         ; 4B29 CD 66 57
                DJNZ PFNM1                      ; 4B2C 10 E4
                POP HL                          ; 4B2E E1
                ADD HL,BC                       ; 4B2F 09  BC=10
@@ -5260,7 +5262,7 @@ FDH5:
                JR Z,FDH4A                      ; 4C03 28 0D  JR IF FILE NOT PROTECTED - PRT NUM
                CALL SPC                        ; 4C05 CD 64 57
                LD A,&2A                        ; 4C08 3E 2A
-               CALL L5766                      ; 4C0A CD 66 57
+               CALL PRINT_A_KEEPING_IT         ; 4C0A CD 66 57
                CALL SPC                        ; 4C0D CD 64 57
                JR L4C2D                        ; 4C10 18 1B  JR TO PRINT FILE NAME
 
@@ -5785,13 +5787,13 @@ L4D2D:
 ;; Takes:     A, DE, HL
 ;; Leaves:    A, F, B, HL
 ;;
-;; ? reaches the ROM through OVERF; calls POINT, NRRD; falls into whatever follows rather than returning.
+;; ? reaches the ROM through OVERF; calls POINT, NRRD, CALL_ROM_66CB; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L4D3B ---- from &4D94
 L4D3B:
                PUSH DE                         ; 4D3B D5
-               CALL L5E70                      ; 4D3C CD 70 5E
+               CALL CALL_ROM_66CB              ; 4D3C CD 70 5E
                JP NZ,REP28                     ; 4D3F C2 8C 51  "FILE NAME USED" IF "OPEN DIR"
                CALL POINT                      ; 4D42 CD AC 4F
                AND &1F                         ; 4D45 E6 1F
@@ -5919,7 +5921,7 @@ OFM5:
                LD B,&21                        ; 4DBC 06 21
                CALL OFM6                       ; 4DBE CD D7 4D
                POP IX                          ; 4DC1 DD E1
-               CALL L5E70                      ; 4DC3 CD 70 5E
+               CALL CALL_ROM_66CB              ; 4DC3 CD 70 5E
                CALL Z,FNFS                     ; 4DC6 CC 83 4A  AVOID FNFS IF EXISTING OPENTYPE
                CALL SET_TRACK_AND_SECTOR       ; 4DC9 CD C6 4F
                LD (IX+&20),D                   ; 4DCC DD 72 20  FIRST TRACK
@@ -8660,7 +8662,7 @@ L54DC:
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls SPC; falls into whatever follows rather than returning.
+;; ? calls SPC, PRINT_A_KEEPING_IT; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L54DE ---- from &54E7
@@ -8668,7 +8670,7 @@ L54DE:
                LD A,(HL)                       ; 54DE 7E
                INC HL                          ; 54DF 23
                CALL L68DA                      ; 54E0 CD DA 68
-               CALL L5766                      ; 54E3 CD 66 57
+               CALL PRINT_A_KEEPING_IT         ; 54E3 CD 66 57
                DEC D                           ; 54E6 15
                JR NZ,L54DE                     ; 54E7 20 F5
                CALL SPC                        ; 54E9 CD 64 57
@@ -9185,7 +9187,7 @@ PNTYP:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      JP, JR
 ;;
-;; ? drives IN A,(HMPR), OUT (HMPR),A; calls GRPNTB, PRINT_DATE_IF_SET, PNUM5.
+;; ? drives IN A,(HMPR), OUT (HMPR),A; calls GRPNTB, PRINT_DATE_IF_SET, PNUM5, PRINT_A_KEEPING_IT.
 ;; --------------------------------------------------------------------
 
 ; ---- L5635 ---- from &5631
@@ -9196,7 +9198,7 @@ L5635:
                LD A,(&42CD)                    ; 5639 3A CD 42
                OUT (HMPR),A                    ; 563C D3 FB
                LD HL,&C349                     ; 563E 21 49 C3
-               CALL L576E                      ; 5641 CD 6E 57
+               CALL PRINT_WORD_AND_SPACE       ; 5641 CD 6E 57
                POP AF                          ; 5644 F1
                OUT (HMPR),A                    ; 5645 D3 FB
                POP AF                          ; 5647 F1  TYPE
@@ -9221,7 +9223,7 @@ L5635:
 ;; Takes:     A, HL, IX
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls GRPNTB, GTVAL, PNUM6; falls into whatever follows rather than returning.
+;; ? calls GRPNTB, GTVAL, PNUM6, PRINT_A_KEEPING_IT; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- PNTY3 ---- from &564A
@@ -9237,7 +9239,7 @@ PNTY3:
                LD A,&20                        ; 566F 3E 20
                CALL PNUM6                      ; 5671 CD FB 56
                LD A,&2C                        ; 5674 3E 2C
-               CALL L5766                      ; 5676 CD 66 57
+               CALL PRINT_A_KEEPING_IT         ; 5676 CD 66 57
                POP HL                          ; 5679 E1
                CALL GTVAL                      ; 567A CD EE 56
                EX DE,HL                        ; 567D EB
@@ -9250,7 +9252,7 @@ PNTY3:
 ;; Takes:     A, C, HL, IX
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls GRPNTB, PNUM5, PNUM5X; falls into whatever follows rather than returning.
+;; ? calls GRPNTB, PNUM5, PNUM5X, PRINT_A_KEEPING_IT; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- PNTY4 ---- from &5662
@@ -9266,7 +9268,7 @@ PNTY4:
                PUSH DE                         ; 568F D5
                CALL PNUM5                      ; 5690 CD 1D 57
                LD A,&2C                        ; 5693 3E 2C
-               CALL L5766                      ; 5695 CD 66 57
+               CALL PRINT_A_KEEPING_IT         ; 5695 CD 66 57
                POP HL                          ; 5698 E1
                DEC HL                          ; 5699 2B
                LD D,(HL)                       ; 569A 56
@@ -9282,7 +9284,7 @@ PNTY4:
 ;; Takes:     BC, DE, HL, IX
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls PRINT_DATE_IF_SET; falls into whatever follows rather than returning.
+;; ? calls PRINT_DATE_IF_SET, PRINT_A_KEEPING_IT; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- PNTY5 ---- from &5654, &565E, &5684
@@ -9291,10 +9293,10 @@ PNTY5:
                AND A                           ; 56A5 A7
                JR Z,L56B8                      ; 56A6 28 10
                LD A,&17                        ; 56A8 3E 17
-               CALL L5766                      ; 56AA CD 66 57  TAB
+               CALL PRINT_A_KEEPING_IT         ; 56AA CD 66 57  TAB
                LD A,&23                        ; 56AD 3E 23
-               CALL L5766                      ; 56AF CD 66 57
-               CALL L5766                      ; 56B2 CD 66 57
+               CALL PRINT_A_KEEPING_IT         ; 56AF CD 66 57
+               CALL PRINT_A_KEEPING_IT         ; 56B2 CD 66 57
                CALL PRINT_DATE_IF_SET          ; 56B5 CD BB 56  PRINT DATE/TIME
 
 ;; --------------------------------------------------------------------
@@ -9366,15 +9368,15 @@ PRINT_TWO_FIELDS:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls PRINT_FIELD; falls into whatever follows rather than returning.
+;; ? calls PRINT_FIELD, PRINT_A_KEEPING_IT; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L56D4 ---- from &56CE
 L56D4:
-               CALL L5766                      ; 56D4 CD 66 57
+               CALL PRINT_A_KEEPING_IT         ; 56D4 CD 66 57
                CALL PRINT_FIELD                ; 56D7 CD DE 56
                LD A,C                          ; 56DA 79
-               CALL L5766                      ; 56DB CD 66 57
+               CALL PRINT_A_KEEPING_IT         ; 56DB CD 66 57
 
 ;; --------------------------------------------------------------------
 ;; PRINT_FIELD -- &56DE to &56ED
@@ -9580,7 +9582,7 @@ PNUM1:
 ; ---- PNTDI ---- from &575D
 PNTDI:
                ADD A,&30                       ; 573C C6 30
-               JR L5766                        ; 573E 18 26
+               JR PRINT_A_KEEPING_IT           ; 573E 18 26
 
 ;; --------------------------------------------------------------------
 ;; PNM1 -- &5740 to &5742
@@ -9643,7 +9645,7 @@ PNM4:
                POP DE                          ; 5758 D1  the digit is zero and nothing significant has been printed yet
                ADD A,D                         ; 5759 82
                RET Z                           ; 575A C8  the pad character is zero: print nothing at all
-               JR L5766                        ; 575B 18 09
+               JR PRINT_A_KEEPING_IT           ; 575B 18 09
 
 ;; --------------------------------------------------------------------
 ;; PNM5 -- &575D to &5763
@@ -9674,16 +9676,23 @@ SPC:
                LD A,&20                        ; 5764 3E 20
 
 ;; --------------------------------------------------------------------
-;; L5766 -- &5766 to &576D
+;; PRINT_A_KEEPING_IT -- &5766 to &576D
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? reaches the ROM through PRINT_A; calls CMR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Print A through the ROM and give it back unchanged.  PUSH AF round a
+;;     CMR to PRINT_A, and it is the most-called routine of its kind in this
+;;     half: everything that prints a character and then wants to look at it
+;;     again goes through here.
 ;; --------------------------------------------------------------------
 
-; ---- L5766 ---- from &4B29, &4C0A, &54E3, &5676, &5695, &56AA, &56AF, &56B2 ...
-L5766:
+; ---- PRINT_A_KEEPING_IT ---- from &4B29, &4C0A, &54E3, &5676, &5695, &56AA, &56AF, &56B2 ...
+PRINT_A_KEEPING_IT:
                PUSH AF                         ; 5766 F5
                ; call the ROM at PRINT_A with ROM1 paged in, and page back on the way out
                CALL CMR                        ; 5767 CD B2 7B
@@ -9692,32 +9701,45 @@ L5766:
                RET                             ; 576D C9
 
 ;; --------------------------------------------------------------------
-;; L576E -- &576E to &5773
+;; PRINT_WORD_AND_SPACE -- &576E to &5773
 ;;
 ;; Takes:     B, HL
 ;; Leaves:    A, F, B, HL
 ;; Ends:      JP
+;;
+;; ? calls SKIP_B_WORDS.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     A bit-7-terminated word and then a space, the space through the ROM's
+;;     SPC.
 ;; --------------------------------------------------------------------
 
-; ---- L576E ---- from &5641, &5791
-L576E:
-               CALL L5774                      ; 576E CD 74 57
+; ---- PRINT_WORD_AND_SPACE ---- from &5641, &5791
+PRINT_WORD_AND_SPACE:
+               CALL SKIP_B_WORDS               ; 576E CD 74 57
                JP SPC                          ; 5771 C3 64 57
 
 ;; --------------------------------------------------------------------
-;; L5774 -- &5774 to &577B
+;; SKIP_B_WORDS -- &5774 to &577B
 ;;
 ;; Takes:     B, HL
 ;; Leaves:    A, F, B, HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Step HL over B words, each ending at the character with bit 7 set.
+;;     The RLA is the test and the two jumps are the two loops -- inner over
+;;     a word, outer over the count -- with no counter of its own.
 ;; --------------------------------------------------------------------
 
-; ---- L5774 ---- from &576E, &5777, &5779
-L5774:
+; ---- SKIP_B_WORDS ---- from &576E, &5777, &5779
+SKIP_B_WORDS:
                LD A,(HL)                       ; 5774 7E
                INC HL                          ; 5775 23
                RLA                             ; 5776 17
-               JR NC,L5774                     ; 5777 30 FB
-               DJNZ L5774                      ; 5779 10 F9
+               JR NC,SKIP_B_WORDS              ; 5777 30 FB
+               DJNZ SKIP_B_WORDS               ; 5779 10 F9
                DEFB &3E                                                         ; 577B >  skipped: reads as LD A,&E1 from here, and as part of the instruction above it
 
 ;; --------------------------------------------------------------------
@@ -9768,13 +9790,15 @@ PTM2:
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F, B, DE, HL
+;;
+;; ? calls PRINT_WORD_AND_SPACE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- PTM3 ---- from &5787
 PTM3:
                LD B,A                          ; 578D 47
                LD HL,MCPT                      ; 578E 21 A0 57
-               CALL NZ,L576E                   ; 5791 C4 6E 57  PNT MSG B FROM LIST AT HL
+               CALL NZ,PRINT_WORD_AND_SPACE    ; 5791 C4 6E 57  PNT MSG B FROM LIST AT HL
                POP DE                          ; 5794 D1
                POP HL                          ; 5795 E1
                SCF                             ; 5796 37
@@ -9787,12 +9811,12 @@ PTM3:
 ;; Preserves: DE, HL (saved and restored)
 ;; Ends:      JR
 ;;
-;; ? calls CLSL.
+;; ? calls PRINT_A_KEEPING_IT, PRINT_WORD_AND_SPACE, CLSL.
 ;; --------------------------------------------------------------------
 
 ; ---- PTM4 ---- from &5782
 PTM4:
-               CALL NC,L5766                   ; 5797 D4 66 57
+               CALL NC,PRINT_A_KEEPING_IT      ; 5797 D4 66 57
                BIT 7,(HL)                      ; 579A CB 7E
                RET NZ                          ; 579C C0
                INC HL                          ; 579D 23
@@ -9867,16 +9891,21 @@ PMO6:
                DEFB &00,&46,&4F,&52,&4D,&41,&54,&20,&A2 ; 580C
 
 ;; --------------------------------------------------------------------
-;; L5815 -- &5815 to &5819
+;; PRINT_HEADINGS -- &5815 to &5819
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    HL
 ;;
 ;; ? calls PTM; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     The directory's column headings, laid out as a row of CALL PTM with
+;;     the text following each one inline.
 ;; --------------------------------------------------------------------
 
-; ---- L5815 ---- from &591A
-L5815:
+; ---- PRINT_HEADINGS ---- from &591A
+PRINT_HEADINGS:
                CALL PTM                        ; 5815 CD 7C 57
                DEFB &22,&84                   ; 5818
 
@@ -10169,7 +10198,7 @@ OHNM:
                CALL BITF1                      ; 58E2 CD 22 51
                LD HL,MSGUN                     ; 58E5 21 CD 58
                LD B,&04                        ; 58E8 06 04
-               CALL NZ,L5C1B                   ; 58EA C4 1B 5C  PRINT "UN" IF PROTECT OR HIDE OFF
+               CALL NZ,PRINT_B_CHARACTERS      ; 58EA C4 1B 5C  PRINT "UN" IF PROTECT OR HIDE OFF
                POP AF                          ; 58ED F1
 
 ;; --------------------------------------------------------------------
@@ -10177,13 +10206,15 @@ OHNM:
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
+;;
+;; ? calls PRINT_A_KEEPING_IT; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- OHNM2 ---- from &58DF
 OHNM2:
-               CALL L5766                      ; 58EE CD 66 57  PRINT PROTECT, HIDE, ERASE OR COPY
+               CALL PRINT_A_KEEPING_IT         ; 58EE CD 66 57  PRINT PROTECT, HIDE, ERASE OR COPY
                LD A,&22                        ; 58F1 3E 22
-               CALL L5766                      ; 58F3 CD 66 57  NOW E.G. ERASE "
+               CALL PRINT_A_KEEPING_IT         ; 58F3 CD 66 57  NOW E.G. ERASE "
                LD A,&01                        ; 58F6 3E 01
 
 ;; --------------------------------------------------------------------
@@ -10252,11 +10283,13 @@ FNM7K:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    HL
+;;
+;; ? calls PRINT_HEADINGS; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- PM7K ---- from &54EC
 PM7K:
-               CALL L5815                      ; 591A CD 15 58  "Y/N"
+               CALL PRINT_HEADINGS             ; 591A CD 15 58  "Y/N"
 
 ;; --------------------------------------------------------------------
 ;; CYES -- &591D to &591F
@@ -10449,16 +10482,22 @@ CALL_Label:
                JP MB_L7914                     ; 5978 C3 14 B9  JP TO "ROM"
 
 ;; --------------------------------------------------------------------
-;; L597B -- &597B to &5984
+;; EVAL_NAME_PAIR -- &597B to &5984
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? calls EVNAM; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     A filename, then optionally a second after a comma; without one, &8E
+;;     stands in as the separator so the code below need not care which
+;;     happened.
 ;; --------------------------------------------------------------------
 
-; ---- L597B ---- from &59D5, &5D73, &69D2
-L597B:
+; ---- EVAL_NAME_PAIR ---- from &59D5, &5D73, &69D2
+EVAL_NAME_PAIR:
                CALL EVNAM                      ; 597B CD CF 61
                LD C,A                          ; 597E 4F
                CP &2C                          ; 597F FE 2C
@@ -10608,7 +10647,7 @@ COPYB:
                ; write the ROM variable OVERF
                CALL NRWR                       ; 59D0 CD 74 50
                DEFW OVERF                     ; 59D3 B9 5B
-               CALL L597B                      ; 59D5 CD 7B 59
+               CALL EVAL_NAME_PAIR             ; 59D5 CD 7B 59
                CALL COBUS                      ; 59D8 CD A0 59  COPY/BACKUP SR
                CALL N2TN3                      ; 59DB CD DB 5D  COPY NSTR2 TO NSTR3 TO ACT AS
                CALL BUDT                       ; 59DE CD D7 5A
@@ -11114,11 +11153,13 @@ L5A80:
 ;;
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, BC, HL
+;;
+;; ? calls COLUMNS_FOR_DIRECTORY; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L5BA1 ---- from &5B9A
 L5BA1:
-               CALL L5C8B                      ; 5BA1 CD 8B 5C  NAMES/LINE IN B. COULD BE 1,2,3...
+               CALL COLUMNS_FOR_DIRECTORY      ; 5BA1 CD 8B 5C  NAMES/LINE IN B. COULD BE 1,2,3...
                LD C,B                          ; 5BA4 48
 
 ;; --------------------------------------------------------------------
@@ -11153,12 +11194,12 @@ PCNML:
 ;; Preserves: C (saved and restored)
 ;; Ends:      JR
 ;;
-;; ? calls PFNM0.
+;; ? calls PFNM0, PRINT_A_KEEPING_IT.
 ;; --------------------------------------------------------------------
 
 ; ---- PCN2 ---- from &5BB1
 PCN2:
-               CALL L5766                      ; 5BB6 CD 66 57  CR OR SPACE
+               CALL PRINT_A_KEEPING_IT         ; 5BB6 CD 66 57  CR OR SPACE
                JR PCNML                        ; 5BB9 18 EA
 
 ;; --------------------------------------------------------------------
@@ -11168,7 +11209,7 @@ PCN2:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      JP, JR
 ;;
-;; ? calls SET_SCREEN_POINTER, PNUM4, SPC, PMO3.
+;; ? calls SET_SCREEN_POINTER, PNUM4, SPC, PRINT_A_KEEPING_IT.
 ;; --------------------------------------------------------------------
 
 ; ---- PCN3 ---- from &5B87, &5BAD
@@ -11196,7 +11237,7 @@ PCAT2:
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls PNUM4, SPC, PMO3, PMOE; falls into whatever follows rather than returning.
+;; ? calls PNUM4, SPC, PRINT_A_KEEPING_IT, PMO3; falls into whatever follows rather than returning.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -11222,7 +11263,7 @@ PCN4:
                POP HL                          ; 5BE3 E1
                CALL PLUR                       ; 5BE4 CD 01 5C
                LD A,&2C                        ; 5BE7 3E 2C
-               CALL L5766                      ; 5BE9 CD 66 57
+               CALL PRINT_A_KEEPING_IT         ; 5BE9 CD 66 57
                CALL SPC                        ; 5BEC CD 64 57
                POP HL                          ; 5BEF E1
                PUSH HL                         ; 5BF0 E5
@@ -11253,7 +11294,7 @@ PNCR:
 
 ; ---- PTHP ---- from &5C07
 PTHP:
-               JP L5766                        ; 5BFE C3 66 57
+               JP PRINT_A_KEEPING_IT           ; 5BFE C3 66 57
 
 ;; --------------------------------------------------------------------
 ;; PLUR -- &5C01 to &5C08
@@ -11278,7 +11319,7 @@ PLUR:
 ;; Takes:     DE
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls PNDNM, PNCR, GPATD; falls into whatever follows rather than returning.
+;; ? calls PNDNM, PNCR, PRINT_B_CHARACTERS, GPATD; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- PDIRH ---- from &4B4F, &5B7B
@@ -11287,7 +11328,7 @@ PDIRH:
                CALL PNDNM                      ; 5C0C CD 98 58  PRINT DISC NAME
                CALL GPATD                      ; 5C0F CD 10 74  GET BC=LEN, HL=START OF PATH DATA
                LD B,C                          ; 5C12 41
-               CALL L5C1B                      ; 5C13 CD 1B 5C  PRINT B FROM HL
+               CALL PRINT_B_CHARACTERS         ; 5C13 CD 1B 5C  PRINT B FROM HL
 
 ;; --------------------------------------------------------------------
 ;; L5C16 -- &5C16 to &5C1A
@@ -11305,19 +11346,25 @@ L5C16:
                JR PNCR                         ; 5C19 18 E1
 
 ;; --------------------------------------------------------------------
-;; L5C1B -- &5C1B to &5C22
+;; PRINT_B_CHARACTERS -- &5C1B to &5C22
 ;;
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      RET
+;;
+;; ? calls PRINT_A_KEEPING_IT.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     B characters from HL, each through PRINT_A_KEEPING_IT.
 ;; --------------------------------------------------------------------
 
-; ---- L5C1B ---- from &58EA, &5C13, &5C20
-L5C1B:
+; ---- PRINT_B_CHARACTERS ---- from &58EA, &5C13, &5C20
+PRINT_B_CHARACTERS:
                LD A,(HL)                       ; 5C1B 7E
                INC HL                          ; 5C1C 23
-               CALL L5766                      ; 5C1D CD 66 57
-               DJNZ L5C1B                      ; 5C20 10 F9
+               CALL PRINT_A_KEEPING_IT         ; 5C1D CD 66 57
+               DJNZ PRINT_B_CHARACTERS         ; 5C20 10 F9
                RET                             ; 5C22 C9
 
 ;; --------------------------------------------------------------------
@@ -11476,16 +11523,22 @@ PCT2:
                RET                             ; 5C8A C9
 
 ;; --------------------------------------------------------------------
-;; L5C8B -- &5C8B to &5CA2
+;; COLUMNS_FOR_DIRECTORY -- &5C8B to &5CA2
 ;;
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, B, HL
 ;;
 ;; ? reaches the ROM through SYS_CHAR_WIDTH; calls NRRD; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     How many columns a directory listing gets: DCOLS if it is set, and
+;;     otherwise MasterBASIC's SYS_CHAR_WIDTH read out of the system page --
+;;     so a narrower character size gives a wider listing.
 ;; --------------------------------------------------------------------
 
-; ---- L5C8B ---- from &5BA1
-L5C8B:
+; ---- COLUMNS_FOR_DIRECTORY ---- from &5BA1
+COLUMNS_FOR_DIRECTORY:
                LD A,(DCOLS)                    ; 5C8B 3A 28 42
                LD B,A                          ; 5C8E 47
                AND A                           ; 5C8F A7
@@ -11695,14 +11748,14 @@ ERAZ33:
 ;; Takes:     A, BC, DE, HL, IX
 ;; Leaves:    A, F, BC, DE, HL, IX, IY
 ;;
-;; ? calls FDHR, OHASR, PTSVT, EXDAT; falls into whatever follows rather than returning.
+;; ? calls FDHR, OHASR, PTSVT, CALL_ROM_66CB; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- ERAZ45 ---- from &5CEA
 ERAZ45:
                CALL OHASR                      ; 5CF0 CD 2F 5D
                JR NZ,ERAZ3                     ; 5CF3 20 E7  JR IF "?" AND "N"
-               CALL L5E70                      ; 5CF5 CD 70 5E
+               CALL CALL_ROM_66CB              ; 5CF5 CD 70 5E
                JR Z,ERAZ46                     ; 5CF8 28 1E  JR IF ERASE FILE, NOT DIR
                LD BC,DIRT                      ; 5CFA 01 FA 00
                ADD HL,BC                       ; 5CFD 09
@@ -11750,17 +11803,22 @@ L5D1F:
                JR ERAZ3                        ; 5D25 18 B5
 
 ;; --------------------------------------------------------------------
-;; L5D27 -- &5D27 to &5D2E
+;; WRITE_BYTE_IF_OPEN -- &5D27 to &5D2E
 ;;
 ;; Takes:     A, BC, DE, HL, IX
 ;; Leaves:    A, F, BC, IY
 ;; Ends:      JP
 ;;
 ;; ? calls OHASR.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Check the channel is open through OHASR, and if it is, store A and
+;;     leave for WSAD to write the sector.
 ;; --------------------------------------------------------------------
 
-; ---- L5D27 ---- from &5E4D
-L5D27:
+; ---- WRITE_BYTE_IF_OPEN ---- from &5E4D
+WRITE_BYTE_IF_OPEN:
                CALL OHASR                      ; 5D27 CD 2F 5D
                RET NZ                          ; 5D2A C0  RET IF "?" OPTION AND "N"
                LD (HL),A                       ; 5D2B 77  ERASED/PROTECTED/HIDDEN
@@ -11866,12 +11924,12 @@ NWSADH:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls CKDRX, COBUS, N2TN3; falls into whatever follows rather than returning.
+;; ? calls CKDRX, EVAL_NAME_PAIR, COBUS, N2TN3; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- RENM1 ---- from &5D54
 RENM1:
-               CALL L597B                      ; 5D73 CD 7B 59
+               CALL EVAL_NAME_PAIR             ; 5D73 CD 7B 59
                CALL COBUS                      ; 5D76 CD A0 59
                CALL N2TN3                      ; 5D79 CD DB 5D  COPY 2ND NAME TO TEMPLATE AREA
                LD A,(DSTR1)                    ; 5D7C 3A 36 41  FIRST FILE DRIVE
@@ -12142,12 +12200,12 @@ SFB2:
 ;; Leaves:    A, F, BC, DE, HL, IX, IY
 ;; Ends:      JR
 ;;
-;; ? calls BITF1, SNDFX.
+;; ? calls BITF1, WRITE_BYTE_IF_OPEN, SNDFX.
 ;; --------------------------------------------------------------------
 
 ; ---- SFB4 ---- from &5E4A
 SFB4:
-               CALL L5D27                      ; 5E4D CD 27 5D
+               CALL WRITE_BYTE_IF_OPEN         ; 5E4D CD 27 5D
                JR SFB2                         ; 5E50 18 EA
 
 ;; --------------------------------------------------------------------
@@ -12217,16 +12275,21 @@ SNDTC:
                CP &01                          ; 5E6E FE 01  CY IF DIR TYPE
 
 ;; --------------------------------------------------------------------
-;; L5E70 -- &5E70 to &5E75
+;; CALL_ROM_66CB -- &5E70 to &5E75
 ;;
 ;; Takes:     HL
 ;; Leaves:    HL
 ;;
 ;; ? calls HLFG; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     HLFG with &66CB after it -- the inline-parameter convention again,
+;;     with the ROM 1 address as the word.
 ;; --------------------------------------------------------------------
 
-; ---- L5E70 ---- from &4D3C, &4DC3, &5CF5
-L5E70:
+; ---- CALL_ROM_66CB ---- from &4D3C, &4DC3, &5CF5
+CALL_ROM_66CB:
                CALL HLFG                       ; 5E70 CD DF 50
                DEFW &66CB                     ; 5E73 CB 66
                RET                             ; 5E75 C9
@@ -13488,6 +13551,8 @@ EVNAMX:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
+;; ? calls EVAL_STRING_IF_RUNNING; falls into whatever follows rather than returning.
+;;
 ;; Shown for this routine in disasm/:
 ;;
 ;;      EVNAM -- evaluate a file name
@@ -13504,7 +13569,7 @@ EVNAMX:
 
 ; ---- EVNAM ---- from &597B, &5990, &5B31, &60AD, &6221, &695D, &7245, &7AB6
 EVNAM:
-               CALL L6284                      ; 61CF CD 84 62
+               CALL EVAL_STRING_IF_RUNNING     ; 61CF CD 84 62
 
 ;; --------------------------------------------------------------------
 ;; EVNMR -- &61D2 to &61D2
@@ -13752,16 +13817,22 @@ L6280:
                RET                             ; 6283 C9
 
 ;; --------------------------------------------------------------------
-;; L6284 -- &6284 to &6288
+;; EVAL_STRING_IF_RUNNING -- &6284 to &6288
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? reaches the ROM through EXPSTR; calls CMR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     A string expression, then CFSO so that syntax time returns without
+;;     fetching it, and GETSTR only if the program is really running.  The
+;;     page comes back in SVC.
 ;; --------------------------------------------------------------------
 
-; ---- L6284 ---- from &61CF
-L6284:
+; ---- EVAL_STRING_IF_RUNNING ---- from &61CF
+EVAL_STRING_IF_RUNNING:
                ; call the ROM at EXPSTR with ROM1 paged in, and page back on the way out
                CALL CMR                        ; 6284 CD B2 7B
                DEFW EXPSTR                    ; 6287 1B 01
@@ -14074,7 +14145,7 @@ GDIFA:
                RET                             ; 6335 C9
 
 ;; --------------------------------------------------------------------
-;; L6336 -- &6336 to &633C
+;; REQUIRE_SECTOR -- &6336 to &633C
 ;;
 ;; Takes:     A, IX
 ;; Leaves:    A, F, B, DE, HL
@@ -14084,11 +14155,16 @@ GDIFA:
 ;;
 ;; Shown for this routine in disasm/:
 ;;
-;;      PART G1 -- The load and save hooks, and file name parsing
+;;     RXSS, and anything but Z is error 10.  Three callers use it as the
+;;     "the sector had better be there" step before going on.
+;;     
+;;     What was here before:
+;;     
+;;          PART G1 -- The load and save hooks, and file name parsing
 ;; --------------------------------------------------------------------
 
-; ---- L6336 ---- from &6620, &662D, &663D
-L6336:
+; ---- REQUIRE_SECTOR ---- from &6620, &662D, &663D
+REQUIRE_SECTOR:
                CALL RXSS                       ; 6336 CD 3D 63
                JP NZ,REP10                     ; 6339 C2 F4 47
                RET                             ; 633C C9
@@ -14223,7 +14299,7 @@ EVFL8B:
 ;; Leaves:    A, F, B, DE, HL
 ;; Ends:      RET
 ;;
-;; ? calls CLEAR_TSTR, GTLNM.
+;; ? calls CLEAR_TSTR, DEFAULT_FILE_TYPE, GTLNM.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -14237,7 +14313,7 @@ EVFL8B:
 HCONR:
                CALL CLEAR_TSTR                 ; 638A CD 95 44
                LD HL,UIFA+1                    ; 638D 21 7E 41
-               CALL L6701                      ; 6390 CD 01 67
+               CALL DEFAULT_FILE_TYPE          ; 6390 CD 01 67
                LD A,(&7FFF)                    ; 6393 3A FF 7F  ENTRY LRPORT VALUE ON STACK
                BIT 6,A                         ; 6396 CB 77
                CALL NZ,GTLNM                   ; 6398 C4 2A 73  IF ROM 1 USED HGTHD THEN USE
@@ -14448,7 +14524,7 @@ HK_HLDPG:
 ;; Takes:     DE
 ;; Leaves:    A, F, BC, DE, HL, IX, IY
 ;;
-;; ? calls CALLMB, RESET_BUFFER_POINTERS, NETPA; falls into whatever follows rather than returning.
+;; ? calls CALLMB, RESET_BUFFER_POINTERS, HOOK_ARGS_TO_HEADER, NETPA; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 HK_HLOAD:
@@ -14460,7 +14536,7 @@ HK_HLOAD:
                JR Z,L6459                      ; 6430 28 27
                BIT 3,(HL)                      ; 6432 CB 5E
                JR NZ,L6443                     ; 6434 20 0D
-               CALL L6482                      ; 6436 CD 82 64
+               CALL HOOK_ARGS_TO_HEADER        ; 6436 CD 82 64
                LD C,(IX+&13)                   ; 6439 DD 4E 13
                ; call &66D2 in the other page: LMPR is switched first, so that address is how the other listing numbers it
                CALL CALLMB                     ; 643C CD BD 42
@@ -14474,7 +14550,7 @@ HK_HLOAD:
 ;; Leaves:    BC, DE, HL, IY
 ;; Preserves: A, F (saved and restored)
 ;;
-;; ? calls CALLMB; falls into whatever follows rather than returning.
+;; ? calls CALLMB, HOOK_ARGS_TO_HEADER; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L6443 ---- from &6434
@@ -14482,7 +14558,7 @@ L6443:
                INC HL                          ; 6443 23
                LD A,(HL)                       ; 6444 7E
                PUSH AF                         ; 6445 F5
-               CALL L6482                      ; 6446 CD 82 64
+               CALL HOOK_ARGS_TO_HEADER        ; 6446 CD 82 64
                LD A,(&7F85)                    ; 6449 3A 85 7F
                LD H,A                          ; 644C 67
                LD DE,(&7F86)                   ; 644D ED 5B 86 7F
@@ -14498,12 +14574,12 @@ L6443:
 ;; Takes:     A, C, HL, IX
 ;; Leaves:    A, F, BC, DE, HL
 ;;
-;; ? reaches the ROM through CURCMD; calls NRRD; falls into whatever follows rather than returning.
+;; ? reaches the ROM through CURCMD; calls NRRD, HOOK_ARGS_TO_HEADER; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L6459 ---- from &6430
 L6459:
-               CALL L6482                      ; 6459 CD 82 64
+               CALL HOOK_ARGS_TO_HEADER        ; 6459 CD 82 64
                LD A,(NSTR1)                    ; 645C 3A 3A 41
                CP &10                          ; 645F FE 10
                JR NZ,L6479                     ; 6461 20 16
@@ -14558,16 +14634,24 @@ DSCHD:
                CALL RESET_BUFFER_POINTERS      ; 647F CD 84 4F
 
 ;; --------------------------------------------------------------------
-;; L6482 -- &6482 to &649C
+;; HOOK_ARGS_TO_HEADER -- &6482 to &649C
 ;;
 ;; Takes:     A, C, HL, IX
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      RET
+;;
+;; ? calls READ_SAVED_SECTOR.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Unpack the registers a hook was called with -- HKHL, HKBC and HKDE --
+;;     into the header fields HD0D1 and PGES1, clearing bit 7 of D on the
+;;     way, which is the flag the caller used to mark a paged address.
 ;; --------------------------------------------------------------------
 
-; ---- L6482 ---- from &6436, &6446, &6459
-L6482:
-               CALL L6633                      ; 6482 CD 33 66
+; ---- HOOK_ARGS_TO_HEADER ---- from &6436, &6446, &6459
+HOOK_ARGS_TO_HEADER:
+               CALL READ_SAVED_SECTOR          ; 6482 CD 33 66
 
 L6485:
                LD HL,(HKHL)                    ; 6485 2A DE 41
@@ -15146,11 +15230,11 @@ INIT:
 ;; Leaves:    A, F, B, DE, HL, IX
 ;; Ends:      RET
 ;;
-;; ? calls CKDRV, GOFSM.
+;; ? calls CKDRV, GOFSM, REQUIRE_SECTOR.
 ;; --------------------------------------------------------------------
 
 HOFLE:
-               CALL L6336                      ; 6620 CD 36 63
+               CALL REQUIRE_SECTOR             ; 6620 CD 36 63
                CALL CKDRV                      ; 6623 CD 07 48
                CALL GOFSM                      ; 6626 CD 28 4D
                JP NC,SVHD                      ; 6629 D2 3B 5F  JP IF NOT "OVERWRITE?"+N
@@ -15162,25 +15246,30 @@ HOFLE:
 ;; Takes:     A, IX
 ;; Leaves:    A, F, BC, DE, HL, IX, IY
 ;;
-;; ? calls GTFL3; falls into whatever follows rather than returning.
+;; ? calls GTFL3, REQUIRE_SECTOR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 HK_HGFLE:
-               CALL L6336                      ; 662D CD 36 63
+               CALL REQUIRE_SECTOR             ; 662D CD 36 63
                CALL GTFL3                      ; 6630 CD BE 4E
 
 ;; --------------------------------------------------------------------
-;; L6633 -- &6633 to &663C
+;; READ_SAVED_SECTOR -- &6633 to &663C
 ;;
 ;; Takes:     A, C, HL, IX
 ;; Leaves:    A, F, B, DE
 ;; Ends:      JP, RET
 ;;
 ;; ? calls READ_SECTOR, LBYT.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Take the track and sector out of SVDE and read it, then leave for
+;;     &5F4D rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- L6633 ---- from &6482
-L6633:
+; ---- READ_SAVED_SECTOR ---- from &6482
+READ_SAVED_SECTOR:
                LD DE,(SVDE)                    ; 6633 ED 5B 02 7C
                CALL READ_SECTOR                ; 6637 CD B7 45
                JP L5F4D                        ; 663A C3 4D 5F
@@ -15192,11 +15281,11 @@ L6633:
 ;; Leaves:    A, F, BC, DE, HL, IX, IY
 ;; Ends:      JP
 ;;
-;; ? calls CKDRV, FINDC.
+;; ? calls CKDRV, FINDC, REQUIRE_SECTOR.
 ;; --------------------------------------------------------------------
 
 HERAZ:
-               CALL L6336                      ; 663D CD 36 63
+               CALL REQUIRE_SECTOR             ; 663D CD 36 63
                CALL CKDRV                      ; 6640 CD 07 48
                CALL FINDC                      ; 6643 CD A7 4F
                JP NZ,REP26                     ; 6646 C2 62 5E
@@ -15505,16 +15594,21 @@ L66EE:
                RET                             ; 6700 C9
 
 ;; --------------------------------------------------------------------
-;; L6701 -- &6701 to &6713
+;; DEFAULT_FILE_TYPE -- &6701 to &6713
 ;;
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, HL
 ;;
 ;; ? calls GTDEF; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     GTDEF, and if the type byte is &FF -- nothing chosen -- write &54 in
+;;     its place before going on.
 ;; --------------------------------------------------------------------
 
-; ---- L6701 ---- from &6390, &724E, &7324
-L6701:
+; ---- DEFAULT_FILE_TYPE ---- from &6390, &724E, &7324
+DEFAULT_FILE_TYPE:
                CALL GTDEF                      ; 6701 CD D7 66
                PUSH HL                         ; 6704 E5
                LD (SVHL),HL                    ; 6705 22 05 7C
@@ -15777,7 +15871,7 @@ CMD_MOVE:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IX, IY
 ;;
-;; ? drives OUT (HMPR),A; calls CEOS, SETF2, EXDAT, EVMOV; falls into whatever follows rather than returning.
+;; ? drives OUT (HMPR),A; calls CEOS, SETF2, EXDAT, CHANNEL_LENGTH_AND_FLAGS; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L67A5 ---- from &679E
@@ -15812,7 +15906,7 @@ L67A5:
                CP &C4                          ; 67ED FE C4
                JR NZ,MVNRC                     ; 67EF 20 06  ONLY RECLAIM FIRST CHANNEL IF IT
                CALL DECSAM                     ; 67F1 CD 2C 6E
-               CALL L67FC                      ; 67F4 CD FC 67
+               CALL CHANNEL_LENGTH_AND_FLAGS   ; 67F4 CD FC 67
 
 ;; --------------------------------------------------------------------
 ;; MVNRC -- &67F7 to &67FB
@@ -15829,16 +15923,22 @@ MVNRC:
                RET                             ; 67FB C9
 
 ;; --------------------------------------------------------------------
-;; L67FC -- &67FC to &6812
+;; CHANNEL_LENGTH_AND_FLAGS -- &67FC to &6812
 ;;
 ;; Takes:     IX
 ;; Leaves:    F, BC, HL
 ;;
 ;; ? calls BITF1; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Take the two-byte length at (IX+&09) into BC and then look at the
+;;     channel's flags: bit 1 through BITF1 sends it one way, and otherwise
+;;     bit 5 of (IX+&04) is tested and the whole flag byte cleared.
 ;; --------------------------------------------------------------------
 
-; ---- L67FC ---- from &67F4, &68CD, &6E3C
-L67FC:
+; ---- CHANNEL_LENGTH_AND_FLAGS ---- from &67F4, &68CD, &6E3C
+CHANNEL_LENGTH_AND_FLAGS:
                LD C,(IX+&09)                   ; 67FC DD 4E 09
                LD B,(IX+&0A)                   ; 67FF DD 46 0A
                PUSH IX                         ; 6802 DD E5
@@ -16032,14 +16132,20 @@ MEOF:
                CALL CLMOV                      ; 68A8 CD AC 69
 
 ;; --------------------------------------------------------------------
-;; L68AB -- &68AB to &68B1
+;; FIRST_DISC_CHANNEL -- &68AB to &68B1
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    DE, IX
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Point IX at the channel table plus &1E -- CHANS read through the
+;;     window and the offset added -- and return Z at once if the first byte
+;;     is a carriage return, which is the DOS's empty-channel marker.
 ;; --------------------------------------------------------------------
 
-; ---- L68AB ---- from &68C6, &68D0, &6DDA
-L68AB:
+; ---- FIRST_DISC_CHANNEL ---- from &68C6, &68D0, &6DDA
+FIRST_DISC_CHANNEL:
                LD IX,(CHANS+&4000)             ; 68AB DD 2A 4F 9C
                LD DE,&401E                     ; 68AF 11 1E 40
 
@@ -16064,7 +16170,7 @@ L68B2:
                CP &C4                          ; 68BF FE C4
                JR NZ,L68C8                     ; 68C1 20 05
                CALL DELD                       ; 68C3 CD BA 69
-               JR L68AB                        ; 68C6 18 E3
+               JR FIRST_DISC_CHANNEL           ; 68C6 18 E3
 
 ;; --------------------------------------------------------------------
 ;; L68C8 -- &68C8 to &68D1
@@ -16073,15 +16179,15 @@ L68B2:
 ;; Leaves:    F, BC, HL
 ;; Ends:      JR
 ;;
-;; ? calls BITF1.
+;; ? calls BITF1, CHANNEL_LENGTH_AND_FLAGS.
 ;; --------------------------------------------------------------------
 
 ; ---- L68C8 ---- from &68C1
 L68C8:
                CALL BITF1                      ; 68C8 CD 22 51
                JR Z,L68D2                      ; 68CB 28 05
-               CALL L67FC                      ; 68CD CD FC 67
-               JR L68AB                        ; 68D0 18 D9
+               CALL CHANNEL_LENGTH_AND_FLAGS   ; 68CD CD FC 67
+               JR FIRST_DISC_CHANNEL           ; 68D0 18 D9
 
 ;; --------------------------------------------------------------------
 ;; L68D2 -- &68D2 to &68D9
@@ -16289,7 +16395,7 @@ MOVWC:
                CP &4B                          ; 694C FE 4B
                LD A,D                          ; 694E 7A
                JP Z,MCHWR                      ; 694F CA 3B 6F
-               JP L5766                        ; 6952 C3 66 57
+               JP PRINT_A_KEEPING_IT           ; 6952 C3 66 57
 
 ;; --------------------------------------------------------------------
 ;; EVMOV -- &6955 to &695C
@@ -16457,7 +16563,7 @@ CLMOV:
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JP, JR, RET
 ;;
-;; ? calls DECSAM.
+;; ? calls CHANNEL_LENGTH_AND_FLAGS, DECSAM.
 ;; --------------------------------------------------------------------
 
 ; ---- DELD ---- from &68C3
@@ -16500,7 +16606,7 @@ DELD:
 
 BACKUP:
                CALL GTNC                       ; 69CF CD 3C 50
-               CALL L597B                      ; 69D2 CD 7B 59  EVAL FILE TO FILE
+               CALL EVAL_NAME_PAIR             ; 69D2 CD 7B 59  EVAL FILE TO FILE
                CALL COBUS                      ; 69D5 CD A0 59  EVFILES, SET SINGLE-DISC FLAG
                CALL CKDRV                      ; 69D8 CD 07 48  AS NEEDED
                LD HL,MB_PUTSWA                 ; 69DB 21 00 80
@@ -17654,7 +17760,7 @@ CLOSE:
 ;; Leaves:    A, F, BC, DE, HL, IX, IY
 ;; Ends:      JR, RET
 ;;
-;; ? calls CEOS, CLSRM.
+;; ? calls CEOS, FIRST_DISC_CHANNEL, CLSRM.
 ;; --------------------------------------------------------------------
 
 ; ---- CLOS1 ---- from &6DB2
@@ -17701,7 +17807,7 @@ CLRS1:
 ;; Leaves:    A, F, BC, DE, HL, IX
 ;; Ends:      RET
 ;;
-;; ? calls CLSRM.
+;; ? calls FIRST_DISC_CHANNEL, CLSRM.
 ;; --------------------------------------------------------------------
 
 ; ---- CLRS2 ---- from &6DD8
@@ -17712,7 +17818,7 @@ CLRS2:
                INC A                           ; 6DD5 3C
                CP &10                          ; 6DD6 FE 10
                JR C,CLRS2                      ; 6DD8 38 F6
-               CALL L68AB                      ; 6DDA CD AB 68
+               CALL FIRST_DISC_CHANNEL         ; 6DDA CD AB 68
                XOR A                           ; 6DDD AF
                LD (SAMCNT),A                   ; 6DDE 32 34 42
                LD (FLAG3),A                    ; 6DE1 32 0C 7C
@@ -17794,7 +17900,7 @@ CLOSE1:
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JR, RET
 ;;
-;; ? calls DECSAM.
+;; ? calls CHANNEL_LENGTH_AND_FLAGS, DECSAM.
 ;; --------------------------------------------------------------------
 
 ; ---- CLRCHD ---- from &69CC
@@ -17842,6 +17948,8 @@ CLRC2:
 ;; Takes:     A, IX
 ;; Leaves:    A, F, BC, HL
 ;;
+;; ? calls CHANNEL_LENGTH_AND_FLAGS; falls into whatever follows rather than returning.
+;;
 ;; Shown for this routine in disasm/:
 ;;
 ;;     RECLAIM THE CHANNEL
@@ -17851,7 +17959,7 @@ CLRC2:
 
 ; ---- RCLAIM ---- from &6E2A
 RCLAIM:
-               CALL L67FC                      ; 6E3C CD FC 67
+               CALL CHANNEL_LENGTH_AND_FLAGS   ; 6E3C CD FC 67
                XOR A                           ; 6E3F AF
                LD HL,&5C16+FS                  ; 6E40 21 16 9C
 
@@ -19305,13 +19413,13 @@ STDQ:
 ;; Takes:     DE
 ;; Leaves:    A, F, B, HL
 ;;
-;; ? calls CKDISC, C11SP, RTCK, GPLA; falls into whatever follows rather than returning.
+;; ? calls CKDISC, DEFAULT_FILE_TYPE, C11SP, RTCK; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- STDQC ---- from &7243
 STDQC:
                LD HL,NSTR1+1                   ; 724B 21 3B 41
-               CALL L6701                      ; 724E CD 01 67
+               CALL DEFAULT_FILE_TYPE          ; 724E CD 01 67
                CALL CKDISC                     ; 7251 CD 00 48
                CALL GPLA                       ; 7254 CD 4A 74  GET PATH LEN ADDR IN HL
                LD A,(HL)                       ; 7257 7E
@@ -19644,13 +19752,13 @@ REP32H:
 ;; Takes:     DE
 ;; Leaves:    A, F, HL
 ;;
-;; ? calls CKDISC; falls into whatever follows rather than returning.
+;; ? calls CKDISC, DEFAULT_FILE_TYPE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- EVFINS ---- from &59A0, &59A6, &5B34, &5B3B, &5CD9, &5D5C, &5E39, &60E5 ...
 EVFINS:
                LD HL,NSTR1+1                   ; 7321 21 3B 41
-               CALL L6701                      ; 7324 CD 01 67
+               CALL DEFAULT_FILE_TYPE          ; 7324 CD 01 67
                CALL CKDISC                     ; 7327 CD 00 48
 
 ;; --------------------------------------------------------------------
