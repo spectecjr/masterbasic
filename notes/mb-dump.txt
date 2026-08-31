@@ -1,8 +1,21 @@
-# The run-length encoder behind DUMP, &61D2-&62A1.  Read by hand.
+# The run-length encoder at &61D2-&62A1.  Read by hand.
 #
 # The nibble stream WRITE_NEXT_NIBBLE fills is not pixels: it is pairs
 # of four-bit values, a run length and then the byte that repeats.
 # READ_NEXT_NIBBLE at &6367 takes them back out again.
+#
+# OPEN: whether this is DUMP's or SAVE MODE's.  The header used to say
+# DUMP outright and that is more than has been shown.  For DUMP:
+# NEXT_SCREEN_BYTE walks a display layout rather than straight along
+# memory, which suits a printer's bit image.  For SAVE MODE: the driver
+# at &614E compresses into &E500 and hands the length to the DOS, the
+# manual documents "File compression with SAVE MODE" with DVAR 154
+# CMPFG selecting it, and the input READ_NIBBLE_AT_HL walks is the whole
+# 32K at &8000 rather than the 24K of a screen -- the loop runs the
+# index up to &FF00, which is 32640 bytes.
+#
+# Both may be true, with one encoder serving two callers.  Nothing read
+# so far distinguishes them, so the file no longer claims one.
 
 DOC NEXT_SCREEN_BYTE
     Step to the byte below the current one on screen.
@@ -112,11 +125,18 @@ MB &6DD8 SCREEN_NUMBER_ARGUMENT
     out of it and the bits above are the mode.
 
 MB &6288 READ_NIBBLE_AT_HL
-    Read the nibble at the nibble address in HL, without moving it.  SCF
-    then RR H and RR L halves HL into a byte address and leaves the odd
-    bit in carry, which says which half of the byte is wanted; the high
-    nibble is rotated down four places and masked, and ADD HL,HL puts HL
-    back as it was.  The companion to WRITE_NEXT_NIBBLE.
+    Read the nibble numbered HL from the window at &8000, without moving
+    HL.  SCF then RR H and RR L halves HL and brings a 1 into bit 15, so
+    a nibble index becomes a byte address in &8000-&FFFF and the odd bit
+    falls into carry to say which half of the byte is wanted.  The high
+    nibble is rotated down four places and masked; the low one is taken
+    straight.  Both paths put HL back with ADD HL,HL, the odd one adding
+    the INC L it lost.
+
+    Not the companion to WRITE_NEXT_NIBBLE, which an earlier version of
+    this note called it.  They are opposite ends of the same pipeline:
+    WRITE_NEXT_NIBBLE works in the alternate registers on the output at
+    &E500, this one in the main registers on the input at &8000.
 
 MB &5EDD GET_BUFFER_SIZE
     The size argument of SOUND CLEAR.  GET_LONG_INTEGER, D refused as

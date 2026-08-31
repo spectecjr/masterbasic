@@ -9165,11 +9165,18 @@ L6287:
                INC H                           ; 6287 24
 
 ;; --------------------------------------------------------------------
-;; Read the nibble at the nibble address in HL, without moving it.  SCF
-;; then RR H and RR L halves HL into a byte address and leaves the odd
-;; bit in carry, which says which half of the byte is wanted; the high
-;; nibble is rotated down four places and masked, and ADD HL,HL puts HL
-;; back as it was.  The companion to WRITE_NEXT_NIBBLE.
+;; Read the nibble numbered HL from the window at &8000, without moving
+;; HL.  SCF then RR H and RR L halves HL and brings a 1 into bit 15, so
+;; a nibble index becomes a byte address in &8000-&FFFF and the odd bit
+;; falls into carry to say which half of the byte is wanted.  The high
+;; nibble is rotated down four places and masked; the low one is taken
+;; straight.  Both paths put HL back with ADD HL,HL, the odd one adding
+;; the INC L it lost.
+;;
+;; Not the companion to WRITE_NEXT_NIBBLE, which an earlier version of
+;; this note called it.  They are opposite ends of the same pipeline:
+;; WRITE_NEXT_NIBBLE works in the alternate registers on the output at
+;; &E500, this one in the main registers on the input at &8000.
 ;; --------------------------------------------------------------------
 
 ; ---- READ_NIBBLE_AT_HL ---- from &61B2
