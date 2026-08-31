@@ -681,16 +681,16 @@ V4089:
 V408B:
                DEFB &00,&00                                                     ; 408B ..
 
-; ---- V408D ---- from &568F, &575B, &5774
-V408D:
+; ---- SEARCH_LAST_LINE ---- from &568F, &575B, &5774
+SEARCH_LAST_LINE:
                DEFB &00,&00                                                     ; 408D ..
 
 ; ---- V408F ---- from &5789, &57E0, &582E
 V408F:
                DEFB &00,&00                                                     ; 408F ..
 
-; ---- V4091 ---- from &568B, &56BB, &5755, &5769, &58F9
-V4091:
+; ---- SEARCH_FIRST_LINE ---- from &568B, &56BB, &5755, &5769, &58F9
+SEARCH_FIRST_LINE:
                DEFB &00,&00                                                     ; 4091 ..
 
 ; ---- V4093 ---- from &5564, &556C, &578F, &57A4, &5883
@@ -6637,7 +6637,7 @@ L4DB0:
 ;; Takes:     A, B, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? reaches the ROM through WKROOM; drives IN A,(HMPR); calls CALL_GETSTR, CALL_GETINT, CMR; falls into whatever follows rather than returning.
+;; ? reaches the ROM through WKROOM; drives IN A,(HMPR); calls CALL_GETSTR, CALL_GETINT, CMR, ARGS_STRING_AND_NUMBER; falls into whatever follows rather than returning.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -6658,7 +6658,7 @@ L4DB0:
 ;; --------------------------------------------------------------------
 
 FN_SHIFT_S:
-               CALL L4E51                      ; 4DB7 CD 51 4E
+               CALL ARGS_STRING_AND_NUMBER     ; 4DB7 CD 51 4E
                RET NC                          ; 4DBA D0
                CALL CALL_GETINT                ; 4DBB CD 76 44
                PUSH BC                         ; 4DBE C5
@@ -6845,22 +6845,27 @@ HK_PUTARG:
                RET                             ; 4E50 C9
 
 ;; --------------------------------------------------------------------
-;; L4E51 -- &4E51 to &4E59
+;; ARGS_STRING_AND_NUMBER -- &4E51 to &4E59
 ;;
 ;; Takes:     A, B, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? calls EXPECT_COMMA, EXPECT_NEXT_LPAREN, CALL_EXPSTR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     The argument list (string, number): left bracket, a string, a comma,
+;;     then fall into NUMBER_THEN_RPAREN.
 ;; --------------------------------------------------------------------
 
-; ---- L4E51 ---- from &4DB7, &7225
-L4E51:
+; ---- ARGS_STRING_AND_NUMBER ---- from &4DB7, &7225
+ARGS_STRING_AND_NUMBER:
                CALL EXPECT_NEXT_LPAREN         ; 4E51 CD 58 44
                CALL CALL_EXPSTR                ; 4E54 CD 7C 44
                CALL EXPECT_COMMA               ; 4E57 CD 50 44
 
 ;; --------------------------------------------------------------------
-;; L4E5A -- &4E5A to &4E62
+;; NUMBER_THEN_RPAREN -- &4E5A to &4E62
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    BC, DE, HL, IY
@@ -6868,10 +6873,16 @@ L4E51:
 ;; Ends:      RET
 ;;
 ;; ? calls EXPECT_RPAREN, CALL_EXPNUM.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     A number and the closing bracket, with the number's page kept across
+;;     the bracket check on the stack.  Entered on its own by FN_RESERVED,
+;;     whose argument list is just (number).
 ;; --------------------------------------------------------------------
 
-; ---- L4E5A ---- from &4E66
-L4E5A:
+; ---- NUMBER_THEN_RPAREN ---- from &4E66
+NUMBER_THEN_RPAREN:
                CALL CALL_EXPNUM                ; 4E5A CD 85 44
                PUSH AF                         ; 4E5D F5
                CALL EXPECT_RPAREN              ; 4E5E CD 54 44
@@ -6884,7 +6895,7 @@ L4E5A:
 ;; Takes:     A, B, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? drives IN A,(HMPR), IN A,(LMPR); calls EXPECT_NEXT_LPAREN, CMR; falls into whatever follows rather than returning.
+;; ? drives IN A,(HMPR), IN A,(LMPR); calls EXPECT_NEXT_LPAREN, CMR, NUMBER_THEN_RPAREN; falls into whatever follows rather than returning.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -6903,7 +6914,7 @@ L4E5A:
 
 FN_RESERVED:
                CALL EXPECT_NEXT_LPAREN         ; 4E63 CD 58 44
-               CALL L4E5A                      ; 4E66 CD 5A 4E
+               CALL NUMBER_THEN_RPAREN         ; 4E66 CD 5A 4E
                RET NC                          ; 4E69 D0
                IN A,(HMPR)                     ; 4E6A DB FB
                PUSH AF                         ; 4E6C F5
@@ -7494,7 +7505,7 @@ HPRTOK:
                CALL NRRD                       ; 5016 CD 6A 45
                DEFW FLAGS                     ; 5019 3B 5C
                RRA                             ; 501B 1F
-               CALL NC,L502C                   ; 501C D4 2C 50
+               CALL NC,PRINT_SPACE             ; 501C D4 2C 50
                POP BC                          ; 501F C1
                ; write the ROM variable XPTR
                CALL NRWRD                      ; 5020 CD 77 45
@@ -7504,15 +7515,20 @@ HPRTOK:
                CALL SKIP_TO_END_OF_WORD        ; 5029 CD 31 50
 
 ;; --------------------------------------------------------------------
-;; L502C -- &502C to &5030
+;; PRINT_SPACE -- &502C to &5030
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
 ;; Ends:      JP
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     LD A,&20 and a JP into CALL_PRINT_A.  Two bytes and a jump, four
+;;     times over, against three bytes and a call each time.
 ;; --------------------------------------------------------------------
 
-; ---- L502C ---- from &501C, &50D0
-L502C:
+; ---- PRINT_SPACE ---- from &501C, &50D0
+PRINT_SPACE:
                LD A,&20                        ; 502C 3E 20
                JP CALL_PRINT_A                 ; 502E C3 FA 69
 
@@ -7674,7 +7690,7 @@ L50A2:
 ;; Takes:     A, H
 ;; Leaves:    A, F, BC, DE, HL
 ;;
-;; ? drives IN E,(C), OUT (C),B; calls SKIP_TO_END_OF_WORD; falls into whatever follows rather than returning.
+;; ? drives IN E,(C), OUT (C),B; calls PRINT_SPACE, SKIP_TO_END_OF_WORD; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L50AC ---- from &72B8
@@ -7699,7 +7715,7 @@ L50AC:
                CALL SKIP_TO_END_OF_WORD        ; 50CA CD 31 50
                LD A,C                          ; 50CD 79
                CP &14                          ; 50CE FE 14
-               CALL NC,L502C                   ; 50D0 D4 2C 50
+               CALL NC,PRINT_SPACE             ; 50D0 D4 2C 50
                AND A                           ; 50D3 A7
 
 ;; --------------------------------------------------------------------
@@ -8964,8 +8980,8 @@ L5484:
                ; call &7889 in the other page: LMPR is switched first, so that address is how the other listing numbers it
                CALL CALLDOS                    ; 54AF CD C1 42
                DEFW &7889                     ; 54B2 89 78
-               CALL L5725                      ; 54B4 CD 25 57
-               CALL L58F9                      ; 54B7 CD F9 58
+               CALL WRITE_BC_DESCENDING        ; 54B4 CD 25 57
+               CALL FIND_FIRST_LINE_IN_RANGE   ; 54B7 CD F9 58
                PUSH HL                         ; 54BA E5
                LD DE,(V408B)                   ; 54BB ED 5B 8B 40
                ; read the ROM variable &5A5E -- the word below is its address, and the call returns past it
@@ -9160,7 +9176,7 @@ L5551:
                CALL L577F                      ; 5568 CD 7F 57
                POP AF                          ; 556B F1
                LD (V4093),A                    ; 556C 32 93 40
-               CALL L5752                      ; 556F CD 52 57
+               CALL PARSE_LINE_RANGE           ; 556F CD 52 57
                CALL EXPECT_END_OF_STATEMENT    ; 5572 CD D0 44
                JP L5670                        ; 5575 C3 70 56
 
@@ -9534,13 +9550,13 @@ CMD_REF:
 ;; Takes:     BC, DE
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls EXPECT_END_OF_STATEMENT; falls into whatever follows rather than returning.
+;; ? calls EXPECT_END_OF_STATEMENT, PARSE_LINE_RANGE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L5667 ---- from &5660
 L5667:
                CALL L5778                      ; 5667 CD 78 57
-               CALL L5752                      ; 566A CD 52 57
+               CALL PARSE_LINE_RANGE           ; 566A CD 52 57
                CALL EXPECT_END_OF_STATEMENT    ; 566D CD D0 44
 
 ;; --------------------------------------------------------------------
@@ -9550,12 +9566,12 @@ L5667:
 ;; Leaves:    A, F, BC, D
 ;; Preserves: HL (saved and restored)
 ;;
-;; ? calls IS_LETTER; falls into whatever follows rather than returning.
+;; ? calls IS_LETTER, FIND_FIRST_LINE_IN_RANGE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L5670 ---- from &5575
 L5670:
-               CALL L58F9                      ; 5670 CD F9 58
+               CALL FIND_FIRST_LINE_IN_RANGE   ; 5670 CD F9 58
                PUSH HL                         ; 5673 E5
                LD HL,INSTALL_ROM_PATCHES       ; 5674 21 00 7B  reads the first two bytes of the buffer at &7B00
                LD B,(HL)                       ; 5677 46
@@ -9593,8 +9609,8 @@ L5687:
                LD B,(HL)                       ; 5688 46
                INC HL                          ; 5689 23
                LD C,(HL)                       ; 568A 4E
-               LD (V4091),BC                   ; 568B ED 43 91 40
-               LD HL,(V408D)                   ; 568F 2A 8D 40
+               LD (SEARCH_FIRST_LINE),BC       ; 568B ED 43 91 40
+               LD HL,(SEARCH_LAST_LINE)        ; 568F 2A 8D 40
                AND A                           ; 5692 A7
                SBC HL,BC                       ; 5693 ED 42
                POP HL                          ; 5695 E1
@@ -9675,7 +9691,7 @@ L56AE:
                LD A,(V4094)                    ; 56B3 3A 94 40
                SLA A                           ; 56B6 CB 27
                JP C,L572F                      ; 56B8 DA 2F 57
-               LD BC,(V4091)                   ; 56BB ED 4B 91 40
+               LD BC,(SEARCH_FIRST_LINE)       ; 56BB ED 4B 91 40
                JR NZ,L56DD                     ; 56BF 20 1C
                PUSH DE                         ; 56C1 D5
                PUSH HL                         ; 56C2 E5
@@ -9749,34 +9765,47 @@ V56F6:
                ; read the ROM variable &5A62 -- the word below is its address, and the call returns past it
                CALL NRRDD                      ; 571A CD 5F 45
                DEFW &5A62                     ; 571D 62 5A
-               CALL L5725                      ; 571F CD 25 57
+               CALL WRITE_BC_DESCENDING        ; 571F CD 25 57
                LD BC,&0004                     ; 5722 01 04 00
 
 ;; --------------------------------------------------------------------
-;; L5725 -- &5725 to &5729
+;; WRITE_BC_DESCENDING -- &5725 to &5729
 ;;
 ;; Takes:     BC, HL
 ;; Leaves:    A, F, HL
+;;
+;; ? calls WRITE_A_DESCENDING; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Write B then C into the ROM's system page at HL, stepping HL *down*
+;;     between them, so a word ends up stored high byte first at the lower
+;;     address.  It calls WRITE_A_DESCENDING for the first byte and falls
+;;     into it for the second.
 ;; --------------------------------------------------------------------
 
-; ---- L5725 ---- from &54B4, &571F
-L5725:
+; ---- WRITE_BC_DESCENDING ---- from &54B4, &571F
+WRITE_BC_DESCENDING:
                LD A,B                          ; 5725 78
-               CALL L572A                      ; 5726 CD 2A 57
+               CALL WRITE_A_DESCENDING         ; 5726 CD 2A 57
                LD A,C                          ; 5729 79
 
 ;; --------------------------------------------------------------------
-;; L572A -- &572A to &572E
+;; WRITE_A_DESCENDING -- &572A to &572E
 ;;
 ;; Takes:     A, HL
 ;; Leaves:    A, F, HL
 ;; Ends:      RET
 ;;
 ;; ? calls WRA.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     WRA, then DEC HL.
 ;; --------------------------------------------------------------------
 
-; ---- L572A ---- from &5726
-L572A:
+; ---- WRITE_A_DESCENDING ---- from &5726
+WRITE_A_DESCENDING:
                CALL WRA                        ; 572A CD A4 45
                DEC HL                          ; 572D 2B
                RET                             ; 572E C9
@@ -9841,33 +9870,45 @@ L574D:
                JP SCAN_TEXT_PAGED              ; 574F C3 9B 56
 
 ;; --------------------------------------------------------------------
-;; L5752 -- &5752 to &5777
+;; PARSE_LINE_RANGE -- &5752 to &5777
 ;;
 ;; Takes:     A, BC, DE
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? reaches the ROM through DOS_EVNUMX-&4000; tests for CH_COMMA; calls CALLDOS, CALL_GETCHAR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     The ",first[,last]" that REF, PRINT REF and ALTER all accept.
+;;     SEARCH_FIRST_LINE starts at 1 and SEARCH_LAST_LINE at &FEFF, which
+;;     is past any line number a program can hold, so with neither given the
+;;     range is the whole program.  A comma then a number replaces the
+;;     first, and a second comma and number the last; anything else and it
+;;     returns with the defaults standing.
+;;     
+;;     The manual: "REF a$,100" looks for a$ "starting at line 100", and
+;;     "REF a$,5,90" for it "from line 5 to 90".
 ;; --------------------------------------------------------------------
 
-; ---- L5752 ---- from &556F, &566A
-L5752:
+; ---- PARSE_LINE_RANGE ---- from &556F, &566A
+PARSE_LINE_RANGE:
                LD HL,&0001                     ; 5752 21 01 00
-               LD (V4091),HL                   ; 5755 22 91 40
+               LD (SEARCH_FIRST_LINE),HL       ; 5755 22 91 40
                LD HL,&FEFF                     ; 5758 21 FF FE
-               LD (V408D),HL                   ; 575B 22 8D 40
+               LD (SEARCH_LAST_LINE),HL        ; 575B 22 8D 40
                CALL CALL_GETCHAR               ; 575E CD 67 44
                CP CH_COMMA                     ; 5761 FE 2C
                RET NZ                          ; 5763 C0
                ; call DOS_EVNUMX-&4000 in the other page: LMPR is switched first, so that address is how the other listing numbers it
                CALL CALLDOS                    ; 5764 CD C1 42
                DEFW DOS_EVNUMX-&4000          ; 5767 AF 62
-               LD (V4091),HL                   ; 5769 22 91 40
+               LD (SEARCH_FIRST_LINE),HL       ; 5769 22 91 40
                CP &2C                          ; 576C FE 2C
                RET NZ                          ; 576E C0
                ; call DOS_EVNUMX-&4000 in the other page: LMPR is switched first, so that address is how the other listing numbers it
                CALL CALLDOS                    ; 576F CD C1 42
                DEFW DOS_EVNUMX-&4000          ; 5772 AF 62
-               LD (V408D),HL                   ; 5774 22 8D 40
+               LD (SEARCH_LAST_LINE),HL        ; 5774 22 8D 40
                RET                             ; 5777 C9
 
 ;; --------------------------------------------------------------------
@@ -10519,15 +10560,20 @@ CALL_JMKRBIG:
                RET                             ; 58F8 C9
 
 ;; --------------------------------------------------------------------
-;; L58F9 -- &58F9 to &58FC
+;; FIND_FIRST_LINE_IN_RANGE -- &58F9 to &58FC
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    BC
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Load BC from SEARCH_FIRST_LINE and fall into the search below, which
+;;     finds the first line numbered BC or higher.
 ;; --------------------------------------------------------------------
 
-; ---- L58F9 ---- from &54B7, &5670
-L58F9:
-               LD BC,(V4091)                   ; 58F9 ED 4B 91 40
+; ---- FIND_FIRST_LINE_IN_RANGE ---- from &54B7, &5670
+FIND_FIRST_LINE_IN_RANGE:
+               LD BC,(SEARCH_FIRST_LINE)       ; 58F9 ED 4B 91 40
 
 ;; --------------------------------------------------------------------
 ;; FIND_LINE_FROM_START -- &58FD to &590A
@@ -20221,7 +20267,7 @@ V7221:
 ;; Takes:     A, B, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? reaches the ROM through GTDT; drives IN A,(HMPR), OUT (HMPR),A; calls CMR; falls into whatever follows rather than returning.
+;; ? reaches the ROM through GTDT; drives IN A,(HMPR), OUT (HMPR),A; calls CMR, ARGS_STRING_AND_NUMBER; falls into whatever follows rather than returning.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -20240,7 +20286,7 @@ V7221:
 ;; --------------------------------------------------------------------
 
 FN_USING_S:
-               CALL L4E51                      ; 7225 CD 51 4E
+               CALL ARGS_STRING_AND_NUMBER     ; 7225 CD 51 4E
                RET NC                          ; 7228 D0
                LD HL,L7243                     ; 7229 21 43 72
                LD DE,&9000                     ; 722C 11 00 90

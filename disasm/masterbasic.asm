@@ -664,16 +664,16 @@ V4089:
 V408B:
                DEFB &00,&00                                                     ; 408B ..
 
-; ---- V408D ---- from &568F, &575B, &5774
-V408D:
+; ---- SEARCH_LAST_LINE ---- from &568F, &575B, &5774
+SEARCH_LAST_LINE:
                DEFB &00,&00                                                     ; 408D ..
 
 ; ---- V408F ---- from &5789, &57E0, &582E
 V408F:
                DEFB &00,&00                                                     ; 408F ..
 
-; ---- V4091 ---- from &568B, &56BB, &5755, &5769, &58F9
-V4091:
+; ---- SEARCH_FIRST_LINE ---- from &568B, &56BB, &5755, &5769, &58F9
+SEARCH_FIRST_LINE:
                DEFB &00,&00                                                     ; 4091 ..
 
 ; ---- V4093 ---- from &5564, &556C, &578F, &57A4, &5883
@@ -4175,7 +4175,7 @@ L4DB0:
 ;; --------------------------------------------------------------------
 
 FN_SHIFT_S:
-               CALL L4E51                      ; 4DB7 CD 51 4E
+               CALL ARGS_STRING_AND_NUMBER     ; 4DB7 CD 51 4E
                RET NC                          ; 4DBA D0
                CALL CALL_GETINT                ; 4DBB CD 76 44
                PUSH BC                         ; 4DBE C5
@@ -4301,14 +4301,25 @@ HK_PUTARG:
                LD E,C                          ; 4E4F 59
                RET                             ; 4E50 C9
 
-; ---- L4E51 ---- from &4DB7, &7225
-L4E51:
+;; --------------------------------------------------------------------
+;; The argument list (string, number): left bracket, a string, a comma,
+;; then fall into NUMBER_THEN_RPAREN.
+;; --------------------------------------------------------------------
+
+; ---- ARGS_STRING_AND_NUMBER ---- from &4DB7, &7225
+ARGS_STRING_AND_NUMBER:
                CALL EXPECT_NEXT_LPAREN         ; 4E51 CD 58 44
                CALL CALL_EXPSTR                ; 4E54 CD 7C 44
                CALL EXPECT_COMMA               ; 4E57 CD 50 44
 
-; ---- L4E5A ---- from &4E66
-L4E5A:
+;; --------------------------------------------------------------------
+;; A number and the closing bracket, with the number's page kept across
+;; the bracket check on the stack.  Entered on its own by FN_RESERVED,
+;; whose argument list is just (number).
+;; --------------------------------------------------------------------
+
+; ---- NUMBER_THEN_RPAREN ---- from &4E66
+NUMBER_THEN_RPAREN:
                CALL CALL_EXPNUM                ; 4E5A CD 85 44
                PUSH AF                         ; 4E5D F5
                CALL EXPECT_RPAREN              ; 4E5E CD 54 44
@@ -4331,7 +4342,7 @@ L4E5A:
 
 FN_RESERVED:
                CALL EXPECT_NEXT_LPAREN         ; 4E63 CD 58 44
-               CALL L4E5A                      ; 4E66 CD 5A 4E
+               CALL NUMBER_THEN_RPAREN         ; 4E66 CD 5A 4E
                RET NC                          ; 4E69 D0
                IN A,(HMPR)                     ; 4E6A DB FB
                PUSH AF                         ; 4E6C F5
@@ -4760,7 +4771,7 @@ HPRTOK:
                CALL NRRD                       ; 5016 CD 6A 45
                DEFW FLAGS                     ; 5019 3B 5C
                RRA                             ; 501B 1F
-               CALL NC,L502C                   ; 501C D4 2C 50
+               CALL NC,PRINT_SPACE             ; 501C D4 2C 50
                POP BC                          ; 501F C1
                CALL NRWRD                      ; 5020 CD 77 45
                DEFW XPTR                      ; 5023 A3 5A
@@ -4768,8 +4779,13 @@ HPRTOK:
                LD HL,V50D7                     ; 5026 21 D7 50
                CALL SKIP_TO_END_OF_WORD        ; 5029 CD 31 50
 
-; ---- L502C ---- from &501C, &50D0
-L502C:
+;; --------------------------------------------------------------------
+;; LD A,&20 and a JP into CALL_PRINT_A.  Two bytes and a jump, four
+;; times over, against three bytes and a call each time.
+;; --------------------------------------------------------------------
+
+; ---- PRINT_SPACE ---- from &501C, &50D0
+PRINT_SPACE:
                LD A,&20                        ; 502C 3E 20
                JP CALL_PRINT_A                 ; 502E C3 FA 69
 
@@ -4883,7 +4899,7 @@ L50AC:
                CALL SKIP_TO_END_OF_WORD        ; 50CA CD 31 50
                LD A,C                          ; 50CD 79
                CP &14                          ; 50CE FE 14
-               CALL NC,L502C                   ; 50D0 D4 2C 50
+               CALL NC,PRINT_SPACE             ; 50D0 D4 2C 50
                AND A                           ; 50D3 A7
 
 ; ---- L50D4 ---- from &50A4, &50A9
@@ -5727,8 +5743,8 @@ L5484:
                DEC HL                          ; 54AE 2B
                CALL CALLDOS                    ; 54AF CD C1 42
                DEFW &7889                     ; 54B2 89 78
-               CALL L5725                      ; 54B4 CD 25 57
-               CALL L58F9                      ; 54B7 CD F9 58
+               CALL WRITE_BC_DESCENDING        ; 54B4 CD 25 57
+               CALL FIND_FIRST_LINE_IN_RANGE   ; 54B7 CD F9 58
                PUSH HL                         ; 54BA E5
                LD DE,(V408B)                   ; 54BB ED 5B 8B 40
                CALL NRRDD                      ; 54BF CD 5F 45
@@ -5850,7 +5866,7 @@ L5551:
                CALL L577F                      ; 5568 CD 7F 57
                POP AF                          ; 556B F1
                LD (V4093),A                    ; 556C 32 93 40
-               CALL L5752                      ; 556F CD 52 57
+               CALL PARSE_LINE_RANGE           ; 556F CD 52 57
                CALL EXPECT_END_OF_STATEMENT    ; 5572 CD D0 44
                JP L5670                        ; 5575 C3 70 56
 
@@ -6070,12 +6086,12 @@ CMD_REF:
 ; ---- L5667 ---- from &5660
 L5667:
                CALL L5778                      ; 5667 CD 78 57
-               CALL L5752                      ; 566A CD 52 57
+               CALL PARSE_LINE_RANGE           ; 566A CD 52 57
                CALL EXPECT_END_OF_STATEMENT    ; 566D CD D0 44
 
 ; ---- L5670 ---- from &5575
 L5670:
-               CALL L58F9                      ; 5670 CD F9 58
+               CALL FIND_FIRST_LINE_IN_RANGE   ; 5670 CD F9 58
                PUSH HL                         ; 5673 E5
                LD HL,INSTALL_ROM_PATCHES       ; 5674 21 00 7B  reads the first two bytes of the buffer at &7B00
                LD B,(HL)                       ; 5677 46
@@ -6099,8 +6115,8 @@ L5687:
                LD B,(HL)                       ; 5688 46
                INC HL                          ; 5689 23
                LD C,(HL)                       ; 568A 4E
-               LD (V4091),BC                   ; 568B ED 43 91 40
-               LD HL,(V408D)                   ; 568F 2A 8D 40
+               LD (SEARCH_FIRST_LINE),BC       ; 568B ED 43 91 40
+               LD HL,(SEARCH_LAST_LINE)        ; 568F 2A 8D 40
                AND A                           ; 5692 A7
                SBC HL,BC                       ; 5693 ED 42
                POP HL                          ; 5695 E1
@@ -6143,7 +6159,7 @@ L56AE:
                LD A,(V4094)                    ; 56B3 3A 94 40
                SLA A                           ; 56B6 CB 27
                JP C,L572F                      ; 56B8 DA 2F 57
-               LD BC,(V4091)                   ; 56BB ED 4B 91 40
+               LD BC,(SEARCH_FIRST_LINE)       ; 56BB ED 4B 91 40
                JR NZ,L56DD                     ; 56BF 20 1C
                PUSH DE                         ; 56C1 D5
                PUSH HL                         ; 56C2 E5
@@ -6198,17 +6214,28 @@ V56F6:
                INC HL                          ; 5719 23
                CALL NRRDD                      ; 571A CD 5F 45
                DEFW &5A62                     ; 571D 62 5A
-               CALL L5725                      ; 571F CD 25 57
+               CALL WRITE_BC_DESCENDING        ; 571F CD 25 57
                LD BC,&0004                     ; 5722 01 04 00
 
-; ---- L5725 ---- from &54B4, &571F
-L5725:
+;; --------------------------------------------------------------------
+;; Write B then C into the ROM's system page at HL, stepping HL *down*
+;; between them, so a word ends up stored high byte first at the lower
+;; address.  It calls WRITE_A_DESCENDING for the first byte and falls
+;; into it for the second.
+;; --------------------------------------------------------------------
+
+; ---- WRITE_BC_DESCENDING ---- from &54B4, &571F
+WRITE_BC_DESCENDING:
                LD A,B                          ; 5725 78
-               CALL L572A                      ; 5726 CD 2A 57
+               CALL WRITE_A_DESCENDING         ; 5726 CD 2A 57
                LD A,C                          ; 5729 79
 
-; ---- L572A ---- from &5726
-L572A:
+;; --------------------------------------------------------------------
+;; WRA, then DEC HL.
+;; --------------------------------------------------------------------
+
+; ---- WRITE_A_DESCENDING ---- from &5726
+WRITE_A_DESCENDING:
                CALL WRA                        ; 572A CD A4 45
                DEC HL                          ; 572D 2B
                RET                             ; 572E C9
@@ -6244,23 +6271,35 @@ L574D:
                DEC HL                          ; 574E 2B
                JP SCAN_TEXT_PAGED              ; 574F C3 9B 56
 
-; ---- L5752 ---- from &556F, &566A
-L5752:
+;; --------------------------------------------------------------------
+;; The ",first[,last]" that REF, PRINT REF and ALTER all accept.
+;; SEARCH_FIRST_LINE starts at 1 and SEARCH_LAST_LINE at &FEFF, which
+;; is past any line number a program can hold, so with neither given the
+;; range is the whole program.  A comma then a number replaces the
+;; first, and a second comma and number the last; anything else and it
+;; returns with the defaults standing.
+;;
+;; The manual: "REF a$,100" looks for a$ "starting at line 100", and
+;; "REF a$,5,90" for it "from line 5 to 90".
+;; --------------------------------------------------------------------
+
+; ---- PARSE_LINE_RANGE ---- from &556F, &566A
+PARSE_LINE_RANGE:
                LD HL,&0001                     ; 5752 21 01 00
-               LD (V4091),HL                   ; 5755 22 91 40
+               LD (SEARCH_FIRST_LINE),HL       ; 5755 22 91 40
                LD HL,&FEFF                     ; 5758 21 FF FE
-               LD (V408D),HL                   ; 575B 22 8D 40
+               LD (SEARCH_LAST_LINE),HL        ; 575B 22 8D 40
                CALL CALL_GETCHAR               ; 575E CD 67 44
                CP CH_COMMA                     ; 5761 FE 2C
                RET NZ                          ; 5763 C0
                CALL CALLDOS                    ; 5764 CD C1 42
                DEFW DOS_EVNUMX-&4000          ; 5767 AF 62
-               LD (V4091),HL                   ; 5769 22 91 40
+               LD (SEARCH_FIRST_LINE),HL       ; 5769 22 91 40
                CP &2C                          ; 576C FE 2C
                RET NZ                          ; 576E C0
                CALL CALLDOS                    ; 576F CD C1 42
                DEFW DOS_EVNUMX-&4000          ; 5772 AF 62
-               LD (V408D),HL                   ; 5774 22 8D 40
+               LD (SEARCH_LAST_LINE),HL        ; 5774 22 8D 40
                RET                             ; 5777 C9
 
 ; ---- L5778 ---- from &5553, &5667
@@ -6624,9 +6663,14 @@ CALL_JMKRBIG:
                DEFW JMKRBIG                   ; 58F6 0C 01
                RET                             ; 58F8 C9
 
-; ---- L58F9 ---- from &54B7, &5670
-L58F9:
-               LD BC,(V4091)                   ; 58F9 ED 4B 91 40
+;; --------------------------------------------------------------------
+;; Load BC from SEARCH_FIRST_LINE and fall into the search below, which
+;; finds the first line numbered BC or higher.
+;; --------------------------------------------------------------------
+
+; ---- FIND_FIRST_LINE_IN_RANGE ---- from &54B7, &5670
+FIND_FIRST_LINE_IN_RANGE:
+               LD BC,(SEARCH_FIRST_LINE)       ; 58F9 ED 4B 91 40
 
 ;; --------------------------------------------------------------------
 ;; Find the first BASIC line numbered BC or higher, from the top of the
@@ -12652,7 +12696,7 @@ V7221:
 ;; --------------------------------------------------------------------
 
 FN_USING_S:
-               CALL L4E51                      ; 7225 CD 51 4E
+               CALL ARGS_STRING_AND_NUMBER     ; 7225 CD 51 4E
                RET NC                          ; 7228 D0
                LD HL,L7243                     ; 7229 21 43 72
                LD DE,&9000                     ; 722C 11 00 90

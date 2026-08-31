@@ -143,3 +143,43 @@ MB &62CE FETCH_SOURCE_BYTE
     above is the sentinel for "no memory left", and the DOS's LBYT
     supplies the byte instead, refilling its sector buffer when it needs
     to.  One routine so the two callers do not have to know which.
+
+MB &502C PRINT_SPACE
+    LD A,&20 and a JP into CALL_PRINT_A.  Two bytes and a jump, four
+    times over, against three bytes and a call each time.
+
+MB &4E51 ARGS_STRING_AND_NUMBER
+    The argument list (string, number): left bracket, a string, a comma,
+    then fall into NUMBER_THEN_RPAREN.
+
+MB &4E5A NUMBER_THEN_RPAREN
+    A number and the closing bracket, with the number's page kept across
+    the bracket check on the stack.  Entered on its own by FN_RESERVED,
+    whose argument list is just (number).
+
+MB &5725 WRITE_BC_DESCENDING
+    Write B then C into the ROM's system page at HL, stepping HL *down*
+    between them, so a word ends up stored high byte first at the lower
+    address.  It calls WRITE_A_DESCENDING for the first byte and falls
+    into it for the second.
+
+MB &572A WRITE_A_DESCENDING
+    WRA, then DEC HL.
+
+MB &5752 PARSE_LINE_RANGE
+    The ",first[,last]" that REF, PRINT REF and ALTER all accept.
+    SEARCH_FIRST_LINE starts at 1 and SEARCH_LAST_LINE at &FEFF, which
+    is past any line number a program can hold, so with neither given the
+    range is the whole program.  A comma then a number replaces the
+    first, and a second comma and number the last; anything else and it
+    returns with the defaults standing.
+
+    The manual: "REF a$,100" looks for a$ "starting at line 100", and
+    "REF a$,5,90" for it "from line 5 to 90".
+
+MB &58F9 FIND_FIRST_LINE_IN_RANGE
+    Load BC from SEARCH_FIRST_LINE and fall into the search below, which
+    finds the first line numbered BC or higher.
+
+MB &4091 SEARCH_FIRST_LINE
+MB &408D SEARCH_LAST_LINE
