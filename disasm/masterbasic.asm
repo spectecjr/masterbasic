@@ -2435,7 +2435,7 @@ L4619:
 ; ---- L462A ---- from &461B
 L462A:
                LD (L4744+1),A                  ; 462A 32 45 47  patches the operand of the JR at &4744
-               CALL L4759                      ; 462D CD 59 47
+               CALL FIND_STRING_VARIABLE       ; 462D CD 59 47
                CALL EXPECT_END_OF_STATEMENT    ; 4630 CD D0 44
                LD HL,(V40A2)                   ; 4633 2A A2 40
                LD A,(V4099)                    ; 4636 3A 99 40
@@ -2731,8 +2731,14 @@ L4748:
                JR Z,L4746                      ; 4755 28 EF
                JR L4748                        ; 4757 18 EF
 
-; ---- L4759 ---- from &462D
-L4759:
+;; --------------------------------------------------------------------
+;; FIND_VARIABLE, with carry clear taken as "nothing to do" and NZ as
+;; "Not understood", then the variable's page in and an empty string or
+;; a slice stacked for it.
+;; --------------------------------------------------------------------
+
+; ---- FIND_STRING_VARIABLE ---- from &462D
+FIND_STRING_VARIABLE:
                CALL FIND_VARIABLE              ; 4759 CD D5 43
                RET NC                          ; 475C D0
                JP NZ,REP_NOT_UNDERSTOOD        ; 475D C2 B0 43
@@ -2761,7 +2767,7 @@ L4759:
 L4784:
                LD A,C                          ; 4784 79
                LD (V409D),A                    ; 4785 32 9D 40
-               CALL L47EE                      ; 4788 CD EE 47
+               CALL GET_NONEMPTY_STRING        ; 4788 CD EE 47
                LD (V40A0),BC                   ; 478B ED 43 A0 40
                EX DE,HL                        ; 478F EB
                POP DE                          ; 4790 D1
@@ -2850,8 +2856,15 @@ GET_STRING_PAGED:
                SET 6,D                         ; 47EB CB F2
                RET                             ; 47ED C9
 
-; ---- L47EE ---- from &4788
-L47EE:
+;; --------------------------------------------------------------------
+;; GET_STRING_PAGED, then refuse a length of zero with "Subscript
+;; wrong".  The INC B on the way out is for the page-crossing loops that
+;; follow: a length whose low byte is zero is one page more and no odd
+;; bytes.
+;; --------------------------------------------------------------------
+
+; ---- GET_NONEMPTY_STRING ---- from &4788
+GET_NONEMPTY_STRING:
                CALL GET_STRING_PAGED           ; 47EE CD E6 47
                LD A,B                          ; 47F1 78
                OR C                            ; 47F2 B1
@@ -3060,7 +3073,7 @@ L48AB:
                ADD HL,BC                       ; 48B1 09
                LD H,A                          ; 48B2 67
                LD A,L                          ; 48B3 7D
-               CALL L49FD                      ; 48B4 CD FD 49
+               CALL TWO_DIGITS_BEFORE_DE       ; 48B4 CD FD 49
                LD DE,V4132                     ; 48B7 11 32 41
                CALL TWO_DIGITS_FROM_DE         ; 48BA CD 6A 4A
                ADD A,H                         ; 48BD 84
@@ -3072,7 +3085,7 @@ L48AB:
 
 ; ---- L48C7 ---- from &48C2
 L48C7:
-               CALL L49FD                      ; 48C7 CD FD 49
+               CALL TWO_DIGITS_BEFORE_DE       ; 48C7 CD FD 49
                LD DE,V412F                     ; 48CA 11 2F 41
                CALL TWO_DIGITS_FROM_DE         ; 48CD CD 6A 4A
                ADD A,H                         ; 48D0 84
@@ -3084,11 +3097,11 @@ L48C7:
 
 ; ---- L48DA ---- from &48D5
 L48DA:
-               CALL L49FD                      ; 48DA CD FD 49
+               CALL TWO_DIGITS_BEFORE_DE       ; 48DA CD FD 49
                LD DE,V4120                     ; 48DD 11 20 41
                CALL TWO_DIGITS_FROM_DE         ; 48E0 CD 6A 4A
                ADD A,H                         ; 48E3 84
-               CALL L49FD                      ; 48E4 CD FD 49
+               CALL TWO_DIGITS_BEFORE_DE       ; 48E4 CD FD 49
                JR L48FE                        ; 48E7 18 15
 
 ; ---- L48E9 ---- from &4892
@@ -3300,11 +3313,17 @@ PORT_BCD_DIGIT:
 
 ; ---- L49ED ---- from &4955
 L49ED:
-               CALL L49F1                      ; 49ED CD F1 49
+               CALL PORT_PUT_BCD_DIGIT         ; 49ED CD F1 49
                DEC HL                          ; 49F0 2B
 
-; ---- L49F1 ---- from &49ED
-L49F1:
+;; --------------------------------------------------------------------
+;; The other direction from PORT_BCD_DIGIT: take the ASCII digit at HL,
+;; subtract &30, and OUT it to the port in C.  Setting the clock rather
+;; than reading it.
+;; --------------------------------------------------------------------
+
+; ---- PORT_PUT_BCD_DIGIT ---- from &49ED
+PORT_PUT_BCD_DIGIT:
                LD A,(HL)                       ; 49F1 7E
                SUB CH_ZERO                     ; 49F2 D6 30
                OUT (C),A                       ; 49F4 ED 79
@@ -3318,8 +3337,19 @@ L49F6:
                LD B,A                          ; 49FB 47
                RET                             ; 49FC C9
 
-; ---- L49FD ---- from &48B4, &48C7, &48DA, &48E4
-L49FD:
+;; --------------------------------------------------------------------
+;; Write A as two decimal digits *below* DE, and leave DE pointing at
+;; the first of them.  C counts the tens from &2F upward while A has ten
+;; taken off it repeatedly, so C ends as the tens digit in ASCII and A,
+;; plus &3A, as the units.  The two stores step DE back three, not two,
+;; which leaves the separator between fields untouched -- so a whole
+;; "hh:mm:ss" is written by calling this once per field, working
+;; backwards, with TWO_DIGITS_FROM_DE reading forwards over the same
+;; shape.
+;; --------------------------------------------------------------------
+
+; ---- TWO_DIGITS_BEFORE_DE ---- from &48B4, &48C7, &48DA, &48E4
+TWO_DIGITS_BEFORE_DE:
                LD C,&2F                        ; 49FD 0E 2F
 
 ; ---- L49FF ---- from &4A02
@@ -3575,8 +3605,8 @@ FN_LOCN:
                PUSH HL                         ; 4AFD E5
                IN A,(HMPR)                     ; 4AFE DB FB
                PUSH AF                         ; 4B00 F5
-               CALL L4C2A                      ; 4B01 CD 2A 4C
-               CALL L4C76                      ; 4B04 CD 76 4C
+               CALL COPY_STRING_TO_BUFFER      ; 4B01 CD 2A 4C
+               CALL GET_PAGED_ADDRESS          ; 4B04 CD 76 4C
                LD E,A                          ; 4B07 5F
                PUSH DE                         ; 4B08 D5
                LD (V40A4),HL                   ; 4B09 22 A4 40
@@ -3585,7 +3615,7 @@ FN_LOCN:
                LD (V40AD),A                    ; 4B0F 32 AD 40
                LD H,A                          ; 4B12 67
                LD (V40A2),HL                   ; 4B13 22 A2 40
-               CALL L4C76                      ; 4B16 CD 76 4C
+               CALL GET_PAGED_ADDRESS          ; 4B16 CD 76 4C
                LD (V40AB),HL                   ; 4B19 22 AB 40
                POP DE                          ; 4B1C D1
                DEC A                           ; 4B1D 3D
@@ -3686,7 +3716,7 @@ L4B85:
                RET NC                          ; 4B8E D0
                LD HL,&0000                     ; 4B8F 21 00 00
                LD (V40A4),HL                   ; 4B92 22 A4 40
-               CALL L4C2A                      ; 4B95 CD 2A 4C
+               CALL COPY_STRING_TO_BUFFER      ; 4B95 CD 2A 4C
                CALL CALL_GETSTR                ; 4B98 CD 6D 44
                EX DE,HL                        ; 4B9B EB
 
@@ -3797,8 +3827,15 @@ L4C26:
                OUT (HMPR),A                    ; 4C27 D3 FB
                RET                             ; 4C29 C9
 
-; ---- L4C2A ---- from &4B01, &4B95
-L4C2A:
+;; --------------------------------------------------------------------
+;; Evaluate a string and copy it into the buffer at &7B00, the bytes the
+;; installer leaves behind.  Anything longer than 255 goes to the error
+;; at &4BA3; the length is kept in V4098 and a length of zero returns
+;; without copying anything.
+;; --------------------------------------------------------------------
+
+; ---- COPY_STRING_TO_BUFFER ---- from &4B01, &4B95
+COPY_STRING_TO_BUFFER:
                CALL CALL_GETSTR                ; 4C2A CD 6D 44
                AND PAGEMASK                    ; 4C2D E6 1F
                OUT (HMPR),A                    ; 4C2F D3 FB
@@ -3862,8 +3899,16 @@ STACK_PAGE0_STRING:
                DEFW STKSTR                    ; 4C73 27 01
                RET                             ; 4C75 C9
 
-; ---- L4C76 ---- from &4B04, &4B16
-L4C76:
+;; --------------------------------------------------------------------
+;; An address argument that may run past 64K.  GET_LONG_INTEGER gives 32
+;; bits, anything in D is "Integer out of range", and what is left is
+;; shifted three places -- RL H with RLA, three times, to carry the top
+;; bits into the page, then three RR H with a SCF before the last, which
+;; puts the address back in a section with its top bit set.
+;; --------------------------------------------------------------------
+
+; ---- GET_PAGED_ADDRESS ---- from &4B04, &4B16
+GET_PAGED_ADDRESS:
                CALL GET_LONG_INTEGER           ; 4C76 CD 92 44
                LD A,D                          ; 4C79 7A
                AND A                           ; 4C7A A7

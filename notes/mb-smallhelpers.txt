@@ -202,3 +202,42 @@ MB &5276 START_PROGRAM_WALK
     PROGP through NRRDD and NRRD, the page straight out to HMPR, then
     fall into the step below, which returns Z at the &FF that ends the
     program and otherwise adds the line's own length to reach the next.
+
+MB &49F1 PORT_PUT_BCD_DIGIT
+    The other direction from PORT_BCD_DIGIT: take the ASCII digit at HL,
+    subtract &30, and OUT it to the port in C.  Setting the clock rather
+    than reading it.
+
+MB &49FD TWO_DIGITS_BEFORE_DE
+    Write A as two decimal digits *below* DE, and leave DE pointing at
+    the first of them.  C counts the tens from &2F upward while A has ten
+    taken off it repeatedly, so C ends as the tens digit in ASCII and A,
+    plus &3A, as the units.  The two stores step DE back three, not two,
+    which leaves the separator between fields untouched -- so a whole
+    "hh:mm:ss" is written by calling this once per field, working
+    backwards, with TWO_DIGITS_FROM_DE reading forwards over the same
+    shape.
+
+MB &47EE GET_NONEMPTY_STRING
+    GET_STRING_PAGED, then refuse a length of zero with "Subscript
+    wrong".  The INC B on the way out is for the page-crossing loops that
+    follow: a length whose low byte is zero is one page more and no odd
+    bytes.
+
+MB &4759 FIND_STRING_VARIABLE
+    FIND_VARIABLE, with carry clear taken as "nothing to do" and NZ as
+    "Not understood", then the variable's page in and an empty string or
+    a slice stacked for it.
+
+MB &4C2A COPY_STRING_TO_BUFFER
+    Evaluate a string and copy it into the buffer at &7B00, the bytes the
+    installer leaves behind.  Anything longer than 255 goes to the error
+    at &4BA3; the length is kept in V4098 and a length of zero returns
+    without copying anything.
+
+MB &4C76 GET_PAGED_ADDRESS
+    An address argument that may run past 64K.  GET_LONG_INTEGER gives 32
+    bits, anything in D is "Integer out of range", and what is left is
+    shifted three places -- RL H with RLA, three times, to carry the top
+    bits into the page, then three RR H with a SCF before the last, which
+    puts the address back in a section with its top bit set.
