@@ -59,9 +59,17 @@ MB &6404 SAVE_BOOT
 
     The last block is a saved copy, not a filler.  &3B80 + &0024 + &029F
     does leave exactly 381 bytes to make 16320, and &017D is 381 -- but
-    the source is not incidental.  On a booted machine MasterBASIC's own
-    &7E43-&7FBF holds those same 381 bytes, byte for byte, so the block
-    exists in two places and SAVE BOOT could read it from either.  What
+    the source is not incidental: what it covers is the DEF KEY gap, the
+    keyboard table and the DUMP settings, which is exactly the state a
+    user changes and would want kept.
+
+    An earlier version of this note argued the point from MBPOST.bin,
+    where MasterBASIC's own &7E43-&7FBF holds those same 381 bytes.  That
+    argument has been withdrawn: write breakpoints on a real machine show
+    nothing puts them there during a boot, so the dump is not a
+    clean-boot dump and cannot be used as evidence about what is in this
+    page.  See notes/mb-postboot.txt.  The point about the block stands
+    on what it covers.  What
     it covers is the DEF KEY gap, the whole keyboard table and the DUMP
     settings up to &5A12 -- which is to say the KEY assignments and the
     printer settings a user has changed, which is exactly what SAVE BOOT

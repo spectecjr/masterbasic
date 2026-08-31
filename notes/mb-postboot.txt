@@ -84,32 +84,43 @@
 # ROM's character set at CHARSVAL &5190 and a plausible ALLOCT at &5100,
 # and it shares 45 bytes out of 4096 with either half.
 #
-# REFINED, with a breakpoint tried on a real machine.  Watching a write
-# to &7E6B caught nothing but the ROM's MNINIT clearing the page at
-# reset -- and that is correct rather than surprising, because &7E6B is
-# in the one stretch of this region that is zero after boot *and* zero
-# in the system page.  103 of the 381 bytes are zero on both sides.
+# ANSWERED, and the answer is that there is no copy.
 #
-# The region is three parts, not one:
+# Two write breakpoints were tried on a real machine, at &7E6B and then
+# at &7E8E, and neither caught anything but the ROM's MNINIT clearing
+# the page at reset.  Nothing writes this region during a boot.
 #
-#     &7E43   39 bytes   the installed gap block, and it does come from
-#                        the file -- it matches, apart from two boot
-#                        patches at &7E49 and &7E4A
-#     &7E6B   35 bytes   zero here and zero in the system page
-#     &7E8E  210 bytes   KTAB, whose own start is &58E0, plus short runs
-#                        on to &5A12
+# The first of those was a badly chosen address and the second was not:
+# &7E6B is in the one stretch that is zero after boot and zero in the
+# system page too -- 103 of the 381 bytes are -- but &7E8E is inside
+# KTAB's copy, non-zero after boot and different from the file.  If
+# anything wrote it, that breakpoint would have fired.
 #
-# So the thing to watch is &7E8E, the first byte that is non-zero after
-# boot and different from the file.  And it should be watched at &BE8E
-# as well: a routine copying into this page would most likely have it in
-# the &8000 window, which is a second reason the first attempt saw
-# nothing.
+# So the keyboard table in MBPOST.bin did not get there by booting, and
+# the premise behind this whole entry -- a run-time copy with no copier
+# -- was wrong.  What is left is how MBPOST.bin was made.  Two
+# possibilities fit everything seen:
 #
-# One more thing the attempt showed.  The file's own bytes at &7E6B are
-# a fragment of a BASIC program and the running machine has zero there,
-# so that part of the file is not in memory at all.  Either the load
-# writes it and something clears it afterwards, or the load does not
-# reach it.  The same breakpoint separates those.
+#   1. The machine booted a file that had been through SAVE BOOT.  Such
+#      a file *has* the keyboard table at &7E43, because SAVE_BOOT's
+#      eighth block reads &5896-&5A12 out of the system page and writes
+#      it there.  Loading it back puts KTAB in this page with no copy at
+#      all.
+#
+#   2. Whatever took the dumps wrote there itself -- the top of this
+#      page is dead space once the installer has run, which makes it an
+#      obvious buffer for a dumping routine.
+#
+# The differences line up with the first: taking SAVE_BOOT's own blocks
+# as the divisions, the shipped file and MBPOST differ in 50 bytes of
+# block 5, none of block 6, 20 of block 7 -- all patch sites -- and 325
+# of the 381 in block 8.  Block 8 is the one whose content SAVE_BOOT
+# takes from the system page rather than from this half.
+#
+# What would settle it costs nothing: boot the shipped image cleanly and
+# look at MB &7E90.  The file has 28 66 72 6D 73 29 there, which is
+# "(frms)" out of somebody's BASIC program.  If a clean boot shows that,
+# MBPOST is not a clean-boot dump and this entry is closed.
 
 # It matters for notes/mb-saveboot.txt, which called SAVE_BOOT's last
 # block a filler whose source was incidental -- &5896 "because that is

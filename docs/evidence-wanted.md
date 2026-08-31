@@ -7,73 +7,36 @@ of the repository first.
 
 ---
 
-## 1. Who copies 381 bytes into `&7E43`? *(highest value)*
+## 1. How was `file/MBPOST.bin` made? *(highest value, and cheap)*
 
-**The fact.** On a booted machine, MasterBASIC's `&7E43`–`&7FBF` is an exact
-copy of the ROM's system page at `&5896`–`&5A12` — all 381 bytes. That is the
-DEF KEY gap, the whole keyboard table, and the DUMP settings. In the shipped
-file those bytes are a fragment of somebody's BASIC program (`TOTAL FRAMES`,
-`moveinf`), so something writes them at run time.
+This was "who copies 381 bytes into `&7E43`" until two breakpoints said
+nobody does. Watching writes to `&7E6B` and then to `&7E8E` on a real machine
+caught only the ROM's `MNINIT` clearing the page at reset. The second address
+is a good one — it is inside the copy of `KTAB`, non-zero after boot and
+different from the file — so if anything wrote it, that would have fired.
 
-**What I have ruled out.** There are exactly three literal address loads in
-the whole image that could start such a copy, and none of them is it:
+So the keyboard table in `MBPOST.bin` did not get there by booting, and the
+question is no longer about MasterBASIC at all. It is about the dump.
 
-| where | what | why not |
-|---|---|---|
-| MB `&646F` | `LD HL,&9896` | `SAVE_BOOT`'s own source, reading *out* |
-| MB `&5081` | `LD DE,&5896` | the channel pointer |
-| MB `&7AC5` | `LD HL,&7E43` | the installer's 40 bytes, going the other way |
+**What I need.** Either of these:
 
-No `LD DE,&7E43` or `LD DE,&BE43` exists anywhere in either half. No `LDIR`
-in either half carries a length of `&017D`. The installer's copy is
-`LD C,&28` — forty bytes — and its operand is not among the boot-time patch
-sites. The boot sector has been read and does not do it.
+- **A sentence** saying how `MBPOST.bin` was produced — which disk was booted,
+  and what was run to write the three dumps out.
+- **Or a look at `&7E90` after a clean boot of
+  `dsks/MasterDOS2_3_MasterBasic1_7.mgt`.** The file has `28 66 72 6D 73 29`
+  there — `(frms)`, out of a fragment of somebody's BASIC program. If a clean
+  boot shows that, `MBPOST` is not a clean-boot dump and the matter is closed.
 
-### What would settle it
+**Why it matters.** Two things fit every observation. The machine may have
+booted a file that had been through `SAVE BOOT`, which *has* the keyboard
+table at `&7E43` because `SAVE_BOOT`'s eighth block reads `&5896`–`&5A12` out
+of the system page and writes it into the file. Or whatever took the dumps
+used the top of this page as a buffer — it is dead space once the installer
+has run, which makes it an obvious choice.
 
-**A memory-write breakpoint, on `&7E8E`.**
-
-An earlier version of this file asked for `&7E6B`, and that was a bad address:
-it lies in the one stretch of the region that is **zero after boot and zero in
-the system page as well**, so nothing ever writes it. Watching it finds only
-the ROM's `MNINIT` clearing the page at reset, which is exactly what happened
-when it was tried.
-
-Here is the region after boot, against the system page it mirrors:
-
-| MasterBASIC | bytes | system page | what |
-|---|---|---|---|
-| `&7E43` | 39 | `&5896` | the installed gap block — **loaded from the file** |
-| `&7E6B` | 35 | `&58BE` | zero, and zero in the system page too |
-| `&7E8E` | 210 | `&58E1` | `KTAB`, the keyboard table, which begins at `&58E0` |
-| … | | … | short runs on to `&5A12` |
-
-`&7E8E` is the first byte in the region that is **non-zero after boot and
-different from the file**, so whatever puts the keyboard table there has to
-write it. Anywhere in `&7E8E`–`&7F5F` would do as well.
-
-**Watch all three aliases of it, or the physical byte.** This matters and is
-probably why nothing else was caught: a routine copying *into* MasterBASIC's
-page would most naturally do it with that page in the `&8000` window, writing
-`&BE8E` rather than `&7E8E`. If SimCoupe can break on a page and offset, use
-that; otherwise set three breakpoints — `&7E8E`, `&BE8E`, and `&3E8E` for
-completeness.
-
-What I need back is the **PC when it stops**, and `LMPR` and `HMPR` if they
-are easy to read. One line is enough.
-
-### What the answer would decide
-
-Two possibilities are still open and this separates them.
-
-- If something writes `&7E8E` **after** the file has loaded, there is a copier
-  and the PC names it.
-- If the only writes are the load itself, then the file's own bytes never
-  reach `&7E6B`–`&7FBF` — the region after the gap block would be loader
-  output, not file content — and that is a different and more interesting
-  question about how much of the file is loaded at all. The file has a
-  fragment of a BASIC program at `&7E6B` and the running machine has zero
-  there, which is what makes this worth asking.
+Either way nothing is wrong with the disassembly; what would be wrong is
+leaving a "copy with no copier" in the notes when the copy is an artefact of
+how the evidence was gathered.
 
 ---
 
