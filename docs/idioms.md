@@ -252,7 +252,10 @@ swallows the `LD B,&FF`, so `B` keeps the page number just computed. Jumping to
 instead of a `JR`, and `HL` is scratch on that path.
 
 `&3E` (`LD A,n`) does the same for one swallowed byte, and `&36` (`LD (HL),n`)
-appears too. In the listings the swallowed opcode is written as a `DEFB` with a
+and `&0E` (`LD C,n`) appear too. `MATCH_REFERENCE` uses the last of those to put
+two comparisons back to back — `XOR (HL) : AND &DF` for a letter, `CP (HL)` for
+anything else — so that falling through gets the case-insensitive one and
+jumping past gets the exact one, with one byte between them. In the listings the swallowed opcode is written as a `DEFB` with a
 note saying what it also reads as, because only one of the two readings can be
 written down — here, *skipped: reads as LD HL,&FF06 from here, and as part of
 the instruction above it*.

@@ -685,16 +685,16 @@ V408B:
 SEARCH_LAST_LINE:
                DEFB &00,&00                                                     ; 408D ..
 
-; ---- V408F ---- from &5789, &57E0, &582E
-V408F:
+; ---- REFERENCE_PTR ---- from &5789, &57E0, &582E
+REFERENCE_PTR:
                DEFB &00,&00                                                     ; 408F ..
 
 ; ---- SEARCH_FIRST_LINE ---- from &568B, &56BB, &5755, &5769, &58F9
 SEARCH_FIRST_LINE:
                DEFB &00,&00                                                     ; 4091 ..
 
-; ---- V4093 ---- from &5564, &556C, &578F, &57A4, &5883
-V4093:
+; ---- REFERENCE_KIND ---- from &5564, &556C, &578F, &57A4, &5883
+REFERENCE_KIND:
                DEFB &00                                                         ; 4093 .
 
 ; ---- V4094 ---- from &56B3, &5779
@@ -9168,11 +9168,11 @@ L5551:
                JP NZ,REP_NOT_UNDERSTOOD        ; 555B C2 B0 43
                CALL CALL_NEXTCHAR              ; 555E CD 61 44
                LD HL,L7B80                     ; 5561 21 80 7B
-               LD A,(V4093)                    ; 5564 3A 93 40
+               LD A,(REFERENCE_KIND)           ; 5564 3A 93 40
                PUSH AF                         ; 5567 F5
                CALL L577F                      ; 5568 CD 7F 57
                POP AF                          ; 556B F1
-               LD (V4093),A                    ; 556C 32 93 40
+               LD (REFERENCE_KIND),A           ; 556C 32 93 40
                CALL PARSE_LINE_RANGE           ; 556F CD 52 57
                CALL EXPECT_END_OF_STATEMENT    ; 5572 CD D0 44
                JP L5670                        ; 5575 C3 70 56
@@ -9678,12 +9678,12 @@ L56AB:
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? reaches the ROM through JPFSTRS; calls CALL_STKSTR, CMR; falls into whatever follows rather than returning.
+;; ? reaches the ROM through JPFSTRS; calls CALL_STKSTR, CMR, MATCH_REFERENCE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L56AE ---- from &569E
 L56AE:
-               CALL L5836                      ; 56AE CD 36 58
+               CALL MATCH_REFERENCE            ; 56AE CD 36 58
                JR NZ,SCAN_TEXT_PAGED           ; 56B1 20 E8
                LD A,(V4094)                    ; 56B3 3A 94 40
                SLA A                           ; 56B6 CB 27
@@ -9929,32 +9929,42 @@ L5778:
 ;; Preserves: A, F (saved and restored)
 ;; Ends:      RET
 ;;
-;; ? drives IN A,(HMPR), OUT (HMPR),A.
+;; ? drives IN A,(HMPR), OUT (HMPR),A; calls PARSE_REFERENCE.
 ;; --------------------------------------------------------------------
 
 ; ---- L577F ---- from &5568
 L577F:
                IN A,(HMPR)                     ; 577F DB FB
                PUSH AF                         ; 5781 F5
-               CALL L5789                      ; 5782 CD 89 57
+               CALL PARSE_REFERENCE            ; 5782 CD 89 57
                POP AF                          ; 5785 F1
                OUT (HMPR),A                    ; 5786 D3 FB
                RET                             ; 5788 C9
 
 ;; --------------------------------------------------------------------
-;; L5789 -- &5789 to &5799
+;; PARSE_REFERENCE -- &5789 to &5799
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? tests for CH_QUOTE, CH_LPAREN; calls CALL_GETCHAR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Read what is being searched for.  The pointer to the buffer goes into
+;;     REFERENCE_PTR and the character that starts it into REFERENCE_KIND,
+;;     and that character decides everything: a quote or a left bracket
+;;     means evaluate an expression -- the manual's `REF "count"` for a
+;;     literal sequence and `REF (a$)` for the value of a variable rather
+;;     than its name -- and anything else falls through to L57B0, which
+;;     takes a digit as a number and otherwise reads a variable name.
 ;; --------------------------------------------------------------------
 
-; ---- L5789 ---- from &5782
-L5789:
-               LD (V408F),HL                   ; 5789 22 8F 40
+; ---- PARSE_REFERENCE ---- from &5782
+PARSE_REFERENCE:
+               LD (REFERENCE_PTR),HL           ; 5789 22 8F 40
                CALL CALL_GETCHAR               ; 578C CD 67 44
-               LD (V4093),A                    ; 578F 32 93 40
+               LD (REFERENCE_KIND),A           ; 578F 32 93 40
                CP CH_QUOTE                     ; 5792 FE 22
                JR Z,L579A                      ; 5794 28 04
                CP CH_LPAREN                    ; 5796 FE 28
@@ -9977,7 +9987,7 @@ L579A:
                RET NC                          ; 579F D0
                JP M,L57F5                      ; 57A0 FA F5 57
                XOR A                           ; 57A3 AF
-               LD (V4093),A                    ; 57A4 32 93 40
+               LD (REFERENCE_KIND),A           ; 57A4 32 93 40
 
 ;; --------------------------------------------------------------------
 ;; L57A7 -- &57A7 to &57AF
@@ -10078,7 +10088,7 @@ L57D8:
 ; ---- L57DE ---- from &57AE
 L57DE:
                LD B,&00                        ; 57DE 06 00
-               LD HL,(V408F)                   ; 57E0 2A 8F 40
+               LD HL,(REFERENCE_PTR)           ; 57E0 2A 8F 40
                LD A,C                          ; 57E3 79
                LD C,&78                        ; 57E4 0E 78
                CP C                            ; 57E6 B9
@@ -10175,21 +10185,42 @@ L5824:
                DJNZ L5824                      ; 582A 10 F8
                EX DE,HL                        ; 582C EB
                LD (HL),H                       ; 582D 74
-               LD HL,(V408F)                   ; 582E 2A 8F 40
+               LD HL,(REFERENCE_PTR)           ; 582E 2A 8F 40
                LD A,(HL)                       ; 5831 7E
                ADD A,&06                       ; 5832 C6 06
                LD (HL),A                       ; 5834 77
                RET                             ; 5835 C9
 
 ;; --------------------------------------------------------------------
-;; L5836 -- &5836 to &5840
+;; MATCH_REFERENCE -- &5836 to &5840
 ;;
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, B, DE
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Compare the reference against the bytes at HL, a letter at a time,
+;;     and it is the manual's promise about case that gives this its shape:
+;;     
+;;     "It does not matter whether any letters in the reference are in
+;;     capitals or not.  For example, both REF abc$ and REF ABC$ will
+;;     find abc$, ABC$ or AbC$."
+;;     
+;;     The first byte at the buffer is the length.  For each byte, IS_LETTER
+;;     decides which of two comparisons happens:
+;;     
+;;     XOR (HL) : AND &DF     a letter -- equal if they differ only in
+;;     bit 5, which is the case bit
+;;     CP (HL)                anything else -- exact
+;;     
+;;     and the two are one after the other in memory, with a `DEFB &0E`
+;;     between them: fall through and the &0E swallows the CP (HL) as the
+;;     operand of LD C,&BE, jump to &584D and the CP runs.  The same skip
+;;     trick as the &21 and &3E ones, in its one-byte form.
 ;; --------------------------------------------------------------------
 
-; ---- L5836 ---- from &56AE
-L5836:
+; ---- MATCH_REFERENCE ---- from &56AE
+MATCH_REFERENCE:
                PUSH DE                         ; 5836 D5
                PUSH HL                         ; 5837 E5
                LD DE,INSTALL_ROM_PATCHES       ; 5838 11 00 7B
@@ -10343,7 +10374,7 @@ SCAN_TEXT_FOR_D_OR_E:
                RET Z                           ; 587E C8
                CP &22                          ; 587F FE 22
                JR NZ,L588E                     ; 5881 20 0B
-               LD A,(V4093)                    ; 5883 3A 93 40
+               LD A,(REFERENCE_KIND)           ; 5883 3A 93 40
                AND A                           ; 5886 A7
                LD A,(HL)                       ; 5887 7E
                JR Z,L588E                      ; 5888 28 04

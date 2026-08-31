@@ -21,3 +21,37 @@ DOC STACK_EMPTY_STRING_OR_SLICE
 
     Everything is preserved: BC, DE and HL are pushed on entry and popped
     on both exits.
+
+# The reference REF, PRINT REF and ALTER search for.
+
+MB &5789 PARSE_REFERENCE
+    Read what is being searched for.  The pointer to the buffer goes into
+    REFERENCE_PTR and the character that starts it into REFERENCE_KIND,
+    and that character decides everything: a quote or a left bracket
+    means evaluate an expression -- the manual's `REF "count"` for a
+    literal sequence and `REF (a$)` for the value of a variable rather
+    than its name -- and anything else falls through to L57B0, which
+    takes a digit as a number and otherwise reads a variable name.
+
+MB &5836 MATCH_REFERENCE
+    Compare the reference against the bytes at HL, a letter at a time,
+    and it is the manual's promise about case that gives this its shape:
+
+        "It does not matter whether any letters in the reference are in
+        capitals or not.  For example, both REF abc$ and REF ABC$ will
+        find abc$, ABC$ or AbC$."
+
+    The first byte at the buffer is the length.  For each byte, IS_LETTER
+    decides which of two comparisons happens:
+
+        XOR (HL) : AND &DF     a letter -- equal if they differ only in
+                               bit 5, which is the case bit
+        CP (HL)                anything else -- exact
+
+    and the two are one after the other in memory, with a `DEFB &0E`
+    between them: fall through and the &0E swallows the CP (HL) as the
+    operand of LD C,&BE, jump to &584D and the CP runs.  The same skip
+    trick as the &21 and &3E ones, in its one-byte form.
+
+MB &408F REFERENCE_PTR
+MB &4093 REFERENCE_KIND
