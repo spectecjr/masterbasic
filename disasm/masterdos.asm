@@ -66,6 +66,7 @@ HLJUMP:        EQU  &0005  ; JP (HL)
 INCURPAGE:     EQU  &3FF2  ; ! ;2* page on and wind HL back unconditionally
 INCURPDE:      EQU  &3FEB  ; Increments the upper RAM page, adjusting DE to make sure it's not in the range C000-FFFF. Uses A, alters D.
 INQUFG:        EQU  &5ABA  ; IN QUOTES FLAG. BIT 0=1 IF IN QUOTES. OUTLINE ZEROS
+INSTBUF:       EQU  &4F00  ; BUFFER FOR ROM1 XFER CODE, ETC. 0200H
 INVERT:        EQU  &5A54  ; 00/FF FOR NORMAL/INVERSE ;
 IYJUMP:        EQU  &0006  ; JP (IY)
 JCLSBL:        EQU  &014E  ; clear the whole screen if A is zero, otherwise the window
@@ -185,6 +186,7 @@ ENABLE_ROM1:   EQU  &40    ; LMPR bit 6: ROM 1 in at &C000.  Does not move the p
 FORCE_INTERRUPT_CMD: EQU  &D0
 SYSPAGE_IN_B:  EQU  &1F    ; LMPR &1F: page 31 at &0000, so section B gets page 32, which wraps to the system page.  The ROM source calls it PAGE1F
 SYS_CHAR_WIDTH: EQU  &4AEE
+SYS_MNIP_MAIN_INPUT: EQU  &4C14
 
 ; Constants under MasterDOS's own names, from the annotated
 ; source.  Each one is written where the listing would have
@@ -437,7 +439,7 @@ L40C0:
                DJNZ L40DD                      ; 40C9 10 12
                PUSH BC                         ; 40CB C5
                PUSH DE                         ; 40CC D5
-               CALL V7D60+&4000                ; 40CD CD 60 BD
+               CALL INSTALL_TAIL_INTO_SYSPAGE+&4000 ; 40CD CD 60 BD
                POP DE                          ; 40D0 D1
 
 ; ---- L40D1 ---- from &69EB
@@ -14049,9 +14051,50 @@ PFV:
 CMR3:
                DEFB &E1,&F1,&C9                                                 ; 7D5D aqI  ORIG URPORT
 
-V7D60:
-               DEFB &21,&60,&BD,&11,&00,&4F,&01,&BE,&01,&ED,&B0,&11,&14,&4C,&0E ; 7D60 !`=..O.>.m0..L.
-               DEFB &A1,&ED,&B0,&C9,&36,&00,&A7,&C8,&3A,&71                     ; 7D6F !m0I6.'H:q
+;; --------------------------------------------------------------------
+;; Twenty-five bytes at the end of the DOS page, called once from the
+;; boot sector at &40CD and never again.  It copies the tail of the DOS
+;; page into the ROM's system page, in two runs that follow on from
+;; each other:
+;;
+;; LD HL,&BD60     the DOS page's own &7D60, in section C
+;; LD DE,&4F00     the system page, in section B
+;; LD BC,&01BE     446 bytes, to &4F00-&50BD
+;; LDIR
+;; LD DE,&4C14     and 161 more, from &7F1E to the end of the half
+;; LD C,&A1        B is zero after an LDIR
+;; LDIR
+;; RET
+;;
+;; The caller reaches it with CALL &BD60 rather than CALL &7D60, and
+;; that is the point: running from section C leaves section B free for
+;; the system page, which is the SYSPAGE_IN_B arrangement docs/idioms.md
+;; describes.  So &4F00 and &4C14 are addresses in the system page, not
+;; in the DOS.
+;;
+;; Both destinations are confirmed from outside.  Comparing dumps of
+;; the system page taken before and after a boot, &4F00-&50BD and
+;; &4C14-&4CB4 are both written, the second ending exactly where 161
+;; bytes reach and not where 162 would; and after the boot the 328
+;; bytes at &4F74 are byte for byte the image's DOS &7DD4, which is 116
+;; bytes into the source run.
+;;
+;; Those 328 bytes are the alternate character set.  MasterBASIC keeps
+;; this whole 446-byte tail at its own &7DF0, which is why SAVE BOOT's
+;; third block restores it and why the set sits at MB &7E64, where
+;; XVAR 87 ALTUDG says it does.  See notes/mb-saveboot.txt.
+;; --------------------------------------------------------------------
+
+INSTALL_TAIL_INTO_SYSPAGE:
+               LD HL,INSTALL_TAIL_INTO_SYSPAGE+&4000 ; 7D60 21 60 BD
+               LD DE,INSTBUF                   ; 7D63 11 00 4F
+               LD BC,&01BE                     ; 7D66 01 BE 01
+               LDIR                            ; 7D69 ED B0
+               LD DE,SYS_MNIP_MAIN_INPUT       ; 7D6B 11 14 4C
+               LD C,&A1                        ; 7D6E 0E A1
+               LDIR                            ; 7D70 ED B0
+               RET                             ; 7D72 C9
+               DEFB &36,&00,&A7,&C8,&3A,&71                                     ; 7D73 6.'H:q
 
 ;; --------------------------------------------------------------------
 ;; Find a three-byte instruction sequence in the ROM and hand back a

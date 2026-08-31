@@ -386,7 +386,14 @@ class Page(Disassembler):
                 # but in a stretch that runs with the system page at
                 # &4000 there is nothing else it can be, so the ROM's
                 # equates for &4000-&4FFF are good here: HDR, CDBUFF,
-                # INSTBUF and the rest.
+                # INSTBUF and the rest.  Those come from the ROM's own
+                # variable list, and are asked for before the general
+                # symbol table, which would answer &4F00 with DKP2 --
+                # a DEF KEY label that happens to sit at the same value.
+                n = self.syms.lowvar(v) if self.syms else None
+                if n:
+                    self.used_ext.add(n)
+                    return n
                 n = self.ext_datum(v)
                 if n:
                     self.used_ext.add(n)
@@ -1012,6 +1019,11 @@ def seeds(dos, mb):
     # entries there -- &8002, &8020, &8125, &8200, &82FF.  The 2.3 source
     # writes all of those as raw hex for the same reason.
     dos.no_peer.append((0x76BC, 0x771A))
+    # INSTALL_TAIL_INTO_SYSPAGE is called as &BD60, not &7D60, so that
+    # section B is free for the system page while it runs.  HMPR is the
+    # DOS page for the whole of it, which makes its own &BD60 this half's
+    # &7D60 rather than the peer's, and its &4F00 and &4C14 the ROM's.
+    dos.self_window.append((0x7D60, 0x7D73))
     # self_window and sys_low are two halves of one arrangement: if this
     # page is in the window then something else is at &4000, and in every
     # case found so far that something is the ROM's system page.  The
@@ -1305,6 +1317,7 @@ def load_symbols(d, work):
             syms.from_jump_table(open(rom_bin, 'rb').read(), rom_map)
     if os.path.exists(rom_sym):
         syms.from_rom_equates(rom_sym)
+    syms.from_vars_file(os.path.join(ROOT, 'ref', 'samrom', 'vars.asm'))
     syms.from_mdos_comments()
     for value, (rst_name, _note) in infer.RESTARTS.items():
         syms.add_rom_entry(value, rst_name)
@@ -1360,6 +1373,39 @@ def name_tables(dos, mb, work):
     print('named %d routines from the dispatch tables'
           % annotate.name_tables(dos, mb, toks, hooks))
     return toks
+
+
+def decode_marked_code(d):
+    """Decode runs a note marked `code` that the trace never reached.
+
+    Marking a range as code says what it is; it does not by itself produce
+    instructions, and a run the flow graph never enters -- one the boot
+    calls through a window, say -- would otherwise still render as DEFBs
+    under its new name.  Decode such runs linearly, and only where the
+    mark is CODE and nothing has been decoded there already.
+    """
+    n = 0
+    a = d.base
+    while a < d.limit:
+        if d.m(a) != CODE or a in d.insns:
+            a += 1
+            continue
+        end = a
+        while end < d.limit and d.m(end) == CODE and end not in d.insns:
+            end += 1
+        p = a
+        while p < end:
+            i = d.decode(p)
+            if i is None or i.end > end:
+                break
+            d.insns[p] = i
+            d.setm(p, CODE)
+            for x in range(p + 1, i.end):
+                d.setm(x, CONT)
+            n += 1
+            p = i.end
+        a = max(end, a + 1)
+    return n
 
 
 def split_skips(d, start, end):
@@ -1873,6 +1919,9 @@ def main():
               % (nn, nc, nm))
     for p in problems:
         print('notes/: ' + p)
+    nd = sum(decode_marked_code(d) for d in (dos, mb))
+    if nd:
+        print('notes/: %d instructions decoded in ranges marked code' % nd)
     # CTAB's text names the routines it points at, and some of those names
     # arrive from notes/, so it has to be composed again now they exist.
     render_tables(dos, args.work)

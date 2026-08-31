@@ -41,6 +41,14 @@ COPIES = (
      'the ROM leaves between the DEF KEY buffer and the keyboard table'),
     ('MB', 0x7AF2, 0x7B00, 0x5BE0, "MasterBASIC's own paging routine, in "
      'the fourteen bytes the ROM reserves at PAGER'),
+    # INSTALL_TAIL_INTO_SYSPAGE at the DOS's &7D60, called once from the
+    # boot sector at &40CD.  It runs from section C so that section B can
+    # hold the system page, and copies the DOS page's tail there in two
+    # runs.  The first carries the alternate character set, 116 bytes in.
+    ('DOS', 0x7D60, 0x7F1E, 0x4F00, "the DOS page's tail, 446 bytes, which "
+     'carries the alternate character set at &4F74'),
+    ('DOS', 0x7F1E, 0x7FBF, 0x4C14, 'and 161 bytes more, the rest of the '
+     'DOS half, following straight on'),
 )
 
 # INSTALL_EXTENDED_PUT at &7829 fills &45A2-&46CB and is deliberately not
@@ -102,15 +110,16 @@ def build(image, dump=None):
     real = None
     if dump and os.path.exists(dump):
         real = bytearray(open(dump, 'rb').read())
-        # A second dump, &4C00 upward, extends the page far enough to
-        # reach CDBUFF and the ROM's own variables.
-        more = os.path.join(os.path.dirname(dump), 'SYS2.bin')
-        if os.path.exists(more):
-            blob = open(more, 'rb').read()
-            need = 0x4C00 - BASE + len(blob)
-            if len(real) < need:
-                real.extend(bytes(BLANK for _ in range(need - len(real))))
-            real[0x4C00 - BASE:0x4C00 - BASE + len(blob)] = blob
+        if len(real) < TOP - BASE:
+            # The older pair of dumps: &4000 upward, and a second from
+            # &4C00 that reaches CDBUFF and the ROM's own variables.
+            more = os.path.join(os.path.dirname(dump), 'SYS2.bin')
+            if os.path.exists(more):
+                blob = open(more, 'rb').read()
+                need = 0x4C00 - BASE + len(blob)
+                if len(real) < need:
+                    real.extend(bytes(BLANK for _ in range(need - len(real))))
+                real[0x4C00 - BASE:0x4C00 - BASE + len(blob)] = blob
         real = bytes(real)
         diffs = []
         checked = 0
@@ -133,13 +142,48 @@ def build(image, dump=None):
         placed.append((BASE, BASE + len(real), 'from the dump'))
         print('dump covers &%04X-&%04X; the copy rules predicted it to '
               'within %d bytes' % (BASE, BASE + len(real) - 1, len(diffs)))
+        # With a dump of the page before the boot as well, every byte the
+        # rules claim can be asked a harder question than "is it right":
+        # did the boot actually write it, or was it already that value?
+        here = os.path.dirname(dump)
+        pre = os.path.join(here, 'SYSPAGE_before_boot.bin')
+        only = os.path.join(here, 'SYSPAGE_after_MasterDOS_loaded.bin')
+        if os.path.exists(pre):
+            was = open(pre, 'rb').read()
+            claimed = [a for at, end, why in placed if why != 'from the dump'
+                       for a in range(at, min(end, BASE + len(real)))]
+            moved = sum(1 for a in claimed
+                        if a - BASE < len(was) and was[a - BASE] != real[a - BASE])
+            changed = sum(1 for i in range(min(len(was), len(real)))
+                          if was[i] != real[i])
+            print('the boot changed %d bytes of the page; the rules claim %d '
+                  'of them, and %d bytes they claim were already right'
+                  % (changed, moved, len(claimed) - moved))
+            # A third dump, of MasterDOS booted on its own, separates what
+            # the DOS does from what MasterBASIC adds.  A byte the rules
+            # claim which is already right with the DOS alone is one the
+            # dumps cannot attribute either way.
+            if os.path.exists(only):
+                dosonly = open(only, 'rb').read()
+                bydos = sum(1 for i in range(min(len(was), len(dosonly)))
+                            if was[i] != dosonly[i])
+                inert = sum(1 for a in claimed
+                            if a - BASE < len(dosonly)
+                            and dosonly[a - BASE] == real[a - BASE])
+                print('  of which MasterDOS alone accounts for %d; %d of the '
+                      'claimed bytes the DOS already leaves as they are'
+                      % (bydos, inert))
     return mem, placed, real, agree
 
 
 def main():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     image = os.path.join(root, 'file', 'MasterBasicMasterDos.bin')
-    dump = os.path.join(root, 'file', 'SYSPAGE.bin')
+    # A full 16K dump of the page after a boot is preferred; the older
+    # SYSPAGE.bin plus SYS2.bin pair reaches only &5BFF.
+    dump = os.path.join(root, 'file', 'SYSPAGE_after_MBMD_boot.bin')
+    if not os.path.exists(dump):
+        dump = os.path.join(root, 'file', 'SYSPAGE.bin')
     mem, placed, real, agree = build(image, dump)
     d = SysPage(mem)
     # Everything the installer does not write is not code, and the trace

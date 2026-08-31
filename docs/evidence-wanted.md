@@ -1,9 +1,10 @@
 # Evidence wanted
 
-Four things this project cannot settle by reading, in the order they would
-help. Each says what to capture, why, and what it would decide — so that
-whoever has the hardware or the emulator can do it without reading the rest
-of the repository first.
+What this project cannot settle by reading. Each entry says what to capture,
+why, and what it would decide — so that whoever has the hardware or the
+emulator can do it without reading the rest of the repository first. Two of
+the four are now answered, and are kept because the answers are worth more
+than the questions were.
 
 ---
 
@@ -28,21 +29,27 @@ something a user would change — a `KEY` assignment, or a `DUMP` setting. Block
 
 ---
 
-## 2. The system page above `&5BFF`
+## 2. Answered — the system page, all 16K of it
 
-**Why.** `postinstall/syspage.asm` reconstructs the ROM's system page as
-MasterBASIC leaves it. Below `&5C00` that reconstruction is *checked*: the
-copy rules predict `file/SYSPAGE.bin` and `file/SYS2.bin` to within 28 bytes,
-and every one of those is a hole the file carries as zero and the machine
-carries filled in. Above `&5BFF` nothing has checked it, and the file says so.
+Three dumps arrived: `file/SYSPAGE_before_boot.bin`, taken from a reset
+machine with no DOS in memory; `file/SYSPAGE_after_MasterDOS_loaded.bin`,
+with MasterDOS 2.3 booted alone; and `file/SYSPAGE_after_MBMD_boot.bin`,
+after the combined DOS/MasterBASIC file. Each is the whole of page 0,
+`&4000`–`&7FFF`.
 
-**What to capture.** A dump of the ROM's system page from `&5C00` to `&7FFF`
-— 8192 bytes — from a booted machine, the same way `SYS2.bin` was made.
-Saving it as a CODE file on a disk image is ideal; I can extract it.
+The copy rules now predict the entire page to within 33 bytes, every one of
+them a two-byte pair at an address the machine resolves for itself. The
+before-dump made the check a much stronger one — a byte the model gets right
+because the ROM already had that value no longer counts as a success — and
+the MasterDOS-only dump separated the DOS's 319 bytes from MasterBASIC's.
 
-**What it decides.** Whether the four ROM vectors and the stubs behave as
-modelled where the model is currently unverified, and it would let the build
-report agreement across the whole page instead of half of it.
+Two things came out of it that reading alone had not. The boot's last act is
+`INSTALL_TAIL_INTO_SYSPAGE`, twenty-five bytes at the DOS's `&7D60` that the
+listings had as data; it copies the DOS page's tail into the system page and
+closes the round trip that `notes/mb-install.txt` had had to leave as "the
+likeliest reading of two copies that go the wrong way". And the 36 bytes at
+`&4BA0` turn out to be MasterDOS's, not MasterBASIC's — they are already
+there with the DOS booted alone.
 
 ---
 

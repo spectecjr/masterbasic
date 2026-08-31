@@ -27,11 +27,35 @@ MB &7B00 INSTALL_ROM_PATCHES
                          code, saved into this page
 
     The last LDIR, after the paging has been restored, takes 240 bytes
-    of the DOS's boot sector to &7D00.  Both of the copies that run the
-    other way look like the originals being kept so they can be put
-    back, but nothing here proves that -- no restoring code has been
-    read yet, and until it has, treat it as the likeliest reading of two
-    copies that go the wrong way rather than as a fact.
+    of the DOS's boot sector to &7D00.
+
+    THE TWO COPIES THAT RUN THE OTHER WAY ARE THE ORIGINALS BEING KEPT,
+    and this is now read at both ends rather than guessed.  &4F00 got
+    its 446 bytes from INSTALL_TAIL_INTO_SYSPAGE, twenty-five bytes at
+    the DOS's own &7D60 that the boot sector calls once; SAVE BOOT's
+    third block reads the same 446 bytes back out of &7DF0 and writes
+    them into the file at DOS &7D60, where they started.  So the round
+    trip closes:
+
+        file DOS &7D60  --(the boot loads the DOS half)-->  DOS &7D60
+        DOS &7D60       --INSTALL_TAIL_INTO_SYSPAGE-->      syspage &4F00
+        syspage &4F00   --INSTALL_ROM_PATCHES-->            MB &7DF0
+        MB &7DF0        --SAVE BOOT, third block-->         file DOS &7D60
+
+    which is why the shipped image and MBPOST agree on all 446 bytes of
+    that block, and why the alternate character set survives a SAVE
+    BOOT: it lives 116 bytes into the block, so it is at syspage &4F74
+    and at MB &7E64, the address XVAR 87 ALTUDG gives.
+
+    A DUMP OF MASTERDOS BOOTED ALONE SAYS THE &4BA0 BLOCK IS NOT OURS.
+    Those 36 bytes are already at syspage &4BA0, byte for byte, with
+    only MasterDOS 2.3 in memory and no MasterBASIC at all -- and they
+    read as DOS hook stubs, CF/C9 pairs around RST 8.  MasterBASIC's
+    half carries an identical copy and its installer writes it again,
+    which is harmless and is what lets SAVE BOOT reproduce it, but the
+    block is the DOS's work and not MasterBASIC's.  The dumps cannot
+    tell whether our copy fires at all, because it writes what is
+    already there.
 
     Between the copies it reaches the ROM's channel table through CHANS
     and writes MasterBASIC's own routines into three of its vectors, and
@@ -73,3 +97,40 @@ MB &5674 : reads the first two bytes of the buffer at &7B00
 MB &67B7 : the buffer again, not a call into the installer
 
 MB &7B03 : from here to &7B73 the ROM's system page is at &8000
+
+# The boot sector's last act, in the DOS page's tail.
+
+DOS &7D60-&7D72 code
+
+DOS &7D60 INSTALL_TAIL_INTO_SYSPAGE
+    Twenty-five bytes at the end of the DOS page, called once from the
+    boot sector at &40CD and never again.  It copies the tail of the DOS
+    page into the ROM's system page, in two runs that follow on from
+    each other:
+
+        LD HL,&BD60     the DOS page's own &7D60, in section C
+        LD DE,&4F00     the system page, in section B
+        LD BC,&01BE     446 bytes, to &4F00-&50BD
+        LDIR
+        LD DE,&4C14     and 161 more, from &7F1E to the end of the half
+        LD C,&A1        B is zero after an LDIR
+        LDIR
+        RET
+
+    The caller reaches it with CALL &BD60 rather than CALL &7D60, and
+    that is the point: running from section C leaves section B free for
+    the system page, which is the SYSPAGE_IN_B arrangement docs/idioms.md
+    describes.  So &4F00 and &4C14 are addresses in the system page, not
+    in the DOS.
+
+    Both destinations are confirmed from outside.  Comparing dumps of
+    the system page taken before and after a boot, &4F00-&50BD and
+    &4C14-&4CB4 are both written, the second ending exactly where 161
+    bytes reach and not where 162 would; and after the boot the 328
+    bytes at &4F74 are byte for byte the image's DOS &7DD4, which is 116
+    bytes into the source run.
+
+    Those 328 bytes are the alternate character set.  MasterBASIC keeps
+    this whole 446-byte tail at its own &7DF0, which is why SAVE BOOT's
+    third block restores it and why the set sits at MB &7E64, where
+    XVAR 87 ALTUDG says it does.  See notes/mb-saveboot.txt.

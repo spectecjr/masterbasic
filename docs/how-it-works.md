@@ -364,10 +364,19 @@ identified, so `LD (&45AF),A` reads as `LD (CHECK_WRITE_STATUS+1),A`.
 Every call target in both halves is named — 587 of them — and every byte
 is classified. What follows is what naming did not answer.
 
-- **The system page above `&5BFF`** is still an unchecked model; only a dump
-  would settle it. Below that the copy rules predict the two dumps to within
-  28 bytes, all of them holes the file carries as zero and the machine fills
-  in.
+- **The system page is now checked across all 16K**, so this is no longer
+  open. Three dumps settle it — the page before any boot, after MasterDOS 2.3
+  alone, and after the combined file — and the copy rules predict the whole
+  of `&4000`–`&7FFF` to within 33 bytes. Every one of the 33 is a two-byte
+  pair at an address the machine resolves for itself, which is the pattern
+  `RESOLVE_ROM_ENTRIES` leaves everywhere else.
+
+  The before-dump turns "is the model right" into the harder "did the boot
+  actually write this": of the 2207 bytes the boot changes, the rules claim
+  1639, and only 114 of the bytes they claim were already right. The
+  MasterDOS-only dump then splits the rest — the DOS alone accounts for 319
+  of those 2207, and it is what puts the 36 bytes at `&4BA0` there, so that
+  block is the DOS's work rather than MasterBASIC's.
 
 - **`SIZE_EXTERNAL_MEMORY` at `&77DB` looks like dead code.** Nothing
   references it in either half, in either of the two other DOS binaries on

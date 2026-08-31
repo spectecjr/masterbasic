@@ -92,6 +92,7 @@ INCURPAGE:     EQU  &3FF2  ; ! ;2* page on and wind HL back unconditionally
 INDOPFG:       EQU  &5ABD  ; INDENTED O/P FLAG
 INP2:          EQU  &4F49
 INSLV:         EQU  &5BBA  ; The BASIC ROM's Block-Move Vector, which can be patched to implement faster block-moves.
+INSTBUF:       EQU  &4F00  ; BUFFER FOR ROM1 XFER CODE, ETC. 0200H
 INSTHASH:      EQU  &5A05  ; NORMALLY '#'
 INVERT:        EQU  &5A54  ; 00/FF FOR NORMAL/INVERSE ;
 IXJUMP:        EQU  &002D  ; ROM entry: jump to the address in IX
@@ -8238,7 +8239,7 @@ L5DD8:
 L5DDE:
                POP HL                          ; 5DDE E1
                LD L,&20                        ; 5DDF 2E 20
-               LD (DKP2),HL                    ; 5DE1 22 00 4F
+               LD (INSTBUF),HL                 ; 5DE1 22 00 4F
                LD HL,&4F04                     ; 5DE4 21 04 4F
 
 ; ---- L5DE7 ---- from &5CD8
@@ -8258,7 +8259,7 @@ L5DEE:
                ADD HL,BC                       ; 5DF5 09
                CALL HLJUMP                     ; 5DF6 CD 05 00
                POP HL                          ; 5DF9 E1
-               LD DE,DKP2                      ; 5DFA 11 00 4F
+               LD DE,INSTBUF                   ; 5DFA 11 00 4F
                AND A                           ; 5DFD A7
                SBC HL,DE                       ; 5DFE ED 52
                DEC HL                          ; 5E00 2B
@@ -15399,11 +15400,35 @@ MB_PAGER:
 ;; code, saved into this page
 ;;
 ;; The last LDIR, after the paging has been restored, takes 240 bytes
-;; of the DOS's boot sector to &7D00.  Both of the copies that run the
-;; other way look like the originals being kept so they can be put
-;; back, but nothing here proves that -- no restoring code has been
-;; read yet, and until it has, treat it as the likeliest reading of two
-;; copies that go the wrong way rather than as a fact.
+;; of the DOS's boot sector to &7D00.
+;;
+;; THE TWO COPIES THAT RUN THE OTHER WAY ARE THE ORIGINALS BEING KEPT,
+;; and this is now read at both ends rather than guessed.  &4F00 got
+;; its 446 bytes from INSTALL_TAIL_INTO_SYSPAGE, twenty-five bytes at
+;; the DOS's own &7D60 that the boot sector calls once; SAVE BOOT's
+;; third block reads the same 446 bytes back out of &7DF0 and writes
+;; them into the file at DOS &7D60, where they started.  So the round
+;; trip closes:
+;;
+;; file DOS &7D60  --(the boot loads the DOS half)-->  DOS &7D60
+;; DOS &7D60       --INSTALL_TAIL_INTO_SYSPAGE-->      syspage &4F00
+;; syspage &4F00   --INSTALL_ROM_PATCHES-->            MB &7DF0
+;; MB &7DF0        --SAVE BOOT, third block-->         file DOS &7D60
+;;
+;; which is why the shipped image and MBPOST agree on all 446 bytes of
+;; that block, and why the alternate character set survives a SAVE
+;; BOOT: it lives 116 bytes into the block, so it is at syspage &4F74
+;; and at MB &7E64, the address XVAR 87 ALTUDG gives.
+;;
+;; A DUMP OF MASTERDOS BOOTED ALONE SAYS THE &4BA0 BLOCK IS NOT OURS.
+;; Those 36 bytes are already at syspage &4BA0, byte for byte, with
+;; only MasterDOS 2.3 in memory and no MasterBASIC at all -- and they
+;; read as DOS hook stubs, CF/C9 pairs around RST 8.  MasterBASIC's
+;; half carries an identical copy and its installer writes it again,
+;; which is harmless and is what lets SAVE BOOT reproduce it, but the
+;; block is the DOS's work and not MasterBASIC's.  The dumps cannot
+;; tell whether our copy fires at all, because it writes what is
+;; already there.
 ;;
 ;; Between the copies it reaches the ROM's channel table through CHANS
 ;; and writes MasterBASIC's own routines into three of its vectors, and
@@ -16036,7 +16061,10 @@ V7D57:
 TBL_7D58:
                CP (HL)                         ; 7D58 BE
                LD E,E                          ; 7D59 5B
-               DEFW &512A,&5E5C,&5623,&53ED,OPSTORE ; 7D5A 2A 51 5C 5E 23 56 ED 53 B5 5A
+               DEFW &512A,&5E5C,&5623         ; 7D5A 2A 51 5C 5E 23 56
+
+V7D60:
+               DEFW &53ED,OPSTORE             ; 7D60 ED 53 B5 5A
                LD DE,&4A12                     ; 7D64 11 12 4A
                JR L7D6F                        ; 7D67 18 06
                DEFB &32,&BF,&5B,&11,&1F,&4A                                     ; 7D69 2?[..J  skipped: reads as LD (&5BBF),A from here, and as part of the instruction above it
@@ -16254,7 +16282,7 @@ L7E64:
                POP AF                          ; 7E65 F1
                RET Z                           ; 7E66 C8
                RET NC                          ; 7E67 D0
-               JP DKP2                         ; 7E68 C3 00 4F
+               JP INSTBUF                      ; 7E68 C3 00 4F
 
 ;; ------------------------------------------------------------------
 ;; Tokenised SAM BASIC.  The end of the page holds fragments of BASIC

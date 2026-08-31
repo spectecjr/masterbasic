@@ -64,7 +64,8 @@ class Symbols:
     def __init__(self):
         self.code = {}          # for jump and call targets outside the image
         self.data = {}          # for inline parameters: also the variable area
-        self.vars = {}          # ROM system variables, for memory operands
+        self.vars = {}
+        self.lowvars = {}          # ROM system variables, for memory operands
 
     def _add(self, table, value, expr, name=None, base=None):
         if value in table:
@@ -109,6 +110,34 @@ class Symbols:
         """
         self._add(self.code, value, name)
         self._add(self.data, value, name)
+
+    def from_vars_file(self, path):
+        """The ROM's own variable list, for page-0 addresses below &5000.
+
+        `vars.asm` is where the ROM names the system page, and below
+        &5000 those names have to be kept apart from ordinary code
+        labels: DKP2 and INSTBUF are both &4F00, and picking the shorter
+        of the two gives the DEF KEY routine where the buffer is meant.
+        Code that runs with the system page at &4000 wants the variable,
+        so keep them in a table of their own and let that branch ask for
+        it first.
+        """
+        pat = re.compile(r'^(\w+):\s*EQU\s+&?([0-9A-Fa-f]{1,4})H?')
+        for line in open(path, encoding='latin-1'):
+            m = pat.match(line)
+            if not m:
+                continue
+            addr = int(m.group(2), 16)
+            if SYSVARS[0] <= addr < 0x5000:
+                # Three addresses carry two names: INTSTK/BUFF256,
+                # FPSB/CDBUFF and ISPVAL/INSTBUF.  In each the list
+                # gives the stack or pointer meaning first and the
+                # buffer second, and an operand pointing at one of
+                # them means the buffer, so the later name wins.
+                self.lowvars[addr] = m.group(1)
+
+    def lowvar(self, value):
+        return self.lowvars.get(value)
 
     def from_mdos_comments(self):
         """Names MasterDOS's source gives ROM addresses in comments."""
@@ -217,9 +246,10 @@ class Symbols:
             for expr, name, base in table.values():
                 if expr in used:
                     out[name] = base
-        for addr, name in self.vars.items():
-            if name in used:
-                out[name] = addr
+        for table in (self.vars, self.lowvars):
+            for addr, name in table.items():
+                if name in used:
+                    out[name] = addr
         return out
 
 

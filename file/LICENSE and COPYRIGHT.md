@@ -34,3 +34,9 @@ https://www.worldofsam.org/copyrights/andy-wright
 > site carrying such material.
 >
 > Andrew J. A. Wright,  1st. October 2006
+
+`SYSPAGE_before_boot.bin`, `SYSPAGE_after_MasterDOS_loaded.bin` and
+`SYSPAGE_after_MBMD_boot.bin` are dumps of the SAM's page 0 — 16384 bytes
+each, addressed &4000-&7FFF as the listings write it — taken under SimCoupe
+from a reset machine, from MasterDOS 2.3 booted alone, and from the combined
+DOS/MasterBASIC file booted from `dsks/MasterDOS2_3_MasterBasic1_7.mgt`.
