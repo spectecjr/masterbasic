@@ -4599,7 +4599,7 @@ L484F:
 ;; Takes:     A, BC, DE
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls CALL_NEXTCHAR; falls into whatever follows rather than returning.
+;; ? calls CALL_NEXTCHAR, WAIT_FOR_CLOCK; falls into whatever follows rather than returning.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -4613,7 +4613,7 @@ L484F:
 CMD_DATE:
                LD HL,&4271                     ; 485B 21 71 42
                LD (V4096),HL                   ; 485E 22 96 40
-               CALL L4978                      ; 4861 CD 78 49
+               CALL WAIT_FOR_CLOCK             ; 4861 CD 78 49
                CALL CALL_NEXTCHAR              ; 4864 CD 61 44
 
 ;; --------------------------------------------------------------------
@@ -4636,7 +4636,7 @@ L4867:
 ;; Takes:     A, BC, DE
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls CALL_NEXTCHAR; falls into whatever follows rather than returning.
+;; ? calls CALL_NEXTCHAR, WAIT_FOR_CLOCK; falls into whatever follows rather than returning.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -4660,7 +4660,7 @@ L4867:
 CMD_TIME:
                LD HL,L4280                     ; 486A 21 80 42
                LD (V4096),HL                   ; 486D 22 96 40
-               CALL L4978                      ; 4870 CD 78 49
+               CALL WAIT_FOR_CLOCK             ; 4870 CD 78 49
                CALL CALL_NEXTCHAR              ; 4873 CD 61 44
                LD E,&08                        ; 4876 1E 08
                CP &2B                          ; 4878 FE 2B
@@ -4983,14 +4983,23 @@ L496A:
                RET                             ; 4977 C9
 
 ;; --------------------------------------------------------------------
-;; L4978 -- &4978 to &497B
+;; WAIT_FOR_CLOCK -- &4978 to &497B
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    IY
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Wait for the SAMBus clock to be ready, and give up rather than hang.
+;;     A byte read from the DOS says whether a clock is fitted at all, and
+;;     zero returns at once.  Otherwise C takes that byte as the port's low
+;;     half, B is &D0, and the loop writes 1, reads back, and tests bit 1;
+;;     while it is set the port is cleared and tried again, up to the 2000
+;;     in HL.  Interrupts are off for the whole of it.
 ;; --------------------------------------------------------------------
 
-; ---- L4978 ---- from &4861, &4870, &4A3E
-L4978:
+; ---- WAIT_FOR_CLOCK ---- from &4861, &4870, &4A3E
+WAIT_FOR_CLOCK:
                LD IY,L49DC                     ; 4978 FD 21 DC 49
 
 ;; --------------------------------------------------------------------
@@ -5324,12 +5333,12 @@ L4A34:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    F, BC, DE, HL, IY
 ;;
-;; ? reaches the ROM through DOS_POINT-&4000; calls CALLDOS, PAGE_IN_OTHER_HALF; falls into whatever follows rather than returning.
+;; ? reaches the ROM through DOS_POINT-&4000; calls CALLDOS, WAIT_FOR_CLOCK, PAGE_IN_OTHER_HALF; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
                PUSH DE                         ; 4A39 D5
                CALL PAGE_IN_OTHER_HALF         ; 4A3A CD D1 49
                PUSH AF                         ; 4A3D F5
-               CALL L4978                      ; 4A3E CD 78 49
+               CALL WAIT_FOR_CLOCK             ; 4A3E CD 78 49
                ; call DOS_POINT-&4000 in the other page: LMPR is switched first, so that address is how the other listing numbers it
                CALL CALLDOS                    ; 4A41 CD C1 42
                DEFW DOS_POINT-&4000           ; 4A44 AC 4F
@@ -5742,14 +5751,21 @@ FN_INARRAY:
                DEFB &01,&01                                                     ; 4B59 ..  skipped: reads as LD BC,&0001 from here, and as part of the instruction above it
 
 ;; --------------------------------------------------------------------
-;; L4B5B -- &4B5B to &4B5B
+;; PARSE_OPTIONAL_RANGE -- &4B5B to &4B5B
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    registers unchanged
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Take an optional second value after the first: the character is
+;;     fetched and compared with a comma and with TO, and either of them
+;;     means a range follows.  Anything else leaves the count at one and
+;;     falls back on V40AD.
 ;; --------------------------------------------------------------------
 
-; ---- L4B5B ---- from &5DAB
-L4B5B:
+; ---- PARSE_OPTIONAL_RANGE ---- from &5DAB
+PARSE_OPTIONAL_RANGE:
                NOP                             ; 4B5B 00
 
 ;; --------------------------------------------------------------------
@@ -6559,7 +6575,7 @@ FN_EQU:
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls EXPECT_COMMA, EXPECT_RPAREN, CALL_EXPSTR; falls into whatever follows rather than returning.
+;; ? calls EXPECT_COMMA, EXPECT_RPAREN, CALL_EXPSTR, TWO_PAGED_STRINGS; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
                LD A,H                          ; 4D53 7C
                LD B,H                          ; 4D54 44
@@ -6569,7 +6585,7 @@ FN_EQU:
                CALL EXPECT_RPAREN              ; 4D5C CD 54 44
                POP AF                          ; 4D5F F1
                RET NC                          ; 4D60 D0
-               CALL L4D6D                      ; 4D61 CD 6D 4D
+               CALL TWO_PAGED_STRINGS          ; 4D61 CD 6D 4D
                LD BC,&0001                     ; 4D64 01 01 00
                JR Z,L4D6A                      ; 4D67 28 01
                DEC BC                          ; 4D69 0B
@@ -6587,16 +6603,22 @@ L4D6A:
                JP STACK_PAGE0_STRING           ; 4D6A C3 6B 4C
 
 ;; --------------------------------------------------------------------
-;; L4D6D -- &4D6D to &4D80
+;; TWO_PAGED_STRINGS -- &4D6D to &4D80
 ;;
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? drives IN A,(HMPR); calls CALL_GETSTR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Evaluate two strings, keep each one's page masked to five bits, and
+;;     take one length from the other.  The pages are pushed and popped
+;;     around the second evaluation so that the first survives it.
 ;; --------------------------------------------------------------------
 
-; ---- L4D6D ---- from &4D61
-L4D6D:
+; ---- TWO_PAGED_STRINGS ---- from &4D61
+TWO_PAGED_STRINGS:
                IN A,(HMPR)                     ; 4D6D DB FB
                PUSH AF                         ; 4D6F F5
                PUSH HL                         ; 4D70 E5
@@ -6641,17 +6663,25 @@ L4D86:
                PUSH BC                         ; 4D90 C5
 
 ;; --------------------------------------------------------------------
-;; L4D91 -- &4D91 to &4D97
+;; COPY_BETWEEN_PAGES -- &4D91 to &4D97
 ;;
 ;; Takes:     B, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JR, RET
 ;;
 ;; ? drives OUT (HMPR),A.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Copy with a different page at each end.  C holds HMPR in the
+;;     alternate set and L and H the two page numbers, so each byte costs
+;;     OUT (C),L to page the source in, a read, OUT (C),H to page the
+;;     destination in, and a write -- the same two-OUTs-per-byte shape as
+;;     COMPARE_FAR_STRINGS, for moving instead of matching.
 ;; --------------------------------------------------------------------
 
-; ---- L4D91 ---- from &5E30, &5E41
-L4D91:
+; ---- COPY_BETWEEN_PAGES ---- from &5E30, &5E41
+COPY_BETWEEN_PAGES:
                LD C,&FB                        ; 4D91 0E FB
                ; to the alternate register set and back again
                EXX                             ; 4D93 D9
@@ -8618,13 +8648,15 @@ L534D:
 ;;
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, E, HL
+;;
+;; ? calls WRITE_ENTRY_HEADER; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L535D ---- from &539A
 L535D:
                PUSH BC                         ; 535D C5
                LD A,&FE                        ; 535E 3E FE
-               CALL L53A6                      ; 5360 CD A6 53
+               CALL WRITE_ENTRY_HEADER         ; 5360 CD A6 53
                LD (HL),D                       ; 5363 72
                RES 7,(HL)                      ; 5364 CB BE
                INC HL                          ; 5366 23
@@ -8647,7 +8679,7 @@ L535D:
 ;; Takes:     HL
 ;; Leaves:    A, BC, HL
 ;;
-;; ? calls FILL_WITH_C; falls into whatever follows rather than returning.
+;; ? calls FILL_WITH_C, WRITE_ENTRY_HEADER; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L5377 ---- from &5373
@@ -8659,7 +8691,7 @@ L5377:
                LD BC,&164E                     ; 537D 01 4E 16
                CALL FILL_WITH_C                ; 5380 CD A1 53
                LD A,&FB                        ; 5383 3E FB
-               CALL L53A6                      ; 5385 CD A6 53
+               CALL WRITE_ENTRY_HEADER         ; 5385 CD A6 53
                LD C,&00                        ; 5388 0E 00
                CALL FILL_WITH_C                ; 538A CD A1 53
                CALL FILL_WITH_C                ; 538D CD A1 53
@@ -8692,17 +8724,25 @@ FILL_WITH_C:
                RET                             ; 53A5 C9
 
 ;; --------------------------------------------------------------------
-;; L53A6 -- &53A6 to &53B4
+;; WRITE_ENTRY_HEADER -- &53A6 to &53B4
 ;;
 ;; Takes:     A, HL
 ;; Leaves:    BC, HL
 ;; Ends:      RET
 ;;
 ;; ? calls FILL_WITH_C.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Write the fixed head of an entry at HL: twelve zero bytes, three &F5,
+;;     then A, leaving HL past them.  Both callers pass a different byte in
+;;     A -- &FE from &5360 and &FB from &5385 -- and go on to fill in the
+;;     rest by hand.  Named for what it lays down; what the entry is for is
+;;     not established here.
 ;; --------------------------------------------------------------------
 
-; ---- L53A6 ---- from &5360, &5385
-L53A6:
+; ---- WRITE_ENTRY_HEADER ---- from &5360, &5385
+WRITE_ENTRY_HEADER:
                LD BC,&0C00                     ; 53A6 01 00 0C
                CALL FILL_WITH_C                ; 53A9 CD A1 53
                LD BC,&03F5                     ; 53AC 01 F5 03
@@ -8712,14 +8752,25 @@ L53A6:
                RET                             ; 53B4 C9
 
 ;; --------------------------------------------------------------------
-;; L53B5 -- &53B5 to &53BA
+;; READ_KEY_LINE -- &53B5 to &53BA
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F, BC, E
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Read port &FE seven times over with B held at &FF, OR the results
+;;     together, and return bit 0 of that in carry.  Seven reads of an
+;;     unchanging port is a settling loop rather than a scan.
+;;     
+;;     Its caller branches on the carry and then reads a key through the
+;;     ROM's RDKEY, so the answer gates a key read -- but what bit 0 of &FE
+;;     means with no row selected is not established here, and the name says
+;;     only what the routine does.
 ;; --------------------------------------------------------------------
 
-; ---- L53B5 ---- from &53DE
-L53B5:
+; ---- READ_KEY_LINE ---- from &53DE
+READ_KEY_LINE:
                LD E,&07                        ; 53B5 1E 07
                XOR A                           ; 53B7 AF
                LD BC,&FFFE                     ; 53B8 01 FE FF
@@ -8782,7 +8833,7 @@ HK_MERGECOMPFLG:
                ; write the ROM variable COMPFLG
                CALL NRWR                       ; 53D9 CD 82 45
                DEFW COMPFLG                   ; 53DC 40 5B
-               CALL L53B5                      ; 53DE CD B5 53
+               CALL READ_KEY_LINE              ; 53DE CD B5 53
                JP C,L547B                      ; 53E1 DA 7B 54
                PUSH AF                         ; 53E4 F5
                ; call the ROM at RDKEY with ROM1 paged in, and page back on the way out
@@ -9251,7 +9302,7 @@ L5546:
 ; ---- L5551 ---- from &54D3
 L5551:
                LD D,&80                        ; 5551 16 80
-               CALL L5778                      ; 5553 CD 78 57
+               CALL PARSE_REFERENCE_INTO_BUFFER ; 5553 CD 78 57
                CALL CALL_GETCHAR               ; 5556 CD 67 44
                CP T_TO                         ; 5559 FE 8E
                JP NZ,REP_NOT_UNDERSTOOD        ; 555B C2 B0 43
@@ -9259,7 +9310,7 @@ L5551:
                LD HL,L7B80                     ; 5561 21 80 7B
                LD A,(REFERENCE_KIND)           ; 5564 3A 93 40
                PUSH AF                         ; 5567 F5
-               CALL L577F                      ; 5568 CD 7F 57
+               CALL PARSE_REFERENCE_SAVING_PAGE ; 5568 CD 7F 57
                POP AF                          ; 556B F1
                LD (REFERENCE_KIND),A           ; 556C 32 93 40
                CALL PARSE_LINE_RANGE           ; 556F CD 52 57
@@ -9647,12 +9698,12 @@ CMD_REF:
 ;; Takes:     BC, DE
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls EXPECT_END_OF_STATEMENT, PARSE_LINE_RANGE; falls into whatever follows rather than returning.
+;; ? calls EXPECT_END_OF_STATEMENT, PARSE_LINE_RANGE, PARSE_REFERENCE_INTO_BUFFER; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L5667 ---- from &5660
 L5667:
-               CALL L5778                      ; 5667 CD 78 57
+               CALL PARSE_REFERENCE_INTO_BUFFER ; 5667 CD 78 57
                CALL PARSE_LINE_RANGE           ; 566A CD 52 57
                CALL EXPECT_END_OF_STATEMENT    ; 566D CD D0 44
 
@@ -10009,20 +10060,25 @@ PARSE_LINE_RANGE:
                RET                             ; 5777 C9
 
 ;; --------------------------------------------------------------------
-;; L5778 -- &5778 to &577E
+;; PARSE_REFERENCE_INTO_BUFFER -- &5778 to &577E
 ;;
 ;; Takes:     D
 ;; Leaves:    A, HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Keep D as the kind flag in V4094, point HL at the buffer at &7B00,
+;;     and fall into the entry below.
 ;; --------------------------------------------------------------------
 
-; ---- L5778 ---- from &5553, &5667
-L5778:
+; ---- PARSE_REFERENCE_INTO_BUFFER ---- from &5553, &5667
+PARSE_REFERENCE_INTO_BUFFER:
                LD A,D                          ; 5778 7A
                LD (V4094),A                    ; 5779 32 94 40
                LD HL,INSTALL_ROM_PATCHES       ; 577C 21 00 7B
 
 ;; --------------------------------------------------------------------
-;; L577F -- &577F to &5788
+;; PARSE_REFERENCE_SAVING_PAGE -- &577F to &5788
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    BC, DE, HL, IY
@@ -10030,10 +10086,15 @@ L5778:
 ;; Ends:      RET
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A; calls PARSE_REFERENCE.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     PARSE_REFERENCE with HMPR saved and put back around it, which is what
+;;     lets the parser page a string in without the caller caring.
 ;; --------------------------------------------------------------------
 
-; ---- L577F ---- from &5568
-L577F:
+; ---- PARSE_REFERENCE_SAVING_PAGE ---- from &5568
+PARSE_REFERENCE_SAVING_PAGE:
                IN A,(HMPR)                     ; 577F DB FB
                PUSH AF                         ; 5781 F5
                CALL PARSE_REFERENCE            ; 5782 CD 89 57
@@ -10090,17 +10151,22 @@ L579A:
                LD (REFERENCE_KIND),A           ; 57A4 32 93 40
 
 ;; --------------------------------------------------------------------
-;; L57A7 -- &57A7 to &57AF
+;; GET_STRING_AND_PAGE_IT -- &57A7 to &57AF
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      JR, RET
 ;;
 ;; ? calls CALL_GETSTR.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Evaluate a string and page it in through the ROM's TSURPG, keeping
+;;     its address on the stack for the code that joins at &57DE.
 ;; --------------------------------------------------------------------
 
-; ---- L57A7 ---- from &580A
-L57A7:
+; ---- GET_STRING_AND_PAGE_IT ---- from &580A
+GET_STRING_AND_PAGE_IT:
                CALL CALL_GETSTR                ; 57A7 CD 6D 44
                CALL TSURPG                     ; 57AA CD DF 3F
                PUSH DE                         ; 57AD D5
@@ -10247,7 +10313,7 @@ L57F5:
                ; call the ROM at DKP2 with ROM1 paged in, and page back on the way out
                CALL CMR                        ; 5805 CD F0 44
                DEFW DKP2                      ; 5808 00 4F
-               CALL L57A7                      ; 580A CD A7 57
+               CALL GET_STRING_AND_PAGE_IT     ; 580A CD A7 57
                ; read the ROM variable STKEND -- the word below is its address, and the call returns past it
                CALL NRRDD                      ; 580D CD 5F 45
                DEFW STKEND                    ; 5810 65 5C
@@ -12318,7 +12384,7 @@ L5CF1:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      JP
 ;;
-;; ? calls EXPECT_COMMA, EXPECT_RPAREN, CALL_EXPSTR.
+;; ? calls EXPECT_COMMA, EXPECT_RPAREN, CALL_EXPSTR, TWO_PAGED_STRINGS.
 ;; --------------------------------------------------------------------
                LD DE,SYS_CDBUFF_50             ; 5D20 11 50 4D  where the trampoline lands, with this half paged in at &8000
                LD BC,&0015                     ; 5D23 01 15 00
@@ -12529,11 +12595,13 @@ COPY_THEN_APPEND_CALL:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    registers unchanged
+;;
+;; ? calls PARSE_OPTIONAL_RANGE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L5DAB ---- from &5DA2
 L5DAB:
-               CALL L4B5B                      ; 5DAB CD 5B 4B
+               CALL PARSE_OPTIONAL_RANGE       ; 5DAB CD 5B 4B
 
 ;; --------------------------------------------------------------------
 ;; L5DAE -- &5DAE to &5DC0
@@ -12730,6 +12798,8 @@ L5E1F:
 ;; Leaves:    A, F
 ;; Preserves: BC, DE, HL (saved and restored)
 ;; Ends:      JP
+;;
+;; ? calls COPY_BETWEEN_PAGES.
 ;; --------------------------------------------------------------------
 
 ; ---- L5E27 ---- from &5E22
@@ -12741,7 +12811,7 @@ L5E27:
                PUSH DE                         ; 5E2D D5
                EX DE,HL                        ; 5E2E EB
                LD C,A                          ; 5E2F 4F
-               CALL L4D91                      ; 5E30 CD 91 4D
+               CALL COPY_BETWEEN_PAGES         ; 5E30 CD 91 4D
                POP DE                          ; 5E33 D1
                POP BC                          ; 5E34 C1
                CP C                            ; 5E35 B9
@@ -12757,6 +12827,8 @@ L5E27:
 ;; Leaves:    BC, DE
 ;; Preserves: A, F, HL (saved and restored)
 ;; Ends:      JP
+;;
+;; ? calls COPY_BETWEEN_PAGES.
 ;; --------------------------------------------------------------------
 
 ; ---- L5E3D ---- from &5E36
@@ -12765,7 +12837,7 @@ L5E3D:
                INC SP                          ; 5E3E 33
                PUSH AF                         ; 5E3F F5
                PUSH HL                         ; 5E40 E5
-               CALL L4D91                      ; 5E41 CD 91 4D
+               CALL COPY_BETWEEN_PAGES         ; 5E41 CD 91 4D
                EX DE,HL                        ; 5E44 EB
                LD C,A                          ; 5E45 4F
                POP HL                          ; 5E46 E1
@@ -13457,7 +13529,7 @@ CHECK_BREAK:
 
 ; ---- L6008 ---- from &6004
 L6008:
-               CALL L53B5+&4000                ; 6008 CD B5 93
+               CALL READ_KEY_LINE+&4000        ; 6008 CD B5 93
                JR C,L5FFE                      ; 600B 38 F1
                LD H,&15                        ; 600D 26 15
 
@@ -13490,7 +13562,7 @@ L6016:
                LD A,H                          ; 6017 7C
                OR L                            ; 6018 B5
                RET Z                           ; 6019 C8
-               CALL L53B5+&4000                ; 601A CD B5 93
+               CALL READ_KEY_LINE+&4000        ; 601A CD B5 93
                JR NC,L6016                     ; 601D 30 F7
                RET                             ; 601F C9
 

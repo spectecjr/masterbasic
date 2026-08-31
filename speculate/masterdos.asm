@@ -167,7 +167,6 @@ MB_HPRTOK:     EQU  &900E
 MB_L4160:      EQU  &8160
 MB_L4200:      EQU  &8200
 MB_L42FF:      EQU  &82FF
-MB_L4978:      EQU  &8978
 MB_L7900:      EQU  &B900
 MB_L7914:      EQU  &B914
 MB_MULTIPLY_BY_24: EQU  &85F9
@@ -179,6 +178,7 @@ MB_SOFV:       EQU  &8002
 MB_SUBSTITUTE_PRINTER_CHAR: EQU  &9973
 MB_V40FF:      EQU  &80FF
 MB_V4125:      EQU  &8125
+MB_WAIT_FOR_CLOCK: EQU  &8978
 
 ; The ROM's restarts, under the names its own source gives
 ; them.  A restart is a one-byte call to a fixed address, so
@@ -23009,9 +23009,9 @@ FNDATE:
                CALL GTNC                       ; 7B87 CD 3C 50
                POP HL                          ; 7B8A E1  STR START
                CALL FABORT                     ; 7B8B CD AA 7A
-               ; call MB_L4978-&4000 in the other page: LMPR is switched first, so that address is how the other listing numbers it
+               ; call MB_WAIT_FOR_CLOCK-&4000 in the other page: LMPR is switched first, so that address is how the other listing numbers it
                CALL CALLMB                     ; 7B8E CD BD 42
-               DEFW MB_L4978-&4000            ; 7B91 78 49
+               DEFW MB_WAIT_FOR_CLOCK-&4000   ; 7B91 78 49
                LD BC,&0008                     ; 7B93 01 08 00  STR LEN
                JR HPTH2                        ; 7B96 18 06
 
