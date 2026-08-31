@@ -337,6 +337,14 @@ class Page(Disassembler):
             if name:
                 self.used_page_flag = True
                 return name + '+' + PAGE_FLAG
+        # A parameter of &8xxx read from a stretch that has just put this
+        # half in the window is this half's own address.  The range is
+        # tested against the parameter itself rather than the CALL, so
+        # that registering it does not also rename the CALL's target.
+        if at is not None and any(lo <= at < hi for lo, hi in self.self_window):
+            n = self.boot_self(v, at)
+            if n:
+                return n + '+&4000'
         return self._name(v, lambda _: None)
 
     def _name(self, v, outside, absolute=False):
@@ -900,6 +908,10 @@ def seeds(dos, mb):
     # default naming assumes.
     for at in (0x6430, 0x6442, 0x6454):
         mb.self_window.append((at, at + 3))
+    # GET_LONG_INTEGER puts this half in the window and then hands CMR
+    # &84AE, which is its own &44AE seen from there: the calculator
+    # literals it needs, reachable while ROM 1 is paged in.
+    mb.self_window.append((0x449F, 0x44A1))
     for at in (0x644B, 0x645D, 0x6466, 0x646F):
         mb.no_peer.append((at, at + 3))
     # The same again for the five commands HCMDV intercepts by name.

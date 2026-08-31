@@ -106,3 +106,40 @@ MB &58F1 OPEN_ROOM_AT_DE
 
 MB &58F2 OPEN_ROOM_AT_HL
     The same, for a caller whose address is already in HL.
+
+MB &4492 GET_LONG_INTEGER
+    A number off the calculator stack as a 32-bit integer, DE:HL.
+
+    It puts this half in the window -- HMPR := LMPR+1, through the ROM's
+    own TSURPG -- and then hands CMR the address &84AE, which is its own
+    &44AE seen from there.  That is where the calculator literals live:
+    DUP, 65536, STO5, MOD, SWOP, RCL5, IDIV, leaving x MOD 65536 under
+    x DIV 65536.  Two GETINTs then take them off, the second under the
+    first, so HL is the low word and DE the high one.
+
+    Windowing itself is what makes this work: CMR pages ROM 1 in, and the
+    literals have to stay reachable while it is.
+
+    Both callers refuse a value with anything in D, so what they really
+    want is 24 bits -- a page and an address, or a length that may exceed
+    64K.
+
+MB &5C4B PREPARE_ROM1_COPY
+    Set up to copy one of the ROM's own ROM 1 routines into the system
+    page.  DE points at a command table entry; the word after its first
+    byte is the routine's address.  B is loaded with &E7 -- RST &20, the
+    ROM's next-character restart -- and PAGE_IN_ROM1 plants it at the
+    destination, so every copy begins by fetching a character.  It comes
+    back with HL at the source, DE one past the planted byte, and the old
+    HMPR in A.
+
+MB &5C56 PREPARE_COPY_AT_5000
+    The same, for a caller that already knows both the source and that
+    the destination is &5000 in the system page.
+
+MB &62CE FETCH_SOURCE_BYTE
+    The next byte, from memory or from the open file.  H below &FE means
+    a pointer into memory, and the byte is read and HL stepped; &FE00 and
+    above is the sentinel for "no memory left", and the DOS's LBYT
+    supplies the byte instead, refilling its sector buffer when it needs
+    to.  One routine so the two callers do not have to know which.

@@ -2457,25 +2457,43 @@ CALL_EXPNUM:
                RET Z                           ; 4491 C8
 
 ;; --------------------------------------------------------------------
-;; L4492 -- &4492 to &44AD
+;; GET_LONG_INTEGER -- &4492 to &44AD
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? drives IN A,(HMPR), IN A,(LMPR); calls CMR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     A number off the calculator stack as a 32-bit integer, DE:HL.
+;;     
+;;     It puts this half in the window -- HMPR := LMPR+1, through the ROM's
+;;     own TSURPG -- and then hands CMR the address &84AE, which is its own
+;;     &44AE seen from there.  That is where the calculator literals live:
+;;     DUP, 65536, STO5, MOD, SWOP, RCL5, IDIV, leaving x MOD 65536 under
+;;     x DIV 65536.  Two GETINTs then take them off, the second under the
+;;     first, so HL is the low word and DE the high one.
+;;     
+;;     Windowing itself is what makes this work: CMR pages ROM 1 in, and the
+;;     literals have to stay reachable while it is.
+;;     
+;;     Both callers refuse a value with anything in D, so what they really
+;;     want is 24 bits -- a page and an address, or a length that may exceed
+;;     64K.
 ;; --------------------------------------------------------------------
 
-; ---- L4492 ---- from &4C76, &5EDD
-L4492:
+; ---- GET_LONG_INTEGER ---- from &4C76, &5EDD
+GET_LONG_INTEGER:
                PUSH AF                         ; 4492 F5
                IN A,(HMPR)                     ; 4493 DB FB
                PUSH AF                         ; 4495 F5
                IN A,(LMPR)                     ; 4496 DB FA
                INC A                           ; 4498 3C
                CALL TSURPG                     ; 4499 CD DF 3F
-               ; call the ROM at &84AE with ROM1 paged in, and page back on the way out
+               ; call the ROM at &44AE+&4000 with ROM1 paged in, and page back on the way out
                CALL CMR                        ; 449C CD F0 44
-               DEFW &84AE                     ; 449F AE 84
+               DEFW &44AE+&4000               ; 449F AE 84
                POP AF                          ; 44A1 F1
                OUT (HMPR),A                    ; 44A2 D3 FB
                CALL CALL_GETINT                ; 44A4 CD 76 44
@@ -6045,11 +6063,13 @@ STACK_PAGE0_STRING:
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
+;;
+;; ? calls GET_LONG_INTEGER; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L4C76 ---- from &4B04, &4B16
 L4C76:
-               CALL L4492                      ; 4C76 CD 92 44
+               CALL GET_LONG_INTEGER           ; 4C76 CD 92 44
                LD A,D                          ; 4C79 7A
                AND A                           ; 4C7A A7
                JP NZ,REP_INTEGER_OUT_OF_RANGE  ; 4C7B C2 A7 43
@@ -11800,16 +11820,26 @@ L5C48:
                LD (SYS_RECORD_STATE),A         ; 5C48 32 F4 4A
 
 ;; --------------------------------------------------------------------
-;; L5C4B -- &5C4B to &5C55
+;; PREPARE_ROM1_COPY -- &5C4B to &5C55
 ;;
 ;; Takes:     DE, HL
 ;; Leaves:    B, DE
 ;; Preserves: HL (saved and restored)
 ;; Ends:      JR
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Set up to copy one of the ROM's own ROM 1 routines into the system
+;;     page.  DE points at a command table entry; the word after its first
+;;     byte is the routine's address.  B is loaded with &E7 -- RST &20, the
+;;     ROM's next-character restart -- and PAGE_IN_ROM1 plants it at the
+;;     destination, so every copy begins by fetching a character.  It comes
+;;     back with HL at the source, DE one past the planted byte, and the old
+;;     HMPR in A.
 ;; --------------------------------------------------------------------
 
-; ---- L5C4B ---- from &5D65, &5D7B
-L5C4B:
+; ---- PREPARE_ROM1_COPY ---- from &5D65, &5D7B, DOS &6F6E
+PREPARE_ROM1_COPY:
                PUSH HL                         ; 5C4B E5
                INC DE                          ; 5C4C 13
                EX DE,HL                        ; 5C4D EB
@@ -11825,14 +11855,19 @@ L5C51:
                JR PAGE_IN_ROM1                 ; 5C54 18 03
 
 ;; --------------------------------------------------------------------
-;; L5C56 -- &5C56 to &5C58
+;; PREPARE_COPY_AT_5000 -- &5C56 to &5C58
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     The same, for a caller that already knows both the source and that
+;;     the destination is &5000 in the system page.
 ;; --------------------------------------------------------------------
 
-; ---- L5C56 ---- from &5CC3, &5D34
-L5C56:
+; ---- PREPARE_COPY_AT_5000 ---- from &5CC3, &5D34
+PREPARE_COPY_AT_5000:
                LD HL,&9000                     ; 5C56 21 00 90
 
 ;; --------------------------------------------------------------------
@@ -11980,13 +12015,13 @@ L5CB4:
 ;; Preserves: A, F (saved and restored)
 ;; Ends:      JP, JR
 ;;
-;; ? drives OUT (HMPR),A.
+;; ? drives OUT (HMPR),A; calls PREPARE_COPY_AT_5000.
 ;; --------------------------------------------------------------------
 
 ; ---- L5CC1 ---- from &5C6F
 L5CC1:
                LD B,&00                        ; 5CC1 06 00
-               CALL L5C56                      ; 5CC3 CD 56 5C
+               CALL PREPARE_COPY_AT_5000       ; 5CC3 CD 56 5C
                PUSH AF                         ; 5CC6 F5
                LD C,&30                        ; 5CC7 0E 30
                LDIR                            ; 5CC9 ED B0
@@ -12110,6 +12145,8 @@ L5CF1:
 ;; Takes:     A, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;;
+;; ? calls PREPARE_COPY_AT_5000; falls into whatever follows rather than returning.
+;;
 ;; Shown for this routine in disasm/:
 ;;
 ;;     PAUSE, token &C2.  It parses nothing: it builds.  L5C56 puts &5000 in
@@ -12127,7 +12164,7 @@ L5CF1:
 ; ---- CMD_PAUSE ---- from &4EBD
 CMD_PAUSE:
                LD B,&E7                        ; 5D32 06 E7
-               CALL L5C56                      ; 5D34 CD 56 5C
+               CALL PREPARE_COPY_AT_5000       ; 5D34 CD 56 5C
                PUSH AF                         ; 5D37 F5
                LD BC,&0006                     ; 5D38 01 06 00
                LDIR                            ; 5D3B ED B0
@@ -12186,7 +12223,7 @@ RESTORE_HMPR_AND_STORE:
 ;; Preserves: A, F (saved and restored)
 ;; Ends:      JP, JR
 ;;
-;; ? drives OUT (HMPR),A.
+;; ? drives OUT (HMPR),A; calls PREPARE_ROM1_COPY.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -12212,7 +12249,7 @@ RESTORE_HMPR_AND_STORE:
 ; ---- CMD_DEF_KEYCODE ---- from &4EC2
 CMD_DEF_KEYCODE:
                LD HL,&8F00                     ; 5D62 21 00 8F
-               CALL L5C4B                      ; 5D65 CD 4B 5C
+               CALL PREPARE_ROM1_COPY          ; 5D65 CD 4B 5C
                PUSH AF                         ; 5D68 F5
                LD BC,&0091                     ; 5D69 01 91 00
                LDIR                            ; 5D6C ED B0
@@ -12229,7 +12266,7 @@ CMD_DEF_KEYCODE:
 ;; Preserves: A, F (saved and restored)
 ;; Ends:      JP, JR
 ;;
-;; ? drives OUT (HMPR),A; calls COPY_THEN_APPEND_CALL.
+;; ? drives OUT (HMPR),A; calls PREPARE_ROM1_COPY, COPY_THEN_APPEND_CALL.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -12252,7 +12289,7 @@ CMD_DEF_KEYCODE:
 ; ---- CMD_KEYIN ---- from &4EC7
 CMD_KEYIN:
                LD HL,&8B00                     ; 5D78 21 00 8B
-               CALL L5C4B                      ; 5D7B CD 4B 5C
+               CALL PREPARE_ROM1_COPY          ; 5D7B CD 4B 5C
                PUSH AF                         ; 5D7E F5
                LD BC,&0009                     ; 5D7F 01 09 00
                CALL COPY_THEN_APPEND_CALL      ; 5D82 CD 9F 5D
@@ -12705,11 +12742,13 @@ L5EDB:
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
+;;
+;; ? calls GET_LONG_INTEGER; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L5EDD ---- from &55E1, &5C8D
 L5EDD:
-               CALL L4492                      ; 5EDD CD 92 44
+               CALL GET_LONG_INTEGER           ; 5EDD CD 92 44
                LD A,D                          ; 5EE0 7A
                AND A                           ; 5EE1 A7
 
@@ -14351,11 +14390,13 @@ L629D:
 ;;
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, DE, HL
+;;
+;; ? calls FETCH_SOURCE_BYTE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L62B9 ---- from &62BE
 L62B9:
-               CALL L62CE                      ; 62B9 CD CE 62
+               CALL FETCH_SOURCE_BYTE          ; 62B9 CD CE 62
                CP &FF                          ; 62BC FE FF
                JR Z,L62B9                      ; 62BE 28 F9
                LD (DE),A                       ; 62C0 12
@@ -14367,11 +14408,13 @@ L62B9:
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, DE, HL
 ;; Ends:      JP
+;;
+;; ? calls FETCH_SOURCE_BYTE.
 ;; --------------------------------------------------------------------
 
 ; ---- L62C2 ---- from &62C8
 L62C2:
-               CALL L62CE                      ; 62C2 CD CE 62
+               CALL FETCH_SOURCE_BYTE          ; 62C2 CD CE 62
                LD (DE),A                       ; 62C5 12
                INC DE                          ; 62C6 13
                INC A                           ; 62C7 3C
@@ -14380,15 +14423,23 @@ L62C2:
                JP CHKHL                        ; 62CB C3 EF 3F
 
 ;; --------------------------------------------------------------------
-;; L62CE -- &62CE to &62D5
+;; FETCH_SOURCE_BYTE -- &62CE to &62D5
 ;;
 ;; Takes:     HL
 ;; Leaves:    A, F, HL
 ;; Ends:      RET
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     The next byte, from memory or from the open file.  H below &FE means
+;;     a pointer into memory, and the byte is read and HL stepped; &FE00 and
+;;     above is the sentinel for "no memory left", and the DOS's LBYT
+;;     supplies the byte instead, refilling its sector buffer when it needs
+;;     to.  One routine so the two callers do not have to know which.
 ;; --------------------------------------------------------------------
 
-; ---- L62CE ---- from &62B9, &62C2
-L62CE:
+; ---- FETCH_SOURCE_BYTE ---- from &62B9, &62C2
+FETCH_SOURCE_BYTE:
                LD A,H                          ; 62CE 7C
                CP &FE                          ; 62CF FE FE
                JR NC,L62D6                     ; 62D1 30 03
