@@ -7692,9 +7692,6 @@ L50A2:
 ;;
 ;; ? drives IN E,(C), OUT (C),B; calls PRINT_SPACE, SKIP_TO_END_OF_WORD; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
-
-; ---- L50AC ---- from &72B8
-L50AC:
                DEC H                           ; 50AC 25
                LD BC,&00FB                     ; 50AD 01 FB 00
                IN E,(C)                        ; 50B0 ED 58
@@ -7732,7 +7729,7 @@ L50D4:
                POP BC                          ; 50D5 C1
                RET                             ; 50D6 C9
 
-; ---- V50D7 ---- from &5026, &50C7, &7275, &7279
+; ---- V50D7 ---- from &5026, &50C7
 V50D7:
                DEFB &A0                       ; 50D7
 
@@ -20314,7 +20311,7 @@ FN_USING_S:
 
 ; ---- L7243 ---- from &7229
 L7243:
-               LD HL,(&017F)                   ; 7243 2A 7F 01
+               LD HL,(&017F)                   ; 7243 2A 7F 01  from here to &7329 this code is written for &5000: subtract &2243 from any address in it
                LD DE,&8002                     ; 7246 11 02 80
                ADD HL,DE                       ; 7249 19
                LD A,&5F                        ; 724A 3E 5F
@@ -20369,9 +20366,9 @@ L726E:
                DEFB FPC_DUP                   ; 7272 DUP
                DEFB FPC_SWOP13                ; 7273 SWOP13
                DEFB FPC_EXIT                  ; 7274 EXIT
-               CALL V50D7                      ; 7275 CD D7 50  &50D7 is not this page's sentinel byte -- what this calls is unfound
+               CALL &50D7                      ; 7275 CD D7 50  &50D7 once this block is moved, not the label shown
                PUSH AF                         ; 7278 F5
-               CALL V50D7                      ; 7279 CD D7 50  the same call again
+               CALL &50D7                      ; 7279 CD D7 50  &50D7 once this block is moved, not the label shown
                POP HL                          ; 727C E1
                SUB H                           ; 727D 94
                ; to the alternate register set and back again
@@ -20491,7 +20488,7 @@ L72B1:
                POP AF                          ; 72B5 F1
                POP BC                          ; 72B6 C1
                PUSH BC                         ; 72B7 C5
-               CALL C,L50AC                    ; 72B8 DC AC 50
+               CALL C,&50AC                    ; 72B8 DC AC 50  &50AC once this block is moved, not the label shown
                POP BC                          ; 72BB C1
                POP HL                          ; 72BC E1
                PUSH HL                         ; 72BD E5

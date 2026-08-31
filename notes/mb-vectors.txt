@@ -105,21 +105,24 @@ MB &7721 : &4866 likewise, inside the second stub
 # is set, otherwise A = the entry number, HL at the start of the word
 # and DE just past it.
 
-# OPEN: CALL &50D7 at &7275 and &7279.
+# ANSWERED: CALL &50D7 at &7275 and &7279 is a call inside the block
+# itself, once it has been moved.
 #
-# Those two calls carry the label V50D7, which is this page's &A0
-# sentinel, and calling it would run AND B and fall into the keyword
-# text.  So the label is wrong there and what they reach is unfound.
+# The two calls carried the label V50D7, this page's &A0 sentinel, and
+# calling that would run AND B and fall into the keyword text.  The
+# label was wrong, and so was the assumption behind looking for the
+# target anywhere else: the code doing the calling is not run here.
 #
-# Checked: the system page holds part of a "GORDON TECHNOLOGY" credit
-# string at &50D7; the DOS page holds the last two bytes, EX AF,AF' and
-# RET, of its own read-a-ROM-variable routine, which is not something to
-# call; the operands are not patched at boot, being cdd750 in the file
-# and cdd750 in a dump; and the RST FPCALC list two instructions earlier
-# really does end at &7274, since &25 and &1C take no inline bytes.
-
-MB &7275 : &50D7 is not this page's sentinel byte -- what this calls is unfound
-MB &7279 : the same call again
+# FN_USING_S copies &00E7 bytes from &7243 to &9000 with HMPR zeroed --
+# &5000 in the ROM's system page -- and then calls it there through CMR.
+# So the block runs at &5000, &50D7 is &D7 bytes into it, and the source
+# for that is &731A.  &50AC at &72B8 is the same thing, &AC in, from
+# &72EF.
+#
+# The clue that should have settled it earlier is two instructions
+# before: LD A,&1F : OUT (LMPR),A at &7253 puts page zero in section B,
+# which is the ROM's system page.  Code executing in section B cannot do
+# that and survive, so the code was never in section B.
 
 # The hook table, resolved.
 #
@@ -159,3 +162,5 @@ MB &7279 : the same call again
 # description of hook codes as the interface that lets "the machine code
 # programmer use SAMDOS's facilities" suggests they are there for
 # outside callers rather than for MasterBASIC's own use.
+
+MB &7240 : &5000 in the system page -- what the LDIR above has just put there, not the GTDT that usually lives at that address

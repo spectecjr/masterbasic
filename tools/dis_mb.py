@@ -2189,7 +2189,11 @@ RELOCATED = ((0x7986, 0x7990, 0x45A2),   # INSTALL_EXTENDED_PUT, five runs
              # zeroed, which is INSTBUF at &4F00 in the ROM's system
              # page, and then calls it there through CMR.  Everything in
              # it reads the ROM's variables at their proper addresses.
-             (0x6AF9, 0x6C2F, 0x4F00))
+             (0x6AF9, 0x6C2F, 0x4F00),
+             # FN_USING_S copies &00E7 bytes from here to &9000 with HMPR
+             # zeroed -- &5000 in the system page -- and calls it there.
+             # It ends where HK_PROGPREP begins.
+             (0x7243, 0x732A, 0x5000))
 
 
 def note_relocated(d):
