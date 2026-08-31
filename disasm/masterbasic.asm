@@ -6407,7 +6407,7 @@ V56F6:
                INC BC                          ; 56FD 03
                CALL NRWRD                      ; 56FE CD 77 45
                DEFW KCUR                      ; 5701 9A 5A
-               CALL L5898                      ; 5703 CD 98 58
+               CALL CHANNEL_WORD_FROM_5A67     ; 5703 CD 98 58
                LD A,&02                        ; 5706 3E 02
                LD (V407D),A                    ; 5708 32 7D 40
                XOR A                           ; 570B AF
@@ -6817,8 +6817,14 @@ L588E:
                INC HL                          ; 5895 23
                JR SCAN_TEXT_FOR_D_OR_E         ; 5896 18 DE
 
-; ---- L5898 ---- from &5703
-L5898:
+;; --------------------------------------------------------------------
+;; Read the ROM variable at &5A67 into DE and fall into
+;; EXCHANGE_CHANNEL_WORD, so that value is what goes into the channel
+;; and what was there comes back.
+;; --------------------------------------------------------------------
+
+; ---- CHANNEL_WORD_FROM_5A67 ---- from &5703
+CHANNEL_WORD_FROM_5A67:
                CALL NRRDD                      ; 5898 CD 5F 45
                DEFW &5A67                     ; 589B 67 5A
                LD D,B                          ; 589D 50
@@ -10451,7 +10457,7 @@ SET_UP_WORK_AREA:
                LD A,(V40A0)                    ; 663B 3A A0 40
                CP &11                          ; 663E FE 11
                PUSH HL                         ; 6640 E5
-               CALL Z,L6796                    ; 6641 CC 96 67
+               CALL Z,SET_STEP_AND_COUNT       ; 6641 CC 96 67
                POP DE                          ; 6644 D1
                PUSH DE                         ; 6645 D5
                PUSH DE                         ; 6646 D5
@@ -10645,7 +10651,7 @@ EXPAND_INTO_WORK_PAGE:
                ADD HL,BC                       ; 6709 09
                LD A,(V40A0)                    ; 670A 3A A0 40
                CP &11                          ; 670D FE 11
-               CALL Z,L679B                    ; 670F CC 9B 67
+               CALL Z,SET_STEP_AND_COUNT_SWAPPED ; 670F CC 9B 67
                POP HL                          ; 6712 E1
                LD A,(V40AA)                    ; 6713 3A AA 40
                POP BC                          ; 6716 C1
@@ -10746,13 +10752,26 @@ L678E:
                INC DE                          ; 6793 13
                JR L6774                        ; 6794 18 DE
 
-; ---- L6796 ---- from &6641
-L6796:
+;; --------------------------------------------------------------------
+;; Plant a step and a count into four instructions further on -- &6796
+;; supplies &05 and &33, &679B the same pair the other way round, and
+;; everything after them is shared.  Both entries then check HL and
+;; return Z at the end of the run before doing any of the work.
+;; --------------------------------------------------------------------
+
+; ---- SET_STEP_AND_COUNT ---- from &6641
+SET_STEP_AND_COUNT:
                LD BC,&0533                     ; 6796 01 33 05
                JR L679E                        ; 6799 18 03
 
-; ---- L679B ---- from &670F
-L679B:
+;; --------------------------------------------------------------------
+;; The same as SET_STEP_AND_COUNT with the two numbers exchanged: &33
+;; for the step and &05 for the count where the other has &05 and &33.
+;; One pair reads down a row and the other across it.
+;; --------------------------------------------------------------------
+
+; ---- SET_STEP_AND_COUNT_SWAPPED ---- from &670F
+SET_STEP_AND_COUNT_SWAPPED:
                LD BC,&3305                     ; 679B 01 05 33
 
 ; ---- L679E ---- from &6799
@@ -10770,14 +10789,22 @@ L679E:
 ; ---- L67AE ---- from &67B4
 L67AE:
                PUSH HL                         ; 67AE E5
-               CALL L67B7                      ; 67AF CD B7 67
+               CALL COPY_EVERY_NTH_BYTE        ; 67AF CD B7 67
                POP HL                          ; 67B2 E1
                INC H                           ; 67B3 24
                JR NZ,L67AE                     ; 67B4 20 F8
                RET                             ; 67B6 C9
 
-; ---- L67B7 ---- from &67AF
-L67B7:
+;; --------------------------------------------------------------------
+;; Copy with a stride: LDI moves the first byte, then C bytes at a time
+;; are taken from HL with the address stepped on by the operand
+;; SET_STEP_AND_COUNT wrote at &67C6.  The count at &67BE and the inner
+;; count at &67C1 come from the same place, which is why the two entry
+;; points differ only in the numbers they poke.
+;; --------------------------------------------------------------------
+
+; ---- COPY_EVERY_NTH_BYTE ---- from &67AF
+COPY_EVERY_NTH_BYTE:
                LD DE,INSTALL_ROM_PATCHES       ; 67B7 11 00 7B  the buffer again, not a call into the installer
                PUSH HL                         ; 67BA E5
                PUSH DE                         ; 67BB D5
@@ -12021,13 +12048,13 @@ L6C8C:
                POP HL                          ; 6CA8 E1
                PUSH HL                         ; 6CA9 E5
                PUSH BC                         ; 6CAA C5
-               CALL L6CD1                      ; 6CAB CD D1 6C
+               CALL PAGE_PAIR_INTO_ALTERNATES  ; 6CAB CD D1 6C
                POP HL                          ; 6CAE E1
-               CALL L6CC2                      ; 6CAF CD C2 6C
+               CALL SCREEN_PAGE_OR_BUFFER      ; 6CAF CD C2 6C
                EX DE,HL                        ; 6CB2 EB
                LD H,A                          ; 6CB3 67
                EX (SP),HL                      ; 6CB4 E3
-               CALL L6CC2                      ; 6CB5 CD C2 6C
+               CALL SCREEN_PAGE_OR_BUFFER      ; 6CB5 CD C2 6C
                EX DE,HL                        ; 6CB8 EB
                LD C,A                          ; 6CB9 4F
                PUSH BC                         ; 6CBA C5
@@ -12035,8 +12062,15 @@ L6C8C:
                LD BC,&0028                     ; 6CBC 01 28 00
                JP L6DC6                        ; 6CBF C3 C6 6D
 
-; ---- L6CC2 ---- from &6CAF, &6CB5
-L6CC2:
+;; --------------------------------------------------------------------
+;; Compare the page in L with the one being displayed, taken straight
+;; from VMPR.  Equal returns with HL as it was set here; otherwise the
+;; page is stepped on and H becomes &BF, which is the top of the window
+;; rather than the display.
+;; --------------------------------------------------------------------
+
+; ---- SCREEN_PAGE_OR_BUFFER ---- from &6CAF, &6CB5
+SCREEN_PAGE_OR_BUFFER:
                IN A,(VMPR)                     ; 6CC2 DB FC
                AND PAGEMASK                    ; 6CC4 E6 1F
                SUB L                           ; 6CC6 95
@@ -12048,8 +12082,14 @@ L6CC2:
                LD H,&BF                        ; 6CCE 26 BF
                RET                             ; 6CD0 C9
 
-; ---- L6CD1 ---- from &6CAB
-L6CD1:
+;; --------------------------------------------------------------------
+;; Move a page number and an address into the alternate registers with C
+;; set to HMPR, so the copying loop after it can page between two places
+;; without reloading anything.
+;; --------------------------------------------------------------------
+
+; ---- PAGE_PAIR_INTO_ALTERNATES ---- from &6CAB
+PAGE_PAIR_INTO_ALTERNATES:
                CP H                            ; 6CD1 BC
                JR Z,L6CEB                      ; 6CD2 28 17
                CP &02                          ; 6CD4 FE 02
@@ -12743,7 +12783,7 @@ L6F92:
                POP AF                          ; 6F96 F1
                OUT (HMPR),A                    ; 6F97 D3 FB
                PUSH AF                         ; 6F99 F5
-               CALL L6FDD                      ; 6F9A CD DD 6F
+               CALL ARRAY_ELEMENT_OFFSET       ; 6F9A CD DD 6F
                PUSH DE                         ; 6F9D D5
                CALL RECLAIM_ABC_AT_HL          ; 6F9E CD 53 6E
                POP IX                          ; 6FA1 DD E1
@@ -12758,8 +12798,14 @@ L6F92:
                EX DE,HL                        ; 6FAF EB
                JP RECLAIM_BC_AT_HL             ; 6FB0 C3 52 6E
 
-; ---- L6FB3 ---- from &7124, &714B
-L6FB3:
+;; --------------------------------------------------------------------
+;; Read a page byte and an address from the three bytes at HL, turn them
+;; into a long address through PAGED_TO_LONG, and check it against
+;; V409E.
+;; --------------------------------------------------------------------
+
+; ---- ENTRY_TO_LONG_ADDRESS ---- from &7124, &714B
+ENTRY_TO_LONG_ADDRESS:
                PUSH AF                         ; 6FB3 F5
                LD A,(HL)                       ; 6FB4 7E
                INC HL                          ; 6FB5 23
@@ -12799,8 +12845,15 @@ L6FCF:
                OR E                            ; 6FDB B3
                RET                             ; 6FDC C9
 
-; ---- L6FDD ---- from &6F9A
-L6FDD:
+;; --------------------------------------------------------------------
+;; Two multiplies to find an element: the string's length is taken, then
+;; MULTIPLY_HL_BY_DE twice with the intermediate kept on the stack
+;; through EX (SP),HL, and LONGADDR_TO_PAGED turns the result back into
+;; a page and an address.
+;; --------------------------------------------------------------------
+
+; ---- ARRAY_ELEMENT_OFFSET ---- from &6F9A
+ARRAY_ELEMENT_OFFSET:
                PUSH DE                         ; 6FDD D5
                PUSH HL                         ; 6FDE E5
                CALL GET_STRING_PAGED           ; 6FDF CD E6 47
@@ -13002,7 +13055,7 @@ VARIABLE_BODY_BY_KIND:
                LD B,H                          ; 7121 44
                LD C,L                          ; 7122 4D
                POP HL                          ; 7123 E1
-               CALL L6FB3                      ; 7124 CD B3 6F
+               CALL ENTRY_TO_LONG_ADDRESS      ; 7124 CD B3 6F
                PUSH IX                         ; 7127 DD E5
                POP BC                          ; 7129 C1
                INC HL                          ; 712A 23
@@ -13041,7 +13094,7 @@ L7140:
 L7148:
                PUSH IX                         ; 7148 DD E5
                POP BC                          ; 714A C1
-               CALL L6FB3                      ; 714B CD B3 6F
+               CALL ENTRY_TO_LONG_ADDRESS      ; 714B CD B3 6F
                PUSH AF                         ; 714E F5
                LD A,(HL)                       ; 714F 7E
                CP &04                          ; 7150 FE 04
@@ -14588,8 +14641,14 @@ L77E4:
                EXX                             ; 77FC D9
                DEFB &31                                                         ; 77FD 1  skipped: reads as LD SP,&C000 from here, and as part of the instruction above it
 
-; ---- L77FE ---- from &7818
-L77FE:
+;; --------------------------------------------------------------------
+;; Return unless the flags say to, and otherwise fall into the page
+;; filler below.  The NOP in front is where an instruction was taken out
+;; rather than the code being moved.
+;; --------------------------------------------------------------------
+
+; ---- CLEAR_WINDOW_IF_Z ---- from &7818
+CLEAR_WINDOW_IF_Z:
                NOP                             ; 77FE 00
                RET NZ                          ; 77FF C0
 
@@ -14628,7 +14687,7 @@ STACK_FILL_LOOP:
 ; ---- L7817 ---- from &77ED, &77F2
 L7817:
                LD A,C                          ; 7817 79
-               CALL L77FE                      ; 7818 CD FE 77
+               CALL CLEAR_WINDOW_IF_Z          ; 7818 CD FE 77
 
 ; ---- L781B ---- from &7815
 L781B:

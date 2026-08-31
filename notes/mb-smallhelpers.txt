@@ -455,3 +455,53 @@ MB &6726 READ_COUNTED_STRING
     Read a length byte from the open file through the DOS's LBYT, then
     that many bytes after it, into the buffer at &7B00 -- the installer's
     dead bytes again.
+
+MB &5898 CHANNEL_WORD_FROM_5A67
+    Read the ROM variable at &5A67 into DE and fall into
+    EXCHANGE_CHANNEL_WORD, so that value is what goes into the channel
+    and what was there comes back.
+
+MB &6796 SET_STEP_AND_COUNT
+    Plant a step and a count into four instructions further on -- &6796
+    supplies &05 and &33, &679B the same pair the other way round, and
+    everything after them is shared.  Both entries then check HL and
+    return Z at the end of the run before doing any of the work.
+
+MB &67B7 COPY_EVERY_NTH_BYTE
+    Copy with a stride: LDI moves the first byte, then C bytes at a time
+    are taken from HL with the address stepped on by the operand
+    SET_STEP_AND_COUNT wrote at &67C6.  The count at &67BE and the inner
+    count at &67C1 come from the same place, which is why the two entry
+    points differ only in the numbers they poke.
+
+MB &6CC2 SCREEN_PAGE_OR_BUFFER
+    Compare the page in L with the one being displayed, taken straight
+    from VMPR.  Equal returns with HL as it was set here; otherwise the
+    page is stepped on and H becomes &BF, which is the top of the window
+    rather than the display.
+
+MB &6CD1 PAGE_PAIR_INTO_ALTERNATES
+    Move a page number and an address into the alternate registers with C
+    set to HMPR, so the copying loop after it can page between two places
+    without reloading anything.
+
+MB &6FB3 ENTRY_TO_LONG_ADDRESS
+    Read a page byte and an address from the three bytes at HL, turn them
+    into a long address through PAGED_TO_LONG, and check it against
+    V409E.
+
+MB &6FDD ARRAY_ELEMENT_OFFSET
+    Two multiplies to find an element: the string's length is taken, then
+    MULTIPLY_HL_BY_DE twice with the intermediate kept on the stack
+    through EX (SP),HL, and LONGADDR_TO_PAGED turns the result back into
+    a page and an address.
+
+MB &77FE CLEAR_WINDOW_IF_Z
+    Return unless the flags say to, and otherwise fall into the page
+    filler below.  The NOP in front is where an instruction was taken out
+    rather than the code being moved.
+
+MB &679B SET_STEP_AND_COUNT_SWAPPED
+    The same as SET_STEP_AND_COUNT with the two numbers exchanged: &33
+    for the step and &05 for the count where the other has &05 and &33.
+    One pair reads down a row and the other across it.
