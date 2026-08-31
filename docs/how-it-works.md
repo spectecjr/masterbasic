@@ -361,6 +361,9 @@ identified, so `LD (&45AF),A` reads as `LD (CHECK_WRITE_STATUS+1),A`.
 
 ## 7. What is not settled
 
+Every call target in both halves is named — 587 of them — and every byte
+is classified. What follows is what naming did not answer.
+
 - **A 381-byte copy with no copier.** After boot, MasterBASIC's
   `&7E43`-`&7FBF` is an exact copy of the ROM's system page at
   `&5896`-`&5A12` — the DEF KEY gap, the whole keyboard table and the DUMP
@@ -377,10 +380,12 @@ identified, so `LD (&45AF),A` reads as `LD (CHECK_WRITE_STATUS+1),A`.
   which leaves the instructions that save `SP` unreached, though the fill
   needs them to have run.
 
-- **The DOS half**, deliberately. The work so far has been the MasterBASIC
-  side; the DOS is read only where MasterBASIC reaches into it. Its
-  remaining 67 unnamed call targets are not a tooling gap — see the note
-  at the end of `notes/mb-smallhelpers.txt`.
+- **The DOS half** is still read mainly where MasterBASIC reaches into it,
+  though every routine either half calls now has a name. What is thin is
+  the *narrative* for the disc code: the sector, directory and channel
+  routines are named and their mechanisms described, but nothing here
+  tells the story of a read or a write end to end the way sections 2 to 5
+  do for MasterBASIC.
 
 ### Settled since this section was written
 
