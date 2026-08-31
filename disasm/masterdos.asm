@@ -2739,7 +2739,7 @@ SVBLK:
 ; ---- SVB1 ---- from &4980
 SVB1:
                LD (HL),D                       ; 4965 72
-               CALL L7003                      ; 4966 CD 03 70  INC IX+RPTL/H
+               CALL BUMP_TRANSFER_COUNT        ; 4966 CD 03 70  INC IX+RPTL/H
                LD HL,(SVHL)                    ; 4969 2A 05 7C
                INC HL                          ; 496C 23
                POP DE                          ; 496D D1
@@ -5333,7 +5333,7 @@ L54DC:
 L54DE:
                LD A,(HL)                       ; 54DE 7E
                INC HL                          ; 54DF 23
-               CALL L68DA                      ; 54E0 CD DA 68
+               CALL STREAM_OR_CHANNEL          ; 54E0 CD DA 68
                CALL PRINT_A_KEEPING_IT         ; 54E3 CD 66 57
                DEC D                           ; 54E6 15
                JR NZ,L54DE                     ; 54E7 20 F5
@@ -7216,7 +7216,7 @@ CMD_HIDE:
                LD A,B                          ; 5E03 78
                OR C                            ; 5E04 B1
                JR NZ,L5E0D                     ; 5E05 20 06
-               CALL L6AEA                      ; 5E07 CD EA 6A
+               CALL CHANNEL_ENTRY_AT_ZERO_PAGE ; 5E07 CD EA 6A
                INC HL                          ; 5E0A 23
                JR L5E22                        ; 5E0B 18 15
 
@@ -8887,7 +8887,7 @@ HEOF:
                IN B,(C)                        ; 65A2 ED 40
                PUSH BC                         ; 65A4 C5
                PUSH AF                         ; 65A5 F5  0 IF EOF, 1 IF PTR
-               CALL L700B                      ; 65A6 CD 0B 70  AHL=PTR
+               CALL GET_STREAM_NUMBER          ; 65A6 CD 0B 70  AHL=PTR
                POP DE                          ; 65A9 D1
                DEC D                           ; 65AA 15
                JR Z,EPCOM                      ; 65AB 28 12  JR IF PTR
@@ -9429,7 +9429,7 @@ MOVJ:
 L687C:
                CALL MOVRC                      ; 687C CD 19 69  READ CHAR
                JR NC,MEOF                      ; 687F 30 1A  JR IF EOF
-               CALL L68DA                      ; 6881 CD DA 68
+               CALL STREAM_OR_CHANNEL          ; 6881 CD DA 68
                LD HL,INVERT+&4000              ; 6884 21 54 9A
                LD (HL),B                       ; 6887 70
                CALL MOVWC                      ; 6888 CD 40 69  WRITE PRINTABLE CHAR
@@ -9490,8 +9490,14 @@ L68D2:
                LD D,(IX+&0A)                   ; 68D5 DD 56 0A
                JR L68B2                        ; 68D8 18 D8
 
-; ---- L68DA ---- from &54E0, &6881
-L68DA:
+;; --------------------------------------------------------------------
+;; Sort a stream number from a channel: bit 7 set means the other kind,
+;; and MSFLG decides which way round when it is.  B is zeroed first so
+;; the caller gets a pair either way.
+;; --------------------------------------------------------------------
+
+; ---- STREAM_OR_CHANNEL ---- from &54E0, &6881
+STREAM_OR_CHANNEL:
                LD B,&00                        ; 68DA 06 00
                BIT 7,A                         ; 68DC CB 7F
                JR Z,L68EF                      ; 68DE 28 0F
@@ -9663,7 +9669,7 @@ OPMV1:
                CP &44                          ; 698C FE 44
                JP NZ,REP0                      ; 698E C2 E0 5E
                CALL CKDRV                      ; 6991 CD 07 48
-               CALL L6B77                      ; 6994 CD 77 6B
+               CALL RESET_CHANNEL_SCAN         ; 6994 CD 77 6B
                LD A,&01                        ; 6997 3E 01
                INC A                           ; 6999 3C  NZ = ERROR NOT DUE STREAM NOT OPEN
                RET C                           ; 699A D8  RET IF ABORTED (OVERWRITE?+N)
@@ -9899,7 +9905,7 @@ L6ABF:
                DJNZ L6ABF                      ; 6AC0 10 FD
                LD B,H                          ; 6AC2 44
                LD C,L                          ; 6AC3 4D
-               CALL L6AEA                      ; 6AC4 CD EA 6A
+               CALL CHANNEL_ENTRY_AT_ZERO_PAGE ; 6AC4 CD EA 6A
                XOR A                           ; 6AC7 AF
                PUSH HL                         ; 6AC8 E5
                CALL CMR                        ; 6AC9 CD B2 7B
@@ -9923,8 +9929,14 @@ L6AE4:
                DEFW MB_SET_DCT_COMPILE_BITS-&4000 ; 6AE7 9C 45
                RET                             ; 6AE9 C9
 
-; ---- L6AEA ---- from &5E07, &6AC4
-L6AEA:
+;; --------------------------------------------------------------------
+;; Zero HMPR so the system page is in the window, take CHANS from it and
+;; add &1E, then check the result with the ROM's CHKHL before reading
+;; through it.
+;; --------------------------------------------------------------------
+
+; ---- CHANNEL_ENTRY_AT_ZERO_PAGE ---- from &5E07, &6AC4
+CHANNEL_ENTRY_AT_ZERO_PAGE:
                XOR A                           ; 6AEA AF
                OUT (HMPR),A                    ; 6AEB D3 FB
                LD HL,(CHANS+&4000)             ; 6AED 2A 4F 9C
@@ -10000,7 +10012,7 @@ OPDST:
                LD D,&00                        ; 6B65 16 00
                ADD HL,DE                       ; 6B67 19
                PUSH HL                         ; 6B68 E5  ADDR OF PTR IN STRMS
-               CALL L6B77                      ; 6B69 CD 77 6B
+               CALL RESET_CHANNEL_SCAN         ; 6B69 CD 77 6B
                POP DE                          ; 6B6C D1
                RET C                           ; 6B6D D8  RET IF ERROR
 
@@ -10012,8 +10024,14 @@ OPDST1:
                LD (HL),D                       ; 6B75 72  STRM PTR
                RET                             ; 6B76 C9
 
-; ---- L6B77 ---- from &6994, &6B69
-L6B77:
+;; --------------------------------------------------------------------
+;; The same setup with IX instead of HL, and V4213 cleared first --
+;; which is what makes it the start of a scan rather than a single
+;; lookup.
+;; --------------------------------------------------------------------
+
+; ---- RESET_CHANNEL_SCAN ---- from &6994, &6B69
+RESET_CHANNEL_SCAN:
                XOR A                           ; 6B77 AF
                OUT (HMPR),A                    ; 6B78 D3 FB
                LD (V4213),A                    ; 6B7A 32 13 42
@@ -10088,7 +10106,7 @@ L6BDF:
                LD A,(FSTR1)                    ; 6BE6 3A 37 41
                JP NZ,OPND45                    ; 6BE9 C2 BF 6C  JR IF NOT FOUND
                PUSH AF                         ; 6BEC F5
-               CALL L6D30                      ; 6BED CD 30 6D  CREATE CHANNEL
+               CALL MOVE_TABLE_IF_PAGED        ; 6BED CD 30 6D  CREATE CHANNEL
                CALL POINT                      ; 6BF0 CD AC 4F  HL=DIR ENTRY  (USES IX=DCHAN)
                POP AF                          ; 6BF3 F1
                POP IX                          ; 6BF4 DD E1  CHANS PTR
@@ -10131,7 +10149,7 @@ OPND44:
                XOR A                           ; 6C2D AF
                LD (IX+&1F),A                   ; 6C2E DD 77 1F
                LD (IX+&1E),A                   ; 6C31 DD 77 1E  FILE'S SECTOR=0 TO START WITH
-               CALL L6FCC                      ; 6C34 CD CC 6F  INC SECTOR, LOAD AND MARK 1ST SECT
+               CALL COUNT_AND_READ_SECTOR      ; 6C34 CD CC 6F  INC SECTOR, LOAD AND MARK 1ST SECT
                CALL OPND8                      ; 6C37 CD 1F 6D  WITH T/S. GET STREAM OFFSET IN HL
                POP DE                          ; 6C3A D1
                PUSH HL                         ; 6C3B E5
@@ -10184,7 +10202,7 @@ OOTF:
 
 ; ---- OOTF2 ---- from &6C5F
 OOTF2:
-               CALL L71F3                      ; 6C7F CD F3 71
+               CALL CHANNEL_LENGTH_FIELD       ; 6C7F CD F3 71
                DEC HL                          ; 6C82 2B
                LD D,(HL)                       ; 6C83 56
                DEC HL                          ; 6C84 2B
@@ -10198,7 +10216,7 @@ OOTF2:
 GT19B:
                CALL D510                       ; 6C8A CD B1 71  GET HL=LEN MOD 510, HL'=DIV 510
                EX DE,HL                        ; 6C8D EB
-               CALL L71F3                      ; 6C8E CD F3 71  NC
+               CALL CHANNEL_LENGTH_FIELD       ; 6C8E CD F3 71  NC
                LD (HL),E                       ; 6C91 73
                INC HL                          ; 6C92 23
                LD (HL),D                       ; 6C93 72  LEN MOD 510
@@ -10241,7 +10259,7 @@ OPND45:
                CP MIN                          ; 6CBF FE BF
                JP Z,REP26                      ; 6CC1 CA 62 5E  "FILE NOT FOUND" IF "IN" WITH
                PUSH AF                         ; 6CC4 F5
-               CALL L6D30                      ; 6CC5 CD 30 6D
+               CALL MOVE_TABLE_IF_PAGED        ; 6CC5 CD 30 6D
                POP AF                          ; 6CC8 F1
                POP IX                          ; 6CC9 DD E1
                CP MRND                         ; 6CCB FE A5
@@ -10254,10 +10272,15 @@ L6CD2:
                CALL OPND7                      ; 6CD2 CD EF 6C  SETS FTRK/FSCT, CNT=1
                RET C                           ; 6CD5 D8
 
-; ---- L6CD6 ---- from &6F6B
-L6CD6:
+;; --------------------------------------------------------------------
+;; Write the two count bytes at (IX+&0D) and (IX+&0E) out through the
+;; pointer &71F3 returns.
+;; --------------------------------------------------------------------
+
+; ---- STORE_TRANSFER_COUNT ---- from &6F6B
+STORE_TRANSFER_COUNT:
                PUSH HL                         ; 6CD6 E5
-               CALL L71F3                      ; 6CD7 CD F3 71
+               CALL CHANNEL_LENGTH_FIELD       ; 6CD7 CD F3 71
                LD A,(IX+&0D)                   ; 6CDA DD 7E 0D
                LD (HL),A                       ; 6CDD 77
                INC HL                          ; 6CDE 23
@@ -10313,14 +10336,19 @@ OPND8:
                INC HL                          ; 6D2E 23
                RET                             ; 6D2F C9  NC - OK
 
-; ---- L6D30 ---- from &6BED, &6CC5
-L6D30:
+;; --------------------------------------------------------------------
+;; Return at once unless the high byte of TEMPW1 says there is a page to
+;; deal with, and otherwise move the table below before going on.
+;; --------------------------------------------------------------------
+
+; ---- MOVE_TABLE_IF_PAGED ---- from &6BED, &6CC5
+MOVE_TABLE_IF_PAGED:
                LD DE,(TEMPW1)                  ; 6D30 ED 5B 12 42
                LD A,D                          ; 6D34 7A
                AND A                           ; 6D35 A7
                JR Z,L6D44                      ; 6D36 28 0C
                PUSH DE                         ; 6D38 D5
-               CALL L6D4F                      ; 6D39 CD 4F 6D
+               CALL COPY_MTBLS                 ; 6D39 CD 4F 6D
                POP HL                          ; 6D3C E1
                INC HL                          ; 6D3D 23
                INC HL                          ; 6D3E 23
@@ -10338,8 +10366,13 @@ L6D44:
                DEFW JMKRBIG                   ; 6D4C 0C 01
                POP DE                          ; 6D4E D1
 
-; ---- L6D4F ---- from &6D39
-L6D4F:
+;; --------------------------------------------------------------------
+;; Eleven bytes from MTBLS, then &0308 bytes of zero after them -- the
+;; table and the room it needs, laid down in one go.
+;; --------------------------------------------------------------------
+
+; ---- COPY_MTBLS ---- from &6D39
+COPY_MTBLS:
                LD HL,MTBLS                     ; 6D4F 21 66 6D
                LD BC,&000B                     ; 6D52 01 0B 00
                LDIR                            ; 6D55 ED B0  O/P,I/P,D+80H,0,0,0,0,LEN
@@ -10621,7 +10654,7 @@ SDCM2:
                LD (IX+&1F),C                   ; 6EAD DD 71 1F  OVER-WRITE PTR
                LD (IX+&1E),B                   ; 6EB0 DD 70 1E
                EX DE,HL                        ; 6EB3 EB
-               CALL L71F3                      ; 6EB4 CD F3 71
+               CALL CHANNEL_LENGTH_FIELD       ; 6EB4 CD F3 71
                DEC HL                          ; 6EB7 2B
                LD (HL),D                       ; 6EB8 72  OLD FORMAT MID LEN - SO G+DOS
                DEC HL                          ; 6EB9 2B
@@ -10745,11 +10778,11 @@ MCHWR:
                CALL CPPTR                      ; 6F5A CD DC 6F  Z IF PTR=LEN
                PUSH AF                         ; 6F5D F5
                LD A,D                          ; 6F5E 7A
-               CALL L6F8D                      ; 6F5F CD 8D 6F  SAVE BYTE
+               CALL WRITE_LAST_PAGE            ; 6F5F CD 8D 6F  SAVE BYTE
                SET 3,(IX+&0C)                  ; 6F62 DD CB 0C DE  "SECTOR WRITTEN TO"
                SET 5,(IX+&0C)                  ; 6F66 DD CB 0C EE  "FILE WRITTEN TO"
                POP AF                          ; 6F6A F1
-               CALL Z,L6CD6                    ; 6F6B CC D6 6C  COPY PTR TO LEN IF WRITING TO
+               CALL Z,STORE_TRANSFER_COUNT     ; 6F6B CC D6 6C  COPY PTR TO LEN IF WRITING TO
                LD A,(&5C4B+FS)                 ; 6F6E 3A 4B 9C  RESTORE BORDER COLOUR - QUICK
                OUT (BORDER),A                  ; 6F71 D3 FE
                JR L6F35                        ; 6F73 18 C0
@@ -10771,8 +10804,14 @@ HK_SBYT:
                CALL WSAD                       ; 6F88 CD 86 45  EXITS WITH HL POINTING TO BUFFER
                JR L6FB9                        ; 6F8B 18 2C
 
-; ---- L6F8D ---- from &6F5F
-L6F8D:
+;; --------------------------------------------------------------------
+;; The tail of a write: IS_LAST_PAGE decides whether this is the final
+;; page, and everything is pushed around the decision so the caller's
+;; registers survive either path.
+;; --------------------------------------------------------------------
+
+; ---- WRITE_LAST_PAGE ---- from &6F5F
+WRITE_LAST_PAGE:
                PUSH BC                         ; 6F8D C5
                PUSH HL                         ; 6F8E E5
                PUSH AF                         ; 6F8F F5
@@ -10802,7 +10841,7 @@ L6F8D:
 
 ; ---- L6FB6 ---- from &6F9B
 L6FB6:
-               CALL NZ,L6FC0                   ; 6FB6 C4 C0 6F
+               CALL NZ,WRITE_AT_LINKED_SECTOR  ; 6FB6 C4 C0 6F
 
 ; ---- L6FB9 ---- from &6F8B
 L6FB9:
@@ -10814,10 +10853,16 @@ L6FBA:
                LD (HL),A                       ; 6FBB 77
                POP HL                          ; 6FBC E1
                POP BC                          ; 6FBD C1
-               JR L7003                        ; 6FBE 18 43
+               JR BUMP_TRANSFER_COUNT          ; 6FBE 18 43
 
-; ---- L6FC0 ---- from &6FB6, &6FFC
-L6FC0:
+;; --------------------------------------------------------------------
+;; Take a track and sector out of the two bytes at HL, exchange them
+;; with the channel's through SWAP_TRACK_AND_SECTOR, and write there --
+;; which is how the DOS follows a file's chain of sectors.
+;; --------------------------------------------------------------------
+
+; ---- WRITE_AT_LINKED_SECTOR ---- from &6FB6, &6FFC
+WRITE_AT_LINKED_SECTOR:
                LD D,(HL)                       ; 6FC0 56
                INC HL                          ; 6FC1 23
                LD E,(HL)                       ; 6FC2 5E
@@ -10827,17 +10872,31 @@ L6FC0:
                CALL WRIF2                      ; 6FC8 CD 7B 45
                POP DE                          ; 6FCB D1
 
-; ---- L6FCC ---- from &6C34, &7196
-L6FCC:
+;; --------------------------------------------------------------------
+;; ICNT, then fall into the entry below.  Three entry points, one after
+;; another, so a caller can start at whichever step it needs: count and
+;; read, read only, or neither.
+;; --------------------------------------------------------------------
+
+; ---- COUNT_AND_READ_SECTOR ---- from &6C34, &7196
+COUNT_AND_READ_SECTOR:
                CALL ICNT                       ; 6FCC CD A9 71
 
-; ---- L6FCF ---- from &7101
-L6FCF:
+;; --------------------------------------------------------------------
+;; SELECT_DRIVE then READ_SECTOR, and fall into the clear below.
+;; --------------------------------------------------------------------
+
+; ---- SELECT_AND_READ_SECTOR ---- from &7101
+SELECT_AND_READ_SECTOR:
                CALL SELECT_DRIVE               ; 6FCF CD 29 48
                CALL READ_SECTOR                ; 6FD2 CD B7 45
 
-; ---- L6FD5 ---- from &714F
-L6FD5:
+;; --------------------------------------------------------------------
+;; Bit 3 of (IX+&0C) down, then leave for SET_TRACK_AND_SECTOR.
+;; --------------------------------------------------------------------
+
+; ---- CLEAR_SECTOR_FLAG ---- from &714F
+CLEAR_SECTOR_FLAG:
                RES 3,(IX+&0C)                  ; 6FD5 DD CB 0C 9E
                JP SET_TRACK_AND_SECTOR         ; 6FD9 C3 C6 4F
 
@@ -10848,7 +10907,7 @@ L6FD5:
 
 ; ---- CPPTR ---- from &65B5, &6F24, &6F5A, &6F97
 CPPTR:
-               CALL L71F3                      ; 6FDC CD F3 71
+               CALL CHANNEL_LENGTH_FIELD       ; 6FDC CD F3 71
                LD A,(IX+&0D)                   ; 6FDF DD 7E 0D
                CP (HL)                         ; 6FE2 BE  HL PTS TO LEN LOW (LIKE RPT)
                RET NZ                          ; 6FE3 C0
@@ -10871,21 +10930,33 @@ LBYT:
                PUSH DE                         ; 6FF7 D5
                PUSH HL                         ; 6FF8 E5
                CALL IS_LAST_PAGE               ; 6FF9 CD 47 48
-               CALL Z,L6FC0                    ; 6FFC CC C0 6F  CALL IF BUFFER FULL.
+               CALL Z,WRITE_AT_LINKED_SECTOR   ; 6FFC CC C0 6F  CALL IF BUFFER FULL.
                LD A,(HL)                       ; 6FFF 7E
                POP HL                          ; 7000 E1
                POP DE                          ; 7001 D1
                POP BC                          ; 7002 C1
 
-; ---- L7003 ---- from &4966, &6FBE
-L7003:
+;; --------------------------------------------------------------------
+;; Add one to the two-byte count at (IX+&0D), carrying into (IX+&0E)
+;; only when the low byte wraps, so the common case is one INC and a
+;; RET NZ.
+;; --------------------------------------------------------------------
+
+; ---- BUMP_TRANSFER_COUNT ---- from &4966, &6FBE
+BUMP_TRANSFER_COUNT:
                INC (IX+&0D)                    ; 7003 DD 34 0D
                RET NZ                          ; 7006 C0
                INC (IX+&0E)                    ; 7007 DD 34 0E
                RET                             ; 700A C9
 
-; ---- L700B ---- from &65A6
-L700B:
+;; --------------------------------------------------------------------
+;; A stream number through the ROM's GETINT, refused unless it fits in a
+;; byte and is below &10 -- INC H with DEC H tests the high byte without
+;; disturbing A.
+;; --------------------------------------------------------------------
+
+; ---- GET_STREAM_NUMBER ---- from &65A6
+GET_STREAM_NUMBER:
                CALL CMR                        ; 700B CD B2 7B
                DEFW GETINT                    ; 700E 21 01
                INC H                           ; 7010 24
@@ -10894,8 +10965,13 @@ L700B:
                CP &10                          ; 7014 FE 10
                JR NC,INVST                     ; 7016 30 2C
 
-; ---- L7018 ---- from &7093, &7112
-L7018:
+;; --------------------------------------------------------------------
+;; STRMD gives the displacement, zero means no channel, and one less
+;; than it added to CHANS is where the stream's entry lives.
+;; --------------------------------------------------------------------
+
+; ---- CHANNEL_FOR_STREAM ---- from &7093, &7112
+CHANNEL_FOR_STREAM:
                CALL STRMD                      ; 7018 CD 4C 70
                LD A,B                          ; 701B 78
                OR C                            ; 701C B1
@@ -11002,7 +11078,7 @@ POINTC:
                PUSH BC                         ; 708E C5
                PUSH DE                         ; 708F D5
                LD A,(SSTR1)                    ; 7090 3A 38 41
-               CALL L7018                      ; 7093 CD 18 70  PT IX TO CHANNEL,CHECK OPEN "D" IN
+               CALL CHANNEL_FOR_STREAM         ; 7093 CD 18 70  PT IX TO CHANNEL,CHECK OPEN "D" IN
                CALL GLEN                       ; 7096 CD D4 71
                POP BC                          ; 7099 C1  X DIV 64K
 
@@ -11111,7 +11187,7 @@ FTSSL:
                PUSH DE                         ; 70FC D5
                CALL WRIF                       ; 70FD CD 78 45
                POP DE                          ; 7100 D1
-               CALL L6FCF                      ; 7101 CD CF 6F
+               CALL SELECT_AND_READ_SECTOR     ; 7101 CD CF 6F
 
 ; ---- L7104 ---- from &70FA
 L7104:
@@ -11124,7 +11200,7 @@ PTREC:
                CALL CEOS                       ; 710B CD 07 50
                PUSH BC                         ; 710E C5
                LD A,(SSTR1)                    ; 710F 3A 38 41
-               CALL L7018                      ; 7112 CD 18 70
+               CALL CHANNEL_FOR_STREAM         ; 7112 CD 18 70
                CALL SELECT_DRIVE               ; 7115 CD 29 48
                CALL GRPNT                      ; 7118 CD B1 4F
                EX DE,HL                        ; 711B EB  (0-509)
@@ -11162,7 +11238,7 @@ PTRSL:
                CALL WRIF                       ; 7146 CD 78 45
                CALL GTNSC                      ; 7149 CD 99 71
                CALL READ_SECTOR_TO_ADDRESS     ; 714C CD 7F 46  READ NEXT SECTOR, LOOKING FOR DELIM
-               CALL L6FD5                      ; 714F CD D5 6F  MARK SECT WITH CUR T/S
+               CALL CLEAR_SECTOR_FLAG          ; 714F CD D5 6F  MARK SECT WITH CUR T/S
                CALL ICNT                       ; 7152 CD A9 71
                LD DE,(TEMPW3)                  ; 7155 ED 5B 16 42  COUNTER
                PUSH HL                         ; 7159 E5  BUFFER START
@@ -11217,7 +11293,7 @@ L718C:
 ; ---- L7193 ---- from &718A
 L7193:
                CALL GTNSC                      ; 7193 CD 99 71
-               JP L6FCC                        ; 7196 C3 CC 6F
+               JP COUNT_AND_READ_SECTOR        ; 7196 C3 CC 6F
 
 ; ---- GTNSC ---- from &7149, &7193
 GTNSC:
@@ -11283,7 +11359,7 @@ L71BB:
 
 ; ---- GLEN ---- from &65B0, &6E99, &7096
 GLEN:
-               CALL L71F3                      ; 71D4 CD F3 71  HL PTS TO LEN LOW (LIKE RPT)
+               CALL CHANNEL_LENGTH_FIELD       ; 71D4 CD F3 71  HL PTS TO LEN LOW (LIKE RPT)
                LD E,(HL)                       ; 71D7 5E
                INC HL                          ; 71D8 23
                LD D,(HL)                       ; 71D9 56
@@ -11317,8 +11393,14 @@ PTAD2:
                POP BC                          ; 71F1 C1
                RET                             ; 71F2 C9
 
-; ---- L71F3 ---- from &6C7F, &6C8E, &6CD7, &6EB4, &6FDC, &71D4
-L71F3:
+;; --------------------------------------------------------------------
+;; IX plus LENL, in HL.  Five instructions for an offset that six places
+;; want, which is cheaper in bytes than writing the addition out at each
+;; of them.
+;; --------------------------------------------------------------------
+
+; ---- CHANNEL_LENGTH_FIELD ---- from &6C7F, &6C8E, &6CD7, &6EB4, &6FDC, &71D4
+CHANNEL_LENGTH_FIELD:
                PUSH IX                         ; 71F3 DD E5
                POP HL                          ; 71F5 E1
                LD BC,LENL                      ; 71F6 01 E9 00
@@ -11473,7 +11555,7 @@ STDR1:
                PUSH BC                         ; 7290 C5  LEN IN B
                PUSH HL                         ; 7291 E5
                CALL DTREE                      ; 7292 CD 5A 73  DESCEND PATH TILL LAST FILE IN STRING
-               CALL L730B                      ; 7295 CD 0B 73  FIND DIRECTORY
+               CALL PREPARE_DIRECTORY_WRITE    ; 7295 CD 0B 73  FIND DIRECTORY
                CALL GPLA                       ; 7298 CD 4A 74
                POP DE                          ; 729B D1
                POP BC                          ; 729C C1  B=LEN
@@ -11593,8 +11675,13 @@ L7309:
                POP HL                          ; 7309 E1
                RET                             ; 730A C9
 
-; ---- L730B ---- from &7295, &7370, &73EE
-L730B:
+;; --------------------------------------------------------------------
+;; SNDFL, error 32 if it fails, bit 2 of FLAG3 down, and then POINT and
+;; the type byte masked -- the run-up every directory write shares.
+;; --------------------------------------------------------------------
+
+; ---- PREPARE_DIRECTORY_WRITE ---- from &7295, &7370, &73EE
+PREPARE_DIRECTORY_WRITE:
                CALL SNDFL                      ; 730B CD 76 5E
                JR NC,REP32H                    ; 730E 30 0E  ERROR IF DIRECTORY NOT FOUND
                LD HL,FLAG3                     ; 7310 21 0C 7C
@@ -11692,7 +11779,7 @@ DTREL:
                RET C                           ; 736D D8  RET IF LAST NAME
                PUSH HL                         ; 736E E5
                PUSH BC                         ; 736F C5
-               CALL L730B                      ; 7370 CD 0B 73  FIND DIRECTORY FILE
+               CALL PREPARE_DIRECTORY_WRITE    ; 7370 CD 0B 73  FIND DIRECTORY FILE
                LD BC,DIRT                      ; 7373 01 FA 00  DISP TO TAG VALUE FOR FILES IN
                ADD HL,BC                       ; 7376 09  THIS DIR
                LD A,(HL)                       ; 7377 7E
@@ -11833,7 +11920,7 @@ STDPP:
 ; ---- STFPL ---- from &73FA
 STFPL:
                PUSH AF                         ; 73ED F5
-               CALL L730B                      ; 73EE CD 0B 73  FIND PARENT DIRECTORY
+               CALL PREPARE_DIRECTORY_WRITE    ; 73EE CD 0B 73  FIND PARENT DIRECTORY
                CALL SETF2                      ; 73F1 CD F8 50  "RESTART FROM CURRENT T/S"
                LD BC,DIRT                      ; 73F4 01 FA 00
                ADD HL,BC                       ; 73F7 09

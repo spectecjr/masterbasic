@@ -203,6 +203,7 @@ XPTR:          EQU  &5AA3  ; address of the error marker
 ; and CTAB use to mean "not in this page".
 DOS_BOOT:      EQU  &8009
 DOS_CEOS:      EQU  &9007
+DOS_CHANNEL_ENTRY_AT_ZERO_PAGE: EQU  &AAEA
 DOS_DATDT:     EQU  &8271
 DOS_DRIVE:     EQU  &BC0B
 DOS_ENDS:      EQU  &9010
@@ -230,8 +231,6 @@ DOS_L602A:     EQU  &A02A
 DOS_L6280:     EQU  &A280
 DOS_L6500:     EQU  &A500
 DOS_L65C4:     EQU  &A5C4
-DOS_L68DA:     EQU  &A8DA
-DOS_L6AEA:     EQU  &AAEA
 DOS_LBYT:      EQU  &AFF6
 DOS_MBCOPY_775A: EQU  &BD79
 DOS_MBCOPY_7774: EQU  &BD93
@@ -250,6 +249,7 @@ DOS_ROOM_LEFT_IN_PAGE: EQU  &8856
 DOS_SAMCNT:    EQU  &8234
 DOS_SCFSM:     EQU  &8DF8
 DOS_SNPRT2:    EQU  &8108
+DOS_STREAM_OR_CHANNEL: EQU  &A8DA
 DOS_SVHDR:     EQU  &810A
 DOS_TEMPW1:    EQU  &8212
 DOS_TIMDT:     EQU  &8280
@@ -6887,16 +6887,16 @@ FN_SHIFT_S:
 ;; Takes:     BC, DE, HL, IY
 ;; Leaves:    A, F, BC, DE, HL
 ;;
-;; ? reaches the ROM through DOS_L68DA-&4000; calls CALLDOS; falls into whatever follows rather than returning.
+;; ? reaches the ROM through DOS_STREAM_OR_CHANNEL-&4000; calls CALLDOS; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L4E0C ---- from &4E19
 L4E0C:
                LD A,(DE)                       ; 4E0C 1A
                PUSH BC                         ; 4E0D C5
-               ; call DOS_L68DA-&4000 in the other page: LMPR is switched first, so that address is how the other listing numbers it
+               ; call DOS_STREAM_OR_CHANNEL-&4000 in the other page: LMPR is switched first, so that address is how the other listing numbers it
                CALL CALLDOS                    ; 4E0E CD C1 42
-               DEFW DOS_L68DA-&4000           ; 4E11 DA 68
+               DEFW DOS_STREAM_OR_CHANNEL-&4000 ; 4E11 DA 68
                POP BC                          ; 4E13 C1
                LD (DE),A                       ; 4E14 12
                INC DE                          ; 4E15 13
@@ -21368,14 +21368,14 @@ HK_PROGPREP:
 ;; Takes:     BC, DE, HL, IY
 ;; Leaves:    F, BC, DE, HL
 ;;
-;; ? reaches the ROM through DOS_L6AEA-&4000; calls CALLDOS; falls into whatever follows rather than returning.
+;; ? reaches the ROM through DOS_CHANNEL_ENTRY_AT_ZERO_PAGE-&4000; calls CALLDOS; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L7345 ---- from &733D
 L7345:
-               ; call DOS_L6AEA-&4000 in the other page: LMPR is switched first, so that address is how the other listing numbers it
+               ; call DOS_CHANNEL_ENTRY_AT_ZERO_PAGE-&4000 in the other page: LMPR is switched first, so that address is how the other listing numbers it
                CALL CALLDOS                    ; 7345 CD C1 42
-               DEFW DOS_L6AEA-&4000           ; 7348 EA 6A
+               DEFW DOS_CHANNEL_ENTRY_AT_ZERO_PAGE-&4000 ; 7348 EA 6A
                INC HL                          ; 734A 23
                LD B,H                          ; 734B 44
                LD C,L                          ; 734C 4D

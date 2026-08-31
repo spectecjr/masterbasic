@@ -229,3 +229,74 @@ DOS &68AB FIRST_DISC_CHANNEL
     Point IX at the channel table plus &1E -- CHANS read through the
     window and the offset added -- and return Z at once if the first byte
     is a carriage return, which is the DOS's empty-channel marker.
+
+DOS &68DA STREAM_OR_CHANNEL
+    Sort a stream number from a channel: bit 7 set means the other kind,
+    and MSFLG decides which way round when it is.  B is zeroed first so
+    the caller gets a pair either way.
+
+DOS &6AEA CHANNEL_ENTRY_AT_ZERO_PAGE
+    Zero HMPR so the system page is in the window, take CHANS from it and
+    add &1E, then check the result with the ROM's CHKHL before reading
+    through it.
+
+DOS &6B77 RESET_CHANNEL_SCAN
+    The same setup with IX instead of HL, and V4213 cleared first --
+    which is what makes it the start of a scan rather than a single
+    lookup.
+
+DOS &6CD6 STORE_TRANSFER_COUNT
+    Write the two count bytes at (IX+&0D) and (IX+&0E) out through the
+    pointer &71F3 returns.
+
+DOS &6D30 MOVE_TABLE_IF_PAGED
+    Return at once unless the high byte of TEMPW1 says there is a page to
+    deal with, and otherwise move the table below before going on.
+
+DOS &6D4F COPY_MTBLS
+    Eleven bytes from MTBLS, then &0308 bytes of zero after them -- the
+    table and the room it needs, laid down in one go.
+
+DOS &6F8D WRITE_LAST_PAGE
+    The tail of a write: IS_LAST_PAGE decides whether this is the final
+    page, and everything is pushed around the decision so the caller's
+    registers survive either path.
+
+DOS &6FC0 WRITE_AT_LINKED_SECTOR
+    Take a track and sector out of the two bytes at HL, exchange them
+    with the channel's through SWAP_TRACK_AND_SECTOR, and write there --
+    which is how the DOS follows a file's chain of sectors.
+
+DOS &6FCC COUNT_AND_READ_SECTOR
+    ICNT, then fall into the entry below.  Three entry points, one after
+    another, so a caller can start at whichever step it needs: count and
+    read, read only, or neither.
+
+DOS &6FCF SELECT_AND_READ_SECTOR
+    SELECT_DRIVE then READ_SECTOR, and fall into the clear below.
+
+DOS &6FD5 CLEAR_SECTOR_FLAG
+    Bit 3 of (IX+&0C) down, then leave for SET_TRACK_AND_SECTOR.
+
+DOS &7003 BUMP_TRANSFER_COUNT
+    Add one to the two-byte count at (IX+&0D), carrying into (IX+&0E)
+    only when the low byte wraps, so the common case is one INC and a
+    RET NZ.
+
+DOS &700B GET_STREAM_NUMBER
+    A stream number through the ROM's GETINT, refused unless it fits in a
+    byte and is below &10 -- INC H with DEC H tests the high byte without
+    disturbing A.
+
+DOS &7018 CHANNEL_FOR_STREAM
+    STRMD gives the displacement, zero means no channel, and one less
+    than it added to CHANS is where the stream's entry lives.
+
+DOS &71F3 CHANNEL_LENGTH_FIELD
+    IX plus LENL, in HL.  Five instructions for an offset that six places
+    want, which is cheaper in bytes than writing the addition out at each
+    of them.
+
+DOS &730B PREPARE_DIRECTORY_WRITE
+    SNDFL, error 32 if it fails, bit 2 of FLAG3 down, and then POINT and
+    the type byte masked -- the run-up every directory write shares.
