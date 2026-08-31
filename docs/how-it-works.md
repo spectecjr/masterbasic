@@ -380,12 +380,13 @@ is classified. What follows is what naming did not answer.
   which leaves the instructions that save `SP` unreached, though the fill
   needs them to have run.
 
-- **The DOS half** is still read mainly where MasterBASIC reaches into it,
-  though every routine either half calls now has a name. What is thin is
-  the *narrative* for the disc code: the sector, directory and channel
-  routines are named and their mechanisms described, but nothing here
-  tells the story of a read or a write end to end the way sections 2 to 5
-  do for MasterBASIC.
+- **The DOS half** is still read mainly where MasterBASIC reaches into it.
+  Every routine either half calls has a name, and
+  [disc.md](disc.md) now follows a read and a write end to end; what is
+  left thin is everything either side of those two paths -- formatting,
+  the directory as a structure, and the RAM discs, which the read path
+  branches away to at its first instruction and this project has not
+  followed.
 
 ### Settled since this section was written
 
