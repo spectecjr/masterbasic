@@ -378,15 +378,15 @@ is classified. What follows is what naming did not answer.
   of those 2207, and it is what puts the 36 bytes at `&4BA0` there, so that
   block is the DOS's work rather than MasterBASIC's.
 
-- **`SIZE_EXTERNAL_MEMORY` at `&77DB` looks like dead code.** Nothing
-  references it in either half, in either of the two other DOS binaries on
-  `dsks/MasterBasic1.7.dsk`, or in any of the three dumps — searched as a
-  call target and as a stored word in all three of its plain, flagged and
-  windowed forms. And `MBASC` on that disk is this MasterBASIC byte for
-  byte, so there is no variant in which it might be reached. Its own flow
-  does not close either: the `CALL` at `&77F5` cannot return, which leaves
-  the instructions that save `SP` unreached, though the fill needs them to
-  have run. What would overturn this is a caller outside every binary here.
+- **`SIZE_EXTERNAL_MEMORY` at `&77DB` runs, but nothing visibly calls it.**
+  It was read as dead code until a machine with 1MB of external memory
+  settled it: `MRTAB` in a booted machine records 64 pages free and 192 not,
+  the image ships with that table clear, and this is the only code in the
+  running system that walks the external page register. It is MasterDOS's
+  own `MRINIT`, relocated, which `autoMBM` moved out of the DOS page. What
+  is still open is only how it is entered — `&77DB` has no reference in
+  either half, and the block's operands do not agree on one relocation
+  delta.
 
 - **The DOS half** is still read mainly where MasterBASIC reaches into it.
   Every routine either half calls has a name, and

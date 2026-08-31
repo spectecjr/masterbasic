@@ -53,22 +53,27 @@ there with the DOS booted alone.
 
 ---
 
-## 3. `SIZE_EXTERNAL_MEMORY` at `&77DB`
+## 3. `SIZE_EXTERNAL_MEMORY` at `&77DB` — runs, but nothing calls it
 
-**The problem.** Nothing calls it. It has no reference in either half, is not
-one of the addresses the DOS reaches in the copied block, does not appear as
-a table word, and is installed nowhere. Its own flow does not close either:
-the `CALL` at `&77F5` cannot return, which leaves the instructions that save
-`SP` unreached, though the fill needs them to have run.
+**This was "is it dead code", and the answer is no.** Every dump in `file/`
+was taken under SimCoupe with one 1MB external module fitted, which turned
+out to settle it. `MBPOST.bin` carries the DOS page of a booted machine, so
+`MRTAB` — the bitmap of MegaRAM pages in use, DVARs 118–149 at `&4296` — can
+be read straight out of it. The shipped image has 32 bytes of `&00` there;
+`MBPOST` has 8 of `&00` and 24 of `&FF`. Sixty-four pages free, 192 not, and
+64 pages of 16K is exactly the 1MB fitted.
 
-**What I am doing about it without help.** `dsks/MasterBasic1.7.dsk` holds
-`samdos2` and `MBMC`, two other DOS binaries this MasterBASIC runs with. If
-either references the routine, it is vestigial here and that is the answer.
+Nothing else could have done it. Searching every binary and every dump for
+`OUT (&80),A` finds two in the running system: the DOS's `&75B2`, a single
+select inside ordinary MegaRAM access, and `&77E5`, which is this walk. The
+routine is MasterDOS's own `MRINIT`, relocated — 153 of 176 bytes identical
+to `MDOS23.bin`, every difference a two-byte address operand — and `autoMBM`
+moved it out of the DOS page, where its code no longer appears at any offset.
 
-**What would help if that fails.** A machine or emulator configured **with
-external memory**, and a note of whether MasterBASIC behaves differently —
-`FPAGES` reporting more, say. If it behaves identically with and without,
-that is good evidence the routine is simply dead.
+**What is left, and it is small.** `&77DB` still has no reference anywhere in
+either half, and the operands inside the block do not agree on one relocation
+delta. **A breakpoint on `&77DB`, or on the `OUT` to port `&80`, would name
+the caller in one go** — the PC when it stops is all I need.
 
 ---
 

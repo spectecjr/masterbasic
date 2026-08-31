@@ -14667,9 +14667,48 @@ MSG_EXTERNAL_MEMORY:
 ;; be reached.  Searching all five binaries and all three dumps for
 ;; &77DB, &F7DB and &B7DB as a stored word finds nothing at all.
 ;;
-;; So on the evidence available it is dead code, and the only thing
-;; left that could overturn that is a caller outside every binary this
-;; project has -- see docs/evidence-wanted.md.
+;; IT IS NOT DEAD CODE, and a machine with external memory fitted
+;; overturned the reading above.  All the dumps in file/ were taken
+;; under SimCoupe with one 1MB external module enabled, and MBPOST.bin
+;; -- a SAVE BOOT of a machine booted from the combined file -- carries
+;; the DOS page, so MRTAB can be read out of it.  MRTAB is the bitmap
+;; of MegaRAM pages in use, DVARs 118-149 at the DOS's &4296, and a set
+;; bit means unavailable:
+;;
+;; shipped image, never booted   32 bytes of &00
+;; MBPOST, booted with 1MB       8 of &00, then 24 of &FF
+;;
+;; Sixty-four pages free and 192 not, and 64 pages of 16K is exactly
+;; the 1MB fitted.  The image ships with the table clear, so the &FFs
+;; were written during the boot, and to know where to stop something
+;; had to walk the pages and find where they ran out.
+;;
+;; Only this routine can have done it.  Searching every binary and
+;; every dump for OUT (&80),A -- the write that selects an external
+;; page -- finds exactly two in the running system: the DOS's &75B2,
+;; which is a single select in the middle of ordinary MegaRAM access,
+;; and &77E5, which is this walk.  Neither the DOS page nor the system
+;; page holds a copy: the seven bytes DB FB F5 F6 80 D3 FB that open
+;; the routine appear at MB &77DB and nowhere else, in the image, in
+;; MBPOST's two pages, and in all three dumps of page 0.
+;;
+;; WHAT IT IS.  MasterDOS 2.3's own MRINIT, relocated.  Comparing MB
+;; &7780-&782F against MDOS23.bin gives 153 of 176 bytes identical, and
+;; every difference is a two-byte address operand.  The DOS's version
+;; is called at boot -- its source heads it "MEGA RAM INIT - USED AT
+;; BOOT TIME WHEN DOS AT 8000H" and calls it as MRINIT+FS -- and prints
+;; the "nnnK External Memory" line.  autoMBM moved it: the message
+;; appears exactly once in the whole 32640-byte image, in this half,
+;; and MDOS23's MRINIT code is not in the DOS half at any offset.
+;;
+;; WHAT IS STILL OPEN is how it is entered, which is now a smaller
+;; question than it was.  &77DB has no reference anywhere in either
+;; half, as a call target or as a stored word in any of its plain,
+;; flagged or windowed forms, and the operands inside the block do not
+;; agree on a single relocation delta -- the message is addressed as
+;; &BDE8, which puts the block &61D above where it is stored, while the
+;; CALL at &77F5 names &7806, its own stored address.  A breakpoint on
+;; &77DB, or on the OUT to port &80, would name the caller in one go.
 ;;
 ;; And the flow through the fill does not join up.  CALL &7806 at &77F5
 ;; cannot return -- STACK_FILL_LOOP ends by putting SP back and jumping
