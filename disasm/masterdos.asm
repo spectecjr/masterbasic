@@ -1318,11 +1318,11 @@ SYNT1:
 ; ---- ST3HP ---- from &4354
 ST3HP:
                JP NZ,L43E5                     ; 4360 C2 E5 43  JP IF E.G. DOS CALLED EXPT1NUM
-               CALL L446C                      ; 4363 CD 6C 44
+               CALL UNWIND_HOOK_STACK          ; 4363 CD 6C 44
                LD BC,ENDS                      ; 4366 01 10 50
                PUSH BC                         ; 4369 C5  every command returns to ENDS
                CALL ZFSP                       ; 436A CD 8B 44  ZERO FLAG3 AND HKSP
-               CALL L4495                      ; 436D CD 95 44
+               CALL CLEAR_TSTR                 ; 436D CD 95 44
                CALL L4F84                      ; 4370 CD 84 4F
                CALL NRRDD                      ; 4373 CD 53 50
                DEFW CHADD                     ; 4376 97 5A
@@ -1475,7 +1475,7 @@ HOOK:
                LD (SVCST),A                    ; 4434 32 31 41  HOOK CODE OFFSET
                EX AF,AF'                       ; 4437 08
                LD (HKA),A                      ; 4438 32 DD 41
-               CALL L446C                      ; 443B CD 6C 44
+               CALL UNWIND_HOOK_STACK          ; 443B CD 6C 44
                LD (SVHDR),IX                   ; 443E DD 22 0A 41
                EXX                             ; 4442 D9
                LD (HKHL),HL                    ; 4443 22 DE 41
@@ -1495,8 +1495,13 @@ HOOK:
                LD E,A                          ; 4468 5F  "NO ACTION"
                JP RENT                         ; 4469 C3 25 50  RESTORE ORIG ENTSP
 
-; ---- L446C ---- from &4363, &443B
-L446C:
+;; --------------------------------------------------------------------
+;; Take the return address into IY, read DOSSTK, and LDDR six bytes down
+;; from &7FFF -- the stack the DOS unwinds to when a hook gives up.
+;; --------------------------------------------------------------------
+
+; ---- UNWIND_HOOK_STACK ---- from &4363, &443B
+UNWIND_HOOK_STACK:
                POP IY                          ; 446C FD E1  RET ADDR
                CALL NRRDD                      ; 446E CD 53 50
                DEFW DOSSTK                    ; 4471 59 5C
@@ -1523,8 +1528,15 @@ ZFSP:
                LD (HKSP),HL                    ; 4491 22 0B 42
                RET                             ; 4494 C9
 
-; ---- L4495 ---- from &436D, &638A
-L4495:
+;; --------------------------------------------------------------------
+;; Fill TSTR1 up to UIFA with &FF and set RDAT to the same, which is the
+;; DOS's "nothing here" for a temporary string and its data flag.  The
+;; length is written as UIFA-TSTR1 so the two can move without this
+;; needing to know how far apart they are.
+;; --------------------------------------------------------------------
+
+; ---- CLEAR_TSTR ---- from &436D, &638A
+CLEAR_TSTR:
                PUSH AF                         ; 4495 F5
                LD A,&FF                        ; 4496 3E FF
                LD HL,TSTR1                     ; 4498 21 32 41
@@ -1792,9 +1804,16 @@ WRIF2:
                BIT 3,(IX+&0C)                  ; 457B DD CB 0C 5E
                RET Z                           ; 457F C8  RET IF SECTOR HAS NOT BEEN
 
-; ---- L4580 ---- from &6FA7
-L4580:
-               CALL L4829                      ; 4580 CD 29 48
+;; --------------------------------------------------------------------
+;; A sector out: wait for the drive with DWAIT, check the track through
+;; TIRDXDCT, then interrupts off, CTAS and PRECMX to position, and the
+;; drive's status port poked into CHECK_WRITE_STATUS's own operand from
+;; DSC before the transfer.
+;; --------------------------------------------------------------------
+
+; ---- WRITE_SECTOR ---- from &6FA7
+WRITE_SECTOR:
+               CALL SELECT_DRIVE               ; 4580 CD 29 48
 
 NWSAD:
                CALL DWAIT                      ; 4583 CD 64 45
@@ -1829,7 +1848,7 @@ WSA1:
                CALL CHECK_WRITE_STATUS         ; 459F CD AE 45
                BIT 5,A                         ; 45A2 CB 6F
                JP NZ,REP23                     ; 45A4 C2 80 51  ERROR IF WRITE-PROTECTED
-               CALL L46C6                      ; 45A7 CD C6 46
+               CALL RETRY_OR_GIVE_UP           ; 45A7 CD C6 46
                JR WSA1                         ; 45AA 18 E1
 
 ; ---- WRITE_DATA_LOOP ---- from &45B3
@@ -1853,8 +1872,15 @@ CHECK_WRITE_STATUS:
                JR C,WRITE_DATA_LOOP            ; 45B3 38 F7  JR IF DISK READY FOR BYTE
                JR CHECK_WRITE_STATUS           ; 45B5 18 F7
 
-; ---- L45B7 ---- from &4602, &4633, &48FF, &4E08, &5558, &5582, &5A14, &5D62 ...
-L45B7:
+;; --------------------------------------------------------------------
+;; The read side, and the most called routine in this half.  TIRDXDCT
+;; checks the track, RSSR selects the sector, RDDATA does the transfer,
+;; and a failure goes round again from &45BD rather than giving up at
+;; once.
+;; --------------------------------------------------------------------
+
+; ---- READ_SECTOR ---- from &4602, &4633, &48FF, &4E08, &5558, &5582, &5A14, &5D62 ...
+READ_SECTOR:
                CALL TIRDXDCT                   ; 45B7 CD 56 61
                JP NC,L7533                     ; 45BA D2 33 75
 
@@ -1862,7 +1888,7 @@ L45B7:
 L45BD:
                CALL RSSR                       ; 45BD CD 97 4F
                CALL RDDATA                     ; 45C0 CD C8 45
-               CALL L46C6                      ; 45C3 CD C6 46
+               CALL RETRY_OR_GIVE_UP           ; 45C3 CD C6 46
                JR L45BD                        ; 45C6 18 F5
 
 ; ---- RDDATA ---- from &45C0, &46F7, &54BD
@@ -1896,8 +1922,14 @@ CHECK_READ_STATUS:
                JR NC,CHECK_READ_STATUS         ; 45DE 30 F9  JR IF NO BYTE IS READY TO READ
                JR READ_DATA_LOOP               ; 45E0 18 F3
 
-; ---- L45E2 ---- from &4B44, &4B85
-L45E2:
+;; --------------------------------------------------------------------
+;; Take the flags at (IX+&04) and decide how to reach the data: bit 2
+;; sends it through GETSCR for a screen, and what comes back is checked
+;; against &04 before being used.
+;; --------------------------------------------------------------------
+
+; ---- SECTOR_FOR_CHANNEL ---- from &4B44, &4B85
+SECTOR_FOR_CHANNEL:
                LD A,(IX+&04)                   ; 45E2 DD 7E 04
                BIT 2,A                         ; 45E5 CB 57
                JR Z,L4631                      ; 45E7 28 48
@@ -1921,7 +1953,7 @@ L45F9:
 ; ---- L45FF ---- from &460A
 L45FF:
                LD (BUF),HL                     ; 45FF 22 0F 7C
-               CALL L45B7                      ; 4602 CD B7 45
+               CALL READ_SECTOR                ; 4602 CD B7 45
                INC H                           ; 4605 24
                INC H                           ; 4606 24
                CALL ISECT                      ; 4607 CD 24 56
@@ -1945,8 +1977,13 @@ L4612:
                LD (V7C0E),A                    ; 4624 32 0E 7C
                POP DE                          ; 4627 D1
 
-; ---- L4628 ---- from &49CF, &55A6, &5BBB, &7943
-L4628:
+;; --------------------------------------------------------------------
+;; Store HL in PTRSCR and put PORT1 back into HMPR, which is the pair
+;; that ends every access to a screen the DOS has borrowed.
+;; --------------------------------------------------------------------
+
+; ---- SET_SCREEN_POINTER ---- from &49CF, &55A6, &5BBB, &7943
+SET_SCREEN_POINTER:
                LD (PTRSCR),HL                  ; 4628 22 2C 41
                LD A,(PORT1)                    ; 462B 3A 2E 41
                OUT (HMPR),A                    ; 462E D3 FB
@@ -1955,7 +1992,7 @@ L4628:
 ; ---- L4631 ---- from &45E7
 L4631:
                BIT 5,A                         ; 4631 CB 6F
-               JR Z,L45B7                      ; 4633 28 82
+               JR Z,READ_SECTOR                ; 4633 28 82
 
 ;; --------------------------------------------------------------------
 ;;  NRSAD -- read a directory sector, accumulating the free-sector map as it goes
@@ -1988,7 +2025,7 @@ NRSA1:
                PUSH DE                         ; 4644 D5
                CALL NRDDATA                    ; 4645 CD 4E 46
                POP DE                          ; 4648 D1
-               CALL L46C6                      ; 4649 CD C6 46
+               CALL RETRY_OR_GIVE_UP           ; 4649 CD C6 46
                JR NRSA1                        ; 464C 18 ED
 
 ; ---- NRDDATA ---- from &4645
@@ -2038,9 +2075,16 @@ NRSA3:
                JR NC,NRSA3                     ; 467B 30 F9  JR IF NO BYTE IS READY TO READ
                JR NRSA2                        ; 467D 18 EC
 
-; ---- L467F ---- from &714C
-L467F:
-               CALL L4829                      ; 467F CD 29 48
+;; --------------------------------------------------------------------
+;; Like READ_SECTOR but with the destination given: the drive's data
+;; port is poked into the operands of SRSA3 and SRSA2 -- the two
+;; instructions the transfer loop uses -- and the address pushed for
+;; them before it starts.
+;; --------------------------------------------------------------------
+
+; ---- READ_SECTOR_TO_ADDRESS ---- from &714C
+READ_SECTOR_TO_ADDRESS:
+               CALL SELECT_DRIVE               ; 467F CD 29 48
 
 SRSAD:
                CALL TIRDXDCT                   ; 4682 CD 56 61
@@ -2060,7 +2104,7 @@ SRSA1:
                CALL SRSA3                      ; 469F CD B3 46
                LD (TEMPW3),DE                  ; 46A2 ED 53 16 42  NEW COUNT
                POP DE                          ; 46A6 D1
-               CALL L46C6                      ; 46A7 CD C6 46
+               CALL RETRY_OR_GIVE_UP           ; 46A7 CD C6 46
                JR SRSA1                        ; 46AA 18 DC
 
 ; ---- SRSA2 ---- from &46BA
@@ -2089,8 +2133,16 @@ SRSA4:
                LD (TEMPW2),HL                  ; 46C1 22 14 42
                JR SRSA3                        ; 46C4 18 ED
 
-; ---- L46C6 ---- from &45A7, &45C3, &4649, &46A7
-L46C6:
+;; --------------------------------------------------------------------
+;; What the sector routines do with a controller status they do not
+;; like.  AND &0E keeps the error bits, and any of them leaves for CDE1;
+;; otherwise the buffer is re-got through GTBUF and the operation runs
+;; again.  The path at &46D1 counts the failure into DCT, the disc error
+;; counter.
+;; --------------------------------------------------------------------
+
+; ---- RETRY_OR_GIVE_UP ---- from &45A7, &45C3, &4649, &46A7
+RETRY_OR_GIVE_UP:
                AND &0E                         ; 46C6 E6 0E
                JR NZ,CDE1                      ; 46C8 20 07  JR IF AN ERROR WAS DETECTED
                CALL L4F8E                      ; 46CA CD 8E 4F
@@ -2108,10 +2160,10 @@ CDE1:
                POP AF                          ; 46DE F1
                BIT 4,A                         ; 46DF CB 67
                JR NZ,L46EF                     ; 46E1 20 0C  JR IF RECORD NOT FOUND
-               CALL L477F                      ; 46E3 CD 7F 47
-               CALL L477B                      ; 46E6 CD 7B 47
-               CALL L477B                      ; 46E9 CD 7B 47
-               JP L477F                        ; 46EC C3 7F 47
+               CALL STEP_HEAD_IN               ; 46E3 CD 7F 47
+               CALL STEP_HEAD_OUT              ; 46E6 CD 7B 47
+               CALL STEP_HEAD_OUT              ; 46E9 CD 7B 47
+               JP STEP_HEAD_IN                 ; 46EC C3 7F 47
 
 ; ---- L46EF ---- from &46E1, &471C, &4721
 L46EF:
@@ -2142,7 +2194,7 @@ CTS1:
 
 ; ---- L471E ---- from &4715
 L471E:
-               CALL L477F                      ; 471E CD 7F 47
+               CALL STEP_HEAD_IN               ; 471E CD 7F 47
                JR L46EF                        ; 4721 18 CC
 
 ; ---- HK_SKSAFE ---- from &4D55, &4E65, &5FF1, &647C, &64BE
@@ -2220,17 +2272,26 @@ CTA25:
 ; ---- CTA3 ---- from &475C, &4763
 CTA3:
                POP AF                          ; 4772 F1
-               CALL NC,L477B                   ; 4773 D4 7B 47
-               CALL C,L477F                    ; 4776 DC 7F 47
+               CALL NC,STEP_HEAD_OUT           ; 4773 D4 7B 47
+               CALL C,STEP_HEAD_IN             ; 4776 DC 7F 47
                JR CTA2                         ; 4779 18 CF
 
-; ---- L477B ---- from &46E6, &46E9, &4773, &47C2
-L477B:
+; ---- STEP_HEAD_OUT ---- from &46E6, &46E9, &4773, &47C2
+STEP_HEAD_OUT:
                LD C,STEP_OUT_CMD               ; 477B 0E 7B
                JR L4781                        ; 477D 18 02
 
-; ---- L477F ---- from &46E3, &46EC, &471E, &4776, &54A8, &5522, &558A
-L477F:
+;; --------------------------------------------------------------------
+;; One step of the head, either way: the direction is the only
+;; difference and both fall into the same code, which issues the command
+;; and then consults V42BB -- the double-step setting the manual calls
+;; DBSTP, "can be POKEd to a non-zero value to cause double stepping of
+;; the drive head ... useful when reading 40-track disks" -- and repeats
+;; the step when it is set.
+;; --------------------------------------------------------------------
+
+; ---- STEP_HEAD_IN ---- from &46E3, &46EC, &471E, &4776, &54A8, &5522, &558A
+STEP_HEAD_IN:
                LD C,STEP_IN_CMD                ; 477F 0E 5B
 
 ; ---- L4781 ---- from &477D
@@ -2299,7 +2360,7 @@ RSLP4:
                CALL READ_SELECTED_DISK_STATUS  ; 47BA CD 26 45
                BIT 2,A                         ; 47BD CB 57
                JP NZ,BUSY                      ; 47BF C2 6D 45
-               CALL L477B                      ; 47C2 CD 7B 47
+               CALL STEP_HEAD_OUT              ; 47C2 CD 7B 47
                JR RSLP4                        ; 47C5 18 F3
 
 ;; --------------------------------------------------------------------
@@ -2403,8 +2464,14 @@ L4825:
                LD (DRIVE),A                    ; 4825 32 0B 7C
                RET                             ; 4828 C9
 
-; ---- L4829 ---- from &4580, &467F, &6E87, &6FCF, &7115
-L4829:
+;; --------------------------------------------------------------------
+;; Take the drive from (IX+&0B), record it in DRIVE, and pick the port
+;; block: DISKCTL_0_BASE for one drive and DISKCTL_1_BASE for the other,
+;; chosen on the number rather than by two copies of the code.
+;; --------------------------------------------------------------------
+
+; ---- SELECT_DRIVE ---- from &4580, &467F, &6E87, &6FCF, &7115
+SELECT_DRIVE:
                LD A,(IX+&0B)                   ; 4829 DD 7E 0B
 
 SSDRV2:
@@ -2432,8 +2499,14 @@ L4842:
                LD (DSC),A                      ; 4843 32 10 41
                RET                             ; 4846 C9
 
-; ---- L4847 ---- from &497D, &6F78, &6F90, &6FF9
-L4847:
+;; --------------------------------------------------------------------
+;; GRPNT, then return NZ unless the page count says &FE with one page
+;; left -- the shape the DOS uses for "this is the last page of the
+;; transfer".
+;; --------------------------------------------------------------------
+
+; ---- IS_LAST_PAGE ---- from &497D, &6F78, &6F90, &6FF9
+IS_LAST_PAGE:
                CALL GRPNT                      ; 4847 CD B1 4F
                LD A,C                          ; 484A 79
                CP &FE                          ; 484B FE FE
@@ -2450,8 +2523,14 @@ HK_HLDBK:
 ;; --------------------------------------------------------------------
                LD (PGES1),A                    ; 4853 32 50 41
 
-; ---- L4856 ---- from &5A5B, &5FEE, &6479
-L4856:
+;; --------------------------------------------------------------------
+;; How much of the current page is still to come: &01FE less the offset,
+;; with the page adjusted first, and the result narrowed against what
+;; the caller has left.
+;; --------------------------------------------------------------------
+
+; ---- ROOM_LEFT_IN_PAGE ---- from &5A5B, &5FEE, &6479
+ROOM_LEFT_IN_PAGE:
                CALL SETF6                      ; 4856 CD 10 51
                CALL ADJUST_PAGE_DE             ; 4859 CD 39 45
 
@@ -2573,7 +2652,7 @@ LDB7:
 
 ; ---- L48FF ---- from &4897
 L48FF:
-               CALL L45B7                      ; 48FF CD B7 45
+               CALL READ_SECTOR                ; 48FF CD B7 45
                LD HL,(SVHL)                    ; 4902 2A 05 7C
                LD DE,(SVDE)                    ; 4905 ED 5B 02 7C
                JP L485C                        ; 4909 C3 5C 48
@@ -2676,7 +2755,7 @@ SBLOK:
 
 Fix_L4861_4x:
                LD (SVHL),HL                    ; 497A 22 05 7C  L7C05   =       =             ;*
-               CALL L4847                      ; 497D CD 47 48  L474C   =       =             ;*
+               CALL IS_LAST_PAGE               ; 497D CD 47 48  L474C   =       =             ;*
                JR NZ,SVB1                      ; 4980 20 E3  L484C   =       =             ;*
                POP DE                          ; 4982 D1  *
                LD (SVDE),DE                    ; 4983 ED 53 02 7C  L7C02   =       =             ;*
@@ -2731,7 +2810,7 @@ SVB3:
                LD BC,&01FF                     ; 49C7 01 FF 01  ALLOW UP TO 512 BYTES OF ZEROS
                LDIR                            ; 49CA ED B0  FOR LAST SECTOR
                LD HL,FTADD                     ; 49CC 21 80 A2
-               CALL L4628                      ; 49CF CD 28 46  SET PTR VAR TO START OF LIST
+               CALL SET_SCREEN_POINTER         ; 49CF CD 28 46  SET PTR VAR TO START OF LIST
                POP DE                          ; 49D2 D1
                CALL WSAD                       ; 49D3 CD 86 45  WRITE FIRST SECTOR, SETUP DSC
                DI                              ; 49D6 F3
@@ -3142,7 +3221,7 @@ FDHR:
                LD (FSLOT),A                    ; 4B3B 32 FC 41  NO FREE SLOT
                LD (MAXT),A                     ; 4B3E 32 35 42  MAX TAG=0
                CALL REST                       ; 4B41 CD AD 47
-               CALL L45E2                      ; 4B44 CD E2 45
+               CALL SECTOR_FOR_CHANNEL         ; 4B44 CD E2 45
                CALL SDTKS                      ; 4B47 CD 55 74  SET DIR TKS, CHECK RAND NO
                PUSH HL                         ; 4B4A E5
                BIT 2,(IX+&04)                  ; 4B4B DD CB 04 56
@@ -3198,7 +3277,7 @@ FDH05:
 
 ; ---- FDH1 ---- from &4C9E, &4CAC, &4D91
 FDH1:
-               CALL L45E2                      ; 4B85 CD E2 45
+               CALL SECTOR_FOR_CHANNEL         ; 4B85 CD E2 45
 
 ; ---- L4B88 ---- from &4C98
 L4B88:
@@ -3717,7 +3796,7 @@ CFSM:
                INC E                           ; 4E04 1C
                DEC E                           ; 4E05 1D
                JR Z,CLOSX                      ; 4E06 28 0B  DIR PROBABLY FULL - BUT DO A FULL
-               CALL L45B7                      ; 4E08 CD B7 45  READ DIR SECTOR WITH FREE SLOTS
+               CALL READ_SECTOR                ; 4E08 CD B7 45  READ DIR SECTOR WITH FREE SLOTS
                LD A,(FSLTE)                    ; 4E0B 3A FE 41
                LD (DCHAN+RPTH),A               ; 4E0E 32 0E 7C  PT RPT TO FREE SLOT
                JR NCF25                        ; 4E11 18 08
@@ -5153,7 +5232,7 @@ DFMT:
 ; ---- DFMTA ---- from &54AC
 DFMTA:
                PUSH BC                         ; 54A7 C5
-               CALL L477F                      ; 54A8 CD 7F 47
+               CALL STEP_HEAD_IN               ; 54A8 CD 7F 47
                POP BC                          ; 54AB C1
                DJNZ DFMTA                      ; 54AC 10 F9
                CALL REST                       ; 54AE CD AD 47
@@ -5229,7 +5308,7 @@ FMT1A:
                AND &7F                         ; 551D E6 7F
                CP D                            ; 551F BA
                JR Z,L5532                      ; 5520 28 10  JR IF TIME FOR SIDE 2
-               CALL L477F                      ; 5522 CD 7F 47
+               CALL STEP_HEAD_IN               ; 5522 CD 7F 47
                LD A,(SKEW)                     ; 5525 3A 2E 42  &FF GIVES SKEW 1, &FE: 2, &00: 0
                DEC E                           ; 5528 1D  E=0-9
                ADD A,E                         ; 5529 83
@@ -5272,7 +5351,7 @@ FMT8:
 ; ---- FMT9 ---- from &5560
 FMT9:
                LD (BUF),HL                     ; 5555 22 0F 7C
-               CALL L45B7                      ; 5558 CD B7 45
+               CALL READ_SECTOR                ; 5558 CD B7 45
                INC H                           ; 555B 24
                INC H                           ; 555C 24
                CALL ISECT                      ; 555D CD 24 56
@@ -5296,10 +5375,10 @@ FMT10:
 
 ; ---- L5582 ---- from &5588, &559E
 L5582:
-               CALL L45B7                      ; 5582 CD B7 45
+               CALL READ_SECTOR                ; 5582 CD B7 45
                CALL ISECT                      ; 5585 CD 24 56
                JR NZ,L5582                     ; 5588 20 F8
-               CALL L477F                      ; 558A CD 7F 47
+               CALL STEP_HEAD_IN               ; 558A CD 7F 47
                JR L5598                        ; 558D 18 09
 
 ; ---- L558F ---- from &5544
@@ -5319,7 +5398,7 @@ L5598:
 L55A0:
                CALL CLSL                       ; 55A0 CD E4 5A
                LD HL,FTADD                     ; 55A3 21 80 A2
-               CALL L4628                      ; 55A6 CD 28 46
+               CALL SET_SCREEN_POINTER         ; 55A6 CD 28 46
                JP REST                         ; 55A9 C3 AD 47
 
 HK_HDUMMY:
@@ -6243,7 +6322,7 @@ L59E3:
                XOR A                           ; 5A0C AF  Z SO "NOT ZX FILE" TO GTFL2
                CALL L4EE3                      ; 5A0D CD E3 4E
                LD DE,(SVDE)                    ; 5A10 ED 5B 02 7C
-               CALL L45B7                      ; 5A14 CD B7 45
+               CALL READ_SECTOR                ; 5A14 CD B7 45
                POP BC                          ; 5A17 C1
                LD HL,&01FE                     ; 5A18 21 FE 01
                CALL M510                       ; 5A1B CD DF 71  GET AHL=HL+BC*510 (MAX FILE SIZE)
@@ -6281,7 +6360,7 @@ FCP1:
                LD H,A                          ; 5A54 67
                LD (TEMPW2),HL                  ; 5A55 22 14 42  PGES1/PAGE OF BUFFER
                CALL GCOP                       ; 5A58 CD A9 5A
-               CALL L4856                      ; 5A5B CD 56 48
+               CALL ROOM_LEFT_IN_PAGE          ; 5A5B CD 56 48
                CALL TSPCE1                     ; 5A5E CD 34 59
                CALL BSWOP                      ; 5A61 CD 61 62
                CALL TRX                        ; 5A64 CD E6 62
@@ -6538,7 +6617,7 @@ PCN2:
 
 ; ---- PCN3 ---- from &5B87, &5BAD
 PCN3:
-               CALL L4628                      ; 5BBB CD 28 46
+               CALL SET_SCREEN_POINTER         ; 5BBB CD 28 46
                CALL PNCR                       ; 5BBE CD FC 5B
                JR PCN4                         ; 5BC1 18 03
 
@@ -6904,7 +6983,7 @@ RENAM:
                CALL CEOS                       ; 5D59 CD 07 50
                CALL EVFINS                     ; 5D5C CD 21 73
                LD DE,&0001                     ; 5D5F 11 01 00
-               CALL L45B7                      ; 5D62 CD B7 45
+               CALL READ_SECTOR                ; 5D62 CD B7 45
                CALL L4F8E                      ; 5D65 CD 8E 4F
                LD B,&FF                        ; 5D68 06 FF
                CALL GRPNTB                     ; 5D6A CD AE 4F
@@ -6972,7 +7051,7 @@ REFBUF:
 ; ---- RFB2 ---- from &5DCF
 RFB2:
                LD DE,(SVTRS)                   ; 5DC8 ED 5B 24 41
-               JP L45B7                        ; 5DCC C3 B7 45  ENSURE DRAM CONTAINS DIR ENTRIES
+               JP READ_SECTOR                  ; 5DCC C3 B7 45  ENSURE DRAM CONTAINS DIR ENTRIES
 
 ;; --------------------------------------------------------------------
 ;; IN CASE 2ND ONE WANTED
@@ -7159,13 +7238,13 @@ SNDFL:
                LD (IX+&04),A                   ; 5E82 DD 77 04  FDHR FLAGS=0 FOR CHKNM
                LD (IX+&0E),A                   ; 5E85 DD 77 0E  1ST ENTRY
                CALL REST                       ; 5E88 CD AD 47
-               CALL L45B7                      ; 5E8B CD B7 45  T0/S1
+               CALL READ_SECTOR                ; 5E8B CD B7 45  T0/S1
                CALL SDTKS                      ; 5E8E CD 55 74  SET DIR TKS, CHECK RAND NO
                JR SNDF15                       ; 5E91 18 03
 
 ; ---- SNDF1 ---- from &5ECC, &5ED9
 SNDF1:
-               CALL L45B7                      ; 5E93 CD B7 45
+               CALL READ_SECTOR                ; 5E93 CD B7 45
 
 ; ---- SNDF15 ---- from &5E91
 SNDF15:
@@ -7370,7 +7449,7 @@ CMD_LOAD:
                PUSH HL                         ; 5F79 E5
                CALL L4F84                      ; 5F7A CD 84 4F
                CALL REST                       ; 5F7D CD AD 47
-               CALL L45B7                      ; 5F80 CD B7 45
+               CALL READ_SECTOR                ; 5F80 CD B7 45
                CALL SDTKS                      ; 5F83 CD 55 74
                POP HL                          ; 5F86 E1
                CALL CALLMB                     ; 5F87 CD BD 42
@@ -7383,7 +7462,7 @@ CMD_LOAD:
                LD A,E                          ; 5F95 7B
                DEC A                           ; 5F96 3D
                OR D                            ; 5F97 B2
-               CALL NZ,L45B7                   ; 5F98 C4 B7 45
+               CALL NZ,READ_SECTOR             ; 5F98 C4 B7 45
                POP AF                          ; 5F9B F1
                LD (V7C0E),A                    ; 5F9C 32 0E 7C
                CALL POINT                      ; 5F9F CD AC 4F
@@ -7414,7 +7493,7 @@ L5FBB:
                CALL BITF7                      ; 5FC2 CD 40 51
                JR Z,DLVM1                      ; 5FC5 28 30  JR IF SCREEN$
                LD DE,(SVDE)                    ; 5FC7 ED 5B 02 7C
-               CALL L45B7                      ; 5FCB CD B7 45
+               CALL READ_SECTOR                ; 5FCB CD B7 45
                IN A,(LMPR)                     ; 5FCE DB FA
                LD (SNPRT0),A                   ; 5FD0 32 06 41
                IN A,(HMPR)                     ; 5FD3 DB FB
@@ -7428,7 +7507,7 @@ L5FBB:
                LD DE,HEADER                    ; 5FE6 11 00 40
                LD A,&02                        ; 5FE9 3E 02
                LD (PGES1),A                    ; 5FEB 32 50 41
-               CALL L4856                      ; 5FEE CD 56 48  LOAD 48K TO ZX IMAGE
+               CALL ROOM_LEFT_IN_PAGE          ; 5FEE CD 56 48  LOAD 48K TO ZX IMAGE
                CALL HK_SKSAFE                  ; 5FF1 CD 23 47
                JP SNAP7                        ; 5FF4 C3 57 54
 
@@ -8255,7 +8334,7 @@ EVFL8B:
 
 ; ---- HCONR ---- from &6340
 HCONR:
-               CALL L4495                      ; 638A CD 95 44
+               CALL CLEAR_TSTR                 ; 638A CD 95 44
                LD HL,UIFA+1                    ; 638D 21 7E 41
                CALL L6701                      ; 6390 CD 01 67
                LD A,(&7FFF)                    ; 6393 3A FF 7F  ENTRY LRPORT VALUE ON STACK
@@ -8420,7 +8499,7 @@ L6459:
 
 ; ---- L6479 ---- from &6461, &646A
 L6479:
-               CALL L4856                      ; 6479 CD 56 48
+               CALL ROOM_LEFT_IN_PAGE          ; 6479 CD 56 48
 
 ; ---- L647C ---- from &6441, &6457
 L647C:
@@ -8765,7 +8844,7 @@ HK_HGFLE:
 ; ---- L6633 ---- from &6482
 L6633:
                LD DE,(SVDE)                    ; 6633 ED 5B 02 7C
-               CALL L45B7                      ; 6637 CD B7 45
+               CALL READ_SECTOR                ; 6637 CD B7 45
                JP L5F4D                        ; 663A C3 4D 5F
 
 HERAZ:
@@ -8801,7 +8880,7 @@ HRSAD:
 
 ; ---- HFRSAD ---- from &6656, &6A39
 HFRSAD:
-               LD IY,L45B7                     ; 665B FD 21 B7 45
+               LD IY,READ_SECTOR               ; 665B FD 21 B7 45
                JR FRWSR                        ; 665F 18 10
 
 HWSAD:
@@ -10349,7 +10428,7 @@ RCLM4:
 
 ; ---- SDCM ---- from &6E39
 SDCM:
-               CALL L4829                      ; 6E87 CD 29 48
+               CALL SELECT_DRIVE               ; 6E87 CD 29 48
                XOR A                           ; 6E8A AF
                LD (FSLOT),A                    ; 6E8B 32 FC 41  ENSURE NO USE OF FSLOT
                CALL WRIF                       ; 6E8E CD 78 45  WRITE CURRENT SECTOR IF IT HAS
@@ -10510,7 +10589,7 @@ HK_SBYT:
                PUSH BC                         ; 6F75 C5
                PUSH HL                         ; 6F76 E5
                PUSH AF                         ; 6F77 F5
-               CALL L4847                      ; 6F78 CD 47 48  HL=ADDR OF WRITE POINT
+               CALL IS_LAST_PAGE               ; 6F78 CD 47 48  HL=ADDR OF WRITE POINT
                JR NZ,L6FBA                     ; 6F7B 20 3D
                PUSH DE                         ; 6F7D D5
                CALL FNFS                       ; 6F7E CD 83 4A
@@ -10527,7 +10606,7 @@ L6F8D:
                PUSH BC                         ; 6F8D C5
                PUSH HL                         ; 6F8E E5
                PUSH AF                         ; 6F8F F5
-               CALL L4847                      ; 6F90 CD 47 48
+               CALL IS_LAST_PAGE               ; 6F90 CD 47 48
                JR NZ,L6FBA                     ; 6F93 20 25  JR IF BUFFER NOT FULL
                PUSH DE                         ; 6F95 D5
                PUSH HL                         ; 6F96 E5
@@ -10540,7 +10619,7 @@ L6F8D:
                LD (HL),E                       ; 6FA2 73
                EX DE,HL                        ; 6FA3 EB
                CALL L4FCD                      ; 6FA4 CD CD 4F  SELECT DRIVE
-               CALL L4580                      ; 6FA7 CD 80 45  PREV
+               CALL WRITE_SECTOR               ; 6FA7 CD 80 45  PREV
                PUSH HL                         ; 6FAA E5
                LD D,H                          ; 6FAB 54
                LD E,L                          ; 6FAC 5D
@@ -10584,8 +10663,8 @@ L6FCC:
 
 ; ---- L6FCF ---- from &7101
 L6FCF:
-               CALL L4829                      ; 6FCF CD 29 48
-               CALL L45B7                      ; 6FD2 CD B7 45
+               CALL SELECT_DRIVE               ; 6FCF CD 29 48
+               CALL READ_SECTOR                ; 6FD2 CD B7 45
 
 ; ---- L6FD5 ---- from &714F
 L6FD5:
@@ -10621,7 +10700,7 @@ LBYT:
                PUSH BC                         ; 6FF6 C5
                PUSH DE                         ; 6FF7 D5
                PUSH HL                         ; 6FF8 E5
-               CALL L4847                      ; 6FF9 CD 47 48
+               CALL IS_LAST_PAGE               ; 6FF9 CD 47 48
                CALL Z,L6FC0                    ; 6FFC CC C0 6F  CALL IF BUFFER FULL.
                LD A,(HL)                       ; 6FFF 7E
                POP HL                          ; 7000 E1
@@ -10876,7 +10955,7 @@ PTREC:
                PUSH BC                         ; 710E C5
                LD A,(SSTR1)                    ; 710F 3A 38 41
                CALL L7018                      ; 7112 CD 18 70
-               CALL L4829                      ; 7115 CD 29 48
+               CALL SELECT_DRIVE               ; 7115 CD 29 48
                CALL GRPNT                      ; 7118 CD B1 4F
                EX DE,HL                        ; 711B EB  (0-509)
                LD HL,&01FE                     ; 711C 21 FE 01
@@ -10912,7 +10991,7 @@ PTRSL:
                LD (TEMPW2+1),A                 ; 7143 32 15 42  "NOT FOUND"
                CALL WRIF                       ; 7146 CD 78 45
                CALL GTNSC                      ; 7149 CD 99 71
-               CALL L467F                      ; 714C CD 7F 46  READ NEXT SECTOR, LOOKING FOR DELIM
+               CALL READ_SECTOR_TO_ADDRESS     ; 714C CD 7F 46  READ NEXT SECTOR, LOOKING FOR DELIM
                CALL L6FD5                      ; 714F CD D5 6F  MARK SECT WITH CUR T/S
                CALL ICNT                       ; 7152 CD A9 71
                LD DE,(TEMPW3)                  ; 7155 ED 5B 16 42  COUNTER
@@ -12921,7 +13000,7 @@ FNDI3:
                LD C,L                          ; 793D 4D
                IN A,(HMPR)                     ; 793E DB FB
                CALL L7BA6                      ; 7940 CD A6 7B
-               JP L4628                        ; 7943 C3 28 46
+               JP SET_SCREEN_POINTER           ; 7943 C3 28 46
 
 ;; --------------------------------------------------------------------
 ;;  DSTAT -- the state of a drive

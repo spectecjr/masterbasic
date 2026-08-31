@@ -207,7 +207,6 @@ DOS_L4081:     EQU  &8081
 DOS_L4086:     EQU  &8086
 DOS_L4088:     EQU  &8088
 DOS_L4089:     EQU  &8089
-DOS_L4856:     EQU  &8856
 DOS_L4D2D:     EQU  &8D2D
 DOS_L602A:     EQU  &A02A
 DOS_L6280:     EQU  &A280
@@ -230,6 +229,7 @@ DOS_PORT2:     EQU  &812F
 DOS_PTH1:      EQU  &BF13
 DOS_PTH2:      EQU  &BF39
 DOS_REPORTA:   EQU  &91A0
+DOS_ROOM_LEFT_IN_PAGE: EQU  &8856
 DOS_SAMCNT:    EQU  &8234
 DOS_SCFSM:     EQU  &8DF8
 DOS_SNPRT2:    EQU  &8108
@@ -5292,7 +5292,7 @@ OPEN_GAP_AT_LINE:
                IN A,(HMPR)                     ; 5197 DB FB
                PUSH AF                         ; 5199 F5
                CALL CALLDOS                    ; 519A CD C1 42
-               DEFW DOS_L4856-&4000           ; 519D 56 48
+               DEFW DOS_ROOM_LEFT_IN_PAGE-&4000 ; 519D 56 48
                POP AF                          ; 519F F1
                POP HL                          ; 51A0 E1
                LD BC,&FF00                     ; 51A1 01 00 FF
