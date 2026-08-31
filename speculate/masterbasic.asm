@@ -4543,16 +4543,23 @@ L4839:
                RET                             ; 484B C9
 
 ;; --------------------------------------------------------------------
-;; L484C -- &484C to &484E
+;; FIND_VARIABLE_TIMES_FIVE -- &484C to &484E
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? calls FIND_VARIABLE; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     FIND_VARIABLE, and then multiply what it found by five -- ADD HL,HL
+;;     twice and ADD HL,DE, the usual shape -- which is the size of a
+;;     number in the variables area.  &484F is the same without the lookup,
+;;     for a caller that has the value already.
 ;; --------------------------------------------------------------------
 
-; ---- L484C ---- from &6F82
-L484C:
+; ---- FIND_VARIABLE_TIMES_FIVE ---- from &6F82
+FIND_VARIABLE_TIMES_FIVE:
                CALL FIND_VARIABLE              ; 484C CD D5 43
 
 ;; --------------------------------------------------------------------
@@ -5862,7 +5869,7 @@ L4BA3:
 ;; Preserves: BC, HL (saved and restored)
 ;; Ends:      JR
 ;;
-;; ? drives IN A,(HMPR), IN B,(C).
+;; ? drives IN A,(HMPR), IN B,(C); calls SEARCH_MEMORY.
 ;; --------------------------------------------------------------------
 
 ; ---- L4BBE ---- from &4C13
@@ -5901,7 +5908,7 @@ L4BD7:
 ;; Leaves:    A, F, DE, HL
 ;; Preserves: BC (saved and restored)
 ;;
-;; ? drives IN A,(HMPR), IN B,(C); falls into whatever follows rather than returning.
+;; ? drives IN A,(HMPR), IN B,(C); calls SEARCH_MEMORY; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L4BDB ---- from &4BD5
@@ -5913,7 +5920,7 @@ L4BDB:
                IN B,(C)                        ; 4BE3 ED 40
                PUSH BC                         ; 4BE5 C5
                LD A,(V4098)                    ; 4BE6 3A 98 40
-               CALL L4C90                      ; 4BE9 CD 90 4C
+               CALL SEARCH_MEMORY              ; 4BE9 CD 90 4C
                LD (IAPOS),BC                   ; 4BEC ED 43 03 40
                POP BC                          ; 4BF0 C1
                OUT (C),B                       ; 4BF1 ED 41
@@ -5942,7 +5949,7 @@ L4BDB:
 ;; Preserves: BC (saved and restored)
 ;; Ends:      JR
 ;;
-;; ? drives IN A,(HMPR), IN B,(C).
+;; ? drives IN A,(HMPR), IN B,(C); calls SEARCH_MEMORY.
 ;; --------------------------------------------------------------------
 
 ; ---- L4C0F ---- from &4C02
@@ -6167,14 +6174,26 @@ L4C83:
                RET                             ; 4C8F C9
 
 ;; --------------------------------------------------------------------
-;; L4C90 -- &4C90 to &4CA9
+;; SEARCH_MEMORY -- &4C90 to &4CA9
 ;;
 ;; Takes:     A, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     LOCN's search proper.  The length of what is being searched has the
+;;     pattern length taken off it first, so a match cannot run past the
+;;     end, and a region shorter than the pattern returns at once.  Then
+;;     CPIR looks for the pattern's first byte and the comparison at &4CB3
+;;     checks the rest, going round again on a mismatch.
+;;     
+;;     The manual gives the speeds this is answerable for: "Case-insensitive
+;;     at about 90K a second; ABS matches exactly and runs at over 200K a
+;;     second."
 ;; --------------------------------------------------------------------
 
-; ---- L4C90 ---- from &4BE9
-L4C90:
+; ---- SEARCH_MEMORY ---- from &4BE9
+SEARCH_MEMORY:
                LD C,A                          ; 4C90 4F
                LD B,&00                        ; 4C91 06 00
                AND A                           ; 4C93 A7
@@ -18595,16 +18614,24 @@ MODE2_SCREEN_ADDRESS:
                RET                             ; 6C7A C9
 
 ;; --------------------------------------------------------------------
-;; L6C7B -- &6C7B to &6C81
+;; SCREEN_ADDRESS_FOR_MODE -- &6C7B to &6C81
 ;;
 ;; Takes:     A, BC
 ;; Leaves:    A, F, B, HL
 ;;
 ;; ? calls MODE2_SCREEN_ADDRESS; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Pick the screen-address routine the current mode wants.  A non-zero
+;;     mode byte calls MODE2_SCREEN_ADDRESS and then sets carry so that the
+;;     CALL NC below is skipped; zero leaves carry clear and the CALL NC
+;;     takes MODE1_SCREEN_ADDRESS instead.  One conditional call standing in
+;;     for a branch and a join.
 ;; --------------------------------------------------------------------
 
-; ---- L6C7B ---- from &6D16
-L6C7B:
+; ---- SCREEN_ADDRESS_FOR_MODE ---- from &6D16
+SCREEN_ADDRESS_FOR_MODE:
                AND A                           ; 6C7B A7
                JR Z,L6C82                      ; 6C7C 28 04
                CALL MODE2_SCREEN_ADDRESS       ; 6C7E CD 65 6C
@@ -18715,7 +18742,7 @@ L6CC2:
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JR, RET
 ;;
-;; ? drives OUT (C),H, OUT (C),L; calls SCREEN_PIXEL_COLOUR, MODE1_ATTR_ADDRESS.
+;; ? drives OUT (C),H, OUT (C),L; calls SCREEN_PIXEL_COLOUR, MODE1_ATTR_ADDRESS, SCREEN_ADDRESS_FOR_MODE.
 ;; --------------------------------------------------------------------
 
 ; ---- L6CD1 ---- from &6CAB
@@ -18780,7 +18807,7 @@ L6CEE:
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JR, RET
 ;;
-;; ? drives OUT (C),H, OUT (C),L; calls SCREEN_PIXEL_COLOUR, MODE1_ATTR_ADDRESS.
+;; ? drives OUT (C),H, OUT (C),L; calls SCREEN_PIXEL_COLOUR, MODE1_ATTR_ADDRESS, SCREEN_ADDRESS_FOR_MODE.
 ;; --------------------------------------------------------------------
 
 ; ---- L6CF1 ---- from &6D4D, &6D55
@@ -18804,7 +18831,7 @@ L6CF1:
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JR, RET
 ;;
-;; ? drives OUT (C),H, OUT (C),L; calls SCREEN_PIXEL_COLOUR, MODE1_ATTR_ADDRESS.
+;; ? drives OUT (C),H, OUT (C),L; calls SCREEN_PIXEL_COLOUR, MODE1_ATTR_ADDRESS, SCREEN_ADDRESS_FOR_MODE.
 ;; --------------------------------------------------------------------
 
 ; ---- L6CFD ---- from &6D1E, &6D45
@@ -18841,7 +18868,7 @@ L6D0D:
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JR, RET
 ;;
-;; ? drives OUT (C),L; calls MODE1_ATTR_ADDRESS.
+;; ? drives OUT (C),L; calls MODE1_ATTR_ADDRESS, SCREEN_ADDRESS_FOR_MODE.
 ;; --------------------------------------------------------------------
 
 ; ---- L6D0F ---- from &6D0B
@@ -18854,7 +18881,7 @@ L6D0F:
                EXX                             ; 6D13 D9
                POP BC                          ; 6D14 C1
                PUSH BC                         ; 6D15 C5
-               CALL L6C7B                      ; 6D16 CD 7B 6C
+               CALL SCREEN_ADDRESS_FOR_MODE    ; 6D16 CD 7B 6C
                POP BC                          ; 6D19 C1
                INC C                           ; 6D1A 0C
                LD A,C                          ; 6D1B 79
@@ -19815,7 +19842,7 @@ L6F66:
                LD BC,&0058                     ; 6F79 01 58 00
                CALL STORE_BC_AT_XVAR76         ; 6F7C CD 5C 6F
                CALL CALL_NEXTCHAR              ; 6F7F CD 61 44
-               CALL L484C                      ; 6F82 CD 4C 48
+               CALL FIND_VARIABLE_TIMES_FIVE   ; 6F82 CD 4C 48
                JR NC,L6F92                     ; 6F85 30 0B
                ; to the alternate register set and back again
                EX AF,AF'                       ; 6F87 08

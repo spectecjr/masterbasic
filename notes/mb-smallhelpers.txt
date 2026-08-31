@@ -305,3 +305,27 @@ MB &560D COPY_BUFFER_POINTER
 MB &5599 INIT_SERIAL_FROM_TABLE
     SERINIT with the caller's value kept across it, then the settings
     table at L55BE.
+
+MB &4C90 SEARCH_MEMORY
+    LOCN's search proper.  The length of what is being searched has the
+    pattern length taken off it first, so a match cannot run past the
+    end, and a region shorter than the pattern returns at once.  Then
+    CPIR looks for the pattern's first byte and the comparison at &4CB3
+    checks the rest, going round again on a mismatch.
+
+    The manual gives the speeds this is answerable for: "Case-insensitive
+    at about 90K a second; ABS matches exactly and runs at over 200K a
+    second."
+
+MB &6C7B SCREEN_ADDRESS_FOR_MODE
+    Pick the screen-address routine the current mode wants.  A non-zero
+    mode byte calls MODE2_SCREEN_ADDRESS and then sets carry so that the
+    CALL NC below is skipped; zero leaves carry clear and the CALL NC
+    takes MODE1_SCREEN_ADDRESS instead.  One conditional call standing in
+    for a branch and a join.
+
+MB &484C FIND_VARIABLE_TIMES_FIVE
+    FIND_VARIABLE, and then multiply what it found by five -- ADD HL,HL
+    twice and ADD HL,DE, the usual shape -- which is the size of a
+    number in the variables area.  &484F is the same without the lookup,
+    for a caller that has the value already.
