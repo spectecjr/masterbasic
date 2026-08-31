@@ -36,21 +36,52 @@ part of the image the boot sector loads, not something to skip.
 
 ## Two pages, both at &4000
 
-Neither of those last two steers anything, and the page byte is worth a note
-because it is easy to build a wrong theory on. It reads 99; `samdos2` and the two
-MasterBASIC files on `dsks/MasterBasic1.7.dsk` read 125 and 97. None of those is
-a page a 512K SAM has, which runs 0 to 31.
+### What the start page really is
 
-Three things are checkable about it. The directory entry carries the same nine
-bytes at offsets 211–219 and the start again in page form at 236, and both say
-99, so the two copies simply agree — the source writes them from one buffer.
-The *length* in page form is right: `01 77 3F` is 1 × 16384 + 16247 = 32631, the
-data after the header. And `PAGE1` is written once, at `&63A7`, and never read:
-the only access to `&4151` in either half is that one `LD (PAGE1),A`. A file
-loads by following its sector chain.
+It reads 99 here, and 97 and 125 in the bootable files on
+`dsks/MasterBasic1.7.dsk`, none of which is a page a 512K SAM has — it runs 0
+to 31. That is worth setting out properly, because it is easy to build a wrong
+theory on and this project built two.
 
-So what the page byte records is not known here, and nothing depends on it. The
-boot sector works the layout out for itself:
+The page byte is not a hardware page and not a flag word: it is the address
+divided by 16384. The ROM's `SAVE "name" CODE` path builds those three bytes
+at `HDR+HDN`, which `vars.asm` gives as offset 31:
+
+```asm
+      LD DE,HDR+HDN         ; the header numbers
+      CALL EXPT1NUM         ; evaluate the address
+      CALL UNSTLEN          ; "GET NUMBER IN AHL IN PAGE/ADDR FORM"
+      LD (HL),A             ; the page byte
+      INC HL / LD (HL),E
+      INC HL / SET 7,D      ; the high byte forced into the &8000 window
+      LD (HL),D
+```
+
+`UNSTLEN` is described in this project's own equate list as "split the
+calculator stack top into a page count and an offset", so `A` is simply
+`address DIV 16384` — and `SET 7,D` is why the stored address always looks
+like `&8xxx` or `&Bxxx`.
+
+Reading the four files that way gives long addresses of about 1.6 to 2 MB:
+
+| file | page | start | long address |
+|---|---|---|---|
+| `MBMC` | 97 | `&8009` | 1589257 |
+| `MBASC` | 97 | `&BFC0` | 1605568 |
+| `MD+MBAS17` | 99 | `&8000` | 1622016 |
+| `samdos2` | 125 | `&8009` | 2048009 |
+
+and one of those checks the reading rather than assuming it: **`MBMC` ends at
+1605568 and `MBASC` begins at 1605568**, exactly contiguous, which is what
+two halves saved from one 32K run should look like.
+
+All four are past 512K, so they were saved from external memory on the
+machine that built them — 8-bit paging, where the user's own numbering puts
+97, 99 and 125 in Module 1. None of it is consulted here: `PAGE1` is written
+once, at `&63A7`, and the only access to `&4151` in either half is that one
+`LD (PAGE1),A`. A file loads by following its sector chain.
+
+The boot sector works the layout out for itself:
 
 1. The ROM reads the first 512-byte sector to `&8000` and calls it.
 2. It clears the SAM page-allocation table entries at `&5101`–`&511F` that hold

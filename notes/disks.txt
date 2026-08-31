@@ -25,17 +25,21 @@
 # all.  So the pair were saved from the same arrangement the combined
 # file loads in one piece, split into two files.  The slot is right.
 #
-# The page byte in both headers reads 97; samdos2's reads 125 and the
-# combined file's 99, while every ordinary BASIC file on the disk reads
-# 0.  None of 97, 99 or 125 is a page a 512K SAM has.
+# The page byte is the saved address divided by 16384.  The ROM's
+# SAVE "name" CODE path calls UNSTLEN -- "split the calculator stack top
+# into a page count and an offset" -- and stores A, E and D at HDR+31,
+# with SET 7,D forcing the high byte into the &8000 window.
 #
-# Do not build anything on it.  The directory entry carries the same
-# nine bytes at offsets 211-219 and the start again in page form at 236,
-# and both agree, so there is no second opinion to be had; the length in
-# page form is correct where the start's page is not; and PAGE1 is
-# written once at &63A7 and never read anywhere in either half.  A file
-# loads by its sector chain.  What the byte records is unknown and
-# nothing here needs it.
+# So MBMC's 97/&8009 is 1589257 and MBASC's 97/&BFC0 is 1605568, and
+# MBMC's 16311 bytes end at exactly 1605568.  The two are contiguous,
+# which is the check on the reading rather than an assumption in it.
+# The combined file is 99/&8000 = 1622016 and samdos2 125/&8009 =
+# 2048009.  All are past 512K, so these were saved from external memory
+# on the machine that built them; 97, 99 and 125 are Module 1 in the
+# 8-bit external paging.
+#
+# Nothing here reads it.  PAGE1 is written once at &63A7 and the only
+# access to &4151 in either half is that one LD (PAGE1),A.
 #
 # The contents are not code.  It begins 0C DE FF FF DD 1D A5 D1 where a
 # DOS begins DI : LD HL,&0000, it holds no readable text at all where

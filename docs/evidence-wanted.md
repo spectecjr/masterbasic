@@ -46,10 +46,10 @@ the installer finds it the same way everything else does —
 ```
 
 — so it is whatever `LMPR` + 1 happens to be. The page byte in the file's own
-header is no help either, and not because it means something else: **nothing
-reads it**. `PAGE1` is written once, at `&63A7`, and the only access to
-`&4151` anywhere in either half is that one `LD (PAGE1),A`. A file loads by
-following its sector chain.
+header is no help either: it is the saved address divided by 16384, from a
+machine with external memory, and nothing reads it. `PAGE1` is written once,
+at `&63A7`, and the only access to `&4151` anywhere in either half is that one
+`LD (PAGE1),A`. See `docs/disassembly.md` for the working.
 
 A breakpoint on logical `&7E6B` will also fire for the DOS half, which sits
 at the same addresses when its own code runs. That is fine and costs nothing:
