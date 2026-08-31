@@ -19,10 +19,25 @@
 # ships paired with SAMDOS and with MasterDOS, and there is no second
 # build of MasterBASIC 1.7 to compare against.
 #
-# MBMC is a bootable DOS image and is not MasterDOS 2.3: its header
-# gives a load address of &8009 and a length of &3FB7, the same shape as
-# the DOS half of the combined file, but the bytes do not match.  It has
-# not been read.
+# MBMC occupies the DOS's slot and is not a DOS.  Its header gives a
+# load address of &8009 and a length of &3FB7, which together with
+# MBASC's &BFC0 and &3FC0 fills page 97's &8000-&FFFF exactly -- the two
+# files laid end to end make the same arrangement the combined file
+# loads in one piece.  So the slot is right.
+#
+# The contents are not code.  It begins 0C DE FF FF DD 1D A5 D1 where a
+# DOS begins DI : LD HL,&0000, it holds no readable text at all where
+# samdos2 has its error messages, and all 256 byte values appear in it.
+# The extractor is not at fault: MBASC comes out of the same image byte
+# for byte, and `alter` from the same directory comes out as readable
+# BASIC.
+#
+# It is not compressed either, or not in a way that would show: a
+# compressed file would occupy fewer sectors than its length implies,
+# and MBMC's 16311 bytes take the 32 sectors 16311 bytes need.
+#
+# So: right length, right slot, contents unidentified.  Nothing here
+# depends on knowing, and it is recorded rather than guessed at.
 #
 # What that pair settles: nothing in samdos2 or MBMC calls MasterBASIC's
 # SIZE_EXTERNAL_MEMORY either.  See notes/mb-extmem.txt.
