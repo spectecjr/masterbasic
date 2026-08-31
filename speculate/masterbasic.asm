@@ -9339,7 +9339,7 @@ L55C2:
 ;; Takes:     A, B, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? tests for CH_COLON, CH_CR; calls CALL_NEXTCHAR, NUMBER_THEN_END, FREE_SLOT_CHAIN; falls into whatever follows rather than returning.
+;; ? tests for CH_COLON, CH_CR; calls CALL_NEXTCHAR, NUMBER_THEN_END, GET_BUFFER_SIZE, FREE_SLOT_CHAIN; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L55C6 ---- from &557D
@@ -9356,7 +9356,7 @@ L55C6:
                CALL L560D                      ; 55DA CD 0D 56
                AND A                           ; 55DD A7
                CALL NZ,FREE_SLOT_CHAIN         ; 55DE C4 7B 5F
-               CALL L5EDD                      ; 55E1 CD DD 5E
+               CALL GET_BUFFER_SIZE            ; 55E1 CD DD 5E
                EX DE,HL                        ; 55E4 EB
                LD HL,(V4066)                   ; 55E5 2A 66 40
                JR Z,L55ED                      ; 55E8 28 03
@@ -12023,7 +12023,7 @@ L5C65:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      RET
 ;;
-;; ? tests for T_CLEAR, CH_COLON, CH_CR; calls CALL_NEXTCHAR, NUMBER_THEN_END, FREE_SLOT_CHAIN.
+;; ? tests for T_CLEAR, CH_COLON, CH_CR; calls CALL_NEXTCHAR, NUMBER_THEN_END, GET_BUFFER_SIZE, FREE_SLOT_CHAIN.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -12059,7 +12059,7 @@ CMD_SOUND:
                LD HL,(V407F)                   ; 5C86 2A 7F 40
                AND A                           ; 5C89 A7
                CALL NZ,FREE_SLOT_CHAIN         ; 5C8A C4 7B 5F
-               CALL L5EDD                      ; 5C8D CD DD 5E
+               CALL GET_BUFFER_SIZE            ; 5C8D CD DD 5E
                LD (V407E),A                    ; 5C90 32 7E 40
                LD (V407F),HL                   ; 5C93 22 7F 40
                LD (V4081),A                    ; 5C96 32 81 40
@@ -12850,16 +12850,24 @@ L5EDB:
                JR L5E85                        ; 5EDB 18 A8
 
 ;; --------------------------------------------------------------------
-;; L5EDD -- &5EDD to &5EE1
+;; GET_BUFFER_SIZE -- &5EDD to &5EE1
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? calls GET_LONG_INTEGER; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     The size argument of SOUND CLEAR.  GET_LONG_INTEGER, D refused as
+;;     "Integer out of range", and then OR E : OR B : OR C so that a return
+;;     with Z means every byte of it was zero -- which is the manual's
+;;     "SOUND CLEAR 0 will delete the buffer and free the memory for other
+;;     uses".
 ;; --------------------------------------------------------------------
 
-; ---- L5EDD ---- from &55E1, &5C8D
-L5EDD:
+; ---- GET_BUFFER_SIZE ---- from &55E1, &5C8D
+GET_BUFFER_SIZE:
                CALL GET_LONG_INTEGER           ; 5EDD CD 92 44
                LD A,D                          ; 5EE0 7A
                AND A                           ; 5EE1 A7
@@ -13876,6 +13884,8 @@ L6143:
 ;;
 ;; Takes:     A, DE, L
 ;; Leaves:    A, F, BC, DE, HL, IY
+;;
+;; ? calls WRITE_THREE_FF; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
                CALL L63C5                      ; 614E CD C5 63
                PUSH DE                         ; 6151 D5
@@ -13888,7 +13898,7 @@ L6143:
                PUSH HL                         ; 615E E5
                POP IY                          ; 615F FD E1
                CALL L6172                      ; 6161 CD 72 61
-               CALL L6194                      ; 6164 CD 94 61
+               CALL WRITE_THREE_FF             ; 6164 CD 94 61
                ; to the alternate register set and back again
                EXX                             ; 6167 D9
                POP BC                          ; 6168 C1
@@ -13941,14 +13951,18 @@ L6172:
                RET                             ; 6193 C9
 
 ;; --------------------------------------------------------------------
-;; L6194 -- &6194 to &6195
+;; WRITE_THREE_FF -- &6194 to &6195
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    B
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Three &FF bytes to the open file, through the DOS's save-byte hook.
 ;; --------------------------------------------------------------------
 
-; ---- L6194 ---- from &6164
-L6194:
+; ---- WRITE_THREE_FF ---- from &6164
+WRITE_THREE_FF:
                LD B,&03                        ; 6194 06 03
 
 ;; --------------------------------------------------------------------
@@ -13997,11 +14011,13 @@ L61A0:
 ;; Takes:     C, D, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      RET
+;;
+;; ? calls READ_NIBBLE_AT_HL.
 ;; --------------------------------------------------------------------
 
 ; ---- L61B2 ---- from &61BA
 L61B2:
-               CALL L6288                      ; 61B2 CD 88 62
+               CALL READ_NIBBLE_AT_HL          ; 61B2 CD 88 62
                CALL L61C2                      ; 61B5 CD C2 61
                LD A,H                          ; 61B8 7C
                INC A                           ; 61B9 3C
@@ -14424,15 +14440,23 @@ L6287:
                INC H                           ; 6287 24
 
 ;; --------------------------------------------------------------------
-;; L6288 -- &6288 to &6297
+;; READ_NIBBLE_AT_HL -- &6288 to &6297
 ;;
 ;; Takes:     HL
 ;; Leaves:    A, F, HL
 ;; Ends:      RET
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Read the nibble at the nibble address in HL, without moving it.  SCF
+;;     then RR H and RR L halves HL into a byte address and leaves the odd
+;;     bit in carry, which says which half of the byte is wanted; the high
+;;     nibble is rotated down four places and masked, and ADD HL,HL puts HL
+;;     back as it was.  The companion to WRITE_NEXT_NIBBLE.
 ;; --------------------------------------------------------------------
 
-; ---- L6288 ---- from &61B2
-L6288:
+; ---- READ_NIBBLE_AT_HL ---- from &61B2
+READ_NIBBLE_AT_HL:
                SCF                             ; 6288 37
                RR H                            ; 6289 CB 1C
                RR L                            ; 628B CB 1D
@@ -18474,14 +18498,14 @@ L6C8C:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      JP
 ;;
-;; ? calls SKIP_THEN_NUMBER, CHAR_THEN_NUMBER_THEN_END, NRWR.
+;; ? calls SKIP_THEN_NUMBER, CHAR_THEN_NUMBER_THEN_END, NRWR, SCREEN_NUMBER_ARGUMENT.
 ;; --------------------------------------------------------------------
                CALL SKIP_THEN_NUMBER           ; 6C96 CD 82 44
                LD C,&8E                        ; 6C99 0E 8E
                CALL CHAR_THEN_NUMBER_THEN_END  ; 6C9B CD C5 44
-               CALL L6DD8                      ; 6C9E CD D8 6D
+               CALL SCREEN_NUMBER_ARGUMENT     ; 6C9E CD D8 6D
                PUSH BC                         ; 6CA1 C5
-               CALL L6DD8                      ; 6CA2 CD D8 6D
+               CALL SCREEN_NUMBER_ARGUMENT     ; 6CA2 CD D8 6D
                LD (DUMP_MODE),A                ; 6CA5 32 AE 40
                POP HL                          ; 6CA8 E1
                PUSH HL                         ; 6CA9 E5
@@ -18975,17 +18999,30 @@ CALL_J_FARLDIR:
                RET                             ; 6DD7 C9
 
 ;; --------------------------------------------------------------------
-;; L6DD8 -- &6DD8 to &6DF6
+;; SCREEN_NUMBER_ARGUMENT -- &6DD8 to &6DF6
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      RET
 ;;
 ;; ? calls BYTE_ARGUMENT, RDA.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     A screen number, 1 to 16, and its SCLIST entry.
+;;     
+;;     BYTE_ARGUMENT then DEC A and CP &10 bounds it, and the lookup is
+;;     LD HL,FISCRNP : ADD HL,BC -- FISCRNP is &5C9F and SCLIST &5CA0, so
+;;     FISCRNP plus the screen number is that screen's own entry.  RDA reads
+;;     it through the window, and &FF, which the ROM's table gives as the
+;;     value for a screen that is not open, is refused.
+;;     
+;;     What comes back is the byte CMD_MODE writes: AND &1F takes the page
+;;     out of it and the bits above are the mode.
 ;; --------------------------------------------------------------------
 
-; ---- L6DD8 ---- from &6C9E, &6CA2
-L6DD8:
+; ---- SCREEN_NUMBER_ARGUMENT ---- from &6C9E, &6CA2
+SCREEN_NUMBER_ARGUMENT:
                CALL BYTE_ARGUMENT              ; 6DD8 CD A1 43
                DEC A                           ; 6DDB 3D
                CP &10                          ; 6DDC FE 10

@@ -98,3 +98,32 @@ MB &6B42 DUMP_UNSHADED
     The manual calls it "an unshaded dump in which anything which is the
     current PAPER colour comes out white, and anything else comes out
     black", and points at the User's Guide for the SVARs that size it.
+
+MB &6DD8 SCREEN_NUMBER_ARGUMENT
+    A screen number, 1 to 16, and its SCLIST entry.
+
+    BYTE_ARGUMENT then DEC A and CP &10 bounds it, and the lookup is
+    LD HL,FISCRNP : ADD HL,BC -- FISCRNP is &5C9F and SCLIST &5CA0, so
+    FISCRNP plus the screen number is that screen's own entry.  RDA reads
+    it through the window, and &FF, which the ROM's table gives as the
+    value for a screen that is not open, is refused.
+
+    What comes back is the byte CMD_MODE writes: AND &1F takes the page
+    out of it and the bits above are the mode.
+
+MB &6288 READ_NIBBLE_AT_HL
+    Read the nibble at the nibble address in HL, without moving it.  SCF
+    then RR H and RR L halves HL into a byte address and leaves the odd
+    bit in carry, which says which half of the byte is wanted; the high
+    nibble is rotated down four places and masked, and ADD HL,HL puts HL
+    back as it was.  The companion to WRITE_NEXT_NIBBLE.
+
+MB &5EDD GET_BUFFER_SIZE
+    The size argument of SOUND CLEAR.  GET_LONG_INTEGER, D refused as
+    "Integer out of range", and then OR E : OR B : OR C so that a return
+    with Z means every byte of it was zero -- which is the manual's
+    "SOUND CLEAR 0 will delete the buffer and free the memory for other
+    uses".
+
+MB &6194 WRITE_THREE_FF
+    Three &FF bytes to the open file, through the DOS's save-byte hook.
