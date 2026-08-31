@@ -237,3 +237,33 @@ MB &660A SET_UP_WORK_AREA
     Take the work page, work out how much room is above the start
     address -- &C000 less DE -- and put the two halves of it in the ROM's
     PAGCOUNT and MODCOUNT.
+
+MB &62E9 EXPAND_COMPRESSED_FILE
+    The other half of the compression, and the manual's "A compressed
+    file will be automatically expanded again on reloading."  SP is
+    parked in V4078 first, so the stack pointer is free for the copying;
+    the alternate registers take DE = &000F and HL = &E500, the same
+    stream the encoder filled; and then pairs of nibbles come back out
+    through READ_NEXT_NIBBLE, a count and then the value it repeats.
+
+MB &6331 NEXT_SCREEN_NIBBLE
+    Step a nibble address down the screen the way NEXT_SCREEN_BYTE steps
+    a byte one, with the halving that turns a nibble index into an
+    address folded into the same run of shifts.
+
+MB &6253 BUILD_NIBBLE_TABLE
+    Clear thirty-two bytes at &E500 and then count something over the
+    source into them, a nibble at a time -- AND &0F on each byte read,
+    doubled to index the table.  Thirty-two entries is sixteen nibble
+    values with two bytes each.
+
+MB &6237 SCAN_NIBBLE_TABLE
+    Walk that table back down from its end, comparing each entry against
+    BC.  Named for what it does; which entry it is looking for is not
+    established here.
+
+MB &5B22 WINDOW_SOUND_POINTER
+    Take the pointer at V4082, keep its high byte, and window it with the
+    usual SET 7,H and RES 6,H -- then AND &03 on the byte before the
+    windowing, which is the page's low bits, decides whether the pointer
+    has run off the end.

@@ -395,3 +395,30 @@ MB &577F PARSE_REFERENCE_SAVING_PAGE
 MB &57A7 GET_STRING_AND_PAGE_IT
     Evaluate a string and page it in through the ROM's TSURPG, keeping
     its address on the stack for the code that joins at &57DE.
+
+MB &484F TIMES_FIVE
+    HL times five, by ADD HL,HL twice and ADD HL,DE with the original in
+    DE.  Five is the size of a number in the variables area, which is why
+    FIND_VARIABLE_TIMES_FIVE falls into it.
+
+MB &4A7F TICS_SECONDS_IN_MONTH
+    FN_TICS's arithmetic: the day less one times 24, plus the hours,
+    times 60, plus the minutes, times 60, plus the seconds -- each field
+    read as two ASCII digits out of the DOS's date and time buffers.  The
+    entry at &4A84 skips the CALL the &CD at &4A83 hides, for a caller
+    that has already paged the DOS in.
+
+MB &4D33 PARSE_STRING_AND_SUBSCRIPT
+    A string expression, then a subscript: what the page came back as
+    decides the path, and the second one wants &FF -- the two-byte
+    function prefix -- followed by a left bracket.
+
+MB &561B INSTALL_CHANNEL_HANDLER
+    Write BC into the word &19 bytes into the ROM's channel table, which
+    is how MasterBASIC puts itself in a channel's place.
+
+MB &5629 IS_CHANNEL_OURS
+    Read that same word back and compare it with &4AE9 -- an address
+    inside the second installed stub, in the ROM's system page, not this
+    half -- so the test is whether the channel is still pointed at what
+    the installer put there.

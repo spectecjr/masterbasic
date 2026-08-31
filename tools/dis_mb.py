@@ -929,6 +929,11 @@ def seeds(dos, mb):
     # pages, so &42BA is the DOS's byte -- DVAR 154, CMPFG -- and not
     # this half's own.
     mb.sys_low.append((0x63FB, 0x63FE))
+    # &5635 compares a channel's word against an address in the second
+    # installed stub, so &4AE9 there is the system page's, not this
+    # half's -- the whole point of the test is whether the channel has
+    # been pointed at what the installer put there.
+    mb.sys_low.append((0x5635, 0x5638))
     # The three vector values INSTALL_ROM_PATCHES writes: &49F7, &4A52
     # and &4AE6 are addresses in the ROM's system page, in the stubs it
     # has just put there, and not in this half.  &4AAC two instructions

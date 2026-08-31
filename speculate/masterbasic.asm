@@ -4570,16 +4570,22 @@ FIND_VARIABLE_TIMES_FIVE:
                CALL FIND_VARIABLE              ; 484C CD D5 43
 
 ;; --------------------------------------------------------------------
-;; L484F -- &484F to &485A
+;; TIMES_FIVE -- &484F to &485A
 ;;
 ;; Takes:     A, DE, HL
 ;; Leaves:    HL
 ;; Preserves: A, F, DE (saved and restored)
 ;; Ends:      RET
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     HL times five, by ADD HL,HL twice and ADD HL,DE with the original in
+;;     DE.  Five is the size of a number in the variables area, which is why
+;;     FIND_VARIABLE_TIMES_FIVE falls into it.
 ;; --------------------------------------------------------------------
 
-; ---- L484F ---- from &7106
-L484F:
+; ---- TIMES_FIVE ---- from &7106
+TIMES_FIVE:
                EX DE,HL                        ; 484F EB
                RET Z                           ; 4850 C8
                PUSH DE                         ; 4851 D5
@@ -4675,7 +4681,7 @@ CMD_TIME:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? drives OUT (C),E; calls CALL_GETINT, SKIP_THEN_END, TWO_DIGITS_FROM_DE; falls into whatever follows rather than returning.
+;; ? drives OUT (C),E; calls CALL_GETINT, SKIP_THEN_END, TWO_DIGITS_FROM_DE, TICS_SECONDS_IN_MONTH; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L4882 ---- from &487A
@@ -4692,7 +4698,7 @@ L4882:
                JR Z,L48E9                      ; 4892 28 55
                LD (HL),A                       ; 4894 77
                PUSH HL                         ; 4895 E5
-               CALL L4A7F                      ; 4896 CD 7F 4A
+               CALL TICS_SECONDS_IN_MONTH      ; 4896 CD 7F 4A
                POP HL                          ; 4899 E1
                LD (HL),&00                     ; 489A 36 00
                CALL CALL_GETINT                ; 489C CD 76 44
@@ -5476,16 +5482,24 @@ FN_TICS:
                RET Z                           ; 4A7E C8
 
 ;; --------------------------------------------------------------------
-;; L4A7F -- &4A7F to &4A83
+;; TICS_SECONDS_IN_MONTH -- &4A7F to &4A83
 ;;
 ;; Takes:     A
 ;; Leaves:    registers unchanged
 ;;
 ;; ? calls PAGE_IN_OTHER_HALF; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     FN_TICS's arithmetic: the day less one times 24, plus the hours,
+;;     times 60, plus the minutes, times 60, plus the seconds -- each field
+;;     read as two ASCII digits out of the DOS's date and time buffers.  The
+;;     entry at &4A84 skips the CALL the &CD at &4A83 hides, for a caller
+;;     that has already paged the DOS in.
 ;; --------------------------------------------------------------------
 
-; ---- L4A7F ---- from &4896
-L4A7F:
+; ---- TICS_SECONDS_IN_MONTH ---- from &4896
+TICS_SECONDS_IN_MONTH:
                CALL PAGE_IN_OTHER_HALF         ; 4A7F CD D1 49
                PUSH AF                         ; 4A82 F5
                DEFB &CD                                                         ; 4A83 M  skipped: reads as CALL &4978 from here, and as part of the instruction above it
@@ -5623,7 +5637,7 @@ L4AE0:
 ;; Ends:      RET
 ;; --------------------------------------------------------------------
 
-; ---- L4AE9 ---- from &55EA, &5635
+; ---- L4AE9 ---- from &55EA
 L4AE9:
                SBC A,&00                       ; 4AE9 DE 00
                ADD HL,HL                       ; 4AEB 29
@@ -5658,7 +5672,7 @@ L4AE9:
 FN_LOCN:
                CALL EXPECT_NEXT_LPAREN_AND_NUMBER ; 4AF0 CD 4A 44
                CALL EXPECT_NUMBER              ; 4AF3 CD 4D 44
-               CALL L4D33                      ; 4AF6 CD 33 4D
+               CALL PARSE_STRING_AND_SUBSCRIPT ; 4AF6 CD 33 4D
                RET NC                          ; 4AF9 D0
                LD HL,L4C43                     ; 4AFA 21 43 4C
                PUSH HL                         ; 4AFD E5
@@ -5830,7 +5844,7 @@ L4B7D:
 L4B85:
                CALL CALL_EXPSTR                ; 4B85 CD 7C 44
                CALL EXPECT_COMMA               ; 4B88 CD 50 44
-               CALL L4D33                      ; 4B8B CD 33 4D
+               CALL PARSE_STRING_AND_SUBSCRIPT ; 4B8B CD 33 4D
                RET NC                          ; 4B8E D0
                LD HL,&0000                     ; 4B8F 21 00 00
                LD (V40A4),HL                   ; 4B92 22 A4 40
@@ -6507,16 +6521,22 @@ L4D2A:
                RET                             ; 4D32 C9
 
 ;; --------------------------------------------------------------------
-;; L4D33 -- &4D33 to &4D49
+;; PARSE_STRING_AND_SUBSCRIPT -- &4D33 to &4D49
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? calls NEXT_CHAR_MUST_BE_C, CHAR_MUST_BE_C, CALL_EXPSTR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     A string expression, then a subscript: what the page came back as
+;;     decides the path, and the second one wants &FF -- the two-byte
+;;     function prefix -- followed by a left bracket.
 ;; --------------------------------------------------------------------
 
-; ---- L4D33 ---- from &4AF6, &4B8B
-L4D33:
+; ---- PARSE_STRING_AND_SUBSCRIPT ---- from &4AF6, &4B8B
+PARSE_STRING_AND_SUBSCRIPT:
                CALL CALL_EXPSTR                ; 4D33 CD 7C 44
                PUSH AF                         ; 4D36 F5
                LD C,A                          ; 4D37 4F
@@ -9474,6 +9494,8 @@ L55C6:
 ;;
 ;; Takes:     A, DE, HL
 ;; Leaves:    A, F, BC, HL
+;;
+;; ? calls IS_CHANNEL_OURS; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L55ED ---- from &55E8
@@ -9481,7 +9503,7 @@ L55ED:
                PUSH AF                         ; 55ED F5
                PUSH DE                         ; 55EE D5
                PUSH HL                         ; 55EF E5
-               CALL L5629                      ; 55F0 CD 29 56
+               CALL IS_CHANNEL_OURS            ; 55F0 CD 29 56
                JR Z,L55FA                      ; 55F3 28 05
                LD A,B                          ; 55F5 78
                DEC A                           ; 55F6 3D
@@ -9493,12 +9515,14 @@ L55ED:
 ;; Takes:     DE
 ;; Leaves:    A, F, BC, HL
 ;; Ends:      JR, RET
+;;
+;; ? calls INSTALL_CHANNEL_HANDLER.
 ;; --------------------------------------------------------------------
 
 ; ---- L55FA ---- from &55F3
 L55FA:
                POP HL                          ; 55FA E1
-               CALL L561B                      ; 55FB CD 1B 56
+               CALL INSTALL_CHANNEL_HANDLER    ; 55FB CD 1B 56
                POP HL                          ; 55FE E1
                POP AF                          ; 55FF F1
                DI                              ; 5600 F3
@@ -9554,16 +9578,21 @@ L5614:
                RET                             ; 561A C9
 
 ;; --------------------------------------------------------------------
-;; L561B -- &561B to &5628
+;; INSTALL_CHANNEL_HANDLER -- &561B to &5628
 ;;
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, BC, HL
 ;;
 ;; ? reaches the ROM through CHANS+&4000; calls NRRDD; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Write BC into the word &19 bytes into the ROM's channel table, which
+;;     is how MasterBASIC puts itself in a channel's place.
 ;; --------------------------------------------------------------------
 
-; ---- L561B ---- from &55FB
-L561B:
+; ---- INSTALL_CHANNEL_HANDLER ---- from &55FB
+INSTALL_CHANNEL_HANDLER:
                PUSH HL                         ; 561B E5
                ; read the ROM variable CHANS+&4000 -- the word below is its address, and the call returns past it
                CALL NRRDD                      ; 561C CD 5F 45
@@ -9574,23 +9603,30 @@ L561B:
                JP WRTBC                        ; 5626 C3 B3 45
 
 ;; --------------------------------------------------------------------
-;; L5629 -- &5629 to &5640
+;; IS_CHANNEL_OURS -- &5629 to &5640
 ;;
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, BC, HL
 ;;
 ;; ? reaches the ROM through CHANS+&4000; calls NRRDD; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Read that same word back and compare it with &4AE9 -- an address
+;;     inside the second installed stub, in the ROM's system page, not this
+;;     half -- so the test is whether the channel is still pointed at what
+;;     the installer put there.
 ;; --------------------------------------------------------------------
 
-; ---- L5629 ---- from &55F0
-L5629:
+; ---- IS_CHANNEL_OURS ---- from &55F0
+IS_CHANNEL_OURS:
                ; read the ROM variable CHANS+&4000 -- the word below is its address, and the call returns past it
                CALL NRRDD                      ; 5629 CD 5F 45
                DEFW CHANS+&4000               ; 562C 4F 9C
                LD HL,&0019                     ; 562E 21 19 00
                ADD HL,BC                       ; 5631 09
                CALL RDBC                       ; 5632 CD C2 45
-               LD HL,L4AE9                     ; 5635 21 E9 4A
+               LD HL,&4AE9                     ; 5635 21 E9 4A
                AND A                           ; 5638 A7
                SBC HL,BC                       ; 5639 ED 42
                RET Z                           ; 563B C8
@@ -11608,7 +11644,7 @@ HK_FARSCAN:
 ;; Leaves:    A, F, BC, E
 ;; Preserves: HL (saved and restored)
 ;;
-;; ? drives OUT (HMPR),A; falls into whatever follows rather than returning.
+;; ? drives OUT (HMPR),A; calls WINDOW_SOUND_POINTER; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L5AEF ---- from &5B17
@@ -11626,7 +11662,7 @@ L5AEF:
                AND A                           ; 5AFE A7
                JR Z,L5B1D                      ; 5AFF 28 1C
                OUT (HMPR),A                    ; 5B01 D3 FB
-               CALL L5B22                      ; 5B03 CD 22 5B
+               CALL WINDOW_SOUND_POINTER       ; 5B03 CD 22 5B
                POP HL                          ; 5B06 E1
                POP BC                          ; 5B07 C1
                DEC BC                          ; 5B08 0B
@@ -11687,14 +11723,21 @@ L5B1D:
                JP REPORT                       ; 5B1F C3 BE 43
 
 ;; --------------------------------------------------------------------
-;; L5B22 -- &5B22 to &5B37
+;; WINDOW_SOUND_POINTER -- &5B22 to &5B37
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F, E, HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Take the pointer at V4082, keep its high byte, and window it with the
+;;     usual SET 7,H and RES 6,H -- then AND &03 on the byte before the
+;;     windowing, which is the page's low bits, decides whether the pointer
+;;     has run off the end.
 ;; --------------------------------------------------------------------
 
-; ---- L5B22 ---- from &5B03
-L5B22:
+; ---- WINDOW_SOUND_POINTER ---- from &5B03
+WINDOW_SOUND_POINTER:
                LD HL,(V4082)                   ; 5B22 2A 82 40
                LD A,H                          ; 5B25 7C
                INC A                           ; 5B26 3C
@@ -14152,12 +14195,12 @@ L6196:
 ;; Takes:     A
 ;; Leaves:    A, F, BC, DE, HL
 ;;
-;; ? calls WRITE_NEXT_NIBBLE; falls into whatever follows rather than returning.
+;; ? calls WRITE_NEXT_NIBBLE, SCAN_NIBBLE_TABLE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L61A0 ---- from &6155
 L61A0:
-               CALL L6237                      ; 61A0 CD 37 62
+               CALL SCAN_NIBBLE_TABLE          ; 61A0 CD 37 62
                LD C,A                          ; 61A3 4F
                ; to the alternate register set and back again
                EXX                             ; 61A4 D9
@@ -14432,15 +14475,23 @@ L622D:
                RET                             ; 6236 C9
 
 ;; --------------------------------------------------------------------
-;; L6237 -- &6237 to &623C
+;; SCAN_NIBBLE_TABLE -- &6237 to &623C
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    B, DE, HL
+;;
+;; ? calls BUILD_NIBBLE_TABLE; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Walk that table back down from its end, comparing each entry against
+;;     BC.  Named for what it does; which entry it is looking for is not
+;;     established here.
 ;; --------------------------------------------------------------------
 
-; ---- L6237 ---- from &61A0
-L6237:
-               CALL L6253                      ; 6237 CD 53 62
+; ---- SCAN_NIBBLE_TABLE ---- from &61A0
+SCAN_NIBBLE_TABLE:
+               CALL BUILD_NIBBLE_TABLE         ; 6237 CD 53 62
                LD L,&20                        ; 623A 2E 20
                LD B,L                          ; 623C 45
 
@@ -14484,14 +14535,21 @@ L624B:
                RET                             ; 6252 C9
 
 ;; --------------------------------------------------------------------
-;; L6253 -- &6253 to &625A
+;; BUILD_NIBBLE_TABLE -- &6253 to &625A
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    B, DE, HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Clear thirty-two bytes at &E500 and then count something over the
+;;     source into them, a nibble at a time -- AND &0F on each byte read,
+;;     doubled to index the table.  Thirty-two entries is sixteen nibble
+;;     values with two bytes each.
 ;; --------------------------------------------------------------------
 
-; ---- L6253 ---- from &6237
-L6253:
+; ---- BUILD_NIBBLE_TABLE ---- from &6237
+BUILD_NIBBLE_TABLE:
                LD HL,&E500                     ; 6253 21 00 E5
                LD DE,DOS_HEADER                ; 6256 11 00 80
                LD B,&20                        ; 6259 06 20
@@ -14681,7 +14739,7 @@ L629D:
 ;; Leaves:    A, F, BC, HL
 ;; Preserves: DE (saved and restored)
 ;;
-;; ? calls PAGED_TO_LONG; falls into whatever follows rather than returning.
+;; ? calls PAGED_TO_LONG, EXPAND_COMPRESSED_FILE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
                PUSH HL                         ; 62A6 E5
                CALL L63C5                      ; 62A7 CD C5 63
@@ -14690,7 +14748,7 @@ L629D:
                CALL PAGED_TO_LONG              ; 62AC CD DC 62
                LD (V407B),HL                   ; 62AF 22 7B 40
                CALL L6390                      ; 62B2 CD 90 63
-               CALL L62E9                      ; 62B5 CD E9 62
+               CALL EXPAND_COMPRESSED_FILE     ; 62B5 CD E9 62
                POP DE                          ; 62B8 D1
 
 ;; --------------------------------------------------------------------
@@ -14798,16 +14856,25 @@ PAGED_TO_LONG:
                RET                             ; 62E8 C9
 
 ;; --------------------------------------------------------------------
-;; L62E9 -- &62E9 to &62FB
+;; EXPAND_COMPRESSED_FILE -- &62E9 to &62FB
 ;;
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;;
 ;; ? calls READ_NEXT_NIBBLE; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     The other half of the compression, and the manual's "A compressed
+;;     file will be automatically expanded again on reloading."  SP is
+;;     parked in V4078 first, so the stack pointer is free for the copying;
+;;     the alternate registers take DE = &000F and HL = &E500, the same
+;;     stream the encoder filled; and then pairs of nibbles come back out
+;;     through READ_NEXT_NIBBLE, a count and then the value it repeats.
 ;; --------------------------------------------------------------------
 
-; ---- L62E9 ---- from &62B5
-L62E9:
+; ---- EXPAND_COMPRESSED_FILE ---- from &62B5
+EXPAND_COMPRESSED_FILE:
                LD (V4078),SP                   ; 62E9 ED 73 78 40
                ; to the alternate register set and back again
                EXX                             ; 62ED D9
@@ -14826,7 +14893,7 @@ L62E9:
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JR
 ;;
-;; ? calls READ_NEXT_NIBBLE.
+;; ? calls NEXT_SCREEN_NIBBLE, READ_NEXT_NIBBLE.
 ;; --------------------------------------------------------------------
 
 ; ---- L62FC ---- from &6305, &632F
@@ -14834,7 +14901,7 @@ L62FC:
                CALL READ_NEXT_NIBBLE           ; 62FC CD 67 63
                CP C                            ; 62FF B9
                JR Z,L6307                      ; 6300 28 05
-               CALL L6331                      ; 6302 CD 31 63
+               CALL NEXT_SCREEN_NIBBLE         ; 6302 CD 31 63
                JR L62FC                        ; 6305 18 F5
 
 ;; --------------------------------------------------------------------
@@ -14899,24 +14966,30 @@ L6329:
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JR
 ;;
-;; ? calls READ_NEXT_NIBBLE.
+;; ? calls NEXT_SCREEN_NIBBLE, READ_NEXT_NIBBLE.
 ;; --------------------------------------------------------------------
 
 ; ---- L632A ---- from &6324
 L632A:
-               CALL L6331                      ; 632A CD 31 63
+               CALL NEXT_SCREEN_NIBBLE         ; 632A CD 31 63
                DJNZ L6329                      ; 632D 10 FA
                JR L62FC                        ; 632F 18 CB
 
 ;; --------------------------------------------------------------------
-;; L6331 -- &6331 to &6339
+;; NEXT_SCREEN_NIBBLE -- &6331 to &6339
 ;;
 ;; Takes:     HL
 ;; Leaves:    F, HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Step a nibble address down the screen the way NEXT_SCREEN_BYTE steps
+;;     a byte one, with the halving that turns a nibble index into an
+;;     address folded into the same run of shifts.
 ;; --------------------------------------------------------------------
 
-; ---- L6331 ---- from &6302, &632A
-L6331:
+; ---- NEXT_SCREEN_NIBBLE ---- from &6302, &632A
+NEXT_SCREEN_NIBBLE:
                BIT 0,H                         ; 6331 CB 44
                JR Z,L633A                      ; 6333 28 05
                INC L                           ; 6335 2C
@@ -20302,7 +20375,7 @@ L70B0:
 ;; Takes:     A, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;;
-;; ? reaches the ROM through STRLOCN; calls POINT_INTO_VARIABLE, NRRDD; falls into whatever follows rather than returning.
+;; ? reaches the ROM through STRLOCN; calls POINT_INTO_VARIABLE, NRRDD, TIMES_FIVE; falls into whatever follows rather than returning.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -20315,7 +20388,7 @@ L70B0:
 VARIABLE_BODY_BY_KIND:
                LD (V409E),A                    ; 7100 32 9E 40
                CALL POINT_INTO_VARIABLE        ; 7103 CD C3 43
-               CALL L484F                      ; 7106 CD 4F 48
+               CALL TIMES_FIVE                 ; 7106 CD 4F 48
                EX DE,HL                        ; 7109 EB
                PUSH HL                         ; 710A E5
                ; read the ROM variable STRLOCN -- the word below is its address, and the call returns past it

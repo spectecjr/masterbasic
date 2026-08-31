@@ -3007,8 +3007,14 @@ L4839:
 FIND_VARIABLE_TIMES_FIVE:
                CALL FIND_VARIABLE              ; 484C CD D5 43
 
-; ---- L484F ---- from &7106
-L484F:
+;; --------------------------------------------------------------------
+;; HL times five, by ADD HL,HL twice and ADD HL,DE with the original in
+;; DE.  Five is the size of a number in the variables area, which is why
+;; FIND_VARIABLE_TIMES_FIVE falls into it.
+;; --------------------------------------------------------------------
+
+; ---- TIMES_FIVE ---- from &7106
+TIMES_FIVE:
                EX DE,HL                        ; 484F EB
                RET Z                           ; 4850 C8
                PUSH DE                         ; 4851 D5
@@ -3084,7 +3090,7 @@ L4882:
                JR Z,L48E9                      ; 4892 28 55
                LD (HL),A                       ; 4894 77
                PUSH HL                         ; 4895 E5
-               CALL L4A7F                      ; 4896 CD 7F 4A
+               CALL TICS_SECONDS_IN_MONTH      ; 4896 CD 7F 4A
                POP HL                          ; 4899 E1
                LD (HL),&00                     ; 489A 36 00
                CALL CALL_GETINT                ; 489C CD 76 44
@@ -3527,8 +3533,16 @@ FN_TICS:
                CALL SKIP_THEN_TEST_RUNNING     ; 4A7B CD DF 44
                RET Z                           ; 4A7E C8
 
-; ---- L4A7F ---- from &4896
-L4A7F:
+;; --------------------------------------------------------------------
+;; FN_TICS's arithmetic: the day less one times 24, plus the hours,
+;; times 60, plus the minutes, times 60, plus the seconds -- each field
+;; read as two ASCII digits out of the DOS's date and time buffers.  The
+;; entry at &4A84 skips the CALL the &CD at &4A83 hides, for a caller
+;; that has already paged the DOS in.
+;; --------------------------------------------------------------------
+
+; ---- TICS_SECONDS_IN_MONTH ---- from &4896
+TICS_SECONDS_IN_MONTH:
                CALL PAGE_IN_OTHER_HALF         ; 4A7F CD D1 49
                PUSH AF                         ; 4A82 F5
                DEFB &CD                                                         ; 4A83 M  skipped: reads as CALL &4978 from here, and as part of the instruction above it
@@ -3616,7 +3630,7 @@ L4AE0:
                AND A                           ; 4AE6 A7
                SBC HL,BC                       ; 4AE7 ED 42
 
-; ---- L4AE9 ---- from &55EA, &5635
+; ---- L4AE9 ---- from &55EA
 L4AE9:
                SBC A,&00                       ; 4AE9 DE 00
                ADD HL,HL                       ; 4AEB 29
@@ -3640,7 +3654,7 @@ L4AE9:
 FN_LOCN:
                CALL EXPECT_NEXT_LPAREN_AND_NUMBER ; 4AF0 CD 4A 44
                CALL EXPECT_NUMBER              ; 4AF3 CD 4D 44
-               CALL L4D33                      ; 4AF6 CD 33 4D
+               CALL PARSE_STRING_AND_SUBSCRIPT ; 4AF6 CD 33 4D
                RET NC                          ; 4AF9 D0
                LD HL,L4C43                     ; 4AFA 21 43 4C
                PUSH HL                         ; 4AFD E5
@@ -3760,7 +3774,7 @@ L4B7D:
 L4B85:
                CALL CALL_EXPSTR                ; 4B85 CD 7C 44
                CALL EXPECT_COMMA               ; 4B88 CD 50 44
-               CALL L4D33                      ; 4B8B CD 33 4D
+               CALL PARSE_STRING_AND_SUBSCRIPT ; 4B8B CD 33 4D
                RET NC                          ; 4B8E D0
                LD HL,&0000                     ; 4B8F 21 00 00
                LD (V40A4),HL                   ; 4B92 22 A4 40
@@ -4148,8 +4162,14 @@ L4D2A:
                CP E                            ; 4D31 BB
                RET                             ; 4D32 C9
 
-; ---- L4D33 ---- from &4AF6, &4B8B
-L4D33:
+;; --------------------------------------------------------------------
+;; A string expression, then a subscript: what the page came back as
+;; decides the path, and the second one wants &FF -- the two-byte
+;; function prefix -- followed by a left bracket.
+;; --------------------------------------------------------------------
+
+; ---- PARSE_STRING_AND_SUBSCRIPT ---- from &4AF6, &4B8B
+PARSE_STRING_AND_SUBSCRIPT:
                CALL CALL_EXPSTR                ; 4D33 CD 7C 44
                PUSH AF                         ; 4D36 F5
                LD C,A                          ; 4D37 4F
@@ -6124,7 +6144,7 @@ L55ED:
                PUSH AF                         ; 55ED F5
                PUSH DE                         ; 55EE D5
                PUSH HL                         ; 55EF E5
-               CALL L5629                      ; 55F0 CD 29 56
+               CALL IS_CHANNEL_OURS            ; 55F0 CD 29 56
                JR Z,L55FA                      ; 55F3 28 05
                LD A,B                          ; 55F5 78
                DEC A                           ; 55F6 3D
@@ -6133,7 +6153,7 @@ L55ED:
 ; ---- L55FA ---- from &55F3
 L55FA:
                POP HL                          ; 55FA E1
-               CALL L561B                      ; 55FB CD 1B 56
+               CALL INSTALL_CHANNEL_HANDLER    ; 55FB CD 1B 56
                POP HL                          ; 55FE E1
                POP AF                          ; 55FF F1
                DI                              ; 5600 F3
@@ -6164,8 +6184,13 @@ L5614:
                LD (V4089),HL                   ; 5617 22 89 40
                RET                             ; 561A C9
 
-; ---- L561B ---- from &55FB
-L561B:
+;; --------------------------------------------------------------------
+;; Write BC into the word &19 bytes into the ROM's channel table, which
+;; is how MasterBASIC puts itself in a channel's place.
+;; --------------------------------------------------------------------
+
+; ---- INSTALL_CHANNEL_HANDLER ---- from &55FB
+INSTALL_CHANNEL_HANDLER:
                PUSH HL                         ; 561B E5
                CALL NRRDD                      ; 561C CD 5F 45
                DEFW CHANS+&4000               ; 561F 4F 9C
@@ -6174,14 +6199,21 @@ L561B:
                POP BC                          ; 5625 C1
                JP WRTBC                        ; 5626 C3 B3 45
 
-; ---- L5629 ---- from &55F0
-L5629:
+;; --------------------------------------------------------------------
+;; Read that same word back and compare it with &4AE9 -- an address
+;; inside the second installed stub, in the ROM's system page, not this
+;; half -- so the test is whether the channel is still pointed at what
+;; the installer put there.
+;; --------------------------------------------------------------------
+
+; ---- IS_CHANNEL_OURS ---- from &55F0
+IS_CHANNEL_OURS:
                CALL NRRDD                      ; 5629 CD 5F 45
                DEFW CHANS+&4000               ; 562C 4F 9C
                LD HL,&0019                     ; 562E 21 19 00
                ADD HL,BC                       ; 5631 09
                CALL RDBC                       ; 5632 CD C2 45
-               LD HL,L4AE9                     ; 5635 21 E9 4A
+               LD HL,&4AE9                     ; 5635 21 E9 4A
                AND A                           ; 5638 A7
                SBC HL,BC                       ; 5639 ED 42
                RET Z                           ; 563B C8
@@ -7460,7 +7492,7 @@ L5AEF:
                AND A                           ; 5AFE A7
                JR Z,L5B1D                      ; 5AFF 28 1C
                OUT (HMPR),A                    ; 5B01 D3 FB
-               CALL L5B22                      ; 5B03 CD 22 5B
+               CALL WINDOW_SOUND_POINTER       ; 5B03 CD 22 5B
                POP HL                          ; 5B06 E1
                POP BC                          ; 5B07 C1
                DEC BC                          ; 5B08 0B
@@ -7490,8 +7522,15 @@ L5B1D:
                LD A,&75                        ; 5B1D 3E 75
                JP REPORT                       ; 5B1F C3 BE 43
 
-; ---- L5B22 ---- from &5B03
-L5B22:
+;; --------------------------------------------------------------------
+;; Take the pointer at V4082, keep its high byte, and window it with the
+;; usual SET 7,H and RES 6,H -- then AND &03 on the byte before the
+;; windowing, which is the page's low bits, decides whether the pointer
+;; has run off the end.
+;; --------------------------------------------------------------------
+
+; ---- WINDOW_SOUND_POINTER ---- from &5B03
+WINDOW_SOUND_POINTER:
                LD HL,(V4082)                   ; 5B22 2A 82 40
                LD A,H                          ; 5B25 7C
                INC A                           ; 5B26 3C
@@ -9047,7 +9086,7 @@ L6196:
 
 ; ---- L61A0 ---- from &6155
 L61A0:
-               CALL L6237                      ; 61A0 CD 37 62
+               CALL SCAN_NIBBLE_TABLE          ; 61A0 CD 37 62
                LD C,A                          ; 61A3 4F
                EXX                             ; 61A4 D9
                LD DE,&000F                     ; 61A5 11 0F 00
@@ -9211,9 +9250,15 @@ L622D:
                JR NZ,L622D                     ; 6234 20 F7
                RET                             ; 6236 C9
 
-; ---- L6237 ---- from &61A0
-L6237:
-               CALL L6253                      ; 6237 CD 53 62
+;; --------------------------------------------------------------------
+;; Walk that table back down from its end, comparing each entry against
+;; BC.  Named for what it does; which entry it is looking for is not
+;; established here.
+;; --------------------------------------------------------------------
+
+; ---- SCAN_NIBBLE_TABLE ---- from &61A0
+SCAN_NIBBLE_TABLE:
+               CALL BUILD_NIBBLE_TABLE         ; 6237 CD 53 62
                LD L,&20                        ; 623A 2E 20
                LD B,L                          ; 623C 45
 
@@ -9241,8 +9286,15 @@ L624B:
                SRL A                           ; 6250 CB 3F
                RET                             ; 6252 C9
 
-; ---- L6253 ---- from &6237
-L6253:
+;; --------------------------------------------------------------------
+;; Clear thirty-two bytes at &E500 and then count something over the
+;; source into them, a nibble at a time -- AND &0F on each byte read,
+;; doubled to index the table.  Thirty-two entries is sixteen nibble
+;; values with two bytes each.
+;; --------------------------------------------------------------------
+
+; ---- BUILD_NIBBLE_TABLE ---- from &6237
+BUILD_NIBBLE_TABLE:
                LD HL,&E500                     ; 6253 21 00 E5
                LD DE,DOS_HEADER                ; 6256 11 00 80
                LD B,&20                        ; 6259 06 20
@@ -9364,7 +9416,7 @@ L629D:
                CALL PAGED_TO_LONG              ; 62AC CD DC 62
                LD (V407B),HL                   ; 62AF 22 7B 40
                CALL L6390                      ; 62B2 CD 90 63
-               CALL L62E9                      ; 62B5 CD E9 62
+               CALL EXPAND_COMPRESSED_FILE     ; 62B5 CD E9 62
                POP DE                          ; 62B8 D1
 
 ; ---- L62B9 ---- from &62BE
@@ -9426,8 +9478,17 @@ PAGED_TO_LONG:
                AND &07                         ; 62E6 E6 07
                RET                             ; 62E8 C9
 
-; ---- L62E9 ---- from &62B5
-L62E9:
+;; --------------------------------------------------------------------
+;; The other half of the compression, and the manual's "A compressed
+;; file will be automatically expanded again on reloading."  SP is
+;; parked in V4078 first, so the stack pointer is free for the copying;
+;; the alternate registers take DE = &000F and HL = &E500, the same
+;; stream the encoder filled; and then pairs of nibbles come back out
+;; through READ_NEXT_NIBBLE, a count and then the value it repeats.
+;; --------------------------------------------------------------------
+
+; ---- EXPAND_COMPRESSED_FILE ---- from &62B5
+EXPAND_COMPRESSED_FILE:
                LD (V4078),SP                   ; 62E9 ED 73 78 40
                EXX                             ; 62ED D9
                LD DE,&000F                     ; 62EE 11 0F 00
@@ -9442,7 +9503,7 @@ L62FC:
                CALL READ_NEXT_NIBBLE           ; 62FC CD 67 63
                CP C                            ; 62FF B9
                JR Z,L6307                      ; 6300 28 05
-               CALL L6331                      ; 6302 CD 31 63
+               CALL NEXT_SCREEN_NIBBLE         ; 6302 CD 31 63
                JR L62FC                        ; 6305 18 F5
 
 ; ---- L6307 ---- from &6300
@@ -9479,12 +9540,18 @@ L6329:
 
 ; ---- L632A ---- from &6324
 L632A:
-               CALL L6331                      ; 632A CD 31 63
+               CALL NEXT_SCREEN_NIBBLE         ; 632A CD 31 63
                DJNZ L6329                      ; 632D 10 FA
                JR L62FC                        ; 632F 18 CB
 
-; ---- L6331 ---- from &6302, &632A
-L6331:
+;; --------------------------------------------------------------------
+;; Step a nibble address down the screen the way NEXT_SCREEN_BYTE steps
+;; a byte one, with the halving that turns a nibble index into an
+;; address folded into the same run of shifts.
+;; --------------------------------------------------------------------
+
+; ---- NEXT_SCREEN_NIBBLE ---- from &6302, &632A
+NEXT_SCREEN_NIBBLE:
                BIT 0,H                         ; 6331 CB 44
                JR Z,L633A                      ; 6333 28 05
                INC L                           ; 6335 2C
@@ -12840,7 +12907,7 @@ L70B0:
 VARIABLE_BODY_BY_KIND:
                LD (V409E),A                    ; 7100 32 9E 40
                CALL POINT_INTO_VARIABLE        ; 7103 CD C3 43
-               CALL L484F                      ; 7106 CD 4F 48
+               CALL TIMES_FIVE                 ; 7106 CD 4F 48
                EX DE,HL                        ; 7109 EB
                PUSH HL                         ; 710A E5
                CALL NRRDD                      ; 710B CD 5F 45
