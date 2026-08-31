@@ -183,3 +183,22 @@ MB &58F9 FIND_FIRST_LINE_IN_RANGE
 
 MB &4091 SEARCH_FIRST_LINE
 MB &408D SEARCH_LAST_LINE
+
+MB &5038 PRINT_WORD
+    Print a word from one of the keyword lists: the characters with bit 7
+    masked off, stopping after the one that has it set.  The companion to
+    SKIP_TO_END_OF_WORD, which steps over the same thing without printing
+    it.
+
+MB &49E0 PORT_BCD_DIGIT
+    One digit of the clock.  IN A,(C), keep the low nibble, add &30 to
+    make it ASCII -- and if the result reaches ':' the nibble was ten or
+    more, which no BCD digit is, so the store is skipped and whatever was
+    there already stands.  A clock that is not there reads &FF and leaves
+    the buffer alone rather than filling it with rubbish.
+
+MB &5276 START_PROGRAM_WALK
+    Page in the BASIC program and point HL at its first line: PROG and
+    PROGP through NRRDD and NRRD, the page straight out to HMPR, then
+    fall into the step below, which returns Z at the &FF that ends the
+    program and otherwise adds the line's own length to reach the next.

@@ -66,9 +66,15 @@ DOC RELOCATED_TO_484D
 
     Two independent checks agree.  &5A9F is not even an instruction
     boundary in this page, so reading it as a variable only makes sense
-    in the system page; and the three "correct" targets -- &49EE, &4A18,
-    &4A84 -- land on POP AF, OR D and LD A,B here, which are not entry
-    points anybody jumps to.
+    in the system page; and of the three "correct" targets, two are not
+    instruction boundaries here either -- &49EE falls inside the CALL at
+    &49ED and &4A18 inside the RES 6,D at &4A17 -- while the third,
+    &4A84, lands on an LD A,B that nothing else jumps to.
+
+    Those two used to read as POP AF and OR D, and that was this pass's
+    own doing: taking the block's internal calls as evidence of entry
+    points here split both instructions in half.  They are left alone
+    now, which is what restored them.
 
     The JP &0000 and CALL &0000 operands scattered through the block are
     accounted for.  RESOLVE_ROM_ENTRIES writes ROM addresses it found by

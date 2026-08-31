@@ -2355,7 +2355,7 @@ CALL_GETCHAR:
 ;; ? reaches the ROM through GETSTR; calls CMR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- CALL_GETSTR ---- from &4192, &47E6, &4B98, &4C2A, &4D71, &4DBF, &57A7, &5ADF
+; ---- CALL_GETSTR ---- from &4192, &47E6, &4B98, &4C2A, &4D71, &4D79, &4DBF, &57A7 ...
 CALL_GETSTR:
                ; call the ROM at GETSTR with ROM1 paged in, and page back on the way out
                CALL CMR                        ; 446D CD F0 44
@@ -3634,7 +3634,7 @@ L4680:
 ;; ? calls SAVE_FAR_POINTER; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- L46A4 ---- from &46B1, &46B8, &47B5
+; ---- L46A4 ---- from &46B1, &46B8, &47B4
 L46A4:
                CALL SAVE_FAR_POINTER           ; 46A4 CD 17 47
 
@@ -3811,10 +3811,13 @@ L46D7:
                JR Z,L46E9                      ; 46D8 28 0F
 
 ;; --------------------------------------------------------------------
-;; L46DA -- &46DA to &46E2
+;; L46DA -- &46DA to &46E8
 ;;
-;; Takes:     A, HL
-;; Leaves:    F, B
+;; Takes:     A, C, DE, HL
+;; Leaves:    A, F, BC, DE, HL
+;; Ends:      JR
+;;
+;; ? calls SAVE_FAR_POINTER, COMPARE_FAR_STRINGS.
 ;; --------------------------------------------------------------------
 
 ; ---- L46DA ---- from &46EE
@@ -3824,19 +3827,7 @@ L46DA:
                CP B                            ; 46DD B8
                JR C,L46D4                      ; 46DE 38 F4
                JR NZ,L46CE                     ; 46E0 20 EC
-               DEFB &CD                                                         ; 46E2 M  skipped: reads as CALL &4725 from here, and as part of the instruction above it
-
-;; --------------------------------------------------------------------
-;; L46E3 -- &46E3 to &46E8
-;;
-;; Takes:     A, C, DE, HL
-;; Leaves:    A, F, BC, HL
-;; Ends:      JR
-;;
-;; ? calls SAVE_FAR_POINTER.
-;; --------------------------------------------------------------------
-               DEC H                           ; 46E3 25
-               LD B,A                          ; 46E4 47
+               CALL COMPARE_FAR_STRINGS        ; 46E2 CD 25 47
                JR C,L46D1                      ; 46E5 38 EA
                JR L46CE                        ; 46E7 18 E5
 
@@ -3862,11 +3853,11 @@ L46E9:
 ;; --------------------------------------------------------------------
 ;; L46F2 -- &46F2 to &46F6
 ;;
-;; Takes:     A, C, HL
-;; Leaves:    A, F, BC, H
+;; Takes:     A, C, DE, HL
+;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JR
 ;;
-;; ? calls PAGE_ON_TWO.
+;; ? calls PAGE_ON_TWO, SAVE_FAR_POINTER, COMPARE_FAR_STRINGS.
 ;; --------------------------------------------------------------------
 
 ; ---- L46F2 ---- from &46D5
@@ -4021,7 +4012,7 @@ SAVE_FAR_POINTER:
 ;;     so neither has to be reloaded round the loop.
 ;; --------------------------------------------------------------------
 
-; ---- COMPARE_FAR_STRINGS ---- from &46B3, &4708
+; ---- COMPARE_FAR_STRINGS ---- from &46B3, &46E2, &4708
 COMPARE_FAR_STRINGS:
                ; the rotating window check: if HL has walked out of section C into section D, the page goes up by one and RES 6,H brings HL back &4000 lower onto the same byte.  The Technical Manual gives this idiom as the standard way to walk a structure longer than 16K
                BIT 6,H                         ; 4725 CB 74
@@ -4167,12 +4158,13 @@ L4784:
                CALL L47EE                      ; 4788 CD EE 47
 
 ;; --------------------------------------------------------------------
-;; L478B -- &478B to &47B4
+;; L478B -- &478B to &47C2
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IX, IY
+;; Ends:      RET
 ;;
-;; ? calls LONGADDR_TO_PAGED, MULTIPLY_HL_BY_DE; falls into whatever follows rather than returning.
+;; ? calls LONGADDR_TO_PAGED, MULTIPLY_HL_BY_DE.
 ;; --------------------------------------------------------------------
                LD (V40A0),BC                   ; 478B ED 43 A0 40
                EX DE,HL                        ; 478F EB
@@ -4193,16 +4185,7 @@ L4784:
                LD A,(V4098)                    ; 47AE 3A 98 40
                CP &A5                          ; 47B1 FE A5
                RET Z                           ; 47B3 C8
-               DEFB &DD                                                         ; 47B4 ]  skipped: reads as LD IX,&46A4 from here, and as part of the instruction above it
-
-;; --------------------------------------------------------------------
-;; L47B5 -- &47B5 to &47C2
-;;
-;; Takes:     nothing in registers
-;; Leaves:    A, F, HL, IX
-;; Ends:      RET
-;; --------------------------------------------------------------------
-               LD HL,L46A4                     ; 47B5 21 A4 46
+               LD IX,L46A4                     ; 47B4 DD 21 A4 46
                LD A,(&4745)                    ; 47B8 3A 45 47
                CP &02                          ; 47BB FE 02
                RET Z                           ; 47BD C8
@@ -4902,7 +4885,7 @@ L4942:
 
 ; ---- L4955 ---- from &4916
 L4955:
-               LD IY,V49ED                     ; 4955 FD 21 ED 49
+               LD IY,L49ED                     ; 4955 FD 21 ED 49
                JR L497C                        ; 4959 18 21
 
 ;; --------------------------------------------------------------------
@@ -5076,29 +5059,39 @@ PAGE_IN_OTHER_HALF:
 ;;
 ;; Takes:     BC, HL
 ;; Leaves:    A, F, HL
+;;
+;; ? calls PORT_BCD_DIGIT; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L49DC ---- from &4978
 L49DC:
-               CALL L49E0                      ; 49DC CD E0 49
+               CALL PORT_BCD_DIGIT             ; 49DC CD E0 49
                DEC HL                          ; 49DF 2B
 
 ;; --------------------------------------------------------------------
-;; L49E0 -- &49E0 to &49E3
+;; PORT_BCD_DIGIT -- &49E0 to &49E3
 ;;
 ;; Takes:     BC
 ;; Leaves:    A, F
 ;;
 ;; ? drives IN A,(C); falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     One digit of the clock.  IN A,(C), keep the low nibble, add &30 to
+;;     make it ASCII -- and if the result reaches ':' the nibble was ten or
+;;     more, which no BCD digit is, so the store is skipped and whatever was
+;;     there already stands.  A clock that is not there reads &FF and leaves
+;;     the buffer alone rather than filling it with rubbish.
 ;; --------------------------------------------------------------------
 
-; ---- L49E0 ---- from &49DC
-L49E0:
+; ---- PORT_BCD_DIGIT ---- from &49DC
+PORT_BCD_DIGIT:
                IN A,(C)                        ; 49E0 ED 78
                AND &0F                         ; 49E2 E6 0F
 
 ;; --------------------------------------------------------------------
-;; L49E4 -- &49E4 to &49ED
+;; L49E4 -- &49E4 to &49EC
 ;;
 ;; Takes:     A, B, HL
 ;; Leaves:    A, F, B, HL
@@ -5110,21 +5103,29 @@ L49E0:
                LD (HL),A                       ; 49EA 77
                JR L49F6                        ; 49EB 18 09
 
-; ---- V49ED ---- from &4955
-V49ED:
-               DEFB &CD                                                         ; 49ED M  skipped: reads as CALL &49F1 from here, and as part of the instruction above it
-
 ;; --------------------------------------------------------------------
-;; L49EE -- &49EE to &49F5
+;; L49ED -- &49ED to &49F0
 ;;
 ;; Takes:     BC, HL
-;; Leaves:    A, F, C, HL
+;; Leaves:    A, F, HL
+;; --------------------------------------------------------------------
+
+; ---- L49ED ---- from &4955
+L49ED:
+               CALL L49F1                      ; 49ED CD F1 49
+               DEC HL                          ; 49F0 2B
+
+;; --------------------------------------------------------------------
+;; L49F1 -- &49F1 to &49F5
+;;
+;; Takes:     BC, HL
+;; Leaves:    A, F
 ;;
 ;; ? tests for CH_ZERO; drives OUT (C),A; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
-               POP AF                          ; 49EE F1
-               LD C,C                          ; 49EF 49
-               DEC HL                          ; 49F0 2B
+
+; ---- L49F1 ---- from &49ED
+L49F1:
                LD A,(HL)                       ; 49F1 7E
                SUB CH_ZERO                     ; 49F2 D6 30
                OUT (C),A                       ; 49F4 ED 79
@@ -5180,10 +5181,10 @@ L49FF:
                RET                             ; 4A0C C9
 
 ;; --------------------------------------------------------------------
-;; L4A0D -- &4A0D to &4A17
+;; L4A0D -- &4A0D to &4A1E
 ;;
 ;; Takes:     A
-;; Leaves:    DE
+;; Leaves:    F, B, DE, HL
 ;;
 ;; ? calls PAGE_IN_OTHER_HALF; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
@@ -5194,15 +5195,7 @@ L4A0D:
                PUSH AF                         ; 4A10 F5
                LD DE,(V4096)                   ; 4A11 ED 5B 96 40
                SET 7,D                         ; 4A15 CB FA
-               DEFB &CB                                                         ; 4A17 K
-
-;; --------------------------------------------------------------------
-;; L4A18 -- &4A18 to &4A1E
-;;
-;; Takes:     A, DE
-;; Leaves:    A, F, B, HL
-;; --------------------------------------------------------------------
-               OR D                            ; 4A18 B2
+               RES 6,D                         ; 4A17 CB B2
                LD HL,&0009                     ; 4A19 21 09 00
                ADD HL,DE                       ; 4A1C 19
                LD B,&03                        ; 4A1D 06 03
@@ -6494,7 +6487,7 @@ L4D6A:
                JP STACK_PAGE0_STRING           ; 4D6A C3 6B 4C
 
 ;; --------------------------------------------------------------------
-;; L4D6D -- &4D6D to &4D7A
+;; L4D6D -- &4D6D to &4D80
 ;;
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
@@ -6512,15 +6505,7 @@ L4D6D:
                PUSH DE                         ; 4D76 D5
                PUSH AF                         ; 4D77 F5
                PUSH BC                         ; 4D78 C5
-               DEFB &CD,&6D                                                     ; 4D79 Mm  skipped: reads as CALL CALL_GETSTR from here, and as part of the instruction above it
-
-;; --------------------------------------------------------------------
-;; L4D7B -- &4D7B to &4D80
-;;
-;; Takes:     A, C, H
-;; Leaves:    A, F, B, HL
-;; --------------------------------------------------------------------
-               LD B,H                          ; 4D7B 44
+               CALL CALL_GETSTR                ; 4D79 CD 6D 44
                AND &1F                         ; 4D7C E6 1F
                POP HL                          ; 4D7E E1
                SBC HL,BC                       ; 4D7F ED 42
@@ -6556,10 +6541,13 @@ L4D86:
                PUSH BC                         ; 4D90 C5
 
 ;; --------------------------------------------------------------------
-;; L4D91 -- &4D91 to &4D96
+;; L4D91 -- &4D91 to &4D97
 ;;
 ;; Takes:     B, DE, HL
-;; Leaves:    BC, DE, HL
+;; Leaves:    A, F, BC, DE, HL
+;; Ends:      JR, RET
+;;
+;; ? drives OUT (HMPR),A.
 ;; --------------------------------------------------------------------
 
 ; ---- L4D91 ---- from &5E30, &5E41
@@ -6569,18 +6557,10 @@ L4D91:
                EXX                             ; 4D93 D9
                POP BC                          ; 4D94 C1
                POP HL                          ; 4D95 E1
-               DEFB &18                                                         ; 4D96 .  skipped: reads as JR &4DAA from here, and as part of the instruction above it
+               JR L4DAA                        ; 4D96 18 12
 
 ;; --------------------------------------------------------------------
-;; L4D97 -- &4D97 to &4D97
-;;
-;; Takes:     A, DE
-;; Leaves:    registers unchanged
-;; --------------------------------------------------------------------
-               LD (DE),A                       ; 4D97 12
-
-;; --------------------------------------------------------------------
-;; L4D98 -- &4D98 to &4DAF
+;; L4D98 -- &4D98 to &4DA9
 ;;
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
@@ -6605,6 +6585,16 @@ L4D98:
                JR NZ,L4DB0                     ; 4DA6 20 08
                INC HL                          ; 4DA8 23
                DEC BC                          ; 4DA9 0B
+
+;; --------------------------------------------------------------------
+;; L4DAA -- &4DAA to &4DAF
+;;
+;; Takes:     BC
+;; Leaves:    A, F
+;; --------------------------------------------------------------------
+
+; ---- L4DAA ---- from &4D96
+L4DAA:
                LD A,B                          ; 4DAA 78
                OR C                            ; 4DAB B1
                JR NZ,L4D98                     ; 4DAC 20 EA
@@ -7211,16 +7201,18 @@ CMDBUF_PROLOGUE:
 ;; --------------------------------------------------------------------
 ;; L4F5E -- &4F5E to &4F77
 ;;
-;; Takes:     DE, HL
-;; Leaves:    A, F, HL
+;; Takes:     A, C, DE, HL
+;; Leaves:    BC, HL
+;; Preserves: A, F (saved and restored)
+;;
+;; ? drives IN A,(HMPR), OUT (HMPR),A; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L4F5E ---- from &4F57
 L4F5E:
                SBC HL,DE                       ; 4F5E ED 52
                LD A,H                          ; 4F60 7C
-               DEFB &FE                                                         ; 4F61 ~
-               DEFB &06                                                         ; 4F62 .  skipped: reads as LD B,&30 from here, and as part of the instruction above it
+               CP &06                          ; 4F61 FE 06
                JR NC,L4F78                     ; 4F63 30 13
                IN A,(HMPR)                     ; 4F65 DB FB
                PUSH AF                         ; 4F67 F5
@@ -7445,31 +7437,20 @@ GTDT:
                LD BC,&0011                     ; 5002 01 11 00
 
 ;; --------------------------------------------------------------------
-;; L5005 -- &5005 to &500A
+;; L5005 -- &5005 to &500D
 ;;
 ;; Takes:     BC, HL, IY
 ;; Leaves:    F, DE, HL, IY
+;; Ends:      JP (HL)
 ;; --------------------------------------------------------------------
 
 ; ---- L5005 ---- from &5216
 L5005:
-               ADD IY,BC                       ; 5005 FD 09
-               POP DE                          ; 5007 D1
+               ADD IY,BC                       ; 5005 FD 09  PT TO 17 BYTES FURTHER ON
+               POP DE                          ; 5007 D1  IN TOKENISE SR
                ADD HL,DE                       ; 5008 19
                EX DE,HL                        ; 5009 EB
-               DEFB &36                                                         ; 500A 6  skipped: reads as LD (HL),&FF from here, and as part of the instruction above it
-
-;; --------------------------------------------------------------------
-;; L500B -- &500B to &500D
-;;
-;; Takes:     IY
-;; Leaves:    registers unchanged
-;; Ends:      JP (HL)
-;; --------------------------------------------------------------------
-
-; ---- L500B ---- from &5221
-L500B:
-               RST &38                         ; 500B FF
+               LD (HL),&FF                     ; 500A 36 FF  FN LEADER PLACED IN BASIC LINE
                ; dispatch: the address was worked out above
                JP (IY)                         ; 500C FD E9
 
@@ -7555,24 +7536,31 @@ SKIP_TO_END_OF_WORD:
                DJNZ SKIP_TO_END_OF_WORD        ; 5036 10 F9
 
 ;; --------------------------------------------------------------------
-;; L5038 -- &5038 to &5043
+;; PRINT_WORD -- &5038 to &5043
 ;;
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      JR
 ;;
 ;; ? calls CALL_PRINT_A.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Print a word from one of the keyword lists: the characters with bit 7
+;;     masked off, stopping after the one that has it set.  The companion to
+;;     SKIP_TO_END_OF_WORD, which steps over the same thing without printing
+;;     it.
 ;; --------------------------------------------------------------------
 
-; ---- L5038 ---- from &5042, &5054
-L5038:
+; ---- PRINT_WORD ---- from &5042, &5054
+PRINT_WORD:
                LD A,(HL)                       ; 5038 7E
                AND &7F                         ; 5039 E6 7F
                CALL CALL_PRINT_A               ; 503B CD FA 69
                BIT 7,(HL)                      ; 503E CB 7E
                RET NZ                          ; 5040 C0
                INC HL                          ; 5041 23
-               JR L5038                        ; 5042 18 F4
+               JR PRINT_WORD                   ; 5042 18 F4
 
 ;; --------------------------------------------------------------------
 ;; L5044 -- &5044 to &5065
@@ -7591,7 +7579,7 @@ L5038:
                ADD A,&30                       ; 504C C6 30
                CALL CALL_PRINT_A               ; 504E CD FA 69
                LD HL,V505C                     ; 5051 21 5C 50
-               CALL L5038                      ; 5054 CD 38 50
+               CALL PRINT_WORD                 ; 5054 CD 38 50
                POP AF                          ; 5057 F1
                LD L,A                          ; 5058 6F
                LD H,&00                        ; 5059 26 00
@@ -7671,10 +7659,12 @@ L509C:
                SUB &30                         ; 50A0 D6 30
 
 ;; --------------------------------------------------------------------
-;; L50A2 -- &50A2 to &50AB
+;; L50A2 -- &50A2 to &50D3
 ;;
 ;; Takes:     A
-;; Leaves:    F
+;; Leaves:    A, F, BC, DE, HL
+;;
+;; ? drives IN E,(C), OUT (C),B; calls PRINT_SPACE, SKIP_TO_END_OF_WORD; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L50A2 ---- from &509E
@@ -7684,17 +7674,7 @@ L50A2:
                CP &3B                          ; 50A6 FE 3B
                CCF                             ; 50A8 3F
                JR C,L50D4                      ; 50A9 38 29
-               DEFB &D6                                                         ; 50AB V  skipped: reads as SUB &25 from here, and as part of the instruction above it
-
-;; --------------------------------------------------------------------
-;; L50AC -- &50AC to &50D3
-;;
-;; Takes:     A, H
-;; Leaves:    A, F, BC, DE, HL
-;;
-;; ? drives IN E,(C), OUT (C),B; calls PRINT_SPACE, SKIP_TO_END_OF_WORD; falls into whatever follows rather than returning.
-;; --------------------------------------------------------------------
-               DEC H                           ; 50AC 25
+               SUB &25                         ; 50AB D6 25
                LD BC,&00FB                     ; 50AD 01 FB 00
                IN E,(C)                        ; 50B0 ED 58
                OUT (C),B                       ; 50B2 ED 41
@@ -8104,7 +8084,7 @@ L51EC:
 
 ; ---- L5221 ---- from &5210
 L5221:
-               LD BC,L500B                     ; 5221 01 0B 50
+               LD BC,&500B                     ; 5221 01 0B 50
                PUSH BC                         ; 5224 C5
                LD C,&00                        ; 5225 0E 00
                PUSH BC                         ; 5227 C5
@@ -8188,16 +8168,23 @@ V5272:
                DEFB &CD,&14,&4D,&C3                                             ; 5272 M.MC  skipped: reads as CALL &4D14 from here, and as part of the instruction above it
 
 ;; --------------------------------------------------------------------
-;; L5276 -- &5276 to &5283
+;; START_PROGRAM_WALK -- &5276 to &5283
 ;;
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, BC, HL
 ;;
 ;; ? reaches the ROM through PROG; calls NRRDD; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Page in the BASIC program and point HL at its first line: PROG and
+;;     PROGP through NRRDD and NRRD, the page straight out to HMPR, then
+;;     fall into the step below, which returns Z at the &FF that ends the
+;;     program and otherwise adds the line's own length to reach the next.
 ;; --------------------------------------------------------------------
 
-; ---- L5276 ---- from &52C0, &52D6
-L5276:
+; ---- START_PROGRAM_WALK ---- from &52C0, &52D6
+START_PROGRAM_WALK:
                ; read the ROM variable PROG -- the word below is its address, and the call returns past it
                CALL NRRDD                      ; 5276 CD 5F 45
                DEFW PROG                      ; 5279 A0 5A
@@ -8303,12 +8290,12 @@ L52BA:
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      RET
 ;;
-;; ? calls OPEN_ROOM_AT_HL.
+;; ? calls START_PROGRAM_WALK, OPEN_ROOM_AT_HL.
 ;; --------------------------------------------------------------------
 
 ; ---- L52C0 ---- from &52B6
 L52C0:
-               CALL L5276                      ; 52C0 CD 76 52
+               CALL START_PROGRAM_WALK         ; 52C0 CD 76 52
                LD BC,&0500                     ; 52C3 01 00 05
                CALL OPEN_ROOM_AT_HL            ; 52C6 CD F2 58
                INC HL                          ; 52C9 23
@@ -8326,13 +8313,13 @@ L52C0:
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;;
-;; ? reaches the ROM through NVARSP; calls NRRD; falls into whatever follows rather than returning.
+;; ? reaches the ROM through NVARSP; calls NRRD, START_PROGRAM_WALK; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L52D5 ---- from &529B
 L52D5:
                PUSH BC                         ; 52D5 C5
-               CALL L5276                      ; 52D6 CD 76 52
+               CALL START_PROGRAM_WALK         ; 52D6 CD 76 52
                EX DE,HL                        ; 52D9 EB
                ; read the ROM variable NVARSP -- the word below is its address, and the call returns past it
                CALL NRRD                       ; 52DA CD 6A 45
@@ -17895,7 +17882,7 @@ L6B26:
 ;; --------------------------------------------------------------------
 ;; DUMP_UNSHADED -- &6B42 to &6B59
 ;;
-;; Takes:     IY
+;; Takes:     nothing in registers
 ;; Leaves:    A, F, DE, HL
 ;;
 ;; Shown for this routine in disasm/:
@@ -17924,7 +17911,7 @@ DUMP_UNSHADED:
 ;; --------------------------------------------------------------------
 ;; L6B5A -- &6B5A to &6B6C
 ;;
-;; Takes:     A, HL, IY
+;; Takes:     A, HL
 ;; Leaves:    A, F, C, DE
 ;; --------------------------------------------------------------------
 
@@ -20967,7 +20954,7 @@ L73B9:
 ;; --------------------------------------------------------------------
 ;; L73BC -- &73BC to &73C8
 ;;
-;; Takes:     A, BC, E
+;; Takes:     BC
 ;; Leaves:    D
 ;; Preserves: BC (saved and restored)
 ;; Ends:      JR
@@ -21516,11 +21503,10 @@ L7519:
 ;; --------------------------------------------------------------------
 ;; L7530 -- &7530 to &7548
 ;;
-;; Takes:     BC, DE, HL
-;; Leaves:    A, F, BC, HL, IX
-;; Ends:      JP, JR
-;;
-;; ? calls SAVE_FAR_POINTER.
+;; Takes:     BC, HL
+;; Leaves:    A, F, HL
+;; Preserves: BC (saved and restored)
+;; Ends:      JP
 ;; --------------------------------------------------------------------
 
 ; ---- L7530 ---- from &7522
@@ -21689,7 +21675,7 @@ L75B9:
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IX, IY
-;; Ends:      JP
+;; Ends:      JP, RET
 ;;
 ;; ? calls LONGADDR_TO_PAGED, MULTIPLY_HL_BY_DE, GET_STRING_PAGED.
 ;; --------------------------------------------------------------------
@@ -23617,9 +23603,15 @@ L7BA1:
 ;;     
 ;;     Two independent checks agree.  &5A9F is not even an instruction
 ;;     boundary in this page, so reading it as a variable only makes sense
-;;     in the system page; and the three "correct" targets -- &49EE, &4A18,
-;;     &4A84 -- land on POP AF, OR D and LD A,B here, which are not entry
-;;     points anybody jumps to.
+;;     in the system page; and of the three "correct" targets, two are not
+;;     instruction boundaries here either -- &49EE falls inside the CALL at
+;;     &49ED and &4A18 inside the RES 6,D at &4A17 -- while the third,
+;;     &4A84, lands on an LD A,B that nothing else jumps to.
+;;     
+;;     Those two used to read as POP AF and OR D, and that was this pass's
+;;     own doing: taking the block's internal calls as evidence of entry
+;;     points here split both instructions in half.  They are left alone
+;;     now, which is what restored them.
 ;;     
 ;;     The JP &0000 and CALL &0000 operands scattered through the block are
 ;;     accounted for.  RESOLVE_ROM_ENTRIES writes ROM addresses it found by
@@ -24279,7 +24271,7 @@ L7D7F:
 ;; L7D83 -- &7D83 to &7DA4
 ;;
 ;; Takes:     D
-;; Leaves:    A, F, B, DE, HL
+;; Leaves:    A, F, DE
 ;; Ends:      RET
 ;; --------------------------------------------------------------------
 

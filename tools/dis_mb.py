@@ -139,6 +139,7 @@ class Page(Disassembler):
         self.title = title
         self.peer = None
         self.peer_seeds = []
+        self.relocated = []           # (from, to, destination) blocks moved
         self.no_peer = []             # ranges where &8000+ is not the peer
         self.self_window = []         # ranges where &8000+ is this page
         self.sys_low = []             # ranges where &4000+ is the system page
@@ -221,6 +222,20 @@ class Page(Disassembler):
         if peer and not re.match(r'^[LV][0-9A-F]{4}$', peer):
             return None
         return name
+
+    def moved_target(self, frm, tgt):
+        """An absolute jump inside a block that runs somewhere else.
+
+        Such a target is an address in the copy, so following it here
+        decodes bytes that nothing executes at this address -- and worse,
+        splits whatever really is here.  &7D9B is the one that showed it:
+        its CALL &4A18 is a call inside the second installed stub, and
+        following it split the RES 6,D at &4A17 into a DEFB and an OR D.
+        """
+        for lo, hi, dest in self.relocated:
+            if lo <= frm < hi and dest <= tgt < dest + (hi - lo):
+                return True
+        return False
 
     def boot_self(self, a, frm=None):
         """Where &8000 and up is this page seen &4000 higher, not the peer.
@@ -519,7 +534,9 @@ class Page(Disassembler):
 
             tgt = insn.target
             if insn.text.startswith(('JP ', 'JR ', 'DJNZ', 'CALL')) and tgt is not None:
-                if self.inside(tgt):
+                if self.moved_target(addr, tgt):
+                    pass                # an address in the copy, not here
+                elif self.inside(tgt):
                     self.queue.append(tgt)
                 elif addr < BOOT_END and PEER <= tgt < PEER + HALF:
                     self.queue.append(tgt - PEER + BASE)
@@ -989,9 +1006,10 @@ def seeds(dos, mb):
     mb.no_peer.append((0x755C, 0x759D))
     # And every block that gets installed: it runs at its destination in
     # the ROM's system page, so a low address in it is an address there.
-    for lo, hi, _dest in RELOCATED:
+    for lo, hi, dest in RELOCATED:
         if (lo, hi) not in mb.sys_low:
             mb.sys_low.append((lo, hi))
+    mb.relocated.extend(RELOCATED)
     seed_from_tables(dos, mb)
     mb.headers[INSTALLER] = NOTES['installer']
     mb.seed(INSTALLER, 'INSTALLER')
@@ -2128,11 +2146,17 @@ def split_entries(d, rounds=8):
         # A label inside an instruction is one kind of evidence; a jump
         # or call that lands inside one is the same evidence, and it is
         # available before any label has been given out.
+        # A jump from inside a relocated block means an address in the
+        # copy, so it is no evidence that anything here starts at that
+        # address.  Left in, &7D9B's CALL &4A18 split the RES 6,D at
+        # &4A17 into a DEFB and an OR D, and six more like it turned
+        # ordinary code into invented skip idioms.
         inside = dict((a, 'target') for a in sorted(set(
-            ins.target for ins in d.insns.values()
+            ins.target for at, ins in d.insns.items()
             if ins.target is not None and d.inside(ins.target)
             and ins.text.startswith(('CALL', 'JP ', 'JR ', 'DJNZ'))
-            and d.m(ins.target) == CONT)))
+            and d.m(ins.target) == CONT
+            and not d.moved_target(at, ins.target))))
         inside.update(d.unplaced())
         for a, name in sorted(inside.items()):
             p = a - 1
