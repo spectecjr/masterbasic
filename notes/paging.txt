@@ -1,0 +1,49 @@
+# The LMPR values, named where they are written.
+
+# LMPR's low five bits choose the page at &0000 and section B is that
+# page plus one, so &1F -- page 31 -- puts page 32 in section B, and 32
+# wraps to 0.  That is the ROM's own arrangement: ROM 0 at &0000, the
+# system page at &4000.  The ROM source spells the constant PAGE1F and
+# comments the value with bit 6 added "BOTH ROMS ON, PAGE ZERO IN
+# SECTION B".
+#
+# These are `value` entries rather than a global equate on purpose: &1F
+# is PAGEMASK in three quarters of its appearances, and &40 is a bit in
+# plenty of bytes that have nothing to do with paging.  Only the
+# instructions that write LMPR are named.
+
+# Bit 6 on its own: ROM 1 in at &C000, everything else left alone.  None
+# of these moves the page in section B, which is why the code doing it
+# can carry on where it stands.
+MB &51F8 value ENABLE_ROM_1
+MB &5BF4 value ENABLE_ROM_1
+MB &5C5B value ENABLE_ROM_1
+MB &5E74 value ENABLE_ROM_1
+MB &658D value ENABLE_ROM_1
+MB &6F55 value ENABLE_ROM_1
+DOS &40D6 value ENABLE_ROM_1
+
+MB &4EAE : SET 6,B is the same thing with LMPR already read into B -- ROM 1 in, the page in section B untouched
+
+# The whole value.  &1F is the ROM's arrangement and &5F is the same
+# with ROM 1 as well.
+MB &7253 value SYSPAGE_IN_B
+MB &75DC value SYSPAGE_IN_B
+MB &7660 value SYSPAGE_IN_B
+MB &7962 value SYSPAGE_IN_B
+DOS &40BA value SYSPAGE_IN_B
+MB &4517 value SYSPAGE_IN_B
+MB &724A value SYSPAGE_IN_B_ROM1
+
+EQU ENABLE_ROM_1 : LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
+EQU SYSPAGE_IN_B : LMPR &1F: page 31 at &0000, so section B gets page 32, which wraps to the system page.  The ROM source calls it PAGE1F
+EQU SYSPAGE_IN_B_ROM1 : the same with bit 6: the ROM's own "BOTH ROMS ON, PAGE ZERO IN SECTION B"
+
+# &4517 is CMR, and it is the one place that really changes the page in
+# section B: OR SYSPAGE_IN_B forces the caller's LMPR to the ROM's
+# arrangement.  It is safe because &4513 has already jumped into the
+# &8000 window, so the OUT three instructions later happens with the
+# code in section C.
+#
+# &724A and &7253 are the contrast: a pair differing only in bit 6, so
+# the page never moves and USING$ stays where it is running.

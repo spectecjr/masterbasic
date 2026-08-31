@@ -1544,7 +1544,10 @@ def header(d):
         head.append('; the same value means something else elsewhere.')
         for name in sorted(d.user_equs):
             v = d.user_equs[name]
-            head.append('%-14s EQU  %s' % (name + ':', hexn(v, 2 if v < 256 else 4)))
+            note = described(name)
+            head.append(('%-14s EQU  %-6s %s'
+                         % (name + ':', hexn(v, 2 if v < 256 else 4),
+                            '; ' + note if note else '')).rstrip())
     if d.mdos_equs:
         head.append('')
         head.append("; Constants under MasterDOS's own names, from the annotated")

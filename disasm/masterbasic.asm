@@ -292,6 +292,9 @@ UPPER:         EQU  &DF    ; clearing bit 5 folds a letter to upper case
 
 ; Numbers named in notes/, each for one instruction where
 ; the same value means something else elsewhere.
+ENABLE_ROM_1:  EQU  &40    ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
+SYSPAGE_IN_B:  EQU  &1F    ; LMPR &1F: page 31 at &0000, so section B gets page 32, which wraps to the system page.  The ROM source calls it PAGE1F
+SYSPAGE_IN_B_ROM1: EQU  &5F    ; the same with bit 6: the ROM's own "BOTH ROMS ON, PAGE ZERO IN SECTION B"
 SYS_CDBUFF_11: EQU  &4D11
 SYS_CDBUFF_50: EQU  &4D50
 SYS_CHAR_HEIGHT: EQU  &4AEF
@@ -1969,7 +1972,7 @@ CMR:
 
 L4516:
                LD A,B                          ; 4516 78
-               OR &1F                          ; 4517 F6 1F
+               OR SYSPAGE_IN_B                 ; 4517 F6 1F
                LD HL,(V4076+&4000)             ; 4519 2A 76 80
                DI                              ; 451C F3
                OUT (LMPR),A                    ; 451D D3 FA
@@ -4413,7 +4416,7 @@ HCMDV:
                ADD HL,BC                       ; 4EA9 09
                LD C,LMPR                       ; 4EAA 0E FA
                IN B,(C)                        ; 4EAC ED 40
-               SET 6,B                         ; 4EAE CB F0
+               SET 6,B                         ; 4EAE CB F0  SET 6,B is the same thing with LMPR already read into B -- ROM 1 in, the page in section B untouched
                OUT (C),B                       ; 4EB0 ED 41
                LD E,(HL)                       ; 4EB2 5E
                INC HL                          ; 4EB3 23
@@ -5193,7 +5196,7 @@ L51EC:
                ADD HL,BC                       ; 51F4 09
                IN A,(LMPR)                     ; 51F5 DB FA
                PUSH AF                         ; 51F7 F5
-               OR &40                          ; 51F8 F6 40
+               OR ENABLE_ROM_1                 ; 51F8 F6 40
                OUT (LMPR),A                    ; 51FA D3 FA
                LD E,(HL)                       ; 51FC 5E
                INC HL                          ; 51FD 23
@@ -7486,7 +7489,7 @@ CMD_RECORD:
                LD HL,&00BE                     ; 5BEE 21 BE 00
                ADD HL,BC                       ; 5BF1 09
                IN A,(LMPR)                     ; 5BF2 DB FA
-               OR &40                          ; 5BF4 F6 40
+               OR ENABLE_ROM_1                 ; 5BF4 F6 40
                OUT (LMPR),A                    ; 5BF6 D3 FA
                LD E,(HL)                       ; 5BF8 5E
                INC HL                          ; 5BF9 23
@@ -7592,7 +7595,7 @@ PREPARE_COPY_AT_5000:
 ; ---- PAGE_IN_ROM1 ---- from &5C54, &5CE4
 PAGE_IN_ROM1:
                IN A,(LMPR)                     ; 5C59 DB FA
-               OR &40                          ; 5C5B F6 40
+               OR ENABLE_ROM_1                 ; 5C5B F6 40
                OUT (LMPR),A                    ; 5C5D D3 FA
                IN A,(HMPR)                     ; 5C5F DB FB
                LD C,A                          ; 5C61 4F
@@ -8085,7 +8088,7 @@ L5E5A:
                INC HL                          ; 5E70 23
                LD D,(HL)                       ; 5E71 56
                IN A,(LMPR)                     ; 5E72 DB FA
-               OR &40                          ; 5E74 F6 40
+               OR ENABLE_ROM_1                 ; 5E74 F6 40
                OUT (LMPR),A                    ; 5E76 D3 FA
                IN A,(HMPR)                     ; 5E78 DB FB
                PUSH AF                         ; 5E7A F5
@@ -9891,7 +9894,7 @@ L657F:
                CALL NRWR                       ; 6586 CD 82 45
                DEFW FL6OR8                    ; 6589 35 5A
                IN A,(LMPR)                     ; 658B DB FA
-               OR &40                          ; 658D F6 40
+               OR ENABLE_ROM_1                 ; 658D F6 40
                OUT (LMPR),A                    ; 658F D3 FA
 
 L6591:
@@ -12171,7 +12174,7 @@ L6F4A:
                LD HL,&006C                     ; 6F4F 21 6C 00
                ADD HL,BC                       ; 6F52 09
                IN A,(LMPR)                     ; 6F53 DB FA
-               OR &40                          ; 6F55 F6 40
+               OR ENABLE_ROM_1                 ; 6F55 F6 40
                OUT (LMPR),A                    ; 6F57 D3 FA
                LD C,(HL)                       ; 6F59 4E
                INC HL                          ; 6F5A 23
@@ -12745,11 +12748,11 @@ L7243:
                LD HL,(&017F)                   ; 7243 2A 7F 01  from here to &7329 this code is written for &5000: subtract &2243 from any address in it
                LD DE,&8002                     ; 7246 11 02 80
                ADD HL,DE                       ; 7249 19
-               LD A,&5F                        ; 724A 3E 5F
+               LD A,SYSPAGE_IN_B_ROM1          ; 724A 3E 5F
                OUT (LMPR),A                    ; 724C D3 FA
                LD A,&C8                        ; 724E 3E C8
                CALL HLJUMP                     ; 7250 CD 05 00
-               LD A,&1F                        ; 7253 3E 1F
+               LD A,SYSPAGE_IN_B               ; 7253 3E 1F
                OUT (LMPR),A                    ; 7255 D3 FA
                CALL STKSTR                     ; 7257 CD 27 01
                ; calculator: leaves x, x, y (last on top)
@@ -13615,7 +13618,7 @@ L75CB:
                JR L75AF                        ; 75D5 18 D8
                OUT (LMPR),A                    ; 75D7 D3 FA
                CALL &0092                      ; 75D9 CD 92 00
-               LD A,&1F                        ; 75DC 3E 1F
+               LD A,SYSPAGE_IN_B               ; 75DC 3E 1F
                OUT (LMPR),A                    ; 75DE D3 FA
                RET                             ; 75E0 C9
 
@@ -13679,7 +13682,7 @@ L765B:
                LD (HL),&0D                     ; 765B 36 0D
                INC HL                          ; 765D 23
                DJNZ L765B                      ; 765E 10 FB
-               LD A,&1F                        ; 7660 3E 1F
+               LD A,SYSPAGE_IN_B               ; 7660 3E 1F
                OUT (LMPR),A                    ; 7662 D3 FA
                LD HL,DOS_SVHDR                 ; 7664 21 0A 81
                LD B,&DA                        ; 7667 06 DA
@@ -14439,7 +14442,7 @@ L7951:
                EXX                             ; 795E D9
                LD A,C                          ; 795F 79
                DJNZ L7951                      ; 7960 10 EF
-               LD A,&1F                        ; 7962 3E 1F
+               LD A,SYSPAGE_IN_B               ; 7962 3E 1F
                OUT (LMPR),A                    ; 7964 D3 FA
                LD SP,(&EFFE)                   ; 7966 ED 7B FE EF
                RET                             ; 796A C9

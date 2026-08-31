@@ -119,10 +119,19 @@ MB &7721 : &4866 likewise, inside the second stub
 # for that is &731A.  &50AC at &72B8 is the same thing, &AC in, from
 # &72EF.
 #
-# The clue that should have settled it earlier is two instructions
-# before: LD A,&1F : OUT (LMPR),A at &7253 puts page zero in section B,
-# which is the ROM's system page.  Code executing in section B cannot do
-# that and survive, so the code was never in section B.
+# What settles it is the copy, sixteen bytes before the block: LD HL,
+# &7243 : LD DE,&9000 : LD BC,&00E7 : LDIR, with HMPR zeroed, and then
+# CALL CMR : DEFW &5000 to run what was just put there.
+#
+# The LD A,&1F : OUT (LMPR),A at &7253 is NOT evidence of it, and reading
+# it that way would be wrong twice.  &5F at &724A and &1F here differ
+# only in bit 6, so the page in section B does not move at all: the pair
+# turns ROM 1 on for the CALL HLJUMP between them and off again after.
+# And even a write that did change the page would not prove anything on
+# its own -- the Z80 has nothing to flush, so code can page itself out
+# and carry on, provided the new page holds a continuation at the next
+# address.  CMR is the one that really changes section B, and it jumps
+# into the window at &4513 before doing so.
 
 # The hook table, resolved.
 #

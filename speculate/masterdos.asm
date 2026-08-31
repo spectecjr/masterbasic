@@ -183,7 +183,9 @@ ERR_HOOK:      EQU  &08    ; report an error, or call a DOS hook: the byte after
 DISKCTL_0_BASE: EQU  &E0
 DISKCTL_1_BASE: EQU  &F0
 DISKCTL_DATA_OFS: EQU  &03
+ENABLE_ROM_1:  EQU  &40    ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
 FORCE_INTERRUPT_CMD: EQU  &D0
+SYSPAGE_IN_B:  EQU  &1F    ; LMPR &1F: page 31 at &0000, so section B gets page 32, which wraps to the system page.  The ROM source calls it PAGE1F
 SYS_CHAR_WIDTH: EQU  &4AEE
 
 ; Constants under MasterDOS's own names, from the annotated
@@ -555,7 +557,7 @@ L40B5:
                POP AF                          ; 40B5 F1
                CP &0A                          ; 40B6 FE 0A
                JR C,L4061                      ; 40B8 38 A7
-               LD A,&1F                        ; 40BA 3E 1F
+               LD A,SYSPAGE_IN_B               ; 40BA 3E 1F
                OUT (LMPR),A                    ; 40BC D3 FA
                RST ERR_HOOK                    ; 40BE CF
                DEFB ERR_LOADING_ERROR         ; 40BF 13 error 19, "Loading error"
@@ -620,7 +622,7 @@ PTHRD:
 L40D4:
                LD A,L                          ; 40D4 7D
                DEC A                           ; 40D5 3D
-               OR &40                          ; 40D6 F6 40
+               OR ENABLE_ROM_1                 ; 40D6 F6 40
                OUT (LMPR),A                    ; 40D8 D3 FA
                LD HL,HEADER                    ; 40DA 21 00 40
 

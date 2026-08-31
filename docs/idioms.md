@@ -380,14 +380,15 @@ STACK_FILL_LOOP:
 8 × 256 × 4 is exactly 16K. `SP` has to be saved and restored around it and
 interrupts disabled, which is the price; eleven T-states per byte is the return.
 
-## 13. `LMPR := &1F`, and how to tell that code is not where it looks
+## 13. `LMPR := &1F`, and paging out from under yourself
 
 `LMPR`'s low five bits select the page at `&0000`, and **section B is that page
 plus one**. So the value `&1F` — page 31 — puts page 32 in section B, and 32
-wraps to 0. `&1F` is how you spell "the ROM's own arrangement": ROM 0 at
-`&0000` (bit 5 clear leaves it enabled) and the system page at `&4000`.
+wraps to 0. `&1F` is how you spell "the ROM's own arrangement": ROM 0 at `&0000`
+(bit 5 clear leaves it enabled) and the system page at `&4000`. Bit 6 on top of
+that switches ROM 1 in at `&C000`, which is why `&5F` turns up as often as `&1F`.
 
-The ROM's source writes the same value with ROM 1 added and says so:
+The ROM's source writes the pair and says what it means:
 
 ```asm
 PAGE1F:    EQU &1F
@@ -396,49 +397,97 @@ PAGE1F:    EQU &1F
            OUT (250),A       ;BOTH ROMS ON, PAGE ZERO IN SECTION B
 ```
 
-Two forms appear in the listings. The direct one:
+The listings write these under names, because `&1F` is `PAGEMASK` in most of its
+other appearances and `&40` an ordinary bit almost everywhere else:
+`ENABLE_ROM_1` for bit 6 alone, `SYSPAGE_IN_B` for `&1F`, `SYSPAGE_IN_B_ROM1`
+for the two together. Fourteen instructions across both halves carry them, and
+one form still hides in a register pair, where `&FA` is the port and `&5F` the
+value:
 
 ```asm
-      LD A,&1F                        ; 7253
-      OUT (LMPR),A                    ; 7255
-```
-
-and the one that hides in a register pair, where `&FA` is the port and `&5F` is
-`&1F` with ROM 1 on:
-
-```asm
-      LD BC,&5FFA                     ; 4F79  C = LMPR, B = &5F
+      LD BC,&5FFA                     ; 4F79  C = LMPR, B = SYSPAGE_IN_B_ROM1
       OUT (C),B                       ; 4F7C
 ```
 
-That second form is worth knowing on sight for a separate reason: `&5FFA` looks
-exactly like an address, and read as one it invents a label. It did, twice,
-before either site was understood.
+That one is worth knowing on sight for a second reason: `&5FFA` looks exactly
+like an address, and read as one it invents a label. It did, at both of the two
+sites, before either was understood.
 
-**Now the useful part.** A routine that executes this instruction *cannot be
-running in section B* — it would page itself out between the `OUT` and the next
-fetch. So wherever it appears, the code around it is running somewhere else:
-through the `&8000` window, or from a copy in another page.
-
-That single observation settles addresses that otherwise have nowhere to come
-from. `USING$` copies 231 bytes of itself to `&5000` in the system page and
-calls them there; two instructions past its `LD A,&1F` are
+**Which bits change is the whole question.** `&5F` and `&1F` differ only in bit
+6, so writing one after the other turns ROM 1 on and off again and *leaves the
+page in section B exactly where it was*. That is what `USING$` does, from a copy
+of itself running at `&5000` in the system page:
 
 ```asm
-      CALL &50D7                      ; 7275
+      LD A,SYSPAGE_IN_B_ROM1          ; 724A  = &5F, ROM 1 in
+      OUT (LMPR),A                    ; 724C
+      LD A,&C8                        ; 724E
+      CALL HLJUMP                     ; 7250  a ROM 1 routine, from (&017F)+&8002
+      LD A,SYSPAGE_IN_B               ; 7253  = &1F, ROM 1 out again
+      OUT (LMPR),A                    ; 7255
 ```
 
-which is not an address in MasterBASIC at all — it is `&D7` bytes into the copy,
-whose source sits at `&731A`. That call was the last thing in this project's
-notes marked as unexplained, and it was unexplained only because the search for
-it had assumed the code ran where it was written.
+It is running in section B throughout and is perfectly safe there, because
+nothing moves underneath it.
 
-**The companion tell**, for a block with no such instruction: look at where its
-absolute `CALL`s and `JP`s land. Code written for the address it sits at will
-jump all over the page. A relocated block's jumps all fall inside one narrow
-range — the range the copy covers — and none outside it. That is what identified
-the 385 bytes at `&7460`, and it is a stronger signal than it sounds: eight
-jumps landing inside 385 bytes by chance is not something to explain away.
+A write that *does* change the low five bits swaps the code out from under
+itself. There is no pipeline to flush and no cache: the swap takes effect
+immediately, and the next instruction is fetched from the new page. So this is
+survivable — and deliberately used — whenever the new page holds a sensible
+continuation at that address, which in an image whose two halves are both
+assembled at `&4000` is not a strange thing to arrange.
+
+What it is not is something to do by accident. `CMR` has to make a real change,
+and look at the trouble it takes:
+
+```asm
+      JP L4516+&4000                  ; 4513  into the window first
+L4516:
+      LD A,B                          ; 4516
+      OR SYSPAGE_IN_B                 ; 4517  page zero into section B
+      LD HL,(V4076+&4000)             ; 4519
+      DI                              ; 451C
+      OUT (LMPR),A                    ; 451D  now safe: this is running at &851D
+      LD SP,HL                        ; 451F
+      EI                              ; 4520
+```
+
+The `JP` to `L4516+&4000` runs the very next instruction through the `&8000`
+window, so that when `OUT (LMPR),A` lands three instructions later the code is in
+section C and section B is free to change. The stack is switched in the same
+breath, which is why the `DI`.
+
+**So the reading rule is a question, not a proof.** An `OUT (LMPR),A` whose low
+five bits differ from the current ones means one of two things, and you have to
+say which: either the code has moved itself out of section B first — look for a
+`JP` into `&8000`-`&BFBF` just before — or it intends to carry on in whatever the
+new page holds at the next address, in which case that page's contents at that
+address are worth looking at.
+
+### Telling a relocated block, properly
+
+The reliable evidence is not the paging instruction but the copy itself. `USING$`
+runs at `&5000` because sixteen bytes earlier it says so:
+
+```asm
+      LD HL,L7243                     ; 7229  the block
+      LD DE,&9000                     ; 722C  &5000 in the system page
+      LD BC,&00E7                     ; 722F  231 bytes
+      ...
+      LDIR                            ; 7238
+      CALL CMR                        ; 723D
+      DEFW GTDT                       ; 7240  = &5000: call what was just put there
+```
+
+and that is what makes `CALL &50D7` inside the block resolvable: `&D7` bytes in,
+whose source is `&731A`.
+
+For a block with no visible copier, the tell is where its absolute `CALL`s and
+`JP`s land. Code written for the address it sits at jumps all over the page. A
+relocated block's jumps all fall inside one narrow range — the range the copy
+covers — and none outside it. That identified the 385 bytes at `&7460`, and it is
+stronger than it sounds: eight jumps landing inside 385 bytes by chance is not
+something to explain away.
 
 Sixteen blocks in this image are written for an address they are not stored at.
 Between them they hold about 2400 bytes, and every one of them was read wrong
