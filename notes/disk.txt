@@ -300,3 +300,30 @@ DOS &71F3 CHANNEL_LENGTH_FIELD
 DOS &730B PREPARE_DIRECTORY_WRITE
     SNDFL, error 32 if it fails, bit 2 of FLAG3 down, and then POINT and
     the type byte masked -- the run-up every directory write shares.
+
+DOS &7533 READ_WITH_ADDRESS_CHECK
+    Get the buffer, then SDCHK2 decides between two ways of reading: the
+    checked path through READ_ADDRESS_CLEAR, or a straight &0200 bytes.
+
+DOS &778F READ_ADDRESS_CLEAR
+DOS &7799 READ_ADDRESS_SET
+    Read the sector's address mark through RDADR, and differ in one
+    instruction: AND A leaves carry clear where SCF sets it, and both
+    join at &77A1.  The flag is the caller's answer, carried out in the
+    alternate accumulator.
+
+DOS &7B35 TIME_TO_MINUTES
+    Hours times twenty-four through MasterBASIC's MULTIPLY_BY_24, then
+    the byte at HL added in with A extending the top -- the DOS reaching
+    across for arithmetic it does not have of its own, as it does for
+    BYTE_TO_DECIMAL.
+
+DOS &7BA6 STACK_FIVE_BYTE_NUMBER
+    Push a five-byte number onto the calculator stack through the ROM's
+    STKSTR, with the paging handled by CMR.
+
+DOS &7BAC RETURN_INTO_BC
+    Write BC over the word at the stack pointer kept in &7FFC -- the
+    ROM's stack as it stood when the DOS was entered -- so that the
+    pending return goes to BC instead.  The same trick MasterBASIC plays
+    with STORE_BC_AT_XVAR76, from the other side.

@@ -1825,7 +1825,7 @@ L43F4:
 ;; Takes:     A, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;;
-;; ? reaches the ROM through FLAGS; calls CFSO, NRWR; falls into whatever follows rather than returning.
+;; ? reaches the ROM through FLAGS; calls CFSO, NRWR, RETURN_INTO_BC; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L440B ---- from &43E7
@@ -1833,7 +1833,7 @@ L440B:
                CALL CFSO                       ; 440B CD F9 4F
                JR NZ,L4425                     ; 440E 20 15
                LD BC,&0057                     ; 4410 01 57 00
-               CALL L7BAC                      ; 4413 CD AC 7B
+               CALL RETURN_INTO_BC             ; 4413 CD AC 7B
                XOR A                           ; 4416 AF
                ; write the ROM variable FLAGS
                CALL NRWR                       ; 4417 CD 74 50
@@ -2537,7 +2537,7 @@ CHECK_WRITE_STATUS:
 ; ---- READ_SECTOR ---- from &4602, &4633, &48FF, &4E08, &5558, &5582, &5A14, &5D62 ...
 READ_SECTOR:
                CALL TIRDXDCT                   ; 45B7 CD 56 61
-               JP NC,L7533                     ; 45BA D2 33 75
+               JP NC,READ_WITH_ADDRESS_CHECK   ; 45BA D2 33 75
 
 ;; --------------------------------------------------------------------
 ;; L45BD -- &45BD to &45C7
@@ -14673,6 +14673,8 @@ L6485:
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      RET
 ;;
+;; ? calls RETURN_INTO_BC.
+;;
 ;; Shown for this routine in disasm/:
 ;;
 ;;      NETPA -- if the device is the network, hand the operation to the routine whose address is in BC, which lives in
@@ -14685,7 +14687,7 @@ NETPA:
                CP &4E                          ; 64A0 FE 4E
                RET NZ                          ; 64A2 C0
                POP HL                          ; 64A3 E1  JUNK RET ADDR
-               CALL L7BAC                      ; 64A4 CD AC 7B
+               CALL RETURN_INTO_BC             ; 64A4 CD AC 7B
                ; to the alternate register set and back again
                EXX                             ; 64A7 D9  START, LEN TO HL, CDE FOR
                RET                             ; 64A8 C9
@@ -15012,7 +15014,7 @@ L658D:
                LD D,H                          ; 658D 54
                LD C,L                          ; 658E 4D
                LD B,&00                        ; 658F 06 00
-               JP L7BA6                        ; 6591 C3 A6 7B
+               JP STACK_FIVE_BYTE_NUMBER       ; 6591 C3 A6 7B
 
 ;; --------------------------------------------------------------------
 ;; L6594 -- &6594 to &6596
@@ -20650,6 +20652,8 @@ RDW4:
 ;; Takes:     DE, IX
 ;; Leaves:    A, F, BC, DE, HL
 ;;
+;; ? calls READ_WITH_ADDRESS_CHECK; falls into whatever follows rather than returning.
+;;
 ;; Shown for this routine in disasm/:
 ;;
 ;;      RDSSAD -- the RAM disc form of the delimiter search POINT uses
@@ -20666,7 +20670,7 @@ RDW4:
 
 ; ---- RDSSAD ---- from &4685
 RDSSAD:
-               CALL L7533                      ; 74EA CD 33 75  HL=DATA START
+               CALL READ_WITH_ADDRESS_CHECK    ; 74EA CD 33 75  HL=DATA START
                PUSH DE                         ; 74ED D5
                PUSH HL                         ; 74EE E5
                LD DE,(TEMPW1)                  ; 74EF ED 5B 12 42
@@ -20756,6 +20760,8 @@ RDS3:
 ;; Takes:     DE, IX
 ;; Leaves:    A, F, BC, DE, HL
 ;;
+;; ? calls READ_WITH_ADDRESS_CHECK; falls into whatever follows rather than returning.
+;;
 ;; Shown for this routine in disasm/:
 ;;
 ;;     RAM DISC PREPARE SAM FROM DIR ENTRY READ
@@ -20765,7 +20771,7 @@ RDS3:
 
 ; ---- NRDRSCT ---- from &4638
 NRDRSCT:
-               CALL L7533                      ; 7516 CD 33 75
+               CALL READ_WITH_ADDRESS_CHECK    ; 7516 CD 33 75
                PUSH DE                         ; 7519 D5
                PUSH HL                         ; 751A E5
                EX DE,HL                        ; 751B EB
@@ -20819,23 +20825,28 @@ L752E:
                RET                             ; 7532 C9
 
 ;; --------------------------------------------------------------------
-;; L7533 -- &7533 to &7540
+;; READ_WITH_ADDRESS_CHECK -- &7533 to &7540
 ;;
 ;; Takes:     DE, IX
 ;; Leaves:    A, F, BC, HL
 ;; Preserves: DE (saved and restored)
 ;; Ends:      JP, JR
 ;;
-;; ? calls CLEAR_TRANSFER_COUNT, GTBUF, SDCHK2.
+;; ? calls CLEAR_TRANSFER_COUNT, GTBUF, READ_ADDRESS_CLEAR, SDCHK2.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Get the buffer, then SDCHK2 decides between two ways of reading: the
+;;     checked path through READ_ADDRESS_CLEAR, or a straight &0200 bytes.
 ;; --------------------------------------------------------------------
 
-; ---- L7533 ---- from &45BA, &74EA, &7516
-L7533:
+; ---- READ_WITH_ADDRESS_CHECK ---- from &45BA, &74EA, &7516
+READ_WITH_ADDRESS_CHECK:
                CALL GTBUF                      ; 7533 CD A0 4F
                CALL SDCHK2                     ; 7536 CD B9 77
                JR C,L7541                      ; 7539 38 06
                PUSH DE                         ; 753B D5
-               CALL L778F                      ; 753C CD 8F 77
+               CALL READ_ADDRESS_CLEAR         ; 753C CD 8F 77
                JR RDW4                         ; 753F 18 A2
 
 ;; --------------------------------------------------------------------
@@ -21667,11 +21678,13 @@ RDLB:
 ;;
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, DE, HL
+;;
+;; ? calls READ_ADDRESS_SET; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- RDLB2 ---- from &775E
 RDLB2:
-               CALL L7799                      ; 7770 CD 99 77  LOAD 510 BYTES TO DEST FROM T/S D/E
+               CALL READ_ADDRESS_SET           ; 7770 CD 99 77  LOAD 510 BYTES TO DEST FROM T/S D/E
 
 ;; --------------------------------------------------------------------
 ;; RDLB3 -- &7773 to &7784
@@ -21712,7 +21725,7 @@ CHKHL:
                RET                             ; 778E C9
 
 ;; --------------------------------------------------------------------
-;; L778F -- &778F to &7798
+;; READ_ADDRESS_CLEAR -- &778F to &7798
 ;;
 ;; Takes:     A, DE, HL
 ;; Leaves:    BC, HL
@@ -21722,8 +21735,8 @@ CHKHL:
 ;; ? drives IN A,(LMPR), OUT (HMPR),A; calls RDADR.
 ;; --------------------------------------------------------------------
 
-; ---- L778F ---- from &753C
-L778F:
+; ---- READ_ADDRESS_CLEAR ---- from &753C
+READ_ADDRESS_CLEAR:
                PUSH DE                         ; 778F D5  T/S
                PUSH HL                         ; 7790 E5  MAIN MEMORY PTR - DEST
                CALL RDADR                      ; 7791 CD 64 75  PT HL TO SRC IN RAMD, PAGE IN
@@ -21733,16 +21746,23 @@ L778F:
                JR L77A1                        ; 7797 18 08
 
 ;; --------------------------------------------------------------------
-;; L7799 -- &7799 to &77A0
+;; READ_ADDRESS_SET -- &7799 to &77A0
 ;;
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, DE, HL
 ;;
 ;; ? calls RDADR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Read the sector's address mark through RDADR, and differ in one
+;;     instruction: AND A leaves carry clear where SCF sets it, and both
+;;     join at &77A1.  The flag is the caller's answer, carried out in the
+;;     alternate accumulator.
 ;; --------------------------------------------------------------------
 
-; ---- L7799 ---- from &7770
-L7799:
+; ---- READ_ADDRESS_SET ---- from &7770
+READ_ADDRESS_SET:
                PUSH DE                         ; 7799 D5
                PUSH HL                         ; 779A E5
                CALL RDADR                      ; 779B CD 64 75
@@ -22293,13 +22313,13 @@ HKLEN:
 ;; Takes:     A
 ;; Leaves:    A, F, DE, HL, IX
 ;;
-;; ? calls RESET_BUFFER_POINTERS; falls into whatever follows rather than returning.
+;; ? calls RESET_BUFFER_POINTERS, RETURN_INTO_BC; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- HEVV2 ---- from &78A4, &78A8
 HEVV2:
                PUSH AF                         ; 78B1 F5
-               CALL L7BAC                      ; 78B2 CD AC 7B  OVER-WRITE ADDR AFTER HOOK CODE ON
+               CALL RETURN_INTO_BC             ; 78B2 CD AC 7B  OVER-WRITE ADDR AFTER HOOK CODE ON
                CALL RESET_BUFFER_POINTERS      ; 78B5 CD 84 4F
                POP AF                          ; 78B8 F1
                POP HL                          ; 78B9 E1  IMMED CODES
@@ -22481,7 +22501,7 @@ FNDI2:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      JP
 ;;
-;; ? drives IN A,(HMPR); calls DITOB.
+;; ? drives IN A,(HMPR); calls DITOB, STACK_FIVE_BYTE_NUMBER.
 ;; --------------------------------------------------------------------
 
 ; ---- FNDI3 ---- from &7918
@@ -22494,7 +22514,7 @@ FNDI3:
                LD B,H                          ; 793C 44
                LD C,L                          ; 793D 4D
                IN A,(HMPR)                     ; 793E DB FB
-               CALL L7BA6                      ; 7940 CD A6 7B
+               CALL STACK_FIVE_BYTE_NUMBER     ; 7940 CD A6 7B
                JP SET_SCREEN_POINTER           ; 7943 C3 28 46
 
 ;; --------------------------------------------------------------------
@@ -22899,7 +22919,7 @@ L7A46:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      JR
 ;;
-;; ? drives IN A,(HMPR), OUT (HMPR),A; calls NRWRD, MOVRC2.
+;; ? drives IN A,(HMPR), OUT (HMPR),A; calls NRWRD, MOVRC2, STACK_FIVE_BYTE_NUMBER.
 ;; --------------------------------------------------------------------
 
 ; ---- INPSL ---- from &7A81
@@ -22970,7 +22990,7 @@ L7A7D:
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? reaches the ROM through CURCHL; drives IN A,(HMPR), OUT (HMPR),A; calls NRWRD; falls into whatever follows rather than returning.
+;; ? reaches the ROM through CURCHL; drives IN A,(HMPR), OUT (HMPR),A; calls NRWRD, STACK_FIVE_BYTE_NUMBER; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L7A84 ---- from &7A74
@@ -22983,7 +23003,7 @@ L7A84:
                OUT (HMPR),A                    ; 7A89 D3 FB  ORIG
                ; to the alternate register set and back again
                EX AF,AF'                       ; 7A8B 08
-               CALL L7BA6                      ; 7A8C CD A6 7B  STACK ADEBC
+               CALL STACK_FIVE_BYTE_NUMBER     ; 7A8C CD A6 7B  STACK ADEBC
                POP BC                          ; 7A8F C1  ORIG CURCHL
                ; write the ROM variable CURCHL
                CALL NRWRD                      ; 7A90 CD 69 50
@@ -23191,6 +23211,8 @@ L7B18:
 ;; Takes:     BC, D, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      JP, JR
+;;
+;; ? calls TIME_TO_MINUTES.
 ;; --------------------------------------------------------------------
 
 ; ---- L7B23 ---- from &7B19
@@ -23203,21 +23225,28 @@ L7B23:
                LD E,(HL)                       ; 7B2A 5E
                EX DE,HL                        ; 7B2B EB
                XOR A                           ; 7B2C AF
-               CALL L7B35                      ; 7B2D CD 35 7B
-               CALL L7B35                      ; 7B30 CD 35 7B
+               CALL TIME_TO_MINUTES            ; 7B2D CD 35 7B
+               CALL TIME_TO_MINUTES            ; 7B30 CD 35 7B
                JR L7B64                        ; 7B33 18 2F
 
 ;; --------------------------------------------------------------------
-;; L7B35 -- &7B35 to &7B40
+;; TIME_TO_MINUTES -- &7B35 to &7B40
 ;;
 ;; Takes:     BC, DE, HL
 ;; Leaves:    BC, DE, HL, IY
 ;;
 ;; ? reaches the ROM through MB_MULTIPLY_BY_24-&4000; calls CALLMB; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Hours times twenty-four through MasterBASIC's MULTIPLY_BY_24, then
+;;     the byte at HL added in with A extending the top -- the DOS reaching
+;;     across for arithmetic it does not have of its own, as it does for
+;;     BYTE_TO_DECIMAL.
 ;; --------------------------------------------------------------------
 
-; ---- L7B35 ---- from &7B2D, &7B30
-L7B35:
+; ---- TIME_TO_MINUTES ---- from &7B2D, &7B30
+TIME_TO_MINUTES:
                ; call MB_MULTIPLY_BY_24-&4000 in the other page: LMPR is switched first, so that address is how the other listing numbers it
                CALL CALLMB                     ; 7B35 CD BD 42
                DEFW MB_MULTIPLY_BY_24-&4000   ; 7B38 F9 45
@@ -23467,31 +23496,43 @@ HPTH2:
                INC A                           ; 7BA5 3C  DOS PAGE
 
 ;; --------------------------------------------------------------------
-;; L7BA6 -- &7BA6 to &7BAB
+;; STACK_FIVE_BYTE_NUMBER -- &7BA6 to &7BAB
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? reaches the ROM through STKSTR; calls CMR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Push a five-byte number onto the calculator stack through the ROM's
+;;     STKSTR, with the paging handled by CMR.
 ;; --------------------------------------------------------------------
 
-; ---- L7BA6 ---- from &6591, &7940, &7A8C
-L7BA6:
+; ---- STACK_FIVE_BYTE_NUMBER ---- from &6591, &7940, &7A8C
+STACK_FIVE_BYTE_NUMBER:
                ; call the ROM at STKSTR with ROM1 paged in, and page back on the way out
                CALL CMR                        ; 7BA6 CD B2 7B
                DEFW STKSTR                    ; 7BA9 27 01
                RET                             ; 7BAB C9
 
 ;; --------------------------------------------------------------------
-;; L7BAC -- &7BAC to &7BB1
+;; RETURN_INTO_BC -- &7BAC to &7BB1
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    HL
 ;; Ends:      JP
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Write BC over the word at the stack pointer kept in &7FFC -- the
+;;     ROM's stack as it stood when the DOS was entered -- so that the
+;;     pending return goes to BC instead.  The same trick MasterBASIC plays
+;;     with STORE_BC_AT_XVAR76, from the other side.
 ;; --------------------------------------------------------------------
 
-; ---- L7BAC ---- from &4413, &64A4, &78B2
-L7BAC:
+; ---- RETURN_INTO_BC ---- from &4413, &64A4, &78B2
+RETURN_INTO_BC:
                LD HL,(&7FFC)                   ; 7BAC 2A FC 7F
                JP WRTBC                        ; 7BAF C3 AB 50
 
