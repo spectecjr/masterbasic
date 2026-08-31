@@ -16,7 +16,7 @@
 #   150 bytes, 28 runs   &4000-&4AFF, the DOS's working variables
 #   341 bytes, 10 runs   &7C00-&7F12, DCHAN, FSA and DRAM
 #     6 bytes,  3 runs   &7F13-&7F8F, PTH1 and PTH2
-#     2 bytes,  1 run    &78E2, a CALLMB parameter patched at boot
+#     2 bytes,  1 run    &78E2, INDJP's own CALLMB parameter
 #
 # The big one is not a mystery at all once the annotated source's own
 # layout is put beside it.  DCHAN is the disk channel record at &7C00 --
@@ -34,13 +34,25 @@
 # transfer", &4151 "page of the transfer address", and the 44 bytes from
 # there running into UIFA at &417D, "the header the caller asked for".
 #
-# The odd two are the interesting ones.  &78E2 is the DEFW after a
-# CALL CALLMB, zero in the file and &4E96 in the dump -- and MB &4E96 is
-# HCMDV.  So the DOS has a call into MasterBASIC's command dispatcher
-# whose target is filled in at boot.  Nothing in either half writes
-# &B8E2 or &78E2 that this project has found, so what does the filling
-# is still unknown; the boot sector is the obvious suspect and has not
-# been read.
+# The odd two are not a boot-time patch at all.  &78E2 is the DEFW after
+# the CALL CALLMB at &78DF, and three instructions before it is
+
+#     L78D9:  RES 7,H
+#             LD (L78DF+3),HL      -- &78E2
+#             EXX
+#     L78DF:  CALL CALLMB
+#             DEFW &0000           -- &78E2
+
+# which is INDJP, the indirect jump this file's neighbours already
+# describe: "an entry with bit 15 set does not live in this page.  The
+# bit is cleared, leaving the address as the other page numbers it, and
+# the call goes through CALLMB instead of a plain JP".  So those two
+# bytes are rewritten on every cross-page dispatch, and the dump simply
+# caught the last one.
+
+# That it caught &4E96 is the nice part.  MB &4E96 is HCMDV, which CMDV
+# reaches for every command the machine executes -- so on a machine
+# sitting at a prompt it is the likeliest value there could be.
 
 # CONFIRMED
 #
