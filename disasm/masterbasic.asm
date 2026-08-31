@@ -292,9 +292,8 @@ UPPER:         EQU  &DF    ; clearing bit 5 folds a letter to upper case
 
 ; Numbers named in notes/, each for one instruction where
 ; the same value means something else elsewhere.
-ENABLE_ROM_1:  EQU  &40    ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
+ENABLE_ROM1:   EQU  &40    ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
 SYSPAGE_IN_B:  EQU  &1F    ; LMPR &1F: page 31 at &0000, so section B gets page 32, which wraps to the system page.  The ROM source calls it PAGE1F
-SYSPAGE_IN_B_ROM1: EQU  &5F    ; the same with bit 6: the ROM's own "BOTH ROMS ON, PAGE ZERO IN SECTION B"
 SYS_CDBUFF_11: EQU  &4D11
 SYS_CDBUFF_50: EQU  &4D50
 SYS_CHAR_HEIGHT: EQU  &4AEF
@@ -5196,7 +5195,7 @@ L51EC:
                ADD HL,BC                       ; 51F4 09
                IN A,(LMPR)                     ; 51F5 DB FA
                PUSH AF                         ; 51F7 F5
-               OR ENABLE_ROM_1                 ; 51F8 F6 40
+               OR ENABLE_ROM1                  ; 51F8 F6 40
                OUT (LMPR),A                    ; 51FA D3 FA
                LD E,(HL)                       ; 51FC 5E
                INC HL                          ; 51FD 23
@@ -7489,7 +7488,7 @@ CMD_RECORD:
                LD HL,&00BE                     ; 5BEE 21 BE 00
                ADD HL,BC                       ; 5BF1 09
                IN A,(LMPR)                     ; 5BF2 DB FA
-               OR ENABLE_ROM_1                 ; 5BF4 F6 40
+               OR ENABLE_ROM1                  ; 5BF4 F6 40
                OUT (LMPR),A                    ; 5BF6 D3 FA
                LD E,(HL)                       ; 5BF8 5E
                INC HL                          ; 5BF9 23
@@ -7595,7 +7594,7 @@ PREPARE_COPY_AT_5000:
 ; ---- PAGE_IN_ROM1 ---- from &5C54, &5CE4
 PAGE_IN_ROM1:
                IN A,(LMPR)                     ; 5C59 DB FA
-               OR ENABLE_ROM_1                 ; 5C5B F6 40
+               OR ENABLE_ROM1                  ; 5C5B F6 40
                OUT (LMPR),A                    ; 5C5D D3 FA
                IN A,(HMPR)                     ; 5C5F DB FB
                LD C,A                          ; 5C61 4F
@@ -8088,7 +8087,7 @@ L5E5A:
                INC HL                          ; 5E70 23
                LD D,(HL)                       ; 5E71 56
                IN A,(LMPR)                     ; 5E72 DB FA
-               OR ENABLE_ROM_1                 ; 5E74 F6 40
+               OR ENABLE_ROM1                  ; 5E74 F6 40
                OUT (LMPR),A                    ; 5E76 D3 FA
                IN A,(HMPR)                     ; 5E78 DB FB
                PUSH AF                         ; 5E7A F5
@@ -9894,7 +9893,7 @@ L657F:
                CALL NRWR                       ; 6586 CD 82 45
                DEFW FL6OR8                    ; 6589 35 5A
                IN A,(LMPR)                     ; 658B DB FA
-               OR ENABLE_ROM_1                 ; 658D F6 40
+               OR ENABLE_ROM1                  ; 658D F6 40
                OUT (LMPR),A                    ; 658F D3 FA
 
 L6591:
@@ -12174,7 +12173,7 @@ L6F4A:
                LD HL,&006C                     ; 6F4F 21 6C 00
                ADD HL,BC                       ; 6F52 09
                IN A,(LMPR)                     ; 6F53 DB FA
-               OR ENABLE_ROM_1                 ; 6F55 F6 40
+               OR ENABLE_ROM1                  ; 6F55 F6 40
                OUT (LMPR),A                    ; 6F57 D3 FA
                LD C,(HL)                       ; 6F59 4E
                INC HL                          ; 6F5A 23
@@ -12748,7 +12747,7 @@ L7243:
                LD HL,(&017F)                   ; 7243 2A 7F 01  from here to &7329 this code is written for &5000: subtract &2243 from any address in it
                LD DE,&8002                     ; 7246 11 02 80
                ADD HL,DE                       ; 7249 19
-               LD A,SYSPAGE_IN_B_ROM1          ; 724A 3E 5F
+               LD A,SYSPAGE_IN_B | ENABLE_ROM1 ; 724A 3E 5F
                OUT (LMPR),A                    ; 724C D3 FA
                LD A,&C8                        ; 724E 3E C8
                CALL HLJUMP                     ; 7250 CD 05 00

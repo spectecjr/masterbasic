@@ -399,13 +399,14 @@ PAGE1F:    EQU &1F
 
 The listings write these under names, because `&1F` is `PAGEMASK` in most of its
 other appearances and `&40` an ordinary bit almost everywhere else:
-`ENABLE_ROM_1` for bit 6 alone, `SYSPAGE_IN_B` for `&1F`, `SYSPAGE_IN_B_ROM1`
-for the two together. Fourteen instructions across both halves carry them, and
-one form still hides in a register pair, where `&FA` is the port and `&5F` the
-value:
+`ENABLE_ROM1` for bit 6 alone and `SYSPAGE_IN_B` for `&1F`. `&5F` gets no name
+of its own — it is written as the two it is made of, `SYSPAGE_IN_B | ENABLE_ROM1`,
+and the build checks that the expression really is the number in the instruction.
+Fourteen instructions across both halves carry them, and one form still hides in
+a register pair, where `&FA` is the port and `&5F` the value:
 
 ```asm
-      LD BC,&5FFA                     ; 4F79  C = LMPR, B = SYSPAGE_IN_B_ROM1
+      LD BC,&5FFA                     ; 4F79  C = LMPR, B = &5F
       OUT (C),B                       ; 4F7C
 ```
 
@@ -419,7 +420,7 @@ page in section B exactly where it was*. That is what `USING$` does, from a copy
 of itself running at `&5000` in the system page:
 
 ```asm
-      LD A,SYSPAGE_IN_B_ROM1          ; 724A  = &5F, ROM 1 in
+      LD A,SYSPAGE_IN_B | ENABLE_ROM1 ; 724A  = &5F, ROM 1 in
       OUT (LMPR),A                    ; 724C
       LD A,&C8                        ; 724E
       CALL HLJUMP                     ; 7250  a ROM 1 routine, from (&017F)+&8002

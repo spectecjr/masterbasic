@@ -15,29 +15,31 @@
 # Bit 6 on its own: ROM 1 in at &C000, everything else left alone.  None
 # of these moves the page in section B, which is why the code doing it
 # can carry on where it stands.
-MB &51F8 value ENABLE_ROM_1
-MB &5BF4 value ENABLE_ROM_1
-MB &5C5B value ENABLE_ROM_1
-MB &5E74 value ENABLE_ROM_1
-MB &658D value ENABLE_ROM_1
-MB &6F55 value ENABLE_ROM_1
-DOS &40D6 value ENABLE_ROM_1
+MB &51F8 value ENABLE_ROM1
+MB &5BF4 value ENABLE_ROM1
+MB &5C5B value ENABLE_ROM1
+MB &5E74 value ENABLE_ROM1
+MB &658D value ENABLE_ROM1
+MB &6F55 value ENABLE_ROM1
+DOS &40D6 value ENABLE_ROM1
 
 MB &4EAE : SET 6,B is the same thing with LMPR already read into B -- ROM 1 in, the page in section B untouched
 
-# The whole value.  &1F is the ROM's arrangement and &5F is the same
-# with ROM 1 as well.
+# The whole value.  &1F is the ROM's arrangement; &5F is the same with
+# ROM 1 as well, and is written as the two names it is made of rather
+# than being given a third of its own.  The expression is checked
+# against the number the instruction really holds, so getting it wrong
+# is a build error and not a quiet lie.
 MB &7253 value SYSPAGE_IN_B
 MB &75DC value SYSPAGE_IN_B
 MB &7660 value SYSPAGE_IN_B
 MB &7962 value SYSPAGE_IN_B
 DOS &40BA value SYSPAGE_IN_B
 MB &4517 value SYSPAGE_IN_B
-MB &724A value SYSPAGE_IN_B_ROM1
+MB &724A value SYSPAGE_IN_B | ENABLE_ROM1
 
-EQU ENABLE_ROM_1 : LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
+EQU ENABLE_ROM1 : LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
 EQU SYSPAGE_IN_B : LMPR &1F: page 31 at &0000, so section B gets page 32, which wraps to the system page.  The ROM source calls it PAGE1F
-EQU SYSPAGE_IN_B_ROM1 : the same with bit 6: the ROM's own "BOTH ROMS ON, PAGE ZERO IN SECTION B"
 
 # &4517 is CMR, and it is the one place that really changes the page in
 # section B: OR SYSPAGE_IN_B forces the caller's LMPR to the ROM's

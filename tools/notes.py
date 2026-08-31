@@ -141,7 +141,11 @@ def parse(path):
                 cur['kind'] = bits[0]
                 bits = bits[1:]
             if bits:
-                cur['name'] = bits[0]
+                # A `value` may be given an expression of names already
+                # defined rather than a name of its own, and that has
+                # spaces in it: `value SYSPAGE_IN_B | ENABLE_ROM1`.
+                cur['name'] = (' '.join(bits) if cur['kind'] == 'value'
+                               else bits[0])
         out.append(cur)
     for e in out:
         while e['doc'] and not e['doc'][-1]:
@@ -195,7 +199,7 @@ def apply(pages, root, banner):
     problems = []
     kinds = {'data': 3, 'text': 5, 'code': 1}
 
-    equates, later = {}, []
+    equates, later, expressions = {}, [], []
     entries, complaints = load(root)
     problems.extend(complaints)
     for e in entries:
@@ -240,10 +244,18 @@ def apply(pages, root, banner):
                                 % (e['where'], text, len(lits)))
             elif not e['name']:
                 problems.append('%s: value needs a name' % e['where'])
-            else:
+            elif re.fullmatch(r'\w+', e['name']):
                 d.overrides[a] = text.replace(lits[0], e['name'])
                 d.user_equs[e['name']] = int(lits[0][1:], 16)
                 named += 1
+            else:
+                # An expression of names already given, rather than a
+                # name of its own: `SYSPAGE_IN_B | ENABLE_ROM1` says what
+                # &5F is made of, and inventing a third equate for the
+                # pair would say less.  Nothing is defined for it; it is
+                # checked against the number instead, so a wrong
+                # expression is a build error rather than a quiet lie.
+                expressions.append((d, a, lits[0], e['name'], e['where']))
             continue
 
         if e['kind']:
@@ -285,6 +297,26 @@ def apply(pages, root, banner):
 
     # The AFTER lines run last, so that a label named further down the
     # same file can still be referred to by name further up.
+    for d, a, lit, expr, where in expressions:
+        want = int(lit[1:], 16)
+        env = dict(d.user_equs)
+        try:
+            got = eval(re.sub(r'\w+', lambda m: str(env[m.group(0)])
+                              if m.group(0) in env else m.group(0), expr),
+                       {'__builtins__': {}}, {})
+        except Exception:
+            got = None
+        if got != want:
+            problems.append('%s: %s is %s, not %s'
+                            % (where, expr,
+                               '&%X' % got if isinstance(got, int)
+                               else 'not a number I can work out',
+                               lit))
+            continue
+        text = d.overrides.get(a, d.insns[a].text)
+        d.overrides[a] = text.replace(lit, expr)
+        named += 1
+
     for e in later:
         where = [(d, a) for d in pages
                  for a, n in d.labels.items() if n == e['name']]

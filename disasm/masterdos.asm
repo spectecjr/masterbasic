@@ -173,7 +173,7 @@ ERR_HOOK:      EQU  &08    ; report an error, or call a DOS hook: the byte after
 DISKCTL_0_BASE: EQU  &E0
 DISKCTL_1_BASE: EQU  &F0
 DISKCTL_DATA_OFS: EQU  &03
-ENABLE_ROM_1:  EQU  &40    ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
+ENABLE_ROM1:   EQU  &40    ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
 FORCE_INTERRUPT_CMD: EQU  &D0
 SYSPAGE_IN_B:  EQU  &1F    ; LMPR &1F: page 31 at &0000, so section B gets page 32, which wraps to the system page.  The ROM source calls it PAGE1F
 SYS_CHAR_WIDTH: EQU  &4AEE
@@ -445,7 +445,7 @@ PTHRD:
 L40D4:
                LD A,L                          ; 40D4 7D
                DEC A                           ; 40D5 3D
-               OR ENABLE_ROM_1                 ; 40D6 F6 40
+               OR ENABLE_ROM1                  ; 40D6 F6 40
                OUT (LMPR),A                    ; 40D8 D3 FA
                LD HL,HEADER                    ; 40DA 21 00 40
 
