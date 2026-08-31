@@ -31,48 +31,49 @@ sites. The boot sector has been read and does not do it.
 
 ### What would settle it
 
-**An emulator with a memory-write breakpoint.** SimCoupe's debugger will do
-this. Boot `dsks/MasterDOS2_3_MasterBasic1_7.mgt` and break on a **write to
-logical address `&7E6B`**.
+**A memory-write breakpoint, on `&7E8E`.**
 
-That is the whole instruction, and the logical address is deliberate. There
-is no fixed page number to give: MasterBASIC's page is decided at boot, and
-the installer finds it the same way everything else does —
+An earlier version of this file asked for `&7E6B`, and that was a bad address:
+it lies in the one stretch of the region that is **zero after boot and zero in
+the system page as well**, so nothing ever writes it. Watching it finds only
+the ROM's `MNINIT` clearing the page at reset, which is exactly what happened
+when it was tried.
 
-```asm
-      IN A,(LMPR)
-      INC A
-      AND PAGEMASK
-```
+Here is the region after boot, against the system page it mirrors:
 
-— so it is whatever `LMPR` + 1 happens to be. The page byte in the file's own
-header is no help either: it is the saved address divided by 16384, from a
-machine with external memory, and nothing reads it. `PAGE1` is written once,
-at `&63A7`, and the only access to `&4151` anywhere in either half is that one
-`LD (PAGE1),A`. See `docs/disassembly.md` for the working.
+| MasterBASIC | bytes | system page | what |
+|---|---|---|---|
+| `&7E43` | 39 | `&5896` | the installed gap block — **loaded from the file** |
+| `&7E6B` | 35 | `&58BE` | zero, and zero in the system page too |
+| `&7E8E` | 210 | `&58E1` | `KTAB`, the keyboard table, which begins at `&58E0` |
+| … | | … | short runs on to `&5A12` |
 
-A breakpoint on logical `&7E6B` will also fire for the DOS half, which sits
-at the same addresses when its own code runs. That is fine and costs nothing:
-there should be few hits, and the PC says which half it was.
+`&7E8E` is the first byte in the region that is **non-zero after boot and
+different from the file**, so whatever puts the keyboard table there has to
+write it. Anywhere in `&7E8E`–`&7F5F` would do as well.
 
-What I need back is just **the PC when it stops** — the address of the
-instruction doing the write. One line is enough. If it stops somewhere in
-`&4000`–`&7FBF` I can tell from the surrounding code which half it belongs
-to; if you can also say what `LMPR` held, that settles it outright.
+**Watch all three aliases of it, or the physical byte.** This matters and is
+probably why nothing else was caught: a routine copying *into* MasterBASIC's
+page would most naturally do it with that page in the `&8000` window, writing
+`&BE8E` rather than `&7E8E`. If SimCoupe can break on a page and offset, use
+that; otherwise set three breakpoints — `&7E8E`, `&BE8E`, and `&3E8E` for
+completeness.
 
-### If a breakpoint is not available
+What I need back is the **PC when it stops**, and `LMPR` and `HMPR` if they
+are easy to read. One line is enough.
 
-Two dumps of MasterBASIC's page taken at known moments would narrow it
-almost as well:
+### What the answer would decide
 
-- **A** — immediately after boot, with nothing typed at all.
-- **B** — after one specific action, and say which: a `KEY` command, a
-  `DUMP`, a `SAVE`, or just pressing a few keys.
+Two possibilities are still open and this separates them.
 
-If `&7E6B`–`&7FBF` already holds the keyboard table in **A**, it happens
-during boot and I will look again at the installer with that in mind. If it
-only appears in **B**, whatever you did is the trigger and that tells me
-where to look.
+- If something writes `&7E8E` **after** the file has loaded, there is a copier
+  and the PC names it.
+- If the only writes are the load itself, then the file's own bytes never
+  reach `&7E6B`–`&7FBF` — the region after the gap block would be loader
+  output, not file content — and that is a different and more interesting
+  question about how much of the file is loaded at all. The file has a
+  fragment of a BASIC program at `&7E6B` and the running machine has zero
+  there, which is what makes this worth asking.
 
 ---
 

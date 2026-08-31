@@ -84,12 +84,32 @@
 # ROM's character set at CHARSVAL &5190 and a plausible ALLOCT at &5100,
 # and it shares 45 bytes out of 4096 with either half.
 #
-# The likeliest reading left is that this is not part of booting at all
-# but something the machine did afterwards -- MBPOST.bin is a dump of a
-# machine sitting at a prompt, not an instrumented boot -- and that some
-# routine saves the ROM's keyboard table and dump settings into the top
-# of this page before changing them.  That is a guess and is written
-# here as one.
+# REFINED, with a breakpoint tried on a real machine.  Watching a write
+# to &7E6B caught nothing but the ROM's MNINIT clearing the page at
+# reset -- and that is correct rather than surprising, because &7E6B is
+# in the one stretch of this region that is zero after boot *and* zero
+# in the system page.  103 of the 381 bytes are zero on both sides.
+#
+# The region is three parts, not one:
+#
+#     &7E43   39 bytes   the installed gap block, and it does come from
+#                        the file -- it matches, apart from two boot
+#                        patches at &7E49 and &7E4A
+#     &7E6B   35 bytes   zero here and zero in the system page
+#     &7E8E  210 bytes   KTAB, whose own start is &58E0, plus short runs
+#                        on to &5A12
+#
+# So the thing to watch is &7E8E, the first byte that is non-zero after
+# boot and different from the file.  And it should be watched at &BE8E
+# as well: a routine copying into this page would most likely have it in
+# the &8000 window, which is a second reason the first attempt saw
+# nothing.
+#
+# One more thing the attempt showed.  The file's own bytes at &7E6B are
+# a fragment of a BASIC program and the running machine has zero there,
+# so that part of the file is not in memory at all.  Either the load
+# writes it and something clears it afterwards, or the load does not
+# reach it.  The same breakpoint separates those.
 
 # It matters for notes/mb-saveboot.txt, which called SAVE_BOOT's last
 # block a filler whose source was incidental -- &5896 "because that is
