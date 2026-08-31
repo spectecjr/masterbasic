@@ -10910,7 +10910,7 @@ CFPL:
 BUDT:
                CALL GETSCR                     ; 5AD7 CD 2C 49
                LD HL,RPT                       ; 5ADA 21 0D 7C
-               LD DE,&B800                     ; 5ADD 11 00 B8  a buffer address, not a routine -- the caller does the copy
+               LD DE,&B800                     ; 5ADD 11 00 B8  ALLOWS 1580H BYTES FOR SECTOR LIST
                LD BC,&0306                     ; 5AE0 01 06 03  LEN OF RPT, BUF, NSR, FSA, DRAM
                RET                             ; 5AE3 C9
 

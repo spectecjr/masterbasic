@@ -364,15 +364,10 @@ identified, so `LD (&45AF),A` reads as `LD (CHECK_WRITE_STATUS+1),A`.
 Every call target in both halves is named — 587 of them — and every byte
 is classified. What follows is what naming did not answer.
 
-- **How `file/MBPOST.bin` was made.** It shows MasterBASIC's `&7E43`-`&7FBF`
-  holding a copy of the ROM's system page at `&5896`-`&5A12`, where the
-  shipped file has a fragment of somebody's BASIC program. That looked like
-  a run-time copy for several days; two write breakpoints on a real machine
-  have since shown that nothing writes the region during a boot at all. So
-  the dump is not a clean-boot dump of this image, and what needs
-  establishing is how it was taken — see `docs/evidence-wanted.md`. Until
-  that is answered, anything derived from that region of `MBPOST.bin` is
-  suspect.
+- **The system page above `&5BFF`** is still an unchecked model; only a dump
+  would settle it. Below that the copy rules predict the two dumps to within
+  28 bytes, all of them holes the file carries as zero and the machine fills
+  in.
 
 - **`SIZE_EXTERNAL_MEMORY` at `&77DB` looks like dead code.** Nothing
   references it in either half, in either of the two other DOS binaries on

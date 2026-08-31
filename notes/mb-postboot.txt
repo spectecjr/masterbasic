@@ -1,169 +1,100 @@
-# What a booted machine actually holds.
+# What file/MBPOST.bin actually is, and what may be concluded from it.
 
-# file/MBPOST.bin is the two halves dumped after boot, in the same shape
-# as the original image, and file/SYSPAGE.bin is &4000-&4BFF of the ROM's
-# system page.  894 bytes of the two halves differ from the file: 499 in
-# the DOS page, 395 in MasterBASIC's.  Most of what follows could not
-# have been settled by reading.
+# IT IS NOT A MEMORY DUMP.  It is the output of SAVE BOOT, made by
+# booting dsks/MasterDOS2_3_MasterBasic1_7.mgt under SimCoupe and then
+# saving to a freshly formatted disk.  The name is a leftover from when
+# this file was believed to be a dump of the two halves after boot, and
+# several conclusions were drawn on that basis which had to be withdrawn.
 #
-# All 499 of the DOS page's are accounted for below, and all but two of
-# them are ordinary live state rather than anything installed.
+# The distinction matters because SAVE BOOT does not copy two pages.  It
+# assembles eight blocks from four different places -- see
+# notes/mb-saveboot.txt -- so only some of the file is the memory whose
+# address it occupies:
+#
+#   block   file offset      source                    live?
+#     1         0-  255      MB &7CF7                  yes, but MB's
+#     2       256-15711      the DOS page &4100        yes
+#     3     15712-16157      MB &7DF0                  yes, but MB's
+#     4     16158-16319      system page &4C14         no
+#     5     16320-31551      the MB page &4000         yes
+#     6     31552-31587      system page &4BA0         no
+#     7     31588-32258      system page &484D         no
+#     8     32259-32639      system page &5896         no
+#
+# So a byte at "DOS &7F30" in this file is not the DOS page's &7F30 at
+# all; it is the system page's &4C26.  Only blocks 2 and 5 can be read
+# as the pages they appear to be.
 
-# THE DOS PAGE'S 499 BYTES, ALL OF THEM
+# WHAT IT CONFIRMS, and this is the valuable part.
 #
-# They fall in 42 runs and every run has an owner:
+# The eight blocks above were derived by reading SAVE_BOOT at &6404 --
+# the addresses, the lengths and which page each comes from -- before
+# any file was known to exist that had been through it.  This is such a
+# file, and every block whose source can be checked against the system
+# page dumps matches byte for byte:
 #
-#   150 bytes, 28 runs   &4000-&4AFF, the DOS's working variables
-#   341 bytes, 10 runs   &7C00-&7F12, DCHAN, FSA and DRAM
-#     6 bytes,  3 runs   &7F13-&7F8F, PTH1 and PTH2
-#     2 bytes,  1 run    &78E2, INDJP's own CALLMB parameter
+#     block 4   DOS &7F1E, &00A2 bytes  vs syspage &4C14   162 of 162
+#     block 6   MB  &7B80, &0024 bytes  vs syspage &4BA0    36 of 36
+#     block 7   MB  &7BA4, &029F bytes  vs syspage &484D   671 of 671
+#     block 8   MB  &7E43, &017D bytes  vs syspage &5896   381 of 381
 #
-# The big one is not a mystery at all once the annotated source's own
-# layout is put beside it.  DCHAN is the disk channel record at &7C00 --
-# SVBC, SVDE, RFDH, SVHL, SVIX, REG1, DRIVE, FLAG3, RPT, BUF, NSR -- and
-# then FSA at DCHAN+19, which the source calls "the 256-byte image of a
-# directory entry", and DRAM at FSA+256, "the sector buffer proper".
-# A machine that has booted has read its boot sector and looked at a
-# directory, so all three hold live data.  PTH1 and PTH2 after them are
-# the current path for each drive, which the source puts at DRAM+512.
-#
-# The 150 are the same kind of thing one page down: the listing already
-# carries MasterDOS's own comment on each byte, and they read as what a
-# DOS that has done something would have -- &412F "HMPR value that maps
-# the page used as a buffer", &4150 "whole 16K pages remaining in the
-# transfer", &4151 "page of the transfer address", and the 44 bytes from
-# there running into UIFA at &417D, "the header the caller asked for".
-#
-# The odd two are not a boot-time patch at all.  &78E2 is the DEFW after
-# the CALL CALLMB at &78DF, and three instructions before it is
+# That is the whole layout verified from the outside.
 
-#     L78D9:  RES 7,H
-#             LD (L78DF+3),HL      -- &78E2
-#             EXX
-#     L78DF:  CALL CALLMB
-#             DEFW &0000           -- &78E2
-
-# which is INDJP, the indirect jump this file's neighbours already
-# describe: "an entry with bit 15 set does not live in this page.  The
-# bit is cleared, leaving the address as the other page numbers it, and
-# the call goes through CALLMB instead of a plain JP".  So those two
-# bytes are rewritten on every cross-page dispatch, and the dump simply
-# caught the last one.
-
-# That it caught &4E96 is the nice part.  MB &4E96 is HCMDV, which CMDV
-# reaches for every command the machine executes -- so on a machine
-# sitting at a prompt it is the likeliest value there could be.
-
-# MASTERBASIC'S 395, AND A FOURTH COPY THAT GOES THE WRONG WAY
+# WHAT DIFFERS FROM THE SHIPPED IMAGE, by block.
 #
-# 54 runs.  Two are big and the rest are two bytes each:
+#     1    15 of   256      3    0 of   446      5   50 of 15232
+#     2   478 of 15456      4    6 of   162      6    0 of    36
+#                                                7   20 of   671
+#                                                8  325 of   381
 #
-#   323 bytes, 17 runs   &7E6B-&7FBF
-#    72 bytes, 37 runs   the patch sites, listed under CONFIRMED below
+# Blocks 2 and 5 are the two that are really live memory, and they
+# behave as a booted machine should.
 #
-# The large one was a surprise.  After boot, MasterBASIC's &7E43-&7FBF
-# is an exact copy of the ROM's system page at &5896-&5A12 -- all 381
-# bytes, checked against file/SYS2.bin.  The file holds a fragment of
-# somebody's BASIC program there; the running machine holds the DEF KEY
-# gap, the whole keyboard table and the DUMP settings.
-#
-# So this is a fourth copy that runs the wrong way, alongside INSTBUF to
-# &7DF0 and the boot sector to &7D00.  What makes it is not found: no
-# LDIR anywhere in either half carries a length of &017D, and the only
-# instruction in the image that mentions that number at all is SAVE_BOOT
-# handing it to SVBLK.  The boot sector has been read for it and does
-# not do it either.
-#
-# Ruled out, so the next person does not repeat it.  The three literal
-# address loads that could start such a copy are the only ones in the
-# image -- MB &646F LD HL,&9896 (SAVE_BOOT's own source), MB &5081
-# LD DE,&5896 (the channel pointer), MB &7AC5 LD HL,&7E43 (the
-# installer's forty bytes, going the other way) -- and none of them is
-# it.  No LD DE,&7E43 or LD DE,&BE43 exists at all.  The dumps are not
-# at fault either: file/SYS2.bin really is the system page, with the
-# ROM's character set at CHARSVAL &5190 and a plausible ALLOCT at &5100,
-# and it shares 45 bytes out of 4096 with either half.
-#
-# ANSWERED, and the answer is that there is no copy.
-#
-# Two write breakpoints were tried on a real machine, at &7E6B and then
-# at &7E8E, and neither caught anything but the ROM's MNINIT clearing
-# the page at reset.  Nothing writes this region during a boot.
-#
-# The first of those was a badly chosen address and the second was not:
-# &7E6B is in the one stretch that is zero after boot and zero in the
-# system page too -- 103 of the 381 bytes are -- but &7E8E is inside
-# KTAB's copy, non-zero after boot and different from the file.  If
-# anything wrote it, that breakpoint would have fired.
-#
-# So the keyboard table in MBPOST.bin did not get there by booting, and
-# the premise behind this whole entry -- a run-time copy with no copier
-# -- was wrong.  What is left is how MBPOST.bin was made.  Two
-# possibilities fit everything seen:
-#
-#   1. The machine booted a file that had been through SAVE BOOT.  Such
-#      a file *has* the keyboard table at &7E43, because SAVE_BOOT's
-#      eighth block reads &5896-&5A12 out of the system page and writes
-#      it there.  Loading it back puts KTAB in this page with no copy at
-#      all.
-#
-#   2. Whatever took the dumps wrote there itself -- the top of this
-#      page is dead space once the installer has run, which makes it an
-#      obvious buffer for a dumping routine.
-#
-# The differences line up with the first: taking SAVE_BOOT's own blocks
-# as the divisions, the shipped file and MBPOST differ in 50 bytes of
-# block 5, none of block 6, 20 of block 7 -- all patch sites -- and 325
-# of the 381 in block 8.  Block 8 is the one whose content SAVE_BOOT
-# takes from the system page rather than from this half.
-#
-# What would settle it costs nothing: boot the shipped image cleanly and
-# look at MB &7E90.  The file has 28 66 72 6D 73 29 there, which is
-# "(frms)" out of somebody's BASIC program.  If a clean boot shows that,
-# MBPOST is not a clean-boot dump and this entry is closed.
-
-# It matters for notes/mb-saveboot.txt, which called SAVE_BOOT's last
-# block a filler whose source was incidental -- &5896 "because that is
-# where the previous block's neighbour begins".  That was wrong.  The
-# same 381 bytes sit in both places on a running machine, so the block
-# is a saved copy like the two before it and SAVE_BOOT could read it
-# from either.
-
-# CONFIRMED
-#
-# The ROM searches.  Fifteen of the signature searches are followed by a
-# plain LD (nn),HL, so their answers can be read straight out of the
-# dump.  All fifteen are exactly what running the search against the ROM
-# this project assembles predicts -- CCRESTOP, ENDOUTP, EPSUB, PRMAIN,
-# POKE2, DOCOMP, COMDF, COMLEN, LKCALL, MATCHER, LKFC and the rest.  The
-# machine that made this dump is running ROM 3.0.
-#
-# The patch sites.  Almost every difference in MasterBASIC's page is a
-# two-byte run at an address RESOLVE_ROM_ENTRIES writes to: &45F6, &56F6,
+# Block 5, the MasterBASIC page: almost every difference is a two-byte
+# run at an address RESOLVE_ROM_ENTRIES writes to -- &45F6, &56F6,
 # &59C1, &5CF2, &6517, &6594, &735E, &73B4, &73BA, &73BF, &73F8, &7429,
-# &7468, &757F, &7596.
+# &7468, &757F, &7596 -- plus the single bytes that carry this half's
+# own page number.
 #
-# The stubs are patched before they are copied.  Stub one's source at
-# &7460 differs from the file in 6 bytes and stub two's at &7BA4 in 20 --
-# the same counts, at the same offsets, as the copies at &46CC and &484D
-# in the system page.
+# Block 2, the DOS page: the DOS's working variables and UIFA around
+# &4100-&4AFF, and then DCHAN at &7C00 with FSA and DRAM after it, which
+# the annotated source calls the disk channel record, "the 256-byte
+# image of a directory entry" and "the sector buffer proper".  A machine
+# that has booted has read its boot sector and looked at a directory, so
+# all of that holds live data.  &78E2 is in this block too: it is
+# INDJP's own CALLMB operand, rewritten on every cross-page dispatch,
+# and it holds &4E96 -- HCMDV -- because that is the last one a machine
+# at a prompt performed.
 #
-# INSTBUF.  &7DF0-&7FAD differs in 311 of its 446 bytes, which is the
-# copy out of the ROM's transfer buffer that the installer performs.
+# Blocks 7 and 8 differ for a reason that is not about memory at all:
+# their source is the system page, so what they hold is the installed
+# stub with its boot patches applied, and the DEF KEY gap, the keyboard
+# table and the DUMP settings.  Of course they do not match a file that
+# has never been booted.
 
-# CORRECTED
+# THE ROM SEARCHES, which stand however the file was made.
 #
-# &7800-&7B05 is not overwritten at boot.  6 of its 774 bytes differ, so
-# the DOS buffers do not land there during startup.  DOS &5ADD sets up
-# HL, DE and BC and returns; something else does the copying, and only
-# when that path runs.  An earlier note here said the region "becomes DOS
-# buffers", which overstated what had been shown.
-#
-# The last LDIR in the installer had not run.  &7D00-&7DEF differs in
-# only 14 of 240 bytes and matches neither the DOS page's &4009 nor the
-# system page's, so the 240-byte copy at &7B75 has not happened by the
-# time the machine is sitting at a prompt.
+# Fifteen of the signature searches are followed by a plain LD (nn),HL,
+# so their answers can be read straight out of block 5.  All fifteen are
+# exactly what running the search against the ROM this project
+# assembles predicts -- CCRESTOP, ENDOUTP, EPSUB, PRMAIN, POKE2, DOCOMP,
+# COMDF, COMLEN, LKCALL, MATCHER, LKFC and the rest.  The machine that
+# made this file is running ROM 3.0.
 
-DOS &5ADD : a buffer address, not a routine -- the caller does the copy
-MB &7DF0 : overwritten at boot with the ROM's transfer buffer
-MB &7D00 : still holds the file's bytes on a freshly booted machine
+# WITHDRAWN.
+#
+# For several days this file was read as a dump, and that produced a
+# "381-byte copy with no copier": MasterBASIC's &7E43-&7FBF appeared to
+# hold the system page's &5896-&5A12 with nothing writing it.  Two write
+# breakpoints on a real machine, at &7E6B and then at &7E8E, caught
+# nothing but the ROM's MNINIT clearing the page at reset.  They were
+# right.  Block 8 never was in MasterBASIC's page; SAVE BOOT reads it
+# out of the system page and writes it into the file.
+#
+# Also withdrawn: "&7800-&7B05 is not overwritten at boot" and "the last
+# LDIR in the installer had not run", both of which compared block 5
+# against parts of the file that are not block 5's source.  They may
+# well be true; they are not shown by this file.
+
+MB &7DF0 : the installer saves the ROM's transfer buffer here, and SAVE BOOT reads it back out as its third block
+MB &7D00 : and the DOS's boot sector here, which is the first block

@@ -7,36 +7,24 @@ of the repository first.
 
 ---
 
-## 1. How was `file/MBPOST.bin` made? *(highest value, and cheap)*
+## 1. Answered — `file/MBPOST.bin` is a `SAVE BOOT` file, not a dump
 
-This was "who copies 381 bytes into `&7E43`" until two breakpoints said
-nobody does. Watching writes to `&7E6B` and then to `&7E8E` on a real machine
-caught only the ROM's `MNINIT` clearing the page at reset. The second address
-is a good one — it is inside the copy of `KTAB`, non-zero after boot and
-different from the file — so if anything wrote it, that would have fired.
+Kept here because the answer is worth more than the question was. It was made
+by booting `dsks/MasterDOS2_3_MasterBasic1_7.mgt` under SimCoupe and doing a
+`SAVE BOOT` onto a fresh disk, so it is not memory at those addresses — it is
+eight blocks assembled from four places, of which only two are the pages they
+appear to be. `notes/mb-postboot.txt` has the map.
 
-So the keyboard table in `MBPOST.bin` did not get there by booting, and the
-question is no longer about MasterBASIC at all. It is about the dump.
+That closes the "381-byte copy with no copier" this file used to ask about,
+and the two write breakpoints that found nothing were both correct: block 8
+never was in MasterBASIC's page. It also confirms the block layout from the
+outside — every block whose source can be checked against the system page
+dumps matches byte for byte, 162, 36, 671 and 381 bytes respectively.
 
-**What I need.** Either of these:
-
-- **A sentence** saying how `MBPOST.bin` was produced — which disk was booted,
-  and what was run to write the three dumps out.
-- **Or a look at `&7E90` after a clean boot of
-  `dsks/MasterDOS2_3_MasterBasic1_7.mgt`.** The file has `28 66 72 6D 73 29`
-  there — `(frms)`, out of a fragment of somebody's BASIC program. If a clean
-  boot shows that, `MBPOST` is not a clean-boot dump and the matter is closed.
-
-**Why it matters.** Two things fit every observation. The machine may have
-booted a file that had been through `SAVE BOOT`, which *has* the keyboard
-table at `&7E43` because `SAVE_BOOT`'s eighth block reads `&5896`–`&5A12` out
-of the system page and writes it into the file. Or whatever took the dumps
-used the top of this page as a buffer — it is dead space once the installer
-has run, which makes it an obvious choice.
-
-Either way nothing is wrong with the disassembly; what would be wrong is
-leaving a "copy with no copier" in the notes when the copy is an artefact of
-how the evidence was gathered.
+**Still wanted, and cheap:** the same `SAVE BOOT` again after changing
+something a user would change — a `KEY` assignment, or a `DUMP` setting. Block
+8 should carry the change and block 5 should not, which would demonstrate what
+`SAVE BOOT` is for rather than only what it copies.
 
 ---
 

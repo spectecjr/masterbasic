@@ -9886,13 +9886,19 @@ WRITE_DOS_BYTE:
 ;; keyboard table and the DUMP settings, which is exactly the state a
 ;; user changes and would want kept.
 ;;
-;; An earlier version of this note argued the point from MBPOST.bin,
-;; where MasterBASIC's own &7E43-&7FBF holds those same 381 bytes.  That
-;; argument has been withdrawn: write breakpoints on a real machine show
-;; nothing puts them there during a boot, so the dump is not a
-;; clean-boot dump and cannot be used as evidence about what is in this
-;; page.  See notes/mb-postboot.txt.  The point about the block stands
-;; on what it covers.  What
+;; VERIFIED FROM THE OUTSIDE.  file/MBPOST.bin turns out to be the
+;; output of this very routine -- booted from the shipped image under
+;; SimCoupe and saved to a fresh disk -- so the whole layout above can
+;; be checked against something it produced.  Every block whose source
+;; is covered by the system page dumps matches byte for byte:
+;;
+;; block 4   DOS &7F1E, &00A2  vs syspage &4C14   162 of 162
+;; block 6   MB  &7B80, &0024  vs syspage &4BA0    36 of 36
+;; block 7   MB  &7BA4, &029F  vs syspage &484D   671 of 671
+;; block 8   MB  &7E43, &017D  vs syspage &5896   381 of 381
+;;
+;; The addresses, the lengths and the page each block comes from were
+;; all read out of the code before any such file was known to exist.  What
 ;; it covers is the DEF KEY gap, the whole keyboard table and the DUMP
 ;; settings up to &5A12 -- which is to say the KEY assignments and the
 ;; printer settings a user has changed, which is exactly what SAVE BOOT
@@ -15919,7 +15925,7 @@ L7CF7:
 
 ; ---- L7D00 ---- from &7B78
 L7D00:
-               LD A,(DMPFG)                    ; 7D00 3A B7 5A  still holds the file's bytes on a freshly booted machine
+               LD A,(DMPFG)                    ; 7D00 3A B7 5A  and the DOS's boot sector here, which is the first block
                AND A                           ; 7D03 A7
                JR Z,L7D22                      ; 7D04 28 1C
                POP HL                          ; 7D06 E1
@@ -16099,7 +16105,7 @@ L7DD8:
 
 ; ---- L7DF0 ---- from &7B5F
 L7DF0:
-               CALL &4A84                      ; 7DF0 CD 84 4A  overwritten at boot with the ROM's transfer buffer
+               CALL &4A84                      ; 7DF0 CD 84 4A  the installer saves the ROM's transfer buffer here, and SAVE BOOT reads it back out as its third block
                JP &0000                        ; 7DF3 C3 00 00
                DEFB &22,&9E,&4B,&E1                                             ; 7DF6 ".Ka  skipped: reads as LD (&4B9E),HL from here, and as part of the instruction above it
                CALL &0000                      ; 7DFA CD 00 00
