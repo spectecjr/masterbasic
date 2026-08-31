@@ -329,3 +329,14 @@ MB &484C FIND_VARIABLE_TIMES_FIVE
     twice and ADD HL,DE, the usual shape -- which is the size of a
     number in the variables area.  &484F is the same without the lookup,
     for a caller that has the value already.
+
+MB &43C3 POINT_INTO_VARIABLE
+    The variable the ROM's LOOKVARS last found, paged in and pointed
+    eleven bytes into.  STRLOCN is the ROM's own "(2) USED BY LOOKVARS",
+    so it holds where that search stopped; this reads it through NRRDD,
+    takes the type byte into C, and adds &0B.
+
+MB &7100 VARIABLE_BODY_BY_KIND
+    The same again, and then a branch on AND &60 -- bits 5 and 6 of the
+    type byte, which are what tell the kinds of variable apart.  It keeps
+    IX across the lookup, so the caller's own record survives it.

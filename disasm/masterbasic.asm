@@ -1495,8 +1495,15 @@ REPORT:
                CALL CALLDOS                    ; 43BE CD C1 42
                DEFW DOS_REPORTA-&4000         ; 43C1 A0 51
 
-; ---- L43C3 ---- from &7103
-L43C3:
+;; --------------------------------------------------------------------
+;; The variable the ROM's LOOKVARS last found, paged in and pointed
+;; eleven bytes into.  STRLOCN is the ROM's own "(2) USED BY LOOKVARS",
+;; so it holds where that search stopped; this reads it through NRRDD,
+;; takes the type byte into C, and adds &0B.
+;; --------------------------------------------------------------------
+
+; ---- POINT_INTO_VARIABLE ---- from &7103
+POINT_INTO_VARIABLE:
                IN A,(HMPR)                     ; 43C3 DB FB
                PUSH AF                         ; 43C5 F5
                CALL NRRDD                      ; 43C6 CD 5F 45
@@ -12535,7 +12542,7 @@ L6F92:
                POP AF                          ; 6FA3 F1
                OUT (HMPR),A                    ; 6FA4 D3 FB
                INC A                           ; 6FA6 3C
-               CALL L7100                      ; 6FA7 CD 00 71
+               CALL VARIABLE_BODY_BY_KIND      ; 6FA7 CD 00 71
                RET NZ                          ; 6FAA C0
                SBC HL,DE                       ; 6FAB ED 52
                LD B,H                          ; 6FAD 44
@@ -12759,10 +12766,16 @@ L70B0:
                LD IX,(V40A4)                   ; 70FB DD 2A A4 40
                XOR A                           ; 70FF AF
 
-; ---- L7100 ---- from &6FA7
-L7100:
+;; --------------------------------------------------------------------
+;; The same again, and then a branch on AND &60 -- bits 5 and 6 of the
+;; type byte, which are what tell the kinds of variable apart.  It keeps
+;; IX across the lookup, so the caller's own record survives it.
+;; --------------------------------------------------------------------
+
+; ---- VARIABLE_BODY_BY_KIND ---- from &6FA7
+VARIABLE_BODY_BY_KIND:
                LD (V409E),A                    ; 7100 32 9E 40
-               CALL L43C3                      ; 7103 CD C3 43
+               CALL POINT_INTO_VARIABLE        ; 7103 CD C3 43
                CALL L484F                      ; 7106 CD 4F 48
                EX DE,HL                        ; 7109 EB
                PUSH HL                         ; 710A E5
