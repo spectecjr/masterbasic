@@ -49,3 +49,10 @@ EQU SYSPAGE_IN_B : LMPR &1F: page 31 at &0000, so section B gets page 32, which 
 #
 # &724A and &7253 are the contrast: a pair differing only in bit 6, so
 # the page never moves and USING$ stays where it is running.
+
+# One more number that means something else elsewhere: &42BA is this
+# half's own V42BA in most of the listing, and the DOS's DVAR 154 in the
+# one instruction that loads it for a write made after CALLDOS.
+MB &63FB value DVAR_CMPFG
+
+EQU DVAR_CMPFG : DVAR 154 in the DOS page: SAVE MODE 1, 2 or 3 less one

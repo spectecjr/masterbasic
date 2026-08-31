@@ -4,18 +4,31 @@
 # of four-bit values, a run length and then the byte that repeats.
 # READ_NEXT_NIBBLE at &6367 takes them back out again.
 #
-# OPEN: whether this is DUMP's or SAVE MODE's.  The header used to say
-# DUMP outright and that is more than has been shown.  For DUMP:
-# NEXT_SCREEN_BYTE walks a display layout rather than straight along
-# memory, which suits a printer's bit image.  For SAVE MODE: the driver
-# at &614E compresses into &E500 and hands the length to the DOS, the
-# manual documents "File compression with SAVE MODE" with DVAR 154
-# CMPFG selecting it, and the input READ_NIBBLE_AT_HL walks is the whole
-# 32K at &8000 rather than the 24K of a screen -- the loop runs the
-# index up to &FF00, which is 32640 bytes.
+# ANSWERED: it is SAVE MODE's, and it walks a screen because the file it
+# is compressing is a screen.  Both halves of the argument were right and
+# they were not about the same thing.
 #
-# Both may be true, with one encoder serving two callers.  Nothing read
-# so far distinguishes them, so the file no longer claims one.
+# The DOS calls it.  HK_HSAVE at DOS &64D8 saves the header and then
+# looks at two things:
+#
+#     LD A,(&42BA)         DVAR 154, which the manual calls CMPFG --
+#                          "Compression Flag.  Set to 0, 1 or 2 for
+#                          SAVE MODE 1/2/3"
+#     LD A,(IX+&13)        the file type
+#     CP &14               20, which ref/masterdos/docs/file-formats.md
+#                          gives as SCREEN$
+#
+# A SCREEN$ file with CMPFG not 1 reaches &6529, which is
+# CALL CALLMB / DEFW &614E -- this encoder.  Everything else goes to
+# &651C and CALLMB &65EA, a different one.  So &614E is the screen
+# compressor and &65EA the general one, and SAVE MODE picks between
+# them.
+#
+# The other end agrees.  MB &63ED is SAVE MODE's own parsing: LD C,&AA,
+# the MODE token, then a number, then BYTE_ARGUMENT and DEC A and
+# CP &03, so 1 to 3 -- and n-1 is written to that same &42BA through
+# CALLDOS.  The manual's three modes, the DVAR they set, and the two
+# encoders they choose between, all in one line of evidence.
 
 DOC NEXT_SCREEN_BYTE
     Step to the byte below the current one on screen.
@@ -147,3 +160,23 @@ MB &5EDD GET_BUFFER_SIZE
 
 MB &6194 WRITE_THREE_FF
     Three &FF bytes to the open file, through the DOS's save-byte hook.
+
+MB &63F6 SET_COMPRESSION_MODE
+    Write the SAVE MODE setting to the DOS's CMPFG.  A value of 1 to 3
+    comes in less one, anything else is "Integer out of range", and the
+    write goes through CALLDOS and the ROM's NRWRITE -- which is why the
+    address is loaded here and means the DOS's byte, not this half's:
+    the pages have swapped by the time it is used.
+
+    Reached from SAVE MODE's own parsing three instructions above, and
+    from DOS &54FE.
+
+MB &614E COMPRESS_SCREEN_FILE
+    Compress a SCREEN$ file on its way to disk, called from the DOS's
+    HK_HSAVE through CALLMB.  L63C5 sets up, the encoder fills &E500, the
+    length is worked out by taking &E500 off the end pointer, and
+    WRITE_THREE_FF closes the stream.
+
+MB &6172 SEND_COMPRESSED_BLOCK
+    Hand what the encoder produced to the DOS, with the registers and the
+    paging saved around it.

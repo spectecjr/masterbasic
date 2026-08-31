@@ -904,6 +904,10 @@ def seeds(dos, mb):
     # after &5BFF has zeroed HMPR, and CMD_RECORD reaches the same byte
     # by name -- CALL NRWR / DEFW &4AF3 at &5BE0.
     mb.sys_low.append((0x5C3F, 0x5C4B))
+    # &63FB loads HL for a write that happens after CALLDOS has switched
+    # pages, so &42BA is the DOS's byte -- DVAR 154, CMPFG -- and not
+    # this half's own.
+    mb.sys_low.append((0x63FB, 0x63FE))
     # The three vector values INSTALL_ROM_PATCHES writes: &49F7, &4A52
     # and &4AE6 are addresses in the ROM's system page, in the stubs it
     # has just put there, and not in this half.  &4AAC two instructions

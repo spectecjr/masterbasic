@@ -292,6 +292,7 @@ UPPER:         EQU  &DF    ; clearing bit 5 folds a letter to upper case
 
 ; Numbers named in notes/, each for one instruction where
 ; the same value means something else elsewhere.
+DVAR_CMPFG:    EQU  &42BA  ; DVAR 154 in the DOS page: SAVE MODE 1, 2 or 3 less one
 ENABLE_ROM1:   EQU  &40    ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
 SYSPAGE_IN_B:  EQU  &1F    ; LMPR &1F: page 31 at &0000, so section B gets page 32, which wraps to the system page.  The ROM source calls it PAGE1F
 SYS_CDBUFF_11: EQU  &4D11
@@ -1221,11 +1222,7 @@ L42B3:
 ; ---- L42B6 ---- from &497D
 L42B6:
                CALL CALLDOS                    ; 42B6 CD C1 42
-               DEFB &3A                                                         ; 42B9 :
-
-; ---- V42BA ---- from &63FB
-V42BA:
-               DEFB &49                                                         ; 42BA I
+               DEFW &493A                     ; 42B9 3A 49
                RET                             ; 42BB C9
                DEFB &00,&00,&00,&00,&00                                         ; 42BC .....  zero fill
 
@@ -8833,6 +8830,15 @@ L6143:
                LD A,C                          ; 6149 79
                LD (V406F),A                    ; 614A 32 6F 40
                RET                             ; 614D C9
+
+;; --------------------------------------------------------------------
+;; Compress a SCREEN$ file on its way to disk, called from the DOS's
+;; HK_HSAVE through CALLMB.  L63C5 sets up, the encoder fills &E500, the
+;; length is worked out by taking &E500 off the end pointer, and
+;; WRITE_THREE_FF closes the stream.
+;; --------------------------------------------------------------------
+
+COMPRESS_SCREEN_FILE:
                CALL L63C5                      ; 614E CD C5 63
                PUSH DE                         ; 6151 D5
                SBC HL,BC                       ; 6152 ED 42
@@ -8843,7 +8849,7 @@ L6143:
                SBC HL,DE                       ; 615C ED 52
                PUSH HL                         ; 615E E5
                POP IY                          ; 615F FD E1
-               CALL L6172                      ; 6161 CD 72 61
+               CALL SEND_COMPRESSED_BLOCK      ; 6161 CD 72 61
                CALL WRITE_THREE_FF             ; 6164 CD 94 61
                EXX                             ; 6167 D9
                POP BC                          ; 6168 C1
@@ -8853,8 +8859,13 @@ L6143:
                LD DE,&E500                     ; 616D 11 00 E5
                LDIR                            ; 6170 ED B0
 
-; ---- L6172 ---- from &6161, &6221
-L6172:
+;; --------------------------------------------------------------------
+;; Hand what the encoder produced to the DOS, with the registers and the
+;; paging saved around it.
+;; --------------------------------------------------------------------
+
+; ---- SEND_COMPRESSED_BLOCK ---- from &6161, &6221
+SEND_COMPRESSED_BLOCK:
                EXX                             ; 6172 D9
                LD HL,DOS_L6500                 ; 6173 21 00 A5
                EXX                             ; 6176 D9
@@ -9046,7 +9057,7 @@ L620F:
                EXX                             ; 621B D9
                RET NZ                          ; 621C C0
                LD IY,&1900                     ; 621D FD 21 00 19
-               CALL L6172                      ; 6221 CD 72 61
+               CALL SEND_COMPRESSED_BLOCK      ; 6221 CD 72 61
                EXX                             ; 6224 D9
                LD HL,&E500                     ; 6225 21 00 E5
                LD DE,&000F                     ; 6228 11 0F 00
@@ -9529,11 +9540,22 @@ CMD_SAVE:
                CALL BYTE_ARGUMENT              ; 63F2 CD A1 43
                DEC A                           ; 63F5 3D
 
-; ---- L63F6 ---- from DOS &54FE
-L63F6:
+;; --------------------------------------------------------------------
+;; Write the SAVE MODE setting to the DOS's CMPFG.  A value of 1 to 3
+;; comes in less one, anything else is "Integer out of range", and the
+;; write goes through CALLDOS and the ROM's NRWRITE -- which is why the
+;; address is loaded here and means the DOS's byte, not this half's:
+;; the pages have swapped by the time it is used.
+;;
+;; Reached from SAVE MODE's own parsing three instructions above, and
+;; from DOS &54FE.
+;; --------------------------------------------------------------------
+
+; ---- SET_COMPRESSION_MODE ---- from DOS &54FE
+SET_COMPRESSION_MODE:
                CP &03                          ; 63F6 FE 03
                JP NC,REP_INTEGER_OUT_OF_RANGE  ; 63F8 D2 A7 43
-               LD HL,V42BA                     ; 63FB 21 BA 42
+               LD HL,DVAR_CMPFG                ; 63FB 21 BA 42
 
 ; ---- L63FE ---- from &554E, &65D3
 L63FE:
