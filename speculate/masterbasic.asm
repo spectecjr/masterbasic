@@ -15212,15 +15212,22 @@ L63FE:
 ;;     DOS that the machine no longer holds in the DOS page once it has
 ;;     booted.
 ;;     
-;;     The last block is a filler.  &3B80 + &0024 + &029F leaves 381 bytes
-;;     to make 16320, and &017D is 381; its source is &5896 because that is
-;;     where the previous block's neighbour begins, and it runs on through
-;;     the DEF KEY gap, the keyboard table and up to the DUMP settings at
-;;     &5A12.  In the file this project reads, the 341 bytes after the
-;;     installed forty are a fragment of somebody's BASIC program -- "TOTAL
-;;     FRAMES", "moveinf" -- so this image was never written by SAVE BOOT:
-;;     it is the shipped original, with whatever was in memory at the time
-;;     left in the gap.
+;;     The last block is a saved copy, not a filler.  &3B80 + &0024 + &029F
+;;     does leave exactly 381 bytes to make 16320, and &017D is 381 -- but
+;;     the source is not incidental.  On a booted machine MasterBASIC's own
+;;     &7E43-&7FBF holds those same 381 bytes, byte for byte, so the block
+;;     exists in two places and SAVE BOOT could read it from either.  What
+;;     it covers is the DEF KEY gap, the whole keyboard table and the DUMP
+;;     settings up to &5A12 -- which is to say the KEY assignments and the
+;;     printer settings a user has changed, which is exactly what SAVE BOOT
+;;     is for.
+;;     
+;;     In the file this project reads, the 341 bytes after the installed
+;;     forty are a fragment of somebody's BASIC program -- "TOTAL FRAMES",
+;;     "moveinf" -- so this image was never written by SAVE BOOT: it is the
+;;     shipped original, with whatever was in memory at the time left in the
+;;     gap.  A machine that boots it fills the gap in for itself, which is
+;;     how a keyboard table gets there at all.
 ;; --------------------------------------------------------------------
 
 ; ---- SAVE_BOOT ---- from &63EB

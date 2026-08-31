@@ -54,6 +54,33 @@
 # reaches for every command the machine executes -- so on a machine
 # sitting at a prompt it is the likeliest value there could be.
 
+# MASTERBASIC'S 395, AND A FOURTH COPY THAT GOES THE WRONG WAY
+#
+# 54 runs.  Two are big and the rest are two bytes each:
+#
+#   323 bytes, 17 runs   &7E6B-&7FBF
+#    72 bytes, 37 runs   the patch sites, listed under CONFIRMED below
+#
+# The large one was a surprise.  After boot, MasterBASIC's &7E43-&7FBF
+# is an exact copy of the ROM's system page at &5896-&5A12 -- all 381
+# bytes, checked against file/SYS2.bin.  The file holds a fragment of
+# somebody's BASIC program there; the running machine holds the DEF KEY
+# gap, the whole keyboard table and the DUMP settings.
+#
+# So this is a fourth copy that runs the wrong way, alongside INSTBUF to
+# &7DF0 and the boot sector to &7D00.  What makes it is not found: no
+# LDIR anywhere in either half carries a length of &017D, and the only
+# instruction in the image that mentions that number at all is SAVE_BOOT
+# handing it to SVBLK.  The boot sector has been read for it and does
+# not do it either.
+#
+# It matters for notes/mb-saveboot.txt, which called SAVE_BOOT's last
+# block a filler whose source was incidental -- &5896 "because that is
+# where the previous block's neighbour begins".  That was wrong.  The
+# same 381 bytes sit in both places on a running machine, so the block
+# is a saved copy like the two before it and SAVE_BOOT could read it
+# from either.
+
 # CONFIRMED
 #
 # The ROM searches.  Fifteen of the signature searches are followed by a
