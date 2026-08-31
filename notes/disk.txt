@@ -89,3 +89,71 @@ DOS &4856 ROOM_LEFT_IN_PAGE
     How much of the current page is still to come: &01FE less the offset,
     with the page adjusted first, and the result narrowed against what
     the caller has left.
+
+DOS &4E75 CHECK_FILE_TYPE
+    The file type out of the header, masked to five bits and bounded: &15
+    or more is "wrong file type", and &12 to &14 -- the three SAM types --
+    are separated by SUB &12 with ADC A,&00, so one subtract and one add
+    do the work of two comparisons.
+
+DOS &4EE3 COPY_HEADER_FIELDS
+    Nine bytes from HD002 into the buffer GRPNTB points at, and then on
+    to V42E2.  The &D3 in B is which buffer GRPNTB is to fetch.
+
+DOS &4F67 FILL_DE_WITH_A
+    B bytes of A at DE.  Three instructions, four callers, and &4F69 is
+    the entry for a caller that has already written the first one.
+
+DOS &4F6C FILE_TYPE_AT_POINT
+    POINT, then the type byte masked to five bits and compared with &07 --
+    the DOS's own directory-entry type -- with &04 standing in for it
+    when it matches.
+
+DOS &4F84 RESET_BUFFER_POINTERS
+    Point IX at DOSBUF and BUF at DRAM, then fall into the pair below
+    that clears the two counts at (IX+&0D) and (IX+&0E).  Everything that
+    starts a fresh transfer comes through here.
+
+DOS &4F8E CLEAR_TRANSFER_COUNT
+    Just those two bytes, for a caller whose buffer is already set up.
+
+DOS &4FBF GET_TRACK_AND_SECTOR
+DOS &4FC6 SET_TRACK_AND_SECTOR
+    The track and sector at (IX+&11) and (IX+&12), read into DE and
+    written from it.  &4FCD is the third of the family: it reads the old
+    pair out through GET_TRACK_AND_SECTOR and puts HL in its place, so a
+    caller can exchange them in one call.
+
+DOS &4FCD SWAP_TRACK_AND_SECTOR
+    Read the old track and sector out into DE and put HL in their place,
+    which is the exchange the three-routine family above exists for.
+
+DOS &4FD7 REPORT_PAGE_COUNT
+    Hand (IX+&0E) to MasterBASIC's BYTE_TO_DECIMAL through CALLMB, so the
+    page count can be printed as three characters.
+
+DOS &4FE0 CLAIM_FREE_SLOT
+    Take FSLOT if nothing has it -- a non-zero value returns at once --
+    and record the entry beside it in FSLTE.
+
+DOS &4FF3 IS_END_OF_STATEMENT
+    Carriage return or colon, returning Z for either, which is the DOS's
+    own copy of the test MasterBASIC spells AT_END_OF_STATEMENT.
+
+DOS &51A7 PRINT_BYTE_AS_DECIMAL
+    Three characters from a byte, through MasterBASIC's BYTE_TO_DECIMAL.
+    The DOS has no such routine of its own, so it calls across for it.
+
+DOS &56BB PRINT_DATE_IF_SET
+    Fetch the &F5 buffer through GRPNTB, and return unless the first byte
+    is set -- INC A then CP &02 rejects both &FF and &00 in one test.
+    Otherwise "/" goes in C as the separator and the fields are printed
+    in pairs.
+
+DOS &56D0 PRINT_TWO_FIELDS
+    Two fields and a separator between them: print, separator, print,
+    separator, using the byte in C each time.
+
+DOS &56DE PRINT_FIELD
+    One field as a decimal number through the ROM's PNUM2, with HL, DE
+    and BC all saved around it, so the caller's pointer survives.
