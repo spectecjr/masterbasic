@@ -9247,7 +9247,7 @@ L5551:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      JP
 ;;
-;; ? tests for T_MODE; calls CALL_NEXTCHAR, INT_ARG_THEN_END.
+;; ? tests for T_MODE; calls CALL_NEXTCHAR, INT_ARG_THEN_END, INIT_SERIAL_FROM_TABLE, COPY_BUFFER_POINTER.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -9279,23 +9279,28 @@ CMD_LPRINT:
                CP &02                          ; 5586 FE 02
                JP NC,REP_INTEGER_OUT_OF_RANGE  ; 5588 D2 A7 43
                LD (SORP),A                     ; 558B 32 06 40
-               CALL L5599                      ; 558E CD 99 55
-               CALL L560D                      ; 5591 CD 0D 56
+               CALL INIT_SERIAL_FROM_TABLE     ; 558E CD 99 55
+               CALL COPY_BUFFER_POINTER        ; 5591 CD 0D 56
                AND A                           ; 5594 A7
                RET Z                           ; 5595 C8
                JP FREE_SLOT_CHAIN              ; 5596 C3 7B 5F
 
 ;; --------------------------------------------------------------------
-;; L5599 -- &5599 to &55A6
+;; INIT_SERIAL_FROM_TABLE -- &5599 to &55A6
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F, BC, DE, HL
 ;;
 ;; ? calls SERINIT; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     SERINIT with the caller's value kept across it, then the settings
+;;     table at L55BE.
 ;; --------------------------------------------------------------------
 
-; ---- L5599 ---- from &558E, &75EC
-L5599:
+; ---- INIT_SERIAL_FROM_TABLE ---- from &558E, &75EC
+INIT_SERIAL_FROM_TABLE:
                PUSH AF                         ; 5599 F5
                CALL SERINIT                    ; 559A CD 34 59
                POP AF                          ; 559D F1
@@ -9364,7 +9369,7 @@ L55C2:
 ;; Takes:     A, B, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? tests for CH_COLON, CH_CR; calls CALL_NEXTCHAR, NUMBER_THEN_END, GET_BUFFER_SIZE, FREE_SLOT_CHAIN; falls into whatever follows rather than returning.
+;; ? tests for CH_COLON, CH_CR; calls CALL_NEXTCHAR, NUMBER_THEN_END, COPY_BUFFER_POINTER, GET_BUFFER_SIZE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L55C6 ---- from &557D
@@ -9378,7 +9383,7 @@ L55C6:
                CP CH_CR                        ; 55D3 FE 0D
                JR Z,L560A                      ; 55D5 28 33
                CALL NUMBER_THEN_END            ; 55D7 CD C8 44
-               CALL L560D                      ; 55DA CD 0D 56
+               CALL COPY_BUFFER_POINTER        ; 55DA CD 0D 56
                AND A                           ; 55DD A7
                CALL NZ,FREE_SLOT_CHAIN         ; 55DE C4 7B 5F
                CALL GET_BUFFER_SIZE            ; 55E1 CD DD 5E
@@ -9439,14 +9444,20 @@ L560A:
                CALL EXPECT_END_OF_STATEMENT    ; 560A CD D0 44
 
 ;; --------------------------------------------------------------------
-;; L560D -- &560D to &5613
+;; COPY_BUFFER_POINTER -- &560D to &5613
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A, HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Copy the page and address at V4085 with interrupts off, so that the
+;;     pair cannot be caught half updated by the interrupt that consumes
+;;     them.  Called on the serial setup path, after SERINIT.
 ;; --------------------------------------------------------------------
 
-; ---- L560D ---- from &5591, &55DA
-L560D:
+; ---- COPY_BUFFER_POINTER ---- from &5591, &55DA
+COPY_BUFFER_POINTER:
                DI                              ; 560D F3
                LD A,(V4085)                    ; 560E 3A 85 40
                LD HL,(V4086)                   ; 5611 2A 86 40
@@ -12048,7 +12059,7 @@ L5C65:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      RET
 ;;
-;; ? tests for T_CLEAR, CH_COLON, CH_CR; calls CALL_NEXTCHAR, NUMBER_THEN_END, GET_BUFFER_SIZE, FREE_SLOT_CHAIN.
+;; ? tests for T_CLEAR, CH_COLON, CH_CR; calls CALL_NEXTCHAR, NUMBER_THEN_END, SILENCE_SOUND_CHIP, GET_BUFFER_SIZE.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -12079,7 +12090,7 @@ CMD_SOUND:
                CP CH_CR                        ; 5C79 FE 0D
                JR Z,L5C9D                      ; 5C7B 28 20
                CALL NUMBER_THEN_END            ; 5C7D CD C8 44
-               CALL L5CA0                      ; 5C80 CD A0 5C
+               CALL SILENCE_SOUND_CHIP         ; 5C80 CD A0 5C
                LD A,(V407E)                    ; 5C83 3A 7E 40
                LD HL,(V407F)                   ; 5C86 2A 7F 40
                AND A                           ; 5C89 A7
@@ -12105,14 +12116,29 @@ L5C9D:
                CALL EXPECT_END_OF_STATEMENT    ; 5C9D CD D0 44
 
 ;; --------------------------------------------------------------------
-;; L5CA0 -- &5CA0 to &5CB3
+;; SILENCE_SOUND_CHIP -- &5CA0 to &5CB3
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F, HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Write zero to all thirty-two of the sound chip's registers, from 31
+;;     down to 0.  The listing's own equate says how: SOUND is &FF, "write:
+;;     sound data, the sound address port being &1FF", and the loop uses one
+;;     register pair for both:
+;;     
+;;     LD BC,&01FF : DEC A : OUT (C),A     select register A at &1FF
+;;     DEC B       : OUT (C),B             write zero to it at &00FF
+;;     
+;;     DEC B turns the address port into the data port and supplies the zero
+;;     at the same time.  Before the loop it waits for a frame with EI :
+;;     HALT and puts the buffer pointers back, which is SOUND CLEAR's
+;;     "clear the buffer" -- CMD_SOUND calls it from &5C80.
 ;; --------------------------------------------------------------------
 
-; ---- L5CA0 ---- from &5C80
-L5CA0:
+; ---- SILENCE_SOUND_CHIP ---- from &5C80
+SILENCE_SOUND_CHIP:
                EI                              ; 5CA0 FB
                HALT                            ; 5CA1 76
                XOR A                           ; 5CA2 AF
@@ -21994,7 +22020,7 @@ INSTALLER:
 ;; Takes:     A, B, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;;
-;; ? calls RESOLVE_ROM_ENTRIES; falls into whatever follows rather than returning.
+;; ? calls INIT_SERIAL_FROM_TABLE, RESOLVE_ROM_ENTRIES; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- L75E6 ---- from &75E7
@@ -22002,7 +22028,7 @@ L75E6:
                LD (HL),A                       ; 75E6 77
                DJNZ L75E6                      ; 75E7 10 FD
                LD A,(SORP)                     ; 75E9 3A 06 40
-               CALL L5599                      ; 75EC CD 99 55
+               CALL INIT_SERIAL_FROM_TABLE     ; 75EC CD 99 55
                CALL RESOLVE_ROM_ENTRIES        ; 75EF CD 90 79
                DEFW &79CD                     ; 75F2 CD 79
                CP L                            ; 75F4 BD

@@ -282,3 +282,26 @@ MB &6E53 RECLAIM_ABC_AT_HL
 MB &6E4C RECLAIM_AND_MARK
     Close up BC bytes at HL and then set the compile bits in DCT, since
     the program has moved.
+
+MB &5CA0 SILENCE_SOUND_CHIP
+    Write zero to all thirty-two of the sound chip's registers, from 31
+    down to 0.  The listing's own equate says how: SOUND is &FF, "write:
+    sound data, the sound address port being &1FF", and the loop uses one
+    register pair for both:
+
+        LD BC,&01FF : DEC A : OUT (C),A     select register A at &1FF
+        DEC B       : OUT (C),B             write zero to it at &00FF
+
+    DEC B turns the address port into the data port and supplies the zero
+    at the same time.  Before the loop it waits for a frame with EI :
+    HALT and puts the buffer pointers back, which is SOUND CLEAR's
+    "clear the buffer" -- CMD_SOUND calls it from &5C80.
+
+MB &560D COPY_BUFFER_POINTER
+    Copy the page and address at V4085 with interrupts off, so that the
+    pair cannot be caught half updated by the interrupt that consumes
+    them.  Called on the serial setup path, after SERINIT.
+
+MB &5599 INIT_SERIAL_FROM_TABLE
+    SERINIT with the caller's value kept across it, then the settings
+    table at L55BE.
