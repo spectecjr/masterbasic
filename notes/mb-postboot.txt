@@ -40,6 +40,26 @@
 #
 # That is the whole layout verified from the outside.
 
+# WHAT IT CANNOT SHOW, which matters as much as what it can.
+#
+# Only blocks 2 and 5 are the live pages they appear to be, so of the
+# two pages a booted machine actually holds, this file covers:
+#
+#     the DOS page        &4100-&7D5F     blind: &4000-&40FF, &7D60-&7FBF
+#     MasterBASIC's page  &4000-&7B7F     blind: &7B80-&7FBF
+#
+# Both blind spots are there for the same reason: SAVE BOOT fills those
+# slots from somewhere else precisely because the running machine no
+# longer holds what the file needs there.  &4000-&40FF is the boot
+# sector and &7D60-&7FBF the DOS's tail, both boot-time-only code that
+# has been overwritten by the time anything could save it.
+#
+# So a search of "the DOS page after boot" using this file is really a
+# search of &4100-&7D5F, and a routine that lives in the tail would not
+# appear.  Anything concluded from not finding something here has to say
+# which range it looked in.  A straight dump of the two pages from a
+# booted machine is the only thing that covers them.
+
 # WHAT DIFFERS FROM THE SHIPPED IMAGE, by block.
 #
 #     1    15 of   256      3    0 of   446      5   50 of 15232
