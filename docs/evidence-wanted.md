@@ -46,10 +46,10 @@ the installer finds it the same way everything else does —
 ```
 
 — so it is whatever `LMPR` + 1 happens to be. The page byte in the file's own
-header is no help: it records the page the data sat in **when it was saved**,
-not where it loads. It reads 99, and the two files on
-`dsks/MasterBasic1.7.dsk` both read 97, which cannot be hardware pages on a
-512K machine at all — those are 0 to 31. `BOOT` ignores the field.
+header is no help either, and not because it means something else: **nothing
+reads it**. `PAGE1` is written once, at `&63A7`, and the only access to
+`&4151` anywhere in either half is that one `LD (PAGE1),A`. A file loads by
+following its sector chain.
 
 A breakpoint on logical `&7E6B` will also fire for the DOS half, which sits
 at the same addresses when its own code runs. That is fine and costs nothing:

@@ -36,11 +36,21 @@ part of the image the boot sector loads, not something to skip.
 
 ## Two pages, both at &4000
 
-`&8000` in the header is where the file was *saved from*, not where it runs, and
-the same goes for the page beside it. 99 is not a page this machine has — a 512K
-SAM has 0 to 31 — so it is a record of the authoring machine, which had memory
-this one does not. The two files on `dsks/MasterBasic1.7.dsk` say 97 for the same
-reason. The boot sector works the layout out for itself:
+Neither of those last two steers anything, and the page byte is worth a note
+because it is easy to build a wrong theory on. It reads 99; `samdos2` and the two
+MasterBASIC files on `dsks/MasterBasic1.7.dsk` read 125 and 97. None of those is
+a page a 512K SAM has, which runs 0 to 31.
+
+Three things are checkable about it. The directory entry carries the same nine
+bytes at offsets 211–219 and the start again in page form at 236, and both say
+99, so the two copies simply agree — the source writes them from one buffer.
+The *length* in page form is right: `01 77 3F` is 1 × 16384 + 16247 = 32631, the
+data after the header. And `PAGE1` is written once, at `&63A7`, and never read:
+the only access to `&4151` in either half is that one `LD (PAGE1),A`. A file
+loads by following its sector chain.
+
+So what the page byte records is not known here, and nothing depends on it. The
+boot sector works the layout out for itself:
 
 1. The ROM reads the first 512-byte sector to `&8000` and calls it.
 2. It clears the SAM page-allocation table entries at `&5101`–`&511F` that hold
