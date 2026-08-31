@@ -5,6 +5,42 @@
 # system page.  894 bytes of the two halves differ from the file: 499 in
 # the DOS page, 395 in MasterBASIC's.  Most of what follows could not
 # have been settled by reading.
+#
+# All 499 of the DOS page's are accounted for below, and all but two of
+# them are ordinary live state rather than anything installed.
+
+# THE DOS PAGE'S 499 BYTES, ALL OF THEM
+#
+# They fall in 42 runs and every run has an owner:
+#
+#   150 bytes, 28 runs   &4000-&4AFF, the DOS's working variables
+#   341 bytes, 10 runs   &7C00-&7F12, DCHAN, FSA and DRAM
+#     6 bytes,  3 runs   &7F13-&7F8F, PTH1 and PTH2
+#     2 bytes,  1 run    &78E2, a CALLMB parameter patched at boot
+#
+# The big one is not a mystery at all once the annotated source's own
+# layout is put beside it.  DCHAN is the disk channel record at &7C00 --
+# SVBC, SVDE, RFDH, SVHL, SVIX, REG1, DRIVE, FLAG3, RPT, BUF, NSR -- and
+# then FSA at DCHAN+19, which the source calls "the 256-byte image of a
+# directory entry", and DRAM at FSA+256, "the sector buffer proper".
+# A machine that has booted has read its boot sector and looked at a
+# directory, so all three hold live data.  PTH1 and PTH2 after them are
+# the current path for each drive, which the source puts at DRAM+512.
+#
+# The 150 are the same kind of thing one page down: the listing already
+# carries MasterDOS's own comment on each byte, and they read as what a
+# DOS that has done something would have -- &412F "HMPR value that maps
+# the page used as a buffer", &4150 "whole 16K pages remaining in the
+# transfer", &4151 "page of the transfer address", and the 44 bytes from
+# there running into UIFA at &417D, "the header the caller asked for".
+#
+# The odd two are the interesting ones.  &78E2 is the DEFW after a
+# CALL CALLMB, zero in the file and &4E96 in the dump -- and MB &4E96 is
+# HCMDV.  So the DOS has a call into MasterBASIC's command dispatcher
+# whose target is filled in at boot.  Nothing in either half writes
+# &B8E2 or &78E2 that this project has found, so what does the filling
+# is still unknown; the boot sector is the obvious suspect and has not
+# been read.
 
 # CONFIRMED
 #
