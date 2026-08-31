@@ -254,3 +254,31 @@ MB &45F9 MULTIPLY_BY_24
     back for three, then three more doublings.  The companion to
     MULTIPLY_BY_60 -- hours in a day where that one has seconds in a
     minute -- and like it, reached from the DOS.
+
+MB &6E52 RECLAIM_BC_AT_HL
+    Close up BC bytes at HL, through the ROM -- and the way it gets there
+    is worth reading.
+
+    JRECLAIM is the jump table entry at &0163, which the table describes
+    as "close up BC bytes at HL", and it holds JP &1E52 in ROM 3.0.  This
+    reads the *operand* of that JP with LD DE,(&0164), adds one, and
+    patches it into the CMR parameter at &6E5F.  So what it calls is not
+    the entry point but the byte after it.
+
+    The reason is in the ROM: &1E52 is XOR A and &1E53 the RES 7,B after
+    it, and A is the count of whole pages to close up on top of BC.
+    Entering at &1E53 keeps the caller's A; entering at &1E52 clears it.
+    This routine does its own XOR A first and then skips the ROM's, which
+    is the same thing -- and RECLAIM_ABC_AT_HL below is the entry that
+    does not, for a caller that has a page count of its own.
+
+    An address the jump table does not expose, taken out of the
+    instruction the table holds.  A plain CALL CMR / DEFW JRECLAIM could
+    only ever reach the XOR A.
+
+MB &6E53 RECLAIM_ABC_AT_HL
+    The same with A already holding the number of whole pages.
+
+MB &6E4C RECLAIM_AND_MARK
+    Close up BC bytes at HL and then set the compile bits in DCT, since
+    the program has moved.

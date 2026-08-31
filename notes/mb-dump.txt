@@ -212,3 +212,28 @@ MB &65EA COMPRESS_FILE
     window rather than filling a page of its own.
 
     The DOS reaches it as CALL CALLMB / DEFW &65EA from HK_HSAVE.
+
+MB &67D7 GET_WORK_PAGE
+    Find a 16K page to work in, and the manual says what happens when
+    there is not one:
+
+        "The method used is fairly fast but it requires at least one 16K
+        page of memory as a working area during both SAVE and LOAD.  If
+        there is no page free, the screen will be used -- this will
+        corrupt the display."
+
+    The DOS's FFPG scans ALLOCT for the biggest free block, keeping the
+    size in B and a page in E -- its own source comments the start of it
+    "BIGGEST BLOCK SO FAR=0 PAGES".  Here, LD A,E takes the page it
+    found, and then INC B with DJNZ decides between them: a B of zero
+    becomes one, the DJNZ takes it back to zero and does not jump, and
+    the fall-through is IN A,(VMPR) -- the page being displayed.  Any
+    other B jumps clear with the free page in A.
+
+    Two instructions for "use the screen if you have to", and the
+    display corruption the manual warns about is that IN A,(VMPR).
+
+MB &660A SET_UP_WORK_AREA
+    Take the work page, work out how much room is above the start
+    address -- &C000 less DE -- and put the two halves of it in the ROM's
+    PAGCOUNT and MODCOUNT.

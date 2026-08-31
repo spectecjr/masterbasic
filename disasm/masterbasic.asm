@@ -5705,7 +5705,7 @@ L541A:
                PUSH HL                         ; 5422 E5
                LD A,B                          ; 5423 78
                OR C                            ; 5424 B1
-               CALL NZ,L6E52                   ; 5425 C4 52 6E
+               CALL NZ,RECLAIM_BC_AT_HL        ; 5425 C4 52 6E
                LD HL,(V4062)                   ; 5428 2A 62 40
                LD BC,&FFFF                     ; 542B 01 FF FF
                LD A,(V409E)                    ; 542E 3A 9E 40
@@ -10140,7 +10140,7 @@ L65F1:
                IN A,(HMPR)                     ; 65F4 DB FB
                PUSH AF                         ; 65F6 F5
                LD DE,PUTSWA                    ; 65F7 11 00 40
-               CALL L660A                      ; 65FA CD 0A 66
+               CALL SET_UP_WORK_AREA           ; 65FA CD 0A 66
                POP AF                          ; 65FD F1
                INC A                           ; 65FE 3C
                OUT (HMPR),A                    ; 65FF D3 FB
@@ -10156,12 +10156,18 @@ L6607:
                OR E                            ; 6608 B3
                RET Z                           ; 6609 C8
 
-; ---- L660A ---- from &65FA
-L660A:
+;; --------------------------------------------------------------------
+;; Take the work page, work out how much room is above the start
+;; address -- &C000 less DE -- and put the two halves of it in the ROM's
+;; PAGCOUNT and MODCOUNT.
+;; --------------------------------------------------------------------
+
+; ---- SET_UP_WORK_AREA ---- from &65FA
+SET_UP_WORK_AREA:
                PUSH DE                         ; 660A D5
                PUSH HL                         ; 660B E5
                PUSH DE                         ; 660C D5
-               CALL L67D7                      ; 660D CD D7 67
+               CALL GET_WORK_PAGE              ; 660D CD D7 67
                LD HL,&C000                     ; 6610 21 00 C0
                AND A                           ; 6613 A7
                SBC HL,DE                       ; 6614 ED 52
@@ -10367,7 +10373,7 @@ L66F2:
                PUSH HL                         ; 66F2 E5
                IN A,(HMPR)                     ; 66F3 DB FB
                PUSH AF                         ; 66F5 F5
-               CALL L67D7                      ; 66F6 CD D7 67
+               CALL GET_WORK_PAGE              ; 66F6 CD D7 67
                CALL L6726                      ; 66F9 CD 26 67
                XOR A                           ; 66FC AF
                CALL NRWR                       ; 66FD CD 82 45
@@ -10541,8 +10547,29 @@ L67C6:
                LDIR                            ; 67D4 ED B0
                RET                             ; 67D6 C9
 
-; ---- L67D7 ---- from &660D, &66F6
-L67D7:
+;; --------------------------------------------------------------------
+;; Find a 16K page to work in, and the manual says what happens when
+;; there is not one:
+;;
+;; "The method used is fairly fast but it requires at least one 16K
+;; page of memory as a working area during both SAVE and LOAD.  If
+;; there is no page free, the screen will be used -- this will
+;; corrupt the display."
+;;
+;; The DOS's FFPG scans ALLOCT for the biggest free block, keeping the
+;; size in B and a page in E -- its own source comments the start of it
+;; "BIGGEST BLOCK SO FAR=0 PAGES".  Here, LD A,E takes the page it
+;; found, and then INC B with DJNZ decides between them: a B of zero
+;; becomes one, the DJNZ takes it back to zero and does not jump, and
+;; the fall-through is IN A,(VMPR) -- the page being displayed.  Any
+;; other B jumps clear with the free page in A.
+;;
+;; Two instructions for "use the screen if you have to", and the
+;; display corruption the manual warns about is that IN A,(VMPR).
+;; --------------------------------------------------------------------
+
+; ---- GET_WORK_PAGE ---- from &660D, &66F6
+GET_WORK_PAGE:
                IN A,(HMPR)                     ; 67D7 DB FB
                PUSH AF                         ; 67D9 F5
                PUSH DE                         ; 67DA D5
@@ -12117,17 +12144,48 @@ L6E38:
                LD (HL),A                       ; 6E4A 77
                INC HL                          ; 6E4B 23
 
-; ---- L6E4C ---- from &6F04
-L6E4C:
-               CALL L6E52                      ; 6E4C CD 52 6E
+;; --------------------------------------------------------------------
+;; Close up BC bytes at HL and then set the compile bits in DCT, since
+;; the program has moved.
+;; --------------------------------------------------------------------
+
+; ---- RECLAIM_AND_MARK ---- from &6F04
+RECLAIM_AND_MARK:
+               CALL RECLAIM_BC_AT_HL           ; 6E4C CD 52 6E
                JP SET_DCT_COMPILE_BITS         ; 6E4F C3 9C 45
 
-; ---- L6E52 ---- from &5425, &6E4C, &6FB0
-L6E52:
+;; --------------------------------------------------------------------
+;; Close up BC bytes at HL, through the ROM -- and the way it gets there
+;; is worth reading.
+;;
+;; JRECLAIM is the jump table entry at &0163, which the table describes
+;; as "close up BC bytes at HL", and it holds JP &1E52 in ROM 3.0.  This
+;; reads the *operand* of that JP with LD DE,(&0164), adds one, and
+;; patches it into the CMR parameter at &6E5F.  So what it calls is not
+;; the entry point but the byte after it.
+;;
+;; The reason is in the ROM: &1E52 is XOR A and &1E53 the RES 7,B after
+;; it, and A is the count of whole pages to close up on top of BC.
+;; Entering at &1E53 keeps the caller's A; entering at &1E52 clears it.
+;; This routine does its own XOR A first and then skips the ROM's, which
+;; is the same thing -- and RECLAIM_ABC_AT_HL below is the entry that
+;; does not, for a caller that has a page count of its own.
+;;
+;; An address the jump table does not expose, taken out of the
+;; instruction the table holds.  A plain CALL CMR / DEFW JRECLAIM could
+;; only ever reach the XOR A.
+;; --------------------------------------------------------------------
+
+; ---- RECLAIM_BC_AT_HL ---- from &5425, &6E4C, &6FB0
+RECLAIM_BC_AT_HL:
                XOR A                           ; 6E52 AF
 
-; ---- L6E53 ---- from &6F9E
-L6E53:
+;; --------------------------------------------------------------------
+;; The same with A already holding the number of whole pages.
+;; --------------------------------------------------------------------
+
+; ---- RECLAIM_ABC_AT_HL ---- from &6F9E
+RECLAIM_ABC_AT_HL:
                LD DE,(&0164)                   ; 6E53 ED 5B 64 01
                INC DE                          ; 6E57 13
                LD (L6E5C+3),DE                 ; 6E58 ED 53 5F 6E  patches the operand of the CALL at &6E5C
@@ -12285,7 +12343,7 @@ L6E98:
                DEFW CHADP                     ; 6EFE 96 5A
                CALL TSURPG                     ; 6F00 CD DF 3F
                POP BC                          ; 6F03 C1
-               CALL L6E4C                      ; 6F04 CD 4C 6E
+               CALL RECLAIM_AND_MARK           ; 6F04 CD 4C 6E
                CALL NRWRHL                     ; 6F07 CD 75 45
                DEFW PRPTR                     ; 6F0A A9 5A
                LD HL,&4EFE                     ; 6F0C 21 FE 4E
@@ -12412,7 +12470,7 @@ L6F92:
                PUSH AF                         ; 6F99 F5
                CALL L6FDD                      ; 6F9A CD DD 6F
                PUSH DE                         ; 6F9D D5
-               CALL L6E53                      ; 6F9E CD 53 6E
+               CALL RECLAIM_ABC_AT_HL          ; 6F9E CD 53 6E
                POP IX                          ; 6FA1 DD E1
                POP AF                          ; 6FA3 F1
                OUT (HMPR),A                    ; 6FA4 D3 FB
@@ -12423,7 +12481,7 @@ L6F92:
                LD B,H                          ; 6FAD 44
                LD C,L                          ; 6FAE 4D
                EX DE,HL                        ; 6FAF EB
-               JP L6E52                        ; 6FB0 C3 52 6E
+               JP RECLAIM_BC_AT_HL             ; 6FB0 C3 52 6E
 
 ; ---- L6FB3 ---- from &7124, &714B
 L6FB3:
