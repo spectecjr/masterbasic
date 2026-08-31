@@ -74,6 +74,23 @@
 # handing it to SVBLK.  The boot sector has been read for it and does
 # not do it either.
 #
+# Ruled out, so the next person does not repeat it.  The three literal
+# address loads that could start such a copy are the only ones in the
+# image -- MB &646F LD HL,&9896 (SAVE_BOOT's own source), MB &5081
+# LD DE,&5896 (the channel pointer), MB &7AC5 LD HL,&7E43 (the
+# installer's forty bytes, going the other way) -- and none of them is
+# it.  No LD DE,&7E43 or LD DE,&BE43 exists at all.  The dumps are not
+# at fault either: file/SYS2.bin really is the system page, with the
+# ROM's character set at CHARSVAL &5190 and a plausible ALLOCT at &5100,
+# and it shares 45 bytes out of 4096 with either half.
+#
+# The likeliest reading left is that this is not part of booting at all
+# but something the machine did afterwards -- MBPOST.bin is a dump of a
+# machine sitting at a prompt, not an instrumented boot -- and that some
+# routine saves the ROM's keyboard table and dump settings into the top
+# of this page before changing them.  That is a guess and is written
+# here as one.
+
 # It matters for notes/mb-saveboot.txt, which called SAVE_BOOT's last
 # block a filler whose source was incidental -- &5896 "because that is
 # where the previous block's neighbour begins".  That was wrong.  The
