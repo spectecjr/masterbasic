@@ -29,15 +29,18 @@ the two link bytes are taken off. The first nine bytes are the DOS's own header
 | 3–4 | `&8000` | start address |
 | 5–6 | `&FFFF` | never written, always `&FFFF` |
 | 7 | `&01` | one whole 16K page |
-| 8 | `&63` | start page 99 |
+| 8 | `&63` | start page 99 — see below |
 
 so 1 × 16384 + 16247 = 32631 bytes of data after the header. The header itself is
 part of the image the boot sector loads, not something to skip.
 
 ## Two pages, both at &4000
 
-`&8000` in the header is where the file was *saved from*, not where it runs. The
-boot sector works the layout out for itself:
+`&8000` in the header is where the file was *saved from*, not where it runs, and
+the same goes for the page beside it. 99 is not a page this machine has — a 512K
+SAM has 0 to 31 — so it is a record of the authoring machine, which had memory
+this one does not. The two files on `dsks/MasterBasic1.7.dsk` say 97 for the same
+reason. The boot sector works the layout out for itself:
 
 1. The ROM reads the first 512-byte sector to `&8000` and calls it.
 2. It clears the SAM page-allocation table entries at `&5101`–`&511F` that hold

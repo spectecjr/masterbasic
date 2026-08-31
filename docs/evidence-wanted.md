@@ -32,18 +32,33 @@ sites. The boot sector has been read and does not do it.
 ### What would settle it
 
 **An emulator with a memory-write breakpoint.** SimCoupe's debugger will do
-this. Boot `dsks/MasterDOS2_3_MasterBasic1_7.mgt` and break on a **write** to
-MasterBASIC's `&7E6B`.
+this. Boot `dsks/MasterDOS2_3_MasterBasic1_7.mgt` and break on a **write to
+logical address `&7E6B`**.
 
-The address needs care, because MasterBASIC lives in a page rather than at a
-fixed address. `&7E6B` here means offset `&3E6B` into MasterBASIC's own 16K
-page. From the file's header the image loads at `&8000` in page 99, so
-MasterBASIC's page is 100 and the byte wanted is **page 100, offset `&3E6B`**.
-If the debugger only breaks on logical addresses, `&BE6B` with `HMPR` = 100
-reaches the same byte.
+That is the whole instruction, and the logical address is deliberate. There
+is no fixed page number to give: MasterBASIC's page is decided at boot, and
+the installer finds it the same way everything else does —
+
+```asm
+      IN A,(LMPR)
+      INC A
+      AND PAGEMASK
+```
+
+— so it is whatever `LMPR` + 1 happens to be. The page byte in the file's own
+header is no help: it records the page the data sat in **when it was saved**,
+not where it loads. It reads 99, and the two files on
+`dsks/MasterBasic1.7.dsk` both read 97, which cannot be hardware pages on a
+512K machine at all — those are 0 to 31. `BOOT` ignores the field.
+
+A breakpoint on logical `&7E6B` will also fire for the DOS half, which sits
+at the same addresses when its own code runs. That is fine and costs nothing:
+there should be few hits, and the PC says which half it was.
 
 What I need back is just **the PC when it stops** — the address of the
-instruction doing the write. One line is enough.
+instruction doing the write. One line is enough. If it stops somewhere in
+`&4000`–`&7FBF` I can tell from the surrounding code which half it belongs
+to; if you can also say what `LMPR` held, that settles it outright.
 
 ### If a breakpoint is not available
 
