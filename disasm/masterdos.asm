@@ -4956,30 +4956,30 @@ DERR1_1:
                RET                             ; 51FF C9
 
 ERRTBL:
-               DEFB &A0                       ; 5200
-               DEFB &A0                       ; 5201
-               DEFB &A0                       ; 5202
+               DEFB " "+&80                   ; 5200 A0
+               DEFB " "+&80                   ; 5201 A0
+               DEFB " "+&80                   ; 5202 A0
                DEFM "Escape requeste"         ; 5203 45 73 63 61 70 65 20 72
                DEFB "d"+&80                   ; 5212 E4
-               DEFB &54,&52,&4B,&2D           ; 5213
+               DEFM "TRK-"                    ; 5213 54 52 4B 2D
 
 ; ---- PRTRK ---- from &51BD
 PRTRK:
-               DEFB &20                       ; 5217
+               DEFM " "                       ; 5217 20
 
 ; ---- V5218 ---- from &51C3
 V5218:
-               DEFB &20,&20,&2C,&53,&43,&54,&2D ; 5218
+               DEFM "  ,SCT-"                 ; 5218 20 20 2C 53 43 54 2D
 
 ; ---- PRSEC ---- from &51CF
 PRSEC:
                DEFM "  ,Erro"                 ; 521F 20 20 2C 45 72 72 6F
                DEFB "r"+&80                   ; 5226 F2
-               DEFB &46,&6F,&72,&6D,&61,&74,&20,&54,&52,&4B,&2D ; 5227
+               DEFM "Format TRK-"             ; 5227 46 6F 72 6D 61 74 20 54
 
 ; ---- FMTRK ---- from &51C0
 FMTRK:
-               DEFB &20                       ; 5232
+               DEFM " "                       ; 5232 20
 
 ; ---- V5233 ---- from &51C7
 V5233:
@@ -4987,41 +4987,72 @@ V5233:
                DEFB "t"+&80                   ; 5239 F4
                DEFM "Check disk in driv"      ; 523A 43 68 65 63 6B 20 64 69
                DEFB "e"+&80                   ; 524C E5
-               DEFB &A0                       ; 524D
-               DEFB &A0                       ; 524E
-               DEFB &A0                       ; 524F
-               DEFB &00,&64,&65,&76,&69,&63,&E5 ; 5250
-               DEFB &A0                       ; 5257
+               DEFB " "+&80                   ; 524D A0
+               DEFB " "+&80                   ; 524E A0
+               DEFB " "+&80                   ; 524F A0
+               DEFB &00                       ; 5250
+               DEFM "devic"                   ; 5251 64 65 76 69 63
+               DEFB "e"+&80                   ; 5256 E5
+               DEFB " "+&80                   ; 5257 A0
                DEFM "Verify faile"            ; 5258 56 65 72 69 66 79 20 66
                DEFB "d"+&80                   ; 5264 E4
-               DEFB &57,&72,&6F,&6E,&67,&20,&17,&20,&74,&79,&70,&E5 ; 5265
-               DEFB &A0                       ; 5271
-               DEFB &A0                       ; 5272
-               DEFB &A0                       ; 5273
-               DEFB &A0                       ; 5274
-               DEFB &52,&65,&61,&64,&69,&6E,&67,&20,&61,&20,&77,&72,&69,&74,&65,&20,&97 ; 5275
-               DEFB &57,&72,&69,&74,&69,&6E,&67,&20,&61,&20,&72,&65,&61,&64,&20,&97 ; 5286
-               DEFB &0B,&41,&55,&54,&4F,&2A,&20,&97 ; 5296
-               DEFB &A0                       ; 529E
-               DEFB &0B,&73,&75,&63,&68,&20,&64,&72,&69,&76,&E5 ; 529F
+               DEFM "Wrong "                  ; 5265 57 72 6F 6E 67 20
+               DEFB &17                       ; 526B
+               DEFM " typ"                    ; 526C 20 74 79 70
+               DEFB "e"+&80                   ; 5270 E5
+               DEFB " "+&80                   ; 5271 A0
+               DEFB " "+&80                   ; 5272 A0
+               DEFB " "+&80                   ; 5273 A0
+               DEFB " "+&80                   ; 5274 A0
+               DEFM "Reading a write "        ; 5275 52 65 61 64 69 6E 67 20
+               DEFB &97                       ; 5285
+               DEFM "Writing a read "         ; 5286 57 72 69 74 69 6E 67 20
+               DEFB &97                       ; 5295
+               DEFB &0B                       ; 5296
+               DEFM "AUTO* "                  ; 5297 41 55 54 4F 2A 20
+               DEFB &97                       ; 529D
+               DEFB " "+&80                   ; 529E A0
+               DEFB &0B                       ; 529F
+               DEFM "such driv"               ; 52A0 73 75 63 68 20 64 72 69
+               DEFB "e"+&80                   ; 52A9 E5
                DEFM "Disk is write protecte"  ; 52AA 44 69 73 6B 20 69 73 20
                DEFB "d"+&80                   ; 52C0 E4
                DEFM "Disk ful"                ; 52C1 44 69 73 6B 20 66 75 6C
                DEFB "l"+&80                   ; 52C9 EC
                DEFM "Directory ful"           ; 52CA 44 69 72 65 63 74 6F 72
                DEFB "l"+&80                   ; 52D7 EC
-               DEFB &46,&69,&6C,&65,&11,&66,&6F,&75,&6E,&E4 ; 52D8
-               DEFB &A0                       ; 52E2
-               DEFB &46,&69,&6C,&65,&12,&20,&75,&73,&65,&E4 ; 52E3
-               DEFB &A0                       ; 52ED
-               DEFB &53,&08,&20,&75,&73,&65,&E4 ; 52EE
+               DEFM "File"                    ; 52D8 46 69 6C 65
+               DEFB &11                       ; 52DC
+               DEFM "foun"                    ; 52DD 66 6F 75 6E
+               DEFB "d"+&80                   ; 52E1 E4
+               DEFB " "+&80                   ; 52E2 A0
+               DEFM "File"                    ; 52E3 46 69 6C 65
+               DEFB &12                       ; 52E7
+               DEFM " use"                    ; 52E8 20 75 73 65
+               DEFB "d"+&80                   ; 52EC E4
+               DEFB " "+&80                   ; 52ED A0
+               DEFM "S"                       ; 52EE 53
+               DEFB &08                       ; 52EF
+               DEFM " use"                    ; 52F0 20 75 73 65
+               DEFB "d"+&80                   ; 52F4 E4
                DEFM "Channel use"             ; 52F5 43 68 61 6E 6E 65 6C 20
                DEFB "d"+&80                   ; 5300 E4
-               DEFB &44,&69,&72,&65,&63,&74,&6F,&72,&79,&11,&66,&6F,&75,&6E,&E4 ; 5301
-               DEFB &44,&69,&72,&65,&63,&74,&6F,&72,&79,&11,&65,&6D,&70,&74,&F9 ; 5310
-               DEFB &0B,&70,&61,&67,&65,&73,&20,&66,&72,&65,&E5 ; 531F
-               DEFB &50,&52,&4F,&54,&45,&43,&54,&45,&44,&20,&97 ; 532A
-               DEFB &0B,&42,&75,&66,&66,&65,&F2 ; 5335
+               DEFM "Directory"               ; 5301 44 69 72 65 63 74 6F 72
+               DEFB &11                       ; 530A
+               DEFM "foun"                    ; 530B 66 6F 75 6E
+               DEFB "d"+&80                   ; 530F E4
+               DEFM "Directory"               ; 5310 44 69 72 65 63 74 6F 72
+               DEFB &11                       ; 5319
+               DEFM "empt"                    ; 531A 65 6D 70 74
+               DEFB "y"+&80                   ; 531E F9
+               DEFB &0B                       ; 531F
+               DEFM "pages fre"               ; 5320 70 61 67 65 73 20 66 72
+               DEFB "e"+&80                   ; 5329 E5
+               DEFM "PROTECTED "              ; 532A 50 52 4F 54 45 43 54 45
+               DEFB &97                       ; 5334
+               DEFB &0B                       ; 5335
+               DEFM "Buffe"                   ; 5336 42 75 66 66 65
+               DEFB "r"+&80                   ; 533B F2
                DEFM "Page overla"             ; 533C 50 61 67 65 20 6F 76 65
                DEFB "p"+&80                   ; 5347 F0
                DEFM "Size mismatc"            ; 5348 53 69 7A 65 20 6D 69 73
@@ -5996,7 +6027,7 @@ PTM4:
 
 ; ---- MCPT ---- from &578E
 MCPT:
-               DEFB &A0                       ; 57A0
+               DEFB " "+&80                   ; 57A0 A0
                DEFM " dis"                    ; 57A1 20 64 69 73
                DEFB "k"+&80                   ; 57A5 EB
                DEFM "press a ke"              ; 57A6 70 72 65 73 73 20 61 20
@@ -6023,17 +6054,25 @@ MCPT:
 ; ---- PMO3 ---- from &5BC6
 PMO3:
                CALL PTM                        ; 57E2 CD 7C 57
-               DEFB &0D,&4E,&75,&6D,&62,&65,&72,&20,&6F,&66,&07,&4B,&2D,&42,&79,&74,&65,&73,&20,&3D,&A0 ; 57E5
+               DEFB &0D                       ; 57E5
+               DEFM "Number of"               ; 57E6 4E 75 6D 62 65 72 20 6F
+               DEFB &07                       ; 57EF
+               DEFM "K-Bytes ="               ; 57F0 4B 2D 42 79 74 65 73 20
+               DEFB " "+&80                   ; 57F9 A0
 
 ; ---- PMO5 ---- from &4D5E
 PMO5:
                CALL PTM                        ; 57FA CD 7C 57
-               DEFB &00,&4F,&56,&45,&52,&57,&52,&49,&54,&45,&20,&A2 ; 57FD
+               DEFB &00                       ; 57FD
+               DEFM "OVERWRITE "              ; 57FE 4F 56 45 52 57 52 49 54
+               DEFB &A2                       ; 5808
 
 ; ---- PMO6 ---- from &54C4
 PMO6:
                CALL PTM                        ; 5809 CD 7C 57
-               DEFB &00,&46,&4F,&52,&4D,&41,&54,&20,&A2 ; 580C
+               DEFB &00                       ; 580C
+               DEFM "FORMAT "                 ; 580D 46 4F 52 4D 41 54 20
+               DEFB &A2                       ; 5814
 
 ;; --------------------------------------------------------------------
 ;; The directory's column headings, laid out as a row of CALL PTM with
@@ -6043,32 +6082,48 @@ PMO6:
 ; ---- PRINT_HEADINGS ---- from &591A
 PRINT_HEADINGS:
                CALL PTM                        ; 5815 CD 7C 57
-               DEFB &22,&84                   ; 5818
+               DEFB &22                       ; 5818
+               DEFB &84                       ; 5819
 
 ; ---- PMO9 ---- from &5941
 PMO9:
                CALL PTM                        ; 581A CD 7C 57
-               DEFB &00,&05,&73,&6F,&75,&72,&63,&65,&01,&82 ; 581D
+               DEFB &00,&05                   ; 581D
+               DEFM "source"                  ; 581F 73 6F 75 72 63 65
+               DEFB &01                       ; 5825
+               DEFB &82                       ; 5826
 
 ; ---- PMOA ---- from &54F3
 PMOA:
                CALL PTM                        ; 5827 CD 7C 57
-               DEFB &00,&46,&6F,&72,&6D,&61,&74,&01,&83 ; 582A
+               DEFB &00                       ; 582A
+               DEFM "Format"                  ; 582B 46 6F 72 6D 61 74
+               DEFB &01                       ; 5831
+               DEFB &83                       ; 5832
 
 ; ---- PMOB ---- from &5546
 PMOB:
                CALL PTM                        ; 5833 CD 7C 57
-               DEFB &00,&20,&20,&43,&6F,&70,&79,&01,&83 ; 5836
+               DEFB &00                       ; 5836
+               DEFM "  Copy"                  ; 5837 20 20 43 6F 70 79
+               DEFB &01                       ; 583D
+               DEFB &83                       ; 583E
 
 ; ---- PMOC ---- from &5595
 PMOC:
                CALL PTM                        ; 583F CD 7C 57
-               DEFB &00,&56,&65,&72,&69,&66,&79,&01,&83 ; 5842
+               DEFB &00                       ; 5842
+               DEFM "Verify"                  ; 5843 56 65 72 69 66 79
+               DEFB &01                       ; 5849
+               DEFB &83                       ; 584A
 
 ; ---- PMOD ---- from &5938
 PMOD:
                CALL PTM                        ; 584B CD 7C 57
-               DEFB &00,&05,&74,&61,&72,&67,&65,&74,&01,&82 ; 584E
+               DEFB &00,&05                   ; 584E
+               DEFM "target"                  ; 5850 74 61 72 67 65 74
+               DEFB &01                       ; 5856
+               DEFB &82                       ; 5857
 
 ; ---- PMOE ---- from &5BE0
 PMOE:
@@ -6079,27 +6134,37 @@ PMOE:
 ; ---- PMOF ---- from &5BF5
 PMOF:
                CALL PTM                        ; 5860 CD 7C 57
-               DEFB &07,&53,&6C,&6F,&F4       ; 5863
+               DEFB &07                       ; 5863
+               DEFM "Slo"                     ; 5864 53 6C 6F
+               DEFB "t"+&80                   ; 5867 F4
 
 ; ---- PMOG ---- from &5A25
 PMOG:
                CALL PTM                        ; 5868 CD 7C 57
-               DEFB &00,&4C,&4F,&41,&44,&49,&4E,&47,&A0 ; 586B
+               DEFB &00                       ; 586B
+               DEFM "LOADING"                 ; 586C 4C 4F 41 44 49 4E 47
+               DEFB " "+&80                   ; 5873 A0
 
 ; ---- PMOH ---- from &5A77
 PMOH:
                CALL PTM                        ; 5874 CD 7C 57
-               DEFB &00,&20,&53,&41,&56,&49,&4E,&47,&A0 ; 5877
+               DEFB &00                       ; 5877
+               DEFM " SAVING"                 ; 5878 20 53 41 56 49 4E 47
+               DEFB " "+&80                   ; 587F A0
 
 ; ---- PMOSD ---- from &58A1 when A < &02
 PMOSD:
                CALL PTM                        ; 5880 CD 7C 57
-               DEFB &53,&41,&4D,&06,&20,&20,&A0 ; 5883
+               DEFM "SAM"                     ; 5883 53 41 4D
+               DEFB &06                       ; 5886
+               DEFM "  "                      ; 5887 20 20
+               DEFB " "+&80                   ; 5889 A0
 
 ; ---- PMYNAE ---- from &5901
 PMYNAE:
                CALL PTM                        ; 588A CD 7C 57
-               DEFB &22,&20,&28,&79,&2F,&6E,&2F,&61,&2F ; 588D
+               DEFB &22                       ; 588D
+               DEFM " (y/n/a/"                ; 588E 20 28 79 2F 6E 2F 61 2F
 
 XTRA:
                DEFM "e"                       ; 5896 65
@@ -6140,7 +6205,8 @@ PNDN2_LOOP2:
 
 PMOMD:
                CALL PTM                        ; 58A8 CD 7C 57
-               DEFB &4D,&41,&53,&54,&45,&52,&86 ; 58AB
+               DEFM "MASTER"                  ; 58AB 4D 41 53 54 45 52
+               DEFB &86                       ; 58B1
 
 ; ---- PMO8 ---- from &58A6 when A <> &2A
 PMO8:
@@ -6148,14 +6214,15 @@ PMO8:
 
 ; ---- DNAME ---- from &5898, &748D
 DNAME:
-               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&A0 ; 58B5
-               DEFB &CD                       ; 58C0
+               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 58B5
+               DEFB " "+&80                   ; 58BF A0
+               DEFB "M"+&80                   ; 58C0 CD
                DEFM "|W OPEN Fil"             ; 58C1 7C 57 20 4F 50 45 4E 20
                DEFB "e"+&80                   ; 58CC E5
 
 ; ---- MSGUN ---- from &58E5
 MSGUN:
-               DEFB &55,&4E,&20               ; 58CD
+               DEFM "UN "                     ; 58CD 55 4E 20
                DEFB &08                       ; 58D0
 
 ;; --------------------------------------------------------------------

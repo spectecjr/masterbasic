@@ -288,31 +288,47 @@ class Disassembler(Decoder):
             w('%s:\n' % self.labels[a])
 
     def _text(self, w, s, e):
-        """A run of words, each ended by bit 7 of its last character."""
+        """A run of words, each ended by bit 7 of its last character.
+
+        A word may mix text with control bytes -- the file type names put a
+        cursor code in front of several of theirs -- so the printable runs
+        are set as DEFM and everything else as DEFB, rather than the whole
+        word falling back to hex the moment one byte is not a character.
+        """
+        def ok(c):
+            ch = chr(c)
+            return ch.isprintable() and ch != '"'
+
+        def emit_defm(a, b):
+            w('%-14s DEFM %-25s ; %04X %s\n'
+              % ('', '"%s"' % ''.join(chr(self.byte(i)) for i in range(a, b)),
+                 a, ' '.join(hexn(self.byte(i), 2)[1:]
+                             for i in range(a, min(b, a + 8)))))
+
+        def emit_defb(a, b):
+            w('%-14s DEFB %-25s ; %04X\n'
+              % ('', ','.join(hexn(self.byte(i), 2) for i in range(a, b)), a))
+
         a = s
         while a < e:
             b = a
             while b < e and not (self.byte(b) & 0x80):
                 b += 1
-            body = ''.join(chr(self.byte(i)) for i in range(a, b))
-            if b < e:
+            p = a
+            while p < b:                    # the body, run by run
+                q, run = p, ok(self.byte(p))
+                while q < b and ok(self.byte(q)) == run:
+                    q += 1
+                (emit_defm if run else emit_defb)(p, q)
+                p = q
+            if b < e:                       # the terminator, bit 7 set
                 last = chr(self.byte(b) & 0x7F)
-                if body and '"' not in body and body.isprintable() \
-                        and last.isprintable() and last != '"':
-                    w(('%-14s DEFM %-25s ; %04X %s' + chr(10))
-                      % ('', '"%s"' % body, a,
-                         ' '.join(hexn(self.byte(i), 2)[1:]
-                                  for i in range(a, min(b, a + 8)))))
-                    w(('%-14s DEFB %-25s ; %04X %s' + chr(10))
-                      % ('', '"%s"+&80' % last, b,
-                         hexn(self.byte(b), 2)[1:]))
-                    a = b + 1
-                    continue
-            n = min(b + 1, e) - a
-            chunk = bytes(self.mem[a - self.base:a - self.base + n])
-            w('%-14s DEFB %-25s ; %04X\n'
-              % ('', ','.join(hexn(c, 2) for c in chunk), a))
-            a += n
+                if last.isprintable() and last != '"':
+                    w('%-14s DEFB %-25s ; %04X %s\n'
+                      % ('', '"%s"+&80' % last, b, hexn(self.byte(b), 2)[1:]))
+                else:
+                    emit_defb(b, b + 1)
+            a = b + 1
 
     def _data(self, w, s, e, width):
         if s in self.labels:

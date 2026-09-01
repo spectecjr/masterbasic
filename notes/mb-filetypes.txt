@@ -1,10 +1,53 @@
 # The file type names, which were being read as instructions.
 
+RENAME FILETYPE_NAMES DRTAB
+
 MB &4349-&43A0 text FILETYPE_NAMES
-    The names DIR prints for each SAM file type, each word ended by bit 7
-    of its last character in the usual way -- BASIC, SNP 48K, MD.FILE,
-    SPECIAL, SNP 128K, OPENTYPE, N/A, EXECUTE, DIR -- with a type byte
-    ahead of each.
+    DRTAB, the table DIR prints a file's type from, indexed by the type
+    itself rather than searched -- so there is one entry for every code
+    from 0 to 21 and the table is exactly 22 words long.  Each word ends
+    with bit 7 of its last character in the usual way.
+
+    IT IS MASTERDOS'S OWN TABLE, all 88 bytes of it, byte for byte the
+    DRTAB at &55A8 in ref/masterdos/res/MDOS23.bin.  MasterBASIC carries
+    a verbatim copy, as it does with the DOS hook stubs at &7B80.
+
+    THE BYTES BELOW 13 ARE COMPRESSION CODES, which is what makes most
+    entries two or three bytes long.  The annotated source names them
+    and gives their values:
+
+        8   WHAT      "WHAT?"
+        9   ARRAY     ".ARRAY"
+        10  ZXS       "ZX"
+        11  SCREENS   "SCREEN$"
+
+    So the table reads:
+
+         0  " "                     erased
+         1  ZXS "BASIC"             ZX BASIC
+         2  ZXS "D" ARRAY           ZX numeric array
+         3  ZXS "$" ARRAY           ZX string array
+         4  ZXS                     ZX code -- the whole entry is one byte
+         5  ZXS "SNP 48K"           ZX 48K snapshot
+         6  "MD.FILE"               Microdrive
+         7  ZXS SCREENS             ZX SCREEN$ -- two bytes for eleven characters
+         8  "SPECIAL"
+         9  ZXS "SNP 128K"          ZX 128K snapshot
+        10  "OPENTYPE"
+        11  "N/A EXECUTE"
+        12  WHAT                    and 13, 14, 15 the same: unused codes
+        16  "BASIC"
+        17  "D" ARRAY               numeric array
+        18  "$" ARRAY               string array
+        19  "C"                     code
+        20  SCREENS                 SCREEN$
+        21  "    DIR"               directory
+
+    WITHDRAWN: this note used to say there was "a type byte ahead of
+    each", reading the 10 in front of the ZX entries as the type number.
+    It is not a type number, it is the ZXS code, and it is only on the
+    entries whose text begins with ZX.  Nothing indexes by a stored type
+    because nothing needs to: the type is the index.
 
     The trace reached this and decoded 88 bytes of it as code, so the
     listing used to show AND B, LD A,(BC), JP L440A and a JR into the

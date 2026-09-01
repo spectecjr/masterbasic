@@ -1383,10 +1383,51 @@ CHECK_PRINTER_READY_1:
                RET                             ; 4348 C9
 
 ;; --------------------------------------------------------------------
-;; The names DIR prints for each SAM file type, each word ended by bit 7
-;; of its last character in the usual way -- BASIC, SNP 48K, MD.FILE,
-;; SPECIAL, SNP 128K, OPENTYPE, N/A, EXECUTE, DIR -- with a type byte
-;; ahead of each.
+;; DRTAB, the table DIR prints a file's type from, indexed by the type
+;; itself rather than searched -- so there is one entry for every code
+;; from 0 to 21 and the table is exactly 22 words long.  Each word ends
+;; with bit 7 of its last character in the usual way.
+;;
+;; IT IS MASTERDOS'S OWN TABLE, all 88 bytes of it, byte for byte the
+;; DRTAB at &55A8 in ref/masterdos/res/MDOS23.bin.  MasterBASIC carries
+;; a verbatim copy, as it does with the DOS hook stubs at &7B80.
+;;
+;; THE BYTES BELOW 13 ARE COMPRESSION CODES, which is what makes most
+;; entries two or three bytes long.  The annotated source names them
+;; and gives their values:
+;;
+;; 8   WHAT      "WHAT?"
+;; 9   ARRAY     ".ARRAY"
+;; 10  ZXS       "ZX"
+;; 11  SCREENS   "SCREEN$"
+;;
+;; So the table reads:
+;;
+;; 0  " "                     erased
+;; 1  ZXS "BASIC"             ZX BASIC
+;; 2  ZXS "D" ARRAY           ZX numeric array
+;; 3  ZXS "$" ARRAY           ZX string array
+;; 4  ZXS                     ZX code -- the whole entry is one byte
+;; 5  ZXS "SNP 48K"           ZX 48K snapshot
+;; 6  "MD.FILE"               Microdrive
+;; 7  ZXS SCREENS             ZX SCREEN$ -- two bytes for eleven characters
+;; 8  "SPECIAL"
+;; 9  ZXS "SNP 128K"          ZX 128K snapshot
+;; 10  "OPENTYPE"
+;; 11  "N/A EXECUTE"
+;; 12  WHAT                    and 13, 14, 15 the same: unused codes
+;; 16  "BASIC"
+;; 17  "D" ARRAY               numeric array
+;; 18  "$" ARRAY               string array
+;; 19  "C"                     code
+;; 20  SCREENS                 SCREEN$
+;; 21  "    DIR"               directory
+;;
+;; WITHDRAWN: this note used to say there was "a type byte ahead of
+;; each", reading the 10 in front of the ZX entries as the type number.
+;; It is not a type number, it is the ZXS code, and it is only on the
+;; entries whose text begins with ZX.  Nothing indexes by a stored type
+;; because nothing needs to: the type is the index.
 ;;
 ;; The trace reached this and decoded 88 bytes of it as code, so the
 ;; listing used to show AND B, LD A,(BC), JP L440A and a JR into the
@@ -1397,19 +1438,30 @@ CHECK_PRINTER_READY_1:
 ;; is what a false decode looks like from the outside.
 ;; --------------------------------------------------------------------
 
-FILETYPE_NAMES:
-               DEFB &A0                       ; 4349
-               DEFB &0A,&42,&41,&53,&49,&C3   ; 434A
-               DEFB &0A,&44,&89               ; 4350
-               DEFB &0A,&24,&89               ; 4353
+DRTAB:
+               DEFB " "+&80                   ; 4349 A0
+               DEFB &0A                       ; 434A
+               DEFM "BASI"                    ; 434B 42 41 53 49
+               DEFB "C"+&80                   ; 434F C3
+               DEFB &0A                       ; 4350
+               DEFM "D"                       ; 4351 44
+               DEFB &89                       ; 4352
+               DEFB &0A                       ; 4353
+               DEFM "$"                       ; 4354 24
+               DEFB &89                       ; 4355
                DEFB &8A                       ; 4356
-               DEFB &0A,&53,&4E,&50,&20,&34,&38,&CB ; 4357
+               DEFB &0A                       ; 4357
+               DEFM "SNP 48"                  ; 4358 53 4E 50 20 34 38
+               DEFB "K"+&80                   ; 435E CB
                DEFM "MD.FIL"                  ; 435F 4D 44 2E 46 49 4C
                DEFB "E"+&80                   ; 4365 C5
-               DEFB &0A,&8B                   ; 4366
+               DEFB &0A                       ; 4366
+               DEFB &8B                       ; 4367
                DEFM "SPECIA"                  ; 4368 53 50 45 43 49 41
                DEFB "L"+&80                   ; 436E CC
-               DEFB &0A,&53,&4E,&50,&20,&31,&32,&38,&CB ; 436F
+               DEFB &0A                       ; 436F
+               DEFM "SNP 128"                 ; 4370 53 4E 50 20 31 32 38
+               DEFB "K"+&80                   ; 4377 CB
                DEFM "OPENTYP"                 ; 4378 4F 50 45 4E 54 59 50
                DEFB "E"+&80                   ; 437F C5
                DEFM "N/A EXECUT"              ; 4380 4E 2F 41 20 45 58 45 43
@@ -1420,9 +1472,11 @@ FILETYPE_NAMES:
                DEFB &88                       ; 438E
                DEFM "BASI"                    ; 438F 42 41 53 49
                DEFB "C"+&80                   ; 4393 C3
-               DEFB &44,&89                   ; 4394
-               DEFB &24,&89                   ; 4396
-               DEFB &C3                       ; 4398
+               DEFM "D"                       ; 4394 44
+               DEFB &89                       ; 4395
+               DEFM "$"                       ; 4396 24
+               DEFB &89                       ; 4397
+               DEFB "C"+&80                   ; 4398 C3
                DEFB &8B                       ; 4399
                DEFM "    DI"                  ; 439A 20 20 20 20 44 49
                DEFB "R"+&80                   ; 43A0 D2
@@ -5070,7 +5124,7 @@ HK_HPFF_DONE:
 
 ; ---- V50D7 ---- from &5026, &50C7
 V50D7:
-               DEFB &A0                       ; 50D7
+               DEFB " "+&80                   ; 50D7 A0
 
 ;; --------------------------------------------------------------------
 ;; The 28 names MasterBASIC adds to SAM BASIC, each ended by bit 7 of its
@@ -14635,7 +14689,8 @@ INSTALL_ROM_VECTORS_LOOP2:
 ;; --------------------------------------------------------------------
 
 MSG_EXTERNAL_MEMORY:
-               DEFB &4B,&20,&45,&78,&74,&65,&72,&6E,&61,&6C,&20,&4D,&65,&6D,&6F,&72,&79,&0D ; 77C9
+               DEFM "K External Memory"       ; 77C9 4B 20 45 78 74 65 72 6E
+               DEFB &0D                       ; 77DA
 
 ;; --------------------------------------------------------------------
 ;; Walk the external memory pages, find which of them are there, and
