@@ -1457,8 +1457,10 @@ CHECK_PRINTER_READY_1:
 ;; a verbatim copy, as it does with the DOS hook stubs at &7B80.
 ;;
 ;; THE BYTES BELOW 13 ARE COMPRESSION CODES, which is what makes most
-;; entries two or three bytes long.  The annotated source names them
-;; and gives their values:
+;; entries two or three bytes long.  They are equates in the listing
+;; now, defined just above DRTAB rather than left as numbers in it, and
+;; the table is written the way MasterDOS's own source writes it --
+;; DEFB ZXS,"D",ARRAY+&80 is his line for type 2.  The values are his:
 ;;
 ;; 8   WHAT      "WHAT?"
 ;; 9   ARRAY     ".ARRAY"
