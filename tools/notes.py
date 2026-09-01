@@ -153,9 +153,15 @@ def parse(path):
     return out, bad
 
 
-def load(root):
-    """Every entry from notes/, or an empty list if there are none."""
-    folder = os.path.join(root, 'notes')
+def load(root, folder='notes'):
+    """Every entry from the folder, or an empty list if there are none.
+
+    The default is notes/, the working prose.  notes/clean/ holds the
+    reading copy's prose, applied over the top of it and winning where
+    the two disagree; both are the same eight kinds of entry, read by
+    the same parser.
+    """
+    folder = os.path.join(root, folder)
     if not os.path.isdir(folder):
         return [], []
     out, complaints = [], []
@@ -192,7 +198,7 @@ def set_header(d, a, doc, banner):
     d.headers[a] = banner('\n'.join(body))
 
 
-def apply(pages, root, banner):
+def apply(pages, root, banner, folder='notes'):
     """Put the entries on the pages.  Returns counts and complaints."""
     by_tag = dict((p.tag, p) for p in pages)
     named = noted = marked = 0
@@ -200,7 +206,7 @@ def apply(pages, root, banner):
     kinds = {'data': 3, 'text': 5, 'code': 1}
 
     equates, later, expressions = {}, [], []
-    entries, complaints = load(root)
+    entries, complaints = load(root, folder)
     problems.extend(complaints)
     for e in entries:
         if e['page'] in ('AFTER', 'DOC'):

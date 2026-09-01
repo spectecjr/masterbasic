@@ -11,9 +11,12 @@ by a rule read out of the installer, or left blank.  The blanks are as
 much a part of the result as the code.
 """
 
+import io
 import os
 import sys
 import textwrap
+import asmfmt
+import clean
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -225,6 +228,18 @@ def main():
                         sum(e - s for s, e, _ in placed)))
         d.emit(f, segs=segs)
     print('wrote', path)
+
+    # The same page, written to be read: see tools/clean.py.
+    cpath = os.path.join(root, 'clean', 'postinstall-syspage.asm')
+    os.makedirs(os.path.dirname(cpath), exist_ok=True)
+    clean.clean_pages((d,))
+    buf = io.StringIO()
+    buf.write(CLEAN_HEAD % (covered, sum(e - s for s, e, _ in placed)))
+    d.emit(buf, segs=segs)
+    with open(cpath, 'w') as f:
+        f.write(asmfmt.format_listing(buf.getvalue()))
+    print('wrote', cpath)
+
     print('%d bytes placed, %d reached as code from the vectors'
           % (sum(e - s for s, e, _ in placed), covered))
 
@@ -272,6 +287,35 @@ HEAD = """\
 %s;
 ; %d bytes are reached as code from the entry points below; %d bytes were
 ; placed in total.
+"""
+
+
+CLEAN_HEAD = """; The ROM's system page, after MasterBASIC has installed itself.
+;
+; This is the third listing, and the one that explains the other two.
+; MasterBASIC does not patch the ROM -- it cannot, the ROM is read-only
+; -- so it copies code into the ROM's own workspace page, page 0, and
+; points the ROM's vectors at the copies.  CMDV, EDITV, RST8V, PRTOKV,
+; EVALUV, FRAMIV, PATOUT and INSLV all end up here.
+;
+; That is why this page matters to a reader: the code below is what
+; actually runs when you type a command.  The same bytes appear in
+; clean/masterbasic.asm at &7460 and &7BA4, where they are only the
+; master copy waiting to be installed, and where every address in them
+; is 16K out.  Here they are at the addresses they run at.
+;
+; This page is at &4000-&7FFF with the ROM paged in, which is the same
+; &4000 each half of the extension occupies -- so the extension and the
+; system page can never both be low at once.  Whichever is not low is
+; reached through the window at &8000, and code here that touches
+; MasterBASIC does exactly that.
+;
+; It does not assemble to anything in the image, because it is not in
+; the image: it is assembled out of the copy rules, checked against a
+; dump of a booted machine where one is available.
+;
+; %d bytes are reached as code from the ROM's entry points; %d bytes
+; were placed in total.
 """
 
 if __name__ == '__main__':

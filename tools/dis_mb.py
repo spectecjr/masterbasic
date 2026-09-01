@@ -48,6 +48,7 @@ from disasm import Disassembler, UNKNOWN, CODE, CONT, DATA, WORD, TEXT, RST8, PA
 from z80 import hexn, CALL, CCALL
 import annotate
 import asmfmt
+import clean
 import romsyms
 import syspage
 import sambasic
@@ -2201,6 +2202,45 @@ def prune_equates(text):
     return chr(10).join(res) + chr(10), dropped
 
 
+def write_clean(dos, mb):
+    """Write clean/, the reading copy, and put the pages back afterwards.
+
+    Everything downstream of this -- the census, the speculation -- works
+    from these same headers and comments, so the changes made here are
+    undone at the end rather than left in place.
+    """
+    saved = [(dict(d.headers), dict(d.comments), d.title) for d in (dos, mb)]
+    print('clean/: %d working paragraphs taken out'
+          % clean.clean_pages((dos, mb)))
+    nn, nc, nm, problems = notes.apply((dos, mb), ROOT, annotate.banner,
+                                       folder=os.path.join('notes', 'clean'))
+    if nn or nc or nm:
+        print('clean/: %d names, %d line comments, %d bytes marked from '
+              'notes/clean' % (nn, nc, nm))
+    for problem in problems:
+        print('notes/clean: ' + problem)
+
+    out = os.path.join(ROOT, 'clean')
+    os.makedirs(out, exist_ok=True)
+    for d, name in ((dos, 'masterdos.asm'), (mb, 'masterbasic.asm')):
+        d.relabel()
+        was, d.title = d.title, clean.preamble(d)
+        d.emit(io.StringIO(), segs=[(BASE, HALF)])
+        buf = io.StringIO()
+        d.emit(buf, title=header(d), segs=[(BASE, HALF)])
+        body, _ = prune_equates(buf.getvalue())
+        with open(os.path.join(out, name), 'w') as f:
+            f.write(asmfmt.format_listing(body))
+        d.title = was
+        print('wrote', os.path.join(out, name))
+
+    for tag, (mine, orig) in sorted(clean.coverage((dos, mb)).items()):
+        print('clean/: %s line comments -- %d written here, %d still the '
+              'MasterDOS author%ss own' % (tag, mine, orig, chr(39)))
+    for d, (h, c, t) in zip((dos, mb), saved):
+        d.headers, d.comments, d.title = h, c, t
+
+
 def write_speculation(dos, mb, outdir):
     """Write speculate/*.asm beside the listings."""
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -2480,10 +2520,11 @@ def main():
                 os.path.join(args.outdir, n)
                 for n in ('masterdos.asm', 'masterbasic.asm')]):
             print('notes/: ' + p)
-        # Only now: the speculation is written by adding to these same
-        # headers and notes, so it has to come after the clean listings.
         # Before the speculation pass, which puts a header on every
-        # routine in its own listings and would count as description.
+        # routine and would swamp what the reading copy is for.
+        write_clean(dos, mb)
+        # Only now: the speculation is written by adding to these same
+        # headers and notes, so it has to come after the plain listings.
         census((dos, mb))
         write_speculation(dos, mb, args.outdir)
     return dos, mb

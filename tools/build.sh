@@ -73,6 +73,12 @@ for half in masterdos masterbasic; do
 done
 
 for half in masterdos masterbasic; do
+    pyz80 --obj="$work/clean_$half.out" -o "$work/clean_$half.dsk"           "$root/clean/$half.asm" >"$work/clean_$half.log" 2>&1 || {
+        echo "*** clean/$half.asm reassembly failed ***"
+        tail -20 "$work/clean_$half.log"; exit 1; }
+done
+
+for half in masterdos masterbasic; do
     pyz80 --obj="$work/spec_$half.out" -o "$work/spec_$half.dsk"           "$root/speculate/$half.asm" >"$work/spec_$half.log" 2>&1 || {
         echo "*** speculate/$half.asm reassembly failed ***"
         tail -20 "$work/spec_$half.log"; exit 1; }
@@ -85,11 +91,16 @@ raw = open(os.path.join(root, 'file', 'MasterBasicMasterDos.bin'), 'rb').read()
 half = len(raw) // 2
 ok = True
 for name, part in (('masterdos', raw[:half]), ('masterbasic', raw[half:]),
+                   ('clean_masterdos', raw[:half]),
+                   ('clean_masterbasic', raw[half:]),
                    ('spec_masterdos', raw[:half]),
                    ('spec_masterbasic', raw[half:])):
     got = open(os.path.join(work, name + '.out'), 'rb').read()
     got = got[:len(part)]
-    shown = name.replace('spec_', 'speculate/') if name.startswith('spec_')         else name
+    shown = name
+    for pre, dirname in (('spec_', 'speculate/'), ('clean_', 'clean/')):
+        if name.startswith(pre):
+            shown = name.replace(pre, dirname)
     if got == part:
         print('%s.asm: BYTE-IDENTICAL' % shown)
     else:
