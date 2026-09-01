@@ -23108,16 +23108,43 @@ MSG_EXTERNAL_MEMORY:
 ;;     it holds &7DFA -- the address the routine runs at.  Searching for
 ;;     &77DB was searching for something that was never going to be there.
 ;;     
-;;     THE OPERANDS THAT LOOK WRONG are the last of it.  &77F5 calls &7806
+;;     WHICH PAGE THE COPY RUNS IN: MASTERBASIC'S OWN.  A transcription of
+;;     the running code from &7DF0 settles it, and it settles the operands
+;;     too.  The first ten bytes disassemble as LD H,C / LD L,H / JR NZ /
+;;     LD H,L / LD L,L / LD L,A / LD (HL),D / LD A,C / DEC C, which is not
+;;     code at all: it is the tail of the message, "al Memory" and the
+;;     carriage return, read as instructions.  LD L,L is the m of Memory.
+;;     Then IN A,(&FB) at &7DFA, exactly where the arithmetic puts it, and
+;;     the JR NZ two instructions later reads &7E36, which is the stored
+;;     &7817 moved by the same &486.
+;;     
+;;     So the copy is verbatim -- nothing is patched as it is copied, and
+;;     the relative jumps relocate themselves.  The absolute ones therefore
+;;     have to be right where they stand, and they are: the block is copied
+;;     to &BC00 with MasterBASIC's own page in the window, so the copy lands
+;;     at MB &7C00-&7F8F and runs with that same page at &4000 in section
+;;     B.  CALL &7806 reaches STACK_FILL_LOOP where it is stored, JP &77FE
+;;     reaches CLEAR_WINDOW_IF_Z where it is stored, and LD DE,&BDE8
+;;     reaches the copy's own message through the window.  All three are
+;;     consistent, which they were not under any single relocation delta.
+;;     
+;;     AND IT EXPLAINS THE SAVE BOOT BLOCKS.  &7CF7, &7D00 and &7DF0 -- the
+;;     addresses SAVE BOOT's first and third blocks read, and the ones
+;;     INSTALL_ROM_PATCHES writes the boot sector and INSTBUF to -- all lie
+;;     inside &7C00-&7F8F.  That is the installer's own footprint.  Once it
+;;     has run, its bytes are free, and what it does with them is keep the
+;;     two pieces of the DOS the machine no longer holds.  See
+;;     notes/mb-saveboot.txt, which had the addresses but not the reason.
+;;     
+;;     THE OPERANDS THAT LOOK WRONG, for the record.  &77F5 calls &7806
 ;;     and &7819 jumps to &77FE, both of which are stored addresses rather
 ;;     than relocated ones, so within the running copy they point outside
 ;;     it.  Either those two are reached with MasterBASIC's own page at
 ;;     &4000 -- the installer runs from the window at &BC00, which leaves
 ;;     section B free, and that is the SYSPAGE_IN_B arrangement used
 ;;     everywhere else -- or the block is entered more than one way.  A
-;;     disassembly of the running copy at &7DF0-&7E30 would say which; the
-;;     DOS page's &7C00 upward is one of the two regions no dump here
-;;     covers.  See docs/evidence-wanted.md item 4.
+;;     disassembly of the running copy answered it: MasterBASIC's page is at
+;;     &4000, so both are its own stored addresses.  Nothing is outstanding.
 ;;     
 ;;     And the flow through the fill does not join up.  CALL &7806 at &77F5
 ;;     cannot return -- STACK_FILL_LOOP ends by putting SP back and jumping
