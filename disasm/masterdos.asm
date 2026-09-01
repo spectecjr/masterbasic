@@ -12467,16 +12467,16 @@ RDRSCT:
                CALL READ_ADDRESS_CLEAR         ; 753C CD 8F 77
                JR RDW4                         ; 753F 18 A2
 
+; ---- RDRSCT_1 ---- from &7539
+RDRSCT_1:
+               LD BC,&0200                     ; 7541 01 00 02
+
 ;; --------------------------------------------------------------------
 ;; The copy itself, and it is an LDIR: RDADR works out where the sector
 ;; lives in the RAM disc's pages, and &0200 bytes move from there to
 ;; DRAM.  A RAM disc read is a memory copy with the same interface as a
 ;; floppy read, which is the whole point of the design.
 ;; --------------------------------------------------------------------
-
-; ---- RDRSCT_1 ---- from &7539
-RDRSCT_1:
-               LD BC,&0200                     ; 7541 01 00 02
 
 ; ---- RDRS2 ---- from &7763
 RDRS2:

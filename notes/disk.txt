@@ -315,7 +315,7 @@ DOS &7533 RDRSCT
     round through DRAM; one that will not is read into the caller's
     buffer directly.
 
-DOS &7541 RDRS2
+DOC RDRS2
     The copy itself, and it is an LDIR: RDADR works out where the sector
     lives in the RAM disc's pages, and &0200 bytes move from there to
     DRAM.  A RAM disc read is a memory copy with the same interface as a

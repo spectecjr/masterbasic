@@ -21277,13 +21277,6 @@ RDRSCT:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    BC
-;;
-;; Shown for this routine in disasm/:
-;;
-;;     The copy itself, and it is an LDIR: RDADR works out where the sector
-;;     lives in the RAM disc's pages, and &0200 bytes move from there to
-;;     DRAM.  A RAM disc read is a memory copy with the same interface as a
-;;     floppy read, which is the whole point of the design.
 ;; --------------------------------------------------------------------
 
 ; ---- RDRSCT_1 ---- from &7539
@@ -21299,6 +21292,13 @@ RDRSCT_1:
 ;; Ends:      JP
 ;;
 ;; ? drives OUT (HMPR),A; calls CLEAR_TRANSFER_COUNT, RDADR.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     The copy itself, and it is an LDIR: RDADR works out where the sector
+;;     lives in the RAM disc's pages, and &0200 bytes move from there to
+;;     DRAM.  A RAM disc read is a memory copy with the same interface as a
+;;     floppy read, which is the whole point of the design.
 ;; --------------------------------------------------------------------
 
 ; ---- RDRS2 ---- from &7763
