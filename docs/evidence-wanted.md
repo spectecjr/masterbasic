@@ -53,31 +53,48 @@ there with the DOS booted alone.
 
 ---
 
-## 3. `SIZE_EXTERNAL_MEMORY` at `&77DB` — runs, but nothing calls it
+## 3. Answered — `SIZE_EXTERNAL_MEMORY` runs at `&7DFA`
 
-**This was "is it dead code", and the answer is no.** Every dump in `file/`
-was taken under SimCoupe with one 1MB external module fitted, which turned
-out to settle it. `MBPOST.bin` carries the DOS page of a booted machine, so
-`MRTAB` — the bitmap of MegaRAM pages in use, DVARs 118–149 at `&4296` — can
-be read straight out of it. The shipped image has 32 bytes of `&00` there;
-`MBPOST` has 8 of `&00` and 24 of `&FF`. Sixty-four pages free, 192 not, and
-64 pages of 16K is exactly the 1MB fitted.
+It is MasterDOS's `MRINIT`, and it lives inside `INSTALLER` — the 943 bytes
+the boot sector copies from MB `&75E1` to `&BC00`. So it runs at DOS `&7C00` +
+`&1FA` = `&7DFA`, and its `OUT` to port `&80` at `&7E04`, which is where a
+breakpoint caught it. A breakpoint on `&77DB` never fires: every search this
+project ran for `&77DB` was looking for something that was never going to be
+there.
 
-Nothing else could have done it. Searching every binary and every dump for
-`OUT (&80),A` finds two in the running system: the DOS's `&75B2`, a single
-select inside ordinary MegaRAM access, and `&77E5`, which is this walk. The
-routine is MasterDOS's own `MRINIT`, relocated — 153 of 176 bytes identical
-to `MDOS23.bin`, every difference a two-byte address operand — and `autoMBM`
-moved it out of the DOS page, where its code no longer appears at any offset.
-
-**What is left, and it is small.** `&77DB` still has no reference anywhere in
-either half, and the operands inside the block do not agree on one relocation
-delta. **A breakpoint on `&77DB`, or on the `OUT` to port `&80`, would name
-the caller in one go** — the PC when it stops is all I need.
+`file/LiveDuringMRINIT.bin` is the DOS page dumped while it ran, and it shows
+the copy at `&7C00`–`&7FAE` matching the stored bytes over all 943. The two
+operands that never agreed with any relocation — `CALL &7806` and `JP &77FE` —
+are calls into the DOS's own `RMRBIT` and `SMRBIT`, which clear and set a
+page's bit in `MRTAB` through `MRADDR`. The listing had been resolving them
+against MasterBASIC's half, where those addresses happen to hold other code.
 
 ---
 
-## 4. Nothing needed: the rest of the disc code
+## 4. MasterBASIC's page, `&7B80`–`&7FBF`
+
+**Why.** This entry used to ask for both pages. `file/LiveDuringMRINIT.bin`
+has since covered the DOS page, including both of the regions `MBPOST.bin` is
+blind to — the boot sector at `&4000`–`&40FF`, where it confirms the file's
+nine-byte header is loaded into memory verbatim, and the tail at
+`&7D60`–`&7FBF`, where it holds the installer's copy rather than the file's
+own bytes. MasterBASIC's page above `&7B7F` is what is left.
+
+`MBPOST.bin` cannot show it: `SAVE BOOT` fills that part of the file from the
+system page, precisely because the running machine no longer holds what
+belongs there.
+
+**What to capture.** A 16K dump of MasterBASIC's page from a booted machine.
+It is the one whose `&4000` holds the XVARs, `PUTSWA` first.
+
+**What it decides.** Nothing outstanding depends on it, which is why it is
+last. It would show what the installer leaves at `&7B80` upward, and what
+`&7E43`–`&7FBF` holds once the machine has booted — where the shipped file
+carries a fragment of somebody's BASIC program.
+
+---
+
+## 5. Nothing needed: the rest of the disc code
 
 Formatting, the directory as a structure, and the RAM discs are reading time
 rather than evidence. `docs/disc.md` follows a read and a write end to end;

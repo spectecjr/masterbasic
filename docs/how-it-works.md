@@ -378,15 +378,13 @@ is classified. What follows is what naming did not answer.
   of those 2207, and it is what puts the 36 bytes at `&4BA0` there, so that
   block is the DOS's work rather than MasterBASIC's.
 
-- **`SIZE_EXTERNAL_MEMORY` at `&77DB` runs, but nothing visibly calls it.**
-  It was read as dead code until a machine with 1MB of external memory
-  settled it: `MRTAB` in a booted machine records 64 pages free and 192 not,
-  the image ships with that table clear, and this is the only code in the
-  running system that walks the external page register. It is MasterDOS's
-  own `MRINIT`, relocated, which `autoMBM` moved out of the DOS page. What
-  is still open is only how it is entered — `&77DB` has no reference in
-  either half, and the block's operands do not agree on one relocation
-  delta.
+- **`SIZE_EXTERNAL_MEMORY` is settled** and no longer open. It is
+  MasterDOS's `MRINIT`, carried inside `INSTALLER` — the 943 bytes the boot
+  sector copies from MB `&75E1` to `&BC00` — so it runs at DOS `&7DFA` and
+  never at `&77DB`, which is why nothing appeared to call it. A dump of the
+  DOS page taken while it ran shows the copy at `&7C00`–`&7FAE` byte for
+  byte, and its two unrelocatable operands are calls into the DOS's `RMRBIT`
+  and `SMRBIT`, which clear and set a page's bit in `MRTAB`.
 
 - **The DOS half** is still read mainly where MasterBASIC reaches into it.
   Every routine either half calls has a name, and
