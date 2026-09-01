@@ -87,14 +87,41 @@ DOC SIZE_EXTERNAL_MEMORY
     appears exactly once in the whole 32640-byte image, in this half,
     and MDOS23's MRINIT code is not in the DOS half at any offset.
 
-    WHAT IS STILL OPEN is how it is entered, which is now a smaller
-    question than it was.  &77DB has no reference anywhere in either
-    half, as a call target or as a stored word in any of its plain,
-    flagged or windowed forms, and the operands inside the block do not
-    agree on a single relocation delta -- the message is addressed as
-    &BDE8, which puts the block &61D above where it is stored, while the
-    CALL at &77F5 names &7806, its own stored address.  A breakpoint on
-    &77DB, or on the OUT to port &80, would name the caller in one go.
+    HOW IT IS ENTERED: IT IS PART OF THE INSTALLER, AND RUNS ELSEWHERE.
+    A breakpoint on a real machine settled it, and the answer is that
+    &77DB is never executed at &77DB.
+
+    The boot sector copies 943 bytes from &75E1 to &BC00 and runs them
+    there -- INSTALLER, which this listing has named all along.  &77DB
+    is inside that block, &1FA bytes in, so the code runs at &7C00+&1FA:
+
+        stored MB &77CB  MSG_EXTERNAL_MEMORY  ->  &7DEA   (&77C9 -> &BDE8)
+        stored MB &77DB  SIZE_EXTERNAL_MEMORY ->  &7DFA
+        stored MB &77E5  the OUT (XMPRL),A    ->  &7E04
+        stored MB &7800  FILL_PAGE_WITH_ZERO  ->  &7E1F
+
+    Three things land exactly.  A breakpoint on writes to port &80 fired
+    at &7E04, which is where the OUT goes.  A breakpoint on &77DB never
+    fired, which is what a routine that runs from a copy does.  And the
+    LD DE at &77C0 addresses the message as &BDE8, which is &77C9 moved
+    by the same amount -- the operand was written for the copy, not for
+    where it is stored.
+
+    So "nothing calls &77DB" was true and thoroughly misleading.  The
+    caller is at MB &779A, which is itself &1B9 into the installer, and
+    it holds &7DFA -- the address the routine runs at.  Searching for
+    &77DB was searching for something that was never going to be there.
+
+    THE OPERANDS THAT LOOK WRONG are the last of it.  &77F5 calls &7806
+    and &7819 jumps to &77FE, both of which are stored addresses rather
+    than relocated ones, so within the running copy they point outside
+    it.  Either those two are reached with MasterBASIC's own page at
+    &4000 -- the installer runs from the window at &BC00, which leaves
+    section B free, and that is the SYSPAGE_IN_B arrangement used
+    everywhere else -- or the block is entered more than one way.  A
+    disassembly of the running copy at &7DF0-&7E30 would say which; the
+    DOS page's &7C00 upward is one of the two regions no dump here
+    covers.  See docs/evidence-wanted.md item 4.
 
     And the flow through the fill does not join up.  CALL &7806 at &77F5
     cannot return -- STACK_FILL_LOOP ends by putting SP back and jumping
