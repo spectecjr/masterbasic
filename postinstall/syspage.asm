@@ -5,11 +5,12 @@
 ; MasterBASIC paged out.  In disasm/masterbasic.asm the same code sits at
 ; &7460 and &7BA4 and has to be read with a bias in your head.
 ;
-; WHERE THESE BYTES COME FROM.  If file/SYSPAGE.bin is present -- a dump
-; of &4000-&4BFF from a machine that has booted -- it is used, and it is
-; the authority: it is what the hardware holds.  Without it the page is
-; assembled from the copy rules read out of the installer, which is a
-; model and can be wrong.  The build says which happened.
+; WHERE THESE BYTES COME FROM.  If file/SYSPAGE_after_MBMD_boot.bin is
+; present -- all 16K of the page from a machine that has booted -- it is
+; used, and it is the authority: it is what the hardware holds.  Without
+; it the page is assembled from the copy rules read out of the installer,
+; which is a model and can be wrong.  The build says which happened, and
+; how far the two agree.
 ;
 ; The two agree to within 33 bytes across the 1753 the copy rules
 ; cover, and every one of those 33 is a byte the image carries as zero

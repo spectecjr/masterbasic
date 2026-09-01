@@ -192,3 +192,5 @@ DOC FILL_PAGE_WITH_ZERO
     DJNZ and BC counted as &00 then 4 make exactly one page.  Nothing is
     faster on a Z80, which is why the stack pointer gets borrowed for
     it.
+
+MB &7799 : SIZE_EXTERNAL_MEMORY, at the address it runs at rather than where it is stored -- this is inside INSTALLER, which the boot sector copies to &BC00

@@ -155,15 +155,16 @@
 
 # dsks/liveboottest.mgt
 #
-#   MBPOST, SYSPAGE and SYS2 -- the three files already in file/, saved
-#   as CODE files.  Nothing new.
+#   Where file/MBPOST.bin came from, saved as a CODE file, along with
+#   the pair of partial system-page dumps that used to sit beside it --
+#   SYSPAGE.bin and SYS2.bin, since retired in favour of the full 16K
+#   ones.
 #
 #   MBPOST is NOT a memory dump.  It is a SAVE BOOT output, made by
 #   booting the combined image and saving to this freshly formatted
-#   disk; SYSPAGE and SYS2 are genuine dumps of the system page.  The
-#   distinction is set out in notes/mb-postboot.txt and it matters: only
-#   two of SAVE BOOT's eight blocks hold the memory whose address they
-#   appear to occupy.
+#   disk.  The distinction is set out in notes/mb-postboot.txt and it
+#   matters: only two of SAVE BOOT's eight blocks hold the memory whose
+#   address they appear to occupy.
 #
 #   "file/LICENSE and COPYRIGHT.md" said so from the start -- "MBPOST.bin
 #   is a post-installation SAVE BOOT MasterBASIC file" -- and this

@@ -23268,9 +23268,17 @@ INSTALLER_2:
 ;;
 ;;     That means the ROM's system page is at &4000 while this runs, and the
 ;;     DOS is in the window, since DOS_MBCOPY_778B and DOS_FIND_ROM_CODE are
-;;     called at &BDAA and &BD79.  Where MasterBASIC itself is executing
-;;     from in that arrangement is not established -- it cannot be at &4000,
-;;     which is the whole point of the above.
+;;     called at &BDAA and &BD79.
+;;
+;;     WHERE THIS CODE ITSELF EXECUTES FROM was left open here, on the
+;;     grounds that it cannot be at &4000.  It is not executing in this page
+;;     at all.  &76DA is &F9 into INSTALLER, the 943 bytes at &75E1 that the
+;;     boot sector copies to &BC00 and runs there, so this routine runs at
+;;     &BCF9 -- in the window, in the DOS page, alongside the two routines
+;;     it calls at &BDAA and &BD79.  file/LiveDuringMRINIT.bin is that page
+;;     caught mid-boot and has the copy at &7C00-&7FAE, matching the stored
+;;     bytes over all 943.  See notes/mb-extmem.txt, which works the same
+;;     arithmetic out from the other end.
 ;;
 ;;     &589C at &7708 used to come out as this page's V589C for want of
 ;;     anything better.  It is a patch site: the forty bytes copied to
@@ -23498,7 +23506,9 @@ INSTALL_ROM_VECTORS_LOOP2:
                LD (&4212),SP                   ; 7792 ED 73 12 42  so &4212 here is that page's, not this half's
                                                ; the stack is being reset, so this path does not return
                LD SP,DOS_HEADER                ; 7796 31 00 80
-               CALL &7DFA                      ; 7799 CD FA 7D
+               CALL &7DFA                      ; 7799 CD FA 7D  SIZE_EXTERNAL_MEMORY, at the address it runs at rather
+                                               ; than where it is stored -- this is inside INSTALLER, which the boot
+                                               ; sector copies to &BC00
                LD HL,(&4212)                   ; 779C 2A 12 42
                LD BC,&5FFA                     ; 779F 01 FA 5F  &5F to LMPR: both ROMs on, the system page back in
                                                ; section B

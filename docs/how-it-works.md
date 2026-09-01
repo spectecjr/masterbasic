@@ -361,8 +361,12 @@ identified, so `LD (&45AF),A` reads as `LD (CHECK_WRITE_STATUS+1),A`.
 
 ## 7. What is not settled
 
-Every call target in both halves is named — 587 of them — and every byte
-is classified. What follows is what naming did not answer.
+Every byte is classified, and 557 of the 594 addresses a `CALL` names have
+a name. The 37 that stay numbers are deliberate and each says why on the
+line: an operand written at run time, where `&0000` is a placeholder; a
+block written for somewhere else, where the label shown would be the wrong
+page's; and calls through the window or into the ROM. What follows is what
+naming did not answer.
 
 - **The system page is now checked across all 16K**, so this is no longer
   open. Three dumps settle it — the page before any boot, after MasterDOS 2.3
