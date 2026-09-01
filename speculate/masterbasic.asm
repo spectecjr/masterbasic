@@ -23108,6 +23108,32 @@ MSG_EXTERNAL_MEMORY:
 ;;     it holds &7DFA -- the address the routine runs at.  Searching for
 ;;     &77DB was searching for something that was never going to be there.
 ;;     
+;;     file/LiveDuringMRINIT.bin DOES NOT CONTAIN THIS ROUTINE, and the name
+;;     is a trap worth defusing.  It is 16384 bytes of the ROM's system page
+;;     taken while the combined file was booting, in the hope of catching the
+;;     page the routine runs in.  It caught page 0 instead, and page 0 at a
+;;     moment when it had just been cleared:
+;;     
+;;     &5490  the UDG area          zero (after a boot: the cursor blocks)
+;;     &5A01  KURCHAR               zero (after a boot: 128, 129)
+;;     &55D8  PALTAB                zero (after a boot: the CLUT)
+;;     &484D  the second stub       zero
+;;     &4BA0  the DOS's 36 bytes    zero, though MasterDOS alone puts them there
+;;     &5896  the gap block         zero, same
+;;     
+;;     So it is earlier than every other dump here -- earlier even than
+;;     SYSPAGE_before_boot.bin, which has the ROM's variables initialised.
+;;     What it shows is MNINIT's clear of the page, which is the same thing
+;;     that fired when write breakpoints were tried on &7E6B and &7E8E.
+;;     
+;;     It is still evidence for one thing: nothing MasterBASIC or the DOS
+;;     installs into page 0 is there yet while MRINIT runs.  The external
+;;     memory is sized before any of the page-0 installation happens.
+;;     
+;;     Where the routine actually is, is MasterBASIC's own page at &7C00
+;;     upward -- see above.  A dump of that page, taken at the same
+;;     breakpoint, would show the copy; nothing else will.
+;;     
 ;;     WHICH PAGE THE COPY RUNS IN: MASTERBASIC'S OWN.  A transcription of
 ;;     the running code from &7DF0 settles it, and it settles the operands
 ;;     too.  The first ten bytes disassemble as LD H,C / LD L,H / JR NZ /
