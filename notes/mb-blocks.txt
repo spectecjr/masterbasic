@@ -1,0 +1,55 @@
+# BLOCKS 2, the alternate character set, and what happens to the cursor.
+
+MB &7DA9-&7DB8 data CURSOR_PATTERNS
+
+DOC CURSOR_PATTERNS
+    Sixteen bytes: the two cursor characters, lower case then upper case.
+
+        00 00 00 00 3C 3C 3C 00     a block on the lower half
+        00 3C 3C 3C 00 00 00 00     a block on the upper half
+
+    They are byte for byte the ROM's own CHR$ 128 and CHR$ 129, which is
+    what the cursor normally is.  A plain trace read them as code -- 3C is
+    INC A and 00 is NOP -- so they came out as four NOPs and a row of INC A
+    until this note marked the range.
+
+    Why a second copy exists is the whole BLOCKS 2 story.  The manual says,
+    under BLOCKS 2:
+
+        "to prevent the cursor changing when a new set of characters is
+         switched in by BLOCKS 2, the cursors are temporarily re-defined as
+         CHR$ 169 and 170, the patterns for which are stored separately"
+
+    Every part of that is now accounted for.
+
+    THE UDG AREA IS EXACTLY 328 BYTES.  CHR$ 128 begins at the system
+    page's &5490 and the area runs to &55D7, because &55D8 is PALTAB, the
+    sixteen CLUT entries.  41 characters, CHR$ 128-168, and no more.  That
+    is the same 328 that HK_SWAPCHARS exchanges and the same 328 the
+    alternate set occupies at MB &7E64.  Anything reading a dump should
+    beware &55D8 and &55E0: they look like glyphs and are palette entries.
+
+    SO THE CURSOR WOULD BE SWAPPED TOO.  CHR$ 128 and 129 are inside the
+    exchanged range, so BLOCKS 2 would replace the two cursor blocks with
+    whatever the alternate set has at those positions -- in the IBM set,
+    C-cedilla and u-umlaut.
+
+    THE WAY OUT IS HUDG, the ROM's pointer for characters 169 and above.
+    INSTALL_ROM_PATCHES ends by setting it:
+
+        7B67  21 52 4A   LD HL,&4A52
+        7B6A  22 7D 9C   LD (HUDG+&4000),HL
+
+    &4A52 is where these sixteen bytes land: they sit at &7DA9, which is
+    &205 into the second stub at &7BA4, and the stub is copied to &484D, so
+    &484D+&205 is &4A52.  The dumps agree -- HUDG reads &0000 before any
+    boot and with MasterDOS alone, and &4A52 after the combined file has
+    booted, with the two cursor blocks at &4A52 and &4A5A.
+
+    HK_SWAPCHARS then exchanges KURCHAR, SVAR 1 at &5A01, which the ROM's
+    list calls "CURSOR CHARACTERS - LOWER CASE/UPPER CASE".  It reads
+    128,129 in all three dumps.  Under BLOCKS 2 it becomes 169,170, which
+    render from &4A52 through HUDG -- outside the exchanged range, so the
+    cursor keeps its shape however the character set is swapped.
+
+MB &7B6A : HUDG, so CHR$ 169 and 170 render from CURSOR_PATTERNS at &4A52 -- see notes/mb-blocks.txt

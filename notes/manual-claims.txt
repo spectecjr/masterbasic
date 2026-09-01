@@ -66,33 +66,21 @@
 
 #     So autoMBM writes it into the file; nothing does it at boot.
 
-# CONFIRMED IN PART ---------------------------------------------------------
-
-# The cursor characters.  Under BLOCKS 2: "to prevent the cursor changing when
-# a new set of characters is switched in by BLOCKS 2, the cursors are
+# The cursor characters.  Under BLOCKS 2: "to prevent the cursor changing
+# when a new set of characters is switched in by BLOCKS 2, the cursors are
 # temporarily re-defined as CHR$ 169 and 170, the patterns for which are
 # stored separately."
-#     The mechanism is in HK_SWAPCHARS.  After exchanging the 328 bytes it
-#     exchanges KURCHAR as well:
-
-#         718A  CALL NRRDD / DEFW KURCHAR     read the cursor pair
-#         718F-7196                           swap it with BC
-#         7197  CALL NRWRD / DEFW KURCHAR     write it back
-
-#     KURCHAR is SVAR 1 at &5A01, which the ROM's list calls "CURSOR
-#     CHARACTERS - LOWER CASE/UPPER CASE".  It reads 128,129 in all three
-#     dumps, which are the ordinary cursors -- CHR$ 128 at &5490 is a low
-#     block and CHR$ 129 a high one, exactly what a cursor looks like.
-
-#     WHY THEY HAVE TO BE STORED SEPARATELY, which the manual does not spell
-#     out: the UDG area is CHR$ 128-168 at &5490-&55D7 and stops there,
-#     because &55D8 is PALTAB, the sixteen CLUT entries.  328 bytes is the
-#     whole of it.  So CHR$ 169 and 170 lie outside the UDG area altogether
-#     and there is nowhere in it for their patterns to live.
-#     Beware &55D8 and &55E0 when reading a dump: they look like glyphs and
-#     are palette entries.
-
-#     STILL OPEN: where MasterBASIC keeps the two cursor patterns, and what
-#     renders CHR$ 169 and 170 given they are above the UDG range.  Nothing
-#     in either half writes &55D8 upward, and the 328-byte buffer at MB &7E64
-#     covers 128-168 only.
+#     Confirmed end to end; notes/mb-blocks.txt has the working.  In short:
+#     the UDG area is exactly 328 bytes, &5490-&55D7, because &55D8 is
+#     PALTAB, so CHR$ 169 and 170 lie outside it.  MasterBASIC keeps the two
+#     cursor patterns at MB &7DA9, inside the second stub, so they land in
+#     the system page at &4A52; INSTALL_ROM_PATCHES points HUDG -- the ROM's
+#     pointer for characters 169 and above -- at &4A52 ; and HK_SWAPCHARS
+#     exchanges KURCHAR so the cursor uses 169 and 170.  The dumps agree:
+#     HUDG is &0000 before a boot and with MasterDOS alone, &4A52 after the
+#     combined file, and the glyphs there are the two cursor blocks.
+#
+# NOTHING LEFT UNCHECKED in the entries looked at so far.  Further claims
+# worth testing when there is reason to: the SAVE MODE compression ratios,
+# the LOCN search speeds (90K/s case-insensitive, 200K/s with ABS), and the
+# TICS divisor 5416.3 for the TIME + fast clock.

@@ -24280,7 +24280,7 @@ INSTALL_ROM_PATCHES_1:
                LD BC,&01BE                     ; 7B62 01 BE 01
                LDIR                            ; 7B65 ED B0
                LD HL,&4A52                     ; 7B67 21 52 4A
-               LD (HUDG+&4000),HL              ; 7B6A 22 7D 9C
+               LD (HUDG+&4000),HL              ; 7B6A 22 7D 9C  HUDG, so CHR$ 169 and 170 render from CURSOR_PATTERNS at &4A52 -- see notes/mb-blocks.txt
                LD HL,&4AAC                     ; 7B6D 21 AC 4A
                LD (RST28V+&4000),HL            ; 7B70 22 F0 9A
                OUT (HMPR),A                    ; 7B73 D3 FB
@@ -25162,7 +25162,7 @@ TBL_7D58_2:
                RET                             ; 7DA4 C9
 
 ;; --------------------------------------------------------------------
-;; TBL_7D58_3 -- &7DA5 to &7DA8
+;; TBL_7D58_3 -- &7DA5 to &7DC1
 ;;
 ;; Takes:     D
 ;; Leaves:    A
@@ -25177,23 +25177,59 @@ L7DA6:
                JP &0000                        ; 7DA6 C3 00 00  the operand is written here at run time, from &7613
 
 ;; --------------------------------------------------------------------
-;; L7DA9 -- &7DA9 to &7DC1
+;; Sixteen bytes: the two cursor characters, lower case then upper case.
 ;;
-;; Takes:     A, BC, DE, HL
-;; Leaves:    A, F, BC, DE, HL
-;; Ends:      JP
+;; 00 00 00 00 3C 3C 3C 00     a block on the lower half
+;; 00 3C 3C 3C 00 00 00 00     a block on the upper half
+;;
+;; They are byte for byte the ROM's own CHR$ 128 and CHR$ 129, which is
+;; what the cursor normally is.  A plain trace read them as code -- 3C is
+;; INC A and 00 is NOP -- so they came out as four NOPs and a row of INC A
+;; until this note marked the range.
+;;
+;; Why a second copy exists is the whole BLOCKS 2 story.  The manual says,
+;; under BLOCKS 2:
+;;
+;; "to prevent the cursor changing when a new set of characters is
+;; switched in by BLOCKS 2, the cursors are temporarily re-defined as
+;; CHR$ 169 and 170, the patterns for which are stored separately"
+;;
+;; Every part of that is now accounted for.
+;;
+;; THE UDG AREA IS EXACTLY 328 BYTES.  CHR$ 128 begins at the system
+;; page's &5490 and the area runs to &55D7, because &55D8 is PALTAB, the
+;; sixteen CLUT entries.  41 characters, CHR$ 128-168, and no more.  That
+;; is the same 328 that HK_SWAPCHARS exchanges and the same 328 the
+;; alternate set occupies at MB &7E64.  Anything reading a dump should
+;; beware &55D8 and &55E0: they look like glyphs and are palette entries.
+;;
+;; SO THE CURSOR WOULD BE SWAPPED TOO.  CHR$ 128 and 129 are inside the
+;; exchanged range, so BLOCKS 2 would replace the two cursor blocks with
+;; whatever the alternate set has at those positions -- in the IBM set,
+;; C-cedilla and u-umlaut.
+;;
+;; THE WAY OUT IS HUDG, the ROM's pointer for characters 169 and above.
+;; INSTALL_ROM_PATCHES ends by setting it:
+;;
+;; 7B67  21 52 4A   LD HL,&4A52
+;; 7B6A  22 7D 9C   LD (HUDG+&4000),HL
+;;
+;; &4A52 is where these sixteen bytes land: they sit at &7DA9, which is
+;; &205 into the second stub at &7BA4, and the stub is copied to &484D, so
+;; &484D+&205 is &4A52.  The dumps agree -- HUDG reads &0000 before any
+;; boot and with MasterDOS alone, and &4A52 after the combined file has
+;; booted, with the two cursor blocks at &4A52 and &4A5A.
+;;
+;; HK_SWAPCHARS then exchanges KURCHAR, SVAR 1 at &5A01, which the ROM's
+;; list calls "CURSOR CHARACTERS - LOWER CASE/UPPER CASE".  It reads
+;; 128,129 in all three dumps.  Under BLOCKS 2 it becomes 169,170, which
+;; render from &4A52 through HUDG -- outside the exchanged range, so the
+;; cursor keeps its shape however the character set is swapped.
 ;; --------------------------------------------------------------------
-               NOP                             ; 7DA9 00
-               DEFS 3                         ; 7DAA 3 NOPs
-               INC A                           ; 7DAD 3C
-               INC A                           ; 7DAE 3C
-               INC A                           ; 7DAF 3C
-               NOP                             ; 7DB0 00
-               NOP                             ; 7DB1 00
-               INC A                           ; 7DB2 3C
-               INC A                           ; 7DB3 3C
-               INC A                           ; 7DB4 3C
-               DEFS 4                         ; 7DB5 4 NOPs
+
+CURSOR_PATTERNS:
+               DEFB &00,&00,&00,&00,&3C,&3C,&3C,&00,&00,&3C,&3C,&3C,&00,&00,&00 ; 7DA9 ....<<<..<<<...
+               DEFB &00                                                         ; 7DB8 .
                AND A                           ; 7DB9 A7
                LD A,&37                        ; 7DBA 3E 37
                ; to the alternate register set and back again
