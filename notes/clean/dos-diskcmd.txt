@@ -1,0 +1,80 @@
+# Talking to the WD1772: issuing a command, and waiting for it.
+#
+# Prose for clean/ only.  The MasterDOS source's own commentary for this
+# region is a running argument with itself in capitals, and the carry
+# takes only the first line of each -- so "JR IF CURRENT TRK IN D IS AN"
+# loses the words "INNER TRACK" that finish it, four lines lose their
+# worked examples, and BUSY inherits a banner that is three routines'
+# comments run together.  What follows is the same knowledge, read and
+# written out.
+
+DOC PRECMP
+    Decide whether the controller should write this track with
+    precompensation, and leave the answer in bit 1 of C -- the command
+    byte being assembled for the WD1772.
+
+    Write precompensation shifts each bit slightly as it is written, to
+    cancel the way neighbouring flux transitions repel each other and
+    arrive early or late on playback.  It is wanted where the bits are
+    packed tightest.  A floppy turns at a constant speed, so a track
+    near the hub holds its bits in a shorter circumference than one near
+    the rim: the inner tracks, which are the high numbers, need
+    precompensation and the outer ones are better off without it.
+
+    So the routine asks which half of the disc the head is over.  TSTD
+    gives the track count, which RRA and the mask halve -- 40 for the
+    usual 80-track disc -- and the current track is subtracted from it.
+    A borrow puts the head in the outer half and the jump is taken,
+    leaving bit 1 of C as it was, which is how the WD1772 spells
+    "precompensation off".  No borrow puts it in the inner half, and
+    RES 1,C turns precompensation on.
+
+DOS &4549 : the disc's track count, from the directory
+DOS &454C : halve it -- one side's worth
+DOS &454D : and drop the double-sided flag the count carries in bit 7
+DOS &4550 : the current track
+DOS &4551 : whose bit 7 is the side, not part of the number
+DOS &4553 : which half of the disc is the head over?
+DOS &4554 : borrow: the outer half, where precompensation is unwanted
+DOS &4556 : the inner half, so switch it on
+
+DOC WAIT_DC_READY_BEFORE_CMD
+    Issue the command byte in C to the disk controller.
+
+    Two entry points and one path.  This one waits for the chip to go
+    idle first, and is what nearly everything calls;
+    WRITE_DRIVE_CMD_AND_DELAY skips the wait, for the one caller that
+    has just finished waiting on its own account.
+
+    The twenty-iteration delay on the way out is not padding.  The
+    WD1772 takes a few microseconds to raise BUSY after a command is
+    written to it, and every caller here reads the status register
+    next -- without the delay that read would still be showing the
+    previous command's result, and the drive would appear to have
+    finished before it had started.
+
+DOS &455F : long enough for the controller to raise BUSY
+
+DOC BUSY
+    Wait until the controller has finished whatever it was doing.
+
+    Bit 0 of the WD1772's status register is BUSY, and while it is set
+    the chip is mid-command and its other registers are not to be
+    touched -- a read-address command, for one, overwrites the sector
+    register on its way past.  Every command this half issues goes
+    through here first for that reason.
+
+    BRKTST is called each time round the loop, so a drive with no disc
+    in it, or a disc that never answers, can be escaped from with BREAK
+    instead of the power switch.
+
+DOS &4570 : bit 0 of the status register is BUSY
+DOS &4573 : let BREAK out of a drive that never answers
+
+DOS &454F : keep it -- 40, for the usual 80-track disc
+
+DOS &4568 : a read-address command, wanted only for its side effect
+DOS &456A : it does not return until the disc is actually turning
+
+DOS &455F value CMD_LATENCY_LOOPS
+EQU CMD_LATENCY_LOOPS : DJNZ iterations, enough for the WD1772 to raise BUSY

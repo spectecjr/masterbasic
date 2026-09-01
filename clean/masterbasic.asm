@@ -1527,6 +1527,50 @@ CHECK_PRINTER_READY_1:
                POP BC                          ; 4347 C1
                RET                             ; 4348 C9
 
+;; --------------------------------------------------------------------
+;; DRTAB, the table DIR prints a file's type from, indexed by the type
+;; itself rather than searched -- so there is one entry for every code
+;; from 0 to 21 and the table is exactly 22 words long.  Each word ends
+;; with bit 7 of its last character in the usual way.
+;;
+;; IT IS MASTERDOS'S OWN TABLE, all 88 bytes of it, byte for byte the
+;; DRTAB at &55A8 in ref/masterdos/res/MDOS23.bin.  MasterBASIC carries
+;; a verbatim copy, as it does with the DOS hook stubs at &7B80.
+;;
+;; THE BYTES BELOW 13 ARE COMPRESSION CODES, which is what makes most
+;; entries two or three bytes long.  They are equates in the listing
+;; now, defined just above DRTAB rather than left as numbers in it, and
+;; the table is written the way MasterDOS's own source writes it --
+;; DEFB ZXS,"D",ARRAY+&80 is his line for type 2.  The values are his:
+;;
+;; 8   WHAT      "WHAT?"
+;; 9   ARRAY     ".ARRAY"
+;; 10  ZXS       "ZX"
+;; 11  SCREENS   "SCREEN$"
+;;
+;; So the table reads:
+;;
+;; 0  " "                     erased
+;; 1  ZXS "BASIC"             ZX BASIC
+;; 2  ZXS "D" ARRAY           ZX numeric array
+;; 3  ZXS "$" ARRAY           ZX string array
+;; 4  ZXS                     ZX code -- the whole entry is one byte
+;; 5  ZXS "SNP 48K"           ZX 48K snapshot
+;; 6  "MD.FILE"               Microdrive
+;; 7  ZXS SCREENS             ZX SCREEN$ -- two bytes for eleven characters
+;; 8  "SPECIAL"
+;; 9  ZXS "SNP 128K"          ZX 128K snapshot
+;; 10  "OPENTYPE"
+;; 11  "N/A EXECUTE"
+;; 12  WHAT                    and 13, 14, 15 the same: unused codes
+;; 16  "BASIC"
+;; 17  "D" ARRAY               numeric array
+;; 18  "$" ARRAY               string array
+;; 19  "C"                     code
+;; 20  SCREENS                 SCREEN$
+;; 21  "    DIR"               directory
+;; --------------------------------------------------------------------
+
 WHAT:                           EQU  8         ; "WHAT?"
 ARRAY:                          EQU  9         ; ".ARRAY"
 ZXS:                            EQU  10        ; "ZX"
@@ -5927,6 +5971,17 @@ FILL_WITH_C:
                DJNZ FILL_WITH_C                ; 53A3 10 FC
                RET                             ; 53A5 C9
 
+;; --------------------------------------------------------------------
+;; Twelve zero bytes, three &F5, then the byte in A, leaving HL past
+;; them.  That is one MFM sync field and one address mark: the &F5s are
+;; not data but instructions to the controller, which writes each as an
+;; A1 with a missing clock bit and resets the CRC generator on the way
+;; past.
+;;
+;; Both callers are in BUILD_TRACK_IMAGE and differ only in A -- &FE for
+;; the sector's ID mark at &5360, &FB for its data mark at &5385.
+;; --------------------------------------------------------------------
+
 ; ---- WRITE_SYNC_AND_MARK ---- from &5360, &5385
 WRITE_SYNC_AND_MARK:
                LD BC,&0C00                     ; 53A6 01 00 0C
@@ -5936,6 +5991,12 @@ WRITE_SYNC_AND_MARK:
                LD (HL),A                       ; 53B2 77
                INC HL                          ; 53B3 23
                RET                             ; 53B4 C9
+
+;; --------------------------------------------------------------------
+;; Read port &FE seven times over with B held at &FF, OR the results
+;; together, and return bit 0 of that in carry.  Seven reads of an
+;; unchanging port is a settling loop rather than a scan.
+;; --------------------------------------------------------------------
 
 ; ---- READ_KEY_LINE ---- from &53DE
 READ_KEY_LINE:
@@ -5951,6 +6012,15 @@ READ_KEY_LINE_LOOP:
                JR NZ,READ_KEY_LINE_LOOP        ; 53BF 20 FA
                RRA                             ; 53C1 1F
                RET                             ; 53C2 C9
+
+;; --------------------------------------------------------------------
+;; Hook code 175.  Carry one bit of COMPFLG into DCT.
+;;
+;; Reads COMPFLG -- the ROM's "flag bits used by label/FN/PROC compiler" --
+;; keeps bit 0, ORs it into DCT, sets bit 2 as well, writes DCT back and
+;; clears COMPFLG.  Both are reached through NRRD and NRWR, so both are
+;; ROM system variables rather than anything of the extension's.
+;; --------------------------------------------------------------------
 
 HK_MERGECOMPFLG:
                CALL NRRD                       ; 53C3 CD 6A 45
@@ -7308,6 +7378,39 @@ SERCMD:
                OUT (C),L                       ; 5970 ED 69
                RET                             ; 5972 C9
 
+;; --------------------------------------------------------------------
+;; Replace one character with a string on its way to the printer.
+;;
+;; The Coupe uses 96 for the pound sign and 35 for hash, and printers
+;; generally do not: 96 is usually a single quote there, and whether 35
+;; prints as hash or pound depends on which international character set
+;; the printer is switched to.  The manual sets the problem out under
+;; LPRINT and says MasterBASIC solves it by sending sequences that
+;; switch character sets around the character itself.
+;;
+;; This is that.  A is the character about to be printed:
+;;
+;; LD DE,(MODCHAR1)     ; E = MODCHAR1, D = MODCHAR2
+;; LD HL,MODMSG1
+;; CP E : JR Z,send
+;; LD HL,MODMSG2
+;; CP D : JR Z,send
+;; CALL CMR : DEFW PRMAIN   ; anything else prints as itself
+;;
+;; The four XVARs it reads are set up for an Epson and can be changed by
+;; the user, which is why they are XVARs at all:
+;;
+;; MODCHAR1  &60  96, pound
+;; MODCHAR2  &23  35, hash
+;; MODMSG1   04 1B 52 03 23   length 4, then ESC "R" 3 "#"
+;; MODMSG2   04 1B 52 00 23   length 4, then ESC "R" 0 "#"
+;;
+;; ESC R n is the Epson command for the international character set, so
+;; a pound is printed by switching to set 3 and sending "#", and a hash
+;; by switching to set 0 and sending the same "#".  The switch is left
+;; in place; the next substitution puts it back.
+;; --------------------------------------------------------------------
+
 SUBSTITUTE_PRINTER_CHAR:
                LD DE,(MODCHAR1)                ; 5973 ED 5B 3C 40
                LD HL,MODMSG1                   ; 5977 21 3F 40
@@ -7396,6 +7499,26 @@ SEND_COUNTED_TO_CHANNEL_1:
                LD (HL),E                       ; 59E5 73
                INC HL                          ; 59E6 23
                LD (HL),D                       ; 59E7 72
+
+;; --------------------------------------------------------------------
+;; Count down towards blanking the screen, once per interrupt.
+;;
+;; SOFV is XVAR 2, described in the listing as the screen blanking delay
+;; -- "12 is about a minute, 0 the normal 22".  If it is zero this does
+;; nothing.  Otherwise SOFCOUNT is decremented, and when it reaches zero
+;; it is reloaded from SOFV and the ROM's own SOFFCT at &5AC4 -- which
+;; the ROM's variable table calls the counter for screen off -- is
+;; decremented in turn.
+;;
+;; The routine is worth reading for what it says about paging.  It reads
+;; SOFFCT at &5AC4 directly, with no window offset and no NRRD, which
+;; only works with the ROM's system page at &4000; and it reads its own
+;; SOFV as &8002, which only works with this half in the window.  Both
+;; at once, in four instructions.  So this code runs from the interrupt,
+;; where the system page is mapped low and MasterBASIC is reached
+;; through the window -- the opposite of the arrangement everywhere else
+;; in this half.
+;; --------------------------------------------------------------------
 
 ; ---- SCREEN_BLANK_TICK ---- from &59B1 when A <> &10, &59BD when A <> &06, &59C5 when A < C, &59C8 when A >= B, &59CD
 ; when A >= D
@@ -9550,6 +9673,16 @@ NEXT_SCREEN_BYTE_1:
 NEXT_SCREEN_BYTE_2:
                INC H                           ; 6287 24
 
+;; --------------------------------------------------------------------
+;; Read the nibble numbered HL from the window at &8000, without moving
+;; HL.  SCF then RR H and RR L halves HL and brings a 1 into bit 15, so
+;; a nibble index becomes a byte address in &8000-&FFFF and the odd bit
+;; falls into carry to say which half of the byte is wanted.  The high
+;; nibble is rotated down four places and masked; the low one is taken
+;; straight.  Both paths put HL back with ADD HL,HL, the odd one adding
+;; the INC L it lost.
+;; --------------------------------------------------------------------
+
 ; ---- READ_NIBBLE_AT_HL ---- from &61B2
 READ_NIBBLE_AT_HL:
                SCF                             ; 6288 37
@@ -9958,6 +10091,112 @@ WRITE_DOS_BYTE:
                DEFW NRWRITE                    ; 6401 0D 00
                RET                             ; 6403 C9
 
+;; --------------------------------------------------------------------
+;; SAVE BOOT, reached from CMD_SAVE when the next token is BOOT.
+;;
+;; EVNAM and EVFINS in the DOS page take the filename, &4D24 opens the
+;; file, and seven bytes from V647E are put at the DOS's &7CFF.  Then
+;; eight blocks are handed to the DOS's SVBLK -- "save a block to the
+;; open file" -- through the three routines below, which differ only in
+;; which page they put in the window first:
+;;
+;; from        page              length   goes to
+;; &7CF7       this half           &0100  DOS  &4000-&40FF
+;; &4100       the DOS page        &3C60  DOS  &4100-&7D5F
+;; &7DF0       this half           &01BE  DOS  &7D60-&7F1D
+;; &4C14       the system page     &00A2  DOS  &7F1E-&7FBF
+;; &4000       this half           &3B80  MB   &4000-&7B7F
+;; &4BA0       the system page     &0024  MB   &7B80-&7BA3
+;; &484D       the system page     &029F  MB   &7BA4-&7E42
+;; &5896       the system page     &017D  MB   &7E43-&7FBF
+;;
+;; &0100 + &3C60 + &01BE + &00A2 is &3FC0, and so is &3B80 + &0024 +
+;; &029F + &017D: two halves of 16320 bytes each, which is the file.
+;;
+;; THREE THINGS THIS SETTLES.
+;;
+;; The three system-page blocks are read back out of the system page,
+;; not kept here.  &4BA0, &484D and &5896 are exactly where
+;; INSTALL_ROM_PATCHES and INSTALL_SYSPAGE_CODE put the blocks from
+;; &7B80, &7BA4 and &7E43, and the lengths match to the byte for the
+;; first two.  So the file's copy of an installed block is whatever the
+;; system page held when SAVE BOOT ran, which is why a KEY assignment
+;; or a DUMP setting survives into the new file without anything having
+;; to copy it back here first.
+;;
+;; The two copies that go the wrong way at boot are for this.
+;; notes/mb-install.txt had to leave them as "the likeliest reading of
+;; two copies that go the wrong way": INSTALL_ROM_PATCHES saves INSTBUF
+;; into this page at &7DF0 and the DOS's boot sector at &7D00, and
+;; nothing was seen to read them back.  This reads them back.  &7CF7
+;; and &7DF0 are the first and third blocks in the list, and they are
+;; the DOS's &4000-&40FF and part of its tail -- the two pieces of the
+;; DOS that the machine no longer holds in the DOS page once it has
+;; booted.
+;;
+;; The last block is a saved copy, not a filler.  &3B80 + &0024 + &029F
+;; does leave exactly 381 bytes to make 16320, and &017D is 381 -- but
+;; the source is not incidental: what it covers is the DEF KEY gap, the
+;; keyboard table and the DUMP settings, which is exactly the state a
+;; user changes and would want kept.
+;;
+;; VERIFIED FROM THE OUTSIDE.  file/MBPOST.bin turns out to be the
+;; output of this very routine -- booted from the shipped image under
+;; SimCoupe and saved to a fresh disk -- so the whole layout above can
+;; be checked against something it produced.  Every block whose source
+;; is covered by the system page dumps matches byte for byte:
+;;
+;; block 4   DOS &7F1E, &00A2  vs syspage &4C14   162 of 162
+;; block 6   MB  &7B80, &0024  vs syspage &4BA0    36 of 36
+;; block 7   MB  &7BA4, &029F  vs syspage &484D   671 of 671
+;; block 8   MB  &7E43, &017D  vs syspage &5896   381 of 381
+;;
+;; The addresses, the lengths and the page each block comes from were
+;; all read out of the code before any such file was known to exist.  What
+;; it covers is the DEF KEY gap, the whole keyboard table and the DUMP
+;; settings up to &5A12 -- which is to say the KEY assignments and the
+;; printer settings a user has changed, which is exactly what SAVE BOOT
+;; is for.
+;;
+;; THE ALTERNATE CHARACTER SET RIDES IN THE THIRD BLOCK.
+;;
+;; The manual promises, under BLOCKS 2, that
+;;
+;; BLOCKS 2 / LOAD "newset" CODE UDG CHR$ 128 / BLOCKS 0
+;; SAVE BOOT "filename"
+;;
+;; "SAVEs MasterDOS with the new character set included within it".
+;; XVAR 87 ALTUDG is documented as the displacement of that set from
+;; XVAR 0, it reads &3E64 in the shipped image and in MBPOST, and
+;; HK_SWAPCHARS exchanges 328 bytes -- 41 characters, CHR$ 128-168,
+;; exactly the range the manual gives -- between the ROM's UDG area at
+;; the system page's &5490 and &7E64 in this half.  So the set lives at
+;; MB &7E64-&7FAB.
+;;
+;; That is inside the eighth block's destination, &7E43-&7FBF, which is
+;; filled from the system page's &5896 and therefore cannot be
+;; carrying it.  It is the THIRD block that saves the set: &7DF0 plus
+;; 446 bytes covers &7DF0-&7FAD, and MB &7E64 falls 116 bytes into it,
+;; at file offset 15828 -- an address that reads as DOS &7DD4.
+;;
+;; Checked, and it is not a near miss.  The 328 bytes there are byte
+;; for byte the system page's &4F74-&50BB, in the shipped image and in
+;; MBPOST alike, which is where a booted machine keeps the set that is
+;; not currently displayed.  The set that IS displayed sits at the
+;; system page's &5490 and differs from it in 247 of the 328 bytes:
+;; two different character sets, as they should be.  Reading &54A0 as
+;; a glyph gives 0C 10 1C 22 3E 20 1E 00, an acute accent over an e --
+;; CP437 position 130, "an IBM standard foreign character set" just as
+;; the manual says.
+;;
+;; So the file holds the set once, in the DOS half's tail, and the MB
+;; half's own copy of that memory is overwritten by the eighth block.
+;; Anything looking for a character set at the file's MB &7E64 finds
+;; the system page's &58B7 instead, which is zero, and this is what
+;; made XVAR 87 look like it pointed at nothing.  It points correctly;
+;; the file just does not store that memory where its address says.
+;; --------------------------------------------------------------------
+
 ; ---- SAVE_BOOT ---- from &63EB when A = &E9
 SAVE_BOOT:
                CALL CALL_NEXTCHAR                ; 6404 CD 61 44
@@ -10148,6 +10387,18 @@ WIDEN_CHAR_BITMAP_2:
                POP BC                          ; 64E5 C1
                RET                             ; 64E6 C9
 
+;; --------------------------------------------------------------------
+;; Return C unchanged unless DEVICE is 1, in which case anything from 5
+;; upwards comes back as 4.  DEVICE is the ROM's own variable at &5A73,
+;; read here with no window offset.
+;;
+;; Twelve bytes further on, &64F3 calls this routine as CALL &A4E7 --
+;; through the window, at an address that is this half's own &64E7.  A
+;; routine does not call its neighbour through a window while running
+;; beside it, so that code is meant to execute with MasterBASIC mapped
+;; at &8000.
+;; --------------------------------------------------------------------
+
 CLAMP_CHAR_HEIGHT:
                LD A,(DEVICE)                   ; 64E7 3A 73 5A
                DEC A                           ; 64EA 3D
@@ -10236,6 +10487,18 @@ PRINT_MAGNIFIED_CHAR_1:
                XOR A                           ; 652F AF
                LD (DHADJ),A                    ; 6530 32 82 5B
                RET                             ; 6533 C9
+
+;; --------------------------------------------------------------------
+;; Hook code 155.  Turn a pixel position into a character cell.
+;;
+;; Parses two values, keeps one in D and works on the other.  That one is
+;; range-checked to 6..176 and anything outside is abandoned, which is the
+;; usable height of the screen rather than its full 0..191.  Three RRCAs
+;; and AND &1F then divide it by eight and keep five bits -- the character
+;; row -- and a result below 3 is forced to 0.  The other coordinate is
+;; masked with AND 7 straight after, which is the pixel offset within a
+;; cell.
+;; --------------------------------------------------------------------
 
 HK_PIXELCELL:
                CALL SKIP_THEN_NUMBER           ; 6534 CD 82 44
@@ -13916,6 +14179,46 @@ BUILD_PROC_INDEX_1:
                LD (HL),&00                     ; 745D 36 00
                RET                             ; 745F C9
 
+;; --------------------------------------------------------------------
+;; 385 bytes assembled to run at &46CC, not here.  This is MasterBASIC's
+;; string move, and it is the clearest example in the image of how the
+;; extension and the ROM fit together.
+;;
+;; The installer copies it into the ROM's system page and points INSLV
+;; at it.  The ROM's variable table does not say what INSLV is, but its
+;; source does:
+;;
+;; STRMOV:    LD A,B : OR C : RET Z
+;; STRMOV1:   LD HL,(INSLV) : INC H : DEC H : JP NZ,HLJUMP
+;; LD H,B : LD L,C
+;; STRMOVL:   ...
+;;
+;; -- so setting INSLV makes every string move in the machine come here
+;; instead.  That is why this block has to live in the system page: it
+;; is called with MasterBASIC paged out.
+;;
+;; It begins by deciding whether it is worth the trouble:
+;;
+;; LD A,B : AND A : JR NZ,+     ; 256 or more, do it here
+;; LD A,C : CP &15 : JP C,&2A96 ; under 21 bytes, let the ROM do it
+;;
+;; and the address it hands back to is the neatest part.  &2A96 is
+;; LD H,B, the instruction immediately after the INSLV test -- so the
+;; ROM finishes the move with its own code and does not call the hook
+;; again.  Jumping to STRMOV1 would recurse for ever; jumping three
+;; bytes further does not.
+;;
+;; It finds that address by searching for it.  The signature at &79EB is
+;; C2 05 00, which is the JP NZ,HLJUMP of the vector check itself, with
+;; a step of +3 to clear it.  MasterBASIC locates the ROM by the shape
+;; of the very instruction it has taken over.
+;;
+;; So one routine uses all of it: a ROM vector to get control, an
+;; install into the system page so the ROM can reach it, a signature
+;; search to find its way back, and a size test to decide when taking
+;; over is worth it at all.
+;; --------------------------------------------------------------------
+
 ; ---- RELOCATED_TO_46CC ---- from &7B31
 RELOCATED_TO_46CC:
                LD A,B                          ; 7460 78  from here to &75E0 this code is written for &46CC: subtract
@@ -14309,6 +14612,83 @@ INSTALLER_2:
                LD D,B                          ; 76D8 50
                LD E,C                          ; 76D9 59
 
+;; --------------------------------------------------------------------
+;; Run after the stubs have been copied into the ROM's system page, this
+;; is what makes them reachable: it writes their addresses into the ROM's
+;; own vector variables, so the ROM calls MasterBASIC without knowing it.
+;;
+;; PRTOKV  &4BB0     EDITV   &4866     BSTKEND &45A1
+;; MTOKV   &58B4     FRAMIV  &4986     BASSTK  &45A1
+;; EVALUV  &4BBA     PATOUT  &49A9     INSLV   &46CC
+;; CMDV    &488E     RST8V   &4AB8
+;;
+;; Read those against the system page, not this one.  &46CC is where the
+;; first stub was copied, &4866, &4986, &49A9 and &4AB8 all fall inside
+;; the second at &484D-&4AEB, and &4BB0 and &4BBA inside the 36 bytes put
+;; at &4BA0.  The listing labels them with whatever this half has at
+;; those addresses, because they are in range for it too, and there is no
+;; way for it to know better -- they are plain LD HL,nn immediates.  They
+;; are not this page's routines.
+;;
+;; Which page it writes into is settled by the dumps, not by reading.
+;; All five of MTOKV, EVALUV, FRAMIV, BSTKEND and INSLV hold exactly the
+;; values this routine writes -- &58B4, &4BBA, &4986, &45A1, &46CC -- in
+;; the system page afterwards, and this half's own bytes at those five
+;; addresses are unchanged from the file.  So &5AFA and its neighbours
+;; here are the ROM's variables, not this page's code, and the listing
+;; used to name them after whatever this half happens to hold there.
+;;
+;; That means the ROM's system page is at &4000 while this runs, and the
+;; DOS is in the window, since DOS_MBCOPY_778B and DOS_FIND_ROM_CODE are
+;; called at &BDAA and &BD79.
+;;
+;; WHERE THIS CODE ITSELF EXECUTES FROM was left open here, on the
+;; grounds that it cannot be at &4000.  It is not executing in this page
+;; at all.  &76DA is &F9 into INSTALLER, the 943 bytes at &75E1 that the
+;; boot sector copies to &BC00 and runs there, so this routine runs at
+;; &BCF9 -- in the window, in the DOS page, alongside the two routines
+;; it calls at &BDAA and &BD79.  file/LiveDuringMRINIT.bin is that page
+;; caught mid-boot and has the copy at &7C00-&7FAE, matching the stored
+;; bytes over all 943.  See notes/mb-extmem.txt, which works the same
+;; arithmetic out from the other end.
+;;
+;; INSLV is worth naming properly.  The ROM's variable table gives it no
+;; comment, but STRMOV1 in the ROM does
+;;
+;; LD HL,(INSLV) : INC H : DEC H : JP NZ,HLJUMP
+;;
+;; so it is the hook on the ROM's string move: set it and the ROM jumps
+;; there instead.  &46CC, the first installed stub, is MasterBASIC's
+;; replacement for moving strings about.
+;;
+;; MTOKV's job is now known rather than guessed.  The Technical
+;; Manual: "Called if a potential spelled-out keyword is not recognised
+;; by the ROM.  On entry, DE points to the potential keyword.  On exit,
+;; conditions should match those of jump table entry JGTTOK."  So
+;; pointing it at a stub is how MasterBASIC's own keywords get
+;; recognised at all.
+;;
+;; MTOKV looks like an exception and is not.  &58B4 is well past &4BC3,
+;; where the installed region ends, so it was read as an address in
+;; this half to be reached with MasterBASIC paged in.  But the forty
+;; bytes at &5896 reach to &58BD, and &58B4 is the second stub in them:
+;; RST ERR_HOOK, hook code &AB, then EXX : PUSH BC : POP AF to bring
+;; the returned flags back.  So MTOKV points into the system page like
+;; all the others -- into the gap between the DEF KEY buffer and the
+;; keyboard table, which is the one place MasterBASIC installs code
+;; outside &45A2-&4BC3.
+;;
+;; BSTKEND and BASSTK are both set to &45A1 and &FF is written there, so
+;; MasterBASIC moves BASIC's stack down to just below its own installed
+;; code -- the ROM's table puts BSTACK at &4AFF, which is inside the
+;; second stub.  It had to move.
+;;
+;; &5C59 is set to &7FE6, the same value the stub at &7BE5 writes.
+;; It was written here as PAGE_IN_ROM1, which is this half's own
+;; routine at &5C59 and nothing to do with it: the ROM's variable
+;; list marks &5C59-&5C60 "8 SPARE", and MasterBASIC uses them.
+;; --------------------------------------------------------------------
+
 ; ---- INSTALL_ROM_VECTORS ---- from &76D5 when bit 7 of H clear
 INSTALL_ROM_VECTORS:
                LD (DOS_NEXTST),HL              ; 76DA 22 1E 82
@@ -14484,6 +14864,159 @@ INSTALL_ROM_VECTORS_LOOP2:
 MSG_EXTERNAL_MEMORY:
                DEFM "K External Memory"        ; 77C9 4B 20 45 78 74 65 72 6E
                DEFB &0D                        ; 77DA
+
+;; --------------------------------------------------------------------
+;; Walk the external memory pages, find which of them are there, and
+;; clear the ones that are.
+;;
+;; HMPR gets bit 7 set so that the window at &8000 shows external
+;; memory rather than an ordinary page, and then C counts from 0 right
+;; round to 0 again, each value written to XMPRL to bring that page
+;; into the window.  The test is the obvious one done properly: write
+;; zero to the first byte and read it back, then write one and read it
+;; back.  A page that fails either branches to &7817, and one that
+;; passes goes through the fill instead; both then come back to &781B
+;; to try the next page.
+;;
+;; Where the count ends up is not shown here -- neither path visibly
+;; increments anything -- but this is the routine the message above
+;; belongs to, and it is the only thing in either half that walks XMPRL.
+;;
+;; Two things about it do not close, and are worth writing down rather
+;; than smoothing over.
+;;
+;; Nothing calls it.  &77DB has no reference anywhere in either half,
+;; it is not among the four addresses the DOS calls in the copied
+;; block, and neither &77DB nor &B7DB nor the copy's &7DFA appears as a
+;; word in either page, so it is not reached through a table either.
+;; The trace only found it by running on out of the message above.  It
+;; is not installed anywhere else: a dump of a booted machine has this
+;; code at &77DB and nowhere else, and the system page has neither the
+;; code nor the message.
+;;
+;; Nor does any other DOS call it.  dsks/MasterBasic1.7.dsk carries two
+;; more of them -- samdos2, which is SAMDOS 2, and MBMC, a third
+;; bootable image that is neither -- and the same MasterBASIC runs with
+;; them: MBASC on that disk is this half byte for byte, all 16320 of
+;; them, so there is no variant of this code in which the routine might
+;; be reached.  Searching all five binaries and all three dumps for
+;; &77DB, &F7DB and &B7DB as a stored word finds nothing at all.
+;;
+;; IT IS NOT DEAD CODE, and a machine with external memory fitted
+;; overturned the reading above.  All the dumps in file/ were taken
+;; under SimCoupe with one 1MB external module enabled, and MBPOST.bin
+;; -- a SAVE BOOT of a machine booted from the combined file -- carries
+;; the DOS page, so MRTAB can be read out of it.  MRTAB is the bitmap
+;; of MegaRAM pages in use, DVARs 118-149 at the DOS's &4296, and a set
+;; bit means unavailable:
+;;
+;; shipped image, never booted   32 bytes of &00
+;; MBPOST, booted with 1MB       8 of &00, then 24 of &FF
+;;
+;; Sixty-four pages free and 192 not, and 64 pages of 16K is exactly
+;; the 1MB fitted.  The image ships with the table clear, so the &FFs
+;; were written during the boot, and to know where to stop something
+;; had to walk the pages and find where they ran out.
+;;
+;; Only this routine can have done it.  Searching every binary and
+;; every dump for OUT (&80),A -- the write that selects an external
+;; page -- finds exactly two in the running system: the DOS's &75B2,
+;; which is a single select in the middle of ordinary MegaRAM access,
+;; and &77E5, which is this walk.  Neither the DOS page nor the system
+;; page holds a copy: the seven bytes DB FB F5 F6 80 D3 FB that open
+;; the routine appear at MB &77DB and nowhere else, in the image, in
+;; MBPOST's two pages, and in all three dumps of page 0.
+;;
+;; WHAT IT IS.  MasterDOS 2.3's own MRINIT, relocated.  Comparing MB
+;; &7780-&782F against MDOS23.bin gives 153 of 176 bytes identical, and
+;; every difference is a two-byte address operand.  The DOS's version
+;; is called at boot -- its source heads it "MEGA RAM INIT - USED AT
+;; BOOT TIME WHEN DOS AT 8000H" and calls it as MRINIT+FS -- and prints
+;; the "nnnK External Memory" line.  autoMBM moved it: the message
+;; appears exactly once in the whole 32640-byte image, in this half,
+;; and MDOS23's MRINIT code is not in the DOS half at any offset.
+;;
+;; HOW IT IS ENTERED: IT IS PART OF THE INSTALLER, AND RUNS ELSEWHERE.
+;; A breakpoint on a real machine settled it, and the answer is that
+;; &77DB is never executed at &77DB.
+;;
+;; The boot sector copies 943 bytes from &75E1 to &BC00 and runs them
+;; there -- INSTALLER, which this listing has named all along.  &77DB
+;; is inside that block, &1FA bytes in, so the code runs at &7C00+&1FA:
+;;
+;; stored MB &77CB  MSG_EXTERNAL_MEMORY  ->  &7DEA   (&77C9 -> &BDE8)
+;; stored MB &77DB  SIZE_EXTERNAL_MEMORY ->  &7DFA
+;; stored MB &77E5  the OUT (XMPRL),A    ->  &7E04
+;; stored MB &7800  FILL_PAGE_WITH_ZERO  ->  &7E1F
+;;
+;; Three things land exactly.  A breakpoint on writes to port &80 fired
+;; at &7E04, which is where the OUT goes.  A breakpoint on &77DB never
+;; fired, which is what a routine that runs from a copy does.  And the
+;; LD DE at &77C0 addresses the message as &BDE8, which is &77C9 moved
+;; by the same amount -- the operand was written for the copy, not for
+;; where it is stored.
+;;
+;; So "nothing calls &77DB" was true and thoroughly misleading.  The
+;; caller is at MB &779A, which is itself &1B9 into the installer, and
+;; it holds &7DFA -- the address the routine runs at.  Searching for
+;; &77DB was searching for something that was never going to be there.
+;;
+;; file/LiveDuringMRINIT.bin IS SIXTEEN KILOBYTES OF ZERO.  Every one
+;; of its 16384 bytes is &00.  It was taken to catch the page this
+;; routine runs in and caught page &10, which is empty; the intended
+;; page was &1D.  It is evidence of nothing and should not be used.
+;;
+;; It is worth recording how it briefly looked like evidence, because
+;; the mistake is an easy one.  Compared against the dumps of page 0 it
+;; agreed in 89.8% of bytes, which reads like a strong match and is not
+;; one: every single agreeing byte was zero in both.  The non-zero
+;; agreement was nought bytes.  A percentage match between two sparse
+;; buffers says only that both are mostly empty.  Check what the
+;; agreement is made of before believing it.
+;;
+;; WHICH PAGE THE COPY RUNS IN: THE DOS'S.  file/LiveDuringMRINIT.bin
+;; is that page, dumped while the routine was running, and it settles
+;; both the page and the operands.  It agrees with the image's DOS half
+;; in 90.3% of bytes counting only the ones that are not zero, and it
+;; holds, exactly where the arithmetic said:
+;;
+;; &7DE8   "K External Memory"          the message
+;; &7DFA   DB FB F5 F6 80 D3 FB         SIZE_EXTERNAL_MEMORY
+;; &7E04   D3 80                        the OUT the breakpoint caught
+;;
+;; The copy is 943 bytes at &7C00-&7FAE and matches the stored MB &75E1
+;; onward byte for byte over the whole of it.  Nothing is patched as it
+;; is copied; the relative jumps relocate themselves and the absolute
+;; ones were written for where it lands.
+;;
+;; AND THE TWO OPERANDS THAT LOOKED WRONG ARE CALLS INTO THE DOS.  The
+;; listing resolved &7806 and &77FE against MasterBASIC's own half,
+;; where they happen to be STACK_FILL_LOOP and CLEAR_WINDOW_IF_Z, and
+;; that is an accident of two pages having code at the same offsets.
+;; Read in the DOS page, which is where this code runs, they are the
+;; DOS's own and the DOS listing already names them:
+;;
+;; &7806   RMRBIT      reset a MegaRAM bit
+;; &77FE   SMRBIT      set a MegaRAM bit
+;; &7811   MRADDR      the byte and bit in MRTAB for the page in A
+;;
+;; THE OPERANDS THAT LOOK WRONG, for the record.  &77F5 calls &7806
+;; and &7819 jumps to &77FE, both of which are stored addresses rather
+;; than relocated ones, so within the running copy they point outside
+;; it.  Either those two are reached with MasterBASIC's own page at
+;; &4000 -- the installer runs from the window at &BC00, which leaves
+;; section B free, and that is the SYSPAGE_IN_B arrangement used
+;; everywhere else -- or the block is entered more than one way.  A
+;; disassembly of the running copy answered it: MasterBASIC's page is at
+;; &4000, so both are its own stored addresses.  Nothing is outstanding.
+;;
+;; And the flow through the fill does not join up.  CALL &7806 at &77F5
+;; cannot return -- STACK_FILL_LOOP ends by putting SP back and jumping
+;; to &781B -- so &77F8-&77FD is not reached that way.  Yet &7814 takes
+;; the restored SP out of the alternate HL, and &77F8-&77FC is the only
+;; place that puts it there.  Either the caller sets it up, or one of
+;; the two entries is reached some way this listing does not show.
+;; --------------------------------------------------------------------
 
 SIZE_EXTERNAL_MEMORY:
                IN A,(HMPR)                     ; 77DB DB FB
@@ -15406,6 +15939,111 @@ EVALUV_STUB_1:
                RST ERR_HOOK                    ; 7BA2 CF
                DEFB HK_HKLEN                   ; 7BA3 AC hook code
 
+;; --------------------------------------------------------------------
+;; 671 bytes assembled to run at &484D, in the same way.
+;;
+;; Subtract &3357 to get the running address.  This one took longer to
+;; settle than its neighbour, because three absolute targets fall inside
+;; &484D to &4AEB as they should while several others point elsewhere in
+;; &4000-&7FFF, and that looked like a block only partly relocated.  It
+;; is not.  Every one of those others is explained once you know which
+;; page is at &4000 while the block runs.
+;;
+;; It is the ROM's system page.  The block is not moved within this half
+;; at all: the installer sets HMPR to zero and copies to &884D, and an
+;; &8xxx with HMPR zero is the system page's own &4xxx.  So this code
+;; ends up alongside the ROM's variables, in the space between HPEND at
+;; &4000 and BASIC's stack at &4AFF, and it runs there with the system
+;; page mapped at &4000 -- which is precisely when MasterBASIC is *not*
+;; paged in.  That is the point of it.  The installer patches CHANS,
+;; HUDG and RST28V to point in here, so the ROM can reach these routines
+;; at times when the extension itself is not in memory, and two
+;; instructions in the block are patched with MasterBASIC's own page
+;; number so they can page it back in when they need it.
+;;
+;; Read against the system page, the stray targets are ordinary:
+;;
+;; &5BE0   PAGER -- but not the ROM's.  The table reserves
+;; fourteen bytes there "for paging S.R." and
+;; INSTALL_SYSPAGE_CODE fills them with MasterBASIC's own,
+;; copied from &7AF2.  The two calls here are calls into
+;; this half's code, sitting in the ROM's variable area.
+;; &4D11   CDBUFF+&11, the ROM's code buffer -- "for e.g. MULTI-LDI,
+;; max len &181".  The code called there is built at run
+;; time by the routine at &735D, which LDIRs 66 bytes from
+;; ROM &0000 and 219 bytes from &7385 into it and then
+;; patches two of them.
+;; &5A9F   PROGP and &5AA0 PROG, read and written directly rather
+;; than through NRRD, because with the system page at &4000
+;; they are simply there.  &7350 confirms the pair: the same
+;; two addresses appear as DEFW PROG and DEFW PROGP inline
+;; parameters elsewhere in this half.
+;;
+;; Two independent checks agree.  &5A9F is not even an instruction
+;; boundary in this page, so reading it as a variable only makes sense
+;; in the system page; and of the three "correct" targets, two are not
+;; instruction boundaries here either -- &49EE falls inside the CALL at
+;; &49ED and &4A18 inside the RES 6,D at &4A17 -- while the third,
+;; &4A84, lands on an LD A,B that nothing else jumps to.
+;;
+;; The JP &0000 and CALL &0000 operands scattered through the block are
+;; accounted for.  RESOLVE_ROM_ENTRIES writes ROM addresses it found by
+;; signature into &7DFB and &7E01 among others, which are those very
+;; operand bytes, and it does so before the installer copies the block
+;; out.  The zeros in the listing are what was assembled; the block is
+;; complete by the time it runs.
+;;
+;; A third check settles the relocation itself: no label anywhere in
+;; &7BA4-&7E42 is referenced from outside that range.  Every one is
+;; reached only from within the block.  Nothing calls into it where it
+;; sits, so it never runs in place, and the copy is the only version
+;; that executes.  The helper block at &7B80 just above it is the
+;; opposite -- called from &5561, &5739, &691C and &6A76 -- which is how
+;; a block meant to run where it sits looks.
+;;
+;; Two more system variables read directly here confirm the mapping a
+;; fourth time: DCT at &5BB6 and FLAGS at &5C3B, both at their ROM
+;; addresses with no window offset.  DCT is the ROM's disc error
+;; counter, and this code treats it as a bit field -- BIT 1,L and
+;; AND &05 -- so it is being borrowed as flags while no transfer is in
+;; progress.
+;;
+;; One reference is still unexplained.  &7C57 does JP Z,&45A2 out of the
+;; dispatcher at &7C51, which switches on H against &94, &98, &A8, &A9,
+;; &AA, &AC, &AE, &B0, &B3, &C2, &C9, &CD, &D1, &E1 and &FF, with
+;; anything below &94 returning at once.  The low run matches command
+;; tokens -- &94 SAVE, &98 OPEN, &B3 CLEAR -- but the high run is past
+;; the token range and past the hook codes, so what H holds is not
+;; settled; a captured return address, whose high byte says which
+;; caller, would fit the spread better than a token does.
+;;
+;; &45A2 is settled, by a dump of a running machine.  file/SYSPAGE_after_MBMD_boot.bin
+;; holds &4000-&4BFF of the ROM's system page after boot, and at &45A2
+;; it has ten bytes that are MasterBASIC's own &7986:
+;;
+;; POP HL : RST NEXT_CHAR : SUB &AB : LD (&4AF0),A : JR NZ,+1
+;; : RST NEXT_CHAR
+;;
+;; So the jump goes to a real routine that turns a token into a function
+;; index -- and the dispatcher reaches it when H is &AC, which is &AB+1,
+;; index one.  H is a token after all.
+;;
+;; The same dump settles the relocation itself, which no amount of
+;; reading could.  The two blocks are at &46CC and &484D, and they match
+;; the file to within 6 bytes of 385 and 20 of 671; the 36 bytes at
+;; &4BA0 match exactly.  Every one of the differences is a boot-time
+;; patch that can be named: ROM addresses RESOLVE_ROM_ENTRIES found by
+;; signature -- &2A96 at &46D4, &389E at &47EB and &4802, ENDOUTP at
+;; &49F5, PRMAIN at &49FE, CCRESTOP at &4A50 -- and three single bytes
+;; of &1C, MasterBASIC's page number, two of them landing exactly on
+;; L7CF5+1 and L7D46+1, which are the operands the installer patches.
+;;
+;; What copies those ten bytes to &45A2 is INSTALL_EXTENDED_PUT, which
+;; assembles &45A2-&46CB out of five runs; these are the first of them,
+;; copied at &7842.  That is why the correspondence with &7986 runs for
+;; ten bytes and stops: the next run is taken from somewhere else.
+;; --------------------------------------------------------------------
+
 ; ---- RELOCATED_TO_484D ---- from &7B51
 RELOCATED_TO_484D:
                LD HL,(&5A67)                   ; 7BA4 2A 67 5A  from here to &7E42 this code is written for &484D:
@@ -15817,6 +16455,52 @@ TBL_7D58_3:
 
 L7DA6:
                JP &0000                        ; 7DA6 C3 00 00  the operand is written here at run time, from &7613
+
+;; --------------------------------------------------------------------
+;; Sixteen bytes: the two cursor characters, lower case then upper case.
+;;
+;; 00 00 00 00 3C 3C 3C 00     a block on the lower half
+;; 00 3C 3C 3C 00 00 00 00     a block on the upper half
+;;
+;; Why a second copy exists is the whole BLOCKS 2 story.  The manual says,
+;; under BLOCKS 2:
+;;
+;; "to prevent the cursor changing when a new set of characters is
+;; switched in by BLOCKS 2, the cursors are temporarily re-defined as
+;; CHR$ 169 and 170, the patterns for which are stored separately"
+;;
+;; Every part of that is now accounted for.
+;;
+;; THE UDG AREA IS EXACTLY 328 BYTES.  CHR$ 128 begins at the system
+;; page's &5490 and the area runs to &55D7, because &55D8 is PALTAB, the
+;; sixteen CLUT entries.  41 characters, CHR$ 128-168, and no more.  That
+;; is the same 328 that HK_SWAPCHARS exchanges and the same 328 the
+;; alternate set occupies at MB &7E64.  Anything reading a dump should
+;; beware &55D8 and &55E0: they look like glyphs and are palette entries.
+;;
+;; SO THE CURSOR WOULD BE SWAPPED TOO.  CHR$ 128 and 129 are inside the
+;; exchanged range, so BLOCKS 2 would replace the two cursor blocks with
+;; whatever the alternate set has at those positions -- in the IBM set,
+;; C-cedilla and u-umlaut.
+;;
+;; THE WAY OUT IS HUDG, the ROM's pointer for characters 169 and above.
+;; INSTALL_ROM_PATCHES ends by setting it:
+;;
+;; 7B67  21 52 4A   LD HL,&4A52
+;; 7B6A  22 7D 9C   LD (HUDG+&4000),HL
+;;
+;; &4A52 is where these sixteen bytes land: they sit at &7DA9, which is
+;; &205 into the second stub at &7BA4, and the stub is copied to &484D, so
+;; &484D+&205 is &4A52.  The dumps agree -- HUDG reads &0000 before any
+;; boot and with MasterDOS alone, and &4A52 after the combined file has
+;; booted, with the two cursor blocks at &4A52 and &4A5A.
+;;
+;; HK_SWAPCHARS then exchanges KURCHAR, SVAR 1 at &5A01, which the ROM's
+;; list calls "CURSOR CHARACTERS - LOWER CASE/UPPER CASE".  It reads
+;; 128,129 in all three dumps.  Under BLOCKS 2 it becomes 169,170, which
+;; render from &4A52 through HUDG -- outside the exchanged range, so the
+;; cursor keeps its shape however the character set is swapped.
+;; --------------------------------------------------------------------
 
 CURSOR_PATTERNS:
                DEFB &00,&00,&00,&00,&3C,&3C,&3C,&00,&00,&3C,&3C,&3C,&00,&00,&00 ; 7DA9 ....<<<..<<<...

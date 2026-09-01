@@ -56,9 +56,14 @@ WORKING = re.compile(
     r'|\bnot established here\b'
     r'|\bstill not found\b'
     r'|\bhad had to leave\b'
-    r'|\bthe doubt recorded here\b'
-    r'|\bwhat was here before\b',
+    r'|\bthe doubt recorded here\b',
     re.I)
+
+#  Not a paragraph so much as a line drawn under one.  notes/ records the
+#  header a DOC displaced, so that the working copy can see what changed;
+#  everything from that line to the end of the banner is the old text,
+#  however it reads, so the whole tail of it goes.
+SUPERSEDED = re.compile(r'what was here before', re.I)
 
 BAR = ';; ' + '-' * 68
 
@@ -83,12 +88,13 @@ def paragraphs(banner):
     """Split the ;; lines into paragraphs, dropping the rules."""
     out, cur = [], []
     for line in banner:
-        if not line.strip('; -'):
-            continue                          # a rule, or a blank
-        if line.strip() == ';;':
+        stripped = line.strip()
+        if stripped == ';;':                  # the break between two
             if cur:
                 out.append(cur)
             cur = []
+        elif not stripped.strip('; -'):
+            continue                          # a rule, or a blank
         else:
             cur.append(line)
     if cur:
@@ -105,10 +111,15 @@ def strip_working(text):
     """
     banner, tail = split_banner(text)
     paras = paragraphs(banner)
+    total = len(paras)
+    for i, para in enumerate(paras):
+        if SUPERSEDED.search(NL.join(para)):
+            paras = paras[:i]              # and everything under the line
+            break
     kept = [para for para in paras if not WORKING.search(NL.join(para))]
-    if len(kept) == len(paras):
+    if len(kept) == total:
         return text, 0
-    gone = len(paras) - len(kept)
+    gone = total - len(kept)
     if not kept:
         return (NL.join(tail).strip(NL) or None) if tail else None, gone
     out = [BAR]

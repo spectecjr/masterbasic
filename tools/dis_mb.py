@@ -2210,8 +2210,6 @@ def write_clean(dos, mb):
     undone at the end rather than left in place.
     """
     saved = [(dict(d.headers), dict(d.comments), d.title) for d in (dos, mb)]
-    print('clean/: %d working paragraphs taken out'
-          % clean.clean_pages((dos, mb)))
     nn, nc, nm, problems = notes.apply((dos, mb), ROOT, annotate.banner,
                                        folder=os.path.join('notes', 'clean'))
     if nn or nc or nm:
@@ -2219,6 +2217,11 @@ def write_clean(dos, mb):
               'notes/clean' % (nn, nc, nm))
     for problem in problems:
         print('notes/clean: ' + problem)
+    # After notes/clean and not before: replacing a header records the one
+    # it displaced, so that the working copy can see what changed, and
+    # that record is itself a working note.
+    print('clean/: %d working paragraphs taken out'
+          % clean.clean_pages((dos, mb)))
 
     out = os.path.join(ROOT, 'clean')
     os.makedirs(out, exist_ok=True)

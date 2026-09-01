@@ -225,6 +225,7 @@ ERR_HOOK:                   EQU  &08           ; report an error, or call a DOS 
 
 ; Numbers named in notes/, each for one instruction where
 ; the same value means something else elsewhere.
+CMD_LATENCY_LOOPS:          EQU  &14           ; DJNZ iterations, enough for the WD1772 to raise BUSY
 DISKCTL_0_BASE:             EQU  &E0
 DISKCTL_1_BASE:             EQU  &F0
 DISKCTL_DATA_OFS:           EQU  &03
@@ -1158,6 +1159,14 @@ TIMDT:
 V428E:
                DEFB &00                        ; 428E .
 
+;; --------------------------------------------------------------------
+;; Logical to physical drive number mappings.
+;;
+;; For example, these could be used to allow you to copy a disk
+;; to a RAM drive, and then remap, so that you can pretend the RAM drive
+;; is a physical one for code that expects to run from a specific drive number.
+;; --------------------------------------------------------------------
+
 DRPT:
                DEFB &01,&02,&03,&04,&05,&06,&07 ; 428F .......  (7) 111-117
 
@@ -1696,6 +1705,11 @@ SAMHK:
                DEFW MB_HK_VARSPACE+NOT_IN_THIS_PAGE             ; 4516 code 184
                DEFW MB_HK_SETUPREGS+NOT_IN_THIS_PAGE            ; 4518 code 185
 
+;; --------------------------------------------------------------------
+;; Gets the disk port IO base, incorporating the disk controller
+;; selection and disk head (side) selection bit.
+;; --------------------------------------------------------------------
+
 ; ---- GET_DISK_PORT_BASE ---- from &4521, &4527, &452F, &55AE
 GET_DISK_PORT_BASE:
                PUSH AF                         ; 451A F5
@@ -1768,20 +1782,54 @@ ADJUST_PAGE_DE:
 PRECMX:
                LD C,WRITE_SECTOR_CMD           ; 4547 0E A2
 
+;; --------------------------------------------------------------------
+;; Decide whether the controller should write this track with
+;; precompensation, and leave the answer in bit 1 of C -- the command
+;; byte being assembled for the WD1772.
+;;
+;; Write precompensation shifts each bit slightly as it is written, to
+;; cancel the way neighbouring flux transitions repel each other and
+;; arrive early or late on playback.  It is wanted where the bits are
+;; packed tightest.  A floppy turns at a constant speed, so a track
+;; near the hub holds its bits in a shorter circumference than one near
+;; the rim: the inner tracks, which are the high numbers, need
+;; precompensation and the outer ones are better off without it.
+;;
+;; So the routine asks which half of the disc the head is over.  TSTD
+;; gives the track count, which RRA and the mask halve -- 40 for the
+;; usual 80-track disc -- and the current track is subtracted from it.
+;; A borrow puts the head in the outer half and the jump is taken,
+;; leaving bit 1 of C as it was, which is how the WD1772 spells
+;; "precompensation off".  No borrow puts it in the inner half, and
+;; RES 1,C turns precompensation on.
+;; --------------------------------------------------------------------
+
 ; ---- PRECMP ---- from &55BB
 PRECMP:
-               CALL TSTD                       ; 4549 CD F4 4A  GET TRACKS ON DISC
-               RRA                             ; 454C 1F
-               AND &3F                         ; 454D E6 3F  ** MASK TOP BIT (SIDEDNES),
-               LD B,A                          ; 454F 47  HALVE TRK/SIDE USUALLY 40D
-               LD A,D                          ; 4550 7A
-               AND &7F                         ; 4551 E6 7F
-               SUB B                           ; 4553 90  E.G. TRACK 0-40=CY, SO JR LEAVING
-               JR C,WAIT_DC_READY_BEFORE_CMD   ; 4554 38 02  JR IF CURRENT TRK IN D IS AN
-               RES 1,C                         ; 4556 CB 89  ELSE TURN *ON* PRECMP
+               CALL TSTD                       ; 4549 CD F4 4A  the disc's track count, from the directory
+               RRA                             ; 454C 1F  halve it -- one side's worth
+               AND &3F                         ; 454D E6 3F  and drop the double-sided flag the count carries in bit 7
+               LD B,A                          ; 454F 47  keep it -- 40, for the usual 80-track disc
+               LD A,D                          ; 4550 7A  the current track
+               AND &7F                         ; 4551 E6 7F  whose bit 7 is the side, not part of the number
+               SUB B                           ; 4553 90  which half of the disc is the head over?
+               JR C,WAIT_DC_READY_BEFORE_CMD   ; 4554 38 02  borrow: the outer half, where precompensation is unwanted
+               RES 1,C                         ; 4556 CB 89  the inner half, so switch it on
 
 ;; --------------------------------------------------------------------
-;; Wait for the disk controller to be ready before continuing.
+;; Issue the command byte in C to the disk controller.
+;;
+;; Two entry points and one path.  This one waits for the chip to go
+;; idle first, and is what nearly everything calls;
+;; WRITE_DRIVE_CMD_AND_DELAY skips the wait, for the one caller that
+;; has just finished waiting on its own account.
+;;
+;; The twenty-iteration delay on the way out is not padding.  The
+;; WD1772 takes a few microseconds to raise BUSY after a command is
+;; written to it, and every caller here reads the status register
+;; next -- without the delay that read would still be showing the
+;; previous command's result, and the drive would appear to have
+;; finished before it had started.
 ;; --------------------------------------------------------------------
 
 ; ---- WAIT_DC_READY_BEFORE_CMD ---- from &4554 when A < B, &456A, &46F1, &478D, &48B4, &4F9D, &54B7
@@ -1792,7 +1840,7 @@ WAIT_DC_READY_BEFORE_CMD:
 WRITE_DRIVE_CMD_AND_DELAY:
                LD A,C                          ; 455B 79
                CALL WRITE_SELECTED_DISK_CMD    ; 455C CD 2E 45
-               LD B,&14                        ; 455F 06 14
+               LD B,CMD_LATENCY_LOOPS          ; 455F 06 14  long enough for the controller to raise BUSY
 
 ; ---- POST_CMD_WAIT ---- from &4561 when B is not 0 yet
 POST_CMD_WAIT:
@@ -1811,23 +1859,29 @@ POST_CMD_WAIT:
 DWAIT:
                CALL TIRD                       ; 4564 CD 5A 61
                RET NC                          ; 4567 D0
-               LD C,READ_ADDRESS_CMD           ; 4568 0E C0  READ ADDRESS CMD CODE
-               CALL WAIT_DC_READY_BEFORE_CMD   ; 456A CD 58 45  SPIN UP DISC IN CASE IT IS OFF
+               LD C,READ_ADDRESS_CMD           ; 4568 0E C0  a read-address command, wanted only for its side effect
+               CALL WAIT_DC_READY_BEFORE_CMD   ; 456A CD 58 45  it does not return until the disc is actually turning
 
 ;; --------------------------------------------------------------------
-;; (OR STEP IN/OUT WILL START DRIVE,
-;; THEN WSAD WILL WRITE TOO SOON
-;; 'COS "DRIVE RUNNING") WAIT TILL
-;; FINISHED CMD (ALTERS SECT REG)
-;; TEST FOR CHIP BUSY
+;; Wait until the controller has finished whatever it was doing.
+;;
+;; Bit 0 of the WD1772's status register is BUSY, and while it is set
+;; the chip is mid-command and its other registers are not to be
+;; touched -- a read-address command, for one, overwrites the sector
+;; register on its way past.  Every command this half issues goes
+;; through here first for that reason.
+;;
+;; BRKTST is called each time round the loop, so a drive with no disc
+;; in it, or a disc that never answers, can be escaped from with BREAK
+;; instead of the power switch.
 ;; --------------------------------------------------------------------
 
 ; ---- BUSY ---- from &4558, &4576, &474E, &47BF when bit 2 of A set, &7A01
 BUSY:
                CALL READ_SELECTED_DISK_STATUS  ; 456D CD 26 45
-               BIT 0,A                         ; 4570 CB 47
+               BIT 0,A                         ; 4570 CB 47  bit 0 of the status register is BUSY
                RET Z                           ; 4572 C8
-               CALL BRKTST                     ; 4573 CD 2A 50
+               CALL BRKTST                     ; 4573 CD 2A 50  let BREAK out of a drive that never answers
                JR BUSY                         ; 4576 18 F5
 
 ; ---- WRIF ---- from &6E8E, &70FD, &7146
@@ -8092,6 +8146,13 @@ TIRDXDCT:
                XOR A                           ; 6156 AF
                LD (DCT),A                      ; 6157 32 11 41
 
+;; --------------------------------------------------------------------
+;; Checks if the physical disk device number corresponds to a RAM drive or
+;; a floppy disk.
+;;
+;; Returns carry set if physical, no-carry if RAM drive.
+;; --------------------------------------------------------------------
+
 ; ---- TIRD ---- from &4564, &4723, &47B0, &47EE, &482F, &489E, &4991, &4ACB ...
 TIRD:
                LD A,(DRIVE)                    ; 615A 3A 0B 7C
@@ -8544,6 +8605,11 @@ GDIFA:
                INC HL                          ; 6333 23
                LD E,(HL)                       ; 6334 5E
                RET                             ; 6335 C9
+
+;; --------------------------------------------------------------------
+;; RXSS, and anything but Z is error 10.  Three callers use it as the
+;; "the sector had better be there" step before going on.
+;; --------------------------------------------------------------------
 
 ; ---- REQUIRE_SECTOR ---- from &6620, &662D, &663D
 REQUIRE_SECTOR:
