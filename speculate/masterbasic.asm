@@ -26,19 +26,12 @@
 ; Hardware ports, under the names the two source trees use.
 ; What each one does is from the SAM Coupe Technical Manual.
 XMPRL:                          EQU  &80       ; External memory lower port address
-COMM:                           EQU  &E0       ; Disk 0 Side 0 Command Register
-TRCK:                           EQU  &E1       ; Disk 0 Side 0 Track Register
-SECT:                           EQU  &E2       ; Disk 0 Side 0 Sector Register
-PPORT:                          EQU  &E8       ; printer data
 CLUT:                           EQU  &F8       ; base of the colour look-up table: sixteen write-only 7-bit registers
 STAT:                           EQU  &F9       ; read: STATUS, key rows and interrupt flags; write: line interrupt
 LMPR:                           EQU  &FA       ; the page at &0000, and the two ROM switches
 HMPR:                           EQU  &FB       ; the page at &8000
 VMPR:                           EQU  &FC       ; the page the screen is displayed from
-MIDI:                           EQU  &FD       ; MIDI in and out
 KEYBOARD:                       EQU  &FE       ; read: keyboard columns; write: border, MIC and the speaker
-SOUND:                          EQU  &FF       ; read: the attribute under the raster; write: sound data, the sound
-                                               ; address port being &1FF
 
 ; SAM ROM entry points and system variables.  A page cannot
 ; address the variables directly -- it occupies the same
@@ -49,7 +42,6 @@ SOUND:                          EQU  &FF       ; read: the attribute under the r
 AFTERCR:                        EQU  &5A0F     ; 0A OR NUL ACCORDING TO WHETHER AUTO LF NEEDED
 ANYI:                           EQU  &0049     ; The ROM's default maskable interrupt handler, reached through ANYIV
 ANYIV:                          EQU  &5B70     ; ANY INTERRUPT VECTOR
-ATTRP:                          EQU  &5A45     ; ATTR USED BY MODES 0 AND 1
 ATTRT:                          EQU  &5A4E     ; attribute used by temporary colour statements
 BASSTK:                         EQU  &5BC6     ; base of BASIC's GOSUB, DO and PROC stack
 BGFLG:                          EQU  &5A34     ; BLOCK GRAPHICS FLAG
@@ -137,9 +129,7 @@ J_SBUFFET:                      EQU  &012A     ; UNSTACK STRING PARAMS AND COPY 
                                                ; BYTES
 KCUR:                           EQU  &5A9A     ; address of the cursor in the edit line
 KURCHAR:                        EQU  &5A01     ; CURSOR CHARACTERS - LOWER CASE/UPPER CASE
-LDSTRT:                         EQU  &E679
 LINICOLS:                       EQU  &5600     ; per-line colour data for the current screen
-LISTSP:                         EQU  &5C3F     ; stack pointer saved before an automatic listing
 LPTPRT1:                        EQU  &5A10     ; PRINTER CONTROL PORT/01H STROBE VALUE
 LSPTR:                          EQU  &5B8B     ; LINE SCAN PTR
 LWRHS:                          EQU  &5A3C     ; Lower-window right-hand side boundary
@@ -160,7 +150,6 @@ NUMENDP:                        EQU  &5A84     ; NUMEND/NVARS/DATADD MUST BE IN 
 NVARS:                          EQU  &5A88     ; address of the numeric variables
 NVARSP:                         EQU  &5A87     ; page holding the numeric variables
 OPSTORE:                        EQU  &5AB5     ; operator store used by the expression evaluator
-OUTLINC:                        EQU  &08D2
 PAGCOUNT:                       EQU  &5B83     ; PAGE COUNTER USED BY FARLDIR
 PAGER:                          EQU  &5BE0     ; RESERVED FOR PAGING S.R
 PALTAB:                         EQU  &55D8     ; the sixteen CLUT entries, as the ROM's copy
@@ -211,7 +200,6 @@ TVFLAG:                         EQU  &5C3C     ; television flags
 UWBOT:                          EQU  &5A3B     ; STARTS AT 18 (19 LINES IN UPPER, 2 IN LOWER SCR, 9 PIX)
 UWLHS:                          EQU  &5A39     ; STARTS AT 0
 UWRHS:                          EQU  &5A38     ; STARTS AT 31
-WINDRHS:                        EQU  &5A56     ; right-hand column of the current window
 WKROOM:                         EQU  &0109     ; open BC bytes at the end of workspace
 WORKSP:                         EQU  &5A91     ; address of the workspace
 WORKSPP:                        EQU  &5A90     ; page holding the workspace
@@ -230,7 +218,6 @@ DOS_BOOT_15:                    EQU  &8089
 DOS_BOOT_5:                     EQU  &8069
 DOS_BOOT_6:                     EQU  &806B
 DOS_BOOT_7:                     EQU  &806D
-DOS_CEOS:                       EQU  &9007
 DOS_CHANNEL_ENTRY_AT_ZERO_PAGE: EQU  &AAEA
 DOS_DATDT:                      EQU  &8271
 DOS_DRIVE:                      EQU  &BC0B
@@ -249,27 +236,13 @@ DOS_HEADER:                     EQU  &8000
 DOS_HK_HSAVE_1:                 EQU  &A500
 DOS_HK_SBYT:                    EQU  &AF75
 DOS_ITRCK:                      EQU  &95D8
-DOS_L4069:                      EQU  &8069
-DOS_L406B:                      EQU  &806B
-DOS_L406D:                      EQU  &806D
-DOS_L407F:                      EQU  &807F
-DOS_L4081:                      EQU  &8081
-DOS_L4086:                      EQU  &8086
-DOS_L4088:                      EQU  &8088
-DOS_L4089:                      EQU  &8089
-DOS_L4D2D:                      EQU  &8D2D
-DOS_L602A:                      EQU  &A02A
-DOS_L6280:                      EQU  &A280
-DOS_L6500:                      EQU  &A500
 DOS_LAB2_1:                     EQU  &A02A
 DOS_LBYT:                       EQU  &AFF6
-DOS_MBCOPY_775A:                EQU  &BD79
 DOS_MBCOPY_7774:                EQU  &BD93
 DOS_MBCOPY_778B:                EQU  &BDAA
 DOS_MBCOPY_7829:                EQU  &BE48
 DOS_NEXTST:                     EQU  &821E
 DOS_OFSM_1:                     EQU  &8D2D
-DOS_PCN2:                       EQU  &9BB6
 DOS_PLNS:                       EQU  &908E
 DOS_POINT:                      EQU  &8FAC
 DOS_POINTC:                     EQU  &B076
@@ -368,13 +341,11 @@ SYS_FN_INDEX:                   EQU  &4AF0
 SYS_FRAMIV_FRAME_INT:           EQU  &4986
 SYS_GAP_BLOCK:                  EQU  &5896
 SYS_INSLV_STRING_MOVE:          EQU  &46CC
-SYS_PAGER:                      EQU  &5BE0
 SYS_PATOUT_CHAR_OUT:            EQU  &49A9
 SYS_PRTOKV_PRINT_TOKEN:         EQU  &4BB0
 SYS_RECORD_MODE:                EQU  &4AF3
 SYS_RECORD_STATE:               EQU  &4AF4
 SYS_RST8V_ERROR:                EQU  &4AB8
-SYS_SPARE8:                     EQU  &5C59
 SYS_STRM16_SAVE:                EQU  &4AF5
 SYS_TOKEN_TO_FN_INDEX:          EQU  &45A2
 
@@ -23396,7 +23367,7 @@ INSTALL_ROM_VECTORS:
 ;; Shown for this routine in disasm/:
 ;;
 ;;     Copied to &7D79 in the DOS page by the boot sector, and
-;;     called there from 27 sites in this page as DOS_MBCOPY_775A.  The
+;;     called there from 27 sites in this page as DOS_FIND_ROM_CODE.  The
 ;;     bytes the file holds at &7D79 in the DOS page are not
 ;;     these: they are whatever was in its buffers when the image
 ;;     was saved, and the copy overwrites them at boot.
@@ -23960,14 +23931,6 @@ STACK_FILL_LOOP_1:
 ;;     copied block is not present at any offset in either page.  So
 ;;     everything reached through it, the twenty-seven DOS_FIND_ROM_CODE
 ;;     calls included, runs at install time and never again.
-;;
-;;     What was here before:
-;;
-;;         Copied to &7E48 in the DOS page by the boot sector, and
-;;         called there from 1 site in this page as DOS_MBCOPY_7829.  The
-;;         bytes the file holds at &7E48 in the DOS page are not
-;;         these: they are whatever was in its buffers when the image
-;;         was saved, and the copy overwrites them at boot.
 ;; --------------------------------------------------------------------
 
 INSTALL_EXTENDED_PUT:
@@ -26377,4 +26340,3 @@ MBTEXT:
                DEFW 9                          ; length, low byte first
                DEFB T_DEF_PROC                 ; 7FB8 DEF PROC
                DEFM "moveinf"
-

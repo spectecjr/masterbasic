@@ -16,19 +16,11 @@
 ; Hardware ports, under the names the two source trees use.
 ; What each one does is from the SAM Coupe Technical Manual.
 XMPRL:                      EQU  &80           ; External memory lower port address
-COMM:                       EQU  &E0           ; Disk 0 Side 0 Command Register
-TRCK:                       EQU  &E1           ; Disk 0 Side 0 Track Register
-SECT:                       EQU  &E2           ; Disk 0 Side 0 Sector Register
-PPORT:                      EQU  &E8           ; printer data
-CLUT:                       EQU  &F8           ; base of the colour look-up table: sixteen write-only 7-bit registers
 STAT:                       EQU  &F9           ; read: STATUS, key rows and interrupt flags; write: line interrupt
 LMPR:                       EQU  &FA           ; the page at &0000, and the two ROM switches
 HMPR:                       EQU  &FB           ; the page at &8000
 VMPR:                       EQU  &FC           ; the page the screen is displayed from
-MIDI:                       EQU  &FD           ; MIDI in and out
 KEYBOARD:                   EQU  &FE           ; read: keyboard columns; write: border, MIC and the speaker
-SOUND:                      EQU  &FF           ; read: the attribute under the raster; write: sound data, the sound
-                                               ; address port being &1FF
 
 ; SAM ROM entry points and system variables.  A page cannot
 ; address the variables directly -- it occupies the same
@@ -36,13 +28,10 @@ SOUND:                      EQU  &FF           ; read: the attribute under the r
 ; page them in, or does the same windowing inline, which is what a
 ; name written here as NAME+&4000 means.
 ; The notes are mostly the ROM source's own words.
-ANYIV:                      EQU  &5B70         ; ANY INTERRUPT VECTOR
 BEEPR:                      EQU  &016F
-BORDCOL:                    EQU  &5C4B         ; VALUE TO SEND TO BORDER PORT
 BSTKEND:                    EQU  &5BC4         ; end of that stack
 CHADD:                      EQU  &5A97         ; address of the character being interpreted
 CHADP:                      EQU  &5A96         ; page holding the character being interpreted
-CHANS:                      EQU  &5C4F         ; address of the channel information area
 CLSLOW:                     EQU  &0151         ; clear the lower screen
 CSTAT:                      EQU  &5A7B         ; address of the start of the current statement
 CURCHL:                     EQU  &5C51         ; address of the current channel
@@ -70,7 +59,6 @@ INCURPDE:                   EQU  &3FEB         ; Increments the upper RAM page, 
                                                ; the range C000-FFFF. Uses A, alters D.
 INQUFG:                     EQU  &5ABA         ; IN QUOTES FLAG. BIT 0=1 IF IN QUOTES. OUTLINE ZEROS
 INSTBUF:                    EQU  &4F00         ; BUFFER FOR ROM1 XFER CODE, ETC. 0200H
-INVERT:                     EQU  &5A54         ; 00/FF FOR NORMAL/INVERSE ;
 IYJUMP:                     EQU  &0006         ; JP (IY)
 JCLSBL:                     EQU  &014E         ; clear the whole screen if A is zero, otherwise the window
 JMKRBIG:                    EQU  &010C         ; open A*16K + BC bytes at HL
@@ -88,9 +76,6 @@ SLDEV:                      EQU  &5BB7         ; DEVICE LETTER/NUMBER (TEMP)
 SPOSNL:                     EQU  &5A6E         ; SCREEN POSN (LOWER) 0,19 AFTER CLS
 STKSTR:                     EQU  &0127         ; push a five-byte number from A, E, D, C, B
 STREAM:                     EQU  &0112         ; select the stream in A
-STRMS:                      EQU  &5C16         ; the table of streams; stream zero first
-TSURPG:                     EQU  &3FDF         ; Sets the upper memory area to the page in A (from 0-31). Bits 7-5 of
-                                               ; the port are read in and preserved.
 TVFLAG:                     EQU  &5C3C         ; television flags
 UNSTLEN:                    EQU  &3F8C         ; ! ;1* split the calculator stack top into a page count and an offset
 WINDRHS:                    EQU  &5A56         ; right-hand column of the current window
@@ -161,24 +146,16 @@ MB_HK_SERRECV:              EQU  &8315
 MB_HK_SERSEND:              EQU  &8300
 MB_HK_SETUPREGS:            EQU  &B1FE
 MB_HK_SKIPNAME:             EQU  &AF62
-MB_HK_SUBCHAR:              EQU  &9973
 MB_HK_SWAPCHARS:            EQU  &B159
 MB_HK_TOKENARG:             EQU  &92FD
 MB_HK_VARSPACE:             EQU  &9293
 MB_HPRTOK:                  EQU  &900E
-MB_L4160:                   EQU  &8160
-MB_L4200:                   EQU  &8200
-MB_L42FF:                   EQU  &82FF
-MB_L7900:                   EQU  &B900
-MB_L7914:                   EQU  &B914
 MB_MULTIPLY_BY_24:          EQU  &85F9
 MB_NEXT_SCREEN_BYTE_1:      EQU  &A280
-MB_PREPARE_ROM1_COPY:       EQU  &9C4B
 MB_PREPARE_ROM1_COPY_1:     EQU  &9C4F
 MB_PREPARE_ROM1_COPY_2:     EQU  &9C51
 MB_PUTSWA:                  EQU  &8000
 MB_SCREEN_BLANK_TICK_6:     EQU  &9A54
-MB_SET_COMPRESSION_MODE:    EQU  &A3F6
 MB_SET_DCT_COMPILE_BITS:    EQU  &859C
 MB_SOFV:                    EQU  &8002
 MB_SUBSTITUTE_PRINTER_CHAR: EQU  &9973
@@ -198,7 +175,6 @@ DISKCTL_0_BASE:             EQU  &E0
 DISKCTL_1_BASE:             EQU  &F0
 DISKCTL_DATA_OFS:           EQU  &03
 ENABLE_ROM1:                EQU  &40           ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
-ERROR:                      EQU  &07           ; a compressed substring in ERRTBL, printed as "Error"
 FILE:                       EQU  &17           ; a compressed substring in ERRTBL, printed as "file"
 FORCE_INTERRUPT_CMD:        EQU  &D0
 INVALID:                    EQU  &00           ; a compressed substring in ERRTBL, printed as "Invalid "
@@ -213,8 +189,6 @@ SYSPAGE_IN_B:               EQU  &1F           ; LMPR &1F: page 31 at &0000, so 
                                                ; the system page. The ROM source calls it PAGE1F
 SYS_CHAR_WIDTH:             EQU  &4AEE
 SYS_MNIP_MAIN_INPUT:        EQU  &4C14
-TATEMENT:                   EQU  &15           ; a compressed substring in ERRTBL, printed as "tatement"
-TOOMANY:                    EQU  &14           ; a compressed substring in ERRTBL, printed as "Too many "
 TREAM:                      EQU  &08           ; a compressed substring in ERRTBL, printed as "tream"
 
 ; Constants under MasterDOS's own names, from the annotated
@@ -14443,4 +14417,3 @@ STR:
 V7FA5:
                DEFB &FE,&20,&28,&FA,&2B,&2B,&23,&7E,&FE,&20,&28,&04,&FE,&0D,&20 ; 7FA5 ~ (z++#~~ (.~.
                DEFB &F6,&22,&9A,&5A,&21,&3C,&5C,&CB,&DE,&BF,&C9,&00             ; 7FB4 v".Z!<\K^?I.
-

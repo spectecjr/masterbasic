@@ -810,20 +810,37 @@ def name_copied_block(dos, mb):
             calls.setdefault(p, set()).add(a)
 
     n = 0
+    mb.copied_blocks = []
     for dst, sites in sorted(calls.items()):
         src = COPY_SRC + (dst - COPY_DST)
-        name = 'MBCOPY_%04X' % src
         if dst not in dos.labels:
-            dos.labels[dst] = name
+            dos.labels[dst] = 'MBCOPY_%04X' % src
             n += 1
-        if mb.inside(src) and src not in mb.headers:
-            mb.headers[src] = banner(NL.join([
-                'Copied to &%04X in the DOS page by the boot sector, and' % dst,
-                'called there from %d site%s in this page as DOS_%s.  The'
-                % (len(sites), '' if len(sites) == 1 else 's', name),
-                'bytes the file holds at &%04X in the DOS page are not' % dst,
-                'these: they are whatever was in its buffers when the image',
-                'was saved, and the copy overwrites them at boot.']))
+        mb.copied_blocks.append((src, dst, len(sites)))
+    return n
+
+
+def describe_copied_block(dos, mb):
+    """Say of each copied helper where it runs and who calls it there.
+
+    Written after notes/ has had its say, because the banner names the
+    label and several of these are renamed there: one that baked in
+    MBCOPY_775A when the label was made went on saying so long after the
+    label itself had become FIND_ROM_CODE.  A DOC in notes/ still wins,
+    as everywhere else.
+    """
+    n = 0
+    for src, dst, sites in getattr(mb, 'copied_blocks', ()):
+        if not mb.inside(src) or src in mb.headers:
+            continue
+        mb.headers[src] = banner(NL.join([
+            'Copied to &%04X in the DOS page by the boot sector, and' % dst,
+            'called there from %d site%s in this page as DOS_%s.  The'
+            % (sites, '' if sites == 1 else 's', dos.labels.get(dst, '?')),
+            'bytes the file holds at &%04X in the DOS page are not' % dst,
+            'these: they are whatever was in its buffers when the image',
+            'was saved, and the copy overwrites them at boot.']))
+        n += 1
     return n
 
 

@@ -187,7 +187,7 @@ in the middle still contributes both ends. An instruction matches only up to its
 operands, since an absolute address here is nearly always different and a
 relative jump's displacement changes whenever anything was inserted between.
 
-That places **1698 line comments, 165 routine headers and 11 section banners**.
+That places **1703 line comments, 164 routine headers and 10 section banners**.
 
 It also puts the source's **names where the listing printed bare hex**. The
 disassembly can only name an address that something in the image refers to, so a
@@ -269,7 +269,7 @@ looks like:
 Two more rules read `AND &1F` near a paging port as the page-number mask, and
 `AND &DF` on a byte just loaded from memory as the fold to upper case.
 
-That names **84 immediates**, and the 21 equates it needs are written into the
+That names **83 immediates**, and the 21 equates it needs are written into the
 file under a heading saying plainly that they are read from the code rather than
 carried from a source, each with the reason, so the reading can be judged. Every
 other immediate in the page — the bit masks and counts with nothing to anchor
@@ -569,13 +569,13 @@ PROG:          EQU  &5AA0          ; (2) address of it
 line above. Where two names share an address, as `CHAD` and `CHADD` do, the note
 is shared with them.
 
-That describes 124 of 148 equates in the extension listing and 49 of 55 in the
-DOS. The rest are left bare: `CLAPG`, `HUDG`, `TSURPG` and their like are not
-described anywhere I have, and inventing a gloss for them would be worse than the
-silence. A small table in `tools/romsyms.py` fills in about thirty well-known
-variables the sources never bothered to comment — `STKEND`, `RAMTOP`, `FLAGX` —
-and those are my words rather than the ROM author's, which is why the heading
-says *mostly*.
+That describes 146 of 147 equates in the extension listing and 50 of 51 in the
+DOS. One in each is left bare — `INP2` in the extension listing, `BEEPR` in the
+DOS — because they are not described anywhere I have, and inventing a gloss for
+them would be worse than the silence. A table of 54 entries in
+`tools/romsyms.py` fills in well-known variables the sources never bothered to
+comment — `STKEND`, `RAMTOP`, `FLAGX` — and those are my words rather than the
+ROM author's, which is why the heading says *mostly*.
 
 ## Adding your own labels
 

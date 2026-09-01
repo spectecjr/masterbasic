@@ -402,10 +402,11 @@ naming did not answer.
   `RDRSCT` turns the transfer into an `LDIR`.
 
   What is left is prose rather than names. Every routine either half calls
-  has a name; 255 of the DOS's 448 called routines and 191 of MasterBASIC's
-  229 also carry a banner or a carried comment saying what they do, and the
-  rest are mostly short things whose names already say it -- `STEP_HEAD_OUT`,
-  `REST`, `CALL_NEXTCHAR`.
+  has a name; of the addresses each half CALLs by name -- 367 in the DOS and
+  190 in MasterBASIC -- 212 and 170 also carry a banner, or a comment on
+  their first instruction, saying what they do. The rest are mostly short
+  things whose names already say it -- `STEP_HEAD_OUT`, `REST`,
+  `CALL_NEXTCHAR`.
 
 ### Settled since this section was written
 

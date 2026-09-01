@@ -2127,6 +2127,80 @@ SPEC_TITLE = """; %s -- a reading, not a record.
 """
 
 
+EQU = re.compile(r'^([A-Za-z_][A-Za-z0-9_]*):\s+EQU\b')
+
+
+def prune_equates(text):
+    """Drop equates the listing turns out not to use.
+
+    A name is registered when some pass decides an operand should carry
+    it, and a later pass is free to decide otherwise -- resolve the
+    operand to a different name, or render the run it was in as data --
+    without taking the registration back.  What is left is a declaration
+    in the preamble that nothing below refers to.
+
+    Rather than have every pass undo its own bookkeeping, the finished
+    listing is asked which names it uses.  Comments do not count: a
+    banner that mentions DOS_MBCOPY_775A is prose about a label, not a
+    use of one.  An equate named in another equate's value does count,
+    so nothing is dropped out from under a name that survives.
+
+    Dropping a declaration nothing refers to cannot change what the file
+    assembles to, and build.sh still proves that byte for byte.
+    """
+    lines = text.split(chr(10))
+    used = set()
+    for line in lines:
+        if line.lstrip().startswith(';'):
+            continue
+        code = re.split(r'\s;\s', line, maxsplit=1)[0]
+        m = re.match(r'^([A-Za-z_][A-Za-z0-9_]*):\s+EQU\b', code)
+        if m:
+            code = code.split('EQU', 1)[1]        # not its own name
+        used.update(re.findall(r'[A-Za-z_][A-Za-z0-9_]*', code))
+
+    out, dropped = [], 0
+    for line in lines:
+        m = re.match(r'^([A-Za-z_][A-Za-z0-9_]*):\s+EQU\b', line)
+        if m and m.group(1) not in used:
+            dropped += 1
+            out.append(None)                      # and its continuation
+            continue
+        if (out and out[-1] is None and line.startswith(' ')
+                and line.lstrip().startswith(';')):
+            out.append(None)                      # a wrapped note, orphaned
+            continue
+        out.append(line)
+
+    # A heading whose whole list has gone describes nothing.  The test is
+    # what the section held before, not what follows it now: the file's
+    # own title is a comment block followed by a blank line as well, and
+    # so is every routine banner in the body.
+    i = 0
+    while i < len(lines):
+        if not (lines[i].startswith(';') and out[i] is not None):
+            i += 1
+            continue
+        j = i
+        while j < len(lines) and lines[j].startswith(';'):
+            j += 1
+        k, had, left = j, 0, 0
+        while k < len(lines) and lines[k].strip():
+            if EQU.match(lines[k]):
+                had += 1
+                left += out[k] is not None
+            k += 1
+        if had and not left:
+            for t in range(i, j):
+                out[t] = None
+        i = k if k > i else i + 1
+
+    res = [l for l in out if l is not None]
+    while res and not res[-1].strip():
+        res.pop()
+    return chr(10).join(res) + chr(10), dropped
+
+
 def write_speculation(dos, mb, outdir):
     """Write speculate/*.asm beside the listings."""
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -2151,8 +2225,11 @@ def write_speculation(dos, mb, outdir):
         d.emit(io.StringIO(), segs=[(BASE, HALF)])
         buf = io.StringIO()
         d.emit(buf, title=header(d), segs=[(BASE, HALF)])
+        body, gone = prune_equates(buf.getvalue())
+        if gone:
+            print('%s: dropped %d equates nothing refers to' % (name, gone))
         with open(os.path.join(out, name), 'w') as f:
-            f.write(asmfmt.format_listing(buf.getvalue()))
+            f.write(asmfmt.format_listing(body))
         d.title = was_title
         print('wrote', os.path.join(out, name))
     print('read %d routines' % total)
@@ -2379,6 +2456,8 @@ def main():
 
     print('%d signature searches given their parameters'
           % sum(note_signature_calls(d, args.work) for d in (dos, mb)))
+    print('described %d routines in the copied block'
+          % annotate.describe_copied_block(dos, mb))
 
     if args.outdir:
         for d, name in ((dos, 'masterdos.asm'), (mb, 'masterbasic.asm')):
@@ -2389,8 +2468,11 @@ def main():
             path = os.path.join(args.outdir, name)
             buf = io.StringIO()
             d.emit(buf, title=header(d), segs=[(BASE, HALF)])
+            body, gone = prune_equates(buf.getvalue())
+            if gone:
+                print('%s: dropped %d equates nothing refers to' % (name, gone))
             with open(path, 'w') as f:
-                f.write(asmfmt.format_listing(buf.getvalue()))
+                f.write(asmfmt.format_listing(body))
             print('wrote', path)
         for p in notes.check_equates(ROOT, [
                 os.path.join(args.outdir, n)
