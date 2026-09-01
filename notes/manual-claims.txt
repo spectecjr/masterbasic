@@ -18,81 +18,81 @@
 
 # CONFIRMED -----------------------------------------------------------------
 
-XVAR 0 PUTSWA.  "Unusual in that it holds the ADDRESS of a place you can
-POKE... POKE DPEEK XVAR 0,172 (the code for PUT) to use MasterBASIC's faster
-version again."
-    DPEEK XVAR 0 reads &48FF.  The system page at &48FF is &00 before any
-    boot and &AC after one, and &AC is 172, the PUT token the entry names.
-    &48FF falls inside the second stub's destination &484D-&4AEB, so the
-    copy rules in tools/syspage.py already account for it.
+# XVAR 0 PUTSWA.  "Unusual in that it holds the ADDRESS of a place you can
+# POKE... POKE DPEEK XVAR 0,172 (the code for PUT) to use MasterBASIC's faster
+# version again."
+#     DPEEK XVAR 0 reads &48FF.  The system page at &48FF is &00 before any
+#     boot and &AC after one, and &AC is 172, the PUT token the entry names.
+#     &48FF falls inside the second stub's destination &484D-&4AEB, so the
+#     copy rules in tools/syspage.py already account for it.
 
-XVAR 6 SORP.  "If you POKE XVAR 6,1 and then use SAVE BOOT to save the
-program, the next time you boot serial output will be set automatically.
-(However, the POKE by itself does not do this - it is not examined until
-BOOT time.)"
-    Literally true, parenthesis included.  INSTALLER at &75E1 -- the block
-    the boot sector copies to &BC00 and runs there -- does:
+# XVAR 6 SORP.  "If you POKE XVAR 6,1 and then use SAVE BOOT to save the
+# program, the next time you boot serial output will be set automatically.
+# (However, the POKE by itself does not do this - it is not examined until
+# BOOT time.)"
+#     Literally true, parenthesis included.  INSTALLER at &75E1 -- the block
+#     the boot sector copies to &BC00 and runs there -- does:
 
-        75E9  LD A,(SORP)                  XVAR 6, the saved value
-        75EC  CALL INIT_SERIAL_FROM_TABLE  SERINIT and the settings table
+#         75E9  LD A,(SORP)                  XVAR 6, the saved value
+#         75EC  CALL INIT_SERIAL_FROM_TABLE  SERINIT and the settings table
 
-    and INIT_SERIAL_FROM_TABLE has exactly two callers, &558E and &75EC.
-    &558E is CMD_LPRINT's MODE path, which sets SORP and then does the same
-    initialisation; &75EC is the boot.  So POKEing XVAR 6 alone really does
-    nothing until one of those two runs.
+#     and INIT_SERIAL_FROM_TABLE has exactly two callers, &558E and &75EC.
+#     &558E is CMD_LPRINT's MODE path, which sets SORP and then does the same
+#     initialisation; &75EC is the boot.  So POKEing XVAR 6 alone really does
+#     nothing until one of those two runs.
 
-XVAR 89 ACRSU.  "XVAR 89 will be copied automatically to SVAR 15 every time
-you BOOT up the system."
-    Two instructions, at MB &7AE8:
+# XVAR 89 ACRSU.  "XVAR 89 will be copied automatically to SVAR 15 every time
+# you BOOT up the system."
+#     Two instructions, at MB &7AE8:
 
-        7AE8  3A 59 40   LD A,(ACRSU)             XVAR 89, MB &4059
-        7AEB  32 0F 9A   LD (AFTERCR+&4000),A     SVAR 15, syspage &5A0F
+#         7AE8  3A 59 40   LD A,(ACRSU)             XVAR 89, MB &4059
+#         7AEB  32 0F 9A   LD (AFTERCR+&4000),A     SVAR 15, syspage &5A0F
 
-    Both ends were already named -- ACRSU from notes/, AFTERCR from the
-    ROM's variable table -- which is why a grep for the literal &9A0F found
-    nothing: the operand renders symbolically.
-    The dumps cannot confirm this on their own.  XVAR 89 ships as 10 and
-    SVAR 15 reads 10 before any boot, with MasterDOS alone, and with the
-    combined file, because 10 is also the ROM's own default.  The copy is
-    the proof, not the value.
+#     Both ends were already named -- ACRSU from notes/, AFTERCR from the
+#     ROM's variable table -- which is why a grep for the literal &9A0F found
+#     nothing: the operand renders symbolically.
+#     The dumps cannot confirm this on their own.  XVAR 89 ships as 10 and
+#     SVAR 15 reads 10 before any boot, with MasterDOS alone, and with the
+#     combined file, because 10 is also the ROM's own default.  The copy is
+#     the proof, not the value.
 
-DVAR 7, the DOS version byte.  The introduction: "the DOS version number
-(PEEK DVAR 7) is increased to 50 to reflect these changes."
-    DVAR 7 is at the DOS's &4227.
+# DVAR 7, the DOS version byte.  The introduction: "the DOS version number
+# (PEEK DVAR 7) is increased to 50 to reflect these changes."
+#     DVAR 7 is at the DOS's &4227.
 
-        stock MasterDOS 2.3 (ref/masterdos/res/MDOS23.bin)   46
-        the combined image                                   50
-        MBPOST, a booted machine                             50
+#         stock MasterDOS 2.3 (ref/masterdos/res/MDOS23.bin)   46
+#         the combined image                                   50
+#         MBPOST, a booted machine                             50
 
-    So autoMBM writes it into the file; nothing does it at boot.
+#     So autoMBM writes it into the file; nothing does it at boot.
 
 # CONFIRMED IN PART ---------------------------------------------------------
 
-The cursor characters.  Under BLOCKS 2: "to prevent the cursor changing when
-a new set of characters is switched in by BLOCKS 2, the cursors are
-temporarily re-defined as CHR$ 169 and 170, the patterns for which are
-stored separately."
-    The mechanism is in HK_SWAPCHARS.  After exchanging the 328 bytes it
-    exchanges KURCHAR as well:
+# The cursor characters.  Under BLOCKS 2: "to prevent the cursor changing when
+# a new set of characters is switched in by BLOCKS 2, the cursors are
+# temporarily re-defined as CHR$ 169 and 170, the patterns for which are
+# stored separately."
+#     The mechanism is in HK_SWAPCHARS.  After exchanging the 328 bytes it
+#     exchanges KURCHAR as well:
 
-        718A  CALL NRRDD / DEFW KURCHAR     read the cursor pair
-        718F-7196                           swap it with BC
-        7197  CALL NRWRD / DEFW KURCHAR     write it back
+#         718A  CALL NRRDD / DEFW KURCHAR     read the cursor pair
+#         718F-7196                           swap it with BC
+#         7197  CALL NRWRD / DEFW KURCHAR     write it back
 
-    KURCHAR is SVAR 1 at &5A01, which the ROM's list calls "CURSOR
-    CHARACTERS - LOWER CASE/UPPER CASE".  It reads 128,129 in all three
-    dumps, which are the ordinary cursors -- CHR$ 128 at &5490 is a low
-    block and CHR$ 129 a high one, exactly what a cursor looks like.
+#     KURCHAR is SVAR 1 at &5A01, which the ROM's list calls "CURSOR
+#     CHARACTERS - LOWER CASE/UPPER CASE".  It reads 128,129 in all three
+#     dumps, which are the ordinary cursors -- CHR$ 128 at &5490 is a low
+#     block and CHR$ 129 a high one, exactly what a cursor looks like.
 
-    WHY THEY HAVE TO BE STORED SEPARATELY, which the manual does not spell
-    out: the UDG area is CHR$ 128-168 at &5490-&55D7 and stops there,
-    because &55D8 is PALTAB, the sixteen CLUT entries.  328 bytes is the
-    whole of it.  So CHR$ 169 and 170 lie outside the UDG area altogether
-    and there is nowhere in it for their patterns to live.
-    Beware &55D8 and &55E0 when reading a dump: they look like glyphs and
-    are palette entries.
+#     WHY THEY HAVE TO BE STORED SEPARATELY, which the manual does not spell
+#     out: the UDG area is CHR$ 128-168 at &5490-&55D7 and stops there,
+#     because &55D8 is PALTAB, the sixteen CLUT entries.  328 bytes is the
+#     whole of it.  So CHR$ 169 and 170 lie outside the UDG area altogether
+#     and there is nowhere in it for their patterns to live.
+#     Beware &55D8 and &55E0 when reading a dump: they look like glyphs and
+#     are palette entries.
 
-    STILL OPEN: where MasterBASIC keeps the two cursor patterns, and what
-    renders CHR$ 169 and 170 given they are above the UDG range.  Nothing
-    in either half writes &55D8 upward, and the 328-byte buffer at MB &7E64
-    covers 128-168 only.
+#     STILL OPEN: where MasterBASIC keeps the two cursor patterns, and what
+#     renders CHR$ 169 and 170 given they are above the UDG range.  Nothing
+#     in either half writes &55D8 upward, and the 328-byte buffer at MB &7E64
+#     covers 128-168 only.
