@@ -15,12 +15,15 @@ distribution disk itself.
 `MBPOST.bin` is a post-installation `SAVE BOOT` MasterBASIC
 file).
 
-`SYSPAGE.bin` and `SYS2.bin` are both dumps of the system area
-of the SAM Coup&eacute; post-system boot. Code in this area is
-all Dr. A. J. Wright's.
+`SYSPAGE.bin` and `SYS2.bin` were an earlier pair of partial dumps
+of the system area, `&4000`-`&5BFF` between them. They have been
+removed: `SYSPAGE_after_MBMD_boot.bin` covers the same ground and
+the whole page besides, and agrees with them wherever anything in
+this repository cited them. Code in that area is all
+Dr. A. J. Wright's.
 
-`MBPOST.bin`, `SYSPAGE.bin`, and `SYS2.bin` were all saved from
-an emulated SAM Coup&eacute; by Simon Cooke.
+All the dumps here were saved from an emulated SAM Coup&eacute; by
+Simon Cooke.
 
 Most of these files are used by AI to reverse engineer the code
 and test/verify hypotheses.
@@ -48,6 +51,4 @@ later looking like evidence. See `notes/mb-extmem.txt`.
 
 `FullMemoryDump_After_MB_Load.bin` is all 512K of internal memory, 32 pages of
 16K, taken under SimCoupe after the combined file had booted. MasterBASIC is
-page 28 and the DOS page 29; page 0 is the ROM's system page. It supersedes
-`MB_page_post_boot.bin`, which caught an empty page by mistake and is 98.7%
-zero.
+page 28 and the DOS page 29; page 0 is the ROM's system page.

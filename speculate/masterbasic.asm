@@ -23471,7 +23471,7 @@ STACK_FILL_LOOP_1:
 ;;     the two fill one continuous region &45A2-&4AEB.
 ;;     
 ;;     All 298 bytes have been reproduced exactly from those five sources
-;;     and checked against file/SYSPAGE.bin, with the four patches applied.
+;;     and checked against file/SYSPAGE_after_MBMD_boot.bin, with the four patches applied.
 ;;     Nothing is left over.
 ;;     
 ;;     What this corrects
@@ -24676,7 +24676,7 @@ EVALUV_STUB_1:
 ;;     settled; a captured return address, whose high byte says which
 ;;     caller, would fit the spread better than a token does.
 ;;     
-;;     &45A2 is settled, by a dump of a running machine.  file/SYSPAGE.bin
+;;     &45A2 is settled, by a dump of a running machine.  file/SYSPAGE_after_MBMD_boot.bin
 ;;     holds &4000-&4BFF of the ROM's system page after boot, and at &45A2
 ;;     it has ten bytes that are MasterBASIC's own &7986:
 ;;     

@@ -49,7 +49,7 @@ DOC INSTALL_EXTENDED_PUT
     the two fill one continuous region &45A2-&4AEB.
 
     All 298 bytes have been reproduced exactly from those five sources
-    and checked against file/SYSPAGE.bin, with the four patches applied.
+    and checked against file/SYSPAGE_after_MBMD_boot.bin, with the four patches applied.
     Nothing is left over.
 
     What this corrects

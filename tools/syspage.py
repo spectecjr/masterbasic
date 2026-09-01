@@ -109,18 +109,7 @@ def build(image, dump=None):
 
     real = None
     if dump and os.path.exists(dump):
-        real = bytearray(open(dump, 'rb').read())
-        if len(real) < TOP - BASE:
-            # The older pair of dumps: &4000 upward, and a second from
-            # &4C00 that reaches CDBUFF and the ROM's own variables.
-            more = os.path.join(os.path.dirname(dump), 'SYS2.bin')
-            if os.path.exists(more):
-                blob = open(more, 'rb').read()
-                need = 0x4C00 - BASE + len(blob)
-                if len(real) < need:
-                    real.extend(bytes(BLANK for _ in range(need - len(real))))
-                real[0x4C00 - BASE:0x4C00 - BASE + len(blob)] = blob
-        real = bytes(real)
+        real = bytes(open(dump, 'rb').read())
         diffs = []
         checked = 0
         for at, end, _ in placed:
@@ -179,11 +168,7 @@ def build(image, dump=None):
 def main():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     image = os.path.join(root, 'file', 'MasterBasicMasterDos.bin')
-    # A full 16K dump of the page after a boot is preferred; the older
-    # SYSPAGE.bin plus SYS2.bin pair reaches only &5BFF.
     dump = os.path.join(root, 'file', 'SYSPAGE_after_MBMD_boot.bin')
-    if not os.path.exists(dump):
-        dump = os.path.join(root, 'file', 'SYSPAGE.bin')
     mem, placed, real, agree = build(image, dump)
     d = SysPage(mem)
     # Everything the installer does not write is not code, and the trace
