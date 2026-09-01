@@ -52,8 +52,56 @@
 # compressed file would occupy fewer sectors than its length implies,
 # and MBMC's 16311 bytes take the 32 sectors 16311 bytes need.
 #
-# So: right length, right slot, contents unidentified.  Nothing here
-# depends on knowing, and it is recorded rather than guessed at.
+# WHAT AUTOMBM SAYS IT IS, which settles the role if not the bytes.
+#
+# autoMBM is the BASIC program that builds the combined file, and it is
+# on the same disk.  Detokenised with tools/mgt.py and a crude renderer,
+# its first lines are:
+#
+#     70  PRINT "LOADing MBMC"
+#     80  LOAD "MBMC"  CODE &8009
+#     90  PRINT "LOADing MBASC"
+#    100  LOAD "MBASC" CODE &BFC0
+#    ...
+#    360  POKE 65536, MEM$(&8009 TO &FFBF)
+#    390  SAVE a$ CODE 65536, 32631
+#
+# &8009 plus MBMC's 16311 bytes is &BFC0 exactly, where MBASC begins,
+# and &8009 to &FFBF is 32631 bytes -- which is the combined file's
+# length as its own header records it, 1 x 16384 + 16247.  So MBMC
+# occupies the DOS half's slot and MBASC the MasterBASIC half's, and the
+# saved file is the two of them end to end.
+#
+# The &09 is the nine-byte header.  It is part of the file, so it
+# occupies the DOS page's &4000-&4008 when the file is loaded, and the
+# DOS's own code starts at &4009.  MBMC loads at &8009 because it is the
+# DOS half WITHOUT those nine bytes; autoMBM writes them itself.
+#
+# Two more of the manual's claims fall out of the same program:
+#
+#    250  IF dos=1 THEN ... POKE ndvs+7,21      SAMDOS
+#    260  IF dos=2 THEN ... POKE ndvs+7,50      MasterDOS
+#
+# with ndvs = &8220, which is DOS &4220, the DVAR block -- so ndvs+7 is
+# DVAR 7, and 21 and 50 are exactly the numbers the manual's
+# introduction gives.  And line 350 builds the output filename from
+# PEEK &BFC7, which is MB &4007, XVAR 7, "VERSION.  number of
+# MasterBASIC, times 10" -- which is where the 17 in MD+MBAS17 comes
+# from.
+#
+# WHAT IS STILL NOT KNOWN is why MBMC's bytes are not the DOS half of
+# the image in file/.  Aligned as autoMBM aligns them -- MBMC byte 0
+# against the image's byte 9 -- they agree in 957 of 16311, 5.9%.  For
+# comparison the image's own DOS half agrees with stock MasterDOS 2.3 in
+# only 4.1%, because autoMBM's "extensive linking" rewrites it heavily,
+# so a low figure is not by itself surprising.  But MBASC on that disk
+# is this project's MasterBASIC half byte for byte, all 16320, which
+# makes it odd that the DOS halves should have nothing in common.  The
+# likeliest reading is that file/MasterBasicMasterDos.bin was built by a
+# different autoMBM/MBMC pair than the one on dsks/MasterBasic1.7.dsk,
+# and that MBASC happens to be the same MasterBASIC either way.
+#
+# Nothing here depends on knowing.
 #
 # What that pair settles: nothing in samdos2 or MBMC calls MasterBASIC's
 # SIZE_EXTERNAL_MEMORY either.  See notes/mb-extmem.txt.
