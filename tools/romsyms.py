@@ -535,6 +535,15 @@ FROM_MDOS_COMMENTS = {
 
 
 EXTRA_NOTES = {
+    'INVALID': 'a compressed substring in ERRTBL, printed as "Invalid "',
+    'ERROR': 'a compressed substring in ERRTBL, printed as "Error"',
+    'TREAM': 'a compressed substring in ERRTBL, printed as "tream"',
+    'NO': 'a compressed substring in ERRTBL, printed as "No "',
+    'SNOTS': 'a compressed substring in ERRTBL, printed as " not "',
+    'SNAME': 'a compressed substring in ERRTBL, printed as " name"',
+    'TOOMANY': 'a compressed substring in ERRTBL, printed as "Too many "',
+    'TATEMENT': 'a compressed substring in ERRTBL, printed as "tatement"',
+    'FILE': 'a compressed substring in ERRTBL, printed as "file"',
     'SKIP_NEXT_2_BYTES': 'LD HL,nn, standing here only to swallow the two'
                          ' bytes after it -- see docs/idioms.md',
     'SKIP_NEXT_1_BYTE': 'LD A,n, standing here only to swallow the byte after it',

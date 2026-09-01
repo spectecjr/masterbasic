@@ -29,6 +29,7 @@ class Disassembler(Decoder):
         self.renderers = {}                   # addr -> (end, text) for a whole run
         self.overrides = {}                   # addr -> instruction text to print instead
         self.byte_names = {}                  # addr -> a name to write for one DEFB byte
+        self.text_codes = []                  # (lo, hi, {value: name}) inside a text run
         self.notes = {}                       # addr -> lines to print above it
         self.mdos_equs = {}                   # names those overrides need defining
         self.used_ext = set()                 # outside names the listing mentions
@@ -296,9 +297,15 @@ class Disassembler(Decoder):
         are set as DEFM and everything else as DEFB, rather than the whole
         word falling back to hex the moment one byte is not a character.
         """
+        codes = {}
+        for lo, hi, m in self.text_codes:
+            if lo <= s < hi:
+                codes = m
+                break
+
         def ok(c):
             ch = chr(c)
-            return ch.isprintable() and ch != '"'
+            return c not in codes and ch.isprintable() and ch != '"'
 
         def emit_defm(a, b):
             w('%-14s DEFM %-25s ; %04X %s\n'
@@ -306,9 +313,13 @@ class Disassembler(Decoder):
                  a, ' '.join(hexn(self.byte(i), 2)[1:]
                              for i in range(a, min(b, a + 8)))))
 
+        def one(i):
+            c = self.byte(i)
+            return codes.get(c) or hexn(c, 2)
+
         def emit_defb(a, b):
             w('%-14s DEFB %-25s ; %04X\n'
-              % ('', ','.join(hexn(self.byte(i), 2) for i in range(a, b)), a))
+              % ('', ','.join(one(i) for i in range(a, b)), a))
 
         a = s
         while a < e:
@@ -323,8 +334,12 @@ class Disassembler(Decoder):
                 (emit_defm if run else emit_defb)(p, q)
                 p = q
             if b < e:                       # the terminator, bit 7 set
-                last = chr(self.byte(b) & 0x7F)
-                if last.isprintable() and last != '"':
+                low = self.byte(b) & 0x7F
+                last = chr(low)
+                if low in codes:
+                    w('%-14s DEFB %-25s ; %04X %s\n'
+                      % ('', codes[low] + '+&80', b, hexn(self.byte(b), 2)[1:]))
+                elif last.isprintable() and last != '"':
                     w('%-14s DEFB %-25s ; %04X %s\n'
                       % ('', '"%s"+&80' % last, b, hexn(self.byte(b), 2)[1:]))
                 else:

@@ -204,15 +204,24 @@ DISKCTL_0_BASE:             EQU  &E0
 DISKCTL_1_BASE:             EQU  &F0
 DISKCTL_DATA_OFS:           EQU  &03
 ENABLE_ROM1:                EQU  &40           ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
+ERROR:                      EQU  &07           ; a compressed substring in ERRTBL, printed as "Error"
+FILE:                       EQU  &17           ; a compressed substring in ERRTBL, printed as "file"
 FORCE_INTERRUPT_CMD:        EQU  &D0
+INVALID:                    EQU  &00           ; a compressed substring in ERRTBL, printed as "Invalid "
+NO:                         EQU  &0B           ; a compressed substring in ERRTBL, printed as "No "
 SKIP_1_VIA_CP:              EQU  &FE           ; CP n, skipping one byte and clobbering the flags
 SKIP_NEXT_1_BYTE:           EQU  &3E           ; LD A,n, standing here only to swallow the byte after it
 SKIP_NEXT_2_BYTES:          EQU  &21           ; LD HL,nn, standing here only to swallow the two bytes after it -- see
                                                ; docs/idioms.md
+SNAME:                      EQU  &12           ; a compressed substring in ERRTBL, printed as " name"
+SNOTS:                      EQU  &11           ; a compressed substring in ERRTBL, printed as " not "
 SYSPAGE_IN_B:               EQU  &1F           ; LMPR &1F: page 31 at &0000, so section B gets page 32, which wraps to
                                                ; the system page. The ROM source calls it PAGE1F
 SYS_CHAR_WIDTH:             EQU  &4AEE
 SYS_MNIP_MAIN_INPUT:        EQU  &4C14
+TATEMENT:                   EQU  &15           ; a compressed substring in ERRTBL, printed as "tatement"
+TOOMANY:                    EQU  &14           ; a compressed substring in ERRTBL, printed as "Too many "
+TREAM:                      EQU  &08           ; a compressed substring in ERRTBL, printed as "tream"
 
 ; Constants under MasterDOS's own names, from the annotated
 ; source.  Each one is written where the listing would have
@@ -253,6 +262,24 @@ WRRAM:                      EQU  &0113         ; and write address
 ; 128 plus the index of an entry in the DOS hook table at &44A6.
 ERR_OUT_OF_MEMORY:          EQU  &01
 ERR_LOADING_ERROR:          EQU  &13
+ERR_END_OF_FILE:            EQU  &16
+ERR_TRK_NNN_SCT_NN_ERROR:   EQU  &55
+ERR_FORMAT_TRK_NNN_LOST:    EQU  &56
+ERR_CHECK_DISK_IN_DRIVE:    EQU  &57
+ERR_VERIFY_FAILED:          EQU  &5D
+ERR_WRONG_FILE_TYPE:        EQU  &5E
+ERR_READING_A_WRITE_FILE:   EQU  &63
+ERR_WRITING_A_READ_FILE:    EQU  &64
+ERR_NO_AUTO_FILE:           EQU  &65
+ERR_NO_SUCH_DRIVE:          EQU  &67
+ERR_DISK_IS_WRITE_PROTEC:   EQU  &68
+ERR_DISK_FULL:              EQU  &69
+ERR_DIRECTORY_FULL:         EQU  &6A
+ERR_FILE_NAME_USED:         EQU  &6D
+ERR_STREAM_USED:            EQU  &6F
+ERR_CHANNEL_USED:           EQU  &70
+ERR_DIRECTORY_NOT_FOUND:    EQU  &71
+ERR_DIRECTORY_NOT_EMPTY:    EQU  &72
 
                ORG  &4000
 
@@ -7911,8 +7938,8 @@ SETBORDER_BORDCR:
 
 ; ---- REP4 ---- from &46DB when A >= &0A, &7588 when A >= C
 REP4:
-               LD A,&55                        ; 5165 3E 55
-               DEFB &21                        ; 5167 !
+               LD A,ERR_TRK_NNN_SCT_NN_ERROR   ; 5165 3E 55
+               DEFB SKIP_NEXT_2_BYTES          ; 5167 !
 
 ;; --------------------------------------------------------------------
 ;; REP5 -- &5168 to &516A
@@ -7923,8 +7950,8 @@ REP4:
 
 ; ---- REP5 ---- from &4710 when A >= &08
 REP5:
-               LD A,&56                        ; 5168 3E 56
-               DEFB &21                        ; 516A !
+               LD A,ERR_FORMAT_TRK_NNN_LOST    ; 5168 3E 56
+               DEFB SKIP_NEXT_2_BYTES          ; 516A !
 
 ;; --------------------------------------------------------------------
 ;; REP6 -- &516B to &516D
@@ -7935,8 +7962,8 @@ REP5:
 
 ; ---- REP6 ---- from &47B7
 REP6:
-               LD A,&57                        ; 516B 3E 57
-               DEFB &21                        ; 516D !
+               LD A,ERR_CHECK_DISK_IN_DRIVE    ; 516B 3E 57
+               DEFB SKIP_NEXT_2_BYTES          ; 516D !
 
 ;; --------------------------------------------------------------------
 ;; REP12 -- &516E to &5170
@@ -7947,8 +7974,8 @@ REP6:
 
 ; ---- REP12 ---- from &64C9 when A <> (HL)
 REP12:
-               LD A,&5D                        ; 516E 3E 5D
-               DEFB &21                        ; 5170 !
+               LD A,ERR_VERIFY_FAILED          ; 516E 3E 5D
+               DEFB SKIP_NEXT_2_BYTES          ; 5170 !
 
 ;; --------------------------------------------------------------------
 ;; REP13 -- &5171 to &5173
@@ -7959,7 +7986,7 @@ REP12:
 
 ; ---- REP13 ---- from &4E7C when A >= &15, &4E83, &4EDD when A <> (HL), &5FFE
 REP13:
-               LD A,&5E                        ; 5171 3E 5E
+               LD A,ERR_WRONG_FILE_TYPE        ; 5171 3E 5E
                DEFB SKIP_NEXT_2_BYTES          ; 5173 !  skipped: reads as LD HL,&633E from here, and as part of the
                                                ; instruction above it
 
@@ -7972,7 +7999,7 @@ REP13:
 
 ; ---- REP18 ---- from &6F21 when bit 0 of (IX+&0C) set
 REP18:
-               LD A,&63                        ; 5174 3E 63
+               LD A,ERR_READING_A_WRITE_FILE   ; 5174 3E 63
                DEFB SKIP_NEXT_2_BYTES          ; 5176 !  skipped: reads as LD HL,&643E from here, and as part of the
                                                ; instruction above it
 
@@ -7985,8 +8012,8 @@ REP18:
 
 ; ---- REP19 ---- from &6BFF when A = &DF, &6F50 when no bit of &03 is set
 REP19:
-               LD A,&64                        ; 5177 3E 64
-               DEFB &21                        ; 5179 !
+               LD A,ERR_WRITING_A_READ_FILE    ; 5177 3E 64
+               DEFB SKIP_NEXT_2_BYTES          ; 5179 !
 
 ;; --------------------------------------------------------------------
 ;; REP20 -- &517A to &517C
@@ -7997,7 +8024,7 @@ REP19:
 
 ; ---- REP20 ---- from &65F4
 REP20:
-               LD A,&65                        ; 517A 3E 65
+               LD A,ERR_NO_AUTO_FILE           ; 517A 3E 65
                DEFB SKIP_NEXT_2_BYTES          ; 517C !  skipped: reads as LD HL,&673E from here, and as part of the
                                                ; instruction above it
 
@@ -8010,7 +8037,7 @@ REP20:
 
 ; ---- REP22 ---- from &4815 when A >= &07, &4820 when A = &00, &7582 when A = 0, &7645 when A >= &08, &7734 when A = 0
 REP22:
-               LD A,&67                        ; 517D 3E 67
+               LD A,ERR_NO_SUCH_DRIVE          ; 517D 3E 67
                DEFB SKIP_NEXT_2_BYTES          ; 517F !  skipped: reads as LD HL,&683E from here, and as part of the
                                                ; instruction above it
 
@@ -8023,8 +8050,8 @@ REP22:
 
 ; ---- REP23 ---- from &45A4 when bit 5 of A set, &5513 when bit 5 of A set
 REP23:
-               LD A,&68                        ; 5180 3E 68
-               DEFB &21                        ; 5182 !
+               LD A,ERR_DISK_IS_WRITE_PROTEC   ; 5180 3E 68
+               DEFB SKIP_NEXT_2_BYTES          ; 5182 !
 
 ;; --------------------------------------------------------------------
 ;; REP24 -- &5183 to &5185
@@ -8035,8 +8062,8 @@ REP23:
 
 ; ---- REP24 ---- from &4AC8 when A = D
 REP24:
-               LD A,&69                        ; 5183 3E 69
-               DEFB &21                        ; 5185 !
+               LD A,ERR_DISK_FULL              ; 5183 3E 69
+               DEFB SKIP_NEXT_2_BYTES          ; 5185 !
 
 ;; --------------------------------------------------------------------
 ;; REP25 -- &5186 to &5188
@@ -8047,7 +8074,7 @@ REP24:
 
 ; ---- REP25 ---- from &4E18, &721A when A = &FF
 REP25:
-               LD A,&6A                        ; 5186 3E 6A
+               LD A,ERR_DIRECTORY_FULL         ; 5186 3E 6A
                DEFB SKIP_NEXT_2_BYTES          ; 5188 !  skipped: reads as LD HL,&163E from here, and as part of the
                                                ; instruction above it
 
@@ -8060,7 +8087,7 @@ REP25:
 
 ; ---- REP27 ---- from &473A, &6F01, &70BF, &71A5, &75CD when A >= &0A, &7A5A
 REP27:
-               LD A,&16                        ; 5189 3E 16
+               LD A,ERR_END_OF_FILE            ; 5189 3E 16
                DEFB SKIP_NEXT_2_BYTES          ; 518B !  EOF
 
 ;; --------------------------------------------------------------------
@@ -8072,8 +8099,8 @@ REP27:
 
 ; ---- REP28 ---- from &4D3F, &4D49 when A = &15, &5D9F
 REP28:
-               LD A,&6D                        ; 518C 3E 6D
-               DEFB &21                        ; 518E !
+               LD A,ERR_FILE_NAME_USED         ; 518C 3E 6D
+               DEFB SKIP_NEXT_2_BYTES          ; 518E !
 
 ;; --------------------------------------------------------------------
 ;; REP30 -- &518F to &5191
@@ -8084,8 +8111,8 @@ REP28:
 
 ; ---- REP30 ---- from &6B48
 REP30:
-               LD A,&6F                        ; 518F 3E 6F
-               DEFB &21                        ; 5191 !
+               LD A,ERR_STREAM_USED            ; 518F 3E 6F
+               DEFB SKIP_NEXT_2_BYTES          ; 5191 !
 
 ;; --------------------------------------------------------------------
 ;; REP31 -- &5192 to &5194
@@ -8096,7 +8123,7 @@ REP30:
 
 ; ---- REP31 ---- from &6BCA
 REP31:
-               LD A,&70                        ; 5192 3E 70
+               LD A,ERR_CHANNEL_USED           ; 5192 3E 70
                DEFB SKIP_NEXT_2_BYTES          ; 5194 !  skipped: reads as LD HL,PTRSL from here, and as part of the
                                                ; instruction above it
 
@@ -8109,8 +8136,8 @@ REP31:
 
 ; ---- REP32 ---- from &731E
 REP32:
-               LD A,&71                        ; 5195 3E 71
-               DEFB &21                        ; 5197 !
+               LD A,ERR_DIRECTORY_NOT_FOUND    ; 5195 3E 71
+               DEFB SKIP_NEXT_2_BYTES          ; 5197 !
 
 ;; --------------------------------------------------------------------
 ;; REP33 -- &5198 to &519A
@@ -8121,8 +8148,8 @@ REP32:
 
 ; ---- REP33 ---- from &5D0F
 REP33:
-               LD A,&72                        ; 5198 3E 72
-               DEFB &21                        ; 519A !
+               LD A,ERR_DIRECTORY_NOT_EMPTY    ; 5198 3E 72
+               DEFB SKIP_NEXT_2_BYTES          ; 519A !
 
 ;; --------------------------------------------------------------------
 ;; REP33_1 -- &519B to &519D
@@ -8318,6 +8345,19 @@ DERR1_1:
 ;; and then stops being messages -- the bytes after 119 decode as one or
 ;; two characters, which is what ends the walk.
 ;;
+;; THE TABLE IS WRITTEN IN THOSE NAMES TOO.  MasterDOS's source calls
+;; the codes INVALID, ERROR, TREAM, NO, SNOTS, SNAME, TOOMANY, TATEMENT
+;; and FILE, and none of the nine clashes with a label in either half,
+;; so the listing uses them: DEFB NO where the byte is &0B, and
+;; DEFB FILE+&80 where it is &97 and ends the message.
+;;
+;; THREE OF THE SEVEN UNDOCUMENTED CODES ARE ACTUALLY RAISED, which is
+;; the check on having read them right.  The DOS's own chain of error
+;; stubs loads 113 at &5195, 114 just after it, and MasterBASIC loads
+;; 119 at &43AD.  The other four -- 115 to 118 -- have messages that
+;; nothing in either half loads into A; they would be raised by
+;; CALL DERR with the code inline, which is the other way in.
+;;
 ;; 119 is the one that prompted this.  MasterBASIC's REP_SIZE_MISMATCH
 ;; at &43AD loads it, and the only thing that reaches that stub is
 ;; &706E, which compares a stored pointer against DE just after reading
@@ -8360,14 +8400,14 @@ V5233:
                DEFB " "+&80                    ; 524D A0
                DEFB " "+&80                    ; 524E A0
                DEFB " "+&80                    ; 524F A0
-               DEFB &00                        ; 5250
+               DEFB INVALID                    ; 5250
                DEFM "devic"                    ; 5251 64 65 76 69 63
                DEFB "e"+&80                    ; 5256 E5
                DEFB " "+&80                    ; 5257 A0
                DEFM "Verify faile"             ; 5258 56 65 72 69 66 79 20 66
                DEFB "d"+&80                    ; 5264 E4
                DEFM "Wrong "                   ; 5265 57 72 6F 6E 67 20
-               DEFB &17                        ; 526B
+               DEFB FILE                       ; 526B
                DEFM " typ"                     ; 526C 20 74 79 70
                DEFB "e"+&80                    ; 5270 E5
                DEFB " "+&80                    ; 5271 A0
@@ -8375,14 +8415,14 @@ V5233:
                DEFB " "+&80                    ; 5273 A0
                DEFB " "+&80                    ; 5274 A0
                DEFM "Reading a write "         ; 5275 52 65 61 64 69 6E 67 20
-               DEFB &97                        ; 5285
+               DEFB FILE+&80                   ; 5285 97
                DEFM "Writing a read "          ; 5286 57 72 69 74 69 6E 67 20
-               DEFB &97                        ; 5295
-               DEFB &0B                        ; 5296
+               DEFB FILE+&80                   ; 5295 97
+               DEFB NO                         ; 5296
                DEFM "AUTO* "                   ; 5297 41 55 54 4F 2A 20
-               DEFB &97                        ; 529D
+               DEFB FILE+&80                   ; 529D 97
                DEFB " "+&80                    ; 529E A0
-               DEFB &0B                        ; 529F
+               DEFB NO                         ; 529F
                DEFM "such driv"                ; 52A0 73 75 63 68 20 64 72 69
                DEFB "e"+&80                    ; 52A9 E5
                DEFM "Disk is write protecte"   ; 52AA 44 69 73 6B 20 69 73 20
@@ -8392,35 +8432,35 @@ V5233:
                DEFM "Directory ful"            ; 52CA 44 69 72 65 63 74 6F 72
                DEFB "l"+&80                    ; 52D7 EC
                DEFM "File"                     ; 52D8 46 69 6C 65
-               DEFB &11                        ; 52DC
+               DEFB SNOTS                      ; 52DC
                DEFM "foun"                     ; 52DD 66 6F 75 6E
                DEFB "d"+&80                    ; 52E1 E4
                DEFB " "+&80                    ; 52E2 A0
                DEFM "File"                     ; 52E3 46 69 6C 65
-               DEFB &12                        ; 52E7
+               DEFB SNAME                      ; 52E7
                DEFM " use"                     ; 52E8 20 75 73 65
                DEFB "d"+&80                    ; 52EC E4
                DEFB " "+&80                    ; 52ED A0
                DEFM "S"                        ; 52EE 53
-               DEFB &08                        ; 52EF
+               DEFB TREAM                      ; 52EF
                DEFM " use"                     ; 52F0 20 75 73 65
                DEFB "d"+&80                    ; 52F4 E4
                DEFM "Channel use"              ; 52F5 43 68 61 6E 6E 65 6C 20
                DEFB "d"+&80                    ; 5300 E4
                DEFM "Directory"                ; 5301 44 69 72 65 63 74 6F 72
-               DEFB &11                        ; 530A
+               DEFB SNOTS                      ; 530A
                DEFM "foun"                     ; 530B 66 6F 75 6E
                DEFB "d"+&80                    ; 530F E4
                DEFM "Directory"                ; 5310 44 69 72 65 63 74 6F 72
-               DEFB &11                        ; 5319
+               DEFB SNOTS                      ; 5319
                DEFM "empt"                     ; 531A 65 6D 70 74
                DEFB "y"+&80                    ; 531E F9
-               DEFB &0B                        ; 531F
+               DEFB NO                         ; 531F
                DEFM "pages fre"                ; 5320 70 61 67 65 73 20 66 72
                DEFB "e"+&80                    ; 5329 E5
                DEFM "PROTECTED "               ; 532A 50 52 4F 54 45 43 54 45
-               DEFB &97                        ; 5334
-               DEFB &0B                        ; 5335
+               DEFB FILE+&80                   ; 5334 97
+               DEFB NO                         ; 5335
                DEFM "Buffe"                    ; 5336 42 75 66 66 65
                DEFB "r"+&80                    ; 533B F2
                DEFM "Page overla"              ; 533C 50 61 67 65 20 6F 76 65

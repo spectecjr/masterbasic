@@ -1332,6 +1332,10 @@ def until_stable(d, step, limit=60):
 # ref/masterdos/docs/errors.md, which matches the ROM's own COMPLIST.
 COMPLIST = {0: 'Invalid ', 7: 'Error', 8: 'tream', 11: 'No ', 17: ' not ',
             18: ' name', 20: 'Too many ', 21: 'tatement', 23: 'file'}
+# and the names the DOS's own source gives them, so the table can be read
+# in words: DEFB NO, "such drive"+&80 rather than DEFB &0B and a number.
+COMPNAMES = {0: 'INVALID', 7: 'ERROR', 8: 'TREAM', 11: 'NO', 17: 'SNOTS',
+             18: 'SNAME', 20: 'TOOMANY', 21: 'TATEMENT', 23: 'FILE'}
 ERRTBL_FIRST = 81               # errors.md: the message index is the code less 81
 
 
@@ -1351,6 +1355,7 @@ def errtbl_errors(dos):
     if at is None:
         return {}
     out, code, a = {}, ERRTBL_FIRST, at
+    start = at
     while a < dos.limit:
         b = a
         while b < dos.limit and not (dos.byte(b) & 0x80):
@@ -1368,6 +1373,10 @@ def errtbl_errors(dos):
             out[code] = text
         code += 1
         a = b + 1
+    # The table can now be written in words rather than numbers.
+    dos.text_codes.append((start, a, COMPNAMES))
+    for v, n in COMPNAMES.items():
+        dos.user_equs[n] = v
     return out
 
 
@@ -1559,7 +1568,8 @@ def name_error_codes(d):
     """
     n = 0
     for a, name in d.labels.items():
-        if not name.startswith('REP_') or a not in d.insns:
+        # REP_SIZE_MISMATCH here, REP4 and REP13 in MasterDOS's own names.
+        if not re.match(r'^REP(_|[0-9]*$)', name) or a not in d.insns:
             continue
         m = re.match(r'^LD A,&([0-9A-F]{2})$', d.insns[a].text)
         if not m:
@@ -1570,6 +1580,10 @@ def name_error_codes(d):
             d.overrides[a] = 'LD A,' + sym
             d.used_codes.add(code)
             n += 1
+        # and the byte after it, which skips the rest of the chain
+        nxt = d.insns[a].end
+        if d.m(nxt) == DATA:
+            name_skip(d, nxt)
     return n
 
 
