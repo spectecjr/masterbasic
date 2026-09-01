@@ -38,6 +38,7 @@ assembling ref/masterdos/annotated-src and ref/samrom with pyz80.
 import argparse
 import glob
 import re
+import copy
 import io
 import bisect
 import os
@@ -2202,14 +2203,19 @@ def prune_equates(text):
     return chr(10).join(res) + chr(10), dropped
 
 
-def write_clean(dos, mb):
-    """Write clean/, the reading copy, and put the pages back afterwards.
+def write_clean(pages):
+    """Write clean/, the reading copy, from a copy of the two pages.
 
-    Everything downstream of this -- the census, the speculation -- works
-    from these same headers and comments, so the changes made here are
-    undone at the end rather than left in place.
+    A copy because notes/clean does not only add prose: naming a number
+    rewrites the operand that holds it and declares an equate, and both
+    outlive the pass that did them.  Undoing that by hand means knowing
+    everything a note can touch, and the first thing it missed was
+    CMD_LATENCY_LOOPS turning up in speculate/masterdos.asm -- the same
+    address named one way in one working listing and another way in the
+    other, because one was written before this pass and one after.  A
+    copy cannot leak.
     """
-    saved = [(dict(d.headers), dict(d.comments), d.title) for d in (dos, mb)]
+    dos, mb = copy.deepcopy(pages)
     nn, nc, nm, problems = notes.apply((dos, mb), ROOT, annotate.banner,
                                        folder=os.path.join('notes', 'clean'))
     if nn or nc or nm:
@@ -2227,21 +2233,18 @@ def write_clean(dos, mb):
     os.makedirs(out, exist_ok=True)
     for d, name in ((dos, 'masterdos.asm'), (mb, 'masterbasic.asm')):
         d.relabel()
-        was, d.title = d.title, clean.preamble(d)
+        d.title = clean.preamble(d)
         d.emit(io.StringIO(), segs=[(BASE, HALF)])
         buf = io.StringIO()
         d.emit(buf, title=header(d), segs=[(BASE, HALF)])
         body, _ = prune_equates(buf.getvalue())
         with open(os.path.join(out, name), 'w') as f:
             f.write(asmfmt.format_listing(body))
-        d.title = was
         print('wrote', os.path.join(out, name))
 
     for tag, (mine, orig) in sorted(clean.coverage((dos, mb)).items()):
         print('clean/: %s line comments -- %d written here, %d still the '
               'MasterDOS author%ss own' % (tag, mine, orig, chr(39)))
-    for d, (h, c, t) in zip((dos, mb), saved):
-        d.headers, d.comments, d.title = h, c, t
 
 
 def write_speculation(dos, mb, outdir):
@@ -2525,7 +2528,7 @@ def main():
             print('notes/: ' + p)
         # Before the speculation pass, which puts a header on every
         # routine and would swamp what the reading copy is for.
-        write_clean(dos, mb)
+        write_clean((dos, mb))
         # Only now: the speculation is written by adding to these same
         # headers and notes, so it has to come after the plain listings.
         census((dos, mb))
