@@ -1216,6 +1216,48 @@ SAVE_BLOCK_FROM_THIS_PAGE_1:
                INC A                           ; 42B0 3C
                AND PAGEMASK                    ; 42B1 E6 1F
 
+;; --------------------------------------------------------------------
+;; WHAT MASTERBASIC'S PAGE ACTUALLY HOLDS AFTER A BOOT, which no dump
+;; showed until file/FullMemoryDump_After_MB_Load.bin.  MasterBASIC is
+;; page 28 and the DOS page 29; the file is 512K, 32 pages, and both
+;; were found by content rather than by number -- MasterBASIC's page
+;; begins FF 48, which is XVAR 0 PUTSWA.
+;;
+;; &7B80-&7BA3   the 36 bytes, untouched     36 of 36 match syspage &4BA0
+;; &7BA4-&7BFF   the second stub's source, still intact
+;; &7C00-&7CFF   overwritten, filled with &0D
+;; &7D00-&7DEF   the DOS's boot sector, from its &4009
+;; &7DF0-&7FAD   INSTBUF                    446 of 446 match syspage &4F00
+;; &7E64-&7FAB   the alternate character set 328 of 328 match syspage &4F74
+;;
+;; THREE THINGS THIS SETTLES.
+;;
+;; The gap block's source is destroyed.  MB &7E43 is where
+;; INSTALL_SYSPAGE_CODE reads the forty bytes it copies to syspage
+;; &5896 -- but &7E43 is inside INSTBUF's range, and after the boot it
+;; holds syspage &4F53 instead, 40 of 40.  So by the time anything could
+;; save it, the original is gone.  That is why the eighth block reads
+;; the system page rather than this one: not a choice, a necessity.
+;;
+;; The first block's nine bytes of &0D are explained.  MB &7CF7 reads
+;; 0D 0D 0D 0D 0D 0D 0D 0D 0D after a boot, and SAVE BOOT's first block
+;; starts there -- which is exactly what MBPOST.bin has at file offset
+;; 0, where the shipped image has its nine-byte header.  A file made by
+;; SAVE BOOT carries filler in the header's place and keeps the real
+;; header only in the directory entry.  The shipped image is different
+;; because autoMBM built it with an ordinary SAVE, and the DOS writes a
+;; proper header when it does that.
+;;
+;; And the boot sector really is kept here.  MB &7D00 holds F3 21 00 00
+;; 22 E2 5A, which is the DOS page's own &4009 -- its &4000 being the
+;; nine header bytes.  notes/mb-install.txt had this as "the likeliest
+;; reading of two copies that go the wrong way"; it is now read from
+;; memory at both ends.
+;;
+;; The installer's copy is NOT here: MB &7C00 matches the stored MB
+;; &75E1 in 12 bytes of 943, against 943 of 943 in the DOS page.
+;; --------------------------------------------------------------------
+
 ; ---- SAVE_BLOCK_FROM_SYSPAGE_DONE ---- from &42A7
 SAVE_BLOCK_FROM_SYSPAGE_DONE:
                OUT (HMPR),A                    ; 42B3 D3 FB  and here they meet: page set, A zeroed, and SVBLK called through CALLDOS

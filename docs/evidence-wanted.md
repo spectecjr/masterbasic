@@ -71,26 +71,26 @@ against MasterBASIC's half, where those addresses happen to hold other code.
 
 ---
 
-## 4. MasterBASIC's page, `&7B80`–`&7FBF`
+## 4. Answered — the last page, from a full memory dump
 
-**Why.** This entry used to ask for both pages. `file/LiveDuringMRINIT.bin`
-has since covered the DOS page, including both of the regions `MBPOST.bin` is
-blind to — the boot sector at `&4000`–`&40FF`, where it confirms the file's
-nine-byte header is loaded into memory verbatim, and the tail at
-`&7D60`–`&7FBF`, where it holds the installer's copy rather than the file's
-own bytes. MasterBASIC's page above `&7B7F` is what is left.
+`file/FullMemoryDump_After_MB_Load.bin` is 512K, all 32 pages, taken after the
+boot. Both pages were found by content rather than by number: MasterBASIC's
+begins `FF 48` — `XVAR 0` `PUTSWA` — and it is **page 28**, with the DOS at
+**page 29**.
 
-`MBPOST.bin` cannot show it: `SAVE BOOT` fills that part of the file from the
-system page, precisely because the running machine no longer holds what
-belongs there.
+It confirms every deduction that had been made without it, from an independent
+capture: the installer's copy at DOS `&7DFA` and its `OUT` at `&7E04`, `INSTBUF`
+at MB `&7DF0` matching syspage `&4F00` in all 446 bytes, and the alternate
+character set at MB `&7E64` matching syspage `&4F74` in all 328.
 
-**What to capture.** A 16K dump of MasterBASIC's page from a booted machine.
-It is the one whose `&4000` holds the XVARs, `PUTSWA` first.
+And it shows the tail of MasterBASIC's page, which nothing had — the region
+`MBPOST.bin` cannot reach. See `notes/mb-saveboot.txt`: the gap block's source
+is overwritten by `INSTBUF`, which is why `SAVE BOOT`'s eighth block has to read
+the system page; MB `&7CF7` holds nine `&0D`, which is what a `SAVE BOOT` file
+carries where a header would be; and the DOS's boot sector really is kept at
+MB `&7D00`.
 
-**What it decides.** Nothing outstanding depends on it, which is why it is
-last. It would show what the installer leaves at `&7B80` upward, and what
-`&7E43`–`&7FBF` holds once the machine has booted — where the shipped file
-carries a fragment of somebody's BASIC program.
+Nothing here is outstanding.
 
 ---
 

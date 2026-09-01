@@ -45,3 +45,9 @@ DOS/MasterBASIC file booted from `dsks/MasterDOS2_3_MasterBasic1_7.mgt`.
 captured under SimCoupe in place of the intended page `&1D`. It contains
 nothing and proves nothing; it is kept only so that the name does not turn up
 later looking like evidence. See `notes/mb-extmem.txt`.
+
+`FullMemoryDump_After_MB_Load.bin` is all 512K of internal memory, 32 pages of
+16K, taken under SimCoupe after the combined file had booted. MasterBASIC is
+page 28 and the DOS page 29; page 0 is the ROM's system page. It supersedes
+`MB_page_post_boot.bin`, which caught an empty page by mistake and is 98.7%
+zero.
