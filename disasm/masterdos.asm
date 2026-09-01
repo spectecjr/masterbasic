@@ -10155,7 +10155,9 @@ HK_HOPEN:
                CALL HEVSY                      ; 6B0C CD 67 69
                LD HL,(HKHL)                    ; 6B0F 2A DE 41
                DEC HL                          ; 6B12 2B
-               LD BC,PDIRH_1                   ; 6B13 01 16 5C
+               LD BC,PDIRH_1                   ; 6B13 01 16 5C  &5C16 is the ROM's STRMS, the stream table in the system
+                                               ; page -- not this page's PDIRH_1, which happens to sit at the same
+                                               ; address
                AND A                           ; 6B16 A7
                SBC HL,BC                       ; 6B17 ED 42
                LD A,L                          ; 6B19 7D

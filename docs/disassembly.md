@@ -104,7 +104,7 @@ are therefore two address spaces, not one, and get a file each; a reference to
 under a `DOS_` or `MB_` prefix:
 
 ```
-               CALL DOS_MBCOPY_775A            ; 75F2 CD 79 BD
+               CALL DOS_FIND_ROM_CODE          ; 75FE CD 79 BD
 ```
 
 The boot sector is the exception at both ends: it runs before either page is in
@@ -294,8 +294,8 @@ page's own label less `&4000`, the mirror of the `+&4000` used for the bit-15
 pointers in the dispatch tables:
 
 ```
-               CALL CALLDOS                    ; 4A44 CD C1 42
-               DEFW DOS_POINT-&4000            ; 4A47
+               CALL CALLDOS                    ; 4A41 CD C1 42
+               DEFW DOS_POINT-&4000            ; 4A44 AC 4F
 ```
 
 Following them also gives the tracer three DOS entry points it had no other way

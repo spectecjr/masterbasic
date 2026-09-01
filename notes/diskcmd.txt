@@ -20,3 +20,5 @@ DOS &4568 value READ_ADDRESS_CMD
 
 # The WD1772's type IV command.  MasterDOS has no name for it.
 DOS &47CA value FORCE_INTERRUPT_CMD
+
+DOS &6B13 : &5C16 is the ROM's STRMS, the stream table in the system page -- not this page's PDIRH_1, which happens to sit at the same address

@@ -101,5 +101,9 @@ for name, part in (('masterdos', raw[:half]), ('masterbasic', raw[half:]),
 sys.exit(0 if ok else 1)
 EOF
 
+# The listings are their own proof; the prose around them is not, so check
+# that what it quotes and the names it uses are still what the listings say.
+python "$here/checkdocs.py"
+
 [ "$keep" -eq 1 ] && echo "build directory kept at $work"
 exit 0

@@ -392,12 +392,17 @@ arithmetic says exactly what a stream is:
 ```asm
       LD HL,(HKHL)                    ; 6B0F
       DEC HL                          ; 6B12
-      LD BC,&5C16                     ; 6B13  STRMS, the ROM's stream table
+      LD BC,PDIRH_1                   ; 6B13  &5C16 -- the ROM's STRMS, not this label
+      AND A                           ; 6B16
       SBC HL,BC                       ; 6B17
       LD A,L                          ; 6B19
       SRL A                           ; 6B1A  two bytes per entry
       LD (SSTR1),A                    ; 6B1C
 ```
+
+The operand is one to be careful with: `&5C16` is the ROM's `STRMS` in the
+system page, and the DOS happens to have `PDIRH_1` at the same address, so the
+listing labels it with the wrong one. The line carries a comment saying so.
 
 The caller hands over a pointer *into the ROM's stream table*; subtracting
 the table's base and halving gives the stream number. `CHANNEL_FOR_STREAM` at

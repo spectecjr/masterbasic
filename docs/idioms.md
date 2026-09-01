@@ -239,7 +239,7 @@ does not:
       AND PAGEMASK                    ; 7404  the page number alone
       OR &80                          ; 7406
       LD B,A                          ; 7408
-      DEFB &21                        ; 7409  the opcode of LD HL,nn
+      DEFB SKIP_NEXT_2_BYTES          ; 7409  &21, the opcode of LD HL,nn
 FIND_PROC_ENTRY_1:
       LD B,&FF                        ; 740A  which is the two bytes this
       POP AF                          ; 740C  instruction is made of
@@ -342,7 +342,7 @@ MasterBASIC calls almost no fixed address inside ROM 0. Instead:
       LD (V45F6),HL                   ; 7607                     -> &10A0 INSERTLN
       CALL DOS_FIND_ROM_CODE          ; 760A
       DEFB &56,&5A,&C9,&3C,&00,&03    ; 760D  signature 56 5A C9 from &3C00, +3
-      LD (&7DA7),HL                   ; 7613                     -> &3DA7 CCRESTOP
+      LD (L7DA6+1),HL                 ; 7613                     -> &3DA7 CCRESTOP
 ```
 
 Six inline bytes in the convention of idiom 3: a three-byte instruction
