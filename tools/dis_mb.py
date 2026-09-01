@@ -1683,6 +1683,86 @@ def render_tables(d, work):
         _table(d, start, end, text)
 
 
+# MasterDOS's MCPT compression codes, which is what the bytes below 13 in
+# DRTAB are.  The values are its own: WHAT: EQU 8 and the three after it.
+DRTAB_CODES = ((8, 'WHAT', '"WHAT?"'), (9, 'ARRAY', '".ARRAY"'),
+               (10, 'ZXS', '"ZX"'), (11, 'SCREENS', '"SCREEN$"'))
+
+
+def render_drtab(d, start=0x4349, end=0x43A1):
+    """The file type names, written the way MasterDOS's own source writes them.
+
+    One bit-7-terminated word per file type, 0 to 21, and a blank line
+    between them so the entries can be counted off against the type they
+    are indexed by.  The codes below 13 stand for whole words, so they are
+    named rather than left as numbers -- DEFB ZXS,"D",ARRAY+&80 is the
+    author's own line for type 2.
+    """
+    name = {v: n for v, n, _ in DRTAB_CODES}
+
+    def item(b):
+        if b & 0x80:
+            low = b & 0x7F
+            if low in name:
+                return name[low] + '+&80'
+            c = chr(low)
+            return '"%s"+&80' % c if c.isprintable() and c != '"' else hexn(b, 2)
+        if b in name:
+            return name[b]
+        c = chr(b)
+        return '"%s"' % c if c.isprintable() and c != '"' else hexn(b, 2)
+
+    def printable(b):
+        c = chr(b)
+        return not (b & 0x80) and b not in name and c.isprintable() and c != '"'
+
+    out = []
+    for v, n, means in DRTAB_CODES:
+        out.append('%-14s EQU  %-25s ; %s' % (n + ':', v, means))
+    equates = chr(10).join(out)
+
+    body, a = [], start
+    while a < end:
+        b = a
+        while b < end and not (d.byte(b) & 0x80):
+            b += 1
+        word = list(range(a, min(b + 1, end)))
+        lines, i = [], 0
+        while i < len(word):
+            if printable(d.byte(word[i])) and i + 1 < len(word) \
+                    and printable(d.byte(word[i + 1])):
+                j = i
+                while j < len(word) and printable(d.byte(word[j])):
+                    j += 1
+                run = word[i:j]
+                lines.append(('DEFM "%s"' % ''.join(chr(d.byte(x)) for x in run), run))
+                i = j
+            else:
+                j = i
+                while j < len(word) and not (printable(d.byte(word[j]))
+                                             and j + 1 < len(word)
+                                             and printable(d.byte(word[j + 1]))):
+                    j += 1
+                run = word[i:j]
+                lines.append(('DEFB ' + ','.join(item(d.byte(x)) for x in run), run))
+                i = j
+        for text, run in lines:
+            body.append('%-14s %-31s ; %04X %s'
+                        % ('', text, run[0],
+                           ' '.join(hexn(d.byte(x), 2)[1:] for x in run)))
+        body.append('')
+        a = b + 1
+    while body and not body[-1]:
+        body.pop()
+    _table(d, start, end, chr(10).join(body) + chr(10))
+    # main() composes the tables twice, so take our own equates off again
+    # before putting them back rather than appending a second copy.
+    head = d.headers.get(start, '').split(chr(10) * 2 + DRTAB_CODES[0][1])[0]
+    head = head.rstrip()
+    d.headers[start] = (head + chr(10) * 2 if head else '') + equates
+    return len(body)
+
+
 def _table(d, start, end, text):
     for a in range(start, end):
         d.setm(a, DATA)
@@ -2111,6 +2191,7 @@ def main():
     # CTAB's text names the routines it points at, and some of those names
     # arrive from notes/, so it has to be composed again now they exist.
     render_tables(dos, args.work)
+    render_drtab(mb)
 
     n = sum(autolabel(d, skip=(MBTEXT,)) for d in (dos, mb))
     n += sum(label_peer_targets(d) for d in (dos, mb))

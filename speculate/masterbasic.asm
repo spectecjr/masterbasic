@@ -1887,46 +1887,65 @@ CHECK_PRINTER_READY_1:
 ;; is what a false decode looks like from the outside.
 ;; --------------------------------------------------------------------
 
+WHAT:                           EQU  8         ; "WHAT?"
+ARRAY:                          EQU  9         ; ".ARRAY"
+ZXS:                            EQU  10        ; "ZX"
+SCREENS:                        EQU  11        ; "SCREEN$"
+
 DRTAB:
                DEFB " "+&80                    ; 4349 A0
-               DEFB &0A                        ; 434A
+
+               DEFB ZXS                        ; 434A 0A
                DEFM "BASI"                     ; 434B 42 41 53 49
                DEFB "C"+&80                    ; 434F C3
-               DEFB &0A                        ; 4350
-               DEFM "D"                        ; 4351 44
-               DEFB &89                        ; 4352
-               DEFB &0A                        ; 4353
-               DEFM "$"                        ; 4354 24
-               DEFB &89                        ; 4355
-               DEFB &8A                        ; 4356
-               DEFB &0A                        ; 4357
+
+               DEFB ZXS,"D",ARRAY+&80          ; 4350 0A 44 89
+
+               DEFB ZXS,"$",ARRAY+&80          ; 4353 0A 24 89
+
+               DEFB ZXS+&80                    ; 4356 8A
+
+               DEFB ZXS                        ; 4357 0A
                DEFM "SNP 48"                   ; 4358 53 4E 50 20 34 38
                DEFB "K"+&80                    ; 435E CB
+
                DEFM "MD.FIL"                   ; 435F 4D 44 2E 46 49 4C
                DEFB "E"+&80                    ; 4365 C5
-               DEFB &0A                        ; 4366
-               DEFB &8B                        ; 4367
+
+               DEFB ZXS,SCREENS+&80            ; 4366 0A 8B
+
                DEFM "SPECIA"                   ; 4368 53 50 45 43 49 41
                DEFB "L"+&80                    ; 436E CC
-               DEFB &0A                        ; 436F
+
+               DEFB ZXS                        ; 436F 0A
                DEFM "SNP 128"                  ; 4370 53 4E 50 20 31 32 38
                DEFB "K"+&80                    ; 4377 CB
+
                DEFM "OPENTYP"                  ; 4378 4F 50 45 4E 54 59 50
                DEFB "E"+&80                    ; 437F C5
-               DEFM "N/A EXECUT"               ; 4380 4E 2F 41 20 45 58 45 43
+
+               DEFM "N/A EXECUT"               ; 4380 4E 2F 41 20 45 58 45 43 55 54
                DEFB "E"+&80                    ; 438A C5
-               DEFB &88                        ; 438B
-               DEFB &88                        ; 438C
-               DEFB &88                        ; 438D
-               DEFB &88                        ; 438E
+
+               DEFB WHAT+&80                   ; 438B 88
+
+               DEFB WHAT+&80                   ; 438C 88
+
+               DEFB WHAT+&80                   ; 438D 88
+
+               DEFB WHAT+&80                   ; 438E 88
+
                DEFM "BASI"                     ; 438F 42 41 53 49
                DEFB "C"+&80                    ; 4393 C3
-               DEFM "D"                        ; 4394 44
-               DEFB &89                        ; 4395
-               DEFM "$"                        ; 4396 24
-               DEFB &89                        ; 4397
+
+               DEFB "D",ARRAY+&80              ; 4394 44 89
+
+               DEFB "$",ARRAY+&80              ; 4396 24 89
+
                DEFB "C"+&80                    ; 4398 C3
-               DEFB &8B                        ; 4399
+
+               DEFB SCREENS+&80                ; 4399 8B
+
                DEFM "    DI"                   ; 439A 20 20 20 20 44 49
                DEFB "R"+&80                    ; 43A0 D2
 
