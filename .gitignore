@@ -25,3 +25,7 @@ ghidra/**/*.ulock
 Thumbs.db
 *.swp
 *~
+
+# VSCode project settings (not used; we put them in the workspace)
+
+.vscode/
