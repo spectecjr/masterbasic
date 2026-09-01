@@ -535,6 +535,8 @@ FROM_MDOS_COMMENTS = {
 
 
 EXTRA_NOTES = {
+    'SKIP_NEXT_2_BYTES': 'the opcode of LD HL,nn, standing here only to'
+                         ' swallow the two bytes after it, see docs/idioms.md',
     'STKEND': 'end of the calculator stack',
     'WORKSP': 'address of the workspace',
     'WORKSPP': 'page holding the workspace',

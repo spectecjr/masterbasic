@@ -71,6 +71,7 @@ PEER = 0x8000                   # where each page sees the other one
 BOOT_END = 0x4200               # the boot sector runs with its own page at &8000
 
 HOOK_TABLE = 0x44A6             # SAMHK: RST &08 code 128+i is entry i
+SKIP2 = 'SKIP_NEXT_2_BYTES'     # &21, LD HL,nn, where it only skips
 MBTEXT = (0x7E6B, 0x7FC0)       # tokenised BASIC at the end of the extension
 MBKEYS = (0x50D8, 0x5169)       # the extension's keyword names
 MBVARS = (0x4000, 0x405A)       # the XVARs the manual documents
@@ -2415,6 +2416,13 @@ def classify_leftovers(d):
             d.comments.setdefault(
                 s, 'skipped: reads as %s from here, and as part of the '
                    'instruction above it' % first.text)
+            # The commonest of these is LD HL,nn standing there for
+            # nothing but the two bytes it swallows -- docs/idioms.md
+            # calls it the &21 skip.  Write the opcode under a name that
+            # says what it is for; the value itself means nothing here.
+            if e - s == 1 and d.byte(s) == 0x21:
+                d.byte_names[s] = SKIP2
+                d.user_equs[SKIP2] = 0x21
             other += e - s
     return zeros, other, text
 

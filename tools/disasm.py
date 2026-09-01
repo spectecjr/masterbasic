@@ -28,6 +28,7 @@ class Disassembler(Decoder):
         self.headers = {}                     # addr -> banner text
         self.renderers = {}                   # addr -> (end, text) for a whole run
         self.overrides = {}                   # addr -> instruction text to print instead
+        self.byte_names = {}                  # addr -> a name to write for one DEFB byte
         self.notes = {}                       # addr -> lines to print above it
         self.mdos_equs = {}                   # names those overrides need defining
         self.used_ext = set()                 # outside names the listing mentions
@@ -363,6 +364,8 @@ class Disassembler(Decoder):
             txt = ''.join(chr(c & 0x7F) if 32 <= (c & 0x7F) < 127 else '.' for c in chunk)
             note = self.comments.get(a)
             w('%-14s DEFB %-*s ; %04X %s\n'
-              % ('', width * 4 - 1, ','.join(hexn(c, 2) for c in chunk), a,
+              % ('', width * 4 - 1,
+                 ','.join(self.byte_names.get(a + k, hexn(c, 2))
+                          for k, c in enumerate(chunk)), a,
                  (txt + '  ' + note).strip() if note else txt))
             a += n

@@ -195,6 +195,8 @@ DISKCTL_1_BASE:             EQU  &F0
 DISKCTL_DATA_OFS:           EQU  &03
 ENABLE_ROM1:                EQU  &40           ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
 FORCE_INTERRUPT_CMD:        EQU  &D0
+SKIP_NEXT_2_BYTES:          EQU  &21           ; the opcode of LD HL,nn, standing here only to swallow the two bytes
+                                               ; after it, see docs/idioms.md
 SYSPAGE_IN_B:               EQU  &1F           ; LMPR &1F: page 31 at &0000, so section B gets page 32, which wraps to
                                                ; the system page. The ROM source calls it PAGE1F
 SYS_CHAR_WIDTH:             EQU  &4AEE
@@ -4817,13 +4819,13 @@ REP12:
 ; ---- REP13 ---- from &4E7C when A >= &15, &4E83, &4EDD when A <> (HL), &5FFE
 REP13:
                LD A,&5E                        ; 5171 3E 5E
-               DEFB &21                        ; 5173 !  skipped: reads as LD HL,&633E from here, and as part of the
+               DEFB SKIP_NEXT_2_BYTES          ; 5173 !  skipped: reads as LD HL,&633E from here, and as part of the
                                                ; instruction above it
 
 ; ---- REP18 ---- from &6F21 when bit 0 of (IX+&0C) set
 REP18:
                LD A,&63                        ; 5174 3E 63
-               DEFB &21                        ; 5176 !  skipped: reads as LD HL,&643E from here, and as part of the
+               DEFB SKIP_NEXT_2_BYTES          ; 5176 !  skipped: reads as LD HL,&643E from here, and as part of the
                                                ; instruction above it
 
 ; ---- REP19 ---- from &6BFF when A = &DF, &6F50 when no bit of &03 is set
@@ -4834,13 +4836,13 @@ REP19:
 ; ---- REP20 ---- from &65F4
 REP20:
                LD A,&65                        ; 517A 3E 65
-               DEFB &21                        ; 517C !  skipped: reads as LD HL,&673E from here, and as part of the
+               DEFB SKIP_NEXT_2_BYTES          ; 517C !  skipped: reads as LD HL,&673E from here, and as part of the
                                                ; instruction above it
 
 ; ---- REP22 ---- from &4815 when A >= &07, &4820 when A = &00, &7582 when A = 0, &7645 when A >= &08, &7734 when A = 0
 REP22:
                LD A,&67                        ; 517D 3E 67
-               DEFB &21                        ; 517F !  skipped: reads as LD HL,&683E from here, and as part of the
+               DEFB SKIP_NEXT_2_BYTES          ; 517F !  skipped: reads as LD HL,&683E from here, and as part of the
                                                ; instruction above it
 
 ; ---- REP23 ---- from &45A4 when bit 5 of A set, &5513 when bit 5 of A set
@@ -4856,13 +4858,13 @@ REP24:
 ; ---- REP25 ---- from &4E18, &721A when A = &FF
 REP25:
                LD A,&6A                        ; 5186 3E 6A
-               DEFB &21                        ; 5188 !  skipped: reads as LD HL,&163E from here, and as part of the
+               DEFB SKIP_NEXT_2_BYTES          ; 5188 !  skipped: reads as LD HL,&163E from here, and as part of the
                                                ; instruction above it
 
 ; ---- REP27 ---- from &473A, &6F01, &70BF, &71A5, &75CD when A >= &0A, &7A5A
 REP27:
                LD A,&16                        ; 5189 3E 16
-               DEFB &21                        ; 518B !  EOF
+               DEFB SKIP_NEXT_2_BYTES          ; 518B !  EOF
 
 ; ---- REP28 ---- from &4D3F, &4D49 when A = &15, &5D9F
 REP28:
@@ -4877,7 +4879,7 @@ REP30:
 ; ---- REP31 ---- from &6BCA
 REP31:
                LD A,&70                        ; 5192 3E 70
-               DEFB &21                        ; 5194 !  skipped: reads as LD HL,PTRSL from here, and as part of the
+               DEFB SKIP_NEXT_2_BYTES          ; 5194 !  skipped: reads as LD HL,PTRSL from here, and as part of the
                                                ; instruction above it
 
 ; ---- REP32 ---- from &731E
@@ -4893,7 +4895,7 @@ REP33:
 ; ---- REP33_LOOP ---- from &5A33 when B reaches 0, &6A11 when A = 0
 REP33_LOOP:
                LD A,&73                        ; 519B 3E 73
-               DEFB &21                        ; 519D !  skipped: reads as LD HL,&743E from here, and as part of the
+               DEFB SKIP_NEXT_2_BYTES          ; 519D !  skipped: reads as LD HL,&743E from here, and as part of the
                                                ; instruction above it
 
 ; ---- REP33_LOOP2 ---- from &4D5B when bit 6 of (HL) set, &5E5F
@@ -8984,7 +8986,7 @@ HVAR1_LOOP:
 
 FNLN2:
                LD A,&02                        ; 6597 3E 02
-               DEFB &21                        ; 6599 !  "JR+2"
+               DEFB SKIP_NEXT_2_BYTES          ; 6599 !  "JR+2"
 
 HPTR:
                LD A,&01                        ; 659A 3E 01
@@ -9071,7 +9073,7 @@ AUINSR:
                LD A,&95                        ; 65FD 3E 95  LOAD TOK
                CALL NRWR                       ; 65FF CD 74 50
                DEFW CURCMD                     ; 6602 74 5B
-               DEFB &21                        ; 6604 !  skipped: reads as LD HL,AUTNAM from here, and as part of the
+               DEFB SKIP_NEXT_2_BYTES          ; 6604 !  skipped: reads as LD HL,AUTNAM from here, and as part of the
                                                ; instruction above it
                PUSH DE                         ; 6605 D5
                LD H,L                          ; 6606 65

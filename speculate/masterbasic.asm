@@ -332,6 +332,8 @@ UPPER:                          EQU  &DF       ; clearing bit 5 folds a letter t
 ; the same value means something else elsewhere.
 DVAR_CMPFG:                     EQU  &42BA     ; DVAR 154 in the DOS page: SAVE MODE 1, 2 or 3 less one
 ENABLE_ROM1:                    EQU  &40       ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
+SKIP_NEXT_2_BYTES:              EQU  &21       ; the opcode of LD HL,nn, standing here only to swallow the two bytes
+                                               ; after it, see docs/idioms.md
 SYSPAGE_IN_B:                   EQU  &1F       ; LMPR &1F: page 31 at &0000, so section B gets page 32, which wraps to
                                                ; the system page. The ROM source calls it PAGE1F
 SYS_CDBUFF_11:                  EQU  &4D11
@@ -22263,7 +22265,7 @@ L73F7:
                AND PAGEMASK                    ; 7404 E6 1F
                OR &80                          ; 7406 F6 80
                LD B,A                          ; 7408 47
-               DEFB &21                        ; 7409 !  skipped: reads as LD HL,&FF06 from here, and as part of the
+               DEFB SKIP_NEXT_2_BYTES          ; 7409 !  skipped: reads as LD HL,&FF06 from here, and as part of the
                                                ; instruction above it
 
 ;; --------------------------------------------------------------------
@@ -23797,7 +23799,7 @@ STACK_FILL_LOOP_1:
                JR NZ,SIZE_EXTERNAL_MEMORY_LOOP ; 781C 20 C6
                POP AF                          ; 781E F1
                OUT (HMPR),A                    ; 781F D3 FB
-               DEFB &21                        ; 7821 !  skipped: reads as LD HL,&4296 from here, and as part of the
+               DEFB SKIP_NEXT_2_BYTES          ; 7821 !  skipped: reads as LD HL,&4296 from here, and as part of the
                                                ; instruction above it
                SUB (HL)                        ; 7822 96
                LD B,D                          ; 7823 42
