@@ -89,17 +89,42 @@
 # MasterBASIC, times 10" -- which is where the 17 in MD+MBAS17 comes
 # from.
 #
-# WHAT IS STILL NOT KNOWN is why MBMC's bytes are not the DOS half of
-# the image in file/.  Aligned as autoMBM aligns them -- MBMC byte 0
-# against the image's byte 9 -- they agree in 957 of 16311, 5.9%.  For
-# comparison the image's own DOS half agrees with stock MasterDOS 2.3 in
-# only 4.1%, because autoMBM's "extensive linking" rewrites it heavily,
-# so a low figure is not by itself surprising.  But MBASC on that disk
-# is this project's MasterBASIC half byte for byte, all 16320, which
-# makes it odd that the DOS halves should have nothing in common.  The
-# likeliest reading is that file/MasterBasicMasterDos.bin was built by a
-# different autoMBM/MBMC pair than the one on dsks/MasterBasic1.7.dsk,
-# and that MBASC happens to be the same MasterBASIC either way.
+# WHY MBMC'S BYTES ARE NOT THE DOS HALF: IT IS PACKED, AND IT UNPACKS
+# ITSELF.  autoMBM line 210 reads
+#
+#     LET dos = USR &BC00
+#
+# and &BC00 is inside MBMC, which loads at &8009.  An earlier reading of
+# this file said autoMBM "never invokes machine code", which was wrong:
+# the search was for the CALL token, and USR is a function, &FF &5F.
+#
+# The bytes at &BC00 are code, and unmistakably so:
+#
+#     LD BC,&0602 / LD HL,&7213     parameters
+#     DI / LD (&BD3A),SP            save the stack
+#     LD A,&03 / OUT (&FA),A        LMPR: pages 3 and 4 at &0000 and &4000
+#     LD SP,&8000                   borrow the stack for the work
+#     CALL &BD3D / CALL &BD2C       twice, with a second pair of
+#     LD BC,&67D9 / LD HL,&4400     parameters and A=1
+#     CALL &BD2C
+#     LD SP,(&BD3A)                 put the stack back
+#     LD BC,&1FFA / OUT (C),B       LMPR := SYSPAGE_IN_B
+#     LD A,&C9 / LD (&BC00),A       plant RET over its own entry
+#
+# The last of those is the giveaway that it is meant to run once: after
+# it has, USR &BC00 returns immediately.  And the value it returns is
+# what autoMBM tests on the next line -- 1 for SAMDOS, 2 for MasterDOS --
+# so it inspects the DOS loaded at &14000 as well as doing its own work.
+#
+# That accounts for everything the file looked wrong about.  Entropy of
+# 7.19 bits a byte, 0.9% zeroes and not one readable string are what
+# packed data looks like; 5.9% agreement with the DOS half is what
+# packed data agrees with; and nothing had to decompress it in autoMBM
+# because the decompressor travels inside it.
+#
+# The packing format is not read here, and nothing needs it: the DOS
+# half of file/MasterBasicMasterDos.bin is the unpacked result, and that
+# is the thing this project disassembles.
 #
 # Nothing here depends on knowing.
 #
