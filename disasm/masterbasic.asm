@@ -5815,16 +5815,64 @@ HK_TOKENARG_4:
 L534D:
                LD BC,&0000                     ; 534D 01 00 00  the operand is written here at run time, from &7A51
                JR HK_TOKENARG_LOOP             ; 5350 18 C9
-               LD HL,DOS_EXDT1_DONE            ; 5352 21 80 A2
+
+;; --------------------------------------------------------------------
+;; Lay out one whole track as the controller's write-track command wants
+;; it -- gaps, sync fields, address marks and all -- ready for DFMT to
+;; shift out.  This is the "improved FORMAT" the manual credits
+;; MasterBASIC with, and it is reached only from the DOS: DFMT calls it
+;; at &54F9 and again at &5506 through CALLMB, commenting both PREPARE
+;; TRACK DATA.  Nothing in this half calls it, which is why it had no
+;; name until the format path was read.
+;;
+;; IT BUILDS INTO THE SCREEN.  HL starts at &A280, which the DOS's own
+;; equate list calls FTADD and marks "(SCR in section C)" -- screen
+;; memory, borrowed as scratch, which is why DFMTB calls GETSCR before
+;; getting here.  Beware the operand: the listing renders &A280 as
+;; DOS_EXDT1_DONE, because there is a label at the peer page's &6280 and
+;; that is what a window address usually means.  Here it does not.
+;;
+;; THE LAYOUT is IBM System 34, the format the WD177x writes:
+;;
+;; 60 x &4E                        the post-index gap
+;; then ten times:
+;; 12 x &00                    sync
+;; 3 x &F5                    the controller writes A1 with a
+;; missing clock for each, and starts
+;; the CRC
+;; 1 x &FE                    ID address mark
+;; track, side, sector, &02   &02 is the size code for 512 bytes
+;; 1 x &F7                    the controller writes both CRC bytes
+;; 22 x &4E                    gap 2
+;; 12 x &00, 3 x &F5, &FB      sync and the data address mark
+;; 512 x &00                    the sector body, written as two
+;; fills of 256 because B is zero
+;; 1 x &F7                    CRC again
+;; 27 x &4E                    gap 3
+;; 256 x &4E                       the trailing gap
+;;
+;; That is 6306 bytes for a track that holds about 6250, and the surplus
+;; is the point: the controller stops at the index hole, so the last gap
+;; has to be longer than the space left rather than shorter.
+;;
+;; The track number is written with bit 7 cleared and the side taken
+;; from it, rotated down to bit 0 -- the same encoding the directory
+;; uses, where side 2 is tracks 128 to 207.  Sector numbers run 1 to 10
+;; and wrap at 11 back to 1.
+;; --------------------------------------------------------------------
+
+BUILD_TRACK_IMAGE:
+               LD HL,DOS_EXDT1_DONE            ; 5352 21 80 A2  &A280 here is FTADD, the screen used as scratch -- not
+                                               ; the peer page's &6280
                LD BC,&3C4E                     ; 5355 01 4E 3C
                CALL FILL_WITH_C                ; 5358 CD A1 53
                LD B,&0A                        ; 535B 06 0A
 
-; ---- HK_TOKENARG_LOOP3 ---- from &539A when B is not 0 yet
-HK_TOKENARG_LOOP3:
+; ---- BUILD_TRACK_IMAGE_LOOP ---- from &539A when B is not 0 yet
+BUILD_TRACK_IMAGE_LOOP:
                PUSH BC                         ; 535D C5
                LD A,&FE                        ; 535E 3E FE
-               CALL WRITE_ENTRY_HEADER         ; 5360 CD A6 53
+               CALL WRITE_SYNC_AND_MARK        ; 5360 CD A6 53
                LD (HL),D                       ; 5363 72
                RES 7,(HL)                      ; 5364 CB BE
                INC HL                          ; 5366 23
@@ -5838,11 +5886,11 @@ HK_TOKENARG_LOOP3:
                INC E                           ; 536F 1C
                LD A,E                          ; 5370 7B
                CP &0B                          ; 5371 FE 0B
-               JR NZ,HK_TOKENARG_5             ; 5373 20 02
+               JR NZ,BUILD_TRACK_IMAGE_1       ; 5373 20 02
                LD E,&01                        ; 5375 1E 01
 
-; ---- HK_TOKENARG_5 ---- from &5373 when A <> &0B
-HK_TOKENARG_5:
+; ---- BUILD_TRACK_IMAGE_1 ---- from &5373 when A <> &0B
+BUILD_TRACK_IMAGE_1:
                LD (HL),&02                     ; 5377 36 02
                INC HL                          ; 5379 23
                LD (HL),&F7                     ; 537A 36 F7
@@ -5850,7 +5898,7 @@ HK_TOKENARG_5:
                LD BC,&164E                     ; 537D 01 4E 16
                CALL FILL_WITH_C                ; 5380 CD A1 53
                LD A,&FB                        ; 5383 3E FB
-               CALL WRITE_ENTRY_HEADER         ; 5385 CD A6 53
+               CALL WRITE_SYNC_AND_MARK        ; 5385 CD A6 53
                LD C,&00                        ; 5388 0E 00
                CALL FILL_WITH_C                ; 538A CD A1 53
                CALL FILL_WITH_C                ; 538D CD A1 53
@@ -5859,7 +5907,7 @@ HK_TOKENARG_5:
                LD BC,&1B4E                     ; 5393 01 4E 1B
                CALL FILL_WITH_C                ; 5396 CD A1 53
                POP BC                          ; 5399 C1
-               DJNZ HK_TOKENARG_LOOP3          ; 539A 10 C1
+               DJNZ BUILD_TRACK_IMAGE_LOOP     ; 539A 10 C1
                LD C,&4E                        ; 539C 0E 4E
                CALL FILL_WITH_C                ; 539E CD A1 53
 
@@ -5875,15 +5923,31 @@ FILL_WITH_C:
                RET                             ; 53A5 C9
 
 ;; --------------------------------------------------------------------
-;; Write the fixed head of an entry at HL: twelve zero bytes, three &F5,
-;; then A, leaving HL past them.  Both callers pass a different byte in
-;; A -- &FE from &5360 and &FB from &5385 -- and go on to fill in the
-;; rest by hand.  Named for what it lays down; what the entry is for is
-;; not established here.
+;; Twelve zero bytes, three &F5, then the byte in A, leaving HL past
+;; them.  That is one MFM sync field and one address mark: the &F5s are
+;; not data but instructions to the controller, which writes each as an
+;; A1 with a missing clock bit and resets the CRC generator on the way
+;; past.
+;;
+;; Both callers are in BUILD_TRACK_IMAGE and differ only in A -- &FE for
+;; the sector's ID mark at &5360, &FB for its data mark at &5385.
+;;
+;; The name it had before, WRITE_ENTRY_HEADER, was a guess made before
+;; the format path was read, and its note said as much: "what the entry
+;; is for is not established here".  It is a track, and the entry is a
+;; sector.
+;;
+;; What was here before:
+;;
+;;     Write the fixed head of an entry at HL: twelve zero bytes, three &F5,
+;;     then A, leaving HL past them.  Both callers pass a different byte in
+;;     A -- &FE from &5360 and &FB from &5385 -- and go on to fill in the
+;;     rest by hand.  Named for what it lays down; what the entry is for is
+;;     not established here.
 ;; --------------------------------------------------------------------
 
-; ---- WRITE_ENTRY_HEADER ---- from &5360, &5385
-WRITE_ENTRY_HEADER:
+; ---- WRITE_SYNC_AND_MARK ---- from &5360, &5385
+WRITE_SYNC_AND_MARK:
                LD BC,&0C00                     ; 53A6 01 00 0C
                CALL FILL_WITH_C                ; 53A9 CD A1 53
                LD BC,&03F5                     ; 53AC 01 F5 03

@@ -120,6 +120,7 @@ NOT_IN_THIS_PAGE:           EQU  &4000
 ; and CTAB use to mean "not in this page".
 MB_BUILD_PUT_BLOCK_8:       EQU  &B900
 MB_BUILD_PUT_BLOCK_9:       EQU  &B914
+MB_BUILD_TRACK_IMAGE:       EQU  &9352
 MB_BYTE_TO_DECIMAL:         EQU  &8240
 MB_CALLDOS_2:               EQU  &82FF
 MB_CALL_STKSTR_2:           EQU  &8200
@@ -8996,7 +8997,8 @@ DFMTA_3:
 ;; Takes:     BC
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls CALLMB, GETSCR, PMOA; falls into whatever follows rather than returning.
+;; ? reaches the ROM through MB_BUILD_TRACK_IMAGE-&4000; calls CALLMB, GETSCR, PMOA; falls into whatever follows rather
+;; than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- DFMTB ---- from &54C2 when a bit of &0D is set
@@ -9004,10 +9006,10 @@ DFMTB:
                CALL GETSCR                     ; 54F0 CD 2C 49
                CALL PMOA                       ; 54F3 CD 27 58  PRINT "FORMAT DISK AT TRACK "
                LD DE,&0001                     ; 54F6 11 01 00  T0/S1
-                                               ; call &5352 in the other page: LMPR is switched first, so that address
-                                               ; is how the other listing numbers it
+                                               ; call MB_BUILD_TRACK_IMAGE-&4000 in the other page: LMPR is switched
+                                               ; first, so that address is how the other listing numbers it
                CALL CALLMB                     ; 54F9 CD BD 42  PREPARE TRACK DATA
-               DEFW &5352                      ; 54FC 52 53
+               DEFW MB_BUILD_TRACK_IMAGE-&4000 ; 54FC 52 53
                LD HL,FTADD+&0176               ; 54FE 21 F6 A3  END OF T0/S1 ENTRY 1
                CALL FESET                      ; 5501 CD F2 55
                JR FMT1A                        ; 5504 18 05
@@ -9018,15 +9020,16 @@ DFMTB:
 ;; Takes:     BC, DE, HL
 ;; Leaves:    BC, DE, HL, IY
 ;;
-;; ? calls CALLMB; falls into whatever follows rather than returning.
+;; ? reaches the ROM through MB_BUILD_TRACK_IMAGE-&4000; calls CALLMB; falls into whatever follows rather than
+;; returning.
 ;; --------------------------------------------------------------------
 
 ; ---- DFMTB_1 ---- from &5530, &553A
 DFMTB_1:
-                                               ; call &5352 in the other page: LMPR is switched first, so that address
-                                               ; is how the other listing numbers it
+                                               ; call MB_BUILD_TRACK_IMAGE-&4000 in the other page: LMPR is switched
+                                               ; first, so that address is how the other listing numbers it
                CALL CALLMB                     ; 5506 CD BD 42  PREPARE TRACK DATA
-               DEFW &5352                      ; 5509 52 53
+               DEFW MB_BUILD_TRACK_IMAGE-&4000 ; 5509 52 53
 
 ;; --------------------------------------------------------------------
 ;; FMT1A -- &550B to &552D

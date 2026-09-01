@@ -387,12 +387,13 @@ is classified. What follows is what naming did not answer.
   and `SMRBIT`, which clear and set a page's bit in `MRTAB`.
 
 - **The DOS half** is still read mainly where MasterBASIC reaches into it.
-  Every routine either half calls has a name, and
-  [disc.md](disc.md) now follows a read and a write end to end; what is
-  left thin is everything either side of those two paths -- formatting and
-  the directory as a structure.  The RAM discs are followed as far as the
-  sector: drives 3 to 7 divert at the first test of every read and write,
-  and RDRSCT turns the transfer into an LDIR.
+  Every routine either half calls has a name, and [disc.md](disc.md) now
+  follows a read, a write and a format end to end. Formatting turned out to
+  be the interesting one: the DOS drives it, but the track image is built by
+  `BUILD_TRACK_IMAGE` in MasterBASIC, which nothing in MasterBASIC calls.
+  What is left thin is the directory as a structure. The RAM discs are
+  followed as far as the sector: drives 3 to 7 divert at the first test of
+  every read and write, and `RDRSCT` turns the transfer into an `LDIR`.
 
 ### Settled since this section was written
 

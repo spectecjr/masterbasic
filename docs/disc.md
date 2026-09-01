@@ -221,6 +221,66 @@ about generally: the reference source and this binary are the same version
 but not the same build, and they drift — `DWAIT` is at `&4495` in the source
 and `&4564` here, and by `&6466` the gap has grown to `&204`.
 
+## Formatting, which the two halves do together
+
+A read and a write both send the controller a sector command and shift bytes
+through one port. Formatting is the odd one out: the controller's *write
+track* command takes a whole track at once — gaps, sync fields, address marks
+and all — so something has to lay that image out first, and on this machine
+the two halves split the job.
+
+`DFMT` at `&549E` is the DOS's. It steps the head in ten tracks so the
+restore below it has somewhere to come back from, reads track 0 sector 1 so
+the confirmation prompt can name the disk about to be destroyed — a read
+error there is taken as "blank or unreadable" and the prompt skipped — and
+then, for every track, does this:
+
+```asm
+      CALL GETSCR                     ; 54F0  borrow the screen
+      CALL PMOA                       ; 54F3  "FORMAT DISK AT TRACK "
+      LD DE,&0001                     ; 54F6  track 0, sector 1
+      CALL CALLMB                     ; 54F9  PREPARE TRACK DATA
+      DEFW &5352
+```
+
+**The image is built in the other page.** `&5352` is `BUILD_TRACK_IMAGE` in
+MasterBASIC, and nothing in MasterBASIC calls it — the only two callers are
+these, in the DOS. This is the "improved FORMAT" the manual credits
+MasterBASIC with, and it is why a SAMDOS machine gets it too.
+
+It builds IBM System 34, the format a WD177x writes:
+
+```text
+ 60 x &4E                      the post-index gap
+ then ten times:
+     12 x &00, 3 x &F5, &FE    sync, then the ID address mark
+     track, side, sector, &02  &02 is the size code for 512 bytes
+      1 x &F7                  the controller writes both CRC bytes
+     22 x &4E                  gap 2
+     12 x &00, 3 x &F5, &FB    sync, then the data address mark
+    512 x &00                  the sector body
+      1 x &F7                  CRC again
+     27 x &4E                  gap 3
+256 x &4E                      the trailing gap
+```
+
+Three of those bytes are instructions rather than data. `&F5` makes the
+controller write an `A1` with a missing clock bit and reset its CRC
+generator; `&F7` makes it write the two CRC bytes it has been accumulating;
+everything else goes down as itself. `WRITE_SYNC_AND_MARK` lays the twelve
+zeros and three `&F5`s, and its two callers differ only in the mark they pass
+in `A`.
+
+That comes to 6306 bytes for a track that holds about 6250, and the surplus
+is deliberate: the controller stops at the index hole, so the last gap has to
+be longer than the space left rather than shorter.
+
+**It is built in the screen.** `HL` starts at `&A280`, which the DOS's equate
+list calls `FTADD` and marks "(SCR in section C)" — which is what `GETSCR` is
+for two instructions earlier. Reading the MasterBASIC listing, beware that
+the operand renders as `DOS_EXDT1_DONE`: there is a label at the peer page's
+`&6280`, and a window address usually does mean the peer. Here it does not.
+
 ## Following a file
 
 A file is a chain of sectors, each holding the track and sector of the next

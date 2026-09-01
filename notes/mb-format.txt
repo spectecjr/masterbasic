@@ -1,0 +1,66 @@
+# FORMAT's track image, which MasterBASIC builds and the DOS writes.
+
+MB &5352 BUILD_TRACK_IMAGE
+
+RENAME WRITE_ENTRY_HEADER WRITE_SYNC_AND_MARK
+
+DOC BUILD_TRACK_IMAGE
+    Lay out one whole track as the controller's write-track command wants
+    it -- gaps, sync fields, address marks and all -- ready for DFMT to
+    shift out.  This is the "improved FORMAT" the manual credits
+    MasterBASIC with, and it is reached only from the DOS: DFMT calls it
+    at &54F9 and again at &5506 through CALLMB, commenting both PREPARE
+    TRACK DATA.  Nothing in this half calls it, which is why it had no
+    name until the format path was read.
+
+    IT BUILDS INTO THE SCREEN.  HL starts at &A280, which the DOS's own
+    equate list calls FTADD and marks "(SCR in section C)" -- screen
+    memory, borrowed as scratch, which is why DFMTB calls GETSCR before
+    getting here.  Beware the operand: the listing renders &A280 as
+    DOS_EXDT1_DONE, because there is a label at the peer page's &6280 and
+    that is what a window address usually means.  Here it does not.
+
+    THE LAYOUT is IBM System 34, the format the WD177x writes:
+
+        60 x &4E                        the post-index gap
+        then ten times:
+            12 x &00                    sync
+             3 x &F5                    the controller writes A1 with a
+                                        missing clock for each, and starts
+                                        the CRC
+             1 x &FE                    ID address mark
+             track, side, sector, &02   &02 is the size code for 512 bytes
+             1 x &F7                    the controller writes both CRC bytes
+            22 x &4E                    gap 2
+            12 x &00, 3 x &F5, &FB      sync and the data address mark
+           512 x &00                    the sector body, written as two
+                                        fills of 256 because B is zero
+             1 x &F7                    CRC again
+            27 x &4E                    gap 3
+        256 x &4E                       the trailing gap
+
+    That is 6306 bytes for a track that holds about 6250, and the surplus
+    is the point: the controller stops at the index hole, so the last gap
+    has to be longer than the space left rather than shorter.
+
+    The track number is written with bit 7 cleared and the side taken
+    from it, rotated down to bit 0 -- the same encoding the directory
+    uses, where side 2 is tracks 128 to 207.  Sector numbers run 1 to 10
+    and wrap at 11 back to 1.
+
+DOC WRITE_ENTRY_HEADER
+    Twelve zero bytes, three &F5, then the byte in A, leaving HL past
+    them.  That is one MFM sync field and one address mark: the &F5s are
+    not data but instructions to the controller, which writes each as an
+    A1 with a missing clock bit and resets the CRC generator on the way
+    past.
+
+    Both callers are in BUILD_TRACK_IMAGE and differ only in A -- &FE for
+    the sector's ID mark at &5360, &FB for its data mark at &5385.
+
+    The name it had before, WRITE_ENTRY_HEADER, was a guess made before
+    the format path was read, and its note said as much: "what the entry
+    is for is not established here".  It is a track, and the entry is a
+    sector.
+
+MB &5352 : &A280 here is FTADD, the screen used as scratch -- not the peer page's &6280
