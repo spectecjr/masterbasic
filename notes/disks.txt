@@ -103,6 +103,24 @@
 #
 # Nothing here depends on knowing.
 #
+# THE README ON THAT DISK IS NOT ABOUT MASTERBASIC.  It is Games
+# Master's -- "All additions to this version of Games Master have been
+# documented in the Third Edition of the manual" -- with a page of other
+# Betasoft products after it, including "Secrets of the SAM ROM
+# revealed!  The complete ROM 3 sourcelisting", which is what ref/samrom
+# is.
+#
+# It matters because the README announces "New Function - KEY(key code)
+# returns 1 if the specified key is pressed, or zero if not... Unlike
+# INKEY, KEY can be used even if many keys are pressed at once."  That
+# is a Games Master function, not a MasterBASIC one.  MasterBASIC's own
+# name table at &50D8 holds twenty-eight keywords and KEY is not among
+# them:
+#
+#     EXIT PROC EXIT DO EXIT FOR LOCN RESERVED EQU TICS SHIFT$ SVAL$
+#     USING$ TIME$ DATE$ INP$ DIR$ FSTAT DSTAT FPAGES SCRAD INARRAY
+#     XVAR NVAL BACKUP TIME DATE ALTER SORT JOIN EDIT
+#
 # What that pair settles: nothing in samdos2 or MBMC calls MasterBASIC's
 # SIZE_EXTERNAL_MEMORY either.  See notes/mb-extmem.txt.
 
