@@ -47,6 +47,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from disasm import Disassembler, UNKNOWN, CODE, CONT, DATA, WORD, TEXT, RST8, PARAM
 from z80 import hexn, CALL, CCALL
 import annotate
+import asmfmt
 import romsyms
 import syspage
 import sambasic
@@ -1911,8 +1912,10 @@ def write_speculation(dos, mb, outdir):
         # it rather than standing in for the whole thing.
         was_title, d.title = d.title, SPEC_TITLE % (name, name)
         d.emit(io.StringIO(), segs=[(BASE, HALF)])
+        buf = io.StringIO()
+        d.emit(buf, title=header(d), segs=[(BASE, HALF)])
         with open(os.path.join(out, name), 'w') as f:
-            d.emit(f, title=header(d), segs=[(BASE, HALF)])
+            f.write(asmfmt.format_listing(buf.getvalue()))
         d.title = was_title
         print('wrote', os.path.join(out, name))
     print('read %d routines' % total)
@@ -2140,8 +2143,10 @@ def main():
             # label and RST &08 code the body turns out to use.
             d.emit(io.StringIO(), segs=[(BASE, HALF)])
             path = os.path.join(args.outdir, name)
+            buf = io.StringIO()
+            d.emit(buf, title=header(d), segs=[(BASE, HALF)])
             with open(path, 'w') as f:
-                d.emit(f, title=header(d), segs=[(BASE, HALF)])
+                f.write(asmfmt.format_listing(buf.getvalue()))
             print('wrote', path)
         for p in notes.check_equates(ROOT, [
                 os.path.join(args.outdir, n)
