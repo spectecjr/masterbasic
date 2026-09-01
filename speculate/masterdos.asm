@@ -205,8 +205,10 @@ DISKCTL_1_BASE:             EQU  &F0
 DISKCTL_DATA_OFS:           EQU  &03
 ENABLE_ROM1:                EQU  &40           ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
 FORCE_INTERRUPT_CMD:        EQU  &D0
-SKIP_NEXT_2_BYTES:          EQU  &21           ; the opcode of LD HL,nn, standing here only to swallow the two bytes
-                                               ; after it, see docs/idioms.md
+SKIP_1_VIA_CP:              EQU  &FE           ; CP n, skipping one byte and clobbering the flags
+SKIP_NEXT_1_BYTE:           EQU  &3E           ; LD A,n, standing here only to swallow the byte after it
+SKIP_NEXT_2_BYTES:          EQU  &21           ; LD HL,nn, standing here only to swallow the two bytes after it -- see
+                                               ; docs/idioms.md
 SYSPAGE_IN_B:               EQU  &1F           ; LMPR &1F: page 31 at &0000, so section B gets page 32, which wraps to
                                                ; the system page. The ROM source calls it PAGE1F
 SYS_CHAR_WIDTH:             EQU  &4AEE
@@ -4890,7 +4892,7 @@ FNS55:
                CALL TIRD                       ; 4ACB CD 5A 61
                JR C,FNS56                      ; 4ACE 38 03  JR IF NOT RAM DISC
                LD A,&50                        ; 4AD0 3E 50  SIDE 1 ON RAM DISC=80 TRK
-               DEFB &FE                        ; 4AD2 ~  "JR+1"
+               DEFB SKIP_1_VIA_CP              ; 4AD2 ~  "JR+1"
 
 ;; --------------------------------------------------------------------
 ;; FNS56 -- &4AD3 to &4ADA
@@ -9974,7 +9976,7 @@ SKIP_B_WORDS:
                RLA                             ; 5776 17
                JR NC,SKIP_B_WORDS              ; 5777 30 FB
                DJNZ SKIP_B_WORDS               ; 5779 10 F9
-               DEFB &3E                        ; 577B >  skipped: reads as LD A,&E1 from here, and as part of the
+               DEFB SKIP_NEXT_1_BYTE           ; 577B >  skipped: reads as LD A,&E1 from here, and as part of the
                                                ; instruction above it
 
 ;; --------------------------------------------------------------------
@@ -11723,7 +11725,7 @@ STATS:
                JR Z,TRK0                       ; 5C4C 28 06  JR IF SINGLE SIDED
                JR C,TRKM1                      ; 5C4E 38 03  JR IF NORMAL DISK
                SUB &30                         ; 5C50 D6 30  E.G 130->82, 168->120
-               DEFB &FE                        ; 5C52 ~  "JR+1"
+               DEFB SKIP_1_VIA_CP              ; 5C52 ~  "JR+1"
 
 ;; --------------------------------------------------------------------
 ;; TRKM1 -- &5C53 to &5C53
@@ -15436,7 +15438,7 @@ FNLN2:
 
 HPTR:
                LD A,&01                        ; 659A 3E 01
-               DEFB &FE                        ; 659C ~  "JR+1"
+               DEFB SKIP_1_VIA_CP              ; 659C ~  "JR+1"
 
 ;; --------------------------------------------------------------------
 ;; HEOF -- &659D to &65B4

@@ -71,7 +71,31 @@ PEER = 0x8000                   # where each page sees the other one
 BOOT_END = 0x4200               # the boot sector runs with its own page at &8000
 
 HOOK_TABLE = 0x44A6             # SAMHK: RST &08 code 128+i is entry i
-SKIP2 = 'SKIP_NEXT_2_BYTES'     # &21, LD HL,nn, where it only skips
+# Opcodes written where they stand for nothing but the bytes they swallow
+# -- docs/idioms.md section 8.  Each takes an immediate and throws it away,
+# so the only cost of falling through is the register or the flags named
+# here.  CALL, JR and LD (nn),A turn up in the same position and are NOT
+# here: they do something on the way past.
+SKIPS = {
+    0x21: ('SKIP_NEXT_2_BYTES', 'LD HL,nn where only the two bytes after it matter'),
+    0x3E: ('SKIP_NEXT_1_BYTE', 'LD A,n where only the byte after it matters'),
+    0x11: ('SKIP_2_VIA_LD_DE', 'LD DE,nn used to skip two bytes, clobbering DE'),
+    0x31: ('SKIP_2_VIA_LD_SP', 'LD SP,nn used to skip two bytes, clobbering SP'),
+    0x0E: ('SKIP_1_VIA_LD_C', 'LD C,n used to skip one byte, clobbering C'),
+    0x16: ('SKIP_1_VIA_LD_D', 'LD D,n used to skip one byte, clobbering D'),
+    0xFE: ('SKIP_1_VIA_CP', 'CP n used to skip one byte, clobbering the flags'),
+    0xF6: ('SKIP_1_VIA_OR', 'OR n used to skip one byte, clobbering A and the flags'),
+}
+
+
+def name_skip(d, a):
+    """Write the byte at `a` as the skip it is, if it is one."""
+    got = SKIPS.get(d.byte(a))
+    if not got:
+        return 0
+    d.byte_names[a] = got[0]
+    d.user_equs[got[0]] = d.byte(a)
+    return 1
 MBTEXT = (0x7E6B, 0x7FC0)       # tokenised BASIC at the end of the extension
 MBKEYS = (0x50D8, 0x5169)       # the extension's keyword names
 MBVARS = (0x4000, 0x405A)       # the XVARs the manual documents
@@ -1479,6 +1503,30 @@ def explain_branches(d):
     return n
 
 
+def name_error_codes(d):
+    """Write the REP stubs' error numbers under the ROM's names for them.
+
+    Each stub is LD A,code followed by a skip, and the code is the same
+    number the byte after RST &08 carries -- which the listing already
+    names.  &1E says nothing; ERR_INTEGER_OUT_OF_RANGE says what the stub
+    is for, and the equate block gains one line for it.
+    """
+    n = 0
+    for a, name in d.labels.items():
+        if not name.startswith('REP_') or a not in d.insns:
+            continue
+        m = re.match(r'^LD A,&([0-9A-F]{2})$', d.insns[a].text)
+        if not m:
+            continue
+        code = int(m.group(1), 16)
+        sym = d.rst8.get(code)
+        if sym:
+            d.overrides[a] = 'LD A,' + sym
+            d.used_codes.add(code)
+            n += 1
+    return n
+
+
 def name_synthetic_labels(d):
     """Replace Lxxxx with a name that says whose it is.
 
@@ -1612,6 +1660,7 @@ def split_skips(d, start, end):
     while p < end:
         if d.byte(p) == 0x21 and d.byte(p + 1) == 0x3E:
             d.setm(p, DATA)
+            name_skip(d, p)
             p += 1
             continue
         i = d.decode(p)
@@ -2201,6 +2250,8 @@ def main():
           % sum(name_synthetic_labels(d) for d in (dos, mb)))
     print('%d branches say what the test behind them was'
           % sum(explain_branches(d) for d in (dos, mb)))
+    print('%d error stubs name their code' % sum(name_error_codes(d)
+                                                 for d in (dos, mb)))
 
     # After autolabel, so the label a patch refers to is the final one.
     print('%d operands in relocated blocks told what they mean'
@@ -2420,9 +2471,8 @@ def classify_leftovers(d):
             # nothing but the two bytes it swallows -- docs/idioms.md
             # calls it the &21 skip.  Write the opcode under a name that
             # says what it is for; the value itself means nothing here.
-            if e - s == 1 and d.byte(s) == 0x21:
-                d.byte_names[s] = SKIP2
-                d.user_equs[SKIP2] = 0x21
+            if e - s == 1:
+                name_skip(d, s)
             other += e - s
     return zeros, other, text
 

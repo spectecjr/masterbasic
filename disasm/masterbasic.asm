@@ -315,8 +315,15 @@ UPPER:                          EQU  &DF       ; clearing bit 5 folds a letter t
 ; the same value means something else elsewhere.
 DVAR_CMPFG:                     EQU  &42BA     ; DVAR 154 in the DOS page: SAVE MODE 1, 2 or 3 less one
 ENABLE_ROM1:                    EQU  &40       ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
-SKIP_NEXT_2_BYTES:              EQU  &21       ; the opcode of LD HL,nn, standing here only to swallow the two bytes
-                                               ; after it, see docs/idioms.md
+SKIP_1_VIA_CP:                  EQU  &FE       ; CP n, skipping one byte and clobbering the flags
+SKIP_1_VIA_LD_C:                EQU  &0E       ; LD C,n, skipping one byte and clobbering C
+SKIP_1_VIA_LD_D:                EQU  &16       ; LD D,n, skipping one byte and clobbering D
+SKIP_1_VIA_OR:                  EQU  &F6       ; OR n, skipping one byte and clobbering A and the flags
+SKIP_2_VIA_LD_DE:               EQU  &11       ; LD DE,nn, skipping two bytes and clobbering DE
+SKIP_2_VIA_LD_SP:               EQU  &31       ; LD SP,nn, skipping two bytes and clobbering SP
+SKIP_NEXT_1_BYTE:               EQU  &3E       ; LD A,n, standing here only to swallow the byte after it
+SKIP_NEXT_2_BYTES:              EQU  &21       ; LD HL,nn, standing here only to swallow the two bytes after it -- see
+                                               ; docs/idioms.md
 SYSPAGE_IN_B:                   EQU  &1F       ; LMPR &1F: page 31 at &0000, so section B gets page 32, which wraps to
                                                ; the system page. The ROM source calls it PAGE1F
 SYS_CDBUFF_11:                  EQU  &4D11
@@ -346,9 +353,16 @@ SYS_TOKEN_TO_FN_INDEX:          EQU  &45A2
 ; The byte after RST &08: a DOS error, or a hook code, which is
 ; 128 plus the index of an entry in the DOS hook table at &44A6.
 ERR_OUT_OF_MEMORY:              EQU  &01
+ERR_NOT_FOUND:                  EQU  &02
+ERR_SUBSCRIPT_WRONG:            EQU  &04
 ERR_NEXT_WITHOUT_FOR:           EQU  &05
+ERR_MISSING_DEF_PROC:           EQU  &0C
 ERR_BREAK_INTO_PROGRAM:         EQU  &0F
+ERR_ARGUMENT:                   EQU  &1B
+ERR_NOT_UNDERSTOOD:             EQU  &1D
+ERR_INTEGER_OUT_OF_RANGE:       EQU  &1E
 ERR_PUT_BLOCK:                  EQU  &25
+ERR_STRING_TOO_LONG:            EQU  &2A
 HK_MCHWR:                       EQU  &A7
 HK_MCHRD:                       EQU  &A8
 HK_HPRTOK:                      EQU  &A9
@@ -1586,44 +1600,44 @@ BYTE_ARGUMENT:
 ; ---- REP_INTEGER_OUT_OF_RANGE ---- from &4952, &4B21 when A >= &40, &4C7B when A <> 0, &4E09 when A is not 0 yet,
 ; &5525 when A >= &10, &5546 when A >= &07, &5588 when A >= &02, &5AF3 when A >= &21 ...
 REP_INTEGER_OUT_OF_RANGE:
-               LD A,&1E                        ; 43A7 3E 1E  error 30, "Integer out of range"
-               DEFB &21                        ; 43A9 !
+               LD A,ERR_INTEGER_OUT_OF_RANGE   ; 43A7 3E 1E  error 30, "Integer out of range"
+               DEFB SKIP_NEXT_2_BYTES          ; 43A9 !
 
 ; ---- REP_MISSING_DEF_PROC ---- from &5334 when A wraps to 0
 REP_MISSING_DEF_PROC:
-               LD A,&0C                        ; 43AA 3E 0C  error 12, "Missing DEF PROC"
-               DEFB &21                        ; 43AC !
+               LD A,ERR_MISSING_DEF_PROC       ; 43AA 3E 0C  error 12, "Missing DEF PROC"
+               DEFB SKIP_NEXT_2_BYTES          ; 43AC !
 
 ; ---- REP_MISSING_DEF_PROC_LOOP ---- from &706E
 REP_MISSING_DEF_PROC_LOOP:
                LD A,&77                        ; 43AD 3E 77
-               DEFB &21                        ; 43AF !
+               DEFB SKIP_NEXT_2_BYTES          ; 43AF !
 
 ; ---- REP_NOT_UNDERSTOOD ---- from &445E when A <> C, &44D3, &475D, &530C when A <> &15, &555B when A <> &8E, &5648
 ; when A <> &CE, &57C1, &6E6F when A <> &3A ...
 REP_NOT_UNDERSTOOD:
-               LD A,&1D                        ; 43B0 3E 1D  error 29, "Not understood"
-               DEFB &21                        ; 43B2 !
+               LD A,ERR_NOT_UNDERSTOOD         ; 43B0 3E 1D  error 29, "Not understood"
+               DEFB SKIP_NEXT_2_BYTES          ; 43B2 !
 
 ; ---- REP_NOT_FOUND ---- from &43E0
 REP_NOT_FOUND:
-               LD A,&02                        ; 43B3 3E 02  error 2, "not found"
-               DEFB &21                        ; 43B5 !
+               LD A,ERR_NOT_FOUND              ; 43B3 3E 02  error 2, "not found"
+               DEFB SKIP_NEXT_2_BYTES          ; 43B5 !
 
 ; ---- REP_SUBSCRIPT_WRONG ---- from &47F3
 REP_SUBSCRIPT_WRONG:
-               LD A,&04                        ; 43B6 3E 04  error 4, "Subscript wrong"
-               DEFB &21                        ; 43B8 !
+               LD A,ERR_SUBSCRIPT_WRONG        ; 43B6 3E 04  error 4, "Subscript wrong"
+               DEFB SKIP_NEXT_2_BYTES          ; 43B8 !
 
 ; ---- REP_STRING_TOO_LONG ---- from &4772 when A >= &40, &4D8B when A >= &40, &4DD2 when A >= &40, &7075, &713D
 REP_STRING_TOO_LONG:
-               LD A,&2A                        ; 43B9 3E 2A  error 42, "String too long"
-               DEFB &21                        ; 43BB !
+               LD A,ERR_STRING_TOO_LONG        ; 43B9 3E 2A  error 42, "String too long"
+               DEFB SKIP_NEXT_2_BYTES          ; 43BB !
 
 ; ---- REP_ARGUMENT ---- from &417B when A >= &04, &41E8 when A >= &03, &43EE when bit 5 of C set, &4402 when A is not 0
 ; yet
 REP_ARGUMENT:
-               LD A,&1B                        ; 43BC 3E 1B  error 27, "argument"
+               LD A,ERR_ARGUMENT               ; 43BC 3E 1B  error 27, "argument"
 
 ;; --------------------------------------------------------------------
 ;; Report the BASIC error whose number is in A.
@@ -4189,7 +4203,7 @@ SEARCH_MEMORY_LOOP:
                CPIR                            ; 4CAD ED B1
                JR NZ,SEARCH_MEMORY_LOOP3       ; 4CAF 20 2A
                PUSH HL                         ; 4CB1 E5
-               DEFB &3E                        ; 4CB2 >  skipped: reads as LD A,&23 from here, and as part of the
+               DEFB SKIP_NEXT_1_BYTE           ; 4CB2 >  skipped: reads as LD A,&23 from here, and as part of the
                                                ; instruction above it
 
 ; ---- SEARCH_MEMORY_LOOP2 ---- from &4CBC when A = (HL), &4CC1 when A = C
@@ -4280,7 +4294,7 @@ SEARCH_MEMORY_LOOP4:
                JR NZ,SEARCH_MEMORY_LOOP3       ; 4D06 20 D3
                LD DE,INSTALL_ROM_PATCHES       ; 4D08 11 00 7B
                PUSH HL                         ; 4D0B E5
-               DEFB &3E                        ; 4D0C >  skipped: reads as LD A,&23 from here, and as part of the
+               DEFB SKIP_NEXT_1_BYTE           ; 4D0C >  skipped: reads as LD A,&23 from here, and as part of the
                                                ; instruction above it
 
 ; ---- SEARCH_MEMORY_LOOP5 ---- from &4D18 when A = C, &4D1D when no bit of &DF is set
@@ -6879,7 +6893,7 @@ MATCH_REFERENCE_LOOP:
                JR NC,MATCH_REFERENCE_1         ; 5847 30 04
                XOR (HL)                        ; 5849 AE
                AND &DF                         ; 584A E6 DF
-               DEFB &0E                        ; 584C .  skipped: reads as LD C,&BE from here, and as part of the
+               DEFB SKIP_1_VIA_LD_C            ; 584C .  skipped: reads as LD C,&BE from here, and as part of the
                                                ; instruction above it
 
 ; ---- MATCH_REFERENCE_1 ---- from &5847
@@ -6919,7 +6933,7 @@ MATCH_REFERENCE_3:
 ; ---- MATCH_REFERENCE_4 ---- from &584E when A <> (HL)
 MATCH_REFERENCE_4:
                POP HL                          ; 5870 E1
-               DEFB &11                        ; 5871 .  skipped: reads as LD DE,&C1BF from here, and as part of the
+               DEFB SKIP_2_VIA_LD_DE           ; 5871 .  skipped: reads as LD DE,&C1BF from here, and as part of the
                                                ; instruction above it
 
 ; ---- MATCH_REFERENCE_DONE ---- from &5856 when A <> 0, &586D
@@ -8366,7 +8380,7 @@ CMD_KEYIN_1:
 
 ; ---- V5DBD ---- from &5DEE when B is not 0 yet
 V5DBD:
-               DEFB &F6                        ; 5DBD v  skipped: reads as OR &C9 from here, and as part of the
+               DEFB SKIP_1_VIA_OR              ; 5DBD v  skipped: reads as OR &C9 from here, and as part of the
                                                ; instruction above it
                RET                             ; 5DBE C9
 
@@ -8421,7 +8435,7 @@ SILENCE_SOUND_CHIP_2:
                AND A                           ; 5DEA A7
                RET Z                           ; 5DEB C8
                PUSH HL                         ; 5DEC E5
-               DEFB &3E                        ; 5DED >  skipped: reads as LD A,&10 from here, and as part of the
+               DEFB SKIP_NEXT_1_BYTE           ; 5DED >  skipped: reads as LD A,&10 from here, and as part of the
                                                ; instruction above it
 
 ; ---- COPY_THEN_APPEND_CALL_5 ---- from &5DCF when bit 1 of A set
@@ -12508,7 +12522,7 @@ PAGE_PAIR_INTO_ALTERNATES_12:
                RL B                              ; 6D92 CB 10
                JR C,PAGE_PAIR_INTO_ALTERNATES_13 ; 6D94 38 02
                OR C                              ; 6D96 B1
-               DEFB &FE                          ; 6D97 ~  skipped: reads as CP &B3 from here, and as part of the
+               DEFB SKIP_1_VIA_CP                ; 6D97 ~  skipped: reads as CP &B3 from here, and as part of the
                                                  ; instruction above it
 
 ; ---- PAGE_PAIR_INTO_ALTERNATES_13 ---- from &6D94 when bit 7 of B was set
@@ -13673,7 +13687,7 @@ FN_USING_S_LOOP3:
                CP &3A                          ; 72CB FE 3A
                JR NC,FN_USING_S_10             ; 72CD 30 04
                LD C,&30                        ; 72CF 0E 30
-               DEFB &16                        ; 72D1 .  skipped: reads as LD D,&71 from here, and as part of the
+               DEFB SKIP_1_VIA_LD_D            ; 72D1 .  skipped: reads as LD D,&71 from here, and as part of the
                                                ; instruction above it
 
 ; ---- FN_USING_S_9 ---- from &72C5 when A = &23
@@ -15023,7 +15037,7 @@ SIZE_EXTERNAL_MEMORY_LOOP:
                LD HL,&0000                     ; 77F8 21 00 00
                ADD HL,SP                       ; 77FB 39
                EXX                             ; 77FC D9
-               DEFB &31                        ; 77FD 1  skipped: reads as LD SP,&C000 from here, and as part of the
+               DEFB SKIP_2_VIA_LD_SP           ; 77FD 1  skipped: reads as LD SP,&C000 from here, and as part of the
                                                ; instruction above it
 
 ;; --------------------------------------------------------------------

@@ -535,8 +535,15 @@ FROM_MDOS_COMMENTS = {
 
 
 EXTRA_NOTES = {
-    'SKIP_NEXT_2_BYTES': 'the opcode of LD HL,nn, standing here only to'
-                         ' swallow the two bytes after it, see docs/idioms.md',
+    'SKIP_NEXT_2_BYTES': 'LD HL,nn, standing here only to swallow the two'
+                         ' bytes after it -- see docs/idioms.md',
+    'SKIP_NEXT_1_BYTE': 'LD A,n, standing here only to swallow the byte after it',
+    'SKIP_2_VIA_LD_DE': 'LD DE,nn, skipping two bytes and clobbering DE',
+    'SKIP_2_VIA_LD_SP': 'LD SP,nn, skipping two bytes and clobbering SP',
+    'SKIP_1_VIA_LD_C': 'LD C,n, skipping one byte and clobbering C',
+    'SKIP_1_VIA_LD_D': 'LD D,n, skipping one byte and clobbering D',
+    'SKIP_1_VIA_CP': 'CP n, skipping one byte and clobbering the flags',
+    'SKIP_1_VIA_OR': 'OR n, skipping one byte and clobbering A and the flags',
     'STKEND': 'end of the calculator stack',
     'WORKSP': 'address of the workspace',
     'WORKSPP': 'page holding the workspace',
