@@ -41,8 +41,7 @@ each, addressed &4000-&7FFF as the listings write it — taken under SimCoupe
 from a reset machine, from MasterDOS 2.3 booted alone, and from the combined
 DOS/MasterBASIC file booted from `dsks/MasterDOS2_3_MasterBasic1_7.mgt`.
 
-`LiveDuringMRINIT.bin` is 16384 bytes of the ROM's system page captured under
-SimCoupe while the combined file was booting. Read `notes/mb-extmem.txt`
-before drawing anything from it: it is page 0 **after `MNINIT` has cleared it
-and before the ROM re-initialises its variables**, so most of it is zero, and
-it does not contain the routine it was taken to catch.
+`LiveDuringMRINIT.bin` is 16384 bytes of zero — page `&10`, which is empty,
+captured under SimCoupe in place of the intended page `&1D`. It contains
+nothing and proves nothing; it is kept only so that the name does not turn up
+later looking like evidence. See `notes/mb-extmem.txt`.
