@@ -1,0 +1,58 @@
+# Claims the manual makes that can be checked against this image.
+#
+# docs/original/MasterBASIC User Manual.md is a faithful conversion of the
+# printed manual, and it turns out to be a good source of testable
+# assertions: each one names a behaviour, and the binary either does it or
+# does not.  The BLOCKS 2 entry paid for the whole exercise -- it is what
+# led to INSTALL_TAIL_INTO_SYSPAGE and to where the alternate character set
+# actually lives.  These are the ones left, with what would settle each.
+
+# CHECKED, and true.
+#
+#   BLOCKS 2 / SAVE BOOT preserves a loaded character set.
+#       True, by way of the third block.  See notes/mb-saveboot.txt and
+#       notes/mb-install.txt.
+#
+#   XVAR 87 ALTUDG is the displacement of the alternate set from XVAR 0.
+#       Reads &3E64, which is MB &7E64, which is the buffer HK_SWAPCHARS
+#       exchanges 328 bytes with -- 41 characters, CHR$ 128-168, the range
+#       the entry gives.
+
+# NOT YET CHECKED.  Each of these is one measurement.
+#
+#   XVAR 89 ACRSU.  "If you POKE XVAR 89,0 and then save a copy of
+#   DOS/MasterBASIC, XVAR 89 will be copied automatically to SVAR 15 every
+#   time you BOOT up the system."
+#       The three page-0 dumps make this directly testable: find SVAR 15's
+#       address in the ROM's variable list, then check whether the byte
+#       there after a boot equals the image's XVAR 89 at MB &4059.  If it
+#       does, find the installer code that does the copy.
+#
+#   XVAR 6 SORP.  "If you POKE XVAR 6,1 and then use SAVE BOOT to save the
+#   program, the next time you boot serial output will be set
+#   automatically.  (However, the POKE by itself does not do this - it is
+#   not examined until BOOT time.)"
+#       Same shape: something at boot reads MB &4006 and acts on it.  The
+#       parenthesis is the useful part -- it says explicitly that the read
+#       happens at BOOT, so the reader is in the installer.
+#
+#   The cursor patterns.  Under BLOCKS 2: "to prevent the cursor changing
+#   when a new set of characters is switched in by BLOCKS 2, the cursors
+#   are temporarily re-defined as CHR$ 169 and 170, the patterns for which
+#   are stored separately."
+#       So there are two 8-byte patterns kept apart from the 328-byte set.
+#       HK_SWAPCHARS exchanges &5490 with MB &7E64 for &0148 bytes and does
+#       nothing else visible, so the redefinition is somewhere else.  Look
+#       for two 8-byte blocks near either copy of the set, and for whatever
+#       writes CHR$ 169 and 170 in the ROM's UDG area.
+#
+#   XVAR 0 PUTSWA.  "POKE DPEEK XVAR 0,0 will make PUT use the ROM's
+#   version of PUT.  POKE DPEEK XVAR 0,172 (the code for PUT) to use
+#   MasterBASIC's faster version again."
+#       DPEEK XVAR 0 should be the address of a byte in the ROM's system
+#       page that holds &AC.  INSTALL_EXTENDED_PUT builds that block, so
+#       the address should fall inside what it writes.
+#
+#   DVAR 7 is raised to 50 by autoMBM, or to 21 with SAMDOS.
+#       The introduction says so.  DVAR 7 is at the DOS's &4227.  MBPOST
+#       carries the DOS page, so the booted value can be read straight out.

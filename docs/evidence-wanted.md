@@ -77,7 +77,37 @@ the caller in one go** — the PC when it stops is all I need.
 
 ---
 
-## 4. Nothing needed: the rest of the disc code
+## 4. The two pages a `SAVE BOOT` file cannot show
+
+**Why.** `MBPOST.bin` is the only view this project has of the two pages a
+running machine holds, and it is not a complete one. Only blocks 2 and 5 are
+the live pages they appear to be, so it covers:
+
+| page | covered | blind |
+|---|---|---|
+| DOS | `&4100`–`&7D5F` | `&4000`–`&40FF`, `&7D60`–`&7FBF` |
+| MasterBASIC | `&4000`–`&7B7F` | `&7B80`–`&7FBF` |
+
+Both blind spots are blind for the same reason: `SAVE BOOT` fills those slots
+from elsewhere *because* the running machine no longer holds what belongs
+there. `&4000`–`&40FF` is the boot sector and `&7D60`–`&7FBF` the DOS's tail —
+boot-time-only code, overwritten by the time anything could save it.
+
+**What to capture.** A 16K dump of each of the two pages from a booted
+machine, the same way the page-0 dumps were made. Dumping by physical page in
+SimCoupe's debugger is safest; the two are told apart by MasterBASIC's page
+opening with the XVARs (`PUTSWA` at `&4000`) and the DOS page having its
+variables around `&4100`.
+
+**What it decides.** It is where a boot-time routine would live, and it is the
+one part of a running machine nothing here covers — which means every search
+that came up empty in "the DOS page after boot" was really a search of
+`&4100`–`&7D5F` only. `SIZE_EXTERNAL_MEMORY` above is the live example: these
+dumps might answer item 3 without a breakpoint at all.
+
+---
+
+## 5. Nothing needed: the rest of the disc code
 
 Formatting, the directory as a structure, and the RAM discs are reading time
 rather than evidence. `docs/disc.md` follows a read and a write end to end;
