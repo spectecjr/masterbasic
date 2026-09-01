@@ -23121,33 +23121,46 @@ MSG_EXTERNAL_MEMORY:
 ;;     buffers says only that both are mostly empty.  Check what the
 ;;     agreement is made of before believing it.
 ;;     
-;;     WHICH PAGE THE COPY RUNS IN: MASTERBASIC'S OWN.  A transcription of
-;;     the running code from &7DF0 settles it, and it settles the operands
-;;     too.  The first ten bytes disassemble as LD H,C / LD L,H / JR NZ /
-;;     LD H,L / LD L,L / LD L,A / LD (HL),D / LD A,C / DEC C, which is not
-;;     code at all: it is the tail of the message, "al Memory" and the
-;;     carriage return, read as instructions.  LD L,L is the m of Memory.
-;;     Then IN A,(&FB) at &7DFA, exactly where the arithmetic puts it, and
-;;     the JR NZ two instructions later reads &7E36, which is the stored
-;;     &7817 moved by the same &486.
+;;     WHICH PAGE THE COPY RUNS IN: THE DOS'S.  file/LiveDuringMRINIT.bin
+;;     is that page, dumped while the routine was running, and it settles
+;;     both the page and the operands.  It agrees with the image's DOS half
+;;     in 90.3% of bytes counting only the ones that are not zero, and it
+;;     holds, exactly where the arithmetic said:
 ;;     
-;;     So the copy is verbatim -- nothing is patched as it is copied, and
-;;     the relative jumps relocate themselves.  The absolute ones therefore
-;;     have to be right where they stand, and they are: the block is copied
-;;     to &BC00 with MasterBASIC's own page in the window, so the copy lands
-;;     at MB &7C00-&7F8F and runs with that same page at &4000 in section
-;;     B.  CALL &7806 reaches STACK_FILL_LOOP where it is stored, JP &77FE
-;;     reaches CLEAR_WINDOW_IF_Z where it is stored, and LD DE,&BDE8
-;;     reaches the copy's own message through the window.  All three are
-;;     consistent, which they were not under any single relocation delta.
+;;     &7DE8   "K External Memory"          the message
+;;     &7DFA   DB FB F5 F6 80 D3 FB         SIZE_EXTERNAL_MEMORY
+;;     &7E04   D3 80                        the OUT the breakpoint caught
 ;;     
-;;     AND IT EXPLAINS THE SAVE BOOT BLOCKS.  &7CF7, &7D00 and &7DF0 -- the
-;;     addresses SAVE BOOT's first and third blocks read, and the ones
-;;     INSTALL_ROM_PATCHES writes the boot sector and INSTBUF to -- all lie
-;;     inside &7C00-&7F8F.  That is the installer's own footprint.  Once it
-;;     has run, its bytes are free, and what it does with them is keep the
-;;     two pieces of the DOS the machine no longer holds.  See
-;;     notes/mb-saveboot.txt, which had the addresses but not the reason.
+;;     The copy is 943 bytes at &7C00-&7FAE and matches the stored MB &75E1
+;;     onward byte for byte over the whole of it.  Nothing is patched as it
+;;     is copied; the relative jumps relocate themselves and the absolute
+;;     ones were written for where it lands.
+;;     
+;;     AND THE TWO OPERANDS THAT LOOKED WRONG ARE CALLS INTO THE DOS.  The
+;;     listing resolved &7806 and &77FE against MasterBASIC's own half,
+;;     where they happen to be STACK_FILL_LOOP and CLEAR_WINDOW_IF_Z, and
+;;     that is an accident of two pages having code at the same offsets.
+;;     Read in the DOS page, which is where this code runs, they are the
+;;     DOS's own and the DOS listing already names them:
+;;     
+;;     &7806   RMRBIT      reset a MegaRAM bit
+;;     &77FE   SMRBIT      set a MegaRAM bit
+;;     &7811   MRADDR      the byte and bit in MRTAB for the page in A
+;;     
+;;     So the flow closes.  A page that passes both tests reaches
+;;     CALL &7806 -- RMRBIT, clearing its bit, which marks it available --
+;;     and one that fails branches to &7817 and on to &77FE, SMRBIT,
+;;     setting its bit.  That is the bookkeeping this note used to say was
+;;     missing, when it observed that "neither path visibly increments
+;;     anything": the count is not kept in a register, it is MRTAB, and the
+;;     DOS writes it.  It is also exactly the pattern MRTAB shows on a
+;;     machine with 1MB fitted -- eight bytes of &00 for the 64 pages found
+;;     and twenty-four of &FF for the 192 that are not there.
+;;     
+;;     WITHDRAWN: an earlier reading had the copy landing in MasterBASIC's
+;;     own page at &7C00 and the two operands reaching MasterBASIC's own
+;;     code.  The arithmetic was the same either way and the dump decides
+;;     it: the page is the DOS's.
 ;;     
 ;;     THE OPERANDS THAT LOOK WRONG, for the record.  &77F5 calls &7806
 ;;     and &7819 jumps to &77FE, both of which are stored addresses rather
@@ -23197,7 +23210,7 @@ SIZE_EXTERNAL_MEMORY_LOOP:
                CP (HL)                         ; 77F1 BE
                JR NZ,SIZE_EXTERNAL_MEMORY_1    ; 77F2 20 23
                LD A,C                          ; 77F4 79
-               CALL STACK_FILL_LOOP            ; 77F5 CD 06 78
+               CALL STACK_FILL_LOOP            ; 77F5 CD 06 78  RMRBIT in the DOS page, not this half's &7806 -- the block runs at &7C00 in the DOS page, so a page that passes has its MRTAB bit reset
                LD HL,&0000                     ; 77F8 21 00 00
                ADD HL,SP                       ; 77FB 39
                ; to the alternate register set and back again
@@ -23285,7 +23298,7 @@ STACK_FILL_LOOP:
 ; ---- SIZE_EXTERNAL_MEMORY_1 ---- from &77ED when A <> (HL), &77F2 when A <> (HL)
 SIZE_EXTERNAL_MEMORY_1:
                LD A,C                          ; 7817 79
-               CALL CLEAR_WINDOW_IF_Z          ; 7818 CD FE 77
+               CALL CLEAR_WINDOW_IF_Z          ; 7818 CD FE 77  SMRBIT in the DOS page, not this half's &77FE -- a page that fails has its MRTAB bit set
 
 ;; --------------------------------------------------------------------
 ;; STACK_FILL_LOOP_1 -- &781B to &7828

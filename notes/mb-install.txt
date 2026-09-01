@@ -134,3 +134,6 @@ DOS &7D60 INSTALL_TAIL_INTO_SYSPAGE
     this whole 446-byte tail at its own &7DF0, which is why SAVE BOOT's
     third block restores it and why the set sits at MB &7E64, where
     XVAR 87 ALTUDG says it does.  See notes/mb-saveboot.txt.
+
+MB &77F5 : RMRBIT in the DOS page, not this half's &7806 -- the block runs at &7C00 in the DOS page, so a page that passes has its MRTAB bit reset
+MB &7818 : SMRBIT in the DOS page, not this half's &77FE -- a page that fails has its MRTAB bit set
