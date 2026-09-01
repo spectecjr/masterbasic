@@ -1328,7 +1328,50 @@ def until_stable(d, step, limit=60):
             return
 
 
-def load_symbols(d, work):
+# The substrings the DOS's messages are compressed with, from
+# ref/masterdos/docs/errors.md, which matches the ROM's own COMPLIST.
+COMPLIST = {0: 'Invalid ', 7: 'Error', 8: 'tream', 11: 'No ', 17: ' not ',
+            18: ' name', 20: 'Too many ', 21: 'tatement', 23: 'file'}
+ERRTBL_FIRST = 81               # errors.md: the message index is the code less 81
+
+
+def errtbl_errors(dos):
+    """The DOS's error messages, read out of ERRTBL in the image itself.
+
+    errors.md documents codes 84 to 112.  The table carries seven more --
+    113 to 119 -- and they are as readable as the rest once the compression
+    codes are expanded.  Reading them here rather than listing them means
+    the documented ones are checked against the image at the same time.
+
+    The table ends where a word stops being a message: the bytes after 119
+    decode as one or two characters, or contain a byte below 32 that is not
+    a compression code.
+    """
+    at = next((a for a, n in dos.labels.items() if n == 'ERRTBL'), None)
+    if at is None:
+        return {}
+    out, code, a = {}, ERRTBL_FIRST, at
+    while a < dos.limit:
+        b = a
+        while b < dos.limit and not (dos.byte(b) & 0x80):
+            b += 1
+        raw = [dos.byte(x) for x in range(a, min(b + 1, dos.limit))]
+        if not raw:
+            break
+        raw[-1] &= 0x7F
+        if any(c < 32 and c not in COMPLIST for c in raw):
+            break
+        text = ''.join(COMPLIST.get(c, chr(c)) for c in raw).strip()
+        if text and len(text) < 3:
+            break
+        if text:
+            out[code] = text
+        code += 1
+        a = b + 1
+    return out
+
+
+def load_symbols(d, work, dos=None):
     """Names for everything outside both pages: ROM routines and variables,
     the hardware ports, and the RST &08 codes."""
     syms = romsyms.Symbols()
@@ -1371,6 +1414,9 @@ def load_symbols(d, work):
     if os.path.exists(errs):
         for code, name in romsyms.error_names(errs).items():
             d.errors.setdefault(code, name[4:].replace('_', ' ').capitalize())
+    if dos is not None:
+        for code, text in errtbl_errors(dos).items():
+            d.errors.setdefault(code, text)
     for code, text in d.errors.items():
         d.rst8.setdefault(code, romsyms.error_symbol(code, text, taken))
 
@@ -2105,7 +2151,7 @@ def main():
     annotate.apply(mb, annotate.MB)
     toks = name_tables(dos, mb, args.work)
     for d in (dos, mb):
-        load_symbols(d, args.work)
+        load_symbols(d, args.work, dos)
         hooks_by_code = romsyms.hook_names(dos, HOOK_TABLE)
         # A hook MasterBASIC took over is handled by a routine in the
         # extension's own listing, and that routine already carries the

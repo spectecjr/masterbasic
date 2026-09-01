@@ -4987,6 +4987,42 @@ DERR1_1:
                LD SP,&7FFA                     ; 51FC 31 FA 7F  OK WHETHER CMD OR HOOK
                RET                             ; 51FF C9
 
+;; --------------------------------------------------------------------
+;; The messages the DOS prints, indexed by the error code less 81, each
+;; ended by bit 7 of its last character.  Bytes below 32 are indices
+;; into the ROM's dictionary of common substrings, which is why so many
+;; entries are shorter than what they print: 0 is "Invalid ", 11 is
+;; "No ", 17 is " not ", 23 is "file", and the rest are in
+;; ref/masterdos/docs/errors.md.
+;;
+;; THIS TABLE IS NOW READ OUT OF THE IMAGE rather than listed by hand.
+;; tools/dis_mb.py walks it from this label, expands the compression and
+;; fills in any code the ROM's text and errors.md do not already name,
+;; so every DOS error in the listing carries the message the machine
+;; would actually print.  Where the two overlap they agree: eighteen
+;; codes, 84 to 112, read the same from the table as from the document.
+;;
+;; SEVEN CODES ARE PAST THE END OF THE DOCUMENTATION.  errors.md stops
+;; at 112.  The table carries on:
+;;
+;; 113  Directory not found
+;; 114  Directory not empty
+;; 115  No pages free
+;; 116  PROTECTED file
+;; 117  No Buffer
+;; 118  Page overlap
+;; 119  Size mismatch
+;;
+;; and then stops being messages -- the bytes after 119 decode as one or
+;; two characters, which is what ends the walk.
+;;
+;; 119 is the one that prompted this.  MasterBASIC's REP_SIZE_MISMATCH
+;; at &43AD loads it, and the only thing that reaches that stub is
+;; &706E, which compares a stored pointer against DE just after reading
+;; PRPTR and PRPTRP, the ROM's proc address and proc page.  "Size
+;; mismatch" fits, and it is the table's own word rather than a guess.
+;; --------------------------------------------------------------------
+
 ERRTBL:
                DEFB " "+&80                    ; 5200 A0
                DEFB " "+&80                    ; 5201 A0

@@ -363,6 +363,8 @@ ERR_NOT_UNDERSTOOD:             EQU  &1D
 ERR_INTEGER_OUT_OF_RANGE:       EQU  &1E
 ERR_PUT_BLOCK:                  EQU  &25
 ERR_STRING_TOO_LONG:            EQU  &2A
+ERR_PAGE_OVERLAP:               EQU  &76
+ERR_SIZE_MISMATCH:              EQU  &77
 HK_MCHWR:                       EQU  &A7
 HK_MCHRD:                       EQU  &A8
 HK_HPRTOK:                      EQU  &A9
@@ -1608,9 +1610,9 @@ REP_MISSING_DEF_PROC:
                LD A,ERR_MISSING_DEF_PROC       ; 43AA 3E 0C  error 12, "Missing DEF PROC"
                DEFB SKIP_NEXT_2_BYTES          ; 43AC !
 
-; ---- REP_MISSING_DEF_PROC_1 ---- from &706E
-REP_MISSING_DEF_PROC_1:
-               LD A,&77                        ; 43AD 3E 77
+; ---- REP_SIZE_MISMATCH ---- from &706E
+REP_SIZE_MISMATCH:
+               LD A,ERR_SIZE_MISMATCH          ; 43AD 3E 77  error 119, "Size mismatch"
                DEFB SKIP_NEXT_2_BYTES          ; 43AF !
 
 ; ---- REP_NOT_UNDERSTOOD ---- from &445E when A <> C, &44D3, &475D, &530C when A <> &15, &555B when A <> &8E, &5648
@@ -7731,7 +7733,7 @@ HK_FARSCAN_2:
 
 ; ---- HK_FARSCAN_3 ---- from &5AFF when A = 0
 HK_FARSCAN_3:
-               LD A,&75                        ; 5B1D 3E 75
+               LD A,&75                        ; 5B1D 3E 75  error 117, "No Buffer"
                JP REPORT                       ; 5B1F C3 BE 43
 
 ;; --------------------------------------------------------------------
@@ -13194,7 +13196,7 @@ ARRAY_ELEMENT_OFFSET_4:
                LD HL,(V40A8)                   ; 7068 2A A8 40
                AND A                           ; 706B A7
                SBC HL,DE                       ; 706C ED 52
-               JP NZ,REP_MISSING_DEF_PROC_1    ; 706E C2 AD 43
+               JP NZ,REP_SIZE_MISMATCH         ; 706E C2 AD 43
                LD HL,(V40A6)                   ; 7071 2A A6 40
                ADD HL,BC                       ; 7074 09
 
@@ -15395,7 +15397,7 @@ BUILD_PUT_BLOCK_11:
                AND A                           ; 7946 A7
                JR NZ,BUILD_PUT_BLOCK_12        ; 7947 20 02
                RST ERR_HOOK                    ; 7949 CF
-               DEFB &76                        ; 794A 76 error 118
+               DEFB ERR_PAGE_OVERLAP           ; 794A 76 error 118, "Page overlap"
 
 ; ---- BUILD_PUT_BLOCK_12 ---- from &7947 when A <> 0
 BUILD_PUT_BLOCK_12:
