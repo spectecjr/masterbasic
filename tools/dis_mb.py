@@ -1548,6 +1548,10 @@ def name_synthetic_labels(d):
         k = bisect.bisect_right(heads, a) - 1
         return heads[k] if k >= 0 else None
 
+    def head_after(a):
+        k = bisect.bisect_right(heads, a)
+        return heads[k] if k < len(heads) else d.limit
+
     groups = {}
     for a in sorted(d.labels):
         if a not in d.insns or not SYNTHETIC.match(d.labels[a]):
@@ -1569,7 +1573,12 @@ def name_synthetic_labels(d):
         groups.setdefault(owner, []).append(a)
 
     def shape(a):
-        if any(r > a for r in d.xrefs.get(a, ())):
+        # A branch from a higher address makes a loop only if it comes from
+        # inside the same routine.  A jump from thousands of bytes away is
+        # a shared entry point, and calling it a loop head reads as a claim
+        # about the code that is not true -- REP_MISSING_DEF_PROC_LOOP was
+        # one, reached from 11457 bytes later.
+        if any(a < r < head_after(a) for r in d.xrefs.get(a, ())):
             return 'LOOP'
         for j in range(where[a], min(where[a] + 4, len(order))):
             t = d.insns[order[j]]

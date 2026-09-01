@@ -218,7 +218,7 @@ DOS_CHANNEL_ENTRY_AT_ZERO_PAGE: EQU  &AAEA
 DOS_DATDT:                      EQU  &8271
 DOS_DRIVE:                      EQU  &BC0B
 DOS_ENDS:                       EQU  &9010
-DOS_EPCOM_LOOP:                 EQU  &A5C4
+DOS_EPCOM_1:                    EQU  &A5C4
 DOS_EVAL_STRING_IF_RUNNING:     EQU  &A284
 DOS_EVFINS:                     EQU  &B321
 DOS_EVNAM:                      EQU  &A1CF
@@ -997,8 +997,8 @@ V41C0:
 V41C4:
                DEFB &00                        ; 41C4 .
 
-; ---- CALL_STKSTR_LOOP ---- from &4E39 when A = &50
-CALL_STKSTR_LOOP:
+; ---- CALL_STKSTR_1 ---- from &4E39 when A = &50
+CALL_STKSTR_1:
                CALL CMR                        ; 41C5 CD F0 44
                DEFW J_SBUFFET                  ; 41C8 2A 01
                IN A,(HMPR)                     ; 41CA DB FB
@@ -1038,27 +1038,27 @@ CALL_STKSTR_FAIL:
                DEC HL                          ; 41FA 2B
                LD (HL),C                       ; 41FB 71
                RLA                             ; 41FC 17
-               JR C,CALL_STKSTR_2              ; 41FD 38 0E
+               JR C,CALL_STKSTR_3              ; 41FD 38 0E
                INC HL                          ; 41FF 23
 
-; ---- CALL_STKSTR_1 ---- from DOS &77CD
-CALL_STKSTR_1:
+; ---- CALL_STKSTR_2 ---- from DOS &77CD
+CALL_STKSTR_2:
                SET 7,(HL)                      ; 4200 CB FE
                DEC HL                          ; 4202 2B
                LD D,H                          ; 4203 54
                LD E,L                          ; 4204 5D
                LD B,&05                        ; 4205 06 05
 
-; ---- CALL_STKSTR_LOOP2 ---- from &420B when B is not 0 yet
-CALL_STKSTR_LOOP2:
+; ---- CALL_STKSTR_LOOP ---- from &420B when B is not 0 yet
+CALL_STKSTR_LOOP:
                LD A,(DE)                       ; 4207 1A
                CPL                             ; 4208 2F
                LD (DE),A                       ; 4209 12
                INC DE                          ; 420A 13
-               DJNZ CALL_STKSTR_LOOP2          ; 420B 10 FA
+               DJNZ CALL_STKSTR_LOOP           ; 420B 10 FA
 
-; ---- CALL_STKSTR_2 ---- from &41FD when bit 7 was set
-CALL_STKSTR_2:
+; ---- CALL_STKSTR_3 ---- from &41FD when bit 7 was set
+CALL_STKSTR_3:
                LD DE,(STKEND+&4000)            ; 420D ED 5B 65 9C
                LD A,D                          ; 4211 7A
                SET 7,D                         ; 4212 CB FA
@@ -1181,8 +1181,8 @@ DECIMAL_DIGIT_2:
 DECIMAL_DIGIT_LOOP2:
                INC A                           ; 427F 3C
 
-; ---- DECIMAL_DIGIT_LOOP3 ---- from &486A
-DECIMAL_DIGIT_LOOP3:
+; ---- DECIMAL_DIGIT_3 ---- from &486A
+DECIMAL_DIGIT_3:
                SBC HL,BC                       ; 4280 ED 42
                JR NC,DECIMAL_DIGIT_LOOP2       ; 4282 30 FB
                LD D,A                          ; 4284 57
@@ -1215,7 +1215,7 @@ FN_SCRAD:
                LD HL,DOS_HEADER                ; 429A 21 00 80
                CALL PAGED_TO_LONG              ; 429D CD DC 62
                CALL CALLDOS                    ; 42A0 CD C1 42
-               DEFW DOS_EPCOM_LOOP-&4000       ; 42A3 C4 65
+               DEFW DOS_EPCOM_1-&4000          ; 42A3 C4 65
                RET                             ; 42A5 C9
 
 ;; --------------------------------------------------------------------
@@ -1301,8 +1301,8 @@ SAVE_BLOCK_FROM_SYSPAGE_DONE:
                                                ; through CALLDOS
                XOR A                           ; 42B5 AF
 
-; ---- SAVE_BLOCK_FROM_DOS_PAGE_LOOP ---- from &497D
-SAVE_BLOCK_FROM_DOS_PAGE_LOOP:
+; ---- SAVE_BLOCK_FROM_DOS_PAGE_DONE ---- from &497D
+SAVE_BLOCK_FROM_DOS_PAGE_DONE:
                CALL CALLDOS                    ; 42B6 CD C1 42
                DEFW &493A                      ; 42B9 3A 49
                RET                             ; 42BB C9
@@ -1608,8 +1608,8 @@ REP_MISSING_DEF_PROC:
                LD A,ERR_MISSING_DEF_PROC       ; 43AA 3E 0C  error 12, "Missing DEF PROC"
                DEFB SKIP_NEXT_2_BYTES          ; 43AC !
 
-; ---- REP_MISSING_DEF_PROC_LOOP ---- from &706E
-REP_MISSING_DEF_PROC_LOOP:
+; ---- REP_MISSING_DEF_PROC_1 ---- from &706E
+REP_MISSING_DEF_PROC_1:
                LD A,&77                        ; 43AD 3E 77
                DEFB SKIP_NEXT_2_BYTES          ; 43AF !
 
@@ -2722,7 +2722,7 @@ CMD_SORT_LOOP5:
 ; ---- CMD_SORT_LOOP6 ---- from &46C0
 CMD_SORT_LOOP6:
                DEC C                           ; 46AB 0D
-               JR Z,CMD_SORT_LOOP8             ; 46AC 28 0C
+               JR Z,CMD_SORT_DONE              ; 46AC 28 0C
 
 ; ---- CMD_SORT_LOOP7 ---- from &46BA when B is not 0 yet
 CMD_SORT_LOOP7:
@@ -2733,8 +2733,8 @@ CMD_SORT_LOOP7:
                JR C,CMD_SORT_LOOP4             ; 46B6 38 EF
                JR CMD_SORT_LOOP3               ; 46B8 18 EA
 
-; ---- CMD_SORT_LOOP8 ---- from &46AC when C reaches 0, &46FF when C reaches 0
-CMD_SORT_LOOP8:
+; ---- CMD_SORT_DONE ---- from &46AC when C reaches 0, &46FF when C reaches 0
+CMD_SORT_DONE:
                DJNZ CMD_SORT_LOOP7             ; 46BA 10 F2
                RET                             ; 46BC C9
 
@@ -2761,89 +2761,89 @@ PAGE_ON_TWO:
                SET 7,H                         ; 46CA CB FC
                RET                             ; 46CC C9
 
-; ---- PAGE_ON_TWO_LOOP ---- from &47BE
-PAGE_ON_TWO_LOOP:
+; ---- PAGE_ON_TWO_1 ---- from &47BE
+PAGE_ON_TWO_1:
                PUSH BC                         ; 46CD C5
 
-; ---- PAGE_ON_TWO_LOOP2 ---- from &46E0, &46E7
-PAGE_ON_TWO_LOOP2:
+; ---- PAGE_ON_TWO_LOOP ---- from &46E0, &46E7
+PAGE_ON_TWO_LOOP:
                CALL SAVE_FAR_POINTER           ; 46CE CD 17 47
 
-; ---- PAGE_ON_TWO_LOOP3 ---- from &46E5
-PAGE_ON_TWO_LOOP3:
+; ---- PAGE_ON_TWO_LOOP2 ---- from &46E5
+PAGE_ON_TWO_LOOP2:
                LD A,(HL)                       ; 46D1 7E
                AND UPPER                       ; 46D2 E6 DF
 
-; ---- PAGE_ON_TWO_LOOP4 ---- from &46DE when A < B
-PAGE_ON_TWO_LOOP4:
+; ---- PAGE_ON_TWO_LOOP3 ---- from &46DE when A < B
+PAGE_ON_TWO_LOOP3:
                ADD HL,DE                       ; 46D4 19
-               JR C,PAGE_ON_TWO_2              ; 46D5 38 1B
+               JR C,PAGE_ON_TWO_3              ; 46D5 38 1B
 
-; ---- PAGE_ON_TWO_LOOP5 ---- from &46F5
-PAGE_ON_TWO_LOOP5:
+; ---- PAGE_ON_TWO_LOOP4 ---- from &46F5
+PAGE_ON_TWO_LOOP4:
                DEC C                           ; 46D7 0D
-               JR Z,PAGE_ON_TWO_1              ; 46D8 28 0F
+               JR Z,PAGE_ON_TWO_2              ; 46D8 28 0F
 
-; ---- PAGE_ON_TWO_LOOP6 ---- from &46EE when B is not 0 yet
-PAGE_ON_TWO_LOOP6:
+; ---- PAGE_ON_TWO_LOOP5 ---- from &46EE when B is not 0 yet
+PAGE_ON_TWO_LOOP5:
                LD B,(HL)                       ; 46DA 46
                RES 5,B                         ; 46DB CB A8
                CP B                            ; 46DD B8
-               JR C,PAGE_ON_TWO_LOOP4          ; 46DE 38 F4
-               JR NZ,PAGE_ON_TWO_LOOP2         ; 46E0 20 EC
+               JR C,PAGE_ON_TWO_LOOP3          ; 46DE 38 F4
+               JR NZ,PAGE_ON_TWO_LOOP          ; 46E0 20 EC
                CALL COMPARE_FAR_STRINGS        ; 46E2 CD 25 47
-               JR C,PAGE_ON_TWO_LOOP3          ; 46E5 38 EA
-               JR PAGE_ON_TWO_LOOP2            ; 46E7 18 E5
+               JR C,PAGE_ON_TWO_LOOP2          ; 46E5 38 EA
+               JR PAGE_ON_TWO_LOOP             ; 46E7 18 E5
 
-; ---- PAGE_ON_TWO_1 ---- from &46D8 when C reaches 0
-PAGE_ON_TWO_1:
+; ---- PAGE_ON_TWO_2 ---- from &46D8 when C reaches 0
+PAGE_ON_TWO_2:
                POP BC                          ; 46E9 C1
                DEC B                           ; 46EA 05
                PUSH BC                         ; 46EB C5
                LD C,&00                        ; 46EC 0E 00
-               JR NZ,PAGE_ON_TWO_LOOP6         ; 46EE 20 EA
+               JR NZ,PAGE_ON_TWO_LOOP5         ; 46EE 20 EA
                POP BC                          ; 46F0 C1
                RET                             ; 46F1 C9
 
-; ---- PAGE_ON_TWO_2 ---- from &46D5
-PAGE_ON_TWO_2:
+; ---- PAGE_ON_TWO_3 ---- from &46D5
+PAGE_ON_TWO_3:
                CALL PAGE_ON_TWO                ; 46F2 CD C2 46
-               JR PAGE_ON_TWO_LOOP5            ; 46F5 18 E0
+               JR PAGE_ON_TWO_LOOP4            ; 46F5 18 E0
 
-; ---- PAGE_ON_TWO_LOOP7 ---- from &4706, &470D, &47AA
-PAGE_ON_TWO_LOOP7:
+; ---- PAGE_ON_TWO_LOOP6 ---- from &4706, &470D, &47AA
+PAGE_ON_TWO_LOOP6:
                CALL SAVE_FAR_POINTER           ; 46F7 CD 17 47
 
-; ---- PAGE_ON_TWO_LOOP8 ---- from &470B
-PAGE_ON_TWO_LOOP8:
+; ---- PAGE_ON_TWO_LOOP7 ---- from &470B
+PAGE_ON_TWO_LOOP7:
                LD A,(HL)                       ; 46FA 7E
 
-; ---- PAGE_ON_TWO_LOOP9 ---- from &4704
-PAGE_ON_TWO_LOOP9:
+; ---- PAGE_ON_TWO_LOOP8 ---- from &4704
+PAGE_ON_TWO_LOOP8:
                ADD HL,DE                       ; 46FB 19
-               JR C,PAGE_ON_TWO_4              ; 46FC 38 14
+               JR C,PAGE_ON_TWO_5              ; 46FC 38 14
 
-; ---- PAGE_ON_TWO_LOOP10 ---- from &4715
-PAGE_ON_TWO_LOOP10:
+; ---- PAGE_ON_TWO_LOOP9 ---- from &4715
+PAGE_ON_TWO_LOOP9:
                DEC C                           ; 46FE 0D
-               JR Z,CMD_SORT_LOOP8             ; 46FF 28 B9
+               JR Z,CMD_SORT_DONE              ; 46FF 28 B9
                CP (HL)                         ; 4701 BE
-               JR Z,PAGE_ON_TWO_3              ; 4702 28 04
-               JR NC,PAGE_ON_TWO_LOOP9         ; 4704 30 F5
-               JR PAGE_ON_TWO_LOOP7            ; 4706 18 EF
+               JR Z,PAGE_ON_TWO_4              ; 4702 28 04
+               JR NC,PAGE_ON_TWO_LOOP8         ; 4704 30 F5
+               JR PAGE_ON_TWO_LOOP6            ; 4706 18 EF
 
-; ---- PAGE_ON_TWO_3 ---- from &4702 when A = (HL)
-PAGE_ON_TWO_3:
+; ---- PAGE_ON_TWO_4 ---- from &4702 when A = (HL)
+PAGE_ON_TWO_4:
                CALL COMPARE_FAR_STRINGS        ; 4708 CD 25 47
-               JR NC,PAGE_ON_TWO_LOOP8         ; 470B 30 ED
-               JR PAGE_ON_TWO_LOOP7            ; 470D 18 E8
+               JR NC,PAGE_ON_TWO_LOOP7         ; 470B 30 ED
+               JR PAGE_ON_TWO_LOOP6            ; 470D 18 E8
                DEFB &10,&F0,&C9                ; 470F .pI  skipped: reads as DJNZ &4701 from here, and as part of the
                                                ; instruction above it
 
-; ---- PAGE_ON_TWO_4 ---- from &46FC
-PAGE_ON_TWO_4:
+; ---- PAGE_ON_TWO_5 ---- from &46FC
+PAGE_ON_TWO_5:
                CALL PAGE_ON_TWO                ; 4712 CD C2 46
-               JR PAGE_ON_TWO_LOOP10           ; 4715 18 E7
+               JR PAGE_ON_TWO_LOOP9            ; 4715 18 E7
 
 ;; --------------------------------------------------------------------
 ;; Normalise HL through the rotating window -- BIT 6,H and INCURPAGE,
@@ -2968,7 +2968,7 @@ FIND_STRING_VARIABLE_1:
                LD (V4099),A                    ; 47A0 32 99 40
                LD (V40A2),HL                   ; 47A3 22 A2 40
                LD BC,(V40A0)                   ; 47A6 ED 4B A0 40
-               LD IX,PAGE_ON_TWO_LOOP7         ; 47AA DD 21 F7 46
+               LD IX,PAGE_ON_TWO_LOOP6         ; 47AA DD 21 F7 46
                LD A,(V4098)                    ; 47AE 3A 98 40
                CP &A5                          ; 47B1 FE A5
                RET Z                           ; 47B3 C8
@@ -2976,7 +2976,7 @@ FIND_STRING_VARIABLE_1:
                LD A,(&4745)                    ; 47B8 3A 45 47
                CP &02                          ; 47BB FE 02
                RET Z                           ; 47BD C8
-               LD IX,PAGE_ON_TWO_LOOP          ; 47BE DD 21 CD 46
+               LD IX,PAGE_ON_TWO_1             ; 47BE DD 21 CD 46
                RET                             ; 47C2 C9
 
 ;; --------------------------------------------------------------------
@@ -3204,9 +3204,9 @@ CMD_DATE:
                CALL WAIT_FOR_CLOCK             ; 4861 CD 78 49
                CALL CALL_NEXTCHAR              ; 4864 CD 61 44
 
-; ---- CMD_DATE_LOOP ---- from &487E when A <> &2D
-CMD_DATE_LOOP:
-               JP CMD_DATE_1                   ; 4867 C3 18 49
+; ---- CMD_DATE_1 ---- from &487E when A <> &2D
+CMD_DATE_1:
+               JP CMD_DATE_2                   ; 4867 C3 18 49
 
 ;; --------------------------------------------------------------------
 ;; TIME -- the TIME command, token 248.
@@ -3227,7 +3227,7 @@ CMD_DATE_LOOP:
 ;; --------------------------------------------------------------------
 
 CMD_TIME:
-               LD HL,DECIMAL_DIGIT_LOOP3       ; 486A 21 80 42
+               LD HL,DECIMAL_DIGIT_3           ; 486A 21 80 42
                LD (V4096),HL                   ; 486D 22 96 40
                CALL WAIT_FOR_CLOCK             ; 4870 CD 78 49
                CALL CALL_NEXTCHAR              ; 4873 CD 61 44
@@ -3235,7 +3235,7 @@ CMD_TIME:
                CP &2B                          ; 4878 FE 2B
                JR Z,CMD_TIME_1                 ; 487A 28 06
                CP &2D                          ; 487C FE 2D
-               JR NZ,CMD_DATE_LOOP             ; 487E 20 E7
+               JR NZ,CMD_DATE_1                ; 487E 20 E7
                LD E,&00                        ; 4880 1E 00
 
 ; ---- CMD_TIME_1 ---- from &487A when A = &2B
@@ -3345,8 +3345,8 @@ CMD_TIME_LOOP3:
                OUT (HMPR),A                    ; 4914 D3 FB
                JR CMD_TIME_7                   ; 4916 18 3D
 
-; ---- CMD_DATE_1 ---- from &4867
-CMD_DATE_1:
+; ---- CMD_DATE_2 ---- from &4867
+CMD_DATE_2:
                CALL AT_END_OF_STATEMENT              ; 4918 CD BC 44
                JR Z,CMD_TIME_8                       ; 491B 28 3E
                CALL CALLDOS                          ; 491D CD C1 42
@@ -3426,7 +3426,7 @@ WAIT_FOR_CLOCK:
 ; ---- CMD_TIME_9 ---- from &4959
 CMD_TIME_9:
                PUSH HL                             ; 497C E5
-               LD HL,SAVE_BLOCK_FROM_DOS_PAGE_LOOP ; 497D 21 B6 42
+               LD HL,SAVE_BLOCK_FROM_DOS_PAGE_DONE ; 497D 21 B6 42
                CALL CALLDOS                        ; 4980 CD C1 42
                DEFW NRREAD                         ; 4983 AC 00
                POP HL                              ; 4985 E1
@@ -3667,8 +3667,8 @@ READ_CLOCK_FIELDS_DONE2:
 TWO_DIGITS_FROM_DE:
                LD A,(DE)                       ; 4A6A 1A
 
-; ---- TWO_DIGITS_FROM_DE_LOOP ---- from &5318
-TWO_DIGITS_FROM_DE_LOOP:
+; ---- TWO_DIGITS_FROM_DE_1 ---- from &5318
+TWO_DIGITS_FROM_DE_1:
                INC DE                          ; 4A6B 13
                SUB CH_ZERO                     ; 4A6C D6 30
                LD C,A                          ; 4A6E 4F
@@ -3749,7 +3749,7 @@ TICS_SECONDS_IN_MONTH:
                ADD HL,BC                       ; 4AB6 09
                ADC A,B                         ; 4AB7 88
                CALL CALLDOS                    ; 4AB8 CD C1 42
-               DEFW DOS_EPCOM_LOOP-&4000       ; 4ABB C4 65
+               DEFW DOS_EPCOM_1-&4000          ; 4ABB C4 65
                LD A,(V4075)                    ; 4ABD 3A 75 40
                AND A                           ; 4AC0 A7
                JR Z,TICS_SECONDS_IN_MONTH_DONE ; 4AC1 28 0C
@@ -3789,8 +3789,8 @@ MULTIPLY_BY_60:
                ADD HL,HL                       ; 4ADE 29
                ADC A,A                         ; 4ADF 8F
 
-; ---- MULTIPLY_BY_60_LOOP ---- from &55BF
-MULTIPLY_BY_60_LOOP:
+; ---- MULTIPLY_BY_60_1 ---- from &55BF
+MULTIPLY_BY_60_1:
                ADD HL,HL                       ; 4AE0 29
                ADC A,A                         ; 4AE1 8F
                ADD HL,HL                       ; 4AE2 29
@@ -3800,8 +3800,8 @@ MULTIPLY_BY_60_LOOP:
                AND A                           ; 4AE6 A7
                SBC HL,BC                       ; 4AE7 ED 42
 
-; ---- MULTIPLY_BY_60_LOOP2 ---- from &55EA
-MULTIPLY_BY_60_LOOP2:
+; ---- MULTIPLY_BY_60_2 ---- from &55EA
+MULTIPLY_BY_60_2:
                SBC A,&00                       ; 4AE9 DE 00
                ADD HL,HL                       ; 4AEB 29
                ADC A,A                         ; 4AEC 8F
@@ -3960,8 +3960,8 @@ FN_LOCN_1:
                LD A,B                          ; 4BA0 78
                CP &3F                          ; 4BA1 FE 3F
 
-; ---- PARSE_OPTIONAL_RANGE_LOOP ---- from &4C33 when A <> 0
-PARSE_OPTIONAL_RANGE_LOOP:
+; ---- PARSE_OPTIONAL_RANGE_2 ---- from &4C33 when A <> 0
+PARSE_OPTIONAL_RANGE_2:
                LD A,&2A                        ; 4BA3 3E 2A  error 42, "String too long"
                JP NC,REPORT                    ; 4BA5 D2 BE 43
                LD (V409E),HL                   ; 4BA8 22 9E 40
@@ -3978,30 +3978,30 @@ PARSE_OPTIONAL_RANGE_LOOP:
                SBC HL,BC                       ; 4BBB ED 42
                INC HL                          ; 4BBD 23
 
-; ---- PARSE_OPTIONAL_RANGE_LOOP2 ---- from &4C13
-PARSE_OPTIONAL_RANGE_LOOP2:
+; ---- PARSE_OPTIONAL_RANGE_LOOP ---- from &4C13
+PARSE_OPTIONAL_RANGE_LOOP:
                DEC HL                          ; 4BBE 2B
                LD A,H                          ; 4BBF 7C
                OR L                            ; 4BC0 B5
-               JR NZ,PARSE_OPTIONAL_RANGE_2    ; 4BC1 20 14
+               JR NZ,PARSE_OPTIONAL_RANGE_3    ; 4BC1 20 14
                LD HL,(V40A4)                   ; 4BC3 2A A4 40
                RES 7,H                         ; 4BC6 CB BC
                LD A,H                          ; 4BC8 7C
                OR L                            ; 4BC9 B5
-               JR Z,PARSE_OPTIONAL_RANGE_6     ; 4BCA 28 4C
+               JR Z,PARSE_OPTIONAL_RANGE_7     ; 4BCA 28 4C
                LD DE,&0000                     ; 4BCC 11 00 00
                LD (V40A4),DE                   ; 4BCF ED 53 A4 40
                INC DE                          ; 4BD3 13
                PUSH DE                         ; 4BD4 D5
-               JR PARSE_OPTIONAL_RANGE_3       ; 4BD5 18 04
+               JR PARSE_OPTIONAL_RANGE_4       ; 4BD5 18 04
 
-; ---- PARSE_OPTIONAL_RANGE_2 ---- from &4BC1
-PARSE_OPTIONAL_RANGE_2:
+; ---- PARSE_OPTIONAL_RANGE_3 ---- from &4BC1
+PARSE_OPTIONAL_RANGE_3:
                PUSH HL                         ; 4BD7 E5
                LD HL,(V40A0)                   ; 4BD8 2A A0 40
 
-; ---- PARSE_OPTIONAL_RANGE_3 ---- from &4BD5
-PARSE_OPTIONAL_RANGE_3:
+; ---- PARSE_OPTIONAL_RANGE_4 ---- from &4BD5
+PARSE_OPTIONAL_RANGE_4:
                INC BC                          ; 4BDB 03
                PUSH BC                         ; 4BDC C5
                LD DE,(V409E)                   ; 4BDD ED 5B 9E 40
@@ -4015,40 +4015,40 @@ PARSE_OPTIONAL_RANGE_3:
                OUT (C),B                       ; 4BF1 ED 41
                POP BC                          ; 4BF3 C1
                POP HL                          ; 4BF4 E1
-               JR NC,PARSE_OPTIONAL_RANGE_7    ; 4BF5 30 25
+               JR NC,PARSE_OPTIONAL_RANGE_8    ; 4BF5 30 25
                PUSH HL                         ; 4BF7 E5
                LD HL,(V40A2)                   ; 4BF8 2A A2 40
                LD DE,(V409E)                   ; 4BFB ED 5B 9E 40
                ADD HL,DE                       ; 4BFF 19
                BIT 6,H                         ; 4C00 CB 74
-               JR Z,PARSE_OPTIONAL_RANGE_4     ; 4C02 28 0B
+               JR Z,PARSE_OPTIONAL_RANGE_5     ; 4C02 28 0B
                RES 6,H                         ; 4C04 CB B4
                IN A,(HMPR)                     ; 4C06 DB FB
                INC A                           ; 4C08 3C
                AND PAGEMASK                    ; 4C09 E6 1F
                OUT (HMPR),A                    ; 4C0B D3 FB
-               JR Z,PARSE_OPTIONAL_RANGE_5     ; 4C0D 28 06
+               JR Z,PARSE_OPTIONAL_RANGE_6     ; 4C0D 28 06
 
-; ---- PARSE_OPTIONAL_RANGE_4 ---- from &4C02 when bit 6 of H clear
-PARSE_OPTIONAL_RANGE_4:
+; ---- PARSE_OPTIONAL_RANGE_5 ---- from &4C02 when bit 6 of H clear
+PARSE_OPTIONAL_RANGE_5:
                LD (V409E),HL                   ; 4C0F 22 9E 40
                POP HL                          ; 4C12 E1
-               JR PARSE_OPTIONAL_RANGE_LOOP2   ; 4C13 18 A9
+               JR PARSE_OPTIONAL_RANGE_LOOP    ; 4C13 18 A9
 
-; ---- PARSE_OPTIONAL_RANGE_5 ---- from &4C0D when no bit of &1F is set
-PARSE_OPTIONAL_RANGE_5:
+; ---- PARSE_OPTIONAL_RANGE_6 ---- from &4C0D when no bit of &1F is set
+PARSE_OPTIONAL_RANGE_6:
                POP HL                          ; 4C15 E1
                LD H,A                          ; 4C16 67
                LD L,A                          ; 4C17 6F
 
-; ---- PARSE_OPTIONAL_RANGE_6 ---- from &4BCA
-PARSE_OPTIONAL_RANGE_6:
+; ---- PARSE_OPTIONAL_RANGE_7 ---- from &4BCA
+PARSE_OPTIONAL_RANGE_7:
                LD B,H                          ; 4C18 44
                LD C,L                          ; 4C19 4D
                JR PARSE_OPTIONAL_RANGE_DONE    ; 4C1A 18 0A
 
-; ---- PARSE_OPTIONAL_RANGE_7 ---- from &4BF5
-PARSE_OPTIONAL_RANGE_7:
+; ---- PARSE_OPTIONAL_RANGE_8 ---- from &4BF5
+PARSE_OPTIONAL_RANGE_8:
                LD A,(V40AD)                    ; 4C1C 3A AD 40
                AND A                           ; 4C1F A7
                JR NZ,PARSE_OPTIONAL_RANGE_DONE ; 4C20 20 04
@@ -4074,7 +4074,7 @@ COPY_STRING_TO_BUFFER:
                OUT (HMPR),A                    ; 4C2F D3 FB
                LD A,B                          ; 4C31 78
                AND A                           ; 4C32 A7
-               JP NZ,PARSE_OPTIONAL_RANGE_LOOP ; 4C33 C2 A3 4B
+               JP NZ,PARSE_OPTIONAL_RANGE_2    ; 4C33 C2 A3 4B
                LD A,C                          ; 4C36 79
                LD (V4098),A                    ; 4C37 32 98 40
                AND A                           ; 4C3A A7
@@ -4110,7 +4110,7 @@ COPY_STRING_TO_BUFFER_LOOP:
                ADD HL,DE                       ; 4C62 19
                ADC A,&00                       ; 4C63 CE 00
                CALL CALLDOS                    ; 4C65 CD C1 42
-               DEFW DOS_EPCOM_LOOP-&4000       ; 4C68 C4 65
+               DEFW DOS_EPCOM_1-&4000          ; 4C68 C4 65
                RET                             ; 4C6A C9
 
 ;; --------------------------------------------------------------------
@@ -4320,8 +4320,8 @@ SEARCH_MEMORY_LOOP5:
                POP AF                          ; 4D23 F1
                JR SEARCH_MEMORY_LOOP4          ; 4D24 18 D7
 
-; ---- SEARCH_MEMORY_LOOP6 ---- from &4D2C when B is not 0 yet, &4D2F when C is not 0 yet
-SEARCH_MEMORY_LOOP6:
+; ---- SEARCH_MEMORY_6 ---- from &4D2C when B is not 0 yet, &4D2F when C is not 0 yet
+SEARCH_MEMORY_6:
                CP D                            ; 4D26 BA
                RET Z                           ; 4D27 C8
                CP E                            ; 4D28 BB
@@ -4337,9 +4337,9 @@ SEARCH_MEMORY_LOOP6:
 COMPARE_TO_TERMINATOR:
                LD A,(HL)                       ; 4D2A 7E
                INC HL                          ; 4D2B 23
-               DJNZ SEARCH_MEMORY_LOOP6        ; 4D2C 10 F8
+               DJNZ SEARCH_MEMORY_6            ; 4D2C 10 F8
                DEC C                           ; 4D2E 0D
-               JR NZ,SEARCH_MEMORY_LOOP6       ; 4D2F 20 F5
+               JR NZ,SEARCH_MEMORY_6           ; 4D2F 20 F5
                CP E                            ; 4D31 BB
                RET                             ; 4D32 C9
 
@@ -4618,7 +4618,7 @@ FN_SHIFT_S_1:
 
 HK_PUTARG:
                CP &50                          ; 4E37 FE 50
-               JP Z,CALL_STKSTR_LOOP           ; 4E39 CA C5 41
+               JP Z,CALL_STKSTR_1              ; 4E39 CA C5 41
                CALL CALL_GETINT                ; 4E3C CD 76 44
                LD HL,PUTSWA                    ; 4E3F 21 00 40
                IN A,(LMPR)                     ; 4E42 DB FA
@@ -5073,8 +5073,8 @@ GTDT:
                POP IY                          ; 5000 FD E1
                LD BC,&0011                     ; 5002 01 11 00
 
-; ---- GTDT_LOOP ---- from &5216
-GTDT_LOOP:
+; ---- GTDT_1 ---- from &5216
+GTDT_1:
                ADD IY,BC                       ; 5005 FD 09  PT TO 17 BYTES FURTHER ON
                POP DE                          ; 5007 D1  IN TOKENISE SR
                ADD HL,DE                       ; 5008 19
@@ -5548,7 +5548,7 @@ HK_RCPTCH_1:
                JR C,HK_RCPTCH_2                ; 5210 38 0F
                LD HL,GTDT                      ; 5212 21 00 50
                PUSH HL                         ; 5215 E5
-               LD HL,GTDT_LOOP                 ; 5216 21 05 50
+               LD HL,GTDT_1                    ; 5216 21 05 50
                PUSH HL                         ; 5219 E5
                LD H,B                          ; 521A 60
                LD L,C                          ; 521B 69
@@ -5603,12 +5603,12 @@ HK_RCPTCH_4:
                POP BC                          ; 5264 C1
                POP AF                          ; 5265 F1
                CP &B3                          ; 5266 FE B3
-               JR Z,HK_RCPTCH_LOOP             ; 5268 28 02
+               JR Z,HK_RCPTCH_5                ; 5268 28 02
                LD B,D                          ; 526A 42
                LD C,E                          ; 526B 4B
 
-; ---- HK_RCPTCH_LOOP ---- from &5268 when A = &B3, &531B
-HK_RCPTCH_LOOP:
+; ---- HK_RCPTCH_5 ---- from &5268 when A = &B3, &531B
+HK_RCPTCH_5:
                LD HL,(V4076)                   ; 526C 2A 76 40
                JP WRTBC                        ; 526F C3 B3 45
 
@@ -5766,11 +5766,11 @@ HK_TOKENARG:
 ; ---- HK_TOKENARG_1 ---- from &5308 when A reaches 0
 HK_TOKENARG_1:
                CALL SKIP_THEN_END              ; 5315 CD CD 44
-               LD BC,TWO_DIGITS_FROM_DE_LOOP   ; 5318 01 6B 4A
+               LD BC,TWO_DIGITS_FROM_DE_1      ; 5318 01 6B 4A
 
 ; ---- HK_TOKENARG_LOOP ---- from &5324, &5350
 HK_TOKENARG_LOOP:
-               JP HK_RCPTCH_LOOP               ; 531B C3 6C 52
+               JP HK_RCPTCH_5                  ; 531B C3 6C 52
 
 ; ---- HK_TOKENARG_2 ---- from &5305 when A reaches 0
 HK_TOKENARG_2:
@@ -6298,7 +6298,7 @@ INIT_SERIAL_FROM_TABLE_1:
 ; ---- INIT_SERIAL_FROM_TABLE_2 ---- from &559E
 INIT_SERIAL_FROM_TABLE_2:
                ADD A,C                         ; 55BE 81
-               LD BC,MULTIPLY_BY_60_LOOP       ; 55BF 01 E0 4A
+               LD BC,MULTIPLY_BY_60_1          ; 55BF 01 E0 4A
 
 ; ---- INIT_SERIAL_FROM_TABLE_3 ---- from &55A4
 INIT_SERIAL_FROM_TABLE_3:
@@ -6325,7 +6325,7 @@ CMD_LPRINT_1:
                EX DE,HL                          ; 55E4 EB
                LD HL,(V4066)                     ; 55E5 2A 66 40
                JR Z,INIT_SERIAL_FROM_TABLE_4     ; 55E8 28 03
-               LD HL,MULTIPLY_BY_60_LOOP2        ; 55EA 21 E9 4A
+               LD HL,MULTIPLY_BY_60_2            ; 55EA 21 E9 4A
 
 ; ---- INIT_SERIAL_FROM_TABLE_4 ---- from &55E8
 INIT_SERIAL_FROM_TABLE_4:
@@ -6491,8 +6491,8 @@ CMD_ALTER_4:
 CMD_REF_1:
                LD E,A                          ; 5686 5F
 
-; ---- CMD_REF_LOOP ---- from &56AC
-CMD_REF_LOOP:
+; ---- CMD_REF_2 ---- from &56AC
+CMD_REF_2:
                PUSH HL                         ; 5687 E5
                LD B,(HL)                       ; 5688 46
                INC HL                          ; 5689 23
@@ -6532,7 +6532,7 @@ SCAN_TEXT_PAGED:
 ; ---- SCAN_TEXT_PAGED_1 ---- from &56A4 when bit 6 of H clear
 SCAN_TEXT_PAGED_1:
                INC HL                          ; 56AB 23
-               JR CMD_REF_LOOP                 ; 56AC 18 D9
+               JR CMD_REF_2                    ; 56AC 18 D9
 
 ; ---- SCAN_TEXT_PAGED_2 ---- from &569E
 SCAN_TEXT_PAGED_2:
@@ -7465,7 +7465,7 @@ SCREEN_BLANK_TICK:
 SCREEN_BLANK_TICK_1:
                LD A,(V4085+&4000)              ; 59FC 3A 85 80
                AND A                           ; 59FF A7
-               JR Z,SCREEN_BLANK_TICK_7        ; 5A00 28 69
+               JR Z,SCREEN_BLANK_TICK_8        ; 5A00 28 69
                DEC A                           ; 5A02 3D
                LD B,A                          ; 5A03 47
                IN A,(LMPR)                     ; 5A04 DB FA
@@ -7483,7 +7483,7 @@ SCREEN_BLANK_TICK_LOOP:
                LD A,(DOS_BOOT_16)              ; 5A17 3A 88 80
                DEC A                           ; 5A1A 3D
                CP B                            ; 5A1B B8
-               JR Z,SCREEN_BLANK_TICK_6        ; 5A1C 28 4C
+               JR Z,SCREEN_BLANK_TICK_7        ; 5A1C 28 4C
 
 ; ---- SCREEN_BLANK_TICK_2 ---- from &5A15
 SCREEN_BLANK_TICK_2:
@@ -7519,9 +7519,9 @@ SCREEN_BLANK_TICK_3:
 SCREEN_BLANK_TICK_4:
                CALL CHECK_PRINTER_READY+&4000  ; 5A42 CD 2B 83  the printer-ready test, called through the window
 
-; ---- SCREEN_BLANK_TICK_LOOP2 ---- from &71D4
-SCREEN_BLANK_TICK_LOOP2:
-               JR C,SCREEN_BLANK_TICK_6        ; 5A45 38 23
+; ---- SCREEN_BLANK_TICK_5 ---- from &71D4
+SCREEN_BLANK_TICK_5:
+               JR C,SCREEN_BLANK_TICK_7        ; 5A45 38 23
                LD A,B                          ; 5A47 78
                OUT (LMPR),A                    ; 5A48 D3 FA
                LD A,(DE)                       ; 5A4A 1A
@@ -7531,31 +7531,31 @@ SCREEN_BLANK_TICK_LOOP2:
                LD A,C                          ; 5A51 79
                OUT (LMPR),A                    ; 5A52 D3 FA
 
-; ---- SCREEN_BLANK_TICK_5 ---- from DOS &6884, DOS &688C
-SCREEN_BLANK_TICK_5:
+; ---- SCREEN_BLANK_TICK_6 ---- from DOS &6884, DOS &688C
+SCREEN_BLANK_TICK_6:
                LD A,D                          ; 5A54 7A
                CALL SEND_BYTE_TO_PRINTER+&4000 ; 5A55 CD 37 81
                POP AF                          ; 5A58 F1
                DEC A                           ; 5A59 3D
-               JR Z,SCREEN_BLANK_TICK_7        ; 5A5A 28 0F
+               JR Z,SCREEN_BLANK_TICK_8        ; 5A5A 28 0F
                PUSH AF                         ; 5A5C F5
                LD HL,(ILPD+&4000)              ; 5A5D 2A 09 80  the not-ready delay, from XVAR 9
 
-; ---- SCREEN_BLANK_TICK_LOOP3 ---- from &5A68
-SCREEN_BLANK_TICK_LOOP3:
+; ---- SCREEN_BLANK_TICK_LOOP2 ---- from &5A68
+SCREEN_BLANK_TICK_LOOP2:
                CALL CHECK_PRINTER_READY+&4000  ; 5A60 CD 2B 83
                JR NC,SCREEN_BLANK_TICK_LOOP    ; 5A63 30 A6
                DEC HL                          ; 5A65 2B
                LD A,H                          ; 5A66 7C
                OR L                            ; 5A67 B5
-               JR NZ,SCREEN_BLANK_TICK_LOOP3   ; 5A68 20 F6
+               JR NZ,SCREEN_BLANK_TICK_LOOP2   ; 5A68 20 F6
 
-; ---- SCREEN_BLANK_TICK_6 ---- from &5A1C when A = B, &5A45
-SCREEN_BLANK_TICK_6:
+; ---- SCREEN_BLANK_TICK_7 ---- from &5A1C when A = B, &5A45
+SCREEN_BLANK_TICK_7:
                POP AF                          ; 5A6A F1
 
-; ---- SCREEN_BLANK_TICK_7 ---- from &5A00 when A = 0, &5A5A when A reaches 0
-SCREEN_BLANK_TICK_7:
+; ---- SCREEN_BLANK_TICK_8 ---- from &5A00 when A = 0, &5A5A when A reaches 0
+SCREEN_BLANK_TICK_8:
                LD A,(&8084)                    ; 5A6B 3A 84 80
                AND A                           ; 5A6E A7
                RET Z                           ; 5A6F C8
@@ -7569,12 +7569,12 @@ SCREEN_BLANK_TICK_7:
                OUT (LMPR),A                    ; 5A7C D3 FA
                LD DE,(DOS_BOOT_13)             ; 5A7E ED 5B 7F 80
 
-; ---- SCREEN_BLANK_TICK_LOOP4 ---- from &5AD2
-SCREEN_BLANK_TICK_LOOP4:
+; ---- SCREEN_BLANK_TICK_LOOP3 ---- from &5AD2
+SCREEN_BLANK_TICK_LOOP3:
                LD HL,(&8082)                   ; 5A82 2A 82 80
                AND A                           ; 5A85 A7
                SBC HL,DE                       ; 5A86 ED 52
-               JR NZ,SCREEN_BLANK_TICK_8       ; 5A88 20 0A
+               JR NZ,SCREEN_BLANK_TICK_9       ; 5A88 20 0A
                IN A,(LMPR)                     ; 5A8A DB FA
                INC A                           ; 5A8C 3C
                LD H,A                          ; 5A8D 67
@@ -7582,25 +7582,25 @@ SCREEN_BLANK_TICK_LOOP4:
                CP H                            ; 5A91 BC
                JR Z,SCREEN_BLANK_TICK_DONE     ; 5A92 28 2A
 
-; ---- SCREEN_BLANK_TICK_8 ---- from &5A88
-SCREEN_BLANK_TICK_8:
+; ---- SCREEN_BLANK_TICK_9 ---- from &5A88
+SCREEN_BLANK_TICK_9:
                LD A,D                          ; 5A94 7A
                INC A                           ; 5A95 3C
 
-; ---- SCREEN_BLANK_TICK_LOOP5 ---- from &5DB1
-SCREEN_BLANK_TICK_LOOP5:
+; ---- SCREEN_BLANK_TICK_10 ---- from &5DB1
+SCREEN_BLANK_TICK_10:
                AND &03                         ; 5A96 E6 03
-               JR NZ,SCREEN_BLANK_TICK_10      ; 5A98 20 19
+               JR NZ,SCREEN_BLANK_TICK_12      ; 5A98 20 19
                LD A,D                          ; 5A9A 7A
                CP &7F                          ; 5A9B FE 7F
                LD A,E                          ; 5A9D 7B
-               JR NZ,SCREEN_BLANK_TICK_9       ; 5A9E 20 02
+               JR NZ,SCREEN_BLANK_TICK_11      ; 5A9E 20 02
                ADD A,&10                       ; 5AA0 C6 10
 
-; ---- SCREEN_BLANK_TICK_9 ---- from &5A9E when A <> &7F
-SCREEN_BLANK_TICK_9:
+; ---- SCREEN_BLANK_TICK_11 ---- from &5A9E when A <> &7F
+SCREEN_BLANK_TICK_11:
                CP &FE                          ; 5AA2 FE FE
-               JR NZ,SCREEN_BLANK_TICK_10      ; 5AA4 20 0D
+               JR NZ,SCREEN_BLANK_TICK_12      ; 5AA4 20 0D
                LD A,(DE)                       ; 5AA6 1A
                LD H,A                          ; 5AA7 67
                INC E                           ; 5AA8 1C
@@ -7611,16 +7611,16 @@ SCREEN_BLANK_TICK_9:
                DEC A                           ; 5AB0 3D
                OUT (LMPR),A                    ; 5AB1 D3 FA
 
-; ---- SCREEN_BLANK_TICK_10 ---- from &5A98 when a bit of &03 is set, &5AA4 when A <> &FE
-SCREEN_BLANK_TICK_10:
+; ---- SCREEN_BLANK_TICK_12 ---- from &5A98 when a bit of &03 is set, &5AA4 when A <> &FE
+SCREEN_BLANK_TICK_12:
                LD A,(DE)                       ; 5AB3 1A
                INC DE                          ; 5AB4 13
                CP CH_SPACE                     ; 5AB5 FE 20
-               JR NZ,SCREEN_BLANK_TICK_12      ; 5AB7 20 0D
+               JR NZ,SCREEN_BLANK_TICK_14      ; 5AB7 20 0D
                LD A,(DE)                       ; 5AB9 1A
 
-; ---- SCREEN_BLANK_TICK_11 ---- from DOS &682B, DOS &6841
-SCREEN_BLANK_TICK_11:
+; ---- SCREEN_BLANK_TICK_13 ---- from DOS &682B, DOS &6841
+SCREEN_BLANK_TICK_13:
                INC DE                          ; 5ABA 13
                LD (&8084),A                    ; 5ABB 32 84 80
 
@@ -7631,8 +7631,8 @@ SCREEN_BLANK_TICK_DONE:
                LD (DOS_BOOT_13),DE             ; 5AC1 ED 53 7F 80
                RET                             ; 5AC5 C9
 
-; ---- SCREEN_BLANK_TICK_12 ---- from &5AB7 when A <> &20
-SCREEN_BLANK_TICK_12:
+; ---- SCREEN_BLANK_TICK_14 ---- from &5AB7 when A <> &20
+SCREEN_BLANK_TICK_14:
                LD H,C                          ; 5AC6 61
                LD BC,&01FF                     ; 5AC7 01 FF 01
                OUT (C),A                       ; 5ACA ED 79
@@ -7641,7 +7641,7 @@ SCREEN_BLANK_TICK_12:
                OUT (C),A                       ; 5ACE ED 79
                LD C,H                          ; 5AD0 4C
                INC DE                          ; 5AD1 13
-               JR SCREEN_BLANK_TICK_LOOP4      ; 5AD2 18 AE
+               JR SCREEN_BLANK_TICK_LOOP3      ; 5AD2 18 AE
 
 ;; --------------------------------------------------------------------
 ;; BLITZ -- taken over from the ROM at token &9D, for BLITZ SOUND.
@@ -8369,7 +8369,7 @@ COPY_THEN_APPEND_CALL_1:
 ; ---- CMD_KEYIN_1 ---- from &5D93
 CMD_KEYIN_1:
                LD A,(ELINEP)                   ; 5DAE 3A 93 5A
-               LD (SCREEN_BLANK_TICK_LOOP5),A  ; 5DB1 32 96 5A
+               LD (SCREEN_BLANK_TICK_10),A     ; 5DB1 32 96 5A
                LD HL,WORKSPP                   ; 5DB4 21 90 5A
                CP (HL)                         ; 5DB7 BE
                RET Z                           ; 5DB8 C8
@@ -8920,8 +8920,8 @@ SHOW_LINE_AND_STATEMENT_1:
                INC A                           ; 5FFB 3C
                JR NZ,CHECK_BREAK_LOOP3         ; 5FFC 20 22
 
-; ---- SHOW_LINE_AND_STATEMENT_LOOP ---- from &600B
-SHOW_LINE_AND_STATEMENT_LOOP:
+; ---- SHOW_LINE_AND_STATEMENT_2 ---- from &600B
+SHOW_LINE_AND_STATEMENT_2:
                LD A,&F7                        ; 5FFE 3E F7
 
 ;; --------------------------------------------------------------------
@@ -8944,9 +8944,9 @@ CHECK_BREAK:
 
 ; ---- CHECK_BREAK_1 ---- from &6004 when a bit of &20 is set
 CHECK_BREAK_1:
-               CALL READ_KEY_LINE+&4000          ; 6008 CD B5 93
-               JR C,SHOW_LINE_AND_STATEMENT_LOOP ; 600B 38 F1
-               LD H,&15                          ; 600D 26 15
+               CALL READ_KEY_LINE+&4000        ; 6008 CD B5 93
+               JR C,SHOW_LINE_AND_STATEMENT_2  ; 600B 38 F1
+               LD H,&15                        ; 600D 26 15
 
 ; ---- CHECK_BREAK_LOOP ---- from &6012
 CHECK_BREAK_LOOP:
@@ -9595,14 +9595,14 @@ NEXT_SCREEN_BYTE:
 
 ; ---- NEXT_SCREEN_BYTE_1 ---- from DOS &45FC, DOS &499B, DOS &49CC, DOS &5552, DOS &5568, DOS &55A3, DOS &55BF
 NEXT_SCREEN_BYTE_1:
-               JR Z,NEXT_SCREEN_BYTE_LOOP      ; 6280 28 05
+               JR Z,NEXT_SCREEN_BYTE_2         ; 6280 28 05
                INC L                           ; 6282 2C
-               JR Z,NEXT_SCREEN_BYTE_2         ; 6283 28 18
+               JR Z,NEXT_SCREEN_BYTE_3         ; 6283 28 18
                DEC H                           ; 6285 25
                DEC H                           ; 6286 25
 
-; ---- NEXT_SCREEN_BYTE_LOOP ---- from &6280 when bit 0 of H clear, &62A1 when A >= H
-NEXT_SCREEN_BYTE_LOOP:
+; ---- NEXT_SCREEN_BYTE_2 ---- from &6280 when bit 0 of H clear, &62A1 when A >= H
+NEXT_SCREEN_BYTE_2:
                INC H                           ; 6287 24
 
 ;; --------------------------------------------------------------------
@@ -9642,11 +9642,11 @@ READ_NIBBLE_AT_HL_DONE:
                AND &0F                         ; 629A E6 0F
                RET                             ; 629C C9
 
-; ---- NEXT_SCREEN_BYTE_2 ---- from &6283 when L wraps to 0
-NEXT_SCREEN_BYTE_2:
+; ---- NEXT_SCREEN_BYTE_3 ---- from &6283 when L wraps to 0
+NEXT_SCREEN_BYTE_3:
                LD A,(V407A)                    ; 629D 3A 7A 40
                CP H                            ; 62A0 BC
-               JR NC,NEXT_SCREEN_BYTE_LOOP     ; 62A1 30 E4
+               JR NC,NEXT_SCREEN_BYTE_2        ; 62A1 30 E4
                DEC L                           ; 62A3 2D
                LD H,L                          ; 62A4 65
                RET                             ; 62A5 C9
@@ -10594,10 +10594,10 @@ HK_PIXELCELL_LOOP3:
                DEFW LWRHS                      ; 65E4 3C 5A
                RET                             ; 65E6 C9
 
-; ---- HK_PIXELCELL_LOOP4 ---- from &6652
-HK_PIXELCELL_LOOP4:
+; ---- HK_PIXELCELL_10 ---- from &6652
+HK_PIXELCELL_10:
                DEC (HL)                        ; 65E7 35
-               JR HK_PIXELCELL_10              ; 65E8 18 6A
+               JR HK_PIXELCELL_11              ; 65E8 18 6A
 
 ;; --------------------------------------------------------------------
 ;; The other compressor, and the manual describes the pair of them
@@ -10720,10 +10720,10 @@ SET_UP_WORK_AREA_LOOP2:
                LD A,(DE)                       ; 664F 1A
                LD L,A                          ; 6650 6F
                INC (HL)                        ; 6651 34
-               JR Z,HK_PIXELCELL_LOOP4         ; 6652 28 93
+               JR Z,HK_PIXELCELL_10            ; 6652 28 93
 
-; ---- HK_PIXELCELL_10 ---- from &65E8
-HK_PIXELCELL_10:
+; ---- HK_PIXELCELL_11 ---- from &65E8
+HK_PIXELCELL_11:
                INC E                           ; 6654 1C
                JR NZ,SET_UP_WORK_AREA_LOOP2    ; 6655 20 F8
                INC D                           ; 6657 14
@@ -11655,8 +11655,8 @@ READ_PIXEL_NIBBLE:
                JR C,READ_PIXEL_NIBBLE_DONE     ; 6A3F 38 04
                RRCA                            ; 6A41 0F
 
-; ---- READ_PIXEL_NIBBLE_LOOP ---- from &6A5F when no bit of &01 is set
-READ_PIXEL_NIBBLE_LOOP:
+; ---- READ_PIXEL_NIBBLE_1 ---- from &6A5F when no bit of &01 is set
+READ_PIXEL_NIBBLE_1:
                RRCA                            ; 6A42 0F
                RRCA                            ; 6A43 0F
                RRCA                            ; 6A44 0F
@@ -11699,7 +11699,7 @@ ATTRIBUTE_PIXEL_COLOUR_LOOP:
                DJNZ ATTRIBUTE_PIXEL_COLOUR_LOOP ; 6A5A 10 FD
                AND &01                          ; 6A5C E6 01
                LD A,L                           ; 6A5E 7D
-               JR Z,READ_PIXEL_NIBBLE_LOOP      ; 6A5F 28 E1
+               JR Z,READ_PIXEL_NIBBLE_1         ; 6A5F 28 E1
                AND &07                          ; 6A61 E6 07
                BIT 6,L                          ; 6A63 CB 75
                RET Z                            ; 6A65 C8
@@ -12961,7 +12961,7 @@ HK_COMADENT:
                JR Z,HK_COMADENT_1              ; 6F41 28 07
                LD A,&FF                        ; 6F43 3E FF
                CALL NRWR                       ; 6F45 CD 82 45
-               DEFW SCREEN_BLANK_TICK_LOOP3    ; 6F48 60 5A
+               DEFW SCREEN_BLANK_TICK_LOOP2    ; 6F48 60 5A
 
 ; ---- HK_COMADENT_1 ---- from &6F41
 HK_COMADENT_1:
@@ -13194,7 +13194,7 @@ ARRAY_ELEMENT_OFFSET_4:
                LD HL,(V40A8)                   ; 7068 2A A8 40
                AND A                           ; 706B A7
                SBC HL,DE                       ; 706C ED 52
-               JP NZ,REP_MISSING_DEF_PROC_LOOP ; 706E C2 AD 43
+               JP NZ,REP_MISSING_DEF_PROC_1    ; 706E C2 AD 43
                LD HL,(V40A6)                   ; 7071 2A A6 40
                ADD HL,BC                       ; 7074 09
 
@@ -13462,7 +13462,7 @@ CMD_CLS:
                LD A,&0F                        ; 71CC 3E 0F
                CALL CALL_PRINT_A               ; 71CE CD FA 69
                LD HL,ATTRT                     ; 71D1 21 4E 5A
-               LD DE,SCREEN_BLANK_TICK_LOOP2   ; 71D4 11 45 5A
+               LD DE,SCREEN_BLANK_TICK_5       ; 71D4 11 45 5A
                LD BC,&0005                     ; 71D7 01 05 00
                CALL CMR                        ; 71DA CD F0 44
                DEFW &008F                      ; 71DD 8F 00
@@ -15017,19 +15017,19 @@ SIZE_EXTERNAL_MEMORY:
                OUT (HMPR),A                    ; 77E0 D3 FB
                LD C,&00                        ; 77E2 0E 00
 
-; ---- SIZE_EXTERNAL_MEMORY_LOOP ---- from &781C when C is not 0
-SIZE_EXTERNAL_MEMORY_LOOP:
+; ---- SIZE_EXTERNAL_MEMORY_1 ---- from &781C when C is not 0
+SIZE_EXTERNAL_MEMORY_1:
                LD A,C                          ; 77E4 79
                OUT (XMPRL),A                   ; 77E5 D3 80
                LD HL,DOS_HEADER                ; 77E7 21 00 80
                XOR A                           ; 77EA AF
                LD (HL),A                       ; 77EB 77
                CP (HL)                         ; 77EC BE
-               JR NZ,SIZE_EXTERNAL_MEMORY_1    ; 77ED 20 28
+               JR NZ,SIZE_EXTERNAL_MEMORY_2    ; 77ED 20 28
                INC A                           ; 77EF 3C
                LD (HL),A                       ; 77F0 77
                CP (HL)                         ; 77F1 BE
-               JR NZ,SIZE_EXTERNAL_MEMORY_1    ; 77F2 20 23
+               JR NZ,SIZE_EXTERNAL_MEMORY_2    ; 77F2 20 23
                LD A,C                          ; 77F4 79
                CALL STACK_FILL_LOOP            ; 77F5 CD 06 78  RMRBIT in the DOS page, not this half's &7806 -- the
                                                ; block runs at &7C00 in the DOS page, so a page that passes has its
@@ -15083,8 +15083,8 @@ STACK_FILL_LOOP:
                LD SP,HL                        ; 7814 F9
                JR STACK_FILL_LOOP_1            ; 7815 18 04
 
-; ---- SIZE_EXTERNAL_MEMORY_1 ---- from &77ED when A <> (HL), &77F2 when A <> (HL)
-SIZE_EXTERNAL_MEMORY_1:
+; ---- SIZE_EXTERNAL_MEMORY_2 ---- from &77ED when A <> (HL), &77F2 when A <> (HL)
+SIZE_EXTERNAL_MEMORY_2:
                LD A,C                          ; 7817 79
                CALL CLEAR_WINDOW_IF_Z          ; 7818 CD FE 77  SMRBIT in the DOS page, not this half's &77FE -- a page
                                                ; that fails has its MRTAB bit set
@@ -15092,7 +15092,7 @@ SIZE_EXTERNAL_MEMORY_1:
 ; ---- STACK_FILL_LOOP_1 ---- from &7815
 STACK_FILL_LOOP_1:
                INC C                           ; 781B 0C
-               JR NZ,SIZE_EXTERNAL_MEMORY_LOOP ; 781C 20 C6
+               JR NZ,SIZE_EXTERNAL_MEMORY_1    ; 781C 20 C6
                POP AF                          ; 781E F1
                OUT (HMPR),A                    ; 781F D3 FB
                DEFB SKIP_NEXT_2_BYTES          ; 7821 !  skipped: reads as LD HL,&4296 from here, and as part of the
