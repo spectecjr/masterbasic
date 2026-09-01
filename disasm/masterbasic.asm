@@ -361,17 +361,37 @@ HK_HCMDV:                       EQU  &AD
 ; not been located in the code:
 ;
 ;   Editing    word left and right on shifted cursors (CHR$ 24 and 25),
-;              last line recall on CNTRL/up-arrow, and splitting a line by
-;              typing / after the colon
-;   Graphics   the faster PUT and PUT GRAB, COPY SCREEN, BLOCKS 2, and the
-;              extended CSIZE
+;              and last line recall on CNTRL/up-arrow
+;   Graphics   PUT GRAB, and COPY SCREEN
 ;   Structure  HIDE TO, and EXIT PROC / EXIT DO / EXIT FOR, which are
 ;              statements and so arrive through CMDV rather than CTAB
-;   DOS        OPEN BLOCKS, the FORMAT and DIR improvements, the RAM disc
-;              speed-ups, and the comma syntax for COPY, RENAME, BACKUP
+;   DOS        OPEN BLOCKS, and the comma syntax for COPY, RENAME, BACKUP
 ;              and MOVE
 ;   Functions  the FSTAT, DIR$ and INP$ extensions, which patch routines
 ;              that stay in the MasterDOS page
+;
+; Seven that were on this list have been found since.  Only the first was
+; found by a table after all, and only because the entry was not what it
+; looked like:
+;
+;   splitting a line by typing / after the colon is CMD_SPLIT_LINE, which
+;   CTAB does point at -- its first entry, because &2F is ASCII "/" and
+;   sorts below every command token
+;   the faster PUT is INSTALL_EXTENDED_PUT, which assembles 298 bytes into
+;   the system page at &45A2 out of five runs, two of them lifted from the
+;   ROM's own PUT
+;   the extended CSIZE is PRINT_MAGNIFIED_CHAR, which has no caller in
+;   either page: the system page reaches it through PAGER
+;   BLOCKS 2 is HK_SWAPCHARS exchanging 328 bytes with the alternate
+;   character set at &7E64, the cursor kept out of the swap through HUDG
+;   the FORMAT improvements are BUILD_TRACK_IMAGE, which lays out a whole
+;   track for the controller and which only the DOS calls
+;   the DIR improvements are the single directory scan behind DIR, doing
+;   lookup and allocation alike
+;   the RAM disc speed-ups are the diversion at the first test of every
+;   read and write, where RDRSCT turns the transfer into an LDIR
+;
+; notes/ has each of them, and docs/how-it-works.md puts them in order.
 
 ; SAM BASIC tokens, from the ROM tables -- see MBTEXT.
 C_PAPER:                        EQU  &11

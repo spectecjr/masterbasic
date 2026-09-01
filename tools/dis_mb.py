@@ -2309,8 +2309,10 @@ def main():
     # Each page's operands need the other page's labels, so name both first.
     print('named %d routines in the copied block'
           % annotate.name_copied_block(dos, mb))
-    print('documented %d routines from the manual'
-          % annotate.document_features((dos, mb)))
+    ndoc, orphan = annotate.document_features((dos, mb))
+    print('documented %d routines from the manual' % ndoc)
+    for name in orphan:
+        print('features.py: %s describes no label either listing has' % name)
     ncom, nhdr, nsec, ndata, nops, nequ, nprom, changed = carrydoc.apply(
         dos, args.work, os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
         annotate.banner, data_mark=DATA, data_region=DOSVARS)

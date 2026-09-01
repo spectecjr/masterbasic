@@ -715,15 +715,26 @@ XVAR_DOC_BANNER = banner(XVAR_DOC)
 
 
 def document_features(pages):
-    """Attach the manual's description to each routine a table names."""
-    n = 0
+    """Attach the manual's description to each routine a table names.
+
+    Returns the count and the keys that matched no label.  A key is a
+    label name, so renaming the label leaves the description behind with
+    nothing to attach it to and no complaint -- which is how the entry
+    for CTAB_USING_S went on saying the question had not been worked out
+    for as long as it did, after the label had become CMD_SPLIT_LINE and
+    the answer had been written down.
+    """
+    n, matched = 0, set()
     for page in pages:
         for addr, name in page.labels.items():
             text = FEATURES.get(name)
-            if text and addr not in page.headers:
+            if not text:
+                continue
+            matched.add(name)
+            if addr not in page.headers:
                 page.headers[addr] = banner(text)
                 n += 1
-    return n
+    return n, sorted(set(FEATURES) - matched)
 
 
 HEADER_DOC = """\
