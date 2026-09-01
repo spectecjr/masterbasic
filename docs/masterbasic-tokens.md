@@ -89,20 +89,20 @@ on, or Z if nothing matched.
 
 ```
                CP &16
-               JR NC,L4FFB                     ; 22 and up: a command
+               JR NC,HGTTK_DONE                     ; 22 and up: a command
                EX DE,HL
                AND A
                SBC HL,DE
                ADD A,&25                       ; functions: index + &25
                CP &39
-               JR C,L4FFD                      ; &26-&38, carry set
+               JR C,HGTTK_DONE2                      ; &26-&38, carry set
                CP &3A
                CCF
                ADC A,&2F                       ; index 20, 21 -> &68, &6A
                SCF
-               JR L4FFD
-L4FFB:         ADD A,&A6                       ; commands
-L4FFD:         PUSH AF
+               JR HGTTK_DONE2
+HGTTK_DONE:         ADD A,&A6                       ; commands
+HGTTK_DONE2:         PUSH AF
                POP BC                          ; token in B, flags in C
                RET
 ```
@@ -236,9 +236,9 @@ INDJP:         LD H,&00
                LD D,(HL)
                EX DE,HL
                BIT 7,H
-               JR NZ,L78D9                     ; bit 15: the other page
+               JR NZ,BUILD_PUT_BLOCK_5                     ; bit 15: the other page
                JP (HL)                         ; this page: go straight there
-L78D9:         RES 7,H
+BUILD_PUT_BLOCK_5:         RES 7,H
                LD (V78E2),HL                   ; patch the DEFW below
                EXX
                CALL CALLMB

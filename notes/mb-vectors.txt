@@ -16,8 +16,8 @@ DOC INSTALL_ROM_VECTORS
     Read those against the system page, not this one.  &46CC is where the
     first stub was copied, &4866, &4986, &49A9 and &4AB8 all fall inside
     the second at &484D-&4AEB, and &4BB0 and &4BBA inside the 36 bytes put
-    at &4BA0.  The listing writes them as L4866, L4986, L46CC and so on
-    because they are addresses in range for this half too, and there is no
+    at &4BA0.  The listing labels them with whatever this half has at
+    those addresses, because they are in range for it too, and there is no
     way for it to know better -- they are plain LD HL,nn immediates.  They
     are not this page's routines.
 
@@ -83,7 +83,7 @@ MB &7721 : EDITV gets &4866, likewise
 MB &7743 : BASIC's stack moved to &45A1, clear of the installed code
 MB &774D : INSLV gets &46CC, the first stub's address
 
-MB &774D : &46CC in the system page -- the string move stub, not this page's L46CC
+MB &774D : &46CC in the system page -- the string move stub, not whatever this page has at &46CC
 MB &7721 : &4866 likewise, inside the second stub
 
 # MBKEYS follows the ROM's documented keyword-list format.

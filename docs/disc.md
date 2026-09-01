@@ -85,12 +85,12 @@ subtract and one add where two comparisons would be the obvious way.
 
 ```asm
       CALL TIRDXDCT                   ; 45B7  which device is this?
-      JP NC,READ_WITH_ADDRESS_CHECK   ; 45BA  no carry: a RAM disc
-L45BD:
+      JP NC,RDRSCT                    ; 45BA  no carry: a RAM disc
+READ_SECTOR_LOOP:
       CALL RSSR                       ; 45BD  seek, then the read command
       CALL RDDATA                     ; 45C0  the transfer
       CALL RETRY_OR_GIVE_UP           ; 45C3
-      JR L45BD                        ; 45C6  and round again
+      JR READ_SECTOR_LOOP             ; 45C6  and round again
 ```
 
 `TIRDXDCT` is two instructions — clear `DCT`, the disc error counter — and

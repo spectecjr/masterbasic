@@ -69,7 +69,7 @@ MB &7B00 INSTALL_ROM_PATCHES
     references to &7B00 in this listing are not calls but loads, and
     they treat it as a buffer.
 
-        L4C2A gets a string, refuses one longer than 255 bytes, keeps
+        COPY_STRING_TO_BUFFER gets a string, refuses one longer than 255 bytes, keeps
         the length in V4098 and LDIRs the text to &7B00.
         &4C9F, &4CC3, &4D08, &4D1F, &5733 and &5838 point DE at it and
         search or compare against what is there -- &4CAA is a CPIR

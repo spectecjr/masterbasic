@@ -16,8 +16,9 @@ DOC RELOCATED_TO_46CC
     that.
 
     So the labels the listing puts on those operands are wrong, and
-    unavoidably so: L483A and L4702 name addresses in *this* page, while
-    the code means &483A and &4702 in the page it is copied to.  Read
+    unavoidably so: whatever this page happens to have at &483A and
+    &4702 is what gets written, while the code means those addresses in
+    the page it is copied to.  Read
     them as raw numbers.  Relative jumps are unaffected, which is why
     the block is mostly JR.
 

@@ -12,10 +12,10 @@
 # it, and the answer is a mixture.  The fourteen bytes at &4D50 match ROM
 # 1 at &E049, which is NLTP -- so the ROM had put one of its own ROM 1
 # routines there.  The bytes at &4D80 match this half's own &4F14.  And
-# &4D18, which L735D patches with &A8 when it builds, holds &D3, part of
+# &4D18, which BUILD_COMPILER patches with &A8 when it builds, holds &D3, part of
 # an OUT instruction belonging to something else.
 #
-# So the three MasterBASIC builders found earlier -- L735D at +&11, hook
+# So the three MasterBASIC builders found earlier -- BUILD_COMPILER at +&11, hook
 # 185 at +&50, BUILD_PAGE_IN_TRAMPOLINE also at +&50 -- are not merely
 # alternatives to each other.  They are sharing with the ROM.  Whatever
 # ran last is what is there, which is why nothing can be assumed about

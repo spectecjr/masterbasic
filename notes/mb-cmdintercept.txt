@@ -55,18 +55,18 @@ MB &5C6A CMD_SOUND
         for other uses."
 
     The code is that sentence.  The next character is compared with the
-    ROM's CLEAR token and anything else leaves for L5CC1, the ordinary
-    SOUND; a colon or carriage return goes to L5C9D, which is SOUND CLEAR
+    ROM's CLEAR token and anything else leaves for CMD_SOUND_2, the ordinary
+    SOUND; a colon or carriage return goes to CMD_SOUND_1, which is SOUND CLEAR
     with no argument; otherwise a number is read and the buffer is
     reallocated -- FREE_SLOT_CHAIN gives the old one back if there was
     one, and the new page and address are written to four XVARs.
 
 MB &5D32 CMD_PAUSE
-    PAUSE, token &C2.  It parses nothing: it builds.  L5C56 puts &5000 in
+    PAUSE, token &C2.  It parses nothing: it builds.  PREPARE_COPY_AT_5000 puts &5000 in
     the system page in HL and PAGE_IN_ROM1 writes &E7 -- RST &20, the
     ROM's next-character restart -- as the first byte, then six bytes are
     copied in, &F5 (PUSH AF) is planted, five more bytes, seven from
-    L5DCA, sixteen more and &4E from L5DD1.
+    CMD_PAUSE_1, sixteen more and &4E from CMD_PAUSE_2.
 
     The manual says why PAUSE and not just SOUND: with RECORD SOUND on,
     "the SOUNDs and the PAUSEs that determine their length" both have to
@@ -75,7 +75,7 @@ MB &5D32 CMD_PAUSE
 
 MB &5D62 CMD_DEF_KEYCODE
     DEF KEYCODE, token &C9.  &8F00 is the ROM's &4F00 seen through the
-    window PAGE_IN_ROM1 is about to open; L5C4B picks the routine's real
+    window PAGE_IN_ROM1 is about to open; PREPARE_ROM1_COPY picks the routine's real
     address out of the two bytes after the table entry, and &91 bytes are
     copied there behind an &E7.  Then &4A9F -- an address in the second
     installed stub in that page -- is written into &4F0D, and &4F00 is
@@ -96,7 +96,7 @@ MB &5D78 CMD_KEYIN
     KEYIN, token &D1.  The same shape, into HDR at &4B00: three runs of
     &09, &16 and &2C bytes, each followed by a three-byte CALL that
     COPY_THEN_APPEND_CALL adds, then six more and the seventeen at
-    L5DAE, and &4B00 is handed on.
+    CMD_KEYIN_1, and &4B00 is handed on.
 
     The ROM's source settles this one too -- ref/samrom/miscx1.asm has
 

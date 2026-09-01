@@ -30,7 +30,7 @@ MB &5789 PARSE_REFERENCE
     and that character decides everything: a quote or a left bracket
     means evaluate an expression -- the manual's `REF "count"` for a
     literal sequence and `REF (a$)` for the value of a variable rather
-    than its name -- and anything else falls through to L57B0, which
+    than its name -- and anything else falls through to PARSE_REFERENCE_2, which
     takes a digit as a number and otherwise reads a variable name.
 
 MB &5836 MATCH_REFERENCE

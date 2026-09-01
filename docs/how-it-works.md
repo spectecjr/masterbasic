@@ -227,7 +227,7 @@ front doors of ROM routines, which are already known — they are looking
 for the exact point *inside* one at which MasterBASIC wants to rejoin it.
 
 **Through fixed entry points.** `CMR` followed by `DEFW <ROM address>`.
-One of these, at `L45F3`, has no fixed target at all: its `DEFW` is written
+One of these, at `CALL_INSERTLN`, has no fixed target at all: its `DEFW` is written
 by a signature search, so the call goes wherever the search found.
 
 **The `NR` family.** `NRRD`, `NRRDD`, `NRWR`, `NRWRD` and `NRWRHL`, each

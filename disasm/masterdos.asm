@@ -126,7 +126,6 @@ MB_CMD_LPRINT:              EQU  &9578
 MB_CMD_MERGE:               EQU  &9169
 MB_CMD_PRINT:               EQU  &9641
 MB_CMD_RECORD:              EQU  &9BD8
-MB_CMD_RECORD_1:            EQU  &9C16
 MB_CMD_REF:                 EQU  &9662
 MB_CMD_SAVE:                EQU  &A3E6
 MB_CMD_SORT:                EQU  &860B
@@ -167,13 +166,17 @@ MB_HK_SWAPCHARS:            EQU  &B159
 MB_HK_TOKENARG:             EQU  &92FD
 MB_HK_VARSPACE:             EQU  &9293
 MB_HPRTOK:                  EQU  &900E
+MB_L4160:                   EQU  &8160
+MB_L4200:                   EQU  &8200
+MB_L42FF:                   EQU  &82FF
+MB_L7900:                   EQU  &B900
+MB_L7914:                   EQU  &B914
 MB_MULTIPLY_BY_24:          EQU  &85F9
 MB_NEXT_SCREEN_BYTE_1:      EQU  &A280
 MB_PREPARE_ROM1_COPY:       EQU  &9C4B
 MB_PREPARE_ROM1_COPY_1:     EQU  &9C4F
 MB_PREPARE_ROM1_COPY_2:     EQU  &9C51
 MB_PUTSWA:                  EQU  &8000
-MB_SCREEN_BLANK_TICK_13:    EQU  &9ABA
 MB_SCREEN_BLANK_TICK_6:     EQU  &9A54
 MB_SET_COMPRESSION_MODE:    EQU  &A3F6
 MB_SET_DCT_COMPILE_BITS:    EQU  &859C
@@ -307,7 +310,7 @@ BOOT:
                LD HL,&0000                     ; 400A 21 00 00
                LD (FRAMIV),HL                  ; 400D 22 E2 5A
                LD L,&49                        ; 4010 2E 49
-               LD (BOOT_24),HL                 ; 4012 22 70 5B
+               LD (BOOT_22),HL                 ; 4012 22 70 5B
                LD HL,V511F                     ; 4015 21 1F 51
 
 ; ---- BOOT_LOOP ---- from &4024 when L is not 0 yet
@@ -378,53 +381,56 @@ BOOT_LOOP3:
                INC C                           ; 4066 0C
                IN A,(C)                        ; 4067 ED 78
 
+; ---- BOOT_5 ---- from MB &6099, MB &60CA
 BOOT_5:
                DEC C                           ; 4069 0D
                CP D                            ; 406A BA
 
+; ---- BOOT_6 ---- from MB &6095, MB &60CE
 BOOT_6:
-               JR Z,BOOT_12                    ; 406B 28 0E
+               JR Z,BOOT_10                    ; 406B 28 0E
 
+; ---- BOOT_7 ---- from MB &6052, MB &6077, MB &60D3, MB &60D8
 BOOT_7:
                LD A,STEP_OUT_CMD               ; 406D 3E 7B
-
-BOOT_8:
-               JR NC,BOOT_10                   ; 406F 30 02
-
-BOOT_9:
+               JR NC,BOOT_8                    ; 406F 30 02
                LD A,STEP_IN_CMD                ; 4071 3E 5B
 
-; ---- BOOT_10 ---- from &406F
-BOOT_10:
+; ---- BOOT_8 ---- from &406F
+BOOT_8:
                OUT (C),A                       ; 4073 ED 79
                LD B,&14                        ; 4075 06 14
 
-; ---- BOOT_11 ---- from &4077 when B is not 0 yet
-BOOT_11:
-               DJNZ BOOT_11                    ; 4077 10 FE
+; ---- BOOT_9 ---- from &4077 when B is not 0 yet
+BOOT_9:
+               DJNZ BOOT_9                     ; 4077 10 FE
                JR BOOT_LOOP3                   ; 4079 18 E6
 
-; ---- BOOT_12 ---- from &406B when A = D
-BOOT_12:
+; ---- BOOT_10 ---- from &406B when A = D
+BOOT_10:
                LD A,READ_SECTOR_CMD            ; 407B 3E 80
                OUT (C),A                       ; 407D ED 79
 
-BOOT_13:
+; ---- BOOT_11 ---- from MB &5A7E, MB &5AC1
+BOOT_11:
                LD B,&14                        ; 407F 06 14
 
-; ---- BOOT_14 ---- from &4081 when B is not 0 yet, MB &5A8E
-BOOT_14:
-               DJNZ BOOT_14                    ; 4081 10 FE
+; ---- BOOT_12 ---- from &4081 when B is not 0 yet, MB &5A8E
+BOOT_12:
+               DJNZ BOOT_12                    ; 4081 10 FE
                LD HL,(V40FB+&4000)             ; 4083 2A FB 80
 
-BOOT_15:
+; ---- BOOT_13 ---- from MB &5A0B
+BOOT_13:
                LD B,C                          ; 4086 41
                INC B                           ; 4087 04
 
-BOOT_16:
+; ---- BOOT_14 ---- from MB &5A17
+BOOT_14:
                INC B                           ; 4088 04
 
-BOOT_17:
+; ---- BOOT_15 ---- from MB &5A0F
+BOOT_15:
                INC B                           ; 4089 04
                JR BOOT_LOOP5                   ; 408A 18 08
 
@@ -446,23 +452,23 @@ BOOT_LOOP5:
                RRCA                            ; 409A 0F
                JR C,BOOT_LOOP5                 ; 409B 38 F7
                AND &0D                         ; 409D E6 0D
-               JR Z,BOOT_20                    ; 409F 28 1F
+               JR Z,BOOT_18                    ; 409F 28 1F
                LD A,(V40FD+&4000)              ; 40A1 3A FD 80
                INC A                           ; 40A4 3C
                LD (V40FD+&4000),A              ; 40A5 32 FD 80
                PUSH AF                         ; 40A8 F5
                AND &02                         ; 40A9 E6 02
-               JR Z,BOOT_19                    ; 40AB 28 08
+               JR Z,BOOT_17                    ; 40AB 28 08
                LD A,&09                        ; 40AD 3E 09
                OUT (C),A                       ; 40AF ED 79
                LD B,&14                        ; 40B1 06 14
 
-; ---- BOOT_18 ---- from &40B3 when B is not 0 yet
-BOOT_18:
-               DJNZ BOOT_18                    ; 40B3 10 FE
+; ---- BOOT_16 ---- from &40B3 when B is not 0 yet
+BOOT_16:
+               DJNZ BOOT_16                    ; 40B3 10 FE
 
-; ---- BOOT_19 ---- from &40AB when no bit of &02 is set
-BOOT_19:
+; ---- BOOT_17 ---- from &40AB when no bit of &02 is set
+BOOT_17:
                POP AF                          ; 40B5 F1
                CP &0A                          ; 40B6 FE 0A
                JR C,BOOT_LOOP3                 ; 40B8 38 A7
@@ -471,8 +477,8 @@ BOOT_19:
                RST ERR_HOOK                    ; 40BE CF
                DEFB ERR_LOADING_ERROR          ; 40BF 13 error 19, "Loading error"
 
-; ---- BOOT_20 ---- from &409F when no bit of &0D is set
-BOOT_20:
+; ---- BOOT_18 ---- from &409F when no bit of &0D is set
+BOOT_18:
                POP BC                               ; 40C0 C1
                DEC HL                               ; 40C1 2B
                LD E,(HL)                            ; 40C2 5E
@@ -480,15 +486,15 @@ BOOT_20:
                LD D,(HL)                            ; 40C4 56
                LD A,D                               ; 40C5 7A
                OR E                                 ; 40C6 B3
-               JR Z,BOOT_23                         ; 40C7 28 17
-               DJNZ BOOT_22                         ; 40C9 10 12
+               JR Z,BOOT_21                         ; 40C7 28 17
+               DJNZ BOOT_20                         ; 40C9 10 12
                PUSH BC                              ; 40CB C5
                PUSH DE                              ; 40CC D5
                CALL INSTALL_TAIL_INTO_SYSPAGE+&4000 ; 40CD CD 60 BD
                POP DE                               ; 40D0 D1
 
-; ---- BOOT_21 ---- from &69EB
-BOOT_21:
+; ---- BOOT_19 ---- from &69EB
+BOOT_19:
                POP BC                          ; 40D1 C1
 
 ; ---- PTHRD ---- from &6CAE, &7429, &7751
@@ -504,12 +510,12 @@ PTHRD_1:
                OUT (LMPR),A                    ; 40D8 D3 FA
                LD HL,HEADER                    ; 40DA 21 00 40
 
-; ---- BOOT_22 ---- from &40C9 when B is not 0 yet
-BOOT_22:
+; ---- BOOT_20 ---- from &40C9 when B is not 0 yet
+BOOT_20:
                JP BOOT_3+&4000                 ; 40DD C3 49 80
 
-; ---- BOOT_23 ---- from &40C7
-BOOT_23:
+; ---- BOOT_21 ---- from &40C7
+BOOT_21:
                LD HL,PTHRD_2                   ; 40E0 21 E1 75
                LD DE,DOSBUF+&4000              ; 40E3 11 00 BC
                LD BC,&03AF                     ; 40E6 01 AF 03
@@ -1158,6 +1164,7 @@ V429A:
                DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 429A ...............
                DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00         ; 42A9 .............
 
+; ---- V42B6 ---- from MB &770B
 V42B6:
                DEFB &EF                        ; 42B6 o  150 CLOCK PORT
 
@@ -1419,10 +1426,8 @@ LCMDL_1:
 ; ---- LCMDL_DONE ---- from &43AB when bit 7 of B set
 LCMDL_DONE:
                RES 7,B                         ; 43AF CB B8
-               LD (L43B5+3),BC                 ; 43B1 ED 43 B8 43  patches the operand of the CALL at &43B5
-
-L43B5:
-               CALL CALLMB                     ; 43B5 CD BD 42  the operand is written here at run time, from &43B1
+               LD (V43B8),BC                   ; 43B1 ED 43 B8 43
+               CALL CALLMB                     ; 43B5 CD BD 42
 
 ; ---- V43B8 ---- from &43B1
 V43B8:
@@ -3703,6 +3708,7 @@ GOFSM:
 OFSM:
                PUSH IX                         ; 4D2B DD E5
 
+; ---- OFSM_1 ---- from MB &5256
 OFSM_1:
                LD A,(SAMCNT)                   ; 4D2D 3A 34 42
                AND A                           ; 4D30 A7
@@ -4289,6 +4295,7 @@ CFSO:
                CALL NRRD                       ; 4FFC CD 5E 50
                DEFB &3B                        ; 4FFF ;
 
+; ---- V5000 ---- from MB &522B
 V5000:
                DEFB &5C                        ; 5000 \
                AND &80                         ; 5001 E6 80
@@ -4933,10 +4940,8 @@ REP33_2:
                LD A,&74                        ; 519E 3E 74
 
 REPORTA:
-               LD (L51A3+3),A                  ; 51A0 32 A6 51  plant the code in the byte DERR will read
-
-L51A3:
-               CALL DERR                       ; 51A3 CD AD 51  the operand is written here at run time, from &51A0
+               LD (V51A6),A                    ; 51A0 32 A6 51  plant the code in the byte DERR will read
+               CALL DERR                       ; 51A3 CD AD 51
 
 ; ---- V51A6 ---- from &51A0
 V51A6:
@@ -6861,8 +6866,8 @@ HK_PCAT:
                DEFW STREAM                     ; 5B6B 12 01
                CALL ZDVS                       ; 5B6D CD 23 5C  ZERO VARS
 
-; ---- BOOT_24 ---- from &4012
-BOOT_24:
+; ---- BOOT_22 ---- from &4012
+BOOT_22:
                POP AF                          ; 5B70 F1  2 IF SIMPLE
                CP &02                          ; 5B71 FE 02
                JR NZ,PCAT2                     ; 5B73 20 4E
@@ -7391,14 +7396,14 @@ CMD_PROTECT:
                LD A,&40                        ; 5DE7 3E 40
                LD (HSTR1),A                    ; 5DE9 32 35 41
                CALL GTNC                       ; 5DEC CD 3C 50
-               JR CMD_HIDE_4                   ; 5DEF 18 40
+               JR CMD_HIDE_3                   ; 5DEF 18 40
 
 CMD_HIDE:
                LD A,&80                        ; 5DF1 3E 80
                LD (HSTR1),A                    ; 5DF3 32 35 41
                CALL GTNC                       ; 5DF6 CD 3C 50
                CP &8E                          ; 5DF9 FE 8E
-               JR NZ,CMD_HIDE_4                ; 5DFB 20 34
+               JR NZ,CMD_HIDE_3                ; 5DFB 20 34
                CALL EVNUMX                     ; 5DFD CD AF 62
                CALL CEOS                       ; 5E00 CD 07 50
                LD A,B                          ; 5E03 78
@@ -7406,7 +7411,7 @@ CMD_HIDE:
                JR NZ,CMD_HIDE_1                ; 5E05 20 06
                CALL CHANNEL_ENTRY_AT_ZERO_PAGE ; 5E07 CD EA 6A
                INC HL                          ; 5E0A 23
-               JR CMD_HIDE_3                   ; 5E0B 18 15
+               JR CMD_HIDE_2                   ; 5E0B 18 15
 
 ; ---- CMD_HIDE_1 ---- from &5E05
 CMD_HIDE_1:
@@ -7417,19 +7422,17 @@ CMD_HIDE_1:
                DEFW MB_FIND_LINE_FROM_START-&4000 ; 5E15 FD 58
                LD A,(HL)                          ; 5E17 7E
                INC A                              ; 5E18 3C
-               JR Z,CMD_HIDE_3                    ; 5E19 28 07
+               JR Z,CMD_HIDE_2                    ; 5E19 28 07
                INC HL                             ; 5E1B 23
                INC HL                             ; 5E1C 23
                LD C,(HL)                          ; 5E1D 4E
                INC HL                             ; 5E1E 23
+               LD B,(HL)                          ; 5E1F 46
+               INC HL                             ; 5E20 23
+               ADD HL,BC                          ; 5E21 09
 
+; ---- CMD_HIDE_2 ---- from &5E0B, &5E19 when A wraps to 0
 CMD_HIDE_2:
-               LD B,(HL)                       ; 5E1F 46
-               INC HL                          ; 5E20 23
-               ADD HL,BC                       ; 5E21 09
-
-; ---- CMD_HIDE_3 ---- from &5E0B, &5E19 when A wraps to 0
-CMD_HIDE_3:
                LD B,H                          ; 5E22 44
                LD C,L                          ; 5E23 4D
                CALL NRWRD                      ; 5E24 CD 69 50
@@ -7439,8 +7442,8 @@ CMD_HIDE_3:
                DEFW PROGP                      ; 5E2E 9F 5A
                RET                             ; 5E30 C9
 
-; ---- CMD_HIDE_4 ---- from &5DEF, &5DFB when A <> &8E
-CMD_HIDE_4:
+; ---- CMD_HIDE_3 ---- from &5DEF, &5DFB when A <> &8E
+CMD_HIDE_3:
                CP &89                          ; 5E31 FE 89  OFF
                CALL Z,SF1S                     ; 5E33 CC B6 5C  SET F1, SKIP
                CALL NMQU                       ; 5E36 CD 90 59
@@ -7800,13 +7803,11 @@ CMD_LOAD:
                INC HL                          ; 5FB6 23
                INC HL                          ; 5FB7 23
                LD (HL),C                       ; 5FB8 71
-
-CMD_LOAD_1:
                INC HL                          ; 5FB9 23
                LD (HL),B                       ; 5FBA 70
 
-; ---- CMD_LOAD_2 ---- from &65FA
-CMD_LOAD_2:
+; ---- CMD_LOAD_1 ---- from &65FA
+CMD_LOAD_1:
                LD A,(DIFA)                     ; 5FBB 3A AD 41
                CP &14                          ; 5FBE FE 14
                JR NZ,DLVM1                     ; 5FC0 20 35  JR IF NOT SCREEN$ OR FORMER TYPE 5
@@ -7864,6 +7865,7 @@ DLVM1:
 LAB2:
                PUSH BC                         ; 6029 C5
 
+; ---- LAB2_1 ---- from MB &6101
 LAB2_1:
                PUSH DE                         ; 602A D5
                CALL AHLN                       ; 602B CD 7E 60
@@ -8045,8 +8047,6 @@ WFOD3X:
                JR NC,WIOOR                     ; 610D 30 C9
                LD B,&04                        ; 610F 06 04  LOW DTK LIMIT
                LD A,(DSTR1)                    ; 6111 3A 36 41
-
-WFOD3X_1:
                CP &03                          ; 6114 FE 03
                JR C,WFOD00                     ; 6116 38 0E
                LD B,&01                        ; 6118 06 01  ALLOW 1 OR MORE DIR TKS
@@ -8410,6 +8410,7 @@ EXDT1:
                DEC BC                          ; 627E 0B
                LD A,B                          ; 627F 78
 
+; ---- EXDT1_DONE ---- from MB &5352
 EXDT1_DONE:
                OR C                            ; 6280 B1
                JR NZ,EXDT1                     ; 6281 20 F2
@@ -8851,8 +8852,6 @@ DSCHD:
 ; ---- HOOK_ARGS_TO_HEADER ---- from &6436, &6446, &6459
 HOOK_ARGS_TO_HEADER:
                CALL READ_SAVED_SECTOR          ; 6482 CD 33 66
-
-HOOK_ARGS_TO_HEADER_1:
                LD HL,(HKHL)                    ; 6485 2A DE 41
                LD (HD0D1),HL                   ; 6488 22 4C 41  START
                LD A,(HKBC)                     ; 648B 3A E2 41  CDE WAS LEN
@@ -8928,19 +8927,18 @@ HK_HSAVE:
                CALL GOFSM                      ; 64EB CD 28 4D
                JR C,HSAVE1                     ; 64EE 38 64  JR IF "OVERWRITE?" AND N
                CALL SVHD                       ; 64F0 CD 3B 5F
-
-HK_HSAVE_1:
                LD HL,(HD0D1)                   ; 64F3 2A 4C 41
                LD DE,(HD0B1)                   ; 64F6 ED 5B 4A 41
                LD A,(V42BA)                    ; 64FA 3A BA 42
                AND A                           ; 64FD A7
-               JR Z,HK_HSAVE_6                 ; 64FE 28 4E
+               JR Z,HK_HSAVE_5                 ; 64FE 28 4E
 
-HK_HSAVE_2:
+; ---- HK_HSAVE_1 ---- from MB &6173, MB &63A9
+HK_HSAVE_1:
                LD C,A                          ; 6500 4F
                LD A,(IX+&13)                   ; 6501 DD 7E 13
                CP &10                          ; 6504 FE 10
-               JR Z,HK_HSAVE_6                 ; 6506 28 46
+               JR Z,HK_HSAVE_5                 ; 6506 28 46
                PUSH IX                         ; 6508 DD E5
                POP HL                          ; 650A E1
                LD BC,&00EF                     ; 650B 01 EF 00
@@ -8948,21 +8946,21 @@ HK_HSAVE_2:
                SET 2,(HL)                      ; 650F CB D6
                LD C,A                          ; 6511 4F
                CP &14                          ; 6512 FE 14
-               JR NZ,HK_HSAVE_3                ; 6514 20 06
+               JR NZ,HK_HSAVE_2                ; 6514 20 06
                LD A,(V42BA)                    ; 6516 3A BA 42
                DEC A                           ; 6519 3D
-               JR NZ,HK_HSAVE_4                ; 651A 20 0D
+               JR NZ,HK_HSAVE_3                ; 651A 20 0D
 
-; ---- HK_HSAVE_3 ---- from &6514 when A <> &14
-HK_HSAVE_3:
+; ---- HK_HSAVE_2 ---- from &6514 when A <> &14
+HK_HSAVE_2:
                LD HL,(HD0D1)                   ; 651C 2A 4C 41
                LD A,(PGES1)                    ; 651F 3A 50 41
                CALL CALLMB                     ; 6522 CD BD 42
                DEFW MB_COMPRESS_FILE-&4000     ; 6525 EA 65
-               JR HK_HSAVE_5                   ; 6527 18 20
+               JR HK_HSAVE_4                   ; 6527 18 20
 
-; ---- HK_HSAVE_4 ---- from &651A when A is not 0 yet
-HK_HSAVE_4:
+; ---- HK_HSAVE_3 ---- from &651A when A is not 0 yet
+HK_HSAVE_3:
                SET 3,(HL)                         ; 6529 CB DE
                INC HL                             ; 652B 23
                LD A,(HL)                          ; 652C 7E
@@ -8983,13 +8981,13 @@ HK_HSAVE_4:
                INC HL                             ; 6547 23
                LD (HL),D                          ; 6548 72
 
-; ---- HK_HSAVE_5 ---- from &6527
-HK_HSAVE_5:
+; ---- HK_HSAVE_4 ---- from &6527
+HK_HSAVE_4:
                CALL SCFSM                      ; 6549 CD F8 4D
                JR HSAVE1                       ; 654C 18 06
 
-; ---- HK_HSAVE_6 ---- from &64FE when A = 0, &6506 when A = &10
-HK_HSAVE_6:
+; ---- HK_HSAVE_5 ---- from &64FE when A = 0, &6506 when A = &10
+HK_HSAVE_5:
                CALL DSVBL                      ; 654E CD 59 49
                CALL CFSM                       ; 6551 CD FE 4D
 
@@ -9145,7 +9143,7 @@ HAUTO:
 ; ---- AUINC ---- from &661E
 AUINC:
                CALL CHECK_FILE_TYPE            ; 65F7 CD 75 4E
-               JP CMD_LOAD_2                   ; 65FA C3 BB 5F
+               JP CMD_LOAD_1                   ; 65FA C3 BB 5F
 
 ; ---- AUINSR ---- from &65F1
 AUINSR:
@@ -9565,7 +9563,7 @@ MOVA:
                XOR A                           ; 6826 AF
                LD (TVFLAG+&4000),A             ; 6827 32 3C 9C  NOT AUTO-LIST
                INC A                           ; 682A 3C
-               LD (MB_SCREEN_BLANK_TICK_13),A  ; 682B 32 BA 9A  IN QUOTES SO NO KEYWORDS
+               LD (INQUFG+&4000),A             ; 682B 32 BA 9A  IN QUOTES SO NO KEYWORDS
                LD A,D                          ; 682E 7A
                AND &1F                         ; 682F E6 1F
                CP &0A                          ; 6831 FE 0A
@@ -9577,7 +9575,7 @@ MOVA:
                CP &10                          ; 683C FE 10
                JR NZ,MOVJ_LOOP                 ; 683E 20 3C  IF NOT PROGRAM, SUPPRESS
                XOR A                           ; 6840 AF
-               LD (MB_SCREEN_BLANK_TICK_13),A  ; 6841 32 BA 9A  NOT IN QUOTES - KEYWORDS ON
+               LD (INQUFG+&4000),A             ; 6841 32 BA 9A  NOT IN QUOTES - KEYWORDS ON
 
 ; ---- MOVA_1 ---- from &6870
 MOVA_1:
@@ -13397,11 +13395,9 @@ INDJP:
 ; ---- INDJP_1 ---- from &78D6 when bit 7 of H set
 INDJP_1:
                RES 7,H                         ; 78D9 CB BC
-               LD (L78DF+3),HL                 ; 78DB 22 E2 78  patches the operand of the CALL at &78DF
+               LD (V78E2),HL                   ; 78DB 22 E2 78
                EXX                             ; 78DE D9
-
-L78DF:
-               CALL CALLMB                     ; 78DF CD BD 42  the operand is written here at run time, from &78DB
+               CALL CALLMB                     ; 78DF CD BD 42
 
 ; ---- V78E2 ---- from &78DB
 V78E2:
@@ -14217,10 +14213,8 @@ V7CE6:
 
 ; ---- V7CEF ---- from &5424
 V7CEF:
-               DEFB &CE,&66,&21,&F9,&B8,&06,&07,&73 ; 7CEF Nf!y8..s
-
-V7CF7:
-               DEFB &23,&72,&23,&10,&FA,&21,&33,&B5 ; 7CF7 #r#.z!35
+               DEFB &CE,&66,&21,&F9,&B8,&06,&07,&73,&23,&72,&23,&10,&FA,&21,&33 ; 7CEF Nf!y8..s#r#.z!3
+               DEFB &B5                                                         ; 7CFE 5
 
 ; ---- V7CFF ---- from &543B, MB &6428
 V7CFF:
@@ -14349,7 +14343,7 @@ INSTALL_TAIL_INTO_SYSPAGE:
 ;; entire point of doing it this way.
 ;;
 ;; One result is worth following.  The search at &75FE stores its pointer
-;; in V45F6, which is the DEFW of the CALL CMR at L45F3: that call has no
+;; in V45F6, which is the DEFW of the CALL CMR at CALL_INSERTLN: that call has no
 ;; fixed target at all, and goes wherever the signature was found.
 ;; --------------------------------------------------------------------
 
@@ -14374,16 +14368,15 @@ MBCOPY_778B:
 V7DE5:
                DEFB &10,&1C,&22                ; 7DE5 .."
 
+; ---- V7DE8 ---- from MB &77C0
 V7DE8:
-               DEFB &3E,&20,&1E,&00,&08,&14,&00,&1A ; 7DE8 > ......
-
-V7DF0:
-               DEFB &26,&26,&1A,&00,&00,&14,&00,&1A,&26,&26,&1A,&00,&18,&04,&00 ; 7DF0 &&......&&.....
-               DEFB &1A,&26,&26,&1A,&00,&00,&18,&14,&1A,&26,&26,&1A,&00,&00,&00 ; 7DFF .&&......&&....
-               DEFB &1E,&20,&20,&1E,&04,&1C,&08,&14,&1C,&22,&3E,&20,&1E,&00,&14 ; 7E0E .  ......"> ...
-               DEFB &00,&1C,&22,&3E,&20,&1E,&00,&18,&04,&1C,&22,&3E,&20,&1E,&00 ; 7E1D .."> ....."> ..
-               DEFB &14,&00,&08,&08,&08,&08,&04,&00,&08,&14,&00,&08,&08,&08,&04 ; 7E2C ...............
-               DEFB &00,&18,&04,&00,&08,&08,&08,&04,&00,&14,&00,&1C,&22         ; 7E3B ............"
+               DEFB &3E,&20,&1E,&00,&08,&14,&00,&1A,&26,&26,&1A,&00,&00,&14,&00 ; 7DE8 > ......&&.....
+               DEFB &1A,&26,&26,&1A,&00,&18,&04,&00,&1A,&26,&26,&1A,&00,&00,&18 ; 7DF7 .&&......&&....
+               DEFB &14,&1A,&26,&26,&1A,&00,&00,&00,&1E,&20,&20,&1E,&04,&1C,&08 ; 7E06 ..&&.....  ....
+               DEFB &14,&1C,&22,&3E,&20,&1E,&00,&14,&00,&1C,&22,&3E,&20,&1E,&00 ; 7E15 .."> ....."> ..
+               DEFB &18,&04,&1C,&22,&3E,&20,&1E,&00,&14,&00,&08,&08,&08,&08,&04 ; 7E24 ..."> .........
+               DEFB &00,&08,&14,&00,&08,&08,&08,&04,&00,&18,&04,&00,&08,&08,&08 ; 7E33 ...............
+               DEFB &04,&00,&14,&00,&1C,&22                                     ; 7E42 ....."
 
 ; ---- MBCOPY_7829 ---- from MB &76E4
 MBCOPY_7829:
@@ -14394,9 +14387,11 @@ MBCOPY_7829:
                DEFB &08,&14,&00,&22,&22,&22,&1E,&00,&18,&04,&00,&22,&22,&22,&1E ; 7E84 ...""".....""".
                DEFB &00,&14,&00,&22,&22                                         ; 7E93 ...""
 
+; ---- V7E98 ---- from MB &7860
 V7E98:
                DEFB &22,&1E,&02,&00,&14,&00,&1C,&22,&22,&22,&1C,&00,&14,&00 ; 7E98 "......"""....
 
+; ---- V7EA6 ---- from MB &7859
 V7EA6:
                DEFB &22,&22,&22,&22,&1E,&00,&08,&1E,&20,&20,&20,&1E,&08,&00,&0C ; 7EA6 """"....   ....
                DEFB &12,&10,&38,&10,&10,&3E,&00,&22,&22,&14,&3E,&08,&3E,&08,&00 ; 7EB5 ..8..>."".>.>..
@@ -14405,10 +14400,12 @@ V7EA6:
                DEFB &04,&00,&0C,&10,&00,&1C,&22,&22,&1C,&00,&0C,&10,&00,&22,&22 ; 7EE2 ......"".....""
                DEFB &22,&1E,&00,&0A,&14,&00,&3C,&22,&22,&22,&00                 ; 7EF1 ".....<""".
 
+; ---- V7EFC ---- from MB &7837
 V7EFC:
                DEFB &0A,&14,&00,&22,&32,&2A,&26,&00,&00,&00,&1A,&26,&26,&1A,&00 ; 7EFC ..."2*&....&&..
                DEFB &1C,&00                                                     ; 7F0B ..
 
+; ---- V7F0D ---- from MB &783E
 V7F0D:
                DEFB &00,&1C,&22,&22,&1C,&00    ; 7F0D ..""..
 
@@ -14425,9 +14422,11 @@ PTH2:
                DEFB &FE,&0A,&28,&06,&FE,&0B,&28,&02,&CB,&FE,&E1,&FE,&19,&28,&3A ; 7F57 ~.(.~.(.K~a~.(:
                DEFB &FE,&18,&C2,&00,&00                                         ; 7F66 ~.B..
 
+; ---- V7F6B ---- from MB &7852
 V7F6B:
                DEFB &2A,&94,&5A,&3A,&71,&5C,&E6,&20,&28,&03,&2A,&91 ; 7F6B *.Z:q\f (.*.
 
+; ---- V7F77 ---- from MB &6481
 V7F77:
                DEFB &5A,&EB,&2A,&9A,&5A,&2B,&ED,&52,&19,&38,&36,&28,&31,&7E,&FE ; 7F77 Zk*.Z+mR.86(1~~
                DEFB &20,&20,&F3,&2B,&7E,&FE,&20,&28,&FA,&23                     ; 7F86   s+~~ (z#
@@ -14438,6 +14437,7 @@ STR:
                                                                                 ; AND STACK
                DEFB &C9,&2A,&9A,&5A,&7E,&23                                     ; 7F9F I*.Z~#
 
+; ---- V7FA5 ---- from MB &7842
 V7FA5:
                DEFB &FE,&20,&28,&FA,&2B,&2B,&23,&7E,&FE,&20,&28,&04,&FE,&0D,&20 ; 7FA5 ~ (z++#~~ (.~.
                DEFB &F6,&22,&9A,&5A,&21,&3C,&5C,&CB,&DE,&BF,&C9,&00             ; 7FB4 v".Z!<\K^?I.

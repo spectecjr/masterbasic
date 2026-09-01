@@ -262,7 +262,7 @@ looks like:
 
 ```
                CP CH_COMMA                     ; 4B69 FE 2C
-               JR Z,L4B7D                      ; 4B6B 28 10
+               JR Z,PARSE_OPTIONAL_RANGE_1     ; 4B6B 28 10
                CP T_TO                         ; 4B6D FE 8E
 ```
 

@@ -27,12 +27,12 @@ fact is behind two thirds of what follows.
 ## 1. Windowing an address
 
 To reach a system variable while something else is at `&4000`, put the system
-page in the window and add `&4000` to the address. `L5066` does the whole thing
+page in the window and add `&4000` to the address. `HPRTOK_1` does the whole thing
 twice over in one stretch — it points the ROM's current output channel at
 MasterBASIC's own code and keeps the old address:
 
 ```asm
-L5066:
+HPRTOK_1:
       CALL CALLDOS                    ; 5066  (the block starts here)
       DEFW &7859                      ; 5069
       LD BC,&00FB                     ; 506B  B = 0, C = HMPR
@@ -240,7 +240,7 @@ does not:
       OR &80                          ; 7406
       LD B,A                          ; 7408
       DEFB &21                        ; 7409  the opcode of LD HL,nn
-L740A:
+FIND_PROC_ENTRY_1:
       LD B,&FF                        ; 740A  which is the two bytes this
       POP AF                          ; 740C  instruction is made of
       OUT (HMPR),A                    ; 740D
@@ -248,7 +248,7 @@ L740A:
 
 Falling in from `&7408` executes `21 06 FF` — `LD HL,&FF06` — whose operand
 swallows the `LD B,&FF`, so `B` keeps the page number just computed. Jumping to
-`L740A` from `&73E3` executes the `LD B,&FF` instead, and `B` is `&FF`. One byte
+`FIND_PROC_ENTRY_1` from `&73E3` executes the `LD B,&FF` instead, and `B` is `&FF`. One byte
 instead of a `JR`, and `HL` is scratch on that path.
 
 `&3E` (`LD A,n`) does the same for one swallowed byte, and `&36` (`LD (HL),n`)
@@ -442,8 +442,8 @@ What it is not is something to do by accident. `CMR` has to make a real change,
 and look at the trouble it takes:
 
 ```asm
-      JP L4516+&4000                  ; 4513  into the window first
-L4516:
+      JP CMR_1+&4000                  ; 4513  into the window first
+CMR_1:
       LD A,B                          ; 4516
       OR SYSPAGE_IN_B                 ; 4517  page zero into section B
       LD HL,(V4076+&4000)             ; 4519
@@ -453,7 +453,7 @@ L4516:
       EI                              ; 4520
 ```
 
-The `JP` to `L4516+&4000` runs the very next instruction through the `&8000`
+The `JP` to `CMR_1+&4000` runs the very next instruction through the `&8000`
 window, so that when `OUT (LMPR),A` lands three instructions later the code is in
 section C and section B is free to change. The stack is switched in the same
 breath, which is why the `DI`.
@@ -471,7 +471,7 @@ The reliable evidence is not the paging instruction but the copy itself. `USING$
 runs at `&5000` because sixteen bytes earlier it says so:
 
 ```asm
-      LD HL,L7243                     ; 7229  the block
+      LD HL,FN_USING_S_1                     ; 7229  the block
       LD DE,&9000                     ; 722C  &5000 in the system page
       LD BC,&00E7                     ; 722F  231 bytes
       ...

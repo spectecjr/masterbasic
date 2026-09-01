@@ -173,7 +173,7 @@ MB &63F6 SET_COMPRESSION_MODE
 
 MB &614E COMPRESS_SCREEN_FILE
     Compress a SCREEN$ file on its way to disk, called from the DOS's
-    HK_HSAVE through CALLMB.  L63C5 sets up, the encoder fills &E500, the
+    HK_HSAVE through CALLMB.  PICK_COMPRESSION_CONSTANTS sets up, the encoder fills &E500, the
     length is worked out by taking &E500 off the end pointer, and
     WRITE_THREE_FF closes the stream.
 

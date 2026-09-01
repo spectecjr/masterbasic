@@ -10,7 +10,7 @@ DOC IS_NAME_CHAR
     It chains onto the letter-or-digit test at &454A and adds underscore,
     &5F, which the ROM's own classifier does not accept.  HK_SKIPNAME
     already described this routine from the outside -- "reads forward
-    while the classifier at L4555 keeps saying the character belongs to a
+    while the classifier at IS_NAME_CHAR keeps saying the character belongs to a
     name" -- so this is the classifier that description meant.
 
 DOC PAGE_ON_TWO
@@ -95,7 +95,7 @@ MB &4ADC MULTIPLY_BY_60
     and a constant.  The 24-bit form is what TICS needs: seconds in a
     month reach 2678399.
 
-    L4AE0 and L4AE9 are entries part of the way down it, for callers that
+    MULTIPLY_BY_60_1 and MULTIPLY_BY_60_2 are entries part of the way down it, for callers that
     have their own idea of what BC holds.
 
 MB &58F1 OPEN_ROOM_AT_DE
@@ -304,7 +304,7 @@ MB &560D COPY_BUFFER_POINTER
 
 MB &5599 INIT_SERIAL_FROM_TABLE
     SERINIT with the caller's value kept across it, then the settings
-    table at L55BE.
+    table at INIT_SERIAL_FROM_TABLE_2.
 
 MB &4C90 SEARCH_MEMORY
     LOCN's search proper.  The length of what is being searched has the
@@ -348,13 +348,6 @@ MB &4978 WAIT_FOR_CLOCK
     half, B is &D0, and the loop writes 1, reads back, and tests bit 1;
     while it is set the port is cleared and tried again, up to the 2000
     in HL.  Interrupts are off for the whole of it.
-
-MB &53A6 WRITE_ENTRY_HEADER
-    Write the fixed head of an entry at HL: twelve zero bytes, three &F5,
-    then A, leaving HL past them.  Both callers pass a different byte in
-    A -- &FE from &5360 and &FB from &5385 -- and go on to fill in the
-    rest by hand.  Named for what it lays down; what the entry is for is
-    not established here.
 
 MB &4D6D TWO_PAGED_STRINGS
     Evaluate two strings, keep each one's page masked to five bits, and

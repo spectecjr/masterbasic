@@ -205,11 +205,11 @@ XPTR:                           EQU  &5AA3     ; address of the error marker
 ; pointer written as NAME+&4000 has bit 15 set, the flag INDJP
 ; and CTAB use to mean "not in this page".
 DOS_BOOT:                       EQU  &8009
-DOS_BOOT_13:                    EQU  &807F
-DOS_BOOT_14:                    EQU  &8081
-DOS_BOOT_15:                    EQU  &8086
-DOS_BOOT_16:                    EQU  &8088
-DOS_BOOT_17:                    EQU  &8089
+DOS_BOOT_11:                    EQU  &807F
+DOS_BOOT_12:                    EQU  &8081
+DOS_BOOT_13:                    EQU  &8086
+DOS_BOOT_14:                    EQU  &8088
+DOS_BOOT_15:                    EQU  &8089
 DOS_BOOT_5:                     EQU  &8069
 DOS_BOOT_6:                     EQU  &806B
 DOS_BOOT_7:                     EQU  &806D
@@ -229,10 +229,21 @@ DOS_FFPG:                       EQU  &9AB7
 DOS_FIND_ROM_CODE:              EQU  &BD79
 DOS_FNS56:                      EQU  &8AD3
 DOS_HEADER:                     EQU  &8000
-DOS_HK_HSAVE_2:                 EQU  &A500
+DOS_HK_HSAVE_1:                 EQU  &A500
 DOS_HK_SBYT:                    EQU  &AF75
 DOS_ITRCK:                      EQU  &95D8
+DOS_L4069:                      EQU  &8069
+DOS_L406B:                      EQU  &806B
+DOS_L406D:                      EQU  &806D
+DOS_L407F:                      EQU  &807F
 DOS_L4081:                      EQU  &8081
+DOS_L4086:                      EQU  &8086
+DOS_L4088:                      EQU  &8088
+DOS_L4089:                      EQU  &8089
+DOS_L4D2D:                      EQU  &8D2D
+DOS_L602A:                      EQU  &A02A
+DOS_L6280:                      EQU  &A280
+DOS_L6500:                      EQU  &A500
 DOS_LAB2_1:                     EQU  &A02A
 DOS_LBYT:                       EQU  &AFF6
 DOS_MBCOPY_775A:                EQU  &BD79
@@ -2228,7 +2239,7 @@ IS_DIGIT:
 ;; It chains onto the letter-or-digit test at &454A and adds underscore,
 ;; &5F, which the ROM's own classifier does not accept.  HK_SKIPNAME
 ;; already described this routine from the outside -- "reads forward
-;; while the classifier at L4555 keeps saying the character belongs to a
+;; while the classifier at IS_NAME_CHAR keeps saying the character belongs to a
 ;; name" -- so this is the classifier that description meant.
 ;; --------------------------------------------------------------------
 
@@ -3780,7 +3791,7 @@ TICS_SECONDS_IN_MONTH_DONE:
 ;; and a constant.  The 24-bit form is what TICS needs: seconds in a
 ;; month reach 2678399.
 ;;
-;; L4AE0 and L4AE9 are entries part of the way down it, for callers that
+;; MULTIPLY_BY_60_1 and MULTIPLY_BY_60_2 are entries part of the way down it, for callers that
 ;; have their own idea of what BC holds.
 ;; --------------------------------------------------------------------
 
@@ -5936,14 +5947,6 @@ FILL_WITH_C:
 ;; the format path was read, and its note said as much: "what the entry
 ;; is for is not established here".  It is a track, and the entry is a
 ;; sector.
-;;
-;; What was here before:
-;;
-;;     Write the fixed head of an entry at HL: twelve zero bytes, three &F5,
-;;     then A, leaving HL past them.  Both callers pass a different byte in
-;;     A -- &FE from &5360 and &FB from &5385 -- and go on to fill in the
-;;     rest by hand.  Named for what it lays down; what the entry is for is
-;;     not established here.
 ;; --------------------------------------------------------------------
 
 ; ---- WRITE_SYNC_AND_MARK ---- from &5360, &5385
@@ -6332,7 +6335,7 @@ CMD_LPRINT:
 
 ;; --------------------------------------------------------------------
 ;; SERINIT with the caller's value kept across it, then the settings
-;; table at L55BE.
+;; table at INIT_SERIAL_FROM_TABLE_2.
 ;; --------------------------------------------------------------------
 
 ; ---- INIT_SERIAL_FROM_TABLE ---- from &558E, &75EC
@@ -6781,7 +6784,7 @@ PARSE_REFERENCE_SAVING_PAGE:
 ;; and that character decides everything: a quote or a left bracket
 ;; means evaluate an expression -- the manual's `REF "count"` for a
 ;; literal sequence and `REF (a$)` for the value of a variable rather
-;; than its name -- and anything else falls through to L57B0, which
+;; than its name -- and anything else falls through to PARSE_REFERENCE_2, which
 ;; takes a digit as a number and otherwise reads a variable name.
 ;; --------------------------------------------------------------------
 
@@ -7541,12 +7544,12 @@ SCREEN_BLANK_TICK_1:
 
 ; ---- SCREEN_BLANK_TICK_LOOP ---- from &5A63
 SCREEN_BLANK_TICK_LOOP:
-               LD DE,(DOS_BOOT_15)             ; 5A0B ED 5B 86 80
-               LD HL,(DOS_BOOT_17)             ; 5A0F 2A 89 80
+               LD DE,(DOS_BOOT_13)             ; 5A0B ED 5B 86 80
+               LD HL,(DOS_BOOT_15)             ; 5A0F 2A 89 80
                AND A                           ; 5A12 A7
                SBC HL,DE                       ; 5A13 ED 52
                JR NZ,SCREEN_BLANK_TICK_2       ; 5A15 20 07
-               LD A,(DOS_BOOT_16)              ; 5A17 3A 88 80
+               LD A,(DOS_BOOT_14)              ; 5A17 3A 88 80
                DEC A                           ; 5A1A 3D
                CP B                            ; 5A1B B8
                JR Z,SCREEN_BLANK_TICK_7        ; 5A1C 28 4C
@@ -7633,7 +7636,7 @@ SCREEN_BLANK_TICK_8:
                LD A,(&807E)                    ; 5A78 3A 7E 80
                DEC A                           ; 5A7B 3D
                OUT (LMPR),A                    ; 5A7C D3 FA
-               LD DE,(DOS_BOOT_13)             ; 5A7E ED 5B 7F 80
+               LD DE,(DOS_BOOT_11)             ; 5A7E ED 5B 7F 80
 
 ; ---- SCREEN_BLANK_TICK_LOOP3 ---- from &5AD2
 SCREEN_BLANK_TICK_LOOP3:
@@ -7644,7 +7647,7 @@ SCREEN_BLANK_TICK_LOOP3:
                IN A,(LMPR)                     ; 5A8A DB FA
                INC A                           ; 5A8C 3C
                LD H,A                          ; 5A8D 67
-               LD A,(DOS_BOOT_14)              ; 5A8E 3A 81 80
+               LD A,(DOS_BOOT_12)              ; 5A8E 3A 81 80
                CP H                            ; 5A91 BC
                JR Z,SCREEN_BLANK_TICK_DONE     ; 5A92 28 2A
 
@@ -7682,11 +7685,8 @@ SCREEN_BLANK_TICK_12:
                LD A,(DE)                       ; 5AB3 1A
                INC DE                          ; 5AB4 13
                CP CH_SPACE                     ; 5AB5 FE 20
-               JR NZ,SCREEN_BLANK_TICK_14      ; 5AB7 20 0D
+               JR NZ,SCREEN_BLANK_TICK_13      ; 5AB7 20 0D
                LD A,(DE)                       ; 5AB9 1A
-
-; ---- SCREEN_BLANK_TICK_13 ---- from DOS &682B, DOS &6841
-SCREEN_BLANK_TICK_13:
                INC DE                          ; 5ABA 13
                LD (&8084),A                    ; 5ABB 32 84 80
 
@@ -7694,11 +7694,11 @@ SCREEN_BLANK_TICK_13:
 SCREEN_BLANK_TICK_DONE:
                LD A,C                          ; 5ABE 79
                OUT (LMPR),A                    ; 5ABF D3 FA
-               LD (DOS_BOOT_13),DE             ; 5AC1 ED 53 7F 80
+               LD (DOS_BOOT_11),DE             ; 5AC1 ED 53 7F 80
                RET                             ; 5AC5 C9
 
-; ---- SCREEN_BLANK_TICK_14 ---- from &5AB7 when A <> &20
-SCREEN_BLANK_TICK_14:
+; ---- SCREEN_BLANK_TICK_13 ---- from &5AB7 when A <> &20
+SCREEN_BLANK_TICK_13:
                LD H,C                          ; 5AC6 61
                LD BC,&01FF                     ; 5AC7 01 FF 01
                OUT (C),A                       ; 5ACA ED 79
@@ -8000,12 +8000,9 @@ CMD_RECORD:
                LD BC,&0026                     ; 5C09 01 26 00
                LDIR                            ; 5C0C ED B0
                PUSH HL                         ; 5C0E E5
-               LD HL,CMD_RECORD_2              ; 5C0F 21 3F 5C
+               LD HL,CMD_RECORD_1              ; 5C0F 21 3F 5C
                LD C,&0C                        ; 5C12 0E 0C
                LDIR                            ; 5C14 ED B0
-
-; ---- CMD_RECORD_1 ---- from DOS &6B61, DOS &6E40
-CMD_RECORD_1:
                POP HL                          ; 5C16 E1
                INC HL                          ; 5C17 23
                INC HL                          ; 5C18 23
@@ -8033,16 +8030,16 @@ V5C3C:
                DEFW GTDT                       ; 5C3C 00 50
                RET                             ; 5C3E C9
 
-; ---- CMD_RECORD_2 ---- from &5C0F
-CMD_RECORD_2:
+; ---- CMD_RECORD_1 ---- from &5C0F
+CMD_RECORD_1:
                LD A,(SYS_RECORD_MODE)          ; 5C3F 3A F3 4A
                AND A                           ; 5C42 A7
                LD A,&02                        ; 5C43 3E 02
-               JR Z,CMD_RECORD_3               ; 5C45 28 01
+               JR Z,CMD_RECORD_2               ; 5C45 28 01
                DEC A                           ; 5C47 3D
 
-; ---- CMD_RECORD_3 ---- from &5C45 when A = 0
-CMD_RECORD_3:
+; ---- CMD_RECORD_2 ---- from &5C45 when A = 0
+CMD_RECORD_2:
                LD (SYS_RECORD_STATE),A         ; 5C48 32 F4 4A
 
 ;; --------------------------------------------------------------------
@@ -8116,8 +8113,8 @@ PAGE_IN_ROM1_1:
 ;; for other uses."
 ;;
 ;; The code is that sentence.  The next character is compared with the
-;; ROM's CLEAR token and anything else leaves for L5CC1, the ordinary
-;; SOUND; a colon or carriage return goes to L5C9D, which is SOUND CLEAR
+;; ROM's CLEAR token and anything else leaves for CMD_SOUND_2, the ordinary
+;; SOUND; a colon or carriage return goes to CMD_SOUND_1, which is SOUND CLEAR
 ;; with no argument; otherwise a number is read and the buffer is
 ;; reallocated -- FREE_SLOT_CHAIN gives the old one back if there was
 ;; one, and the new page and address are written to four XVARs.
@@ -8290,11 +8287,11 @@ L5CF1:
                JP &4D53                            ; 5D2F C3 53 4D
 
 ;; --------------------------------------------------------------------
-;; PAUSE, token &C2.  It parses nothing: it builds.  L5C56 puts &5000 in
+;; PAUSE, token &C2.  It parses nothing: it builds.  PREPARE_COPY_AT_5000 puts &5000 in
 ;; the system page in HL and PAGE_IN_ROM1 writes &E7 -- RST &20, the
 ;; ROM's next-character restart -- as the first byte, then six bytes are
 ;; copied in, &F5 (PUSH AF) is planted, five more bytes, seven from
-;; L5DCA, sixteen more and &4E from L5DD1.
+;; CMD_PAUSE_1, sixteen more and &4E from CMD_PAUSE_2.
 ;;
 ;; The manual says why PAUSE and not just SOUND: with RECORD SOUND on,
 ;; "the SOUNDs and the PAUSEs that determine their length" both have to
@@ -8341,7 +8338,7 @@ RESTORE_HMPR_AND_STORE:
 
 ;; --------------------------------------------------------------------
 ;; DEF KEYCODE, token &C9.  &8F00 is the ROM's &4F00 seen through the
-;; window PAGE_IN_ROM1 is about to open; L5C4B picks the routine's real
+;; window PAGE_IN_ROM1 is about to open; PREPARE_ROM1_COPY picks the routine's real
 ;; address out of the two bytes after the table entry, and &91 bytes are
 ;; copied there behind an &E7.  Then &4A9F -- an address in the second
 ;; installed stub in that page -- is written into &4F0D, and &4F00 is
@@ -8375,7 +8372,7 @@ CMD_DEF_KEYCODE:
 ;; KEYIN, token &D1.  The same shape, into HDR at &4B00: three runs of
 ;; &09, &16 and &2C bytes, each followed by a three-byte CALL that
 ;; COPY_THEN_APPEND_CALL adds, then six more and the seventeen at
-;; L5DAE, and &4B00 is handed on.
+;; CMD_KEYIN_1, and &4B00 is handed on.
 ;;
 ;; The ROM's source settles this one too -- ref/samrom/miscx1.asm has
 ;;
@@ -9297,7 +9294,7 @@ CMD_LINE_4:
 
 ;; --------------------------------------------------------------------
 ;; Compress a SCREEN$ file on its way to disk, called from the DOS's
-;; HK_HSAVE through CALLMB.  L63C5 sets up, the encoder fills &E500, the
+;; HK_HSAVE through CALLMB.  PICK_COMPRESSION_CONSTANTS sets up, the encoder fills &E500, the
 ;; length is worked out by taking &E500 off the end pointer, and
 ;; WRITE_THREE_FF closes the stream.
 ;; --------------------------------------------------------------------
@@ -9331,7 +9328,7 @@ COMPRESS_SCREEN_FILE:
 ; ---- SEND_COMPRESSED_BLOCK ---- from &6161, &6221
 SEND_COMPRESSED_BLOCK:
                EXX                             ; 6172 D9
-               LD HL,DOS_HK_HSAVE_2            ; 6173 21 00 A5
+               LD HL,DOS_HK_HSAVE_1            ; 6173 21 00 A5
                EXX                             ; 6176 D9
                PUSH HL                         ; 6177 E5
                PUSH DE                         ; 6178 D5
@@ -9983,7 +9980,7 @@ CHECK_ROOM_FOR_OUTPUT:
 CHECK_ROOM_FOR_OUTPUT_1:
                POP IY                          ; 63A6 FD E1
                EXX                             ; 63A8 D9
-               LD HL,DOS_HK_HSAVE_2            ; 63A9 21 00 A5
+               LD HL,DOS_HK_HSAVE_1            ; 63A9 21 00 A5
                PUSH DE                         ; 63AC D5
                PUSH IY                         ; 63AD FD E5
                POP DE                          ; 63AF D1
@@ -12816,10 +12813,8 @@ RECLAIM_BC_AT_HL:
 RECLAIM_ABC_AT_HL:
                LD DE,(&0164)                   ; 6E53 ED 5B 64 01
                INC DE                          ; 6E57 13
-               LD (L6E5C+3),DE                 ; 6E58 ED 53 5F 6E  patches the operand of the CALL at &6E5C
-
-L6E5C:
-               CALL CMR                        ; 6E5C CD F0 44  the operand is written here at run time, from &6E58
+               LD (V6E5F),DE                   ; 6E58 ED 53 5F 6E
+               CALL CMR                        ; 6E5C CD F0 44
 
 ; ---- V6E5F ---- from &6E58
 V6E5F:
@@ -12983,10 +12978,8 @@ CMD_SPLIT_LINE_1:
                LD C,(HL)                       ; 6F18 4E
                INC HL                          ; 6F19 23
                LD B,(HL)                       ; 6F1A 46
-               LD (L6F1F+3),BC                 ; 6F1B ED 43 22 6F  patches the operand of the CALL at &6F1F
-
-L6F1F:
-               CALL CMR                        ; 6F1F CD F0 44  the operand is written here at run time, from &6F1B
+               LD (V6F22),BC                   ; 6F1B ED 43 22 6F
+               CALL CMR                        ; 6F1F CD F0 44
 
 ; ---- V6F22 ---- from &6F1B
 V6F22:
@@ -13582,7 +13575,8 @@ HK_SETUPREGS:
                XOR A                           ; 720F AF
                OUT (HMPR),A                    ; 7210 D3 FB
                LDIR                            ; 7212 ED B0
-               LD HL,HK_SETUPREGS_1            ; 7214 21 03 7E  the &61 bytes at L7E03 are appended after those four
+               LD HL,HK_SETUPREGS_1            ; 7214 21 03 7E  the &61 bytes at HK_SETUPREGS_1 are appended after those
+                                               ; four
                LD C,&61                        ; 7217 0E 61
                LDIR                            ; 7219 ED B0
                LD BC,&4D50                     ; 721B 01 50 4D  &4D50, the address of what was just built, passed on to
@@ -13592,7 +13586,7 @@ HK_SETUPREGS:
 ; ---- V7221 ---- from &7203
 V7221:
                DEFB &21,&60,&5A,&7E            ; 7221 !`Z~  LD HL,&5A60 then LD A,(HL) -- code, not data, copied in
-                                               ; ahead of L7E03
+                                               ; ahead of HK_SETUPREGS_1
 
 ;; --------------------------------------------------------------------
 ;; USING$ -- token FF 2F.
@@ -14253,8 +14247,9 @@ BUILD_PROC_INDEX_1:
 ;;     that.
 ;;
 ;;     So the labels the listing puts on those operands are wrong, and
-;;     unavoidably so: L483A and L4702 name addresses in *this* page, while
-;;     the code means &483A and &4702 in the page it is copied to.  Read
+;;     unavoidably so: whatever this page happens to have at &483A and
+;;     &4702 is what gets written, while the code means those addresses in
+;;     the page it is copied to.  Read
 ;;     them as raw numbers.  Relative jumps are unaffected, which is why
 ;;     the block is mostly JR.
 ;;
@@ -14539,13 +14534,13 @@ INSTALLER_LOOP:
                LD B,L                          ; 75FD 45
                CALL DOS_FIND_ROM_CODE          ; 75FE CD 79 BD
                DEFB &0A,&FE,&20,&10,&00,&F5    ; 7601 signature 0A FE 20 from &1000, -11  -> &10A0 INSERTLN
-               LD (CALL_INSERTLN+3),HL         ; 7607 22 F6 45  patches the operand of the CALL at &45F3
+               LD (V45F6),HL                   ; 7607 22 F6 45  patches the operand of the CALL at &45F3
                CALL DOS_FIND_ROM_CODE          ; 760A CD 79 BD
                DEFB &56,&5A,&C9,&3C,&00,&03    ; 760D signature 56 5A C9 from &3C00, +3  -> &3DA7 CCRESTOP
                LD (L7DA6+1),HL                 ; 7613 22 A7 7D  patches the operand of the JP at &7DA6
                CALL DOS_FIND_ROM_CODE          ; 7616 CD 79 BD
                DEFB &D6,&06,&32,&D7,&00,&05    ; 7619 signature D6 06 32 from &D700, +5  -> &D80E
-               LD (L6591+3),HL                 ; 761F 22 94 65  patches the operand of the CALL at &6591
+               LD (V6594),HL                   ; 761F 22 94 65  patches the operand of the CALL at &6591
                CALL DOS_FIND_ROM_CODE          ; 7622 CD 79 BD
                DEFB &3A,&B7,&5A,&DB,&00,&00    ; 7625 signature 3A B7 5A from &DB00  -> &DC77 ENDOUTP
                LD (CALLBACK_HCMDV_7+1),HL      ; 762B 22 4C 7D  patches the operand of the JP at &7D4B
@@ -14668,8 +14663,8 @@ INSTALLER_2:
 ;; Read those against the system page, not this one.  &46CC is where the
 ;; first stub was copied, &4866, &4986, &49A9 and &4AB8 all fall inside
 ;; the second at &484D-&4AEB, and &4BB0 and &4BBA inside the 36 bytes put
-;; at &4BA0.  The listing writes them as L4866, L4986, L46CC and so on
-;; because they are addresses in range for this half too, and there is no
+;; at &4BA0.  The listing labels them with whatever this half has at
+;; those addresses, because they are in range for it too, and there is no
 ;; way for it to know better -- they are plain LD HL,nn immediates.  They
 ;; are not this page's routines.
 ;;
@@ -14780,7 +14775,7 @@ INSTALL_ROM_VECTORS:
                LD A,&01                        ; 7748 3E 01
                LD (DOS_DRIVE),A                ; 774A 32 0B BC
                LD HL,SYS_INSLV_STRING_MOVE     ; 774D 21 CC 46  &46CC in the system page -- the string move stub, not
-                                               ; this page's L46CC
+                                               ; whatever this page has at &46CC
                LD (INSLV),HL                   ; 7750 22 BA 5B
                LD HL,SYS_RST8V_ERROR           ; 7753 21 B8 4A
                LD (RST8V),HL                   ; 7756 22 EE 5A
@@ -15578,7 +15573,7 @@ BUILD_PUT_BLOCK_13:
                LD (&7E01),HL                   ; 79A2 22 01 7E
                CALL DOS_FIND_ROM_CODE          ; 79A5 CD 79 BD
                DEFB &20,&08,&78,&03,&70,&02    ; 79A8 signature 20 08 78 from &0370, +2  -> &038B EDKY1
-               LD (L56F3+3),HL                 ; 79AE 22 F6 56  patches the operand of the CALL at &56F3
+               LD (V56F6),HL                   ; 79AE 22 F6 56  patches the operand of the CALL at &56F3
                CALL DOS_FIND_ROM_CODE          ; 79B1 CD 79 BD
                DEFB &04,&EF,&06,&12,&00,&FF    ; 79B4 signature 04 EF 06 from &1200, -1  -> &1226 POKE2
                LD (L5CF1+1),HL                 ; 79BA 22 F2 5C  patches the operand of the LD at &5CF1
@@ -15618,7 +15613,7 @@ BUILD_PUT_BLOCK_13:
                LD (L7DBF+1),HL                 ; 7A39 22 C0 7D  patches the operand of the JP at &7DBF
                CALL DOS_FIND_ROM_CODE          ; 7A3C CD 79 BD
                DEFB &79,&E6,&60,&13,&00,&F8    ; 7A3F signature 79 E6 60 from &1300, -8  -> &13AA LOOKVARS
-               LD (CALL_LOOKVARS+3),HL         ; 7A45 22 EA 45  patches the operand of the CALL at &45E7
+               LD (V45EA),HL                   ; 7A45 22 EA 45  patches the operand of the CALL at &45E7
                CALL DOS_FIND_ROM_CODE          ; 7A48 CD 79 BD
                DEFB &C9,&CF,&08,&19,&00,&06    ; 7A4B signature C9 CF 08 from &1900, +6  -> &19E1
                LD (L534D+1),HL                 ; 7A51 22 4E 53  patches the operand of the LD at &534D
@@ -15851,7 +15846,7 @@ MB_PAGER:
 ;; references to &7B00 in this listing are not calls but loads, and
 ;; they treat it as a buffer.
 ;;
-;; L4C2A gets a string, refuses one longer than 255 bytes, keeps
+;; COPY_STRING_TO_BUFFER gets a string, refuses one longer than 255 bytes, keeps
 ;; the length in V4098 and LDIRs the text to &7B00.
 ;; &4C9F, &4CC3, &4D08, &4D1F, &5733 and &5838 point DE at it and
 ;; search or compare against what is there -- &4CAA is a CPIR
@@ -16478,16 +16473,13 @@ V7D57:
                DEFB &32                        ; 7D57 2
 
 TBL_7D58:
-               CP (HL)                         ; 7D58 BE
-               LD E,E                          ; 7D59 5B
-               DEFW &512A,&5E5C,&5623          ; 7D5A 2A 51 5C 5E 23 56
-
-V7D60:
-               DEFW &53ED,OPSTORE              ; 7D60 ED 53 B5 5A
-               LD DE,&4A12                     ; 7D64 11 12 4A
-               JR TBL_7D58_1                   ; 7D67 18 06
-               DEFB &32,&BF,&5B,&11,&1F,&4A    ; 7D69 2?[..J  skipped: reads as LD (&5BBF),A from here, and as part of
-                                               ; the instruction above it
+               CP (HL)                              ; 7D58 BE
+               LD E,E                               ; 7D59 5B
+               DEFW &512A,&5E5C,&5623,&53ED,OPSTORE ; 7D5A 2A 51 5C 5E 23 56 ED 53 B5 5A
+               LD DE,&4A12                          ; 7D64 11 12 4A
+               JR TBL_7D58_1                        ; 7D67 18 06
+               DEFB &32,&BF,&5B,&11,&1F,&4A         ; 7D69 2?[..J  skipped: reads as LD (&5BBF),A from here, and as part
+                                                    ; of the instruction above it
 
 ; ---- TBL_7D58_1 ---- from &7D67
 TBL_7D58_1:

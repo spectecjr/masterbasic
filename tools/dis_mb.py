@@ -1587,6 +1587,44 @@ def name_error_codes(d):
     return n
 
 
+def drop_unused_labels(d):
+    """Drop synthetic labels that nothing refers to any more.
+
+    autolabel names an address because something referred to it, and a
+    later pass can take that reference away again -- by overriding the
+    instruction, by resolving the operand to a name from somewhere else,
+    or by rendering the run that held it as a table.  What is left is a
+    label in the margin that nothing points at and no one wrote.
+
+    Only Lxxxx and Vxxxx names are considered.  A name from a dispatch
+    table, a hook list or notes/ is meant to be there whether or not an
+    operand happens to mention it -- CMD_ALTER is reached through CTAB
+    and never written down -- and so is any address carrying a banner, a
+    note or a comment.
+    """
+    # Every address any operand names, in each of the forms one can wear.
+    # A jump into the window reads &4516+&4000, and the cross-reference
+    # goes to &8516, so asking d.xrefs alone would call &4516 unused.
+    touched = set()
+    for i in d.insns.values():
+        for v in (i.target,):
+            if v is None:
+                continue
+            touched.update((v, v + 0x4000, v - 0x4000,
+                            v & 0x7FFF, (v & 0x7FFF) + 0x4000))
+    n = 0
+    for a, name in list(d.labels.items()):
+        if not SYNTHETIC.match(name):
+            continue
+        if d.xrefs.get(a) or d.peer_xrefs.get(a) or a in touched:
+            continue
+        if a in d.headers or a in d.notes or a in d.comments:
+            continue
+        del d.labels[a]
+        n += 1
+    return n
+
+
 def name_synthetic_labels(d):
     """Replace Lxxxx with a name that says whose it is.
 
@@ -2315,6 +2353,10 @@ def main():
     n = sum(autolabel(d, skip=(MBTEXT,)) for d in (dos, mb))
     n += sum(label_peer_targets(d) for d in (dos, mb))
     print('named %d further addresses' % n)
+    for d in (dos, mb):
+        d.relabel()
+    print('dropped %d labels nothing refers to'
+          % sum(drop_unused_labels(d) for d in (dos, mb)))
     print('%d internal labels named after the routine they belong to'
           % sum(name_synthetic_labels(d) for d in (dos, mb)))
     print('%d branches say what the test behind them was'

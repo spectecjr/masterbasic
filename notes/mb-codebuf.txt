@@ -1,7 +1,7 @@
 # The ROM's code buffer, and the routines that build into it.
 #
 # Four builders are known.  This file covers the one at &7206; the
-# others are BUILD_PAGE_IN_TRAMPOLINE, L735D, and HCMDV's default path,
+# others are BUILD_PAGE_IN_TRAMPOLINE, BUILD_COMPILER, and HCMDV's default path,
 # which is in notes/mb-cmdbuf.txt.
 
 # CDBUFF is at &4D00 in the ROM's system page, and the ROM's own variable
@@ -10,7 +10,7 @@
 # the stub it installs in the system page then calls what it finds there.
 
 MB &7206 : CDBUFF+&50 in the system page -- HMPR is zeroed at &720F
-MB &7221 : LD HL,&5A60 then LD A,(HL) -- code, not data, copied in ahead of L7E03
-MB &7214 : the &61 bytes at L7E03 are appended after those four
+MB &7221 : LD HL,&5A60 then LD A,(HL) -- code, not data, copied in ahead of HK_SETUPREGS_1
+MB &7214 : the &61 bytes at HK_SETUPREGS_1 are appended after those four
 MB &721B : &4D50, the address of what was just built, passed on to be stored
 MB &7330 : DCT+&4000 -- the disc error counter, in the system page

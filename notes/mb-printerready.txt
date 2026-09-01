@@ -42,7 +42,7 @@ DOC CLAMP_STREAM_FOR_DEVICE
 # addresses.  The two conventions never meet, which is why mixing them up
 # produced labels that looked plausible and were wrong.
 #
-# It was eleven until L6280 turned out not to be one of them.  The seven
+# It was eleven until &6280 turned out not to be one of them.  The seven
 # DOS references to it were all LD HL,&A280, and &A280 is FTADD, which
 # the MasterDOS source comments as "(SCR in section C)" -- the screen,
 # borrowed as a file-table buffer.  A data address, not a call, and it
