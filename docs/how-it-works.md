@@ -391,9 +391,17 @@ is classified. What follows is what naming did not answer.
   follows a read, a write and a format end to end. Formatting turned out to
   be the interesting one: the DOS drives it, but the track image is built by
   `BUILD_TRACK_IMAGE` in MasterBASIC, which nothing in MasterBASIC calls.
-  What is left thin is the directory as a structure. The RAM discs are
-  followed as far as the sector: drives 3 to 7 divert at the first test of
-  every read and write, and `RDRSCT` turns the transfer into an `LDIR`.
+  The directory is there too now — one scan behind `DIR`, lookup and
+  allocation alike, and a free-sector map that rebuilds itself as a side
+  effect of reading it. The RAM discs are followed as far as the sector:
+  drives 3 to 7 divert at the first test of every read and write, and
+  `RDRSCT` turns the transfer into an `LDIR`.
+
+  What is left is prose rather than names. Every routine either half calls
+  has a name; 255 of the DOS's 448 called routines and 191 of MasterBASIC's
+  229 also carry a banner or a carried comment saying what they do, and the
+  rest are mostly short things whose names already say it -- `STEP_HEAD_OUT`,
+  `REST`, `CALL_NEXTCHAR`.
 
 ### Settled since this section was written
 

@@ -281,6 +281,88 @@ for two instructions earlier. Reading the MasterBASIC listing, beware that
 the operand renders as `DOS_EXDT1_DONE`: there is a label at the peer page's
 `&6280`, and a window address usually does mean the peer. Here it does not.
 
+## The directory
+
+There is only one directory scan in the DOS. `FDHR` at `&4B31` is behind
+`DIR`, behind every file lookup, and behind finding somewhere to put a new
+file, and which of those it is doing comes from a mode byte kept at `(IX+4)`
+so the inner loop can test it without reloading:
+
+| bit | |
+|---|---|
+| 0 | match the file number |
+| 1 | collect names for a sorted listing rather than printing them |
+| 2 | print a full listing, with a heading |
+| 3 | match the name, honouring `*` and `?` |
+| 4 | match the name, ignoring the type |
+| 5 | read through `NRSAD`, rebuilding the free-sector map |
+| 6 | stop at the first free entry rather than looking for a match |
+
+While it runs it also totals the sectors used and the files on the disk and
+in the current directory, remembers the first free slot in `FSLOT`, and
+tracks the highest subdirectory tag in `MAXT` so that creating a
+subdirectory can pick an unused one.
+
+### The map rebuilds itself
+
+Bit 5 is the one worth stopping on. A directory entry carries the file's own
+sector map, and `NSAM` — the DOS's map of sectors in use — is *placed so that
+the offsets line up*. So reading the directory can OR each entry's map into
+`NSAM` as the bytes arrive, and by the end the free-sector map has been
+rebuilt for nothing.
+
+The difficulty is the entries that are free, whose maps must not be counted.
+`NRSAD` solves it without a branch in the transfer loop:
+
+```asm
+NRS22:
+      LD H,D                          ; 4660  NSAM MSB
+      AND A                           ; 4661  Z if the entry is erased or unused
+      JR NZ,NRS25                     ; 4662
+      LD H,A                          ; 4664  dump data to ROM
+```
+
+`L'` counts bytes within the entry and wraps every 256; at each wrap this
+looks at the first byte of the new entry and points `H'` either at `NSAM`'s
+page or at **zero**. A free entry's bytes are still ORed, into ROM, where the
+write does nothing. There is no time to test anything per byte — the port
+numbers are patched into the `IN` and `OUT` instructions for the same reason
+— so the test is hoisted to once per entry and the discard costs nothing.
+
+### The disk's own settings
+
+`SDTKS` at `&7455` is called after track 0 sector 1 is read, and takes three
+things out of that first entry: how many directory tracks the disk has beyond
+the standard four, its random identifying word, and its name.
+
+```asm
+      INC H / DEC HL                  ; 745A  byte 255 of the entry
+      LD A,(HL)                       ; 745C
+      ADD A,&04                       ; 745D
+      LD (DTKS),A                     ; 745F
+```
+
+That encoding is the compatibility trick: a SAMDOS disk leaves the byte at
+zero, which reads as four tracks, so SAMDOS disks are understood correctly by
+a DOS they knew nothing about.
+
+Comparing the random word against the one remembered for the drive is how a
+disk change is spotted, and on a change the current directory is reset to the
+root — the tag it held belonged to a different disk's tree. If a file is open
+on the drive when the disk changes, the DOS beeps and prints `OPEN file`. It
+cannot refuse, because the file may legitimately span the swap, but it can
+say so.
+
+### Writing an entry back
+
+`SDCM` at `&6E87` writes the entry as the file is closed, and only if bit 5
+of `(IX+&0C)` says it was altered. The length goes down **twice**: in the old
+sixteen-bit form so that G+DOS can still read the file, and in the page form
+MasterDOS uses. For the types that carry a nine-byte header the header is
+subtracted first, which is the `AHL = AHL - 9` at `&6EA7`. A file that
+already existed replaces its entry; a new one goes into the slot `FSLOT`
+remembered.
+
 ## Following a file
 
 A file is a chain of sectors, each holding the track and sector of the next
