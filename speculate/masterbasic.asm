@@ -16313,10 +16313,17 @@ WIDEN_CHAR_BITMAP_2:
 ;;     Twelve bytes further on, &64F3 calls this routine as CALL &A4E7 --
 ;;     through the window, at an address that is this half's own &64E7.  A
 ;;     routine does not call its neighbour through a window while running
-;;     beside it, so that code is meant to execute from some other page,
-;;     with MasterBASIC mapped at &8000.  What copies it there is still not
-;;     found.  It is not the same gap as the region at &45A2, which turned
-;;     out to be INSTALL_EXTENDED_PUT and is settled.
+;;     beside it, so that code is meant to execute with MasterBASIC mapped
+;;     at &8000.
+;;
+;;     Nothing copies it there, which is what this note looked for and did
+;;     not find.  It stays where it is and is called from the other side:
+;;     &64F3 has no caller in either page, and the caller it does have is in
+;;     the ROM's system page, which reaches it through PAGER with A holding
+;;     &1C.  Running from there, &A4E7 is the right address for the
+;;     neighbour, and the window call is the ordinary one.  The system page
+;;     reaches four routines in this half that way; notes/mb-csize.txt has
+;;     the code and docs/how-it-works.md lists them.
 ;; --------------------------------------------------------------------
 
 CLAMP_CHAR_HEIGHT:
@@ -25152,9 +25159,10 @@ EVALUV_STUB_1:
 ;;     of &1C, MasterBASIC's page number, two of them landing exactly on
 ;;     L7CF5+1 and L7D46+1, which are the operands the installer patches.
 ;;
-;;     What copies those ten bytes to &45A2 is not yet found.  It is a small
-;;     deliberate copy, not part of a block: the correspondence with &7986
-;;     runs for eleven bytes and stops.
+;;     What copies those ten bytes to &45A2 is INSTALL_EXTENDED_PUT, which
+;;     assembles &45A2-&46CB out of five runs; these are the first of them,
+;;     copied at &7842.  That is why the correspondence with &7986 runs for
+;;     ten bytes and stops: the next run is taken from somewhere else.
 ;; --------------------------------------------------------------------
 
 ; ---- RELOCATED_TO_484D ---- from &7B51

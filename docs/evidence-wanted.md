@@ -2,9 +2,10 @@
 
 What this project cannot settle by reading. Each entry says what to capture,
 why, and what it would decide — so that whoever has the hardware or the
-emulator can do it without reading the rest of the repository first. Two of
-the four are now answered, and are kept because the answers are worth more
-than the questions were.
+emulator can do it without reading the rest of the repository first. All four
+are now answered, and are kept because the answers are worth more than the
+questions were. One capture is still wanted, and it is a cheap one: the
+second `SAVE BOOT` in item 1.
 
 ---
 

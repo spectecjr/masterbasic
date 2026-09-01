@@ -136,9 +136,10 @@ DOC RELOCATED_TO_484D
     of &1C, MasterBASIC's page number, two of them landing exactly on
     L7CF5+1 and L7D46+1, which are the operands the installer patches.
 
-    What copies those ten bytes to &45A2 is not yet found.  It is a small
-    deliberate copy, not part of a block: the correspondence with &7986
-    runs for eleven bytes and stops.
+    What copies those ten bytes to &45A2 is INSTALL_EXTENDED_PUT, which
+    assembles &45A2-&46CB out of five runs; these are the first of them,
+    copied at &7842.  That is why the correspondence with &7986 runs for
+    ten bytes and stops: the next run is taken from somewhere else.
 
 MB &7460 RELOCATED_TO_46CC
 MB &7BA4 RELOCATED_TO_484D
