@@ -955,6 +955,19 @@ def seeds(dos, mb):
     # &7660 the writes to &7C2D and &7D55 are patches into this page,
     # so the range cannot start any earlier.
     mb.sys_low.append((0x7664, 0x775A))
+    # BOOT runs in the same arrangement, and is the plainest case of it:
+    # the boot sector has been read to &8000 and jumped to, so this half
+    # is in the window and the ROM's system page is at &4000.  That is why
+    # it can write FRAMIV at &5AE2 with no windowing, and why its own
+    # variables at &40F9 upwards need the bias added.  Without saying so
+    # here, an operand that happens to have a label at the same address in
+    # this page takes that label instead: &5B70 came out as BOOT_22 where
+    # it means the ROM's ANYIV.
+    # Only as far as the page search.  From &4040 the sector loop reaches
+    # its own variables through the window, and at &40D4 PTHRD_1 puts a
+    # different page low again, so past that point &4000-&7FFF is neither
+    # the system page nor a fixed thing at all.
+    dos.sys_low.append((0x4009, 0x4040))
     # INSTALL_EXTENDED_PUT is called from inside that stretch, so it runs
     # in the same arrangement: its &5BDA is the ROM's CMDADDRT and its
     # &45A2 is in the system page, not an address in this half.

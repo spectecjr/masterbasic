@@ -298,8 +298,8 @@ T_REF:                          EQU  &CE       ; the BASIC keyword REF
 T_TO:                           EQU  &8E       ; the BASIC keyword TO
 UPPER:                          EQU  &DF       ; clearing bit 5 folds a letter to upper case
 
-; Numbers named in notes/, each for one instruction where
-; the same value means something else elsewhere.
+; Numbers named in notes/, each for one instruction
+; where the same value means something else elsewhere.
 DVAR_CMPFG:                     EQU  &42BA     ; DVAR 154 in the DOS page: SAVE MODE 1, 2 or 3 less one
 ENABLE_ROM1:                    EQU  &40       ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
 SKIP_1_VIA_CP:                  EQU  &FE       ; CP n, skipping one byte and clobbering the flags

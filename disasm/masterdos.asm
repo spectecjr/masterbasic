@@ -28,6 +28,7 @@ KEYBOARD:                   EQU  &FE           ; read: keyboard columns; write: 
 ; page them in, or does the same windowing inline, which is what a
 ; name written here as NAME+&4000 means.
 ; The notes are mostly the ROM source's own words.
+ANYIV:                      EQU  &5B70         ; ANY INTERRUPT VECTOR
 BEEPR:                      EQU  &016F
 BSTKEND:                    EQU  &5BC4         ; end of that stack
 CHADD:                      EQU  &5A97         ; address of the character being interpreted
@@ -169,8 +170,8 @@ MB_WAIT_FOR_CLOCK:          EQU  &8978
 ERR_HOOK:                   EQU  &08           ; report an error, or call a DOS hook: the byte after is
                                                ; an error number, or a hook code from 128 up
 
-; Numbers named in notes/, each for one instruction where
-; the same value means something else elsewhere.
+; Numbers named in notes/, each for one instruction
+; where the same value means something else elsewhere.
 DISKCTL_0_BASE:             EQU  &E0
 DISKCTL_1_BASE:             EQU  &F0
 DISKCTL_DATA_OFS:           EQU  &03
@@ -284,8 +285,8 @@ BOOT:
                LD HL,&0000                     ; 400A 21 00 00
                LD (FRAMIV),HL                  ; 400D 22 E2 5A
                LD L,&49                        ; 4010 2E 49
-               LD (BOOT_22),HL                 ; 4012 22 70 5B
-               LD HL,V511F                     ; 4015 21 1F 51
+               LD (ANYIV),HL                   ; 4012 22 70 5B
+               LD HL,&511F                     ; 4015 21 1F 51
 
 ; ---- BOOT_LOOP ---- from &4024 when L is not 0 yet
 BOOT_LOOP:
@@ -4715,9 +4716,6 @@ SETF7:
 ; ---- BITF0 ---- from &5E58
 BITF0:
                CALL HLFG                       ; 511C CD DF 50
-
-; ---- V511F ---- from &4015
-V511F:
                DEFW &46CB                      ; 511F CB 46
                RET                             ; 5121 C9
 
@@ -6839,9 +6837,6 @@ HK_PCAT:
                CALL CMR                        ; 5B68 CD B2 7B
                DEFW STREAM                     ; 5B6B 12 01
                CALL ZDVS                       ; 5B6D CD 23 5C  ZERO VARS
-
-; ---- BOOT_22 ---- from &4012
-BOOT_22:
                POP AF                          ; 5B70 F1  2 IF SIMPLE
                CP &02                          ; 5B71 FE 02
                JR NZ,PCAT2                     ; 5B73 20 4E

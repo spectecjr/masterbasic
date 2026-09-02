@@ -176,6 +176,16 @@ def parse(path):
                 cur['name'] = (' '.join(bits)
                                if cur['kind'] in ('value', 'expr')
                                else bits[0])
+                # Anything else is a name for the address, so it has to
+                # look like one.  Without this a mistyped entry quietly
+                # becomes a label: `DOS &4010 +1 : text` made a label
+                # called +1, which pyz80 then accepted.
+                if cur['kind'] is None and not re.fullmatch(
+                        r'[A-Za-z_]\w*', cur['name']):
+                    bad.append('%s:%d: %r is not a name'
+                               % (os.path.basename(path), n, cur['name']))
+                    cur = None
+                    continue
         out.append(cur)
     for e in out:
         while e['doc'] and not e['doc'][-1]:
@@ -492,6 +502,11 @@ def rename(pages, root, folder='notes'):
         # SDC1 did -- and renaming that is not what anyone meant.
         real = False
         for d in pages:
+            # Nothing has been renamed in this page yet.  Set here rather
+            # than at the first assignment: a page where the old name does
+            # not appear at all reaches the test below without it, which
+            # it did the moment &511F stopped being called V511F.
+            renamed_here = False
             taken = [k for k, v in d.labels.items() if v == new]
             if taken:
                 problems.append('%s: %s is already the name of &%04X'

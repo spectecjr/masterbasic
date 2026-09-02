@@ -82,6 +82,7 @@ KEYBOARD:                   EQU  &FE           ; read: keyboard columns; write: 
 ; page them in, or does the same windowing inline, which is what a
 ; name written here as NAME+&4000 means.
 ; The notes are mostly the ROM source's own words.
+ANYIV:                      EQU  &5B70         ; ANY INTERRUPT VECTOR
 BEEPR:                      EQU  &016F
 BSTKEND:                    EQU  &5BC4         ; end of that stack
 CHADD:                      EQU  &5A97         ; address of the character being interpreted
@@ -410,14 +411,15 @@ HEADER:
 BOOT:
                DI                              ; 4009 F3
 
-; Reset the two interrupt vectors to their default state.  Both are
-; ROM variables in the system page, which is low while this runs, so
-; they are written without any windowing.
-               LD HL,&0000                     ; 400A 21 00 00
+; Put the two interrupt vectors back where the ROM would have them:
+; the frame interrupt off, and the general one pointing at the ROM's
+; own handler.  Both are ROM variables, and the system page is low
+; while this runs, so both are written without any windowing.
+               LD HL,&0000                     ; 400A 21 00 00  nothing on the frame interrupt
                LD (FRAMIV),HL                  ; 400D 22 E2 5A
-               LD L,&49                        ; 4010 2E 49
-               LD (BOOT_22),HL                 ; 4012 22 70 5B  ANYIV at &5B70, not this half's own label at that
-                                               ; address
+               LD L,&49                        ; 4010 2E 49  H is still zero, so HL becomes ANYI, the ROM's own handler
+               LD (ANYIV),HL                   ; 4012 22 70 5B  the any-interrupt vector, which the ROM checks before
+                                               ; its own
 
 ; Sweep the allocation table clear of RAM discs left behind by an
 ; earlier boot.  Their pages are still marked as belonging to a DOS
@@ -4972,9 +4974,6 @@ SETF7:
 ; ---- BITF0 ---- from &5E58
 BITF0:
                CALL HLFG                       ; 511C CD DF 50
-
-; ---- ALLOCT_LAST ---- from &4015
-ALLOCT_LAST:
                DEFW &46CB                      ; 511F CB 46
                RET                             ; 5121 C9
 
@@ -7096,9 +7095,6 @@ HK_PCAT:
                CALL CMR                        ; 5B68 CD B2 7B
                DEFW STREAM                     ; 5B6B 12 01
                CALL ZDVS                       ; 5B6D CD 23 5C  ZERO VARS
-
-; ---- BOOT_22 ---- from &4012
-BOOT_22:
                POP AF                          ; 5B70 F1  2 IF SIMPLE
                CP &02                          ; 5B71 FE 02
                JR NZ,PCAT2                     ; 5B73 20 4E

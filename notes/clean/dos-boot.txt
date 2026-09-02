@@ -5,7 +5,6 @@
 # design/exampledocs.md: narration at the margin, descriptive labels, and
 # the window bias named IN_PAGE_C rather than written &4000.
 
-RENAME V511F ALLOCT_LAST
 RENAME BOOT_LOOP ALLOCT_SCAN_LOOP
 RENAME BOOT_1 NOT_A_RAM_DISC_PAGE
 RENAME BOOT_LOOP2 FIND_FREE_PAGE_LOOP
@@ -63,11 +62,15 @@ DOS &4009 step
     nothing, and the stack is about to move.
 
 DOS &400A step
-    Reset the two interrupt vectors to their default state.  Both are
-    ROM variables in the system page, which is low while this runs, so
-    they are written without any windowing.
+    Put the two interrupt vectors back where the ROM would have them:
+    the frame interrupt off, and the general one pointing at the ROM's
+    own handler.  Both are ROM variables, and the system page is low
+    while this runs, so both are written without any windowing.
 
-DOS &4012 : ANYIV at &5B70, not this half's own label at that address
+DOS &400A : nothing on the frame interrupt
+DOS &4010 : H is still zero, so HL becomes ANYI, the ROM's own handler
+
+DOS &4012 : the any-interrupt vector, which the ROM checks before its own
 CONST MAX_INTERNAL_PAGE = &1F : the highest page number a 512K machine has
 
 DOS &4015 expr ALLOCT + MAX_INTERNAL_PAGE
