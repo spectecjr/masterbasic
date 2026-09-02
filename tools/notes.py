@@ -61,9 +61,18 @@ AFTER = re.compile(r'^(?:AFTER|ADDCOMMENTAFTER)\s+(\w+)\s*(?:\+(\d+))?\s*:\s*(\S
 # DOC CHECK_WRITE_STATUS -- head a routine by name, with the indented
 # lines below it, so no address has to be looked up.
 DOC = re.compile(r'^(?:DOC|DOCUMENT)\s+(\w+)\s*$')
+# CONST MAX_INTERNAL_PAGE = &1F : the highest page a 512K machine has
+# -- a named number that belongs to no one instruction, so `value`
+# cannot reach it.  The value may be an expression of names already
+# given, and is then written out that way: a flag mask that says it
+# is three flags is worth more than the byte they come to.
+CONST = re.compile(r'^CONST\s+(\w+)\s*=\s*([^:]+?)\s*(?::\s*(\S.*?))?\s*$')
 # RENAME ULA BORDER -- change a name everywhere it is written.
 RENAME = re.compile(r'^RENAME\s+(\w+)\s+(\w+)\s*$')
-KINDS = ('data', 'text', 'code', 'value', 'step')
+KINDS = ('data', 'text', 'code', 'value', 'step', 'expr')
+# Register and condition names, so that the operand of an
+# instruction can be told from the rest of it.
+REGS = set('A B C D E H L F I R AF BC DE HL IX IY SP AF2 NZ Z NC PO PE P M IXH IXL IYH IYL'.split())
 
 
 def parse(path):
@@ -108,6 +117,14 @@ def parse(path):
                         'end': None, 'kind': None,
                         'where': '%s:%d' % (os.path.basename(path), n)})
             continue
+        m = CONST.match(line)
+        if m:
+            cur = None
+            out.append({'page': 'CONST', 'name': m.group(1),
+                        'value': m.group(2).strip(), 'comment': m.group(3),
+                        'doc': [], 'addr': None, 'end': None, 'kind': None,
+                        'where': '%s:%d' % (os.path.basename(path), n)})
+            continue
         m = EQUATE.match(line)
         if m:
             cur = None
@@ -144,7 +161,8 @@ def parse(path):
                 # A `value` may be given an expression of names already
                 # defined rather than a name of its own, and that has
                 # spaces in it: `value SYSPAGE_IN_B | ENABLE_ROM1`.
-                cur['name'] = (' '.join(bits) if cur['kind'] == 'value'
+                cur['name'] = (' '.join(bits)
+                               if cur['kind'] in ('value', 'expr')
                                else bits[0])
         out.append(cur)
     for e in out:
@@ -208,12 +226,46 @@ def apply(pages, root, banner, folder='notes'):
     equates, later, expressions = {}, [], []
     entries, complaints = load(root, folder)
     problems.extend(complaints)
+
+    # CONSTs first, and in the order written, so that one may be built
+    # out of the ones above it however the files happen to be named.
+    for e in entries:
+        if e['page'] != 'CONST':
+            continue
+        env = dict(by_tag[list(by_tag)[0]].user_equs) if by_tag else {}
+        text = e['value']
+        try:
+            if re.fullmatch(r'&[0-9A-Fa-f]+', text):
+                v = int(text[1:], 16)
+            elif re.fullmatch(r'[0-9]+', text):
+                v = int(text)
+            else:
+                v = eval(re.sub(r'[A-Za-z_]\w*',
+                                lambda m: str(env[m.group(0)])
+                                if m.group(0) in env else m.group(0), text),
+                         {'__builtins__': {}}, {})
+        except Exception:
+            v = None
+        if not isinstance(v, int):
+            problems.append('%s: %s is not a number I can work out'
+                            % (e['where'], text))
+            continue
+        for d in pages:
+            d.user_equs[e['name']] = v
+            # A plain number is written as a number; anything else is
+            # written as it stands, because that is the point of it.
+            if not re.fullmatch(r'&?[0-9A-Fa-f]+', text):
+                d.equ_text[e['name']] = text
+            if e['comment']:
+                d.romdesc[e['name']] = e['comment']
     for e in entries:
         if e['page'] in ('AFTER', 'DOC'):
             later.append(e)             # once every label has its name
             continue
         if e['page'] == 'RENAME':
             continue                    # done later, by rename()
+        if e['page'] == 'CONST':
+            continue                    # done above, before anything else
         if e['page'] == 'EQU':
             equates[e['name']] = e['comment']
             # The same ROM address is named ROM_CHKHL in one listing and
@@ -262,6 +314,34 @@ def apply(pages, root, banner, folder='notes'):
                 # checked against the number instead, so a wrong
                 # expression is a build error rather than a quiet lie.
                 expressions.append((d, a, lits[0], e['name'], e['where']))
+            continue
+
+        if e['kind'] == 'expr':
+            # Write the operand as an expression of names already known:
+            # ALLOCT + MAX_INTERNAL_PAGE for the address that is the last
+            # entry of a table.  Nothing is checked here, because the
+            # check is better done further on -- the listing is assembled
+            # and compared with the image on every build, so an
+            # expression that does not come to the right number fails the
+            # build at this address rather than misleading anyone.
+            ins = d.insns.get(a)
+            text = d.overrides.get(a, ins.text) if ins else None
+            if not ins:
+                problems.append('%s: &%04X does not start an instruction'
+                                % (e['where'], a))
+            elif not e['name']:
+                problems.append('%s: expr needs an expression' % e['where'])
+            else:
+                rest = text.partition(' ')[2]
+                found = [t for t in re.findall(r'&[0-9A-Fa-f]+|\d+|[A-Za-z_]\w*',
+                                               rest)
+                         if t not in REGS]
+                if len(found) != 1:
+                    problems.append('%s: %s has %d operands, so which?'
+                                    % (e['where'], text, len(found)))
+                else:
+                    d.overrides[a] = text.replace(found[0], e['name'], 1)
+                    named += 1
             continue
 
         if e['kind'] == 'step':

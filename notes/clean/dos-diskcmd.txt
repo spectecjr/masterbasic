@@ -78,3 +78,23 @@ DOS &456A : it does not return until the disc is actually turning
 
 DOS &455F value CMD_LATENCY_LOOPS
 EQU CMD_LATENCY_LOOPS : DJNZ iterations, enough for the WD1772 to raise BUSY
+
+# The WD1772's status register, which every loop in the disk code reads.
+# Bits 0 and 1 mean the same on every command; the rest are read against
+# whichever command was issued.
+
+CONST DISK_STATUS_BUSY = &01 : the controller is still working on a command
+CONST DISK_STATUS_DRQ = &02 : a byte is waiting to be taken, or wanted
+CONST DISK_STATUS_LOST_DATA = &04 : a byte was not moved in time and is gone
+CONST DISK_STATUS_CRC_ERROR = &08 : what was read did not check out
+CONST DISK_STATUS_RECORD_NOT_FOUND = &10 : the sector was not on the track
+CONST DISK_STATUS_RECORD_TYPE = &20 : the deleted-data mark, on a read
+CONST DISK_STATUS_WRITE_PROTECT = &40 : the disc has its tab open
+CONST DISK_STATUS_MOTOR_ON = &80 : the drive is up to speed
+
+CONST DISK_STATUS_BUSY_BIT = 0 : the same flags as bit numbers, for BIT n,r
+CONST DISK_STATUS_DRQ_BIT = 1
+
+CONST READ_ERROR_FLAGS = DISK_STATUS_BUSY | DISK_STATUS_LOST_DATA | DISK_STATUS_CRC_ERROR : anything that means the sector did not arrive intact
+
+DOS &4570 expr DISK_STATUS_BUSY_BIT

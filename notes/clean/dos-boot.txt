@@ -68,6 +68,9 @@ DOS &400A step
     they are written without any windowing.
 
 DOS &4012 : ANYIV at &5B70, not this half's own label at that address
+CONST MAX_INTERNAL_PAGE = &1F : the highest page number a 512K machine has
+
+DOS &4015 expr ALLOCT + MAX_INTERNAL_PAGE
 DOS &4015 : the top entry of the page allocation table
 
 DOS &4015 step
@@ -179,7 +182,8 @@ DOS &408C step
 
 DOS &4091 : back to the command and status register
 
-DOS &4096 : bit 1 of the status is DRQ -- a byte is waiting
+DOS &4096 expr DISK_STATUS_DRQ_BIT
+DOS &4096 : a byte is waiting to be taken
 DOS &409A : bit 0 is BUSY: still running, so go round again
 DOS &409D value READ_ERROR_FLAGS
 
@@ -229,7 +233,6 @@ EQU FIRST_WAVE_SECTOR_COUNT : sectors in the DOS, read before MasterBASIC
 EQU DISKCTL_0_BASE_SIDE2 : the same drive with the second head energised
 EQU MAX_SECTOR_RETRIES : attempts at one sector before "Loading error"
 EQU RESTORE_CMD : seek to track 0; used to recover from a bad seek
-EQU READ_ERROR_FLAGS : BUSY, LOST DATA and CRC ERROR together
 
 RENAME BOOT_5 BOOT_COMPARE_TRACK
 RENAME BOOT_6 BOOT_TRACK_TEST

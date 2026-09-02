@@ -240,17 +240,24 @@ DISKCTL_0_BASE:             EQU  &E0
 DISKCTL_0_BASE_SIDE2:       EQU  &E4           ; the same drive with the second head energised
 DISKCTL_1_BASE:             EQU  &F0
 DISKCTL_DATA_OFS:           EQU  &03
+DISK_STATUS_BUSY:           EQU  &01           ; the controller is still working on a command
+DISK_STATUS_BUSY_BIT:       EQU  &00           ; the same flags as bit numbers, for BIT n,r
+DISK_STATUS_CRC_ERROR:      EQU  &08           ; what was read did not check out
+DISK_STATUS_DRQ_BIT:        EQU  &01
+DISK_STATUS_LOST_DATA:      EQU  &04           ; a byte was not moved in time and is gone
 ENABLE_ROM1:                EQU  &40           ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
 FILE:                       EQU  &17           ; a compressed substring in ERRTBL, printed as "file"
 FIRST_WAVE_SECTOR_COUNT:    EQU  &1F           ; sectors in the DOS, read before MasterBASIC
 FORCE_INTERRUPT_CMD:        EQU  &D0
 INVALID:                    EQU  &00           ; a compressed substring in ERRTBL, printed as "Invalid "
+MAX_INTERNAL_PAGE:          EQU  &1F           ; the highest page number a 512K machine has
 MAX_SECTOR_RETRIES:         EQU  &0A           ; attempts at one sector before "Loading error"
 MIN_RAMDISC_PAGE_TYPE:      EQU  &D0           ; lowest allocation code that means a RAM disc
 NO:                         EQU  &0B           ; a compressed substring in ERRTBL, printed as "No "
 PAGE_VALUE_MASK:            EQU  &1F           ; a page number is five bits; the rest of the port is not
 PAST_RAMDISC_PAGE_TYPE:     EQU  &D8           ; one above the highest, so the test is a range
-READ_ERROR_FLAGS:           EQU  &0D           ; BUSY, LOST DATA and CRC ERROR together
+READ_ERROR_FLAGS:           EQU  DISK_STATUS_BUSY | DISK_STATUS_LOST_DATA | DISK_STATUS_CRC_ERROR
+                                               ; anything that means the sector did not arrive intact
 RESTORE_CMD:                EQU  &09           ; seek to track 0; used to recover from a bad seek
 SCREEN_PAGE_TYPE:           EQU  &30           ; allocation code for a page holding a screen
 SKIP_1_VIA_CP:              EQU  &FE           ; CP n, skipping one byte and clobbering the flags
@@ -403,7 +410,7 @@ BOOT:
 ; Sweep the allocation table clear of RAM discs left behind by an
 ; earlier boot.  Their pages are still marked as belonging to a DOS
 ; that is no longer running, and nothing else will ever free them.
-               LD HL,ALLOCT_LAST               ; 4015 21 1F 51  the top entry of the page allocation table
+               LD HL,ALLOCT + MAX_INTERNAL_PAGE ; 4015 21 1F 51  the top entry of the page allocation table
 
 ; ---- ALLOCT_SCAN_LOOP ---- from &4024 when L is not 0 yet
 ALLOCT_SCAN_LOOP:
@@ -586,7 +593,7 @@ BOOT_READ_SECTOR_BYTE:
 ; ---- BOOT_CHECK_READ_STATUS ---- from &408A, &409B when bit 0 was set
 BOOT_CHECK_READ_STATUS:
                IN A,(C)                        ; 4094 ED 78
-               BIT 1,A                         ; 4096 CB 4F  bit 1 of the status is DRQ -- a byte is waiting
+               BIT DISK_STATUS_DRQ_BIT,A       ; 4096 CB 4F  a byte is waiting to be taken
                JR NZ,BOOT_READ_SECTOR_BYTE     ; 4098 20 F2
                RRCA                            ; 409A 0F  bit 0 is BUSY: still running, so go round again
                JR C,BOOT_CHECK_READ_STATUS     ; 409B 38 F7
@@ -2012,7 +2019,7 @@ DWAIT:
 ; ---- BUSY ---- from &4558, &4576, &474E, &47BF when bit 2 of A set, &7A01
 BUSY:
                CALL READ_SELECTED_DISK_STATUS  ; 456D CD 26 45
-               BIT 0,A                         ; 4570 CB 47  bit 0 of the status register is BUSY
+               BIT DISK_STATUS_BUSY_BIT,A      ; 4570 CB 47  bit 0 of the status register is BUSY
                RET Z                           ; 4572 C8
                CALL BRKTST                     ; 4573 CD 2A 50  let BREAK out of a drive that never answers
                JR BUSY                         ; 4576 18 F5

@@ -186,6 +186,7 @@ class Page(Disassembler):
         self.dead_calls = set()
         self.conflicts = []
         self.syms = None
+        self.equ_text = {}                # name -> how to write its value
         self.ports = {}
         self.rst8 = {}                    # RST &08 code -> EQU name
         self.errors = {}                  # error code -> its message
@@ -2088,8 +2089,9 @@ def header(d):
         for name in sorted(d.user_equs):
             v = d.user_equs[name]
             note = described(name)
+            written = d.equ_text.get(name, hexn(v, 2 if v < 256 else 4))
             head.append(('%-14s EQU  %-6s %s'
-                         % (name + ':', hexn(v, 2 if v < 256 else 4),
+                         % (name + ':', written,
                             '; ' + note if note else '')).rstrip())
     if d.mdos_equs:
         head.append('')

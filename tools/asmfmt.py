@@ -33,7 +33,10 @@ LIMIT = 96           # past this an instruction gets its comment on its own line
 ROOM = 24            # a comment narrower than this is not worth starting
 
 BODY = re.compile(r'^\s{10,}\S')
-EQU = re.compile(r'^([A-Za-z_][A-Za-z0-9_]*:)\s+(EQU\s+\S+)(.*)$')
+# The value runs to the comment, not to the first space: an equate may be
+# an expression of other equates, and DISK_STATUS_BUSY | LOST_DATA | CRC
+# says more than the &0D it comes to.
+EQU = re.compile(r'^([A-Za-z_][A-Za-z0-9_]*:)\s+(EQU\s+[^;]*?)\s*((?:\s;.*)?)$')
 BANNER = re.compile(r'^;;')
 
 
@@ -127,7 +130,13 @@ def equate_columns(src):
     if not real:
         return None, None, None
     at = max(max(len(x.group(1)) for x in real) + 1, OPCODE)
-    col, cont = column(max(at + len(x.group(2)) for x in real))
+    wide = [at + len(x.group(2)) for x in real]
+    # One long value -- an equate written as an expression of the others,
+    # which is the point of writing it that way -- must not drag every
+    # description in the file across the page after it.  The column is
+    # set by the equates that fit, and a longer one takes its comment on
+    # the next line, which is the rule instructions already follow.
+    col, cont = column(max([w for w in wide if w <= LIMIT] or wide))
     return at, col, cont
 
 
