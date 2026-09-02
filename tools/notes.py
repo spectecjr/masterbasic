@@ -327,7 +327,7 @@ def apply(pages, root, banner, folder='notes'):
                 # Naming the same number twice is the common way to get
                 # here: the first entry replaced it, so the second finds
                 # nothing left to replace.
-                if e['name'] and re.search(r'%s' % re.escape(
+                if e['name'] and re.search(r'\b%s\b' % re.escape(
                         e['name'].split()[0]), text or ''):
                     problems.append('%s: %s is already named there'
                                     % (e['where'], e['name']))

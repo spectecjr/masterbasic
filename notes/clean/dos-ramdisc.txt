@@ -1,0 +1,73 @@
+# The RAM discs: drives 3 to 7, where a sector transfer is a memory copy.
+#
+# Prose for clean/ only.
+#
+# These routines run with a RAM disc page in the window, put there by
+# SELFP, so an &8xxx operand here is an offset into that page and not an
+# address in MasterBASIC.  The listing has no way to know that and names
+# them MB_something, which is the same trap as ANYIV at &4012; written
+# out as RAMDISC_PAGE plus an offset, they say what they are.
+
+GROUP Disk geometry
+CONST SECTOR_LENGTH = 512 : bytes in a sector, on a floppy or a RAM disc
+
+GROUP Idioms
+CONST RAMDISC_PAGE = &8000 : the RAM disc page, as seen through the window
+
+DOS &756D expr RAMDISC_PAGE+&02FF
+DOS &7726 expr RAMDISC_PAGE+&0125
+DOS &773A expr RAMDISC_PAGE+&0160
+DOS &77AB expr RAMDISC_PAGE+&0002
+DOS &77C9 expr RAMDISC_PAGE
+DOS &77CD expr RAMDISC_PAGE+&0200
+DOS &77E2 expr RAMDISC_PAGE
+
+DOC RDWSCT
+    Write a sector to a RAM disc, which is a memory copy.
+
+    THE TWO ENDS CANNOT BE MAPPED AT ONCE.  There is one window, and the
+    RAM disc page has to be in it, so the source cannot also be a page
+    the caller chose.  The way round is to stage through DRAM, the DOS's
+    own sector buffer, which lives in this page and is always reachable:
+    the caller's 512 bytes are copied there first, and only then is the
+    RAM disc page brought in.
+
+    A caller whose data is already in DRAM is spared that, which is what
+    the test at the top is for -- a source whose high byte is &7D is DRAM
+    already, and the first copy is skipped.
+
+DOS &74C1 : the source, which may be anywhere the caller chose
+DOS &74C7 : already in DRAM, so nothing to stage
+DOS &74CA : stage it through the DOS's own buffer
+DOS &74D7 : where in the RAM disc this track and sector live
+DOS &74DF : and the sector goes across
+
+DOC SDCHK2
+    Can the transfer be done where it stands, or must it go through DRAM?
+
+    Two questions in six instructions, and the second is the interesting
+    one.  A destination below &8000 is in this page already and needs
+    nothing.  Above it, the destination is in the window, and 512 bytes
+    starting near the top of the window would run off the end of it.
+
+    THE TEST IS AN ADDITION RATHER THAN A COMPARE.  Adding &41FF to HL
+    carries when HL is above &BE00, which is exactly when HL plus the
+    last byte of a sector passes &BFFF.  The &4000 is there to move the
+    carry to that boundary; the &1FF is the sector.  One ADD and one RET
+    C answer it, with HL preserved by the PUSH and POP around them.
+
+    If it fits, RES 7 and SET 6 turn &8xxx into &4xxx: the same byte,
+    named as this page sees it rather than as the window does, so the
+    caller can address it without the window at all.
+
+DOS &77BC : below the window, so it is in this page and can be used as is
+DOS &77BE expr &4000 + SECTOR_LENGTH - 1
+DOS &77C1 : carry means the sector would run off the top of the window
+DOS &77C4 : &8xxx becomes &4xxx -- the same byte, seen from this page
+
+GROUP Memory
+DOS &74C4 value DRAM_PAGE_HIGH
+DOS &77BA value RAMDISC_PAGE_HIGH
+
+DOS &77C3 : it would, so the caller must stage through DRAM
+DOS &77C8 : reachable at &4000-&7FFF without the window

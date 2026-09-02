@@ -372,6 +372,8 @@ DISK_STATUS_DRQ:                EQU  &02       ; a byte is waiting to be taken, 
 DISK_STATUS_LOST_DATA:          EQU  &04       ; a byte was not moved in time and is gone
 DISK_STATUS_RECORD_NOT_FOUND:   EQU  &10       ; the sector was not on the track
 
+
+
 ; Numbers named in notes/, each for one instruction
 ; where the same value means something else elsewhere.
 DVAR_CMPFG:                     EQU  &42BA     ; DVAR 154 in the DOS page: SAVE MODE 1, 2 or 3 less one

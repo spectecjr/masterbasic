@@ -161,8 +161,6 @@ MB_BUILD_PUT_BLOCK_8:         EQU  &B900
 MB_BUILD_PUT_BLOCK_9:         EQU  &B914
 MB_BUILD_TRACK_IMAGE:         EQU  &9352
 MB_BYTE_TO_DECIMAL:           EQU  &8240
-MB_CALLDOS_2:                 EQU  &82FF
-MB_CALL_STKSTR_2:             EQU  &8200
 MB_CHECK_BREAK:               EQU  &A000
 MB_CMD_ALTER:                 EQU  &94CA
 MB_CMD_BLITZ:                 EQU  &9AD4
@@ -191,7 +189,6 @@ MB_FN_RESERVED:               EQU  &8E63
 MB_FN_SCRAD:                  EQU  &828E
 MB_FN_SHIFT_S:                EQU  &8DB7
 MB_FN_SVAL_S:                 EQU  &8159
-MB_FN_SVAL_S_1:               EQU  &8160
 MB_FN_TICS:                   EQU  &8A7B
 MB_FN_USING_S:                EQU  &B225
 MB_HCMDV:                     EQU  &8E96
@@ -221,10 +218,8 @@ MB_PREPARE_ROM1_COPY_2:       EQU  &9C51
 MB_PUTSWA:                    EQU  &8000
 MB_SCREEN_BLANK_TICK_6:       EQU  &9A54
 MB_SET_DCT_COMPILE_BITS:      EQU  &859C
-MB_SOFV:                      EQU  &8002
 MB_SUBSTITUTE_PRINTER_CHAR:   EQU  &9973
 MB_V40FF:                     EQU  &80FF
-MB_V4125:                     EQU  &8125
 MB_WAIT_FOR_CLOCK:            EQU  &8978
 
 ; The ROM's restarts, under the names its own source gives
@@ -235,11 +230,13 @@ ERR_HOOK:                     EQU  &08         ; report an error, or call a DOS 
 
 ; Memory
 BOOT_STACK_TOP:               EQU  &C000       ; one past the window; the stack grows down into this page
+DRAM_PAGE_HIGH:               EQU  &7D
 MAX_INTERNAL_PAGE:            EQU  &1F         ; the highest page number a 512K machine has
 MIN_RAMDISC_PAGE_TYPE:        EQU  &D0         ; lowest allocation code that means a RAM disc
 PAGE_VALUE_MASK:              EQU  &1F         ; a page number is five bits; the rest of the port is not
 PAST_RAMDISC_PAGE_TYPE:       EQU  &D8         ; one above the highest, so the test is a range
 PAST_WINDOW_TOP:              EQU  &C0
+RAMDISC_PAGE_HIGH:            EQU  &80
 SCREEN_PAGE_TYPE:             EQU  &30         ; allocation code for a page holding a screen
 
 ; Disk controller status
@@ -254,6 +251,12 @@ DISK_STATUS_LOST_DATA:        EQU  &04         ; a byte was not moved in time an
 DISK_STATUS_RECORD_NOT_FOUND: EQU  &10         ; the sector was not on the track
 TRANSFER_ERROR_FLAGS:         EQU  (DISK_STATUS_LOST_DATA | DISK_STATUS_CRC_ERROR | DISK_STATUS_RECORD_NOT_FOUND) >> 1
                                                ; the right one, used by the sector read and write
+
+; Disk geometry
+SECTOR_LENGTH:                EQU  &0200       ; bytes in a sector, on a floppy or a RAM disc
+
+; Idioms
+RAMDISC_PAGE:                 EQU  &8000       ; the RAM disc page, as seen through the window
 
 ; Boot loader
 FIRST_WAVE_SECTOR_COUNT:      EQU  &1F         ; sectors in the DOS, read before MasterBASIC
@@ -12734,47 +12737,28 @@ SDTK4:
                RET                             ; 74C0 C9
 
 ;; --------------------------------------------------------------------
-;;  PART RAMD -- RAM discs and MegaRAM
+;; Write a sector to a RAM disc, which is a memory copy.
 ;;
-;;  Drives 3 to RDLIM-1 are RAM discs: a set of 16K pages pretending to be a floppy. Every disk operation in the DOS
-;;  begins with TIRD, and for these drives is diverted to the equivalent here -- RDRSCT for a read, RDWSCT for a
-;;  write, and so on -- so nothing above this level knows the difference.
+;; THE TWO ENDS CANNOT BE MAPPED AT ONCE.  There is one window, and the
+;; RAM disc page has to be in it, so the source cannot also be a page
+;; the caller chose.  The way round is to stage through DRAM, the DOS's
+;; own sector buffer, which lives in this page and is always reachable:
+;; the caller's 512 bytes are copied there first, and only then is the
+;; RAM disc page brought in.
 ;;
-;;  Where the sectors go
-;;
-;;  A RAM disc owns a list of pages, which is kept in the first of them. CPFTS turns a track and sector into a linear
-;;  sector number and then adds one plus a thirty-first of itself, which has the effect of skipping the first 512-byte
-;;  block of every page. Those blocks are not wasted: each holds a copy of the block mover described below, together
-;;  with the page list and, in the first page, the disc's name, random word and current path.
-;;
-;;  Pages 0 to &1F are ordinary internal RAM. Pages &20 and above are MegaRAM -- external memory selected through port
-;;  MRPRT with the paging register's top bit set. MRTAB is a bitmap of which MegaRAM pages are in use, one bit each,
-;;  so up to 256 of them can be tracked in 32 bytes.
-;;
-;;  The mover in every page
-;;
-;;  Copying a sector out of a RAM disc means having the source page and the destination page mapped at the same time,
-;;  which leaves nowhere for the code doing the copying to live -- it would be paged out along with whatever it was
-;;  reading. The answer is to put a copy of the mover in every RAM disc page: whichever page is mapped, the code is
-;;  there. FORMRD writes it at &8002 as each page is claimed, along with 128 LDI instructions at &8020 and a small
-;;  loop around them, so a 512-byte move is four passes of an unrolled block copy.
-;;
-;;  RDWSCT -- write a sector to a RAM disc
-;;
-;;  The data is staged through DRAM first unless it is already there, because the destination page has to be mapped in
-;;  and the caller's source might be in the page that gets displaced.
-;;
-;; RAM DISC WRITE SECTOR AT DE. D=TRACK, E=SECTOR.
+;; A caller whose data is already in DRAM is spared that, which is what
+;; the test at the top is for -- a source whose high byte is &7D is DRAM
+;; already, and the first copy is skipped.
 ;; --------------------------------------------------------------------
 
 ; ---- RDWSCT ---- from &4589
 RDWSCT:
-               CALL GTBUF                      ; 74C1 CD A0 4F  GET SRC ADDR IN HL. MAY BE 8000H+
-               LD A,&7D                        ; 74C4 3E 7D
+               CALL GTBUF                      ; 74C1 CD A0 4F  the source, which may be anywhere the caller chose
+               LD A,DRAM_PAGE_HIGH             ; 74C4 3E 7D
                CP H                            ; 74C6 BC
-               JR Z,RDW2                       ; 74C7 28 0C  JR IF SRC=DRAM (FIRST SECTORS,
+               JR Z,RDW2                       ; 74C7 28 0C  already in DRAM, so nothing to stage
                PUSH DE                         ; 74C9 D5  T/S
-               LD DE,DRAM                      ; 74CA 11 13 7D
+               LD DE,DRAM                      ; 74CA 11 13 7D  stage it through the DOS's own buffer
                LD BC,&0200                     ; 74CD 01 00 02
                PUSH DE                         ; 74D0 D5
                LDIR                            ; 74D1 ED B0
@@ -12785,11 +12769,11 @@ RDWSCT:
 RDW2:
                PUSH DE                         ; 74D5 D5  T/S
                PUSH HL                         ; 74D6 E5  SRC
-               CALL RDADR                      ; 74D7 CD 64 75  GET RD ADDR IN HL
+               CALL RDADR                      ; 74D7 CD 64 75  where in the RAM disc this track and sector live
                EX DE,HL                        ; 74DA EB  DEST IN RD INTO DE
                POP HL                          ; 74DB E1  SRC IN RAM
                LD BC,&0200                     ; 74DC 01 00 02
-               LDIR                            ; 74DF ED B0
+               LDIR                            ; 74DF ED B0  and the sector goes across
 
 RDW3:
                OUT (HMPR),A                    ; 74E1 D3 FB
@@ -12970,7 +12954,7 @@ RDADR:
                AND A                           ; 7567 A7
                JR Z,RDAD2                      ; 7568 28 14
                CALL SELFP                      ; 756A CD A7 75
-               LD HL,(MB_CALLDOS_2)            ; 756D 2A FF 82
+               LD HL,(RAMDISC_PAGE+&02FF)      ; 756D 2A FF 82
                OUT (HMPR),A                    ; 7570 D3 FB
                LD A,L                          ; 7572 7D
                ADD A,&03                       ; 7573 C6 03
@@ -13360,7 +13344,7 @@ PTRD:
 PTRD2:
                LD C,A                          ; 7722 4F
                CALL SELFP                      ; 7723 CD A7 75  SEL FIRST PAGE, EXIT WITH A=ORIG
-               LD HL,MB_V4125                  ; 7726 21 25 81  START OF FULL TABLE
+               LD HL,RAMDISC_PAGE+&0125        ; 7726 21 25 81  START OF FULL TABLE
                LD B,&00                        ; 7729 06 00
                ADD HL,BC                       ; 772B 09  PT TO REQUIRED ENTRY
                RET                             ; 772C C9
@@ -13391,7 +13375,7 @@ MRDPN:
                AND A                           ; 7733 A7
                JP Z,REP22                      ; 7734 CA 7D 51  "NO SUCH DRIVE" IF TKS=0
                CALL SELFP                      ; 7737 CD A7 75  SEL FIRST PAGE, EXIT WITH A=ORIG
-               LD HL,MB_FN_SVAL_S_1            ; 773A 21 60 81
+               LD HL,RAMDISC_PAGE+&0160        ; 773A 21 60 81
                LD DE,PTHRD+2                   ; 773D 11 D4 40
                EX AF,AF'                       ; 7740 08
                JR NC,MRDPN2                    ; 7741 30 01
@@ -13488,7 +13472,7 @@ READ_ADDRESS_CLEAR_1:
                XOR C                           ; 77A7 A9
                AND &E0                         ; 77A8 E6 E0
                XOR C                           ; 77AA A9  A=VALUE FOR PORT 250 TO PAGE
-               CALL MB_SOFV                    ; 77AB CD 02 80  IN DEST AT 4000H
+               CALL RAMDISC_PAGE+&0002         ; 77AB CD 02 80  IN DEST AT 4000H
                LD B,(HL)                       ; 77AE 46
                INC HL                          ; 77AF 23
                LD C,(HL)                       ; 77B0 4E  NEXT T/S
@@ -13500,19 +13484,38 @@ READ_ADDRESS_CLEAR_1:
 SDCHK:
                DEFB &CD,&A0,&4F                ; 77B6 M O  PT HL TO BUFF (EITHER DRAM
 
+;; --------------------------------------------------------------------
+;; Can the transfer be done where it stands, or must it go through DRAM?
+;;
+;; Two questions in six instructions, and the second is the interesting
+;; one.  A destination below &8000 is in this page already and needs
+;; nothing.  Above it, the destination is in the window, and 512 bytes
+;; starting near the top of the window would run off the end of it.
+;;
+;; THE TEST IS AN ADDITION RATHER THAN A COMPARE.  Adding &41FF to HL
+;; carries when HL is above &BE00, which is exactly when HL plus the
+;; last byte of a sector passes &BFFF.  The &4000 is there to move the
+;; carry to that boundary; the &1FF is the sector.  One ADD and one RET
+;; C answer it, with HL preserved by the PUSH and POP around them.
+;;
+;; If it fits, RES 7 and SET 6 turn &8xxx into &4xxx: the same byte,
+;; named as this page sees it rather than as the window does, so the
+;; caller can address it without the window at all.
+;; --------------------------------------------------------------------
+
 ; ---- SDCHK2 ---- from &7536, &775B
 SDCHK2:
                LD A,H                          ; 77B9 7C
-               CP &80                          ; 77BA FE 80
-               RET C                           ; 77BC D8  RET IF HL IN DRAM
+               CP RAMDISC_PAGE_HIGH            ; 77BA FE 80
+               RET C                           ; 77BC D8  below the window, so it is in this page and can be used as is
                PUSH HL                         ; 77BD E5
-               LD BC,L41FF                     ; 77BE 01 FF 41
-               ADD HL,BC                       ; 77C1 09
+               LD BC,&4000 + SECTOR_LENGTH - 1 ; 77BE 01 FF 41
+               ADD HL,BC                       ; 77C1 09  carry means the sector would run off the top of the window
                POP HL                          ; 77C2 E1
-               RET C                           ; 77C3 D8  CY IF HL WILL CROSS PAGE BOUNDARY
-               RES 7,H                         ; 77C4 CB BC  - USE BUFF
+               RET C                           ; 77C3 D8  it would, so the caller must stage through DRAM
+               RES 7,H                         ; 77C4 CB BC  &8xxx becomes &4xxx -- the same byte, seen from this page
                SET 6,H                         ; 77C6 CB F4
-               RET                             ; 77C8 C9  ADDR IN 4000-7FFF AREA NOW
+               RET                             ; 77C8 C9  reachable at &4000-&7FFF without the window
 
 ;; --------------------------------------------------------------------
 ;; AT 8002H
@@ -13523,8 +13526,8 @@ SDCHK2:
 
 ; ---- RDCODE ---- from &76C0
 RDCODE:
-               LD (MB_PUTSWA),SP               ; 77C9 ED 73 00 80
-               LD SP,MB_CALL_STKSTR_2          ; 77CD 31 00 82
+               LD (RAMDISC_PAGE),SP            ; 77C9 ED 73 00 80
+               LD SP,RAMDISC_PAGE+&0200        ; 77CD 31 00 82
                OUT (LMPR),A                    ; 77D0 D3 FA  PAGE IN DEST IN SECTION B
                PUSH BC                         ; 77D2 C5  ORIG PORT 250 VALUE
                EX AF,AF'                       ; 77D3 08
@@ -13538,7 +13541,7 @@ RDC1:
                CALL C,&8024                    ; 77DC DC 24 80  MOVE 1FEH BYTES
                POP AF                          ; 77DF F1
                OUT (LMPR),A                    ; 77E0 D3 FA
-               LD SP,(MB_PUTSWA)               ; 77E2 ED 7B 00 80
+               LD SP,(RAMDISC_PAGE)            ; 77E2 ED 7B 00 80
 
 RDCE:
                RET                             ; 77E6 C9
