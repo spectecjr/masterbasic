@@ -249,19 +249,28 @@ WORKSP:                         EQU  &5A91     ; address of the workspace
 WORKSPP:                        EQU  &5A90     ; page holding the workspace
 XPTR:                           EQU  &5AA3     ; address of the error marker
 
+; Idioms.
+; Some of this half is assembled at &4000 and executed at
+; &8000, through the window, because the boot copies it
+; there or because the ROM calls it with the pages the
+; other way round.  Its own labels are what the assembler
+; put them at, so reaching one from code that is running
+; high means adding the 16K between the two views.
+IN_PAGE_C:                      EQU  &4000     ; the window, less where this is assembled
+
 ; Addresses in the other page, which sits at &8000-&BFBF while
 ; this one is at &4000.  The names are its own labels.  A stored
 ; pointer written as NAME+&4000 has bit 15 set, the flag INDJP
 ; and CTAB use to mean "not in this page".
 DOS_BOOT:                       EQU  &8009
-DOS_BOOT_11:                    EQU  &807F
-DOS_BOOT_12:                    EQU  &8081
-DOS_BOOT_13:                    EQU  &8086
-DOS_BOOT_14:                    EQU  &8088
-DOS_BOOT_15:                    EQU  &8089
-DOS_BOOT_5:                     EQU  &8069
-DOS_BOOT_6:                     EQU  &806B
-DOS_BOOT_7:                     EQU  &806D
+DOS_BOOT_CHOOSE_STEP_DIRECTION: EQU  &806D
+DOS_BOOT_COMPARE_TRACK:         EQU  &8069
+DOS_BOOT_DATA_PORT_FROM_C:      EQU  &8086
+DOS_BOOT_DATA_PORT_PLUS_1:      EQU  &8089
+DOS_BOOT_DATA_PORT_PLUS_2:      EQU  &8088
+DOS_BOOT_READ_CMD_SETTLE:       EQU  &8081
+DOS_BOOT_SETTLE_AFTER_READ_CMD: EQU  &807F
+DOS_BOOT_TRACK_TEST:            EQU  &806B
 DOS_CHANNEL_ENTRY_AT_ZERO_PAGE: EQU  &AAEA
 DOS_DATDT:                      EQU  &8271
 DOS_DRIVE:                      EQU  &BC0B
@@ -298,11 +307,11 @@ DOS_ROOM_LEFT_IN_PAGE:          EQU  &8856
 DOS_SAMCNT:                     EQU  &8234
 DOS_SCFSM:                      EQU  &8DF8
 DOS_SNPRT2:                     EQU  &8108
+DOS_STACK_ON_ENTRY:             EQU  &80F9
 DOS_STREAM_OR_CHANNEL:          EQU  &A8DA
 DOS_SVHDR:                      EQU  &810A
 DOS_TEMPW1:                     EQU  &8212
 DOS_TIMDT:                      EQU  &8280
-DOS_V40F9:                      EQU  &80F9
 DOS_V4222:                      EQU  &8222
 DOS_V42B6:                      EQU  &82B6
 DOS_V42E2:                      EQU  &82E2
@@ -361,14 +370,14 @@ UPPER:                          EQU  &DF       ; clearing bit 5 folds a letter t
 DVAR_CMPFG:                     EQU  &42BA     ; DVAR 154 in the DOS page: SAVE MODE 1, 2 or 3 less one
 ENABLE_ROM1:                    EQU  &40       ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
 SKIP_1_VIA_CP:                  EQU  &FE       ; CP n, skipping one byte and clobbering the flags
+SKIP_1_VIA_LD_A:                EQU  &3E       ; LD A,n, standing here only to swallow the byte after it
 SKIP_1_VIA_LD_C:                EQU  &0E       ; LD C,n, skipping one byte and clobbering C
 SKIP_1_VIA_LD_D:                EQU  &16       ; LD D,n, skipping one byte and clobbering D
 SKIP_1_VIA_OR:                  EQU  &F6       ; OR n, skipping one byte and clobbering A and the flags
 SKIP_2_VIA_LD_DE:               EQU  &11       ; LD DE,nn, skipping two bytes and clobbering DE
-SKIP_2_VIA_LD_SP:               EQU  &31       ; LD SP,nn, skipping two bytes and clobbering SP
-SKIP_NEXT_1_BYTE:               EQU  &3E       ; LD A,n, standing here only to swallow the byte after it
-SKIP_NEXT_2_BYTES:              EQU  &21       ; LD HL,nn, standing here only to swallow the two bytes after it -- see
+SKIP_2_VIA_LD_HL:               EQU  &21       ; LD HL,nn, standing here only to swallow the two bytes after it -- see
                                                ; docs/idioms.md
+SKIP_2_VIA_LD_SP:               EQU  &31       ; LD SP,nn, skipping two bytes and clobbering SP
 SYSPAGE_IN_B:                   EQU  &1F       ; LMPR &1F: page 31 at &0000, so section B gets page 32, which wraps to
                                                ; the system page. The ROM source calls it PAGE1F
 SYS_CDBUFF_11:                  EQU  &4D11
@@ -940,7 +949,7 @@ V4135:
 SEND_BYTE_TO_PRINTER:
                PUSH BC                         ; 4137 C5
                LD C,A                          ; 4138 4F
-               LD A,(SORP+&4000)               ; 4139 3A 06 80
+               LD A,(SORP+IN_PAGE_C)           ; 4139 3A 06 80
                AND A                           ; 413C A7
                LD A,C                          ; 413D 79
                JR NZ,SEND_BYTE_TO_PRINTER_1    ; 413E 20 0F
@@ -956,7 +965,7 @@ SEND_BYTE_TO_PRINTER:
 
 ; ---- SEND_BYTE_TO_PRINTER_1 ---- from &413E when A <> 0
 SEND_BYTE_TO_PRINTER_1:
-               LD BC,(SPORT+&4000)             ; 414F ED 4B 0B 80
+               LD BC,(SPORT+IN_PAGE_C)         ; 414F ED 4B 0B 80
                LD B,&03                        ; 4153 06 03
                OUT (C),A                       ; 4155 ED 79
                POP BC                          ; 4157 C1
@@ -1046,7 +1055,7 @@ FN_SVAL_S_2:
 FN_SVAL_S_3:
                IN A,(LMPR)                     ; 41B4 DB FA
                INC A                           ; 41B6 3C
-               LD DE,V41C0+&4000               ; 41B7 11 C0 81
+               LD DE,V41C0+IN_PAGE_C           ; 41B7 11 C0 81
 
 ; ---- CALL_STKSTR ---- from &47C9, &4E30, &56C7
 CALL_STKSTR:
@@ -1064,22 +1073,22 @@ V41C4:
 
 ; ---- CALL_STKSTR_1 ---- from &4E39 when A = &50
 CALL_STKSTR_1:
-               CALL CMR                        ; 41C5 CD F0 44
-               DEFW J_SBUFFET                  ; 41C8 2A 01
-               IN A,(HMPR)                     ; 41CA DB FB
-               PUSH AF                         ; 41CC F5
-               XOR A                           ; 41CD AF
-               OUT (HMPR),A                    ; 41CE D3 FB
-               LD HL,FN_SVAL_S_4+&4000         ; 41D0 21 00 8F
-               LD A,C                          ; 41D3 79
-               CP &02                          ; 41D4 FE 02
-               JR NZ,CALL_STKSTR_FAIL          ; 41D6 20 0C
-               LD B,(HL)                       ; 41D8 46
-               INC HL                          ; 41D9 23
-               LD C,(HL)                       ; 41DA 4E
-               CALL STACK_PAGE0_STRING         ; 41DB CD 6B 4C
-               LD DE,(PAGE_IN_ROM1_1+&4000)    ; 41DE ED 5B 65 9C
-               JR CALL_STKSTR_DONE             ; 41E2 18 3C
+               CALL CMR                         ; 41C5 CD F0 44
+               DEFW J_SBUFFET                   ; 41C8 2A 01
+               IN A,(HMPR)                      ; 41CA DB FB
+               PUSH AF                          ; 41CC F5
+               XOR A                            ; 41CD AF
+               OUT (HMPR),A                     ; 41CE D3 FB
+               LD HL,FN_SVAL_S_4+IN_PAGE_C      ; 41D0 21 00 8F
+               LD A,C                           ; 41D3 79
+               CP &02                           ; 41D4 FE 02
+               JR NZ,CALL_STKSTR_FAIL           ; 41D6 20 0C
+               LD B,(HL)                        ; 41D8 46
+               INC HL                           ; 41D9 23
+               LD C,(HL)                        ; 41DA 4E
+               CALL STACK_PAGE0_STRING          ; 41DB CD 6B 4C
+               LD DE,(PAGE_IN_ROM1_1+IN_PAGE_C) ; 41DE ED 5B 65 9C
+               JR CALL_STKSTR_DONE              ; 41E2 18 3C
 
 ; ---- CALL_STKSTR_FAIL ---- from &41D6 when A <> &02
 CALL_STKSTR_FAIL:
@@ -1124,14 +1133,14 @@ CALL_STKSTR_LOOP:
 
 ; ---- CALL_STKSTR_3 ---- from &41FD when bit 7 was set
 CALL_STKSTR_3:
-               LD DE,(STKEND+&4000)            ; 420D ED 5B 65 9C
+               LD DE,(STKEND+IN_PAGE_C)        ; 420D ED 5B 65 9C
                LD A,D                          ; 4211 7A
                SET 7,D                         ; 4212 CB FA
                RES 6,D                         ; 4214 CB B2
                LD BC,&0005                     ; 4216 01 05 00
                LDIR                            ; 4219 ED B0
                LD D,A                          ; 421B 57
-               LD (STKEND+&4000),DE            ; 421C ED 53 65 9C
+               LD (STKEND+IN_PAGE_C),DE        ; 421C ED 53 65 9C
 
 ; ---- CALL_STKSTR_DONE ---- from &41E2
 CALL_STKSTR_DONE:
@@ -1507,7 +1516,7 @@ HK_SERRECV_LOOP:
 
 CHECK_PRINTER_READY:
                PUSH BC                         ; 432B C5
-               LD A,(SORP+&4000)               ; 432C 3A 06 80
+               LD A,(SORP+IN_PAGE_C)           ; 432C 3A 06 80
                AND A                           ; 432F A7
                JR NZ,CHECK_PRINTER_READY_1     ; 4330 20 09
                LD BC,(LPTPRT1)                 ; 4332 ED 4B 10 5A
@@ -1518,7 +1527,7 @@ CHECK_PRINTER_READY:
 
 ; ---- CHECK_PRINTER_READY_1 ---- from &4330 when A <> 0
 CHECK_PRINTER_READY_1:
-               LD A,(SPORT+&4000)              ; 433B 3A 0B 80
+               LD A,(SPORT+IN_PAGE_C)          ; 433B 3A 0B 80
                LD C,A                          ; 433E 4F
                LD B,&01                        ; 433F 06 01
                IN A,(C)                        ; 4341 ED 78
@@ -1652,38 +1661,38 @@ BYTE_ARGUMENT:
 ; &5525 when A >= &10, &5546 when A >= &07, &5588 when A >= &02, &5AF3 when A >= &21 ...
 REP_INTEGER_OUT_OF_RANGE:
                LD A,ERR_INTEGER_OUT_OF_RANGE   ; 43A7 3E 1E  error 30, "Integer out of range"
-               DEFB SKIP_NEXT_2_BYTES          ; 43A9 !
+               DEFB SKIP_2_VIA_LD_HL           ; 43A9 !
 
 ; ---- REP_MISSING_DEF_PROC ---- from &5334 when A wraps to 0
 REP_MISSING_DEF_PROC:
                LD A,ERR_MISSING_DEF_PROC       ; 43AA 3E 0C  error 12, "Missing DEF PROC"
-               DEFB SKIP_NEXT_2_BYTES          ; 43AC !
+               DEFB SKIP_2_VIA_LD_HL           ; 43AC !
 
 ; ---- REP_SIZE_MISMATCH ---- from &706E
 REP_SIZE_MISMATCH:
                LD A,ERR_SIZE_MISMATCH          ; 43AD 3E 77  error 119, "Size mismatch"
-               DEFB SKIP_NEXT_2_BYTES          ; 43AF !
+               DEFB SKIP_2_VIA_LD_HL           ; 43AF !
 
 ; ---- REP_NOT_UNDERSTOOD ---- from &445E when A <> C, &44D3, &475D, &530C when A <> &15, &555B when A <> &8E, &5648
 ; when A <> &CE, &57C1, &6E6F when A <> &3A ...
 REP_NOT_UNDERSTOOD:
                LD A,ERR_NOT_UNDERSTOOD         ; 43B0 3E 1D  error 29, "Not understood"
-               DEFB SKIP_NEXT_2_BYTES          ; 43B2 !
+               DEFB SKIP_2_VIA_LD_HL           ; 43B2 !
 
 ; ---- REP_NOT_FOUND ---- from &43E0
 REP_NOT_FOUND:
                LD A,ERR_NOT_FOUND              ; 43B3 3E 02  error 2, "not found"
-               DEFB SKIP_NEXT_2_BYTES          ; 43B5 !
+               DEFB SKIP_2_VIA_LD_HL           ; 43B5 !
 
 ; ---- REP_SUBSCRIPT_WRONG ---- from &47F3
 REP_SUBSCRIPT_WRONG:
                LD A,ERR_SUBSCRIPT_WRONG        ; 43B6 3E 04  error 4, "Subscript wrong"
-               DEFB SKIP_NEXT_2_BYTES          ; 43B8 !
+               DEFB SKIP_2_VIA_LD_HL           ; 43B8 !
 
 ; ---- REP_STRING_TOO_LONG ---- from &4772 when A >= &40, &4D8B when A >= &40, &4DD2 when A >= &40, &7075, &713D
 REP_STRING_TOO_LONG:
                LD A,ERR_STRING_TOO_LONG        ; 43B9 3E 2A  error 42, "String too long"
-               DEFB SKIP_NEXT_2_BYTES          ; 43BB !
+               DEFB SKIP_2_VIA_LD_HL           ; 43BB !
 
 ; ---- REP_ARGUMENT ---- from &417B when A >= &04, &41E8 when A >= &03, &43EE when bit 5 of C set, &4402 when A is not 0
 ; yet
@@ -2044,7 +2053,7 @@ GET_LONG_INTEGER:
                INC A                                ; 4498 3C
                CALL TSURPG                          ; 4499 CD DF 3F
                CALL CMR                             ; 449C CD F0 44
-               DEFW &44AE+&4000                     ; 449F AE 84
+               DEFW &44AE+IN_PAGE_C                 ; 449F AE 84
                POP AF                               ; 44A1 F1
                OUT (HMPR),A                         ; 44A2 D3 FB
                CALL CALL_GETINT                     ; 44A4 CD 76 44
@@ -2192,12 +2201,12 @@ CMR:
                OUT (HMPR),A                    ; 450B D3 FB
                LD IY,&0000                     ; 450D FD 21 00 00
                ADD IY,SP                       ; 4511 FD 39
-               JP CMR_1+&4000                  ; 4513 C3 16 85
+               JP CMR_1+IN_PAGE_C              ; 4513 C3 16 85
 
 CMR_1:
                LD A,B                          ; 4516 78
                OR SYSPAGE_IN_B                 ; 4517 F6 1F
-               LD HL,(V4076+&4000)             ; 4519 2A 76 80
+               LD HL,(V4076+IN_PAGE_C)         ; 4519 2A 76 80
                DI                              ; 451C F3
                OUT (LMPR),A                    ; 451D D3 FA
                LD SP,HL                        ; 451F F9
@@ -4254,7 +4263,7 @@ SEARCH_MEMORY_LOOP:
                CPIR                            ; 4CAD ED B1
                JR NZ,SEARCH_MEMORY_LOOP3       ; 4CAF 20 2A
                PUSH HL                         ; 4CB1 E5
-               DEFB SKIP_NEXT_1_BYTE           ; 4CB2 >  skipped: reads as LD A,&23 from here, and as part of the
+               DEFB SKIP_1_VIA_LD_A            ; 4CB2 >  skipped: reads as LD A,&23 from here, and as part of the
                                                ; instruction above it
 
 ; ---- SEARCH_MEMORY_LOOP2 ---- from &4CBC when A = (HL), &4CC1 when A = C
@@ -4345,7 +4354,7 @@ SEARCH_MEMORY_LOOP4:
                JR NZ,SEARCH_MEMORY_LOOP3       ; 4D06 20 D3
                LD DE,INSTALL_ROM_PATCHES       ; 4D08 11 00 7B
                PUSH HL                         ; 4D0B E5
-               DEFB SKIP_NEXT_1_BYTE           ; 4D0C >  skipped: reads as LD A,&23 from here, and as part of the
+               DEFB SKIP_1_VIA_LD_A            ; 4D0C >  skipped: reads as LD A,&23 from here, and as part of the
                                                ; instruction above it
 
 ; ---- SEARCH_MEMORY_LOOP5 ---- from &4D18 when A = C, &4D1D when no bit of &DF is set
@@ -5224,13 +5233,13 @@ HPRTOK_1:
                IN E,(C)                        ; 506E ED 58
                OUT (C),B                       ; 5070 ED 41
                LD B,E                          ; 5072 43
-               LD HL,(CURCHL+&4000)            ; 5073 2A 51 9C
+               LD HL,(CURCHL+IN_PAGE_C)        ; 5073 2A 51 9C
                SET 7,H                         ; 5076 CB FC
                RES 6,H                         ; 5078 CB B4
                LD E,(HL)                       ; 507A 5E
                INC HL                          ; 507B 23
                LD D,(HL)                       ; 507C 56
-               LD (OPSTORE+&4000),DE           ; 507D ED 53 B5 9A
+               LD (OPSTORE+IN_PAGE_C),DE       ; 507D ED 53 B5 9A
                LD DE,SYS_GAP_BLOCK             ; 5081 11 96 58
                LD (HL),D                       ; 5084 72
                DEC HL                          ; 5085 2B
@@ -5267,10 +5276,10 @@ HK_HPFF_2:
                IN E,(C)                        ; 50B0 ED 58
                OUT (C),B                       ; 50B2 ED 41
                LD B,E                          ; 50B4 43
-               LD HL,(CURCHL+&4000)            ; 50B5 2A 51 9C
+               LD HL,(CURCHL+IN_PAGE_C)        ; 50B5 2A 51 9C
                SET 7,H                         ; 50B8 CB FC
                RES 6,H                         ; 50BA CB B4
-               LD DE,(OPSTORE+&4000)           ; 50BC ED 5B B5 9A
+               LD DE,(OPSTORE+IN_PAGE_C)       ; 50BC ED 5B B5 9A
                LD (HL),E                       ; 50C0 73
                INC HL                          ; 50C1 23
                LD (HL),D                       ; 50C2 72
@@ -5648,7 +5657,7 @@ HK_RCPTCH_4:
                LD (DOS_OFSM_1),A               ; 5256 32 2D 8D
                LD A,&24                        ; 5259 3E 24
                LD (&8D38),A                    ; 525B 32 38 8D
-               LD A,(CHADP+&4000)              ; 525E 3A 96 9A
+               LD A,(CHADP+IN_PAGE_C)          ; 525E 3A 96 9A
                OUT (HMPR),A                    ; 5261 D3 FB
                POP DE                          ; 5263 D1
                POP BC                          ; 5264 C1
@@ -6379,7 +6388,7 @@ INIT_SERIAL_FROM_TABLE_1:
                EX AF,AF'                       ; 55A9 08
                XOR A                           ; 55AA AF
                OUT (HMPR),A                    ; 55AB D3 FB
-               LD HL,(CHANS+&4000)             ; 55AD 2A 4F 9C
+               LD HL,(CHANS+IN_PAGE_C)         ; 55AD 2A 4F 9C
                LD BC,&4019                     ; 55B0 01 19 40
                ADD HL,BC                       ; 55B3 09
                EX DE,HL                        ; 55B4 EB
@@ -6475,7 +6484,7 @@ INIT_SERIAL_FROM_TABLE_DONE:
 INSTALL_CHANNEL_HANDLER:
                PUSH HL                         ; 561B E5
                CALL NRRDD                      ; 561C CD 5F 45
-               DEFW CHANS+&4000                ; 561F 4F 9C
+               DEFW CHANS+IN_PAGE_C            ; 561F 4F 9C
                LD HL,&0019                     ; 5621 21 19 00
                ADD HL,BC                       ; 5624 09
                POP BC                          ; 5625 C1
@@ -6491,7 +6500,7 @@ INSTALL_CHANNEL_HANDLER:
 ; ---- IS_CHANNEL_OURS ---- from &55F0
 IS_CHANNEL_OURS:
                CALL NRRDD                      ; 5629 CD 5F 45
-               DEFW CHANS+&4000                ; 562C 4F 9C
+               DEFW CHANS+IN_PAGE_C            ; 562C 4F 9C
                LD HL,&0019                     ; 562E 21 19 00
                ADD HL,BC                       ; 5631 09
                CALL RDBC                       ; 5632 CD C2 45
@@ -7447,7 +7456,7 @@ SEND_COUNTED_TO_CHANNEL_LOOP:
                PUSH HL                           ; 598D E5
                PUSH AF                           ; 598E F5
                CALL NRRDD                        ; 598F CD 5F 45
-               DEFW CHANS+&4000                  ; 5992 4F 9C
+               DEFW CHANS+IN_PAGE_C              ; 5992 4F 9C
                POP AF                            ; 5994 F1
                LD HL,&0019                       ; 5995 21 19 00
                ADD HL,BC                         ; 5998 09
@@ -7523,10 +7532,10 @@ SEND_COUNTED_TO_CHANNEL_1:
 ; ---- SCREEN_BLANK_TICK ---- from &59B1 when A <> &10, &59BD when A <> &06, &59C5 when A < C, &59C8 when A >= B, &59CD
 ; when A >= D
 SCREEN_BLANK_TICK:
-               LD A,(SOFV+&4000)               ; 59E8 3A 02 80
+               LD A,(SOFV+IN_PAGE_C)           ; 59E8 3A 02 80
                AND A                           ; 59EB A7
                JR Z,SCREEN_BLANK_TICK_1        ; 59EC 28 0E
-               LD HL,SOFCOUNT+&4000            ; 59EE 21 73 80
+               LD HL,SOFCOUNT+IN_PAGE_C        ; 59EE 21 73 80
                DEC (HL)                        ; 59F1 35
                JR NZ,SCREEN_BLANK_TICK_1       ; 59F2 20 08
                LD (HL),A                       ; 59F4 77
@@ -7537,7 +7546,7 @@ SCREEN_BLANK_TICK:
 
 ; ---- SCREEN_BLANK_TICK_1 ---- from &59EC when A = 0, &59F2, &59F9
 SCREEN_BLANK_TICK_1:
-               LD A,(V4085+&4000)              ; 59FC 3A 85 80
+               LD A,(V4085+IN_PAGE_C)          ; 59FC 3A 85 80
                AND A                           ; 59FF A7
                JR Z,SCREEN_BLANK_TICK_8        ; 5A00 28 69
                DEC A                           ; 5A02 3D
@@ -7549,15 +7558,15 @@ SCREEN_BLANK_TICK_1:
 
 ; ---- SCREEN_BLANK_TICK_LOOP ---- from &5A63
 SCREEN_BLANK_TICK_LOOP:
-               LD DE,(DOS_BOOT_13)             ; 5A0B ED 5B 86 80
-               LD HL,(DOS_BOOT_15)             ; 5A0F 2A 89 80
-               AND A                           ; 5A12 A7
-               SBC HL,DE                       ; 5A13 ED 52
-               JR NZ,SCREEN_BLANK_TICK_2       ; 5A15 20 07
-               LD A,(DOS_BOOT_14)              ; 5A17 3A 88 80
-               DEC A                           ; 5A1A 3D
-               CP B                            ; 5A1B B8
-               JR Z,SCREEN_BLANK_TICK_7        ; 5A1C 28 4C
+               LD DE,(DOS_BOOT_DATA_PORT_FROM_C) ; 5A0B ED 5B 86 80
+               LD HL,(DOS_BOOT_DATA_PORT_PLUS_1) ; 5A0F 2A 89 80
+               AND A                             ; 5A12 A7
+               SBC HL,DE                         ; 5A13 ED 52
+               JR NZ,SCREEN_BLANK_TICK_2         ; 5A15 20 07
+               LD A,(DOS_BOOT_DATA_PORT_PLUS_2)  ; 5A17 3A 88 80
+               DEC A                             ; 5A1A 3D
+               CP B                              ; 5A1B B8
+               JR Z,SCREEN_BLANK_TICK_7          ; 5A1C 28 4C
 
 ; ---- SCREEN_BLANK_TICK_2 ---- from &5A15
 SCREEN_BLANK_TICK_2:
@@ -7591,7 +7600,7 @@ SCREEN_BLANK_TICK_3:
 
 ; ---- SCREEN_BLANK_TICK_4 ---- from &5A22 when a bit of &03 is set, &5A2E when A <> &FE
 SCREEN_BLANK_TICK_4:
-               CALL CHECK_PRINTER_READY+&4000  ; 5A42 CD 2B 83  the printer-ready test, called through the window
+               CALL CHECK_PRINTER_READY+IN_PAGE_C ; 5A42 CD 2B 83  the printer-ready test, called through the window
 
 ; ---- SCREEN_BLANK_TICK_5 ---- from &71D4
 SCREEN_BLANK_TICK_5:
@@ -7600,29 +7609,29 @@ SCREEN_BLANK_TICK_5:
                OUT (LMPR),A                    ; 5A48 D3 FA
                LD A,(DE)                       ; 5A4A 1A
                INC DE                          ; 5A4B 13
-               LD (V4086+&4000),DE             ; 5A4C ED 53 86 80
+               LD (V4086+IN_PAGE_C),DE         ; 5A4C ED 53 86 80
                LD D,A                          ; 5A50 57
                LD A,C                          ; 5A51 79
                OUT (LMPR),A                    ; 5A52 D3 FA
 
 ; ---- SCREEN_BLANK_TICK_6 ---- from DOS &6884, DOS &688C
 SCREEN_BLANK_TICK_6:
-               LD A,D                          ; 5A54 7A
-               CALL SEND_BYTE_TO_PRINTER+&4000 ; 5A55 CD 37 81
-               POP AF                          ; 5A58 F1
-               DEC A                           ; 5A59 3D
-               JR Z,SCREEN_BLANK_TICK_8        ; 5A5A 28 0F
-               PUSH AF                         ; 5A5C F5
-               LD HL,(ILPD+&4000)              ; 5A5D 2A 09 80  the not-ready delay, from XVAR 9
+               LD A,D                              ; 5A54 7A
+               CALL SEND_BYTE_TO_PRINTER+IN_PAGE_C ; 5A55 CD 37 81
+               POP AF                              ; 5A58 F1
+               DEC A                               ; 5A59 3D
+               JR Z,SCREEN_BLANK_TICK_8            ; 5A5A 28 0F
+               PUSH AF                             ; 5A5C F5
+               LD HL,(ILPD+IN_PAGE_C)              ; 5A5D 2A 09 80  the not-ready delay, from XVAR 9
 
 ; ---- SCREEN_BLANK_TICK_LOOP2 ---- from &5A68
 SCREEN_BLANK_TICK_LOOP2:
-               CALL CHECK_PRINTER_READY+&4000  ; 5A60 CD 2B 83
-               JR NC,SCREEN_BLANK_TICK_LOOP    ; 5A63 30 A6
-               DEC HL                          ; 5A65 2B
-               LD A,H                          ; 5A66 7C
-               OR L                            ; 5A67 B5
-               JR NZ,SCREEN_BLANK_TICK_LOOP2   ; 5A68 20 F6
+               CALL CHECK_PRINTER_READY+IN_PAGE_C ; 5A60 CD 2B 83
+               JR NC,SCREEN_BLANK_TICK_LOOP       ; 5A63 30 A6
+               DEC HL                             ; 5A65 2B
+               LD A,H                             ; 5A66 7C
+               OR L                               ; 5A67 B5
+               JR NZ,SCREEN_BLANK_TICK_LOOP2      ; 5A68 20 F6
 
 ; ---- SCREEN_BLANK_TICK_7 ---- from &5A1C when A = B, &5A45
 SCREEN_BLANK_TICK_7:
@@ -7630,18 +7639,18 @@ SCREEN_BLANK_TICK_7:
 
 ; ---- SCREEN_BLANK_TICK_8 ---- from &5A00 when A = 0, &5A5A when A reaches 0
 SCREEN_BLANK_TICK_8:
-               LD A,(&8084)                    ; 5A6B 3A 84 80
-               AND A                           ; 5A6E A7
-               RET Z                           ; 5A6F C8
-               DEC A                           ; 5A70 3D
-               LD (&8084),A                    ; 5A71 32 84 80
-               RET NZ                          ; 5A74 C0
-               IN A,(LMPR)                     ; 5A75 DB FA
-               LD C,A                          ; 5A77 4F
-               LD A,(&807E)                    ; 5A78 3A 7E 80
-               DEC A                           ; 5A7B 3D
-               OUT (LMPR),A                    ; 5A7C D3 FA
-               LD DE,(DOS_BOOT_11)             ; 5A7E ED 5B 7F 80
+               LD A,(&8084)                           ; 5A6B 3A 84 80
+               AND A                                  ; 5A6E A7
+               RET Z                                  ; 5A6F C8
+               DEC A                                  ; 5A70 3D
+               LD (&8084),A                           ; 5A71 32 84 80
+               RET NZ                                 ; 5A74 C0
+               IN A,(LMPR)                            ; 5A75 DB FA
+               LD C,A                                 ; 5A77 4F
+               LD A,(&807E)                           ; 5A78 3A 7E 80
+               DEC A                                  ; 5A7B 3D
+               OUT (LMPR),A                           ; 5A7C D3 FA
+               LD DE,(DOS_BOOT_SETTLE_AFTER_READ_CMD) ; 5A7E ED 5B 7F 80
 
 ; ---- SCREEN_BLANK_TICK_LOOP3 ---- from &5AD2
 SCREEN_BLANK_TICK_LOOP3:
@@ -7652,7 +7661,7 @@ SCREEN_BLANK_TICK_LOOP3:
                IN A,(LMPR)                     ; 5A8A DB FA
                INC A                           ; 5A8C 3C
                LD H,A                          ; 5A8D 67
-               LD A,(DOS_BOOT_12)              ; 5A8E 3A 81 80
+               LD A,(DOS_BOOT_READ_CMD_SETTLE) ; 5A8E 3A 81 80
                CP H                            ; 5A91 BC
                JR Z,SCREEN_BLANK_TICK_DONE     ; 5A92 28 2A
 
@@ -7697,10 +7706,10 @@ SCREEN_BLANK_TICK_12:
 
 ; ---- SCREEN_BLANK_TICK_DONE ---- from &5A92 when A = H
 SCREEN_BLANK_TICK_DONE:
-               LD A,C                          ; 5ABE 79
-               OUT (LMPR),A                    ; 5ABF D3 FA
-               LD (DOS_BOOT_11),DE             ; 5AC1 ED 53 7F 80
-               RET                             ; 5AC5 C9
+               LD A,C                                 ; 5ABE 79
+               OUT (LMPR),A                           ; 5ABF D3 FA
+               LD (DOS_BOOT_SETTLE_AFTER_READ_CMD),DE ; 5AC1 ED 53 7F 80
+               RET                                    ; 5AC5 C9
 
 ; ---- SCREEN_BLANK_TICK_13 ---- from &5AB7 when A <> &20
 SCREEN_BLANK_TICK_13:
@@ -8250,46 +8259,47 @@ BUILD_PAGE_IN_TRAMPOLINE:
                INC HL                          ; 5CF0 23
 
 L5CF1:
-               LD BC,&0000                         ; 5CF1 01 00 00  the operand is written here at run time, from &79BA
-               LD (HL),C                           ; 5CF4 71
-               INC HL                              ; 5CF5 23
-               LD (HL),B                           ; 5CF6 70
-               INC HL                              ; 5CF7 23
-               LD (HL),&D0                         ; 5CF8 36 D0
-               INC HL                              ; 5CFA 23
-               LD (HL),&3E                         ; 5CFB 36 3E
-               INC HL                              ; 5CFD 23
-               IN A,(LMPR)                         ; 5CFE DB FA
-               INC A                               ; 5D00 3C
-               AND PAGEMASK                        ; 5D01 E6 1F
-               LD (HL),A                           ; 5D03 77
-               INC HL                              ; 5D04 23
-               LD (HL),&D3                         ; 5D05 36 D3
-               INC HL                              ; 5D07 23
-               LD (HL),&FB                         ; 5D08 36 FB
-               INC HL                              ; 5D0A 23
-               LD (HL),&21                         ; 5D0B 36 21
-               INC HL                              ; 5D0D 23
-               LD (HL),E                           ; 5D0E 73
-               INC HL                              ; 5D0F 23
-               LD (HL),D                           ; 5D10 72
-               INC HL                              ; 5D11 23
-               LD (HL),&C3                         ; 5D12 36 C3
-               INC HL                              ; 5D14 23
-               LD BC,&9D20                         ; 5D15 01 20 9D
-               LD (HL),C                           ; 5D18 71
-               INC HL                              ; 5D19 23
-               LD (HL),B                           ; 5D1A 70
-               LD BC,&4D50                         ; 5D1B 01 50 4D
-               JR RESTORE_HMPR_AND_STORE           ; 5D1E 18 3C
-               LD DE,SYS_CDBUFF_50                 ; 5D20 11 50 4D  where the trampoline lands, with this half paged in
-                                                   ; at &8000
-               LD BC,&0015                         ; 5D23 01 15 00
-               LDIR                                ; 5D26 ED B0
-               LD HL,COPY_THEN_APPEND_CALL_6+&4000 ; 5D28 21 1F 9E
-               LD C,&45                            ; 5D2B 0E 45
-               LDIR                                ; 5D2D ED B0
-               JP &4D53                            ; 5D2F C3 53 4D
+               LD BC,&0000                             ; 5CF1 01 00 00  the operand is written here at run time, from
+                                                       ; &79BA
+               LD (HL),C                               ; 5CF4 71
+               INC HL                                  ; 5CF5 23
+               LD (HL),B                               ; 5CF6 70
+               INC HL                                  ; 5CF7 23
+               LD (HL),&D0                             ; 5CF8 36 D0
+               INC HL                                  ; 5CFA 23
+               LD (HL),&3E                             ; 5CFB 36 3E
+               INC HL                                  ; 5CFD 23
+               IN A,(LMPR)                             ; 5CFE DB FA
+               INC A                                   ; 5D00 3C
+               AND PAGEMASK                            ; 5D01 E6 1F
+               LD (HL),A                               ; 5D03 77
+               INC HL                                  ; 5D04 23
+               LD (HL),&D3                             ; 5D05 36 D3
+               INC HL                                  ; 5D07 23
+               LD (HL),&FB                             ; 5D08 36 FB
+               INC HL                                  ; 5D0A 23
+               LD (HL),&21                             ; 5D0B 36 21
+               INC HL                                  ; 5D0D 23
+               LD (HL),E                               ; 5D0E 73
+               INC HL                                  ; 5D0F 23
+               LD (HL),D                               ; 5D10 72
+               INC HL                                  ; 5D11 23
+               LD (HL),&C3                             ; 5D12 36 C3
+               INC HL                                  ; 5D14 23
+               LD BC,&9D20                             ; 5D15 01 20 9D
+               LD (HL),C                               ; 5D18 71
+               INC HL                                  ; 5D19 23
+               LD (HL),B                               ; 5D1A 70
+               LD BC,&4D50                             ; 5D1B 01 50 4D
+               JR RESTORE_HMPR_AND_STORE               ; 5D1E 18 3C
+               LD DE,SYS_CDBUFF_50                     ; 5D20 11 50 4D  where the trampoline lands, with this half paged
+                                                       ; in at &8000
+               LD BC,&0015                             ; 5D23 01 15 00
+               LDIR                                    ; 5D26 ED B0
+               LD HL,COPY_THEN_APPEND_CALL_6+IN_PAGE_C ; 5D28 21 1F 9E
+               LD C,&45                                ; 5D2B 0E 45
+               LDIR                                    ; 5D2D ED B0
+               JP &4D53                                ; 5D2F C3 53 4D
 
 ;; --------------------------------------------------------------------
 ;; PAUSE, token &C2.  It parses nothing: it builds.  PREPARE_COPY_AT_5000 puts &5000 in
@@ -8503,7 +8513,7 @@ SILENCE_SOUND_CHIP_2:
                AND A                           ; 5DEA A7
                RET Z                           ; 5DEB C8
                PUSH HL                         ; 5DEC E5
-               DEFB SKIP_NEXT_1_BYTE           ; 5DED >  skipped: reads as LD A,&10 from here, and as part of the
+               DEFB SKIP_1_VIA_LD_A            ; 5DED >  skipped: reads as LD A,&10 from here, and as part of the
                                                ; instruction above it
 
 ; ---- COPY_THEN_APPEND_CALL_5 ---- from &5DCF when bit 1 of A set
@@ -8957,8 +8967,8 @@ SHOW_LINE_AND_STATEMENT:
                LD BC,(PPC)                     ; 5FB9 ED 4B 45 5C
                INC B                           ; 5FBD 04
                RET Z                           ; 5FBE C8
-               LD (V4071+&4000),SP             ; 5FBF ED 73 71 80
-               LD SP,HK_SERSEND+&4000          ; 5FC3 31 00 83
+               LD (V4071+IN_PAGE_C),SP         ; 5FBF ED 73 71 80
+               LD SP,HK_SERSEND+IN_PAGE_C      ; 5FC3 31 00 83
                DEC B                           ; 5FC6 05
                LD HL,&5860                     ; 5FC7 21 60 58
                IN A,(VMPR)                     ; 5FCA DB FC
@@ -8971,17 +8981,17 @@ SHOW_LINE_AND_STATEMENT:
 
 ; ---- SHOW_LINE_AND_STATEMENT_1 ---- from &5FCE when bit 6 of A set, &5FD5 when bit 5 of A set
 SHOW_LINE_AND_STATEMENT_1:
-               LD (V406D+&4000),HL             ; 5FDA 22 6D 80
-               CALL CHECK_BREAK_6+&4000        ; 5FDD CD E1 A0
+               LD (V406D+IN_PAGE_C),HL         ; 5FDA 22 6D 80
+               CALL CHECK_BREAK_6+IN_PAGE_C    ; 5FDD CD E1 A0
                LD A,&3A                        ; 5FE0 3E 3A
-               CALL CHECK_BREAK_2+&4000        ; 5FE2 CD 2A A0
+               CALL CHECK_BREAK_2+IN_PAGE_C    ; 5FE2 CD 2A A0
                LD A,(SUBPPC)                   ; 5FE5 3A 47 5C
-               LD HL,CHECK_BREAK_10+&4000      ; 5FE8 21 14 A1
+               LD HL,CHECK_BREAK_10+IN_PAGE_C  ; 5FE8 21 14 A1
                LD C,A                          ; 5FEB 4F
                LD B,&00                        ; 5FEC 06 00
-               CALL CHECK_BREAK_7+&4000        ; 5FEE CD E4 A0
-               LD SP,(V4071+&4000)             ; 5FF1 ED 7B 71 80
-               LD A,(V406F+&4000)              ; 5FF5 3A 6F 80
+               CALL CHECK_BREAK_7+IN_PAGE_C    ; 5FEE CD E4 A0
+               LD SP,(V4071+IN_PAGE_C)         ; 5FF1 ED 7B 71 80
+               LD A,(V406F+IN_PAGE_C)          ; 5FF5 3A 6F 80
                AND A                           ; 5FF8 A7
                RET Z                           ; 5FF9 C8
                LD B,A                          ; 5FFA 47
@@ -9012,7 +9022,7 @@ CHECK_BREAK:
 
 ; ---- CHECK_BREAK_1 ---- from &6004 when a bit of &20 is set
 CHECK_BREAK_1:
-               CALL READ_KEY_LINE+&4000        ; 6008 CD B5 93
+               CALL READ_KEY_LINE+IN_PAGE_C    ; 6008 CD B5 93
                JR C,SHOW_LINE_AND_STATEMENT_2  ; 600B 38 F1
                LD H,&15                        ; 600D 26 15
 
@@ -9030,7 +9040,7 @@ CHECK_BREAK_LOOP2:
                LD A,H                          ; 6017 7C
                OR L                            ; 6018 B5
                RET Z                           ; 6019 C8
-               CALL READ_KEY_LINE+&4000        ; 601A CD B5 93
+               CALL READ_KEY_LINE+IN_PAGE_C    ; 601A CD B5 93
                JR NC,CHECK_BREAK_LOOP2         ; 601D 30 F7
                RET                             ; 601F C9
 
@@ -9068,15 +9078,15 @@ CHECK_BREAK_2:
 
 ; ---- CHECK_BREAK_3 ---- from &6049 when bit 6 of A set
 CHECK_BREAK_3:
-               AND PAGEMASK                    ; 604C E6 1F
-               OUT (LMPR),A                    ; 604E D3 FA
-               LD B,&08                        ; 6050 06 08
-               LD DE,(DOS_BOOT_7)              ; 6052 ED 5B 6D 80
-               IN A,(VMPR)                     ; 6056 DB FC
-               AND &60                         ; 6058 E6 60
-               JR Z,CHECK_BREAK_LOOP7          ; 605A 28 21
-               CP &20                          ; 605C FE 20
-               JR NZ,CHECK_BREAK_4             ; 605E 20 31
+               AND PAGEMASK                           ; 604C E6 1F
+               OUT (LMPR),A                           ; 604E D3 FA
+               LD B,&08                               ; 6050 06 08
+               LD DE,(DOS_BOOT_CHOOSE_STEP_DIRECTION) ; 6052 ED 5B 6D 80
+               IN A,(VMPR)                            ; 6056 DB FC
+               AND &60                                ; 6058 E6 60
+               JR Z,CHECK_BREAK_LOOP7                 ; 605A 28 21
+               CP &20                                 ; 605C FE 20
+               JR NZ,CHECK_BREAK_4                    ; 605E 20 31
 
 ; ---- CHECK_BREAK_LOOP5 ---- from &6067 when B is not 0 yet
 CHECK_BREAK_LOOP5:
@@ -9094,12 +9104,12 @@ CHECK_BREAK_LOOP5:
 
 ; ---- CHECK_BREAK_LOOP6 ---- from &6075 when B is not 0 yet, &608F
 CHECK_BREAK_LOOP6:
-               LD (HL),&78                     ; 6072 36 78
-               ADD HL,DE                       ; 6074 19
-               DJNZ CHECK_BREAK_LOOP6          ; 6075 10 FB
-               LD HL,DOS_BOOT_7                ; 6077 21 6D 80
-               INC (HL)                        ; 607A 34
-               JR CHECK_BREAK_DONE             ; 607B 18 5E
+               LD (HL),&78                          ; 6072 36 78
+               ADD HL,DE                            ; 6074 19
+               DJNZ CHECK_BREAK_LOOP6               ; 6075 10 FB
+               LD HL,DOS_BOOT_CHOOSE_STEP_DIRECTION ; 6077 21 6D 80
+               INC (HL)                             ; 607A 34
+               JR CHECK_BREAK_DONE                  ; 607B 18 5E
 
 ; ---- CHECK_BREAK_LOOP7 ---- from &605A when no bit of &60 is set, &6081 when B is not 0 yet
 CHECK_BREAK_LOOP7:
@@ -9125,8 +9135,8 @@ CHECK_BREAK_4:
                LD A,H                          ; 6091 7C
                LD H,&81                        ; 6092 26 81
                EXX                             ; 6094 D9
-               LD (DOS_BOOT_6),BC              ; 6095 ED 43 6B 80
-               LD (DOS_BOOT_5),DE              ; 6099 ED 53 69 80
+               LD (DOS_BOOT_TRACK_TEST),BC     ; 6095 ED 43 6B 80
+               LD (DOS_BOOT_COMPARE_TRACK),DE  ; 6099 ED 53 69 80
                LD D,A                          ; 609D 57
                EXX                             ; 609E D9
                LD A,L                          ; 609F 7D
@@ -9165,14 +9175,14 @@ CHECK_BREAK_LOOP8:
 
 ; ---- CHECK_BREAK_5 ---- from &60C4
 CHECK_BREAK_5:
-               EXX                             ; 60C7 D9
-               DJNZ CHECK_BREAK_LOOP8          ; 60C8 10 DD
-               LD DE,(DOS_BOOT_5)              ; 60CA ED 5B 69 80
-               LD BC,(DOS_BOOT_6)              ; 60CE ED 4B 6B 80
-               EXX                             ; 60D2 D9
-               LD A,(DOS_BOOT_7)               ; 60D3 3A 6D 80
-               ADD A,&04                       ; 60D6 C6 04
-               LD (DOS_BOOT_7),A               ; 60D8 32 6D 80
+               EXX                                   ; 60C7 D9
+               DJNZ CHECK_BREAK_LOOP8                ; 60C8 10 DD
+               LD DE,(DOS_BOOT_COMPARE_TRACK)        ; 60CA ED 5B 69 80
+               LD BC,(DOS_BOOT_TRACK_TEST)           ; 60CE ED 4B 6B 80
+               EXX                                   ; 60D2 D9
+               LD A,(DOS_BOOT_CHOOSE_STEP_DIRECTION) ; 60D3 3A 6D 80
+               ADD A,&04                             ; 60D6 C6 04
+               LD (DOS_BOOT_CHOOSE_STEP_DIRECTION),A ; 60D8 32 6D 80
 
 ; ---- CHECK_BREAK_DONE ---- from &607B
 CHECK_BREAK_DONE:
@@ -10012,7 +10022,7 @@ PICK_COMPRESSION_CONSTANTS:
                PUSH DE                              ; 63C5 D5
                LD H,&33                             ; 63C6 26 33
                LD BC,&1B00                          ; 63C8 01 00 1B
-               LD DE,CEXTAB+&4000                   ; 63CB 11 00 9B
+               LD DE,CEXTAB+IN_PAGE_C               ; 63CB 11 00 9B
                AND A                                ; 63CE A7
                JR Z,PICK_COMPRESSION_CONSTANTS_DONE ; 63CF 28 0F
                LD H,&6D                             ; 63D1 26 6D
@@ -10199,51 +10209,51 @@ WRITE_DOS_BYTE:
 
 ; ---- SAVE_BOOT ---- from &63EB when A = &E9
 SAVE_BOOT:
-               CALL CALL_NEXTCHAR                ; 6404 CD 61 44
-               CALL CALLDOS                      ; 6407 CD C1 42
-               DEFW DOS_EVNAM-&4000              ; 640A CF 61
-               CALL EXPECT_END_OF_STATEMENT      ; 640C CD D0 44
-               CALL CALLDOS                      ; 640F CD C1 42
-               DEFW DOS_EVFINS-&4000             ; 6412 21 73
-               LD HL,&413A                       ; 6414 21 3A 41
-               LD A,&13                          ; 6417 3E 13
-               CALL CALLDOS                      ; 6419 CD C1 42
-               DEFW &4D24                        ; 641C 24 4D
-               RET C                             ; 641E D8
-               LD A,(&42CD)                      ; 641F 3A CD 42
-               INC A                             ; 6422 3C
-               OUT (HMPR),A                      ; 6423 D3 FB
-               LD HL,V647E                       ; 6425 21 7E 64
-               LD DE,DOS_V7CFF                   ; 6428 11 FF BC
-               LD BC,&0007                       ; 642B 01 07 00
-               LDIR                              ; 642E ED B0
-               LD HL,CALLBACK_HCMDV_2+&4000      ; 6430 21 F7 BC
-               LD DE,&0100                       ; 6433 11 00 01
-               CALL SAVE_BLOCK_FROM_THIS_PAGE    ; 6436 CD A9 42
-               LD HL,DOS_FFHL                    ; 6439 21 00 81
-               LD DE,&3C60                       ; 643C 11 60 3C
-               CALL SAVE_BLOCK_FROM_DOS_PAGE     ; 643F CD AD 42
-               LD HL,INSTALL_ROM_PATCHES_4+&4000 ; 6442 21 F0 BD
-               LD DE,&01BE                       ; 6445 11 BE 01
-               CALL SAVE_BLOCK_FROM_THIS_PAGE    ; 6448 CD A9 42
-               LD HL,&8C14                       ; 644B 21 14 8C
-               LD DE,&00A2                       ; 644E 11 A2 00
-               CALL SAVE_BLOCK_FROM_SYSPAGE      ; 6451 CD A6 42
-               LD HL,PUTSWA+&4000                ; 6454 21 00 80
-               LD DE,&3B80                       ; 6457 11 80 3B
-               CALL SAVE_BLOCK_FROM_THIS_PAGE    ; 645A CD A9 42
-               LD HL,&8BA0                       ; 645D 21 A0 8B
-               LD DE,&0024                       ; 6460 11 24 00
-               CALL SAVE_BLOCK_FROM_SYSPAGE      ; 6463 CD A6 42
-               LD HL,&884D                       ; 6466 21 4D 88
-               LD DE,&029F                       ; 6469 11 9F 02
-               CALL SAVE_BLOCK_FROM_SYSPAGE      ; 646C CD A6 42
-               LD HL,&9896                       ; 646F 21 96 98
-               LD DE,&017D                       ; 6472 11 7D 01
-               CALL SAVE_BLOCK_FROM_SYSPAGE      ; 6475 CD A6 42
-               CALL CALLDOS                      ; 6478 CD C1 42
-               DEFW DOS_SCFSM-&4000              ; 647B F8 4D
-               RET                               ; 647D C9
+               CALL CALL_NEXTCHAR                    ; 6404 CD 61 44
+               CALL CALLDOS                          ; 6407 CD C1 42
+               DEFW DOS_EVNAM-&4000                  ; 640A CF 61
+               CALL EXPECT_END_OF_STATEMENT          ; 640C CD D0 44
+               CALL CALLDOS                          ; 640F CD C1 42
+               DEFW DOS_EVFINS-&4000                 ; 6412 21 73
+               LD HL,&413A                           ; 6414 21 3A 41
+               LD A,&13                              ; 6417 3E 13
+               CALL CALLDOS                          ; 6419 CD C1 42
+               DEFW &4D24                            ; 641C 24 4D
+               RET C                                 ; 641E D8
+               LD A,(&42CD)                          ; 641F 3A CD 42
+               INC A                                 ; 6422 3C
+               OUT (HMPR),A                          ; 6423 D3 FB
+               LD HL,V647E                           ; 6425 21 7E 64
+               LD DE,DOS_V7CFF                       ; 6428 11 FF BC
+               LD BC,&0007                           ; 642B 01 07 00
+               LDIR                                  ; 642E ED B0
+               LD HL,CALLBACK_HCMDV_2+IN_PAGE_C      ; 6430 21 F7 BC
+               LD DE,&0100                           ; 6433 11 00 01
+               CALL SAVE_BLOCK_FROM_THIS_PAGE        ; 6436 CD A9 42
+               LD HL,DOS_FFHL                        ; 6439 21 00 81
+               LD DE,&3C60                           ; 643C 11 60 3C
+               CALL SAVE_BLOCK_FROM_DOS_PAGE         ; 643F CD AD 42
+               LD HL,INSTALL_ROM_PATCHES_4+IN_PAGE_C ; 6442 21 F0 BD
+               LD DE,&01BE                           ; 6445 11 BE 01
+               CALL SAVE_BLOCK_FROM_THIS_PAGE        ; 6448 CD A9 42
+               LD HL,&8C14                           ; 644B 21 14 8C
+               LD DE,&00A2                           ; 644E 11 A2 00
+               CALL SAVE_BLOCK_FROM_SYSPAGE          ; 6451 CD A6 42
+               LD HL,PUTSWA+IN_PAGE_C                ; 6454 21 00 80
+               LD DE,&3B80                           ; 6457 11 80 3B
+               CALL SAVE_BLOCK_FROM_THIS_PAGE        ; 645A CD A9 42
+               LD HL,&8BA0                           ; 645D 21 A0 8B
+               LD DE,&0024                           ; 6460 11 24 00
+               CALL SAVE_BLOCK_FROM_SYSPAGE          ; 6463 CD A6 42
+               LD HL,&884D                           ; 6466 21 4D 88
+               LD DE,&029F                           ; 6469 11 9F 02
+               CALL SAVE_BLOCK_FROM_SYSPAGE          ; 646C CD A6 42
+               LD HL,&9896                           ; 646F 21 96 98
+               LD DE,&017D                           ; 6472 11 7D 01
+               CALL SAVE_BLOCK_FROM_SYSPAGE          ; 6475 CD A6 42
+               CALL CALLDOS                          ; 6478 CD C1 42
+               DEFW DOS_SCFSM-&4000                  ; 647B F8 4D
+               RET                                   ; 647D C9
 
 ; ---- V647E ---- from &6425
 V647E:
@@ -10283,16 +10293,16 @@ V647E:
 ;; --------------------------------------------------------------------
 
 PRINT_SIZED_CHAR:
-               CALL CLAMP_CHAR_HEIGHT+&4000    ; 6485 CD E7 A4
-               EXX                             ; 6488 D9
-               PUSH AF                         ; 6489 F5
-               CALL WIDEN_CHAR_BITMAP+&4000    ; 648A CD AC A4
-               POP AF                          ; 648D F1
-               PUSH AF                         ; 648E F5
-               CP &03                          ; 648F FE 03
-               JR C,PRINT_SIZED_CHAR_1         ; 6491 38 04
-               XOR A                           ; 6493 AF
-               LD (INDOPFG),A                  ; 6494 32 BD 5A
+               CALL CLAMP_CHAR_HEIGHT+IN_PAGE_C ; 6485 CD E7 A4
+               EXX                              ; 6488 D9
+               PUSH AF                          ; 6489 F5
+               CALL WIDEN_CHAR_BITMAP+IN_PAGE_C ; 648A CD AC A4
+               POP AF                           ; 648D F1
+               PUSH AF                          ; 648E F5
+               CP &03                           ; 648F FE 03
+               JR C,PRINT_SIZED_CHAR_1          ; 6491 38 04
+               XOR A                            ; 6493 AF
+               LD (INDOPFG),A                   ; 6494 32 BD 5A
 
 ; ---- PRINT_SIZED_CHAR_1 ---- from &6491 when A < &03
 PRINT_SIZED_CHAR_1:
@@ -10435,14 +10445,14 @@ CLAMP_CHAR_HEIGHT:
 ;; --------------------------------------------------------------------
 
 PRINT_MAGNIFIED_CHAR:
-               CALL CLAMP_CHAR_HEIGHT+&4000    ; 64F3 CD E7 A4
-               LD C,A                          ; 64F6 4F
-               EXX                             ; 64F7 D9
-               PUSH HL                         ; 64F8 E5
-               EXX                             ; 64F9 D9
-               POP HL                          ; 64FA E1
-               LD DE,SCRNBUF                   ; 64FB 11 88 51
-               LD B,&08                        ; 64FE 06 08
+               CALL CLAMP_CHAR_HEIGHT+IN_PAGE_C ; 64F3 CD E7 A4
+               LD C,A                           ; 64F6 4F
+               EXX                              ; 64F7 D9
+               PUSH HL                          ; 64F8 E5
+               EXX                              ; 64F9 D9
+               POP HL                           ; 64FA E1
+               LD DE,SCRNBUF                    ; 64FB 11 88 51
+               LD B,&08                         ; 64FE 06 08
 
 ; ---- PRINT_MAGNIFIED_CHAR_LOOP ---- from &652D when B is not 0 yet
 PRINT_MAGNIFIED_CHAR_LOOP:
@@ -14086,7 +14096,7 @@ L73F7:
                AND PAGEMASK                    ; 7404 E6 1F
                OR &80                          ; 7406 F6 80
                LD B,A                          ; 7408 47
-               DEFB SKIP_NEXT_2_BYTES          ; 7409 !  skipped: reads as LD HL,&FF06 from here, and as part of the
+               DEFB SKIP_2_VIA_LD_HL           ; 7409 !  skipped: reads as LD HL,&FF06 from here, and as part of the
                                                ; instruction above it
 
 ; ---- FIND_PROC_ENTRY_1 ---- from &73E3 when A = 0
@@ -14559,7 +14569,7 @@ INSTALLER_LOOP4:
                INC HL                          ; 768B 23
                DJNZ INSTALLER_LOOP4            ; 768C 10 FB
                POP HL                          ; 768E E1
-               LD SP,(DOS_V40F9)               ; 768F ED 7B F9 80
+               LD SP,(DOS_STACK_ON_ENTRY)      ; 768F ED 7B F9 80
                LD (HL),&30                     ; 7693 36 30
                LD A,L                          ; 7695 7D
                DEC A                           ; 7696 3D
@@ -15103,7 +15113,7 @@ STACK_FILL_LOOP_1:
                JR NZ,SIZE_EXTERNAL_MEMORY_1    ; 781C 20 C6
                POP AF                          ; 781E F1
                OUT (HMPR),A                    ; 781F D3 FB
-               DEFB SKIP_NEXT_2_BYTES          ; 7821 !  skipped: reads as LD HL,&4296 from here, and as part of the
+               DEFB SKIP_2_VIA_LD_HL           ; 7821 !  skipped: reads as LD HL,&4296 from here, and as part of the
                                                ; instruction above it
                SUB (HL)                        ; 7822 96
                LD B,D                          ; 7823 42
@@ -15649,7 +15659,7 @@ INSTALL_SYSPAGE_CODE:
                LD (&9941),A                    ; 7AAC 32 41 99
                LD A,C                          ; 7AAF 79
                LD HL,MB_PAGER                  ; 7AB0 21 F2 7A
-               LD DE,PAGER+&4000               ; 7AB3 11 E0 9B
+               LD DE,PAGER+IN_PAGE_C           ; 7AB3 11 E0 9B
                LD BC,&000E                     ; 7AB6 01 0E 00
                LDIR                            ; 7AB9 ED B0
                LD HL,DPVARS                    ; 7ABB 21 1F 40
@@ -15661,7 +15671,7 @@ INSTALL_SYSPAGE_CODE:
                LD C,&28                        ; 7ACB 0E 28
                LDIR                            ; 7ACD ED B0
                LD HL,&4C14                     ; 7ACF 21 14 4C
-               LD (MNIP+&4000),HL              ; 7AD2 22 DE 9B
+               LD (MNIP+IN_PAGE_C),HL          ; 7AD2 22 DE 9B
 
 L7AD5:
                LD HL,&0000                     ; 7AD5 21 00 00  the operand is written here at run time, from &7A83
@@ -15676,7 +15686,7 @@ L7AE1:
                LD (&8C31),HL                   ; 7AE4 22 31 8C
                LD C,A                          ; 7AE7 4F
                LD A,(ACRSU)                    ; 7AE8 3A 59 40
-               LD (AFTERCR+&4000),A            ; 7AEB 32 0F 9A
+               LD (AFTERCR+IN_PAGE_C),A        ; 7AEB 32 0F 9A
                LD A,C                          ; 7AEE 79
                OUT (HMPR),A                    ; 7AEF D3 FB
                RET                             ; 7AF1 C9
@@ -15819,7 +15829,7 @@ INSTALL_ROM_PATCHES_1:
                INC A                           ; 7B08 3C
                AND PAGEMASK                    ; 7B09 E6 1F
                LD (L7CF5+1),A                  ; 7B0B 32 F6 7C  patches the operand of the LD at &7CF5
-               LD HL,(CHANS+&4000)             ; 7B0E 2A 4F 9C
+               LD HL,(CHANS+IN_PAGE_C)         ; 7B0E 2A 4F 9C
                LD DE,PUTSWA                    ; 7B11 11 00 40  &4000 here is the window offset -- CHANS is a system
                                                ; variable in the page now at &8000 -- and not the XVAR that shares the
                                                ; address
@@ -15835,7 +15845,7 @@ INSTALL_ROM_PATCHES_1:
                LD (HL),E                       ; 7B1F 73
                INC HL                          ; 7B20 23
                LD (HL),D                       ; 7B21 72
-               LD (MNOP+&4000),DE              ; 7B22 ED 53 DC 9B
+               LD (MNOP+IN_PAGE_C),DE          ; 7B22 ED 53 DC 9B
                LD DE,&0009                     ; 7B26 11 09 00
                ADD HL,DE                       ; 7B29 19
                LD DE,&4AE6                     ; 7B2A 11 E6 4A
@@ -15866,10 +15876,10 @@ INSTALL_ROM_PATCHES_1:
                LD BC,&01BE                     ; 7B62 01 BE 01
                LDIR                            ; 7B65 ED B0
                LD HL,&4A52                     ; 7B67 21 52 4A
-               LD (HUDG+&4000),HL              ; 7B6A 22 7D 9C  HUDG, so CHR$ 169 and 170 render from CURSOR_PATTERNS at
+               LD (HUDG+IN_PAGE_C),HL          ; 7B6A 22 7D 9C  HUDG, so CHR$ 169 and 170 render from CURSOR_PATTERNS at
                                                ; &4A52 -- see notes/mb-blocks.txt
                LD HL,&4AAC                     ; 7B6D 21 AC 4A
-               LD (RST28V+&4000),HL            ; 7B70 22 F0 9A
+               LD (RST28V+IN_PAGE_C),HL        ; 7B70 22 F0 9A
                OUT (HMPR),A                    ; 7B73 D3 FB
                LD HL,DOS_BOOT                  ; 7B75 21 09 80
                LD DE,INSTALL_ROM_PATCHES_3     ; 7B78 11 00 7D
@@ -16117,36 +16127,36 @@ RELOCATED_TO_484D_2:
 
 ; ---- RELOCATED_TO_484D_3 ---- from &7BFC when no bit of &40 is set
 RELOCATED_TO_484D_3:
-               LD A,(DCT)                          ; 7C1C 3A B6 5B  DCT borrowed as a bit field while no transfer is
-                                                   ; running
-               AND A                               ; 7C1F A7
-               JR Z,DISPATCH_ON_COMMAND_TOKEN      ; 7C20 28 2F
-               LD L,A                              ; 7C22 6F
-               LD A,(FLAGS)                        ; 7C23 3A 3B 5C
-               RLA                                 ; 7C26 17
-               JR NC,DISPATCH_ON_COMMAND_TOKEN     ; 7C27 30 28
-               PUSH HL                             ; 7C29 E5
-               BIT 1,L                             ; 7C2A CB 4D
-               LD A,&00                            ; 7C2C 3E 00
-               LD HL,SHOW_LINE_AND_STATEMENT+&4000 ; 7C2E 21 B9 9F
-               CALL NZ,PAGER                       ; 7C31 C4 E0 5B  PAGER in the system page, not this page's &5BE0
-               POP HL                              ; 7C34 E1
-               LD A,L                              ; 7C35 7D
-               AND &05                             ; 7C36 E6 05
-               JR Z,DISPATCH_ON_COMMAND_TOKEN      ; 7C38 28 17
-               PUSH HL                             ; 7C3A E5
-               LD HL,(PROG)                        ; 7C3B 2A A0 5A  PROG in the system page
-               PUSH HL                             ; 7C3E E5
-               LD A,(PROGP)                        ; 7C3F 3A 9F 5A
-               PUSH AF                             ; 7C42 F5
-               RST ERR_HOOK                        ; 7C43 CF
-               DEFB &9D                            ; 7C44 9D hook code, handled by HK_PROGPREP
-               CALL SYS_CDBUFF_11                  ; 7C45 CD 11 4D  CDBUFF+&11 -- the code buffer built at &735D
-               POP AF                              ; 7C48 F1
-               LD (PROGP),A                        ; 7C49 32 9F 5A
-               POP HL                              ; 7C4C E1
-               LD (PROG),HL                        ; 7C4D 22 A0 5A
-               POP HL                              ; 7C50 E1
+               LD A,(DCT)                              ; 7C1C 3A B6 5B  DCT borrowed as a bit field while no transfer is
+                                                       ; running
+               AND A                                   ; 7C1F A7
+               JR Z,DISPATCH_ON_COMMAND_TOKEN          ; 7C20 28 2F
+               LD L,A                                  ; 7C22 6F
+               LD A,(FLAGS)                            ; 7C23 3A 3B 5C
+               RLA                                     ; 7C26 17
+               JR NC,DISPATCH_ON_COMMAND_TOKEN         ; 7C27 30 28
+               PUSH HL                                 ; 7C29 E5
+               BIT 1,L                                 ; 7C2A CB 4D
+               LD A,&00                                ; 7C2C 3E 00
+               LD HL,SHOW_LINE_AND_STATEMENT+IN_PAGE_C ; 7C2E 21 B9 9F
+               CALL NZ,PAGER                           ; 7C31 C4 E0 5B  PAGER in the system page, not this page's &5BE0
+               POP HL                                  ; 7C34 E1
+               LD A,L                                  ; 7C35 7D
+               AND &05                                 ; 7C36 E6 05
+               JR Z,DISPATCH_ON_COMMAND_TOKEN          ; 7C38 28 17
+               PUSH HL                                 ; 7C3A E5
+               LD HL,(PROG)                            ; 7C3B 2A A0 5A  PROG in the system page
+               PUSH HL                                 ; 7C3E E5
+               LD A,(PROGP)                            ; 7C3F 3A 9F 5A
+               PUSH AF                                 ; 7C42 F5
+               RST ERR_HOOK                            ; 7C43 CF
+               DEFB &9D                                ; 7C44 9D hook code, handled by HK_PROGPREP
+               CALL SYS_CDBUFF_11                      ; 7C45 CD 11 4D  CDBUFF+&11 -- the code buffer built at &735D
+               POP AF                                  ; 7C48 F1
+               LD (PROGP),A                            ; 7C49 32 9F 5A
+               POP HL                                  ; 7C4C E1
+               LD (PROG),HL                            ; 7C4D 22 A0 5A
+               POP HL                                  ; 7C50 E1
 
 ;; --------------------------------------------------------------------
 ;; Switch on a command token in H, for the commands MasterBASIC has
@@ -16322,11 +16332,11 @@ L7CF5:
                LD A,&00                        ; 7CF5 3E 00  the operand is written here at run time, from &7B0B
 
 CALLBACK_HCMDV_2:
-               OUT (HMPR),A                         ; 7CF7 D3 FB
-               CALL SEND_COUNTED_TO_CHANNEL_1+&4000 ; 7CF9 CD A3 99
-               POP AF                               ; 7CFC F1
-               OUT (HMPR),A                         ; 7CFD D3 FB
-               RET                                  ; 7CFF C9
+               OUT (HMPR),A                             ; 7CF7 D3 FB
+               CALL SEND_COUNTED_TO_CHANNEL_1+IN_PAGE_C ; 7CF9 CD A3 99
+               POP AF                                   ; 7CFC F1
+               OUT (HMPR),A                             ; 7CFD D3 FB
+               RET                                      ; 7CFF C9
 
 ; ---- INSTALL_ROM_PATCHES_3 ---- from &7B78
 INSTALL_ROM_PATCHES_3:
@@ -16358,29 +16368,29 @@ CALLBACK_HCMDV_4:
 
 ; ---- CALLBACK_HCMDV_5 ---- from &7D04 when A = 0
 CALLBACK_HCMDV_5:
-               LD A,(DEVICE)                   ; 7D22 3A 73 5A
-               CP &02                          ; 7D25 FE 02
-               JR Z,CALLBACK_HCMDV_7           ; 7D27 28 22
-               LD A,(SYS_CHAR_WIDTH)           ; 7D29 3A EE 4A
-               AND A                           ; 7D2C A7
-               JR Z,CALLBACK_HCMDV_6           ; 7D2D 28 0C
-               EXX                             ; 7D2F D9
-               LD HL,PRINT_SIZED_CHAR+&4000    ; 7D30 21 85 A4
-               CALL &49EE                      ; 7D33 CD EE 49  &49EE once this block is moved, not the label shown
-               DEC E                           ; 7D36 1D
-               POP HL                          ; 7D37 E1
-               POP AF                          ; 7D38 F1
-               PUSH DE                         ; 7D39 D5
-               JP (HL)                         ; 7D3A E9
+               LD A,(DEVICE)                    ; 7D22 3A 73 5A
+               CP &02                           ; 7D25 FE 02
+               JR Z,CALLBACK_HCMDV_7            ; 7D27 28 22
+               LD A,(SYS_CHAR_WIDTH)            ; 7D29 3A EE 4A
+               AND A                            ; 7D2C A7
+               JR Z,CALLBACK_HCMDV_6            ; 7D2D 28 0C
+               EXX                              ; 7D2F D9
+               LD HL,PRINT_SIZED_CHAR+IN_PAGE_C ; 7D30 21 85 A4
+               CALL &49EE                       ; 7D33 CD EE 49  &49EE once this block is moved, not the label shown
+               DEC E                            ; 7D36 1D
+               POP HL                           ; 7D37 E1
+               POP AF                           ; 7D38 F1
+               PUSH DE                          ; 7D39 D5
+               JP (HL)                          ; 7D3A E9
 
 ; ---- CALLBACK_HCMDV_6 ---- from &7D2D when A = 0
 CALLBACK_HCMDV_6:
-               LD A,(SYS_CHAR_HEIGHT)           ; 7D3B 3A EF 4A
-               AND A                            ; 7D3E A7
-               JR Z,CALLBACK_HCMDV_7            ; 7D3F 28 0A
-               EXX                              ; 7D41 D9
-               LD HL,PRINT_MAGNIFIED_CHAR+&4000 ; 7D42 21 F3 A4
-               LD C,A                           ; 7D45 4F
+               LD A,(SYS_CHAR_HEIGHT)               ; 7D3B 3A EF 4A
+               AND A                                ; 7D3E A7
+               JR Z,CALLBACK_HCMDV_7                ; 7D3F 28 0A
+               EXX                                  ; 7D41 D9
+               LD HL,PRINT_MAGNIFIED_CHAR+IN_PAGE_C ; 7D42 21 F3 A4
+               LD C,A                               ; 7D45 4F
 
 L7D46:
                LD A,&00                        ; 7D46 3E 00  the operand is written here at run time, from &7B4D

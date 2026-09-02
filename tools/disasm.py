@@ -31,6 +31,7 @@ class Disassembler(Decoder):
         self.byte_names = {}                  # addr -> a name to write for one DEFB byte
         self.text_codes = []                  # (lo, hi, {value: name}) inside a text run
         self.notes = {}                       # addr -> lines to print above it
+        self.steps = {}                       # addr -> narration, at the margin
         self.mdos_equs = {}                   # names those overrides need defining
         self.used_ext = set()                 # outside names the listing mentions
         self.queue = []
@@ -223,6 +224,14 @@ class Disassembler(Decoder):
             while a < end:
                 if a in self.headers:
                     w('\n' + self.headers[a].rstrip() + '\n')
+                if a in self.steps:
+                    # Narration, at the left margin: what the next few
+                    # instructions are between them for.  A blank line
+                    # above it and none below, so that it reads as the
+                    # head of what follows rather than a loose remark.
+                    w('\n')
+                    for line in self.steps[a]:
+                        w(('; ' + line).rstrip() + '\n')
                 insn = self.insns.get(a) if self.m(a) == CODE else None
                 if insn is not None and insn.text == 'NOP' and a not in self.labels:
                     b = a

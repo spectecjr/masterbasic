@@ -63,7 +63,7 @@ AFTER = re.compile(r'^(?:AFTER|ADDCOMMENTAFTER)\s+(\w+)\s*(?:\+(\d+))?\s*:\s*(\S
 DOC = re.compile(r'^(?:DOC|DOCUMENT)\s+(\w+)\s*$')
 # RENAME ULA BORDER -- change a name everywhere it is written.
 RENAME = re.compile(r'^RENAME\s+(\w+)\s+(\w+)\s*$')
-KINDS = ('data', 'text', 'code', 'value')
+KINDS = ('data', 'text', 'code', 'value', 'step')
 
 
 def parse(path):
@@ -201,7 +201,7 @@ def set_header(d, a, doc, banner):
 def apply(pages, root, banner, folder='notes'):
     """Put the entries on the pages.  Returns counts and complaints."""
     by_tag = dict((p.tag, p) for p in pages)
-    named = noted = marked = 0
+    named = noted = marked = stepped = 0
     problems = []
     kinds = {'data': 3, 'text': 5, 'code': 1}
 
@@ -262,6 +262,19 @@ def apply(pages, root, banner, folder='notes'):
                 # checked against the number instead, so a wrong
                 # expression is a build error rather than a quiet lie.
                 expressions.append((d, a, lits[0], e['name'], e['where']))
+            continue
+
+        if e['kind'] == 'step':
+            # Narration.  A line comment says what one instruction does;
+            # this says what the next few are for, and is set at the left
+            # margin with a blank line above so that a routine reads as
+            # the three or four moves it makes rather than as a wall.
+            if not e['doc']:
+                problems.append('%s: a step needs something under it'
+                                % e['where'])
+            else:
+                d.steps[a] = list(e['doc'])
+                stepped += 1
             continue
 
         if e['kind']:
@@ -357,10 +370,10 @@ def apply(pages, root, banner, folder='notes'):
 
     for d in pages:
         d.romdesc.update(equates)
-    return named, noted, marked, problems
+    return named, noted, marked, stepped, problems
 
 
-def rename(pages, root):
+def rename(pages, root, folder='notes'):
     """Apply the RENAME lines, after every other pass has run.
 
     A name can have been put on the page by any of half a dozen passes
@@ -368,7 +381,7 @@ def rename(pages, root):
     last and everywhere at once: the label tables, the equate blocks,
     and the operand text of any instruction that was overridden.
     """
-    entries, _ = load(root)
+    entries, _ = load(root, folder)
     jobs = [(e['name'], e['comment'], e['where'])
             for e in entries if e['page'] == 'RENAME']
     done, problems = 0, []

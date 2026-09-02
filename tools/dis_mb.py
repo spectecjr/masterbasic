@@ -79,8 +79,8 @@ HOOK_TABLE = 0x44A6             # SAMHK: RST &08 code 128+i is entry i
 # here.  CALL, JR and LD (nn),A turn up in the same position and are NOT
 # here: they do something on the way past.
 SKIPS = {
-    0x21: ('SKIP_NEXT_2_BYTES', 'LD HL,nn where only the two bytes after it matter'),
-    0x3E: ('SKIP_NEXT_1_BYTE', 'LD A,n where only the byte after it matters'),
+    0x21: ('SKIP_2_VIA_LD_HL', 'LD HL,nn where only the two bytes after it matter'),
+    0x3E: ('SKIP_1_VIA_LD_A', 'LD A,n where only the byte after it matters'),
     0x11: ('SKIP_2_VIA_LD_DE', 'LD DE,nn used to skip two bytes, clobbering DE'),
     0x31: ('SKIP_2_VIA_LD_SP', 'LD SP,nn used to skip two bytes, clobbering SP'),
     0x0E: ('SKIP_1_VIA_LD_C', 'LD C,n used to skip one byte, clobbering C'),
@@ -113,6 +113,10 @@ REPORTERS = {'DOS': set(), 'MB': {0x43BE}}   # take the error number in A
 # &4000 off to undo the &8000 window this page sees the other one
 # through, then put &8000 on to set the flag.
 PAGE_FLAG = 'NOT_IN_THIS_PAGE'
+# What &4000 is called when it is added to an address to window it.  The
+# working listings write the number, because in disasm/ the arithmetic is
+# the point; the reading copy names it, because there the reason is.
+PAGE_BIAS = ['&4000']
 
 
 # Addresses in the ROM's system page that MasterBASIC itself gives a
@@ -388,7 +392,8 @@ class Page(Disassembler):
         if at is not None and any(lo <= at < hi for lo, hi in self.self_window):
             n = self.boot_self(v, at)
             if n:
-                return n + '+&4000'
+                self.used_bias = True
+                return n + '+' + PAGE_BIAS[0]
         return self._name(v, lambda _: None)
 
     def _name(self, v, outside, absolute=False):
@@ -461,11 +466,13 @@ class Page(Disassembler):
                 return n
         n = self.boot_self(v, self._cur)
         if n:
-            return n + '+&4000'
+            self.used_bias = True
+            return n + '+' + PAGE_BIAS[0]
         n = self.windowed_var(v)
         if n:
             self.used_ext.add(n)
-            return n + '+&4000'
+            self.used_bias = True
+            return n + '+' + PAGE_BIAS[0]
         n = self.peer_name(v, self._cur)
         if n:
             return n
@@ -2025,6 +2032,17 @@ def header(d):
         head.append('; &8000: it is &4000 off to undo the window this page sees')
         head.append('; the other one through, then &8000 on to set the flag.')
         head.append('%-14s EQU  %s' % (PAGE_FLAG + ':', hexn(0x4000, 4)))
+    if getattr(d, 'used_bias', False) and not PAGE_BIAS[0].startswith('&'):
+        head.append('')
+        head.append('; Idioms.')
+        head.append('; Some of this half is assembled at &4000 and executed at')
+        head.append('; &8000, through the window, because the boot copies it')
+        head.append('; there or because the ROM calls it with the pages the')
+        head.append("; other way round.  Its own labels are what the assembler")
+        head.append('; put them at, so reaching one from code that is running')
+        head.append('; high means adding the 16K between the two views.')
+        head.append('%-14s EQU  %-6s ; the window, less where this is assembled'
+                    % (PAGE_BIAS[0] + ':', hexn(0x4000, 4)))
     if d.used_peer:
         head.append('')
         head.append('; Addresses in the other page, which sits at &8000-&BFBF while')
@@ -2216,12 +2234,23 @@ def write_clean(pages):
     copy cannot leak.
     """
     dos, mb = copy.deepcopy(pages)
-    nn, nc, nm, problems = notes.apply((dos, mb), ROOT, annotate.banner,
-                                       folder=os.path.join('notes', 'clean'))
-    if nn or nc or nm:
-        print('clean/: %d names, %d line comments, %d bytes marked from '
-              'notes/clean' % (nn, nc, nm))
+    nn, nc, nm, ns, problems = notes.apply(
+        (dos, mb), ROOT, annotate.banner,
+        folder=os.path.join('notes', 'clean'))
+    if nn or nc or nm or ns:
+        print('clean/: %d names, %d line comments, %d bytes marked, '
+              '%d steps from notes/clean' % (nn, nc, nm, ns))
     for problem in problems:
+        print('notes/clean: ' + problem)
+    # The renames go on after the rest of notes/clean, the same way they
+    # do for the working copy: a name a person chose beats one a pass
+    # worked out, and it has to be applied once everything else has had
+    # its say.
+    nr, rp = notes.rename((dos, mb), ROOT,
+                          folder=os.path.join('notes', 'clean'))
+    if nr:
+        print('clean/: %d names changed' % nr)
+    for problem in rp:
         print('notes/clean: ' + problem)
     # After notes/clean and not before: replacing a header records the one
     # it displaced, so that the working copy can see what changed, and
@@ -2231,6 +2260,7 @@ def write_clean(pages):
 
     out = os.path.join(ROOT, 'clean')
     os.makedirs(out, exist_ok=True)
+    PAGE_BIAS[0] = 'IN_PAGE_C'
     for d, name in ((dos, 'masterdos.asm'), (mb, 'masterbasic.asm')):
         d.relabel()
         d.title = clean.preamble(d)
@@ -2242,6 +2272,7 @@ def write_clean(pages):
             f.write(asmfmt.format_listing(body))
         print('wrote', os.path.join(out, name))
 
+    PAGE_BIAS[0] = '&4000'
     for tag, (mine, orig) in sorted(clean.coverage((dos, mb)).items()):
         print('clean/: %s line comments -- %d written here, %d still the '
               'MasterDOS author%ss own' % (tag, mine, orig, chr(39)))
@@ -2461,7 +2492,7 @@ def main():
     # Hand-written notes come last of the naming passes, so that a
     # person's name beats anything worked out, and before autolabel,
     # so nothing synthetic is invented for an address they named.
-    nn, nc, nm, problems = notes.apply((dos, mb), ROOT, annotate.banner)
+    nn, nc, nm, ns, problems = notes.apply((dos, mb), ROOT, annotate.banner)
     if nn or nc or nm:
         print('notes/: %d names, %d line comments, %d bytes marked'
               % (nn, nc, nm))

@@ -143,6 +143,15 @@ XPTRP:                      EQU  &5AA2         ; page holding the error marker
 ; the other one through, then &8000 on to set the flag.
 NOT_IN_THIS_PAGE:           EQU  &4000
 
+; Idioms.
+; Some of this half is assembled at &4000 and executed at
+; &8000, through the window, because the boot copies it
+; there or because the ROM calls it with the pages the
+; other way round.  Its own labels are what the assembler
+; put them at, so reaching one from code that is running
+; high means adding the 16K between the two views.
+IN_PAGE_C:                  EQU  &4000         ; the window, less where this is assembled
+
 ; Addresses in the other page, which sits at &8000-&BFBF while
 ; this one is at &4000.  The names are its own labels.  A stored
 ; pointer written as NAME+&4000 has bit 15 set, the flag INDJP
@@ -225,18 +234,28 @@ ERR_HOOK:                   EQU  &08           ; report an error, or call a DOS 
 
 ; Numbers named in notes/, each for one instruction where
 ; the same value means something else elsewhere.
+BOOT_STACK_TOP:             EQU  &C000         ; one past the window; the stack grows down into this page
 CMD_LATENCY_LOOPS:          EQU  &14           ; DJNZ iterations, enough for the WD1772 to raise BUSY
 DISKCTL_0_BASE:             EQU  &E0
+DISKCTL_0_BASE_SIDE2:       EQU  &E4           ; the same drive with the second head energised
 DISKCTL_1_BASE:             EQU  &F0
 DISKCTL_DATA_OFS:           EQU  &03
 ENABLE_ROM1:                EQU  &40           ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
 FILE:                       EQU  &17           ; a compressed substring in ERRTBL, printed as "file"
+FIRST_WAVE_SECTOR_COUNT:    EQU  &1F           ; sectors in the DOS, read before MasterBASIC
 FORCE_INTERRUPT_CMD:        EQU  &D0
 INVALID:                    EQU  &00           ; a compressed substring in ERRTBL, printed as "Invalid "
+MAX_SECTOR_RETRIES:         EQU  &0A           ; attempts at one sector before "Loading error"
+MIN_RAMDISC_PAGE_TYPE:      EQU  &D0           ; lowest allocation code that means a RAM disc
 NO:                         EQU  &0B           ; a compressed substring in ERRTBL, printed as "No "
+PAGE_VALUE_MASK:            EQU  &1F           ; a page number is five bits; the rest of the port is not
+PAST_RAMDISC_PAGE_TYPE:     EQU  &D8           ; one above the highest, so the test is a range
+READ_ERROR_FLAGS:           EQU  &0D           ; BUSY, LOST DATA and CRC ERROR together
+RESTORE_CMD:                EQU  &09           ; seek to track 0; used to recover from a bad seek
+SCREEN_PAGE_TYPE:           EQU  &30           ; allocation code for a page holding a screen
 SKIP_1_VIA_CP:              EQU  &FE           ; CP n, skipping one byte and clobbering the flags
-SKIP_NEXT_1_BYTE:           EQU  &3E           ; LD A,n, standing here only to swallow the byte after it
-SKIP_NEXT_2_BYTES:          EQU  &21           ; LD HL,nn, standing here only to swallow the two bytes after it -- see
+SKIP_1_VIA_LD_A:            EQU  &3E           ; LD A,n, standing here only to swallow the byte after it
+SKIP_2_VIA_LD_HL:           EQU  &21           ; LD HL,nn, standing here only to swallow the two bytes after it -- see
                                                ; docs/idioms.md
 SNAME:                      EQU  &12           ; a compressed substring in ERRTBL, printed as " name"
 SNOTS:                      EQU  &11           ; a compressed substring in ERRTBL, printed as " not "
@@ -333,194 +352,307 @@ HEADER:
                DEFB &01                        ; 4007 whole 16K pages, so 32631 bytes in all
                DEFB &63                        ; 4008 start page (99)
 
+;; --------------------------------------------------------------------
+;; Load the rest of the DOS and MasterBASIC off the disc, into a page
+;; found at run time, and start them.
+;;
+;; THE PAGING IS THE THING TO GET STRAIGHT FIRST, because every odd
+;; line below follows from it.  The boot sector has been read to &8000
+;; and jumped to, so this code is running in the window: the system
+;; page is low, at &4000, and this half is high.  Two consequences run
+;; through the whole routine.
+;;
+;; Writing to the ROM's variables needs no windowing at all -- FRAMIV
+;; at &5AE2 is simply there, at &4000-odd, which is why the second
+;; instruction can store to it directly.  Everywhere else in these two
+;; listings that would need NRRD or a window.
+;;
+;; Reaching this half's own data does need windowing, because the
+;; assembler laid it out at &40F9 and it is executing at &80F9.  That
+;; is the IN_PAGE_C added to every one of its own addresses here.  The
+;; same &4000 appears in the JP at the end of the sector loop, which is
+;; absolute where a JR could not reach.
+;;
+;; WHAT IT DOES, in four movements: reset two ROM interrupt vectors;
+;; sweep the page allocation table clear of RAM discs left by an
+;; earlier boot; find a page to load into, taking a screen if there is
+;; nothing better; then read the file a sector at a time, driving the
+;; disk controller by hand because none of the DOS's own routines
+;; exists yet.
+;;
+;; Errors: "Out of memory" if no page can be found, "Loading error"
+;; after ten failed attempts at one sector.
+;; --------------------------------------------------------------------
+
+; Interrupts off: the ROM's frame interrupt is about to be pointed at
+; nothing, and the stack is about to move.
+
 ; ---- BOOT ---- from MB &7B75
 BOOT:
                DI                              ; 4009 F3
+
+; Reset the two interrupt vectors to their default state.  Both are
+; ROM variables in the system page, which is low while this runs, so
+; they are written without any windowing.
                LD HL,&0000                     ; 400A 21 00 00
                LD (FRAMIV),HL                  ; 400D 22 E2 5A
                LD L,&49                        ; 4010 2E 49
-               LD (BOOT_22),HL                 ; 4012 22 70 5B
-               LD HL,V511F                     ; 4015 21 1F 51
+               LD (BOOT_22),HL                 ; 4012 22 70 5B  ANYIV at &5B70, not this half's own label at that
+                                               ; address
 
-; ---- BOOT_LOOP ---- from &4024 when L is not 0 yet
-BOOT_LOOP:
+; Sweep the allocation table clear of RAM discs left behind by an
+; earlier boot.  Their pages are still marked as belonging to a DOS
+; that is no longer running, and nothing else will ever free them.
+               LD HL,ALLOCT_LAST               ; 4015 21 1F 51  the top entry of the page allocation table
+
+; ---- ALLOCT_SCAN_LOOP ---- from &4024 when L is not 0 yet
+ALLOCT_SCAN_LOOP:
                LD A,(HL)                       ; 4018 7E
-               CP &D0                          ; 4019 FE D0
-               JR C,BOOT_1                     ; 401B 38 06
-               CP &D8                          ; 401D FE D8
-               JR NC,BOOT_1                    ; 401F 30 02
-               LD (HL),&00                     ; 4021 36 00
+               CP MIN_RAMDISC_PAGE_TYPE        ; 4019 FE D0
+               JR C,NOT_A_RAM_DISC_PAGE        ; 401B 38 06  below the range: not a RAM disc
+               CP PAST_RAMDISC_PAGE_TYPE       ; 401D FE D8
+               JR NC,NOT_A_RAM_DISC_PAGE       ; 401F 30 02  above it: not a RAM disc either
+               LD (HL),&00                     ; 4021 36 00  a RAM disc from a previous boot -- give the page back
 
-; ---- BOOT_1 ---- from &401B when A < &D0, &401F when A >= &D8
-BOOT_1:
+; On to the next entry, working down.  L reaching zero stops it: entry
+; zero is the system page and is never a candidate.
+
+; ---- NOT_A_RAM_DISC_PAGE ---- from &401B when A < &D0, &401F when A >= &D8
+NOT_A_RAM_DISC_PAGE:
                DEC L                           ; 4023 2D
-               JR NZ,BOOT_LOOP                 ; 4024 20 F2
-               IN A,(HMPR)                     ; 4026 DB FB
-               AND &1F                         ; 4028 E6 1F
-               LD L,A                          ; 402A 6F
-               DEC L                           ; 402B 2D
-               LD (V40F9+&4000),SP             ; 402C ED 73 F9 80
-               LD SP,&C000                     ; 4030 31 00 C0
+               JR NZ,ALLOCT_SCAN_LOOP          ; 4024 20 F2
 
-; ---- BOOT_LOOP2 ---- from &403C when L is not 0 yet
-BOOT_LOOP2:
+; Start the search for a page to load into, one below the page this
+; code is running in.
+               IN A,(HMPR)                     ; 4026 DB FB  which page is in the window -- the one holding this code
+               AND PAGE_VALUE_MASK             ; 4028 E6 1F
+               LD L,A                          ; 402A 6F
+               DEC L                           ; 402B 2D  start one below it
+
+; Move the stack.  It is saved through the window because &40F9 is
+; this half's own address and this half is at &8000.
+               LD (STACK_ON_ENTRY+IN_PAGE_C),SP ; 402C ED 73 F9 80  saved where this half can find it again
+               LD SP,BOOT_STACK_TOP             ; 4030 31 00 C0
+
+; Look for a page to put the DOS in: a free one for preference, a
+; screen page if there is nothing else, working down to the system
+; page.  H has not been touched since &4015, so HL is still an entry
+; in the allocation table.
+
+; ---- FIND_FREE_PAGE_LOOP ---- from &403C when L is not 0 yet
+FIND_FREE_PAGE_LOOP:
                LD A,(HL)                       ; 4033 7E
-               AND A                           ; 4034 A7
-               JR Z,BOOT_2                     ; 4035 28 09
-               CP &30                          ; 4037 FE 30
-               JR Z,BOOT_2                     ; 4039 28 05
+               AND A                           ; 4034 A7  zero means the page is free
+               JR Z,FOUND_PAGE_FOR_DOS         ; 4035 28 09
+               CP SCREEN_PAGE_TYPE             ; 4037 FE 30  a screen will do -- it can be taken back
+               JR Z,FOUND_PAGE_FOR_DOS         ; 4039 28 05
                DEC L                           ; 403B 2D
-               JR NZ,BOOT_LOOP2                ; 403C 20 F5
-               RST ERR_HOOK                    ; 403E CF
+               JR NZ,FIND_FREE_PAGE_LOOP       ; 403C 20 F5  keep going down; zero is the system page and stops the scan
+               RST ERR_HOOK                    ; 403E CF  nothing free and no screen to take
                DEFB ERR_OUT_OF_MEMORY          ; 403F 01 error 1, "Out of memory"
 
-; ---- BOOT_2 ---- from &4035 when A = 0, &4039 when A = &30
-BOOT_2:
+; A page has been found.  Now read the file, following the chain of
+; sector addresses each sector carries in its last four bytes.  The
+; first wave is the DOS itself.
+
+; ---- FOUND_PAGE_FOR_DOS ---- from &4035 when A = 0, &4039 when A = &30
+FOUND_PAGE_FOR_DOS:
                PUSH HL                         ; 4040 E5
-               LD HL,L41FF+&4000               ; 4041 21 FF 81
+               LD HL,L41FF+IN_PAGE_C           ; 4041 21 FF 81  the last two bytes of the boot sector, in this half
                LD E,(HL)                       ; 4044 5E
                DEC HL                          ; 4045 2B
                LD D,(HL)                       ; 4046 56
-               LD B,&1F                        ; 4047 06 1F
+               LD B,FIRST_WAVE_SECTOR_COUNT    ; 4047 06 1F
 
-BOOT_3:
-               PUSH BC                         ; 4049 C5
-               XOR A                           ; 404A AF
-               LD (V40FD+&4000),A              ; 404B 32 FD 80
-               LD (V40FB+&4000),HL             ; 404E 22 FB 80
-               LD C,&E0                        ; 4051 0E E0
+; One sector.  Everything from here to the end drives the WD1772
+; directly: none of the DOS's own disk code is loaded yet.
+
+READ_NEXT_SECTOR:
+               PUSH BC                               ; 4049 C5
+               XOR A                                 ; 404A AF  no failures against this sector yet
+               LD (SECTOR_RETRY_COUNT+IN_PAGE_C),A   ; 404B 32 FD 80
+               LD (SECTOR_LOAD_ADDRESS+IN_PAGE_C),HL ; 404E 22 FB 80  remember where it is to land
+               LD C,DISKCTL_0_BASE                   ; 4051 0E E0
+
+; Bit 7 of the track number is the side.  The controller has no notion
+; of sides -- it is told which head to energise by which port block is
+; used -- so the bit comes out of the track number and selects the
+; other base instead.
                BIT 7,D                         ; 4053 CB 7A
-               JR Z,BOOT_4                     ; 4055 28 04
+               JR Z,BOOT_SET_SECTOR            ; 4055 28 04
                RES 7,D                         ; 4057 CB BA
-               LD C,&E4                        ; 4059 0E E4
+               LD C,DISKCTL_0_BASE_SIDE2       ; 4059 0E E4
 
-; ---- BOOT_4 ---- from &4055 when bit 7 of D clear
-BOOT_4:
+; Two ports up is the sector register.  Set the sector, then step back
+; down to the command and status register, which is where the rest of
+; the loop works.
+
+; ---- BOOT_SET_SECTOR ---- from &4055 when bit 7 of D clear
+BOOT_SET_SECTOR:
                INC C                           ; 405B 0C
                INC C                           ; 405C 0C
                OUT (C),E                       ; 405D ED 59
                DEC C                           ; 405F 0D
                DEC C                           ; 4060 0D
 
-; ---- BOOT_LOOP3 ---- from &4064 when bit 0 was set, &4079, &40B8 when A < &0A
-BOOT_LOOP3:
+; Wait for the controller to go idle, then read back the track it is
+; actually over.
+
+; ---- BOOT_WAIT_READY ---- from &4064 when bit 0 was set, &4079, &40B8 when A < &0A
+BOOT_WAIT_READY:
                IN A,(C)                        ; 4061 ED 78
-               RRA                             ; 4063 1F
-               JR C,BOOT_LOOP3                 ; 4064 38 FB
+               RRA                             ; 4063 1F  bit 0 of the status is BUSY
+               JR C,BOOT_WAIT_READY            ; 4064 38 FB
                INC C                           ; 4066 0C
                IN A,(C)                        ; 4067 ED 78
 
-; ---- BOOT_5 ---- from MB &6099, MB &60CA
-BOOT_5:
+; Compare the head's track with the one wanted, and step towards it
+; one track at a time.  There is no seek command in use here: the
+; controller is stepped by hand and the track register read back after
+; each move.
+
+; ---- BOOT_COMPARE_TRACK ---- from MB &6099, MB &60CA
+BOOT_COMPARE_TRACK:
                DEC C                           ; 4069 0D
                CP D                            ; 406A BA
 
-; ---- BOOT_6 ---- from MB &6095, MB &60CE
-BOOT_6:
-               JR Z,BOOT_10                    ; 406B 28 0E
+; ---- BOOT_TRACK_TEST ---- from MB &6095, MB &60CE
+BOOT_TRACK_TEST:
+               JR Z,BOOT_FOUND_TRACK           ; 406B 28 0E  already there
 
-; ---- BOOT_7 ---- from MB &6052, MB &6077, MB &60D3, MB &60D8
-BOOT_7:
-               LD A,STEP_OUT_CMD               ; 406D 3E 7B
-               JR NC,BOOT_8                    ; 406F 30 02
-               LD A,STEP_IN_CMD                ; 4071 3E 5B
+; ---- BOOT_CHOOSE_STEP_DIRECTION ---- from MB &6052, MB &6077, MB &60D3, MB &60D8
+BOOT_CHOOSE_STEP_DIRECTION:
+               LD A,STEP_OUT_CMD               ; 406D 3E 7B  the head is beyond the track wanted
+               JR NC,BOOT_STEP_HEAD            ; 406F 30 02
+               LD A,STEP_IN_CMD                ; 4071 3E 5B  the head is short of it
 
-; ---- BOOT_8 ---- from &406F
-BOOT_8:
+; ---- BOOT_STEP_HEAD ---- from &406F
+BOOT_STEP_HEAD:
                OUT (C),A                       ; 4073 ED 79
-               LD B,&14                        ; 4075 06 14
+               LD B,CMD_LATENCY_LOOPS          ; 4075 06 14
 
-; ---- BOOT_9 ---- from &4077 when B is not 0 yet
-BOOT_9:
-               DJNZ BOOT_9                     ; 4077 10 FE
-               JR BOOT_LOOP3                   ; 4079 18 E6
+; ---- BOOT_STEP_SETTLE ---- from &4077 when B is not 0 yet
+BOOT_STEP_SETTLE:
+               DJNZ BOOT_STEP_SETTLE           ; 4077 10 FE
+               JR BOOT_WAIT_READY              ; 4079 18 E6  round again to see where the head has got to
 
-; ---- BOOT_10 ---- from &406B when A = D
-BOOT_10:
+; On the right track.  Ask for the sector and let the command settle
+; before the first status read.
+
+; ---- BOOT_FOUND_TRACK ---- from &406B when A = D
+BOOT_FOUND_TRACK:
                LD A,READ_SECTOR_CMD            ; 407B 3E 80
                OUT (C),A                       ; 407D ED 79
 
-; ---- BOOT_11 ---- from MB &5A7E, MB &5AC1
-BOOT_11:
-               LD B,&14                        ; 407F 06 14
+; ---- BOOT_SETTLE_AFTER_READ_CMD ---- from MB &5A7E, MB &5AC1
+BOOT_SETTLE_AFTER_READ_CMD:
+               LD B,CMD_LATENCY_LOOPS          ; 407F 06 14
 
-; ---- BOOT_12 ---- from &4081 when B is not 0 yet, MB &5A8E
-BOOT_12:
-               DJNZ BOOT_12                    ; 4081 10 FE
-               LD HL,(V40FB+&4000)             ; 4083 2A FB 80
+; ---- BOOT_READ_CMD_SETTLE ---- from &4081 when B is not 0 yet, MB &5A8E
+BOOT_READ_CMD_SETTLE:
+               DJNZ BOOT_READ_CMD_SETTLE             ; 4081 10 FE
+               LD HL,(SECTOR_LOAD_ADDRESS+IN_PAGE_C) ; 4083 2A FB 80  where this sector is to land
 
-; ---- BOOT_13 ---- from MB &5A0B
-BOOT_13:
+; Put the data register's port in B.  The three entries differ only in
+; how much of the sum is already done: MasterBASIC jumps into whichever
+; suits what it has in hand, and all three arrive at the command port
+; plus three.
+
+; ---- BOOT_DATA_PORT_FROM_C ---- from MB &5A0B
+BOOT_DATA_PORT_FROM_C:
                LD B,C                          ; 4086 41
                INC B                           ; 4087 04
 
-; ---- BOOT_14 ---- from MB &5A17
-BOOT_14:
+; ---- BOOT_DATA_PORT_PLUS_2 ---- from MB &5A17
+BOOT_DATA_PORT_PLUS_2:
                INC B                           ; 4088 04
 
-; ---- BOOT_15 ---- from MB &5A0F
-BOOT_15:
+; ---- BOOT_DATA_PORT_PLUS_1 ---- from MB &5A0F
+BOOT_DATA_PORT_PLUS_1:
                INC B                           ; 4089 04
-               JR BOOT_LOOP5                   ; 408A 18 08
+               JR BOOT_CHECK_READ_STATUS       ; 408A 18 08
 
-; ---- BOOT_LOOP4 ---- from &4098 when bit 1 of A set
-BOOT_LOOP4:
+; The transfer.  One byte at a time from the data register, with the
+; port switched between data and status on every pass, because the two
+; tests and the read use different registers of the same chip.
+
+; ---- BOOT_READ_SECTOR_BYTE ---- from &4098 when bit 1 of A set
+BOOT_READ_SECTOR_BYTE:
                LD C,B                          ; 408C 48
                IN A,(C)                        ; 408D ED 78
                LD (HL),A                       ; 408F 77
                INC HL                          ; 4090 23
-               DEC C                           ; 4091 0D
+               DEC C                           ; 4091 0D  back to the command and status register
                DEC C                           ; 4092 0D
                DEC C                           ; 4093 0D
 
-; ---- BOOT_LOOP5 ---- from &408A, &409B when bit 0 was set
-BOOT_LOOP5:
+; ---- BOOT_CHECK_READ_STATUS ---- from &408A, &409B when bit 0 was set
+BOOT_CHECK_READ_STATUS:
                IN A,(C)                        ; 4094 ED 78
-               BIT 1,A                         ; 4096 CB 4F
-               JR NZ,BOOT_LOOP4                ; 4098 20 F2
-               RRCA                            ; 409A 0F
-               JR C,BOOT_LOOP5                 ; 409B 38 F7
-               AND &0D                         ; 409D E6 0D
-               JR Z,BOOT_18                    ; 409F 28 1F
-               LD A,(V40FD+&4000)              ; 40A1 3A FD 80
-               INC A                           ; 40A4 3C
-               LD (V40FD+&4000),A              ; 40A5 32 FD 80
-               PUSH AF                         ; 40A8 F5
-               AND &02                         ; 40A9 E6 02
-               JR Z,BOOT_17                    ; 40AB 28 08
-               LD A,&09                        ; 40AD 3E 09
-               OUT (C),A                       ; 40AF ED 79
-               LD B,&14                        ; 40B1 06 14
+               BIT 1,A                         ; 4096 CB 4F  bit 1 of the status is DRQ -- a byte is waiting
+               JR NZ,BOOT_READ_SECTOR_BYTE     ; 4098 20 F2
+               RRCA                            ; 409A 0F  bit 0 is BUSY: still running, so go round again
+               JR C,BOOT_CHECK_READ_STATUS     ; 409B 38 F7
 
-; ---- BOOT_16 ---- from &40B3 when B is not 0 yet
-BOOT_16:
-               DJNZ BOOT_16                    ; 40B3 10 FE
+; The command has finished.  BUSY, LOST DATA and CRC ERROR together
+; say whether it finished well; if none of them is set the sector is
+; good.
+               AND READ_ERROR_FLAGS            ; 409D E6 0D
+               JR Z,BOOT_SECTOR_READ_OK        ; 409F 28 1F  a clean read
 
-; ---- BOOT_17 ---- from &40AB when no bit of &02 is set
-BOOT_17:
+; The read failed.  Count it, and on every other pair of failures
+; restore the head to track 0 first, on the theory that a mis-seek is
+; the likeliest cause.
+               LD A,(SECTOR_RETRY_COUNT+IN_PAGE_C) ; 40A1 3A FD 80
+               INC A                               ; 40A4 3C
+               LD (SECTOR_RETRY_COUNT+IN_PAGE_C),A ; 40A5 32 FD 80
+               PUSH AF                             ; 40A8 F5
+               AND &02                             ; 40A9 E6 02  bit 1 of the count
+               JR Z,BOOT_TEST_RETRY_COUNT          ; 40AB 28 08
+               LD A,RESTORE_CMD                    ; 40AD 3E 09
+               OUT (C),A                           ; 40AF ED 79
+               LD B,CMD_LATENCY_LOOPS              ; 40B1 06 14
+
+; ---- BOOT_RESTORE_SETTLE ---- from &40B3 when B is not 0 yet
+BOOT_RESTORE_SETTLE:
+               DJNZ BOOT_RESTORE_SETTLE        ; 40B3 10 FE
+
+; Ten attempts at one sector, then give up.  There is no error
+; reporting here yet either: the system page has to be put back at
+; &0000 before the ROM can be asked to print anything.
+
+; ---- BOOT_TEST_RETRY_COUNT ---- from &40AB when no bit of &02 is set
+BOOT_TEST_RETRY_COUNT:
                POP AF                          ; 40B5 F1
-               CP &0A                          ; 40B6 FE 0A
-               JR C,BOOT_LOOP3                 ; 40B8 38 A7
-               LD A,SYSPAGE_IN_B               ; 40BA 3E 1F
+               CP MAX_SECTOR_RETRIES           ; 40B6 FE 0A
+               JR C,BOOT_WAIT_READY            ; 40B8 38 A7  try the sector again
+               LD A,SYSPAGE_IN_B               ; 40BA 3E 1F  the ROM needs to be low again to report anything
                OUT (LMPR),A                    ; 40BC D3 FA
                RST ERR_HOOK                    ; 40BE CF
                DEFB ERR_LOADING_ERROR          ; 40BF 13 error 19, "Loading error"
 
-; ---- BOOT_18 ---- from &409F when no bit of &0D is set
-BOOT_18:
-               POP BC                               ; 40C0 C1
-               DEC HL                               ; 40C1 2B
-               LD E,(HL)                            ; 40C2 5E
-               DEC HL                               ; 40C3 2B
-               LD D,(HL)                            ; 40C4 56
-               LD A,D                               ; 40C5 7A
-               OR E                                 ; 40C6 B3
-               JR Z,BOOT_21                         ; 40C7 28 17
-               DJNZ BOOT_20                         ; 40C9 10 12
-               PUSH BC                              ; 40CB C5
-               PUSH DE                              ; 40CC D5
-               CALL INSTALL_TAIL_INTO_SYSPAGE+&4000 ; 40CD CD 60 BD
-               POP DE                               ; 40D0 D1
+; The sector is in.  Its last four bytes are the track and sector of
+; the next one; zero for both ends the file.
+
+; ---- BOOT_SECTOR_READ_OK ---- from &409F when no bit of &0D is set
+BOOT_SECTOR_READ_OK:
+               POP BC                           ; 40C0 C1
+               DEC HL                           ; 40C1 2B
+               LD E,(HL)                        ; 40C2 5E
+               DEC HL                           ; 40C3 2B
+               LD D,(HL)                        ; 40C4 56
+               LD A,D                           ; 40C5 7A
+               OR E                             ; 40C6 B3
+               JR Z,BOOT_LOAD_COMPLETE          ; 40C7 28 17  the end of the chain
+               DJNZ BOOT_NEXT_SECTOR_TRAMPOLINE ; 40C9 10 12  more of this wave to read
+
+; The end of the first wave, which is the DOS.  Enough of it is now in
+; memory to install the part that lives in the system page, and the
+; second wave -- MasterBASIC -- follows into the next page down.
+               PUSH BC                                  ; 40CB C5
+               PUSH DE                                  ; 40CC D5
+               CALL INSTALL_TAIL_INTO_SYSPAGE+IN_PAGE_C ; 40CD CD 60 BD
+               POP DE                                   ; 40D0 D1
 
 ; ---- BOOT_19 ---- from &69EB
 BOOT_19:
@@ -539,35 +671,45 @@ PTHRD_1:
                OUT (LMPR),A                    ; 40D8 D3 FA
                LD HL,HEADER                    ; 40DA 21 00 40
 
-; ---- BOOT_20 ---- from &40C9 when B is not 0 yet
-BOOT_20:
-               JP BOOT_3+&4000                 ; 40DD C3 49 80
+; Back round for the next sector.  It is an absolute jump through the
+; window, not the JR the loop would otherwise use: the DJNZ that
+; reaches it is already at the limit of its range, and this is far
+; enough away to need three bytes anyway.
 
-; ---- BOOT_21 ---- from &40C7
-BOOT_21:
+; ---- BOOT_NEXT_SECTOR_TRAMPOLINE ---- from &40C9 when B is not 0 yet
+BOOT_NEXT_SECTOR_TRAMPOLINE:
+               JP READ_NEXT_SECTOR+IN_PAGE_C   ; 40DD C3 49 80
+
+; Both waves are in.  Copy the installer out of the MasterBASIC page
+; into the DOS's buffer area and jump to it there; from here on the
+; listing at DOSBUF is the code that runs.
+
+; ---- BOOT_LOAD_COMPLETE ---- from &40C7
+BOOT_LOAD_COMPLETE:
                LD HL,PTHRD_2                   ; 40E0 21 E1 75
-               LD DE,DOSBUF+&4000              ; 40E3 11 00 BC
+               LD DE,DOSBUF+IN_PAGE_C          ; 40E3 11 00 BC  the installer's landing ground, reached through the
+                                               ; window
                LD BC,&03AF                     ; 40E6 01 AF 03
                LDIR                            ; 40E9 ED B0
-               IN A,(HMPR)                     ; 40EB DB FB
+               IN A,(HMPR)                     ; 40EB DB FB  the page this code is in
                AND &1F                         ; 40ED E6 1F
                DEC A                           ; 40EF 3D
                LD (L42CC+1),A                  ; 40F0 32 CD 42  patches the operand of the LD at &42CC
                XOR A                           ; 40F3 AF
                OUT (&E9),A                     ; 40F4 D3 E9
-               JP DOSBUF+&4000                 ; 40F6 C3 00 BC
+               JP DOSBUF+IN_PAGE_C             ; 40F6 C3 00 BC  and away, into the copy
 
-; ---- V40F9 ---- from MB &768F
-V40F9:
+; ---- STACK_ON_ENTRY ---- from MB &768F
+STACK_ON_ENTRY:
                DEFB &00,&00                    ; 40F9 ..  zero fill
 
-V40FB:
+SECTOR_LOAD_ADDRESS:
                DEFB &00                        ; 40FB .
 
 L40FC:
                DEFB &00                        ; 40FC .  ***
 
-V40FD:
+SECTOR_RETRY_COUNT:
                DEFB &00,&00,&00                ; 40FD ...
 
 ;; --------------------------------------------------------------------
@@ -4824,8 +4966,8 @@ SETF7:
 BITF0:
                CALL HLFG                       ; 511C CD DF 50
 
-; ---- V511F ---- from &4015
-V511F:
+; ---- ALLOCT_LAST ---- from &4015
+ALLOCT_LAST:
                DEFW &46CB                      ; 511F CB 46
                RET                             ; 5121 C9
 
@@ -4918,103 +5060,103 @@ SETBORDER_BORDCR:
 ; ---- REP4 ---- from &46DB when A >= &0A, &7588 when A >= C
 REP4:
                LD A,ERR_TRK_NNN_SCT_NN_ERROR   ; 5165 3E 55
-               DEFB SKIP_NEXT_2_BYTES          ; 5167 !
+               DEFB SKIP_2_VIA_LD_HL           ; 5167 !
 
 ; ---- REP5 ---- from &4710 when A >= &08
 REP5:
                LD A,ERR_FORMAT_TRK_NNN_LOST    ; 5168 3E 56
-               DEFB SKIP_NEXT_2_BYTES          ; 516A !
+               DEFB SKIP_2_VIA_LD_HL           ; 516A !
 
 ; ---- REP6 ---- from &47B7
 REP6:
                LD A,ERR_CHECK_DISK_IN_DRIVE    ; 516B 3E 57
-               DEFB SKIP_NEXT_2_BYTES          ; 516D !
+               DEFB SKIP_2_VIA_LD_HL           ; 516D !
 
 ; ---- REP12 ---- from &64C9 when A <> (HL)
 REP12:
                LD A,ERR_VERIFY_FAILED          ; 516E 3E 5D
-               DEFB SKIP_NEXT_2_BYTES          ; 5170 !
+               DEFB SKIP_2_VIA_LD_HL           ; 5170 !
 
 ; ---- REP13 ---- from &4E7C when A >= &15, &4E83, &4EDD when A <> (HL), &5FFE
 REP13:
                LD A,ERR_WRONG_FILE_TYPE        ; 5171 3E 5E
-               DEFB SKIP_NEXT_2_BYTES          ; 5173 !  skipped: reads as LD HL,&633E from here, and as part of the
+               DEFB SKIP_2_VIA_LD_HL           ; 5173 !  skipped: reads as LD HL,&633E from here, and as part of the
                                                ; instruction above it
 
 ; ---- REP18 ---- from &6F21 when bit 0 of (IX+&0C) set
 REP18:
                LD A,ERR_READING_A_WRITE_FILE   ; 5174 3E 63
-               DEFB SKIP_NEXT_2_BYTES          ; 5176 !  skipped: reads as LD HL,&643E from here, and as part of the
+               DEFB SKIP_2_VIA_LD_HL           ; 5176 !  skipped: reads as LD HL,&643E from here, and as part of the
                                                ; instruction above it
 
 ; ---- REP19 ---- from &6BFF when A = &DF, &6F50 when no bit of &03 is set
 REP19:
                LD A,ERR_WRITING_A_READ_FILE    ; 5177 3E 64
-               DEFB SKIP_NEXT_2_BYTES          ; 5179 !
+               DEFB SKIP_2_VIA_LD_HL           ; 5179 !
 
 ; ---- REP20 ---- from &65F4
 REP20:
                LD A,ERR_NO_AUTO_FILE           ; 517A 3E 65
-               DEFB SKIP_NEXT_2_BYTES          ; 517C !  skipped: reads as LD HL,&673E from here, and as part of the
+               DEFB SKIP_2_VIA_LD_HL           ; 517C !  skipped: reads as LD HL,&673E from here, and as part of the
                                                ; instruction above it
 
 ; ---- REP22 ---- from &4815 when A >= &07, &4820 when A = &00, &7582 when A = 0, &7645 when A >= &08, &7734 when A = 0
 REP22:
                LD A,ERR_NO_SUCH_DRIVE          ; 517D 3E 67
-               DEFB SKIP_NEXT_2_BYTES          ; 517F !  skipped: reads as LD HL,&683E from here, and as part of the
+               DEFB SKIP_2_VIA_LD_HL           ; 517F !  skipped: reads as LD HL,&683E from here, and as part of the
                                                ; instruction above it
 
 ; ---- REP23 ---- from &45A4 when bit 5 of A set, &5513 when bit 5 of A set
 REP23:
                LD A,ERR_DISK_IS_WRITE_PROTEC   ; 5180 3E 68
-               DEFB SKIP_NEXT_2_BYTES          ; 5182 !
+               DEFB SKIP_2_VIA_LD_HL           ; 5182 !
 
 ; ---- REP24 ---- from &4AC8 when A = D
 REP24:
                LD A,ERR_DISK_FULL              ; 5183 3E 69
-               DEFB SKIP_NEXT_2_BYTES          ; 5185 !
+               DEFB SKIP_2_VIA_LD_HL           ; 5185 !
 
 ; ---- REP25 ---- from &4E18, &721A when A = &FF
 REP25:
                LD A,ERR_DIRECTORY_FULL         ; 5186 3E 6A
-               DEFB SKIP_NEXT_2_BYTES          ; 5188 !  skipped: reads as LD HL,&163E from here, and as part of the
+               DEFB SKIP_2_VIA_LD_HL           ; 5188 !  skipped: reads as LD HL,&163E from here, and as part of the
                                                ; instruction above it
 
 ; ---- REP27 ---- from &473A, &6F01, &70BF, &71A5, &75CD when A >= &0A, &7A5A
 REP27:
                LD A,ERR_END_OF_FILE            ; 5189 3E 16
-               DEFB SKIP_NEXT_2_BYTES          ; 518B !  EOF
+               DEFB SKIP_2_VIA_LD_HL           ; 518B !  EOF
 
 ; ---- REP28 ---- from &4D3F, &4D49 when A = &15, &5D9F
 REP28:
                LD A,ERR_FILE_NAME_USED         ; 518C 3E 6D
-               DEFB SKIP_NEXT_2_BYTES          ; 518E !
+               DEFB SKIP_2_VIA_LD_HL           ; 518E !
 
 ; ---- REP30 ---- from &6B48
 REP30:
                LD A,ERR_STREAM_USED            ; 518F 3E 6F
-               DEFB SKIP_NEXT_2_BYTES          ; 5191 !
+               DEFB SKIP_2_VIA_LD_HL           ; 5191 !
 
 ; ---- REP31 ---- from &6BCA
 REP31:
                LD A,ERR_CHANNEL_USED           ; 5192 3E 70
-               DEFB SKIP_NEXT_2_BYTES          ; 5194 !  skipped: reads as LD HL,PTRSL from here, and as part of the
+               DEFB SKIP_2_VIA_LD_HL           ; 5194 !  skipped: reads as LD HL,PTRSL from here, and as part of the
                                                ; instruction above it
 
 ; ---- REP32 ---- from &731E
 REP32:
                LD A,ERR_DIRECTORY_NOT_FOUND    ; 5195 3E 71
-               DEFB SKIP_NEXT_2_BYTES          ; 5197 !
+               DEFB SKIP_2_VIA_LD_HL           ; 5197 !
 
 ; ---- REP33 ---- from &5D0F
 REP33:
                LD A,ERR_DIRECTORY_NOT_EMPTY    ; 5198 3E 72
-               DEFB SKIP_NEXT_2_BYTES          ; 519A !
+               DEFB SKIP_2_VIA_LD_HL           ; 519A !
 
 ; ---- REP33_1 ---- from &5A33 when B reaches 0, &6A11 when A = 0
 REP33_1:
                LD A,&73                        ; 519B 3E 73
-               DEFB SKIP_NEXT_2_BYTES          ; 519D !  skipped: reads as LD HL,&743E from here, and as part of the
+               DEFB SKIP_2_VIA_LD_HL           ; 519D !  skipped: reads as LD HL,&743E from here, and as part of the
                                                ; instruction above it
 
 ; ---- REP33_2 ---- from &4D5B when bit 6 of (HL) set, &5E5F
@@ -6178,7 +6320,7 @@ SKIP_B_WORDS:
                RLA                             ; 5776 17
                JR NC,SKIP_B_WORDS              ; 5777 30 FB
                DJNZ SKIP_B_WORDS               ; 5779 10 F9
-               DEFB SKIP_NEXT_1_BYTE           ; 577B >  skipped: reads as LD A,&E1 from here, and as part of the
+               DEFB SKIP_1_VIA_LD_A            ; 577B >  skipped: reads as LD A,&E1 from here, and as part of the
                                                ; instruction above it
 
 ;; --------------------------------------------------------------------
@@ -9135,7 +9277,7 @@ HVAR1_1:
 
 FNLN2:
                LD A,&02                        ; 6597 3E 02
-               DEFB SKIP_NEXT_2_BYTES          ; 6599 !  "JR+2"
+               DEFB SKIP_2_VIA_LD_HL           ; 6599 !  "JR+2"
 
 HPTR:
                LD A,&01                        ; 659A 3E 01
@@ -9222,7 +9364,7 @@ AUINSR:
                LD A,&95                        ; 65FD 3E 95  LOAD TOK
                CALL NRWR                       ; 65FF CD 74 50
                DEFW CURCMD                     ; 6602 74 5B
-               DEFB SKIP_NEXT_2_BYTES          ; 6604 !  skipped: reads as LD HL,AUTNAM from here, and as part of the
+               DEFB SKIP_2_VIA_LD_HL           ; 6604 !  skipped: reads as LD HL,AUTNAM from here, and as part of the
                                                ; instruction above it
                PUSH DE                         ; 6605 D5
                LD H,L                          ; 6606 65
@@ -9633,9 +9775,9 @@ MOVA:
                CALL TOSCQ                      ; 6820 CD F8 68
                JP NZ,MOVE1                     ; 6823 C2 91 68  JR IF NOT MOVE D TO S/T/
                XOR A                           ; 6826 AF
-               LD (TVFLAG+&4000),A             ; 6827 32 3C 9C  NOT AUTO-LIST
+               LD (TVFLAG+IN_PAGE_C),A         ; 6827 32 3C 9C  NOT AUTO-LIST
                INC A                           ; 682A 3C
-               LD (INQUFG+&4000),A             ; 682B 32 BA 9A  IN QUOTES SO NO KEYWORDS
+               LD (INQUFG+IN_PAGE_C),A         ; 682B 32 BA 9A  IN QUOTES SO NO KEYWORDS
                LD A,D                          ; 682E 7A
                AND &1F                         ; 682F E6 1F
                CP &0A                          ; 6831 FE 0A
@@ -9647,7 +9789,7 @@ MOVA:
                CP &10                          ; 683C FE 10
                JR NZ,MOVJ_LOOP                 ; 683E 20 3C  IF NOT PROGRAM, SUPPRESS
                XOR A                           ; 6840 AF
-               LD (INQUFG+&4000),A             ; 6841 32 BA 9A  NOT IN QUOTES - KEYWORDS ON
+               LD (INQUFG+IN_PAGE_C),A         ; 6841 32 BA 9A  NOT IN QUOTES - KEYWORDS ON
 
 ; ---- MOVA_1 ---- from &6870
 MOVA_1:
@@ -10986,7 +11128,7 @@ MCHIN:
                XOR A                           ; 6F0A AF
                OUT (HMPR),A                    ; 6F0B D3 FB
                PUSH IX                         ; 6F0D DD E5  KEEP FPC HAPPY DURING INKEY$
-               LD HL,TVFLAG+&4000              ; 6F0F 21 3C 9C
+               LD HL,TVFLAG+IN_PAGE_C          ; 6F0F 21 3C 9C
                RES 3,(HL)                      ; 6F12 CB 9E  "NO NEED TO COPY LINE TO LS"
                LD IX,(&9C51)                   ; 6F14 DD 2A 51 9C  - NEEDED?
                LD BC,HEADER                    ; 6F18 01 00 40
@@ -11038,7 +11180,7 @@ MCHWR:
                LD A,(IX+&0C)                   ; 6F4B DD 7E 0C
                AND &03                         ; 6F4E E6 03
                JP Z,REP19                      ; 6F50 CA 77 51  "WRITING A READ FILE" IF "IN"
-               LD A,(CURCMD+&4000)             ; 6F53 3A 74 9B
+               LD A,(CURCMD+IN_PAGE_C)         ; 6F53 3A 74 9B
                CP &C6                          ; 6F56 FE C6  VALUE FOR "INPUT"
                JR Z,MCHN2_1                    ; 6F58 28 DB  NO WRITE IF SO
                CALL CPPTR                      ; 6F5A CD DC 6F  Z IF PTR=LEN
@@ -14350,15 +14492,15 @@ CMR3:
 ;; --------------------------------------------------------------------
 
 INSTALL_TAIL_INTO_SYSPAGE:
-               LD HL,INSTALL_TAIL_INTO_SYSPAGE+&4000 ; 7D60 21 60 BD
-               LD DE,INSTBUF                         ; 7D63 11 00 4F
-               LD BC,&01BE                           ; 7D66 01 BE 01
-               LDIR                                  ; 7D69 ED B0
-               LD DE,SYS_MNIP_MAIN_INPUT             ; 7D6B 11 14 4C
-               LD C,&A1                              ; 7D6E 0E A1
-               LDIR                                  ; 7D70 ED B0
-               RET                                   ; 7D72 C9
-               DEFB &36,&00,&A7,&C8,&3A,&71          ; 7D73 6.'H:q
+               LD HL,INSTALL_TAIL_INTO_SYSPAGE+IN_PAGE_C ; 7D60 21 60 BD
+               LD DE,INSTBUF                             ; 7D63 11 00 4F
+               LD BC,&01BE                               ; 7D66 01 BE 01
+               LDIR                                      ; 7D69 ED B0
+               LD DE,SYS_MNIP_MAIN_INPUT                 ; 7D6B 11 14 4C
+               LD C,&A1                                  ; 7D6E 0E A1
+               LDIR                                      ; 7D70 ED B0
+               RET                                       ; 7D72 C9
+               DEFB &36,&00,&A7,&C8,&3A,&71              ; 7D73 6.'H:q
 
 ;; --------------------------------------------------------------------
 ;; Find a three-byte instruction sequence in the ROM and hand back a

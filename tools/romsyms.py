@@ -544,9 +544,9 @@ EXTRA_NOTES = {
     'TOOMANY': 'a compressed substring in ERRTBL, printed as "Too many "',
     'TATEMENT': 'a compressed substring in ERRTBL, printed as "tatement"',
     'FILE': 'a compressed substring in ERRTBL, printed as "file"',
-    'SKIP_NEXT_2_BYTES': 'LD HL,nn, standing here only to swallow the two'
+    'SKIP_2_VIA_LD_HL': 'LD HL,nn, standing here only to swallow the two'
                          ' bytes after it -- see docs/idioms.md',
-    'SKIP_NEXT_1_BYTE': 'LD A,n, standing here only to swallow the byte after it',
+    'SKIP_1_VIA_LD_A': 'LD A,n, standing here only to swallow the byte after it',
     'SKIP_2_VIA_LD_DE': 'LD DE,nn, skipping two bytes and clobbering DE',
     'SKIP_2_VIA_LD_SP': 'LD SP,nn, skipping two bytes and clobbering SP',
     'SKIP_1_VIA_LD_C': 'LD C,n, skipping one byte and clobbering C',

@@ -217,7 +217,25 @@ assembles and compares can hold a style like this together.
 
 ---
 
-## 6. Suggested first iteration
+## 6. First iteration — done
+
+M1 and M5 are built, and `BOOT` (`&4009`–`&40FF`) is written in the new
+style: 23 steps, 29 renames, 10 named constants, all six listings still
+byte-identical.
+
+Two things learned in the doing:
+
+- `notes.rename()` had to be given the folder as well as `notes.apply()`,
+  or the `RENAME` lines in `notes/clean/` are read and silently ignored.
+- Narration is emitted **before** the label and its caller list, not
+  after. The example does both; one rule reads better than two.
+
+Still open from the list above: M2 (expression operands), M3 (equates
+grouped by subject), M4 (bit numbers and composed flags). `&4015` is the
+case that wants M2 — the example writes `LD HL,ALLOCT + MAX_INTERNAL_PAGE`
+where the listing can still only manage the label `ALLOCT_LAST`.
+
+## 6a. What the first iteration was
 
 Small enough to judge the whole style on, and it is the example's own
 subject:
