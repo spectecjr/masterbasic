@@ -1,0 +1,131 @@
+# Writing a sector: the retry loop, and the transfer itself.
+#
+# Prose for clean/ only.  Two of the source's comments here run onto a
+# continuation line the carry does not take -- "RET IF SECTOR HAS NOT
+# BEEN" is missing the words "WRITTEN TO" -- and the remark that explains
+# the whole shape of the status loop is a standalone line between two
+# routines, so it lands nowhere at all.
+
+DOC WRIF
+    Flush the current sector to disc if anything has changed it.
+
+    Bit 3 of the file's flag byte is the dirty bit, set whenever a write
+    lands in the buffer.  If it is clear the buffer already matches what
+    is on the disc and there is nothing to do, which is what makes this
+    cheap enough to call on every seek past a sector boundary.
+
+DOS &4578 : DE = the sector the file is positioned at
+DOS &457B : bit 3 of the file's flags: has the buffer been written to?
+DOS &457F : no, so it already matches the disc
+
+DOC WSAD
+    Write the 512-byte buffer to track D, sector E.
+
+    The loop retries, and its exit is the unusual part.  On success
+    RETRY_OR_GIVE_UP throws away the return address of the call below it
+    and returns to WSAD's own caller instead, leaving HL pointing at the
+    buffer -- so the JR back to WSA1 is only ever reached on a retry, and
+    the routine has no ordinary end at all.  Ten attempts, then REP4.
+
+    Drives 3 to 7 are RAM discs and never reach a controller: TIRDXDCT
+    sends them to RDWSCT, which moves pages instead.
+
+    Interrupts are off from the DI to the end of the transfer.  The
+    controller holds one byte at a time and will not wait: if the next
+    one is late the sector is lost, and there is nothing in the design
+    to catch that but keeping the loop uninterrupted.
+
+    Errors: REP23 if the disc is write protected, REP4 after ten tries.
+
+DOS &4589 : drives 3 to 7 are RAM discs -- move pages instead
+DOS &458C : nothing may interrupt the transfer from here on
+DOS &4590 : builds the write-sector command, precompensation and all
+DOS &4593 : the port base for the drive in use
+DOS &4596 : poked into the IN below, which is assembled with no port
+DOS &4599 : the data register sits three ports above the base
+DOS &459C : point HL at the sector buffer
+DOS &45A2 : bit 6 of the status, WRITE PROTECT, one place along
+
+DOC CHECK_WRITE_STATUS
+    Hand bytes to the controller until it says the sector is written.
+
+    Two things here are worth slowing down for.
+
+    THE PORT IS NOT IN THE INSTRUCTION.  It is assembled as IN A,(&00)
+    and the operand byte is poked in from DSC at &4596, before the
+    transfer starts.  There are two drives on two port bases, and this
+    is how the inner loop avoids indexing to find out which -- the
+    listing shows &00 because that is what the file holds, not what is
+    ever executed.
+
+    ONE STATUS READ SERVES BOTH TESTS.  RRCA drops bit 0, BUSY, into
+    carry: no carry means the command has finished, and the routine
+    returns.  A second RRCA drops bit 1, DRQ, into carry: carry means
+    the controller is asking for the next byte, so OUTI gives it one and
+    falls straight back in here.  Neither test costs a compare, and the
+    loop is three instructions long.
+
+    A is left rotated one place right, and the caller is written knowing
+    it: the write-protect test above reads bit 5 of what comes back,
+    which is bit 6 -- WRITE PROTECT -- of the status as the chip
+    presented it.
+
+DOS &45AC : one byte to the data register, HL forward, B down
+DOS &45AE : the port is whatever was poked in; never &00
+DOS &45B0 : carry is now bit 0, BUSY
+DOS &45B1 : clear, so the controller has finished with the sector
+DOS &45B2 : carry is now bit 1, DRQ
+DOS &45B3 : set, so it wants the next byte
+
+DOS &4586 : which drive is this, and is it a real one?
+DOS &458D : seek to the track and load the sector register
+DOS &459B : C is what OUTI writes to
+DOS &459F : hand the buffer over, a byte at a time
+DOS &45A4 : the disc is write protected
+DOS &45A7 : count this attempt; on success it returns past us
+DOS &45AA : only ever reached on a retry
+
+DOC READ_SECTOR
+    Read track D, sector E into the sector buffer.  The most called
+    routine in this half.
+
+    The same shape as WSAD, and the same unusual exit: on success
+    RETRY_OR_GIVE_UP returns past its caller, so the JR back to
+    READ_SECTOR_LOOP is only ever reached on a retry.  Drives 3 to 7
+    divert at TIRDXDCT and never reach a controller.
+
+DOS &45B7 : which drive is this, and is it a real one?
+DOS &45BA : drives 3 to 7 are RAM discs -- copy pages instead
+DOS &45BD : seek to the track and load the sector register
+DOS &45C0 : the transfer itself
+DOS &45C3 : count this attempt; on success it returns past us
+DOS &45C6 : only ever reached on a retry
+
+DOC RDDATA
+    Move the sector from the controller into the buffer at HL.
+
+    Where the write side patched one port into itself, the read side
+    patches two -- the status port at &45D9 and the data port at &45D5.
+    It has to: it takes each byte with IN A,(n) and stores it by hand,
+    where the write side could use OUTI and keep its port in C.  Both
+    instructions are assembled with a zero operand, so the listing shows
+    &00 twice and neither is ever executed.
+
+    The status loop is the write side's with the sense reversed.  RRCA
+    puts BUSY into carry, and no carry means the sector is finished.
+    The second rotate is RRA here where the write side used RRCA;
+    either leaves DRQ in carry, and nothing on this path reads the bit
+    that goes into bit 7.  Clear means no byte has arrived yet, so it
+    spins; set means one is waiting, and the loop above collects it.
+
+DOS &45C8 : the port base for the drive in use
+DOS &45CE : the data register sits three ports above the base
+DOS &45D3 : wait for the first byte before storing anything
+DOS &45D7 : store it
+DOS &45D8 : and move on
+DOS &45D9 : the port is whatever was poked in; never &00
+DOS &45DB : carry is now bit 0, BUSY
+DOS &45DC : clear, so the controller has finished with the sector
+DOS &45DD : carry is now bit 1, DRQ
+DOS &45DE : nothing waiting yet -- ask again
+DOS &45E0 : a byte is ready

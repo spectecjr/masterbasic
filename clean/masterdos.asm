@@ -1884,14 +1884,24 @@ BUSY:
                CALL BRKTST                     ; 4573 CD 2A 50  let BREAK out of a drive that never answers
                JR BUSY                         ; 4576 18 F5
 
+;; --------------------------------------------------------------------
+;; Flush the current sector to disc if anything has changed it.
+;;
+;; Bit 3 of the file's flag byte is the dirty bit, set whenever a write
+;; lands in the buffer.  If it is clear the buffer already matches what
+;; is on the disc and there is nothing to do, which is what makes this
+;; cheap enough to call on every seek past a sector boundary.
+;; --------------------------------------------------------------------
+
 ; ---- WRIF ---- from &6E8E, &70FD, &7146
 WRIF:
-               CALL GET_TRACK_AND_SECTOR       ; 4578 CD BF 4F  GET DE=CUR SECTOR
+               CALL GET_TRACK_AND_SECTOR       ; 4578 CD BF 4F  DE = the sector the file is positioned at
 
 ; ---- WRIF2 ---- from &6FC8
 WRIF2:
-               BIT 3,(IX+&0C)                  ; 457B DD CB 0C 5E
-               RET Z                           ; 457F C8  RET IF SECTOR HAS NOT BEEN
+               BIT 3,(IX+&0C)                  ; 457B DD CB 0C 5E  bit 3 of the file's flags: has the buffer been
+                                               ; written to?
+               RET Z                           ; 457F C8  no, so it already matches the disc
 
 ;; --------------------------------------------------------------------
 ;; A sector out: wait for the drive with DWAIT, check the track through
@@ -1908,92 +1918,137 @@ NWSAD:
                CALL DWAIT                      ; 4583 CD 64 45
 
 ;; --------------------------------------------------------------------
-;;  WSAD -- write the sector buffer to track D, sector E
+;; Write the 512-byte buffer to track D, sector E.
 ;;
-;;  Loops until the sector is written or CDEC gives up. The exit is unusual: on success CDEC discards the return
-;;  address of the call below it and returns to WSAD's own caller with HL pointing at the buffer, so the JR is only
-;;  ever reached on a retry.
+;; The loop retries, and its exit is the unusual part.  On success
+;; RETRY_OR_GIVE_UP throws away the return address of the call below it
+;; and returns to WSAD's own caller instead, leaving HL pointing at the
+;; buffer -- so the JR back to WSA1 is only ever reached on a retry, and
+;; the routine has no ordinary end at all.  Ten attempts, then REP4.
 ;;
-;;  Errors: REP23 if the disk is write protected, REP4 after ten attempts
+;; Drives 3 to 7 are RAM discs and never reach a controller: TIRDXDCT
+;; sends them to RDWSCT, which moves pages instead.
 ;;
-;; WRITE SECTOR AT DE
+;; Interrupts are off from the DI to the end of the transfer.  The
+;; controller holds one byte at a time and will not wait: if the next
+;; one is late the sector is lost, and there is nothing in the design
+;; to catch that but keeping the loop uninterrupted.
+;;
+;; Errors: REP23 if the disc is write protected, REP4 after ten tries.
 ;; --------------------------------------------------------------------
 
 ; ---- WSAD ---- from &495F, &49D3, &4D8A, &4DFB, &4E62, &556E, &5D1A, &5D2C ...
 WSAD:
-               CALL TIRDXDCT                   ; 4586 CD 56 61
-               JP NC,RDWSCT                    ; 4589 D2 C1 74  a RAM disc: copy pages instead
-               DI                              ; 458C F3
+               CALL TIRDXDCT                   ; 4586 CD 56 61  which drive is this, and is it a real one?
+               JP NC,RDWSCT                    ; 4589 D2 C1 74  drives 3 to 7 are RAM discs -- move pages instead
+               DI                              ; 458C F3  nothing may interrupt the transfer from here on
 
 ; ---- WSA1 ---- from &45AA
 WSA1:
-               CALL CTAS                       ; 458D CD 38 47
-               CALL PRECMX                     ; 4590 CD 47 45  WRITE SECTOR CMD
-               LD A,(DSC)                      ; 4593 3A 10 41
-               LD (CHECK_WRITE_STATUS+1),A     ; 4596 32 AF 45  SELF-MOD STATUS PORT
-               ADD A,DISKCTL_DATA_OFS          ; 4599 C6 03
-               LD C,A                          ; 459B 4F  DATA PORT
-               CALL GTBUF                      ; 459C CD A0 4F
-               CALL CHECK_WRITE_STATUS         ; 459F CD AE 45
-               BIT 5,A                         ; 45A2 CB 6F
-               JP NZ,REP23                     ; 45A4 C2 80 51  ERROR IF WRITE-PROTECTED
-               CALL RETRY_OR_GIVE_UP           ; 45A7 CD C6 46
-               JR WSA1                         ; 45AA 18 E1
+               CALL CTAS                       ; 458D CD 38 47  seek to the track and load the sector register
+               CALL PRECMX                     ; 4590 CD 47 45  builds the write-sector command, precompensation and all
+               LD A,(DSC)                      ; 4593 3A 10 41  the port base for the drive in use
+               LD (CHECK_WRITE_STATUS+1),A     ; 4596 32 AF 45  poked into the IN below, which is assembled with no port
+               ADD A,DISKCTL_DATA_OFS          ; 4599 C6 03  the data register sits three ports above the base
+               LD C,A                          ; 459B 4F  C is what OUTI writes to
+               CALL GTBUF                      ; 459C CD A0 4F  point HL at the sector buffer
+               CALL CHECK_WRITE_STATUS         ; 459F CD AE 45  hand the buffer over, a byte at a time
+               BIT 5,A                         ; 45A2 CB 6F  bit 6 of the status, WRITE PROTECT, one place along
+               JP NZ,REP23                     ; 45A4 C2 80 51  the disc is write protected
+               CALL RETRY_OR_GIVE_UP           ; 45A7 CD C6 46  count this attempt; on success it returns past us
+               JR WSA1                         ; 45AA 18 E1  only ever reached on a retry
 
 ; ---- WRITE_DATA_LOOP ---- from &45B3 when bit 0 was set
 WRITE_DATA_LOOP:
-               OUTI                            ; 45AC ED A3
+               OUTI                            ; 45AC ED A3  one byte to the data register, HL forward, B down
 
 ;; --------------------------------------------------------------------
-;; Checks the command status to see if the write is complete, and if not, loops until the
-;; controller is ready to write another byte.
+;; Hand bytes to the controller until it says the sector is written.
 ;;
-;; The status port to use is set by self-modifying code. This ensures that the
-;; correct drive is used, and the correct drive-head is energized.
+;; Two things here are worth slowing down for.
+;;
+;; THE PORT IS NOT IN THE INSTRUCTION.  It is assembled as IN A,(&00)
+;; and the operand byte is poked in from DSC at &4596, before the
+;; transfer starts.  There are two drives on two port bases, and this
+;; is how the inner loop avoids indexing to find out which -- the
+;; listing shows &00 because that is what the file holds, not what is
+;; ever executed.
+;;
+;; ONE STATUS READ SERVES BOTH TESTS.  RRCA drops bit 0, BUSY, into
+;; carry: no carry means the command has finished, and the routine
+;; returns.  A second RRCA drops bit 1, DRQ, into carry: carry means
+;; the controller is asking for the next byte, so OUTI gives it one and
+;; falls straight back in here.  Neither test costs a compare, and the
+;; loop is three instructions long.
+;;
+;; A is left rotated one place right, and the caller is written knowing
+;; it: the write-protect test above reads bit 5 of what comes back,
+;; which is bit 6 -- WRITE PROTECT -- of the status as the chip
+;; presented it.
 ;; --------------------------------------------------------------------
 
 ; ---- CHECK_WRITE_STATUS ---- from &459F, &45B5, &55C2
 CHECK_WRITE_STATUS:
-               IN A,(&00)                      ; 45AE DB 00  Read the drive controller status port (specific port chosen
-                                               ; by code above)
-               RRCA                            ; 45B0 0F
-               RET NC                          ; 45B1 D0  RET IF DONE
-               RRCA                            ; 45B2 0F
-               JR C,WRITE_DATA_LOOP            ; 45B3 38 F7  JR IF DISK READY FOR BYTE
+               IN A,(&00)                      ; 45AE DB 00  the port is whatever was poked in; never &00
+               RRCA                            ; 45B0 0F  carry is now bit 0, BUSY
+               RET NC                          ; 45B1 D0  clear, so the controller has finished with the sector
+               RRCA                            ; 45B2 0F  carry is now bit 1, DRQ
+               JR C,WRITE_DATA_LOOP            ; 45B3 38 F7  set, so it wants the next byte
                JR CHECK_WRITE_STATUS           ; 45B5 18 F7
 
 ;; --------------------------------------------------------------------
-;; The read side, and the most called routine in this half.  TIRDXDCT
-;; checks the track, RSSR selects the sector, RDDATA does the transfer,
-;; and a failure goes round again from &45BD rather than giving up at
-;; once.
+;; Read track D, sector E into the sector buffer.  The most called
+;; routine in this half.
+;;
+;; The same shape as WSAD, and the same unusual exit: on success
+;; RETRY_OR_GIVE_UP returns past its caller, so the JR back to
+;; READ_SECTOR_LOOP is only ever reached on a retry.  Drives 3 to 7
+;; divert at TIRDXDCT and never reach a controller.
 ;; --------------------------------------------------------------------
 
 ; ---- READ_SECTOR ---- from &4602, &4633 when bit 5 of A clear, &48FF, &4E08, &5558, &5582, &5A14, &5D62 ...
 READ_SECTOR:
-               CALL TIRDXDCT                   ; 45B7 CD 56 61
-               JP NC,RDRSCT                    ; 45BA D2 33 75
+               CALL TIRDXDCT                   ; 45B7 CD 56 61  which drive is this, and is it a real one?
+               JP NC,RDRSCT                    ; 45BA D2 33 75  drives 3 to 7 are RAM discs -- copy pages instead
 
 ; ---- READ_SECTOR_LOOP ---- from &45C6
 READ_SECTOR_LOOP:
-               CALL RSSR                       ; 45BD CD 97 4F
-               CALL RDDATA                     ; 45C0 CD C8 45
-               CALL RETRY_OR_GIVE_UP           ; 45C3 CD C6 46
-               JR READ_SECTOR_LOOP             ; 45C6 18 F5
+               CALL RSSR                       ; 45BD CD 97 4F  seek to the track and load the sector register
+               CALL RDDATA                     ; 45C0 CD C8 45  the transfer itself
+               CALL RETRY_OR_GIVE_UP           ; 45C3 CD C6 46  count this attempt; on success it returns past us
+               JR READ_SECTOR_LOOP             ; 45C6 18 F5  only ever reached on a retry
+
+;; --------------------------------------------------------------------
+;; Move the sector from the controller into the buffer at HL.
+;;
+;; Where the write side patched one port into itself, the read side
+;; patches two -- the status port at &45D9 and the data port at &45D5.
+;; It has to: it takes each byte with IN A,(n) and stores it by hand,
+;; where the write side could use OUTI and keep its port in C.  Both
+;; instructions are assembled with a zero operand, so the listing shows
+;; &00 twice and neither is ever executed.
+;;
+;; The status loop is the write side's with the sense reversed.  RRCA
+;; puts BUSY into carry, and no carry means the sector is finished.
+;; The second rotate is RRA here where the write side used RRCA;
+;; either leaves DRQ in carry, and nothing on this path reads the bit
+;; that goes into bit 7.  Clear means no byte has arrived yet, so it
+;; spins; set means one is waiting, and the loop above collects it.
+;; --------------------------------------------------------------------
 
 ; ---- RDDATA ---- from &45C0, &46F7, &54BD
 RDDATA:
-               LD A,(DSC)                      ; 45C8 3A 10 41  STATUS PORT
+               LD A,(DSC)                      ; 45C8 3A 10 41  the port base for the drive in use
                LD (CHECK_READ_STATUS+1),A      ; 45CB 32 DA 45  patches the port of the IN at &45D9
-               ADD A,DISKCTL_DATA_OFS          ; 45CE C6 03
+               ADD A,DISKCTL_DATA_OFS          ; 45CE C6 03  the data register sits three ports above the base
                LD (READ_DATA_LOOP+1),A         ; 45D0 32 D6 45  patches the port of the IN at &45D5
-               JR CHECK_READ_STATUS            ; 45D3 18 04
+               JR CHECK_READ_STATUS            ; 45D3 18 04  wait for the first byte before storing anything
 
 ; ---- READ_DATA_LOOP ---- from &45E0
 READ_DATA_LOOP:
                IN A,(&00)                      ; 45D5 DB 00  the port is written here at run time, from &45D0
-               LD (HL),A                       ; 45D7 77
-               INC HL                          ; 45D8 23
+               LD (HL),A                       ; 45D7 77  store it
+               INC HL                          ; 45D8 23  and move on
 
 ;; --------------------------------------------------------------------
 ;; Checks the command status to see if the read op is complete, and if not, loops until the
@@ -2005,13 +2060,12 @@ READ_DATA_LOOP:
 
 ; ---- CHECK_READ_STATUS ---- from &45D3, &45DE when bit 0 was clear
 CHECK_READ_STATUS:
-               IN A,(&00)                      ; 45D9 DB 00  Read the drive controller status port (specific port chosen
-                                               ; by code above)
-               RRCA                            ; 45DB 0F
-               RET NC                          ; 45DC D0  RET IF READ SECTOR CMD FINISHED
-               RRA                             ; 45DD 1F
-               JR NC,CHECK_READ_STATUS         ; 45DE 30 F9  JR IF NO BYTE IS READY TO READ
-               JR READ_DATA_LOOP               ; 45E0 18 F3
+               IN A,(&00)                      ; 45D9 DB 00  the port is whatever was poked in; never &00
+               RRCA                            ; 45DB 0F  carry is now bit 0, BUSY
+               RET NC                          ; 45DC D0  clear, so the controller has finished with the sector
+               RRA                             ; 45DD 1F  carry is now bit 1, DRQ
+               JR NC,CHECK_READ_STATUS         ; 45DE 30 F9  nothing waiting yet -- ask again
+               JR READ_DATA_LOOP               ; 45E0 18 F3  a byte is ready
 
 ;; --------------------------------------------------------------------
 ;; Take the flags at (IX+&04) and decide how to reach the data: bit 2
