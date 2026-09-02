@@ -1,0 +1,81 @@
+# Getting the head onto a track, which is done by hand.
+#
+# Prose for clean/ only.
+
+DOC CTAS
+    Put the head over track D and the controller's sector register on
+    sector E.  Everything that touches a floppy comes through here first.
+
+    THERE IS NO SEEK COMMAND IN USE.  The WD1772 has one, and the DOS
+    does not use it: it reads the track register back, compares it with
+    the track it wants, steps the head one track towards it, and goes
+    round again.  That costs a status read per track and gains the only
+    thing that matters here -- the DOS always knows where the head
+    actually is, rather than where a seek command claimed to leave it,
+    which is what makes the recovery in CDE1_1 possible.
+
+    DE of zero is not a track and sector but the end of a file, and is
+    reported as "End of file" rather than sought.
+
+    SEEKD is the way in for callers that have already selected the drive
+    and want a seek and nothing else; FORMAT uses it.
+
+DOS &4738 : track and sector, or zero for the end of the chain
+DOS &473D : flash the border, which is how a SAM shows disc activity
+DOS &4742 : select the drive, leaving its port base in A
+DOS &4747 : two above the base is the sector register
+DOS &4748 : the controller wants the sector before the seek, not after
+
+DOC CTA2
+    One turn of the seek: where is the head, and which way to step.
+
+DOS &474A : the wanted track, without the side bit
+DOS &474E : the controller must be idle before its registers are read
+DOS &4751 : one above the base is the track register
+DOS &4754 : where the head actually is
+DOS &4757 : already there, and the sector register is set, so done
+DOS &4773 : the head is beyond the track: out towards track 0
+DOS &4776 : the head is short of it: in towards the hub
+DOS &4779 : and look again
+
+DOC CTA25
+    A block load or save that has walked off the top of the window.
+
+    This has nothing to do with seeking and sits here because the seek
+    loop is a convenient place to be interrupted: the check is made every
+    time the track changes, which for a long transfer is often enough and
+    costs nothing when it is not needed.
+
+    A block transfer walks its pointer up through the window at
+    &8000-&BFFF.  When the high byte reaches &C0 the pointer has run off
+    the end, so RES 6 pulls it back to &8000 -- the same address sixteen
+    kilobytes earlier -- and HMPR is stepped on to bring the next page
+    into the window under it.
+
+DOS &4759 : is this a block load or save at all?
+DOS &475E : the high byte of the transfer pointer
+DOS &4763 : still inside the window, so nothing to do
+DOS &4765 : &C0xx becomes &80xx: the same place, one page on
+DOS &476A : the page in the window
+DOS &4770 : and the next one takes its place
+
+DOC STEP
+    Issue a step command and then wait out the drive's step time.
+
+    The controller is told to step and says it is finished long before
+    the head has settled, so the wait is the DOS's own: a count from
+    STPRAT, or STPRT2 for the second drive, so that a slow drive can be
+    given longer by poking a variable.  Zero means no wait at all.
+
+DOS &478D : the step command, and the usual latency after writing it
+DOS &4791 : the step rate for drive 1
+DOS &4797 : bit 4 of the port base picks the drive
+DOS &479B : drive 2 has its own rate, in the byte after
+DOS &479E : zero, so this drive is not given any settling time
+
+GROUP Memory
+DOS &4761 value PAST_WINDOW_TOP
+
+DOS &473A : a zero track and sector is the end of the chain, not a place
+DOS &474B : bit 7 of the track byte is the side, and the head does not care
+DOS &475C : an ordinary sector transfer, so nothing to page

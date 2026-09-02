@@ -239,6 +239,7 @@ MAX_INTERNAL_PAGE:            EQU  &1F         ; the highest page number a 512K 
 MIN_RAMDISC_PAGE_TYPE:        EQU  &D0         ; lowest allocation code that means a RAM disc
 PAGE_VALUE_MASK:              EQU  &1F         ; a page number is five bits; the rest of the port is not
 PAST_RAMDISC_PAGE_TYPE:       EQU  &D8         ; one above the highest, so the test is a range
+PAST_WINDOW_TOP:              EQU  &C0
 SCREEN_PAGE_TYPE:             EQU  &30         ; allocation code for a page holding a screen
 
 ; Disk controller status
@@ -2589,25 +2590,33 @@ HK_SKSAFE:
                JR SEEKD                        ; 4736 18 0A
 
 ;; --------------------------------------------------------------------
-;;  CTAS / SEEKD -- select the drive and side, then seek to track D
+;; Put the head over track D and the controller's sector register on
+;; sector E.  Everything that touches a floppy comes through here first.
 ;;
-;;  Stepping is done by hand rather than with the controller's seek command, so that the DOS can watch for the
-;;  transfer address crossing &C000 between steps and page on -- which keeps that test out of the transfer loop.
+;; THERE IS NO SEEK COMMAND IN USE.  The WD1772 has one, and the DOS
+;; does not use it: it reads the track register back, compares it with
+;; the track it wants, steps the head one track towards it, and goes
+;; round again.  That costs a status read per track and gains the only
+;; thing that matters here -- the DOS always knows where the head
+;; actually is, rather than where a seek command claimed to leave it,
+;; which is what makes the recovery in CDE1_1 possible.
 ;;
-;;  The commented-out lines are SAMDOS's end-of-chain handling: a track and sector of 0,0 marked the end of a file.
-;;  MasterDOS reports end of file unconditionally here and handles the chain elsewhere.
+;; DE of zero is not a track and sector but the end of a file, and is
+;; reported as "End of file" rather than sought.
 ;;
-;; CONFIRM TRACK AND SEEK
+;; SEEKD is the way in for callers that have already selected the drive
+;; and want a seek and nothing else; FORMAT uses it.
 ;; --------------------------------------------------------------------
 
 ; ---- CTAS ---- from &458D, &48AF, &49F1, &4F97, &54B1
 CTAS:
-               LD A,D                          ; 4738 7A
+               LD A,D                          ; 4738 7A  track and sector, or zero for the end of the chain
                OR E                            ; 4739 B3
-               JP Z,REP27                      ; 473A CA 89 51  END OF FILE
+               JP Z,REP27                      ; 473A CA 89 51  a zero track and sector is the end of the chain, not a
+                                               ; place
 
 CTA1:
-               CALL BCC                        ; 473D CD 46 51  BORDER COLOUR CHANGE
+               CALL BCC                        ; 473D CD 46 51  flash the border, which is how a SAM shows disc activity
                EXX                             ; 4740 D9
 
 HSKTD:
@@ -2615,43 +2624,64 @@ HSKTD:
 
 ; ---- SEEKD ---- from &4733 when A <> &04, &4736
 SEEKD:
-               CALL SELD                       ; 4742 CD 2F 48
+               CALL SELD                       ; 4742 CD 2F 48  select the drive, leaving its port base in A
                INC A                           ; 4745 3C
                INC A                           ; 4746 3C
-               LD C,A                          ; 4747 4F  SECTOR PORT
-               OUT (C),E                       ; 4748 ED 59
+               LD C,A                          ; 4747 4F  two above the base is the sector register
+               OUT (C),E                       ; 4748 ED 59  the controller wants the sector before the seek, not after
+
+;; --------------------------------------------------------------------
+;; One turn of the seek: where is the head, and which way to step.
+;; --------------------------------------------------------------------
 
 ; ---- CTA2 ---- from &4779
 CTA2:
-               LD A,D                          ; 474A 7A
-               AND &7F                         ; 474B E6 7F
+               LD A,D                          ; 474A 7A  the wanted track, without the side bit
+               AND &7F                         ; 474B E6 7F  bit 7 of the track byte is the side, and the head does not
+                                               ; care
                LD B,A                          ; 474D 47
-               CALL BUSY                       ; 474E CD 6D 45
-               CALL TRCKP                      ; 4751 CD 21 45
-               IN A,(C)                        ; 4754 ED 78
+               CALL BUSY                       ; 474E CD 6D 45  the controller must be idle before its registers are
+                                               ; read
+               CALL TRCKP                      ; 4751 CD 21 45  one above the base is the track register
+               IN A,(C)                        ; 4754 ED 78  where the head actually is
                CP B                            ; 4756 B8
-               RET Z                           ; 4757 C8
+               RET Z                           ; 4757 C8  already there, and the sector register is set, so done
                PUSH AF                         ; 4758 F5
-               CALL BITF6                      ; 4759 CD 3A 51
-               JR Z,CTA3                       ; 475C 28 14  JR IF NOT LOAD/SAVE BLOCK
+               CALL BITF6                      ; 4759 CD 3A 51  is this a block load or save at all?
+               JR Z,CTA3                       ; 475C 28 14  an ordinary sector transfer, so nothing to page
+
+;; --------------------------------------------------------------------
+;; A block load or save that has walked off the top of the window.
+;;
+;; This has nothing to do with seeking and sits here because the seek
+;; loop is a convenient place to be interrupted: the check is made every
+;; time the track changes, which for a long transfer is often enough and
+;; costs nothing when it is not needed.
+;;
+;; A block transfer walks its pointer up through the window at
+;; &8000-&BFFF.  When the high byte reaches &C0 the pointer has run off
+;; the end, so RES 6 pulls it back to &8000 -- the same address sixteen
+;; kilobytes earlier -- and HMPR is stepped on to bring the next page
+;; into the window under it.
+;; --------------------------------------------------------------------
 
 CTA25:
-               LD A,(SVHL+1)                   ; 475E 3A 06 7C
-               CP &C0                          ; 4761 FE C0
-               JR C,CTA3                       ; 4763 38 0D
-               RES 6,A                         ; 4765 CB B7  &C000 -> &8000
+               LD A,(SVHL+1)                   ; 475E 3A 06 7C  the high byte of the transfer pointer
+               CP PAST_WINDOW_TOP              ; 4761 FE C0
+               JR C,CTA3                       ; 4763 38 0D  still inside the window, so nothing to do
+               RES 6,A                         ; 4765 CB B7  &C0xx becomes &80xx: the same place, one page on
                LD (SVHL+1),A                   ; 4767 32 06 7C
-               IN A,(HMPR)                     ; 476A DB FB
+               IN A,(HMPR)                     ; 476A DB FB  the page in the window
                INC A                           ; 476C 3C
                LD (PORT1),A                    ; 476D 32 2E 41
-               OUT (HMPR),A                    ; 4770 D3 FB
+               OUT (HMPR),A                    ; 4770 D3 FB  and the next one takes its place
 
 ; ---- CTA3 ---- from &475C, &4763 when A < &C0
 CTA3:
                POP AF                          ; 4772 F1
-               CALL NC,STEP_HEAD_OUT           ; 4773 D4 7B 47
-               CALL C,STEP_HEAD_IN             ; 4776 DC 7F 47
-               JR CTA2                         ; 4779 18 CF
+               CALL NC,STEP_HEAD_OUT           ; 4773 D4 7B 47  the head is beyond the track: out towards track 0
+               CALL C,STEP_HEAD_IN             ; 4776 DC 7F 47  the head is short of it: in towards the hub
+               JR CTA2                         ; 4779 18 CF  and look again
 
 ; ---- STEP_HEAD_OUT ---- from &46E6, &46E9, &4773, &47C2
 STEP_HEAD_OUT:
@@ -2681,9 +2711,18 @@ STEP_HEAD_OUT_1:
                RET Z                           ; 478A C8
                RES 4,C                         ; 478B CB A1
 
+;; --------------------------------------------------------------------
+;; Issue a step command and then wait out the drive's step time.
+;;
+;; The controller is told to step and says it is finished long before
+;; the head has settled, so the wait is the DOS's own: a count from
+;; STPRAT, or STPRT2 for the second drive, so that a slow drive can be
+;; given longer by poking a variable.  Zero means no wait at all.
+;; --------------------------------------------------------------------
+
 ; ---- STEP ---- from &4782
 STEP:
-               CALL WAIT_DC_READY_BEFORE_CMD   ; 478D CD 58 45
+               CALL WAIT_DC_READY_BEFORE_CMD   ; 478D CD 58 45  the step command, and the usual latency after writing it
 
 ;; --------------------------------------------------------------------
 ;; STEP DELAY ROUTINE
@@ -2693,17 +2732,17 @@ STEP:
 
 STPDEL:
                PUSH HL                         ; 4790 E5
-               LD HL,STPRAT                    ; 4791 21 23 42
+               LD HL,STPRAT                    ; 4791 21 23 42  the step rate for drive 1
                LD A,(DSC)                      ; 4794 3A 10 41
-               BIT 4,A                         ; 4797 CB 67  set for drive 2
+               BIT 4,A                         ; 4797 CB 67  bit 4 of the port base picks the drive
                JR Z,STPD1                      ; 4799 28 01
-               INC HL                          ; 479B 23
+               INC HL                          ; 479B 23  drive 2 has its own rate, in the byte after
 
 ; ---- STPD1 ---- from &4799 when bit 4 of A clear
 STPD1:
                LD A,(HL)                       ; 479C 7E
                POP HL                          ; 479D E1
-               AND A                           ; 479E A7
+               AND A                           ; 479E A7  zero, so this drive is not given any settling time
 
 ; ---- STPD2 ---- from &47AB
 STPD2:
