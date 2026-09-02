@@ -365,11 +365,14 @@ T_REF:                          EQU  &CE       ; the BASIC keyword REF
 T_TO:                           EQU  &8E       ; the BASIC keyword TO
 UPPER:                          EQU  &DF       ; clearing bit 5 folds a letter to upper case
 
-; Numbers named in notes/, each for one instruction where
-; the same value means something else elsewhere.
+
+; Disk controller status
 DISK_STATUS_BUSY:               EQU  &01       ; the controller is still working on a command
 DISK_STATUS_CRC_ERROR:          EQU  &08       ; what was read did not check out
 DISK_STATUS_LOST_DATA:          EQU  &04       ; a byte was not moved in time and is gone
+
+; Numbers named in notes/, each for one instruction
+; where the same value means something else elsewhere.
 DVAR_CMPFG:                     EQU  &42BA     ; DVAR 154 in the DOS page: SAVE MODE 1, 2 or 3 less one
 ENABLE_ROM1:                    EQU  &40       ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
 SKIP_1_VIA_CP:                  EQU  &FE       ; CP n, skipping one byte and clobbering the flags

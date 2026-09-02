@@ -78,8 +78,6 @@ DOS &4015 step
     earlier boot.  Their pages are still marked as belonging to a DOS
     that is no longer running, and nothing else will ever free them.
 
-DOS &4019 value MIN_RAMDISC_PAGE_TYPE
-DOS &401D value PAST_RAMDISC_PAGE_TYPE
 DOS &401B : below the range: not a RAM disc
 DOS &401F : above it: not a RAM disc either
 DOS &4021 : a RAM disc from a previous boot -- give the page back
@@ -92,7 +90,6 @@ DOS &4026 step
     Start the search for a page to load into, one below the page this
     code is running in.
 
-DOS &4028 value PAGE_VALUE_MASK
 DOS &4026 : which page is in the window -- the one holding this code
 DOS &402B : start one below it
 
@@ -101,7 +98,6 @@ DOS &402C step
     this half's own address and this half is at &8000.
 
 DOS &402C : saved where this half can find it again
-DOS &4030 value BOOT_STACK_TOP
 
 DOS &4033 step
     Look for a page to put the DOS in: a free one for preference, a
@@ -109,7 +105,6 @@ DOS &4033 step
     page.  H has not been touched since &4015, so HL is still an entry
     in the allocation table.
 
-DOS &4037 value SCREEN_PAGE_TYPE
 DOS &4034 : zero means the page is free
 DOS &4037 : a screen will do -- it can be taken back
 DOS &403C : keep going down; zero is the system page and stops the scan
@@ -121,7 +116,6 @@ DOS &4040 step
     first wave is the DOS itself.
 
 DOS &4041 : the last two bytes of the boot sector, in this half
-DOS &4047 value FIRST_WAVE_SECTOR_COUNT
 
 DOS &4049 step
     One sector.  Everything from here to the end drives the WD1772
@@ -129,7 +123,6 @@ DOS &4049 step
 
 DOS &404A : no failures against this sector yet
 DOS &404E : remember where it is to land
-DOS &4051 value DISKCTL_0_BASE
 
 DOS &4053 step
     Bit 7 of the track number is the side.  The controller has no notion
@@ -137,7 +130,6 @@ DOS &4053 step
     used -- so the bit comes out of the track number and selects the
     other base instead.
 
-DOS &4059 value DISKCTL_0_BASE_SIDE2
 
 DOS &405B step
     Two ports up is the sector register.  Set the sector, then step back
@@ -159,14 +151,12 @@ DOS &4069 step
 DOS &406B : already there
 DOS &406D : the head is beyond the track wanted
 DOS &4071 : the head is short of it
-DOS &4075 value CMD_LATENCY_LOOPS
 DOS &4079 : round again to see where the head has got to
 
 DOS &407B step
     On the right track.  Ask for the sector and let the command settle
     before the first status read.
 
-DOS &407F value CMD_LATENCY_LOOPS
 DOS &4083 : where this sector is to land
 
 DOS &4086 step
@@ -185,7 +175,6 @@ DOS &4091 : back to the command and status register
 DOS &4096 expr DISK_STATUS_DRQ_BIT
 DOS &4096 : a byte is waiting to be taken
 DOS &409A : bit 0 is BUSY: still running, so go round again
-DOS &409D value READ_ERROR_FLAGS
 
 DOS &409D step
     The command has finished.  BUSY, LOST DATA and CRC ERROR together
@@ -200,15 +189,12 @@ DOS &40A1 step
     the likeliest cause.
 
 DOS &40A9 : bit 1 of the count
-DOS &40AD value RESTORE_CMD
-DOS &40B1 value CMD_LATENCY_LOOPS
 
 DOS &40B5 step
     Ten attempts at one sector, then give up.  There is no error
     reporting here yet either: the system page has to be put back at
     &0000 before the ROM can be asked to print anything.
 
-DOS &40B6 value MAX_SECTOR_RETRIES
 DOS &40B8 : try the sector again
 DOS &40BA : the ROM needs to be low again to report anything
 
@@ -257,3 +243,34 @@ DOS &40E0 step
 DOS &40E3 : the installer's landing ground, reached through the window
 DOS &40EB : the page this code is in
 DOS &40F6 : and away, into the copy
+
+# The numbers this routine works in, under the headings they are
+# written out with.  Each is read back out of the instruction it
+# names, so none of them can disagree with the byte it stands for.
+
+GROUP Memory
+CONST MAX_INTERNAL_PAGE = &1F : the highest page number a 512K machine has
+DOS &4028 value PAGE_VALUE_MASK
+DOS &4019 value MIN_RAMDISC_PAGE_TYPE
+DOS &401D value PAST_RAMDISC_PAGE_TYPE
+DOS &4037 value SCREEN_PAGE_TYPE
+DOS &4030 value BOOT_STACK_TOP
+
+GROUP Boot loader
+DOS &4047 value FIRST_WAVE_SECTOR_COUNT
+DOS &40B6 value MAX_SECTOR_RETRIES
+
+GROUP Disk registers
+DOS &4051 value DISKCTL_0_BASE
+DOS &4059 value DISKCTL_0_BASE_SIDE2
+
+GROUP Disk commands
+DOS &40AD value RESTORE_CMD
+
+GROUP Disk timing
+DOS &4075 value CMD_LATENCY_LOOPS
+DOS &407F value CMD_LATENCY_LOOPS
+DOS &40B1 value CMD_LATENCY_LOOPS
+
+GROUP Disk controller status
+DOS &409D value READ_ERROR_FLAGS

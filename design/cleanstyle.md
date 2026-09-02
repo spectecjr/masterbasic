@@ -241,10 +241,25 @@ Two things learned in the doing:
 - Narration is emitted **before** the label and its caller list, not
   after. The example does both; one rule reads better than two.
 
-Still open from the list above: M2 (expression operands), M3 (equates
-grouped by subject), M4 (bit numbers and composed flags). `&4015` is the
-case that wants M2 — the example writes `LD HL,ALLOCT + MAX_INTERNAL_PAGE`
-where the listing can still only manage the label `ALLOCT_LAST`.
+**All six mechanisms are now built.** M2 needed no evaluator: the listing
+is assembled and compared with the image on every build, so a wrong
+expression fails at its own address, which is a better diagnostic than a
+hand-written check and was already in place. M4 arrived as `CONST`, which
+also covers any named number that belongs to no single instruction. M3 is
+a `GROUP` directive that heads the ones written under it.
+
+Two things asmfmt had to learn, both found by reading the output rather
+than by the byte check:
+
+- its equate pattern took the value as the first word, so a composed
+  equate silently lost everything after the first name;
+- the equate comment column is set by the widest equate, so one long
+  expression dragged every description in the file out to column 96.
+
+And one thing the byte check cannot see at all: taking a name away leaves
+the listing assembling perfectly and reading worse. Two constants were
+lost that way while regrouping. `bare_numbers()` now counts the
+instructions still carrying an unnamed number, per half, on every build.
 
 ## 6a. What the first iteration was
 

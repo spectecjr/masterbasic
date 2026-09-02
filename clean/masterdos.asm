@@ -232,34 +232,46 @@ MB_WAIT_FOR_CLOCK:          EQU  &8978
 ERR_HOOK:                   EQU  &08           ; report an error, or call a DOS hook: the byte after is
                                                ; an error number, or a hook code from 128 up
 
-; Numbers named in notes/, each for one instruction where
-; the same value means something else elsewhere.
+; Memory
 BOOT_STACK_TOP:             EQU  &C000         ; one past the window; the stack grows down into this page
-CMD_LATENCY_LOOPS:          EQU  &14           ; DJNZ iterations, enough for the WD1772 to raise BUSY
-DISKCTL_0_BASE:             EQU  &E0
-DISKCTL_0_BASE_SIDE2:       EQU  &E4           ; the same drive with the second head energised
-DISKCTL_1_BASE:             EQU  &F0
-DISKCTL_DATA_OFS:           EQU  &03
+MAX_INTERNAL_PAGE:          EQU  &1F           ; the highest page number a 512K machine has
+MIN_RAMDISC_PAGE_TYPE:      EQU  &D0           ; lowest allocation code that means a RAM disc
+PAGE_VALUE_MASK:            EQU  &1F           ; a page number is five bits; the rest of the port is not
+PAST_RAMDISC_PAGE_TYPE:     EQU  &D8           ; one above the highest, so the test is a range
+SCREEN_PAGE_TYPE:           EQU  &30           ; allocation code for a page holding a screen
+
+; Disk controller status
 DISK_STATUS_BUSY:           EQU  &01           ; the controller is still working on a command
 DISK_STATUS_BUSY_BIT:       EQU  &00           ; the same flags as bit numbers, for BIT n,r
 DISK_STATUS_CRC_ERROR:      EQU  &08           ; what was read did not check out
-DISK_STATUS_DRQ_BIT:        EQU  &01
+DISK_STATUS_DRQ_BIT:        EQU  &01           ; the bit a byte-ready test looks at
 DISK_STATUS_LOST_DATA:      EQU  &04           ; a byte was not moved in time and is gone
-ENABLE_ROM1:                EQU  &40           ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
-FILE:                       EQU  &17           ; a compressed substring in ERRTBL, printed as "file"
-FIRST_WAVE_SECTOR_COUNT:    EQU  &1F           ; sectors in the DOS, read before MasterBASIC
-FORCE_INTERRUPT_CMD:        EQU  &D0
-INVALID:                    EQU  &00           ; a compressed substring in ERRTBL, printed as "Invalid "
-MAX_INTERNAL_PAGE:          EQU  &1F           ; the highest page number a 512K machine has
-MAX_SECTOR_RETRIES:         EQU  &0A           ; attempts at one sector before "Loading error"
-MIN_RAMDISC_PAGE_TYPE:      EQU  &D0           ; lowest allocation code that means a RAM disc
-NO:                         EQU  &0B           ; a compressed substring in ERRTBL, printed as "No "
-PAGE_VALUE_MASK:            EQU  &1F           ; a page number is five bits; the rest of the port is not
-PAST_RAMDISC_PAGE_TYPE:     EQU  &D8           ; one above the highest, so the test is a range
 READ_ERROR_FLAGS:           EQU  DISK_STATUS_BUSY | DISK_STATUS_LOST_DATA | DISK_STATUS_CRC_ERROR
                                                ; anything that means the sector did not arrive intact
+
+; Boot loader
+FIRST_WAVE_SECTOR_COUNT:    EQU  &1F           ; sectors in the DOS, read before MasterBASIC
+MAX_SECTOR_RETRIES:         EQU  &0A           ; attempts at one sector before "Loading error"
+
+; Disk registers
+DISKCTL_0_BASE:             EQU  &E0
+DISKCTL_0_BASE_SIDE2:       EQU  &E4           ; the same drive with the second head energised
+
+; Disk commands
 RESTORE_CMD:                EQU  &09           ; seek to track 0; used to recover from a bad seek
-SCREEN_PAGE_TYPE:           EQU  &30           ; allocation code for a page holding a screen
+
+; Disk timing
+CMD_LATENCY_LOOPS:          EQU  &14           ; DJNZ iterations, enough for the WD1772 to raise BUSY
+
+; Numbers named in notes/, each for one instruction
+; where the same value means something else elsewhere.
+DISKCTL_1_BASE:             EQU  &F0
+DISKCTL_DATA_OFS:           EQU  &03
+ENABLE_ROM1:                EQU  &40           ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
+FILE:                       EQU  &17           ; a compressed substring in ERRTBL, printed as "file"
+FORCE_INTERRUPT_CMD:        EQU  &D0
+INVALID:                    EQU  &00           ; a compressed substring in ERRTBL, printed as "Invalid "
+NO:                         EQU  &0B           ; a compressed substring in ERRTBL, printed as "No "
 SKIP_1_VIA_CP:              EQU  &FE           ; CP n, skipping one byte and clobbering the flags
 SKIP_1_VIA_LD_A:            EQU  &3E           ; LD A,n, standing here only to swallow the byte after it
 SKIP_2_VIA_LD_HL:           EQU  &21           ; LD HL,nn, standing here only to swallow the two bytes after it -- see

@@ -35,8 +35,6 @@ counts what is left, and build.sh prints it, so the gap is visible
 instead of implied.
 """
 
-import io
-import os
 import re
 
 NL = chr(10)
@@ -168,6 +166,28 @@ def coverage(pages):
                 else:
                     mine += 1
         out[d.tag] = (mine, shouty)
+    return out
+
+
+def bare_numbers(pages):
+    """How many instructions still carry a number nobody has named.
+
+    A count, not a judgement: plenty of them should stay numbers, and a
+    loop counter of 8 is just 8.  It is here because it is the one thing
+    the byte check cannot see.  Taking a name away leaves the listing
+    assembling perfectly and reading worse -- which is what happened when
+    the boot's constants were regrouped and two were dropped on the way.
+    """
+    out = {}
+    for d in pages:
+        n = 0
+        for a, ins in d.insns.items():
+            if not d.inside(a) or not ins.asm:
+                continue
+            text = d.overrides.get(a, ins.text)
+            if re.search(r'&[0-9A-F]{2}([0-9A-F]{2})?\b', text):
+                n += 1
+        out[d.tag] = n
     return out
 
 

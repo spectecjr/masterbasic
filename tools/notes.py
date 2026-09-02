@@ -66,6 +66,11 @@ DOC = re.compile(r'^(?:DOC|DOCUMENT)\s+(\w+)\s*$')
 # cannot reach it.  The value may be an expression of names already
 # given, and is then written out that way: a flag mask that says it
 # is three flags is worth more than the byte they come to.
+# GROUP Flags -- everything named below it, until the next GROUP, is
+# written under that heading.  The working listings group equates by
+# where the name came from, which is what disasm/ is about; the
+# reading copy groups them by what they are for.
+GROUP = re.compile(r'^GROUP\s+(\S.*?)\s*$')
 CONST = re.compile(r'^CONST\s+(\w+)\s*=\s*([^:]+?)\s*(?::\s*(\S.*?))?\s*$')
 # RENAME ULA BORDER -- change a name everywhere it is written.
 RENAME = re.compile(r'^RENAME\s+(\w+)\s+(\w+)\s*$')
@@ -78,6 +83,7 @@ REGS = set('A B C D E H L F I R AF BC DE HL IX IY SP AF2 NZ Z NC PO PE P M IXH I
 def parse(path):
     """Entries from one file, in the order they appear."""
     out, cur, bad = [], None, []
+    group = None
     for n, raw in enumerate(open(path, encoding='utf-8'), 1):
         line = raw.rstrip()
         if not line.strip():
@@ -117,11 +123,16 @@ def parse(path):
                         'end': None, 'kind': None,
                         'where': '%s:%d' % (os.path.basename(path), n)})
             continue
+        m = GROUP.match(line)
+        if m:
+            cur, group = None, m.group(1)
+            continue
         m = CONST.match(line)
         if m:
             cur = None
             out.append({'page': 'CONST', 'name': m.group(1),
                         'value': m.group(2).strip(), 'comment': m.group(3),
+                        'group': group,
                         'doc': [], 'addr': None, 'end': None, 'kind': None,
                         'where': '%s:%d' % (os.path.basename(path), n)})
             continue
@@ -149,6 +160,7 @@ def parse(path):
             m.group(4).strip()
         cur = {'page': page, 'addr': lo, 'end': int(hi, 16) if hi else None,
                'doc': [], 'comment': None, 'kind': None, 'name': None,
+               'group': group,
                'where': '%s:%d' % (os.path.basename(path), n)}
         if rest.startswith(':'):
             cur['comment'] = rest[1:].strip()
@@ -252,6 +264,10 @@ def apply(pages, root, banner, folder='notes'):
             continue
         for d in pages:
             d.user_equs[e['name']] = v
+            if e.get('group'):
+                d.equ_group[e['name']] = e['group']
+                if e['group'] not in d.equ_order:
+                    d.equ_order.append(e['group'])
             # A plain number is written as a number; anything else is
             # written as it stands, because that is the point of it.
             if not re.fullmatch(r'&?[0-9A-Fa-f]+', text):
@@ -305,6 +321,10 @@ def apply(pages, root, banner, folder='notes'):
             elif re.fullmatch(r'\w+', e['name']):
                 d.overrides[a] = text.replace(lits[0], e['name'])
                 d.user_equs[e['name']] = int(lits[0][1:], 16)
+                if e.get('group'):
+                    d.equ_group[e['name']] = e['group']
+                    if e['group'] not in d.equ_order:
+                        d.equ_order.append(e['group'])
                 named += 1
             else:
                 # An expression of names already given, rather than a

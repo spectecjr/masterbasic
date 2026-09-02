@@ -187,6 +187,8 @@ class Page(Disassembler):
         self.conflicts = []
         self.syms = None
         self.equ_text = {}                # name -> how to write its value
+        self.equ_group = {}               # name -> the heading it sits under
+        self.equ_order = []               # those headings, as written
         self.ports = {}
         self.rst8 = {}                    # RST &08 code -> EQU name
         self.errors = {}                  # error code -> its message
@@ -2083,16 +2085,32 @@ def header(d):
             v, why = d.inferred[name]
             head.append('%-14s EQU  %-6s ; %s' % (name + ':', hexn(v, 2), why))
     if d.user_equs:
-        head.append('')
-        head.append('; Numbers named in notes/, each for one instruction where')
-        head.append('; the same value means something else elsewhere.')
-        for name in sorted(d.user_equs):
+        def one_equate(name):
             v = d.user_equs[name]
             note = described(name)
             written = d.equ_text.get(name, hexn(v, 2 if v < 256 else 4))
             head.append(('%-14s EQU  %-6s %s'
                          % (name + ':', written,
                             '; ' + note if note else '')).rstrip())
+
+        # Under their own headings first, in the order the headings were
+        # written, then whatever belongs to no heading.
+        for group in d.equ_order:
+            members = sorted(n for n in d.user_equs
+                             if d.equ_group.get(n) == group)
+            if not members:
+                continue
+            head.append('')
+            head.append('; ' + group)
+            for name in members:
+                one_equate(name)
+        rest = sorted(n for n in d.user_equs if n not in d.equ_group)
+        if rest:
+            head.append('')
+            head.append('; Numbers named in notes/, each for one instruction')
+            head.append('; where the same value means something else elsewhere.')
+            for name in rest:
+                one_equate(name)
     if d.mdos_equs:
         head.append('')
         head.append("; Constants under MasterDOS's own names, from the annotated")
@@ -2290,9 +2308,11 @@ def write_clean(pages):
 
     PAGE_BIAS[0] = '&4000'
     SELF_LOOP[0] = False
+    bare = clean.bare_numbers((dos, mb))
     for tag, (mine, orig) in sorted(clean.coverage((dos, mb)).items()):
-        print('clean/: %s line comments -- %d written here, %d still the '
-              'MasterDOS author%ss own' % (tag, mine, orig, chr(39)))
+        print('clean/: %s -- %d line comments written here, %d still the '
+              'MasterDOS author%ss own; %d instructions carry an unnamed '
+              'number' % (tag, mine, orig, chr(39), bare[tag]))
 
 
 def write_speculation(dos, mb, outdir):
