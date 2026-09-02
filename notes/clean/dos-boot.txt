@@ -208,8 +208,18 @@ DOS &409D step
     suffers when something holds the processor up too long, and it is the
     one error of the three that this test cannot see.
 
-    SAMDOS, which this DOS grew out of, is said to get the same test
-    right; there is no copy of it here to check that against.
+    WHERE IT CAME FROM.  SAMDOS, which this DOS grew out of, gets the
+    same test right, and does it by never rotating at all: its transfer
+    loops are unrolled, its BUSY test is BIT rather than a rotate, so A
+    is always the status as read and its mask is the plain %00011100.
+    Its own name for that constant settles what the three bits are meant
+    to be -- "mask of lost data, CRC error and record not found".
+
+    MasterDOS rolled those loops up and swapped the BIT for an RRCA,
+    which is a byte shorter and a little faster in the tightest loop in
+    the DOS.  That is the change that made a shifted mask necessary.
+    %00011100 shifted is &0E, and &0E is what &46C6 got; the three loops
+    got &0D.
 
     These seven instructions appear three times -- here, at &48DB and at
     &4A28 -- so the boot loader, the block load and the block save all

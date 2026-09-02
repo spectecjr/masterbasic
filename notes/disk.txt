@@ -370,6 +370,20 @@ DOS &46DF : the mask above was shifted for a rotated A and this bit number was n
 # rotate swaps those two round: RECORD NOT FOUND is tested, LOST DATA is
 # not.  That is worth writing down because it is the natural misreading.
 #
-# Simon reports that SAMDOS gets the same test right, which would put the
-# error in MasterDOS rather than inherited.  There is no SAMDOS source in
-# ref/ to check it here.
+# Checked against SAMDOS (c:/repo/samdos/annotated-src), and it puts the
+# error in MasterDOS rather than inherited.  SAMDOS never rotates: its
+# transfer loops are unrolled -- in a,(c) / bit drq,a / jr nz, four times
+# over -- and it tests BUSY with bit wd.st.busy,a, so A is always the
+# status as read.  Its mask is a named constant,
+#
+#     wd.st.errors: equ %00011100  ; mask of lost data, CRC error and
+#                                  ; record not found
+#
+# used at b.s:132 in the boot loader and c.s:453, c.s:933 and c.s:1160 --
+# the same four places MasterDOS uses &0E and &0D.  So the intended set
+# is not in doubt.
+#
+# MasterDOS rolled the loops up and replaced the BIT with RRCA, saving a
+# byte and a few cycles in the tightest loop it has.  That rotate is what
+# made a shifted mask necessary; %00011100 >> 1 is &0E, which &46C6 has
+# and the three loops do not.
