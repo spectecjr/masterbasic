@@ -98,6 +98,13 @@ CONST DISK_STATUS_MOTOR_ON = &80 : the drive is up to speed
 CONST DISK_STATUS_BUSY_BIT = 0 : the same flags as bit numbers, for BIT n,r
 CONST DISK_STATUS_DRQ_BIT = 1 : the bit a byte-ready test looks at
 
-CONST READ_ERROR_FLAGS = DISK_STATUS_BUSY | DISK_STATUS_LOST_DATA | DISK_STATUS_CRC_ERROR : anything that means the sector did not arrive intact
+# Both error masks are tested against the status AFTER a rotate, which is
+# how the transfer loops get BUSY and DRQ into carry without a compare.
+# Writing them shifted says which bits of the register they really are:
+# the DOS source has AND &1C where this build has AND &0E, and &1C is
+# exactly LOST DATA, CRC ERROR and RECORD NOT FOUND unshifted.
+
+CONST READ_ERROR_FLAGS = (DISK_STATUS_DRQ | DISK_STATUS_CRC_ERROR | DISK_STATUS_RECORD_NOT_FOUND) >> 1 : tested against the status rotated one place right
+CONST TRANSFER_ERROR_FLAGS = (DISK_STATUS_LOST_DATA | DISK_STATUS_CRC_ERROR | DISK_STATUS_RECORD_NOT_FOUND) >> 1 : the same, for a sector that was being moved
 
 DOS &4570 expr DISK_STATUS_BUSY_BIT

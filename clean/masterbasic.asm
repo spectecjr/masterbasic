@@ -367,9 +367,10 @@ UPPER:                          EQU  &DF       ; clearing bit 5 folds a letter t
 
 
 ; Disk controller status
-DISK_STATUS_BUSY:               EQU  &01       ; the controller is still working on a command
 DISK_STATUS_CRC_ERROR:          EQU  &08       ; what was read did not check out
+DISK_STATUS_DRQ:                EQU  &02       ; a byte is waiting to be taken, or wanted
 DISK_STATUS_LOST_DATA:          EQU  &04       ; a byte was not moved in time and is gone
+DISK_STATUS_RECORD_NOT_FOUND:   EQU  &10       ; the sector was not on the track
 
 ; Numbers named in notes/, each for one instruction
 ; where the same value means something else elsewhere.

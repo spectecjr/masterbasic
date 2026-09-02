@@ -343,3 +343,5 @@ DOS &7BAC RETURN_INTO_BC
     ROM's stack as it stood when the DOS was entered -- so that the
     pending return goes to BC instead.  The same trick MasterBASIC plays
     with STORE_BC_AT_XVAR76, from the other side.
+
+DOS &46DF : the mask above was shifted for a rotated A and this bit number was not -- the source has AND &1C then BIT 4, RECORD NOT FOUND on an unrotated status; here AND &0E is that mask shifted, but BIT 4 of a rotated status is RECORD TYPE

@@ -69,12 +69,12 @@
 
 ; Hardware ports, under the names the two source trees use.
 ; What each one does is from the SAM Coupe Technical Manual.
-XMPRL:                      EQU  &80           ; External memory lower port address
-STAT:                       EQU  &F9           ; read: STATUS, key rows and interrupt flags; write: line interrupt
-LMPR:                       EQU  &FA           ; the page at &0000, and the two ROM switches
-HMPR:                       EQU  &FB           ; the page at &8000
-VMPR:                       EQU  &FC           ; the page the screen is displayed from
-KEYBOARD:                   EQU  &FE           ; read: keyboard columns; write: border, MIC and the speaker
+XMPRL:                        EQU  &80         ; External memory lower port address
+STAT:                         EQU  &F9         ; read: STATUS, key rows and interrupt flags; write: line interrupt
+LMPR:                         EQU  &FA         ; the page at &0000, and the two ROM switches
+HMPR:                         EQU  &FB         ; the page at &8000
+VMPR:                         EQU  &FC         ; the page the screen is displayed from
+KEYBOARD:                     EQU  &FE         ; read: keyboard columns; write: border, MIC and the speaker
 
 ; SAM ROM entry points and system variables.  A page cannot
 ; address the variables directly -- it occupies the same
@@ -82,67 +82,67 @@ KEYBOARD:                   EQU  &FE           ; read: keyboard columns; write: 
 ; page them in, or does the same windowing inline, which is what a
 ; name written here as NAME+&4000 means.
 ; The notes are mostly the ROM source's own words.
-ANYIV:                      EQU  &5B70         ; ANY INTERRUPT VECTOR
-BEEPR:                      EQU  &016F
-BSTKEND:                    EQU  &5BC4         ; end of that stack
-CHADD:                      EQU  &5A97         ; address of the character being interpreted
-CHADP:                      EQU  &5A96         ; page holding the character being interpreted
-CLSLOW:                     EQU  &0151         ; clear the lower screen
-CSTAT:                      EQU  &5A7B         ; address of the start of the current statement
-CURCHL:                     EQU  &5C51         ; address of the current channel
-CURCMD:                     EQU  &5B74         ; CODE OF CMD BEING EXECUTED
-DELBC:                      EQU  &005F         ; ROM entry: a delay of BC iterations
-DEVL:                       EQU  &5A06         ; default device letter
-DEVN:                       EQU  &5A07         ; default device number
-DOSSTK:                     EQU  &5C59         ; stack pointer saved across a DOS call
-ELINE:                      EQU  &5A94         ; address of the edit line
-ELINP:                      EQU  &5A93         ; page holding the edit line
-ERRSP:                      EQU  &5C3D         ; stack pointer to unwind to on an error
-EXPEXP:                     EQU  &011E         ; evaluate an expression of either type
-EXPNUM:                     EQU  &0118         ; evaluate a numeric expression at (CHADD)
-EXPSTR:                     EQU  &011B         ; evaluate a string expression
-FLAGS:                      EQU  &5C3B         ; bit 7 set while running, clear while syntax-checking
-FRAMES:                     EQU  &5C78         ; the frame counter, incremented 50 times a second
-FRAMIV:                     EQU  &5AE2         ; The Frame interrupt vector - usually this reads the keyboard, and
+ANYIV:                        EQU  &5B70       ; ANY INTERRUPT VECTOR
+BEEPR:                        EQU  &016F
+BSTKEND:                      EQU  &5BC4       ; end of that stack
+CHADD:                        EQU  &5A97       ; address of the character being interpreted
+CHADP:                        EQU  &5A96       ; page holding the character being interpreted
+CLSLOW:                       EQU  &0151       ; clear the lower screen
+CSTAT:                        EQU  &5A7B       ; address of the start of the current statement
+CURCHL:                       EQU  &5C51       ; address of the current channel
+CURCMD:                       EQU  &5B74       ; CODE OF CMD BEING EXECUTED
+DELBC:                        EQU  &005F       ; ROM entry: a delay of BC iterations
+DEVL:                         EQU  &5A06       ; default device letter
+DEVN:                         EQU  &5A07       ; default device number
+DOSSTK:                       EQU  &5C59       ; stack pointer saved across a DOS call
+ELINE:                        EQU  &5A94       ; address of the edit line
+ELINP:                        EQU  &5A93       ; page holding the edit line
+ERRSP:                        EQU  &5C3D       ; stack pointer to unwind to on an error
+EXPEXP:                       EQU  &011E       ; evaluate an expression of either type
+EXPNUM:                       EQU  &0118       ; evaluate a numeric expression at (CHADD)
+EXPSTR:                       EQU  &011B       ; evaluate a string expression
+FLAGS:                        EQU  &5C3B       ; bit 7 set while running, clear while syntax-checking
+FRAMES:                       EQU  &5C78       ; the frame counter, incremented 50 times a second
+FRAMIV:                       EQU  &5AE2       ; The Frame interrupt vector - usually this reads the keyboard, and
                                                ; updates the frame counter.
-GETCHAR:                    EQU  &0018         ; ROM entry: the character at CHAD, control codes skipped
-GETINT:                     EQU  &0121         ; UNSTACK WORD FROM CALCULATOR STACK TO BC. HL=BC, A=C
-GETSTR:                     EQU  &0124         ; pop a string descriptor: A = page, DE = start, BC = length
-HLJUMP:                     EQU  &0005         ; JP (HL)
-INCURPAGE:                  EQU  &3FF2         ; ! ;2* page on and wind HL back unconditionally
-INCURPDE:                   EQU  &3FEB         ; Increments the upper RAM page, adjusting DE to make sure it's not in
+GETCHAR:                      EQU  &0018       ; ROM entry: the character at CHAD, control codes skipped
+GETINT:                       EQU  &0121       ; UNSTACK WORD FROM CALCULATOR STACK TO BC. HL=BC, A=C
+GETSTR:                       EQU  &0124       ; pop a string descriptor: A = page, DE = start, BC = length
+HLJUMP:                       EQU  &0005       ; JP (HL)
+INCURPAGE:                    EQU  &3FF2       ; ! ;2* page on and wind HL back unconditionally
+INCURPDE:                     EQU  &3FEB       ; Increments the upper RAM page, adjusting DE to make sure it's not in
                                                ; the range C000-FFFF. Uses A, alters D.
-INQUFG:                     EQU  &5ABA         ; IN QUOTES FLAG. BIT 0=1 IF IN QUOTES. OUTLINE ZEROS
-INSTBUF:                    EQU  &4F00         ; BUFFER FOR ROM1 XFER CODE, ETC. 0200H
-IYJUMP:                     EQU  &0006         ; JP (IY)
-JCLSBL:                     EQU  &014E         ; clear the whole screen if A is zero, otherwise the window
-JMKRBIG:                    EQU  &010C         ; open A*16K + BC bytes at HL
-JRECLAIM:                   EQU  &0163         ; close up BC bytes at HL
-NEXTCHAR:                   EQU  &0020         ; ROM entry: step CHAD and fetch the character there
-OVERF:                      EQU  &5BB9         ; 'SAVE OVER' FLAG. 0 IF SAVE OVER, ELSE NZ
-PRINT_A:                    EQU  &0010         ; ROM entry: print the character in A
-PROG:                       EQU  &5AA0         ; address of the BASIC program
-PROGP:                      EQU  &5A9F         ; page holding the BASIC program
-RDKEY:                      EQU  &0169         ; read a key as INKEY$ does
-ROM_BORDCR:                 EQU  &5C4B         ; ATTRIBUTES FOR LOWER SCREEN IN MODES 1/2
-ROM_CHKHL:                  EQU  &3FEF         ; Checks if HL is in the range C000-FFFF, and if so, adjusts it back into
+INQUFG:                       EQU  &5ABA       ; IN QUOTES FLAG. BIT 0=1 IF IN QUOTES. OUTLINE ZEROS
+INSTBUF:                      EQU  &4F00       ; BUFFER FOR ROM1 XFER CODE, ETC. 0200H
+IYJUMP:                       EQU  &0006       ; JP (IY)
+JCLSBL:                       EQU  &014E       ; clear the whole screen if A is zero, otherwise the window
+JMKRBIG:                      EQU  &010C       ; open A*16K + BC bytes at HL
+JRECLAIM:                     EQU  &0163       ; close up BC bytes at HL
+NEXTCHAR:                     EQU  &0020       ; ROM entry: step CHAD and fetch the character there
+OVERF:                        EQU  &5BB9       ; 'SAVE OVER' FLAG. 0 IF SAVE OVER, ELSE NZ
+PRINT_A:                      EQU  &0010       ; ROM entry: print the character in A
+PROG:                         EQU  &5AA0       ; address of the BASIC program
+PROGP:                        EQU  &5A9F       ; page holding the BASIC program
+RDKEY:                        EQU  &0169       ; read a key as INKEY$ does
+ROM_BORDCR:                   EQU  &5C4B       ; ATTRIBUTES FOR LOWER SCREEN IN MODES 1/2
+ROM_CHKHL:                    EQU  &3FEF       ; Checks if HL is in the range C000-FFFF, and if so, adjusts it back into
                                                ; the range 8000-BFFF, and increments the upper page.
-SLDEV:                      EQU  &5BB7         ; DEVICE LETTER/NUMBER (TEMP)
-SPOSNL:                     EQU  &5A6E         ; SCREEN POSN (LOWER) 0,19 AFTER CLS
-STKSTR:                     EQU  &0127         ; push a five-byte number from A, E, D, C, B
-STREAM:                     EQU  &0112         ; select the stream in A
-TVFLAG:                     EQU  &5C3C         ; television flags
-UNSTLEN:                    EQU  &3F8C         ; ! ;1* split the calculator stack top into a page count and an offset
-WINDRHS:                    EQU  &5A56         ; right-hand column of the current window
-WKROOM:                     EQU  &0109         ; open BC bytes at the end of workspace
-XPTR:                       EQU  &5AA3         ; address of the error marker
-XPTRP:                      EQU  &5AA2         ; page holding the error marker
+SLDEV:                        EQU  &5BB7       ; DEVICE LETTER/NUMBER (TEMP)
+SPOSNL:                       EQU  &5A6E       ; SCREEN POSN (LOWER) 0,19 AFTER CLS
+STKSTR:                       EQU  &0127       ; push a five-byte number from A, E, D, C, B
+STREAM:                       EQU  &0112       ; select the stream in A
+TVFLAG:                       EQU  &5C3C       ; television flags
+UNSTLEN:                      EQU  &3F8C       ; ! ;1* split the calculator stack top into a page count and an offset
+WINDRHS:                      EQU  &5A56       ; right-hand column of the current window
+WKROOM:                       EQU  &0109       ; open BC bytes at the end of workspace
+XPTR:                         EQU  &5AA3       ; address of the error marker
+XPTRP:                        EQU  &5AA2       ; page holding the error marker
 
 ; What a dispatch table adds to one of the names below to
 ; make the word it stores.  Not bit 15 itself, which is
 ; &8000: it is &4000 off to undo the window this page sees
 ; the other one through, then &8000 on to set the flag.
-NOT_IN_THIS_PAGE:           EQU  &4000
+NOT_IN_THIS_PAGE:             EQU  &4000
 
 ; Idioms.
 ; Some of this half is assembled at &4000 and executed at
@@ -151,197 +151,204 @@ NOT_IN_THIS_PAGE:           EQU  &4000
 ; other way round.  Its own labels are what the assembler
 ; put them at, so reaching one from code that is running
 ; high means adding the 16K between the two views.
-IN_PAGE_C:                  EQU  &4000         ; the window, less where this is assembled
+IN_PAGE_C:                    EQU  &4000       ; the window, less where this is assembled
 
 ; Addresses in the other page, which sits at &8000-&BFBF while
 ; this one is at &4000.  The names are its own labels.  A stored
 ; pointer written as NAME+&4000 has bit 15 set, the flag INDJP
 ; and CTAB use to mean "not in this page".
-MB_BUILD_PUT_BLOCK_8:       EQU  &B900
-MB_BUILD_PUT_BLOCK_9:       EQU  &B914
-MB_BUILD_TRACK_IMAGE:       EQU  &9352
-MB_BYTE_TO_DECIMAL:         EQU  &8240
-MB_CALLDOS_2:               EQU  &82FF
-MB_CALL_STKSTR_2:           EQU  &8200
-MB_CHECK_BREAK:             EQU  &A000
-MB_CMD_ALTER:               EQU  &94CA
-MB_CMD_BLITZ:               EQU  &9AD4
-MB_CMD_CLS:                 EQU  &B1A4
-MB_CMD_DATE:                EQU  &885B
-MB_CMD_DUMP:                EQU  &A7F0
-MB_CMD_JOIN:                EQU  &ADFC
-MB_CMD_LINE:                EQU  &A117
-MB_CMD_LPRINT:              EQU  &9578
-MB_CMD_MERGE:               EQU  &9169
-MB_CMD_PRINT:               EQU  &9641
-MB_CMD_RECORD:              EQU  &9BD8
-MB_CMD_REF:                 EQU  &9662
-MB_CMD_SAVE:                EQU  &A3E6
-MB_CMD_SORT:                EQU  &860B
-MB_CMD_SPLIT_LINE:          EQU  &AE62
-MB_CMD_TIME:                EQU  &886A
-MB_COMPRESS_FILE:           EQU  &A5EA
-MB_COMPRESS_SCREEN_FILE:    EQU  &A14E
-MB_EXPR_TO_32BIT:           EQU  &848B
-MB_FIND_LINE_FROM_START:    EQU  &98FD
-MB_FN_EQU:                  EQU  &8D4F
-MB_FN_INARRAY:              EQU  &8B3C
-MB_FN_LOCN:                 EQU  &8AF0
-MB_FN_RESERVED:             EQU  &8E63
-MB_FN_SCRAD:                EQU  &828E
-MB_FN_SHIFT_S:              EQU  &8DB7
-MB_FN_SVAL_S:               EQU  &8159
-MB_FN_SVAL_S_1:             EQU  &8160
-MB_FN_TICS:                 EQU  &8A7B
-MB_FN_USING_S:              EQU  &B225
-MB_HCMDV:                   EQU  &8E96
-MB_HGTTK:                   EQU  &8FB7
-MB_HK_COMADENT:             EQU  &AF3E
-MB_HK_FARSCAN:              EQU  &9AE3
-MB_HK_HDUMMY:               EQU  &9B81
-MB_HK_HORDER:               EQU  &8800
-MB_HK_HPFF:                 EQU  &908A
-MB_HK_MERGECOMPFLG:         EQU  &93C3
-MB_HK_PIXELCELL:            EQU  &A534
-MB_HK_PROGPREP:             EQU  &B32A
-MB_HK_PUTARG:               EQU  &8E37
-MB_HK_RCPTCH:               EQU  &91DD
-MB_HK_SERRECV:              EQU  &8315
-MB_HK_SERSEND:              EQU  &8300
-MB_HK_SETUPREGS:            EQU  &B1FE
-MB_HK_SKIPNAME:             EQU  &AF62
-MB_HK_SWAPCHARS:            EQU  &B159
-MB_HK_TOKENARG:             EQU  &92FD
-MB_HK_VARSPACE:             EQU  &9293
-MB_HPRTOK:                  EQU  &900E
-MB_MULTIPLY_BY_24:          EQU  &85F9
-MB_NEXT_SCREEN_BYTE_1:      EQU  &A280
-MB_PREPARE_ROM1_COPY_1:     EQU  &9C4F
-MB_PREPARE_ROM1_COPY_2:     EQU  &9C51
-MB_PUTSWA:                  EQU  &8000
-MB_SCREEN_BLANK_TICK_6:     EQU  &9A54
-MB_SET_DCT_COMPILE_BITS:    EQU  &859C
-MB_SOFV:                    EQU  &8002
-MB_SUBSTITUTE_PRINTER_CHAR: EQU  &9973
-MB_V40FF:                   EQU  &80FF
-MB_V4125:                   EQU  &8125
-MB_WAIT_FOR_CLOCK:          EQU  &8978
+MB_BUILD_PUT_BLOCK_8:         EQU  &B900
+MB_BUILD_PUT_BLOCK_9:         EQU  &B914
+MB_BUILD_TRACK_IMAGE:         EQU  &9352
+MB_BYTE_TO_DECIMAL:           EQU  &8240
+MB_CALLDOS_2:                 EQU  &82FF
+MB_CALL_STKSTR_2:             EQU  &8200
+MB_CHECK_BREAK:               EQU  &A000
+MB_CMD_ALTER:                 EQU  &94CA
+MB_CMD_BLITZ:                 EQU  &9AD4
+MB_CMD_CLS:                   EQU  &B1A4
+MB_CMD_DATE:                  EQU  &885B
+MB_CMD_DUMP:                  EQU  &A7F0
+MB_CMD_JOIN:                  EQU  &ADFC
+MB_CMD_LINE:                  EQU  &A117
+MB_CMD_LPRINT:                EQU  &9578
+MB_CMD_MERGE:                 EQU  &9169
+MB_CMD_PRINT:                 EQU  &9641
+MB_CMD_RECORD:                EQU  &9BD8
+MB_CMD_REF:                   EQU  &9662
+MB_CMD_SAVE:                  EQU  &A3E6
+MB_CMD_SORT:                  EQU  &860B
+MB_CMD_SPLIT_LINE:            EQU  &AE62
+MB_CMD_TIME:                  EQU  &886A
+MB_COMPRESS_FILE:             EQU  &A5EA
+MB_COMPRESS_SCREEN_FILE:      EQU  &A14E
+MB_EXPR_TO_32BIT:             EQU  &848B
+MB_FIND_LINE_FROM_START:      EQU  &98FD
+MB_FN_EQU:                    EQU  &8D4F
+MB_FN_INARRAY:                EQU  &8B3C
+MB_FN_LOCN:                   EQU  &8AF0
+MB_FN_RESERVED:               EQU  &8E63
+MB_FN_SCRAD:                  EQU  &828E
+MB_FN_SHIFT_S:                EQU  &8DB7
+MB_FN_SVAL_S:                 EQU  &8159
+MB_FN_SVAL_S_1:               EQU  &8160
+MB_FN_TICS:                   EQU  &8A7B
+MB_FN_USING_S:                EQU  &B225
+MB_HCMDV:                     EQU  &8E96
+MB_HGTTK:                     EQU  &8FB7
+MB_HK_COMADENT:               EQU  &AF3E
+MB_HK_FARSCAN:                EQU  &9AE3
+MB_HK_HDUMMY:                 EQU  &9B81
+MB_HK_HORDER:                 EQU  &8800
+MB_HK_HPFF:                   EQU  &908A
+MB_HK_MERGECOMPFLG:           EQU  &93C3
+MB_HK_PIXELCELL:              EQU  &A534
+MB_HK_PROGPREP:               EQU  &B32A
+MB_HK_PUTARG:                 EQU  &8E37
+MB_HK_RCPTCH:                 EQU  &91DD
+MB_HK_SERRECV:                EQU  &8315
+MB_HK_SERSEND:                EQU  &8300
+MB_HK_SETUPREGS:              EQU  &B1FE
+MB_HK_SKIPNAME:               EQU  &AF62
+MB_HK_SWAPCHARS:              EQU  &B159
+MB_HK_TOKENARG:               EQU  &92FD
+MB_HK_VARSPACE:               EQU  &9293
+MB_HPRTOK:                    EQU  &900E
+MB_MULTIPLY_BY_24:            EQU  &85F9
+MB_NEXT_SCREEN_BYTE_1:        EQU  &A280
+MB_PREPARE_ROM1_COPY_1:       EQU  &9C4F
+MB_PREPARE_ROM1_COPY_2:       EQU  &9C51
+MB_PUTSWA:                    EQU  &8000
+MB_SCREEN_BLANK_TICK_6:       EQU  &9A54
+MB_SET_DCT_COMPILE_BITS:      EQU  &859C
+MB_SOFV:                      EQU  &8002
+MB_SUBSTITUTE_PRINTER_CHAR:   EQU  &9973
+MB_V40FF:                     EQU  &80FF
+MB_V4125:                     EQU  &8125
+MB_WAIT_FOR_CLOCK:            EQU  &8978
 
 ; The ROM's restarts, under the names its own source gives
 ; them.  A restart is a one-byte call to a fixed address, so
 ; these are those addresses.
-ERR_HOOK:                   EQU  &08           ; report an error, or call a DOS hook: the byte after is
+ERR_HOOK:                     EQU  &08         ; report an error, or call a DOS hook: the byte after is
                                                ; an error number, or a hook code from 128 up
 
 ; Memory
-BOOT_STACK_TOP:             EQU  &C000         ; one past the window; the stack grows down into this page
-MAX_INTERNAL_PAGE:          EQU  &1F           ; the highest page number a 512K machine has
-MIN_RAMDISC_PAGE_TYPE:      EQU  &D0           ; lowest allocation code that means a RAM disc
-PAGE_VALUE_MASK:            EQU  &1F           ; a page number is five bits; the rest of the port is not
-PAST_RAMDISC_PAGE_TYPE:     EQU  &D8           ; one above the highest, so the test is a range
-SCREEN_PAGE_TYPE:           EQU  &30           ; allocation code for a page holding a screen
+BOOT_STACK_TOP:               EQU  &C000       ; one past the window; the stack grows down into this page
+MAX_INTERNAL_PAGE:            EQU  &1F         ; the highest page number a 512K machine has
+MIN_RAMDISC_PAGE_TYPE:        EQU  &D0         ; lowest allocation code that means a RAM disc
+PAGE_VALUE_MASK:              EQU  &1F         ; a page number is five bits; the rest of the port is not
+PAST_RAMDISC_PAGE_TYPE:       EQU  &D8         ; one above the highest, so the test is a range
+SCREEN_PAGE_TYPE:             EQU  &30         ; allocation code for a page holding a screen
 
 ; Disk controller status
-DISK_STATUS_BUSY:           EQU  &01           ; the controller is still working on a command
-DISK_STATUS_BUSY_BIT:       EQU  &00           ; the same flags as bit numbers, for BIT n,r
-DISK_STATUS_CRC_ERROR:      EQU  &08           ; what was read did not check out
-DISK_STATUS_DRQ_BIT:        EQU  &01           ; the bit a byte-ready test looks at
-DISK_STATUS_LOST_DATA:      EQU  &04           ; a byte was not moved in time and is gone
-READ_ERROR_FLAGS:           EQU  DISK_STATUS_BUSY | DISK_STATUS_LOST_DATA | DISK_STATUS_CRC_ERROR
-                                               ; anything that means the sector did not arrive intact
+DISK_STATUS_BUSY_BIT:         EQU  &00         ; the same flags as bit numbers, for BIT n,r
+DISK_STATUS_CRC_ERROR:        EQU  &08         ; what was read did not check out
+DISK_STATUS_DRQ:              EQU  &02         ; a byte is waiting to be taken, or wanted
+DISK_STATUS_DRQ_BIT:          EQU  &01         ; the bit a byte-ready test looks at
+DISK_STATUS_LOST_DATA:        EQU  &04         ; a byte was not moved in time and is gone
+DISK_STATUS_RECORD_NOT_FOUND: EQU  &10         ; the sector was not on the track
+READ_ERROR_FLAGS:             EQU  (DISK_STATUS_DRQ | DISK_STATUS_CRC_ERROR | DISK_STATUS_RECORD_NOT_FOUND) >> 1
+                                               ; tested against the status rotated one place right
+TRANSFER_ERROR_FLAGS:         EQU  (DISK_STATUS_LOST_DATA | DISK_STATUS_CRC_ERROR | DISK_STATUS_RECORD_NOT_FOUND) >> 1
+                                               ; the same, for a sector that was being moved
 
 ; Boot loader
-FIRST_WAVE_SECTOR_COUNT:    EQU  &1F           ; sectors in the DOS, read before MasterBASIC
-MAX_SECTOR_RETRIES:         EQU  &0A           ; attempts at one sector before "Loading error"
+FIRST_WAVE_SECTOR_COUNT:      EQU  &1F         ; sectors in the DOS, read before MasterBASIC
+MAX_SECTOR_RETRIES:           EQU  &0A         ; attempts at one sector before "Loading error"
 
 ; Disk registers
-DISKCTL_0_BASE:             EQU  &E0
-DISKCTL_0_BASE_SIDE2:       EQU  &E4           ; the same drive with the second head energised
+DISKCTL_0_BASE:               EQU  &E0
+DISKCTL_0_BASE_SIDE2:         EQU  &E4         ; the same drive with the second head energised
 
 ; Disk commands
-RESTORE_CMD:                EQU  &09           ; seek to track 0; used to recover from a bad seek
+RESTORE_CMD:                  EQU  &09         ; seek to track 0; used to recover from a bad seek
 
 ; Disk timing
-CMD_LATENCY_LOOPS:          EQU  &14           ; DJNZ iterations, enough for the WD1772 to raise BUSY
+CMD_LATENCY_LOOPS:            EQU  &14         ; DJNZ iterations, enough for the WD1772 to raise BUSY
+
+; Disk retries
+MAX_ID_RETRIES:               EQU  &08
+MAX_TRANSFER_RETRIES:         EQU  &0A
 
 ; Numbers named in notes/, each for one instruction
 ; where the same value means something else elsewhere.
-DISKCTL_1_BASE:             EQU  &F0
-DISKCTL_DATA_OFS:           EQU  &03
-ENABLE_ROM1:                EQU  &40           ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
-FILE:                       EQU  &17           ; a compressed substring in ERRTBL, printed as "file"
-FORCE_INTERRUPT_CMD:        EQU  &D0
-INVALID:                    EQU  &00           ; a compressed substring in ERRTBL, printed as "Invalid "
-NO:                         EQU  &0B           ; a compressed substring in ERRTBL, printed as "No "
-SKIP_1_VIA_CP:              EQU  &FE           ; CP n, skipping one byte and clobbering the flags
-SKIP_1_VIA_LD_A:            EQU  &3E           ; LD A,n, standing here only to swallow the byte after it
-SKIP_2_VIA_LD_HL:           EQU  &21           ; LD HL,nn, standing here only to swallow the two bytes after it -- see
+DISKCTL_1_BASE:               EQU  &F0
+DISKCTL_DATA_OFS:             EQU  &03
+ENABLE_ROM1:                  EQU  &40         ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
+FILE:                         EQU  &17         ; a compressed substring in ERRTBL, printed as "file"
+FORCE_INTERRUPT_CMD:          EQU  &D0
+INVALID:                      EQU  &00         ; a compressed substring in ERRTBL, printed as "Invalid "
+NO:                           EQU  &0B         ; a compressed substring in ERRTBL, printed as "No "
+SKIP_1_VIA_CP:                EQU  &FE         ; CP n, skipping one byte and clobbering the flags
+SKIP_1_VIA_LD_A:              EQU  &3E         ; LD A,n, standing here only to swallow the byte after it
+SKIP_2_VIA_LD_HL:             EQU  &21         ; LD HL,nn, standing here only to swallow the two bytes after it -- see
                                                ; docs/idioms.md
-SNAME:                      EQU  &12           ; a compressed substring in ERRTBL, printed as " name"
-SNOTS:                      EQU  &11           ; a compressed substring in ERRTBL, printed as " not "
-SYSPAGE_IN_B:               EQU  &1F           ; LMPR &1F: page 31 at &0000, so section B gets page 32, which wraps to
+SNAME:                        EQU  &12         ; a compressed substring in ERRTBL, printed as " name"
+SNOTS:                        EQU  &11         ; a compressed substring in ERRTBL, printed as " not "
+SYSPAGE_IN_B:                 EQU  &1F         ; LMPR &1F: page 31 at &0000, so section B gets page 32, which wraps to
                                                ; the system page. The ROM source calls it PAGE1F
-SYS_CHAR_WIDTH:             EQU  &4AEE
-SYS_MNIP_MAIN_INPUT:        EQU  &4C14
-TREAM:                      EQU  &08           ; a compressed substring in ERRTBL, printed as "tream"
+SYS_CHAR_WIDTH:               EQU  &4AEE
+SYS_MNIP_MAIN_INPUT:          EQU  &4C14
+TREAM:                        EQU  &08         ; a compressed substring in ERRTBL, printed as "tream"
 
 ; Constants under MasterDOS's own names, from the annotated
 ; source.  Each one is written where the listing would have
 ; printed the same number, and means the same thing here.
-ALLOCT:                     EQU  &5100         ; The memory page allocation table.
-BORDER:                     EQU  &FE           ; border colour
-BUFL:                       EQU  &0F           ; sector buffer address, low
-DCHAN:                      EQU  &7C00         ; the disk channel record
-DFT:                        EQU  &15           ; DIRECTORY FILE TYPE
-DIRT:                       EQU  &FA           ; DISP TO TAG VALUE IN DIR FILE DIR ENTRY
-FFSA:                       EQU  &13           ; first byte of the directory entry image
-FOWIA:                      EQU  &04           ; POP HL / JP (HL): used as a null vector, since CALL HLJUMP with HL
-FS:                         EQU  &4000         ; base of the DOS page; the image itself starts nine bytes higher
-FSAM:                       EQU  &22           ; start of the file's own sector address map
-FTADD:                      EQU  &A280         ; (SCR in section C)
-LENL:                       EQU  &E9           ; file length, low
-MIN:                        EQU  &BF           ; serial input port
-MOUT:                       EQU  &DF           ; serial output port
-MPL:                        EQU  &26           ; MAX PATH LEN
-MRND:                       EQU  &A5           ; RND token, used when a command has to plant one in a line
-NAME:                       EQU  &14           ; the file name within that image
-NTRK:                       EQU  &0311         ; number of tracks, for a RAM disc
-RBCC:                       EQU  &4220
-RDLIM:                      EQU  &08           ; ALLOW RAM DISCS 3-7
-READ_ADDRESS_CMD:           EQU  &C0           ; read address
-READ_SECTOR_CMD:            EQU  &80           ; read sector
-RPTH:                       EQU  &0E           ; and high -- 0 or 1, selecting one of the two entries in a directory
+ALLOCT:                       EQU  &5100       ; The memory page allocation table.
+BORDER:                       EQU  &FE         ; border colour
+BUFL:                         EQU  &0F         ; sector buffer address, low
+DCHAN:                        EQU  &7C00       ; the disk channel record
+DFT:                          EQU  &15         ; DIRECTORY FILE TYPE
+DIRT:                         EQU  &FA         ; DISP TO TAG VALUE IN DIR FILE DIR ENTRY
+FFSA:                         EQU  &13         ; first byte of the directory entry image
+FOWIA:                        EQU  &04         ; POP HL / JP (HL): used as a null vector, since CALL HLJUMP with HL
+FS:                           EQU  &4000       ; base of the DOS page; the image itself starts nine bytes higher
+FSAM:                         EQU  &22         ; start of the file's own sector address map
+FTADD:                        EQU  &A280       ; (SCR in section C)
+LENL:                         EQU  &E9         ; file length, low
+MIN:                          EQU  &BF         ; serial input port
+MOUT:                         EQU  &DF         ; serial output port
+MPL:                          EQU  &26         ; MAX PATH LEN
+MRND:                         EQU  &A5         ; RND token, used when a command has to plant one in a line
+NAME:                         EQU  &14         ; the file name within that image
+NTRK:                         EQU  &0311       ; number of tracks, for a RAM disc
+RBCC:                         EQU  &4220
+RDLIM:                        EQU  &08         ; ALLOW RAM DISCS 3-7
+READ_ADDRESS_CMD:             EQU  &C0         ; read address
+READ_SECTOR_CMD:              EQU  &80         ; read sector
+RPTH:                         EQU  &0E         ; and high -- 0 or 1, selecting one of the two entries in a directory
                                                ; sector
-SAM:                        EQU  &400F         ; the map proper
-SELURPG:                    EQU  &3FDF         ; ! ;4* page A in at &8000 and adjust HL to suit
-STEP_IN_CMD:                EQU  &5B           ; step in one track, updating the track register
-STEP_OUT_CMD:               EQU  &7B           ; step out one track
-WRITE_SECTOR_CMD:           EQU  &A2           ; write sector
-WRITE_TRACK_CMD:            EQU  &F2           ; * write track, with the settling delay bit set
-WRRAM:                      EQU  &0113         ; and write address
+SAM:                          EQU  &400F       ; the map proper
+SELURPG:                      EQU  &3FDF       ; ! ;4* page A in at &8000 and adjust HL to suit
+STEP_IN_CMD:                  EQU  &5B         ; step in one track, updating the track register
+STEP_OUT_CMD:                 EQU  &7B         ; step out one track
+WRITE_SECTOR_CMD:             EQU  &A2         ; write sector
+WRITE_TRACK_CMD:              EQU  &F2         ; * write track, with the settling delay bit set
+WRRAM:                        EQU  &0113       ; and write address
 
 ; The byte after RST &08: a DOS error, or a hook code, which is
 ; 128 plus the index of an entry in the DOS hook table at &44A6.
-ERR_OUT_OF_MEMORY:          EQU  &01
-ERR_LOADING_ERROR:          EQU  &13
-ERR_END_OF_FILE:            EQU  &16
-ERR_TRK_NNN_SCT_NN_ERROR:   EQU  &55
-ERR_FORMAT_TRK_NNN_LOST:    EQU  &56
-ERR_CHECK_DISK_IN_DRIVE:    EQU  &57
-ERR_VERIFY_FAILED:          EQU  &5D
-ERR_WRONG_FILE_TYPE:        EQU  &5E
-ERR_READING_A_WRITE_FILE:   EQU  &63
-ERR_WRITING_A_READ_FILE:    EQU  &64
-ERR_NO_AUTO_FILE:           EQU  &65
-ERR_NO_SUCH_DRIVE:          EQU  &67
-ERR_DISK_IS_WRITE_PROTEC:   EQU  &68
-ERR_DISK_FULL:              EQU  &69
-ERR_DIRECTORY_FULL:         EQU  &6A
-ERR_FILE_NAME_USED:         EQU  &6D
-ERR_STREAM_USED:            EQU  &6F
-ERR_CHANNEL_USED:           EQU  &70
-ERR_DIRECTORY_NOT_FOUND:    EQU  &71
-ERR_DIRECTORY_NOT_EMPTY:    EQU  &72
+ERR_OUT_OF_MEMORY:            EQU  &01
+ERR_LOADING_ERROR:            EQU  &13
+ERR_END_OF_FILE:              EQU  &16
+ERR_TRK_NNN_SCT_NN_ERROR:     EQU  &55
+ERR_FORMAT_TRK_NNN_LOST:      EQU  &56
+ERR_CHECK_DISK_IN_DRIVE:      EQU  &57
+ERR_VERIFY_FAILED:            EQU  &5D
+ERR_WRONG_FILE_TYPE:          EQU  &5E
+ERR_READING_A_WRITE_FILE:     EQU  &63
+ERR_WRITING_A_READ_FILE:      EQU  &64
+ERR_NO_AUTO_FILE:             EQU  &65
+ERR_NO_SUCH_DRIVE:            EQU  &67
+ERR_DISK_IS_WRITE_PROTEC:     EQU  &68
+ERR_DISK_FULL:                EQU  &69
+ERR_DIRECTORY_FULL:           EQU  &6A
+ERR_FILE_NAME_USED:           EQU  &6D
+ERR_STREAM_USED:              EQU  &6F
+ERR_CHANNEL_USED:             EQU  &70
+ERR_DIRECTORY_NOT_FOUND:      EQU  &71
+ERR_DIRECTORY_NOT_EMPTY:      EQU  &72
 
                ORG  &4000
 
@@ -612,9 +619,10 @@ BOOT_CHECK_READ_STATUS:
                RRCA                            ; 409A 0F  bit 0 is BUSY: still running, so go round again
                JR C,BOOT_CHECK_READ_STATUS     ; 409B 38 F7
 
-; The command has finished.  BUSY, LOST DATA and CRC ERROR together
-; say whether it finished well; if none of them is set the sector is
-; good.
+; The command has finished.  A still holds the status rotated one place
+; right from the test above, so the mask is written shifted: what it
+; tests is CRC ERROR and RECORD NOT FOUND, and DRQ, which cannot be set
+; here because the loop only leaves when it is clear.
                AND READ_ERROR_FLAGS            ; 409D E6 0D
                JR Z,BOOT_SECTOR_READ_OK        ; 409F 28 1F  a clean read
 
@@ -2433,61 +2441,111 @@ SRSA4:
                JR SRSA3                        ; 46C4 18 ED
 
 ;; --------------------------------------------------------------------
-;; What the sector routines do with a controller status they do not
-;; like.  AND &0E keeps the error bits, and any of them leaves for CDE1;
-;; otherwise the buffer is re-got through GTBUF and the operation runs
-;; again.  The path at &46D1 counts the failure into DCT, the disc error
-;; counter.
+;; Decide whether the transfer that has just finished was good, and if
+;; not, whether to try it again.
+;;
+;; ITS EXIT IS WHY THE TRANSFER LOOPS LOOK THE WAY THEY DO.  On success
+;; it does not return to its caller: it drops the return address off the
+;; stack and jumps to GTBUF, so the caller's caller gets control with HL
+;; pointing at the sector buffer.  That is why WSAD and READ_SECTOR both
+;; end with a jump back to the top -- the instruction after the call is
+;; only ever reached when the transfer failed.
+;;
+;; A holds the status rotated one place right, which is what the
+;; transfer loops leave behind, so the mask is written shifted.  LOST
+;; DATA, CRC ERROR and RECORD NOT FOUND are the three that matter; the
+;; DOS source, which restores A before testing, writes the same three
+;; as AND &1C.
+;;
+;; On failure DCT counts the attempt, and ten of them is REP4.  Short of
+;; that the head is jogged in, out, out and in again, on the theory that
+;; a head half a track off will settle if made to move; or, if the
+;; sector was not found at all, CDE1_1 goes and reads whatever ID field
+;; passes next to find out where the head really is.
+;;
+;; ONE THING HERE DOES NOT ADD UP.  The mask was shifted for a rotated
+;; A and the bit number below it was not.  The source tests BIT 4 of an
+;; unrestored status, which is RECORD NOT FOUND; this build tests BIT 4
+;; of a status rotated one place right, which is RECORD TYPE.  The two
+;; cannot both be intended, and the code does not say which is.
 ;; --------------------------------------------------------------------
 
 ; ---- RETRY_OR_GIVE_UP ---- from &45A7, &45C3, &4649, &46A7
 RETRY_OR_GIVE_UP:
-               AND &0E                         ; 46C6 E6 0E
-               JR NZ,CDE1                      ; 46C8 20 07  JR IF AN ERROR WAS DETECTED
+               AND TRANSFER_ERROR_FLAGS        ; 46C6 E6 0E
+               JR NZ,CDE1                      ; 46C8 20 07  something went wrong
+
+; A good transfer.  Clear the count, throw away the return address and
+; leave through GTBUF, so that this returns to whoever called the
+; caller with the buffer address in HL.
                CALL CLEAR_TRANSFER_COUNT       ; 46CA CD 8E 4F
-               POP HL                          ; 46CD E1  JUNK RET ADDR
-               JP GTBUF                        ; 46CE C3 A0 4F
+               POP HL                          ; 46CD E1  the caller's return address, deliberately discarded
+               JP GTBUF                        ; 46CE C3 A0 4F  and out through the buffer address, into the caller's
+                                               ; caller
+
+;; --------------------------------------------------------------------
+;; Count a failure and decide what to do about it.
+;; --------------------------------------------------------------------
 
 ; ---- CDE1 ---- from &46C8 when a bit of &0E is set, &48EB, &4A51
 CDE1:
                PUSH AF                         ; 46D1 F5
-               LD A,(DCT)                      ; 46D2 3A 11 41
+               LD A,(DCT)                      ; 46D2 3A 11 41  the count of failures against this transfer
                INC A                           ; 46D5 3C
                LD (DCT),A                      ; 46D6 32 11 41
-               CP &0A                          ; 46D9 FE 0A
-               JP NC,REP4                      ; 46DB D2 65 51
+               CP MAX_TRANSFER_RETRIES         ; 46D9 FE 0A
+               JP NC,REP4                      ; 46DB D2 65 51  ten failures is a disc fault
                POP AF                          ; 46DE F1
-               BIT 4,A                         ; 46DF CB 67
-               JR NZ,CDE1_1                    ; 46E1 20 0C  JR IF RECORD NOT FOUND
-               CALL STEP_HEAD_IN               ; 46E3 CD 7F 47
+               BIT 4,A                         ; 46DF CB 67  see above: this is the source's bit number on a rotated
+                                               ; status
+               JR NZ,CDE1_1                    ; 46E1 20 0C  whichever bit that is, it sends a lost sector to be located
+               CALL STEP_HEAD_IN               ; 46E3 CD 7F 47  jog the head in, out, out and in, to shake off a
+                                               ; mis-seek
                CALL STEP_HEAD_OUT              ; 46E6 CD 7B 47
                CALL STEP_HEAD_OUT              ; 46E9 CD 7B 47
                JP STEP_HEAD_IN                 ; 46EC C3 7F 47
 
+;; --------------------------------------------------------------------
+;; Find out where the head actually is, rather than where the DOS
+;; believes it to be.
+;;
+;; A read-address command hands back the first ID field to pass under
+;; the head, and the track number in it is the truth.  That number is
+;; written straight into the controller's track register, so the next
+;; seek is measured from where the head is instead of from where the
+;; last seek was supposed to have left it.
+;; --------------------------------------------------------------------
+
 ; ---- CDE1_1 ---- from &46E1 when bit 4 of A set, &471C, &4721
 CDE1_1:
-               LD C,READ_ADDRESS_CMD           ; 46EF 0E C0
+               LD C,READ_ADDRESS_CMD           ; 46EF 0E C0  ask for the next ID field to come round
                CALL WAIT_DC_READY_BEFORE_CMD   ; 46F1 CD 58 45
-               LD HL,DST                       ; 46F4 21 12 41
+               LD HL,DST                       ; 46F4 21 12 41  six bytes of it land here
                CALL RDDATA                     ; 46F7 CD C8 45
-               AND &0E                         ; 46FA E6 0E
-               JR NZ,CTS1                      ; 46FC 20 09  JR IF ERROR
-               CALL TRCKP                      ; 46FE CD 21 45
+               AND TRANSFER_ERROR_FLAGS        ; 46FA E6 0E
+               JR NZ,CTS1                      ; 46FC 20 09  even the ID field would not read
+               CALL TRCKP                      ; 46FE CD 21 45  the track register
                LD A,(DST)                      ; 4701 3A 12 41
-               OUT (C),A                       ; 4704 ED 79
+               OUT (C),A                       ; 4704 ED 79  and correct it to what the disc says
                RET                             ; 4706 C9
+
+;; --------------------------------------------------------------------
+;; The ID field would not read either.  Count that separately, and every
+;; second time send the head all the way back to track 0, which is the
+;; one position the drive can find without being told.
+;; --------------------------------------------------------------------
 
 ; ---- CTS1 ---- from &46FC when a bit of &0E is set
 CTS1:
                LD A,(DCT)                      ; 4707 3A 11 41
                INC A                           ; 470A 3C
                LD (DCT),A                      ; 470B 32 11 41
-               CP &08                          ; 470E FE 08
-               JP NC,REP5                      ; 4710 D2 68 51
-               AND &02                         ; 4713 E6 02  on every second attempt, restore the drive completely
+               CP MAX_ID_RETRIES               ; 470E FE 08
+               JP NC,REP5                      ; 4710 D2 68 51  eight failures at reading an address mark
+               AND &02                         ; 4713 E6 02  bit 1 of the count, so on every second pair of attempts
                JR Z,CTS1_1                     ; 4715 28 07
                PUSH DE                         ; 4717 D5
-               CALL REST                       ; 4718 CD AD 47
+               CALL REST                       ; 4718 CD AD 47  wind the head back to track 0 and start again
                POP DE                          ; 471B D1
                JR CDE1_1                       ; 471C 18 D1
 

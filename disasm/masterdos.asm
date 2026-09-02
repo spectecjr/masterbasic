@@ -2196,7 +2196,10 @@ CDE1:
                CP &0A                          ; 46D9 FE 0A
                JP NC,REP4                      ; 46DB D2 65 51
                POP AF                          ; 46DE F1
-               BIT 4,A                         ; 46DF CB 67
+               BIT 4,A                         ; 46DF CB 67  the mask above was shifted for a rotated A and this bit
+                                               ; number was not -- the source has AND &1C then BIT 4, RECORD NOT FOUND
+                                               ; on an unrotated status; here AND &0E is that mask shifted, but BIT 4 of
+                                               ; a rotated status is RECORD TYPE
                JR NZ,CDE1_1                    ; 46E1 20 0C  JR IF RECORD NOT FOUND
                CALL STEP_HEAD_IN               ; 46E3 CD 7F 47
                CALL STEP_HEAD_OUT              ; 46E6 CD 7B 47

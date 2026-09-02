@@ -180,9 +180,10 @@ DOS &4096 : a byte is waiting to be taken
 DOS &409A : bit 0 is BUSY: still running, so go round again
 
 DOS &409D step
-    The command has finished.  BUSY, LOST DATA and CRC ERROR together
-    say whether it finished well; if none of them is set the sector is
-    good.
+    The command has finished.  A still holds the status rotated one place
+    right from the test above, so the mask is written shifted: what it
+    tests is CRC ERROR and RECORD NOT FOUND, and DRQ, which cannot be set
+    here because the loop only leaves when it is clear.
 
 DOS &409F : a clean read
 

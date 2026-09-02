@@ -1,0 +1,84 @@
+# What happens when a transfer goes wrong: counting attempts, jogging the
+# head, and finding out where the head actually is.
+#
+# Prose for clean/ only.
+
+DOC RETRY_OR_GIVE_UP
+    Decide whether the transfer that has just finished was good, and if
+    not, whether to try it again.
+
+    ITS EXIT IS WHY THE TRANSFER LOOPS LOOK THE WAY THEY DO.  On success
+    it does not return to its caller: it drops the return address off the
+    stack and jumps to GTBUF, so the caller's caller gets control with HL
+    pointing at the sector buffer.  That is why WSAD and READ_SECTOR both
+    end with a jump back to the top -- the instruction after the call is
+    only ever reached when the transfer failed.
+
+    A holds the status rotated one place right, which is what the
+    transfer loops leave behind, so the mask is written shifted.  LOST
+    DATA, CRC ERROR and RECORD NOT FOUND are the three that matter; the
+    DOS source, which restores A before testing, writes the same three
+    as AND &1C.
+
+    On failure DCT counts the attempt, and ten of them is REP4.  Short of
+    that the head is jogged in, out, out and in again, on the theory that
+    a head half a track off will settle if made to move; or, if the
+    sector was not found at all, CDE1_1 goes and reads whatever ID field
+    passes next to find out where the head really is.
+
+    ONE THING HERE DOES NOT ADD UP.  The mask was shifted for a rotated
+    A and the bit number below it was not.  The source tests BIT 4 of an
+    unrestored status, which is RECORD NOT FOUND; this build tests BIT 4
+    of a status rotated one place right, which is RECORD TYPE.  The two
+    cannot both be intended, and the code does not say which is.
+
+DOS &46C6 value TRANSFER_ERROR_FLAGS
+DOS &46C8 : something went wrong
+
+DOS &46CA step
+    A good transfer.  Clear the count, throw away the return address and
+    leave through GTBUF, so that this returns to whoever called the
+    caller with the buffer address in HL.
+
+DOS &46CD : the caller's return address, deliberately discarded
+DOS &46CE : and out through the buffer address, into the caller's caller
+
+DOC CDE1
+    Count a failure and decide what to do about it.
+
+DOS &46D2 : the count of failures against this transfer
+DOS &46DB : ten failures is a disc fault
+DOS &46DF : see above: this is the source's bit number on a rotated status
+DOS &46E3 : jog the head in, out, out and in, to shake off a mis-seek
+
+DOC CDE1_1
+    Find out where the head actually is, rather than where the DOS
+    believes it to be.
+
+    A read-address command hands back the first ID field to pass under
+    the head, and the track number in it is the truth.  That number is
+    written straight into the controller's track register, so the next
+    seek is measured from where the head is instead of from where the
+    last seek was supposed to have left it.
+
+DOS &46EF : ask for the next ID field to come round
+DOS &46F4 : six bytes of it land here
+DOS &46FA value TRANSFER_ERROR_FLAGS
+DOS &46FC : even the ID field would not read
+DOS &46FE : the track register
+DOS &4704 : and correct it to what the disc says
+
+DOC CTS1
+    The ID field would not read either.  Count that separately, and every
+    second time send the head all the way back to track 0, which is the
+    one position the drive can find without being told.
+
+DOS &4710 : eight failures at reading an address mark
+DOS &4713 : bit 1 of the count, so on every second pair of attempts
+DOS &4718 : wind the head back to track 0 and start again
+
+GROUP Disk retries
+DOS &46D9 value MAX_TRANSFER_RETRIES
+DOS &470E value MAX_ID_RETRIES
+
+DOS &46E1 : whichever bit that is, it sends a lost sector to be located
