@@ -268,6 +268,9 @@ RESTORE_CMD:                  EQU  &09         ; seek to track 0; used to recove
 ; Disk timing
 CMD_LATENCY_LOOPS:            EQU  &14         ; DJNZ iterations, enough for the WD1772 to raise BUSY
 
+; Drives
+FIRST_RAMDISC_DRIVE:          EQU  &03
+
 ; Disk retries
 MAX_ID_RETRIES:               EQU  &08
 MAX_TRANSFER_RETRIES:         EQU  &0A
@@ -4523,10 +4526,35 @@ RSSR:
                LD C,READ_SECTOR_CMD            ; 4F9B 0E 80
                CALL WAIT_DC_READY_BEFORE_CMD   ; 4F9D CD 58 45
 
+;; --------------------------------------------------------------------
+;; Point HL at the sector buffer for the channel in IX.
+;;
+;; IX ADDRESSES THE DISK CHANNEL RECORD, and it does so through most of
+;; the disk code, which is why so much of it reads as an offset from
+;; nothing in particular.  The record is DCHAN, at &7C00, and the
+;; listing has a label on each of its fields:
+;;
+;; DCHAN+0   SVBC    saved BC
+;; DCHAN+2   SVDE    saved DE, usually a track and sector
+;; DCHAN+4   RFDH    the directory scan mode
+;; DCHAN+5   SVHL    saved HL, usually the transfer address
+;; DCHAN+7   SVIX    saved IX
+;; DCHAN+9   REG1    scratch
+;; DCHAN+11  DRIVE   which drive this channel is on
+;; DCHAN+12  FLAG3   the flag byte; bit 3 is "the buffer is dirty"
+;; DCHAN+13  RPT     how far through the buffer the file has read
+;; DCHAN+15  BUF     where the buffer is
+;; DCHAN+17  NSR     the track and sector this buffer holds
+;; DCHAN+19  FSA     a 256-byte image of the directory entry
+;;
+;; So a displacement here is written as the field minus the base, which
+;; says which field it is rather than how far along it sits.
+;; --------------------------------------------------------------------
+
 ; ---- GTBUF ---- from &459C, &46CE, &4880, &48BB, &48F6, &54BA, &74C1, &74E7 ...
 GTBUF:
-               LD L,(IX+&0F)                   ; 4FA0 DD 6E 0F
-               LD H,(IX+&10)                   ; 4FA3 DD 66 10
+               LD L,(IX+BUF-DCHAN)             ; 4FA0 DD 6E 0F
+               LD H,(IX+BUF-DCHAN+1)           ; 4FA3 DD 66 10
                RET                             ; 4FA6 C9
 
 ; ---- FINDC ---- from &5D9C, &6643, &7AD2
@@ -4540,7 +4568,7 @@ POINT:
 
 ; ---- GRPNTB ---- from &4B0B, &4E96, &4EE9, &4F43, &4F4D, &564E, &5666, &5688 ...
 GRPNTB:
-               LD (IX+&0D),B                   ; 4FAE DD 70 0D
+               LD (IX+RPT-DCHAN),B             ; 4FAE DD 70 0D
 
 ; ---- GRPNT ---- from &4847, &485D, &4A64, &7118
 GRPNT:
@@ -4551,23 +4579,33 @@ GRPNT:
                ADD HL,BC                       ; 4FBD 09
                RET                             ; 4FBE C9
 
+;; --------------------------------------------------------------------
+;; The track and sector the channel's buffer holds, into DE.
+;;
+;; NSR is the link the sector chain is followed by: every sector on a
+;; disc ends with the track and sector of the next, and this is where
+;; the one just read was remembered.
+;; --------------------------------------------------------------------
+
 ; ---- GET_TRACK_AND_SECTOR ---- from &4578, &48E8, &49DB, &4A73, &4DF8, &4FCD, &70F3
 GET_TRACK_AND_SECTOR:
-               LD D,(IX+&12)                   ; 4FBF DD 56 12
-               LD E,(IX+&11)                   ; 4FC2 DD 5E 11
+               LD D,(IX+NSR-DCHAN+1)           ; 4FBF DD 56 12
+               LD E,(IX+NSR-DCHAN)             ; 4FC2 DD 5E 11
                RET                             ; 4FC5 C9
 
 ;; --------------------------------------------------------------------
-;; The track and sector at (IX+&11) and (IX+&12), read into DE and
-;; written from it.  &4FCD is the third of the family: it reads the old
-;; pair out through GET_TRACK_AND_SECTOR and puts HL in its place, so a
-;; caller can exchange them in one call.
+;; Write DE back into the channel's NSR field.
+;;
+;; Three routines share the field between them: this one writes it,
+;; GET_TRACK_AND_SECTOR reads it, and &4FCD does both -- reading the old
+;; pair out through GET_TRACK_AND_SECTOR and putting HL in its place, so
+;; that a caller following the chain can exchange them in one call.
 ;; --------------------------------------------------------------------
 
 ; ---- SET_TRACK_AND_SECTOR ---- from &48AC, &494D, &4DC9, &6FD9
 SET_TRACK_AND_SECTOR:
-               LD (IX+&12),D                   ; 4FC6 DD 72 12
-               LD (IX+&11),E                   ; 4FC9 DD 73 11
+               LD (IX+NSR-DCHAN+1),D           ; 4FC6 DD 72 12
+               LD (IX+NSR-DCHAN),E             ; 4FC9 DD 73 11
                RET                             ; 4FCC C9
 
 ;; --------------------------------------------------------------------
@@ -8475,29 +8513,34 @@ WFODB:
                JP FORMRD                       ; 6153 C3 43 76  FORMAT RAMDISC
 
 ;; --------------------------------------------------------------------
-;; Resets the sector error retry count to 0, then tests if the current disk device
-;; is a RAM drive.
+;; The same question, with the failure count cleared first.
 ;;
-;; (See TIRD)
+;; The two are one routine with two doors: a caller starting a fresh
+;; transfer comes in at the top so that the ten attempts CDE1 allows are
+;; counted from zero, and one only asking what kind of drive it has
+;; comes in below.
 ;; --------------------------------------------------------------------
 
 ; ---- TIRDXDCT ---- from &4586, &45B7, &4635, &4682
 TIRDXDCT:
-               XOR A                           ; 6156 AF
+               XOR A                           ; 6156 AF  no failures against this transfer yet
                LD (DCT),A                      ; 6157 32 11 41
 
 ;; --------------------------------------------------------------------
-;; Checks if the physical disk device number corresponds to a RAM drive or
-;; a floppy disk.
+;; Which kind of drive is this channel on?
 ;;
-;; Returns carry set if physical, no-carry if RAM drive.
+;; Drives 1 and 2 are floppies and anything from 3 to 7 is a RAM disc,
+;; so one compare answers it: carry set for a real drive, clear for a
+;; RAM disc.  Every transfer asks this before it does anything else,
+;; and the RAM disc paths divert on the answer without ever reaching a
+;; controller.
 ;; --------------------------------------------------------------------
 
 ; ---- TIRD ---- from &4564, &4723, &47B0, &47EE, &482F, &489E, &4991, &4ACB ...
 TIRD:
-               LD A,(DRIVE)                    ; 615A 3A 0B 7C
-               CP &03                          ; 615D FE 03
-               RET                             ; 615F C9
+               LD A,(DRIVE)                    ; 615A 3A 0B 7C  the drive this channel is on
+               CP FIRST_RAMDISC_DRIVE          ; 615D FE 03
+               RET                             ; 615F C9  carry for a floppy, no carry for a RAM disc
 
 ;; --------------------------------------------------------------------
 ;; EVALUATE DRIVE NO. OR FILE NAME (USED BY DIR)
@@ -14510,8 +14553,8 @@ DOSBUF:
 SVDE:
                DEFB &06,&21                    ; 7C02 .!  (2) saved DE, usually a track and sector
 
-; ---- V7C04 ---- from &4B37, &4B90, &4C5D
-V7C04:
+; ---- RFDH ---- from &4B37, &4B90, &4C5D
+RFDH:
                DEFB &13                        ; 7C04 .
 
 ; ---- SVHL ---- from &487D, &48CD, &48F3, &4902, &4954, &4969, &497A, &4A1E ...
@@ -14524,7 +14567,10 @@ V7C06:
 
 ; ---- SVIX ---- from &4E1E, &4E46
 SVIX:
-               DEFB &ED,&73,&3A,&BD            ; 7C07 ms:=  (2) saved IX
+               DEFB &ED,&73                    ; 7C07 ms  (2) saved IX
+
+REG1:
+               DEFB &3A,&BD                    ; 7C09 :=
 
 ; ---- DRIVE ---- from &4825, &482C, &4D1C, &615A, &6186, &6781, &743F, &744D ...
 DRIVE:
@@ -14544,7 +14590,10 @@ V7C0E:
 
 ; ---- BUF ---- from &45FF, &460F, &4BE8, &4F8B, &5555, &556B, &6694
 BUF:
-               DEFB &3E,&40,&31,&00            ; 7C0F >@1.  (2) address of the sector buffer
+               DEFB &3E,&40                    ; 7C0F >@  (2) address of the sector buffer
+
+NSR:
+               DEFB &31,&00                    ; 7C11 1.
 
 FSA:
                DEFB &80,&CD,&3D,&BD,&CD,&2C,&BD,&F5,&3E,&01,&01,&D9,&67,&21,&00 ; 7C13 .M==M,=u>..Yg!.  the 256-byte

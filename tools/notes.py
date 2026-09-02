@@ -324,8 +324,16 @@ def apply(pages, root, banner, folder='notes'):
                 problems.append('%s: &%04X does not start an instruction'
                                 % (e['where'], a))
             elif len(lits) != 1:
-                problems.append('%s: %s has %d numbers in it, so which?'
-                                % (e['where'], text, len(lits)))
+                # Naming the same number twice is the common way to get
+                # here: the first entry replaced it, so the second finds
+                # nothing left to replace.
+                if e['name'] and re.search(r'%s' % re.escape(
+                        e['name'].split()[0]), text or ''):
+                    problems.append('%s: %s is already named there'
+                                    % (e['where'], e['name']))
+                else:
+                    problems.append('%s: %s has %d numbers in it, so which?'
+                                    % (e['where'], text, len(lits)))
             elif not e['name']:
                 problems.append('%s: value needs a name' % e['where'])
             elif re.fullmatch(r'\w+', e['name']):

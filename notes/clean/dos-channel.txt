@@ -1,0 +1,88 @@
+# IX is the disk channel record, everywhere in the disk code.
+#
+# Prose for clean/ only.  The field names are already in the listing, as
+# labels on the record itself, so a displacement can be written as the
+# difference between the field and the base -- BUF-DCHAN is &0F, and says
+# which field it is instead of how far along it sits.
+
+DOC GTBUF
+    Point HL at the sector buffer for the channel in IX.
+
+    IX ADDRESSES THE DISK CHANNEL RECORD, and it does so through most of
+    the disk code, which is why so much of it reads as an offset from
+    nothing in particular.  The record is DCHAN, at &7C00, and the
+    listing has a label on each of its fields:
+
+        DCHAN+0   SVBC    saved BC
+        DCHAN+2   SVDE    saved DE, usually a track and sector
+        DCHAN+4   RFDH    the directory scan mode
+        DCHAN+5   SVHL    saved HL, usually the transfer address
+        DCHAN+7   SVIX    saved IX
+        DCHAN+9   REG1    scratch
+        DCHAN+11  DRIVE   which drive this channel is on
+        DCHAN+12  FLAG3   the flag byte; bit 3 is "the buffer is dirty"
+        DCHAN+13  RPT     how far through the buffer the file has read
+        DCHAN+15  BUF     where the buffer is
+        DCHAN+17  NSR     the track and sector this buffer holds
+        DCHAN+19  FSA     a 256-byte image of the directory entry
+
+    So a displacement here is written as the field minus the base, which
+    says which field it is rather than how far along it sits.
+
+# Three of the record's fields are only ever reached through IX, so
+# nothing gives them a label and the displacements above have nothing to
+# subtract from.  Named here, on the record itself.
+
+RENAME V7C04 RFDH
+DOS &7C07 SVIX
+DOS &7C09 REG1
+DOS &7C11 NSR
+
+DOS &4FA0 expr BUF-DCHAN
+DOS &4FA3 expr BUF-DCHAN+1
+
+DOC GET_TRACK_AND_SECTOR
+    The track and sector the channel's buffer holds, into DE.
+
+    NSR is the link the sector chain is followed by: every sector on a
+    disc ends with the track and sector of the next, and this is where
+    the one just read was remembered.
+
+DOS &4FBF expr NSR-DCHAN+1
+DOS &4FC2 expr NSR-DCHAN
+DOS &4FC6 expr NSR-DCHAN+1
+DOS &4FC9 expr NSR-DCHAN
+DOS &4FAE expr RPT-DCHAN
+
+DOC TIRD
+    Which kind of drive is this channel on?
+
+    Drives 1 and 2 are floppies and anything from 3 to 7 is a RAM disc,
+    so one compare answers it: carry set for a real drive, clear for a
+    RAM disc.  Every transfer asks this before it does anything else,
+    and the RAM disc paths divert on the answer without ever reaching a
+    controller.
+
+DOS &615A : the drive this channel is on
+DOS &615F : carry for a floppy, no carry for a RAM disc
+
+DOC TIRDXDCT
+    The same question, with the failure count cleared first.
+
+    The two are one routine with two doors: a caller starting a fresh
+    transfer comes in at the top so that the ten attempts CDE1 allows are
+    counted from zero, and one only asking what kind of drive it has
+    comes in below.
+
+DOS &6156 : no failures against this transfer yet
+
+GROUP Drives
+DOS &615D value FIRST_RAMDISC_DRIVE
+
+DOC SET_TRACK_AND_SECTOR
+    Write DE back into the channel's NSR field.
+
+    Three routines share the field between them: this one writes it,
+    GET_TRACK_AND_SECTOR reads it, and &4FCD does both -- reading the old
+    pair out through GET_TRACK_AND_SECTOR and putting HL in its place, so
+    that a caller following the chain can exchange them in one call.
