@@ -345,3 +345,13 @@ DOS &7BAC RETURN_INTO_BC
     with STORE_BC_AT_XVAR76, from the other side.
 
 DOS &46DF : the mask above was shifted for a rotated A and this bit number was not -- the source has AND &1C then BIT 4, RECORD NOT FOUND on an unrotated status; here AND &0E is that mask shifted, but BIT 4 of a rotated status is RECORD TYPE
+
+# Every bit test on A that traces back to a port read was swept, in both
+# halves, counting the rotates in between.  Only four sites apply a mask
+# to a rotated status, and they are all in the DOS: &409D, &48E4 and
+# &4A33, which are three copies of one seven-instruction loop and all
+# read AND &0D; and &46C6, which reads AND &0E.  Everything else -- the
+# page masks, the printer and serial tests, the BIT 1 that looks for DRQ
+# at the head of each of those three loops -- is applied to the byte as
+# read.  &46DF is not reachable by the sweep, because A gets there
+# through PUSH AF and POP AF, but it is one rotate from a status read too.

@@ -636,8 +636,13 @@ BOOT_CHECK_READ_STATUS:
 ; hand-driven polling loop is likeliest to suffer -- and does test
 ; RECORD NOT FOUND; read as intended it would be the other way round.
 ;
-; The DOS's own error mask at &46C6 was shifted to suit the same
-; rotate, so one of the two was adjusted for it and one was not.
+; Which was meant is not settled by anything in the code, but two
+; things are worth knowing before guessing.  These seven instructions
+; appear three times -- here, at &48DB and at &4A28 -- with the same
+; &0D each time, so whatever it is, it was copied rather than arrived
+; at three times over.  And the DOS does understand the rotate
+; somewhere: the retry mask at &46C6 is the DOS source's own AND &1C
+; shifted by exactly one place to suit it.
                AND READ_ERROR_FLAGS            ; 409D E6 0D
                JR Z,BOOT_SECTOR_READ_OK        ; 409F 28 1F  a clean read
 
@@ -2993,15 +2998,31 @@ LDB5:
                OR E                            ; 48D8 B3
                JR Z,LDB5_1                     ; 48D9 28 15
 
+;; --------------------------------------------------------------------
+;; Wait for the sector to finish arriving, then say whether it did.
+;;
+;; The same seven instructions as BOOT's loop at &4094 and SVB6's at
+;; &4A28, and the same trap in them: the status is rotated one place
+;; right before the mask is applied, so &0D does not test the bits its
+;; number suggests.  What it tests here is CRC ERROR and RECORD NOT
+;; FOUND -- and not LOST DATA, which is the failure this loop is
+;; likeliest to suffer.  The full account is on BOOT at &409D.
+;;
+;; Two ports, both written into the instructions that read them: the
+;; data register at &48D2 from &48C6, and the status register here from
+;; &48C1.
+;; --------------------------------------------------------------------
+
 ; ---- LDB6 ---- from &48D0, &48E2 when bit 0 was set, &48F1
 LDB6:
                IN A,(&00)                      ; 48DB DB 00  the port is written here at run time, from &48C1
-               BIT 1,A                         ; 48DD CB 4F
+               BIT 1,A                         ; 48DD CB 4F  DRQ, unrotated and so meaning what it says: a byte is
+                                               ; waiting
                JR NZ,LDB5                      ; 48DF 20 F1
-               RRCA                            ; 48E1 0F
+               RRCA                            ; 48E1 0F  carry is BUSY, and the mask below is applied to what is left
                JR C,LDB6                       ; 48E2 38 F7
-               AND &0D                         ; 48E4 E6 0D
-               JR Z,LDB7                       ; 48E6 28 0B
+               AND READ_ERROR_FLAGS            ; 48E4 E6 0D
+               JR Z,LDB7                       ; 48E6 28 0B  nothing the mask can see, so the sector is good
                CALL GET_TRACK_AND_SECTOR       ; 48E8 CD BF 4F
                CALL CDE1                       ; 48EB CD D1 46
                JR LDB4                         ; 48EE 18 BF
@@ -3240,17 +3261,25 @@ SVB5:
                DEC E                           ; 4A25 1D  LSB OF BYTE COUNT
                JR Z,SVBL2                      ; 4A26 28 33
 
+;; --------------------------------------------------------------------
+;; Wait for the sector to finish going out, then say whether it did.
+;;
+;; BOOT's loop at &4094 read one, this one writes one, and the seven
+;; instructions are the same either way -- including the rotate before
+;; the mask, so &0D means here what it means there.  See &409D.
+;; --------------------------------------------------------------------
+
 ; ---- SVB6 ---- from &4A21, &4A2F when bit 0 was set, &4A5C when D is not 0 yet, &4A62
 SVB6:
                IN A,(&00)                      ; 4A28 DB 00  SELF-MOD STATUS PORT
-               BIT 1,A                         ; 4A2A CB 4F
+               BIT 1,A                         ; 4A2A CB 4F  DRQ: the controller is ready for the next byte
                JR NZ,SVB5                      ; 4A2C 20 F5  JR IF DISK READY FOR BYTE
-               RRCA                            ; 4A2E 0F
+               RRCA                            ; 4A2E 0F  carry is BUSY, and the mask below sees the rest
                JR C,SVB6                       ; 4A2F 38 F7  JR IF BUSY - DATA STILL TO BE SENT
-               EXX                             ; 4A31 D9  HL=MAIN PTR
+               EXX                             ; 4A31 D9  back to the main pointer, and the track and sector
                POP DE                          ; 4A32 D1  T/S
-               AND &0D                         ; 4A33 E6 0D
-               JR NZ,SVB7                      ; 4A35 20 15  JR IF ERROR
+               AND READ_ERROR_FLAGS            ; 4A33 E6 0D
+               JR NZ,SVB7                      ; 4A35 20 15  something the mask can see, so go and count the failure
                LD (SVHL),HL                    ; 4A37 22 05 7C  UPDATE SRC PTR (IN 510 BYTE STEPS
                EXX                             ; 4A3A D9
                DEC HL                          ; 4A3B 2B
