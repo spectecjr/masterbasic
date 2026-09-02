@@ -132,9 +132,20 @@ already isolated from the working copy. Covers `BOOT_13` →
 `BOOT_READ_SECTOR_DATA_LOOP` and `V40F9` → `STACK_POINTER_ON_BOOT`, plus
 a `step` line over each data cell saying what it holds.
 
-**Optional, later:** render a jump to its own instruction as `DJNZ $`.
-Cheap, removes a label the reader has no use for, loses the caller-list
-head. Opt-in per site if wanted at all.
+**Done.** A jump to its own address is written `DJNZ $` in the reading
+copy. There are five in the DOS and none in MasterBASIC, and all five are
+settle delays, which is where it reads best:
+
+```asm
+               LD B,CMD_LATENCY_LOOPS          ; 455F 06 14
+               DJNZ $                          ; 4561 10 FE
+               RET                             ; 4563 C9
+```
+
+The label goes with it — but only where the instruction is the one thing
+that refers to it. Four of the five lose theirs; `BOOT_READ_CMD_SETTLE`
+keeps its name because MasterBASIC jumps into the middle of that delay
+from `MB &5A8E`, which is worth seeing.
 
 ---
 

@@ -117,6 +117,9 @@ PAGE_FLAG = 'NOT_IN_THIS_PAGE'
 # working listings write the number, because in disasm/ the arithmetic is
 # the point; the reading copy names it, because there the reason is.
 PAGE_BIAS = ['&4000']
+# Whether a jump to its own address is written as $.  Off for the working
+# listings, where every jump naming its target is the plainer rule.
+SELF_LOOP = [False]
 
 
 # Addresses in the ROM's system page that MasterBASIC itself gives a
@@ -294,6 +297,11 @@ class Page(Disassembler):
 
     # -- operand naming ----------------------------------------------------
     def a16(self, v, rel=False):
+        # A jump to the address it is itself at is a delay, not a
+        # destination.  Writing it $ says so in the instruction, and
+        # saves a label whose only reference is the line it sits on.
+        if SELF_LOOP[0] and rel and v == self._cur:
+            return '$'
         # A JR or DJNZ target is not an address the routine names: it is
         # this code, wherever this code happens to be paged.  Everything
         # else -- JP, CALL, LD -- names a location, and in an inverted
@@ -2258,9 +2266,15 @@ def write_clean(pages):
     print('clean/: %d working paragraphs taken out'
           % clean.clean_pages((dos, mb)))
 
+    n = clean.drop_self_loop_labels((dos, mb))
+    if n:
+        print('clean/: %d labels dropped from loops that jump to themselves'
+              % n)
+
     out = os.path.join(ROOT, 'clean')
     os.makedirs(out, exist_ok=True)
     PAGE_BIAS[0] = 'IN_PAGE_C'
+    SELF_LOOP[0] = True
     for d, name in ((dos, 'masterdos.asm'), (mb, 'masterbasic.asm')):
         d.relabel()
         d.title = clean.preamble(d)
@@ -2273,6 +2287,7 @@ def write_clean(pages):
         print('wrote', os.path.join(out, name))
 
     PAGE_BIAS[0] = '&4000'
+    SELF_LOOP[0] = False
     for tag, (mine, orig) in sorted(clean.coverage((dos, mb)).items()):
         print('clean/: %s line comments -- %d written here, %d still the '
               'MasterDOS author%ss own' % (tag, mine, orig, chr(39)))

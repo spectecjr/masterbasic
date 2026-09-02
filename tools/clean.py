@@ -254,3 +254,25 @@ PREFIX = {'DOS': 'MB_', 'MB': 'DOS_'}
 def preamble(d):
     return PREAMBLE % {'what': WHAT[d.tag], 'where': WHERE[d.tag],
                        'prefix': PREFIX[d.tag]}
+
+
+def drop_self_loop_labels(pages):
+    """Drop the label on an instruction whose only caller is itself.
+
+    DJNZ $ is a delay.  Naming its target puts a label in the margin and
+    a caller list above it -- "from &4077 when B is not 0 yet" -- for a
+    destination nothing else ever reaches and no reader needs to find.
+    A label is only dropped when the instruction it sits on is the one
+    reference to it, and when nothing has been written about it.
+    """
+    n = 0
+    for d in pages:
+        peer = getattr(d, 'peer_xrefs', {})
+        for a in list(d.labels):
+            if set(d.xrefs.get(a, ())) != {a} or peer.get(a):
+                continue
+            if a in d.headers or a in d.steps or a in d.notes:
+                continue
+            del d.labels[a]
+            n += 1
+    return n

@@ -530,10 +530,7 @@ BOOT_CHOOSE_STEP_DIRECTION:
 BOOT_STEP_HEAD:
                OUT (C),A                       ; 4073 ED 79
                LD B,CMD_LATENCY_LOOPS          ; 4075 06 14
-
-; ---- BOOT_STEP_SETTLE ---- from &4077 when B is not 0 yet
-BOOT_STEP_SETTLE:
-               DJNZ BOOT_STEP_SETTLE           ; 4077 10 FE
+               DJNZ $                          ; 4077 10 FE
                JR BOOT_WAIT_READY              ; 4079 18 E6  round again to see where the head has got to
 
 ; On the right track.  Ask for the sector and let the command settle
@@ -548,9 +545,9 @@ BOOT_FOUND_TRACK:
 BOOT_SETTLE_AFTER_READ_CMD:
                LD B,CMD_LATENCY_LOOPS          ; 407F 06 14
 
-; ---- BOOT_READ_CMD_SETTLE ---- from &4081 when B is not 0 yet, MB &5A8E
+; ---- BOOT_READ_CMD_SETTLE ---- from MB &5A8E
 BOOT_READ_CMD_SETTLE:
-               DJNZ BOOT_READ_CMD_SETTLE             ; 4081 10 FE
+               DJNZ $                                ; 4081 10 FE
                LD HL,(SECTOR_LOAD_ADDRESS+IN_PAGE_C) ; 4083 2A FB 80  where this sector is to land
 
 ; Put the data register's port in B.  The three entries differ only in
@@ -612,10 +609,7 @@ BOOT_CHECK_READ_STATUS:
                LD A,RESTORE_CMD                    ; 40AD 3E 09
                OUT (C),A                           ; 40AF ED 79
                LD B,CMD_LATENCY_LOOPS              ; 40B1 06 14
-
-; ---- BOOT_RESTORE_SETTLE ---- from &40B3 when B is not 0 yet
-BOOT_RESTORE_SETTLE:
-               DJNZ BOOT_RESTORE_SETTLE        ; 40B3 10 FE
+               DJNZ $                              ; 40B3 10 FE
 
 ; Ten attempts at one sector, then give up.  There is no error
 ; reporting here yet either: the system page has to be put back at
@@ -1983,10 +1977,7 @@ WRITE_DRIVE_CMD_AND_DELAY:
                LD A,C                          ; 455B 79
                CALL WRITE_SELECTED_DISK_CMD    ; 455C CD 2E 45
                LD B,CMD_LATENCY_LOOPS          ; 455F 06 14  long enough for the controller to raise BUSY
-
-; ---- POST_CMD_WAIT ---- from &4561 when B is not 0 yet
-POST_CMD_WAIT:
-               DJNZ POST_CMD_WAIT              ; 4561 10 FE
+               DJNZ $                          ; 4561 10 FE
                RET                             ; 4563 C9
 
 ;; --------------------------------------------------------------------
@@ -2664,10 +2655,7 @@ TFIHO:
                LD C,FORCE_INTERRUPT_CMD        ; 47CA 0E D0  force interrupt, terminating anything in progress
                CALL WRITE_DRIVE_CMD_AND_DELAY  ; 47CC CD 5B 45  RESET DISC CHIP
                LD B,&00                        ; 47CF 06 00
-
-; ---- TFIHL ---- from &47D1 when B is not 0 yet
-TFIHL:
-               DJNZ TFIHL                      ; 47D1 10 FE
+               DJNZ $                          ; 47D1 10 FE
                LD H,&80                        ; 47D3 26 80  LOOPS BEFORE TIME-OUT
 
 ; ---- TFI2 ---- from &47DF
