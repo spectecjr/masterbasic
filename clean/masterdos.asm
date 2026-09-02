@@ -620,9 +620,15 @@ BOOT_CHECK_READ_STATUS:
                JR C,BOOT_CHECK_READ_STATUS     ; 409B 38 F7
 
 ; The command has finished.  A still holds the status rotated one place
-; right from the test above, so the mask is written shifted: what it
-; tests is CRC ERROR and RECORD NOT FOUND, and DRQ, which cannot be set
-; here because the loop only leaves when it is clear.
+; right from the RRCA above, so the mask is written shifted: what this
+; instruction tests is CRC ERROR and RECORD NOT FOUND, and DRQ, which
+; cannot be set here because the loop only leaves when it is clear.
+;
+; Read as an ordinary mask, &0D is BUSY, LOST DATA and CRC ERROR --
+; which is the sensible thing to want after a sector read, and is
+; probably what was meant.  The rotate makes it test the three above
+; instead.  The DOS's own error mask at &46C6 was shifted to suit the
+; same rotate, so one of the two was adjusted for it and one was not.
                AND READ_ERROR_FLAGS            ; 409D E6 0D
                JR Z,BOOT_SECTOR_READ_OK        ; 409F 28 1F  a clean read
 
