@@ -197,10 +197,19 @@ DOS &409D step
     that has not been rotated -- BUSY, LOST DATA and CRC ERROR.  The
     shift was made at &46C6 and forgotten here.
 
+    THE ROTATE SWAPS THE TWO ENDS OF THE MASK, which is what makes this
+    hard to see by eye.  Read as an ordinary mask &0D is BUSY, LOST DATA
+    and CRC ERROR: it appears to test LOST DATA and to miss RECORD NOT
+    FOUND.  After the rotate it is the other way about -- RECORD NOT
+    FOUND is tested and LOST DATA is not.
+
     THE CONSEQUENCE is that a sector which arrives with a byte dropped is
     accepted as good.  LOST DATA is exactly the failure a polled transfer
     suffers when something holds the processor up too long, and it is the
     one error of the three that this test cannot see.
+
+    SAMDOS, which this DOS grew out of, is said to get the same test
+    right; there is no copy of it here to check that against.
 
     These seven instructions appear three times -- here, at &48DB and at
     &4A28 -- so the boot loader, the block load and the block save all

@@ -364,3 +364,12 @@ DOS &46DF : the mask above was shifted for a rotated A and this bit number was n
 # stand they test CRC ERROR and RECORD NOT FOUND and cannot see LOST
 # DATA, and the block load, the block save and the boot loader all reach
 # CDE1 without ever passing through &46C6.
+#
+# Read as an ordinary mask &0D is BUSY, LOST DATA and CRC ERROR, so it
+# looks as though it tests LOST DATA and misses RECORD NOT FOUND.  The
+# rotate swaps those two round: RECORD NOT FOUND is tested, LOST DATA is
+# not.  That is worth writing down because it is the natural misreading.
+#
+# Simon reports that SAMDOS gets the same test right, which would put the
+# error in MasterDOS rather than inherited.  There is no SAMDOS source in
+# ref/ to check it here.
