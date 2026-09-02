@@ -2512,11 +2512,13 @@ SRSA4:
 ;; sector was not found at all, CDE1_1 goes and reads whatever ID field
 ;; passes next to find out where the head really is.
 ;;
-;; ONE THING HERE DOES NOT ADD UP.  The mask was shifted for a rotated
-;; A and the bit number below it was not.  The source tests BIT 4 of an
-;; unrestored status, which is RECORD NOT FOUND; this build tests BIT 4
-;; of a status rotated one place right, which is RECORD TYPE.  The two
-;; cannot both be intended, and the code does not say which is.
+;; THE RECOVERY BELOW CANNOT BE REACHED.  CDE1 jumps to CDE1_1 when the
+;; status says RECORD NOT FOUND, and the test for that is BIT 4 -- the
+;; bit number SAMDOS uses, on a status it never rotates.  Here A is
+;; rotated, so RECORD NOT FOUND is bit 3; and worse, bit 4 has already
+;; been cleared by the mask that decided there was an error at all,
+;; since neither &0E nor &0D includes it.  On the third caller A is not
+;; a status but a page number.  The full account is in docs/bugs.md.
 ;; --------------------------------------------------------------------
 
 ; ---- RETRY_OR_GIVE_UP ---- from &45A7, &45C3, &4649, &46A7
@@ -2545,9 +2547,10 @@ CDE1:
                CP MAX_TRANSFER_RETRIES         ; 46D9 FE 0A
                JP NC,REP4                      ; 46DB D2 65 51  ten failures is a disc fault
                POP AF                          ; 46DE F1
-               BIT 4,A                         ; 46DF CB 67  see above: this is the source's bit number on a rotated
-                                               ; status
-               JR NZ,CDE1_1                    ; 46E1 20 0C  whichever bit that is, it sends a lost sector to be located
+               BIT 4,A                         ; 46DF CB 67  bit 4 was cleared by the mask above; RECORD NOT FOUND is
+                                               ; bit 3 here
+               JR NZ,CDE1_1                    ; 46E1 20 0C  so this is never taken from here, and CDE1_1 is never
+                                               ; entered
                CALL STEP_HEAD_IN               ; 46E3 CD 7F 47  jog the head in, out, out and in, to shake off a
                                                ; mis-seek
                CALL STEP_HEAD_OUT              ; 46E6 CD 7B 47

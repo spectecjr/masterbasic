@@ -57,6 +57,57 @@ sites pointing at it; and in `notes/disk.txt` for the working copy.
 
 ---
 
+## 2. The RECORD NOT FOUND recovery cannot be reached
+
+**Where** `BIT 4,A` at `&46DF`, in `CDE1`, guarding the jump to
+`CDE1_1`.
+
+**What** `CDE1_1` is the informed recovery from a mis-seek: it issues a
+read-address command, takes the track number out of the first ID field
+to pass under the head, and writes it into the controller's track
+register, so the next seek starts from the truth. It is reached only
+when the status says RECORD NOT FOUND. It never is.
+
+`CDE1` has three callers, and on none of them does `A` hold a status with
+bit 4 available:
+
+| caller | what `A` holds at `&46DF` | bit 4 |
+|---|---|---|
+| `&46C8` | status `AND &0E` | cleared by the mask |
+| `&48EB` | status `AND &0D` | cleared by the mask |
+| `&4A51` | `(PORT1)` — a page number | not a status at all |
+
+On the first two the very instruction that decided there was an error
+masks off the bit the recovery is selected by. `&0E` is bits 1, 2 and 3;
+`&0D` is bits 0, 2 and 3; neither includes bit 4.
+
+**Why bit 4 is the wrong number anyway** `A` is the status rotated one
+place right, so RECORD NOT FOUND — status bit 4 — is bit 3 of what is
+tested. `BIT 3,A` would be both correct and inside the mask. This is
+the same rotate that produced defect 1, in the same routine family.
+
+**The third caller is the interesting one.** `SVB7` loads `A` from
+`PORT1` before calling `CDE1`, so `BIT 4,A` tests bit 4 of a page number.
+That is set for pages 16 to 31. So on a 256K machine the branch is never
+taken; on a 512K machine it is taken whenever the buffer page happens to
+be a high one, which has nothing to do with the disc.
+
+**What SAMDOS does** Both halves work there. Its mask is `%00011100`,
+which includes bit 4, so the bit survives to be tested; and its save path
+puts `push af` and `pop af` around the paging, so the status is still in
+`A` when `cdec` is called. MasterDOS moved the `AND` before the paging
+and let `SVB7` overwrite `A`.
+
+**What it costs** A sector that fails because the head is on the wrong
+track is recovered from by the blind route — step in, out, out, in — and
+never by reading an ID field to find out where the head actually is.
+`CDE1_1` and `CTS1` between them are some ninety bytes that a 256K
+machine can never execute.
+
+**Written up at** `&46DF` in `clean/masterdos.asm`.
+
+---
+
 ## A pass to make, when the narrative work is further on
 
 The one above was found by reading, not by looking. Three sweeps would

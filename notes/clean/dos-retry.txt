@@ -26,11 +26,13 @@ DOC RETRY_OR_GIVE_UP
     sector was not found at all, CDE1_1 goes and reads whatever ID field
     passes next to find out where the head really is.
 
-    ONE THING HERE DOES NOT ADD UP.  The mask was shifted for a rotated
-    A and the bit number below it was not.  The source tests BIT 4 of an
-    unrestored status, which is RECORD NOT FOUND; this build tests BIT 4
-    of a status rotated one place right, which is RECORD TYPE.  The two
-    cannot both be intended, and the code does not say which is.
+    THE RECOVERY BELOW CANNOT BE REACHED.  CDE1 jumps to CDE1_1 when the
+    status says RECORD NOT FOUND, and the test for that is BIT 4 -- the
+    bit number SAMDOS uses, on a status it never rotates.  Here A is
+    rotated, so RECORD NOT FOUND is bit 3; and worse, bit 4 has already
+    been cleared by the mask that decided there was an error at all,
+    since neither &0E nor &0D includes it.  On the third caller A is not
+    a status but a page number.  The full account is in docs/bugs.md.
 
 DOS &46C6 value TRANSFER_ERROR_FLAGS
 DOS &46C8 : something went wrong
@@ -48,7 +50,7 @@ DOC CDE1
 
 DOS &46D2 : the count of failures against this transfer
 DOS &46DB : ten failures is a disc fault
-DOS &46DF : see above: this is the source's bit number on a rotated status
+DOS &46DF : bit 4 was cleared by the mask above; RECORD NOT FOUND is bit 3 here
 DOS &46E3 : jog the head in, out, out and in, to shake off a mis-seek
 
 DOC CDE1_1
@@ -81,4 +83,4 @@ GROUP Disk retries
 DOS &46D9 value MAX_TRANSFER_RETRIES
 DOS &470E value MAX_ID_RETRIES
 
-DOS &46E1 : whichever bit that is, it sends a lost sector to be located
+DOS &46E1 : so this is never taken from here, and CDE1_1 is never entered
