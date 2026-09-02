@@ -239,7 +239,7 @@ does not:
       AND PAGEMASK                    ; 7404  the page number alone
       OR &80                          ; 7406
       LD B,A                          ; 7408
-      DEFB SKIP_NEXT_2_BYTES          ; 7409  &21, the opcode of LD HL,nn
+      DEFB SKIP_2_VIA_LD_HL           ; 7409  &21, the opcode of LD HL,nn
 FIND_PROC_ENTRY_1:
       LD B,&FF                        ; 740A  which is the two bytes this
       POP AF                          ; 740C  instruction is made of

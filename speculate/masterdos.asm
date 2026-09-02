@@ -190,8 +190,8 @@ FORCE_INTERRUPT_CMD:        EQU  &D0
 INVALID:                    EQU  &00           ; a compressed substring in ERRTBL, printed as "Invalid "
 NO:                         EQU  &0B           ; a compressed substring in ERRTBL, printed as "No "
 SKIP_1_VIA_CP:              EQU  &FE           ; CP n, skipping one byte and clobbering the flags
-SKIP_NEXT_1_BYTE:           EQU  &3E           ; LD A,n, standing here only to swallow the byte after it
-SKIP_NEXT_2_BYTES:          EQU  &21           ; LD HL,nn, standing here only to swallow the two bytes after it -- see
+SKIP_1_VIA_LD_A:            EQU  &3E           ; LD A,n, standing here only to swallow the byte after it
+SKIP_2_VIA_LD_HL:           EQU  &21           ; LD HL,nn, standing here only to swallow the two bytes after it -- see
                                                ; docs/idioms.md
 SNAME:                      EQU  &12           ; a compressed substring in ERRTBL, printed as " name"
 SNOTS:                      EQU  &11           ; a compressed substring in ERRTBL, printed as " not "
@@ -7897,7 +7897,7 @@ SETBORDER_BORDCR:
 ; ---- REP4 ---- from &46DB when A >= &0A, &7588 when A >= C
 REP4:
                LD A,ERR_TRK_NNN_SCT_NN_ERROR   ; 5165 3E 55
-               DEFB SKIP_NEXT_2_BYTES          ; 5167 !
+               DEFB SKIP_2_VIA_LD_HL           ; 5167 !
 
 ;; --------------------------------------------------------------------
 ;; REP5 -- &5168 to &516A
@@ -7909,7 +7909,7 @@ REP4:
 ; ---- REP5 ---- from &4710 when A >= &08
 REP5:
                LD A,ERR_FORMAT_TRK_NNN_LOST    ; 5168 3E 56
-               DEFB SKIP_NEXT_2_BYTES          ; 516A !
+               DEFB SKIP_2_VIA_LD_HL           ; 516A !
 
 ;; --------------------------------------------------------------------
 ;; REP6 -- &516B to &516D
@@ -7921,7 +7921,7 @@ REP5:
 ; ---- REP6 ---- from &47B7
 REP6:
                LD A,ERR_CHECK_DISK_IN_DRIVE    ; 516B 3E 57
-               DEFB SKIP_NEXT_2_BYTES          ; 516D !
+               DEFB SKIP_2_VIA_LD_HL           ; 516D !
 
 ;; --------------------------------------------------------------------
 ;; REP12 -- &516E to &5170
@@ -7933,7 +7933,7 @@ REP6:
 ; ---- REP12 ---- from &64C9 when A <> (HL)
 REP12:
                LD A,ERR_VERIFY_FAILED          ; 516E 3E 5D
-               DEFB SKIP_NEXT_2_BYTES          ; 5170 !
+               DEFB SKIP_2_VIA_LD_HL           ; 5170 !
 
 ;; --------------------------------------------------------------------
 ;; REP13 -- &5171 to &5173
@@ -7945,7 +7945,7 @@ REP12:
 ; ---- REP13 ---- from &4E7C when A >= &15, &4E83, &4EDD when A <> (HL), &5FFE
 REP13:
                LD A,ERR_WRONG_FILE_TYPE        ; 5171 3E 5E
-               DEFB SKIP_NEXT_2_BYTES          ; 5173 !  skipped: reads as LD HL,&633E from here, and as part of the
+               DEFB SKIP_2_VIA_LD_HL           ; 5173 !  skipped: reads as LD HL,&633E from here, and as part of the
                                                ; instruction above it
 
 ;; --------------------------------------------------------------------
@@ -7958,7 +7958,7 @@ REP13:
 ; ---- REP18 ---- from &6F21 when bit 0 of (IX+&0C) set
 REP18:
                LD A,ERR_READING_A_WRITE_FILE   ; 5174 3E 63
-               DEFB SKIP_NEXT_2_BYTES          ; 5176 !  skipped: reads as LD HL,&643E from here, and as part of the
+               DEFB SKIP_2_VIA_LD_HL           ; 5176 !  skipped: reads as LD HL,&643E from here, and as part of the
                                                ; instruction above it
 
 ;; --------------------------------------------------------------------
@@ -7971,7 +7971,7 @@ REP18:
 ; ---- REP19 ---- from &6BFF when A = &DF, &6F50 when no bit of &03 is set
 REP19:
                LD A,ERR_WRITING_A_READ_FILE    ; 5177 3E 64
-               DEFB SKIP_NEXT_2_BYTES          ; 5179 !
+               DEFB SKIP_2_VIA_LD_HL           ; 5179 !
 
 ;; --------------------------------------------------------------------
 ;; REP20 -- &517A to &517C
@@ -7983,7 +7983,7 @@ REP19:
 ; ---- REP20 ---- from &65F4
 REP20:
                LD A,ERR_NO_AUTO_FILE           ; 517A 3E 65
-               DEFB SKIP_NEXT_2_BYTES          ; 517C !  skipped: reads as LD HL,&673E from here, and as part of the
+               DEFB SKIP_2_VIA_LD_HL           ; 517C !  skipped: reads as LD HL,&673E from here, and as part of the
                                                ; instruction above it
 
 ;; --------------------------------------------------------------------
@@ -7996,7 +7996,7 @@ REP20:
 ; ---- REP22 ---- from &4815 when A >= &07, &4820 when A = &00, &7582 when A = 0, &7645 when A >= &08, &7734 when A = 0
 REP22:
                LD A,ERR_NO_SUCH_DRIVE          ; 517D 3E 67
-               DEFB SKIP_NEXT_2_BYTES          ; 517F !  skipped: reads as LD HL,&683E from here, and as part of the
+               DEFB SKIP_2_VIA_LD_HL           ; 517F !  skipped: reads as LD HL,&683E from here, and as part of the
                                                ; instruction above it
 
 ;; --------------------------------------------------------------------
@@ -8009,7 +8009,7 @@ REP22:
 ; ---- REP23 ---- from &45A4 when bit 5 of A set, &5513 when bit 5 of A set
 REP23:
                LD A,ERR_DISK_IS_WRITE_PROTEC   ; 5180 3E 68
-               DEFB SKIP_NEXT_2_BYTES          ; 5182 !
+               DEFB SKIP_2_VIA_LD_HL           ; 5182 !
 
 ;; --------------------------------------------------------------------
 ;; REP24 -- &5183 to &5185
@@ -8021,7 +8021,7 @@ REP23:
 ; ---- REP24 ---- from &4AC8 when A = D
 REP24:
                LD A,ERR_DISK_FULL              ; 5183 3E 69
-               DEFB SKIP_NEXT_2_BYTES          ; 5185 !
+               DEFB SKIP_2_VIA_LD_HL           ; 5185 !
 
 ;; --------------------------------------------------------------------
 ;; REP25 -- &5186 to &5188
@@ -8033,7 +8033,7 @@ REP24:
 ; ---- REP25 ---- from &4E18, &721A when A = &FF
 REP25:
                LD A,ERR_DIRECTORY_FULL         ; 5186 3E 6A
-               DEFB SKIP_NEXT_2_BYTES          ; 5188 !  skipped: reads as LD HL,&163E from here, and as part of the
+               DEFB SKIP_2_VIA_LD_HL           ; 5188 !  skipped: reads as LD HL,&163E from here, and as part of the
                                                ; instruction above it
 
 ;; --------------------------------------------------------------------
@@ -8046,7 +8046,7 @@ REP25:
 ; ---- REP27 ---- from &473A, &6F01, &70BF, &71A5, &75CD when A >= &0A, &7A5A
 REP27:
                LD A,ERR_END_OF_FILE            ; 5189 3E 16
-               DEFB SKIP_NEXT_2_BYTES          ; 518B !  EOF
+               DEFB SKIP_2_VIA_LD_HL           ; 518B !  EOF
 
 ;; --------------------------------------------------------------------
 ;; REP28 -- &518C to &518E
@@ -8058,7 +8058,7 @@ REP27:
 ; ---- REP28 ---- from &4D3F, &4D49 when A = &15, &5D9F
 REP28:
                LD A,ERR_FILE_NAME_USED         ; 518C 3E 6D
-               DEFB SKIP_NEXT_2_BYTES          ; 518E !
+               DEFB SKIP_2_VIA_LD_HL           ; 518E !
 
 ;; --------------------------------------------------------------------
 ;; REP30 -- &518F to &5191
@@ -8070,7 +8070,7 @@ REP28:
 ; ---- REP30 ---- from &6B48
 REP30:
                LD A,ERR_STREAM_USED            ; 518F 3E 6F
-               DEFB SKIP_NEXT_2_BYTES          ; 5191 !
+               DEFB SKIP_2_VIA_LD_HL           ; 5191 !
 
 ;; --------------------------------------------------------------------
 ;; REP31 -- &5192 to &5194
@@ -8082,7 +8082,7 @@ REP30:
 ; ---- REP31 ---- from &6BCA
 REP31:
                LD A,ERR_CHANNEL_USED           ; 5192 3E 70
-               DEFB SKIP_NEXT_2_BYTES          ; 5194 !  skipped: reads as LD HL,PTRSL from here, and as part of the
+               DEFB SKIP_2_VIA_LD_HL           ; 5194 !  skipped: reads as LD HL,PTRSL from here, and as part of the
                                                ; instruction above it
 
 ;; --------------------------------------------------------------------
@@ -8095,7 +8095,7 @@ REP31:
 ; ---- REP32 ---- from &731E
 REP32:
                LD A,ERR_DIRECTORY_NOT_FOUND    ; 5195 3E 71
-               DEFB SKIP_NEXT_2_BYTES          ; 5197 !
+               DEFB SKIP_2_VIA_LD_HL           ; 5197 !
 
 ;; --------------------------------------------------------------------
 ;; REP33 -- &5198 to &519A
@@ -8107,7 +8107,7 @@ REP32:
 ; ---- REP33 ---- from &5D0F
 REP33:
                LD A,ERR_DIRECTORY_NOT_EMPTY    ; 5198 3E 72
-               DEFB SKIP_NEXT_2_BYTES          ; 519A !
+               DEFB SKIP_2_VIA_LD_HL           ; 519A !
 
 ;; --------------------------------------------------------------------
 ;; REP33_1 -- &519B to &519D
@@ -8119,7 +8119,7 @@ REP33:
 ; ---- REP33_1 ---- from &5A33 when B reaches 0, &6A11 when A = 0
 REP33_1:
                LD A,&73                        ; 519B 3E 73
-               DEFB SKIP_NEXT_2_BYTES          ; 519D !  skipped: reads as LD HL,&743E from here, and as part of the
+               DEFB SKIP_2_VIA_LD_HL           ; 519D !  skipped: reads as LD HL,&743E from here, and as part of the
                                                ; instruction above it
 
 ;; --------------------------------------------------------------------
@@ -10010,7 +10010,7 @@ SKIP_B_WORDS:
                RLA                             ; 5776 17
                JR NC,SKIP_B_WORDS              ; 5777 30 FB
                DJNZ SKIP_B_WORDS               ; 5779 10 F9
-               DEFB SKIP_NEXT_1_BYTE           ; 577B >  skipped: reads as LD A,&E1 from here, and as part of the
+               DEFB SKIP_1_VIA_LD_A            ; 577B >  skipped: reads as LD A,&E1 from here, and as part of the
                                                ; instruction above it
 
 ;; --------------------------------------------------------------------
@@ -15416,7 +15416,7 @@ HVAR1_1:
 
 FNLN2:
                LD A,&02                        ; 6597 3E 02
-               DEFB SKIP_NEXT_2_BYTES          ; 6599 !  "JR+2"
+               DEFB SKIP_2_VIA_LD_HL           ; 6599 !  "JR+2"
 
 ;; --------------------------------------------------------------------
 ;; HPTR -- &659A to &659C
@@ -15584,7 +15584,7 @@ AUINSR:
                                                ; write the ROM variable CURCMD
                CALL NRWR                       ; 65FF CD 74 50
                DEFW CURCMD                     ; 6602 74 5B
-               DEFB SKIP_NEXT_2_BYTES          ; 6604 !  skipped: reads as LD HL,AUTNAM from here, and as part of the
+               DEFB SKIP_2_VIA_LD_HL           ; 6604 !  skipped: reads as LD HL,AUTNAM from here, and as part of the
                                                ; instruction above it
                PUSH DE                         ; 6605 D5
                LD H,L                          ; 6606 65

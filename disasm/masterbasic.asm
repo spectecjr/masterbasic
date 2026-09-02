@@ -303,14 +303,14 @@ UPPER:                          EQU  &DF       ; clearing bit 5 folds a letter t
 DVAR_CMPFG:                     EQU  &42BA     ; DVAR 154 in the DOS page: SAVE MODE 1, 2 or 3 less one
 ENABLE_ROM1:                    EQU  &40       ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
 SKIP_1_VIA_CP:                  EQU  &FE       ; CP n, skipping one byte and clobbering the flags
+SKIP_1_VIA_LD_A:                EQU  &3E       ; LD A,n, standing here only to swallow the byte after it
 SKIP_1_VIA_LD_C:                EQU  &0E       ; LD C,n, skipping one byte and clobbering C
 SKIP_1_VIA_LD_D:                EQU  &16       ; LD D,n, skipping one byte and clobbering D
 SKIP_1_VIA_OR:                  EQU  &F6       ; OR n, skipping one byte and clobbering A and the flags
 SKIP_2_VIA_LD_DE:               EQU  &11       ; LD DE,nn, skipping two bytes and clobbering DE
-SKIP_2_VIA_LD_SP:               EQU  &31       ; LD SP,nn, skipping two bytes and clobbering SP
-SKIP_NEXT_1_BYTE:               EQU  &3E       ; LD A,n, standing here only to swallow the byte after it
-SKIP_NEXT_2_BYTES:              EQU  &21       ; LD HL,nn, standing here only to swallow the two bytes after it -- see
+SKIP_2_VIA_LD_HL:               EQU  &21       ; LD HL,nn, standing here only to swallow the two bytes after it -- see
                                                ; docs/idioms.md
+SKIP_2_VIA_LD_SP:               EQU  &31       ; LD SP,nn, skipping two bytes and clobbering SP
 SYSPAGE_IN_B:                   EQU  &1F       ; LMPR &1F: page 31 at &0000, so section B gets page 32, which wraps to
                                                ; the system page. The ROM source calls it PAGE1F
 SYS_CDBUFF_11:                  EQU  &4D11
@@ -1608,38 +1608,38 @@ BYTE_ARGUMENT:
 ; &5525 when A >= &10, &5546 when A >= &07, &5588 when A >= &02, &5AF3 when A >= &21 ...
 REP_INTEGER_OUT_OF_RANGE:
                LD A,ERR_INTEGER_OUT_OF_RANGE   ; 43A7 3E 1E  error 30, "Integer out of range"
-               DEFB SKIP_NEXT_2_BYTES          ; 43A9 !
+               DEFB SKIP_2_VIA_LD_HL           ; 43A9 !
 
 ; ---- REP_MISSING_DEF_PROC ---- from &5334 when A wraps to 0
 REP_MISSING_DEF_PROC:
                LD A,ERR_MISSING_DEF_PROC       ; 43AA 3E 0C  error 12, "Missing DEF PROC"
-               DEFB SKIP_NEXT_2_BYTES          ; 43AC !
+               DEFB SKIP_2_VIA_LD_HL           ; 43AC !
 
 ; ---- REP_SIZE_MISMATCH ---- from &706E
 REP_SIZE_MISMATCH:
                LD A,ERR_SIZE_MISMATCH          ; 43AD 3E 77  error 119, "Size mismatch"
-               DEFB SKIP_NEXT_2_BYTES          ; 43AF !
+               DEFB SKIP_2_VIA_LD_HL           ; 43AF !
 
 ; ---- REP_NOT_UNDERSTOOD ---- from &445E when A <> C, &44D3, &475D, &530C when A <> &15, &555B when A <> &8E, &5648
 ; when A <> &CE, &57C1, &6E6F when A <> &3A ...
 REP_NOT_UNDERSTOOD:
                LD A,ERR_NOT_UNDERSTOOD         ; 43B0 3E 1D  error 29, "Not understood"
-               DEFB SKIP_NEXT_2_BYTES          ; 43B2 !
+               DEFB SKIP_2_VIA_LD_HL           ; 43B2 !
 
 ; ---- REP_NOT_FOUND ---- from &43E0
 REP_NOT_FOUND:
                LD A,ERR_NOT_FOUND              ; 43B3 3E 02  error 2, "not found"
-               DEFB SKIP_NEXT_2_BYTES          ; 43B5 !
+               DEFB SKIP_2_VIA_LD_HL           ; 43B5 !
 
 ; ---- REP_SUBSCRIPT_WRONG ---- from &47F3
 REP_SUBSCRIPT_WRONG:
                LD A,ERR_SUBSCRIPT_WRONG        ; 43B6 3E 04  error 4, "Subscript wrong"
-               DEFB SKIP_NEXT_2_BYTES          ; 43B8 !
+               DEFB SKIP_2_VIA_LD_HL           ; 43B8 !
 
 ; ---- REP_STRING_TOO_LONG ---- from &4772 when A >= &40, &4D8B when A >= &40, &4DD2 when A >= &40, &7075, &713D
 REP_STRING_TOO_LONG:
                LD A,ERR_STRING_TOO_LONG        ; 43B9 3E 2A  error 42, "String too long"
-               DEFB SKIP_NEXT_2_BYTES          ; 43BB !
+               DEFB SKIP_2_VIA_LD_HL           ; 43BB !
 
 ; ---- REP_ARGUMENT ---- from &417B when A >= &04, &41E8 when A >= &03, &43EE when bit 5 of C set, &4402 when A is not 0
 ; yet
@@ -4210,7 +4210,7 @@ SEARCH_MEMORY_LOOP:
                CPIR                            ; 4CAD ED B1
                JR NZ,SEARCH_MEMORY_LOOP3       ; 4CAF 20 2A
                PUSH HL                         ; 4CB1 E5
-               DEFB SKIP_NEXT_1_BYTE           ; 4CB2 >  skipped: reads as LD A,&23 from here, and as part of the
+               DEFB SKIP_1_VIA_LD_A            ; 4CB2 >  skipped: reads as LD A,&23 from here, and as part of the
                                                ; instruction above it
 
 ; ---- SEARCH_MEMORY_LOOP2 ---- from &4CBC when A = (HL), &4CC1 when A = C
@@ -4301,7 +4301,7 @@ SEARCH_MEMORY_LOOP4:
                JR NZ,SEARCH_MEMORY_LOOP3       ; 4D06 20 D3
                LD DE,INSTALL_ROM_PATCHES       ; 4D08 11 00 7B
                PUSH HL                         ; 4D0B E5
-               DEFB SKIP_NEXT_1_BYTE           ; 4D0C >  skipped: reads as LD A,&23 from here, and as part of the
+               DEFB SKIP_1_VIA_LD_A            ; 4D0C >  skipped: reads as LD A,&23 from here, and as part of the
                                                ; instruction above it
 
 ; ---- SEARCH_MEMORY_LOOP5 ---- from &4D18 when A = C, &4D1D when no bit of &DF is set
@@ -8492,7 +8492,7 @@ SILENCE_SOUND_CHIP_2:
                AND A                           ; 5DEA A7
                RET Z                           ; 5DEB C8
                PUSH HL                         ; 5DEC E5
-               DEFB SKIP_NEXT_1_BYTE           ; 5DED >  skipped: reads as LD A,&10 from here, and as part of the
+               DEFB SKIP_1_VIA_LD_A            ; 5DED >  skipped: reads as LD A,&10 from here, and as part of the
                                                ; instruction above it
 
 ; ---- COPY_THEN_APPEND_CALL_5 ---- from &5DCF when bit 1 of A set
@@ -14099,7 +14099,7 @@ L73F7:
                AND PAGEMASK                    ; 7404 E6 1F
                OR &80                          ; 7406 F6 80
                LD B,A                          ; 7408 47
-               DEFB SKIP_NEXT_2_BYTES          ; 7409 !  skipped: reads as LD HL,&FF06 from here, and as part of the
+               DEFB SKIP_2_VIA_LD_HL           ; 7409 !  skipped: reads as LD HL,&FF06 from here, and as part of the
                                                ; instruction above it
 
 ; ---- FIND_PROC_ENTRY_1 ---- from &73E3 when A = 0
@@ -15167,7 +15167,7 @@ STACK_FILL_LOOP_1:
                JR NZ,SIZE_EXTERNAL_MEMORY_1    ; 781C 20 C6
                POP AF                          ; 781E F1
                OUT (HMPR),A                    ; 781F D3 FB
-               DEFB SKIP_NEXT_2_BYTES          ; 7821 !  skipped: reads as LD HL,&4296 from here, and as part of the
+               DEFB SKIP_2_VIA_LD_HL           ; 7821 !  skipped: reads as LD HL,&4296 from here, and as part of the
                                                ; instruction above it
                SUB (HL)                        ; 7822 96
                LD B,D                          ; 7823 42
