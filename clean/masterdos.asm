@@ -625,10 +625,19 @@ BOOT_CHECK_READ_STATUS:
 ; cannot be set here because the loop only leaves when it is clear.
 ;
 ; Read as an ordinary mask, &0D is BUSY, LOST DATA and CRC ERROR --
-; which is the sensible thing to want after a sector read, and is
-; probably what was meant.  The rotate makes it test the three above
-; instead.  The DOS's own error mask at &46C6 was shifted to suit the
-; same rotate, so one of the two was adjusted for it and one was not.
+; the sensible thing to want after a sector read, and probably what was
+; meant.  The rotate makes it test the three above instead.
+;
+; Neither reading is tidier than the other on its face: each carries
+; one bit that cannot be set here, BUSY in the first and DRQ in the
+; second, both known clear from the status read that got us this far.
+; The difference that matters is at the other end.  As it executes,
+; this instruction does not test LOST DATA -- the one failure a
+; hand-driven polling loop is likeliest to suffer -- and does test
+; RECORD NOT FOUND; read as intended it would be the other way round.
+;
+; The DOS's own error mask at &46C6 was shifted to suit the same
+; rotate, so one of the two was adjusted for it and one was not.
                AND READ_ERROR_FLAGS            ; 409D E6 0D
                JR Z,BOOT_SECTOR_READ_OK        ; 409F 28 1F  a clean read
 
