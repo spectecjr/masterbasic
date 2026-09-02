@@ -180,30 +180,32 @@ DOS &4096 : a byte is waiting to be taken
 DOS &409A : bit 0 is BUSY: still running, so go round again
 
 DOS &409D step
-    The command has finished.  A still holds the status rotated one place
-    right from the RRCA above, so the mask is written shifted: what this
-    instruction tests is CRC ERROR and RECORD NOT FOUND, and DRQ, which
-    cannot be set here because the loop only leaves when it is clear.
+    The command has finished; was the sector any good?
 
-    Read as an ordinary mask, &0D is BUSY, LOST DATA and CRC ERROR --
-    the sensible thing to want after a sector read, and probably what was
-    meant.  The rotate makes it test the three above instead.
+    THIS MASK IS WRONG.  A holds the status rotated one place right, from
+    the RRCA above, so a mask applied here is in rotated space, and &0D
+    in rotated space is DRQ, CRC ERROR and RECORD NOT FOUND.  DRQ cannot
+    be set -- the loop only leaves when it is clear -- so what the
+    instruction tests is CRC ERROR and RECORD NOT FOUND, and nothing
+    else.
 
-    Neither reading is tidier than the other on its face: each carries
-    one bit that cannot be set here, BUSY in the first and DRQ in the
-    second, both known clear from the status read that got us this far.
-    The difference that matters is at the other end.  As it executes,
-    this instruction does not test LOST DATA -- the one failure a
-    hand-driven polling loop is likeliest to suffer -- and does test
-    RECORD NOT FOUND; read as intended it would be the other way round.
+    It should be &0E: LOST DATA, CRC ERROR and RECORD NOT FOUND.  That is
+    not a guess about what was meant.  &0E is the mask the DOS uses for
+    exactly this question at &46C6, on a status rotated in exactly the
+    same way, and it is the DOS source's own AND &1C shifted one place to
+    suit the rotate.  &0D is that same error set written for a status
+    that has not been rotated -- BUSY, LOST DATA and CRC ERROR.  The
+    shift was made at &46C6 and forgotten here.
 
-    Which was meant is not settled by anything in the code, but two
-    things are worth knowing before guessing.  These seven instructions
-    appear three times -- here, at &48DB and at &4A28 -- with the same
-    &0D each time, so whatever it is, it was copied rather than arrived
-    at three times over.  And the DOS does understand the rotate
-    somewhere: the retry mask at &46C6 is the DOS source's own AND &1C
-    shifted by exactly one place to suit it.
+    THE CONSEQUENCE is that a sector which arrives with a byte dropped is
+    accepted as good.  LOST DATA is exactly the failure a polled transfer
+    suffers when something holds the processor up too long, and it is the
+    one error of the three that this test cannot see.
+
+    These seven instructions appear three times -- here, at &48DB and at
+    &4A28 -- so the boot loader, the block load and the block save all
+    have it.  The ordinary sector read and write do not: they reach
+    &46C6 and get the right mask.
 
 DOS &409F : a clean read
 
@@ -297,4 +299,4 @@ DOS &407F value CMD_LATENCY_LOOPS
 DOS &40B1 value CMD_LATENCY_LOOPS
 
 GROUP Disk controller status
-DOS &409D value READ_ERROR_FLAGS
+DOS &409D value BLOCK_ERROR_FLAGS

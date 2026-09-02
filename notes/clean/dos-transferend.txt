@@ -8,11 +8,12 @@ DOC LDB6
     Wait for the sector to finish arriving, then say whether it did.
 
     The same seven instructions as BOOT's loop at &4094 and SVB6's at
-    &4A28, and the same trap in them: the status is rotated one place
-    right before the mask is applied, so &0D does not test the bits its
-    number suggests.  What it tests here is CRC ERROR and RECORD NOT
-    FOUND -- and not LOST DATA, which is the failure this loop is
-    likeliest to suffer.  The full account is on BOOT at &409D.
+    &4A28, and the same error in them: the status is rotated one place
+    right before the mask is applied, so &0D tests CRC ERROR and RECORD
+    NOT FOUND and misses LOST DATA.  It should be &0E, which is what
+    &46C6 uses for the same question.  A sector that arrives with a byte
+    dropped is loaded as though nothing had happened.  The argument is
+    set out at &409D.
 
     Two ports, both written into the instructions that read them: the
     data register at &48D2 from &48C6, and the status register here from
@@ -20,18 +21,19 @@ DOC LDB6
 
 DOS &48DD : DRQ, unrotated and so meaning what it says: a byte is waiting
 DOS &48E1 : carry is BUSY, and the mask below is applied to what is left
-DOS &48E4 value READ_ERROR_FLAGS
+DOS &48E4 value BLOCK_ERROR_FLAGS
 DOS &48E6 : nothing the mask can see, so the sector is good
 
 DOC SVB6
     Wait for the sector to finish going out, then say whether it did.
 
     BOOT's loop at &4094 read one, this one writes one, and the seven
-    instructions are the same either way -- including the rotate before
-    the mask, so &0D means here what it means there.  See &409D.
+    instructions are the same either way -- including the mask, which is
+    wrong here for the same reason and in the same way.  A sector written
+    with a byte dropped is reported as written.  See &409D.
 
 DOS &4A2A : DRQ: the controller is ready for the next byte
 DOS &4A2E : carry is BUSY, and the mask below sees the rest
 DOS &4A31 : back to the main pointer, and the track and sector
-DOS &4A33 value READ_ERROR_FLAGS
+DOS &4A33 value BLOCK_ERROR_FLAGS
 DOS &4A35 : something the mask can see, so go and count the failure

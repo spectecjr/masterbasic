@@ -355,3 +355,12 @@ DOS &46DF : the mask above was shifted for a rotated A and this bit number was n
 # at the head of each of those three loops -- is applied to the byte as
 # read.  &46DF is not reachable by the sweep, because A gets there
 # through PUSH AF and POP AF, but it is one rotate from a status read too.
+#
+# The three &0D are an error.  &0E is what the same question is asked with
+# at &46C6, on a status rotated the same way, and &0E is the DOS source's
+# own AND &1C shifted one place to suit that rotate.  &0D is that error
+# set written for an unrotated status -- BUSY, LOST DATA, CRC ERROR -- so
+# the shift was made at &46C6 and forgotten in the three loops.  As they
+# stand they test CRC ERROR and RECORD NOT FOUND and cannot see LOST
+# DATA, and the block load, the block save and the boot loader all reach
+# CDE1 without ever passing through &46C6.

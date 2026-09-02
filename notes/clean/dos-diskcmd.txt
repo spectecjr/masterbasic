@@ -104,7 +104,7 @@ CONST DISK_STATUS_DRQ_BIT = 1 : the bit a byte-ready test looks at
 # the DOS source has AND &1C where this build has AND &0E, and &1C is
 # exactly LOST DATA, CRC ERROR and RECORD NOT FOUND unshifted.
 
-CONST READ_ERROR_FLAGS = (DISK_STATUS_DRQ | DISK_STATUS_CRC_ERROR | DISK_STATUS_RECORD_NOT_FOUND) >> 1 : tested against the status rotated one place right
-CONST TRANSFER_ERROR_FLAGS = (DISK_STATUS_LOST_DATA | DISK_STATUS_CRC_ERROR | DISK_STATUS_RECORD_NOT_FOUND) >> 1 : the same, for a sector that was being moved
+CONST BLOCK_ERROR_FLAGS = (DISK_STATUS_DRQ | DISK_STATUS_CRC_ERROR | DISK_STATUS_RECORD_NOT_FOUND) >> 1 : what the block and boot loops test; it should be TRANSFER_ERROR_FLAGS -- see &409D
+CONST TRANSFER_ERROR_FLAGS = (DISK_STATUS_LOST_DATA | DISK_STATUS_CRC_ERROR | DISK_STATUS_RECORD_NOT_FOUND) >> 1 : the right one, used by the sector read and write
 
 DOS &4570 expr DISK_STATUS_BUSY_BIT

@@ -243,16 +243,17 @@ PAST_WINDOW_TOP:              EQU  &C0
 SCREEN_PAGE_TYPE:             EQU  &30         ; allocation code for a page holding a screen
 
 ; Disk controller status
+BLOCK_ERROR_FLAGS:            EQU  (DISK_STATUS_DRQ | DISK_STATUS_CRC_ERROR | DISK_STATUS_RECORD_NOT_FOUND) >> 1
+                                               ; what the block and boot loops test; it should be TRANSFER_ERROR_FLAGS
+                                               ; -- see &409D
 DISK_STATUS_BUSY_BIT:         EQU  &00         ; the same flags as bit numbers, for BIT n,r
 DISK_STATUS_CRC_ERROR:        EQU  &08         ; what was read did not check out
 DISK_STATUS_DRQ:              EQU  &02         ; a byte is waiting to be taken, or wanted
 DISK_STATUS_DRQ_BIT:          EQU  &01         ; the bit a byte-ready test looks at
 DISK_STATUS_LOST_DATA:        EQU  &04         ; a byte was not moved in time and is gone
 DISK_STATUS_RECORD_NOT_FOUND: EQU  &10         ; the sector was not on the track
-READ_ERROR_FLAGS:             EQU  (DISK_STATUS_DRQ | DISK_STATUS_CRC_ERROR | DISK_STATUS_RECORD_NOT_FOUND) >> 1
-                                               ; tested against the status rotated one place right
 TRANSFER_ERROR_FLAGS:         EQU  (DISK_STATUS_LOST_DATA | DISK_STATUS_CRC_ERROR | DISK_STATUS_RECORD_NOT_FOUND) >> 1
-                                               ; the same, for a sector that was being moved
+                                               ; the right one, used by the sector read and write
 
 ; Boot loader
 FIRST_WAVE_SECTOR_COUNT:      EQU  &1F         ; sectors in the DOS, read before MasterBASIC
@@ -623,31 +624,33 @@ BOOT_CHECK_READ_STATUS:
                RRCA                            ; 409A 0F  bit 0 is BUSY: still running, so go round again
                JR C,BOOT_CHECK_READ_STATUS     ; 409B 38 F7
 
-; The command has finished.  A still holds the status rotated one place
-; right from the RRCA above, so the mask is written shifted: what this
-; instruction tests is CRC ERROR and RECORD NOT FOUND, and DRQ, which
-; cannot be set here because the loop only leaves when it is clear.
+; The command has finished; was the sector any good?
 ;
-; Read as an ordinary mask, &0D is BUSY, LOST DATA and CRC ERROR --
-; the sensible thing to want after a sector read, and probably what was
-; meant.  The rotate makes it test the three above instead.
+; THIS MASK IS WRONG.  A holds the status rotated one place right, from
+; the RRCA above, so a mask applied here is in rotated space, and &0D
+; in rotated space is DRQ, CRC ERROR and RECORD NOT FOUND.  DRQ cannot
+; be set -- the loop only leaves when it is clear -- so what the
+; instruction tests is CRC ERROR and RECORD NOT FOUND, and nothing
+; else.
 ;
-; Neither reading is tidier than the other on its face: each carries
-; one bit that cannot be set here, BUSY in the first and DRQ in the
-; second, both known clear from the status read that got us this far.
-; The difference that matters is at the other end.  As it executes,
-; this instruction does not test LOST DATA -- the one failure a
-; hand-driven polling loop is likeliest to suffer -- and does test
-; RECORD NOT FOUND; read as intended it would be the other way round.
+; It should be &0E: LOST DATA, CRC ERROR and RECORD NOT FOUND.  That is
+; not a guess about what was meant.  &0E is the mask the DOS uses for
+; exactly this question at &46C6, on a status rotated in exactly the
+; same way, and it is the DOS source's own AND &1C shifted one place to
+; suit the rotate.  &0D is that same error set written for a status
+; that has not been rotated -- BUSY, LOST DATA and CRC ERROR.  The
+; shift was made at &46C6 and forgotten here.
 ;
-; Which was meant is not settled by anything in the code, but two
-; things are worth knowing before guessing.  These seven instructions
-; appear three times -- here, at &48DB and at &4A28 -- with the same
-; &0D each time, so whatever it is, it was copied rather than arrived
-; at three times over.  And the DOS does understand the rotate
-; somewhere: the retry mask at &46C6 is the DOS source's own AND &1C
-; shifted by exactly one place to suit it.
-               AND READ_ERROR_FLAGS            ; 409D E6 0D
+; THE CONSEQUENCE is that a sector which arrives with a byte dropped is
+; accepted as good.  LOST DATA is exactly the failure a polled transfer
+; suffers when something holds the processor up too long, and it is the
+; one error of the three that this test cannot see.
+;
+; These seven instructions appear three times -- here, at &48DB and at
+; &4A28 -- so the boot loader, the block load and the block save all
+; have it.  The ordinary sector read and write do not: they reach
+; &46C6 and get the right mask.
+               AND BLOCK_ERROR_FLAGS           ; 409D E6 0D
                JR Z,BOOT_SECTOR_READ_OK        ; 409F 28 1F  a clean read
 
 ; The read failed.  Count it, and on every other pair of failures
@@ -3044,11 +3047,12 @@ LDB5:
 ;; Wait for the sector to finish arriving, then say whether it did.
 ;;
 ;; The same seven instructions as BOOT's loop at &4094 and SVB6's at
-;; &4A28, and the same trap in them: the status is rotated one place
-;; right before the mask is applied, so &0D does not test the bits its
-;; number suggests.  What it tests here is CRC ERROR and RECORD NOT
-;; FOUND -- and not LOST DATA, which is the failure this loop is
-;; likeliest to suffer.  The full account is on BOOT at &409D.
+;; &4A28, and the same error in them: the status is rotated one place
+;; right before the mask is applied, so &0D tests CRC ERROR and RECORD
+;; NOT FOUND and misses LOST DATA.  It should be &0E, which is what
+;; &46C6 uses for the same question.  A sector that arrives with a byte
+;; dropped is loaded as though nothing had happened.  The argument is
+;; set out at &409D.
 ;;
 ;; Two ports, both written into the instructions that read them: the
 ;; data register at &48D2 from &48C6, and the status register here from
@@ -3063,7 +3067,7 @@ LDB6:
                JR NZ,LDB5                      ; 48DF 20 F1
                RRCA                            ; 48E1 0F  carry is BUSY, and the mask below is applied to what is left
                JR C,LDB6                       ; 48E2 38 F7
-               AND READ_ERROR_FLAGS            ; 48E4 E6 0D
+               AND BLOCK_ERROR_FLAGS           ; 48E4 E6 0D
                JR Z,LDB7                       ; 48E6 28 0B  nothing the mask can see, so the sector is good
                CALL GET_TRACK_AND_SECTOR       ; 48E8 CD BF 4F
                CALL CDE1                       ; 48EB CD D1 46
@@ -3307,8 +3311,9 @@ SVB5:
 ;; Wait for the sector to finish going out, then say whether it did.
 ;;
 ;; BOOT's loop at &4094 read one, this one writes one, and the seven
-;; instructions are the same either way -- including the rotate before
-;; the mask, so &0D means here what it means there.  See &409D.
+;; instructions are the same either way -- including the mask, which is
+;; wrong here for the same reason and in the same way.  A sector written
+;; with a byte dropped is reported as written.  See &409D.
 ;; --------------------------------------------------------------------
 
 ; ---- SVB6 ---- from &4A21, &4A2F when bit 0 was set, &4A5C when D is not 0 yet, &4A62
@@ -3320,7 +3325,7 @@ SVB6:
                JR C,SVB6                       ; 4A2F 38 F7  JR IF BUSY - DATA STILL TO BE SENT
                EXX                             ; 4A31 D9  back to the main pointer, and the track and sector
                POP DE                          ; 4A32 D1  T/S
-               AND READ_ERROR_FLAGS            ; 4A33 E6 0D
+               AND BLOCK_ERROR_FLAGS           ; 4A33 E6 0D
                JR NZ,SVB7                      ; 4A35 20 15  something the mask can see, so go and count the failure
                LD (SVHL),HL                    ; 4A37 22 05 7C  UPDATE SRC PTR (IN 510 BYTE STEPS
                EXX                             ; 4A3A D9
