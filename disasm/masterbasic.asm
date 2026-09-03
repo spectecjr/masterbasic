@@ -1620,8 +1620,8 @@ REP_SIZE_MISMATCH:
                LD A,ERR_SIZE_MISMATCH          ; 43AD 3E 77  error 119, "Size mismatch"
                DEFB SKIP_2_VIA_LD_HL           ; 43AF !
 
-; ---- REP_NOT_UNDERSTOOD ---- from &445E when A <> C, &44D3, &475D, &530C when A <> &15, &555B when A <> &8E, &5648
-; when A <> &CE, &57C1, &6E6F when A <> &3A ...
+; ---- REP_NOT_UNDERSTOOD ---- from &445E when A <> C, &44D3, &475D, &530C when A <> &15, &555B when A <> T_TO, &5648
+; when A <> T_REF, &57C1, &6E6F when A <> CH_COLON ...
 REP_NOT_UNDERSTOOD:
                LD A,ERR_NOT_UNDERSTOOD         ; 43B0 3E 1D  error 29, "Not understood"
                DEFB SKIP_2_VIA_LD_HL           ; 43B2 !
@@ -1906,7 +1906,7 @@ CHAR_MUST_BE_C:
                CP C                            ; 445D B9
                JP NZ,REP_NOT_UNDERSTOOD        ; 445E C2 B0 43
 
-; ---- CALL_NEXTCHAR ---- from &445A, &4482, &44CD, &44DF, &460B, &4614, &461D, &4625 when A = &A5 ...
+; ---- CALL_NEXTCHAR ---- from &445A, &4482, &44CD, &44DF, &460B, &4614, &461D, &4625 when A = T_INVERSE ...
 CALL_NEXTCHAR:
                CALL CMR                        ; 4461 CD F0 44
                DEFW NEXTCHAR                   ; 4464 20 00
@@ -3026,7 +3026,7 @@ STACK_EMPTY_STRING_OR_SLICE:
                CP CH_LPAREN                          ; 47DD FE 28
                CALL Z,CALL_NEXTCHAR                  ; 47DF CC 61 44
 
-; ---- STACK_EMPTY_STRING_OR_SLICE_DONE ---- from &47D1 when A = &0D, &47D5 when A = &3A
+; ---- STACK_EMPTY_STRING_OR_SLICE_DONE ---- from &47D1 when A = CH_CR, &47D5 when A = CH_COLON
 STACK_EMPTY_STRING_OR_SLICE_DONE:
                POP HL                          ; 47E2 E1
                POP DE                          ; 47E3 D1
@@ -3940,7 +3940,7 @@ FN_INARRAY_1:
                CALL CALL_EXPNUM                ; 4B77 CD 85 44
                CALL CALL_GETINT                ; 4B7A CD 76 44
 
-; ---- PARSE_OPTIONAL_RANGE_1 ---- from &4B6B when A = &2C, &4B6F when A = &8E, &4B75 when A = 0
+; ---- PARSE_OPTIONAL_RANGE_1 ---- from &4B6B when A = CH_COMMA, &4B6F when A = T_TO, &4B75 when A = 0
 PARSE_OPTIONAL_RANGE_1:
                POP HL                          ; 4B7D E1
                EX (SP),HL                      ; 4B7E E3
@@ -4042,7 +4042,7 @@ PARSE_OPTIONAL_RANGE_5:
                POP HL                          ; 4C12 E1
                JR PARSE_OPTIONAL_RANGE_LOOP    ; 4C13 18 A9
 
-; ---- PARSE_OPTIONAL_RANGE_6 ---- from &4C0D when no bit of &1F is set
+; ---- PARSE_OPTIONAL_RANGE_6 ---- from &4C0D when no bit of PAGEMASK is set
 PARSE_OPTIONAL_RANGE_6:
                POP HL                          ; 4C15 E1
                LD H,A                          ; 4C16 67
@@ -5733,7 +5733,7 @@ HK_VARSPACE_3:
                JR Z,HK_VARSPACE_4              ; 52EA 28 02
                SET 6,H                         ; 52EC CB F4
 
-; ---- HK_VARSPACE_4 ---- from &52EA when no bit of &1F is set
+; ---- HK_VARSPACE_4 ---- from &52EA when no bit of PAGEMASK is set
 HK_VARSPACE_4:
                SCF                             ; 52EE 37
                SBC HL,DE                       ; 52EF ED 52
@@ -6040,7 +6040,7 @@ HK_MERGECOMPFLG_LOOP:
                PUSH HL                         ; 5416 E5
                LD BC,&FFFF                     ; 5417 01 FF FF
 
-; ---- HK_MERGECOMPFLG_LOOP2 ---- from &541F when A <> &0D
+; ---- HK_MERGECOMPFLG_LOOP2 ---- from &541F when A <> CH_CR
 HK_MERGECOMPFLG_LOOP2:
                LD A,(HL)                       ; 541A 7E
                INC HL                          ; 541B 23
@@ -6058,7 +6058,7 @@ HK_MERGECOMPFLG_LOOP2:
                AND A                           ; 5431 A7
                JR NZ,HK_MERGECOMPFLG_LOOP5     ; 5432 20 1A
 
-; ---- HK_MERGECOMPFLG_LOOP3 ---- from &5438 when A <> &0D
+; ---- HK_MERGECOMPFLG_LOOP3 ---- from &5438 when A <> CH_CR
 HK_MERGECOMPFLG_LOOP3:
                INC L                           ; 5434 2C
                LD A,(HL)                       ; 5435 7E
@@ -6073,7 +6073,7 @@ HK_MERGECOMPFLG_LOOP3:
                POP DE                          ; 5441 D1
                JR HK_MERGECOMPFLG_4            ; 5442 18 2A
 
-; ---- HK_MERGECOMPFLG_LOOP4 ---- from &5449 when A <> &0D
+; ---- HK_MERGECOMPFLG_LOOP4 ---- from &5449 when A <> CH_CR
 HK_MERGECOMPFLG_LOOP4:
                INC L                           ; 5444 2C
                LD A,(HL)                       ; 5445 7E
@@ -6086,7 +6086,7 @@ HK_MERGECOMPFLG_2:
                POP HL                          ; 544B E1
                JR HK_MERGECOMPFLG_3            ; 544C 18 07
 
-; ---- HK_MERGECOMPFLG_LOOP5 ---- from &5432 when A <> 0, &5453 when A <> &0D
+; ---- HK_MERGECOMPFLG_LOOP5 ---- from &5432 when A <> 0, &5453 when A <> CH_CR
 HK_MERGECOMPFLG_LOOP5:
                DEC L                           ; 544E 2D
                INC BC                          ; 544F 03
@@ -6115,7 +6115,7 @@ HK_MERGECOMPFLG_LOOP6:
                INC DE                          ; 546B 13
                JR HK_MERGECOMPFLG_LOOP6        ; 546C 18 F6
 
-; ---- HK_MERGECOMPFLG_4 ---- from &5442, &545B, &5468 when A = &0D
+; ---- HK_MERGECOMPFLG_4 ---- from &5442, &545B, &5468 when A = CH_CR
 HK_MERGECOMPFLG_4:
                LD B,D                          ; 546E 42
                LD C,E                          ; 546F 4B
@@ -6134,7 +6134,7 @@ HK_MERGECOMPFLG_6:
                PUSH BC                         ; 5480 C5
                LD HL,(V4062)                   ; 5481 2A 62 40
 
-; ---- HK_MERGECOMPFLG_LOOP7 ---- from &548A when A <> &0D
+; ---- HK_MERGECOMPFLG_LOOP7 ---- from &548A when A <> CH_CR
 HK_MERGECOMPFLG_LOOP7:
                INC L                           ; 5484 2C
                LD A,(BC)                       ; 5485 0A
@@ -6225,7 +6225,7 @@ CMD_ALTER_LOOP:
                DEFW &5604                      ; 54FF 04 56
                RET                             ; 5501 C9
 
-; ---- CMD_ALTER_1 ---- from &54DB when A <> &89
+; ---- CMD_ALTER_1 ---- from &54DB when A <> T_OFF
 CMD_ALTER_1:
                CALL CALL_EXPNUM                ; 5502 CD 85 44
                LD C,&8E                        ; 5505 0E 8E
@@ -6252,7 +6252,7 @@ CMD_ALTER_FAIL:
                LD BC,&4966                     ; 552A 01 66 49
                JR CMD_ALTER_LOOP               ; 552D 18 BB
 
-; ---- CMD_ALTER_2 ---- from &54CF when A = &F0
+; ---- CMD_ALTER_2 ---- from &54CF when A = T_DEVICE
 CMD_ALTER_2:
                CALL SKIP_THEN_NUMBER           ; 552F CD 82 44
                LD C,&8E                        ; 5532 0E 8E
@@ -6274,7 +6274,7 @@ CMD_ALTER_FAIL2:
                POP AF                          ; 554D F1
                JP WRITE_DOS_BYTE               ; 554E C3 FE 63
 
-; ---- CMD_ALTER_3 ---- from &54D3 when A <> &E8
+; ---- CMD_ALTER_3 ---- from &54D3 when A <> T_DISPLAY
 CMD_ALTER_3:
                LD D,&80                         ; 5551 16 80
                CALL PARSE_REFERENCE_INTO_BUFFER ; 5553 CD 78 57
@@ -6370,7 +6370,7 @@ INIT_SERIAL_FROM_TABLE_3:
                RET PO                          ; 55C4 E0
                LD C,D                          ; 55C5 4A
 
-; ---- CMD_LPRINT_1 ---- from &557D when A <> &AA
+; ---- CMD_LPRINT_1 ---- from &557D when A <> T_MODE
 CMD_LPRINT_1:
                CP &B3                            ; 55C6 FE B3
                LD C,&03                          ; 55C8 0E 03
@@ -6413,7 +6413,7 @@ INIT_SERIAL_FROM_TABLE_5:
                LD (V4086),HL                   ; 5605 22 86 40
                JR INIT_SERIAL_FROM_TABLE_DONE  ; 5608 18 0A
 
-; ---- INIT_SERIAL_FROM_TABLE_6 ---- from &55D1 when A = &3A, &55D5 when A = &0D
+; ---- INIT_SERIAL_FROM_TABLE_6 ---- from &55D1 when A = CH_COLON, &55D5 when A = CH_CR
 INIT_SERIAL_FROM_TABLE_6:
                CALL EXPECT_END_OF_STATEMENT    ; 560A CD D0 44
 
@@ -6792,7 +6792,7 @@ PARSE_REFERENCE:
                CP CH_LPAREN                    ; 5796 FE 28
                JR NZ,PARSE_REFERENCE_2         ; 5798 20 16
 
-; ---- PARSE_REFERENCE_1 ---- from &5794 when A = &22
+; ---- PARSE_REFERENCE_1 ---- from &5794 when A = CH_QUOTE
 PARSE_REFERENCE_1:
                CALL CMR                        ; 579A CD F0 44
                DEFW EXPEXP                     ; 579D 1E 01
@@ -6813,7 +6813,7 @@ GET_STRING_AND_PAGE_IT:
                PUSH DE                         ; 57AD D5
                JR GET_STRING_AND_PAGE_IT_2     ; 57AE 18 2E
 
-; ---- PARSE_REFERENCE_2 ---- from &5798 when A <> &28
+; ---- PARSE_REFERENCE_2 ---- from &5798 when A <> CH_LPAREN
 PARSE_REFERENCE_2:
                PUSH HL                           ; 57B0 E5
                CALL IS_DIGIT                     ; 57B1 CD 4E 45
@@ -7691,7 +7691,7 @@ SCREEN_BLANK_TICK_DONE:
                LD (DOS_BOOT_11),DE             ; 5AC1 ED 53 7F 80
                RET                             ; 5AC5 C9
 
-; ---- SCREEN_BLANK_TICK_13 ---- from &5AB7 when A <> &20
+; ---- SCREEN_BLANK_TICK_13 ---- from &5AB7 when A <> CH_SPACE
 SCREEN_BLANK_TICK_13:
                LD H,C                          ; 5AC6 61
                LD BC,&01FF                     ; 5AC7 01 FF 01
@@ -8137,7 +8137,7 @@ CMD_SOUND:
                LD (V4082),HL                   ; 5C99 22 82 40
                RET                             ; 5C9C C9
 
-; ---- CMD_SOUND_1 ---- from &5C77 when A = &3A, &5C7B when A = &0D
+; ---- CMD_SOUND_1 ---- from &5C77 when A = CH_COLON, &5C7B when A = CH_CR
 CMD_SOUND_1:
                CALL EXPECT_END_OF_STATEMENT    ; 5C9D CD D0 44
 
@@ -8179,7 +8179,7 @@ SILENCE_SOUND_CHIP_LOOP:
                JR NZ,SILENCE_SOUND_CHIP_LOOP   ; 5CBE 20 F4
                RET                             ; 5CC0 C9
 
-; ---- CMD_SOUND_2 ---- from &5C6F when A <> &B3
+; ---- CMD_SOUND_2 ---- from &5C6F when A <> T_CLEAR
 CMD_SOUND_2:
                LD B,&00                        ; 5CC1 06 00
                CALL PREPARE_COPY_AT_5000       ; 5CC3 CD 56 5C
@@ -8639,7 +8639,7 @@ COPY_THEN_APPEND_CALL_LOOP3:
                DEFW &6594                       ; 5EC5 94 65
                RET                              ; 5EC7 C9
 
-; ---- COPY_THEN_APPEND_CALL_DONE ---- from &5EBA when A <> &23
+; ---- COPY_THEN_APPEND_CALL_DONE ---- from &5EBA when A <> CH_HASH
 COPY_THEN_APPEND_CALL_DONE:
                CALL CMR                        ; 5EC8 CD F0 44
                DEFW &4F62                      ; 5ECB 62 4F
@@ -9259,7 +9259,7 @@ CMD_LINE:
                CALL INT_ARG_THEN_END           ; 612B CD 73 44
                JR CMD_LINE_3                   ; 612E 18 06
 
-; ---- CMD_LINE_1 ---- from &611D when A = &89, &6123 when A = &8F
+; ---- CMD_LINE_1 ---- from &611D when A = T_OFF, &6123 when A = &8F
 CMD_LINE_1:
                CALL CALL_NEXTCHAR              ; 6130 CD 61 44
 
@@ -10198,7 +10198,7 @@ WRITE_DOS_BYTE:
 ;; the file just does not store that memory where its address says.
 ;; --------------------------------------------------------------------
 
-; ---- SAVE_BOOT ---- from &63EB when A = &E9
+; ---- SAVE_BOOT ---- from &63EB when A = T_BOOT
 SAVE_BOOT:
                CALL CALL_NEXTCHAR                ; 6404 CD 61 44
                CALL CALLDOS                      ; 6407 CD C1 42
@@ -11223,7 +11223,7 @@ CMD_DUMP:
                LD (HL),&2F                     ; 6801 36 2F
                CALL CALL_NEXTCHAR              ; 6803 CD 61 44
 
-; ---- CMD_DUMP_1 ---- from &67FF when A <> &A5
+; ---- CMD_DUMP_1 ---- from &67FF when A <> T_INVERSE
 CMD_DUMP_1:
                CALL CALL_EXPNUM                ; 6806 CD 85 44
                CALL AT_END_OF_STATEMENT        ; 6809 CD BC 44
@@ -12710,7 +12710,7 @@ CMD_JOIN:
                CP &0D                          ; 6E08 FE 0D
                JR NZ,CMD_JOIN_2                ; 6E0A 20 08
 
-; ---- CMD_JOIN_1 ---- from &6E06 when A = &3A
+; ---- CMD_JOIN_1 ---- from &6E06 when A = CH_COLON
 CMD_JOIN_1:
                CALL EXPECT_END_OF_STATEMENT    ; 6E0C CD D0 44
                LD HL,&0000                     ; 6E0F 21 00 00
@@ -12867,7 +12867,7 @@ CMD_SPLIT_LINE:
                LD D,H                          ; 6E65 54
                LD E,L                          ; 6E66 5D
 
-; ---- CMD_SPLIT_LINE_LOOP ---- from &6E6B when A = &20
+; ---- CMD_SPLIT_LINE_LOOP ---- from &6E6B when A = CH_SPACE
 CMD_SPLIT_LINE_LOOP:
                DEC HL                          ; 6E67 2B
                LD A,(HL)                       ; 6E68 7E
@@ -12882,7 +12882,7 @@ CMD_SPLIT_LINE_LOOP:
                PUSH BC                         ; 6E7A C5
                PUSH DE                         ; 6E7B D5
 
-; ---- CMD_SPLIT_LINE_LOOP2 ---- from &6E80 when A = &20
+; ---- CMD_SPLIT_LINE_LOOP2 ---- from &6E80 when A = CH_SPACE
 CMD_SPLIT_LINE_LOOP2:
                LD A,(BC)                       ; 6E7C 0A
                INC BC                          ; 6E7D 03
@@ -13194,7 +13194,7 @@ ARRAY_ELEMENT_OFFSET:
                POP DE                          ; 700A D1
                RET                             ; 700B C9
 
-; ---- CMD_JOIN_FAIL ---- from &6E01 when A = &8E
+; ---- CMD_JOIN_FAIL ---- from &6E01 when A = T_TO
 CMD_JOIN_FAIL:
                CALL CALL_NEXTCHAR              ; 700C CD 61 44
                CALL FIND_VARIABLE              ; 700F CD D5 43
@@ -13654,7 +13654,7 @@ FN_USING_S_LOOP:
                JR NZ,FN_USING_S_LOOP           ; 726B 20 F7
                RET                             ; 726D C9
 
-; ---- FN_USING_S_2 ---- from &7268 when A <> &20
+; ---- FN_USING_S_2 ---- from &7268 when A <> CH_SPACE
 FN_USING_S_2:
                CALL STKSTR                     ; 726E CD 27 01
                                                ; calculator: leaves x, x, y (last on top)
@@ -13712,7 +13712,7 @@ FN_USING_S_LOOP2:
                JR Z,FN_USING_S_6               ; 72A7 28 02
                CP &30                          ; 72A9 FE 30
 
-; ---- FN_USING_S_6 ---- from &72A7 when A = &23
+; ---- FN_USING_S_6 ---- from &72A7 when A = CH_HASH
 FN_USING_S_6:
                LD A,&25                        ; 72AB 3E 25
                JR NZ,FN_USING_S_7              ; 72AD 20 01
@@ -13722,7 +13722,7 @@ FN_USING_S_6:
 FN_USING_S_7:
                LD (HL),A                       ; 72B0 77
 
-; ---- FN_USING_S_8 ---- from &72A3 when A = &2E
+; ---- FN_USING_S_8 ---- from &72A3 when A = CH_DOT
 FN_USING_S_8:
                INC HL                          ; 72B1 23
                INC DE                          ; 72B2 13
@@ -13751,11 +13751,11 @@ FN_USING_S_LOOP3:
                DEFB SKIP_1_VIA_LD_D            ; 72D1 .  skipped: reads as LD D,&71 from here, and as part of the
                                                ; instruction above it
 
-; ---- FN_USING_S_9 ---- from &72C5 when A = &23
+; ---- FN_USING_S_9 ---- from &72C5 when A = CH_HASH
 FN_USING_S_9:
                LD (HL),C                       ; 72D2 71
 
-; ---- FN_USING_S_10 ---- from &72C9 when A < &30, &72CD when A >= &3A
+; ---- FN_USING_S_10 ---- from &72C9 when A < CH_ZERO, &72CD when A >= &3A
 FN_USING_S_10:
                INC HL                          ; 72D3 23
                DJNZ FN_USING_S_LOOP3           ; 72D4 10 EC
@@ -13777,7 +13777,7 @@ FN_USING_S_10:
                OUT (HMPR),A                    ; 72EC D3 FB
                RET                             ; 72EE C9
 
-; ---- FN_USING_S_LOOP4 ---- from &72F3 when A = &2E
+; ---- FN_USING_S_LOOP4 ---- from &72F3 when A = CH_DOT
 FN_USING_S_LOOP4:
                LD A,(DE)                       ; 72EF 1A
                INC DE                          ; 72F0 13
@@ -13796,7 +13796,7 @@ FN_USING_S_LOOP5:
                JR NZ,FN_USING_S_11             ; 7300 20 02
                LD A,&30                        ; 7302 3E 30
 
-; ---- FN_USING_S_11 ---- from &7300 when A <> &23
+; ---- FN_USING_S_11 ---- from &7300 when A <> CH_HASH
 FN_USING_S_11:
                CP &30                          ; 7304 FE 30
                JR C,FN_USING_S_DONE            ; 7306 38 0E
@@ -13807,7 +13807,7 @@ FN_USING_S_11:
                JR C,FN_USING_S_DONE2           ; 730F 38 07
                LD (HL),&30                     ; 7311 36 30
 
-; ---- FN_USING_S_12 ---- from &72FC when A = &2E
+; ---- FN_USING_S_12 ---- from &72FC when A = CH_DOT
 FN_USING_S_12:
                DEC C                           ; 7313 0D
                JR NZ,FN_USING_S_LOOP5          ; 7314 20 E2

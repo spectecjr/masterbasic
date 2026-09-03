@@ -3487,7 +3487,7 @@ FDH9:
 FDH91:
                SBC HL,BC                       ; 4C7A ED 42  PT TO DIR TAG FOR FILE
 
-; ---- FDH92 ---- from &4C69 when A <> &15
+; ---- FDH92 ---- from &4C69 when A <> DFT
 FDH92:
                INC H                           ; 4C7C 24
                DEC HL                          ; 4C7D 2B
@@ -4840,7 +4840,7 @@ REP18:
                DEFB SKIP_2_VIA_LD_HL           ; 5176 !  skipped: reads as LD HL,&643E from here, and as part of the
                                                ; instruction above it
 
-; ---- REP19 ---- from &6BFF when A = &DF, &6F50 when no bit of &03 is set
+; ---- REP19 ---- from &6BFF when A = MOUT, &6F50 when no bit of &03 is set
 REP19:
                LD A,ERR_WRITING_A_READ_FILE    ; 5177 3E 64
                DEFB SKIP_2_VIA_LD_HL           ; 5179 !
@@ -4851,7 +4851,8 @@ REP20:
                DEFB SKIP_2_VIA_LD_HL           ; 517C !  skipped: reads as LD HL,&673E from here, and as part of the
                                                ; instruction above it
 
-; ---- REP22 ---- from &4815 when A >= &07, &4820 when A = &00, &7582 when A = 0, &7645 when A >= &08, &7734 when A = 0
+; ---- REP22 ---- from &4815 when A >= RDLIM-1, &4820 when A = &00, &7582 when A = 0, &7645 when A >= RDLIM, &7734 when
+; A = 0
 REP22:
                LD A,ERR_NO_SUCH_DRIVE          ; 517D 3E 67
                DEFB SKIP_2_VIA_LD_HL           ; 517F !  skipped: reads as LD HL,&683E from here, and as part of the
@@ -7460,7 +7461,7 @@ SNDFX:
                CALL BITF3                      ; 5E5C CD 2E 51  SET BY ERASE. ALWAYS 0 FROM COPY
                JP NZ,REP33_2                   ; 5E5F C2 9E 51  "PROTECTED FILE"
 
-; ---- REP26 ---- from &4EC3, &5F92 when A < D, &5FA4 when A = 0, &6646, &6CC1 when A = &BF, &6EEB
+; ---- REP26 ---- from &4EC3, &5F92 when A < D, &5FA4 when A = 0, &6646, &6CC1 when A = MIN, &6EEB
 REP26:
                CALL DERR                       ; 5E62 CD AD 51  "FILE NOT FOUND"
                DEFB &6B                        ; 5E65 k
@@ -9305,7 +9306,7 @@ GTDD:
 GTDD_1:
                LD A,(ODEF)                     ; 66EB 3A 2F 42  USE "OTHER" DEFAULT
 
-; ---- GTDD_2 ---- from &66E9 when A < &09
+; ---- GTDD_2 ---- from &66E9 when A < RDLIM+1
 GTDD_2:
                PUSH HL                         ; 66EE E5
                LD (ODEF),A                     ; 66EF 32 2F 42
@@ -10286,7 +10287,7 @@ OPND2_2:
                JR NZ,OPND44                    ; 6C04 20 02  JR IF DEFAULT - IN
                LD C,&06                        ; 6C06 0E 06  BITS 1 AND 0 SHOW RND, BIT 2
 
-; ---- OPND44 ---- from &6BFB when A = &BF, &6C04 when A <> &A5
+; ---- OPND44 ---- from &6BFB when A = MIN, &6C04 when A <> MRND
 OPND44:
                LD A,C                          ; 6C08 79
                CALL RAMST                      ; 6C09 CD 5D 70
@@ -10433,7 +10434,7 @@ OPND45:
                JR Z,OPND45_1                   ; 6CCF 28 01  JR IF RND (BITS 1-0 = 10)
                DEC A                           ; 6CD1 3D  BITS 1-0 SHOW OUT (01). OUT IS
 
-; ---- OPND45_1 ---- from &6CCF when A = &A5
+; ---- OPND45_1 ---- from &6CCF when A = MRND
 OPND45_1:
                CALL OPND7                      ; 6CD2 CD EF 6C  SETS FTRK/FSCT, CNT=1
                RET C                           ; 6CD5 D8
@@ -11792,7 +11793,7 @@ SDN3:
                DJNZ SDNL                       ; 72D7 10 EA  COPY NAME
                INC C                           ; 72D9 0C
 
-; ---- SDTL ---- from &72CA when A >= &27, &72DF when A = &20
+; ---- SDTL ---- from &72CA when A >= MPL+1, &72DF when A = &20
 SDTL:
                DEC DE                          ; 72DA 1B
                DEC C                           ; 72DB 0D

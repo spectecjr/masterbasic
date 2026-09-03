@@ -2039,8 +2039,8 @@ REP_SIZE_MISMATCH:
 ;; Leaves:    A
 ;; --------------------------------------------------------------------
 
-; ---- REP_NOT_UNDERSTOOD ---- from &445E when A <> C, &44D3, &475D, &530C when A <> &15, &555B when A <> &8E, &5648
-; when A <> &CE, &57C1, &6E6F when A <> &3A ...
+; ---- REP_NOT_UNDERSTOOD ---- from &445E when A <> C, &44D3, &475D, &530C when A <> &15, &555B when A <> T_TO, &5648
+; when A <> T_REF, &57C1, &6E6F when A <> CH_COLON ...
 REP_NOT_UNDERSTOOD:
                LD A,ERR_NOT_UNDERSTOOD         ; 43B0 3E 1D  error 29, "Not understood"
                DEFB SKIP_2_VIA_LD_HL           ; 43B2 !
@@ -2525,7 +2525,7 @@ CHAR_MUST_BE_C:
 ;; ? reaches the ROM through NEXTCHAR; calls CMR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- CALL_NEXTCHAR ---- from &445A, &4482, &44CD, &44DF, &460B, &4614, &461D, &4625 when A = &A5 ...
+; ---- CALL_NEXTCHAR ---- from &445A, &4482, &44CD, &44DF, &460B, &4614, &461D, &4625 when A = T_INVERSE ...
 CALL_NEXTCHAR:
                                                ; call the ROM at NEXTCHAR with ROM1 paged in, and page back on the way
                                                ; out
@@ -4516,7 +4516,7 @@ STACK_EMPTY_STRING_OR_SLICE:
 ;; Ends:      RET
 ;; --------------------------------------------------------------------
 
-; ---- STACK_EMPTY_STRING_OR_SLICE_DONE ---- from &47D1 when A = &0D, &47D5 when A = &3A
+; ---- STACK_EMPTY_STRING_OR_SLICE_DONE ---- from &47D1 when A = CH_CR, &47D5 when A = CH_COLON
 STACK_EMPTY_STRING_OR_SLICE_DONE:
                POP HL                          ; 47E2 E1
                POP DE                          ; 47E3 D1
@@ -6091,7 +6091,7 @@ FN_INARRAY_1:
 ;; ? reaches the ROM through CHADD; calls NRWRHL; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- PARSE_OPTIONAL_RANGE_1 ---- from &4B6B when A = &2C, &4B6F when A = &8E, &4B75 when A = 0
+; ---- PARSE_OPTIONAL_RANGE_1 ---- from &4B6B when A = CH_COMMA, &4B6F when A = T_TO, &4B75 when A = 0
 PARSE_OPTIONAL_RANGE_1:
                POP HL                          ; 4B7D E1
                EX (SP),HL                      ; 4B7E E3
@@ -6276,7 +6276,7 @@ PARSE_OPTIONAL_RANGE_5:
 ;; Leaves:    HL
 ;; --------------------------------------------------------------------
 
-; ---- PARSE_OPTIONAL_RANGE_6 ---- from &4C0D when no bit of &1F is set
+; ---- PARSE_OPTIONAL_RANGE_6 ---- from &4C0D when no bit of PAGEMASK is set
 PARSE_OPTIONAL_RANGE_6:
                POP HL                          ; 4C15 E1
                LD H,A                          ; 4C16 67
@@ -8833,7 +8833,7 @@ HK_VARSPACE_3:
 ;; ? reaches the ROM through JRECLAIM; calls CMR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- HK_VARSPACE_4 ---- from &52EA when no bit of &1F is set
+; ---- HK_VARSPACE_4 ---- from &52EA when no bit of PAGEMASK is set
 HK_VARSPACE_4:
                SCF                             ; 52EE 37
                SBC HL,DE                       ; 52EF ED 52
@@ -9319,7 +9319,7 @@ HK_MERGECOMPFLG_LOOP:
 ;; ? tests for CH_CR; calls RECLAIM_BC_AT_HL; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- HK_MERGECOMPFLG_LOOP2 ---- from &541F when A <> &0D
+; ---- HK_MERGECOMPFLG_LOOP2 ---- from &541F when A <> CH_CR
 HK_MERGECOMPFLG_LOOP2:
                LD A,(HL)                       ; 541A 7E
                INC HL                          ; 541B 23
@@ -9347,7 +9347,7 @@ HK_MERGECOMPFLG_LOOP2:
 ;; ? tests for CH_CR; calls NRWRD.
 ;; --------------------------------------------------------------------
 
-; ---- HK_MERGECOMPFLG_LOOP3 ---- from &5438 when A <> &0D
+; ---- HK_MERGECOMPFLG_LOOP3 ---- from &5438 when A <> CH_CR
 HK_MERGECOMPFLG_LOOP3:
                INC L                           ; 5434 2C
                LD A,(HL)                       ; 5435 7E
@@ -9369,7 +9369,7 @@ HK_MERGECOMPFLG_LOOP3:
 ;; Leaves:    A, F, L
 ;; --------------------------------------------------------------------
 
-; ---- HK_MERGECOMPFLG_LOOP4 ---- from &5449 when A <> &0D
+; ---- HK_MERGECOMPFLG_LOOP4 ---- from &5449 when A <> CH_CR
 HK_MERGECOMPFLG_LOOP4:
                INC L                           ; 5444 2C
                LD A,(HL)                       ; 5445 7E
@@ -9401,7 +9401,7 @@ HK_MERGECOMPFLG_2:
 ;; ? tests for CH_CR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- HK_MERGECOMPFLG_LOOP5 ---- from &5432 when A <> 0, &5453 when A <> &0D
+; ---- HK_MERGECOMPFLG_LOOP5 ---- from &5432 when A <> 0, &5453 when A <> CH_CR
 HK_MERGECOMPFLG_LOOP5:
                DEC L                           ; 544E 2D
                INC BC                          ; 544F 03
@@ -9458,7 +9458,7 @@ HK_MERGECOMPFLG_LOOP6:
 ;; ? reaches the ROM through KCUR; calls NRWRD; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- HK_MERGECOMPFLG_4 ---- from &5442, &545B, &5468 when A = &0D
+; ---- HK_MERGECOMPFLG_4 ---- from &5442, &545B, &5468 when A = CH_CR
 HK_MERGECOMPFLG_4:
                LD B,D                          ; 546E 42
                LD C,E                          ; 546F 4B
@@ -9506,7 +9506,7 @@ HK_MERGECOMPFLG_6:
 ;; ? tests for CH_CR; calls NRRDD; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- HK_MERGECOMPFLG_LOOP7 ---- from &548A when A <> &0D
+; ---- HK_MERGECOMPFLG_LOOP7 ---- from &548A when A <> CH_CR
 HK_MERGECOMPFLG_LOOP7:
                INC L                           ; 5484 2C
                LD A,(BC)                       ; 5485 0A
@@ -9637,7 +9637,7 @@ CMD_ALTER_LOOP:
 ;; than returning.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_ALTER_1 ---- from &54DB when A <> &89
+; ---- CMD_ALTER_1 ---- from &54DB when A <> T_OFF
 CMD_ALTER_1:
                CALL CALL_EXPNUM                ; 5502 CD 85 44
                LD C,&8E                        ; 5505 0E 8E
@@ -9684,7 +9684,7 @@ CMD_ALTER_FAIL:
 ;; returning.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_ALTER_2 ---- from &54CF when A = &F0
+; ---- CMD_ALTER_2 ---- from &54CF when A = T_DEVICE
 CMD_ALTER_2:
                CALL SKIP_THEN_NUMBER           ; 552F CD 82 44
                LD C,&8E                        ; 5532 0E 8E
@@ -9728,7 +9728,7 @@ CMD_ALTER_FAIL2:
 ;; ? tests for T_TO; calls CALL_NEXTCHAR, CALL_GETCHAR, EXPECT_END_OF_STATEMENT, IS_LETTER.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_ALTER_3 ---- from &54D3 when A <> &E8
+; ---- CMD_ALTER_3 ---- from &54D3 when A <> T_DISPLAY
 CMD_ALTER_3:
                LD D,&80                         ; 5551 16 80
                CALL PARSE_REFERENCE_INTO_BUFFER ; 5553 CD 78 57
@@ -9879,7 +9879,7 @@ INIT_SERIAL_FROM_TABLE_3:
 ;; whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_LPRINT_1 ---- from &557D when A <> &AA
+; ---- CMD_LPRINT_1 ---- from &557D when A <> T_MODE
 CMD_LPRINT_1:
                CP &B3                            ; 55C6 FE B3
                LD C,&03                          ; 55C8 0E 03
@@ -9950,7 +9950,7 @@ INIT_SERIAL_FROM_TABLE_5:
 ;; ? calls EXPECT_END_OF_STATEMENT; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- INIT_SERIAL_FROM_TABLE_6 ---- from &55D1 when A = &3A, &55D5 when A = &0D
+; ---- INIT_SERIAL_FROM_TABLE_6 ---- from &55D1 when A = CH_COLON, &55D5 when A = CH_CR
 INIT_SERIAL_FROM_TABLE_6:
                CALL EXPECT_END_OF_STATEMENT    ; 560A CD D0 44
 
@@ -10606,7 +10606,7 @@ PARSE_REFERENCE:
 ;; ? reaches the ROM through EXPEXP; calls CMR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- PARSE_REFERENCE_1 ---- from &5794 when A = &22
+; ---- PARSE_REFERENCE_1 ---- from &5794 when A = CH_QUOTE
 PARSE_REFERENCE_1:
                                                ; call the ROM at EXPEXP with ROM1 paged in, and page back on the way out
                CALL CMR                        ; 579A CD F0 44
@@ -10648,7 +10648,7 @@ GET_STRING_AND_PAGE_IT:
 ;; ? calls CALL_GETCHAR, CALL_EXPNUM, IS_DIGIT.
 ;; --------------------------------------------------------------------
 
-; ---- PARSE_REFERENCE_2 ---- from &5798 when A <> &28
+; ---- PARSE_REFERENCE_2 ---- from &5798 when A <> CH_LPAREN
 PARSE_REFERENCE_2:
                PUSH HL                           ; 57B0 E5
                CALL IS_DIGIT                     ; 57B1 CD 4E 45
@@ -12026,7 +12026,7 @@ SCREEN_BLANK_TICK_DONE:
 ;; ? drives IN A,(LMPR), OUT (C),A.
 ;; --------------------------------------------------------------------
 
-; ---- SCREEN_BLANK_TICK_13 ---- from &5AB7 when A <> &20
+; ---- SCREEN_BLANK_TICK_13 ---- from &5AB7 when A <> CH_SPACE
 SCREEN_BLANK_TICK_13:
                LD H,C                          ; 5AC6 61
                LD BC,&01FF                     ; 5AC7 01 FF 01
@@ -12746,7 +12746,7 @@ CMD_SOUND:
 ;; ? calls EXPECT_END_OF_STATEMENT; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_SOUND_1 ---- from &5C77 when A = &3A, &5C7B when A = &0D
+; ---- CMD_SOUND_1 ---- from &5C77 when A = CH_COLON, &5C7B when A = CH_CR
 CMD_SOUND_1:
                CALL EXPECT_END_OF_STATEMENT    ; 5C9D CD D0 44
 
@@ -12816,7 +12816,7 @@ SILENCE_SOUND_CHIP_LOOP:
 ;; ? drives OUT (HMPR),A; calls PREPARE_COPY_AT_5000.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_SOUND_2 ---- from &5C6F when A <> &B3
+; ---- CMD_SOUND_2 ---- from &5C6F when A <> T_CLEAR
 CMD_SOUND_2:
                LD B,&00                        ; 5CC1 06 00
                CALL PREPARE_COPY_AT_5000       ; 5CC3 CD 56 5C
@@ -13518,7 +13518,7 @@ COPY_THEN_APPEND_CALL_LOOP3:
 ;; ? calls CMR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- COPY_THEN_APPEND_CALL_DONE ---- from &5EBA when A <> &23
+; ---- COPY_THEN_APPEND_CALL_DONE ---- from &5EBA when A <> CH_HASH
 COPY_THEN_APPEND_CALL_DONE:
                                                ; call the ROM at &4F62 with ROM1 paged in, and page back on the way out
                CALL CMR                        ; 5EC8 CD F0 44
@@ -14548,7 +14548,7 @@ CMD_LINE:
 ;; ? calls CALL_NEXTCHAR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_LINE_1 ---- from &611D when A = &89, &6123 when A = &8F
+; ---- CMD_LINE_1 ---- from &611D when A = T_OFF, &6123 when A = &8F
 CMD_LINE_1:
                CALL CALL_NEXTCHAR              ; 6130 CD 61 44
 
@@ -16045,7 +16045,7 @@ WRITE_DOS_BYTE:
 ;;     the file just does not store that memory where its address says.
 ;; --------------------------------------------------------------------
 
-; ---- SAVE_BOOT ---- from &63EB when A = &E9
+; ---- SAVE_BOOT ---- from &63EB when A = T_BOOT
 SAVE_BOOT:
                CALL CALL_NEXTCHAR                ; 6404 CD 61 44
                                                  ; call DOS_EVNAM-&4000 in the other page: LMPR is switched first, so
@@ -17678,7 +17678,7 @@ CMD_DUMP:
 ;; ? calls BYTE_ARGUMENT, CALL_NEXTCHAR, INT_ARG_THEN_END, CALL_EXPNUM.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_1 ---- from &67FF when A <> &A5
+; ---- CMD_DUMP_1 ---- from &67FF when A <> T_INVERSE
 CMD_DUMP_1:
                CALL CALL_EXPNUM                ; 6806 CD 85 44
                CALL AT_END_OF_STATEMENT        ; 6809 CD BC 44
@@ -20181,7 +20181,7 @@ CMD_JOIN:
 ;; ? calls EXPECT_END_OF_STATEMENT, NRRDD.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_JOIN_1 ---- from &6E06 when A = &3A
+; ---- CMD_JOIN_1 ---- from &6E06 when A = CH_COLON
 CMD_JOIN_1:
                CALL EXPECT_END_OF_STATEMENT    ; 6E0C CD D0 44
                LD HL,&0000                     ; 6E0F 21 00 00
@@ -20425,7 +20425,7 @@ CMD_SPLIT_LINE:
 ;; returning.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_SPLIT_LINE_LOOP ---- from &6E6B when A = &20
+; ---- CMD_SPLIT_LINE_LOOP ---- from &6E6B when A = CH_SPACE
 CMD_SPLIT_LINE_LOOP:
                DEC HL                          ; 6E67 2B
                LD A,(HL)                       ; 6E68 7E
@@ -20452,7 +20452,7 @@ CMD_SPLIT_LINE_LOOP:
 ;; ? tests for CH_SPACE; calls IS_DIGIT, NRWRD.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_SPLIT_LINE_LOOP2 ---- from &6E80 when A = &20
+; ---- CMD_SPLIT_LINE_LOOP2 ---- from &6E80 when A = CH_SPACE
 CMD_SPLIT_LINE_LOOP2:
                LD A,(BC)                       ; 6E7C 0A
                INC BC                          ; 6E7D 03
@@ -20926,7 +20926,7 @@ ARRAY_ELEMENT_OFFSET:
 ;; returning.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_JOIN_FAIL ---- from &6E01 when A = &8E
+; ---- CMD_JOIN_FAIL ---- from &6E01 when A = T_TO
 CMD_JOIN_FAIL:
                CALL CALL_NEXTCHAR              ; 700C CD 61 44
                CALL FIND_VARIABLE              ; 700F CD D5 43
@@ -21624,7 +21624,7 @@ FN_USING_S_LOOP:
 ;; Leaves:    registers unchanged
 ;; --------------------------------------------------------------------
 
-; ---- FN_USING_S_2 ---- from &7268 when A <> &20
+; ---- FN_USING_S_2 ---- from &7268 when A <> CH_SPACE
 FN_USING_S_2:
                CALL STKSTR                     ; 726E CD 27 01
                                                ; calculator: leaves x, x, y (last on top)
@@ -21722,7 +21722,7 @@ FN_USING_S_LOOP2:
 ;; Leaves:    A
 ;; --------------------------------------------------------------------
 
-; ---- FN_USING_S_6 ---- from &72A7 when A = &23
+; ---- FN_USING_S_6 ---- from &72A7 when A = CH_HASH
 FN_USING_S_6:
                LD A,&25                        ; 72AB 3E 25
                JR NZ,FN_USING_S_7              ; 72AD 20 01
@@ -21746,7 +21746,7 @@ FN_USING_S_7:
 ;; Leaves:    A, F, BC, DE, HL
 ;; --------------------------------------------------------------------
 
-; ---- FN_USING_S_8 ---- from &72A3 when A = &2E
+; ---- FN_USING_S_8 ---- from &72A3 when A = CH_DOT
 FN_USING_S_8:
                INC HL                          ; 72B1 23
                INC DE                          ; 72B2 13
@@ -21791,7 +21791,7 @@ FN_USING_S_LOOP3:
 ;; Leaves:    registers unchanged
 ;; --------------------------------------------------------------------
 
-; ---- FN_USING_S_9 ---- from &72C5 when A = &23
+; ---- FN_USING_S_9 ---- from &72C5 when A = CH_HASH
 FN_USING_S_9:
                LD (HL),C                       ; 72D2 71
 
@@ -21806,7 +21806,7 @@ FN_USING_S_9:
 ;; ? drives IN A,(HMPR), OUT (HMPR),A.
 ;; --------------------------------------------------------------------
 
-; ---- FN_USING_S_10 ---- from &72C9 when A < &30, &72CD when A >= &3A
+; ---- FN_USING_S_10 ---- from &72C9 when A < CH_ZERO, &72CD when A >= &3A
 FN_USING_S_10:
                INC HL                          ; 72D3 23
                DJNZ FN_USING_S_LOOP3           ; 72D4 10 EC
@@ -21837,7 +21837,7 @@ FN_USING_S_10:
 ;; ? tests for CH_DOT; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- FN_USING_S_LOOP4 ---- from &72F3 when A = &2E
+; ---- FN_USING_S_LOOP4 ---- from &72F3 when A = CH_DOT
 FN_USING_S_LOOP4:
                LD A,(DE)                       ; 72EF 1A
                INC DE                          ; 72F0 13
@@ -21872,7 +21872,7 @@ FN_USING_S_LOOP5:
 ;; Leaves:    A, F
 ;; --------------------------------------------------------------------
 
-; ---- FN_USING_S_11 ---- from &7300 when A <> &23
+; ---- FN_USING_S_11 ---- from &7300 when A <> CH_HASH
 FN_USING_S_11:
                CP &30                          ; 7304 FE 30
                JR C,FN_USING_S_DONE            ; 7306 38 0E
@@ -21890,7 +21890,7 @@ FN_USING_S_11:
 ;; Leaves:    F, C
 ;; --------------------------------------------------------------------
 
-; ---- FN_USING_S_12 ---- from &72FC when A = &2E
+; ---- FN_USING_S_12 ---- from &72FC when A = CH_DOT
 FN_USING_S_12:
                DEC C                           ; 7313 0D
                JR NZ,FN_USING_S_LOOP5          ; 7314 20 E2

@@ -243,6 +243,13 @@ SCREEN_PAGE_TYPE:             EQU  &30         ; allocation code for a page hold
 DIR_MODE_COLLECT:             EQU  &02         ; collect names for a sorted listing
 DIR_MODE_LIST:                EQU  &04         ; print a full listing, with a heading
 
+; Directory entry
+CASE_BLIND:                   EQU  &DF         ; every bit but the one that tells A from a
+CH_PERIOD:                    EQU  &2E         ; between a name and its type
+CH_QUERY:                     EQU  &3F         ; the wildcard that matches one character
+CH_STAR:                      EQU  &2A         ; the wildcard that matches any run of characters
+NAME_AND_TYPE:                EQU  &0B         ; the type byte and the ten characters after it
+
 ; Disk controller status
 BLOCK_ERROR_FLAGS:            EQU  (DISK_STATUS_DRQ | DISK_STATUS_CRC_ERROR | DISK_STATUS_RECORD_NOT_FOUND) >> 1
                                                ; what the block and boot loops test; it should be TRANSFER_ERROR_FLAGS
@@ -458,7 +465,7 @@ ALLOCT_SCAN_LOOP:
 ; On to the next entry, working down.  L reaching zero stops it: entry
 ; zero is the system page and is never a candidate.
 
-; ---- NOT_A_RAM_DISC_PAGE ---- from &401B when A < &D0, &401F when A >= &D8
+; ---- NOT_A_RAM_DISC_PAGE ---- from &401B when A < MIN_RAMDISC_PAGE_TYPE, &401F when A >= PAST_RAMDISC_PAGE_TYPE
 NOT_A_RAM_DISC_PAGE:
                DEC L                           ; 4023 2D
                JR NZ,ALLOCT_SCAN_LOOP          ; 4024 20 F2
@@ -496,7 +503,7 @@ FIND_FREE_PAGE_LOOP:
 ; sector addresses each sector carries in its last four bytes.  The
 ; first wave is the DOS itself.
 
-; ---- FOUND_PAGE_FOR_DOS ---- from &4035 when A = 0, &4039 when A = &30
+; ---- FOUND_PAGE_FOR_DOS ---- from &4035 when A = 0, &4039 when A = SCREEN_PAGE_TYPE
 FOUND_PAGE_FOR_DOS:
                PUSH HL                         ; 4040 E5
                LD HL,L41FF+IN_PAGE_C           ; 4041 21 FF 81  the last two bytes of the boot sector, in this half
@@ -539,7 +546,7 @@ BOOT_SET_SECTOR:
 ; Wait for the controller to go idle, then read back the track it is
 ; actually over.
 
-; ---- BOOT_WAIT_READY ---- from &4064 when bit 0 was set, &4079, &40B8 when A < &0A
+; ---- BOOT_WAIT_READY ---- from &4064 when bit 0 was set, &4079, &40B8 when A < MAX_SECTOR_RETRIES
 BOOT_WAIT_READY:
                IN A,(C)                        ; 4061 ED 78
                RRA                             ; 4063 1F  bit 0 of the status is BUSY
@@ -614,7 +621,7 @@ BOOT_DATA_PORT_PLUS_1:
 ; port switched between data and status on every pass, because the two
 ; tests and the read use different registers of the same chip.
 
-; ---- BOOT_READ_SECTOR_BYTE ---- from &4098 when bit 1 of A set
+; ---- BOOT_READ_SECTOR_BYTE ---- from &4098
 BOOT_READ_SECTOR_BYTE:
                LD C,B                          ; 408C 48
                IN A,(C)                        ; 408D ED 78
@@ -711,7 +718,7 @@ BOOT_TEST_RETRY_COUNT:
 ; The sector is in.  Its last four bytes are the track and sector of
 ; the next one; zero for both ends the file.
 
-; ---- BOOT_SECTOR_READ_OK ---- from &409F when no bit of &0D is set
+; ---- BOOT_SECTOR_READ_OK ---- from &409F when no bit of BLOCK_ERROR_FLAGS is set
 BOOT_SECTOR_READ_OK:
                POP BC                           ; 40C0 C1
                DEC HL                           ; 40C1 2B
@@ -2578,7 +2585,7 @@ RETRY_OR_GIVE_UP:
 ;; Count a failure and decide what to do about it.
 ;; --------------------------------------------------------------------
 
-; ---- CDE1 ---- from &46C8 when a bit of &0E is set, &48EB, &4A51
+; ---- CDE1 ---- from &46C8 when a bit of TRANSFER_ERROR_FLAGS is set, &48EB, &4A51
 CDE1:
                PUSH AF                         ; 46D1 F5
                LD A,(DCT)                      ; 46D2 3A 11 41  the count of failures against this transfer
@@ -2627,7 +2634,7 @@ CDE1_1:
 ;; one position the drive can find without being told.
 ;; --------------------------------------------------------------------
 
-; ---- CTS1 ---- from &46FC when a bit of &0E is set
+; ---- CTS1 ---- from &46FC when a bit of TRANSFER_ERROR_FLAGS is set
 CTS1:
                LD A,(DCT)                      ; 4707 3A 11 41
                INC A                           ; 470A 3C
@@ -2747,7 +2754,7 @@ CTA25:
                LD (PORT1),A                    ; 476D 32 2E 41
                OUT (HMPR),A                    ; 4770 D3 FB  and the next one takes its place
 
-; ---- CTA3 ---- from &475C, &4763 when A < &C0
+; ---- CTA3 ---- from &475C, &4763 when A < PAST_WINDOW_TOP
 CTA3:
                POP AF                          ; 4772 F1
                CALL NC,STEP_HEAD_OUT           ; 4773 D4 7B 47  the head is beyond the track: out towards track 0
@@ -3143,7 +3150,7 @@ LDB5_1:
                EXX                             ; 48F0 D9  this count is finished; switch to the other destination
                JR LDB6                         ; 48F1 18 E8
 
-; ---- LDB7 ---- from &48E6 when no bit of &0D is set
+; ---- LDB7 ---- from &48E6 when no bit of BLOCK_ERROR_FLAGS is set
 LDB7:
                LD (SVHL),HL                    ; 48F3 22 05 7C
                CALL GTBUF                      ; 48F6 CD A0 4F
@@ -3407,7 +3414,7 @@ SVB6:
                POP DE                          ; 4A48 D1  T/S
                JP SVB4                         ; 4A49 C3 E3 49  LOOP FOR ALL SECTORS
 
-; ---- SVB7 ---- from &4A35 when a bit of &0D is set
+; ---- SVB7 ---- from &4A35 when a bit of BLOCK_ERROR_FLAGS is set
 SVB7:
                LD A,(PORT1)                    ; 4A4C 3A 2E 41
                OUT (HMPR),A                    ; 4A4F D3 FB  NON-SCREEN
@@ -3904,7 +3911,7 @@ FDH4:
 FDHH:
                JP FDHd                         ; 4BFA C3 8C 4C
 
-; ---- FDH5 ---- from &4BDF when bit 1 of (IX+&04) clear
+; ---- FDH5 ---- from &4BDF when bit 1 of (IX+RFDH-DCHAN) clear
 FDH5:
                CALL POINT                      ; 4BFD CD AC 4F
                LD A,(HL)                       ; 4C00 7E
@@ -3975,7 +3982,7 @@ FDH85:
 ;;  highest in use.
 ;; --------------------------------------------------------------------
 
-; ---- FDH9 ---- from &4B95 when no bit of &06 is set
+; ---- FDH9 ---- from &4B95 when no bit of DIR_MODE_COLLECT | DIR_MODE_LIST is set
 FDH9:
                LD A,(DCHAN+4)                  ; 4C5D 3A 04 7C
                AND &18                         ; 4C60 E6 18
@@ -3997,7 +4004,7 @@ FDH9:
 FDH91:
                SBC HL,BC                       ; 4C7A ED 42  PT TO DIR TAG FOR FILE
 
-; ---- FDH92 ---- from &4C69 when A <> &15
+; ---- FDH92 ---- from &4C69 when A <> DFT
 FDH92:
                INC H                           ; 4C7C 24
                DEC HL                          ; 4C7D 2B
@@ -4070,61 +4077,74 @@ FDHF:
                RET                             ; 4CC1 C9  USED PART OF DIR DEALT WITH
 
 ;; --------------------------------------------------------------------
-;;  CKNAM -- compare the name in the entry with the one in NSTR1
+;; Does this entry's name match what the user asked for?
 ;;
-;;  Case is ignored by masking bit 5. With bit 3 of the mode set, "?" matches any single character and "*" matches
-;;  everything up to a "." -- so "*.bak" works and a bare "*" matches every file.
+;; Eleven bytes are compared: the type byte and the ten characters of
+;; the name.  The type is skipped when the mode says only the name
+;; matters, by entering the loop one instruction in so that the first
+;; INC DE and INC HL step over it.
 ;;
-;;  Exit:   Z if the names match
+;; THE COMPARISON IS CASE BLIND FOR NOTHING.  XOR leaves the bits in
+;; which the two characters differ, and AND &DF throws away bit 5 --
+;; the one bit that separates A from a.  What is left is zero when the
+;; characters are the same letter in either case.  No table, no range
+;; test, no branch.
 ;;
-;; CHECK FILE NAME IN DIR
-;; EXIT: Z IF MATCHED
+;; * MATCHES THE REST, unless a period follows it.  A star with nothing
+;; after it, or with anything other than a period, is a match there and
+;; then: "*" and "A*" match everything.  A star followed by a period
+;; means the type still has to match, which is how a pattern can select
+;; on type alone.
+;;
+;; ? matches whatever is in that one position and nothing else changes.
+;;
+;; Zero flag set on the way out means it matched.
 ;; --------------------------------------------------------------------
 
 ; ---- CKNAM ---- from &4BD6, &4C88, &5EAA
 CKNAM:
                PUSH DE                         ; 4CC2 D5
                CALL POINT                      ; 4CC3 CD AC 4F
-               LD B,&0B                        ; 4CC6 06 0B
-               LD DE,NSTR1                     ; 4CC8 11 3A 41
+               LD B,NAME_AND_TYPE              ; 4CC6 06 0B
+               LD DE,NSTR1                     ; 4CC8 11 3A 41  the pattern, as the user typed it
                BIT 3,(IX+RFDH-DCHAN)           ; 4CCB DD CB 04 5E
-               JR Z,CKNM1_LOOP                 ; 4CCF 28 0E  JR IF TYPE IRREL - SKIP TYPE
+               JR Z,CKNM1_LOOP                 ; 4CCF 28 0E  the type is not being matched, so step over it
 
 ; ---- CKNM1 ---- from &4CE1 when B is not 0 yet
 CKNM1:
-               LD A,(DE)                       ; 4CD1 1A
-               CP &2A                          ; 4CD2 FE 2A
-               JR Z,CKNM1_1                    ; 4CD4 28 10  MATCH ANY LEN IF "*"
-               CP &3F                          ; 4CD6 FE 3F
-               JR Z,CKNM1_LOOP                 ; 4CD8 28 05  MATCH ANY CHAR IF "?"
-               XOR (HL)                        ; 4CDA AE
-               AND &DF                         ; 4CDB E6 DF
-               JR NZ,CKNM1_DONE                ; 4CDD 20 05
+               LD A,(DE)                       ; 4CD1 1A  the next character of the pattern
+               CP CH_STAR                      ; 4CD2 FE 2A
+               JR Z,CKNM1_1                    ; 4CD4 28 10  a star, so the rest of the pattern decides
+               CP CH_QUERY                     ; 4CD6 FE 3F
+               JR Z,CKNM1_LOOP                 ; 4CD8 28 05  one character of anything
+               XOR (HL)                        ; 4CDA AE  the bits in which the two characters differ
+               AND CASE_BLIND                  ; 4CDB E6 DF
+               JR NZ,CKNM1_DONE                ; 4CDD 20 05  they differ in something other than case
 
-; ---- CKNM1_LOOP ---- from &4CCF when bit 3 of (IX+&04) clear, &4CD8 when A = &3F, &4CF3 when A = &2E
+; ---- CKNM1_LOOP ---- from &4CCF when bit 3 of (IX+RFDH-DCHAN) clear, &4CD8 when A = CH_QUERY, &4CF3 when A = &2E
 CKNM1_LOOP:
                INC DE                          ; 4CDF 13
                INC HL                          ; 4CE0 23
                DJNZ CKNM1                      ; 4CE1 10 EE
 
-; ---- CKNM1_LOOP2 ---- from &4CE7 when B reaches 0, &4CEE when A <> &2E
+; ---- CKNM1_LOOP2 ---- from &4CE7 when B reaches 0, &4CEE when A <> CH_PERIOD
 CKNM1_LOOP2:
-               XOR A                           ; 4CE3 AF  MATCH=Z
+               XOR A                           ; 4CE3 AF  the whole pattern matched
 
-; ---- CKNM1_DONE ---- from &4CDD when a bit of &DF is set
+; ---- CKNM1_DONE ---- from &4CDD when a bit of CASE_BLIND is set
 CKNM1_DONE:
                POP DE                          ; 4CE4 D1
                RET                             ; 4CE5 C9
 
-; ---- CKNM1_1 ---- from &4CD4 when A = &2A
+; ---- CKNM1_1 ---- from &4CD4 when A = CH_STAR
 CKNM1_1:
-               DEC B                           ; 4CE6 05
-               JR Z,CKNM1_LOOP2                ; 4CE7 28 FA
+               DEC B                           ; 4CE6 05  was the star the last character of the pattern?
+               JR Z,CKNM1_LOOP2                ; 4CE7 28 FA  it was, so everything after it matches
                INC DE                          ; 4CE9 13
                INC HL                          ; 4CEA 23
                LD A,(DE)                       ; 4CEB 1A
-               CP &2E                          ; 4CEC FE 2E
-               JR NZ,CKNM1_LOOP2               ; 4CEE 20 F3  E.G. "*" OR "A*" MATCHES ANYTHING
+               CP CH_PERIOD                    ; 4CEC FE 2E
+               JR NZ,CKNM1_LOOP2               ; 4CEE 20 F3  not a period, so the star swallows the rest
 
 ; ---- CKNM1_LOOP3 ---- from &4CF6 when B is not 0 yet
 CKNM1_LOOP3:
@@ -5353,12 +5373,12 @@ SETBORDER_BORDCR:
 ;; ERROR REPORT MESSAGES
 ;; --------------------------------------------------------------------
 
-; ---- REP4 ---- from &46DB when A >= &0A, &7588 when A >= C
+; ---- REP4 ---- from &46DB when A >= MAX_TRANSFER_RETRIES, &7588 when A >= C
 REP4:
                LD A,ERR_TRK_NNN_SCT_NN_ERROR   ; 5165 3E 55
                DEFB SKIP_2_VIA_LD_HL           ; 5167 !
 
-; ---- REP5 ---- from &4710 when A >= &08
+; ---- REP5 ---- from &4710 when A >= MAX_ID_RETRIES
 REP5:
                LD A,ERR_FORMAT_TRK_NNN_LOST    ; 5168 3E 56
                DEFB SKIP_2_VIA_LD_HL           ; 516A !
@@ -5385,7 +5405,7 @@ REP18:
                DEFB SKIP_2_VIA_LD_HL           ; 5176 !  skipped: reads as LD HL,&643E from here, and as part of the
                                                ; instruction above it
 
-; ---- REP19 ---- from &6BFF when A = &DF, &6F50 when no bit of &03 is set
+; ---- REP19 ---- from &6BFF when A = MOUT, &6F50 when no bit of &03 is set
 REP19:
                LD A,ERR_WRITING_A_READ_FILE    ; 5177 3E 64
                DEFB SKIP_2_VIA_LD_HL           ; 5179 !
@@ -5396,7 +5416,8 @@ REP20:
                DEFB SKIP_2_VIA_LD_HL           ; 517C !  skipped: reads as LD HL,&673E from here, and as part of the
                                                ; instruction above it
 
-; ---- REP22 ---- from &4815 when A >= &07, &4820 when A = &00, &7582 when A = 0, &7645 when A >= &08, &7734 when A = 0
+; ---- REP22 ---- from &4815 when A >= RDLIM-1, &4820 when A = &00, &7582 when A = 0, &7645 when A >= RDLIM, &7734 when
+; A = 0
 REP22:
                LD A,ERR_NO_SUCH_DRIVE          ; 517D 3E 67
                DEFB SKIP_2_VIA_LD_HL           ; 517F !  skipped: reads as LD HL,&683E from here, and as part of the
@@ -7496,7 +7517,7 @@ PLUR:
                LD A,&73                        ; 5C05 3E 73
                JR PTHP                         ; 5C07 18 F5  MAKE IT PLURAL UNLESS ONLY 1 FILE
 
-; ---- PDIRH ---- from &4B4F when bit 2 of (IX+&04) set, &5B7B
+; ---- PDIRH ---- from &4B4F when bit 2 of (IX+RFDH-DCHAN) set, &5B7B
 PDIRH:
                CALL PNCR                       ; 5C09 CD FC 5B
                CALL PNDNM                      ; 5C0C CD 98 58  PRINT DISC NAME
@@ -8005,7 +8026,7 @@ SNDFX:
                CALL BITF3                      ; 5E5C CD 2E 51  SET BY ERASE. ALWAYS 0 FROM COPY
                JP NZ,REP33_2                   ; 5E5F C2 9E 51  "PROTECTED FILE"
 
-; ---- REP26 ---- from &4EC3, &5F92 when A < D, &5FA4 when A = 0, &6646, &6CC1 when A = &BF, &6EEB
+; ---- REP26 ---- from &4EC3, &5F92 when A < D, &5FA4 when A = 0, &6646, &6CC1 when A = MIN, &6EEB
 REP26:
                CALL DERR                       ; 5E62 CD AD 51  "FILE NOT FOUND"
                DEFB &6B                        ; 5E65 k
@@ -9845,7 +9866,7 @@ GTDD:
 GTDD_1:
                LD A,(ODEF)                     ; 66EB 3A 2F 42  USE "OTHER" DEFAULT
 
-; ---- GTDD_2 ---- from &66E9 when A < &09
+; ---- GTDD_2 ---- from &66E9 when A < RDLIM+1
 GTDD_2:
                PUSH HL                         ; 66EE E5
                LD (ODEF),A                     ; 66EF 32 2F 42
@@ -10826,7 +10847,7 @@ OPND2_2:
                JR NZ,OPND44                    ; 6C04 20 02  JR IF DEFAULT - IN
                LD C,&06                        ; 6C06 0E 06  BITS 1 AND 0 SHOW RND, BIT 2
 
-; ---- OPND44 ---- from &6BFB when A = &BF, &6C04 when A <> &A5
+; ---- OPND44 ---- from &6BFB when A = MIN, &6C04 when A <> MRND
 OPND44:
                LD A,C                          ; 6C08 79
                CALL RAMST                      ; 6C09 CD 5D 70
@@ -10973,7 +10994,7 @@ OPND45:
                JR Z,OPND45_1                   ; 6CCF 28 01  JR IF RND (BITS 1-0 = 10)
                DEC A                           ; 6CD1 3D  BITS 1-0 SHOW OUT (01). OUT IS
 
-; ---- OPND45_1 ---- from &6CCF when A = &A5
+; ---- OPND45_1 ---- from &6CCF when A = MRND
 OPND45_1:
                CALL OPND7                      ; 6CD2 CD EF 6C  SETS FTRK/FSCT, CNT=1
                RET C                           ; 6CD5 D8
@@ -12332,7 +12353,7 @@ SDN3:
                DJNZ SDNL                       ; 72D7 10 EA  COPY NAME
                INC C                           ; 72D9 0C
 
-; ---- SDTL ---- from &72CA when A >= &27, &72DF when A = &20
+; ---- SDTL ---- from &72CA when A >= MPL+1, &72DF when A = &20
 SDTL:
                DEC DE                          ; 72DA 1B
                DEC C                           ; 72DB 0D

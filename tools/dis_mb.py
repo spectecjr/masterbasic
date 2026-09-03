@@ -1580,8 +1580,12 @@ def explain_branches(d):
         while k > 0:
             k -= 1
             prev = d.insns[order[k]]
+            # The override, not the raw text: a caller list that says
+            # "when bit 3 of (IX+&04) is clear" beside a line that reads
+            # (IX+RFDH-DCHAN) is two spellings of one thing.
+            shown = d.overrides.get(order[k], prev.text)
             if not FLAG_NEUTRAL.match(prev.text):
-                why = _condition(prev.text, m.group(1))
+                why = _condition(shown, m.group(1))
                 if why:
                     d.ref_reason[(i.target, a)] = why
                     n += 1
@@ -2298,6 +2302,8 @@ def write_clean(pages):
     # that record is itself a working note.
     print('clean/: %d working paragraphs taken out'
           % clean.clean_pages((dos, mb)))
+    for d in (dos, mb):
+        explain_branches(d)
 
     n = clean.drop_self_loop_labels((dos, mb))
     if n:

@@ -188,3 +188,54 @@ DOS &7632 expr RPT-DCHAN+1
 DOS &7635 expr RPT-DCHAN
 
 DOS &4C95 : one entry on, which is one whole page of the sector
+
+GROUP Characters
+CONST CH_STAR = &2A : the wildcard that matches any run of characters
+CONST CH_QUERY = &3F : the wildcard that matches one character
+CONST CH_PERIOD = &2E : between a name and its type
+CONST CASE_BLIND = &DF : every bit but the one that tells A from a
+
+GROUP Directory entry
+CONST NAME_AND_TYPE = &0B : the type byte and the ten characters after it
+
+DOC CKNAM
+    Does this entry's name match what the user asked for?
+
+    Eleven bytes are compared: the type byte and the ten characters of
+    the name.  The type is skipped when the mode says only the name
+    matters, by entering the loop one instruction in so that the first
+    INC DE and INC HL step over it.
+
+    THE COMPARISON IS CASE BLIND FOR NOTHING.  XOR leaves the bits in
+    which the two characters differ, and AND &DF throws away bit 5 --
+    the one bit that separates A from a.  What is left is zero when the
+    characters are the same letter in either case.  No table, no range
+    test, no branch.
+
+    * MATCHES THE REST, unless a period follows it.  A star with nothing
+    after it, or with anything other than a period, is a match there and
+    then: "*" and "A*" match everything.  A star followed by a period
+    means the type still has to match, which is how a pattern can select
+    on type alone.
+
+    ? matches whatever is in that one position and nothing else changes.
+
+    Zero flag set on the way out means it matched.
+
+DOS &4CC6 value NAME_AND_TYPE
+DOS &4CC8 : the pattern, as the user typed it
+DOS &4CCF : the type is not being matched, so step over it
+DOS &4CD1 : the next character of the pattern
+DOS &4CD2 value CH_STAR
+DOS &4CD6 value CH_QUERY
+DOS &4CD8 : one character of anything
+DOS &4CDA : the bits in which the two characters differ
+DOS &4CDB value CASE_BLIND
+DOS &4CDD : they differ in something other than case
+DOS &4CE3 : the whole pattern matched
+DOS &4CE6 : was the star the last character of the pattern?
+DOS &4CE7 : it was, so everything after it matches
+DOS &4CEC value CH_PERIOD
+DOS &4CEE : not a period, so the star swallows the rest
+
+DOS &4CD4 : a star, so the rest of the pattern decides

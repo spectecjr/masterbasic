@@ -5536,7 +5536,7 @@ FDH91:
 ;; Leaves:    A, F, HL
 ;; --------------------------------------------------------------------
 
-; ---- FDH92 ---- from &4C69 when A <> &15
+; ---- FDH92 ---- from &4C69 when A <> DFT
 FDH92:
                INC H                           ; 4C7C 24
                DEC HL                          ; 4C7D 2B
@@ -7969,7 +7969,7 @@ REP18:
 ;; Leaves:    A
 ;; --------------------------------------------------------------------
 
-; ---- REP19 ---- from &6BFF when A = &DF, &6F50 when no bit of &03 is set
+; ---- REP19 ---- from &6BFF when A = MOUT, &6F50 when no bit of &03 is set
 REP19:
                LD A,ERR_WRITING_A_READ_FILE    ; 5177 3E 64
                DEFB SKIP_2_VIA_LD_HL           ; 5179 !
@@ -7994,7 +7994,8 @@ REP20:
 ;; Leaves:    A
 ;; --------------------------------------------------------------------
 
-; ---- REP22 ---- from &4815 when A >= &07, &4820 when A = &00, &7582 when A = 0, &7645 when A >= &08, &7734 when A = 0
+; ---- REP22 ---- from &4815 when A >= RDLIM-1, &4820 when A = &00, &7582 when A = 0, &7645 when A >= RDLIM, &7734 when
+; A = 0
 REP22:
                LD A,ERR_NO_SUCH_DRIVE          ; 517D 3E 67
                DEFB SKIP_2_VIA_LD_HL           ; 517F !  skipped: reads as LD HL,&683E from here, and as part of the
@@ -12565,7 +12566,7 @@ SNDFX:
 ;; ? calls DERR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- REP26 ---- from &4EC3, &5F92 when A < D, &5FA4 when A = 0, &6646, &6CC1 when A = &BF, &6EEB
+; ---- REP26 ---- from &4EC3, &5F92 when A < D, &5FA4 when A = 0, &6646, &6CC1 when A = MIN, &6EEB
 REP26:
                CALL DERR                       ; 5E62 CD AD 51  "FILE NOT FOUND"
                DEFB &6B                        ; 5E65 k
@@ -15952,7 +15953,7 @@ GTDD_1:
 ;; ? reaches the ROM through SLDEV; calls NRWR, CODN, DRSET; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- GTDD_2 ---- from &66E9 when A < &09
+; ---- GTDD_2 ---- from &66E9 when A < RDLIM+1
 GTDD_2:
                PUSH HL                         ; 66EE E5
                LD (ODEF),A                     ; 66EF 32 2F 42
@@ -17651,7 +17652,7 @@ OPND2_2:
 ;; ? calls OPND8, COUNT_AND_READ_SECTOR, RAMST; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- OPND44 ---- from &6BFB when A = &BF, &6C04 when A <> &A5
+; ---- OPND44 ---- from &6BFB when A = MIN, &6C04 when A <> MRND
 OPND44:
                LD A,C                          ; 6C08 79
                CALL RAMST                      ; 6C09 CD 5D 70
@@ -17877,7 +17878,7 @@ OPND45:
 ;; ? calls OPND7; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- OPND45_1 ---- from &6CCF when A = &A5
+; ---- OPND45_1 ---- from &6CCF when A = MRND
 OPND45_1:
                CALL OPND7                      ; 6CD2 CD EF 6C  SETS FTRK/FSCT, CNT=1
                RET C                           ; 6CD5 D8
@@ -20123,7 +20124,7 @@ SDN3:
 ;; ? drives OUT (HMPR),A; calls POINT; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- SDTL ---- from &72CA when A >= &27, &72DF when A = &20
+; ---- SDTL ---- from &72CA when A >= MPL+1, &72DF when A = &20
 SDTL:
                DEC DE                          ; 72DA 1B
                DEC C                           ; 72DB 0D
