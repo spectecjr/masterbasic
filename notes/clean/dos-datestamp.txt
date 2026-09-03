@@ -1,0 +1,63 @@
+# The date stamp: five bytes of a directory entry, written by
+# MasterBASIC and printed by the DOS.
+#
+# Prose for clean/ only.  This is one feature split across both halves,
+# so the two ends are kept together here.
+
+GROUP Directory entry
+CONST DIR_DATE = &F5 : the date stamp: day, month, year, hour, minute
+
+MB &4A39 STAMP_WITH_DATE
+
+DOC STAMP_WITH_DATE
+    Stamp the directory entry with the date and time.
+
+    MasterDOS calls this as it closes a file, through the hook at
+    &4E53, and it is MasterBASIC's rather than the DOS's because the
+    clock is MasterBASIC's: the DOS has no idea what the time is.
+
+    FIVE BYTES GO IN, at offset &F5 of the entry -- day, month and year,
+    then hour and minute, each as a number from 0 to 99 rather than as
+    the two characters it was read from.  They sit in the part of the
+    ROM's header tail that no file type uses, which is how MasterDOS
+    finds room for them without changing the disc format.
+
+    THE CLOCK MAY NOT BE SET, and the loop stops at the first field that
+    reads zero.  A day of zero cannot be real, so the byte at &F5 is
+    left as it was and PRINT_DATE_IF_SET, at the other end, treats both
+    &00 and &FF as "no date".
+
+    The addition of &40F5 is one number doing two jobs: &F5 is the
+    offset into the entry, and &4000 is what turns the DOS's address
+    for its own buffer into the address MasterBASIC sees it at through
+    the window.
+
+MB &4A3A : the DOS's half, where its sector buffer is
+MB &4A3E : the clock is read once and cached; wait for that to finish
+MB &4A41 : the entry that is being closed
+MB &4A46 expr DIR_DATE+&4000
+MB &4A49 : the date stamp's five bytes, seen through the window
+MB &4A4A : day, month and year, as characters
+MB &4A4D : three of them
+MB &4A4F : two characters, one byte
+MB &4A52 : a zero field means the clock was never set
+MB &4A53 : so stop, and leave the stamp as it was
+MB &4A59 : the time, in the same form
+MB &4A5C : hour and minute; seconds are not kept
+
+DOC PRINT_DATE_IF_SET
+    Print the date stamp beside a file in a full listing, if it has one.
+
+    An unstamped entry holds &FF there on a disc MasterDOS formatted and
+    &00 on one it did not, and INC A followed by CP &02 rejects both:
+    &FF becomes &00 and &00 becomes &01, and carry is set for either.
+
+    The fields are printed in pairs with a separator between them, "/"
+    for the date and ":" for the time, which is why the same routine
+    serves twice with a different byte in C.
+
+DOS &56BB : offset &F5 of the entry, where the stamp is
+DOS &56C1 : &FF becomes 0 and &00 becomes 1
+DOS &56C2 : either is below 2, so either means "no date"
+DOS &56C5 : "/" between the parts of the date
+DOS &56CA : and ":" between the parts of the time

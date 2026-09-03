@@ -134,13 +134,24 @@ DOC FDH05_1
         +13       first track, bit 7 for side 2, and first sector
         +15       195 bytes of sector map -- which sectors are this
                   file's, in the same bit order as NSAM
-        +210      the disc's name in entry 0; the file's nine-byte
-                  header in any other
-        +220      the tail of the ROM's 48-byte header, date stamp and all
-        +&FA      the tag a subdirectory gives to the files inside it
-        +&FE      the tag of the directory this file belongs to, 0 for
+        +210      nothing, except in entry 0, where 210 to 219 are the
+                  disc's name
+        +211      the file's own nine-byte header, the same nine bytes
+                  that begin its data
+        +220      33 bytes of the ROM's 48-byte file header, from its
+                  byte 15.  The fields that mean anything end at 244:
+                  flags at 220, and start, length and execution address
+                  at 236, 239 and 242
+
+    Everything past 244 is room the ROM's header leaves spare, and
+    MasterDOS spends it:
+
+        +245      the date stamp -- day, month, year, hour, minute
+        +250      the tag a subdirectory gives to the files inside it
+        +252      in entry 0, the word that identifies the disc
+        +254      the tag of the directory this file belongs to, 0 for
                   the root
-        +&FF      in entry 0, the directory's length beyond four tracks
+        +255      in entry 0, the directory's length beyond four tracks
 
 DOS &4B8B : the type byte, which is also the "is this slot used" byte
 DOS &4B8D : a free slot; what happens next depends on why we are scanning

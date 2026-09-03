@@ -366,6 +366,8 @@ T_TO:                           EQU  &8E       ; the BASIC keyword TO
 UPPER:                          EQU  &DF       ; clearing bit 5 folds a letter to upper case
 
 
+; Directory entry
+DIR_DATE:                       EQU  &F5       ; the date stamp: day, month, year, hour, minute
 
 
 
@@ -3689,27 +3691,54 @@ READ_CLOCK_FIELDS_DONE:
                OUT (HMPR),A                    ; 4A35 D3 FB
                SCF                             ; 4A37 37
                RET                             ; 4A38 C9
+
+;; --------------------------------------------------------------------
+;; Stamp the directory entry with the date and time.
+;;
+;; MasterDOS calls this as it closes a file, through the hook at
+;; &4E53, and it is MasterBASIC's rather than the DOS's because the
+;; clock is MasterBASIC's: the DOS has no idea what the time is.
+;;
+;; FIVE BYTES GO IN, at offset &F5 of the entry -- day, month and year,
+;; then hour and minute, each as a number from 0 to 99 rather than as
+;; the two characters it was read from.  They sit in the part of the
+;; ROM's header tail that no file type uses, which is how MasterDOS
+;; finds room for them without changing the disc format.
+;;
+;; THE CLOCK MAY NOT BE SET, and the loop stops at the first field that
+;; reads zero.  A day of zero cannot be real, so the byte at &F5 is
+;; left as it was and PRINT_DATE_IF_SET, at the other end, treats both
+;; &00 and &FF as "no date".
+;;
+;; The addition of &40F5 is one number doing two jobs: &F5 is the
+;; offset into the entry, and &4000 is what turns the DOS's address
+;; for its own buffer into the address MasterBASIC sees it at through
+;; the window.
+;; --------------------------------------------------------------------
+
+STAMP_WITH_DATE:
                PUSH DE                         ; 4A39 D5
-               CALL PAGE_IN_OTHER_HALF         ; 4A3A CD D1 49
+               CALL PAGE_IN_OTHER_HALF         ; 4A3A CD D1 49  the DOS's half, where its sector buffer is
                PUSH AF                         ; 4A3D F5
-               CALL WAIT_FOR_CLOCK             ; 4A3E CD 78 49
-               CALL CALLDOS                    ; 4A41 CD C1 42
+               CALL WAIT_FOR_CLOCK             ; 4A3E CD 78 49  the clock is read once and cached; wait for that to
+                                               ; finish
+               CALL CALLDOS                    ; 4A41 CD C1 42  the entry that is being closed
                DEFW DOS_POINT-&4000            ; 4A44 AC 4F
-               LD BC,V40F5                     ; 4A46 01 F5 40
-               ADD HL,BC                       ; 4A49 09
-               LD DE,DOS_DATDT                 ; 4A4A 11 71 82
-               LD B,&03                        ; 4A4D 06 03
+               LD BC,DIR_DATE+&4000            ; 4A46 01 F5 40
+               ADD HL,BC                       ; 4A49 09  the date stamp's five bytes, seen through the window
+               LD DE,DOS_DATDT                 ; 4A4A 11 71 82  day, month and year, as characters
+               LD B,&03                        ; 4A4D 06 03  three of them
 
 ; ---- READ_CLOCK_FIELDS_LOOP2 ---- from &4A57 when B is not 0 yet
 READ_CLOCK_FIELDS_LOOP2:
-               CALL TWO_DIGITS_FROM_DE         ; 4A4F CD 6A 4A
-               AND A                           ; 4A52 A7
-               JR Z,READ_CLOCK_FIELDS_DONE2    ; 4A53 28 10
+               CALL TWO_DIGITS_FROM_DE         ; 4A4F CD 6A 4A  two characters, one byte
+               AND A                           ; 4A52 A7  a zero field means the clock was never set
+               JR Z,READ_CLOCK_FIELDS_DONE2    ; 4A53 28 10  so stop, and leave the stamp as it was
                LD (HL),A                       ; 4A55 77
                INC HL                          ; 4A56 23
                DJNZ READ_CLOCK_FIELDS_LOOP2    ; 4A57 10 F6
-               LD DE,DOS_TIMDT                 ; 4A59 11 80 82
-               LD B,&02                        ; 4A5C 06 02
+               LD DE,DOS_TIMDT                 ; 4A59 11 80 82  the time, in the same form
+               LD B,&02                        ; 4A5C 06 02  hour and minute; seconds are not kept
 
 ; ---- READ_CLOCK_FIELDS_LOOP3 ---- from &4A63 when B is not 0 yet
 READ_CLOCK_FIELDS_LOOP3:

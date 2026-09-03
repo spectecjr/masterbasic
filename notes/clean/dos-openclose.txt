@@ -184,7 +184,7 @@ DOS &4E43 : the whole entry, for every other slot
 DOS &4E4A : which command is running
 DOS &4E4F : COPY, which has brought the original's date with it
 DOS &4E51 : so leave the stamp alone
-DOS &4E53 : anything else gets today's date at offsets &F2 to &FB
+DOS &4E53 : anything else is stamped with the date, five bytes at &F5
 DOS &4E5B : offset &FE, the tag of the directory the file is in
 DOS &4E5E : the current directory
 DOS &4E62 : and the sector goes to the disc

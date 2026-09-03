@@ -218,6 +218,7 @@ MB_PREPARE_ROM1_COPY_2:       EQU  &9C51
 MB_PUTSWA:                    EQU  &8000
 MB_SCREEN_BLANK_TICK_6:       EQU  &9A54
 MB_SET_DCT_COMPILE_BITS:      EQU  &859C
+MB_STAMP_WITH_DATE:           EQU  &8A39
 MB_SUBSTITUTE_PRINTER_CHAR:   EQU  &9973
 MB_V40FF:                     EQU  &80FF
 MB_WAIT_FOR_CLOCK:            EQU  &8978
@@ -239,6 +240,13 @@ PAST_WINDOW_TOP:              EQU  &C0
 RAMDISC_PAGE_HIGH:            EQU  &80
 SCREEN_PAGE_TYPE:             EQU  &30         ; allocation code for a page holding a screen
 
+; Directory entry
+CASE_BLIND:                   EQU  &DF         ; every bit but the one that tells A from a
+CH_PERIOD:                    EQU  &2E         ; between a name and its type
+CH_QUERY:                     EQU  &3F         ; the wildcard that matches one character
+CH_STAR:                      EQU  &2A         ; the wildcard that matches any run of characters
+TYPE_MASK:                    EQU  &1F         ; bits 0 to 4 of the type byte are the type itself
+
 ; Directory scan
 DIR_MODE_BUILD_MAP:           EQU  &20         ; rebuild the free-sector map while scanning
 DIR_MODE_COLLECT:             EQU  &02         ; collect names for a sorted listing
@@ -247,13 +255,6 @@ DIR_MODE_LIST:                EQU  &04         ; print a full listing, with a he
 DIR_MODE_NAME:                EQU  &08         ; match the name, honouring * and ?
 DIR_MODE_NAME_ONLY:           EQU  &10         ; match the name, ignoring the type
 NAME_AND_TYPE:                EQU  &0B         ; the type byte and the ten characters after it
-
-; Directory entry
-CASE_BLIND:                   EQU  &DF         ; every bit but the one that tells A from a
-CH_PERIOD:                    EQU  &2E         ; between a name and its type
-CH_QUERY:                     EQU  &3F         ; the wildcard that matches one character
-CH_STAR:                      EQU  &2A         ; the wildcard that matches any run of characters
-TYPE_MASK:                    EQU  &1F         ; bits 0 to 4 of the type byte are the type itself
 
 ; Disk controller status
 BLOCK_ERROR_FLAGS:            EQU  (DISK_STATUS_DRQ | DISK_STATUS_CRC_ERROR | DISK_STATUS_RECORD_NOT_FOUND) >> 1
@@ -3833,13 +3834,24 @@ FDH1_1:
 ;;     +13       first track, bit 7 for side 2, and first sector
 ;;     +15       195 bytes of sector map -- which sectors are this
 ;;               file's, in the same bit order as NSAM
-;;     +210      the disc's name in entry 0; the file's nine-byte
-;;               header in any other
-;;     +220      the tail of the ROM's 48-byte header, date stamp and all
-;;     +&FA      the tag a subdirectory gives to the files inside it
-;;     +&FE      the tag of the directory this file belongs to, 0 for
+;;     +210      nothing, except in entry 0, where 210 to 219 are the
+;;               disc's name
+;;     +211      the file's own nine-byte header, the same nine bytes
+;;               that begin its data
+;;     +220      33 bytes of the ROM's 48-byte file header, from its
+;;               byte 15.  The fields that mean anything end at 244:
+;;               flags at 220, and start, length and execution address
+;;               at 236, 239 and 242
+;;
+;; Everything past 244 is room the ROM's header leaves spare, and
+;; MasterDOS spends it:
+;;
+;;     +245      the date stamp -- day, month, year, hour, minute
+;;     +250      the tag a subdirectory gives to the files inside it
+;;     +252      in entry 0, the word that identifies the disc
+;;     +254      the tag of the directory this file belongs to, 0 for
 ;;               the root
-;;     +&FF      in entry 0, the directory's length beyond four tracks
+;;     +255      in entry 0, the directory's length beyond four tracks
 ;; --------------------------------------------------------------------
 
 ; ---- FDH05_1 ---- from &4B83
@@ -4590,8 +4602,9 @@ NCF25_1:
                DEFW CURCMD                     ; 4E4D 74 5B
                CP &CF                          ; 4E4F FE CF  COPY, which has brought the original's date with it
                JR Z,NCF25_2                    ; 4E51 28 05  so leave the stamp alone
-               CALL CALLMB                     ; 4E53 CD BD 42  anything else gets today's date at offsets &F2 to &FB
-               DEFW &4A39                      ; 4E56 39 4A
+               CALL CALLMB                     ; 4E53 CD BD 42  anything else is stamped with the date, five bytes at
+                                               ; &F5
+               DEFW MB_STAMP_WITH_DATE-&4000   ; 4E56 39 4A
 
 ; ---- NCF25_2 ---- from &4E51 when A = &CF
 NCF25_2:
@@ -6588,23 +6601,28 @@ PNTY5_1:
                JP PNCR                         ; 56B8 C3 FC 5B
 
 ;; --------------------------------------------------------------------
-;; Fetch the &F5 buffer through GRPNTB, and return unless the first byte
-;; is set -- INC A then CP &02 rejects both &FF and &00 in one test.
-;; Otherwise "/" goes in C as the separator and the fields are printed
-;; in pairs.
+;; Print the date stamp beside a file in a full listing, if it has one.
+;;
+;; An unstamped entry holds &FF there on a disc MasterDOS formatted and
+;; &00 on one it did not, and INC A followed by CP &02 rejects both:
+;; &FF becomes &00 and &00 becomes &01, and carry is set for either.
+;;
+;; The fields are printed in pairs with a separator between them, "/"
+;; for the date and ":" for the time, which is why the same routine
+;; serves twice with a different byte in C.
 ;; --------------------------------------------------------------------
 
 ; ---- PRINT_DATE_IF_SET ---- from &56B5
 PRINT_DATE_IF_SET:
-               LD B,&F5                        ; 56BB 06 F5
+               LD B,&F5                        ; 56BB 06 F5  offset &F5 of the entry, where the stamp is
                CALL GRPNTB                     ; 56BD CD AE 4F
                LD A,(HL)                       ; 56C0 7E
-               INC A                           ; 56C1 3C
-               CP &02                          ; 56C2 FE 02
+               INC A                           ; 56C1 3C  &FF becomes 0 and &00 becomes 1
+               CP &02                          ; 56C2 FE 02  either is below 2, so either means "no date"
                RET C                           ; 56C4 D8
-               LD C,&2F                        ; 56C5 0E 2F
+               LD C,&2F                        ; 56C5 0E 2F  "/" between the parts of the date
                CALL PRINT_TWO_FIELDS           ; 56C7 CD D0 56
-               LD C,&3A                        ; 56CA 0E 3A
+               LD C,&3A                        ; 56CA 0E 3A  and ":" between the parts of the time
                LD A,&20                        ; 56CC 3E 20
                JR PRINT_DATE_IF_SET_1          ; 56CE 18 04
 
