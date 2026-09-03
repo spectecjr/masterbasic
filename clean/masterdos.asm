@@ -240,17 +240,19 @@ RAMDISC_PAGE_HIGH:            EQU  &80
 SCREEN_PAGE_TYPE:             EQU  &30         ; allocation code for a page holding a screen
 
 ; Directory scan
+DIR_MODE_BUILD_MAP:           EQU  &20         ; rebuild the free-sector map while scanning
 DIR_MODE_COLLECT:             EQU  &02         ; collect names for a sorted listing
+DIR_MODE_FREE_SLOT:           EQU  &40         ; stop at the first free entry
 DIR_MODE_LIST:                EQU  &04         ; print a full listing, with a heading
 DIR_MODE_NAME:                EQU  &08         ; match the name, honouring * and ?
 DIR_MODE_NAME_ONLY:           EQU  &10         ; match the name, ignoring the type
+NAME_AND_TYPE:                EQU  &0B         ; the type byte and the ten characters after it
 
 ; Directory entry
 CASE_BLIND:                   EQU  &DF         ; every bit but the one that tells A from a
 CH_PERIOD:                    EQU  &2E         ; between a name and its type
 CH_QUERY:                     EQU  &3F         ; the wildcard that matches one character
 CH_STAR:                      EQU  &2A         ; the wildcard that matches any run of characters
-NAME_AND_TYPE:                EQU  &0B         ; the type byte and the ten characters after it
 TYPE_MASK:                    EQU  &1F         ; bits 0 to 4 of the type byte are the type itself
 
 ; Disk controller status
@@ -4264,40 +4266,38 @@ CLSML:
                RET                             ; 4D04 C9
 
 ;; --------------------------------------------------------------------
-;;  ROFSM / OFSM -- open a file for writing
+;; OFSM, and then count the file as a long-term one.
 ;;
-;;  Scanning the directory rebuilds the free-sector map and, if a file of the same name is found, offers to overwrite
-;;  it. The map already includes the old file's sectors by then, so rather than rescanning, DBAML XORs the old file's
-;;  own bitmap out of the global one -- the bits it contributed are exactly the ones to release.
+;; A random-access or serial file stays open across statements, so the
+;; free-sector map has to survive with it: SAMCNT is what OFSM consults
+;; before clearing the map, and this is where it goes up.
 ;;
-;;  SAMCNT counts long-term open files. While any is open the map must not be cleared, because it describes space that
-;;  those files are still claiming.
-;;
-;;  Exit:   NC and the file is open; CY if the user declined to overwrite
-;;
-;; RND/SERIAL OPEN FILE SECTOR ADDRESS MAP - INC SAMCNT
-;; OF LONG-TERM OPEN FILES (CHANS BUFFERS)
+;; THE FIRST SUCH FILE ALSO PINS THE DISC.  SAMRN takes the random word
+;; that identifies the disc in the drive and TDVAR the drive number, so
+;; that a later check can tell whether the map still describes the disc
+;; it was built from.  Only the first needs to: after that the disc is
+;; already pinned.
 ;; --------------------------------------------------------------------
 
 ; ---- ROFSM ---- from &6CA9, &6CF5
 ROFSM:
                CALL OFSM                       ; 4D05 CD 2B 4D
-               LD A,(SAMCNT)                   ; 4D08 3A 34 42
-               INC A                           ; 4D0B 3C
+               LD A,(SAMCNT)                   ; 4D08 3A 34 42  how many long-term files were open
+               INC A                           ; 4D0B 3C  one more now
                LD (SAMCNT),A                   ; 4D0C 32 34 42
-               DEC A                           ; 4D0F 3D
-               JR NZ,ROFSM_DONE                ; 4D10 20 10  JR IF NOT FIRST FILE
-               CALL GRWA                       ; 4D12 CD 3C 74  GET CUR. RAND WORD ADDR IN HL
+               DEC A                           ; 4D0F 3D  was this the first?
+               JR NZ,ROFSM_DONE                ; 4D10 20 10  no, so the disc is already recorded
+               CALL GRWA                       ; 4D12 CD 3C 74  the word that identifies the disc in the drive
                LD C,(HL)                       ; 4D15 4E
                INC HL                          ; 4D16 23
                LD B,(HL)                       ; 4D17 46
-               LD (SAMRN),BC                   ; 4D18 ED 43 6D 42  RND NO. OF DISC USED FOR SAM
-               LD A,(DRIVE)                    ; 4D1C 3A 0B 7C
+               LD (SAMRN),BC                   ; 4D18 ED 43 6D 42  remembered, so a swap can be noticed later
+               LD A,(DRIVE)                    ; 4D1C 3A 0B 7C  and which drive it was in
                LD (TDVAR),A                    ; 4D1F 32 6F 42
 
 ; ---- ROFSM_DONE ---- from &4D10 when A is not 0 yet
 ROFSM_DONE:
-               XOR A                           ; 4D22 AF  NC - OK
+               XOR A                           ; 4D22 AF  NC: the file is open
                RET                             ; 4D23 C9
                LD (HL),A                       ; 4D24 77
                CALL CKDRV                      ; 4D25 CD 07 48
@@ -4306,43 +4306,81 @@ ROFSM_DONE:
 GOFSM:
                CALL RESET_BUFFER_POINTERS      ; 4D28 CD 84 4F
 
+;; --------------------------------------------------------------------
+;; Open a file for writing: make room for it, and deal with one of the
+;; same name already being there.
+;;
+;; The scan does both jobs at once.  Mode &30 asks FDHR to rebuild the
+;; free-sector map as it goes and to stop if it meets the name, so a
+;; single pass answers "where is the free space" and "does this file
+;; already exist".
+;;
+;; THE MAP IS CLEARED FIRST, but only if no long-term file is open.
+;; SAMCNT counts those, and while any is open the map describes space
+;; they are still claiming, so clearing it would let the next file be
+;; written over theirs.
+;;
+;; IF THE NAME IS NOT THERE the work is over: OFM4 builds a fresh
+;; entry image and returns.
+;;
+;; IF IT IS, the old file has to go, and the interesting part is what
+;; that costs.  The scan has already ORed the old file's sector map
+;; into SAM, because it ORs every live entry's map in as it passes.
+;; Rather than clear SAM and read the whole directory again, DBAML
+;; XORs the old entry's 195 map bytes back out: those bits are the ones
+;; it contributed, and nothing else can have set them, so the XOR
+;; releases exactly the old file's sectors and leaves the rest alone.
+;;
+;; The entry itself is erased by zeroing its type byte, and the slot it
+;; leaves is offered to CLAIM_FREE_SLOT, so the new file will usually
+;; take the place of the one it replaced.  The sector goes back to the
+;; disc, and FDH1 carries the scan on through the rest of the directory
+;; -- the map is not finished until every entry has been read.  If that
+;; finds the name a second time the whole erasure is done again: a disc
+;; can hold two files of one name, and this is where they are dealt
+;; with.
+;;
+;; Exit:   NC and the file is open; CY if the user answered N.
+;; --------------------------------------------------------------------
+
 ; ---- OFSM ---- from &4D05, &541E, &5A6F
 OFSM:
                PUSH IX                         ; 4D2B DD E5
 
 ; ---- OFSM_1 ---- from MB &5256
 OFSM_1:
-               LD A,(SAMCNT)                   ; 4D2D 3A 34 42
-               AND A                           ; 4D30 A7
-               CALL Z,CLSAM                    ; 4D31 CC FA 4C  NO CLEAR IF OPEN-TYPE FILE(S) HAS
-               LD A,&30                        ; 4D34 3E 30  BIT 5=CREATE SAM,BIT 4=TEST FOR NAME
-               CALL FDHR                       ; 4D36 CD 31 4B
-               JR NZ,OFM4                      ; 4D39 20 5B  JR IF NAME NOT FOUND
+               LD A,(SAMCNT)                                ; 4D2D 3A 34 42  how many long-term files are open
+               AND A                                        ; 4D30 A7
+               CALL Z,CLSAM                                 ; 4D31 CC FA 4C  none, so the map can be thrown away and
+                                                            ; rebuilt
+               LD A,DIR_MODE_BUILD_MAP | DIR_MODE_NAME_ONLY ; 4D34 3E 30  BIT 5=CREATE SAM,BIT 4=TEST FOR NAME
+               CALL FDHR                                    ; 4D36 CD 31 4B  one pass answers both questions
+               JR NZ,OFM4                                   ; 4D39 20 5B  no file of that name, so nothing to displace
 
 ; ---- OFSM_2 ---- from &4D94
 OFSM_2:
                PUSH DE                         ; 4D3B D5
-               CALL CALL_ROM_66CB              ; 4D3C CD 70 5E
+               CALL CALL_ROM_66CB              ; 4D3C CD 70 5E  is this OPEN DIR, which may not overwrite?
                JP NZ,REP28                     ; 4D3F C2 8C 51  "FILE NAME USED" IF "OPEN DIR"
-               CALL POINT                      ; 4D42 CD AC 4F
-               AND &1F                         ; 4D45 E6 1F
-               CP &15                          ; 4D47 FE 15
-               JP Z,REP28                      ; 4D49 CA 8C 51  OR IF DIR FILE
+               CALL POINT                      ; 4D42 CD AC 4F  the entry that matched
+               AND TYPE_MASK                   ; 4D45 E6 1F
+               CP DFT                          ; 4D47 FE 15
+               JP Z,REP28                      ; 4D49 CA 8C 51  a directory is not something SAVE may overwrite either
                CALL NRRD                       ; 4D4C CD 5E 50
                DEFW OVERF                      ; 4D4F B9 5B
-               AND A                           ; 4D51 A7
-               JR Z,OFSM_4                     ; 4D52 28 1A  NO "OVERWRITE? Y/N" IF SAVE OVER
+               AND A                           ; 4D51 A7  was OVER given?
+               JR Z,OFSM_4                     ; 4D52 28 1A  then the file goes without asking
                PUSH HL                         ; 4D54 E5
-               CALL HK_SKSAFE                  ; 4D55 CD 23 47  IN CASE "N"
+               CALL HK_SKSAFE                  ; 4D55 CD 23 47  in case the answer is no, leave the drive safe
                POP HL                          ; 4D58 E1
-               BIT 6,(HL)                      ; 4D59 CB 76
+               BIT 6,(HL)                      ; 4D59 CB 76  a protected file is not overwritten at all
                JP NZ,REP33_2                   ; 4D5B C2 9E 51  "PROTECTED FILE"
                CALL PMO5                       ; 4D5E CD FA 57  "OVERWRITE"
-               CALL FNM7K                      ; 4D61 CD 17 59  FILE NAME, "Y/N", KEY
-               JR Z,OFSM_3                     ; 4D64 28 05  JR IF "Y"
+               CALL FNM7K                      ; 4D61 CD 17 59  the name, and wait for Y or N
+               JR Z,OFSM_3                     ; 4D64 28 05  Y, so go ahead
                POP DE                          ; 4D66 D1
                POP IX                          ; 4D67 DD E1
-               SCF                             ; 4D69 37  SIGNAL ERROR
+               SCF                             ; 4D69 37  N: carry says the caller must give up
                RET                             ; 4D6A C9  AND ABORT
 
 ; ---- OFSM_3 ---- from &4D64
@@ -4351,64 +4389,72 @@ OFSM_3:
 
 ; ---- OFSM_4 ---- from &4D52 when A = 0
 OFSM_4:
-               CALL DDEL                       ; 4D6E CD 5F 65
+               CALL DDEL                       ; 4D6E CD 5F 65  release the old file's space
                CALL POINT                      ; 4D71 CD AC 4F
-               LD (HL),&00                     ; 4D74 36 00
-               LD BC,&000F                     ; 4D76 01 0F 00
+               LD (HL),&00                     ; 4D74 36 00  zero the type byte, which is what erasing an entry means
+               LD BC,&000F                     ; 4D76 01 0F 00  fifteen bytes in is the old file's own sector map
                ADD HL,BC                       ; 4D79 09  POINT TO SAM OF FILE IN BUFFER
-               LD DE,SAM                       ; 4D7A 11 0F 40  POINT TO BAM FOR DISC SO FAR
-               LD B,&C3                        ; 4D7D 06 C3
+               LD DE,SAM                       ; 4D7A 11 0F 40  and this is the disc's
+               LD B,&C3                        ; 4D7D 06 C3  195 map bytes, one bit to a sector
 
 ; ---- DBAML ---- from &4D84 when B is not 0 yet
 DBAML:
                LD A,(DE)                       ; 4D7F 1A
-               XOR (HL)                        ; 4D80 AE  REVERSE BITS ORED IN BY FDHR
-               LD (DE),A                       ; 4D81 12  UPDATE BAM TO TAKE ACCOUNT OF
+               XOR (HL)                        ; 4D80 AE  the scan ORed these bits in; XOR takes them back out
+               LD (DE),A                       ; 4D81 12  so the old file's sectors are free again
                INC E                           ; 4D82 1C  ERASURE
                INC HL                          ; 4D83 23
                DJNZ DBAML                      ; 4D84 10 F9
                POP DE                          ; 4D86 D1
-               CALL CLAIM_FREE_SLOT            ; 4D87 CD E0 4F
-               CALL WSAD                       ; 4D8A CD 86 45  WRITE DIR SECT TO DISC
+               CALL CLAIM_FREE_SLOT            ; 4D87 CD E0 4F  and its slot is where the new file will go
+               CALL WSAD                       ; 4D8A CD 86 45  the erasure has to reach the disc
                LD IX,DOSBUF                    ; 4D8D DD 21 00 7C
-               CALL FDH1                       ; 4D91 CD 85 4B  COMPLETE BAM BY SCANNING REST OF
-               JR Z,OFSM_2                     ; 4D94 28 A5  JR IF SECOND OR OTHER COPY...
+               CALL FDH1                       ; 4D91 CD 85 4B  carry the scan on: the map is not complete until the end
+               JR Z,OFSM_2                     ; 4D94 28 A5  another file of the same name, so do all that again
 
 ;; --------------------------------------------------------------------
-;; SHOLD NEVER BE!
+;; Build the directory entry for a file that is not there yet.
 ;;
-;; CLEAR AREA FOR NEW DIR ENTRY IN BUFFER
+;; Three copies into the entry image and two fields written by hand.
+;; The image is 256 bytes of the channel record at FSA, and IX walks
+;; through it, which is why every one of these instructions addresses
+;; it as (IX+FFSA) with IX moving rather than the displacement.
+;;
+;; Clear all 256 bytes; copy the type and the ten characters of the
+;; name from NSTR1; copy 33 bytes of the ROM's file header into offset
+;; 220, where the tail of it lives; find the first free sector and
+;; write its track and sector into offsets 13 and 14.
 ;; --------------------------------------------------------------------
 
 ; ---- OFM4 ---- from &4D39
 OFM4:
                POP IX                          ; 4D96 DD E1
                PUSH IX                         ; 4D98 DD E5
-               LD B,&00                        ; 4D9A 06 00  256 iterations: the whole entry image
+               LD B,&00                        ; 4D9A 06 00  B counts 256, not none
 
 ; ---- OFM5 ---- from &4DA2 when B is not 0 yet
 OFM5:
-               LD (IX+&13),&00                 ; 4D9C DD 36 13 00
+               LD (IX+FFSA),&00                ; 4D9C DD 36 13 00
                INC IX                          ; 4DA0 DD 23
                DJNZ OFM5                       ; 4DA2 10 F8
                POP IX                          ; 4DA4 DD E1
                PUSH IX                         ; 4DA6 DD E5
                LD HL,NSTR1                     ; 4DA8 21 3A 41
-               LD B,&0B                        ; 4DAB 06 0B
-               CALL OFM6                       ; 4DAD CD D7 4D
+               LD B,NAME_AND_TYPE              ; 4DAB 06 0B
+               CALL OFM6                       ; 4DAD CD D7 4D  the type byte and the name
                POP IX                          ; 4DB0 DD E1
                PUSH IX                         ; 4DB2 DD E5
-               LD BC,&00DC                     ; 4DB4 01 DC 00
+               LD BC,&00DC                     ; 4DB4 01 DC 00  220 bytes in, where the ROM's header goes
                ADD IX,BC                       ; 4DB7 DD 09
-               LD HL,UIFA+15                   ; 4DB9 21 8C 41
+               LD HL,UIFA+15                   ; 4DB9 21 8C 41  the tail of the 48-byte header the ROM keeps
                LD B,&21                        ; 4DBC 06 21
-               CALL OFM6                       ; 4DBE CD D7 4D
+               CALL OFM6                       ; 4DBE CD D7 4D  date stamp and all
                POP IX                          ; 4DC1 DD E1
                CALL CALL_ROM_66CB              ; 4DC3 CD 70 5E
-               CALL Z,FNFS                     ; 4DC6 CC 83 4A  AVOID FNFS IF EXISTING OPENTYPE
+               CALL Z,FNFS                     ; 4DC6 CC 83 4A  an existing open-type file already has its first sector
                CALL SET_TRACK_AND_SECTOR       ; 4DC9 CD C6 4F
-               LD (IX+&20),D                   ; 4DCC DD 72 20  FIRST TRACK
-               LD (IX+&21),E                   ; 4DCF DD 73 21  AND SECTOR OF FILE IN DIR
+               LD (IX+FFSA+13),D               ; 4DCC DD 72 20  FIRST TRACK
+               LD (IX+FFSA+14),E               ; 4DCF DD 73 21  AND SECTOR OF FILE IN DIR
                CALL CLEAR_TRANSFER_COUNT       ; 4DD2 CD 8E 4F
                XOR A                           ; 4DD5 AF  NC=OK
                RET                             ; 4DD6 C9
@@ -4416,7 +4462,7 @@ OFM5:
 ; ---- OFM6 ---- from &4DAD, &4DBE, &4DDE when B is not 0 yet
 OFM6:
                LD A,(HL)                       ; 4DD7 7E
-               LD (IX+&13),A                   ; 4DD8 DD 77 13
+               LD (IX+FFSA),A                  ; 4DD8 DD 77 13
                INC HL                          ; 4DDB 23
                INC IX                          ; 4DDC DD 23
                DJNZ OFM6                       ; 4DDE 10 F7
@@ -4457,80 +4503,119 @@ SCFSM:
                CALL GET_TRACK_AND_SECTOR       ; 4DF8 CD BF 4F
                CALL WSAD                       ; 4DFB CD 86 45  LAST SECTOR
 
+;; --------------------------------------------------------------------
+;; Close the file: write the entry image into a directory slot.
+;;
+;; FSLOT is where the scan that opened the file saw a free entry, and
+;; that is normally where this one goes -- one sector read, no search.
+;; A zero there means no free slot was seen, and a full scan is run to
+;; make sure before the directory is called full.
+;; --------------------------------------------------------------------
+
 ; ---- CFSM ---- from &544D, &6551, &7220
 CFSM:
                PUSH IX                         ; 4DFE DD E5
-               LD DE,(FSLOT)                   ; 4E00 ED 5B FC 41
-               INC E                           ; 4E04 1C
+               LD DE,(FSLOT)                   ; 4E00 ED 5B FC 41  where the scan saw a free entry
+               INC E                           ; 4E04 1C  zero means it never saw one
                DEC E                           ; 4E05 1D
-               JR Z,CLOSX                      ; 4E06 28 0B  DIR PROBABLY FULL - BUT DO A FULL
-               CALL READ_SECTOR                ; 4E08 CD B7 45  READ DIR SECTOR WITH FREE SLOTS
-               LD A,(FSLTE)                    ; 4E0B 3A FE 41
+               JR Z,CLOSX                      ; 4E06 28 0B  which is not proof, so look properly before giving up
+               CALL READ_SECTOR                ; 4E08 CD B7 45  the sector that holds it
+               LD A,(FSLTE)                    ; 4E0B 3A FE 41  and which of the two entries in it
                LD (DCHAN+RPTH),A               ; 4E0E 32 0E 7C  PT RPT TO FREE SLOT
                JR NCF25                        ; 4E11 18 08
 
 ; ---- CLOSX ---- from &4E06 when E reaches 0, &6ED5 when bit 2 of (IX+&0C) clear
 CLOSX:
-               LD A,&40                        ; 4E13 3E 40  FIND FREE SLOT
-               CALL FDHR                       ; 4E15 CD 31 4B
-               JP NZ,REP25                     ; 4E18 C2 86 51  DIRECTORY FULL
+               LD A,DIR_MODE_FREE_SLOT         ; 4E13 3E 40  FIND FREE SLOT
+               CALL FDHR                       ; 4E15 CD 31 4B  a whole scan, for the free slot alone
+               JP NZ,REP25                     ; 4E18 C2 86 51  there really is nowhere to put it
 
 ;; --------------------------------------------------------------------
-;; UPDATE DIRECTORY
-;; JPED TO FROM CLOSP
+;; Write the entry, keeping the parts of it that are the disc's.
+;;
+;; ENTRY 1 OF SECTOR 1 OF TRACK 0 is not only a file's entry.  It also
+;; carries the disc's name, the word that identifies the disc, and the
+;; number of directory tracks beyond the four SAMDOS allowed.  Those
+;; belong to the disc and not to the file being closed, so on that one
+;; entry the copy is done in pieces and the disc's own bytes are left
+;; as they were read:
+;;
+;;     0 to 209     copied from the image
+;;     210 to 219   the disc's name, left alone
+;;     220 to 251   copied from the image
+;;     252 to 253   left alone
+;;     254          the directory tag, taken from the image
+;;     255          extra directory tracks, left alone
+;;
+;; Any other entry is copied whole, and the same CALL does it: B is
+;; already zero, so one call of CFMC moves 256 bytes.  The special case
+;; ends with CP A to set the zero flag, and the CALL NZ that follows is
+;; skipped -- the general path falls into it with the flag still saying
+;; "not the first entry".
+;;
+;; THE TEST FOR THAT ENTRY is three instructions with no branch in
+;; them: sector minus one, ORed with the track, ORed with which of the
+;; two entries POINT left in B.  Zero only if all three were.
 ;; --------------------------------------------------------------------
 
 ; ---- NCF25 ---- from &4E11, &6EEE
 NCF25:
-               CALL POINT                      ; 4E1B CD AC 4F
+               CALL POINT                      ; 4E1B CD AC 4F  HL to the entry, and B says which of the two it is
                LD (SVIX),IX                    ; 4E1E DD 22 07 7C
                POP IX                          ; 4E22 DD E1
                PUSH IX                         ; 4E24 DD E5
-               LD A,E                          ; 4E26 7B
+               LD A,E                          ; 4E26 7B  sector 1?
                DEC A                           ; 4E27 3D
-               OR D                            ; 4E28 B2
-               OR B                            ; 4E29 B0  OFFSET FROM 'POINT'
-               LD B,&00                        ; 4E2A 06 00  B=COUNT FOR 256 BYTES
-               JR NZ,NCF25_1                   ; 4E2C 20 15  JR IF NOT T0,S1,ENTRY1
-               LD BC,&D20A                     ; 4E2E 01 0A D2  C=0AH
-               CALL CFMC                       ; 4E31 CD 6B 4E  COPY BYTES 0-D1 FROM BUFFER
-               ADD HL,BC                       ; 4E34 09  SKIP DISC NAME - KEEP AS READ FROM
-               ADD IX,BC                       ; 4E35 DD 09  (BC=000AH)
-               LD B,&20                        ; 4E37 06 20
-               CALL CFMC                       ; 4E39 CD 6B 4E  COPY BYTES DC-FB FROM BUFFER, ONLY
-               LD A,(IX+&15)                   ; 4E3C DD 7E 15  READ DIR TAG
+               OR D                            ; 4E28 B2  and track 0?
+               OR B                            ; 4E29 B0  and the first of the two entries in it?
+               LD B,&00                        ; 4E2A 06 00  256 bytes, for whichever path is taken
+               JR NZ,NCF25_1                   ; 4E2C 20 15  an ordinary entry, so copy the whole of it
+               LD BC,&D20A                     ; 4E2E 01 0A D2  210 bytes, then step 10 over the disc's name
+               CALL CFMC                       ; 4E31 CD 6B 4E  bytes 0 to 209 of the entry, out of the image
+               ADD HL,BC                       ; 4E34 09  past the name in the sector
+               ADD IX,BC                       ; 4E35 DD 09  and past it in the image
+               LD B,&20                        ; 4E37 06 20  the ROM header's tail, 32 bytes of it
+               CALL CFMC                       ; 4E39 CD 6B 4E  bytes 220 to 251, out of the image as well
+               LD A,(IX+&15)                   ; 4E3C DD 7E 15  the directory tag out of the image
                INC HL                          ; 4E3F 23
                INC HL                          ; 4E40 23
-               LD (HL),A                       ; 4E41 77  USE DIR TAG FROM BUFFER, NOT DISC
-               CP A                            ; 4E42 BF  Z
+               LD (HL),A                       ; 4E41 77  the file's tag is the file's, even in this entry
+               CP A                            ; 4E42 BF  set Z, so the copy below is not done twice
 
 ; ---- NCF25_1 ---- from &4E2C
 NCF25_1:
-               CALL NZ,CFMC                    ; 4E43 C4 6B 4E
+               CALL NZ,CFMC                    ; 4E43 C4 6B 4E  the whole entry, for every other slot
                LD IX,(SVIX)                    ; 4E46 DD 2A 07 7C
-               CALL NRRD                       ; 4E4A CD 5E 50  COPY DATE/TIME TO +F2 TO +FB
+               CALL NRRD                       ; 4E4A CD 5E 50  which command is running
                DEFW CURCMD                     ; 4E4D 74 5B
-               CP &CF                          ; 4E4F FE CF
-               JR Z,NCF25_2                    ; 4E51 28 05
-               CALL CALLMB                     ; 4E53 CD BD 42
+               CP &CF                          ; 4E4F FE CF  COPY, which has brought the original's date with it
+               JR Z,NCF25_2                    ; 4E51 28 05  so leave the stamp alone
+               CALL CALLMB                     ; 4E53 CD BD 42  anything else gets today's date at offsets &F2 to &FB
                DEFW &4A39                      ; 4E56 39 4A
 
 ; ---- NCF25_2 ---- from &4E51 when A = &CF
 NCF25_2:
                CALL POINT                      ; 4E58 CD AC 4F
-               INC H                           ; 4E5B 24
+               INC H                           ; 4E5B 24  offset &FE, the tag of the directory the file is in
                DEC HL                          ; 4E5C 2B
                DEC HL                          ; 4E5D 2B
-               LD A,(CDIRT)                    ; 4E5E 3A 31 42
+               LD A,(CDIRT)                    ; 4E5E 3A 31 42  the current directory
                LD (HL),A                       ; 4E61 77  TAG FILE WITH DIRECTORY CODE
-               CALL WSAD                       ; 4E62 CD 86 45
+               CALL WSAD                       ; 4E62 CD 86 45  and the sector goes to the disc
                CALL HK_SKSAFE                  ; 4E65 CD 23 47
                POP IX                          ; 4E68 DD E1
                RET                             ; 4E6A C9
 
+;; --------------------------------------------------------------------
+;; Copy B bytes from the entry image into the sector buffer.
+;;
+;; IX walks the image and HL the buffer, and B zero means 256, which is
+;; the whole entry.
+;; --------------------------------------------------------------------
+
 ; ---- CFMC ---- from &4E31, &4E39, &4E43 when A <> A, &4E72 when B is not 0 yet
 CFMC:
-               LD A,(IX+&13)                   ; 4E6B DD 7E 13
+               LD A,(IX+FFSA)                  ; 4E6B DD 7E 13
                LD (HL),A                       ; 4E6E 77
                INC IX                          ; 4E6F DD 23
                INC HL                          ; 4E71 23
@@ -5542,7 +5627,7 @@ REP27:
                LD A,ERR_END_OF_FILE            ; 5189 3E 16
                DEFB SKIP_2_VIA_LD_HL           ; 518B !  EOF
 
-; ---- REP28 ---- from &4D3F, &4D49 when A = &15, &5D9F
+; ---- REP28 ---- from &4D3F, &4D49 when A = DFT, &5D9F
 REP28:
                LD A,ERR_FILE_NAME_USED         ; 518C 3E 6D
                DEFB SKIP_2_VIA_LD_HL           ; 518E !

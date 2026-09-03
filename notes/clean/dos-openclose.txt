@@ -1,0 +1,198 @@
+# Opening and closing a file: building a directory entry and writing it.
+#
+# Prose for clean/ only.  The entry being built lives in the channel
+# record at FSA, reached as (IX+FFSA), so every offset into a directory
+# entry is written FFSA plus that offset.
+
+DOC ROFSM
+    OFSM, and then count the file as a long-term one.
+
+    A random-access or serial file stays open across statements, so the
+    free-sector map has to survive with it: SAMCNT is what OFSM consults
+    before clearing the map, and this is where it goes up.
+
+    THE FIRST SUCH FILE ALSO PINS THE DISC.  SAMRN takes the random word
+    that identifies the disc in the drive and TDVAR the drive number, so
+    that a later check can tell whether the map still describes the disc
+    it was built from.  Only the first needs to: after that the disc is
+    already pinned.
+
+DOS &4D08 : how many long-term files were open
+DOS &4D0B : one more now
+DOS &4D0F : was this the first?
+DOS &4D10 : no, so the disc is already recorded
+DOS &4D12 : the word that identifies the disc in the drive
+DOS &4D18 : remembered, so a swap can be noticed later
+DOS &4D1C : and which drive it was in
+DOS &4D22 : NC: the file is open
+
+DOC OFSM
+    Open a file for writing: make room for it, and deal with one of the
+    same name already being there.
+
+    The scan does both jobs at once.  Mode &30 asks FDHR to rebuild the
+    free-sector map as it goes and to stop if it meets the name, so a
+    single pass answers "where is the free space" and "does this file
+    already exist".
+
+    THE MAP IS CLEARED FIRST, but only if no long-term file is open.
+    SAMCNT counts those, and while any is open the map describes space
+    they are still claiming, so clearing it would let the next file be
+    written over theirs.
+
+    IF THE NAME IS NOT THERE the work is over: OFM4 builds a fresh
+    entry image and returns.
+
+    IF IT IS, the old file has to go, and the interesting part is what
+    that costs.  The scan has already ORed the old file's sector map
+    into SAM, because it ORs every live entry's map in as it passes.
+    Rather than clear SAM and read the whole directory again, DBAML
+    XORs the old entry's 195 map bytes back out: those bits are the ones
+    it contributed, and nothing else can have set them, so the XOR
+    releases exactly the old file's sectors and leaves the rest alone.
+
+    The entry itself is erased by zeroing its type byte, and the slot it
+    leaves is offered to CLAIM_FREE_SLOT, so the new file will usually
+    take the place of the one it replaced.  The sector goes back to the
+    disc, and FDH1 carries the scan on through the rest of the directory
+    -- the map is not finished until every entry has been read.  If that
+    finds the name a second time the whole erasure is done again: a disc
+    can hold two files of one name, and this is where they are dealt
+    with.
+
+    Exit:   NC and the file is open; CY if the user answered N.
+
+DOS &4D2D : how many long-term files are open
+DOS &4D31 : none, so the map can be thrown away and rebuilt
+DOS &4D34 expr DIR_MODE_BUILD_MAP | DIR_MODE_NAME_ONLY
+DOS &4D36 : one pass answers both questions
+DOS &4D39 : no file of that name, so nothing to displace
+DOS &4D3C : is this OPEN DIR, which may not overwrite?
+DOS &4D42 : the entry that matched
+DOS &4D45 expr TYPE_MASK
+DOS &4D47 value DFT
+DOS &4D49 : a directory is not something SAVE may overwrite either
+DOS &4D51 : was OVER given?
+DOS &4D52 : then the file goes without asking
+DOS &4D55 : in case the answer is no, leave the drive safe
+DOS &4D59 : a protected file is not overwritten at all
+DOS &4D5E : "OVERWRITE"
+DOS &4D61 : the name, and wait for Y or N
+DOS &4D64 : Y, so go ahead
+DOS &4D69 : N: carry says the caller must give up
+DOS &4D6E : release the old file's space
+DOS &4D74 : zero the type byte, which is what erasing an entry means
+DOS &4D76 : fifteen bytes in is the old file's own sector map
+DOS &4D7A : and this is the disc's
+DOS &4D7D : 195 map bytes, one bit to a sector
+DOS &4D80 : the scan ORed these bits in; XOR takes them back out
+DOS &4D81 : so the old file's sectors are free again
+DOS &4D87 : and its slot is where the new file will go
+DOS &4D8A : the erasure has to reach the disc
+DOS &4D91 : carry the scan on: the map is not complete until the end
+DOS &4D94 : another file of the same name, so do all that again
+
+GROUP Directory scan
+CONST DIR_MODE_BUILD_MAP = &20 : rebuild the free-sector map while scanning
+CONST DIR_MODE_FREE_SLOT = &40 : stop at the first free entry
+
+DOC OFM4
+    Build the directory entry for a file that is not there yet.
+
+    Three copies into the entry image and two fields written by hand.
+    The image is 256 bytes of the channel record at FSA, and IX walks
+    through it, which is why every one of these instructions addresses
+    it as (IX+FFSA) with IX moving rather than the displacement.
+
+    Clear all 256 bytes; copy the type and the ten characters of the
+    name from NSTR1; copy 33 bytes of the ROM's file header into offset
+    220, where the tail of it lives; find the first free sector and
+    write its track and sector into offsets 13 and 14.
+
+DOS &4D9A : B counts 256, not none
+DOS &4D9C expr FFSA
+DOS &4DAB value NAME_AND_TYPE
+DOS &4DAD : the type byte and the name
+DOS &4DB4 : 220 bytes in, where the ROM's header goes
+DOS &4DB9 : the tail of the 48-byte header the ROM keeps
+DOS &4DBE : date stamp and all
+DOS &4DC6 : an existing open-type file already has its first sector
+DOS &4DCC expr FFSA+13
+DOS &4DCF expr FFSA+14
+DOS &4DD8 expr FFSA
+
+DOC CFSM
+    Close the file: write the entry image into a directory slot.
+
+    FSLOT is where the scan that opened the file saw a free entry, and
+    that is normally where this one goes -- one sector read, no search.
+    A zero there means no free slot was seen, and a full scan is run to
+    make sure before the directory is called full.
+
+DOS &4E00 : where the scan saw a free entry
+DOS &4E04 : zero means it never saw one
+DOS &4E06 : which is not proof, so look properly before giving up
+DOS &4E08 : the sector that holds it
+DOS &4E0B : and which of the two entries in it
+DOS &4E13 expr DIR_MODE_FREE_SLOT
+DOS &4E15 : a whole scan, for the free slot alone
+DOS &4E18 : there really is nowhere to put it
+
+DOC NCF25
+    Write the entry, keeping the parts of it that are the disc's.
+
+    ENTRY 1 OF SECTOR 1 OF TRACK 0 is not only a file's entry.  It also
+    carries the disc's name, the word that identifies the disc, and the
+    number of directory tracks beyond the four SAMDOS allowed.  Those
+    belong to the disc and not to the file being closed, so on that one
+    entry the copy is done in pieces and the disc's own bytes are left
+    as they were read:
+
+        0 to 209     copied from the image
+        210 to 219   the disc's name, left alone
+        220 to 251   copied from the image
+        252 to 253   left alone
+        254          the directory tag, taken from the image
+        255          extra directory tracks, left alone
+
+    Any other entry is copied whole, and the same CALL does it: B is
+    already zero, so one call of CFMC moves 256 bytes.  The special case
+    ends with CP A to set the zero flag, and the CALL NZ that follows is
+    skipped -- the general path falls into it with the flag still saying
+    "not the first entry".
+
+    THE TEST FOR THAT ENTRY is three instructions with no branch in
+    them: sector minus one, ORed with the track, ORed with which of the
+    two entries POINT left in B.  Zero only if all three were.
+
+DOS &4E1B : HL to the entry, and B says which of the two it is
+DOS &4E26 : sector 1?
+DOS &4E28 : and track 0?
+DOS &4E29 : and the first of the two entries in it?
+DOS &4E2A : 256 bytes, for whichever path is taken
+DOS &4E2C : an ordinary entry, so copy the whole of it
+DOS &4E2E : 210 bytes, then step 10 over the disc's name
+DOS &4E31 : bytes 0 to 209 of the entry, out of the image
+DOS &4E34 : past the name in the sector
+DOS &4E35 : and past it in the image
+DOS &4E37 : the ROM header's tail, 32 bytes of it
+DOS &4E39 : bytes 220 to 251, out of the image as well
+DOS &4E3C : the directory tag out of the image
+DOS &4E41 : the file's tag is the file's, even in this entry
+DOS &4E42 : set Z, so the copy below is not done twice
+DOS &4E43 : the whole entry, for every other slot
+DOS &4E4A : which command is running
+DOS &4E4F : COPY, which has brought the original's date with it
+DOS &4E51 : so leave the stamp alone
+DOS &4E53 : anything else gets today's date at offsets &F2 to &FB
+DOS &4E5B : offset &FE, the tag of the directory the file is in
+DOS &4E5E : the current directory
+DOS &4E62 : and the sector goes to the disc
+
+DOC CFMC
+    Copy B bytes from the entry image into the sector buffer.
+
+    IX walks the image and HL the buffer, and B zero means 256, which is
+    the whole entry.
+
+DOS &4E6B expr FFSA
