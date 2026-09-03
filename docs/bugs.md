@@ -86,11 +86,13 @@ place right, so RECORD NOT FOUND — status bit 4 — is bit 3 of what is
 tested. `BIT 3,A` would be both correct and inside the mask. This is
 the same rotate that produced defect 1, in the same routine family.
 
-**The third caller is the interesting one.** `SVB7` loads `A` from
-`PORT1` before calling `CDE1`, so `BIT 4,A` tests bit 4 of a page number.
-That is set for pages 16 to 31. So on a 256K machine the branch is never
-taken; on a 512K machine it is taken whenever the buffer page happens to
-be a high one, which has nothing to do with the disc.
+**The third caller is the worst of the three.** `SVB7` loads `A` from
+`PORT1` before calling `CDE1`, so the test is applied to a page number.
+Whether that comes out set is not worth working through. The point is
+that on none of the three paths is the branch decided by the RECORD NOT
+FOUND bit, which is the only thing it exists to test: twice by a mask
+that had already cleared that bit, once by a byte that was never a
+status. It is broken on all three, and that is enough.
 
 **What SAMDOS does** Both halves work there. Its mask is `%00011100`,
 which includes bit 4, so the bit survives to be tested; and its save path
@@ -99,10 +101,10 @@ puts `push af` and `pop af` around the paging, so the status is still in
 and let `SVB7` overwrite `A`.
 
 **What it costs** A sector that fails because the head is on the wrong
-track is recovered from by the blind route — step in, out, out, in — and
-never by reading an ID field to find out where the head actually is.
-`CDE1_1` and `CTS1` between them are some ninety bytes that a 256K
-machine can never execute.
+track is recovered from by the blind route — step in, out, out, in —
+rather than by reading an ID field to find out where the head actually
+is. `CDE1_1` and `CTS1` between them are some ninety bytes that are never
+entered for the reason they were written.
 
 **Written up at** `&46DF` in `clean/masterdos.asm`.
 

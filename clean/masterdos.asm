@@ -2518,7 +2518,9 @@ SRSA4:
 ;; rotated, so RECORD NOT FOUND is bit 3; and worse, bit 4 has already
 ;; been cleared by the mask that decided there was an error at all,
 ;; since neither &0E nor &0D includes it.  On the third caller A is not
-;; a status but a page number.  The full account is in docs/bugs.md.
+;; a status at all but a page number.  So on none of the three paths is
+;; the branch decided by the bit it exists to test.  The full account is
+;; in docs/bugs.md.
 ;; --------------------------------------------------------------------
 
 ; ---- RETRY_OR_GIVE_UP ---- from &45A7, &45C3, &4649, &46A7
