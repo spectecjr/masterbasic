@@ -4636,70 +4636,109 @@ CFMC:
                RET                             ; 4E74 C9
 
 ;; --------------------------------------------------------------------
-;; The file type out of the header, masked to five bits and bounded: &15
-;; or more is "wrong file type", and &12 to &14 -- the three SAM types --
-;; are separated by SUB &12 with ADC A,&00, so one subtract and one add
-;; do the work of two comparisons.
+;; Take the file the scan has found and set the DOS up to load it.
+;;
+;; THE TYPE IS CHECKED FIRST, twice, and neither test is a compare
+;; against a list.  &15 or more is a directory or an open-type file,
+;; neither of which LOAD will touch.  Then SUB &12 with ADC A,&00
+;; leaves zero for &11 and for &12 -- the numeric and the string array
+;; -- because subtracting borrows on the lower of the two and the ADC
+;; puts the borrow back.  Two values tested in four bytes; see idiom
+;; 14 in docs/idioms.md.  What survives is BASIC, CODE, SCREEN$ and the
+;; Spectrum types below &10.
+;;
+;; THE REST IS ASSEMBLY OF TWO STRUCTURES from the one entry, and the
+;; addresses are chosen so that each is filled by walking forwards:
+;;
+;;     NSTR1     the type byte and the ten characters of the name
+;;     +11       four zero bytes
+;;     HD001     the file's own nine-byte header, from offset 211 of
+;;               the entry -- which is NSTR1+15, so the same DE that
+;;               finished the name arrives here
+;;     V42E2     the two bytes after it
+;;
+;;     UIFA      the type and name again
+;;     +11       fifteen spaces
+;;     +26       twenty-two &FF bytes
+;;
+;; UIFA is the ROM's 48-byte header, and 11 plus 15 plus 22 is 48: what
+;; the directory knows is written in and the rest is filled with the
+;; "not set" byte, so the ROM is handed a header of the shape it
+;; expects for a file that never had one.
 ;; --------------------------------------------------------------------
 
 ; ---- CHECK_FILE_TYPE ---- from &5FA7, &65F7
 CHECK_FILE_TYPE:
-               CALL FILE_TYPE_AT_POINT         ; 4E75 CD 6C 4F  FIND FILE
-               AND &1F                         ; 4E78 E6 1F
-               CP &15                          ; 4E7A FE 15
-               JP NC,REP13                     ; 4E7C D2 71 51  ERROR IF DIR OR OPENTYPE
-               SUB &12                         ; 4E7F D6 12
+               CALL FILE_TYPE_AT_POINT         ; 4E75 CD 6C 4F  the entry the scan stopped on, and its type
+               AND TYPE_MASK                   ; 4E78 E6 1F
+               CP DFT                          ; 4E7A FE 15
+               JP NC,REP13                     ; 4E7C D2 71 51  a directory or an open-type file is not loadable
+               SUB &12                         ; 4E7F D6 12  zero for &11 and for &12
                ADC A,&00                       ; 4E81 CE 00
-               JP Z,REP13                      ; 4E83 CA 71 51  ERROR IF TYPE 11H OR 12H
-               LD DE,NSTR1                     ; 4E86 11 3A 41
+               JP Z,REP13                      ; 4E83 CA 71 51  which are the two array types, and not loadable either
+               LD DE,NSTR1                     ; 4E86 11 3A 41  the type byte and the name
                LD BC,&000B                     ; 4E89 01 0B 00
                LDIR                            ; 4E8C ED B0
-               LD B,&04                        ; 4E8E 06 04
+               LD B,&04                        ; 4E8E 06 04  four bytes of nothing between the name and the header
                XOR A                           ; 4E90 AF
                CALL FILL_DE_WITH_A             ; 4E91 CD 67 4F
-               LD B,&D3                        ; 4E94 06 D3
+               LD B,&D3                        ; 4E94 06 D3  offset 211 of the entry, where the nine-byte header is
                CALL GRPNTB                     ; 4E96 CD AE 4F
-               LD BC,&0009                     ; 4E99 01 09 00
+               LD BC,&0009                     ; 4E99 01 09 00  the nine bytes, straight into HD001
                LDIR                            ; 4E9C ED B0
-               LD DE,V42E2                     ; 4E9E 11 E2 42
+               LD DE,V42E2                     ; 4E9E 11 E2 42  and the two after them
                LD C,&02                        ; 4EA1 0E 02
                LDIR                            ; 4EA3 ED B0
-               CALL POINT                      ; 4EA5 CD AC 4F
-               LD DE,UIFA                      ; 4EA8 11 7D 41
+               CALL POINT                      ; 4EA5 CD AC 4F  back to the head of the entry
+               LD DE,UIFA                      ; 4EA8 11 7D 41  the ROM's 48-byte header starts with the type and the
+                                               ; name
                LD BC,&000B                     ; 4EAB 01 0B 00
                LDIR                            ; 4EAE ED B0
-               LD B,&0F                        ; 4EB0 06 0F
+               LD B,&0F                        ; 4EB0 06 0F  fifteen spaces where the ROM would have had its own
                CALL LCNTA                      ; 4EB2 CD 65 4F
-               LD B,&16                        ; 4EB5 06 16
+               LD B,&16                        ; 4EB5 06 16  and &FF -- "not set" -- for the twenty-two after that
                LD A,&FF                        ; 4EB7 3E FF
                CALL FILL_DE_WITH_A             ; 4EB9 CD 67 4F
                JR GTFL4                        ; 4EBC 18 08
 
 ; ---- GTFL3 ---- from &63CE, &6630, &786A
 GTFL3:
-               LD A,&10                        ; 4EBE 3E 10  NAMED FILE, IGNORE TYPE
-               CALL FDHR                       ; 4EC0 CD 31 4B
-               JP NZ,REP26                     ; 4EC3 C2 62 5E
+               LD A,DIR_MODE_NAME_ONLY         ; 4EBE 3E 10  NAMED FILE, IGNORE TYPE
+               CALL FDHR                       ; 4EC0 CD 31 4B  find it by name, whatever type it is
+               JP NZ,REP26                     ; 4EC3 C2 62 5E  no file of that name
+
+;; --------------------------------------------------------------------
+;; Does the file that was found have the type that was asked for?
+;;
+;; CODE AND SCREEN$ ARE INTERCHANGEABLE, and that is what the two SUB
+;; &14 pairs are for: one asks whether the type the caller wants is one
+;; of the two, the other whether the type on the disc is.  If both are,
+;; the entry's byte is overwritten with the one that was asked for and
+;; the compare below cannot fail -- LOAD "x" CODE will take a SCREEN$
+;; and LOAD "x" SCREEN$ will take CODE.
+;;
+;; Anything else has to match exactly.
+;; --------------------------------------------------------------------
 
 ; ---- GTFL4 ---- from &4EBC
 GTFL4:
-               CALL FILE_TYPE_AT_POINT         ; 4EC6 CD 6C 4F
-               LD A,(NSTR1)                    ; 4EC9 3A 3A 41
+               CALL FILE_TYPE_AT_POINT         ; 4EC6 CD 6C 4F  the type on the disc
+               LD A,(NSTR1)                    ; 4EC9 3A 3A 41  and the type that was asked for
                LD C,A                          ; 4ECC 4F
-               SUB &14                         ; 4ECD D6 14
+               SUB &14                         ; 4ECD D6 14  is what was asked for CODE or SCREEN$?
                ADC A,&00                       ; 4ECF CE 00
-               JR NZ,GTFL5A                    ; 4ED1 20 08  JR IF DESIRED TYPE <> CODE OR
+               JR NZ,GTFL5A                    ; 4ED1 20 08  no, so the two must match exactly
                LD A,(HL)                       ; 4ED3 7E
-               SUB &14                         ; 4ED4 D6 14
+               SUB &14                         ; 4ED4 D6 14  and is what is on the disc one of the two?
                ADC A,&00                       ; 4ED6 CE 00
-               JR NZ,GTFL5A                    ; 4ED8 20 01  JR IF LOADED TYPE <>CODE/SCREEN$
-               LD (HL),C                       ; 4EDA 71  LOADED TYPE=DESIRED TYPE
+               JR NZ,GTFL5A                    ; 4ED8 20 01  no, so again they must match exactly
+               LD (HL),C                       ; 4EDA 71  both are, so treat the file as the type that was asked for
 
 ; ---- GTFL5A ---- from &4ED1, &4ED8
 GTFL5A:
                LD A,C                          ; 4EDB 79
-               CP (HL)                         ; 4EDC BE
-               JP NZ,REP13                     ; 4EDD C2 71 51  WRONG FILE TYPE IF NO MATCH
+               CP (HL)                         ; 4EDC BE  the only test that is left
+               JP NZ,REP13                     ; 4EDD C2 71 51  and this is where a wrong type is reported
                CALL BITF7                      ; 4EE0 CD 40 51
 
 ;; --------------------------------------------------------------------
@@ -5589,7 +5628,7 @@ REP12:
                LD A,ERR_VERIFY_FAILED          ; 516E 3E 5D
                DEFB SKIP_2_VIA_LD_HL           ; 5170 !
 
-; ---- REP13 ---- from &4E7C when A >= &15, &4E83, &4EDD when A <> (HL), &5FFE
+; ---- REP13 ---- from &4E7C when A >= DFT, &4E83, &4EDD when A <> (HL), &5FFE
 REP13:
                LD A,ERR_WRONG_FILE_TYPE        ; 5171 3E 5E
                DEFB SKIP_2_VIA_LD_HL           ; 5173 !  skipped: reads as LD HL,&633E from here, and as part of the

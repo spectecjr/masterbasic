@@ -494,6 +494,37 @@ Sixteen blocks in this image are written for an address they are not stored at.
 Between them they hold about 2400 bytes, and every one of them was read wrong
 until it was found.
 
+## 14. `SUB n` then `ADC A,&00` — is A one of two values?
+
+Four bytes and no branch, and it appears three times in the file-type code:
+
+```asm
+      SUB &14                         ; 4ECD
+      ADC A,&00                       ; 4ECF
+      JR NZ,GTFL5A                    ; 4ED1  not CODE and not SCREEN$
+```
+
+`SUB n` leaves zero when `A` is `n`, with no borrow. When `A` is `n-1` it leaves
+`&FF` **with** a borrow, and the `ADC A,&00` adds that borrow back, giving zero
+again. Every other value survives both steps non-zero. So the zero flag after
+the pair says **`A` is `n` or `n-1`**, which is two compares and two branches
+done in four bytes and eight T-states.
+
+The three uses in MasterDOS all ask about file types, which are numbered so that
+the pairs it cares about are adjacent:
+
+| site | test | means |
+|---|---|---|
+| `&4E7F` | `SUB &12 / ADC A,&00` | type is `&11` or `&12` — a numeric or a string array |
+| `&4ECD` | `SUB &14 / ADC A,&00` | the type asked for is `&13` or `&14` — CODE or SCREEN$ |
+| `&4ED4` | `SUB &14 / ADC A,&00` | the type on the disc is one of those two |
+
+Read it the other way and it is a range test for a range of two, which is why
+`CP` twice never appears here.
+
+Do not confuse it with `ADD HL,BC` / `ADC A,&00` at `&6C72` and `&71E8`, which is
+the ordinary 24-bit carry into a third byte. The idiom is the `SUB` before it.
+
 ## Reading the listings with this in mind
 
 Four consequences worth holding on to:

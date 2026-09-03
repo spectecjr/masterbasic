@@ -121,6 +121,78 @@ DOS &4DCC expr FFSA+13
 DOS &4DCF expr FFSA+14
 DOS &4DD8 expr FFSA
 
+DOC CHECK_FILE_TYPE
+    Take the file the scan has found and set the DOS up to load it.
+
+    THE TYPE IS CHECKED FIRST, twice, and neither test is a compare
+    against a list.  &15 or more is a directory or an open-type file,
+    neither of which LOAD will touch.  Then SUB &12 with ADC A,&00
+    leaves zero for &11 and for &12 -- the numeric and the string array
+    -- because subtracting borrows on the lower of the two and the ADC
+    puts the borrow back.  Two values tested in four bytes; see idiom
+    14 in docs/idioms.md.  What survives is BASIC, CODE, SCREEN$ and the
+    Spectrum types below &10.
+
+    THE REST IS ASSEMBLY OF TWO STRUCTURES from the one entry, and the
+    addresses are chosen so that each is filled by walking forwards:
+
+        NSTR1     the type byte and the ten characters of the name
+        +11       four zero bytes
+        HD001     the file's own nine-byte header, from offset 211 of
+                  the entry -- which is NSTR1+15, so the same DE that
+                  finished the name arrives here
+        V42E2     the two bytes after it
+
+        UIFA      the type and name again
+        +11       fifteen spaces
+        +26       twenty-two &FF bytes
+
+    UIFA is the ROM's 48-byte header, and 11 plus 15 plus 22 is 48: what
+    the directory knows is written in and the rest is filled with the
+    "not set" byte, so the ROM is handed a header of the shape it
+    expects for a file that never had one.
+
+DOS &4E75 : the entry the scan stopped on, and its type
+DOS &4E78 expr TYPE_MASK
+DOS &4E7A value DFT
+DOS &4E7C : a directory or an open-type file is not loadable
+DOS &4E7F : zero for &11 and for &12
+DOS &4E83 : which are the two array types, and not loadable either
+DOS &4E86 : the type byte and the name
+DOS &4E8E : four bytes of nothing between the name and the header
+DOS &4E94 : offset 211 of the entry, where the nine-byte header is
+DOS &4E99 : the nine bytes, straight into HD001
+DOS &4E9E : and the two after them
+DOS &4EA5 : back to the head of the entry
+DOS &4EA8 : the ROM's 48-byte header starts with the type and the name
+DOS &4EB0 : fifteen spaces where the ROM would have had its own
+DOS &4EB5 : and &FF -- "not set" -- for the twenty-two after that
+
+DOC GTFL4
+    Does the file that was found have the type that was asked for?
+
+    CODE AND SCREEN$ ARE INTERCHANGEABLE, and that is what the two SUB
+    &14 pairs are for: one asks whether the type the caller wants is one
+    of the two, the other whether the type on the disc is.  If both are,
+    the entry's byte is overwritten with the one that was asked for and
+    the compare below cannot fail -- LOAD "x" CODE will take a SCREEN$
+    and LOAD "x" SCREEN$ will take CODE.
+
+    Anything else has to match exactly.
+
+DOS &4EBE expr DIR_MODE_NAME_ONLY
+DOS &4EC0 : find it by name, whatever type it is
+DOS &4EC3 : no file of that name
+DOS &4EC6 : the type on the disc
+DOS &4EC9 : and the type that was asked for
+DOS &4ECD : is what was asked for CODE or SCREEN$?
+DOS &4ED1 : no, so the two must match exactly
+DOS &4ED4 : and is what is on the disc one of the two?
+DOS &4ED8 : no, so again they must match exactly
+DOS &4EDA : both are, so treat the file as the type that was asked for
+DOS &4EDC : the only test that is left
+DOS &4EDD : and this is where a wrong type is reported
+
 DOC CFSM
     Close the file: write the entry image into a directory slot.
 
