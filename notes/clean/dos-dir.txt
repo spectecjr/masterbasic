@@ -1,0 +1,97 @@
+# DIR: parsing the several forms, and printing the two of them.
+#
+# Prose for clean/ only.
+
+DOC DIR
+    Parse the command, then print one of two listings.
+
+    THE PARSE IS A CHAIN OF SINGLE CHARACTERS, each tried and either
+    taken or handed on: "=" is DIR = and goes to STDIR; "#" is a stream
+    number; the DATE token turns the date column on; "!" forces the
+    short form even where a name or a drive would have given the long
+    one.  Anything left is a drive number, a file name, or both.
+
+    THE FORM IS DECIDED BY A NUMBER pushed on the stack: 2 for the short
+    listing, 4 for the detailed one.  Both are FDHR mode bytes, which is
+    why the choice can be made here and acted on much later -- 2 is
+    "collect the names", 4 is "print a full listing".
+
+    SSTR1 starts at stream 2 and "#" changes it, so the whole listing
+    goes wherever the stream does.
+
+DOS &5AF1 : stream 2 unless "#" says otherwise
+DOS &5AF7 : and no date column unless DATE says so
+DOS &5AFD : "=" -- DIR = sets the directory instead of listing it
+DOS &5B02 : "#" -- a stream number follows
+DOS &5B0C : the DATE token
+DOS &5B10 : the token itself is the flag; anything non-zero will do
+DOS &5B19 : DIR DATE on its own is the detailed listing
+DOS &5B21 : DIR on its own is the short one
+DOS &5B23 : otherwise a drive number or a file name
+DOS &5B26 : it was a name
+DOS &5B2D : the drive the number set, kept across the name parse
+DOS &5B41 : "!" after either of them
+DOS &5B4E : forces the short listing
+DOS &5B58 : the detailed listing gets a window of its own
+DOS &5B5F : one file to a line, with its number, sectors and type
+
+DOC HK_PCAT
+    Print it.
+
+    THE SHORT LISTING CANNOT PRINT AS IT GOES, because the names have to
+    be sorted first.  DITOB runs the scan with the mode that collects
+    names into the screen page instead of printing them, and what comes
+    back is a run of ten-character names with nothing between them.
+
+    HOW MANY THERE ARE is not counted during the scan; it is divided out
+    afterwards.  The collected length is the pointer minus the start,
+    and the loop takes ten off it at a time, counting in DE.  There is
+    no terminating test other than reaching zero, which is safe because
+    every name is exactly ten characters and the length is therefore a
+    multiple of ten.
+
+    Then the names are sorted, if SRTFG says to, and printed in as many
+    columns as the window allows: B counts down the columns and C holds
+    the number to reload it with, so a space follows every name except
+    the last on a line, which gets a carriage return.
+
+    THE DETAILED LISTING has none of that.  It is FDHR printing as it
+    goes, one file to a line, and PCAT2 is the whole of it.
+
+DOS &5B70 : which listing was chosen
+DOS &5B75 : collect the names into the screen page
+DOS &5B7B : the disc's name and the path
+DOS &5B7E : how far the collecting got
+DOS &5B85 : and so how many characters of name there are
+DOS &5B87 : none, so there is nothing to sort or print
+DOS &5B89 : ten characters to a name
+DOS &5B8E : count the names
+DOS &5B8F : by taking ten off the length until none is left
+DOS &5B93 : the names, and how many
+DOS &5B96 : is a sorted listing wanted?
+DOS &5B9C : MasterBASIC does the sorting
+DOS &5BA1 : how many names fit across the window
+DOS &5BA4 : kept, to reload the counter at each line
+DOS &5BA6 : one name, ten characters wide
+DOS &5BAA : one fewer to go
+DOS &5BAD : that was the last
+DOS &5BAF : a space between names
+DOS &5BB1 : unless this was the last on the line
+DOS &5BB3 : which ends with a carriage return instead
+DOS &5BB5 : and starts the count again
+DOS &5BC3 : the detailed listing prints itself as it scans
+
+DOC PCN4
+    The three lines under either listing.
+
+    Free kilobytes, files in this directory, free directory slots.  A
+    sector is 512 bytes, so halving the free-sector count gives
+    kilobytes exactly, and SRL H with RR L is that halving.  PLUR reads
+    the count that was pushed and prints the "s" unless it was one.
+
+DOS &5BC6 : "Number of Free K-Bytes = "
+DOS &5BC9 : free sectors in HL, free directory slots in DE
+DOS &5BCD : two sectors to the kilobyte
+DOS &5BD2 : and that is the number
+DOS &5BD8 : how many files this directory holds
+DOS &5BE4 : "File" or "Files", depending on the count above

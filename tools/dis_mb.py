@@ -2304,6 +2304,9 @@ def write_clean(pages):
           % clean.clean_pages((dos, mb)))
     print('clean/: %d carried paragraphs corrected'
           % clean.fix_carried((dos, mb)))
+    n = clean.strip_alignment_marks((dos, mb))
+    if n:
+        print("clean/: %d of the source author's alignment marks dropped" % n)
     for d in (dos, mb):
         explain_branches(d)
 

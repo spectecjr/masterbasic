@@ -814,7 +814,7 @@ SECTOR_LOAD_ADDRESS:
                DEFB &00                        ; 40FB .
 
 L40FC:
-               DEFB &00                        ; 40FC .  ***
+               DEFB &00                        ; 40FC .
 
 SECTOR_RETRY_COUNT:
                DEFB &00,&00,&00                ; 40FD ...
@@ -1122,7 +1122,7 @@ FSLTE:
 
 ; ---- L41FF ---- from &77BE
 L41FF:
-               DEFB &00                        ; 41FF .  ***
+               DEFB &00                        ; 41FF .
 
 ;; The three entry points the ROM knows about, at page offset &0200: the
 ;; RST &08 hook handler, the unrecognised-command handler and the NMI
@@ -3269,19 +3269,19 @@ SBLOK:
                LD D,(HL)                       ; 4979 56
 
 Fix_L4861_4x:
-               LD (SVHL),HL                    ; 497A 22 05 7C  L7C05   =       =             ;*
-               CALL IS_LAST_PAGE               ; 497D CD 47 48  L474C   =       =             ;*
-               JR NZ,SVB1                      ; 4980 20 E3  L484C   =       =             ;*
-               POP DE                          ; 4982 D1  *
-               LD (SVDE),DE                    ; 4983 ED 53 02 7C  L7C02   =       =             ;*
-               CALL FNFS                       ; 4987 CD 83 4A  L496A   =       =             ;*
-               LD (HL),D                       ; 498A 72  *
-               INC HL                          ; 498B 23  *
-               LD (HL),E                       ; 498C 73  *
-               EX DE,HL                        ; 498D EB  *
-               CALL SWAP_TRACK_AND_SECTOR      ; 498E CD CD 4F  L6CAB / L6CAE / L6CA2_SWPNSR ?;*
-               CALL TIRD                       ; 4991 CD 5A 61  L5FDB = L5FDB / L5FCF_TIRD ?  ;*
-               JP NC,RDSB                      ; 4994 D2 F0 75  L746E / L7473 / L7467_RDSB ?  ;*
+               LD (SVHL),HL                    ; 497A 22 05 7C
+               CALL IS_LAST_PAGE               ; 497D CD 47 48
+               JR NZ,SVB1                      ; 4980 20 E3
+               POP DE                          ; 4982 D1
+               LD (SVDE),DE                    ; 4983 ED 53 02 7C
+               CALL FNFS                       ; 4987 CD 83 4A
+               LD (HL),D                       ; 498A 72
+               INC HL                          ; 498B 23
+               LD (HL),E                       ; 498C 73
+               EX DE,HL                        ; 498D EB
+               CALL SWAP_TRACK_AND_SECTOR      ; 498E CD CD 4F
+               CALL TIRD                       ; 4991 CD 5A 61
+               JP NC,RDSB                      ; 4994 D2 F0 75
                PUSH DE                         ; 4997 D5
                CALL GETSCR                     ; 4998 CD 2C 49  SCREEN PAGED IN
                LD HL,FTADD                     ; 499B 21 80 A2
@@ -4222,7 +4222,7 @@ FDHF:
                RET Z                           ; 4CBA C8  and that is the answer the caller reads
                INC HL                          ; 4CBB 23  the first character of the name, which erasing leaves behind
                LD A,(HL)                       ; 4CBC 7E
-               AND A                           ; 4CBD A7  **
+               AND A                           ; 4CBD A7
                JR NZ,FDHd                      ; 4CBE 20 CC  still there, so this slot was used once: keep looking
                INC A                           ; 4CC0 3C  never used, so nothing beyond it can match either
                RET                             ; 4CC1 C9  USED PART OF DIR DEALT WITH
@@ -7678,57 +7678,56 @@ CLSL:
                RET                             ; 5AED C9
 
 ;; --------------------------------------------------------------------
-;;  DIR -- the catalogue
+;; Parse the command, then print one of two listings.
 ;;
-;;  Several forms, distinguished as they are parsed:
+;; THE PARSE IS A CHAIN OF SINGLE CHARACTERS, each tried and either
+;; taken or handed on: "=" is DIR = and goes to STDIR; "#" is a stream
+;; number; the DATE token turns the date column on; "!" forces the
+;; short form even where a name or a drive would have given the long
+;; one.  Anything left is a drive number, a file name, or both.
 ;;
-;;    DIR                 names only, sorted, in as many columns as the window allows
-;;    DIR n / DIR "name"  the detailed listing: number, name, sectors, type
-;;    DIR ... !           forces the short form
-;;    DIR DATE            the detailed listing with each file's date and time
-;;    DIR #s              to a stream other than 2
-;;    DIR =               set the directory (see part SUBD)
-;;    DIR ?               include files from every subdirectory, not just the current one
+;; THE FORM IS DECIDED BY A NUMBER pushed on the stack: 2 for the short
+;; listing, 4 for the detailed one.  Both are FDHR mode bytes, which is
+;; why the choice can be made here and acted on much later -- 2 is
+;; "collect the names", 4 is "print a full listing".
 ;;
-;;  The short form cannot print as it goes, because the names have to be sorted first: DITOB collects them into the
-;;  screen page, ORDER sorts them there, and PCNML prints them in columns.
-;;
-;; CALL UP DIRECTORY
+;; SSTR1 starts at stream 2 and "#" changes it, so the whole listing
+;; goes wherever the stream does.
 ;; --------------------------------------------------------------------
 
 DIR:
                CALL FDFSR                      ; 5AEE CD CF 66  CALL GTIXD, GTDEF, NULL NAME
-               LD A,&02                        ; 5AF1 3E 02
+               LD A,&02                        ; 5AF1 3E 02  stream 2 unless "#" says otherwise
                LD (SSTR1),A                    ; 5AF3 32 38 41  STREAM 2
                XOR A                           ; 5AF6 AF
-               LD (DTFLG),A                    ; 5AF7 32 33 42  "PRINT DATES" OFF
+               LD (DTFLG),A                    ; 5AF7 32 33 42  and no date column unless DATE says so
                CALL GTNC                       ; 5AFA CD 3C 50
-               CP &3D                          ; 5AFD FE 3D
+               CP &3D                          ; 5AFD FE 3D  "=" -- DIR = sets the directory instead of listing it
                JP Z,STDIR                      ; 5AFF CA 23 72
-               CP &23                          ; 5B02 FE 23
+               CP &23                          ; 5B02 FE 23  "#" -- a stream number follows
                JR NZ,CAT0                      ; 5B04 20 06
                CALL EVSRM                      ; 5B06 CD 99 62
                CALL SEPARX                     ; 5B09 CD DC 5E
 
 ; ---- CAT0 ---- from &5B04 when A <> &23
 CAT0:
-               CP &F9                          ; 5B0C FE F9  "DATE" TOKEN
+               CP &F9                          ; 5B0C FE F9  the DATE token
                JR NZ,CAT1                      ; 5B0E 20 0B
-               LD (DTFLG),A                    ; 5B10 32 33 42  "PRINT DATES" ON (NZ)
+               LD (DTFLG),A                    ; 5B10 32 33 42  the token itself is the flag; anything non-zero will do
                CALL GTNC                       ; 5B13 CD 3C 50  SKIP "DATE"
                CALL CIEL                       ; 5B16 CD F0 4F
-               JR Z,CAT2                       ; 5B19 28 37  "DIR DATE" GIVES DETAILED,
+               JR Z,CAT2                       ; 5B19 28 37  DIR DATE on its own is the detailed listing
 
 ; ---- CAT1 ---- from &5B0E when A <> &F9
 CAT1:
                CALL ALLSR                      ; 5B1B CD C6 5C
                CALL CIEL                       ; 5B1E CD F0 4F
-               JR Z,CAT1a                      ; 5B21 28 28  JUST "DIR" GIVES SIMPLE DIR
-               CALL EVEXP                      ; 5B23 CD 60 61  EVAL DRIVE, OR FILE NAME
-               JR NC,CAT11                     ; 5B26 30 13  JR IF IT WAS A NAME
+               JR Z,CAT1a                      ; 5B21 28 28  DIR on its own is the short one
+               CALL EVEXP                      ; 5B23 CD 60 61  otherwise a drive number or a file name
+               JR NC,CAT11                     ; 5B26 30 13  it was a name
                CALL SEPAR                      ; 5B28 CD E4 5E  ,/;/"
                JR NZ,CAT12                     ; 5B2B 20 14
-               LD A,(DSTR1)                    ; 5B2D 3A 36 41
+               LD A,(DSTR1)                    ; 5B2D 3A 36 41  the drive the number set, kept across the name parse
                PUSH AF                         ; 5B30 F5  Z
                CALL EVNAM                      ; 5B31 CD CF 61  EVAL NAME - ,/;/" FOLLOWED DRIVE
                CALL NZ,EVFINS                  ; 5B34 C4 21 73  NUMBER
@@ -7742,7 +7741,7 @@ CAT11:
 
 ; ---- CAT12 ---- from &5B2B
 CAT12:
-               CP &21                          ; 5B41 FE 21
+               CP &21                          ; 5B41 FE 21  "!" after either of them
                JR NZ,CAT2                      ; 5B43 20 0D  JR IF E.G. DIR 1,"NAME" OR DIR 1
                CALL GTNC                       ; 5B45 CD 3C 50  SKIP "!" - E.G. DIR 1,"NAME"!
                CALL ALLSR                      ; 5B48 CD C6 5C  OR DIR 1!-SIMPLE
@@ -7750,17 +7749,41 @@ CAT12:
 ; ---- CAT1a ---- from &5B21
 CAT1a:
                CALL CEOS                       ; 5B4B CD 07 50
-               LD A,&02                        ; 5B4E 3E 02  SIMPLE DIR
+               LD A,&02                        ; 5B4E 3E 02  forces the short listing
                JR HK_PCAT                      ; 5B50 18 0F
 
 ; ---- CAT2 ---- from &5B19, &5B43 when A <> &21
 CAT2:
                CALL ALLSR                      ; 5B52 CD C6 5C
                CALL CEOS                       ; 5B55 CD 07 50
-               LD A,&01                        ; 5B58 3E 01  WINDOW
+               LD A,&01                        ; 5B58 3E 01  the detailed listing gets a window of its own
                CALL CMR                        ; 5B5A CD B2 7B
                DEFW JCLSBL                     ; 5B5D 4E 01
-               LD A,&04                        ; 5B5F 3E 04  SINGLE COLUMN DETAILED DIR
+               LD A,&04                        ; 5B5F 3E 04  one file to a line, with its number, sectors and type
+
+;; --------------------------------------------------------------------
+;; Print it.
+;;
+;; THE SHORT LISTING CANNOT PRINT AS IT GOES, because the names have to
+;; be sorted first.  DITOB runs the scan with the mode that collects
+;; names into the screen page instead of printing them, and what comes
+;; back is a run of ten-character names with nothing between them.
+;;
+;; HOW MANY THERE ARE is not counted during the scan; it is divided out
+;; afterwards.  The collected length is the pointer minus the start,
+;; and the loop takes ten off it at a time, counting in DE.  There is
+;; no terminating test other than reaching zero, which is safe because
+;; every name is exactly ten characters and the length is therefore a
+;; multiple of ten.
+;;
+;; Then the names are sorted, if SRTFG says to, and printed in as many
+;; columns as the window allows: B counts down the columns and C holds
+;; the number to reload it with, so a space follows every name except
+;; the last on a line, which gets a carriage return.
+;;
+;; THE DETAILED LISTING has none of that.  It is FDHR printing as it
+;; goes, one file to a line, and PCAT2 is the whole of it.
+;; --------------------------------------------------------------------
 
 ; ---- HK_PCAT ---- from &5B50
 HK_PCAT:
@@ -7770,51 +7793,51 @@ HK_PCAT:
                CALL CMR                        ; 5B68 CD B2 7B
                DEFW STREAM                     ; 5B6B 12 01
                CALL ZDVS                       ; 5B6D CD 23 5C  ZERO VARS
-               POP AF                          ; 5B70 F1  2 IF SIMPLE
+               POP AF                          ; 5B70 F1  which listing was chosen
                CP &02                          ; 5B71 FE 02
                JR NZ,PCAT2                     ; 5B73 20 4E
-               CALL DITOB                      ; 5B75 CD 30 5C
+               CALL DITOB                      ; 5B75 CD 30 5C  collect the names into the screen page
                CALL SETBORDER_BORDCR           ; 5B78 CD 52 51  DIR TO BUFFER
-               CALL PDIRH                      ; 5B7B CD 09 5C  PRINT HEADER
-               LD HL,(PTRSCR)                  ; 5B7E 2A 2C 41
+               CALL PDIRH                      ; 5B7B CD 09 5C  the disc's name and the path
+               LD HL,(PTRSCR)                  ; 5B7E 2A 2C 41  how far the collecting got
                LD DE,MB_CHECK_BREAK            ; 5B81 11 00 A0
                AND A                           ; 5B84 A7
-               SBC HL,DE                       ; 5B85 ED 52  HL=TEXT LEN (1SL
-               JR Z,PCN3                       ; 5B87 28 32  L5AA9 ? L5AA9 ? L5AA9_PCN3 ?  ;*
-               LD BC,&000A                     ; 5B89 01 0A 00  *
-               LD D,B                          ; 5B8C 50  *
-               LD E,B                          ; 5B8D 58  *
+               SBC HL,DE                       ; 5B85 ED 52  and so how many characters of name there are
+               JR Z,PCN3                       ; 5B87 28 32  none, so there is nothing to sort or print
+               LD BC,&000A                     ; 5B89 01 0A 00  ten characters to a name
+               LD D,B                          ; 5B8C 50
+               LD E,B                          ; 5B8D 58
 
 ; ---- HK_PCAT_LOOP ---- from &5B91
 HK_PCAT_LOOP:
-               INC DE                          ; 5B8E 13  *
-               SBC HL,BC                       ; 5B8F ED 42  *
-               JR NZ,HK_PCAT_LOOP              ; 5B91 20 FB  L5A80 = L5A80 = L5A80         ;*
-               LD HL,MB_CHECK_BREAK            ; 5B93 21 00 A0  HL=START, DE=FILES
-               LD A,(SRTFG)                    ; 5B96 3A 29 42
+               INC DE                          ; 5B8E 13  count the names
+               SBC HL,BC                       ; 5B8F ED 42  by taking ten off the length until none is left
+               JR NZ,HK_PCAT_LOOP              ; 5B91 20 FB
+               LD HL,MB_CHECK_BREAK            ; 5B93 21 00 A0  the names, and how many
+               LD A,(SRTFG)                    ; 5B96 3A 29 42  is a sorted listing wanted?
                AND A                           ; 5B99 A7
                JR Z,HK_PCAT_1                  ; 5B9A 28 05
-               CALL CALLMB                     ; 5B9C CD BD 42
+               CALL CALLMB                     ; 5B9C CD BD 42  MasterBASIC does the sorting
                DEFW &47FB                      ; 5B9F FB 47
 
 ; ---- HK_PCAT_1 ---- from &5B9A when A = 0
 HK_PCAT_1:
-               CALL COLUMNS_FOR_DIRECTORY      ; 5BA1 CD 8B 5C  NAMES/LINE IN B. COULD BE 1,2,3...
-               LD C,B                          ; 5BA4 48
+               CALL COLUMNS_FOR_DIRECTORY      ; 5BA1 CD 8B 5C  how many names fit across the window
+               LD C,B                          ; 5BA4 48  kept, to reload the counter at each line
 
 ; ---- PCNML ---- from &5BB9
 PCNML:
                PUSH BC                         ; 5BA5 C5  B=NAMES/LINE COUNTER, C=RELOAD
-               CALL PFNM0                      ; 5BA6 CD 0E 4B  PRINT NAME, ADVANCE HL
+               CALL PFNM0                      ; 5BA6 CD 0E 4B  one name, ten characters wide
                POP BC                          ; 5BA9 C1
-               DEC DE                          ; 5BAA 1B
+               DEC DE                          ; 5BAA 1B  one fewer to go
                LD A,D                          ; 5BAB 7A
                OR E                            ; 5BAC B3
-               JR Z,PCN3                       ; 5BAD 28 0C  EXIT IF ALL DONE
-               LD A,&20                        ; 5BAF 3E 20
-               DJNZ PCN2                       ; 5BB1 10 03  JR AND USE SPACE UNLESS LAST
-               LD A,&0D                        ; 5BB3 3E 0D
-               LD B,C                          ; 5BB5 41  RELOAD COUNTER
+               JR Z,PCN3                       ; 5BAD 28 0C  that was the last
+               LD A,&20                        ; 5BAF 3E 20  a space between names
+               DJNZ PCN2                       ; 5BB1 10 03  unless this was the last on the line
+               LD A,&0D                        ; 5BB3 3E 0D  which ends with a carriage return instead
+               LD B,C                          ; 5BB5 41  and starts the count again
 
 ; ---- PCN2 ---- from &5BB1 when B is not 0 yet
 PCN2:
@@ -7829,30 +7852,34 @@ PCN3:
 
 ; ---- PCAT2 ---- from &5B73 when A <> &02
 PCAT2:
-               CALL FDHR                       ; 5BC3 CD 31 4B  DO COMPLEX DIRECTORY
+               CALL FDHR                       ; 5BC3 CD 31 4B  the detailed listing prints itself as it scans
 
 ;; --------------------------------------------------------------------
-;;  The summary: free kilobytes, files in this directory, and free directory slots. PLUR adds the "s" unless the count
-;;  happens to be one.
+;; The three lines under either listing.
+;;
+;; Free kilobytes, files in this directory, free directory slots.  A
+;; sector is 512 bytes, so halving the free-sector count gives
+;; kilobytes exactly, and SRL H with RR L is that halving.  PLUR reads
+;; the count that was pushed and prints the "s" unless it was one.
 ;; --------------------------------------------------------------------
 
 ; ---- PCN4 ---- from &5BC1
 PCN4:
                CALL PMO3                       ; 5BC6 CD E2 57  "Number of Free K-Bytes = "
-               CALL STATS                      ; 5BC9 CD 3E 5C  GET HL=FREE SECTS, DE=FREE SLOTS
+               CALL STATS                      ; 5BC9 CD 3E 5C  free sectors in HL, free directory slots in DE
                PUSH DE                         ; 5BCC D5
-               SRL H                           ; 5BCD CB 3C
+               SRL H                           ; 5BCD CB 3C  two sectors to the kilobyte
                RR L                            ; 5BCF CB 1D  HALVE FREE SECTS
                XOR A                           ; 5BD1 AF
-               CALL PNUM4                      ; 5BD2 CD 29 57  FREE K
+               CALL PNUM4                      ; 5BD2 CD 29 57  and that is the number
                CALL PNCR                       ; 5BD5 CD FC 5B  CARRIAGE RETURN
-               LD HL,(FCNT)                    ; 5BD8 2A 1C 42
+               LD HL,(FCNT)                    ; 5BD8 2A 1C 42  how many files this directory holds
                PUSH HL                         ; 5BDB E5
                XOR A                           ; 5BDC AF
                CALL PNUM4                      ; 5BDD CD 29 57  PRINT NO. OF FILES IN CURRENT DIR
                CALL PMOE                       ; 5BE0 CD 58 58  PRINT " File"
                POP HL                          ; 5BE3 E1
-               CALL PLUR                       ; 5BE4 CD 01 5C
+               CALL PLUR                       ; 5BE4 CD 01 5C  "File" or "Files", depending on the count above
                LD A,&2C                        ; 5BE7 3E 2C
                CALL PRINT_A_KEEPING_IT         ; 5BE9 CD 66 57
                CALL SPC                        ; 5BEC CD 64 57

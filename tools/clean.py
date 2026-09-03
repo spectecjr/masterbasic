@@ -172,6 +172,27 @@ def strip_working(text):
     return NL.join(out + tail), gone
 
 
+#  The annotated MasterDOS source carries a few of its author's own
+#  working marks on instruction lines -- an address in the shipped code,
+#  the addresses the source's own labels have, and "=" or "?" for
+#  whether they agreed -- each ending in ";*".  They are notes about
+#  reading the code, not about the code, and carrydoc brings them across
+#  with everything else.  A few lines carry the bare "*" alone, which is
+#  the same mark with the rest of it left off.
+ALIGNMENT_MARK = re.compile(r';\*\s*$|^\*+\s*$')
+
+
+def strip_alignment_marks(pages):
+    """Take those marks off the lines they sit on.  Returns the count."""
+    gone = 0
+    for d in pages:
+        for a in list(d.comments):
+            if ALIGNMENT_MARK.search(d.comments[a]):
+                del d.comments[a]
+                gone += 1
+    return gone
+
+
 def clean_pages(pages):
     """Take the working notes out of every banner.  Returns the count."""
     gone = 0
