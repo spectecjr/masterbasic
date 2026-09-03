@@ -280,14 +280,44 @@ DOS &40DD step
     reaches it is already at the limit of its range, and this is far
     enough away to need three bytes anyway.
 
+DOS &40D2 step
+    The end of a wave.  The page number found earlier comes back off the
+    stack, and LMPR is set to one below it -- which puts that page itself
+    at &4000-&7FFF, since LMPR names the page at &0000 and the next one
+    follows it.  So from here to the end of BOOT, &4000 is the page the
+    second wave is being read into: MasterBASIC's.
+
+    That is why the next instruction can load HL with &4000 and mean the
+    start of a page that is not this one, and why &75E1 below is
+    MasterBASIC's INSTALLER rather than anything in this half.
+
+    These two instructions are shared.  PTHRD is a routine in its own
+    right, called from three places in the RAM disc code, and the boot
+    falls into it rather than calling it; the carried comment about a
+    path name belongs to that other use and not to this one.
+
+DOS &40D4 : the page the DOS was loaded into, less one
+DOS &40D6 : LMPR bit 6, so the ROM stays available at &C000
+DOS &40DA expr &4000
+DOS &40DA : the base of that page, where the second wave starts
+
 DOS &40E0 step
-    Both waves are in.  Copy the installer out of the MasterBASIC page
-    into the DOS's buffer area and jump to it there; from here on the
-    listing at DOSBUF is the code that runs.
+    Both waves are in.  Copy INSTALLER -- 943 bytes at MasterBASIC's
+    &75E1, which is at &4000 just here -- into the DOS's buffer area
+    through the window, and jump to it there.  From &40F6 on, the code
+    that runs is the copy at DOSBUF and not anything in these listings.
+
+DOS &40E0 expr &75E1
+DOS &40E0 : INSTALLER, in the page LMPR has just put at &4000
 
 DOS &40E3 : the installer's landing ground, reached through the window
-DOS &40EB : the page this code is in
+DOS &40EB : the page the DOS is in
+DOS &40EF : one below it, which is MasterBASIC's
+DOS &40F0 : written into MasterBASIC's &42CC, not this half's: its page
 DOS &40F6 : and away, into the copy
+
+GROUP Boot loader
+DOS &40E6 value INSTALLER_LENGTH
 
 # The numbers this routine works in, under the headings they are
 # written out with.  Each is read back out of the instruction it
@@ -319,3 +349,6 @@ DOS &40B1 value CMD_LATENCY_LOOPS
 
 GROUP Disk controller status
 DOS &409D value BLOCK_ERROR_FLAGS
+
+DOS &40D2 : the page found earlier, put there at &4040
+DOS &40D3 : and kept, because the next wave needs it too

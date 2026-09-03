@@ -260,6 +260,7 @@ RAMDISC_PAGE:                 EQU  &8000       ; the RAM disc page, as seen thro
 
 ; Boot loader
 FIRST_WAVE_SECTOR_COUNT:      EQU  &1F         ; sectors in the DOS, read before MasterBASIC
+INSTALLER_LENGTH:             EQU  &03AF
 MAX_SECTOR_RETRIES:           EQU  &0A         ; attempts at one sector before "Loading error"
 
 ; Disk registers
@@ -730,18 +731,33 @@ BOOT_SECTOR_READ_OK:
 BOOT_19:
                POP BC                          ; 40D1 C1
 
+; The end of a wave.  The page number found earlier comes back off the
+; stack, and LMPR is set to one below it -- which puts that page itself
+; at &4000-&7FFF, since LMPR names the page at &0000 and the next one
+; follows it.  So from here to the end of BOOT, &4000 is the page the
+; second wave is being read into: MasterBASIC's.
+;
+; That is why the next instruction can load HL with &4000 and mean the
+; start of a page that is not this one, and why &75E1 below is
+; MasterBASIC's INSTALLER rather than anything in this half.
+;
+; These two instructions are shared.  PTHRD is a routine in its own
+; right, called from three places in the RAM disc code, and the boot
+; falls into it rather than calling it; the carried comment about a
+; path name belongs to that other use and not to this one.
+
 ; ---- PTHRD ---- from &6CAE, &7429, &7751
 PTHRD:
-               POP HL                          ; 40D2 E1  TEMP RAM DISC PATH NAME
-               PUSH HL                         ; 40D3 E5
+               POP HL                          ; 40D2 E1  the page found earlier, put there at &4040
+               PUSH HL                         ; 40D3 E5  and kept, because the next wave needs it too
 
 ; ---- PTHRD_1 ---- from &773D
 PTHRD_1:
-               LD A,L                          ; 40D4 7D
+               LD A,L                          ; 40D4 7D  the page the DOS was loaded into, less one
                DEC A                           ; 40D5 3D
-               OR ENABLE_ROM1                  ; 40D6 F6 40
+               OR ENABLE_ROM1                  ; 40D6 F6 40  LMPR bit 6, so the ROM stays available at &C000
                OUT (LMPR),A                    ; 40D8 D3 FA
-               LD HL,HEADER                    ; 40DA 21 00 40
+               LD HL,&4000                     ; 40DA 21 00 40  the base of that page, where the second wave starts
 
 ; Back round for the next sector.  It is an absolute jump through the
 ; window, not the JR the loop would otherwise use: the DJNZ that
@@ -752,21 +768,23 @@ PTHRD_1:
 BOOT_NEXT_SECTOR_TRAMPOLINE:
                JP READ_NEXT_SECTOR+IN_PAGE_C   ; 40DD C3 49 80
 
-; Both waves are in.  Copy the installer out of the MasterBASIC page
-; into the DOS's buffer area and jump to it there; from here on the
-; listing at DOSBUF is the code that runs.
+; Both waves are in.  Copy INSTALLER -- 943 bytes at MasterBASIC's
+; &75E1, which is at &4000 just here -- into the DOS's buffer area
+; through the window, and jump to it there.  From &40F6 on, the code
+; that runs is the copy at DOSBUF and not anything in these listings.
 
 ; ---- BOOT_LOAD_COMPLETE ---- from &40C7
 BOOT_LOAD_COMPLETE:
-               LD HL,PTHRD_2                   ; 40E0 21 E1 75
+               LD HL,&75E1                     ; 40E0 21 E1 75  INSTALLER, in the page LMPR has just put at &4000
                LD DE,DOSBUF+IN_PAGE_C          ; 40E3 11 00 BC  the installer's landing ground, reached through the
                                                ; window
-               LD BC,&03AF                     ; 40E6 01 AF 03
+               LD BC,INSTALLER_LENGTH          ; 40E6 01 AF 03
                LDIR                            ; 40E9 ED B0
-               IN A,(HMPR)                     ; 40EB DB FB  the page this code is in
+               IN A,(HMPR)                     ; 40EB DB FB  the page the DOS is in
                AND &1F                         ; 40ED E6 1F
-               DEC A                           ; 40EF 3D
-               LD (L42CC+1),A                  ; 40F0 32 CD 42  patches the operand of the LD at &42CC
+               DEC A                           ; 40EF 3D  one below it, which is MasterBASIC's
+               LD (L42CC+1),A                  ; 40F0 32 CD 42  written into MasterBASIC's &42CC, not this half's: its
+                                               ; page
                XOR A                           ; 40F3 AF
                OUT (&E9),A                     ; 40F4 D3 E9
                JP DOSBUF+IN_PAGE_C             ; 40F6 C3 00 BC  and away, into the copy
