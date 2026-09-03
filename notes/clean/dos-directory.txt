@@ -382,6 +382,42 @@ DOS &4CAC : no, so carry on reading
 DOS &4CAF : DTKS is never zero, so this leaves the NZ the caller reads
 DOS &4CB0 : as "the whole directory, and no match in it"
 
+DOC PFNME
+    Print a file name, ten characters wide, with the extension lined up.
+
+    TEN CHARACTERS GO OUT WHATEVER HAPPENS, because B counts the
+    printing and nothing else.  What varies is where in the name each
+    one comes from.
+
+    A SPACE IS NOT PRINTED AS A SPACE but as CHDIR, so that the padding
+    can be made visible -- set that variable to a dot and a listing
+    shows where each name ends.
+
+    THE SEPARATOR IS DEFERRED.  When FNSEP -- normally "." -- is met
+    with five or more still to print, a pad character goes out instead
+    and HL is left where it is, so the same "." is met again on the next
+    turn.  It is only printed once four remain, which puts it in a fixed
+    column and lines the extensions up under each other.  A name with no
+    separator in it never takes that path and prints straight through.
+
+    C IS LOADED WITH TEN AS WELL AS B, and that is what the ADD HL,BC at
+    the end is for: B has counted down to zero, so the addition moves
+    the caller's pointer by exactly ten however many turns were spent
+    deferring.
+
+DOS &4B09 : offset 1 of the entry, where the name starts
+DOS &4B0F : ten to print, and ten to move HL by afterwards
+DOS &4B12 : the separator, normally "."
+DOS &4B15 : is this it?
+DOS &4B17 : no, so print the character itself
+DOS &4B19 : how many are left to print
+DOS &4B1A : five or more, and the separator waits
+DOS &4B1C : a pad goes out instead, and HL stays where it is
+DOS &4B1E : four left, so this is the column the separator belongs in
+DOS &4B22 : a space?
+DOS &4B26 : then print the pad character rather than the space
+DOS &4B2F : ten on, whatever the loop did
+
 GROUP Characters
 CONST CH_STAR = &2A : the wildcard that matches any run of characters
 CONST CH_QUERY = &3F : the wildcard that matches one character

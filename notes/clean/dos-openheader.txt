@@ -62,6 +62,36 @@ DOS &4F46 : thirty-three bytes, which completes the forty-eight
 DOS &4F4B : offset 13, the first track and sector of the file
 DOS &4F53 : where the first read will start
 
+DOC FILE_TYPE_AT_POINT
+    The entry's type, put into SAM's numbering whatever it was in.
+
+    A DISC IN THIS FORMAT CAN HOLD SPECTRUM FILES, numbered 1 to 11 by
+    GDOS before SAM existed, alongside SAM's own types &10 to &15.  The
+    rest of the DOS would rather not know, so this puts every type into
+    one numbering before anything else looks at it.
+
+    Type 7 -- the Spectrum's SCREEN$ -- becomes type 4, its CODE, since
+    that is what a screen is.  Then anything below &10 is a Spectrum
+    type, and DEC A followed by OR &10 lifts it into SAM's range: 1
+    becomes &10 and both mean BASIC, 2 becomes &11 and both mean a
+    numeric array, and so on down to CODE.  Flag 7 records that the file
+    was a Spectrum one, which is the only thing anything downstream needs
+    to remember about it -- COPY_HEADER_FIELDS reads that flag to decide
+    whether the entry has a ROM header in it or one has to be invented.
+
+    The converted type is written back into the buffer, so the entry
+    itself reads as a SAM file from here on.
+
+DOS &4F6F : the type byte, as the disc has it
+DOS &4F70 expr TYPE_MASK
+DOS &4F72 : the Spectrum's SCREEN$
+DOS &4F76 : which is its CODE, and treated as such
+DOS &4F78 : &10 and up is a SAM type already
+DOS &4F7C : a Spectrum type, counted from 1 rather than 0
+DOS &4F7D : lifted into SAM's range, where the meanings line up
+DOS &4F7F : and remembered, because the header will have to be invented
+DOS &4F82 : the entry now reads as a SAM file
+
 DOC NMMOV
     The type, the name, and spaces to fifteen, into the second block's
     header.

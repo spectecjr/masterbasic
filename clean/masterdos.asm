@@ -3708,18 +3708,32 @@ TSD1:
                RET                             ; 4B08 C9
 
 ;; --------------------------------------------------------------------
-;;  PFNME -- print a ten-character file name
+;; Print a file name, ten characters wide, with the extension lined up.
 ;;
-;;  The separator character in FNSEP -- normally "." -- is treated specially so that extensions line up in a listing:
-;;  when it is met with five or more characters still to print, a pad character is printed instead and the real
-;;  separator is deferred. Spaces print as CHDIR, so the padding can be made visible by poking that variable.
+;; TEN CHARACTERS GO OUT WHATEVER HAPPENS, because B counts the
+;; printing and nothing else.  What varies is where in the name each
+;; one comes from.
 ;;
-;; PRINT FILE NAME
+;; A SPACE IS NOT PRINTED AS A SPACE but as CHDIR, so that the padding
+;; can be made visible -- set that variable to a dot and a listing
+;; shows where each name ends.
+;;
+;; THE SEPARATOR IS DEFERRED.  When FNSEP -- normally "." -- is met
+;; with five or more still to print, a pad character goes out instead
+;; and HL is left where it is, so the same "." is met again on the next
+;; turn.  It is only printed once four remain, which puts it in a fixed
+;; column and lines the extensions up under each other.  A name with no
+;; separator in it never takes that path and prints straight through.
+;;
+;; C IS LOADED WITH TEN AS WELL AS B, and that is what the ADD HL,BC at
+;; the end is for: B has counted down to zero, so the addition moves
+;; the caller's pointer by exactly ten however many turns were spent
+;; deferring.
 ;; --------------------------------------------------------------------
 
 ; ---- PFNME ---- from &4C2D, &58FE, &5917
 PFNME:
-               LD B,&01                        ; 4B09 06 01
+               LD B,&01                        ; 4B09 06 01  offset 1 of the entry, where the name starts
                CALL GRPNTB                     ; 4B0B CD AE 4F
 
 ;; --------------------------------------------------------------------
@@ -3730,35 +3744,36 @@ PFNME:
 ; ---- PFNM0 ---- from &5A2B, &5A7D, &5BA6
 PFNM0:
                PUSH HL                         ; 4B0E E5
-               LD BC,&0A0A                     ; 4B0F 01 0A 0A
+               LD BC,&0A0A                     ; 4B0F 01 0A 0A  ten to print, and ten to move HL by afterwards
 
 ; ---- PFNM1 ---- from &4B2C when B is not 0 yet
 PFNM1:
-               LD A,(FNSEP)                    ; 4B12 3A 2B 42  FILE NAME SEPARATOR - USUALLY "."
-               CP (HL)                         ; 4B15 BE
+               LD A,(FNSEP)                    ; 4B12 3A 2B 42  the separator, normally "."
+               CP (HL)                         ; 4B15 BE  is this it?
                LD A,(HL)                       ; 4B16 7E
-               JR NZ,PFNM12                    ; 4B17 20 08
-               LD A,B                          ; 4B19 78
-               CP &05                          ; 4B1A FE 05
-               JR NC,PFNM15                    ; 4B1C 30 08  PRINT PAD SPACE IF "." AND CHARS
-               LD A,(FNSEP)                    ; 4B1E 3A 2B 42
+               JR NZ,PFNM12                    ; 4B17 20 08  no, so print the character itself
+               LD A,B                          ; 4B19 78  how many are left to print
+               CP &05                          ; 4B1A FE 05  five or more, and the separator waits
+               JR NC,PFNM15                    ; 4B1C 30 08  a pad goes out instead, and HL stays where it is
+               LD A,(FNSEP)                    ; 4B1E 3A 2B 42  four left, so this is the column the separator belongs
+                                               ; in
 
 ; ---- PFNM12 ---- from &4B17 when A <> (HL)
 PFNM12:
                INC HL                          ; 4B21 23
-               CP &20                          ; 4B22 FE 20
+               CP &20                          ; 4B22 FE 20  a space?
                JR NZ,PFNM2                     ; 4B24 20 03
 
 ; ---- PFNM15 ---- from &4B1C when A >= &05
 PFNM15:
-               LD A,(CHDIR)                    ; 4B26 3A 25 42
+               LD A,(CHDIR)                    ; 4B26 3A 25 42  then print the pad character rather than the space
 
 ; ---- PFNM2 ---- from &4B24 when A <> &20
 PFNM2:
                CALL PRINT_A_KEEPING_IT         ; 4B29 CD 66 57
                DJNZ PFNM1                      ; 4B2C 10 E4
                POP HL                          ; 4B2E E1
-               ADD HL,BC                       ; 4B2F 09  BC=10
+               ADD HL,BC                       ; 4B2F 09  ten on, whatever the loop did
                RET                             ; 4B30 C9
 
 ;; --------------------------------------------------------------------
@@ -4925,31 +4940,47 @@ FILL_DE_WITH_A:
                RET                             ; 4F6B C9
 
 ;; --------------------------------------------------------------------
-;; POINT, then the type byte masked to five bits and compared with &07 --
-;; the DOS's own directory-entry type -- with &04 standing in for it
-;; when it matches.
+;; The entry's type, put into SAM's numbering whatever it was in.
+;;
+;; A DISC IN THIS FORMAT CAN HOLD SPECTRUM FILES, numbered 1 to 11 by
+;; GDOS before SAM existed, alongside SAM's own types &10 to &15.  The
+;; rest of the DOS would rather not know, so this puts every type into
+;; one numbering before anything else looks at it.
+;;
+;; Type 7 -- the Spectrum's SCREEN$ -- becomes type 4, its CODE, since
+;; that is what a screen is.  Then anything below &10 is a Spectrum
+;; type, and DEC A followed by OR &10 lifts it into SAM's range: 1
+;; becomes &10 and both mean BASIC, 2 becomes &11 and both mean a
+;; numeric array, and so on down to CODE.  Flag 7 records that the file
+;; was a Spectrum one, which is the only thing anything downstream needs
+;; to remember about it -- COPY_HEADER_FIELDS reads that flag to decide
+;; whether the entry has a ROM header in it or one has to be invented.
+;;
+;; The converted type is written back into the buffer, so the entry
+;; itself reads as a SAM file from here on.
 ;; --------------------------------------------------------------------
 
 ; ---- FILE_TYPE_AT_POINT ---- from &4E75, &4EC6
 FILE_TYPE_AT_POINT:
                CALL POINT                      ; 4F6C CD AC 4F
-               LD A,(HL)                       ; 4F6F 7E
-               AND &1F                         ; 4F70 E6 1F
-               CP &07                          ; 4F72 FE 07
+               LD A,(HL)                       ; 4F6F 7E  the type byte, as the disc has it
+               AND TYPE_MASK                   ; 4F70 E6 1F
+               CP &07                          ; 4F72 FE 07  the Spectrum's SCREEN$
                JR NZ,GTFS1                     ; 4F74 20 02
-               LD A,&04                        ; 4F76 3E 04
+               LD A,&04                        ; 4F76 3E 04  which is its CODE, and treated as such
 
 ; ---- GTFS1 ---- from &4F74 when A <> &07
 GTFS1:
-               CP &10                          ; 4F78 FE 10
+               CP &10                          ; 4F78 FE 10  &10 and up is a SAM type already
                JR NC,GTFS1_DONE                ; 4F7A 30 06  JR IF SAM FILE
-               DEC A                           ; 4F7C 3D
-               OR &10                          ; 4F7D F6 10
-               CALL SETF7                      ; 4F7F CD 16 51  "ZX FILE"
+               DEC A                           ; 4F7C 3D  a Spectrum type, counted from 1 rather than 0
+               OR &10                          ; 4F7D F6 10  lifted into SAM's range, where the meanings line up
+               CALL SETF7                      ; 4F7F CD 16 51  and remembered, because the header will have to be
+                                               ; invented
 
 ; ---- GTFS1_DONE ---- from &4F7A when A >= &10
 GTFS1_DONE:
-               LD (HL),A                       ; 4F82 77
+               LD (HL),A                       ; 4F82 77  the entry now reads as a SAM file
                RET                             ; 4F83 C9
 
 ;; --------------------------------------------------------------------
