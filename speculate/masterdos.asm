@@ -8292,13 +8292,13 @@ DERR1_1:
 ;; SEVEN CODES ARE PAST THE END OF THE DOCUMENTATION.  errors.md stops
 ;; at 112.  The table carries on:
 ;;
-;; 113  Directory not found
-;; 114  Directory not empty
-;; 115  No pages free
-;; 116  PROTECTED file
-;; 117  No Buffer
-;; 118  Page overlap
-;; 119  Size mismatch
+;;     113  Directory not found
+;;     114  Directory not empty
+;;     115  No pages free
+;;     116  PROTECTED file
+;;     117  No Buffer
+;;     118  Page overlap
+;;     119  Size mismatch
 ;;
 ;; and then stops being messages -- the bytes after 119 decode as one or
 ;; two characters, which is what ends the walk.
@@ -24215,14 +24215,14 @@ CMR3:
 ;;     page into the ROM's system page, in two runs that follow on from
 ;;     each other:
 ;;
-;;     LD HL,&BD60     the DOS page's own &7D60, in section C
-;;     LD DE,&4F00     the system page, in section B
-;;     LD BC,&01BE     446 bytes, to &4F00-&50BD
-;;     LDIR
-;;     LD DE,&4C14     and 161 more, from &7F1E to the end of the half
-;;     LD C,&A1        B is zero after an LDIR
-;;     LDIR
-;;     RET
+;;         LD HL,&BD60     the DOS page's own &7D60, in section C
+;;         LD DE,&4F00     the system page, in section B
+;;         LD BC,&01BE     446 bytes, to &4F00-&50BD
+;;         LDIR
+;;         LD DE,&4C14     and 161 more, from &7F1E to the end of the half
+;;         LD C,&A1        B is zero after an LDIR
+;;         LDIR
+;;         RET
 ;;
 ;;     The caller reaches it with CALL &BD60 rather than CALL &7D60, and
 ;;     that is the point: running from section C leaves section B free for
@@ -24265,10 +24265,10 @@ INSTALL_TAIL_INTO_SYSPAGE:
 ;;
 ;; Six inline bytes follow every one of those calls:
 ;;
-;; byte 0      the first byte of the signature
-;; bytes 1,2   the two after it
-;; bytes 3,4   the address to start searching from, high byte first
-;; byte 5      a signed offset added to whatever is found
+;;     byte 0      the first byte of the signature
+;;     bytes 1,2   the two after it
+;;     bytes 3,4   the address to start searching from, high byte first
+;;     byte 5      a signed offset added to whatever is found
 ;;
 ;; The search at &7774 keeps a three-byte sliding window -- the oldest
 ;; byte in A, the newer two in DE -- and steps forward until the oldest
@@ -24277,10 +24277,10 @@ INSTALL_TAIL_INTO_SYSPAGE:
 ;;
 ;; The signatures are ordinary Z80:
 ;;
-;; 3A B7 5A    LD A,(&5AB7)              searched from &DB00
-;; 0A FE 20    LD A,(BC) : CP " "        searched from &1000
-;; 56 5A C9    LD D,(HL) : LD E,D : RET  searched from &3C00
-;; 00 37 C9    NOP : SCF : RET           searched from &3C00
+;;     3A B7 5A    LD A,(&5AB7)              searched from &DB00
+;;     0A FE 20    LD A,(BC) : CP " "        searched from &1000
+;;     56 5A C9    LD D,(HL) : LD E,D : RET  searched from &3C00
+;;     00 37 C9    NOP : SCF : RET           searched from &3C00
 ;;
 ;; The start addresses say which ROM: &1000 and &3C00 are in ROM 0,
 ;; &D700 and &DB00 in ROM 1 at &C000.  So both halves of the ROM are
@@ -24297,9 +24297,9 @@ INSTALL_TAIL_INTO_SYSPAGE:
 ;;
 ;; Seventeen of the 27 land exactly on a named entry point --
 ;;
-;; INSERTLN  PRMAIN    LOOKVARS  MATCHER   POKE2    EDPRT
-;; ENDOUTP   DOCOMP    COMDF     COMLEN    LKCALL   LKFC
-;; EPSUB     CCRESTOP  POSTFF    EDKY1     AULLP
+;;     INSERTLN  PRMAIN    LOOKVARS  MATCHER   POKE2    EDPRT
+;;     ENDOUTP   DOCOMP    COMDF     COMLEN    LKCALL   LKFC
+;;     EPSUB     CCRESTOP  POSTFF    EDKY1     AULLP
 ;;
 ;; -- which is a fair description of what MasterBASIC replaces: line
 ;; insertion, printing, variable lookup, comparison and editing.  The

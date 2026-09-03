@@ -3714,13 +3714,13 @@ PFNM2:
 ;; channel record at RFDH before the scan starts so that the inner loop
 ;; can test it without reloading:
 ;;
-;; bit 0   match the file number
-;; bit 1   collect names for a sorted listing rather than printing
-;; bit 2   print a full listing, with a heading
-;; bit 3   match the name, honouring * and ?
-;; bit 4   match the name, ignoring the type
-;; bit 5   read through NRSAD, rebuilding the free-sector map
-;; bit 6   stop at the first free entry rather than at a match
+;;     bit 0   match the file number
+;;     bit 1   collect names for a sorted listing rather than printing
+;;     bit 2   print a full listing, with a heading
+;;     bit 3   match the name, honouring * and ?
+;;     bit 4   match the name, ignoring the type
+;;     bit 5   read through NRSAD, rebuilding the free-sector map
+;;     bit 6   stop at the first free entry rather than at a match
 ;;
 ;; While it runs it also totals the sectors used and the files on the
 ;; disc and in the current directory, remembers the first free slot in
@@ -3821,20 +3821,20 @@ FDH1_1:
 ;; is SAMDOS's with MasterDOS's own fields added at the top end where
 ;; the ROM's header did not reach:
 ;;
-;; +0        type and flags; bits 0-4 the type, 6 protected,
-;; 7 hidden.  Zero means the slot is free
-;; +1        the name, ten characters, space padded
-;; +11       sectors used, high byte first
-;; +13       first track, bit 7 for side 2, and first sector
-;; +15       195 bytes of sector map -- which sectors are this
-;; file's, in the same bit order as NSAM
-;; +210      the disc's name in entry 0; the file's nine-byte
-;; header in any other
-;; +220      the tail of the ROM's 48-byte header, date stamp and all
-;; +&FA      the tag a subdirectory gives to the files inside it
-;; +&FE      the tag of the directory this file belongs to, 0 for
-;; the root
-;; +&FF      in entry 0, the directory's length beyond four tracks
+;;     +0        type and flags; bits 0-4 the type, 6 protected,
+;;               7 hidden.  Zero means the slot is free
+;;     +1        the name, ten characters, space padded
+;;     +11       sectors used, high byte first
+;;     +13       first track, bit 7 for side 2, and first sector
+;;     +15       195 bytes of sector map -- which sectors are this
+;;               file's, in the same bit order as NSAM
+;;     +210      the disc's name in entry 0; the file's nine-byte
+;;               header in any other
+;;     +220      the tail of the ROM's 48-byte header, date stamp and all
+;;     +&FA      the tag a subdirectory gives to the files inside it
+;;     +&FE      the tag of the directory this file belongs to, 0 for
+;;               the root
+;;     +&FF      in entry 0, the directory's length beyond four tracks
 ;; --------------------------------------------------------------------
 
 ; ---- FDH05_1 ---- from &4B83
@@ -4089,6 +4089,24 @@ FDHF:
 ;; the one bit that separates A from a.  What is left is zero when the
 ;; characters are the same letter in either case.  No table, no range
 ;; test, no branch.
+;;
+;; IT ALSO MERGES SIX PAIRS THAT ARE NOT LETTERS, because bit 5 is what
+;; separates those too:
+;;
+;;     @ and `     [ and {     \ and |
+;;     ] and }     ^ and ~     _ and DEL
+;;
+;; So DIR "A[" lists A{ as well, and a file saved as X^ can be loaded
+;; as X~.  Nothing stops those names being used: the ROM's only test on
+;; a file name is its length, and a null one, so any byte a BASIC string
+;; can hold can go into a directory entry.  The same arithmetic makes
+;; every character from space to ? equal to a control code thirty-two
+;; below it, which needs a program to put the control code there but is
+;; otherwise no different.
+;;
+;; Twenty-six pairs were wanted and thirty-two came free, which for one
+;; AND is a fair trade, but it is the kind of thing that is worth
+;; knowing before wondering why two files answer to one name.
 ;;
 ;; * MATCHES THE REST, unless a period follows it.  A star with nothing
 ;; after it, or with anything other than a period, is a match there and
@@ -4665,18 +4683,18 @@ RSSR:
 ;; nothing in particular.  The record is DCHAN, at &7C00, and the
 ;; listing has a label on each of its fields:
 ;;
-;; DCHAN+0   SVBC    saved BC
-;; DCHAN+2   SVDE    saved DE, usually a track and sector
-;; DCHAN+4   RFDH    the directory scan mode
-;; DCHAN+5   SVHL    saved HL, usually the transfer address
-;; DCHAN+7   SVIX    saved IX
-;; DCHAN+9   REG1    scratch
-;; DCHAN+11  DRIVE   which drive this channel is on
-;; DCHAN+12  FLAG3   the flag byte; bit 3 is "the buffer is dirty"
-;; DCHAN+13  RPT     how far through the buffer the file has read
-;; DCHAN+15  BUF     where the buffer is
-;; DCHAN+17  NSR     the track and sector this buffer holds
-;; DCHAN+19  FSA     a 256-byte image of the directory entry
+;;     DCHAN+0   SVBC    saved BC
+;;     DCHAN+2   SVDE    saved DE, usually a track and sector
+;;     DCHAN+4   RFDH    the directory scan mode
+;;     DCHAN+5   SVHL    saved HL, usually the transfer address
+;;     DCHAN+7   SVIX    saved IX
+;;     DCHAN+9   REG1    scratch
+;;     DCHAN+11  DRIVE   which drive this channel is on
+;;     DCHAN+12  FLAG3   the flag byte; bit 3 is "the buffer is dirty"
+;;     DCHAN+13  RPT     how far through the buffer the file has read
+;;     DCHAN+15  BUF     where the buffer is
+;;     DCHAN+17  NSR     the track and sector this buffer holds
+;;     DCHAN+19  FSA     a 256-byte image of the directory entry
 ;;
 ;; So a displacement here is written as the field minus the base, which
 ;; says which field it is rather than how far along it sits.
@@ -5579,13 +5597,13 @@ DERR1_1:
 ;; SEVEN CODES ARE PAST THE END OF THE DOCUMENTATION.  errors.md stops
 ;; at 112.  The table carries on:
 ;;
-;; 113  Directory not found
-;; 114  Directory not empty
-;; 115  No pages free
-;; 116  PROTECTED file
-;; 117  No Buffer
-;; 118  Page overlap
-;; 119  Size mismatch
+;;     113  Directory not found
+;;     114  Directory not empty
+;;     115  No pages free
+;;     116  PROTECTED file
+;;     117  No Buffer
+;;     118  Page overlap
+;;     119  Size mismatch
 ;;
 ;; and then stops being messages -- the bytes after 119 decode as one or
 ;; two characters, which is what ends the walk.
@@ -14788,14 +14806,14 @@ CMR3:
 ;; page into the ROM's system page, in two runs that follow on from
 ;; each other:
 ;;
-;; LD HL,&BD60     the DOS page's own &7D60, in section C
-;; LD DE,&4F00     the system page, in section B
-;; LD BC,&01BE     446 bytes, to &4F00-&50BD
-;; LDIR
-;; LD DE,&4C14     and 161 more, from &7F1E to the end of the half
-;; LD C,&A1        B is zero after an LDIR
-;; LDIR
-;; RET
+;;     LD HL,&BD60     the DOS page's own &7D60, in section C
+;;     LD DE,&4F00     the system page, in section B
+;;     LD BC,&01BE     446 bytes, to &4F00-&50BD
+;;     LDIR
+;;     LD DE,&4C14     and 161 more, from &7F1E to the end of the half
+;;     LD C,&A1        B is zero after an LDIR
+;;     LDIR
+;;     RET
 ;;
 ;; The caller reaches it with CALL &BD60 rather than CALL &7D60, and
 ;; that is the point: running from section C leaves section B free for
@@ -14838,10 +14856,10 @@ INSTALL_TAIL_INTO_SYSPAGE:
 ;;
 ;; Six inline bytes follow every one of those calls:
 ;;
-;; byte 0      the first byte of the signature
-;; bytes 1,2   the two after it
-;; bytes 3,4   the address to start searching from, high byte first
-;; byte 5      a signed offset added to whatever is found
+;;     byte 0      the first byte of the signature
+;;     bytes 1,2   the two after it
+;;     bytes 3,4   the address to start searching from, high byte first
+;;     byte 5      a signed offset added to whatever is found
 ;;
 ;; The search at &7774 keeps a three-byte sliding window -- the oldest
 ;; byte in A, the newer two in DE -- and steps forward until the oldest
@@ -14850,10 +14868,10 @@ INSTALL_TAIL_INTO_SYSPAGE:
 ;;
 ;; The signatures are ordinary Z80:
 ;;
-;; 3A B7 5A    LD A,(&5AB7)              searched from &DB00
-;; 0A FE 20    LD A,(BC) : CP " "        searched from &1000
-;; 56 5A C9    LD D,(HL) : LD E,D : RET  searched from &3C00
-;; 00 37 C9    NOP : SCF : RET           searched from &3C00
+;;     3A B7 5A    LD A,(&5AB7)              searched from &DB00
+;;     0A FE 20    LD A,(BC) : CP " "        searched from &1000
+;;     56 5A C9    LD D,(HL) : LD E,D : RET  searched from &3C00
+;;     00 37 C9    NOP : SCF : RET           searched from &3C00
 ;;
 ;; The start addresses say which ROM: &1000 and &3C00 are in ROM 0,
 ;; &D700 and &DB00 in ROM 1 at &C000.  So both halves of the ROM are
@@ -14870,9 +14888,9 @@ INSTALL_TAIL_INTO_SYSPAGE:
 ;;
 ;; Seventeen of the 27 land exactly on a named entry point --
 ;;
-;; INSERTLN  PRMAIN    LOOKVARS  MATCHER   POKE2    EDPRT
-;; ENDOUTP   DOCOMP    COMDF     COMLEN    LKCALL   LKFC
-;; EPSUB     CCRESTOP  POSTFF    EDKY1     AULLP
+;;     INSERTLN  PRMAIN    LOOKVARS  MATCHER   POKE2    EDPRT
+;;     ENDOUTP   DOCOMP    COMDF     COMLEN    LKCALL   LKFC
+;;     EPSUB     CCRESTOP  POSTFF    EDKY1     AULLP
 ;;
 ;; -- which is a fair description of what MasterBASIC replaces: line
 ;; insertion, printing, variable lookup, comparison and editing.  The

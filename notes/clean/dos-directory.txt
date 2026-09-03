@@ -212,6 +212,24 @@ DOC CKNAM
     characters are the same letter in either case.  No table, no range
     test, no branch.
 
+    IT ALSO MERGES SIX PAIRS THAT ARE NOT LETTERS, because bit 5 is what
+    separates those too:
+
+        @ and `     [ and {     \ and |
+        ] and }     ^ and ~     _ and DEL
+
+    So DIR "A[" lists A{ as well, and a file saved as X^ can be loaded
+    as X~.  Nothing stops those names being used: the ROM's only test on
+    a file name is its length, and a null one, so any byte a BASIC string
+    can hold can go into a directory entry.  The same arithmetic makes
+    every character from space to ? equal to a control code thirty-two
+    below it, which needs a program to put the control code there but is
+    otherwise no different.
+
+    Twenty-six pairs were wanted and thirty-two came free, which for one
+    AND is a fair trade, but it is the kind of thing that is worth
+    knowing before wondering why two files answer to one name.
+
     * MATCHES THE REST, unless a period follows it.  A star with nothing
     after it, or with anything other than a period, is a match there and
     then: "*" and "A*" match everything.  A star followed by a period

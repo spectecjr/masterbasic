@@ -98,7 +98,11 @@ def parse(path):
             if cur is None:
                 raise ValueError('%s:%d: indented text with nothing above it'
                                  % (path, n))
-            cur['doc'].append(line.strip())
+            # Kept with its indentation, and dedented as a block below:
+            # a layout table in a header is a table, and flattening every
+            # line to the left margin turns it into a paragraph that
+            # happens to have plus signs in it.
+            cur['doc'].append(line.rstrip())
             continue
         m = DOC.match(line)
         if m:
@@ -190,6 +194,12 @@ def parse(path):
     for e in out:
         while e['doc'] and not e['doc'][-1]:
             e['doc'].pop()
+        # Take the common indent off, so what is left is the shape the
+        # writer gave it rather than where the file happens to sit.
+        body = [l for l in e['doc'] if l.strip()]
+        if body:
+            base = min(len(l) - len(l.lstrip()) for l in body)
+            e['doc'] = [l[base:] if l.strip() else '' for l in e['doc']]
     return out, bad
 
 

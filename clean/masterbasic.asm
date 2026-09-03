@@ -1346,12 +1346,12 @@ SAVE_BLOCK_FROM_THIS_PAGE_1:
 ;; were found by content rather than by number -- MasterBASIC's page
 ;; begins FF 48, which is XVAR 0 PUTSWA.
 ;;
-;; &7B80-&7BA3   the 36 bytes, untouched     36 of 36 match syspage &4BA0
-;; &7BA4-&7BFF   the second stub's source, still intact
-;; &7C00-&7CFF   overwritten, filled with &0D
-;; &7D00-&7DEF   the DOS's boot sector, from its &4009
-;; &7DF0-&7FAD   INSTBUF                    446 of 446 match syspage &4F00
-;; &7E64-&7FAB   the alternate character set 328 of 328 match syspage &4F74
+;;     &7B80-&7BA3   the 36 bytes, untouched     36 of 36 match syspage &4BA0
+;;     &7BA4-&7BFF   the second stub's source, still intact
+;;     &7C00-&7CFF   overwritten, filled with &0D
+;;     &7D00-&7DEF   the DOS's boot sector, from its &4009
+;;     &7DF0-&7FAD   INSTBUF                    446 of 446 match syspage &4F00
+;;     &7E64-&7FAB   the alternate character set 328 of 328 match syspage &4F74
 ;;
 ;; THREE THINGS THIS SETTLES.
 ;;
@@ -1564,32 +1564,32 @@ CHECK_PRINTER_READY_1:
 ;; the table is written the way MasterDOS's own source writes it --
 ;; DEFB ZXS,"D",ARRAY+&80 is his line for type 2.  The values are his:
 ;;
-;; 8   WHAT      "WHAT?"
-;; 9   ARRAY     ".ARRAY"
-;; 10  ZXS       "ZX"
-;; 11  SCREENS   "SCREEN$"
+;;     8   WHAT      "WHAT?"
+;;     9   ARRAY     ".ARRAY"
+;;     10  ZXS       "ZX"
+;;     11  SCREENS   "SCREEN$"
 ;;
 ;; So the table reads:
 ;;
-;; 0  " "                     erased
-;; 1  ZXS "BASIC"             ZX BASIC
-;; 2  ZXS "D" ARRAY           ZX numeric array
-;; 3  ZXS "$" ARRAY           ZX string array
-;; 4  ZXS                     ZX code -- the whole entry is one byte
-;; 5  ZXS "SNP 48K"           ZX 48K snapshot
-;; 6  "MD.FILE"               Microdrive
-;; 7  ZXS SCREENS             ZX SCREEN$ -- two bytes for eleven characters
-;; 8  "SPECIAL"
-;; 9  ZXS "SNP 128K"          ZX 128K snapshot
-;; 10  "OPENTYPE"
-;; 11  "N/A EXECUTE"
-;; 12  WHAT                    and 13, 14, 15 the same: unused codes
-;; 16  "BASIC"
-;; 17  "D" ARRAY               numeric array
-;; 18  "$" ARRAY               string array
-;; 19  "C"                     code
-;; 20  SCREENS                 SCREEN$
-;; 21  "    DIR"               directory
+;;      0  " "                     erased
+;;      1  ZXS "BASIC"             ZX BASIC
+;;      2  ZXS "D" ARRAY           ZX numeric array
+;;      3  ZXS "$" ARRAY           ZX string array
+;;      4  ZXS                     ZX code -- the whole entry is one byte
+;;      5  ZXS "SNP 48K"           ZX 48K snapshot
+;;      6  "MD.FILE"               Microdrive
+;;      7  ZXS SCREENS             ZX SCREEN$ -- two bytes for eleven characters
+;;      8  "SPECIAL"
+;;      9  ZXS "SNP 128K"          ZX 128K snapshot
+;;     10  "OPENTYPE"
+;;     11  "N/A EXECUTE"
+;;     12  WHAT                    and 13, 14, 15 the same: unused codes
+;;     16  "BASIC"
+;;     17  "D" ARRAY               numeric array
+;;     18  "$" ARRAY               string array
+;;     19  "C"                     code
+;;     20  SCREENS                 SCREEN$
+;;     21  "    DIR"               directory
 ;; --------------------------------------------------------------------
 
 WHAT:                           EQU  8         ; "WHAT?"
@@ -2589,9 +2589,9 @@ GTHL:
 ;; here in a row -- CALL CMR, a word, RET -- and each word is zero in
 ;; the file and filled in at boot by a signature search:
 ;;
-;; &45EA -> &13AA LOOKVARS
-;; &45F0 -> &2E69 SLICING
-;; &45F6 -> &10A0 INSERTLN
+;;     &45EA -> &13AA LOOKVARS
+;;     &45F0 -> &2E69 SLICING
+;;     &45F6 -> &10A0 INSERTLN
 ;;
 ;; Those are read out of a dump of a running machine, so they are what
 ;; this ROM gives; another ROM would put the same three routines
@@ -3055,12 +3055,12 @@ FIND_STRING_VARIABLE_1:
 ;; Put an empty string on the calculator stack, and apply a slice to it
 ;; if one follows.
 ;;
-;; XOR A : LD D,A : LD E,A : CALL STKSTR   -- a string of length
-;; zero at address zero
-;; CP CH_CR    : JR Z,done
-;; CP CH_COLON : JR Z,done
-;; CALL SLICING
-;; CALL NEXTCHAR : CP "(" : CALL Z,NEXTCHAR
+;;     XOR A : LD D,A : LD E,A : CALL STKSTR   -- a string of length
+;;                                                zero at address zero
+;;     CP CH_CR    : JR Z,done
+;;     CP CH_COLON : JR Z,done
+;;     CALL SLICING
+;;     CALL NEXTCHAR : CP "(" : CALL Z,NEXTCHAR
 ;;
 ;; So at the end of a statement the result is the empty string, and
 ;; otherwise the ROM's SLICING is left to read whatever subscript is
@@ -4869,8 +4869,8 @@ FN_SVAL_S_4:
 ;; eighty-eight copied from the table.  Its first two instructions are
 ;; a JP and a CALL with zero operands, and HCMDV fills both in:
 ;;
-;; &4D79 <- HL after the second LDIR, the address the copy ran to
-;; &4D7C <- the word already at &4D45
+;;     &4D79 <- HL after the second LDIR, the address the copy ran to
+;;     &4D7C <- the word already at &4D45
 ;;
 ;; In the dump they read JP &E071 and CALL &3EEA.  &E071 is one past
 ;; &E070, the last byte copied, so the JP resumes the ROM 1 routine
@@ -5904,22 +5904,22 @@ L534D:
 ;;
 ;; THE LAYOUT is IBM System 34, the format the WD177x writes:
 ;;
-;; 60 x &4E                        the post-index gap
-;; then ten times:
-;; 12 x &00                    sync
-;; 3 x &F5                    the controller writes A1 with a
-;; missing clock for each, and starts
-;; the CRC
-;; 1 x &FE                    ID address mark
-;; track, side, sector, &02   &02 is the size code for 512 bytes
-;; 1 x &F7                    the controller writes both CRC bytes
-;; 22 x &4E                    gap 2
-;; 12 x &00, 3 x &F5, &FB      sync and the data address mark
-;; 512 x &00                    the sector body, written as two
-;; fills of 256 because B is zero
-;; 1 x &F7                    CRC again
-;; 27 x &4E                    gap 3
-;; 256 x &4E                       the trailing gap
+;;     60 x &4E                        the post-index gap
+;;     then ten times:
+;;         12 x &00                    sync
+;;          3 x &F5                    the controller writes A1 with a
+;;                                     missing clock for each, and starts
+;;                                     the CRC
+;;          1 x &FE                    ID address mark
+;;          track, side, sector, &02   &02 is the size code for 512 bytes
+;;          1 x &F7                    the controller writes both CRC bytes
+;;         22 x &4E                    gap 2
+;;         12 x &00, 3 x &F5, &FB      sync and the data address mark
+;;        512 x &00                    the sector body, written as two
+;;                                     fills of 256 because B is zero
+;;          1 x &F7                    CRC again
+;;         27 x &4E                    gap 3
+;;     256 x &4E                       the trailing gap
 ;;
 ;; That is 6306 bytes for a track that holds about 6250, and the surplus
 ;; is the point: the controller stops at the index hole, so the last gap
@@ -6971,16 +6971,16 @@ GET_STRING_AND_PAGE_IT_LOOP2:
 ;; Compare the reference against the bytes at HL, a letter at a time,
 ;; and it is the manual's promise about case that gives this its shape:
 ;;
-;; "It does not matter whether any letters in the reference are in
-;; capitals or not.  For example, both REF abc$ and REF ABC$ will
-;; find abc$, ABC$ or AbC$."
+;;     "It does not matter whether any letters in the reference are in
+;;     capitals or not.  For example, both REF abc$ and REF ABC$ will
+;;     find abc$, ABC$ or AbC$."
 ;;
 ;; The first byte at the buffer is the length.  For each byte, IS_LETTER
 ;; decides which of two comparisons happens:
 ;;
-;; XOR (HL) : AND &DF     a letter -- equal if they differ only in
-;; bit 5, which is the case bit
-;; CP (HL)                anything else -- exact
+;;     XOR (HL) : AND &DF     a letter -- equal if they differ only in
+;;                            bit 5, which is the case bit
+;;     CP (HL)                anything else -- exact
 ;;
 ;; and the two are one after the other in memory, with a `DEFB &0E`
 ;; between them: fall through and the &0E swallows the CP (HL) as the
@@ -7062,7 +7062,7 @@ MATCH_REFERENCE_DONE:
 ;; Walk forward through BASIC text looking for either of two
 ;; characters, given in D and E.
 ;;
-;; INC HL : LD A,(HL) : CALL NUMBER
+;;     INC HL : LD A,(HL) : CALL NUMBER
 ;;
 ;; NUMBER is the ROM routine that steps over the invisible six-byte
 ;; binary form a number carries in a program line, so the scan never
@@ -7411,20 +7411,20 @@ SERCMD:
 ;;
 ;; This is that.  A is the character about to be printed:
 ;;
-;; LD DE,(MODCHAR1)     ; E = MODCHAR1, D = MODCHAR2
-;; LD HL,MODMSG1
-;; CP E : JR Z,send
-;; LD HL,MODMSG2
-;; CP D : JR Z,send
-;; CALL CMR : DEFW PRMAIN   ; anything else prints as itself
+;;     LD DE,(MODCHAR1)     ; E = MODCHAR1, D = MODCHAR2
+;;     LD HL,MODMSG1
+;;     CP E : JR Z,send
+;;     LD HL,MODMSG2
+;;     CP D : JR Z,send
+;;     CALL CMR : DEFW PRMAIN   ; anything else prints as itself
 ;;
 ;; The four XVARs it reads are set up for an Epson and can be changed by
 ;; the user, which is why they are XVARs at all:
 ;;
-;; MODCHAR1  &60  96, pound
-;; MODCHAR2  &23  35, hash
-;; MODMSG1   04 1B 52 03 23   length 4, then ESC "R" 3 "#"
-;; MODMSG2   04 1B 52 00 23   length 4, then ESC "R" 0 "#"
+;;     MODCHAR1  &60  96, pound
+;;     MODCHAR2  &23  35, hash
+;;     MODMSG1   04 1B 52 03 23   length 4, then ESC "R" 3 "#"
+;;     MODMSG2   04 1B 52 00 23   length 4, then ESC "R" 0 "#"
 ;;
 ;; ESC R n is the Epson command for the international character set, so
 ;; a pound is printed by switching to set 3 and sending "#", and a hash
@@ -8133,10 +8133,10 @@ PAGE_IN_ROM1_1:
 ;; SOUND, token &AE -- and the reason for taking it over is in the
 ;; manual, which documents SOUND CLEAR and SOUND CLEAR size:
 ;;
-;; "SOUND CLEAR used on its own will clear the buffer ... To change
-;; the sound buffer size, simply use SOUND CLEAR with a different
-;; value.  SOUND CLEAR 0 will delete the buffer and free the memory
-;; for other uses."
+;;     "SOUND CLEAR used on its own will clear the buffer ... To change
+;;     the sound buffer size, simply use SOUND CLEAR with a different
+;;     value.  SOUND CLEAR 0 will delete the buffer and free the memory
+;;     for other uses."
 ;;
 ;; The code is that sentence.  The next character is compared with the
 ;; ROM's CLEAR token and anything else leaves for CMD_SOUND_2, the ordinary
@@ -8179,8 +8179,8 @@ CMD_SOUND_1:
 ;; sound data, the sound address port being &1FF", and the loop uses one
 ;; register pair for both:
 ;;
-;; LD BC,&01FF : DEC A : OUT (C),A     select register A at &1FF
-;; DEC B       : OUT (C),B             write zero to it at &00FF
+;;     LD BC,&01FF : DEC A : OUT (C),A     select register A at &1FF
+;;     DEC B       : OUT (C),B             write zero to it at &00FF
 ;;
 ;; DEC B turns the address port into the data port and supplies the zero
 ;; at the same time.  Before the loop it waits for a frame with EI :
@@ -8237,12 +8237,12 @@ CMD_SOUND_2:
 ;; CDBUFF+&50, where hook 185 builds -- and then writes the rest a byte
 ;; at a time, opcode by opcode:
 ;;
-;; C2 00 00      JP NZ,&0000     the operand is filled in later
-;; D0            RET NC
-;; 3E nn         LD A,page       LMPR+1, this half's own page
-;; D3 FB         OUT (HMPR),A
-;; 21 nn nn      LD HL,DE        the caller's DE
-;; C3 20 9D      JP &9D20
+;;     C2 00 00      JP NZ,&0000     the operand is filled in later
+;;     D0            RET NC
+;;     3E nn         LD A,page       LMPR+1, this half's own page
+;;     D3 FB         OUT (HMPR),A
+;;     21 nn nn      LD HL,DE        the caller's DE
+;;     C3 20 9D      JP &9D20
 ;;
 ;; &9D20 is in the window, so it is this half's &5D20 seen from a page
 ;; where this half sits at &8000.  The trampoline therefore pages
@@ -8374,8 +8374,8 @@ RESTORE_HMPR_AND_STORE:
 ;; The ROM's own source settles what this is.  ref/samrom/miscx2.asm
 ;; opens
 ;;
-;; ORG INSTBUF
-;; DKP2:  CALL EXPT1NUM   ;NUMBER OF KEY CODE TO DEFINE
+;;     ORG INSTBUF
+;;     DKP2:  CALL EXPT1NUM   ;NUMBER OF KEY CODE TO DEFINE
 ;;
 ;; -- so DEF KEYCODE is one of the ROM 1 routines the ROM assembles to
 ;; run at INSTBUF and copies there when the command is used, and DKLN,
@@ -8403,8 +8403,8 @@ CMD_DEF_KEYCODE:
 ;;
 ;; The ROM's source settles this one too -- ref/samrom/miscx1.asm has
 ;;
-;; ORG HDR
-;; KEYP2:  CALL SYNTAXA
+;;     ORG HDR
+;;     KEYP2:  CALL SYNTAXA
 ;;
 ;; so KEYIN is assembled to run in the fifty-byte header buffer, which
 ;; is free because KEYIN cannot be loading a file at the same time.
@@ -8752,19 +8752,19 @@ FIND_SLOTS:
 ;; The Technical Manual describes the scheme and the method, and this
 ;; is that method:
 ;;
-;; A "Utilities" page is marked 20H.  It is divided into 16 1K
-;; sections which can be used by assorted short utility programs.
-;; The final 16 bytes in a utilities page (SLOTT) show which
-;; "slots" are reserved -- a 0 shows the corresponding slot is
-;; free, and FFH that it is reserved.  (The last slot is 16 bytes
-;; short of 1K.)  The proper method of allocating space for a
-;; short program is to look backwards through ALLOCT for 20H.  If
-;; you find it switch in the indicated page and look backwards
-;; through SLOTT for a spare slot.  Mark it and use that slot.  If
-;; you do not find a 20H entry in ALLOCT, look for 00H; report an
-;; error if none is found, else mark it 20H, clear the last 16
-;; bytes of that page with zeros, and then reserve yourself some
-;; space in the new SLOTT you have just created.
+;;     A "Utilities" page is marked 20H.  It is divided into 16 1K
+;;     sections which can be used by assorted short utility programs.
+;;     The final 16 bytes in a utilities page (SLOTT) show which
+;;     "slots" are reserved -- a 0 shows the corresponding slot is
+;;     free, and FFH that it is reserved.  (The last slot is 16 bytes
+;;     short of 1K.)  The proper method of allocating space for a
+;;     short program is to look backwards through ALLOCT for 20H.  If
+;;     you find it switch in the indicated page and look backwards
+;;     through SLOTT for a spare slot.  Mark it and use that slot.  If
+;;     you do not find a 20H entry in ALLOCT, look for 00H; report an
+;;     error if none is found, else mark it 20H, clear the last 16
+;;     bytes of that page with zeros, and then reserve yourself some
+;;     space in the new SLOTT you have just created.
 ;;
 ;; Instruction for instruction: HMPR is zeroed so &91xx reads ALLOCT
 ;; in the system page; FIND_SLOTS enters with L = &1F, the top page,
@@ -10122,15 +10122,15 @@ WRITE_DOS_BYTE:
 ;; open file" -- through the three routines below, which differ only in
 ;; which page they put in the window first:
 ;;
-;; from        page              length   goes to
-;; &7CF7       this half           &0100  DOS  &4000-&40FF
-;; &4100       the DOS page        &3C60  DOS  &4100-&7D5F
-;; &7DF0       this half           &01BE  DOS  &7D60-&7F1D
-;; &4C14       the system page     &00A2  DOS  &7F1E-&7FBF
-;; &4000       this half           &3B80  MB   &4000-&7B7F
-;; &4BA0       the system page     &0024  MB   &7B80-&7BA3
-;; &484D       the system page     &029F  MB   &7BA4-&7E42
-;; &5896       the system page     &017D  MB   &7E43-&7FBF
+;;     from        page              length   goes to
+;;     &7CF7       this half           &0100  DOS  &4000-&40FF
+;;     &4100       the DOS page        &3C60  DOS  &4100-&7D5F
+;;     &7DF0       this half           &01BE  DOS  &7D60-&7F1D
+;;     &4C14       the system page     &00A2  DOS  &7F1E-&7FBF
+;;     &4000       this half           &3B80  MB   &4000-&7B7F
+;;     &4BA0       the system page     &0024  MB   &7B80-&7BA3
+;;     &484D       the system page     &029F  MB   &7BA4-&7E42
+;;     &5896       the system page     &017D  MB   &7E43-&7FBF
 ;;
 ;; &0100 + &3C60 + &01BE + &00A2 is &3FC0, and so is &3B80 + &0024 +
 ;; &029F + &017D: two halves of 16320 bytes each, which is the file.
@@ -10168,10 +10168,10 @@ WRITE_DOS_BYTE:
 ;; be checked against something it produced.  Every block whose source
 ;; is covered by the system page dumps matches byte for byte:
 ;;
-;; block 4   DOS &7F1E, &00A2  vs syspage &4C14   162 of 162
-;; block 6   MB  &7B80, &0024  vs syspage &4BA0    36 of 36
-;; block 7   MB  &7BA4, &029F  vs syspage &484D   671 of 671
-;; block 8   MB  &7E43, &017D  vs syspage &5896   381 of 381
+;;     block 4   DOS &7F1E, &00A2  vs syspage &4C14   162 of 162
+;;     block 6   MB  &7B80, &0024  vs syspage &4BA0    36 of 36
+;;     block 7   MB  &7BA4, &029F  vs syspage &484D   671 of 671
+;;     block 8   MB  &7E43, &017D  vs syspage &5896   381 of 381
 ;;
 ;; The addresses, the lengths and the page each block comes from were
 ;; all read out of the code before any such file was known to exist.  What
@@ -10184,8 +10184,8 @@ WRITE_DOS_BYTE:
 ;;
 ;; The manual promises, under BLOCKS 2, that
 ;;
-;; BLOCKS 2 / LOAD "newset" CODE UDG CHR$ 128 / BLOCKS 0
-;; SAVE BOOT "filename"
+;;     BLOCKS 2 / LOAD "newset" CODE UDG CHR$ 128 / BLOCKS 0
+;;     SAVE BOOT "filename"
 ;;
 ;; "SAVEs MasterDOS with the new character set included within it".
 ;; XVAR 87 ALTUDG is documented as the displacement of that set from
@@ -10676,26 +10676,26 @@ HK_PIXELCELL_10:
 ;; The other compressor, and the manual describes the pair of them
 ;; precisely:
 ;;
-;; SAVE MODE 1 -- "SAVE normally, no compression."
-;; SAVE MODE 2 -- "Compress SCREEN, CODE and array files.  The
-;; method used is fairly fast but it requires at
-;; least one 16K page of memory as a working area
-;; during both SAVE and LOAD."
-;; SAVE MODE 3 -- "As above, except that a slower but more
-;; intelligent routine is used to compress SCREEN$
-;; files ... Another advantage of this alternative
-;; screen compression method is that it does not
-;; require a spare memory page.  CODE and array
-;; files are handled just as they are by SAVE
-;; MODE 2."
+;;     SAVE MODE 1 -- "SAVE normally, no compression."
+;;     SAVE MODE 2 -- "Compress SCREEN, CODE and array files.  The
+;;                    method used is fairly fast but it requires at
+;;                    least one 16K page of memory as a working area
+;;                    during both SAVE and LOAD."
+;;     SAVE MODE 3 -- "As above, except that a slower but more
+;;                    intelligent routine is used to compress SCREEN$
+;;                    files ... Another advantage of this alternative
+;;                    screen compression method is that it does not
+;;                    require a spare memory page.  CODE and array
+;;                    files are handled just as they are by SAVE
+;;                    MODE 2."
 ;;
 ;; which is the DOS's branch, one line at a time.  CMPFG is the mode
 ;; less one, so:
 ;;
-;; CMPFG 0                     no compression at all
-;; CMPFG 1                     this routine, whatever the type
-;; CMPFG 2, type &14 SCREEN$   COMPRESS_SCREEN_FILE instead
-;; CMPFG 2, any other type     this routine
+;;     CMPFG 0                     no compression at all
+;;     CMPFG 1                     this routine, whatever the type
+;;     CMPFG 2, type &14 SCREEN$   COMPRESS_SCREEN_FILE instead
+;;     CMPFG 2, any other type     this routine
 ;;
 ;; So this is the fast one that wants a spare page, and
 ;; COMPRESS_SCREEN_FILE the slower screen-only one that does not -- and
@@ -11163,10 +11163,10 @@ L67C6:
 ;; Find a 16K page to work in, and the manual says what happens when
 ;; there is not one:
 ;;
-;; "The method used is fairly fast but it requires at least one 16K
-;; page of memory as a working area during both SAVE and LOAD.  If
-;; there is no page free, the screen will be used -- this will
-;; corrupt the display."
+;;     "The method used is fairly fast but it requires at least one 16K
+;;     page of memory as a working area during both SAVE and LOAD.  If
+;;     there is no page free, the screen will be used -- this will
+;;     corrupt the display."
 ;;
 ;; The DOS's FFPG scans ALLOCT for the biggest free block, keeping the
 ;; size in B and a page in E -- its own source comments the start of it
@@ -11669,9 +11669,9 @@ TRANSFORM_DUMP_COORDS_1:
 ;; Four modes, three ways of storing a pixel, so this splits three
 ;; ways on DUMP_MODE:
 ;;
-;; 0, 1   MODE 1 and 2, a bitmap with attributes elsewhere
-;; 2      MODE 3, four pixels to a byte
-;; 3      MODE 4, two pixels to a byte
+;;     0, 1   MODE 1 and 2, a bitmap with attributes elsewhere
+;;     2      MODE 3, four pixels to a byte
+;;     3      MODE 4, two pixels to a byte
 ;;
 ;; MODE 4 is READ_PIXEL_NIBBLE by itself: the answer is a whole nibble
 ;; and is already the colour.  MODE 3 reads the nibble the same way and
@@ -12837,7 +12837,7 @@ V6E5F:
 ;; slash is entered into the program, and the remainder stays in the
 ;; editing area with a copy of the original line number.
 ;;
-;; 10 PRINT "hello": GO TO 10:/ PRINT "goodbye"
+;;     10 PRINT "hello": GO TO 10:/ PRINT "goodbye"
 ;;
 ;; leaves 10 PRINT "hello": GO TO 10 in the listing, and 10 PRINT
 ;; "goodbye" in the edit line with the cursor after the line number,
@@ -13913,9 +13913,9 @@ HK_PROGPREP_1:
 ;; Three patches then retarget it, and each one can be read against the
 ;; ROM source:
 ;;
-;; &4D18 <- &A8   turns the copy's LD (KCURP),A into LD (PRPTRP),A
-;; &4D1E <- &A9   and its LD (KCUR),HL into LD (PRPTR),HL
-;; &4D4E <- &4D71, the word already there being kept at &4D75
+;;     &4D18 <- &A8   turns the copy's LD (KCURP),A into LD (PRPTRP),A
+;;     &4D1E <- &A9   and its LD (KCUR),HL into LD (PRPTR),HL
+;;     &4D4E <- &4D71, the word already there being kept at &4D75
 ;;
 ;; The ROM's COMPILE borrows KCUR and KCURP -- the editor's cursor
 ;; position -- to hold CHAD across the pass.  The copy uses PRPTR and
@@ -13954,16 +13954,16 @@ BUILD_COMPILER:
 ;; a rewrite of the ROM's own LABSD, and the correspondence is
 ;; instruction for instruction:
 ;;
-;; ROM                          here
-;; CALL COMALL                  CALL &4D81   = COMPILE_ALL
-;; XOR A / LD (COMPFLG),A       the same
-;; CALL ELCOMAL                 CALL &4D7B   = COMPILE_ELINE
-;; POP AF / LD (CLAPG),A        the same
-;; POP HL / LD (CLA),HL         the same
-;; LD HL,(KCUR)                 LD HL,(PRPTR)
-;; LD (CHAD),HL                 the same
-;; LD A,(KCURP)                 LD A,(PRPTRP)
-;; JP SETCHADP                  the same
+;;     ROM                          here
+;;     CALL COMALL                  CALL &4D81   = COMPILE_ALL
+;;     XOR A / LD (COMPFLG),A       the same
+;;     CALL ELCOMAL                 CALL &4D7B   = COMPILE_ELINE
+;;     POP AF / LD (CLAPG),A        the same
+;;     POP HL / LD (CLA),HL         the same
+;;     LD HL,(KCUR)                 LD HL,(PRPTR)
+;;     LD (CHAD),HL                 the same
+;;     LD A,(KCURP)                 LD A,(PRPTRP)
+;;     JP SETCHADP                  the same
 ;;
 ;; The two variables swapped here are the two the patches above swapped
 ;; at the other end, which is what makes the reading of both certain.
@@ -14008,15 +14008,15 @@ COMPILE_ELINE:
 ;; What the ROM calls COMALL, at &4D81 once moved, and entered with
 ;; carry set: the ROM's own source comments its CALL COMALL "(CY HERE)".
 ;;
-;; CALL C,COMDF     compile the DEF FNs (the ROM's, by signature)
-;; CALL &4DE7       = BUILD_PROC_INDEX, below
-;; CALL COMLEN      how much program there is to search
+;;     CALL C,COMDF     compile the DEF FNs (the ROM's, by signature)
+;;     CALL &4DE7       = BUILD_PROC_INDEX, below
+;;     CALL COMLEN      how much program there is to search
 ;; loop:
-;; LD D,&FD         PROC -- the ROM's LKCALL takes &FD for a PROC
-;; CALL LKCALL      find the next call to one
-;; RET C            none left
-;; CALL &4D97       = FIND_PROC_ENTRY, resolve it
-;; loop again
+;;     LD D,&FD         PROC -- the ROM's LKCALL takes &FD for a PROC
+;;     CALL LKCALL      find the next call to one
+;;     RET C            none left
+;;     CALL &4D97       = FIND_PROC_ENTRY, resolve it
+;;     loop again
 ;;
 ;; So the program is walked once for calls, and each call is resolved
 ;; against the index rather than by another search.
@@ -14133,10 +14133,10 @@ FIND_PROC_ENTRY_1:
 ;; skip-colons-and-spaces flag LKFC documents, and &CA is the DEF PROC
 ;; token.  For each one found it writes six bytes:
 ;;
-;; +0  the character after the token, AND &DF -- upper-cased
-;; +1  the page the program is in
-;; +2  BC from LKFC
-;; +4  DE from LKFC
+;;     +0  the character after the token, AND &DF -- upper-cased
+;;     +1  the page the program is in
+;;     +2  BC from LKFC
+;;     +4  DE from LKFC
 ;;
 ;; and a zero byte ends the table.  Where it puts it is the neat part:
 ;; &E000 with HMPR set to FISCRNP, the page of screen 1.  Section D is
@@ -14210,10 +14210,10 @@ BUILD_PROC_INDEX_1:
 ;; at it.  The ROM's variable table does not say what INSLV is, but its
 ;; source does:
 ;;
-;; STRMOV:    LD A,B : OR C : RET Z
-;; STRMOV1:   LD HL,(INSLV) : INC H : DEC H : JP NZ,HLJUMP
-;; LD H,B : LD L,C
-;; STRMOVL:   ...
+;;     STRMOV:    LD A,B : OR C : RET Z
+;;     STRMOV1:   LD HL,(INSLV) : INC H : DEC H : JP NZ,HLJUMP
+;;                LD H,B : LD L,C
+;;     STRMOVL:   ...
 ;;
 ;; -- so setting INSLV makes every string move in the machine come here
 ;; instead.  That is why this block has to live in the system page: it
@@ -14221,8 +14221,8 @@ BUILD_PROC_INDEX_1:
 ;;
 ;; It begins by deciding whether it is worth the trouble:
 ;;
-;; LD A,B : AND A : JR NZ,+     ; 256 or more, do it here
-;; LD A,C : CP &15 : JP C,&2A96 ; under 21 bytes, let the ROM do it
+;;     LD A,B : AND A : JR NZ,+     ; 256 or more, do it here
+;;     LD A,C : CP &15 : JP C,&2A96 ; under 21 bytes, let the ROM do it
 ;;
 ;; and the address it hands back to is the neatest part.  &2A96 is
 ;; LD H,B, the instruction immediately after the INSLV test -- so the
@@ -14639,10 +14639,10 @@ INSTALLER_2:
 ;; is what makes them reachable: it writes their addresses into the ROM's
 ;; own vector variables, so the ROM calls MasterBASIC without knowing it.
 ;;
-;; PRTOKV  &4BB0     EDITV   &4866     BSTKEND &45A1
-;; MTOKV   &58B4     FRAMIV  &4986     BASSTK  &45A1
-;; EVALUV  &4BBA     PATOUT  &49A9     INSLV   &46CC
-;; CMDV    &488E     RST8V   &4AB8
+;;     PRTOKV  &4BB0     EDITV   &4866     BSTKEND &45A1
+;;     MTOKV   &58B4     FRAMIV  &4986     BASSTK  &45A1
+;;     EVALUV  &4BBA     PATOUT  &49A9     INSLV   &46CC
+;;     CMDV    &488E     RST8V   &4AB8
 ;;
 ;; Read those against the system page, not this one.  &46CC is where the
 ;; first stub was copied, &4866, &4986, &49A9 and &4AB8 all fall inside
@@ -14677,7 +14677,7 @@ INSTALLER_2:
 ;; INSLV is worth naming properly.  The ROM's variable table gives it no
 ;; comment, but STRMOV1 in the ROM does
 ;;
-;; LD HL,(INSLV) : INC H : DEC H : JP NZ,HLJUMP
+;;     LD HL,(INSLV) : INC H : DEC H : JP NZ,HLJUMP
 ;;
 ;; so it is the hook on the ROM's string move: set it and the ROM jumps
 ;; there instead.  &46CC, the first installed stub, is MasterBASIC's
@@ -14932,8 +14932,8 @@ MSG_EXTERNAL_MEMORY:
 ;; of MegaRAM pages in use, DVARs 118-149 at the DOS's &4296, and a set
 ;; bit means unavailable:
 ;;
-;; shipped image, never booted   32 bytes of &00
-;; MBPOST, booted with 1MB       8 of &00, then 24 of &FF
+;;     shipped image, never booted   32 bytes of &00
+;;     MBPOST, booted with 1MB       8 of &00, then 24 of &FF
 ;;
 ;; Sixty-four pages free and 192 not, and 64 pages of 16K is exactly
 ;; the 1MB fitted.  The image ships with the table clear, so the &FFs
@@ -14966,10 +14966,10 @@ MSG_EXTERNAL_MEMORY:
 ;; there -- INSTALLER, which this listing has named all along.  &77DB
 ;; is inside that block, &1FA bytes in, so the code runs at &7C00+&1FA:
 ;;
-;; stored MB &77CB  MSG_EXTERNAL_MEMORY  ->  &7DEA   (&77C9 -> &BDE8)
-;; stored MB &77DB  SIZE_EXTERNAL_MEMORY ->  &7DFA
-;; stored MB &77E5  the OUT (XMPRL),A    ->  &7E04
-;; stored MB &7800  FILL_PAGE_WITH_ZERO  ->  &7E1F
+;;     stored MB &77CB  MSG_EXTERNAL_MEMORY  ->  &7DEA   (&77C9 -> &BDE8)
+;;     stored MB &77DB  SIZE_EXTERNAL_MEMORY ->  &7DFA
+;;     stored MB &77E5  the OUT (XMPRL),A    ->  &7E04
+;;     stored MB &7800  FILL_PAGE_WITH_ZERO  ->  &7E1F
 ;;
 ;; Three things land exactly.  A breakpoint on writes to port &80 fired
 ;; at &7E04, which is where the OUT goes.  A breakpoint on &77DB never
@@ -15002,9 +15002,9 @@ MSG_EXTERNAL_MEMORY:
 ;; in 90.3% of bytes counting only the ones that are not zero, and it
 ;; holds, exactly where the arithmetic said:
 ;;
-;; &7DE8   "K External Memory"          the message
-;; &7DFA   DB FB F5 F6 80 D3 FB         SIZE_EXTERNAL_MEMORY
-;; &7E04   D3 80                        the OUT the breakpoint caught
+;;     &7DE8   "K External Memory"          the message
+;;     &7DFA   DB FB F5 F6 80 D3 FB         SIZE_EXTERNAL_MEMORY
+;;     &7E04   D3 80                        the OUT the breakpoint caught
 ;;
 ;; The copy is 943 bytes at &7C00-&7FAE and matches the stored MB &75E1
 ;; onward byte for byte over the whole of it.  Nothing is patched as it
@@ -15018,9 +15018,9 @@ MSG_EXTERNAL_MEMORY:
 ;; Read in the DOS page, which is where this code runs, they are the
 ;; DOS's own and the DOS listing already names them:
 ;;
-;; &7806   RMRBIT      reset a MegaRAM bit
-;; &77FE   SMRBIT      set a MegaRAM bit
-;; &7811   MRADDR      the byte and bit in MRTAB for the page in A
+;;     &7806   RMRBIT      reset a MegaRAM bit
+;;     &77FE   SMRBIT      set a MegaRAM bit
+;;     &7811   MRADDR      the byte and bit in MRTAB for the page in A
 ;;
 ;; THE OPERANDS THAT LOOK WRONG, for the record.  &77F5 calls &7806
 ;; and &7819 jumps to &77FE, both of which are stored addresses rather
@@ -15156,20 +15156,20 @@ STACK_FILL_LOOP_1:
 ;; the DOS page, all of them calls back into the middle of the ROM's own
 ;; PUT, each written as an offset from wherever PUT turned out to be:
 ;;
-;; &BEFC <- PUT+&8D    OVER0LP     patched at &78DD in this listing
-;; &BF0D <- PUT-&14    GPVARS                    &78EE
-;; &BEA6 <- PUT+&1A                              &7887
-;; &BF6B <- PUT+&0D                              &794C
+;;     &BEFC <- PUT+&8D    OVER0LP     patched at &78DD in this listing
+;;     &BF0D <- PUT-&14    GPVARS                    &78EE
+;;     &BEA6 <- PUT+&1A                              &7887
+;;     &BF6B <- PUT+&0D                              &794C
 ;;
 ;; Then it falls into BUILD_PUT_BLOCK, which assembles 298 bytes:
 ;;
-;; &45A2   10 bytes   from this half's &7986
-;; &45AC   13 bytes   from the ROM, at PUT
-;; &45B9   13 bytes   from the ROM, at PUT+13   (overwritten below)
-;; &45C6   21 bytes   from this half's &7879
-;; &45DB    3 bytes   from the ROM, at PUT+34   (8 bytes skipped)
-;; &45DE  238 bytes   from this half's &788E
-;; &45B9   10 bytes   from this half's &797C
+;;     &45A2   10 bytes   from this half's &7986
+;;     &45AC   13 bytes   from the ROM, at PUT
+;;     &45B9   13 bytes   from the ROM, at PUT+13   (overwritten below)
+;;     &45C6   21 bytes   from this half's &7879
+;;     &45DB    3 bytes   from the ROM, at PUT+34   (8 bytes skipped)
+;;     &45DE  238 bytes   from this half's &788E
+;;     &45B9   10 bytes   from this half's &797C
 ;;
 ;; So MasterBASIC does not replace PUT so much as rebuild it: it keeps
 ;; three fragments of the ROM's code, splices its own around them, and
@@ -15493,11 +15493,11 @@ BUILD_PUT_BLOCK_LOOP2:
 ;;
 ;; The signatures are ordinary instructions:
 ;;
-;; C9 E3 CD    RET : EX (SP),HL : CALL   from &1030, +3
-;; 20 08 78    JR NZ,+8 : LD A,B         from &0370, +2
-;; 3A 40 5B    LD A,(&5B40)              from &2FE0
-;; 7A ED B1    LD A,D : CPIR             from &3000, -4
-;; 21 40 51    LD HL,&5140               from &3080
+;;     C9 E3 CD    RET : EX (SP),HL : CALL   from &1030, +3
+;;     20 08 78    JR NZ,+8 : LD A,B         from &0370, +2
+;;     3A 40 5B    LD A,(&5B40)              from &2FE0
+;;     7A ED B1    LD A,D : CPIR             from &3000, -4
+;;     21 40 51    LD HL,&5140               from &3080
 ;;
 ;; Two of the destinations matter more than the rest.  &7DFB and &7E01
 ;; are inside the block at &7BA4 that gets copied into the system page,
@@ -15612,11 +15612,11 @@ BUILD_PUT_BLOCK_13:
 ;; page.  Called once, from &7651.  HMPR is zeroed first, so every &9xxx
 ;; below means the system page's &5xxx.
 ;;
-;; &994A, &9941   two bytes poked with &18 and &19
-;; PAGER          14 bytes from &7AF2
-;; &9A12          29 bytes of DPVARS
-;; &9896          40 bytes from &7E43
-;; MNIP           set to &4C14
+;;     &994A, &9941   two bytes poked with &18 and &19
+;;     PAGER          14 bytes from &7AF2
+;;     &9A12          29 bytes of DPVARS
+;;     &9896          40 bytes from &7E43
+;;     MNIP           set to &4C14
 ;;
 ;; All four are identifiable.
 ;;
@@ -15756,13 +15756,13 @@ MB_PAGER:
 ;; ROM's own variable table names what is there.  An address of &8xxx
 ;; while HMPR is zero is &4xxx as the ROM's table numbers it, so:
 ;;
-;; &7460 -> &46CC   385 bytes, into the area between the heap end
-;; and BASIC's stack
-;; &7B80 -> &4BA0    36 bytes, past the loaded-header buffer
-;; &7BA4 -> &484D   671 bytes, into the same heap and stack area
-;; &4F00 -> &7DF0   446 bytes, the other way: INSTBUF, which the
-;; ROM's table calls its buffer for ROM1 transfer
-;; code, saved into this page
+;;     &7460 -> &46CC   385 bytes, into the area between the heap end
+;;                      and BASIC's stack
+;;     &7B80 -> &4BA0    36 bytes, past the loaded-header buffer
+;;     &7BA4 -> &484D   671 bytes, into the same heap and stack area
+;;     &4F00 -> &7DF0   446 bytes, the other way: INSTBUF, which the
+;;                      ROM's table calls its buffer for ROM1 transfer
+;;                      code, saved into this page
 ;;
 ;; The last LDIR, after the paging has been restored, takes 240 bytes
 ;; of the DOS's boot sector to &7D00.
@@ -15775,10 +15775,10 @@ MB_PAGER:
 ;; them into the file at DOS &7D60, where they started.  So the round
 ;; trip closes:
 ;;
-;; file DOS &7D60  --(the boot loads the DOS half)-->  DOS &7D60
-;; DOS &7D60       --INSTALL_TAIL_INTO_SYSPAGE-->      syspage &4F00
-;; syspage &4F00   --INSTALL_ROM_PATCHES-->            MB &7DF0
-;; MB &7DF0        --SAVE BOOT, third block-->         file DOS &7D60
+;;     file DOS &7D60  --(the boot loads the DOS half)-->  DOS &7D60
+;;     DOS &7D60       --INSTALL_TAIL_INTO_SYSPAGE-->      syspage &4F00
+;;     syspage &4F00   --INSTALL_ROM_PATCHES-->            MB &7DF0
+;;     MB &7DF0        --SAVE BOOT, third block-->         file DOS &7D60
 ;;
 ;; which is why the shipped image and MBPOST agree on all 446 bytes of
 ;; that block, and why the alternate character set survives a SAVE
@@ -15807,14 +15807,14 @@ MB_PAGER:
 ;; references to &7B00 in this listing are not calls but loads, and
 ;; they treat it as a buffer.
 ;;
-;; COPY_STRING_TO_BUFFER gets a string, refuses one longer than 255 bytes, keeps
-;; the length in V4098 and LDIRs the text to &7B00.
-;; &4C9F, &4CC3, &4D08, &4D1F, &5733 and &5838 point DE at it and
-;; search or compare against what is there -- &4CAA is a CPIR
-;; against a byte read from it.
-;; &5674 and &577C read the first two bytes back.
-;; &66B0 and &66AA write two words into &7B01 and &7B03, over the
-;; IN and the XOR this routine starts with.
+;;     COPY_STRING_TO_BUFFER gets a string, refuses one longer than 255 bytes, keeps
+;;     the length in V4098 and LDIRs the text to &7B00.
+;;     &4C9F, &4CC3, &4D08, &4D1F, &5733 and &5838 point DE at it and
+;;     search or compare against what is there -- &4CAA is a CPIR
+;;     against a byte read from it.
+;;     &5674 and &577C read the first two bytes back.
+;;     &66B0 and &66AA write two words into &7B01 and &7B03, over the
+;;     IN and the XOR this routine starts with.
 ;;
 ;; So `LD DE,INSTALL_ROM_PATCHES` in the middle of a command is not a
 ;; reference to this routine at all: it is the search-string buffer,
@@ -15985,21 +15985,21 @@ EVALUV_STUB_1:
 ;;
 ;; Read against the system page, the stray targets are ordinary:
 ;;
-;; &5BE0   PAGER -- but not the ROM's.  The table reserves
-;; fourteen bytes there "for paging S.R." and
-;; INSTALL_SYSPAGE_CODE fills them with MasterBASIC's own,
-;; copied from &7AF2.  The two calls here are calls into
-;; this half's code, sitting in the ROM's variable area.
-;; &4D11   CDBUFF+&11, the ROM's code buffer -- "for e.g. MULTI-LDI,
-;; max len &181".  The code called there is built at run
-;; time by the routine at &735D, which LDIRs 66 bytes from
-;; ROM &0000 and 219 bytes from &7385 into it and then
-;; patches two of them.
-;; &5A9F   PROGP and &5AA0 PROG, read and written directly rather
-;; than through NRRD, because with the system page at &4000
-;; they are simply there.  &7350 confirms the pair: the same
-;; two addresses appear as DEFW PROG and DEFW PROGP inline
-;; parameters elsewhere in this half.
+;;     &5BE0   PAGER -- but not the ROM's.  The table reserves
+;;             fourteen bytes there "for paging S.R." and
+;;             INSTALL_SYSPAGE_CODE fills them with MasterBASIC's own,
+;;             copied from &7AF2.  The two calls here are calls into
+;;             this half's code, sitting in the ROM's variable area.
+;;     &4D11   CDBUFF+&11, the ROM's code buffer -- "for e.g. MULTI-LDI,
+;;             max len &181".  The code called there is built at run
+;;             time by the routine at &735D, which LDIRs 66 bytes from
+;;             ROM &0000 and 219 bytes from &7385 into it and then
+;;             patches two of them.
+;;     &5A9F   PROGP and &5AA0 PROG, read and written directly rather
+;;             than through NRRD, because with the system page at &4000
+;;             they are simply there.  &7350 confirms the pair: the same
+;;             two addresses appear as DEFW PROG and DEFW PROGP inline
+;;             parameters elsewhere in this half.
 ;;
 ;; Two independent checks agree.  &5A9F is not even an instruction
 ;; boundary in this page, so reading it as a variable only makes sense
@@ -16043,8 +16043,8 @@ EVALUV_STUB_1:
 ;; holds &4000-&4BFF of the ROM's system page after boot, and at &45A2
 ;; it has ten bytes that are MasterBASIC's own &7986:
 ;;
-;; POP HL : RST NEXT_CHAR : SUB &AB : LD (&4AF0),A : JR NZ,+1
-;; : RST NEXT_CHAR
+;;     POP HL : RST NEXT_CHAR : SUB &AB : LD (&4AF0),A : JR NZ,+1
+;;     : RST NEXT_CHAR
 ;;
 ;; So the jump goes to a real routine that turns a token into a function
 ;; index -- and the dispatcher reaches it when H is &AC, which is &AB+1,
@@ -16177,10 +16177,10 @@ RELOCATED_TO_484D_3:
 ;; Running at &48FA in the system page, not here.  Anything below &94 is
 ;; let through untouched, and the rest are ordinary ROM command tokens:
 ;;
-;; &94 SAVE    &A9 BLOCKS   &B0 RUN         &CD DELETE
-;; &98 OPEN    &AA MODE     &B3 CLEAR       &D1 KEYIN
-;; &A8 CSIZE   &AC PUT      &C2 PAUSE       &E1 POKE
-;; &AE SOUND    &C9 DEF KEYCODE
+;;     &94 SAVE    &A9 BLOCKS   &B0 RUN         &CD DELETE
+;;     &98 OPEN    &AA MODE     &B3 CLEAR       &D1 KEYIN
+;;     &A8 CSIZE   &AC PUT      &C2 PAUSE       &E1 POKE
+;;                 &AE SOUND    &C9 DEF KEYCODE
 ;;
 ;; with &FD and &FF, which the ROM's table does not name, handled last.
 ;;
@@ -16481,15 +16481,15 @@ L7DA6:
 ;; --------------------------------------------------------------------
 ;; Sixteen bytes: the two cursor characters, lower case then upper case.
 ;;
-;; 00 00 00 00 3C 3C 3C 00     a block on the lower half
-;; 00 3C 3C 3C 00 00 00 00     a block on the upper half
+;;     00 00 00 00 3C 3C 3C 00     a block on the lower half
+;;     00 3C 3C 3C 00 00 00 00     a block on the upper half
 ;;
 ;; Why a second copy exists is the whole BLOCKS 2 story.  The manual says,
 ;; under BLOCKS 2:
 ;;
-;; "to prevent the cursor changing when a new set of characters is
-;; switched in by BLOCKS 2, the cursors are temporarily re-defined as
-;; CHR$ 169 and 170, the patterns for which are stored separately"
+;;     "to prevent the cursor changing when a new set of characters is
+;;      switched in by BLOCKS 2, the cursors are temporarily re-defined as
+;;      CHR$ 169 and 170, the patterns for which are stored separately"
 ;;
 ;; Every part of that is now accounted for.
 ;;
@@ -16508,8 +16508,8 @@ L7DA6:
 ;; THE WAY OUT IS HUDG, the ROM's pointer for characters 169 and above.
 ;; INSTALL_ROM_PATCHES ends by setting it:
 ;;
-;; 7B67  21 52 4A   LD HL,&4A52
-;; 7B6A  22 7D 9C   LD (HUDG+&4000),HL
+;;     7B67  21 52 4A   LD HL,&4A52
+;;     7B6A  22 7D 9C   LD (HUDG+&4000),HL
 ;;
 ;; &4A52 is where these sixteen bytes land: they sit at &7DA9, which is
 ;; &205 into the second stub at &7BA4, and the stub is copied to &484D, so
