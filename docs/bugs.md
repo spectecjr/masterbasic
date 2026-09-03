@@ -5,7 +5,7 @@ as they were sold. The listings cannot be corrected: they assemble to the
 original image byte for byte, and that is the point of them. So a defect
 gets written down here and explained where it sits.
 
-One is confirmed. The rest of this file is a plan for looking properly.
+Three are confirmed. The rest of this file is a plan for looking properly.
 
 ---
 
@@ -107,6 +107,62 @@ is. `CDE1_1` and `CTS1` between them are some ninety bytes that are never
 entered for the reason they were written.
 
 **Written up at** `&46DF` in `clean/masterdos.asm`.
+
+---
+
+## 3. Six pairs of file names cannot be told apart
+
+**Where** `AND CASE_BLIND` at `&4CDB`, in `CKNAM`.
+
+**What** The name compare is case blind for nothing: `XOR (HL)` leaves the
+bits in which the two characters differ, and `AND &DF` throws away bit 5 —
+the one bit that separates `A` from `a`. Zero means the same letter in
+either case. No table, no range test, no branch.
+
+Bit 5 separates more than letters, though, and the `AND` cannot tell which
+pair it is looking at. Six other pairs come out equal, both ends
+printable:
+
+```
+@ and `     [ and {     \ and |
+] and }     ^ and ~     _ and DEL
+```
+
+So `DIR "A["` lists `A{` as well, and a file saved as `X^` loads as `X~`.
+Below that there is a second tier: every character from space to `?` is
+equal to the control code thirty-two below it. That needs a program to put
+the control code in the name, but nothing else stands in the way.
+
+Twenty-six pairs were wanted. Thirty-two came free.
+
+**Why it is reachable** Nothing validates a file name. The "Invalid file
+name" error is the ROM's, and the whole of its test is the length and a
+null name — `CP H / JR NC,IFNER ; LIMIT NAME LEN` in `tapemn.asm`. Names
+come out of BASIC strings, so any byte at all can go into a directory
+entry, and five of the six pairs are typeable at the keyboard (`_`'s
+partner, DEL, is not).
+
+**What it costs** `CKNAM` is the only name compare in the DOS, and all
+three of its callers act on the answer:
+
+| caller | what it is doing |
+|---|---|
+| `&4BD6` | the directory scan: `DIR`, `LOAD`, `OPEN` |
+| `&4C88` | the same scan, looking a specific name up |
+| `&5EAA` | `SNDF2`, the resumable search behind `ERASE`, `RENAME` and `COPY` |
+
+The listing paths are a curiosity. The other two are not: `ERASE "A["`
+will erase `A{`, and the check that asks whether a name is already on the
+disc can find a file that is not the one being saved and offer to
+overwrite it. Both destroy a file the user did not name.
+
+**Not MasterDOS's doing** SAMDOS's `cknam` is the same routine with the
+same instruction and the same comment — `and &df ; ignore the case bit`.
+MasterDOS moved the pattern pointer from `IX` to `DE`, because `IX` now
+holds the channel record, and changed nothing else. This one was
+inherited, not introduced, which is the opposite of the two above.
+
+**Written up at** `&4CDB` in `clean/masterdos.asm`.
 
 ---
 

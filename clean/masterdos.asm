@@ -2359,7 +2359,7 @@ SECTOR_FOR_CHANNEL_2:
                LD BC,&0200                     ; 461E 01 00 02
                LDIR                            ; 4621 ED B0
                XOR A                           ; 4623 AF
-               LD (V7C0E),A                    ; 4624 32 0E 7C
+               LD (DCHAN+RPTH),A               ; 4624 32 0E 7C
                POP DE                          ; 4627 D1
 
 ;; --------------------------------------------------------------------
@@ -4055,25 +4055,54 @@ FDHE2:
                RET                             ; 4CB0 C9
 
 ;; --------------------------------------------------------------------
-;; MasterBASIC changed this routine: only 11 of the 18
-;; instructions stock MasterDOS 2.3 has in FDHF survive
-;; here, so that version's description of it has been
-;; left out rather than carried across.  Compare
-;; ref/masterdos/annotated-src/masterdos23.asm.
+;; A free slot.  Two things can want one, and the mode byte says which.
+;;
+;; THE FIRST FREE SLOT IS ALWAYS REMEMBERED, whatever the scan was
+;; started for, because the answer is nearly free to collect and the
+;; routine that creates a file would otherwise have to walk the whole
+;; directory again to find it.  CLAIM_FREE_SLOT keeps the track and
+;; sector in FSLOT and which of the two entries in that sector in
+;; FSLTE, and returns at once if FSLOT already holds one, so it is the
+;; first that is kept and not the last.  CFSM, closing a new file,
+;; reads those two and goes straight to the sector.
+;;
+;; A SCAN THAT WAS LOOKING FOR A FREE SLOT stops here, and the CPL is
+;; how it says so.  FDHR's callers read the answer from the zero flag,
+;; Z for found, and BIT sets Z when the bit it tests is clear -- the
+;; wrong way round.  Complementing the mode byte first turns bit 6 set
+;; into bit 6 clear, so BIT 6 leaves Z exactly when the scan was after
+;; a free slot, and RET Z returns the right verdict without a second
+;; test or a jump over one.
+;;
+;; OTHERWISE THE SLOT DECIDES WHETHER TO CARRY ON, and the byte it
+;; looks at is the first character of the name.  Erasing a file zeroes
+;; the type byte and leaves everything else alone, so an erased entry
+;; still has its name in it; an entry that has never been used is zero
+;; throughout, because formatting cleared the track.  A non-zero name
+;; byte therefore means "erased, keep going", and a zero one means the
+;; scan has reached the part of the directory nothing has ever been
+;; written to.  Nothing beyond it can match, so INC A makes the flags
+;; say not found and the scan ends there.
+;;
+;; That shortcut holds only because new files always go into the first
+;; free slot, so the never-used region shrinks from the front and no
+;; live entry can lie beyond it.  It also trusts the name: a file whose
+;; name begins with CHR$(0) -- which nothing prevents, see CKNAM --
+;; would, once erased, cut the scan short and hide every file after it.
 ;; --------------------------------------------------------------------
 
 ; ---- FDHF ---- from &4B8D when A = 0
 FDHF:
-               CALL CLAIM_FREE_SLOT            ; 4CB1 CD E0 4F
+               CALL CLAIM_FREE_SLOT            ; 4CB1 CD E0 4F  remember where it is, in case a file is created later
                LD A,(IX+RFDH-DCHAN)            ; 4CB4 DD 7E 04
-               CPL                             ; 4CB7 2F
+               CPL                             ; 4CB7 2F  so that Z below means "yes, a free slot is what we wanted"
                BIT 6,A                         ; 4CB8 CB 77
-               RET Z                           ; 4CBA C8  RET IF GOT WHAT WE WANTED
-               INC HL                          ; 4CBB 23
+               RET Z                           ; 4CBA C8  and that is the answer the caller reads
+               INC HL                          ; 4CBB 23  the first character of the name, which erasing leaves behind
                LD A,(HL)                       ; 4CBC 7E
                AND A                           ; 4CBD A7  **
-               JR NZ,FDHd                      ; 4CBE 20 CC  JR IF DIR ENTRY HAS BEEN USED AT
-               INC A                           ; 4CC0 3C  NZ
+               JR NZ,FDHd                      ; 4CBE 20 CC  still there, so this slot was used once: keep looking
+               INC A                           ; 4CC0 3C  never used, so nothing beyond it can match either
                RET                             ; 4CC1 C9  USED PART OF DIR DEALT WITH
 
 ;; --------------------------------------------------------------------
@@ -4105,8 +4134,13 @@ FDHF:
 ;; otherwise no different.
 ;;
 ;; Twenty-six pairs were wanted and thirty-two came free, which for one
-;; AND is a fair trade, but it is the kind of thing that is worth
-;; knowing before wondering why two files answer to one name.
+;; AND is a fair trade until something acts on the answer.  This is the
+;; only name compare in the DOS, and ERASE, RENAME and COPY reach it
+;; through SNDF2 while the "does this name already exist" test reaches
+;; it through FDH95: ERASE "A[" will erase A{, and a SAVE can be offered
+;; the wrong file to overwrite.  SAMDOS's cknam has the same instruction
+;; and the same comment, so this one was inherited rather than
+;; introduced.  Set out in docs/bugs.md.
 ;;
 ;; * MATCHES THE REST, unless a period follows it.  A star with nothing
 ;; after it, or with anything other than a period, is a match there and
@@ -4782,17 +4816,21 @@ REPORT_PAGE_COUNT:
                RET                             ; 4FDF C9
 
 ;; --------------------------------------------------------------------
-;; Take FSLOT if nothing has it -- a non-zero value returns at once --
-;; and record the entry beside it in FSLTE.
+;; Remember the first free slot the scan meets, and only the first.
+;;
+;; FSLOT holds the track and sector, FSLTE which of the two entries in
+;; it.  A non-zero FSLOT means one has already been found, and the
+;; track is never zero for a slot that exists, so the one test does
+;; both jobs.
 ;; --------------------------------------------------------------------
 
 ; ---- CLAIM_FREE_SLOT ---- from &4CB1, &4D87
 CLAIM_FREE_SLOT:
-               LD A,(FSLOT)                    ; 4FE0 3A FC 41
-               AND A                           ; 4FE3 A7
+               LD A,(FSLOT)                    ; 4FE0 3A FC 41  has a free slot already been found?
+               AND A                           ; 4FE3 A7  FSLOT still zero means not
                RET NZ                          ; 4FE4 C0
-               LD (FSLOT),DE                   ; 4FE5 ED 53 FC 41
-               LD A,(V7C0E)                    ; 4FE9 3A 0E 7C
+               LD (FSLOT),DE                   ; 4FE5 ED 53 FC 41  the track and sector this scan is on
+               LD A,(DCHAN+RPTH)               ; 4FE9 3A 0E 7C  and which of the two entries in it
                LD (FSLTE),A                    ; 4FEC 32 FE 41
                RET                             ; 4FEF C9
 
@@ -8343,7 +8381,7 @@ CMD_LOAD:
                OR D                            ; 5F97 B2
                CALL NZ,READ_SECTOR             ; 5F98 C4 B7 45
                POP AF                          ; 5F9B F1
-               LD (V7C0E),A                    ; 5F9C 32 0E 7C
+               LD (DCHAN+RPTH),A               ; 5F9C 32 0E 7C
                CALL POINT                      ; 5F9F CD AC 4F
                LD A,(HL)                       ; 5FA2 7E
                AND A                           ; 5FA3 A7

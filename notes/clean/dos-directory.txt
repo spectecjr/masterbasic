@@ -189,6 +189,72 @@ DOS &7635 expr RPT-DCHAN
 
 DOS &4C95 : one entry on, which is one whole page of the sector
 
+# The three direct references to the mode byte are left spelled DCHAN+4,
+# the way the annotated source's own equate defines RFDH: the byte has a
+# label here, so an EQU for it as well would define the name twice.
+#
+# RPT's high byte says which of the two entries in the sector we are on.
+# Three sites already read DCHAN+RPTH; these are the rest.
+DOS &4624 expr DCHAN+RPTH
+DOS &4FE9 expr DCHAN+RPTH
+DOS &5F9C expr DCHAN+RPTH
+
+DOC FDHF
+    A free slot.  Two things can want one, and the mode byte says which.
+
+    THE FIRST FREE SLOT IS ALWAYS REMEMBERED, whatever the scan was
+    started for, because the answer is nearly free to collect and the
+    routine that creates a file would otherwise have to walk the whole
+    directory again to find it.  CLAIM_FREE_SLOT keeps the track and
+    sector in FSLOT and which of the two entries in that sector in
+    FSLTE, and returns at once if FSLOT already holds one, so it is the
+    first that is kept and not the last.  CFSM, closing a new file,
+    reads those two and goes straight to the sector.
+
+    A SCAN THAT WAS LOOKING FOR A FREE SLOT stops here, and the CPL is
+    how it says so.  FDHR's callers read the answer from the zero flag,
+    Z for found, and BIT sets Z when the bit it tests is clear -- the
+    wrong way round.  Complementing the mode byte first turns bit 6 set
+    into bit 6 clear, so BIT 6 leaves Z exactly when the scan was after
+    a free slot, and RET Z returns the right verdict without a second
+    test or a jump over one.
+
+    OTHERWISE THE SLOT DECIDES WHETHER TO CARRY ON, and the byte it
+    looks at is the first character of the name.  Erasing a file zeroes
+    the type byte and leaves everything else alone, so an erased entry
+    still has its name in it; an entry that has never been used is zero
+    throughout, because formatting cleared the track.  A non-zero name
+    byte therefore means "erased, keep going", and a zero one means the
+    scan has reached the part of the directory nothing has ever been
+    written to.  Nothing beyond it can match, so INC A makes the flags
+    say not found and the scan ends there.
+
+    That shortcut holds only because new files always go into the first
+    free slot, so the never-used region shrinks from the front and no
+    live entry can lie beyond it.  It also trusts the name: a file whose
+    name begins with CHR$(0) -- which nothing prevents, see CKNAM --
+    would, once erased, cut the scan short and hide every file after it.
+
+DOS &4CB1 : remember where it is, in case a file is created later
+DOS &4CB7 : so that Z below means "yes, a free slot is what we wanted"
+DOS &4CBA : and that is the answer the caller reads
+DOS &4CBB : the first character of the name, which erasing leaves behind
+DOS &4CBE : still there, so this slot was used once: keep looking
+DOS &4CC0 : never used, so nothing beyond it can match either
+
+DOC CLAIM_FREE_SLOT
+    Remember the first free slot the scan meets, and only the first.
+
+    FSLOT holds the track and sector, FSLTE which of the two entries in
+    it.  A non-zero FSLOT means one has already been found, and the
+    track is never zero for a slot that exists, so the one test does
+    both jobs.
+
+DOS &4FE0 : has a free slot already been found?
+DOS &4FE3 : FSLOT still zero means not
+DOS &4FE5 : the track and sector this scan is on
+DOS &4FE9 : and which of the two entries in it
+
 GROUP Characters
 CONST CH_STAR = &2A : the wildcard that matches any run of characters
 CONST CH_QUERY = &3F : the wildcard that matches one character
@@ -227,8 +293,13 @@ DOC CKNAM
     otherwise no different.
 
     Twenty-six pairs were wanted and thirty-two came free, which for one
-    AND is a fair trade, but it is the kind of thing that is worth
-    knowing before wondering why two files answer to one name.
+    AND is a fair trade until something acts on the answer.  This is the
+    only name compare in the DOS, and ERASE, RENAME and COPY reach it
+    through SNDF2 while the "does this name already exist" test reaches
+    it through FDH95: ERASE "A[" will erase A{, and a SAVE can be offered
+    the wrong file to overwrite.  SAMDOS's cknam has the same instruction
+    and the same comment, so this one was inherited rather than
+    introduced.  Set out in docs/bugs.md.
 
     * MATCHES THE REST, unless a period follows it.  A star with nothing
     after it, or with anything other than a period, is a match there and
