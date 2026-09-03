@@ -2304,7 +2304,7 @@ CHECK_READ_STATUS:
 
 ; ---- SECTOR_FOR_CHANNEL ---- from &4B44, &4B85
 SECTOR_FOR_CHANNEL:
-               LD A,(IX+&04)                   ; 45E2 DD 7E 04
+               LD A,(IX+RFDH-DCHAN)            ; 45E2 DD 7E 04
                BIT 2,A                         ; 45E5 CB 57
                JR Z,SECTOR_FOR_CHANNEL_3       ; 45E7 28 48
                CALL GETSCR                     ; 45E9 CD 2C 49
@@ -2369,20 +2369,35 @@ SECTOR_FOR_CHANNEL_3:
                JR Z,READ_SECTOR                ; 4633 28 82
 
 ;; --------------------------------------------------------------------
-;;  NRSAD -- read a directory sector, accumulating the free-sector map as it goes
+;; Read a directory sector, and rebuild the free-sector map on the way
+;; past for nothing.
 ;;
-;;  As well as reading the sector, this ORs the bytes of every directory entry that is in use into the page holding
-;;  NSAM. Each file's own sector map sits at a fixed offset within its entry, and NSAM is placed so that the offsets
-;;  line up -- so by the time the directory has been scanned, the map of sectors in use has been rebuilt for free.
+;; A directory entry carries the map of the sectors its file occupies,
+;; and NSAM -- the DOS's map of every sector in use -- is placed so that
+;; the offsets line up.  So the map can be rebuilt by ORing each entry's
+;; bytes into NSAM as they arrive off the disc, and a scan that had to
+;; read the directory anyway comes back having done it.
 ;;
-;;  L' counts bytes within the entry and wraps every 256; at each wrap NRS22 looks at the first byte of the new entry.
-;;  If the entry is in use H' is set to NSAM's page, and if it is free H' is set to zero, so the accumulation goes to
-;;  ROM and is discarded.
+;; THE ALTERNATE REGISTER SET holds the NSAM pointer while the main set
+;; holds the sector buffer, so the transfer loop can keep both without
+;; a spare register.  L' doubles as the count of bytes within an entry:
+;; entries are 256 bytes and NSAM is aligned to match, so L' wrapping to
+;; zero is both the next NSAM byte and the start of the next entry.  It
+;; is loaded with &FF at the top so that the first INC L wraps at once
+;; and the first entry is treated like any other.
 ;;
-;;  The port numbers are patched into the instructions rather than held in registers, because there is not enough time
-;;  to do both that and service the data request.
+;; THE FREE ENTRIES ARE THE DIFFICULTY, since their maps must not be
+;; counted, and there is no time in the loop to test anything per byte.
+;; NRS22 hoists the test to once per entry -- the first byte of an entry
+;; is its type, and zero means erased or unused -- and answers it by
+;; pointing H' either at NSAM's page or at zero.  A free entry's bytes
+;; are still ORed and still stored, into &00xx, which is ROM, where the
+;; write does nothing at all.  The discard costs the same as the keep.
 ;;
-;; READ SECTOR AT DE
+;; Nothing here can afford a test it does not have to make, which is
+;; also why both status reads have their port poked into them rather
+;; than indexed, and why the byte-ready test is an AND against a mask
+;; kept in B instead of a BIT.
 ;; --------------------------------------------------------------------
 
 NRSAD:
@@ -2394,7 +2409,7 @@ NRSA1:
                CALL RSSR                       ; 463B CD 97 4F
                EXX                             ; 463E D9
                LD L,&FF                        ; 463F 2E FF  so the first INC L wraps to zero and takes the NRS22 path
-               LD D,&40                        ; 4641 16 40
+               LD D,&40                        ; 4641 16 40  the page NSAM is in, kept for NRS22 to reload
                EXX                             ; 4643 D9
                PUSH DE                         ; 4644 D5
                CALL NRDDATA                    ; 4645 CD 4E 46
@@ -2409,15 +2424,16 @@ NRDDATA:
                LD (NRSA3+1),A                  ; 4654 32 77 46  patches the port of the IN at &4676
                ADD A,DISKCTL_DATA_OFS          ; 4657 C6 03
                LD (NRSA2+1),A                  ; 4659 32 6C 46  patches the port of the IN at &466B
-               LD B,&02                        ; 465C 06 02  MASK FOR BIT 1
+               LD B,DISK_STATUS_DRQ            ; 465C 06 02  MASK FOR BIT 1
                JR NRSA3                        ; 465E 18 16
 
 ; ---- NRS22 ---- from &4671 when L wraps to 0
 NRS22:
-               LD H,D                          ; 4660 62  NSAM MSB
-               AND A                           ; 4661 A7  Z IF DIR ENTRY IS ERASED OR UNUSED
+               LD H,D                          ; 4660 62  a live entry: point H' at the map
+               AND A                           ; 4661 A7  the first byte of an entry is its type; zero is erased or
+                                               ; unused
                JR NZ,NRS25                     ; 4662 20 01
-               LD H,A                          ; 4664 67  DUMP DATA TO ROM
+               LD H,A                          ; 4664 67  a free entry: point H' at ROM, where the OR will go nowhere
 
 ; ---- NRS25 ---- from &4662 when A <> 0
 NRS25:
@@ -2425,18 +2441,18 @@ NRS25:
 
 TGT1:
                IN A,(&00)                      ; 4666 DB 00  the port is written here at run time, from &4651
-               AND B                           ; 4668 A0
+               AND B                           ; 4668 A0  is a byte waiting?
                JR Z,NRSA3                      ; 4669 28 0B  JR IF NO BYTE IS READY TO READ
 
 ; ---- NRSA2 ---- from &467D
 NRSA2:
                IN A,(&00)                      ; 466B DB 00  the port is written here at run time, from &4659
-               LD (HL),A                       ; 466D 77
+               LD (HL),A                       ; 466D 77  into the sector buffer
                INC HL                          ; 466E 23
                EXX                             ; 466F D9
-               INC L                           ; 4670 2C
-               JR Z,NRS22                      ; 4671 28 ED  JR IF START OF DIR ENTRY
-               OR (HL)                         ; 4673 B6
+               INC L                           ; 4670 2C  on through NSAM, and count the byte within the entry
+               JR Z,NRS22                      ; 4671 28 ED  wrapped, so this is the first byte of the next entry
+               OR (HL)                         ; 4673 B6  the file's map, ORed into the disc's
                LD (HL),A                       ; 4674 77
                EXX                             ; 4675 D9
 
@@ -2444,9 +2460,9 @@ NRSA2:
 NRSA3:
                IN A,(&00)                      ; 4676 DB 00  the port is written here at run time, from &4654
                RRCA                            ; 4678 0F
-               RET NC                          ; 4679 D0  RET IF READ SECTOR CMD FINISHED
+               RET NC                          ; 4679 D0  the sector is finished
                RRA                             ; 467A 1F
-               JR NC,NRSA3                     ; 467B 30 F9  JR IF NO BYTE IS READY TO READ
+               JR NC,NRSA3                     ; 467B 30 F9  nothing waiting yet
                JR NRSA2                        ; 467D 18 EC
 
 ;; --------------------------------------------------------------------
@@ -3678,61 +3694,73 @@ PFNM2:
                RET                             ; 4B30 C9
 
 ;; --------------------------------------------------------------------
-;;  FDHR -- scan the directory
+;; Walk the directory.  There is only one directory scan in the DOS, and
+;; this is it: behind DIR, behind every file lookup, behind finding
+;; somewhere to put a new file, and behind rebuilding the map of which
+;; sectors are in use.
 ;;
-;;  The one routine behind DIR, file lookup, and finding a free slot. What it does is selected by the mode byte, which
-;;  is kept at (IX+4) so the inner code can test it without reloading:
+;; WHICH OF THOSE IT IS DOING comes in as a mode byte, stored in the
+;; channel record at RFDH before the scan starts so that the inner loop
+;; can test it without reloading:
 ;;
-;;    bit 0   match the file number in FSTR1 and TEMPW4+1
-;;    bit 1   collecting names for a sorted listing rather than printing them
-;;    bit 2   printing a full listing, with a heading
-;;    bit 3   match the name in NSTR1, honouring * and ?
-;;    bit 4   match the name, ignoring the type
-;;    bit 5   read through NRSAD, so the free-sector map is rebuilt as a side effect
-;;    bit 6   stop at the first free entry rather than looking for a match
+;; bit 0   match the file number
+;; bit 1   collect names for a sorted listing rather than printing
+;; bit 2   print a full listing, with a heading
+;; bit 3   match the name, honouring * and ?
+;; bit 4   match the name, ignoring the type
+;; bit 5   read through NRSAD, rebuilding the free-sector map
+;; bit 6   stop at the first free entry rather than at a match
 ;;
-;;  While it runs it also accumulates the totals the catalogue prints -- sectors used, files on the disk, files in the
-;;  current directory -- notes the first free slot in FSLOT, and tracks the highest subdirectory tag in MAXT so that
-;;  creating a new subdirectory can pick an unused one.
+;; While it runs it also totals the sectors used and the files on the
+;; disc and in the current directory, remembers the first free slot in
+;; FSLOT, and keeps the highest subdirectory tag in MAXT so that making
+;; a subdirectory can choose one nothing else has.
 ;;
-;;  Entry:  A = the mode byte
-;;  Exit:   Z if what was wanted was found, with IX addressing the entry; NZ at the end of the directory
-;;
-;; FILE DIR HAND/ROUT.
+;; DIRECTORIES LONGER THAN FOUR TRACKS are MasterDOS's own, and the
+;; arithmetic at &4B52 is what pays for them.  SAMDOS fixed the
+;; directory at four tracks, which the sector map has permanently
+;; reserved; anything past that is ordinary disc space and has to be
+;; marked used by hand every time the directory is read.  DTKS is the
+;; track count: subtract five, and a borrow means the disc is within
+;; what SAMDOS allowed and there is nothing to do.  Otherwise the extra
+;; tracks are turned into map bytes -- ten sectors a track, eight
+;; sectors a byte, so five halves and then a shift -- and that many
+;; bytes at the front of SAM are filled in.
 ;; --------------------------------------------------------------------
 
 ; ---- FDHR ---- from &4D36, &4E15, &4EC0, &4FA9, &53F0, &5BC3, &5C3B, &5D0C ...
 FDHR:
-               DI                              ; 4B31 F3
+               DI                              ; 4B31 F3  nothing may interrupt a scan; the buffer is shared
                PUSH AF                         ; 4B32 F5
                CALL RESET_BUFFER_POINTERS      ; 4B33 CD 84 4F
                POP AF                          ; 4B36 F1
-               LD (DCHAN+4),A                  ; 4B37 32 04 7C
+               LD (DCHAN+4),A                  ; 4B37 32 04 7C  the mode byte, where the inner loop can reach it
                XOR A                           ; 4B3A AF
-               LD (FSLOT),A                    ; 4B3B 32 FC 41  NO FREE SLOT
-               LD (MAXT),A                     ; 4B3E 32 35 42  MAX TAG=0
-               CALL REST                       ; 4B41 CD AD 47
+               LD (FSLOT),A                    ; 4B3B 32 FC 41  no free slot found yet
+               LD (MAXT),A                     ; 4B3E 32 35 42  and no subdirectory tags seen
+               CALL REST                       ; 4B41 CD AD 47  wind the head back to track 0, where the directory
+                                               ; starts
                CALL SECTOR_FOR_CHANNEL         ; 4B44 CD E2 45
-               CALL SDTKS                      ; 4B47 CD 55 74  SET DIR TKS, CHECK RAND NO
+               CALL SDTKS                      ; 4B47 CD 55 74  how many tracks of directory this disc has
                PUSH HL                         ; 4B4A E5
-               BIT 2,(IX+&04)                  ; 4B4B DD CB 04 56
-               CALL NZ,PDIRH                   ; 4B4F C4 09 5C  PRINT DIR HDR NOW THAT PATH$
-               LD A,(DTKS)                     ; 4B52 3A 30 42
-               SUB &05                         ; 4B55 D6 05
-               JR C,FDH05                      ; 4B57 38 29  JR IF SAM OK (4 DIR TRAC
-               INC A                           ; 4B59 3C
+               BIT 2,(IX+RFDH-DCHAN)           ; 4B4B DD CB 04 56
+               CALL NZ,PDIRH                   ; 4B4F C4 09 5C  a full listing wants its heading first
+               LD A,(DTKS)                     ; 4B52 3A 30 42  the directory's length in tracks
+               SUB &05                         ; 4B55 D6 05  five or more means more than SAMDOS ever allowed
+               JR C,FDH05                      ; 4B57 38 29  four or fewer, and the map already has them reserved
+               INC A                           ; 4B59 3C  how many tracks beyond the four
                LD B,A                          ; 4B5A 47  B=EXTRA DTKS (1-35)
                ADD A,A                         ; 4B5B 87
                ADD A,A                         ; 4B5C 87
-               ADD A,B                         ; 4B5D 80  A=5-175 (EXTRA DIR SECTS/2)
+               ADD A,B                         ; 4B5D 80  ten sectors a track, counted in halves
                LD C,A                          ; 4B5E 4F
                RRA                             ; 4B5F 1F
-               RRA                             ; 4B60 1F  EXTRA DIR SECTS/8=BYTES
+               RRA                             ; 4B60 1F  and eight sectors to the byte
                AND &3F                         ; 4B61 E6 3F  A=BYTES TO MARK FF IN SAM (1-43)
                LD B,A                          ; 4B63 47
-               LD HL,SAM                       ; 4B64 21 0F 40
+               LD HL,SAM                       ; 4B64 21 0F 40  the sector map itself
                LD A,(HL)                       ; 4B67 7E
-               OR &FE                          ; 4B68 F6 FE
+               OR &FE                          ; 4B68 F6 FE  track 4 sector 1 is not reserved, so leave its bit alone
                LD (HL),A                       ; 4B6A 77  T4,S1 NOT RESERVED - BUT KEEP
                DEC B                           ; 4B6B 05  CURRENT STATUS!
                JR Z,FDH03                      ; 4B6C 28 05
@@ -3825,7 +3853,7 @@ FDH35:
 
 ; ---- FDH4 ---- from &4BD4 when A wraps to 0
 FDH4:
-               BIT 1,(IX+&04)                  ; 4BDB DD CB 04 4E
+               BIT 1,(IX+RFDH-DCHAN)           ; 4BDB DD CB 04 4E
                JR Z,FDH5                       ; 4BDF 28 1C  JR IF COMPLEX DIR,
                PUSH DE                         ; 4BE1 D5
                LD A,(DCHAN+RPTH)               ; 4BE2 3A 0E 7C  GET DIR ENTRY (0 OR 1)
@@ -3997,7 +4025,7 @@ FDHE2:
 ; ---- FDHF ---- from &4B8D when A = 0
 FDHF:
                CALL CLAIM_FREE_SLOT            ; 4CB1 CD E0 4F
-               LD A,(IX+&04)                   ; 4CB4 DD 7E 04
+               LD A,(IX+RFDH-DCHAN)            ; 4CB4 DD 7E 04
                CPL                             ; 4CB7 2F
                BIT 6,A                         ; 4CB8 CB 77
                RET Z                           ; 4CBA C8  RET IF GOT WHAT WE WANTED
@@ -4026,7 +4054,7 @@ CKNAM:
                CALL POINT                      ; 4CC3 CD AC 4F
                LD B,&0B                        ; 4CC6 06 0B
                LD DE,NSTR1                     ; 4CC8 11 3A 41
-               BIT 3,(IX+&04)                  ; 4CCB DD CB 04 5E
+               BIT 3,(IX+RFDH-DCHAN)           ; 4CCB DD CB 04 5E
                JR Z,CKNM1_LOOP                 ; 4CCF 28 0E  JR IF TYPE IRREL - SKIP TYPE
 
 ; ---- CKNM1 ---- from &4CE1 when B is not 0 yet
@@ -8013,7 +8041,7 @@ SNDFL:
                CALL SETF2                      ; 5E7B CD F8 50
                CALL RESET_BUFFER_POINTERS      ; 5E7E CD 84 4F
                XOR A                           ; 5E81 AF
-               LD (IX+&04),A                   ; 5E82 DD 77 04  FDHR FLAGS=0 FOR CHKNM
+               LD (IX+RFDH-DCHAN),A            ; 5E82 DD 77 04  FDHR FLAGS=0 FOR CHKNM
                LD (IX+&0E),A                   ; 5E85 DD 77 0E  1ST ENTRY
                CALL REST                       ; 5E88 CD AD 47
                CALL READ_SECTOR                ; 5E8B CD B7 45  T0/S1
@@ -9967,7 +9995,7 @@ CMD_MOVE_1:
                LD IX,(NSTR2)                   ; 67DF DD 2A 56 41  ADDR OF FIRST CHANNEL (IN NSTR1
                LD BC,HEADER                    ; 67E3 01 00 40  AFTER EXDAT)
                ADD IX,BC                       ; 67E6 DD 09
-               LD A,(IX+&04)                   ; 67E8 DD 7E 04
+               LD A,(IX+RFDH-DCHAN)            ; 67E8 DD 7E 04
                RES 5,A                         ; 67EB CB AF
                CP &C4                          ; 67ED FE C4
                JR NZ,MVNRC                     ; 67EF 20 06  ONLY RECLAIM FIRST CHANNEL IF IT
@@ -9994,8 +10022,8 @@ CHANNEL_LENGTH_AND_FLAGS:
                POP HL                           ; 6804 E1
                CALL BITF1                       ; 6805 CD 22 51
                JR NZ,CHANNEL_LENGTH_AND_FLAGS_1 ; 6808 20 09
-               BIT 5,(IX+&04)                   ; 680A DD CB 04 6E
-               LD (IX+&04),&00                  ; 680E DD 36 04 00
+               BIT 5,(IX+RFDH-DCHAN)            ; 680A DD CB 04 6E
+               LD (IX+RFDH-DCHAN),&00           ; 680E DD 36 04 00
                RET NZ                           ; 6812 C0
 
 ; ---- CHANNEL_LENGTH_AND_FLAGS_1 ---- from &6808
@@ -10112,7 +10140,7 @@ FIRST_DISC_CHANNEL_LOOP:
                LD A,(IX+&00)                   ; 68B4 DD 7E 00
                CP &0D                          ; 68B7 FE 0D
                RET Z                           ; 68B9 C8
-               LD A,(IX+&04)                   ; 68BA DD 7E 04
+               LD A,(IX+RFDH-DCHAN)            ; 68BA DD 7E 04
                RES 5,A                         ; 68BD CB AF
                CP &C4                          ; 68BF FE C4
                JR NZ,FIRST_DISC_CHANNEL_1      ; 68C1 20 05
@@ -10559,7 +10587,7 @@ CMD_OPEN_LOOP:
 ; ---- CMD_OPEN_LOOP2 ---- from &6AE2 when B is not 0 yet
 CMD_OPEN_LOOP2:
                LD (IX+&00),&00                 ; 6AD2 DD 36 00 00
-               LD (IX+&04),&00                 ; 6AD6 DD 36 04 00
+               LD (IX+RFDH-DCHAN),&00          ; 6AD6 DD 36 04 00
                LD (IX+&09),E                   ; 6ADA DD 73 09
                LD (IX+&0A),D                   ; 6ADD DD 72 0A
                ADD IX,DE                       ; 6AE0 DD 19
@@ -10661,7 +10689,7 @@ OPDST:
                RET C                           ; 6B6D D8  RET IF ERROR
 
 OPDST1:
-               RES 7,(IX+&04)                  ; 6B6E DD CB 04 BE  "D" NOT "D"+80H - PERM CHANNEL
+               RES 7,(IX+RFDH-DCHAN)           ; 6B6E DD CB 04 BE  "D" NOT "D"+80H - PERM CHANNEL
                EX DE,HL                        ; 6B72 EB
                LD (HL),E                       ; 6B73 73
                INC HL                          ; 6B74 23
@@ -10688,7 +10716,7 @@ RESET_CHANNEL_SCAN_1:
                LD A,(IX+&00)                   ; 6B86 DD 7E 00
                CP &0D                          ; 6B89 FE 0D
                JR Z,RESET_CHANNEL_SCAN_3       ; 6B8B 28 48  JR IF CHANS TERMINATOR FOUND
-               LD A,(IX+&04)                   ; 6B8D DD 7E 04
+               LD A,(IX+RFDH-DCHAN)            ; 6B8D DD 7E 04
                AND A                           ; 6B90 A7
                JR NZ,RESET_CHANNEL_SCAN_2      ; 6B91 20 04
                LD (TEMPW1),IX                  ; 6B93 DD 22 12 42
@@ -11174,7 +11202,7 @@ CLOSE1:
                LD A,B                          ; 6E15 78
                OR C                            ; 6E16 B1
                RET NZ                          ; 6E17 C0  RET IF STREAM 0-3 JUST CLOSED
-               LD A,(IX+&04)                   ; 6E18 DD 7E 04
+               LD A,(IX+RFDH-DCHAN)            ; 6E18 DD 7E 04
                AND &5F                         ; 6E1B E6 5F
                CP &44                          ; 6E1D FE 44
                RET NZ                          ; 6E1F C0
@@ -11628,7 +11656,7 @@ CHANNEL_FOR_STREAM:
                ADD HL,BC                       ; 7027 09  CHANNEL START
                PUSH HL                         ; 7028 E5
                POP IX                          ; 7029 DD E1
-               LD A,(IX+&04)                   ; 702B DD 7E 04
+               LD A,(IX+RFDH-DCHAN)            ; 702B DD 7E 04
                RES 5,A                         ; 702E CB AF
                CP &44                          ; 7030 FE 44
                JP NZ,REP10                     ; 7032 C2 F4 47  "INVALID DEVICE"

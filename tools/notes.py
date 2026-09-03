@@ -374,6 +374,15 @@ def apply(pages, root, banner, folder='notes'):
                 found = [t for t in re.findall(r'&[0-9A-Fa-f]+|\d+|[A-Za-z_]\w*',
                                                rest)
                          if t not in REGS]
+                if len(found) > 1:
+                    # BIT 3,(IX+&04) has two numbers in it and only one
+                    # of them is an address.  The bracketed one is the
+                    # displacement; the bare one is the bit.
+                    inside = re.search(r'\(([^)]*)\)', text or '')
+                    if inside:
+                        within = [t for t in found if t in inside.group(1)]
+                        if len(within) == 1:
+                            found = within
                 if len(found) != 1:
                     problems.append('%s: %s has %d operands, so which?'
                                     % (e['where'], text, len(found)))

@@ -1,0 +1,116 @@
+# The directory: one scan, behind everything.
+#
+# Prose for clean/ only.  (IX+&04) is RFDH, the scan's mode byte, and it
+# is tested in fifteen places -- written RFDH-DCHAN so that each of them
+# says which field it is reading.
+
+DOC FDHR
+    Walk the directory.  There is only one directory scan in the DOS, and
+    this is it: behind DIR, behind every file lookup, behind finding
+    somewhere to put a new file, and behind rebuilding the map of which
+    sectors are in use.
+
+    WHICH OF THOSE IT IS DOING comes in as a mode byte, stored in the
+    channel record at RFDH before the scan starts so that the inner loop
+    can test it without reloading:
+
+        bit 0   match the file number
+        bit 1   collect names for a sorted listing rather than printing
+        bit 2   print a full listing, with a heading
+        bit 3   match the name, honouring * and ?
+        bit 4   match the name, ignoring the type
+        bit 5   read through NRSAD, rebuilding the free-sector map
+        bit 6   stop at the first free entry rather than at a match
+
+    While it runs it also totals the sectors used and the files on the
+    disc and in the current directory, remembers the first free slot in
+    FSLOT, and keeps the highest subdirectory tag in MAXT so that making
+    a subdirectory can choose one nothing else has.
+
+    DIRECTORIES LONGER THAN FOUR TRACKS are MasterDOS's own, and the
+    arithmetic at &4B52 is what pays for them.  SAMDOS fixed the
+    directory at four tracks, which the sector map has permanently
+    reserved; anything past that is ordinary disc space and has to be
+    marked used by hand every time the directory is read.  DTKS is the
+    track count: subtract five, and a borrow means the disc is within
+    what SAMDOS allowed and there is nothing to do.  Otherwise the extra
+    tracks are turned into map bytes -- ten sectors a track, eight
+    sectors a byte, so five halves and then a shift -- and that many
+    bytes at the front of SAM are filled in.
+
+DOS &4B31 : nothing may interrupt a scan; the buffer is shared
+DOS &4B37 : the mode byte, where the inner loop can reach it
+DOS &4B3B : no free slot found yet
+DOS &4B3E : and no subdirectory tags seen
+DOS &4B41 : wind the head back to track 0, where the directory starts
+DOS &4B47 : how many tracks of directory this disc has
+DOS &4B4F : a full listing wants its heading first
+DOS &4B52 : the directory's length in tracks
+DOS &4B55 : five or more means more than SAMDOS ever allowed
+DOS &4B57 : four or fewer, and the map already has them reserved
+DOS &4B59 : how many tracks beyond the four
+DOS &4B5D : ten sectors a track, counted in halves
+DOS &4B60 : and eight sectors to the byte
+DOS &4B64 : the sector map itself
+DOS &4B68 : track 4 sector 1 is not reserved, so leave its bit alone
+
+DOS &45E2 expr RFDH-DCHAN
+DOS &4B4B expr RFDH-DCHAN
+DOS &4BDB expr RFDH-DCHAN
+DOS &4CB4 expr RFDH-DCHAN
+DOS &4CCB expr RFDH-DCHAN
+DOS &5E82 expr RFDH-DCHAN
+DOS &67E8 expr RFDH-DCHAN
+DOS &680A expr RFDH-DCHAN
+DOS &680E expr RFDH-DCHAN
+DOS &68BA expr RFDH-DCHAN
+DOS &6AD6 expr RFDH-DCHAN
+DOS &6B6E expr RFDH-DCHAN
+DOS &6B8D expr RFDH-DCHAN
+DOS &6E18 expr RFDH-DCHAN
+DOS &702B expr RFDH-DCHAN
+
+DOC NRSAD
+    Read a directory sector, and rebuild the free-sector map on the way
+    past for nothing.
+
+    A directory entry carries the map of the sectors its file occupies,
+    and NSAM -- the DOS's map of every sector in use -- is placed so that
+    the offsets line up.  So the map can be rebuilt by ORing each entry's
+    bytes into NSAM as they arrive off the disc, and a scan that had to
+    read the directory anyway comes back having done it.
+
+    THE ALTERNATE REGISTER SET holds the NSAM pointer while the main set
+    holds the sector buffer, so the transfer loop can keep both without
+    a spare register.  L' doubles as the count of bytes within an entry:
+    entries are 256 bytes and NSAM is aligned to match, so L' wrapping to
+    zero is both the next NSAM byte and the start of the next entry.  It
+    is loaded with &FF at the top so that the first INC L wraps at once
+    and the first entry is treated like any other.
+
+    THE FREE ENTRIES ARE THE DIFFICULTY, since their maps must not be
+    counted, and there is no time in the loop to test anything per byte.
+    NRS22 hoists the test to once per entry -- the first byte of an entry
+    is its type, and zero means erased or unused -- and answers it by
+    pointing H' either at NSAM's page or at zero.  A free entry's bytes
+    are still ORed and still stored, into &00xx, which is ROM, where the
+    write does nothing at all.  The discard costs the same as the keep.
+
+    Nothing here can afford a test it does not have to make, which is
+    also why both status reads have their port poked into them rather
+    than indexed, and why the byte-ready test is an AND against a mask
+    kept in B instead of a BIT.
+
+DOS &463F : so the first INC L wraps to zero and takes the NRS22 path
+DOS &4641 : the page NSAM is in, kept for NRS22 to reload
+DOS &465C value DISK_STATUS_DRQ
+DOS &4660 : a live entry: point H' at the map
+DOS &4661 : the first byte of an entry is its type; zero is erased or unused
+DOS &4664 : a free entry: point H' at ROM, where the OR will go nowhere
+DOS &4668 : is a byte waiting?
+DOS &466D : into the sector buffer
+DOS &4670 : on through NSAM, and count the byte within the entry
+DOS &4671 : wrapped, so this is the first byte of the next entry
+DOS &4673 : the file's map, ORed into the disc's
+DOS &4679 : the sector is finished
+DOS &467B : nothing waiting yet
