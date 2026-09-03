@@ -826,11 +826,11 @@ SECTOR_RETRY_COUNT:
 ;;  of the header buffers is zeroed by the boot code above, so the DOS always starts in the same state.
 ;; --------------------------------------------------------------------
 
-; ---- FFHL ---- from MB &6439
-FFHL:
-               DEFB &42,&4F                    ; 4100 BO
+; ---- BOOTNM ---- from MB &6439
+BOOTNM:
+               DEFB &42,&4F                    ; 4100 BO  the name the ROM's BOOT command looks for, bit 7 ending it
 
-FFDE:
+BOOTNM_2:
                DEFB &4F,&D4                    ; 4102 OT
 
 ; ---- ENTSP ---- from &43BD, &4481, &4485, &5021, &5026, &508E, &5FB1, &6060 ...
@@ -1522,13 +1522,13 @@ V42E4:
                DEFB &00                        ; 42E4 .
                NOP                             ; 42E5 00
 
-; ---- CALLMB_2 ---- from &4A7E, &4AA5
-CALLMB_2:
+; ---- FFHL ---- from &4A7E, &4AA5
+FFHL:
                NOP                             ; 42E6 00
                NOP                             ; 42E7 00
 
-; ---- CALLMB_3 ---- from &4A78, &4AA1
-CALLMB_3:
+; ---- FFDE ---- from &4A78, &4AA1
+FFDE:
                NOP                             ; 42E8 00
                NOP                             ; 42E9 00
 
@@ -3502,8 +3502,9 @@ SVBS3:
 ;;  A byte of &FF is eight used sectors and is skipped whole, advancing the track and sector by eight.
 ;;
 ;;  FFNS resumes where the last search left off, which is what makes allocating a long file linear rather than
-;;  quadratic. The position is kept in FFHL and FFDE -- which are the four bytes of the "BOOT" file name at &4100,
-;;  reused as variables once the DOS is in memory and the name is no longer needed.
+;;  quadratic. The position is kept in FFHL and FFDE. Stock MasterDOS 2.3 keeps those in the four bytes of
+;;  the "BOOT" file name at &4100, reused once the DOS is in memory and the name is no longer needed. This
+;;  image does not: it leaves the name alone and uses four spare bytes at &42E6 instead.
 ;;
 ;;  Exit:   D = track, E = sector of the sector just claimed
 ;;  Errors: REP24, "not enough space", when the map runs past the last track
@@ -3513,18 +3514,50 @@ SVBS3:
 
 ; ---- FFNS ---- from &49B0, &7614
 FFNS:
-               LD DE,(CALLMB_3)                ; 4A78 ED 5B E8 42
+               LD DE,(FFDE)                    ; 4A78 ED 5B E8 42  the sector the last call stopped on
                PUSH HL                         ; 4A7C E5
                PUSH BC                         ; 4A7D C5
-               LD HL,(CALLMB_2)                ; 4A7E 2A E6 42
-               JR FNS2                         ; 4A81 18 09
+               LD HL,(FFHL)                    ; 4A7E 2A E6 42  and the map byte it stopped in
+               JR FNS2                         ; 4A81 18 09  straight into the test, without stepping past that byte
+
+;; --------------------------------------------------------------------
+;; Claim the next free sector on the disc.
+;;
+;; THERE IS NO ALLOCATION TABLE ON THE DISC.  SAM is built in memory by
+;; ORing every directory entry's own sector map together, 195 bytes of
+;; it, one bit to a sector; this walks that for a clear bit, marks it
+;; used, and hands back the track and sector it stands for.
+;;
+;; A BYTE OF &FF IS EIGHT USED SECTORS and is skipped whole, which is
+;; what the INC A at the top is for -- one instruction to ask whether a
+;; byte is &FF.  Skipping it means adding eight to the sector number,
+;; and eight into ten does not go, so the fold is done by hand: SUB &0B
+;; followed by INC A is a subtraction of ten that leaves carry set when
+;; the answer would have been zero or less.  Carry therefore means the
+;; sector is still on this track and only the map pointer moves; no
+;; carry means the remainder is the sector on the next one.
+;;
+;; ONCE A BYTE WITH A CLEAR BIT IS FOUND, the bits are tried one at a
+;; time with a mask that RLC walks along.  The loop has no termination
+;; test and does not need one: it is only entered for a byte that is
+;; not &FF, so a clear bit is certainly there within eight tries.
+;;
+;; FFNS is the same routine entered a step later, resuming from the byte
+;; and the sector the last call stopped on.  That is what makes writing
+;; a long file linear: without it every sector of a hundred-sector file
+;; would be found by walking the map from the start again.
+;;
+;; Exit:   D = track, E = sector
+;; Errors: REP24, "not enough space", when the walk runs off the disc
+;; --------------------------------------------------------------------
 
 ; ---- FNFS ---- from &4987, &4DC6, &6F7E, &6F9D
 FNFS:
-               LD DE,&0401                     ; 4A83 11 01 04  TRK 4, SCT 1
+               LD DE,&0401                     ; 4A83 11 01 04  track 4 sector 1, the first sector a file may have
                PUSH HL                         ; 4A86 E5
                PUSH BC                         ; 4A87 C5
-               LD HL,SAM-1                     ; 4A88 21 0E 40
+               LD HL,SAM-1                     ; 4A88 21 0E 40  one before the map, so the INC below lands on its first
+                                               ; byte
 
 ; ---- FNS1 ---- from &4A97, &4A9D
 FNS1:
@@ -3532,96 +3565,114 @@ FNS1:
 
 ; ---- FNS2 ---- from &4A81
 FNS2:
-               LD A,(HL)                       ; 4A8C 7E
-               INC A                           ; 4A8D 3C
-               JR NZ,FNS3                      ; 4A8E 20 0F  JR IF NOT FF (=ALL USED)
+               LD A,(HL)                       ; 4A8C 7E  eight sectors, as bits
+               INC A                           ; 4A8D 3C  &FF and only &FF becomes zero
+               JR NZ,FNS3                      ; 4A8E 20 0F  something is free in this byte
                LD A,E                          ; 4A90 7B
-               ADD A,&08                       ; 4A91 C6 08
+               ADD A,&08                       ; 4A91 C6 08  all eight used, so eight sectors on
                LD E,A                          ; 4A93 5F
-               SUB &0B                         ; 4A94 D6 0B
+               SUB &0B                         ; 4A94 D6 0B  ten to a track, taken off the hard way
                INC A                           ; 4A96 3C  EQUIV. OF SUB 10, BUT CY IF <=0
-               JR C,FNS1                       ; 4A97 38 F2  JR IF SECTOR WAS OK BEFORE SUB
+               JR C,FNS1                       ; 4A97 38 F2  still on this track, so only the map pointer moves
 
 ; ---- FNS2_1 ---- from &6075
 FNS2_1:
-               LD E,A                          ; 4A99 5F
+               LD E,A                          ; 4A99 5F  otherwise the remainder is the sector on the next track
                CALL FNS5                       ; 4A9A CD B6 4A  NEXT TRACK
                JR FNS1                         ; 4A9D 18 EC
 
 ; ---- FNS3 ---- from &4A8E when A is not 0
 FNS3:
-               LD B,&01                        ; 4A9F 06 01  MASK FOR BIT 0
-               LD (CALLMB_3),DE                ; 4AA1 ED 53 E8 42  remember where to resume
-               LD (CALLMB_2),HL                ; 4AA5 22 E6 42
+               LD B,&01                        ; 4A9F 06 01  bit 0 first, and RLC walks the mask along
+               LD (FFDE),DE                    ; 4AA1 ED 53 E8 42  remember where to resume
+               LD (FFHL),HL                    ; 4AA5 22 E6 42
 
 ; ---- FNS4 ---- from &4AB4
 FNS4:
-               LD A,(HL)                       ; 4AA8 7E
+               LD A,(HL)                       ; 4AA8 7E  is this sector taken?
                AND B                           ; 4AA9 A0
-               JR Z,FNS6                       ; 4AAA 28 2F  JR IF FND FREE
-               CALL ISECT                      ; 4AAC CD 24 56
+               JR Z,FNS6                       ; 4AAA 28 2F  no, and that is the one
+               CALL ISECT                      ; 4AAC CD 24 56  on to the next sector, and the next track if that ran
+                                               ; out
                CALL Z,FNS5                     ; 4AAF CC B6 4A  NEXT TRK IF NEEDED
-               RLC B                           ; 4AB2 CB 00
+               RLC B                           ; 4AB2 CB 00  and the next bit of the byte
                JR FNS4                         ; 4AB4 18 F2
 
 ;; --------------------------------------------------------------------
-;;  FNS5 -- step to the next track, wrapping to side 2 at the end of side 1. A RAM disc's track limit is adjusted so
-;;  that its data tracks still start at 4 however many directory tracks it has.
+;; Step to the next track, and say when there are none left.
 ;;
-;; CALLED BY POINT SR "FITS"
+;; TSTD gives the track limit, with bit 7 set for a double-sided drive,
+;; and reaching it is REP24.  A double-sided disc does not stop there:
+;; track &80 is the first of side 2, which is why the limit is masked to
+;; seven bits for the comparison and D is set to &80 rather than
+;; incremented.
+;;
+;; A RAM DISC HAS ITS DIRECTORY MOVED, not fixed at four tracks, so its
+;; usable tracks do not start where a floppy's do.  The limit is nudged
+;; by however much DTKS differs from four, which keeps the arithmetic
+;; above -- which always starts a file at track 4 -- correct for both.
 ;; --------------------------------------------------------------------
 
 ; ---- FNS5 ---- from &4A9A, &4AAF, &70E5
 FNS5:
-               INC D                           ; 4AB6 14
-               CALL TSTD                       ; 4AB7 CD F4 4A  GET TRK LIMIT
+               INC D                           ; 4AB6 14  the next track
+               CALL TSTD                       ; 4AB7 CD F4 4A  how many this drive has, bit 7 for two sides
                LD C,A                          ; 4ABA 4F
-               LD A,(DTKS)                     ; 4ABB 3A 30 42
-               SUB &04                         ; 4ABE D6 04
-               JR NC,FNS55                     ; 4AC0 30 04  JR IF NORMAL DISC
-               NEG                             ; 4AC2 ED 44
+               LD A,(DTKS)                     ; 4ABB 3A 30 42  how many tracks of directory this disc has
+               SUB &04                         ; 4ABE D6 04  four is what a floppy has
+               JR NC,FNS55                     ; 4AC0 30 04  a floppy, so the limit stands
+               NEG                             ; 4AC2 ED 44  a RAM disc, so move the limit by the difference
                ADD A,C                         ; 4AC4 81  FIDDLE LIMIT TO ALLOW
                LD C,A                          ; 4AC5 4F  RAM DISC SO TKS 4-42 OK.
 
 ; ---- FNS55 ---- from &4AC0 when A >= &04
 FNS55:
                LD A,C                          ; 4AC6 79  LIMIT
-               CP D                            ; 4AC7 BA  CP LIMIT, TRK
-               JP Z,REP24                      ; 4AC8 CA 83 51  NOT ENOUGH SPACE
-               CALL TIRD                       ; 4ACB CD 5A 61
+               CP D                            ; 4AC7 BA  is this the track after the last?
+               JP Z,REP24                      ; 4AC8 CA 83 51  then the disc is full
+               CALL TIRD                       ; 4ACB CD 5A 61  is this a RAM disc?
                JR C,FNS56                      ; 4ACE 38 03  JR IF NOT RAM DISC
-               LD A,&50                        ; 4AD0 3E 50  SIDE 1 ON RAM DISC=80 TRK
+               LD A,&50                        ; 4AD0 3E 50  a RAM disc's side 1 is always eighty tracks
                DEFB SKIP_1_VIA_CP              ; 4AD2 ~  "JR+1"
 
 ; ---- FNS56 ---- from &4ACE
 FNS56:
                LD A,C                          ; 4AD3 79
-               AND &7F                         ; 4AD4 E6 7F
-               CP D                            ; 4AD6 BA
+               AND &7F                         ; 4AD4 E6 7F  the limit, without the bit that says two sides
+               CP D                            ; 4AD6 BA  the end of side 1?
                RET NZ                          ; 4AD7 C0
-               LD D,&80                        ; 4AD8 16 80
+               LD D,&80                        ; 4AD8 16 80  then carry on at the first track of side 2
                RET                             ; 4ADA C9
 
 ;; --------------------------------------------------------------------
-;; FOUND FREE SECT
-;;  Mark the bit in the global map and in the file's own map, which sits at the same offset within the entry image, so
-;;  the same displacement serves both.
+;; Mark the sector used, in both maps at once.
+;;
+;; A bit has to be set in SAM, which is the disc's map, and in the
+;; file's own map inside the entry image.  The two are laid out so that
+;; one displacement serves both: SAM begins at &400F, so the low byte
+;; of the pointer into it is fifteen plus the byte's index, and fifteen
+;; is exactly where a directory entry keeps its own map.  Adding that
+;; low byte to IX therefore lands on the same byte of the file's map
+;; that HL is standing on in the disc's.
+;;
+;; The same alignment is what lets NRSAD OR a whole entry into SAM as it
+;; comes off the disc.
 ;; --------------------------------------------------------------------
 
 ; ---- FNS6 ---- from &4AAA when no bit of B is set
 FNS6:
-               LD A,(HL)                       ; 4ADB 7E
-               OR B                            ; 4ADC B0
+               LD A,(HL)                       ; 4ADB 7E  the byte of the disc's map
+               OR B                            ; 4ADC B0  with this sector's bit in it
                LD (HL),A                       ; 4ADD 77  SET BIT IN SAM
-               LD C,L                          ; 4ADE 4D  L=DISP FROM START OF SAM,+0FH
-               LD A,B                          ; 4ADF 78
+               LD C,L                          ; 4ADE 4D  the offset into SAM, which is also the offset into the entry
+               LD A,B                          ; 4ADF 78  the mask, kept while B is cleared for the addition
                LD B,&00                        ; 4AE0 06 00
                PUSH IX                         ; 4AE2 DD E5
-               ADD IX,BC                       ; 4AE4 DD 09
-               OR (IX+&13)                     ; 4AE6 DD B6 13
-               LD (IX+&13),A                   ; 4AE9 DD 77 13
+               ADD IX,BC                       ; 4AE4 DD 09  the same byte of the file's own map
+               OR (IX+FFSA)                    ; 4AE6 DD B6 13
+               LD (IX+FFSA),A                  ; 4AE9 DD 77 13
                POP IX                          ; 4AEC DD E1
-               CALL ICNT                       ; 4AEE CD A9 71  INC SECTS USED COUNT
+               CALL ICNT                       ; 4AEE CD A9 71  and one more sector against the file's total
                POP BC                          ; 4AF1 C1
                POP HL                          ; 4AF2 E1
                RET                             ; 4AF3 C9

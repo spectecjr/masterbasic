@@ -1,0 +1,116 @@
+# Finding a free sector: the one allocator, and the map it walks.
+#
+# Prose for clean/ only.
+#
+# The two names first.  Stock MasterDOS 2.3 keeps FFNS's resume position
+# in the four bytes of the "BOOT" file name at &4100, on the grounds
+# that the name has done its work by then.  This image does not: the
+# name is left alone and the position lives in four spare bytes after
+# CALLMB, which the listing had called CALLMB_2 and CALLMB_3 because
+# they follow it.  The names belong with the code that uses them.
+
+RENAME FFHL BOOTNM
+RENAME FFDE BOOTNM_2
+RENAME CALLMB_2 FFHL
+RENAME CALLMB_3 FFDE
+
+DOS &4100 : the name the ROM's BOOT command looks for, bit 7 ending it
+
+DOC FNFS
+    Claim the next free sector on the disc.
+
+    THERE IS NO ALLOCATION TABLE ON THE DISC.  SAM is built in memory by
+    ORing every directory entry's own sector map together, 195 bytes of
+    it, one bit to a sector; this walks that for a clear bit, marks it
+    used, and hands back the track and sector it stands for.
+
+    A BYTE OF &FF IS EIGHT USED SECTORS and is skipped whole, which is
+    what the INC A at the top is for -- one instruction to ask whether a
+    byte is &FF.  Skipping it means adding eight to the sector number,
+    and eight into ten does not go, so the fold is done by hand: SUB &0B
+    followed by INC A is a subtraction of ten that leaves carry set when
+    the answer would have been zero or less.  Carry therefore means the
+    sector is still on this track and only the map pointer moves; no
+    carry means the remainder is the sector on the next one.
+
+    ONCE A BYTE WITH A CLEAR BIT IS FOUND, the bits are tried one at a
+    time with a mask that RLC walks along.  The loop has no termination
+    test and does not need one: it is only entered for a byte that is
+    not &FF, so a clear bit is certainly there within eight tries.
+
+    FFNS is the same routine entered a step later, resuming from the byte
+    and the sector the last call stopped on.  That is what makes writing
+    a long file linear: without it every sector of a hundred-sector file
+    would be found by walking the map from the start again.
+
+    Exit:   D = track, E = sector
+    Errors: REP24, "not enough space", when the walk runs off the disc
+
+DOS &4A78 : the sector the last call stopped on
+DOS &4A7E : and the map byte it stopped in
+DOS &4A81 : straight into the test, without stepping past that byte
+DOS &4A83 : track 4 sector 1, the first sector a file may have
+DOS &4A88 : one before the map, so the INC below lands on its first byte
+DOS &4A8C : eight sectors, as bits
+DOS &4A8D : &FF and only &FF becomes zero
+DOS &4A8E : something is free in this byte
+DOS &4A91 : all eight used, so eight sectors on
+DOS &4A94 : ten to a track, taken off the hard way
+DOS &4A97 : still on this track, so only the map pointer moves
+DOS &4A99 : otherwise the remainder is the sector on the next track
+DOS &4A9F : bit 0 first, and RLC walks the mask along
+DOS &4AA8 : is this sector taken?
+DOS &4AAA : no, and that is the one
+DOS &4AAC : on to the next sector, and the next track if that ran out
+DOS &4AB2 : and the next bit of the byte
+
+DOC FNS6
+    Mark the sector used, in both maps at once.
+
+    A bit has to be set in SAM, which is the disc's map, and in the
+    file's own map inside the entry image.  The two are laid out so that
+    one displacement serves both: SAM begins at &400F, so the low byte
+    of the pointer into it is fifteen plus the byte's index, and fifteen
+    is exactly where a directory entry keeps its own map.  Adding that
+    low byte to IX therefore lands on the same byte of the file's map
+    that HL is standing on in the disc's.
+
+    The same alignment is what lets NRSAD OR a whole entry into SAM as it
+    comes off the disc.
+
+DOS &4ADB : the byte of the disc's map
+DOS &4ADC : with this sector's bit in it
+DOS &4ADE : the offset into SAM, which is also the offset into the entry
+DOS &4ADF : the mask, kept while B is cleared for the addition
+DOS &4AE4 : the same byte of the file's own map
+DOS &4AE6 expr FFSA
+DOS &4AE9 expr FFSA
+DOS &4AEE : and one more sector against the file's total
+
+DOC FNS5
+    Step to the next track, and say when there are none left.
+
+    TSTD gives the track limit, with bit 7 set for a double-sided drive,
+    and reaching it is REP24.  A double-sided disc does not stop there:
+    track &80 is the first of side 2, which is why the limit is masked to
+    seven bits for the comparison and D is set to &80 rather than
+    incremented.
+
+    A RAM DISC HAS ITS DIRECTORY MOVED, not fixed at four tracks, so its
+    usable tracks do not start where a floppy's do.  The limit is nudged
+    by however much DTKS differs from four, which keeps the arithmetic
+    above -- which always starts a file at track 4 -- correct for both.
+
+DOS &4AB6 : the next track
+DOS &4AB7 : how many this drive has, bit 7 for two sides
+DOS &4ABB : how many tracks of directory this disc has
+DOS &4ABE : four is what a floppy has
+DOS &4AC0 : a floppy, so the limit stands
+DOS &4AC2 : a RAM disc, so move the limit by the difference
+DOS &4AC7 : is this the track after the last?
+DOS &4AC8 : then the disc is full
+DOS &4ACB : is this a RAM disc?
+DOS &4AD0 : a RAM disc's side 1 is always eighty tracks
+DOS &4AD4 : the limit, without the bit that says two sides
+DOS &4AD6 : the end of side 1?
+DOS &4AD8 : then carry on at the first track of side 2

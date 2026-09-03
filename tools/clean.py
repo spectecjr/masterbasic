@@ -65,6 +65,49 @@ SUPERSEDED = re.compile(r'what was here before', re.I)
 
 BAR = ';; ' + '-' * 68
 
+#  Prose carried from the annotated MasterDOS source that this image's
+#  code does not bear out.  The source describes stock MasterDOS 2.3;
+#  where MasterBASIC changed something underneath a comment, the comment
+#  came across with it and is now wrong.
+#
+#  Each entry is a run of consecutive banner lines exactly as they are
+#  emitted, and its replacement.  Every one must fire exactly once: a
+#  correction that no longer matches is a correction that has gone
+#  stale, and a silent miss is the failure this file exists to prevent.
+CARRIED_FIXES = [
+    ([';;  quadratic. The position is kept in FFHL and FFDE -- which are the four bytes of the "BOOT" file name at &4100,',
+      ';;  reused as variables once the DOS is in memory and the name is no longer needed.'],
+     [';;  quadratic. The position is kept in FFHL and FFDE. Stock MasterDOS 2.3 keeps those in the four bytes of',
+      ';;  the "BOOT" file name at &4100, reused once the DOS is in memory and the name is no longer needed. This',
+      ';;  image does not: it leaves the name alone and uses four spare bytes at &42E6 instead.']),
+]
+
+
+def fix_carried(pages):
+    """Apply CARRIED_FIXES to the banners.  Returns the count.
+
+    Raises if any of them fails to match, or matches more than once.
+    """
+    done = 0
+    for old, new in CARRIED_FIXES:
+        hits = []
+        for d in pages:
+            for a, text in d.headers.items():
+                lines = text.split(NL)
+                for i in range(len(lines) - len(old) + 1):
+                    if lines[i:i + len(old)] == old:
+                        hits.append((d, a, i))
+        if len(hits) != 1:
+            raise AssertionError(
+                'carried fix matches %d places, not 1: %s'
+                % (len(hits), old[0].strip()))
+        d, a, i = hits[0]
+        lines = d.headers[a].split(NL)
+        d.headers[a] = NL.join(lines[:i] + list(new) + lines[i + len(old):])
+        done += 1
+    return done
+
+
 
 def split_banner(text):
     """Separate the ;; banner from anything emitted after it.

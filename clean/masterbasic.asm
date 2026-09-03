@@ -263,6 +263,7 @@ IN_PAGE_C:                      EQU  &4000     ; the window, less where this is 
 ; pointer written as NAME+&4000 has bit 15 set, the flag INDJP
 ; and CTAB use to mean "not in this page".
 DOS_BOOT:                       EQU  &8009
+DOS_BOOTNM:                     EQU  &8100
 DOS_BOOT_CHOOSE_STEP_DIRECTION: EQU  &806D
 DOS_BOOT_COMPARE_TRACK:         EQU  &8069
 DOS_BOOT_DATA_PORT_FROM_C:      EQU  &8086
@@ -281,7 +282,6 @@ DOS_EVFINS:                     EQU  &B321
 DOS_EVNAM:                      EQU  &A1CF
 DOS_EVNUMX:                     EQU  &A2AF
 DOS_EXDT1_DONE:                 EQU  &A280
-DOS_FFHL:                       EQU  &8100
 DOS_FFPG:                       EQU  &9AB7
 DOS_FIND_ROM_CODE:              EQU  &BD79
 DOS_FNS56:                      EQU  &8AD3
@@ -10271,7 +10271,7 @@ SAVE_BOOT:
                LD HL,CALLBACK_HCMDV_2+IN_PAGE_C      ; 6430 21 F7 BC
                LD DE,&0100                           ; 6433 11 00 01
                CALL SAVE_BLOCK_FROM_THIS_PAGE        ; 6436 CD A9 42
-               LD HL,DOS_FFHL                        ; 6439 21 00 81
+               LD HL,DOS_BOOTNM                      ; 6439 21 00 81
                LD DE,&3C60                           ; 643C 11 60 3C
                CALL SAVE_BLOCK_FROM_DOS_PAGE         ; 643F CD AD 42
                LD HL,INSTALL_ROM_PATCHES_4+IN_PAGE_C ; 6442 21 F0 BD

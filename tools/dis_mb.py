@@ -2302,6 +2302,8 @@ def write_clean(pages):
     # that record is itself a working note.
     print('clean/: %d working paragraphs taken out'
           % clean.clean_pages((dos, mb)))
+    print('clean/: %d carried paragraphs corrected'
+          % clean.fix_carried((dos, mb)))
     for d in (dos, mb):
         explain_branches(d)
 
