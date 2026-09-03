@@ -242,6 +242,8 @@ SCREEN_PAGE_TYPE:             EQU  &30         ; allocation code for a page hold
 ; Directory scan
 DIR_MODE_COLLECT:             EQU  &02         ; collect names for a sorted listing
 DIR_MODE_LIST:                EQU  &04         ; print a full listing, with a heading
+DIR_MODE_NAME:                EQU  &08         ; match the name, honouring * and ?
+DIR_MODE_NAME_ONLY:           EQU  &10         ; match the name, ignoring the type
 
 ; Directory entry
 CASE_BLIND:                   EQU  &DF         ; every bit but the one that tells A from a
@@ -249,6 +251,7 @@ CH_PERIOD:                    EQU  &2E         ; between a name and its type
 CH_QUERY:                     EQU  &3F         ; the wildcard that matches one character
 CH_STAR:                      EQU  &2A         ; the wildcard that matches any run of characters
 NAME_AND_TYPE:                EQU  &0B         ; the type byte and the ten characters after it
+TYPE_MASK:                    EQU  &1F         ; bits 0 to 4 of the type byte are the type itself
 
 ; Disk controller status
 BLOCK_ERROR_FLAGS:            EQU  (DISK_STATUS_DRQ | DISK_STATUS_CRC_ERROR | DISK_STATUS_RECORD_NOT_FOUND) >> 1
@@ -3817,7 +3820,7 @@ FDH1_1:
 ;; One directory entry.  The scan arrives here with HL on its first
 ;; byte, and every field it wants is an offset from there.
 ;;
-;; AN ENTRY IS 256 BYTES, one to a quarter of a sector, and the layout
+;; AN ENTRY IS 256 BYTES, two to a sector, and the layout
 ;; is SAMDOS's with MasterDOS's own fields added at the top end where
 ;; the ROM's header did not reach:
 ;;
@@ -3977,82 +3980,121 @@ FDH85:
                JR FDHd                         ; 4C5B 18 2F
 
 ;; --------------------------------------------------------------------
-;; TEST FOR SPECIFIC FILE NAME
-;;  Looking a file up rather than listing. A subdirectory's tag is noted on the way past, so MAXT ends up holding the
-;;  highest in use.
+;; Looking a name up rather than listing one.  Two jobs share the walk:
+;; deciding whether this entry is the file that was asked for, and
+;; noting the subdirectory tags as they go past.
+;;
+;; THE TAG IS TWO BYTES NEAR THE END OF THE ENTRY, and both are reached
+;; the same way -- INC H adds 256, and then two DECs come back down to
+;; &FE.  Offset &FA is the tag a directory gives to the files inside
+;; it; offset &FE is the tag of the directory this entry belongs to.
+;; An entry that is not a directory has no &FA worth reading, which is
+;; why the type is tested first.
+;;
+;; MAXT ENDS UP HOLDING THE HIGHEST TAG on the disc, which is how
+;; OPNDIR knows what number to give a new subdirectory without a scan
+;; of its own.  The comparison is CP MAXT against the entry, so the
+;; carry is clear whenever the entry is not a new maximum; when it is,
+;; the AND A that follows the store clears it.  Both paths therefore
+;; reach the SBC HL,BC with carry clear, and the subtraction that walks
+;; HL back to the entry's head does not need an AND A of its own.
+;;
+;; THE ENTRY MUST ALSO BE IN THE RIGHT DIRECTORY.  CDIRT holds the tag
+;; of the current one, and an entry whose parent tag differs is passed
+;; over.  &FF is not a tag any directory can have -- OPNDIR refuses to
+;; allocate it -- so CDIRT set to &FF means every directory at once,
+;; which is what DIR "?" uses.
 ;; --------------------------------------------------------------------
 
 ; ---- FDH9 ---- from &4B95 when no bit of DIR_MODE_COLLECT | DIR_MODE_LIST is set
 FDH9:
-               LD A,(DCHAN+4)                  ; 4C5D 3A 04 7C
-               AND &18                         ; 4C60 E6 18
-               JR Z,FDHd                       ; 4C62 28 28  JR IF NEITHER BIT 3 NOR 4 ARE SET
-               LD A,(HL)                       ; 4C64 7E
-               AND &1F                         ; 4C65 E6 1F
-               CP DFT                          ; 4C67 FE 15  DIR
-               JR NZ,FDH92                     ; 4C69 20 11
-               LD BC,DIRT                      ; 4C6B 01 FA 00
-               ADD HL,BC                       ; 4C6E 09  PT TO DIR TAG
-               LD A,(MAXT)                     ; 4C6F 3A 35 42  CURRENT MAX
-               CP (HL)                         ; 4C72 BE  CP TAG OF THIS DIR
-               JR NC,FDH91                     ; 4C73 30 05  JR IF NO NEW MAX TAG
-               LD A,(HL)                       ; 4C75 7E
-               LD (MAXT),A                     ; 4C76 32 35 42
-               AND A                           ; 4C79 A7
+               LD A,(DCHAN+4)                         ; 4C5D 3A 04 7C  the mode this scan was started with
+               AND DIR_MODE_NAME | DIR_MODE_NAME_ONLY ; 4C60 E6 18
+               JR Z,FDHd                              ; 4C62 28 28  no name to match, so nothing here applies
+               LD A,(HL)                              ; 4C64 7E  the type byte
+               AND TYPE_MASK                          ; 4C65 E6 1F
+               CP DFT                                 ; 4C67 FE 15  is this entry a subdirectory?
+               JR NZ,FDH92                            ; 4C69 20 11
+               LD BC,DIRT                             ; 4C6B 01 FA 00  the tag a directory hands to its contents lives
+                                                      ; at &FA
+               ADD HL,BC                              ; 4C6E 09  PT TO DIR TAG
+               LD A,(MAXT)                            ; 4C6F 3A 35 42  the highest tag seen so far
+               CP (HL)                                ; 4C72 BE  against the one this directory hands out
+               JR NC,FDH91                            ; 4C73 30 05  not a new maximum, and the compare has left carry
+                                                      ; clear
+               LD A,(HL)                              ; 4C75 7E
+               LD (MAXT),A                            ; 4C76 32 35 42  a new maximum
+               AND A                                  ; 4C79 A7  and this path has to clear the carry itself
 
 ; ---- FDH91 ---- from &4C73 when A >= (HL)
 FDH91:
-               SBC HL,BC                       ; 4C7A ED 42  PT TO DIR TAG FOR FILE
+               SBC HL,BC                       ; 4C7A ED 42  back to the head of the entry
 
 ; ---- FDH92 ---- from &4C69 when A <> DFT
 FDH92:
-               INC H                           ; 4C7C 24
+               INC H                           ; 4C7C 24  offset &FE, the parent tag: 256 on and then two back
                DEC HL                          ; 4C7D 2B
                DEC HL                          ; 4C7E 2B
-               LD A,(CDIRT)                    ; 4C7F 3A 31 42
-               CP (HL)                         ; 4C82 BE
+               LD A,(CDIRT)                    ; 4C7F 3A 31 42  the directory we are listing or searching
+               CP (HL)                         ; 4C82 BE  is this entry in it?
                JR Z,FDH95                      ; 4C83 28 03  JR IF RIGHT DIR
-               INC A                           ; 4C85 3C
+               INC A                           ; 4C85 3C  &FF is no directory's tag, so it means all of them
                JR NZ,FDHd                      ; 4C86 20 04  JR UNLESS 0FFH "ANY" DIR
 
 ; ---- FDH95 ---- from &4C83 when A = (HL)
 FDH95:
-               CALL CKNAM                      ; 4C88 CD C2 4C
+               CALL CKNAM                      ; 4C88 CD C2 4C  the right directory, so the name decides
                RET Z                           ; 4C8B C8
 
 ;; --------------------------------------------------------------------
-;; CALCULATE NEXT DIRECTORY ENTRY
-;;  Two entries to a sector, ten sectors to a track, DTKS tracks. Sector 1 of track 4 is skipped because that is where
-;;  the DOS file itself begins.
+;; On to the next entry, and say when there are no more.
+;;
+;; Three steps out from where the scan stands, each one only taken
+;; when the one before it has run out: the other entry in this sector,
+;; the next sector in this track, the next track of the directory.
+;;
+;; THE ENTRY IS CHOSEN BY THE HIGH BYTE OF RPT alone.  Entries are 256
+;; bytes and there are two to a sector, so incrementing that byte moves
+;; a whole entry, and a value of 1 means the second of the two has just
+;; been done.
+;;
+;; TRACK 4 STARTS AT SECTOR 2, because sector 1 of it is where the DOS
+;; file itself begins.  That is the only irregularity in the walk; on
+;; every other track the directory has all ten sectors.
+;;
+;; DTKS says how many tracks the directory occupies, and reaching it
+;; is the end.  The AND A that reports it is reading DTKS, which is
+;; never zero, so the non-zero result the caller reads as "no match" is
+;; dependable and costs nothing.
 ;; --------------------------------------------------------------------
 
-; ---- FDHd ---- from &4BC2 when A <> B, &4BFA, &4C5B, &4C62 when no bit of &18 is set, &4C86 when A is not 0, &4CBE
-; when A <> 0
+; ---- FDHd ---- from &4BC2 when A <> B, &4BFA, &4C5B, &4C62 when no bit of DIR_MODE_NAME | DIR_MODE_NAME_ONLY is set,
+; &4C86 when A is not 0, &4CBE when A <> 0
 FDHd:
-               LD A,(DCHAN+RPTH)               ; 4C8C 3A 0E 7C
-               DEC A                           ; 4C8F 3D
-               JR Z,FDHe                       ; 4C90 28 09  JR IF WE HAVE JUST DONE SECOND DIR
-               CALL CLEAR_TRANSFER_COUNT       ; 4C92 CD 8E 4F
+               LD A,(DCHAN+RPTH)               ; 4C8C 3A 0E 7C  which of the two entries in this sector was the last
+               DEC A                           ; 4C8F 3D  entry 1 was the second of them
+               JR Z,FDHe                       ; 4C90 28 09  so this sector is finished
+               CALL CLEAR_TRANSFER_COUNT       ; 4C92 CD 8E 4F  nothing has been transferred out of the new entry yet
                INC (IX+RPT-DCHAN+1)            ; 4C95 DD 34 0E  one entry on, which is one whole page of the sector
-               JP FDH1_1                       ; 4C98 C3 88 4B
+               JP FDH1_1                       ; 4C98 C3 88 4B  and round again, without reading anything from the disc
 
 ; ---- FDHe ---- from &4C90 when A reaches 0
 FDHe:
-               CALL ISECT                      ; 4C9B CD 24 56  NEXT SECTOR
-               JP NZ,FDH1                      ; 4C9E C2 85 4B  JP IF NOT LAST SECT IN TRACK
-               INC D                           ; 4CA1 14  INC TRACK
+               CALL ISECT                      ; 4C9B CD 24 56  the next sector of this track
+               JP NZ,FDH1                      ; 4C9E C2 85 4B  still inside the track, so that is all that was needed
+               INC D                           ; 4CA1 14  the track is used up
                LD A,D                          ; 4CA2 7A
-               CP &04                          ; 4CA3 FE 04
+               CP &04                          ; 4CA3 FE 04  track 4 is the one the DOS file starts on
                JR NZ,FDHE2                     ; 4CA5 20 01
-               INC E                           ; 4CA7 1C  SECT=2 IF TRACK=4 (SKIP DOS)
+               INC E                           ; 4CA7 1C  so skip its first sector
 
 ; ---- FDHE2 ---- from &4CA5 when A <> &04
 FDHE2:
-               LD A,(DTKS)                     ; 4CA8 3A 30 42
-               CP D                            ; 4CAB BA
-               JP NZ,FDH1                      ; 4CAC C2 85 4B
-               AND A                           ; 4CAF A7  NZ
-               RET                             ; 4CB0 C9
+               LD A,(DTKS)                     ; 4CA8 3A 30 42  how many tracks of directory this disc has
+               CP D                            ; 4CAB BA  is this one past the last?
+               JP NZ,FDH1                      ; 4CAC C2 85 4B  no, so carry on reading
+               AND A                           ; 4CAF A7  DTKS is never zero, so this leaves the NZ the caller reads
+               RET                             ; 4CB0 C9  as "the whole directory, and no match in it"
 
 ;; --------------------------------------------------------------------
 ;; A free slot.  Two things can want one, and the mode byte says which.
@@ -12191,43 +12233,19 @@ CHANNEL_LENGTH_FIELD:
                RET                             ; 71FA C9
 
 ;; --------------------------------------------------------------------
-;;  PART SUBD -- Subdirectories
+;; OPEN DIR "name" -- make a subdirectory.
 ;;
-;;  MasterDOS's largest addition to the SAMDOS disk format, and it is done without changing that format at all.
+;; A subdirectory is an ordinary directory entry of type DFT that owns
+;; a number, and everything else follows from that: it needs no data
+;; sectors, so flag 4 is set to tell OFSM not to allocate any, and the
+;; number it will hand to the files inside it is one more than the
+;; highest already in use.  FDHR counted that into MAXT during the scan
+;; GOFSM has just done, so no second pass is needed.
 ;;
-;;  How a directory tree is stored in a flat directory
-;;
-;;  The catalogue is still the same flat list of entries in tracks 0 to DTKS-1. Two spare bytes in each entry carry
-;;  the tree:
-;;
-;;    offset &FE   the tag of the directory this file belongs to; 0 means the root
-;;    offset &FA   for an entry of type DFT, the tag it gives to the files inside it
-;;
-;;  So a subdirectory is an ordinary entry that owns a number, and "being in a directory" means "carrying that
-;;  number". Creating one (OPNDIR) allocates the next unused tag, which FDHR has already found for it in MAXT.
-;;  Listing a directory means showing only the entries whose tag matches CDIRT; setting CDIRT to &FF shows all of
-;;  them, which is what DIR "?" does.
-;;
-;;  Nothing else in the DOS has to know: the free-space map, the allocation and the file chains are unchanged.
-;;
-;;  Paths
-;;
-;;  The current directory is remembered per drive, as a tag in CDIT and as a printable path string in PTH1, PTH2 or --
-;;  for a RAM disc -- PTHRD, with its length in PLT. Both root symbols in RTSYM are accepted on input, normally "\"
-;;  and "/", and the first is always the one written into the path.
-;;
-;;  DTREE walks a path a name at a time, selecting each directory as it goes and leaving the final component in NSTR1
-;;  for the caller to find; "^" means the parent, and a leading root symbol restarts from the root. That is why a name
-;;  like "\GAMES\CHESS" works anywhere a file name is accepted, not only in DIR =.
-;;
-;;  OPNDIR -- OPEN DIR "name": create a subdirectory
-;;
-;;  A directory file needs no data sectors, which is what flag bit 4 tells OFSM. The tag it will hand to its contents
-;;  is one more than the highest already in use.
-;;
-;;  Errors: REP25 once 254 directories exist
-;;
-;; OPEN DIRECTORY - JUMPED TO FROM "OPEN" WHEN NEXT CHAR<>"#"
+;; &FF IS NOT AVAILABLE.  It is the value CDIRT takes to mean "every
+;; directory", so a real directory may not have it, and reaching it is
+;; the error rather than wrapping to zero.  That leaves 254 usable
+;; tags, tag 0 being the root.
 ;; --------------------------------------------------------------------
 
 ; ---- OPNDIR ---- from &6B23 when A <> &23
@@ -12237,16 +12255,16 @@ OPNDIR:
                CALL EVSYN                      ; 7200 CD 5D 69  NAME
                CALL PLNS                       ; 7203 CD 8E 50  PLACE NEXT STAT ADDR
                CALL CEOS                       ; 7206 CD 07 50
-               LD A,DFT                        ; 7209 3E 15  "DIRECTORY"
-               LD (NSTR1),A                    ; 720B 32 3A 41
-               CALL SETF4                      ; 720E CD 04 51  "NO SECTOR NEEDED"
-               CALL GOFSM                      ; 7211 CD 28 4D
-               LD A,(MAXT)                     ; 7214 3A 35 42  SET BY FDHR
-               INC A                           ; 7217 3C  TAG VALUE FOR THIS DIRECTORY'S
-               CP &FF                          ; 7218 FE FF  FILES
-               JP Z,REP25                      ; 721A CA 86 51  ERROR IF TOO MANY DIR FILES
-               LD (FSA+DIRT),A                 ; 721D 32 0D 7D  COPIED TO SECTOR BUFFER
-               JP CFSM                         ; 7220 C3 FE 4D
+               LD A,DFT                        ; 7209 3E 15  the entry's type: a directory rather than a file
+               LD (NSTR1),A                    ; 720B 32 3A 41  where CKNAM will compare it from
+               CALL SETF4                      ; 720E CD 04 51  a directory file has no contents of its own
+               CALL GOFSM                      ; 7211 CD 28 4D  open it, which is also the scan that fills MAXT in
+               LD A,(MAXT)                     ; 7214 3A 35 42  the highest tag in use anywhere on the disc
+               INC A                           ; 7217 3C  so this directory takes the next one
+               CP &FF                          ; 7218 FE FF  except that &FF already means "any directory"
+               JP Z,REP25                      ; 721A CA 86 51  254 subdirectories is the limit
+               LD (FSA+DIRT),A                 ; 721D 32 0D 7D  into the entry being built, where CFSM will write it out
+               JP CFSM                         ; 7220 C3 FE 4D  close the file, which is what puts the entry on the disc
 
 ;; --------------------------------------------------------------------
 ;;  STDIR -- DIR = "path": change the current directory

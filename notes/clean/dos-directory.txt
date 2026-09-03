@@ -123,7 +123,7 @@ DOC FDH05_1
     One directory entry.  The scan arrives here with HL on its first
     byte, and every field it wants is an offset from there.
 
-    AN ENTRY IS 256 BYTES, one to a quarter of a sector, and the layout
+    AN ENTRY IS 256 BYTES, two to a sector, and the layout
     is SAMDOS's with MasterDOS's own fields added at the top end where
     the ROM's header did not reach:
 
@@ -254,6 +254,122 @@ DOS &4FE0 : has a free slot already been found?
 DOS &4FE3 : FSLOT still zero means not
 DOS &4FE5 : the track and sector this scan is on
 DOS &4FE9 : and which of the two entries in it
+
+DOC FDH9
+    Looking a name up rather than listing one.  Two jobs share the walk:
+    deciding whether this entry is the file that was asked for, and
+    noting the subdirectory tags as they go past.
+
+    THE TAG IS TWO BYTES NEAR THE END OF THE ENTRY, and both are reached
+    the same way -- INC H adds 256, and then two DECs come back down to
+    &FE.  Offset &FA is the tag a directory gives to the files inside
+    it; offset &FE is the tag of the directory this entry belongs to.
+    An entry that is not a directory has no &FA worth reading, which is
+    why the type is tested first.
+
+    MAXT ENDS UP HOLDING THE HIGHEST TAG on the disc, which is how
+    OPNDIR knows what number to give a new subdirectory without a scan
+    of its own.  The comparison is CP MAXT against the entry, so the
+    carry is clear whenever the entry is not a new maximum; when it is,
+    the AND A that follows the store clears it.  Both paths therefore
+    reach the SBC HL,BC with carry clear, and the subtraction that walks
+    HL back to the entry's head does not need an AND A of its own.
+
+    THE ENTRY MUST ALSO BE IN THE RIGHT DIRECTORY.  CDIRT holds the tag
+    of the current one, and an entry whose parent tag differs is passed
+    over.  &FF is not a tag any directory can have -- OPNDIR refuses to
+    allocate it -- so CDIRT set to &FF means every directory at once,
+    which is what DIR "?" uses.
+
+DOS &4C5D : the mode this scan was started with
+DOS &4C60 expr DIR_MODE_NAME | DIR_MODE_NAME_ONLY
+DOS &4C62 : no name to match, so nothing here applies
+DOS &4C64 : the type byte
+DOS &4C65 expr TYPE_MASK
+DOS &4C67 : is this entry a subdirectory?
+DOS &4C6B : the tag a directory hands to its contents lives at &FA
+DOS &4C6F : the highest tag seen so far
+DOS &4C72 : against the one this directory hands out
+DOS &4C73 : not a new maximum, and the compare has left carry clear
+DOS &4C76 : a new maximum
+DOS &4C79 : and this path has to clear the carry itself
+DOS &4C7A : back to the head of the entry
+DOS &4C7C : offset &FE, the parent tag: 256 on and then two back
+DOS &4C7F : the directory we are listing or searching
+DOS &4C82 : is this entry in it?
+DOS &4C85 : &FF is no directory's tag, so it means all of them
+DOS &4C88 : the right directory, so the name decides
+
+GROUP Directory entry
+CONST TYPE_MASK = &1F : bits 0 to 4 of the type byte are the type itself
+
+GROUP Directory scan
+CONST DIR_MODE_NAME = &08 : match the name, honouring * and ?
+CONST DIR_MODE_NAME_ONLY = &10 : match the name, ignoring the type
+
+DOC OPNDIR
+    OPEN DIR "name" -- make a subdirectory.
+
+    A subdirectory is an ordinary directory entry of type DFT that owns
+    a number, and everything else follows from that: it needs no data
+    sectors, so flag 4 is set to tell OFSM not to allocate any, and the
+    number it will hand to the files inside it is one more than the
+    highest already in use.  FDHR counted that into MAXT during the scan
+    GOFSM has just done, so no second pass is needed.
+
+    &FF IS NOT AVAILABLE.  It is the value CDIRT takes to mean "every
+    directory", so a real directory may not have it, and reaching it is
+    the error rather than wrapping to zero.  That leaves 254 usable
+    tags, tag 0 being the root.
+
+DOS &7209 : the entry's type: a directory rather than a file
+DOS &720B : where CKNAM will compare it from
+DOS &720E : a directory file has no contents of its own
+DOS &7211 : open it, which is also the scan that fills MAXT in
+DOS &7214 : the highest tag in use anywhere on the disc
+DOS &7217 : so this directory takes the next one
+DOS &7218 : except that &FF already means "any directory"
+DOS &721A : 254 subdirectories is the limit
+DOS &721D : into the entry being built, where CFSM will write it out
+DOS &7220 : close the file, which is what puts the entry on the disc
+
+DOC FDHd
+    On to the next entry, and say when there are no more.
+
+    Three steps out from where the scan stands, each one only taken
+    when the one before it has run out: the other entry in this sector,
+    the next sector in this track, the next track of the directory.
+
+    THE ENTRY IS CHOSEN BY THE HIGH BYTE OF RPT alone.  Entries are 256
+    bytes and there are two to a sector, so incrementing that byte moves
+    a whole entry, and a value of 1 means the second of the two has just
+    been done.
+
+    TRACK 4 STARTS AT SECTOR 2, because sector 1 of it is where the DOS
+    file itself begins.  That is the only irregularity in the walk; on
+    every other track the directory has all ten sectors.
+
+    DTKS says how many tracks the directory occupies, and reaching it
+    is the end.  The AND A that reports it is reading DTKS, which is
+    never zero, so the non-zero result the caller reads as "no match" is
+    dependable and costs nothing.
+
+DOS &4C8C : which of the two entries in this sector was the last
+DOS &4C8F : entry 1 was the second of them
+DOS &4C90 : so this sector is finished
+DOS &4C92 : nothing has been transferred out of the new entry yet
+DOS &4C95 : one entry on, which is one whole page of the sector
+DOS &4C98 : and round again, without reading anything from the disc
+DOS &4C9B : the next sector of this track
+DOS &4C9E : still inside the track, so that is all that was needed
+DOS &4CA1 : the track is used up
+DOS &4CA3 : track 4 is the one the DOS file starts on
+DOS &4CA7 : so skip its first sector
+DOS &4CA8 : how many tracks of directory this disc has
+DOS &4CAB : is this one past the last?
+DOS &4CAC : no, so carry on reading
+DOS &4CAF : DTKS is never zero, so this leaves the NZ the caller reads
+DOS &4CB0 : as "the whole directory, and no match in it"
 
 GROUP Characters
 CONST CH_STAR = &2A : the wildcard that matches any run of characters
