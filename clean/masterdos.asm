@@ -239,6 +239,10 @@ PAST_WINDOW_TOP:              EQU  &C0
 RAMDISC_PAGE_HIGH:            EQU  &80
 SCREEN_PAGE_TYPE:             EQU  &30         ; allocation code for a page holding a screen
 
+; Directory scan
+DIR_MODE_COLLECT:             EQU  &02         ; collect names for a sorted listing
+DIR_MODE_LIST:                EQU  &04         ; print a full listing, with a heading
+
 ; Disk controller status
 BLOCK_ERROR_FLAGS:            EQU  (DISK_STATUS_DRQ | DISK_STATUS_CRC_ERROR | DISK_STATUS_RECORD_NOT_FOUND) >> 1
                                                ; what the block and boot loops test; it should be TRANSFER_ERROR_FLAGS
@@ -3050,8 +3054,8 @@ ROOM_LEFT_IN_PAGE_3:
                EX DE,HL                        ; 4883 EB
                AND A                           ; 4884 A7
                SBC HL,DE                       ; 4885 ED 52
-               LD (IX+&0E),H                   ; 4887 DD 74 0E
-               LD (IX+&0D),L                   ; 488A DD 75 0D
+               LD (IX+RPT-DCHAN+1),H           ; 4887 DD 74 0E
+               LD (IX+RPT-DCHAN),L             ; 488A DD 75 0D
                ADD HL,DE                       ; 488D 19
                POP AF                          ; 488E F1
                RET Z                           ; 488F C8
@@ -3802,40 +3806,69 @@ FDH1:
 FDH1_1:
                CALL POINT                      ; 4B88 CD AC 4F
 
+;; --------------------------------------------------------------------
+;; One directory entry.  The scan arrives here with HL on its first
+;; byte, and every field it wants is an offset from there.
+;;
+;; AN ENTRY IS 256 BYTES, one to a quarter of a sector, and the layout
+;; is SAMDOS's with MasterDOS's own fields added at the top end where
+;; the ROM's header did not reach:
+;;
+;; +0        type and flags; bits 0-4 the type, 6 protected,
+;; 7 hidden.  Zero means the slot is free
+;; +1        the name, ten characters, space padded
+;; +11       sectors used, high byte first
+;; +13       first track, bit 7 for side 2, and first sector
+;; +15       195 bytes of sector map -- which sectors are this
+;; file's, in the same bit order as NSAM
+;; +210      the disc's name in entry 0; the file's nine-byte
+;; header in any other
+;; +220      the tail of the ROM's 48-byte header, date stamp and all
+;; +&FA      the tag a subdirectory gives to the files inside it
+;; +&FE      the tag of the directory this file belongs to, 0 for
+;; the root
+;; +&FF      in entry 0, the directory's length beyond four tracks
+;; --------------------------------------------------------------------
+
 ; ---- FDH05_1 ---- from &4B83
 FDH05_1:
-               LD A,(HL)                       ; 4B8B 7E
-               AND A                           ; 4B8C A7
-               JP Z,FDHF                       ; 4B8D CA B1 4C  JP IF FREE SLOT
-               LD A,(DCHAN+4)                  ; 4B90 3A 04 7C
-               AND &06                         ; 4B93 E6 06
-               JP Z,FDH9                       ; 4B95 CA 5D 4C  JP IF NEITHER TYPE OF DIRECTORY
-               LD A,(HL)                       ; 4B98 7E  TYPE
-               EX AF,AF'                       ; 4B99 08
-               LD B,H                          ; 4B9A 44
-               LD C,L                          ; 4B9B 4D
-               INC H                           ; 4B9C 24
-               DEC HL                          ; 4B9D 2B
-               DEC HL                          ; 4B9E 2B
-               LD A,(HL)                       ; 4B9F 7E  DIRECTORY TAG - BYTE FE
-               LD HL,&000B                     ; 4BA0 21 0B 00
-               ADD HL,BC                       ; 4BA3 09
-               LD B,(HL)                       ; 4BA4 46
-               INC HL                          ; 4BA5 23
-               LD C,(HL)                       ; 4BA6 4E
-               LD (DOSBUF),BC                  ; 4BA7 ED 43 00 7C  SECTORS USED BY FILE
-               LD HL,(CNT)                     ; 4BAB 2A 0E 41
-               ADD HL,BC                       ; 4BAE 09
-               LD (CNT),HL                     ; 4BAF 22 0E 41  TOTAL USED SECTORS SO FAR ON DISC
-               LD HL,(TCNT)                    ; 4BB2 2A 1A 42
-               INC HL                          ; 4BB5 23
-               LD (TCNT),HL                    ; 4BB6 22 1A 42  TOTAL FILES SO FAR ON DISC
-               LD B,A                          ; 4BB9 47
-               LD A,(CDIRT)                    ; 4BBA 3A 31 42  CUR DIR
-               CP &FF                          ; 4BBD FE FF
-               JR Z,FDH35                      ; 4BBF 28 04  JR IF "ALL"
-               CP B                            ; 4BC1 B8
-               JP NZ,FDHd                      ; 4BC2 C2 8C 4C  JP IF NOT FILE FROM CURRENT DIR
+               LD A,(HL)                            ; 4B8B 7E  the type byte, which is also the "is this slot used" byte
+               AND A                                ; 4B8C A7
+               JP Z,FDHF                            ; 4B8D CA B1 4C  a free slot; what happens next depends on why we
+                                                    ; are scanning
+               LD A,(DCHAN+4)                       ; 4B90 3A 04 7C  the mode this scan was started with
+               AND DIR_MODE_COLLECT | DIR_MODE_LIST ; 4B93 E6 06
+               JP Z,FDH9                            ; 4B95 CA 5D 4C  neither kind of listing, so none of the totals are
+                                                    ; wanted
+               LD A,(HL)                            ; 4B98 7E  the type, kept in the alternate accumulator while HL
+                                                    ; moves
+               EX AF,AF'                            ; 4B99 08
+               LD B,H                               ; 4B9A 44
+               LD C,L                               ; 4B9B 4D
+               INC H                                ; 4B9C 24  up to the far end of the entry, where MasterDOS put its
+                                                    ; own
+               DEC HL                               ; 4B9D 2B
+               DEC HL                               ; 4B9E 2B
+               LD A,(HL)                            ; 4B9F 7E  the tag of the directory this file is in
+               LD HL,&000B                          ; 4BA0 21 0B 00  eleven bytes in is the sector count, high byte
+                                                    ; first
+               ADD HL,BC                            ; 4BA3 09
+               LD B,(HL)                            ; 4BA4 46
+               INC HL                               ; 4BA5 23
+               LD C,(HL)                            ; 4BA6 4E
+               LD (DOSBUF),BC                       ; 4BA7 ED 43 00 7C  kept for the listing to print
+               LD HL,(CNT)                          ; 4BAB 2A 0E 41
+               ADD HL,BC                            ; 4BAE 09
+               LD (CNT),HL                          ; 4BAF 22 0E 41  the sectors used on the disc so far
+               LD HL,(TCNT)                         ; 4BB2 2A 1A 42
+               INC HL                               ; 4BB5 23
+               LD (TCNT),HL                         ; 4BB6 22 1A 42  and the files
+               LD B,A                               ; 4BB9 47
+               LD A,(CDIRT)                         ; 4BBA 3A 31 42  CUR DIR
+               CP &FF                               ; 4BBD FE FF
+               JR Z,FDH35                           ; 4BBF 28 04  JR IF "ALL"
+               CP B                                 ; 4BC1 B8
+               JP NZ,FDHd                           ; 4BC2 C2 8C 4C  JP IF NOT FILE FROM CURRENT DIR
 
 ; ---- FDH35 ---- from &4BBF when A = &FF
 FDH35:
@@ -3993,7 +4026,7 @@ FDHd:
                DEC A                           ; 4C8F 3D
                JR Z,FDHe                       ; 4C90 28 09  JR IF WE HAVE JUST DONE SECOND DIR
                CALL CLEAR_TRANSFER_COUNT       ; 4C92 CD 8E 4F
-               INC (IX+&0E)                    ; 4C95 DD 34 0E  NEXT ENTRY
+               INC (IX+RPT-DCHAN+1)            ; 4C95 DD 34 0E  one entry on, which is one whole page of the sector
                JP FDH1_1                       ; 4C98 C3 88 4B
 
 ; ---- FDHe ---- from &4C90 when A reaches 0
@@ -4593,8 +4626,8 @@ RESET_BUFFER_POINTERS:
 
 ; ---- CLEAR_TRANSFER_COUNT ---- from &46CA, &4C92, &4DD2, &5D65, &5EBD, &74E4, &7782
 CLEAR_TRANSFER_COUNT:
-               LD (IX+&0D),&00                 ; 4F8E DD 36 0D 00
-               LD (IX+&0E),&00                 ; 4F92 DD 36 0E 00
+               LD (IX+RPT-DCHAN),&00           ; 4F8E DD 36 0D 00
+               LD (IX+RPT-DCHAN+1),&00         ; 4F92 DD 36 0E 00
                RET                             ; 4F96 C9
 
 ; ---- RSSR ---- from &45BD, &463B, &4688
@@ -4652,8 +4685,8 @@ GRPNTB:
 GRPNT:
                LD L,(IX+&0F)                   ; 4FB1 DD 6E 0F
                LD H,(IX+&10)                   ; 4FB4 DD 66 10
-               LD B,(IX+&0E)                   ; 4FB7 DD 46 0E
-               LD C,(IX+&0D)                   ; 4FBA DD 4E 0D
+               LD B,(IX+RPT-DCHAN+1)           ; 4FB7 DD 46 0E
+               LD C,(IX+RPT-DCHAN)             ; 4FBA DD 4E 0D
                ADD HL,BC                       ; 4FBD 09
                RET                             ; 4FBE C9
 
@@ -4705,7 +4738,7 @@ SWAP_TRACK_AND_SECTOR:
 
 ; ---- REPORT_PAGE_COUNT ---- from &4C12, &7B46
 REPORT_PAGE_COUNT:
-               LD A,(IX+&0E)                   ; 4FD7 DD 7E 0E
+               LD A,(IX+RPT-DCHAN+1)           ; 4FD7 DD 7E 0E
                CALL CALLMB                     ; 4FDA CD BD 42
                DEFW &4224                      ; 4FDD 24 42
                RET                             ; 4FDF C9
@@ -5801,7 +5834,7 @@ SNAP5:
                LD L,E                          ; 53FF 6B
                SLA L                           ; 5400 CB 25
                DEC L                           ; 5402 2D
-               LD A,(IX+&0E)                   ; 5403 DD 7E 0E
+               LD A,(IX+RPT-DCHAN+1)           ; 5403 DD 7E 0E
                ADD A,L                         ; 5406 85
                ADD A,&40                       ; 5407 C6 40
                LD (SNME+6),A                   ; 5409 32 EA 41
@@ -7865,7 +7898,7 @@ RFB2:
 PTSVT:
                CALL RFB2                       ; 5DCF CD C8 5D
                LD A,(SVDPT)                    ; 5DD2 3A 22 41
-               LD (IX+&0E),A                   ; 5DD5 DD 77 0E
+               LD (IX+RPT-DCHAN+1),A           ; 5DD5 DD 77 0E
                JP POINT                        ; 5DD8 C3 AC 4F
 
 ; ---- N2TN3 ---- from &59DB, &5D79
@@ -8042,7 +8075,7 @@ SNDFL:
                CALL RESET_BUFFER_POINTERS      ; 5E7E CD 84 4F
                XOR A                           ; 5E81 AF
                LD (IX+RFDH-DCHAN),A            ; 5E82 DD 77 04  FDHR FLAGS=0 FOR CHKNM
-               LD (IX+&0E),A                   ; 5E85 DD 77 0E  1ST ENTRY
+               LD (IX+RPT-DCHAN+1),A           ; 5E85 DD 77 0E  1ST ENTRY
                CALL REST                       ; 5E88 CD AD 47
                CALL READ_SECTOR                ; 5E8B CD B7 45  T0/S1
                CALL SDTKS                      ; 5E8E CD 55 74  SET DIR TKS, CHECK RAND NO
@@ -8059,7 +8092,7 @@ SNDF15:
 ; ---- SNDF2 ---- from &5EC3
 SNDF2:
                CALL POINT                      ; 5E9A CD AC 4F
-               LD A,(IX+&0E)                   ; 5E9D DD 7E 0E
+               LD A,(IX+RPT-DCHAN+1)           ; 5E9D DD 7E 0E
                LD (SVDPT),A                    ; 5EA0 32 22 41
                LD A,(HL)                       ; 5EA3 7E
                AND A                           ; 5EA4 A7
@@ -8079,11 +8112,11 @@ SNDF25:
 ; ---- SNDF3 ---- from &5E79, &5EAD
 SNDF3:
                LD A,(SVDPT)                    ; 5EB4 3A 22 41
-               LD (IX+&0E),A                   ; 5EB7 DD 77 0E
+               LD (IX+RPT-DCHAN+1),A           ; 5EB7 DD 77 0E
                DEC A                           ; 5EBA 3D
                JR Z,SNDF4                      ; 5EBB 28 08  JR IF PTR WAS TO 2ND ENTRY
                CALL CLEAR_TRANSFER_COUNT       ; 5EBD CD 8E 4F
-               INC (IX+&0E)                    ; 5EC0 DD 34 0E
+               INC (IX+RPT-DCHAN+1)            ; 5EC0 DD 34 0E
                JR SNDF2                        ; 5EC3 18 D5  DEAL WITH 2ND ENTRY
 
 ; ---- SNDF4 ---- from &5EBB when A reaches 0
@@ -9369,7 +9402,7 @@ HVERY:
                LD BC,SVBL2_1                   ; 64AB 01 62 4A
                CALL NETPA                      ; 64AE CD 9D 64
                CALL DSCHD                      ; 64B1 CD 7F 64
-               LD (IX+&0D),&09                 ; 64B4 DD 36 0D 09
+               LD (IX+RPT-DCHAN),&09           ; 64B4 DD 36 0D 09
 
 ; ---- HVER1 ---- from &64D1 when A < &C0, &64D6
 HVER1:
@@ -10954,10 +10987,10 @@ OPND45_1:
 STORE_TRANSFER_COUNT:
                PUSH HL                         ; 6CD6 E5
                CALL CHANNEL_LENGTH_FIELD       ; 6CD7 CD F3 71
-               LD A,(IX+&0D)                   ; 6CDA DD 7E 0D
+               LD A,(IX+RPT-DCHAN)             ; 6CDA DD 7E 0D
                LD (HL),A                       ; 6CDD 77
                INC HL                          ; 6CDE 23
-               LD A,(IX+&0E)                   ; 6CDF DD 7E 0E
+               LD A,(IX+RPT-DCHAN+1)           ; 6CDF DD 7E 0E
                LD (HL),A                       ; 6CE2 77
                INC HL                          ; 6CE3 23
                LD A,(IX+&1F)                   ; 6CE4 DD 7E 1F
@@ -11581,11 +11614,11 @@ CLEAR_SECTOR_FLAG:
 ; ---- CPPTR ---- from &65B5, &6F24, &6F5A, &6F97
 CPPTR:
                CALL CHANNEL_LENGTH_FIELD       ; 6FDC CD F3 71
-               LD A,(IX+&0D)                   ; 6FDF DD 7E 0D
+               LD A,(IX+RPT-DCHAN)             ; 6FDF DD 7E 0D
                CP (HL)                         ; 6FE2 BE  HL PTS TO LEN LOW (LIKE RPT)
                RET NZ                          ; 6FE3 C0
                INC HL                          ; 6FE4 23
-               LD A,(IX+&0E)                   ; 6FE5 DD 7E 0E
+               LD A,(IX+RPT-DCHAN+1)           ; 6FE5 DD 7E 0E
                CP (HL)                         ; 6FE8 BE
                RET NZ                          ; 6FE9 C0
                INC HL                          ; 6FEA 23
@@ -11617,9 +11650,9 @@ LBYT:
 
 ; ---- BUMP_TRANSFER_COUNT ---- from &4966, &6FBE
 BUMP_TRANSFER_COUNT:
-               INC (IX+&0D)                    ; 7003 DD 34 0D
+               INC (IX+RPT-DCHAN)              ; 7003 DD 34 0D
                RET NZ                          ; 7006 C0
-               INC (IX+&0E)                    ; 7007 DD 34 0E
+               INC (IX+RPT-DCHAN+1)            ; 7007 DD 34 0E
                RET                             ; 700A C9
 
 ;; --------------------------------------------------------------------
@@ -11665,8 +11698,8 @@ CHANNEL_FOR_STREAM:
 FPTR:
                LD C,(IX+&1F)                   ; 7035 DD 4E 1F
                LD B,(IX+&1E)                   ; 7038 DD 46 1E  PTR IN 510'S
-               LD L,(IX+&0D)                   ; 703B DD 6E 0D
-               LD H,(IX+&0E)                   ; 703E DD 66 0E  PTR MOD 510
+               LD L,(IX+RPT-DCHAN)             ; 703B DD 6E 0D
+               LD H,(IX+RPT-DCHAN+1)           ; 703E DD 66 0E  PTR MOD 510
                JP M510                         ; 7041 C3 DF 71
 
 ; ---- INVST ---- from &7012 when H is not 0 yet, &7016 when A >= &10, &7A1F
@@ -11959,8 +11992,8 @@ PTRCSL_1:
 
 ; ---- FTSSL_DONE ---- from &7105
 FTSSL_DONE:
-               LD (IX+&0D),E                   ; 718C DD 73 0D
-               LD (IX+&0E),D                   ; 718F DD 72 0E
+               LD (IX+RPT-DCHAN),E             ; 718C DD 73 0D
+               LD (IX+RPT-DCHAN+1),D           ; 718F DD 72 0E
                RET                             ; 7192 C9
 
 ; ---- PTRCOK_1 ---- from &718A
@@ -13197,8 +13230,8 @@ RDSB2:
 ; ---- RDSB3 ---- from &75FF
 RDSB3:
                LD BC,(SVDE)                    ; 762E ED 4B 02 7C  * POP DE          ;PREV TRK
-               LD (IX+&0E),B                   ; 7632 DD 70 0E
-               LD (IX+&0D),C                   ; 7635 DD 71 0D
+               LD (IX+RPT-DCHAN+1),B           ; 7632 DD 70 0E
+               LD (IX+RPT-DCHAN),C             ; 7635 DD 71 0D
                LD DE,DRAM                      ; 7638 11 13 7D
                PUSH BC                         ; 763B C5
                LDIR                            ; 763C ED B0  LAST PART-BUFFER COPIED

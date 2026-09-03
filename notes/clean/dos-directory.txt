@@ -114,3 +114,77 @@ DOS &4671 : wrapped, so this is the first byte of the next entry
 DOS &4673 : the file's map, ORed into the disc's
 DOS &4679 : the sector is finished
 DOS &467B : nothing waiting yet
+
+GROUP Directory scan
+CONST DIR_MODE_COLLECT = &02 : collect names for a sorted listing
+CONST DIR_MODE_LIST = &04 : print a full listing, with a heading
+
+DOC FDH05_1
+    One directory entry.  The scan arrives here with HL on its first
+    byte, and every field it wants is an offset from there.
+
+    AN ENTRY IS 256 BYTES, one to a quarter of a sector, and the layout
+    is SAMDOS's with MasterDOS's own fields added at the top end where
+    the ROM's header did not reach:
+
+        +0        type and flags; bits 0-4 the type, 6 protected,
+                  7 hidden.  Zero means the slot is free
+        +1        the name, ten characters, space padded
+        +11       sectors used, high byte first
+        +13       first track, bit 7 for side 2, and first sector
+        +15       195 bytes of sector map -- which sectors are this
+                  file's, in the same bit order as NSAM
+        +210      the disc's name in entry 0; the file's nine-byte
+                  header in any other
+        +220      the tail of the ROM's 48-byte header, date stamp and all
+        +&FA      the tag a subdirectory gives to the files inside it
+        +&FE      the tag of the directory this file belongs to, 0 for
+                  the root
+        +&FF      in entry 0, the directory's length beyond four tracks
+
+DOS &4B8B : the type byte, which is also the "is this slot used" byte
+DOS &4B8D : a free slot; what happens next depends on why we are scanning
+DOS &4B90 : the mode this scan was started with
+DOS &4B93 expr DIR_MODE_COLLECT | DIR_MODE_LIST
+DOS &4B95 : neither kind of listing, so none of the totals are wanted
+DOS &4B98 : the type, kept in the alternate accumulator while HL moves
+DOS &4B9C : up to the far end of the entry, where MasterDOS put its own
+DOS &4B9F : the tag of the directory this file is in
+DOS &4BA0 expr &000B
+DOS &4BA0 : eleven bytes in is the sector count, high byte first
+DOS &4BA7 : kept for the listing to print
+DOS &4BAF : the sectors used on the disc so far
+DOS &4BB6 : and the files
+
+# RPT is where the scan has got to inside the sector, so its high
+# byte alone steps a whole 256-byte entry.  Twenty-seven sites.
+
+DOS &4887 expr RPT-DCHAN+1
+DOS &488A expr RPT-DCHAN
+DOS &4C95 expr RPT-DCHAN+1
+DOS &4F8E expr RPT-DCHAN
+DOS &4F92 expr RPT-DCHAN+1
+DOS &4FB7 expr RPT-DCHAN+1
+DOS &4FBA expr RPT-DCHAN
+DOS &4FD7 expr RPT-DCHAN+1
+DOS &5403 expr RPT-DCHAN+1
+DOS &5DD5 expr RPT-DCHAN+1
+DOS &5E85 expr RPT-DCHAN+1
+DOS &5E9D expr RPT-DCHAN+1
+DOS &5EB7 expr RPT-DCHAN+1
+DOS &5EC0 expr RPT-DCHAN+1
+DOS &64B4 expr RPT-DCHAN
+DOS &6CDA expr RPT-DCHAN
+DOS &6CDF expr RPT-DCHAN+1
+DOS &6FDF expr RPT-DCHAN
+DOS &6FE5 expr RPT-DCHAN+1
+DOS &7003 expr RPT-DCHAN
+DOS &7007 expr RPT-DCHAN+1
+DOS &703B expr RPT-DCHAN
+DOS &703E expr RPT-DCHAN+1
+DOS &718C expr RPT-DCHAN
+DOS &718F expr RPT-DCHAN+1
+DOS &7632 expr RPT-DCHAN+1
+DOS &7635 expr RPT-DCHAN
+
+DOS &4C95 : one entry on, which is one whole page of the sector
