@@ -2,6 +2,31 @@
 #
 # Prose for clean/ only.
 
+GROUP Memory
+CONST DIR_NAME_BUFFER = &A000 : where a sorted listing collects its names
+
+# Four sites, all of them the same buffer.  The listing used to name
+# this &A000 after MasterBASIC's CHECK_BREAK, which is what that half
+# keeps at its own &6000; the two have nothing to do with each other.
+DOS &5B81 value DIR_NAME_BUFFER
+DOS &5B93 value DIR_NAME_BUFFER
+DOS &5C33 value DIR_NAME_BUFFER
+DOS &7936 value DIR_NAME_BUFFER
+
+DOC DITOB
+    Point the collector at the screen page and start the scan.
+
+    THE BUFFER IS THE SCREEN'S.  GETSCR puts the screen page in the
+    window, and the names are collected at &A000 in it, so a listing of
+    any length costs the DOS no memory of its own.  PTRSCR walks along
+    as FDHR fills it in, which is how HK_PCAT works out afterwards how
+    many names there are.
+
+DOS &5C30 : the screen page into the window
+DOS &5C33 : where the names will go
+DOS &5C39 expr DIR_MODE_COLLECT
+DOS &5C3B : and the scan fills it in
+
 DOC DIR
     Parse the command, then print one of two listings.
 

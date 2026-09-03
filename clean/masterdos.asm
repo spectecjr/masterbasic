@@ -161,7 +161,6 @@ MB_BUILD_PUT_BLOCK_8:         EQU  &B900
 MB_BUILD_PUT_BLOCK_9:         EQU  &B914
 MB_BUILD_TRACK_IMAGE:         EQU  &9352
 MB_BYTE_TO_DECIMAL:           EQU  &8240
-MB_CHECK_BREAK:               EQU  &A000
 MB_CMD_ALTER:                 EQU  &94CA
 MB_CMD_BLITZ:                 EQU  &9AD4
 MB_CMD_CLS:                   EQU  &B1A4
@@ -218,6 +217,7 @@ MB_PREPARE_ROM1_COPY_2:       EQU  &9C51
 MB_PUTSWA:                    EQU  &8000
 MB_SCREEN_BLANK_TICK_6:       EQU  &9A54
 MB_SET_DCT_COMPILE_BITS:      EQU  &859C
+MB_SORT_NAMES:                EQU  &87FB
 MB_STAMP_WITH_DATE:           EQU  &8A39
 MB_SUBSTITUTE_PRINTER_CHAR:   EQU  &9973
 MB_V40FF:                     EQU  &80FF
@@ -231,6 +231,7 @@ ERR_HOOK:                     EQU  &08         ; report an error, or call a DOS 
 
 ; Memory
 BOOT_STACK_TOP:               EQU  &C000       ; one past the window; the stack grows down into this page
+DIR_NAME_BUFFER:              EQU  &A000       ; where a sorted listing collects its names
 DRAM_PAGE_HIGH:               EQU  &7D
 MAX_INTERNAL_PAGE:            EQU  &1F         ; the highest page number a 512K machine has
 MIN_RAMDISC_PAGE_TYPE:        EQU  &D0         ; lowest allocation code that means a RAM disc
@@ -7800,7 +7801,7 @@ HK_PCAT:
                CALL SETBORDER_BORDCR           ; 5B78 CD 52 51  DIR TO BUFFER
                CALL PDIRH                      ; 5B7B CD 09 5C  the disc's name and the path
                LD HL,(PTRSCR)                  ; 5B7E 2A 2C 41  how far the collecting got
-               LD DE,MB_CHECK_BREAK            ; 5B81 11 00 A0
+               LD DE,DIR_NAME_BUFFER           ; 5B81 11 00 A0
                AND A                           ; 5B84 A7
                SBC HL,DE                       ; 5B85 ED 52  and so how many characters of name there are
                JR Z,PCN3                       ; 5B87 28 32  none, so there is nothing to sort or print
@@ -7813,12 +7814,12 @@ HK_PCAT_LOOP:
                INC DE                          ; 5B8E 13  count the names
                SBC HL,BC                       ; 5B8F ED 42  by taking ten off the length until none is left
                JR NZ,HK_PCAT_LOOP              ; 5B91 20 FB
-               LD HL,MB_CHECK_BREAK            ; 5B93 21 00 A0  the names, and how many
+               LD HL,DIR_NAME_BUFFER           ; 5B93 21 00 A0  the names, and how many
                LD A,(SRTFG)                    ; 5B96 3A 29 42  is a sorted listing wanted?
                AND A                           ; 5B99 A7
                JR Z,HK_PCAT_1                  ; 5B9A 28 05
                CALL CALLMB                     ; 5B9C CD BD 42  MasterBASIC does the sorting
-               DEFW &47FB                      ; 5B9F FB 47
+               DEFW MB_SORT_NAMES-&4000        ; 5B9F FB 47
 
 ; ---- HK_PCAT_1 ---- from &5B9A when A = 0
 HK_PCAT_1:
@@ -7941,13 +7942,23 @@ ZDVS:
                LD (FCNT),HL                    ; 5C2C 22 1C 42  ZERO "FILES IN DIR" COUNTER
                RET                             ; 5C2F C9
 
+;; --------------------------------------------------------------------
+;; Point the collector at the screen page and start the scan.
+;;
+;; THE BUFFER IS THE SCREEN'S.  GETSCR puts the screen page in the
+;; window, and the names are collected at &A000 in it, so a listing of
+;; any length costs the DOS no memory of its own.  PTRSCR walks along
+;; as FDHR fills it in, which is how HK_PCAT works out afterwards how
+;; many names there are.
+;; --------------------------------------------------------------------
+
 ; ---- DITOB ---- from &5B75, &7930, &7996
 DITOB:
-               CALL GETSCR                     ; 5C30 CD 2C 49
-               LD HL,MB_CHECK_BREAK            ; 5C33 21 00 A0
+               CALL GETSCR                     ; 5C30 CD 2C 49  the screen page into the window
+               LD HL,DIR_NAME_BUFFER           ; 5C33 21 00 A0  where the names will go
                LD (PTRSCR),HL                  ; 5C36 22 2C 41  INIT BUFFER PTR
-               LD A,&02                        ; 5C39 3E 02
-               JP FDHR                         ; 5C3B C3 31 4B  SIMPLE DIR TO SCREEN BUFFER
+               LD A,DIR_MODE_COLLECT           ; 5C39 3E 02
+               JP FDHR                         ; 5C3B C3 31 4B  and the scan fills it in
 
 ;; --------------------------------------------------------------------
 ;;  STATS -- free sectors and free directory slots
@@ -14373,7 +14384,7 @@ FNDI2:
 FNDI3:
                CALL DITOB                      ; 7930 CD 30 5C  DIR TO BUFFER
                LD HL,(PTRSCR)                  ; 7933 2A 2C 41
-               LD DE,MB_CHECK_BREAK            ; 7936 11 00 A0
+               LD DE,DIR_NAME_BUFFER           ; 7936 11 00 A0
                AND A                           ; 7939 A7
                SBC HL,DE                       ; 793A ED 52  HL=TEXT LEN (10 PER NAME)
                LD B,H                          ; 793C 44

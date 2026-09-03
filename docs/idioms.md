@@ -251,8 +251,10 @@ swallows the `LD B,&FF`, so `B` keeps the page number just computed. Jumping to
 `FIND_PROC_ENTRY_1` from `&73E3` executes the `LD B,&FF` instead, and `B` is `&FF`. One byte
 instead of a `JR`, and `HL` is scratch on that path.
 
-`&3E` (`LD A,n`) does the same for one swallowed byte, and `&36` (`LD (HL),n`)
-and `&0E` (`LD C,n`) appear too. `MATCH_REFERENCE` uses the last of those to put
+`&3E` (`LD A,n`) does the same for one swallowed byte, and `&36` (`LD (HL),n`),
+`&0E` (`LD C,n`) and `&FE` (`CP n`) appear too. `&FE` is the cheapest of them
+when the flags are about to be set anyway: `SORT_NAMES` uses it to skip the `EXX`
+that belongs to the other of its two entry points. `MATCH_REFERENCE` uses the last of those to put
 two comparisons back to back — `XOR (HL) : AND &DF` for a letter, `CP (HL)` for
 anything else — so that falling through gets the case-insensitive one and
 jumping past gets the exact one, with one byte between them. In the listings the swallowed opcode is written as a `DEFB` with a

@@ -881,6 +881,14 @@ def seeds(dos, mb):
     # half happens to hold at &7800 is worse than leaving it a number.
     dos.no_peer.append((0x5ADD, 0x5AE0))
 
+    # GETSCR puts the screen page in the window, and the sorted listing
+    # collects its names at &A000 in it -- eight kilobytes into that
+    # page, not eight into MasterBASIC's.  Naming it after whatever the
+    # other half happens to keep at &6000 is a coincidence, and one that
+    # reads as though the DOS were calling MasterBASIC's CHECK_BREAK.
+    for at in (0x5B81, 0x5B93, 0x5C33, 0x7936):
+        dos.no_peer.append((at, at + 3))
+
     dos.headers[0x4000] = NOTES['boot']
     dos.headers[0x4200] = NOTES['entry']
     dos.labels[DOSBUF[0]] = 'DOSBUF'

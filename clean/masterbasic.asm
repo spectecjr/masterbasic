@@ -3133,14 +3133,51 @@ GET_NONEMPTY_STRING:
                RET Z                           ; 47F8 C8
                INC B                           ; 47F9 04
                RET                             ; 47FA C9
-               LD BC,&000A                     ; 47FB 01 0A 00
+
+;; --------------------------------------------------------------------
+;; Sort records in place.  A selection sort.
+;;
+;; TWO WAYS IN.  SORT_NAMES is the DOS's: ten-byte records, compared
+;; over the whole ten, with HL at the first and DE holding how many
+;; there are.  HK_HORDER three bytes further on is the ORDER command's,
+;; and takes its lengths from the caller -- which is what the EXX at
+;; the top is for, and why the DOS's entry has to skip it.  The CP that
+;; does the skipping is idiom 8: &FE swallows the byte after it.
+;;
+;; A SELECTION SORT IS THE RIGHT CHOICE HERE.  It compares as often as
+;; any of the simple sorts -- one pass per record, each scanning what
+;; is left -- but it moves each record at most once, and moving one
+;; means ten byte swaps with no room for a temporary.  A bubble sort
+;; would compare no less and move very much more.
+;;
+;; EACH PASS finds the smallest record still unsorted and swaps it to
+;; the front.  DE holds the best so far and HL the one being looked at;
+;; the first bytes are compared and only when they are equal does the
+;; inner loop go on to the other nine.  The count of those nine is
+;; written into the loop's own LD B before anything starts, because it
+;; is the one number the two entry points disagree about.
+;;
+;; THE COUNT IS TWO REGISTERS AND NO TEST.  A sixteen-bit count is
+;; turned into a B and a C that DJNZ can use: if the low byte is not
+;; zero the high byte goes up by one, and then C counting down to zero
+;; with B counting the wraps runs exactly that many times.  Ten becomes
+;; B=1, C=10; two hundred and fifty-six becomes B=1, C=0.
+;;
+;; THE PASS POINTER MOVES BY ITSELF.  HL is pushed at the start of a
+;; pass and popped back for the swap, and the swap loop advances it ten
+;; bytes on its way through -- so when the swap is done HL is already
+;; at the record the next pass starts from, with nothing added to it.
+;; --------------------------------------------------------------------
+
+SORT_NAMES:
+               LD BC,&000A                     ; 47FB 01 0A 00  ten bytes to a record, and ten of them compared
                LD A,C                          ; 47FE 79
-               DEFB &FE                        ; 47FF ~
+               DEFB &FE                        ; 47FF ~  skips the EXX, which belongs to the other entry
 
 HK_HORDER:
-               EXX                             ; 4800 D9
-               DEC A                           ; 4801 3D
-               LD (L4822+1),A                  ; 4802 32 23 48  patches the operand of the LD at &4822
+               EXX                             ; 4800 D9  the ORDER command arrives with its lengths in the other set
+               DEC A                           ; 4801 3D  one fewer, because the first byte is compared on its own
+               LD (SORT_TAIL+1),A              ; 4802 32 23 48  into the inner loop's own count, below
                PUSH DE                         ; 4805 D5
                PUSH HL                         ; 4806 E5
 
@@ -3149,8 +3186,8 @@ HK_HORDER_LOOP:
                PUSH DE                         ; 4807 D5
                PUSH DE                         ; 4808 D5
                EXX                             ; 4809 D9
-               POP BC                          ; 480A C1
-               INC C                           ; 480B 0C
+               POP BC                          ; 480A C1  how many records are left to sort
+               INC C                           ; 480B 0C  the low byte, and a wrap for it if it is not zero
                DEC C                           ; 480C 0D
                JR Z,HK_HORDER_1                ; 480D 28 01
                INC B                           ; 480F 04
@@ -3158,35 +3195,35 @@ HK_HORDER_LOOP:
 ; ---- HK_HORDER_1 ---- from &480D when C reaches 0
 HK_HORDER_1:
                EXX                             ; 4810 D9
-               PUSH HL                         ; 4811 E5
+               PUSH HL                         ; 4811 E5  the record this pass starts from
 
 ; ---- HK_HORDER_LOOP2 ---- from &481E, &4832
 HK_HORDER_LOOP2:
-               LD D,H                          ; 4812 54
+               LD D,H                          ; 4812 54  the best so far is the one we stand on
                LD E,L                          ; 4813 5D
 
 ; ---- HK_HORDER_LOOP3 ---- from &4830
 HK_HORDER_LOOP3:
-               LD A,(DE)                       ; 4814 1A
+               LD A,(DE)                       ; 4814 1A  its first byte
 
 ; ---- HK_HORDER_LOOP4 ---- from &481C when A < (HL)
 HK_HORDER_LOOP4:
-               ADD HL,BC                       ; 4815 09
+               ADD HL,BC                       ; 4815 09  on to the next record
                EXX                             ; 4816 D9
-               DEC C                           ; 4817 0D
-               JR Z,HK_HORDER_3                ; 4818 28 1A
+               DEC C                           ; 4817 0D  one fewer to look at
+               JR Z,HK_HORDER_3                ; 4818 28 1A  none left, so the smallest has been found
 
 ; ---- HK_HORDER_LOOP5 ---- from &4834 when B is not 0 yet
 HK_HORDER_LOOP5:
                EXX                             ; 481A D9
-               CP (HL)                         ; 481B BE
-               JR C,HK_HORDER_LOOP4            ; 481C 38 F7
-               JR NZ,HK_HORDER_LOOP2           ; 481E 20 F2
-               PUSH HL                         ; 4820 E5
+               CP (HL)                         ; 481B BE  against the first byte of this record
+               JR C,HK_HORDER_LOOP4            ; 481C 38 F7  the best is still the best
+               JR NZ,HK_HORDER_LOOP2           ; 481E 20 F2  this one is smaller, so start again from it
+               PUSH HL                         ; 4820 E5  equal, so the other nine bytes decide
                PUSH DE                         ; 4821 D5
 
-L4822:
-               LD B,&00                        ; 4822 06 00  the operand is written here at run time, from &4802
+SORT_TAIL:
+               LD B,&00                        ; 4822 06 00  nine, written here by the entry point above
 
 ; ---- HK_HORDER_LOOP6 ---- from &482A when B is not 0 yet
 HK_HORDER_LOOP6:
@@ -3194,28 +3231,28 @@ HK_HORDER_LOOP6:
                INC HL                          ; 4825 23
                LD A,(DE)                       ; 4826 1A
                CP (HL)                         ; 4827 BE
-               JR NZ,HK_HORDER_2               ; 4828 20 02
+               JR NZ,HK_HORDER_2               ; 4828 20 02  a difference, and the flags from it are the answer
                DJNZ HK_HORDER_LOOP6            ; 482A 10 F8
 
 ; ---- HK_HORDER_2 ---- from &4828 when A <> (HL)
 HK_HORDER_2:
                POP DE                          ; 482C D1
                POP HL                          ; 482D E1
-               LD B,&00                        ; 482E 06 00
-               JR C,HK_HORDER_LOOP3            ; 4830 38 E2
-               JR HK_HORDER_LOOP2              ; 4832 18 DE
+               LD B,&00                        ; 482E 06 00  BC back to the record length, which B had borrowed
+               JR C,HK_HORDER_LOOP3            ; 4830 38 E2  the best still wins
+               JR HK_HORDER_LOOP2              ; 4832 18 DE  otherwise this record is the new best
 
 ; ---- HK_HORDER_3 ---- from &4818 when C reaches 0
 HK_HORDER_3:
-               DJNZ HK_HORDER_LOOP5            ; 4834 10 E4
+               DJNZ HK_HORDER_LOOP5            ; 4834 10 E4  the high half of the count
                EXX                             ; 4836 D9
-               POP HL                          ; 4837 E1
-               LD B,C                          ; 4838 41
+               POP HL                          ; 4837 E1  back to the record this pass started from
+               LD B,C                          ; 4838 41  ten bytes to exchange
 
 ; ---- HK_HORDER_LOOP7 ---- from &4841 when B is not 0 yet
 HK_HORDER_LOOP7:
                LD A,(DE)                       ; 4839 1A
-               EX AF,AF'                       ; 483A 08
+               EX AF,AF'                       ; 483A 08  one byte each way, with AF' holding the one in the air
                LD A,(HL)                       ; 483B 7E
                LD (DE),A                       ; 483C 12
                EX AF,AF'                       ; 483D 08
@@ -3223,11 +3260,11 @@ HK_HORDER_LOOP7:
                INC HL                          ; 483F 23
                INC DE                          ; 4840 13
                DJNZ HK_HORDER_LOOP7            ; 4841 10 F6
-               POP DE                          ; 4843 D1
-               DEC DE                          ; 4844 1B
+               POP DE                          ; 4843 D1  how many records were left
+               DEC DE                          ; 4844 1B  one fewer now that the smallest is in place
                LD A,D                          ; 4845 7A
                OR E                            ; 4846 B3
-               JR NZ,HK_HORDER_LOOP            ; 4847 20 BE
+               JR NZ,HK_HORDER_LOOP            ; 4847 20 BE  and round again for the rest
                POP HL                          ; 4849 E1
                POP DE                          ; 484A D1
                RET                             ; 484B C9
@@ -9053,7 +9090,6 @@ SHOW_LINE_AND_STATEMENT_2:
 ;; error restart.
 ;; --------------------------------------------------------------------
 
-; ---- CHECK_BREAK ---- from DOS &5B81, DOS &5B93, DOS &5C33, DOS &7936
 CHECK_BREAK:
                IN A,(STAT)                     ; 6000 DB F9
                AND &20                         ; 6002 E6 20

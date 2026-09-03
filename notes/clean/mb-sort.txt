@@ -1,0 +1,73 @@
+# The sort behind a sorted DIR, and behind the ORDER command.
+#
+# Prose for clean/ only.  This lives in MasterBASIC because the sort is
+# MasterBASIC's; the DOS reaches it through CALLMB with the collected
+# names in the screen page.
+
+MB &47FB SORT_NAMES
+RENAME L4822 SORT_TAIL
+
+DOC SORT_NAMES
+    Sort records in place.  A selection sort.
+
+    TWO WAYS IN.  SORT_NAMES is the DOS's: ten-byte records, compared
+    over the whole ten, with HL at the first and DE holding how many
+    there are.  HK_HORDER three bytes further on is the ORDER command's,
+    and takes its lengths from the caller -- which is what the EXX at
+    the top is for, and why the DOS's entry has to skip it.  The CP that
+    does the skipping is idiom 8: &FE swallows the byte after it.
+
+    A SELECTION SORT IS THE RIGHT CHOICE HERE.  It compares as often as
+    any of the simple sorts -- one pass per record, each scanning what
+    is left -- but it moves each record at most once, and moving one
+    means ten byte swaps with no room for a temporary.  A bubble sort
+    would compare no less and move very much more.
+
+    EACH PASS finds the smallest record still unsorted and swaps it to
+    the front.  DE holds the best so far and HL the one being looked at;
+    the first bytes are compared and only when they are equal does the
+    inner loop go on to the other nine.  The count of those nine is
+    written into the loop's own LD B before anything starts, because it
+    is the one number the two entry points disagree about.
+
+    THE COUNT IS TWO REGISTERS AND NO TEST.  A sixteen-bit count is
+    turned into a B and a C that DJNZ can use: if the low byte is not
+    zero the high byte goes up by one, and then C counting down to zero
+    with B counting the wraps runs exactly that many times.  Ten becomes
+    B=1, C=10; two hundred and fifty-six becomes B=1, C=0.
+
+    THE PASS POINTER MOVES BY ITSELF.  HL is pushed at the start of a
+    pass and popped back for the swap, and the swap loop advances it ten
+    bytes on its way through -- so when the swap is done HL is already
+    at the record the next pass starts from, with nothing added to it.
+
+MB &47FB : ten bytes to a record, and ten of them compared
+MB &47FF value SKIP_1_VIA_CP
+MB &47FF : skips the EXX, which belongs to the other entry
+MB &4800 : the ORDER command arrives with its lengths in the other set
+MB &4801 : one fewer, because the first byte is compared on its own
+MB &4802 : into the inner loop's own count, below
+MB &480A : how many records are left to sort
+MB &480B : the low byte, and a wrap for it if it is not zero
+MB &4811 : the record this pass starts from
+MB &4812 : the best so far is the one we stand on
+MB &4814 : its first byte
+MB &4815 : on to the next record
+MB &4817 : one fewer to look at
+MB &4818 : none left, so the smallest has been found
+MB &481B : against the first byte of this record
+MB &481C : the best is still the best
+MB &481E : this one is smaller, so start again from it
+MB &4820 : equal, so the other nine bytes decide
+MB &4822 : nine, written here by the entry point above
+MB &4828 : a difference, and the flags from it are the answer
+MB &482E : BC back to the record length, which B had borrowed
+MB &4830 : the best still wins
+MB &4832 : otherwise this record is the new best
+MB &4834 : the high half of the count
+MB &4837 : back to the record this pass started from
+MB &4838 : ten bytes to exchange
+MB &483A : one byte each way, with AF' holding the one in the air
+MB &4843 : how many records were left
+MB &4844 : one fewer now that the smallest is in place
+MB &4847 : and round again for the rest
