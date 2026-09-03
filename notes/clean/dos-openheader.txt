@@ -1,0 +1,80 @@
+# Opening a file for reading: making a ROM header out of a directory
+# entry.
+#
+# Prose for clean/ only.  The DOS keeps two parameter blocks, one per
+# file, so that COPY and RENAME can hold two at once.  UIFA and DIFA are
+# the 48-byte ROM headers of the first and the second; NSTR1/HD001 and
+# NSTR2/HD002 the names and nine-byte headers beside them.
+
+DOC COPY_HEADER_FIELDS
+    Fill the second parameter block from the directory entry, and build
+    a ROM header for a file that may never have had one.
+
+    THREE COPIES OUT OF THE ENTRY, all of them by offset:
+
+        211 to 219   the file's own nine-byte header, into HD002
+        220 to 221   the two bytes after it, into V42E2
+        210 to 251   forty-two bytes to STR-30.  The first ten are
+                     the entry's own, so the thirty-two after them --
+                     the ROM header tail, which for a snapshot holds
+                     the registers -- land at STR-20, which is where
+                     the snapshot code reads them
+
+    Then NMMOV puts the type and the name into DIFA and pads to fifteen
+    with spaces, and what follows those fifteen bytes depends on whether
+    this is a SAM file or a Spectrum one -- the flag pushed on entry.
+
+    A SAM FILE HAS THE ROM'S HEADER ON THE DISC, in bytes 220 to 252, so
+    GTFL7 copies those thirty-three straight in and the header is
+    complete: fifteen and thirty-three is forty-eight.
+
+    A SPECTRUM FILE HAS NO SUCH THING, so one is made up.  Eleven more
+    spaces and twenty-two &FF bytes -- "not set" -- fill the same
+    forty-eight, and then the two fields that do exist are converted:
+    the Spectrum header's length and start address are sixteen-bit, and
+    PAGEFORM turns each into the page-and-offset form the SAM ROM
+    expects, which is written both into the header being built and back
+    over the sixteen-bit copy in HD002.
+
+    GTFL8 finishes either way by reading the first track and sector out
+    of offsets 13 and 14, which is where the read will begin.
+
+DOS &4EE3 : the flag says whether this is a Spectrum file
+DOS &4EE7 : offset 211, the nine-byte header
+DOS &4EED : nine bytes of it
+DOS &4EF2 : and the two after that
+DOS &4EFA : back one, to offset 210
+DOS &4EFB : ten below STR, so 220 onwards lands where STR-20 is read
+DOS &4EFE : forty-two bytes, 210 to 251
+DOS &4F02 : the type and the name, and spaces up to fifteen
+DOS &4F05 : SAM file or Spectrum file?
+DOS &4F06 : a SAM file has a real header on the disc
+DOS &4F08 : eleven spaces where the ROM's name would be
+DOS &4F0D : and &FF for the twenty-two that follow
+DOS &4F14 : the Spectrum header's length, sixteen bits of it
+DOS &4F18 : as pages and an offset, which is what the SAM ROM wants
+DOS &4F1D : into the header being built
+DOS &4F23 : and its offset half
+DOS &4F26 : and back over the sixteen-bit copy
+DOS &4F29 : the Spectrum header's start address
+DOS &4F41 : offset 220, the ROM's own header on the disc
+DOS &4F46 : thirty-three bytes, which completes the forty-eight
+DOS &4F4B : offset 13, the first track and sector of the file
+DOS &4F53 : where the first read will start
+
+DOC NMMOV
+    The type, the name, and spaces to fifteen, into the second block's
+    header.
+
+    Eleven bytes out of the entry and four spaces after them.  The four
+    are written by falling into LCNTA with B already set, which is why
+    there is no RET here.
+
+DOS &4F5B : the second file's 48-byte header
+DOS &4F5E : the type byte and the ten characters
+DOS &4F63 : four spaces, written by falling into the routine below
+
+DOC LCNTA
+    B spaces at DE, by setting A and falling into the filler.
+
+DOS &4F65 : a space

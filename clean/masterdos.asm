@@ -4793,44 +4793,73 @@ GTFL5A:
                CALL BITF7                      ; 4EE0 CD 40 51
 
 ;; --------------------------------------------------------------------
-;; Nine bytes from HD002 into the buffer GRPNTB points at, and then on
-;; to V42E2.  The &D3 in B is which buffer GRPNTB is to fetch.
+;; Fill the second parameter block from the directory entry, and build
+;; a ROM header for a file that may never have had one.
+;;
+;; THREE COPIES OUT OF THE ENTRY, all of them by offset:
+;;
+;;     211 to 219   the file's own nine-byte header, into HD002
+;;     220 to 221   the two bytes after it, into V42E2
+;;     210 to 251   forty-two bytes to STR-30.  The first ten are
+;;                  the entry's own, so the thirty-two after them --
+;;                  the ROM header tail, which for a snapshot holds
+;;                  the registers -- land at STR-20, which is where
+;;                  the snapshot code reads them
+;;
+;; Then NMMOV puts the type and the name into DIFA and pads to fifteen
+;; with spaces, and what follows those fifteen bytes depends on whether
+;; this is a SAM file or a Spectrum one -- the flag pushed on entry.
+;;
+;; A SAM FILE HAS THE ROM'S HEADER ON THE DISC, in bytes 220 to 252, so
+;; GTFL7 copies those thirty-three straight in and the header is
+;; complete: fifteen and thirty-three is forty-eight.
+;;
+;; A SPECTRUM FILE HAS NO SUCH THING, so one is made up.  Eleven more
+;; spaces and twenty-two &FF bytes -- "not set" -- fill the same
+;; forty-eight, and then the two fields that do exist are converted:
+;; the Spectrum header's length and start address are sixteen-bit, and
+;; PAGEFORM turns each into the page-and-offset form the SAM ROM
+;; expects, which is written both into the header being built and back
+;; over the sixteen-bit copy in HD002.
+;;
+;; GTFL8 finishes either way by reading the first track and sector out
+;; of offsets 13 and 14, which is where the read will begin.
 ;; --------------------------------------------------------------------
 
 ; ---- COPY_HEADER_FIELDS ---- from &5A0D
 COPY_HEADER_FIELDS:
-               PUSH AF                         ; 4EE3 F5  "FLAG 7" STATUS - NZ IF ZX
+               PUSH AF                         ; 4EE3 F5  the flag says whether this is a Spectrum file
                LD DE,HD002                     ; 4EE4 11 65 41
-               LD B,&D3                        ; 4EE7 06 D3
+               LD B,&D3                        ; 4EE7 06 D3  offset 211, the nine-byte header
                CALL GRPNTB                     ; 4EE9 CD AE 4F  211-219 ZX FILE DATA TO HD002
                PUSH HL                         ; 4EEC E5
-               LD BC,&0009                     ; 4EED 01 09 00
+               LD BC,&0009                     ; 4EED 01 09 00  nine bytes of it
                LDIR                            ; 4EF0 ED B0
-               LD DE,V42E2                     ; 4EF2 11 E2 42
+               LD DE,V42E2                     ; 4EF2 11 E2 42  and the two after that
                LD C,&02                        ; 4EF5 0E 02
                LDIR                            ; 4EF7 ED B0
                POP HL                          ; 4EF9 E1
-               DEC HL                          ; 4EFA 2B
-               LD DE,STR-30                    ; 4EFB 11 72 7F
-               LD C,&2A                        ; 4EFE 0E 2A
+               DEC HL                          ; 4EFA 2B  back one, to offset 210
+               LD DE,STR-30                    ; 4EFB 11 72 7F  ten below STR, so 220 onwards lands where STR-20 is read
+               LD C,&2A                        ; 4EFE 0E 2A  forty-two bytes, 210 to 251
                LDIR                            ; 4F00 ED B0  210-251 WITH SNP REGS AT STR-20
-               CALL NMMOV                      ; 4F02 CD 58 4F
-               POP AF                          ; 4F05 F1
-               JR Z,GTFL7                      ; 4F06 28 39  JR IF NOT ZX FILE
-               LD B,&0B                        ; 4F08 06 0B
+               CALL NMMOV                      ; 4F02 CD 58 4F  the type and the name, and spaces up to fifteen
+               POP AF                          ; 4F05 F1  SAM file or Spectrum file?
+               JR Z,GTFL7                      ; 4F06 28 39  a SAM file has a real header on the disc
+               LD B,&0B                        ; 4F08 06 0B  eleven spaces where the ROM's name would be
                CALL LCNTA                      ; 4F0A CD 65 4F
-               LD B,&16                        ; 4F0D 06 16
+               LD B,&16                        ; 4F0D 06 16  and &FF for the twenty-two that follow
                LD A,&FF                        ; 4F0F 3E FF
                CALL FILL_DE_WITH_A             ; 4F11 CD 67 4F
-               LD HL,(HD0B2)                   ; 4F14 2A 66 41  LEN
+               LD HL,(HD0B2)                   ; 4F14 2A 66 41  the Spectrum header's length, sixteen bits of it
                XOR A                           ; 4F17 AF
-               CALL PAGEFORM                   ; 4F18 CD E4 75
+               CALL PAGEFORM                   ; 4F18 CD E4 75  as pages and an offset, which is what the SAM ROM wants
                RES 7,H                         ; 4F1B CB BC
-               LD (DIFA+34),A                  ; 4F1D 32 CF 41
+               LD (DIFA+34),A                  ; 4F1D 32 CF 41  into the header being built
                LD (PGES2),A                    ; 4F20 32 6C 41
-               LD (DIFA+35),HL                 ; 4F23 22 D0 41
-               LD (HD0B2),HL                   ; 4F26 22 66 41
-               LD HL,(HD0D2)                   ; 4F29 2A 68 41  ADDR
+               LD (DIFA+35),HL                 ; 4F23 22 D0 41  and its offset half
+               LD (HD0B2),HL                   ; 4F26 22 66 41  and back over the sixteen-bit copy
+               LD HL,(HD0D2)                   ; 4F29 2A 68 41  the Spectrum header's start address
                XOR A                           ; 4F2C AF
                CALL PAGEFORM                   ; 4F2D CD E4 75
                DEC A                           ; 4F30 3D
@@ -4843,32 +4872,45 @@ COPY_HEADER_FIELDS:
 
 ; ---- GTFL7 ---- from &4F06
 GTFL7:
-               LD B,&DC                        ; 4F41 06 DC
+               LD B,&DC                        ; 4F41 06 DC  offset 220, the ROM's own header on the disc
                CALL GRPNTB                     ; 4F43 CD AE 4F
-               LD BC,&0021                     ; 4F46 01 21 00
+               LD BC,&0021                     ; 4F46 01 21 00  thirty-three bytes, which completes the forty-eight
                LDIR                            ; 4F49 ED B0
 
 ; ---- GTFL8 ---- from &4F3F
 GTFL8:
-               LD B,&0D                        ; 4F4B 06 0D
+               LD B,&0D                        ; 4F4B 06 0D  offset 13, the first track and sector of the file
                CALL GRPNTB                     ; 4F4D CD AE 4F
                LD D,(HL)                       ; 4F50 56
                INC HL                          ; 4F51 23
                LD E,(HL)                       ; 4F52 5E
-               LD (SVDE),DE                    ; 4F53 ED 53 02 7C
+               LD (SVDE),DE                    ; 4F53 ED 53 02 7C  where the first read will start
                RET                             ; 4F57 C9
+
+;; --------------------------------------------------------------------
+;; The type, the name, and spaces to fifteen, into the second block's
+;; header.
+;;
+;; Eleven bytes out of the entry and four spaces after them.  The four
+;; are written by falling into LCNTA with B already set, which is why
+;; there is no RET here.
+;; --------------------------------------------------------------------
 
 ; ---- NMMOV ---- from &4F02, &6316
 NMMOV:
                CALL POINT                      ; 4F58 CD AC 4F
-               LD DE,DIFA                      ; 4F5B 11 AD 41
-               LD BC,&000B                     ; 4F5E 01 0B 00
+               LD DE,DIFA                      ; 4F5B 11 AD 41  the second file's 48-byte header
+               LD BC,&000B                     ; 4F5E 01 0B 00  the type byte and the ten characters
                LDIR                            ; 4F61 ED B0  TYPE/NAME
-               LD B,&04                        ; 4F63 06 04
+               LD B,&04                        ; 4F63 06 04  four spaces, written by falling into the routine below
+
+;; --------------------------------------------------------------------
+;; B spaces at DE, by setting A and falling into the filler.
+;; --------------------------------------------------------------------
 
 ; ---- LCNTA ---- from &4EB2, &4F0A, &677B
 LCNTA:
-               LD A,&20                        ; 4F65 3E 20
+               LD A,&20                        ; 4F65 3E 20  a space
 
 ;; --------------------------------------------------------------------
 ;; B bytes of A at DE.  Three instructions, four callers, and &4F69 is
