@@ -1,0 +1,127 @@
+# FORMAT, and the extra column a detailed listing prints.
+#
+# Prose for clean/ only.
+
+DOC FMT1A
+    One track, then work out where the next one starts.
+
+    THE TRACK IMAGE IS BUILT BY MASTERBASIC and written whole: gaps,
+    address marks, data fields and all, in one write-track command.
+    Nothing on the disc is read back, so a format is as fast as the
+    disc turns.
+
+    SECTORS ARE NUMBERED WITH A SKEW.  A track's sectors are not
+    numbered 1 to 10 in the same place on every track: each track starts
+    its numbering one sector on from the last, so that a program reading
+    straight through the disc arrives at the next track just as the
+    sector it wants is coming under the head, rather than a whole
+    revolution too late.  SKEW holds the step as a negative number --
+    &FF for one, &FE for two, &00 for none -- and the sum is folded back
+    into 1 to 10 with the carry as the test: no carry means the addition
+    stayed below 256 and ten has to be added back.
+
+    SIDE 2 IS TRACK &80 upwards, so finishing side 1 is a REST to bring
+    the head home and a fresh start at &80 rather than an increment.
+
+DOS &550B : the track number, over the top of the last one
+DOS &550E : and the track itself, in one command
+DOS &5511 : bit 5 of the status is the write-protect line
+DOS &5516 : the next track
+DOS &5517 : how many this drive has
+DOS &551B : all of them done
+DOS &551D : the count without the double-sided flag
+DOS &5520 : the end of side 1
+DOS &5522 : otherwise step the head in one track
+DOS &5528 : sector numbers count from 1; work in 0 to 9
+DOS &5529 : the skew, which is a negative number
+DOS &552A : it carried, so the answer is already in range
+DOS &552C : it did not, so add the ten back
+DOS &552F : and count from 1 again
+DOS &5532 : the head home
+DOS &5535 : side 2 starts at track &80
+DOS &5537 : and the drive has to be told which side
+
+DOC FMTSR
+    Issue the write-track command and let WSA3 do the transfer.
+
+    THE PRECOMPENSATION IS WORKED OUT LAST, and the JP rather than a
+    CALL at the end is part of the same care: the controller begins
+    writing the moment the command is accepted, so everything between
+    accepting it and feeding the first byte is time the disc is turning
+    under an unwritten track.
+
+    The status port is written into the instruction that reads it, which
+    saves loading C again in a loop that has none to spare.
+
+DOS &55AE : the controller's port base
+DOS &55B2 : written into the instruction that will read the status
+DOS &55B5 : three on from the status port is the data port
+DOS &55B9 : the command that writes a whole track
+DOS &55BF : the track image MasterBASIC built
+DOS &55C2 : a JP, not a CALL: the disc is already turning
+
+DOC SCTRK
+    Print the track number in the lower screen, over the last one.
+
+    SPOSNL is the ROM's column counter for the lower screen; setting it
+    to 21 puts the next character where the last number started, so the
+    display counts up in place instead of scrolling.
+
+DOS &55C6 : column 21, which is where the last number began
+DOS &55D2 : three digits, space padded
+DOS &55D5 : the format loop runs with interrupts off
+
+DOC ITRCK
+    Step to the next track, and say when the disc is finished.
+
+    The same shape as FNS5 and for the same reason: the track limit has
+    bit 7 for a double-sided drive, a RAM disc's side 1 is always eighty
+    tracks, and side 2 begins at &80 rather than continuing the count.
+
+DOS &55D8 : the next track
+DOS &55D9 : how many this drive has, bit 7 for two sides
+DOS &55DD : that was the last of them
+DOS &55E5 : a RAM disc's side 1 is always eighty tracks
+DOS &55E7 : the limit without the bit that says two sides
+DOS &55EA : not the end of side 1, so carry on
+DOS &55EB : the head home
+DOS &55EE : and side 2 begins at &80
+DOS &55F0 : NZ, because there is more to do
+
+DOC PNTYP
+    Print a file's type, and whatever else that type has worth showing.
+
+    THE TYPE NAME COMES FROM MASTERBASIC, which is why HMPR is changed
+    around the call: the table of names lives in the other half, and
+    &C349 is its address as this page sees it through the window.
+
+    WHAT FOLLOWS THE NAME depends on the type, and each of the three
+    that has something to show fetches it from a different offset of the
+    entry through GRPNTB:
+
+        BASIC     offset &F2, the auto-run line -- unless the first
+                  byte has either of its top two bits set, which is how
+                  "no auto-run" is stored
+        CODE      offset &EC, the start and length, printed as a pair
+        ZX CODE   offset &D7, the same two, but sixteen bits each and
+                  stored the other way up
+
+    A type above &15 is not a type at all: those are the open-type
+    files, and &0D stands in for all of them.
+
+DOS &562C expr TYPE_MASK
+DOS &562F : &16 and up is not a file type
+DOS &5633 : so print one name for the lot of them
+DOS &5639 : MasterBASIC's page
+DOS &563E : where its table of type names is, seen through the window
+DOS &5645 : and the window back as it was
+DOS &5648 : BASIC?
+DOS &564C : offset &F2, where the auto-run line is
+DOS &5652 : either top bit set means there is no auto-run
+DOS &565B : otherwise print the line number
+DOS &5660 : CODE?
+DOS &5664 : offset &EC, the start address
+DOS &5674 : then a comma
+DOS &567A : and the length
+DOS &5682 : ZX CODE?
+DOS &5686 : offset &D7, where the Spectrum's header keeps them

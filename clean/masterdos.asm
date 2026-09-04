@@ -6429,8 +6429,8 @@ SNPTAB:
 ;; --------------------------------------------------------------------
 ;; Start the interrupted program again.
 ;;
-;; Everything NMI pushed comes back off, and the order is the order it
-;; went on.  The alternate set is restored through EX AF,AF' and EXX,
+;; Everything NMI pushed comes back off, in the order a stack gives it
+;; back.  The alternate set is restored through EX AF,AF' and EXX,
 ;; and I is put back before the interrupt mode is chosen from it: a
 ;; high byte of &00 or &3F means the program was not using mode 2, so
 ;; mode 1 is left alone.
@@ -6592,37 +6592,59 @@ DFMTB_1:
                CALL CALLMB                     ; 5506 CD BD 42  PREPARE TRACK DATA
                DEFW MB_BUILD_TRACK_IMAGE-&4000 ; 5509 52 53
 
+;; --------------------------------------------------------------------
+;; One track, then work out where the next one starts.
+;;
+;; THE TRACK IMAGE IS BUILT BY MASTERBASIC and written whole: gaps,
+;; address marks, data fields and all, in one write-track command.
+;; Nothing on the disc is read back, so a format is as fast as the
+;; disc turns.
+;;
+;; SECTORS ARE NUMBERED WITH A SKEW.  A track's sectors are not
+;; numbered 1 to 10 in the same place on every track: each track starts
+;; its numbering one sector on from the last, so that a program reading
+;; straight through the disc arrives at the next track just as the
+;; sector it wants is coming under the head, rather than a whole
+;; revolution too late.  SKEW holds the step as a negative number --
+;; &FF for one, &FE for two, &00 for none -- and the sum is folded back
+;; into 1 to 10 with the carry as the test: no carry means the addition
+;; stayed below 256 and ten has to be added back.
+;;
+;; SIDE 2 IS TRACK &80 upwards, so finishing side 1 is a REST to bring
+;; the head home and a fresh start at &80 rather than an increment.
+;; --------------------------------------------------------------------
+
 ; ---- FMT1A ---- from &5504
 FMT1A:
-               CALL SCTRK                      ; 550B CD C5 55  DISPLAY TRACK NUMBER
-               CALL FMTSR                      ; 550E CD AD 55
-               BIT 5,A                         ; 5511 CB 6F
+               CALL SCTRK                      ; 550B CD C5 55  the track number, over the top of the last one
+               CALL FMTSR                      ; 550E CD AD 55  and the track itself, in one command
+               BIT 5,A                         ; 5511 CB 6F  bit 5 of the status is the write-protect line
                JP NZ,REP23                     ; 5513 C2 80 51  JP IF WRITE-PROTECTED
-               INC D                           ; 5516 14
-               CALL TSTD                       ; 5517 CD F4 4A
+               INC D                           ; 5516 14  the next track
+               CALL TSTD                       ; 5517 CD F4 4A  how many this drive has
                CP D                            ; 551A BA
-               JR Z,FMT7                       ; 551B 28 1F  JR IF ALL TRACKS DONE
-               AND &7F                         ; 551D E6 7F
+               JR Z,FMT7                       ; 551B 28 1F  all of them done
+               AND &7F                         ; 551D E6 7F  the count without the double-sided flag
                CP D                            ; 551F BA
-               JR Z,FMT1A_2                    ; 5520 28 10  JR IF TIME FOR SIDE 2
-               CALL STEP_HEAD_IN               ; 5522 CD 7F 47
+               JR Z,FMT1A_2                    ; 5520 28 10  the end of side 1
+               CALL STEP_HEAD_IN               ; 5522 CD 7F 47  otherwise step the head in one track
                LD A,(SKEW)                     ; 5525 3A 2E 42  &FF GIVES SKEW 1, &FE: 2, &00: 0
-               DEC E                           ; 5528 1D  E=0-9
-               ADD A,E                         ; 5529 83
-               JR C,FMT1A_1                    ; 552A 38 02  JR IF E.G. FF+02=01
-               ADD A,&0A                       ; 552C C6 0A  FF->9, FE->8
+               DEC E                           ; 5528 1D  sector numbers count from 1; work in 0 to 9
+               ADD A,E                         ; 5529 83  the skew, which is a negative number
+               JR C,FMT1A_1                    ; 552A 38 02  it carried, so the answer is already in range
+               ADD A,&0A                       ; 552C C6 0A  it did not, so add the ten back
 
 ; ---- FMT1A_1 ---- from &552A
 FMT1A_1:
                LD E,A                          ; 552E 5F
-               INC E                           ; 552F 1C  1-10
+               INC E                           ; 552F 1C  and count from 1 again
                JR DFMTB_1                      ; 5530 18 D4
 
 ; ---- FMT1A_2 ---- from &5520 when A = D
 FMT1A_2:
-               CALL REST                       ; 5532 CD AD 47
-               LD D,&80                        ; 5535 16 80
-               CALL SELD                       ; 5537 CD 2F 48
+               CALL REST                       ; 5532 CD AD 47  the head home
+               LD D,&80                        ; 5535 16 80  side 2 starts at track &80
+               CALL SELD                       ; 5537 CD 2F 48  and the drive has to be told which side
                JR DFMTB_1                      ; 553A 18 CA
 
 ; ---- FMT7 ---- from &551B when A = D
@@ -6702,67 +6724,84 @@ HK_HDUMMY:
                RET                             ; 55AC C9
 
 ;; --------------------------------------------------------------------
-;;  FMTSR -- issue the write-track command and run the transfer, sharing WSA3 with the ordinary sector write. The
-;;  precompensation calculation is done as late as possible, because the controller starts writing as soon as the
-;;  command is accepted.
+;; Issue the write-track command and let WSA3 do the transfer.
+;;
+;; THE PRECOMPENSATION IS WORKED OUT LAST, and the JP rather than a
+;; CALL at the end is part of the same care: the controller begins
+;; writing the moment the command is accepted, so everything between
+;; accepting it and feeding the first byte is time the disc is turning
+;; under an unwritten track.
+;;
+;; The status port is written into the instruction that reads it, which
+;; saves loading C again in a loop that has none to spare.
 ;; --------------------------------------------------------------------
 
 ; ---- FMTSR ---- from &550E
 FMTSR:
                DI                              ; 55AD F3
-               CALL GET_DISK_PORT_BASE         ; 55AE CD 1A 45  GET C=STAT PORT
+               CALL GET_DISK_PORT_BASE         ; 55AE CD 1A 45  the controller's port base
                LD A,C                          ; 55B1 79
-               LD (CHECK_WRITE_STATUS+1),A     ; 55B2 32 AF 45  SELF-MOD STATUS PORT
-               INC C                           ; 55B5 0C
+               LD (CHECK_WRITE_STATUS+1),A     ; 55B2 32 AF 45  written into the instruction that will read the status
+               INC C                           ; 55B5 0C  three on from the status port is the data port
                INC C                           ; 55B6 0C
                INC C                           ; 55B7 0C  DATA PORT
                PUSH BC                         ; 55B8 C5
-               LD C,WRITE_TRACK_CMD            ; 55B9 0E F2
+               LD C,WRITE_TRACK_CMD            ; 55B9 0E F2  the command that writes a whole track
                CALL PRECMP                     ; 55BB CD 49 45
                POP BC                          ; 55BE C1
-               LD HL,FTADD                     ; 55BF 21 80 A2
-               JP CHECK_WRITE_STATUS           ; 55C2 C3 AE 45  KEEP DELAY BETWEEN PRECMP
+               LD HL,FTADD                     ; 55BF 21 80 A2  the track image MasterBASIC built
+               JP CHECK_WRITE_STATUS           ; 55C2 C3 AE 45  a JP, not a CALL: the disc is already turning
 
 ;; --------------------------------------------------------------------
-;;  AND WSA3 SMALL
-;; PRINT TRACK ON SCREEN
-;;  Rewinds the lower screen to column 21 so the number overwrites the previous one.
+;; Print the track number in the lower screen, over the last one.
+;;
+;; SPOSNL is the ROM's column counter for the lower screen; setting it
+;; to 21 puts the next character where the last number started, so the
+;; display counts up in place instead of scrolling.
 ;; --------------------------------------------------------------------
 
 ; ---- SCTRK ---- from &550B, &5549, &5598
 SCTRK:
                PUSH DE                         ; 55C5 D5
-               LD A,&15                        ; 55C6 3E 15  COLUMN 21
+               LD A,&15                        ; 55C6 3E 15  column 21, which is where the last number began
                CALL NRWR                       ; 55C8 CD 74 50
                DEFW SPOSNL                     ; 55CB 6E 5A
                LD L,D                          ; 55CD 6A
                LD H,&00                        ; 55CE 26 00
                LD A,&20                        ; 55D0 3E 20
-               CALL PNUM3                      ; 55D2 CD 2F 57
-               DI                              ; 55D5 F3
+               CALL PNUM3                      ; 55D2 CD 2F 57  three digits, space padded
+               DI                              ; 55D5 F3  the format loop runs with interrupts off
                POP DE                          ; 55D6 D1
                RET                             ; 55D7 C9
 
+;; --------------------------------------------------------------------
+;; Step to the next track, and say when the disc is finished.
+;;
+;; The same shape as FNS5 and for the same reason: the track limit has
+;; bit 7 for a double-sided drive, a RAM disc's side 1 is always eighty
+;; tracks, and side 2 begins at &80 rather than continuing the count.
+;; --------------------------------------------------------------------
+
 ; ---- ITRCK ---- from &5578, &559B, &66A5, MB &6CC8
 ITRCK:
-               INC D                           ; 55D8 14
-               CALL TSTD                       ; 55D9 CD F4 4A
+               INC D                           ; 55D8 14  the next track
+               CALL TSTD                       ; 55D9 CD F4 4A  how many this drive has, bit 7 for two sides
                CP D                            ; 55DC BA
-               RET Z                           ; 55DD C8  RET IF FINISHED ALL TRKS
+               RET Z                           ; 55DD C8  that was the last of them
                LD H,A                          ; 55DE 67
                CALL TIRD                       ; 55DF CD 5A 61
                LD A,H                          ; 55E2 7C
                JR C,ITRK2                      ; 55E3 38 02  JR IF NOT RAM DISC
-               LD A,&50                        ; 55E5 3E 50
+               LD A,&50                        ; 55E5 3E 50  a RAM disc's side 1 is always eighty tracks
 
 ; ---- ITRK2 ---- from &55E3
 ITRK2:
-               AND &7F                         ; 55E7 E6 7F
+               AND &7F                         ; 55E7 E6 7F  the limit without the bit that says two sides
                CP D                            ; 55E9 BA
-               RET NZ                          ; 55EA C0  RET IF NOT FINISHED SIDE 1
-               CALL REST                       ; 55EB CD AD 47
-               LD D,&7F                        ; 55EE 16 7F
-               INC D                           ; 55F0 14  NZ
+               RET NZ                          ; 55EA C0  not the end of side 1, so carry on
+               CALL REST                       ; 55EB CD AD 47  the head home
+               LD D,&7F                        ; 55EE 16 7F  and side 2 begins at &80
+               INC D                           ; 55F0 14  NZ, because there is more to do
                RET                             ; 55F1 C9
 
 ;; --------------------------------------------------------------------
@@ -6847,58 +6886,68 @@ ISECT:
                RET                             ; 562B C9
 
 ;; --------------------------------------------------------------------
-;;  PNTYP -- print a file's type, and for some types its address and length
+;; Print a file's type, and whatever else that type has worth showing.
 ;;
-;;  The type indexes DRTAB directly rather than being searched for, so the table has an entry for every code from 1 to
-;;  21 including the unused ones, which print "WHAT?". Types above 21 are shown as type 13, which is also "WHAT?".
+;; THE TYPE NAME COMES FROM MASTERBASIC, which is why HMPR is changed
+;; around the call: the table of names lives in the other half, and
+;; &C349 is its address as this page sees it through the window.
 ;;
-;;  With DTFLG set, the file's date and time follow, tabbed across.
+;; WHAT FOLLOWS THE NAME depends on the type, and each of the three
+;; that has something to show fetches it from a different offset of the
+;; entry through GRPNTB:
 ;;
-;;  Entry:  A = the type byte from the directory entry
+;;     BASIC     offset &F2, the auto-run line -- unless the first
+;;               byte has either of its top two bits set, which is how
+;;               "no auto-run" is stored
+;;     CODE      offset &EC, the start and length, printed as a pair
+;;     ZX CODE   offset &D7, the same two, but sixteen bits each and
+;;               stored the other way up
 ;;
-;; PRINT TYPE OF FILE
+;; A type above &15 is not a type at all: those are the open-type
+;; files, and &0D stands in for all of them.
 ;; --------------------------------------------------------------------
 
 ; ---- PNTYP ---- from &4C57
 PNTYP:
-               AND &1F                         ; 562C E6 1F
+               AND TYPE_MASK                   ; 562C E6 1F
                PUSH AF                         ; 562E F5
-               CP &16                          ; 562F FE 16
+               CP &16                          ; 562F FE 16  &16 and up is not a file type
                JR C,PNTYP_1                    ; 5631 38 02
-               LD A,&0D                        ; 5633 3E 0D
+               LD A,&0D                        ; 5633 3E 0D  so print one name for the lot of them
 
 ; ---- PNTYP_1 ---- from &5631 when A < &16
 PNTYP_1:
                LD B,A                          ; 5635 47
                IN A,(HMPR)                     ; 5636 DB FB
                PUSH AF                         ; 5638 F5
-               LD A,(&42CD)                    ; 5639 3A CD 42
+               LD A,(&42CD)                    ; 5639 3A CD 42  MasterBASIC's page
                OUT (HMPR),A                    ; 563C D3 FB
-               LD HL,&C349                     ; 563E 21 49 C3
+               LD HL,&C349                     ; 563E 21 49 C3  where its table of type names is, seen through the
+                                               ; window
                CALL PRINT_WORD_AND_SPACE       ; 5641 CD 6E 57
                POP AF                          ; 5644 F1
-               OUT (HMPR),A                    ; 5645 D3 FB
+               OUT (HMPR),A                    ; 5645 D3 FB  and the window back as it was
                POP AF                          ; 5647 F1  TYPE
-               CP &10                          ; 5648 FE 10
+               CP &10                          ; 5648 FE 10  BASIC?
                JR NZ,PNTY3                     ; 564A 20 14
-               LD B,&F2                        ; 564C 06 F2  BASIC PROGRAM
+               LD B,&F2                        ; 564C 06 F2  offset &F2, where the auto-run line is
                CALL GRPNTB                     ; 564E CD AE 4F
                LD A,(HL)                       ; 5651 7E
-               AND &C0                         ; 5652 E6 C0
+               AND &C0                         ; 5652 E6 C0  either top bit set means there is no auto-run
                JR NZ,PNTY5                     ; 5654 20 4C
                INC HL                          ; 5656 23
                LD E,(HL)                       ; 5657 5E
                INC HL                          ; 5658 23
                LD D,(HL)                       ; 5659 56
                EX DE,HL                        ; 565A EB
-               CALL PNUM5                      ; 565B CD 1D 57  the autostart line number
+               CALL PNUM5                      ; 565B CD 1D 57  otherwise print the line number
                JR PNTY5                        ; 565E 18 42
 
 ; ---- PNTY3 ---- from &564A when A <> &10
 PNTY3:
-               CP &13                          ; 5660 FE 13
+               CP &13                          ; 5660 FE 13  CODE?
                JR NZ,PNTY4                     ; 5662 20 1E
-               LD B,&EC                        ; 5664 06 EC  CODE
+               LD B,&EC                        ; 5664 06 EC  offset &EC, the start address
                CALL GRPNTB                     ; 5666 CD AE 4F
                CALL GTVAL                      ; 5669 CD EE 56
                INC C                           ; 566C 0C
@@ -6906,19 +6955,19 @@ PNTY3:
                PUSH DE                         ; 566E D5
                LD A,&20                        ; 566F 3E 20
                CALL PNUM6                      ; 5671 CD FB 56
-               LD A,&2C                        ; 5674 3E 2C
+               LD A,&2C                        ; 5674 3E 2C  then a comma
                CALL PRINT_A_KEEPING_IT         ; 5676 CD 66 57
                POP HL                          ; 5679 E1
-               CALL GTVAL                      ; 567A CD EE 56
+               CALL GTVAL                      ; 567A CD EE 56  and the length
                EX DE,HL                        ; 567D EB
                XOR A                           ; 567E AF
                CALL PNUM6                      ; 567F CD FB 56
 
 ; ---- PNTY4 ---- from &5662 when A <> &13
 PNTY4:
-               CP &04                          ; 5682 FE 04
+               CP &04                          ; 5682 FE 04  ZX CODE?
                JR NZ,PNTY5                     ; 5684 20 1C
-               LD B,&D7                        ; 5686 06 D7  ZX CODE
+               LD B,&D7                        ; 5686 06 D7  offset &D7, where the Spectrum's header keeps them
                CALL GRPNTB                     ; 5688 CD AE 4F
                LD D,(HL)                       ; 568B 56
                DEC HL                          ; 568C 2B

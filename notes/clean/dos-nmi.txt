@@ -132,8 +132,8 @@ DOS &5453 : its length, &1B00, and the &FF that means "no exec address"
 DOC SNAP7
     Start the interrupted program again.
 
-    Everything NMI pushed comes back off, and the order is the order it
-    went on.  The alternate set is restored through EX AF,AF' and EXX,
+    Everything NMI pushed comes back off, in the order a stack gives it
+    back.  The alternate set is restored through EX AF,AF' and EXX,
     and I is put back before the interrupt mode is chosen from it: a
     high byte of &00 or &3F means the program was not using mode 2, so
     mode 1 is left alone.
