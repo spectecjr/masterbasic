@@ -131,6 +131,21 @@ the other documents leave to the DOS.
 [docs/disassembly.md](docs/disassembly.md) is the other long form: how the
 listings are built, what each pass contributes, and what is still open.
 
+[docs/bugs.md](docs/bugs.md) is the defects found in MasterDOS itself — three
+confirmed and one suspected so far. The listings cannot be corrected, since
+they assemble to the original image byte for byte, so a defect is written down
+there and explained where it sits.
+
+[docs/nmi-hook.md](docs/nmi-hook.md) is a how-to rather than a description:
+what to do with the snapshot button's user vector, how to install one from
+BASIC, what your routine is entered with, and the two ways back into the
+machine.
+
+[docs/masterbasic-keywords.md](docs/masterbasic-keywords.md) and
+[docs/masterbasic-tokens.md](docs/masterbasic-tokens.md) are the reference
+pair: the 28 keywords MasterBASIC adds, and the mechanism by which a DOS gets
+a word into a tokeniser that lives in ROM.
+
 ## Adding your own knowledge
 
 `notes/*.txt` is the way in for anything you work out yourself. Adding a name
