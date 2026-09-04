@@ -5592,11 +5592,28 @@ PHLR:
                POP HL                          ; 50EA E1  reached from the SET or BIT's own RET, not by a jump
                RET                             ; 50EB C9
 
+;; --------------------------------------------------------------------
+;; Bit 0 up: something matched, or something was done.
+;;
+;; OHASR raises it for every file it is asked about, whatever the
+;; answer, and RENAME raises it again after each file it renames.  It
+;; is what stops a command that worked reporting "file not found".
+;; --------------------------------------------------------------------
+
 ; ---- SETF0 ---- from &5D2F, &5DBC
 SETF0:
                CALL HLFG                       ; 50EC CD DF 50
                SET 0,(HL)                      ; 50EF CB C6
                RET                             ; 50F1 C9
+
+;; --------------------------------------------------------------------
+;; Bit 1 up: the qualifier was there, or there is more still to do.
+;;
+;; SF1S raises it for OVER on ERASE and OFF on PROTECT and HIDE.  COPY
+;; and BACKUP raise the same bit for "do not close the file yet, there
+;; is another pass to come", which is safe because COPY takes its own
+;; OVER through the ROM's OVERF instead.
+;; --------------------------------------------------------------------
 
 ; ---- SETF1 ---- from &5A49, &5CB6, &6A2D, &6DCC
 SETF1:
@@ -5604,11 +5621,30 @@ SETF1:
                SET 1,(HL)                      ; 50F5 CB CE
                RET                             ; 50F7 C9
 
+;; --------------------------------------------------------------------
+;; Bit 2 up: a directory search is under way, or this is MOVE.
+;;
+;; SNDFL raises it when it saves its position, so that the next call
+;; knows SVTRS and SVDPT can be trusted, and STFPL raises it again for
+;; the same reason after writing a parent directory.  MOVE raises it as
+;; a plain "which command is running", which nothing on the search
+;; paths ever reads.
+;; --------------------------------------------------------------------
+
 ; ---- SETF2 ---- from &5E7B, &67B1, &73F1
 SETF2:
                CALL HLFG                       ; 50F8 CD DF 50
                SET 2,(HL)                      ; 50FB CB D6
                RET                             ; 50FD C9
+
+;; --------------------------------------------------------------------
+;; Bit 3 up: a protected file was met, or the file is already open.
+;;
+;; ERASE raises it on a file it refused to erase, so that a command
+;; which erased nothing can say which of the two reasons it was.  COPY
+;; raises it after its first pass, meaning the file is open and OFSM is
+;; not to be called again.
+;; --------------------------------------------------------------------
 
 ; ---- SETF3 ---- from &5A74, &5D22
 SETF3:
@@ -5616,11 +5652,27 @@ SETF3:
                SET 3,(HL)                      ; 5101 CB DE
                RET                             ; 5103 C9
 
+;; --------------------------------------------------------------------
+;; Bit 4 up: the operation is on a directory, not an ordinary file.
+;;
+;; REDI2 raises it on a leading DIR keyword -- ERASE DIR, RENAME DIR --
+;; and OPNDIR raises it directly, where it also means "this file needs
+;; no data sectors" and OFSM allocates none.
+;; --------------------------------------------------------------------
+
 ; ---- SETF4 ---- from &5CC1, &6CA6, &720E
 SETF4:
                CALL HLFG                       ; 5104 CD DF 50
                SET 4,(HL)                      ; 5107 CB E6
                RET                             ; 5109 C9
+
+;; --------------------------------------------------------------------
+;; Bit 5 up: both ends of a COPY are the same drive.
+;;
+;; Raised only when the two names name one drive and it is a real one.
+;; It is what makes the copy run in passes with the user asked to swap
+;; disks between them.
+;; --------------------------------------------------------------------
 
 ; ---- SETF5 ---- from &59B7 when A < &03
 SETF5:
@@ -5628,11 +5680,35 @@ SETF5:
                SET 5,(HL)                      ; 510D CB EE
                RET                             ; 510F C9
 
+;; --------------------------------------------------------------------
+;; Bit 6 up: a block transfer is running, or this is a later pass.
+;;
+;; The block load and save raise it so that CTAS knows to fix the
+;; transfer address up when it crosses &C000.  BACKUP raises the same
+;; bit to mean "not the first pass", on a path where no block transfer
+;; is in the air.
+;; --------------------------------------------------------------------
+
 ; ---- SETF6 ---- from &4856, &496F, &6A5E
 SETF6:
                CALL HLFG                       ; 5110 CD DF 50
                SET 6,(HL)                      ; 5113 CB F6
                RET                             ; 5115 C9
+
+;; --------------------------------------------------------------------
+;; Bit 7 up: the "?" option, or a file that needs a header inventing.
+;;
+;; NMQU raises it when the command ends in "?", so that OHASR asks
+;; about each file.  GTFS1 raises the same bit for a file whose type
+;; was one of the Spectrum ones, which is a different question with the
+;; same answer: such a file has no 48-byte ROM header on the disc, so
+;; COPY_HEADER_FIELDS has to make one up rather than copy it.
+;;
+;; The two never meet.  ZFSP clears the whole byte at the top of every
+;; command, and COPY -- which uses "?" and also wants the header
+;; answer -- passes "not a Spectrum file" in the flags at &5A0C instead
+;; of reading the bit.
+;; --------------------------------------------------------------------
 
 ; ---- SETF7 ---- from &4F7F, &599A
 SETF7:
@@ -5640,11 +5716,26 @@ SETF7:
                SET 7,(HL)                      ; 5119 CB FE
                RET                             ; 511B C9
 
+;; --------------------------------------------------------------------
+;; Bit 0: did anything match, or get done?
+;;
+;; SNDFX reads it when the search runs out, to choose between finishing
+;; quietly and reporting why nothing happened.
+;; --------------------------------------------------------------------
+
 ; ---- BITF0 ---- from &5E58
 BITF0:
                CALL HLFG                       ; 511C CD DF 50
                BIT 0,(HL)                      ; 511F CB 46
                RET                             ; 5121 C9
+
+;; --------------------------------------------------------------------
+;; Bit 1: was the qualifier given, or is there more to do?
+;;
+;; ERASE reads it as OVER, PROTECT and HIDE as OFF, the command-name
+;; printer as "put UN in front of this one", and COPY as "this is a
+;; later pass over a file already open".
+;; --------------------------------------------------------------------
 
 ; ---- BITF1 ---- from &58E2, &59E6, &5A8D, &5CE7, &5E47, &6805, &68C8, &6A6C ...
 BITF1:
@@ -5652,11 +5743,26 @@ BITF1:
                BIT 1,(HL)                      ; 5125 CB 4E
                RET                             ; 5127 C9
 
+;; --------------------------------------------------------------------
+;; Bit 2: is a search in progress, or is this MOVE?
+;;
+;; REFBUF reads it to decide whether the buffer is worth re-reading;
+;; the open and end-of-file paths read it to tell MOVE from a command
+;; that would report "end of file".
+;; --------------------------------------------------------------------
+
 ; ---- BITF2 ---- from &5DC4, &5E76, &6D07, &6EFE
 BITF2:
                CALL HLFG                       ; 5128 CD DF 50
                BIT 2,(HL)                      ; 512B CB 56
                RET                             ; 512D C9
+
+;; --------------------------------------------------------------------
+;; Bit 3: was a protected file met, or has the file been opened?
+;;
+;; SNDFX reads it at the end of ERASE to choose between "file not
+;; found" and "protected file"; from COPY it is always clear there.
+;; --------------------------------------------------------------------
 
 ; ---- BITF3 ---- from &5A6A, &5E5C
 BITF3:
@@ -5664,17 +5770,41 @@ BITF3:
                BIT 3,(HL)                      ; 5131 CB 5E
                RET                             ; 5133 C9
 
+;; --------------------------------------------------------------------
+;; Bit 5: is this a single-drive copy?
+;;
+;; TSPCE1 and TSPCE2 read it and do nothing at all when it is clear,
+;; which is how the same code serves both the one-drive and the
+;; two-drive case.
+;; --------------------------------------------------------------------
+
 ; ---- BITF5 ---- from &5934, &593D
 BITF5:
                CALL HLFG                       ; 5134 CD DF 50
                BIT 5,(HL)                      ; 5137 CB 6E
                RET                             ; 5139 C9
 
+;; --------------------------------------------------------------------
+;; Bit 6: is a block transfer running, or is this a later pass?
+;;
+;; CTAS reads it before it touches the paging: an ordinary sector
+;; transfer needs none of that.  BACKUP reads it to tell its first pass
+;; from the rest.
+;; --------------------------------------------------------------------
+
 ; ---- BITF6 ---- from &4759, &6A4E
 BITF6:
                CALL HLFG                       ; 513A CD DF 50
                BIT 6,(HL)                      ; 513D CB 76
                RET                             ; 513F C9
+
+;; --------------------------------------------------------------------
+;; Bit 7: was "?" given, or was this a Spectrum file?
+;;
+;; OHASR reads it as the first; GTFL4 and LOAD read it as the second,
+;; to decide whether a ROM header has to be invented and to refuse to
+;; load a Spectrum BASIC program.
+;; --------------------------------------------------------------------
 
 ; ---- BITF7 ---- from &4EE0, &5D32, &5FC2, &5FFB
 BITF7:
@@ -15185,12 +15315,14 @@ DRIVE:
 ;;         its own OVER through the ROM's OVERF instead
 ;;
 ;;     2   a directory search is under way, so SVTRS and SVDPT can be
-;;         trusted.  REFBUF returns at once when it is clear
+;;         trusted -- REFBUF returns at once when it is clear.  MOVE
+;;         raises the same bit as a plain "which command is running",
+;;         read by the open and end-of-file paths
 ;;
 ;;     3   ERASE: a protected file was met and skipped, so that a
 ;;         command which erased nothing can say which of the two
-;;         reasons it was.  COPY: the first pass is done and OFSM is
-;;         not needed again
+;;         reasons it was.  COPY: the file is open, so OFSM is not
+;;         needed on the next pass
 ;;
 ;;     4   the operation is on a directory rather than an ordinary
 ;;         file, which is also what tells OFSM to allocate no data
@@ -15200,7 +15332,8 @@ DRIVE:
 ;;         be asked to swap disks between the passes
 ;;
 ;;     6   a block transfer is running, which is what tells CTAS to
-;;         fix the address up when it crosses &C000
+;;         fix the address up when it crosses &C000.  BACKUP raises it
+;;         for "not the first pass", where no transfer is in the air
 ;;
 ;;     7   two meanings, on paths that do not meet.  NMQU raises it
 ;;         for the "?" option and OHASR reads it there; GTFS1 raises
