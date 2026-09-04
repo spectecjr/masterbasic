@@ -27,18 +27,17 @@
 # shaded dump loads &4034 too, at &69E4, as its ending message.  The two
 # dumps share it.
 
-# ONE THING IS NOT SETTLED.  The manual calls the first number the
-# width magnification and the second the height, and says so twice --
-# once generally ("DUMP 1,2 single width, double height") and once in
-# the MODE 3 paragraph ("DUMP 1,2 or DUMP 2,3 can be used to reduce the
-# width relative to the height").  MODE 3 is forced sideways and an
-# ordinary DUMP 1 or 2 is upright, and the two axes exchange between
-# those cases, so on the reading below the second passage is right and
-# the first is inverted.  The manual's own SDORI table corroborates the
-# axis assignment that makes them disagree, so the manual cannot be
-# self-consistent about this code.  Two bytes settle it -- the Epson
-# count after ESC "*" -- and docs/evidence-wanted.md item 6 says how to
-# capture them.
+# SETTLED, AND THE MANUAL IS WRONG.  It says the first number is the
+# width magnification -- "DUMP 1,2 single width, double height".  Two
+# captures of the printer stream say otherwise: DUMP 1,2 sends a dot
+# column count of 512 over 24 lines, and DUMP 2,1 sends 256 over 48.
+# So for an upright dump the first number is the height and the second
+# the width, exactly as the axis reasoning below predicts.
+#
+# The manual is right for a sideways dump, which is what DUMP 3 and
+# anything in MODE 3 get: TRANSFORM_DUMP_COORDS exchanges the two axes
+# for an upright one, and that exchange is what makes it upright.  See
+# docs/bugs.md 5.
 MB &405D DUMP_BIT_FROM
 MB &405E DUMP_BIT_TO
 MB &405F DUMP_BYTE_TO

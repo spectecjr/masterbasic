@@ -2,10 +2,10 @@
 
 What this project cannot settle by reading. Each entry says what to capture,
 why, and what it would decide — so that whoever has the hardware or the
-emulator can do it without reading the rest of the repository first. All four
-are now answered, and are kept because the answers are worth more than the
-questions were. Two captures are still wanted, and both are cheap: the
-second `SAVE BOOT` in item 1, and one printed page for item 6.
+emulator can do it without reading the rest of the repository first. All five
+are answered, and are kept because the answers are worth more than the
+questions were. One capture is still wanted, and it is a cheap one: the
+second `SAVE BOOT` in item 1.
 
 ---
 
@@ -104,74 +104,36 @@ what is either side of those two paths is unread, and the disk images in
 
 ---
 
-## 6. Wanted — which way round `DUMP n,m` magnifies
+## 6. Answered — `DUMP n,m` magnifies the other way round from the manual
 
-**What to capture.** Not a printed page — just the bytes. Run a full-screen
-MODE 4 dump twice and record what goes to the printer:
+**Captured.** `file/printmode4dump1,2.txt` and `file/printmode4dump2,1.txt`:
+the printer stream from a full MODE 4 screen, dumped twice. Every bit-image
+line begins `ESC "*" CHR$ 4 n1 n2`, and `n1 + 256*n2` is the number of dot
+columns across the paper.
 
-```basic
-10 MODE 4: CLS: CIRCLE 128,88,60
-20 DUMP 1,2
-30 DUMP 2,1
-```
+| | dot columns | lines of 8 dots | printed size |
+|---|---|---|---|
+| `DUMP 1,2` | 512 | 24 | 512 × 192 — double width, single height |
+| `DUMP 2,1` | 256 | 48 | 256 × 384 — single width, double height |
 
-Each bit-image line begins `CR ESC "*" CHR$ 4 n1 n2` — that is `GCMX2`, XVAR 20,
-in its shipped form. **`n1 + 256*n2` is the number of dot columns across the
-paper**, and it is the whole answer:
+**Answer.** The reading was right and the manual's general statement is
+inverted: for an upright dump the *first* number magnifies the height and the
+second the width. The line counts confirm it from the other side — 24 lines of
+eight dots is the screen's own 192 rows unmagnified.
 
-| | the code as read here | the manual's wording |
-|---|---|---|
-| `DUMP 1,2` | 512 | 256 |
-| `DUMP 2,1` | 256 | 512 |
+The manual is right about the sideways case, which is what `DUMP 3` and MODE 3
+get, and its MODE 3 advice is correct for that reason. Written up as
+`docs/bugs.md` 5, with a note in `docs/original/ERRATA.md`.
 
-An emulator's printer log is enough; so is anything that captures the stream.
-Two bytes settle it.
-
-**Why it is open.** The manual says it twice, and the two do not agree once
-orientation is taken into account. Stated generally, under "Screen dumps":
-
-> The number 1, 2 or 3 actually specifies the width magnification of the dump…
-> `DUMP 1,2` — single width, double height
-
-and again in the MODE 3 paragraph:
-
-> `DUMP 1,2` or `DUMP 2,3` can be used to reduce the width relative to the
-> height.
-
-MODE 3 is forced **sideways**; an ordinary `DUMP 1` or `DUMP 2` in MODE 1, 2 or
-4 is **upright**. Read against the code the second passage is right and the
-first is inverted, because the two axes exchange between those cases.
-
-**The reading, in three steps**, each checkable in `clean/masterbasic.asm`:
-
-1. The first number sets how many bits a pixel contributes as `C` advances
-   (`&693E`–`&6952`); the second sets how many bytes are emitted before `B`
-   advances (`&6995`).
-2. Within one byte only `C` moves — `DUMP_BYTE` reloads it from
-   `DUMP_LINE_BASE` every time — and from byte to byte only `B` moves.
-3. In an Epson `ESC "*"` line a byte is eight dots stacked vertically and
-   successive bytes step across the paper. So `C` is the paper's vertical and
-   `B` its horizontal, and the count sent is the printed width in dots.
-
-For an upright dump `TRANSFORM_DUMP_COORDS` swaps the two, making `B` the screen
-column — so the **second** number magnifies horizontally.
-
-**What corroborates it, and what that costs the manual.** `XVAR 15` (`SDORI`)
-documents 1 as sideways and 3 as force-upright, and the code stores the poked
-value straight through. Working back from `TRANSFORM_DUMP_COORDS`, its swap can
-only mean "upright" if `B` is the paper's horizontal — the same assignment that
-makes the magnification labels swap. So the manual's orientation table and its
-width/height labels cannot both describe this code; one of them has to give.
-
-Step 3 is the only link resting on anything outside the listing: standard Epson
-bit-image geometry.
-
-**What it would decide.** Whether this is a real inconsistency in the program,
-worth an entry in `docs/bugs.md`, or a misreading here. If `DUMP 1,2` sends a
-count of 256, the axis reasoning in `notes/mb-dumpshaded.txt` is wrong somewhere
-and wants finding.
+**Worth keeping as a method.** The count bytes made this decidable without a
+printer, a photograph, or any judgement by eye: two bytes per line, predicted
+in advance, and a second quantity — the line count — that had to agree and
+did. The prediction was recorded before the capture, which is what made the
+result worth anything.
 
 ---
+
+
 
 
 ## Notes on capturing

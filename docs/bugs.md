@@ -5,7 +5,7 @@ as they were sold. The listings cannot be corrected: they assemble to the
 original image byte for byte, and that is the point of them. So a defect
 gets written down here and explained where it sits.
 
-Three are confirmed and one is suspected. The rest of this file is a plan
+Four are confirmed and one is suspected. The rest of this file is a plan
 for looking properly.
 
 ---
@@ -234,6 +234,71 @@ to notice is another matter. Anyone with a machine can look in a minute:
 enter Spectrum mode, press NMI, press X, and `PEEK` through the window.
 
 ---
+
+## 5. DUMP's two magnifications are exchanged for an upright dump
+
+**Where** `&693E`–`&6952` and `&6995` in MasterBASIC, and the manual's
+"Screen dumps" section.
+
+**What** `DUMP n,m` takes two magnifications. The User Manual says which is
+which, and says it plainly:
+
+> The number 1, 2 or 3 actually specifies the width magnification of the dump;
+> the height magnification is assumed to be the same unless you specify
+> differently by including a second number. E.g.
+>
+> ```
+> DUMP 1,2 - single width, double height
+> DUMP 3,1 - treble width, single height
+> ```
+
+For an upright dump it is the other way round. `DUMP 1,2` gives **double
+width and single height**.
+
+**Measured.** Two captures of the printer stream, a full MODE 4 screen dumped
+twice, in `file/printmode4dump1,2.txt` and `file/printmode4dump2,1.txt`. Every
+bit-image line begins `ESC "*" CHR$ 4 n1 n2`, and `n1 + 256*n2` is the number
+of dot columns across the paper:
+
+| | dot columns | lines | printed size |
+|---|---|---|---|
+| `DUMP 1,2` | 512 | 24 | 512 × 192 dots — double width, single height |
+| `DUMP 2,1` | 256 | 48 | 256 × 384 dots — single width, double height |
+
+The line counts settle it independently: 24 lines of 8 dots is 192, the
+screen's own 192 rows unmagnified, and 48 lines is 384.
+
+**Why** The routine works in two axes of its own, and which screen axis each
+one is depends on the orientation. The first number sets how many dots a pixel
+is worth along the axis that fills the eight bits of a bit-image byte; the
+second sets how many bytes are emitted before the other axis advances. A byte
+is eight dots up the paper and successive bytes step across it, so the first
+number magnifies vertically and the second horizontally.
+
+`TRANSFORM_DUMP_COORDS` exchanges the two axes for an upright dump — that
+exchange is what makes it upright — and the manual's names are correct on the
+*other* side of it. In a sideways dump, which is what `DUMP 3` and anything in
+MODE 3 get, the first number really is the width. The manual's own MODE 3
+advice is right for that reason:
+
+> `DUMP 1,2` or `DUMP 2,3` can be used to reduce the width relative to the
+> height.
+
+So the manual documents the sideways case and the program inverts it for the
+upright one, which is the case an ordinary `DUMP 1` or `DUMP 2` in MODE 1, 2
+or 4 takes.
+
+**Consequence** Anyone following the manual to correct a dump's proportions
+makes them worse: `DUMP 1,2` to stretch a squat picture vertically stretches
+it horizontally instead. `docs/original/ERRATA.md` carries a note.
+
+**Not a misreading of the orientation.** `XVAR 15` (`SDORI`) documents 1 as
+sideways and 3 as force-upright, the code stores the poked value through
+unchanged, and the defaults follow the manual: sideways for `DUMP 3` or MODE
+3, upright otherwise.
+
+---
+
 
 ## A pass to make, when the narrative work is further on
 
