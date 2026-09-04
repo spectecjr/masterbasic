@@ -296,6 +296,7 @@ DOS_MBCOPY_778B:                EQU  &BDAA
 DOS_MBCOPY_7829:                EQU  &BE48
 DOS_NEXTST:                     EQU  &821E
 DOS_OFSM_1:                     EQU  &8D2D
+DOS_PARK_WORD:                  EQU  &B859
 DOS_PLNS:                       EQU  &908E
 DOS_POINT:                      EQU  &8FAC
 DOS_POINTC:                     EQU  &B076
@@ -312,6 +313,7 @@ DOS_STACK_ON_ENTRY:             EQU  &80F9
 DOS_SVHDR:                      EQU  &810A
 DOS_TEMPW1:                     EQU  &8212
 DOS_TIMDT:                      EQU  &8280
+DOS_UNPARK_WORD:                EQU  &B85D
 DOS_V4222:                      EQU  &8222
 DOS_V42B6:                      EQU  &82B6
 DOS_V42E2:                      EQU  &82E2
@@ -5303,7 +5305,7 @@ V505C:
 ; ---- HPRTOK_1 ---- from &5010 when A = &FF
 HPRTOK_1:
                CALL CALLDOS                    ; 5066 CD C1 42
-               DEFW &7859                      ; 5069 59 78
+               DEFW DOS_PARK_WORD-&4000        ; 5069 59 78
                LD BC,&00FB                     ; 506B 01 FB 00
                IN E,(C)                        ; 506E ED 58
                OUT (C),B                       ; 5070 ED 41
@@ -5325,7 +5327,7 @@ HPRTOK_1:
 HK_HPFF:
                PUSH AF                         ; 508A F5
                CALL CALLDOS                    ; 508B CD C1 42
-               DEFW &785D                      ; 508E 5D 78
+               DEFW DOS_UNPARK_WORD-&4000      ; 508E 5D 78
                CALL NRWRD                      ; 5090 CD 77 45
                DEFW XPTR                       ; 5093 A3 5A
                POP AF                          ; 5095 F1

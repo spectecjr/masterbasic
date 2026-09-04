@@ -37,9 +37,11 @@ DOC RDWSCT
      turns a track and sector into a linear sector number and then adds
      one plus a thirty-first of itself, which skips the first 512-byte
      block of every page.  Those blocks are not wasted: each holds a
-     copy of the block mover described below, together with the page
-     list and, in the first page, the disc's name, random word and
-     current path.
+     copy of the block mover described below, and the first page holds
+     the page list, the disc's name, its random word and its current
+     path as well.  Only the first: FORMRD copies the list in once, at
+     &7704, after the loop that claims the pages has finished, and
+     PTRD2 always reads it from there.
 
      Pages 0 to &1F are ordinary internal RAM.  Pages &20 and above are
      MegaRAM -- external memory selected through port MRPRT with the
@@ -106,3 +108,63 @@ DOS &77BA value RAMDISC_PAGE_HIGH
 
 DOS &77C3 : it would, so the caller must stage through DRAM
 DOS &77C8 : reachable at &4000-&7FFF without the window
+
+RENAME READ_ADDRESS_CLEAR COPY_SECTOR_512
+RENAME READ_ADDRESS_SET COPY_SECTOR_510
+RENAME READ_ADDRESS_CLEAR_1 COPY_SECTOR_MOVE
+DOS &7859 PARK_WORD
+DOS &785D UNPARK_WORD
+
+DOC COPY_SECTOR_512
+    Copy a whole sector out of a RAM disc page.
+
+    NOTHING HERE READS AN ADDRESS MARK.  RDADR is address translation --
+    a track and sector into a page and an offset -- and a RAM disc has
+    no marks to read.  These two entries copy a sector through the mover
+    that lives in the page, and differ in one instruction: AND A leaves
+    the carry clear where SCF sets it, and the carry, carried across in
+    the alternate accumulator, is what picks 512 bytes here or 510 at
+    COPY_SECTOR_510.  The 510 is a sector less its two-byte link to the
+    next.
+
+DOS &7791 : a page and an offset, not a mark on a disc
+DOS &7796 : carry clear: the whole 512 bytes
+DOS &77A0 : carry set: 510, leaving the link alone
+
+DOC COPY_SECTOR_MOVE
+    Page the destination in at &4000 and let the page's own mover run.
+
+    The destination page goes into LMPR, which maps N at &0000 and N+1
+    at &4000, so the page wanted at &4000 is written as one less.  The
+    XOR/AND/XOR keeps the ROM and write-protect bits of LMPR as they
+    were while replacing the page number, which is the standard way of
+    changing part of a port whose other bits matter.
+
+    The call is to &8002 -- the copy of the mover in whichever RAM disc
+    page is in the window -- because with both pages mapped there is
+    nowhere else for the code to be.
+
+DOS &77A3 : LMPR maps N at &0000 and N+1 at &4000, so one less
+DOS &77A7 : the page number replaced, the ROM and protect bits kept
+DOS &77AB : the mover, in the page it is moving out of
+DOS &77AE : the link to the next sector, read while the page is there
+
+DOC PARK_WORD
+    Put HL somewhere MasterBASIC can fetch it from.
+
+    Two stubs with no callers in this half.  MasterBASIC reaches them
+    through CALLDOS -- HPRTOK_1 at MB &5066 parks a word here, HK_HPFF
+    at MB &508B fetches it back and writes it to the ROM's XPTR.  They
+    exist because a CALLDOS returns through the paging, so a register
+    cannot be handed back across it.
+
+DOC UNPARK_WORD
+    The other half of PARK_WORD: the parked word, into BC.
+
+DOS &756A : the directory-track count is on the disc, so page it in to read it
+DOS &756D : L is the DTKS-4 that FESET wrote at offset &2FF; H is not used
+DOS &7573 : DTKS-4 plus 3 is DTKS-1, the last track the directory holds
+DOS &7576 : the track is inside the directory, so it stands as it is
+DOS &7578 : back to DTKS-4
+DOS &757A : no borrow means four or more directory tracks, the layout the DOS assumes
+DOS &757C : fewer than four, so adding a negative DTKS-4 slides the data tracks down over the gap

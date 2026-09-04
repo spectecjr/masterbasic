@@ -13750,9 +13750,11 @@ SDTK4:
 ;;  turns a track and sector into a linear sector number and then adds
 ;;  one plus a thirty-first of itself, which skips the first 512-byte
 ;;  block of every page.  Those blocks are not wasted: each holds a
-;;  copy of the block mover described below, together with the page
-;;  list and, in the first page, the disc's name, random word and
-;;  current path.
+;;  copy of the block mover described below, and the first page holds
+;;  the page list, the disc's name, its random word and its current
+;;  path as well.  Only the first: FORMRD copies the list in once, at
+;;  &7704, after the loop that claims the pages has finished, and
+;;  PTRD2 always reads it from there.
 ;;
 ;;  Pages 0 to &1F are ordinary internal RAM.  Pages &20 and above are
 ;;  MegaRAM -- external memory selected through port MRPRT with the
@@ -13933,7 +13935,7 @@ RDRSCT:
                CALL SDCHK2                     ; 7536 CD B9 77
                JR C,RDRSCT_1                   ; 7539 38 06
                PUSH DE                         ; 753B D5
-               CALL READ_ADDRESS_CLEAR         ; 753C CD 8F 77
+               CALL COPY_SECTOR_512            ; 753C CD 8F 77
                JR RDW4                         ; 753F 18 A2
 
 ; ---- RDRSCT_1 ---- from &7539
@@ -13987,16 +13989,20 @@ RDADR:
                LD A,(RDAT)                     ; 7564 3A 0D 42
                AND A                           ; 7567 A7
                JR Z,RDAD2                      ; 7568 28 14
-               CALL SELFP                      ; 756A CD A7 75
-               LD HL,(RAMDISC_PAGE+&02FF)      ; 756D 2A FF 82
+               CALL SELFP                      ; 756A CD A7 75  the directory-track count is on the disc, so page it in
+                                               ; to read it
+               LD HL,(RAMDISC_PAGE+&02FF)      ; 756D 2A FF 82  L is the DTKS-4 that FESET wrote at offset &2FF; H is
+                                               ; not used
                OUT (HMPR),A                    ; 7570 D3 FB
                LD A,L                          ; 7572 7D
-               ADD A,&03                       ; 7573 C6 03
+               ADD A,&03                       ; 7573 C6 03  DTKS-4 plus 3 is DTKS-1, the last track the directory holds
                CP D                            ; 7575 BA  CP DTKS-1,TRK
-               JR NC,RDAD2                     ; 7576 30 06  JR IF TRK IN DIRECTORY - NO FIDDLE
-               SUB &03                         ; 7578 D6 03
-               JR NC,RDAD2                     ; 757A 30 02  LEAVE TRACK ALONE IF 4 DIR TKS OR
-               ADD A,D                         ; 757C 82
+               JR NC,RDAD2                     ; 7576 30 06  the track is inside the directory, so it stands as it is
+               SUB &03                         ; 7578 D6 03  back to DTKS-4
+               JR NC,RDAD2                     ; 757A 30 02  no borrow means four or more directory tracks, the layout
+                                               ; the DOS assumes
+               ADD A,D                         ; 757C 82  fewer than four, so adding a negative DTKS-4 slides the data
+                                               ; tracks down over the gap
                LD D,A                          ; 757D 57  E.G. TRACK 4 ACCESS BECOMES TRACK 1
 
 ;; --------------------------------------------------------------------
@@ -14449,7 +14455,7 @@ RDLB:
 
 ; ---- RDLB2 ---- from &775E
 RDLB2:
-               CALL READ_ADDRESS_SET           ; 7770 CD 99 77  LOAD 510 BYTES TO DEST FROM T/S D/E
+               CALL COPY_SECTOR_510            ; 7770 CD 99 77  LOAD 510 BYTES TO DEST FROM T/S D/E
 
 ; ---- RDLB3 ---- from &776E
 RDLB3:
@@ -14470,15 +14476,15 @@ CHKHL:
                LD (PORT1),A                    ; 778B 32 2E 41
                RET                             ; 778E C9
 
-; ---- READ_ADDRESS_CLEAR ---- from &753C
-READ_ADDRESS_CLEAR:
+; ---- COPY_SECTOR_512 ---- from &753C
+COPY_SECTOR_512:
                PUSH DE                         ; 778F D5  T/S
                PUSH HL                         ; 7790 E5  MAIN MEMORY PTR - DEST
-               CALL RDADR                      ; 7791 CD 64 75  PT HL TO SRC IN RAMD, PAGE IN
+               CALL RDADR                      ; 7791 CD 64 75  a page and an offset, not a mark on a disc
                POP DE                          ; 7794 D1  DEST
                PUSH AF                         ; 7795 F5  ORIG PAGE
-               AND A                           ; 7796 A7
-               JR READ_ADDRESS_CLEAR_1         ; 7797 18 08
+               AND A                           ; 7796 A7  carry clear: the whole 512 bytes
+               JR COPY_SECTOR_MOVE             ; 7797 18 08
 
 ;; --------------------------------------------------------------------
 ;; Read the sector's address mark through RDADR, and differ in one
@@ -14487,27 +14493,27 @@ READ_ADDRESS_CLEAR:
 ;; alternate accumulator.
 ;; --------------------------------------------------------------------
 
-; ---- READ_ADDRESS_SET ---- from &7770
-READ_ADDRESS_SET:
+; ---- COPY_SECTOR_510 ---- from &7770
+COPY_SECTOR_510:
                PUSH DE                         ; 7799 D5
                PUSH HL                         ; 779A E5
                CALL RDADR                      ; 779B CD 64 75
                POP DE                          ; 779E D1
                PUSH AF                         ; 779F F5
-               SCF                             ; 77A0 37
+               SCF                             ; 77A0 37  carry set: 510, leaving the link alone
 
-; ---- READ_ADDRESS_CLEAR_1 ---- from &7797
-READ_ADDRESS_CLEAR_1:
+; ---- COPY_SECTOR_MOVE ---- from &7797
+COPY_SECTOR_MOVE:
                LD C,A                          ; 77A1 4F  MAIN MEM PAGE
                EX AF,AF'                       ; 77A2 08
-               DEC C                           ; 77A3 0D  TO BE PAGED IN AT 4000H
+               DEC C                           ; 77A3 0D  LMPR maps N at &0000 and N+1 at &4000, so one less
                IN A,(LMPR)                     ; 77A4 DB FA
                LD B,A                          ; 77A6 47
-               XOR C                           ; 77A7 A9
+               XOR C                           ; 77A7 A9  the page number replaced, the ROM and protect bits kept
                AND &E0                         ; 77A8 E6 E0
                XOR C                           ; 77AA A9  A=VALUE FOR PORT 250 TO PAGE
-               CALL RAMDISC_PAGE+&0002         ; 77AB CD 02 80  IN DEST AT 4000H
-               LD B,(HL)                       ; 77AE 46
+               CALL RAMDISC_PAGE+&0002         ; 77AB CD 02 80  the mover, in the page it is moving out of
+               LD B,(HL)                       ; 77AE 46  the link to the next sector, read while the page is there
                INC HL                          ; 77AF 23
                LD C,(HL)                       ; 77B0 4E  NEXT T/S
                POP AF                          ; 77B1 F1
@@ -14740,8 +14746,26 @@ CFPBL_DONE:
                LD E,A                          ; 7856 5F
                POP BC                          ; 7857 C1
                RET                             ; 7858 C9
+
+;; --------------------------------------------------------------------
+;; Put HL somewhere MasterBASIC can fetch it from.
+;;
+;; Two stubs with no callers in this half.  MasterBASIC reaches them
+;; through CALLDOS -- HPRTOK_1 at MB &5066 parks a word here, HK_HPFF
+;; at MB &508B fetches it back and writes it to the ROM's XPTR.  They
+;; exist because a CALLDOS returns through the paging, so a register
+;; cannot be handed back across it.
+;; --------------------------------------------------------------------
+
+PARK_WORD:
                LD (V42E4),HL                   ; 7859 22 E4 42
                RET                             ; 785C C9
+
+;; --------------------------------------------------------------------
+;; The other half of PARK_WORD: the parked word, into BC.
+;; --------------------------------------------------------------------
+
+UNPARK_WORD:
                LD BC,(V42E4)                   ; 785D ED 4B E4 42
                RET                             ; 7861 C9
 
