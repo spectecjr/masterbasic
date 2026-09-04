@@ -31,19 +31,48 @@ DOC DUMP_MODE
     ROM's numbering and not MasterBASIC's.
 
 DOC DUMP_ORIENT
-    Which way round the shaded dump goes: 1 upside down, 2 straight, 3
-    sideways.
+    Which way round the shaded dump goes.
 
-    Taken from SDORI if the user has set it, and otherwise chosen at
-    &6844: MODE 3 always gets 1, and past that it depends on which of
-    DUMP 1-3 was asked for.
+    SDORI is stored here unchanged when the user has set it, so the
+    numbering is the manual's own, from the XVAR 15 table:
+
+        1   sideways
+        2   sideways, mirrored
+        3   upright
+        4   upside down and mirrored
+
+    Chosen at DUMP_ORIENT_SETUP when SDORI is zero: 1 for MODE 3 or for
+    DUMP 3, and 3 for everything else -- which is the manual's "the
+    normal setting produces upright dumps unless DUMP 3, or DUMP 2 and
+    MODE 3".
+
+    An earlier reading of this had 1 as upside down and 3 as sideways.
+    Both were wrong, and the SDORI table settles it: the value the user
+    pokes and the value stored here are the same value.
 
 DOC TRANSFORM_DUMP_COORDS
-    Turn the dump's own coordinates in BC into screen coordinates.
+    Turn the dump's own two axes in BC into a screen row and column.
 
-    Three cases, and they are the three orientations: 1 mirrors the row
-    with &BF minus B, 3 exchanges B and C to lay the picture sideways,
-    and 2 does neither.  All three fall into SCREEN_PIXEL_COLOUR.
+    B is where the printer is across the paper -- one bit-image byte per
+    step -- and C is where it is down the paper, the eight bits of that
+    byte.  Which screen axis each of them is, and which way up, is the
+    whole of the orientation:
+
+        1   mirror the row, &BF minus B                sideways
+        2   neither                                    sideways, mirrored
+        3   exchange B and C                           upright
+        4   exchange them and then mirror              upright, mirrored
+
+    Four cases and not three: the DEC A chain runs off its end for 4,
+    and the exchange at &6A0A is done before the JR Z that would have
+    left, so 4 gets both.
+
+    THE EXCHANGE IS WHAT MAKES A DUMP UPRIGHT, which reads backwards
+    until you notice which axis is which.  Leaving B and C alone puts
+    the screen's rows across the paper; exchanging them puts the screen's
+    columns across the paper, which is the picture the right way up.
+    DUMP_ORIENT_SETUP has already exchanged the four limits to match, so
+    the loop itself never has to know.
 
 DOC SCREEN_PIXEL_COLOUR
     Read the colour of the pixel at BC, in whichever screen mode.

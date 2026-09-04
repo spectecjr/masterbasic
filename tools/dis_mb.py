@@ -926,6 +926,14 @@ def seeds(dos, mb):
     for at in (0x5B81, 0x5B93, 0x5C33, 0x7936):
         dos.no_peer.append((at, at + 3))
 
+    # Two more operands in the window that are not the peer half.  &5975
+    # puts page 3 -- the Spectrum "ROM" -- in the window one instruction
+    # before the JP at &5978, and GCOP at &5AB1 puts the copy buffer's
+    # own page there before loading &8000 as its base.  MasterBASIC
+    # having a label at each address is a coincidence of arithmetic.
+    for at in (0x5978, 0x5AB3):
+        dos.no_peer.append((at, at + 3))
+
     dos.headers[0x4000] = NOTES['boot']
     dos.headers[0x4200] = NOTES['entry']
     dos.labels[DOSBUF[0]] = 'DOSBUF'

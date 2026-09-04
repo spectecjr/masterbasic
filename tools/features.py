@@ -123,9 +123,8 @@ Manual: "Interrupt-driven printing" and "Serial input and output".""",
 DUMP -- taken over from the ROM at token &BF.
 
     DUMP 1 | 2 | 3   small, medium and large shaded dumps; 3 is
-                     sideways.  A second number sets the height
-                     magnification separately: DUMP 1,2 is single width
-                     and double height
+                     sideways.  A second number magnifies one axis
+                     separately from the other
     DUMP 4           medium unshaded dump, as the SAMDOS DUMP utility
     DUMP 5           text dump, read back off the screen with the ROM's
                      SCREEN$ routine
@@ -135,6 +134,26 @@ Dumps 1-3 scan the screen palette, work out how bright each colour is
 and print a dot pattern of about the right darkness.  Everything about
 them -- strike count, dumped area, orientation and the Epson control
 sequences -- is in XVAR 5 and XVAR 15 to 58.
+
+INVERSE IS ONE PATCHED BYTE.  &67F8 loads the address of DUMP_INVERT,
+which sits between the LD A,D that fetches a finished bit-image byte
+and the call that prints it, and writes &00 (NOP) or &2F (CPL) into it.
+Nothing else in the routine mentions INVERSE at all.
+
+THE TWO NUMBERS ARE FETCHED IN THE ORDER THE CALCULATOR STACK GIVES
+THEM, not the order they were written.  CALL_EXPNUM evaluates the first
+and leaves it on the stack; INT_ARG_THEN_END evaluates the second and
+takes it straight back off, which is why the 1-to-3 test at &6814
+applies to the second number.  BYTE_ARGUMENT then pops what is left --
+the first.  The ROM's GETINT returns "TO BC AND HL, A=C", so the PUSH
+HL round the second call keeps the second number while the first is
+fetched into A, and LD H,A at &6831 lands them as H = the first number
+and L = the second.  With one number both halves get it, because GETINT
+put the same value in A and in L: that is DUMP 3 magnifying both
+directions at once.
+
+DUMP 4 and DUMP 5 are not here at all.  They are copied into the ROM's
+INSTBUF and run there -- see DUMP_TEXT and DUMP_UNSHADED.
 
 Manual: "Screen dumps".""",
 

@@ -426,9 +426,11 @@ Coming out, the DOS borrows arithmetic it does not have: `PRINT_BYTE_AS_DECIMAL`
 calls `MB_BYTE_TO_DECIMAL`, `GET_FILE_NUMBER` calls the routine sixteen bytes
 before it for a file's number, and `TIME_TO_MINUTES`
 calls `MB_MULTIPLY_BY_24`. `COLUMNS_FOR_DIRECTORY` at `&5C8B` reaches further
-still — it takes `DCOLS` if it is set and otherwise MasterBASIC's
-`SYS_CHAR_WIDTH` out of the ROM's system page, so a narrower character size
-gives a wider directory listing.
+still — it takes `DCOLS` if it is set and otherwise asks MasterBASIC's
+`SYS_CHAR_WIDTH`, in the ROM's system page, whether `CSIZE` has changed the
+character width. Only whether, not what: a changed width gives up and prints one
+name to a line, and an unchanged one falls back on the window bounds in
+`WINDRHS`, eleven characters to a column.
 
 And `RETURN_INTO_BC` at `&7BAC` is the pair to something on the other side:
 

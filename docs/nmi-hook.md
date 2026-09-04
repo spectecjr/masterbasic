@@ -74,8 +74,9 @@ run at `&8000` and up.
 |---|---|
 | `&0000`–`&3FFF` | ROM 0 (the ROM's handler put it there) |
 | `&4000`–`&7FFF` | **the DOS's page** — the code that called you is at `&5392` |
+| | `LMPR` holds ROM 0 and the page below the DOS's — **not** the handler's `&1F`, which would put the system page at `&4000` |
 | `&8000`–`&BFFF` | your page, from `NMIKP` |
-| `&C000`–`&FFFF` | ROM 1 is **off** (`LMPR` = `&1F`) |
+| `&C000`–`&FFFF` | ROM 1 is **off** |
 | `SP` | inside the DOS page, just below `STR` (`&7F90`) — see below |
 | Interrupts | disabled, `IM 1` |
 | `E` | the keyboard row for keys 1–5, read at `&537D` |
@@ -105,11 +106,12 @@ eleven words, so you are called with `SP` at about `&7F7A` — and the bytes bel
 it are not spare. `PTH2` is at `&7F39` and `PTH1` at `&7F13`: the current
 directory paths for the two drives.
 
-MasterDOS is doing this on purpose: `STR` is the top of the `PTH2` buffer, and
-the snapshot code is borrowing a path it can read back off the disc rather than
-finding sixty spare bytes it has not got. That is a fair trade for MasterDOS,
-which knows what it is spending. It is not one for you — there are about sixty
-bytes between where you are called and `PTH2`, and nothing warns you.
+Immediately below is not the path buffer itself. The original comment bounds
+`PTH2` "to about `&7F60`", and the listing shows two more items between that
+and `STR` — at `&7F6B` and `&7F77`, both reached from MasterBASIC. What `NMI`
+pushed is sitting on those. But sixty-odd bytes is still sixty-odd bytes, and
+`PTH1` and `PTH2` are what a stack any deeper than that reaches next. Nothing
+warns you.
 
 Switch to your own stack as the first thing you do, and put it back before you
 return:
@@ -178,9 +180,9 @@ job, and both halves of this image already use them.
 `LMPR` is the problem. The instruction that restores it is the one that takes
 your page away, so the jump after it cannot be in your page — or in the DOS's,
 if the DOS is what you are paging out. `SNAP7` gets round it by writing the
-target address and the three port values into the Spectrum page at
-`&B8F6`–`&B8FA` and jumping to a stub at `&B900`: code in a page that will still
-be mapped once the ports have been put back.
+address the button is to come back to — `NMI` itself — and the three port values
+into the Spectrum page at `&B8F6`–`&B8FA`, and jumping to a stub at `&B900`:
+code in a page that will still be mapped once the ports have been put back.
 
 That stub is in neither half of this image, and it is not the ROM's either — the
 ROM's source has no Spectrum emulation in it at all. Page 3 holds a Spectrum ROM
@@ -198,13 +200,13 @@ The three ports `SNAP7` restores come from `SNPRT0`, `SNPRT1` and `SNPRT2`
 (`&4106`–`&4108`), and **nothing on the NMI path writes them**. They are
 written in one place only — `&5FCE`–`&5FDA`, where `LOAD` enters Spectrum
 mode — and `SNPRT2` is given a starting value by MasterBASIC's installer at
-`&7671`.
+`&7675`.
 
 That places the whole facility: it is built around the **Spectrum emulation**.
 The menu forces page 4 (the Spectrum's RAM) into the window; a "48K snapshot" is
-`&8000`–`&BFFF` of that page; the resume path goes through the Spectrum page.
-Your routine is called with the same assumptions, whatever the machine was
-really doing when the button was pressed.
+`&C000` bytes from `&8000` in it — three pages, stepped through the window; the
+resume path goes through the Spectrum page. Your routine is called with the same
+assumptions, whatever the machine was really doing when the button was pressed.
 
 For a routine that displays or saves and then returns, none of that matters. For
 one that resumes, it does: `SNAP7` is only meaningful when Spectrum mode was

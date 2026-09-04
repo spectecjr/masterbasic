@@ -4,8 +4,8 @@ What this project cannot settle by reading. Each entry says what to capture,
 why, and what it would decide — so that whoever has the hardware or the
 emulator can do it without reading the rest of the repository first. All four
 are now answered, and are kept because the answers are worth more than the
-questions were. One capture is still wanted, and it is a cheap one: the
-second `SAVE BOOT` in item 1.
+questions were. Two captures are still wanted, and both are cheap: the
+second `SAVE BOOT` in item 1, and one printed page for item 6.
 
 ---
 
@@ -103,6 +103,44 @@ what is either side of those two paths is unread, and the disk images in
 `dsks/` give enough test data to check any claims against.
 
 ---
+
+## 6. Wanted — which way round `DUMP n,m` magnifies
+
+**What to capture.** Two printed pages from a machine with an Epson-compatible
+printer, in MODE 4 with something obviously taller than it is wide on the
+screen:
+
+```basic
+10 MODE 4: CLS: FOR n=0 TO 90: PLOT 128,n: NEXT n
+20 DUMP 1,2
+30 DUMP 2,1
+```
+
+Anything that makes the two directions distinguishable will do; a rectangle is
+easier to measure than a line.
+
+**Why.** The manual says the first number is the width magnification and the
+second the height — "`DUMP 1,2` single width, double height". Read against the
+code, that holds for a sideways dump and appears to be the wrong way round for
+an upright one.
+
+The routine works in two axes of its own: one that fills the eight bits of a
+bit-image byte (magnified by the **first** number, at `&693E`–`&6952`) and one
+that steps from byte to byte (magnified by the **second**, at `&6995`). Which
+of those is the paper's width depends on the orientation, and
+`TRANSFORM_DUMP_COORDS` exchanges them for an upright dump. `DUMP 3` and
+anything in MODE 3 are forced sideways, where the manual's names are right;
+an ordinary `DUMP 1` or `DUMP 2` in MODE 1, 2 or 4 is upright, where they
+appear to swap.
+
+**What it would decide.** Whether this is a genuine inconsistency in the
+program — worth an entry in `docs/bugs.md` — or a misreading here. If the
+first number turns out to magnify the width in an upright dump too, then the
+axis reasoning in `notes/mb-dumpshaded.txt` is wrong somewhere and wants
+finding.
+
+---
+
 
 ## Notes on capturing
 

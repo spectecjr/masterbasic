@@ -57,9 +57,10 @@ MB &4A5C : hour and minute; seconds are not kept
 DOC PRINT_DATE_IF_SET
     Print the date stamp beside a file in a full listing, if it has one.
 
-    An unstamped entry holds &FF there on a disc MasterDOS formatted and
-    &00 on one it did not, and INC A followed by CP &02 rejects both:
-    &FF becomes &00 and &00 becomes &01, and carry is set for either.
+    An unstamped entry holds &00: both DOSes format every data byte of
+    every sector to zero, and STAMP_WITH_DATE leaves the field alone
+    when the clock is not set.  The test accepts &FF as well, which
+    is what a disc written by something else may leave there.
 
     The fields are printed in pairs with a separator between them, "/"
     for the date and ":" for the time, which is why the same routine

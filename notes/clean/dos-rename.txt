@@ -65,13 +65,15 @@ DOC FESE2
     THE NAME IS 42 BYTES BACK from there, which is why BC is loaded with
     -42 rather than the address being worked out again.
 
-    A NAME BEGINNING "D" AND A DIGIT WOULD READ AS A DRIVE, so one that
-    does has its first character replaced with "*".  C11SP is what
-    decides: a "D", a digit and then nothing but spaces.
+    A NAME THAT IS JUST "D" WOULD READ AS A DRIVE, so one that is has
+    its first character replaced with "*".  C11SP is what decides, and
+    it tests one thing only: that every one of the eleven bytes after
+    the first is a space.  So "D" is starred and "D1", which has a
+    non-space in the second position, is kept as it is.
 
 DOS &55FB : the refresh register, which is unpredictable enough
-DOS &55FD : the high half of the disc's identity
-DOS &55FF : and the frame counter for the low half
+DOS &55FD : the low half of the disc's identity -- SDTKS reads &FD into C and &FC into B
+DOS &55FF : and the frame counter for the high half
 DOS &5605 : forty-two bytes back
 DOS &5608 : is offset 210, where the disc's name goes
 DOS &560F expr CASE_BLIND
@@ -82,7 +84,12 @@ DOS &561C : ten characters of name
 DOS &561F : into the sector, ready to be written
 
 DOC CMD_PROTECT
-    PROTECT and HIDE, which differ in one bit and share everything else.
+    PROTECT and HIDE.
+
+    AS COMMANDS ON A FILE they differ in one bit and share everything
+    else.  HIDE has a second form as well, which PROTECT jumps straight
+    past: HIDE TO n hides the front of the BASIC program rather than a
+    file, and has nothing to do with the flag bit.
 
     HSTR1 holds the bit -- &40 for protected, &80 for hidden -- and SFB2
     is written so that neither the command nor the direction needs a

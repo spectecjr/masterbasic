@@ -78,7 +78,7 @@ DOS &53B4 : is X down?
 DOS &53B6 : no, so go round the menu again
 DOS &53B8 : it is, so wait until it is let go
 DOS &53BE : and settle
-DOS &53C1 : the ports as they were when Spectrum mode was entered
+DOS &53C1 : SNPRT0 is the saved LMPR, so this puts the wrong port back -- see docs/bugs.md 4
 DOS &53CC : and back to BASIC, leaving the frozen program behind
 
 DOC SNAP4
@@ -99,8 +99,9 @@ DOC SNAP4
     there is no BASIC to report it to.
 
     WHAT GOES IN THE HEADER differs between the two kinds.  A 48K
-    snapshot has no ROM header of its own, so the twenty-two bytes at
-    STR-20 -- the registers this routine pushed -- are written into the
+    snapshot has no ROM header of its own, so twenty-two bytes from
+    STR-20 -- the twenty this routine pushed, and the interrupted SP
+    that LD (STR),SP saved above them -- are written into the
     entry where a header would be, which is where SNAP7 reads them back
     from.  A SCREEN$ gets a header built the ordinary way, with the
     start and length taken from a table.
@@ -120,7 +121,7 @@ DOS &5407 : &40 lifts it into the letters
 DOS &540C : the finished name
 DOS &5417 : nothing of the interrupted command's flags survives
 DOS &541E : open the file
-DOS &5421 : the registers this routine pushed
+DOS &5421 : twenty bytes of registers, and the interrupted SP in STR just above them
 DOS &5424 : into the entry, where a ROM header would be
 DOS &542A : which kind of file is this?
 DOS &542F : a 48K snapshot keeps the registers there
@@ -130,7 +131,7 @@ DOS &5443 : the block itself
 DOS &544D : and close the file
 
 DOS &5450-&5456 data
-DOS &5450 : a SCREEN$'s start: page &6E on a 256K machine
+DOS &5450 : a SCREEN$'s start.  &6E is too large for a five-bit page number, and nothing in this build reads it
 DOS &5453 : its length, &1B00, and the &FF that means "no exec address"
 
 DOC SNAP7

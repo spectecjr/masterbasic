@@ -1,11 +1,18 @@
 # Manual spelunking - from Cookie
 
-DOS &5152 SETBORDER_BORDCR
-    Sets the border color to the current value of the BORDCR system variable, which contains an
-    attribute color selected to contrast with the current border color. (Compare with BORDCOL, which
-    stores the actual border color). 
+DOS &5152 SETBORDER_BORDCOL
+    Set the border to the colour BORDCOL holds.
 
-    The value of SOFF is preserved.
+    The ROM's own vars file calls &5C4B BORDCOL, "VALUE TO SEND TO
+    BORDER PORT" -- already in port format, which is the only reason
+    this can send it straight out.  BORDCR is a different variable at
+    &5C48, the lower screen's attributes; an earlier reading of this
+    had the two the wrong way round, and so does the equate name,
+    which is the 1991 source's own (it comments it "BORDCOL").
+
+    The value of SOFF is preserved: bit 7 comes from a read of the
+    port and the rest from BORDCOL, which is what XOR C / AND &80 /
+    XOR C does.
 
 DOS &4536 CKDE
     (PGES1) is a page number, and DE is an offset in the range 0000-7FFF.

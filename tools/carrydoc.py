@@ -628,16 +628,19 @@ def apply(dos, work, root, banner, data_mark=None, data_region=None):
         hit, tot = routine_match(pairs, src_starts, a, stop)
         if tot >= MIN_BODY and hit < tot * MIN_MATCH:
             changed.append((name, t, hit, tot))
-            # Say so in the listing.  Knowing that a routine was changed,
-            # and by how much, is worth more than the description of the
-            # version that is not the one here.
+            # Say so in the listing: a description that may belong to
+            # different code is worse than none, and the reader can
+            # follow the citation and judge.
             if t in dos.labels and t not in dos.headers:
                 dos.headers[t] = banner(
-                    'MasterBASIC changed this routine: only %d of the %d\n'
-                    'instructions stock MasterDOS 2.3 has in %s survive\n'
-                    'here, so that version\'s description of it has been\n'
-                    'left out rather than carried across.  Compare\n'
-                    'ref/masterdos/annotated-src/masterdos23.asm.'
+                    'The code from here to the next routine carried across'
+                    ' matches stock MasterDOS 2.3 in only %d of %d'
+                    ' instructions, so that description has been left out'
+                    ' rather than carried across.  The stretch measured runs'
+                    ' to the next carried label and may take in more than'
+                    ' this one routine, so it is a hint and not a verdict.'
+                    '  Compare %s in'
+                    ' ref/masterdos/annotated-src/masterdos23.asm.'
                     % (hit, tot, name))
             continue
         if t in dos.headers or t not in dos.labels:

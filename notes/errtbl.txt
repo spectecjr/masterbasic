@@ -15,8 +15,8 @@ DOC ERRTBL
     would actually print.  Where the two overlap they agree: eighteen
     codes, 84 to 112, read the same from the table as from the document.
 
-    SEVEN CODES ARE PAST THE END OF THE DOCUMENTATION.  errors.md stops
-    at 112.  The table carries on:
+    THREE CODES ARE PAST THE END OF THE DOCUMENTATION.  errors.md runs
+    to 116.  The table carries on past that:
 
         113  Directory not found
         114  Directory not empty
@@ -35,12 +35,14 @@ DOC ERRTBL
     so the listing uses them: DEFB NO where the byte is &0B, and
     DEFB FILE+&80 where it is &97 and ends the message.
 
-    THREE OF THE SEVEN UNDOCUMENTED CODES ARE ACTUALLY RAISED, which is
-    the check on having read them right.  The DOS's own chain of error
-    stubs loads 113 at &5195, 114 just after it, and MasterBASIC loads
-    119 at &43AD.  The other four -- 115 to 118 -- have messages that
-    nothing in either half loads into A; they would be raised by
-    CALL DERR with the code inline, which is the other way in.
+    ALL BUT TWO OF THE HIGH CODES ARE ACTUALLY RAISED, which is the
+    check on having read them right.  The DOS's own chain of error
+    stubs loads 113 at &5195, 114 just after it, 115 at &519B and 116
+    at &519E -- the last two with live callers at &5A33/&6A11 and
+    &4D5B/&5E5F -- and MasterBASIC loads 119 at &43AD.  Only 117 and
+    118 have messages that nothing in either half loads into A; they
+    would be raised by CALL DERR with the code inline, which is the
+    other way in.
 
     119 is the one that prompted this.  MasterBASIC's REP_SIZE_MISMATCH
     at &43AD loads it, and the only thing that reaches that stub is

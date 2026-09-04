@@ -57,7 +57,7 @@ Read or write one of the ROM's system variables.
     CALL NRRD                 ; A  <- byte at the address that follows
     DEFW <ROM variable>
 
-The four entries differ only in the primitive they call: NRRDD reads a
+Three of the four differ only in the primitive they call: NRRDD reads a
 word into BC, NRRD a byte into A, NRWRD writes BC and NRWR writes A.
 Each reads the address out of the word after the call and steps the
 return address past it.

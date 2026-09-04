@@ -39,7 +39,7 @@ DOS &5CDC : the next entry that matches the name
 DOS &5CDF : erasing files, so a directory is not wanted
 DOS &5CE1 : erasing a directory, so a file is not wanted
 DOS &5CE3 : and clear the carry, so the shared test below lets it past
-DOS &5CE4 : a directory when a file was asked for, or the other way
+DOS &5CE4 : a directory when a file was asked for -- the other way round was dealt with two instructions up
 DOS &5CE6 : the type byte, with its flags
 DOS &5CE7 : was OVER given?
 DOS &5CEA : then protection does not stop it
@@ -92,7 +92,7 @@ DOS &5D44 : offset &FE, the tag of the directory this file is in
 DOS &5D4A : &FF is no directory's tag, so it means all of them
 DOS &5D4D : otherwise it has to be the one we are in
 
-DOC WRITE_BYTE_IF_OPEN
+DOC WRITE_TYPE_IF_CONFIRMED
     Ask, and if the answer is yes put A into the entry and write it.
 
     The one place PROTECT, HIDE and their OFF forms end at: each has

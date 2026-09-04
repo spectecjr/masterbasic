@@ -16,16 +16,23 @@ DOC FMT1A
     straight through the disc arrives at the next track just as the
     sector it wants is coming under the head, rather than a whole
     revolution too late.  SKEW holds the step as a negative number --
-    &FF for one, &FE for two, &00 for none -- and the sum is folded back
-    into 1 to 10 with the carry as the test: no carry means the addition
-    stayed below 256 and ten has to be added back.
+    &FF for one, &FE for two -- and the sum is folded back into 1 to 10
+    with the carry as the test: no carry means the addition stayed
+    below 256 and ten has to be added back.
+
+    THE ORIGINAL COMMENT SAYS "&00: 0", AND IT IS WRONG.  With SKEW
+    zero the ADD A,E never carries, because E is 0 to 9, so ten is
+    added every track and the sector number climbs out of range: 1,
+    12, 23 and on.  The value that gives no skew under this fold is
+    &F6, minus ten.  The same claim is on the SKEW byte itself at
+    &422E.
 
     SIDE 2 IS TRACK &80 upwards, so finishing side 1 is a REST to bring
     the head home and a fresh start at &80 rather than an increment.
 
 DOS &550B : the track number, over the top of the last one
 DOS &550E : and the track itself, in one command
-DOS &5511 : bit 5 of the status is the write-protect line
+DOS &5511 : bit 5 of the rotated status, which is bit 6 of the real one -- WRITE PROTECT
 DOS &5516 : the next track
 DOS &5517 : how many this drive has
 DOS &551B : all of them done
@@ -106,13 +113,15 @@ DOC PNTYP
         ZX CODE   offset &D7, the same two, but sixteen bits each and
                   stored the other way up
 
-    A type above &15 is not a type at all: those are the open-type
-    files, and &0D stands in for all of them.
+    A type above &15 would run off the end of the 22-entry table, so
+    &0D stands in for the lot of them -- which prints WHAT?, the same
+    marker the other unused codes get.  Not, as an earlier reading of
+    this had it, a name for open-type files: those are type 10.
 
 DOS &562C expr TYPE_MASK
 DOS &562F : &16 and up is not a file type
 DOS &5633 : so print one name for the lot of them
-DOS &5639 : MasterBASIC's page
+DOS &5639 : CALLMB's LMPR operand -- the page below MasterBASIC's, so MasterBASIC lands at &C000
 DOS &563E : where its table of type names is, seen through the window
 DOS &5645 : and the window back as it was
 DOS &5648 : BASIC?
@@ -125,3 +134,9 @@ DOS &5674 : then a comma
 DOS &567A : and the length
 DOS &5682 : ZX CODE?
 DOS &5686 : offset &D7, where the Spectrum's header keeps them
+
+# Two line comments carried from the annotated source that say more than
+# the code does.
+
+DOS &5758 : the digit is zero, so print the pad character -- a space before the first significant digit, "0" after it
+DOS &55C2 : and the write-protect answer comes back as the rotated status

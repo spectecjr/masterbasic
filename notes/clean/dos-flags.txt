@@ -23,13 +23,13 @@ DOC BITF4
     first sector has to be allocated -- a directory file has no contents
     of its own -- and whether ERASE is erasing a file or a directory.
 
-DOS &5E73 : the test the block three hundred bytes back is missing
+DOS &5E73 : the one of the family that is not with the other seven at &50EC
 
 
 DOC HLFG
     Point HL at the flag byte and arrange for it to be put back.
 
-    Every one of the fourteen routines below it is three instructions --
+    Every one of the fifteen routines below it is three instructions --
     call here, two bytes of a CB opcode, RET -- and the CB pair is
     executed as an inline parameter in the manner of idiom 3.  HLFG
     fetches it, so the caller's SET or BIT never has to name FLAG3
@@ -40,7 +40,8 @@ DOC HLFG
     the caller's HL, then PHLR, then the return address, and HLFG RETs
     into the parameter; the SET or BIT runs, its own RET goes to PHLR,
     and PHLR's POP HL and RET finish the job.  Two bytes, shared by
-    every one of the fourteen.
+    every one of them -- sixteen callers in all, the fifteen
+    here and BITF4 away at &5E70.
 
     SAMDOS does the same thing without the second half, and each of its
     flag routines restores HL for itself.

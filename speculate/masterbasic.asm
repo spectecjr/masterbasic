@@ -169,7 +169,9 @@ RAMTOP:                         EQU  &5CB2     ; last address BASIC may use
 RAMTOPP:                        EQU  &5CB1     ; page holding RAMTOP
 RDKEY:                          EQU  &0169     ; read a key as INKEY$ does
 REFFLG:                         EQU  &5A76     ; Z IF REF VAR BEING WORKED ON
-ROM_BORDCR:                     EQU  &5C4B     ; ATTRIBUTES FOR LOWER SCREEN IN MODES 1/2
+ROM_BORDCR:                     EQU  &5C4B     ; VALUE TO SEND TO BORDER PORT -- the ROM calls &5C4B BORDCOL, and BORDCR
+                                               ; is a different variable at &5C48. The name here is MasterDOS's own
+                                               ; source's
 RST28V:                         EQU  &5AF0     ; vector taken by the calculator before each literal
 RST8V:                          EQU  &5AEE     ; vector taken by RST &08 before the ROM handles it
 SAVARS:                         EQU  &5A82     ; ;SAVARS/NUMEND/NVARS MUST BE IN ORDER
@@ -598,32 +600,61 @@ ACRSU:
                DEFB &00,&00                    ; 405A ..
 
 ;; --------------------------------------------------------------------
-;; Which way round the shaded dump goes: 1 upside down, 2 straight, 3
-;; sideways.
+;; Which way round the shaded dump goes.
 ;;
-;; Taken from SDORI if the user has set it, and otherwise chosen at
-;; &6844: MODE 3 always gets 1, and past that it depends on which of
-;; DUMP 1-3 was asked for.
+;; SDORI is stored here unchanged when the user has set it, so the
+;; numbering is the manual's own, from the XVAR 15 table:
+;;
+;;     1   sideways
+;;     2   sideways, mirrored
+;;     3   upright
+;;     4   upside down and mirrored
+;;
+;; Chosen at DUMP_ORIENT_SETUP when SDORI is zero: 1 for MODE 3 or for
+;; DUMP 3, and 3 for everything else -- which is the manual's "the
+;; normal setting produces upright dumps unless DUMP 3, or DUMP 2 and
+;; MODE 3".
+;;
+;; An earlier reading of this had 1 as upside down and 3 as sideways.
+;; Both were wrong, and the SDORI table settles it: the value the user
+;; pokes and the value stored here are the same value.
 ;; --------------------------------------------------------------------
 
 ; ---- DUMP_ORIENT ---- from &6857, &6A00
 DUMP_ORIENT:
                DEFB &00                        ; 405C .
 
-; ---- V405D ---- from &6871, &6896
-V405D:
+;; --------------------------------------------------------------------
+;; Where the eight dots of a bit-image byte start.
+;;
+;; Set up before the dump from SDLHS or from &BF minus SDTOP, depending
+;; on the orientation, and not touched again.  DUMP_LINE_BASE is the
+;; working position on the same axis.
+;; --------------------------------------------------------------------
+
+; ---- DUMP_BIT_FROM ---- from &6871, &6896
+DUMP_BIT_FROM:
                DEFB &00                        ; 405D .
 
-; ---- V405E ---- from &69D4
-V405E:
+; ---- DUMP_BIT_TO ---- from &69D4
+DUMP_BIT_TO:
                DEFB &00                        ; 405E .
 
-; ---- V405F ---- from &6874, &68E5, &699F
-V405F:
+; ---- DUMP_BYTE_TO ---- from &6874, &68E5, &699F
+DUMP_BYTE_TO:
                DEFB &00                        ; 405F .
 
-; ---- V4060 ---- from &68E8, &68FD
-V4060:
+;; --------------------------------------------------------------------
+;; Where the stepping from byte to byte starts, and DUMP_BYTE_TO where
+;; it ends.
+;;
+;; The pair are SDBOT/SDTOP for a sideways dump and SDLHS/SDRHS for an
+;; upright one, and the number of steps between them, times the second
+;; magnification, is the byte count sent to the printer.
+;; --------------------------------------------------------------------
+
+; ---- DUMP_BYTE_FROM ---- from &68E8, &68FD
+DUMP_BYTE_FROM:
                DEFB &00                        ; 4060 .
 
 ; ---- V4061 ---- from &4CA2, &4D3A
@@ -779,8 +810,17 @@ V409D:
 V409E:
                DEFB &00                        ; 409E .
 
-; ---- V409F ---- from &692A, &693E
-V409F:
+;; --------------------------------------------------------------------
+;; How many dots one screen pixel is worth along the bit axis: 1, 2 or 3,
+;; the first number of the DUMP command.
+;;
+;; Which direction on the paper that magnifies depends on the
+;; orientation -- see the note at the top of the file about the manual's
+;; "width" and "height".
+;; --------------------------------------------------------------------
+
+; ---- DUMP_BIT_STEP ---- from &692A, &693E
+DUMP_BIT_STEP:
                DEFB &00                        ; 409F .
 
 ; ---- V40A0 ---- from &478B, &47A6, &4BAB, &4BD8, &65EA, &663B, &66D2, &670A ...
@@ -791,8 +831,8 @@ V40A0:
 V40A2:
                DEFB &00                        ; 40A2 .
 
-; ---- V40A3 ---- from &690C, &6931, &693A
-V40A3:
+; ---- DUMP_DITHER_PHASE ---- from &690C, &6931, &693A
+DUMP_DITHER_PHASE:
                DEFB &00                        ; 40A3 .
 
 ; ---- V40A4 ---- from &4B09, &4B92, &4BC3, &4BCF, &7078, &70FB
@@ -830,16 +870,26 @@ V40AD:
 DUMP_MODE:
                DEFB &00                        ; 40AE .
 
-; ---- V40AF ---- from &68AA, &690F
-V40AF:
+; ---- DUMP_LINE_BASE ---- from &68AA, &690F
+DUMP_LINE_BASE:
                DEFB &00                        ; 40AF .
 
-; ---- V40B0 ---- from &6906, &6967, &6981
-V40B0:
+; ---- DUMP_BITS_LEFT ---- from &6906, &6967, &6981
+DUMP_BITS_LEFT:
                DEFB &00                        ; 40B0 .
 
-; ---- V40B1 ---- from &68D5, &6903, &6921
-V40B1:
+;; --------------------------------------------------------------------
+;; Three, and the byte before the dot-pattern table.
+;;
+;; Two things at one address, and they do not collide because the table
+;; is indexed from one: DUMP_PIXEL_TRIPLE reloads DUMP_BITS_LEFT from
+;; here at the start of every byte, and DUMP_PIXEL adds three times the
+;; grey level plus one, two or three to the same address to reach the
+;; pattern.
+;; --------------------------------------------------------------------
+
+; ---- DUMP_BITS_CARRY ---- from &68D5, &6903, &6921
+DUMP_BITS_CARRY:
                DEFB &00,&3F,&3F,&3F,&3F,&2D,&3F,&2D,&2D,&3F,&2D,&36,&3F,&2D,&1B ; 40B1 .????-?--?-6?-.
                DEFB &2D,&36,&1B,&36,&2D,&12,&1B,&36,&1B,&24,&2D,&12,&2D,&24,&09 ; 40C0 -6.6-..6.$-.-$.
                DEFB &3F,&36,&1B,&09,&12,&12,&2D,&2D,&09,&12,&09,&1B,&12,&24,&09 ; 40CF ?6....--.....$.
@@ -3119,7 +3169,7 @@ IS_NAME_CHAR:
 ;;         CALL NRRD                 ; A  <- byte at the address that follows
 ;;         DEFW <ROM variable>
 ;;
-;;     The four entries differ only in the primitive they call: NRRDD reads a
+;;     Three of the four differ only in the primitive they call: NRRDD reads a
 ;;     word into BC, NRRD a byte into A, NRWRD writes BC and NRWR writes A.
 ;;     Each reads the address out of the word after the call and steps the
 ;;     return address past it.
@@ -3166,8 +3216,9 @@ NRRDD:
 ;;     Returns:     A = the byte at that address.
 ;;
 ;;     Preserves:   HL, DE, BC
-;;     Corrupts:    AF' -- the family uses the alternate accumulator to carry
-;;                  the saved HMPR across the access
+;;     Corrupts:    AF' -- the primitive under this entry uses the alternate
+;;                  accumulator to carry the saved HMPR across the access
+;;
 ;;     Side effect: HMPR is set to 0 for the access and put back before the
 ;;                  return.  Interrupts are not disabled, so an interrupt
 ;;                  during the access sees the ROM's page at &8000.
@@ -3231,8 +3282,9 @@ NRWRHL:
 ;;     Takes:       BC = the word to write, C stored first.
 ;;
 ;;     Preserves:   HL, DE
-;;     Corrupts:    AF' -- the family uses the alternate accumulator to carry
-;;                  the saved HMPR across the access
+;;     Corrupts:    AF' -- the primitive under this entry uses the alternate
+;;                  accumulator to carry the saved HMPR across the access
+;;
 ;;     Side effect: HMPR is set to 0 for the access and put back before the
 ;;                  return.  Interrupts are not disabled, so an interrupt
 ;;                  during the access sees the ROM's page at &8000.
@@ -3272,9 +3324,12 @@ NRWRD:
 ;;     Returns:     A = that same byte, so the value can be used again
 ;;                  without reloading it.
 ;;
-;;     Preserves:   HL, DE, BC
-;;     Corrupts:    AF' -- the family uses the alternate accumulator to carry
-;;                  the saved HMPR across the access
+;;     Preserves:   HL, DE, BC, and AF' as well: this is the one entry of the
+;;                  four that calls no primitive.  Its write is inlined
+;;                  and the saved HMPR travels in D, which is the point
+;;                  of the authors own note, "replace CALL CMR:DW
+;;                  NRREAD - faster".
+;;
 ;;     Side effect: HMPR is set to 0 for the access and put back before the
 ;;                  return.  Interrupts are not disabled, so an interrupt
 ;;                  during the access sees the ROM's page at &8000.
@@ -3471,7 +3526,7 @@ RDBC:
 ;;     Entry:   HL = an address in &4000-&7FFF.
 ;;     Returns: A = the byte there.
 ;;     Corrupts HL, which is left windowed into &8000-&BFFF, and AF'.
-;;     HMPR is put back through PPXR before the return.
+;;     HMPR is put back by BCRWC, which RDA falls into.
 ;;
 ;;     The primitive under NRRD.  Called directly where the address is already
 ;;     in HL rather than in the two bytes after a call.
@@ -3501,11 +3556,15 @@ RDA:
 ;;
 ;; Shown for this routine in disasm/:
 ;;
-;;     Put HMPR back and return.
+;;     Restore the caller's registers and return past the inline word.
 ;;
-;;     The tail every primitive above jumps to.  The value read is in A and
-;;     the saved HMPR in A', so it swaps them, writes HMPR, and swaps back --
-;;     leaving the value in A and the port as it found it.
+;;     The shared exit of the four NR entries -- not of the primitives,
+;;     which end at BCRWC.  The caller's HL and DE come back off the stack,
+;;     and EX (SP),HL puts the stepped-on return address where the RET will
+;;     find it.
+;;
+;;     MasterBASIC has a routine of its own under this name that does
+;;     something else: there, PPXR is the tail that puts HMPR back.
 ;; --------------------------------------------------------------------
 
 ; ---- PPXR ---- from &45B1, &45C0, &45CF
@@ -17613,9 +17672,8 @@ GET_WORK_PAGE_1:
 ;;     DUMP -- taken over from the ROM at token &BF.
 ;;
 ;;         DUMP 1 | 2 | 3   small, medium and large shaded dumps; 3 is
-;;                          sideways.  A second number sets the height
-;;                          magnification separately: DUMP 1,2 is single width
-;;                          and double height
+;;                          sideways.  A second number magnifies one axis
+;;                          separately from the other
 ;;         DUMP 4           medium unshaded dump, as the SAMDOS DUMP utility
 ;;         DUMP 5           text dump, read back off the screen with the ROM's
 ;;                          SCREEN$ routine
@@ -17626,20 +17684,40 @@ GET_WORK_PAGE_1:
 ;;     them -- strike count, dumped area, orientation and the Epson control
 ;;     sequences -- is in XVAR 5 and XVAR 15 to 58.
 ;;
+;;     INVERSE IS ONE PATCHED BYTE.  &67F8 loads the address of DUMP_INVERT,
+;;     which sits between the LD A,D that fetches a finished bit-image byte
+;;     and the call that prints it, and writes &00 (NOP) or &2F (CPL) into it.
+;;     Nothing else in the routine mentions INVERSE at all.
+;;
+;;     THE TWO NUMBERS ARE FETCHED IN THE ORDER THE CALCULATOR STACK GIVES
+;;     THEM, not the order they were written.  CALL_EXPNUM evaluates the first
+;;     and leaves it on the stack; INT_ARG_THEN_END evaluates the second and
+;;     takes it straight back off, which is why the 1-to-3 test at &6814
+;;     applies to the second number.  BYTE_ARGUMENT then pops what is left --
+;;     the first.  The ROM's GETINT returns "TO BC AND HL, A=C", so the PUSH
+;;     HL round the second call keeps the second number while the first is
+;;     fetched into A, and LD H,A at &6831 lands them as H = the first number
+;;     and L = the second.  With one number both halves get it, because GETINT
+;;     put the same value in A and in L: that is DUMP 3 magnifying both
+;;     directions at once.
+;;
+;;     DUMP 4 and DUMP 5 are not here at all.  They are copied into the ROM's
+;;     INSTBUF and run there -- see DUMP_TEXT and DUMP_UNSHADED.
+;;
 ;;     Manual: "Screen dumps".
 ;; --------------------------------------------------------------------
 
 CMD_DUMP:
                                                ; call DOS_PLNS-&4000 in the other page: LMPR is switched first, so that
                                                ; address is how the other listing numbers it
-               CALL CALLDOS                    ; 67F0 CD C1 42
+               CALL CALLDOS                    ; 67F0 CD C1 42  PLNS in the DOS page, before anything is printed
                DEFW DOS_PLNS-&4000             ; 67F3 8E 50
                CALL CALL_NEXTCHAR              ; 67F5 CD 61 44
-               LD HL,CMD_DUMP_21               ; 67F8 21 89 69
-               LD (HL),&00                     ; 67FB 36 00
+               LD HL,DUMP_INVERT               ; 67F8 21 89 69  the byte between "LD A,D" and the print call
+               LD (HL),&00                     ; 67FB 36 00  NOP, so the byte goes out as it is
                CP T_INVERSE                    ; 67FD FE A5
                JR NZ,CMD_DUMP_1                ; 67FF 20 05
-               LD (HL),&2F                     ; 6801 36 2F
+               LD (HL),&2F                     ; 6801 36 2F  CPL, so every dot is inverted -- this is all INVERSE does
                CALL CALL_NEXTCHAR              ; 6803 CD 61 44
 
 ;; --------------------------------------------------------------------
@@ -17660,9 +17738,9 @@ CMD_DUMP_1:
                CALL CALL_NEXTCHAR              ; 680E CD 61 44
                CALL INT_ARG_THEN_END           ; 6811 CD 73 44
                DEC A                           ; 6814 3D
-               CP &03                          ; 6815 FE 03
+               CP &03                          ; 6815 FE 03  the second number is 1 to 3
                JP NC,REP_INTEGER_OUT_OF_RANGE  ; 6817 D2 A7 43
-               PUSH HL                         ; 681A E5
+               PUSH HL                         ; 681A E5  keep it while the first is fetched from under it
                CALL BYTE_ARGUMENT              ; 681B CD A1 43
                POP HL                          ; 681E E1
                JR CMD_DUMP_3                   ; 681F 18 06
@@ -17682,7 +17760,7 @@ CMD_DUMP_2:
                CALL BYTE_ARGUMENT              ; 6824 CD A1 43
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_3 -- &6827 to &6850
+;; CMD_DUMP_3 -- &6827 to &6843
 ;;
 ;; Takes:     A, DE, L
 ;; Leaves:    A, F, HL
@@ -17692,14 +17770,14 @@ CMD_DUMP_2:
 
 ; ---- CMD_DUMP_3 ---- from &681F
 CMD_DUMP_3:
-               CP &05                          ; 6827 FE 05
+               CP &05                          ; 6827 FE 05  DUMP 5, the text dump, which is elsewhere
                JP Z,CMD_DUMP_5                 ; 6829 CA D4 6A
-               CP &04                          ; 682C FE 04
+               CP &04                          ; 682C FE 04  DUMP 4, the unshaded dump, likewise
                JP Z,CMD_DUMP_4                 ; 682E CA D6 6A
-               LD H,A                          ; 6831 67
+               LD H,A                          ; 6831 67  the first number above the second
                LD (V409E),HL                   ; 6832 22 9E 40
                DEC A                           ; 6835 3D
-               CP &03                          ; 6836 FE 03
+               CP &03                          ; 6836 FE 03  and the first is 1 to 3 as well
                JP NC,REP_INTEGER_OUT_OF_RANGE  ; 6838 D2 A7 43
                                                ; read the ROM variable MODE -- the word below is its address, and the
                                                ; call returns past it
@@ -17707,45 +17785,84 @@ CMD_DUMP_3:
                DEFW MODE                       ; 683E 40 5A
                LD (DUMP_MODE),A                ; 6840 32 AE 40
                LD B,A                          ; 6843 47
-               CP &02                          ; 6844 FE 02
-               JR Z,CMD_DUMP_6                 ; 6846 28 09
-               LD A,(SDORI)                    ; 6848 3A 0F 40
+
+;; --------------------------------------------------------------------
+;; DUMP_ORIENT_SETUP -- &6844 to &6850
+;;
+;; Takes:     A, H
+;; Leaves:    A, F
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Which way round the dump goes, and what area of the screen it covers.
+;;
+;;     ORIENTATION IS SDORI'S IF THE USER SET IT, and otherwise 1 for MODE 3
+;;     or DUMP 3 and 3 for everything else.  The two tests share their JR Z:
+;;     CP &02 against the screen mode and CP &03 against the DUMP number
+;;     both fall on the same LD A,&01, and only the second needs the
+;;     fall-through to LD A,&03.
+;;
+;;     The manual gives the numbering, and the code stores SDORI straight
+;;     through, so they are the same numbering: 1 sideways, 2 sideways
+;;     mirrored, 3 upright, 4 upside down and mirrored.
+;;
+;;     THE MANUAL SAYS "unless DUMP 3, or DUMP 2 and MODE 3".  The code is
+;;     less particular than that: in MODE 3 any of DUMP 1, 2 and 3 comes out
+;;     sideways, because the mode is tested before the DUMP number is looked
+;;     at and jumps clear of it.
+;;
+;;     THE FOUR LIMITS ARE PUT IN AXIS ORDER RATHER THAN SCREEN ORDER.  The
+;;     routine below works in two axes of its own -- one that fills the eight
+;;     bits of a bit-image byte, one that steps from byte to byte -- and
+;;     which screen axis each of those is depends on the orientation.  So for
+;;     an upright dump the pairs are exchanged here, and the rows are
+;;     subtracted from &BF because the manual's coordinates put 191 at the
+;;     top of the screen and the loop counts the other way.  After this,
+;;     DUMP_BIT_FROM/TO and DUMP_BYTE_FROM/TO mean the same thing whichever
+;;     way the picture is going, and TRANSFORM_DUMP_COORDS is the only other
+;;     place that has to know.
+;; --------------------------------------------------------------------
+
+DUMP_ORIENT_SETUP:
+               CP &02                          ; 6844 FE 02  MODE 3 is always sideways, whichever DUMP was asked for
+               JR Z,DUMP_ORIENT_SETUP_1        ; 6846 28 09
+               LD A,(SDORI)                    ; 6848 3A 0F 40  the user's own setting wins if there is one
                AND A                           ; 684B A7
-               JR NZ,CMD_DUMP_7                ; 684C 20 09
-               LD A,H                          ; 684E 7C
+               JR NZ,DUMP_ORIENT_SETUP_2       ; 684C 20 09
+               LD A,H                          ; 684E 7C  and otherwise DUMP 3 is the sideways one
                CP &03                          ; 684F FE 03
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_6 -- &6851 to &6856
+;; DUMP_ORIENT_SETUP_1 -- &6851 to &6856
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_6 ---- from &6846 when A = &02
-CMD_DUMP_6:
-               LD A,&01                        ; 6851 3E 01
-               JR Z,CMD_DUMP_7                 ; 6853 28 02
-               LD A,&03                        ; 6855 3E 03
+; ---- DUMP_ORIENT_SETUP_1 ---- from &6846 when A = &02
+DUMP_ORIENT_SETUP_1:
+               LD A,&01                        ; 6851 3E 01  sideways
+               JR Z,DUMP_ORIENT_SETUP_2        ; 6853 28 02
+               LD A,&03                        ; 6855 3E 03  upright
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_7 -- &6857 to &6870
+;; DUMP_ORIENT_SETUP_2 -- &6857 to &6870
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F, C, DE, HL
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_7 ---- from &684C when A <> 0, &6853
-CMD_DUMP_7:
+; ---- DUMP_ORIENT_SETUP_2 ---- from &684C when A <> 0, &6853
+DUMP_ORIENT_SETUP_2:
                LD (DUMP_ORIENT),A              ; 6857 32 5C 40
-               LD HL,(SDLHS)                   ; 685A 2A 10 40
-               LD DE,(SDTOP)                   ; 685D ED 5B 12 40
+               LD HL,(SDLHS)                   ; 685A 2A 10 40  the left and right edges of the dumped area
+               LD DE,(SDTOP)                   ; 685D ED 5B 12 40  and the top and bottom
                CP &03                          ; 6861 FE 03
-               JR C,CMD_DUMP_8                 ; 6863 38 0C
-               LD C,H                          ; 6865 4C
+               JR C,DUMP_ORIENT_SETUP_3        ; 6863 38 0C  sideways wants them as they are
+               LD C,H                          ; 6865 4C  upright wants the pairs the other way round
                LD H,L                          ; 6866 65
                LD L,C                          ; 6867 69
-               LD A,&BF                        ; 6868 3E BF
+               LD A,&BF                        ; 6868 3E BF  and the rows counted from the top rather than the bottom
                SUB E                           ; 686A 93
                LD E,A                          ; 686B 5F
                LD A,&BF                        ; 686C 3E BF
@@ -17754,7 +17871,7 @@ CMD_DUMP_7:
                EX DE,HL                        ; 6870 EB
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_8 -- &6871 to &689D
+;; DUMP_ORIENT_SETUP_3 -- &6871 to &689D
 ;;
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, HL
@@ -17762,38 +17879,39 @@ CMD_DUMP_7:
 ;; ? reaches the ROM through CUSCRNP; calls NRRD; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_8 ---- from &6863 when A < &03
-CMD_DUMP_8:
-               LD (V405D),HL                   ; 6871 22 5D 40
-               LD (V405F),DE                   ; 6874 ED 53 5F 40
+; ---- DUMP_ORIENT_SETUP_3 ---- from &6863 when A < &03
+DUMP_ORIENT_SETUP_3:
+               LD (DUMP_BIT_FROM),HL           ; 6871 22 5D 40  the axis that fills the bits of a byte
+               LD (DUMP_BYTE_TO),DE            ; 6874 ED 53 5F 40  and the axis that steps from byte to byte
                                                ; read the ROM variable CUSCRNP -- the word below is its address, and the
                                                ; call returns past it
-               CALL NRRD                       ; 6878 CD 6A 45
+               CALL NRRD                       ; 6878 CD 6A 45  the screen being displayed
                DEFW CUSCRNP                    ; 687B 78 5A
                AND PAGEMASK                    ; 687D E6 1F
-               OUT (HMPR),A                    ; 687F D3 FB
+               OUT (HMPR),A                    ; 687F D3 FB  into the window, where the pixel reader expects it
                CALL BUILD_GREY_MAP             ; 6881 CD 69 6A
-               LD A,&FB                        ; 6884 3E FB
+               LD A,&FB                        ; 6884 3E FB  stream &FB, the printer
                CALL CALL_STREAM                ; 6886 CD EB 69
-               LD HL,GCMX1                     ; 6889 21 23 40
+               LD HL,GCMX1                     ; 6889 21 23 40  GCMX1 -- left margin and line advance, sent once
                CALL PRINT_COUNTED_STRING       ; 688C CD F1 69
                LD D,&00                        ; 688F 16 00
-               LD A,(DUMP_MODE)                ; 6891 3A AE 40
+               LD A,(DUMP_MODE)                ; 6891 3A AE 40  MODE 3 has half the columns, so the start doubles
                CP &02                          ; 6894 FE 02
-               LD A,(V405D)                    ; 6896 3A 5D 40
-               JR NZ,CMD_DUMP_9                ; 6899 20 03
+               LD A,(DUMP_BIT_FROM)            ; 6896 3A 5D 40
+               JR NZ,DUMP_ORIENT_SETUP_4       ; 6899 20 03
                ADD A,A                         ; 689B 87
-               RL D                            ; 689C CB 12
+               RL D                            ; 689C CB 12  and the bit that carries out of it is kept for the pixel
+                                               ; reader
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_9 -- &689E to &68A9
+;; DUMP_ORIENT_SETUP_4 -- &689E to &68A9
 ;;
 ;; Takes:     A, D
 ;; Leaves:    A, C, D
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_9 ---- from &6899 when A <> &02
-CMD_DUMP_9:
+; ---- DUMP_ORIENT_SETUP_4 ---- from &6899 when A <> &02
+DUMP_ORIENT_SETUP_4:
                LD C,A                          ; 689E 4F
                LD A,D                          ; 689F 7A
                LD (V40AA),A                    ; 68A0 32 AA 40
@@ -17802,42 +17920,77 @@ CMD_DUMP_9:
                LD (V40A0),A                    ; 68A7 32 A0 40
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_LOOP -- &68AA to &68B6
+;; DUMP_LINE -- &68AA to &68B6
 ;;
 ;; Takes:     C
 ;; Leaves:    A, B, HL
 ;;
 ;; ? calls PRINT_COUNTED_STRING; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     One bit-image line: eight dots deep, the whole width of the dump.
+;;
+;;     DUMP_LINE_BASE holds where this line starts on the bit axis, and the
+;;     line advances it by eight each time round.  GCMX4 goes out first,
+;;     which is the carriage return and line feed that ends the line before
+;;     -- so a dump opens with one carriage return and line feed that has
+;;     nothing in front of it, and its last line is not followed by
+;;     anything until GCMX3.
+;;
+;;     DTTH says how many times to print the same line.  The manual: "DUMP
+;;     Times To Hit the paper.  Normally 1 ... POKE XVAR 5,2 for
+;;     double-strike."  The carriage return in GCMX2 is what makes a second
+;;     strike land on top of the first, and the manual says that too.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_LOOP ---- from &69CA
-CMD_DUMP_LOOP:
-               LD HL,V40AF                     ; 68AA 21 AF 40
-               LD (HL),C                       ; 68AD 71
-               LD HL,GCMX4                     ; 68AE 21 1C 40
+; ---- DUMP_LINE ---- from &69CA
+DUMP_LINE:
+               LD HL,DUMP_LINE_BASE            ; 68AA 21 AF 40
+               LD (HL),C                       ; 68AD 71  where this line starts on the bit axis
+               LD HL,GCMX4                     ; 68AE 21 1C 40  GCMX4, which ends the line before this one
                CALL PRINT_COUNTED_STRING       ; 68B1 CD F1 69
-               LD A,(DTTH)                     ; 68B4 3A 05 40
+               LD A,(DTTH)                     ; 68B4 3A 05 40  how many times to print this line
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_LOOP2 -- &68B7 to &68C7
+;; DUMP_STRIKE -- &68B7 to &68C7
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     One pass of the print head over one line.
+;;
+;;     THE DITHER PATTERN IS ROTATED BETWEEN LINES, and which way round
+;;     depends on whether the second magnification is 1.  &68BA reads it and
+;;     throws the value away immediately -- the DEC A is only there to set
+;;     Z -- so the branch is "is the byte axis being magnified at all".
+;;     Magnified, the phase counts down and wraps at 0; not magnified, it
+;;     counts up and wraps at 3.  Either way it stays in 0 to 2, and it is
+;;     what stops a flat area of colour printing as stripes.
+;;
+;;     THE COUNT SENT AFTER GCMX2 is worked out by adding, not multiplying:
+;;     the number of steps on the byte axis, added to itself once for every
+;;     unit of magnification.  That is the Epson n1/n2 pair -- how many
+;;     bytes of bit image follow -- and it is the only place the two
+;;     magnifications and the two axis limits all come together.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_LOOP2 ---- from &69B2 when A is not 0 yet
-CMD_DUMP_LOOP2:
+; ---- DUMP_STRIKE ---- from &69B2 when A is not 0 yet
+DUMP_STRIKE:
                LD (V40AB),A                    ; 68B7 32 AB 40
-               LD A,(V409E)                    ; 68BA 3A 9E 40
+               LD A,(V409E)                    ; 68BA 3A 9E 40  is the byte axis magnified? the value itself is not
+                                               ; wanted
                DEC A                           ; 68BD 3D
                LD A,(V40A0)                    ; 68BE 3A A0 40
-               JR NZ,CMD_DUMP_11               ; 68C1 20 08
+               JR NZ,DUMP_STRIKE_2             ; 68C1 20 08
                AND A                           ; 68C3 A7
-               JR NZ,CMD_DUMP_10               ; 68C4 20 02
+               JR NZ,DUMP_STRIKE_1             ; 68C4 20 02
                LD A,&03                        ; 68C6 3E 03
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_10 -- &68C8 to &68CA
+;; DUMP_STRIKE_1 -- &68C8 to &68CA
 ;;
 ;; Takes:     A, C, D
 ;; Leaves:    A, F, C, DE, HL, IY
@@ -17847,27 +18000,27 @@ CMD_DUMP_LOOP2:
 ;; ? calls PRINT_COUNTED_STRING, CALL_PRINT_A, TRANSFORM_DUMP_COORDS.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_10 ---- from &68C4 when A <> 0
-CMD_DUMP_10:
-               DEC A                           ; 68C8 3D
-               JR CMD_DUMP_12                  ; 68C9 18 06
+; ---- DUMP_STRIKE_1 ---- from &68C4 when A <> 0
+DUMP_STRIKE_1:
+               DEC A                           ; 68C8 3D  magnified: the phase counts down
+               JR DUMP_STRIKE_3                ; 68C9 18 06
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_11 -- &68CB to &68D0
+;; DUMP_STRIKE_2 -- &68CB to &68D0
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_11 ---- from &68C1 when A is not 0 yet
-CMD_DUMP_11:
-               INC A                           ; 68CB 3C
+; ---- DUMP_STRIKE_2 ---- from &68C1 when A is not 0 yet
+DUMP_STRIKE_2:
+               INC A                           ; 68CB 3C  not magnified: it counts up
                CP &03                          ; 68CC FE 03
-               JR C,CMD_DUMP_12                ; 68CE 38 01
+               JR C,DUMP_STRIKE_3              ; 68CE 38 01
                XOR A                           ; 68D0 AF
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_12 -- &68D1 to &68F1
+;; DUMP_STRIKE_3 -- &68D1 to &68F1
 ;;
 ;; Takes:     A, D
 ;; Leaves:    A, F, B, DE, HL
@@ -17875,18 +18028,19 @@ CMD_DUMP_11:
 ;; ? calls PRINT_COUNTED_STRING; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_12 ---- from &68C9, &68CE when A < &03
-CMD_DUMP_12:
+; ---- DUMP_STRIKE_3 ---- from &68C9, &68CE when A < &03
+DUMP_STRIKE_3:
                LD (V40A0),A                    ; 68D1 32 A0 40
                LD A,D                          ; 68D4 7A
-               LD (V40B1),A                    ; 68D5 32 B1 40
-               LD HL,GCMX2                     ; 68D8 21 14 40
+               LD (DUMP_BITS_CARRY),A          ; 68D5 32 B1 40  three bits to a pixel, carried across lines by the
+                                               ; widest dump
+               LD HL,GCMX2                     ; 68D8 21 14 40  GCMX2 -- carriage return, then ESC "*" and the density
                CALL PRINT_COUNTED_STRING       ; 68DB CD F1 69
                LD A,(V409E)                    ; 68DE 3A 9E 40
-               LD (V40A2),A                    ; 68E1 32 A2 40
+               LD (V40A2),A                    ; 68E1 32 A2 40  the magnification, counted down once per byte
                LD B,A                          ; 68E4 47
-               LD A,(V405F)                    ; 68E5 3A 5F 40
-               LD HL,V4060                     ; 68E8 21 60 40
+               LD A,(DUMP_BYTE_TO)             ; 68E5 3A 5F 40  how many steps the byte axis takes
+               LD HL,DUMP_BYTE_FROM            ; 68E8 21 60 40
                SUB (HL)                        ; 68EB 96
                LD E,A                          ; 68EC 5F
                LD D,&00                        ; 68ED 16 00
@@ -17895,7 +18049,7 @@ CMD_DUMP_12:
                INC DE                          ; 68F1 13
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_LOOP3 -- &68F2 to &6902
+;; DUMP_STRIKE_LOOP -- &68F2 to &6902
 ;;
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
@@ -17903,90 +18057,129 @@ CMD_DUMP_12:
 ;; ? calls CALL_PRINT_A; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_LOOP3 ---- from &68F3 when B is not 0 yet
-CMD_DUMP_LOOP3:
-               ADD HL,DE                       ; 68F2 19
-               DJNZ CMD_DUMP_LOOP3             ; 68F3 10 FD
+; ---- DUMP_STRIKE_LOOP ---- from &68F3 when B is not 0 yet
+DUMP_STRIKE_LOOP:
+               ADD HL,DE                       ; 68F2 19  times the magnification, by adding rather than multiplying
+               DJNZ DUMP_STRIKE_LOOP           ; 68F3 10 FD
                LD A,L                          ; 68F5 7D
-               CALL CALL_PRINT_A               ; 68F6 CD FA 69
+               CALL CALL_PRINT_A               ; 68F6 CD FA 69  the Epson count, low byte first
                LD A,H                          ; 68F9 7C
                CALL CALL_PRINT_A               ; 68FA CD FA 69
-               LD A,(V4060)                    ; 68FD 3A 60 40
+               LD A,(DUMP_BYTE_FROM)           ; 68FD 3A 60 40  and start at the beginning of the byte axis
                LD B,A                          ; 6900 47
                LD E,&03                        ; 6901 1E 03
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_LOOP4 -- &6903 to &6914
+;; DUMP_BYTE -- &6903 to &6914
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A, C, D
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     One byte of bit image: eight dots stacked up the paper.
+;;
+;;     Everything is put back to the state the line started in -- the phase,
+;;     the leftover bit count, and the position on the bit axis, which is
+;;     what makes each byte cover the same eight dots at a new position
+;;     along the other axis.
+;;
+;;     D IS THE BYTE BEING BUILT, and it starts at 1 rather than 0.  Bits
+;;     are shifted in at the bottom with RL D, and after eight of them the
+;;     1 falls out into carry -- so the byte is finished by the carry and
+;;     not by a counter.  Every path that shifts a bit tests it, which is
+;;     why a pixel worth two or three bits can finish a byte in the middle
+;;     of itself.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_LOOP4 ---- from &69AB
-CMD_DUMP_LOOP4:
-               LD A,(V40B1)                    ; 6903 3A B1 40
-               LD (V40B0),A                    ; 6906 32 B0 40
+; ---- DUMP_BYTE ---- from &69AB
+DUMP_BYTE:
+               LD A,(DUMP_BITS_CARRY)          ; 6903 3A B1 40
+               LD (DUMP_BITS_LEFT),A           ; 6906 32 B0 40  three bits to a pixel again, or what was left of one
                LD A,(V40A0)                    ; 6909 3A A0 40
-               LD (V40A3),A                    ; 690C 32 A3 40
-               LD A,(V40AF)                    ; 690F 3A AF 40
+               LD (DUMP_DITHER_PHASE),A        ; 690C 32 A3 40  the phase this line starts at
+               LD A,(DUMP_LINE_BASE)           ; 690F 3A AF 40  back to the top of this line on the bit axis
                LD C,A                          ; 6912 4F
-               LD D,&01                        ; 6913 16 01
+               LD D,&01                        ; 6913 16 01  the marker bit, which says when eight have been shifted in
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_LOOP5 -- &6915 to &6939
+;; DUMP_PIXEL -- &6915 to &6939
 ;;
 ;; Takes:     BC, E
 ;; Leaves:    A, F, BC, HL
 ;;
 ;; ? calls TRANSFORM_DUMP_COORDS; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     One screen pixel, worth one, two or three dots.
+;;
+;;     TRANSFORM_DUMP_COORDS turns the two loop axes into a screen row and
+;;     column and reads the colour there; the grey map at &7B80 turns the
+;;     colour into a level from 0 to 24; and the level chooses three bytes
+;;     of dot pattern.
+;;
+;;     THE PATTERN TABLE IS INDEXED FROM ONE.  The address loaded is
+;;     DUMP_BITS_CARRY, and the offset is three times the grey level plus
+;;     the phase, which runs 3, 2, 1 -- never 0.  So the table proper starts
+;;     at the byte after DUMP_BITS_CARRY, and that byte is free to be a
+;;     variable of its own.  Twenty-five levels of three bytes is seventy-five
+;;     bytes, &40B2 to &40FC.
+;;
+;;     HOW MANY BITS THE PIXEL IS WORTH is the first DUMP number, and the
+;;     three cases are written separately.  One bit: rotate the pattern byte
+;;     down by the phase and take the bottom bit.  Two: rotate by twice the
+;;     phase and take two.  Three has a routine of its own below, because
+;;     three does not divide eight.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_LOOP5 ---- from &6986
-CMD_DUMP_LOOP5:
+; ---- DUMP_PIXEL ---- from &6986
+DUMP_PIXEL:
                PUSH BC                         ; 6915 C5
                CALL TRANSFORM_DUMP_COORDS      ; 6916 CD 00 6A
                LD C,A                          ; 6919 4F
                LD B,&00                        ; 691A 06 00
-               LD HL,INSTALL_ROM_PATCHES_2     ; 691C 21 80 7B
+               LD HL,INSTALL_ROM_PATCHES_2     ; 691C 21 80 7B  the grey map, sixteen colours to twenty-five levels
                ADD HL,BC                       ; 691F 09
                LD C,(HL)                       ; 6920 4E
-               LD HL,V40B1                     ; 6921 21 B1 40
+               LD HL,DUMP_BITS_CARRY           ; 6921 21 B1 40  the table starts one byte past this, so index 0 never
+                                               ; happens
                LD A,C                          ; 6924 79
-               ADD A,A                         ; 6925 87
+               ADD A,A                         ; 6925 87  three bytes to a level
                ADD A,C                         ; 6926 81
-               ADD A,E                         ; 6927 83
+               ADD A,E                         ; 6927 83  and one of the three per printed line
                LD C,A                          ; 6928 4F
                ADD HL,BC                       ; 6929 09
-               LD A,(V409F)                    ; 692A 3A 9F 40
+               LD A,(DUMP_BIT_STEP)            ; 692A 3A 9F 40  three bits to a pixel is the awkward case
                CP &03                          ; 692D FE 03
-               JR Z,CMD_DUMP_17                ; 692F 28 31
-               LD A,(V40A3)                    ; 6931 3A A3 40
-               INC A                           ; 6934 3C
+               JR Z,DUMP_PIXEL_TRIPLE          ; 692F 28 31
+               LD A,(DUMP_DITHER_PHASE)        ; 6931 3A A3 40
+               INC A                           ; 6934 3C  the phase steps once per pixel and wraps at three
                CP &03                          ; 6935 FE 03
-               JR C,CMD_DUMP_13                ; 6937 38 01
+               JR C,DUMP_PIXEL_1               ; 6937 38 01
                XOR A                           ; 6939 AF
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_13 -- &693A to &6948
+;; DUMP_PIXEL_1 -- &693A to &6948
 ;;
 ;; Takes:     A, HL
 ;; Leaves:    A, F, B
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_13 ---- from &6937 when A < &03
-CMD_DUMP_13:
-               LD (V40A3),A                    ; 693A 32 A3 40
+; ---- DUMP_PIXEL_1 ---- from &6937 when A < &03
+DUMP_PIXEL_1:
+               LD (DUMP_DITHER_PHASE),A        ; 693A 32 A3 40
                LD B,A                          ; 693D 47
-               LD A,(V409F)                    ; 693E 3A 9F 40
+               LD A,(DUMP_BIT_STEP)            ; 693E 3A 9F 40  one bit to a pixel, or two
                DEC A                           ; 6941 3D
                LD A,(HL)                       ; 6942 7E
-               JR NZ,CMD_DUMP_14               ; 6943 20 09
+               JR NZ,DUMP_PIXEL_2              ; 6943 20 09
                INC B                           ; 6945 04
                DEC B                           ; 6946 05
-               JR Z,CMD_DUMP_16                ; 6947 28 10
+               JR Z,DUMP_PIXEL_4               ; 6947 28 10
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_LOOP6 -- &6949 to &694D
+;; DUMP_PIXEL_LOOP -- &6949 to &694D
 ;;
 ;; Takes:     A, B, DE
 ;; Leaves:    A, F, BC, D, HL
@@ -17995,52 +18188,52 @@ CMD_DUMP_13:
 ;; ? calls TRANSFORM_DUMP_COORDS.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_LOOP6 ---- from &694A when B is not 0 yet
-CMD_DUMP_LOOP6:
-               RRCA                            ; 6949 0F
-               DJNZ CMD_DUMP_LOOP6             ; 694A 10 FD
-               JR CMD_DUMP_16                  ; 694C 18 0B
+; ---- DUMP_PIXEL_LOOP ---- from &694A when B is not 0 yet
+DUMP_PIXEL_LOOP:
+               RRCA                            ; 6949 0F  one bit: rotate the pattern down by the phase
+               DJNZ DUMP_PIXEL_LOOP            ; 694A 10 FD
+               JR DUMP_PIXEL_4                 ; 694C 18 0B
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_14 -- &694E to &6951
+;; DUMP_PIXEL_2 -- &694E to &6951
 ;;
 ;; Takes:     B
 ;; Leaves:    F, B
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_14 ---- from &6943 when A is not 0 yet
-CMD_DUMP_14:
+; ---- DUMP_PIXEL_2 ---- from &6943 when A is not 0 yet
+DUMP_PIXEL_2:
                INC B                           ; 694E 04
                DEC B                           ; 694F 05
-               JR Z,CMD_DUMP_15                ; 6950 28 04
+               JR Z,DUMP_PIXEL_3               ; 6950 28 04
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_LOOP7 -- &6952 to &6955
+;; DUMP_PIXEL_LOOP2 -- &6952 to &6955
 ;;
 ;; Takes:     A, B
 ;; Leaves:    A, F, B
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_LOOP7 ---- from &6954 when B is not 0 yet
-CMD_DUMP_LOOP7:
-               RRCA                            ; 6952 0F
+; ---- DUMP_PIXEL_LOOP2 ---- from &6954 when B is not 0 yet
+DUMP_PIXEL_LOOP2:
+               RRCA                            ; 6952 0F  two bits: twice as far
                RRCA                            ; 6953 0F
-               DJNZ CMD_DUMP_LOOP7             ; 6954 10 FC
+               DJNZ DUMP_PIXEL_LOOP2           ; 6954 10 FC
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_15 -- &6956 to &6958
+;; DUMP_PIXEL_3 -- &6956 to &6958
 ;;
 ;; Takes:     A, D
 ;; Leaves:    A, F, D
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_15 ---- from &6950 when B reaches 0
-CMD_DUMP_15:
-               RRA                             ; 6956 1F
+; ---- DUMP_PIXEL_3 ---- from &6950 when B reaches 0
+DUMP_PIXEL_3:
+               RRA                             ; 6956 1F  the first of the two
                RL D                            ; 6957 CB 12
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_16 -- &6959 to &6961
+;; DUMP_PIXEL_4 -- &6959 to &6961
 ;;
 ;; Takes:     A, DE
 ;; Leaves:    A, F, BC, D, HL
@@ -18049,80 +18242,94 @@ CMD_DUMP_15:
 ;; ? calls TRANSFORM_DUMP_COORDS.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_16 ---- from &6947 when B reaches 0, &694C
-CMD_DUMP_16:
-               RRA                             ; 6959 1F
+; ---- DUMP_PIXEL_4 ---- from &6947 when B reaches 0, &694C
+DUMP_PIXEL_4:
+               RRA                             ; 6959 1F  and the bit itself, into the byte being built
                RL D                            ; 695A CB 12
                LD C,&01                        ; 695C 0E 01
-               JR C,CMD_DUMP_20                ; 695E 38 28
-               JR CMD_DUMP_19                  ; 6960 18 22
+               JR C,DUMP_EMIT                  ; 695E 38 28  eight shifted in, so the byte is full
+               JR DUMP_PIXEL_5                 ; 6960 18 22
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_17 -- &6962 to &6971
+;; DUMP_PIXEL_TRIPLE -- &6962 to &6971
 ;;
 ;; Takes:     HL
 ;; Leaves:    BC
 ;; Preserves: A, F (saved and restored)
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Three dots to a pixel, which does not divide into eight.
+;;
+;;     DUMP_BITS_LEFT carries the count across the byte boundary: a pixel
+;;     that runs out of room finishes in the next byte, and the count says
+;;     how many of its three dots are still owed.  The RRA RRA RRA before
+;;     the loop is the same rotation the narrower cases do, done once
+;;     because the phase is always the whole three here.
+;;
+;;     A pixel that fits entirely puts the count back to three on the way
+;;     out; one that does not leaves it as it stands, and DUMP_EMIT's
+;;     LD D,C picks it up.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_17 ---- from &692F when A = &03
-CMD_DUMP_17:
+; ---- DUMP_PIXEL_TRIPLE ---- from &692F when A = &03
+DUMP_PIXEL_TRIPLE:
                LD A,(HL)                       ; 6962 7E
-               RRA                             ; 6963 1F
+               RRA                             ; 6963 1F  the pattern for this level, rotated into place
                RRA                             ; 6964 1F
                RRA                             ; 6965 1F
                PUSH AF                         ; 6966 F5
-               LD A,(V40B0)                    ; 6967 3A B0 40
+               LD A,(DUMP_BITS_LEFT)           ; 6967 3A B0 40  how many of this pixel's three dots are still owed
                LD C,A                          ; 696A 4F
                LD A,&03                        ; 696B 3E 03
                SUB C                           ; 696D 91
-               JR Z,CMD_DUMP_18                ; 696E 28 06
+               JR Z,DUMP_PIXEL_TRIPLE_1        ; 696E 28 06
                LD B,A                          ; 6970 47
-               POP AF                          ; 6971 F1
+               POP AF                          ; 6971 F1  line the remaining dots up at the top
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_LOOP8 -- &6972 to &6975
+;; DUMP_PIXEL_TRIPLE_LOOP -- &6972 to &6975
 ;;
 ;; Takes:     A, B
 ;; Leaves:    A, F, B
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_LOOP8 ---- from &6973 when B is not 0 yet
-CMD_DUMP_LOOP8:
+; ---- DUMP_PIXEL_TRIPLE_LOOP ---- from &6973 when B is not 0 yet
+DUMP_PIXEL_TRIPLE_LOOP:
                RLA                             ; 6972 17
-               DJNZ CMD_DUMP_LOOP8             ; 6973 10 FD
+               DJNZ DUMP_PIXEL_TRIPLE_LOOP     ; 6973 10 FD
                PUSH AF                         ; 6975 F5
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_18 -- &6976 to &6976
+;; DUMP_PIXEL_TRIPLE_1 -- &6976 to &6976
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_18 ---- from &696E when A = C
-CMD_DUMP_18:
+; ---- DUMP_PIXEL_TRIPLE_1 ---- from &696E when A = C
+DUMP_PIXEL_TRIPLE_1:
                POP AF                          ; 6976 F1
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_LOOP9 -- &6977 to &6983
+;; DUMP_PIXEL_TRIPLE_LOOP2 -- &6977 to &6983
 ;;
 ;; Takes:     A, C, D
 ;; Leaves:    A, F, C, D
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_LOOP9 ---- from &697D when C is not 0 yet
-CMD_DUMP_LOOP9:
-               RL D                            ; 6977 CB 12
-               JR C,CMD_DUMP_20                ; 6979 38 0D
+; ---- DUMP_PIXEL_TRIPLE_LOOP2 ---- from &697D when C is not 0 yet
+DUMP_PIXEL_TRIPLE_LOOP2:
+               RL D                            ; 6977 CB 12  one dot into the byte
+               JR C,DUMP_EMIT                  ; 6979 38 0D  which may fill it before the pixel is finished
                RLA                             ; 697B 17
                DEC C                           ; 697C 0D
-               JR NZ,CMD_DUMP_LOOP9            ; 697D 20 F8
-               LD A,&03                        ; 697F 3E 03
-               LD (V40B0),A                    ; 6981 32 B0 40
+               JR NZ,DUMP_PIXEL_TRIPLE_LOOP2   ; 697D 20 F8
+               LD A,&03                        ; 697F 3E 03  the pixel is complete, so the next one gets all three
+               LD (DUMP_BITS_LEFT),A           ; 6981 32 B0 40
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_19 -- &6984 to &6987
+;; DUMP_PIXEL_5 -- &6984 to &6987
 ;;
 ;; Takes:     DE
 ;; Leaves:    A, F, BC, D, HL
@@ -18131,25 +18338,39 @@ CMD_DUMP_LOOP9:
 ;; ? calls TRANSFORM_DUMP_COORDS.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_19 ---- from &6960
-CMD_DUMP_19:
+; ---- DUMP_PIXEL_5 ---- from &6960
+DUMP_PIXEL_5:
                POP BC                          ; 6984 C1
                INC C                           ; 6985 0C
-               JR CMD_DUMP_LOOP5               ; 6986 18 8D
+               JR DUMP_PIXEL                   ; 6986 18 8D
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_20 -- &6988 to &6988
+;; DUMP_EMIT -- &6988 to &6988
 ;;
 ;; Takes:     D
 ;; Leaves:    A
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     A finished byte, out to the printer.
+;;
+;;     DUMP_INVERT is the patched byte -- NOP or CPL -- and this is the only
+;;     place INVERSE has any effect.
+;;
+;;     THEN THE BOOKKEEPING FOR THE NEXT BYTE.  D is reloaded from C, which
+;;     is 1 for the narrow dumps and the leftover count for the widest one;
+;;     when it comes down to zero the pixel really is finished and the
+;;     position on the bit axis moves on.  The magnification counter decides
+;;     whether the next byte repeats this column or moves along, and the
+;;     three-phase counter for the dither pattern steps once a byte.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_20 ---- from &695E when bit 7 of D was set, &6979 when bit 7 of D was set
-CMD_DUMP_20:
+; ---- DUMP_EMIT ---- from &695E when bit 7 of D was set, &6979 when bit 7 of D was set
+DUMP_EMIT:
                LD A,D                          ; 6988 7A
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_21 -- &6989 to &6994
+;; DUMP_INVERT -- &6989 to &6994
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
@@ -18157,51 +18378,51 @@ CMD_DUMP_20:
 ;; ? calls CALL_PRINT_A; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_21 ---- from &67F8
-CMD_DUMP_21:
-               NOP                             ; 6989 00
+; ---- DUMP_INVERT ---- from &67F8
+DUMP_INVERT:
+               NOP                             ; 6989 00  NOP, or CPL if INVERSE was asked for
                CALL CALL_PRINT_A               ; 698A CD FA 69
-               LD D,C                          ; 698D 51
+               LD D,C                          ; 698D 51  1 normally; the leftover count in the widest dump
                POP BC                          ; 698E C1
                DEC D                           ; 698F 15
-               JR NZ,CMD_DUMP_22               ; 6990 20 03
-               LD D,&03                        ; 6992 16 03
+               JR NZ,DUMP_INVERT_1             ; 6990 20 03
+               LD D,&03                        ; 6992 16 03  that pixel is done, so move along the bit axis
                INC C                           ; 6994 0C
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_22 -- &6995 to &69A5
+;; DUMP_INVERT_1 -- &6995 to &69A5
 ;;
 ;; Takes:     B
 ;; Leaves:    A, F, B, HL
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_22 ---- from &6990 when D is not 0 yet
-CMD_DUMP_22:
-               LD HL,V40A2                     ; 6995 21 A2 40
+; ---- DUMP_INVERT_1 ---- from &6990 when D is not 0 yet
+DUMP_INVERT_1:
+               LD HL,V40A2                     ; 6995 21 A2 40  the magnification: this many bytes to a step
                DEC (HL)                        ; 6998 35
-               JR NZ,CMD_DUMP_23               ; 6999 20 0B
+               JR NZ,DUMP_INVERT_2             ; 6999 20 0B
                LD A,(V409E)                    ; 699B 3A 9E 40
                LD (HL),A                       ; 699E 77
-               LD A,(V405F)                    ; 699F 3A 5F 40
+               LD A,(DUMP_BYTE_TO)             ; 699F 3A 5F 40  and stop when the byte axis runs out
                CP B                            ; 69A2 B8
-               JR Z,CMD_DUMP_25                ; 69A3 28 09
+               JR Z,DUMP_LINE_END              ; 69A3 28 09
                INC B                           ; 69A5 04
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_23 -- &69A6 to &69AA
+;; DUMP_INVERT_2 -- &69A6 to &69AA
 ;;
 ;; Takes:     E
 ;; Leaves:    F, E
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_23 ---- from &6999
-CMD_DUMP_23:
-               DEC E                           ; 69A6 1D
-               JR NZ,CMD_DUMP_24               ; 69A7 20 02
+; ---- DUMP_INVERT_2 ---- from &6999
+DUMP_INVERT_2:
+               DEC E                           ; 69A6 1D  one of the three pattern bytes per printed line
+               JR NZ,DUMP_INVERT_3             ; 69A7 20 02
                LD E,&03                        ; 69A9 1E 03
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_24 -- &69AB to &69AD
+;; DUMP_INVERT_3 -- &69AB to &69AD
 ;;
 ;; Takes:     BC, E
 ;; Leaves:    A, F, C, D, HL
@@ -18211,37 +18432,57 @@ CMD_DUMP_23:
 ;; ? calls TRANSFORM_DUMP_COORDS.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_24 ---- from &69A7 when E is not 0 yet
-CMD_DUMP_24:
-               JP CMD_DUMP_LOOP4               ; 69AB C3 03 69
+; ---- DUMP_INVERT_3 ---- from &69A7 when E is not 0 yet
+DUMP_INVERT_3:
+               JP DUMP_BYTE                    ; 69AB C3 03 69
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_25 -- &69AE to &69C9
+;; DUMP_LINE_END -- &69AE to &69C9
 ;;
 ;; Takes:     C
 ;; Leaves:    A, F, B, HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     The line is printed.  Print it again, move down, or stop.
+;;
+;;     DTTH's count is spent first.  Then MODE 3, whose columns were
+;;     doubled on the way in, is halved again here so that the bit axis
+;;     advances by eight screen pixels and not sixteen.
+;;
+;;     THE END TEST IS TWO SHORT OF THE LIMIT, because a bit-image byte is
+;;     eight dots and the position has already stepped past the last one it
+;;     used.
+;;
+;;     THE SPACE BAR STOPS THE DUMP HERE, and stops it cleanly: the exit is
+;;     the same one the finished dump takes, so GCMX3 still goes out and the
+;;     printer is left in text mode.  The manual says exactly that -- "All
+;;     the DUMPs can be stopped immediately by ESC, but this may leave the
+;;     printer in graphics mode ... you may prefer to use the space bar,
+;;     which will stop the DUMP but leave the printer in the normal text
+;;     mode."  ESC is the ROM's doing, not this routine's.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_25 ---- from &69A3 when A = B
-CMD_DUMP_25:
-               LD A,(V40AB)                    ; 69AE 3A AB 40
+; ---- DUMP_LINE_END ---- from &69A3 when A = B
+DUMP_LINE_END:
+               LD A,(V40AB)                    ; 69AE 3A AB 40  another strike of the same line?
                DEC A                           ; 69B1 3D
-               JP NZ,CMD_DUMP_LOOP2            ; 69B2 C2 B7 68
-               LD A,(DUMP_MODE)                ; 69B5 3A AE 40
+               JP NZ,DUMP_STRIKE               ; 69B2 C2 B7 68
+               LD A,(DUMP_MODE)                ; 69B5 3A AE 40  MODE 3 doubled the columns on the way in
                CP &02                          ; 69B8 FE 02
                LD B,C                          ; 69BA 41
-               JR NZ,CMD_DUMP_27               ; 69BB 20 17
+               JR NZ,DUMP_LINE_END_2           ; 69BB 20 17
                LD A,C                          ; 69BD 79
                AND A                           ; 69BE A7
-               JR NZ,CMD_DUMP_26               ; 69BF 20 0C
+               JR NZ,DUMP_LINE_END_1           ; 69BF 20 0C
                LD HL,V40AA                     ; 69C1 21 AA 40
                LD A,(HL)                       ; 69C4 7E
                AND A                           ; 69C5 A7
-               JR NZ,CMD_DUMP_28               ; 69C6 20 1C
+               JR NZ,DUMP_FINISH               ; 69C6 20 1C
                LD (HL),&80                     ; 69C8 36 80
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_LOOP10 -- &69CA to &69CC
+;; DUMP_LINE_END_LOOP -- &69CA to &69CC
 ;;
 ;; Takes:     C, D
 ;; Leaves:    A, F, C, DE, HL, IY
@@ -18251,19 +18492,19 @@ CMD_DUMP_25:
 ;; ? calls PRINT_COUNTED_STRING, CALL_PRINT_A, TRANSFORM_DUMP_COORDS.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_LOOP10 ---- from &69E2 when bit 0 was set
-CMD_DUMP_LOOP10:
-               JP CMD_DUMP_LOOP                ; 69CA C3 AA 68
+; ---- DUMP_LINE_END_LOOP ---- from &69E2 when bit 0 was set
+DUMP_LINE_END_LOOP:
+               JP DUMP_LINE                    ; 69CA C3 AA 68
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_26 -- &69CD to &69D3
+;; DUMP_LINE_END_1 -- &69CD to &69D3
 ;;
 ;; Takes:     C
 ;; Leaves:    A, F, B
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_26 ---- from &69BF when A <> 0
-CMD_DUMP_26:
+; ---- DUMP_LINE_END_1 ---- from &69BF when A <> 0
+DUMP_LINE_END_1:
                LD A,(V40AA)                    ; 69CD 3A AA 40
                RLA                             ; 69D0 17
                LD A,C                          ; 69D1 79
@@ -18271,7 +18512,7 @@ CMD_DUMP_26:
                LD B,A                          ; 69D3 47
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_27 -- &69D4 to &69E3
+;; DUMP_LINE_END_2 -- &69D4 to &69E3
 ;;
 ;; Takes:     B
 ;; Leaves:    A, F, B
@@ -18279,21 +18520,21 @@ CMD_DUMP_26:
 ;; ? drives IN A,(KEYBOARD); falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_27 ---- from &69BB when A <> &02
-CMD_DUMP_27:
-               LD A,(V405E)                    ; 69D4 3A 5E 40
+; ---- DUMP_LINE_END_2 ---- from &69BB when A <> &02
+DUMP_LINE_END_2:
+               LD A,(DUMP_BIT_TO)              ; 69D4 3A 5E 40  two short, because a byte is eight dots deep
                DEC A                           ; 69D7 3D
                DEC A                           ; 69D8 3D
                DEC B                           ; 69D9 05
                CP B                            ; 69DA B8
-               JR C,CMD_DUMP_28                ; 69DB 38 07
-               LD A,&7F                        ; 69DD 3E 7F
+               JR C,DUMP_FINISH                ; 69DB 38 07
+               LD A,&7F                        ; 69DD 3E 7F  the half-row holding the space bar
                IN A,(KEYBOARD)                 ; 69DF DB FE
-               RRA                             ; 69E1 1F
-               JR C,CMD_DUMP_LOOP10            ; 69E2 38 E6
+               RRA                             ; 69E1 1F  held down, so stop -- but stop tidily
+               JR C,DUMP_LINE_END_LOOP         ; 69E2 38 E6
 
 ;; --------------------------------------------------------------------
-;; CMD_DUMP_28 -- &69E4 to &69EA
+;; DUMP_FINISH -- &69E4 to &69EA
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F, B, HL
@@ -18301,9 +18542,9 @@ CMD_DUMP_27:
 ;; ? calls PRINT_COUNTED_STRING; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DUMP_28 ---- from &69C6 when A <> 0, &69DB when A < B
-CMD_DUMP_28:
-               LD HL,GCMX3                     ; 69E4 21 34 40
+; ---- DUMP_FINISH ---- from &69C6 when A <> 0, &69DB when A < B
+DUMP_FINISH:
+               LD HL,GCMX3                     ; 69E4 21 34 40  GCMX3, which puts the printer back in text mode
                CALL PRINT_COUNTED_STRING       ; 69E7 CD F1 69
                XOR A                           ; 69EA AF
 
@@ -18393,11 +18634,28 @@ CALL_PRINT_A:
 ;;
 ;; Shown for this routine in disasm/:
 ;;
-;;     Turn the dump's own coordinates in BC into screen coordinates.
+;;     Turn the dump's own two axes in BC into a screen row and column.
 ;;
-;;     Three cases, and they are the three orientations: 1 mirrors the row
-;;     with &BF minus B, 3 exchanges B and C to lay the picture sideways,
-;;     and 2 does neither.  All three fall into SCREEN_PIXEL_COLOUR.
+;;     B is where the printer is across the paper -- one bit-image byte per
+;;     step -- and C is where it is down the paper, the eight bits of that
+;;     byte.  Which screen axis each of them is, and which way up, is the
+;;     whole of the orientation:
+;;
+;;         1   mirror the row, &BF minus B                sideways
+;;         2   neither                                    sideways, mirrored
+;;         3   exchange B and C                           upright
+;;         4   exchange them and then mirror              upright, mirrored
+;;
+;;     Four cases and not three: the DEC A chain runs off its end for 4,
+;;     and the exchange at &6A0A is done before the JR Z that would have
+;;     left, so 4 gets both.
+;;
+;;     THE EXCHANGE IS WHAT MAKES A DUMP UPRIGHT, which reads backwards
+;;     until you notice which axis is which.  Leaving B and C alone puts
+;;     the screen's rows across the paper; exchanging them puts the screen's
+;;     columns across the paper, which is the picture the right way up.
+;;     DUMP_ORIENT_SETUP has already exchanged the four limits to match, so
+;;     the loop itself never has to know.
 ;; --------------------------------------------------------------------
 
 ; ---- TRANSFORM_DUMP_COORDS ---- from &6916
@@ -24138,12 +24396,13 @@ BUILD_PUT_BLOCK_6:
                DEFB ERR_PUT_BLOCK              ; 78E6 25 error 37, "PUT block"
 
 ;; --------------------------------------------------------------------
-;; BUILD_PUT_BLOCK_7 -- &78E7 to &7913
+;; BUILD_PUT_BLOCK_7 -- &78E7 to &7916
 ;;
 ;; Takes:     BC, HL
 ;; Leaves:    A, F, BC, DE, HL, IX
+;; Ends:      JP
 ;;
-;; ? drives OUT (HMPR),A; falls into whatever follows rather than returning.
+;; ? drives OUT (HMPR),A.
 ;; --------------------------------------------------------------------
 
 ; ---- BUILD_PUT_BLOCK_7 ---- from &78E3 when A = 0
@@ -24177,17 +24436,6 @@ BUILD_PUT_BLOCK_7:
                LD (&EFFE),SP                   ; 790D ED 73 FE EF
                                                ; the stack is being reset, so this path does not return
                LD SP,&EFFE                     ; 7911 31 FE EF
-
-;; --------------------------------------------------------------------
-;; BUILD_PUT_BLOCK_8 -- &7914 to &7916
-;;
-;; Takes:     nothing in registers
-;; Leaves:    registers unchanged
-;; Ends:      JP
-;; --------------------------------------------------------------------
-
-; ---- BUILD_PUT_BLOCK_8 ---- from DOS &5978
-BUILD_PUT_BLOCK_8:
                JP &F000                        ; 7914 C3 00 F0
 
 ;; --------------------------------------------------------------------
@@ -24214,7 +24462,7 @@ BUILD_PUT_BLOCK_8:
                                                ; lower onto the same byte. The Technical Manual gives this idiom as the
                                                ; standard way to walk a structure longer than 16K
                BIT 6,H                         ; 7927 CB 74
-               JR NZ,BUILD_PUT_BLOCK_9         ; 7929 20 13
+               JR NZ,BUILD_PUT_BLOCK_8         ; 7929 20 13
                                                ; to the alternate register set and back again
                EX AF,AF'                       ; 792B 08
                                                ; to the alternate register set and back again
@@ -24224,7 +24472,7 @@ BUILD_PUT_BLOCK_8:
                                                ; to the alternate register set and back again
                EX AF,AF'                       ; 7931 08
                CP H                            ; 7932 BC
-               JR NZ,BUILD_PUT_BLOCK_9         ; 7933 20 09
+               JR NZ,BUILD_PUT_BLOCK_8         ; 7933 20 09
                LD H,D                          ; 7935 62
                LD L,E                          ; 7936 6B
                ADD HL,BC                       ; 7937 09
@@ -24234,47 +24482,47 @@ BUILD_PUT_BLOCK_8:
                                                ; standard way to walk a structure longer than 16K
                BIT 6,H                         ; 7938 CB 74
                POP HL                          ; 793A E1
-               JR NZ,BUILD_PUT_BLOCK_10        ; 793B 20 02
+               JR NZ,BUILD_PUT_BLOCK_9         ; 793B 20 02
                RET                             ; 793D C9
 
 ;; --------------------------------------------------------------------
-;; BUILD_PUT_BLOCK_9 -- &793E to &793E
+;; BUILD_PUT_BLOCK_8 -- &793E to &793E
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    HL
 ;; --------------------------------------------------------------------
 
-; ---- BUILD_PUT_BLOCK_9 ---- from &7929 when bit 6 of H set, &7933 when A <> H
-BUILD_PUT_BLOCK_9:
+; ---- BUILD_PUT_BLOCK_8 ---- from &7929 when bit 6 of H set, &7933 when A <> H
+BUILD_PUT_BLOCK_8:
                POP HL                          ; 793E E1
 
 ;; --------------------------------------------------------------------
-;; BUILD_PUT_BLOCK_10 -- &793F to &794A
+;; BUILD_PUT_BLOCK_9 -- &793F to &794A
 ;;
 ;; Takes:     HL
 ;; Leaves:    A, F, HL
 ;; --------------------------------------------------------------------
 
-; ---- BUILD_PUT_BLOCK_10 ---- from &793B when bit 6 of H set
-BUILD_PUT_BLOCK_10:
+; ---- BUILD_PUT_BLOCK_9 ---- from &793B when bit 6 of H set
+BUILD_PUT_BLOCK_9:
                LD (STKEND),HL                  ; 793F 22 65 5C
                POP HL                          ; 7942 E1
                LD A,(SYS_FN_INDEX)             ; 7943 3A F0 4A
                AND A                           ; 7946 A7
-               JR NZ,BUILD_PUT_BLOCK_11        ; 7947 20 02
+               JR NZ,BUILD_PUT_BLOCK_10        ; 7947 20 02
                RST ERR_HOOK                    ; 7949 CF
                DEFB ERR_PAGE_OVERLAP           ; 794A 76 error 118, "Page overlap"
 
 ;; --------------------------------------------------------------------
-;; BUILD_PUT_BLOCK_11 -- &794B to &794D
+;; BUILD_PUT_BLOCK_10 -- &794B to &794D
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    registers unchanged
 ;; Ends:      JP
 ;; --------------------------------------------------------------------
 
-; ---- BUILD_PUT_BLOCK_11 ---- from &7947 when A <> 0
-BUILD_PUT_BLOCK_11:
+; ---- BUILD_PUT_BLOCK_10 ---- from &7947 when A <> 0
+BUILD_PUT_BLOCK_10:
                JP &0000                        ; 794B C3 00 00
 
 ;; --------------------------------------------------------------------
@@ -24384,7 +24632,7 @@ BUILD_PUT_BLOCK_LOOP2:
                EXX                             ; 7981 D9
                POP HL                          ; 7982 E1
                INC HL                          ; 7983 23
-               JR BUILD_PUT_BLOCK_12           ; 7984 18 15
+               JR BUILD_PUT_BLOCK_11           ; 7984 18 15
 
 ;; --------------------------------------------------------------------
 ;; L7986 -- &7986 to &798F
@@ -24453,14 +24701,14 @@ RESOLVE_ROM_ENTRIES:
                INC HL                          ; 799A 23
 
 ;; --------------------------------------------------------------------
-;; BUILD_PUT_BLOCK_12 -- &799B to &7A9E
+;; BUILD_PUT_BLOCK_11 -- &799B to &7A9E
 ;;
 ;; Takes:     E, HL
 ;; Leaves:    D, HL
 ;; --------------------------------------------------------------------
 
-; ---- BUILD_PUT_BLOCK_12 ---- from &7984
-BUILD_PUT_BLOCK_12:
+; ---- BUILD_PUT_BLOCK_11 ---- from &7984
+BUILD_PUT_BLOCK_11:
                LD D,(HL)                       ; 799B 56
                INC HL                          ; 799C 23
                                                ; self-modifying: patches the operand of the CALL at &7DFA

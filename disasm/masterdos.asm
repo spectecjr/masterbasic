@@ -72,7 +72,9 @@ PRINT_A:                    EQU  &0010         ; ROM entry: print the character 
 PROG:                       EQU  &5AA0         ; address of the BASIC program
 PROGP:                      EQU  &5A9F         ; page holding the BASIC program
 RDKEY:                      EQU  &0169         ; read a key as INKEY$ does
-ROM_BORDCR:                 EQU  &5C4B         ; ATTRIBUTES FOR LOWER SCREEN IN MODES 1/2
+ROM_BORDCR:                 EQU  &5C4B         ; VALUE TO SEND TO BORDER PORT -- the ROM calls &5C4B BORDCOL, and BORDCR
+                                               ; is a different variable at &5C48. The name here is MasterDOS's own
+                                               ; source's
 ROM_CHKHL:                  EQU  &3FEF         ; Checks if HL is in the range C000-FFFF, and if so, adjusts it back into
                                                ; the range 8000-BFFF, and increments the upper page.
 SLDEV:                      EQU  &5BB7         ; DEVICE LETTER/NUMBER (TEMP)
@@ -96,7 +98,6 @@ NOT_IN_THIS_PAGE:           EQU  &4000
 ; this one is at &4000.  The names are its own labels.  A stored
 ; pointer written as NAME+&4000 has bit 15 set, the flag INDJP
 ; and CTAB use to mean "not in this page".
-MB_BUILD_PUT_BLOCK_8:       EQU  &B914
 MB_BUILD_TRACK_IMAGE:       EQU  &9352
 MB_BYTE_TO_DECIMAL:         EQU  &8240
 MB_CALLDOS_2:               EQU  &82FF
@@ -1120,10 +1121,9 @@ DRPT:
                DEFB &01,&02,&03,&04,&05,&06,&07 ; 428F .......  (7) 111-117
 
 ;; --------------------------------------------------------------------
-;; MasterBASIC changed this routine: only 8 of the 48
-;; instructions stock MasterDOS 2.3 has in MRTAB survive
-;; here, so that version's description of it has been
-;; left out rather than carried across.  Compare
+;; The code from here to the next routine carried across matches stock MasterDOS 2.3 in only 8 of 48 instructions, so
+;; that description has been left out rather than carried across. The stretch measured runs to the next carried label
+;; and may take in more than this one routine, so it is a hint and not a verdict. Compare MRTAB in
 ;; ref/masterdos/annotated-src/masterdos23.asm.
 ;; --------------------------------------------------------------------
 
@@ -1520,7 +1520,7 @@ HOOK:
                LD A,(HKA)                      ; 445A 3A DD 41
                LD DE,SAMHK                     ; 445D 11 A6 44
                CALL INDJP                      ; 4460 CD CD 78  INDEXED JP USING L
-               CALL SETBORDER_BORDCR           ; 4463 CD 52 51
+               CALL SETBORDER_BORDCOL          ; 4463 CD 52 51
                EXX                             ; 4466 D9  PASS HL,DE,BC OUT VIA ALT REGS
                XOR A                           ; 4467 AF  "NO ERROR"
                LD E,A                          ; 4468 5F  "NO ACTION"
@@ -2732,10 +2732,9 @@ CCNT:
                JR CCNT                         ; 492A 18 E0
 
 ;; --------------------------------------------------------------------
-;; MasterBASIC changed this routine: only 8 of the 12
-;; instructions stock MasterDOS 2.3 has in GETSCR survive
-;; here, so that version's description of it has been
-;; left out rather than carried across.  Compare
+;; The code from here to the next routine carried across matches stock MasterDOS 2.3 in only 8 of 12 instructions, so
+;; that description has been left out rather than carried across. The stretch measured runs to the next carried label
+;; and may take in more than this one routine, so it is a hint and not a verdict. Compare GETSCR in
 ;; ref/masterdos/annotated-src/masterdos23.asm.
 ;; --------------------------------------------------------------------
 
@@ -3546,10 +3545,9 @@ FDHE2:
                RET                             ; 4CB0 C9
 
 ;; --------------------------------------------------------------------
-;; MasterBASIC changed this routine: only 11 of the 18
-;; instructions stock MasterDOS 2.3 has in FDHF survive
-;; here, so that version's description of it has been
-;; left out rather than carried across.  Compare
+;; The code from here to the next routine carried across matches stock MasterDOS 2.3 in only 11 of 18 instructions, so
+;; that description has been left out rather than carried across. The stretch measured runs to the next carried label
+;; and may take in more than this one routine, so it is a hint and not a verdict. Compare FDHF in
 ;; ref/masterdos/annotated-src/masterdos23.asm.
 ;; --------------------------------------------------------------------
 
@@ -3706,7 +3704,7 @@ OFSM_1:
 ; ---- OFSM_2 ---- from &4D94
 OFSM_2:
                PUSH DE                         ; 4D3B D5
-               CALL CALL_ROM_66CB              ; 4D3C CD 70 5E
+               CALL BITF4                      ; 4D3C CD 70 5E
                JP NZ,REP28                     ; 4D3F C2 8C 51  "FILE NAME USED" IF "OPEN DIR"
                CALL POINT                      ; 4D42 CD AC 4F
                AND &1F                         ; 4D45 E6 1F
@@ -3788,7 +3786,7 @@ OFM5:
                LD B,&21                        ; 4DBC 06 21
                CALL OFM6                       ; 4DBE CD D7 4D
                POP IX                          ; 4DC1 DD E1
-               CALL CALL_ROM_66CB              ; 4DC3 CD 70 5E
+               CALL BITF4                      ; 4DC3 CD 70 5E
                CALL Z,FNFS                     ; 4DC6 CC 83 4A  AVOID FNFS IF EXISTING OPENTYPE
                CALL SET_TRACK_AND_SECTOR       ; 4DC9 CD C6 4F
                LD (IX+&20),D                   ; 4DCC DD 72 20  FIRST TRACK
@@ -4329,7 +4327,7 @@ END1:
                XOR A                           ; 5015 AF
                CALL NRWR                       ; 5016 CD 74 50
                DEFW XPTR+1                     ; 5019 A4 5A
-               CALL SETBORDER_BORDCR           ; 501B CD 52 51
+               CALL SETBORDER_BORDCOL          ; 501B CD 52 51
                LD (NRFLG),A                    ; 501E 32 1F 41  RECURSE OK
                LD SP,(ENTSP)                   ; 5021 ED 7B 04 41
 
@@ -4397,7 +4395,7 @@ NUMERIC:
 ;;     CALL NRRD                 ; A  <- byte at the address that follows
 ;;     DEFW <ROM variable>
 ;;
-;; The four entries differ only in the primitive they call: NRRDD reads a
+;; Three of the four differ only in the primitive they call: NRRDD reads a
 ;; word into BC, NRRD a byte into A, NRWRD writes BC and NRWR writes A.
 ;; Each reads the address out of the word after the call and steps the
 ;; return address past it.
@@ -4427,8 +4425,9 @@ NRRDD:
 ;; Returns:     A = the byte at that address.
 ;;
 ;; Preserves:   HL, DE, BC
-;; Corrupts:    AF' -- the family uses the alternate accumulator to carry
-;;              the saved HMPR across the access
+;; Corrupts:    AF' -- the primitive under this entry uses the alternate
+;;              accumulator to carry the saved HMPR across the access
+;;
 ;; Side effect: HMPR is set to 0 for the access and put back before the
 ;;              return.  Interrupts are not disabled, so an interrupt
 ;;              during the access sees the ROM's page at &8000.
@@ -4452,8 +4451,9 @@ NRRD:
 ;; Takes:       BC = the word to write, C stored first.
 ;;
 ;; Preserves:   HL, DE
-;; Corrupts:    AF' -- the family uses the alternate accumulator to carry
-;;              the saved HMPR across the access
+;; Corrupts:    AF' -- the primitive under this entry uses the alternate
+;;              accumulator to carry the saved HMPR across the access
+;;
 ;; Side effect: HMPR is set to 0 for the access and put back before the
 ;;              return.  Interrupts are not disabled, so an interrupt
 ;;              during the access sees the ROM's page at &8000.
@@ -4478,9 +4478,12 @@ NRWRD:
 ;; Returns:     A = that same byte, so the value can be used again
 ;;              without reloading it.
 ;;
-;; Preserves:   HL, DE, BC
-;; Corrupts:    AF' -- the family uses the alternate accumulator to carry
-;;              the saved HMPR across the access
+;; Preserves:   HL, DE, BC, and AF' as well: this is the one entry of the
+;;              four that calls no primitive.  Its write is inlined
+;;              and the saved HMPR travels in D, which is the point
+;;              of the authors own note, "replace CALL CMR:DW
+;;              NRREAD - faster".
+;;
 ;; Side effect: HMPR is set to 0 for the access and put back before the
 ;;              return.  Interrupts are not disabled, so an interrupt
 ;;              during the access sees the ROM's page at &8000.
@@ -4505,11 +4508,15 @@ NRWR:
                LD A,E                          ; 5089 7B
 
 ;; --------------------------------------------------------------------
-;; Put HMPR back and return.
+;; Restore the caller's registers and return past the inline word.
 ;;
-;; The tail every primitive above jumps to.  The value read is in A and
-;; the saved HMPR in A', so it swaps them, writes HMPR, and swaps back --
-;; leaving the value in A and the port as it found it.
+;; The shared exit of the four NR entries -- not of the primitives,
+;; which end at BCRWC.  The caller's HL and DE come back off the stack,
+;; and EX (SP),HL puts the stepped-on return address where the RET will
+;; find it.
+;;
+;; MasterBASIC has a routine of its own under this name that does
+;; something else: there, PPXR is the tail that puts HMPR back.
 ;; --------------------------------------------------------------------
 
 ; ---- PPXR ---- from &505C, &5067, &5072
@@ -4603,7 +4610,7 @@ RDBC:
 ;; Entry:   HL = an address in &4000-&7FFF.
 ;; Returns: A = the byte there.
 ;; Corrupts HL, which is left windowed into &8000-&BFFF, and AF'.
-;; HMPR is put back through PPXR before the return.
+;; HMPR is put back by BCRWC, which RDA falls into.
 ;;
 ;; The primitive under NRRD.  Called directly where the address is already
 ;; in HL rather than in the two bytes after a call.
@@ -4789,15 +4796,22 @@ BCC:
                RET                             ; 5151 C9
 
 ;; --------------------------------------------------------------------
-;; Sets the border color to the current value of the BORDCR system variable, which contains an
-;; attribute color selected to contrast with the current border color. (Compare with BORDCOL, which
-;; stores the actual border color).
+;; Set the border to the colour BORDCOL holds.
 ;;
-;; The value of SOFF is preserved.
+;; The ROM's own vars file calls &5C4B BORDCOL, "VALUE TO SEND TO
+;; BORDER PORT" -- already in port format, which is the only reason
+;; this can send it straight out.  BORDCR is a different variable at
+;; &5C48, the lower screen's attributes; an earlier reading of this
+;; had the two the wrong way round, and so does the equate name,
+;; which is the 1991 source's own (it comments it "BORDCOL").
+;;
+;; The value of SOFF is preserved: bit 7 comes from a read of the
+;; port and the rest from BORDCOL, which is what XOR C / AND &80 /
+;; XOR C does.
 ;; --------------------------------------------------------------------
 
-; ---- SETBORDER_BORDCR ---- from &4463, &501B, &51AD, &5B78
-SETBORDER_BORDCR:
+; ---- SETBORDER_BORDCOL ---- from &4463, &501B, &51AD, &5B78
+SETBORDER_BORDCOL:
                PUSH AF                         ; 5152 F5
                PUSH BC                         ; 5153 C5
                CALL NRRD                       ; 5154 CD 5E 50
@@ -4964,7 +4978,7 @@ PRINT_BYTE_AS_DECIMAL:
 
 ; ---- DERR ---- from &47F4, &5031, &51A3, &5E62, &5EE0, &6091, &61C8, &62AB ...
 DERR:
-               CALL SETBORDER_BORDCR           ; 51AD CD 52 51
+               CALL SETBORDER_BORDCOL          ; 51AD CD 52 51
                LD HL,(HKSP)                    ; 51B0 2A 0B 42
                LD A,H                          ; 51B3 7C
                OR L                            ; 51B4 B5
@@ -5025,8 +5039,8 @@ DERR1_1:
 ;; would actually print.  Where the two overlap they agree: eighteen
 ;; codes, 84 to 112, read the same from the table as from the document.
 ;;
-;; SEVEN CODES ARE PAST THE END OF THE DOCUMENTATION.  errors.md stops
-;; at 112.  The table carries on:
+;; THREE CODES ARE PAST THE END OF THE DOCUMENTATION.  errors.md runs
+;; to 116.  The table carries on past that:
 ;;
 ;;     113  Directory not found
 ;;     114  Directory not empty
@@ -5045,12 +5059,14 @@ DERR1_1:
 ;; so the listing uses them: DEFB NO where the byte is &0B, and
 ;; DEFB FILE+&80 where it is &97 and ends the message.
 ;;
-;; THREE OF THE SEVEN UNDOCUMENTED CODES ARE ACTUALLY RAISED, which is
-;; the check on having read them right.  The DOS's own chain of error
-;; stubs loads 113 at &5195, 114 just after it, and MasterBASIC loads
-;; 119 at &43AD.  The other four -- 115 to 118 -- have messages that
-;; nothing in either half loads into A; they would be raised by
-;; CALL DERR with the code inline, which is the other way in.
+;; ALL BUT TWO OF THE HIGH CODES ARE ACTUALLY RAISED, which is the
+;; check on having read them right.  The DOS's own chain of error
+;; stubs loads 113 at &5195, 114 just after it, 115 at &519B and 116
+;; at &519E -- the last two with live callers at &5A33/&6A11 and
+;; &4D5B/&5E5F -- and MasterBASIC loads 119 at &43AD.  Only 117 and
+;; 118 have messages that nothing in either half loads into A; they
+;; would be raised by CALL DERR with the code inline, which is the
+;; other way in.
 ;;
 ;; 119 is the one that prompted this.  MasterBASIC's REP_SIZE_MISMATCH
 ;; at &43AD loads it, and the only thing that reaches that stub is
@@ -5862,25 +5878,28 @@ PNTY5_1:
 
 ; ---- PRINT_DATE_IF_SET ---- from &56B5
 PRINT_DATE_IF_SET:
-               LD B,&F5                        ; 56BB 06 F5
-               CALL GRPNTB                     ; 56BD CD AE 4F
-               LD A,(HL)                       ; 56C0 7E
-               INC A                           ; 56C1 3C
-               CP &02                          ; 56C2 FE 02
-               RET C                           ; 56C4 D8
-               LD C,&2F                        ; 56C5 0E 2F
-               CALL PRINT_TWO_FIELDS           ; 56C7 CD D0 56
-               LD C,&3A                        ; 56CA 0E 3A
-               LD A,&20                        ; 56CC 3E 20
-               JR PRINT_DATE_IF_SET_1          ; 56CE 18 04
+               LD B,&F5                          ; 56BB 06 F5
+               CALL GRPNTB                       ; 56BD CD AE 4F
+               LD A,(HL)                         ; 56C0 7E
+               INC A                             ; 56C1 3C
+               CP &02                            ; 56C2 FE 02
+               RET C                             ; 56C4 D8
+               LD C,&2F                          ; 56C5 0E 2F
+               CALL PRINT_FIELDS_WITH_SEPARATORS ; 56C7 CD D0 56
+               LD C,&3A                          ; 56CA 0E 3A
+               LD A,&20                          ; 56CC 3E 20
+               JR PRINT_DATE_IF_SET_1            ; 56CE 18 04
 
 ;; --------------------------------------------------------------------
-;; Two fields and a separator between them: print, separator, print,
-;; separator, using the byte in C each time.
+;; Three fields and two separators: print, separator, print,
+;; separator, and then fall into PRINT_FIELD for the third.  The
+;; fall-through is what prints the year of a date and the minute of
+;; a time, and it is easy to miss because the routine looks as
+;; though it ends at the second separator.
 ;; --------------------------------------------------------------------
 
-; ---- PRINT_TWO_FIELDS ---- from &56C7
-PRINT_TWO_FIELDS:
+; ---- PRINT_FIELDS_WITH_SEPARATORS ---- from &56C7
+PRINT_FIELDS_WITH_SEPARATORS:
                CALL PRINT_FIELD                ; 56D0 CD DE 56
                LD A,C                          ; 56D3 79
 
@@ -5912,10 +5931,9 @@ PRINT_FIELD:
                RET                             ; 56ED C9
 
 ;; --------------------------------------------------------------------
-;; MasterBASIC changed this routine: only 11 of the 45
-;; instructions stock MasterDOS 2.3 has in GTVAL survive
-;; here, so that version's description of it has been
-;; left out rather than carried across.  Compare
+;; The code from here to the next routine carried across matches stock MasterDOS 2.3 in only 11 of 45 instructions, so
+;; that description has been left out rather than carried across. The stretch measured runs to the next carried label
+;; and may take in more than this one routine, so it is a hint and not a verdict. Compare GTVAL in
 ;; ref/masterdos/annotated-src/masterdos23.asm.
 ;; --------------------------------------------------------------------
 
@@ -6183,12 +6201,14 @@ PMO6:
                DEFB &A2                        ; 5814
 
 ;; --------------------------------------------------------------------
-;; The directory's column headings, laid out as a row of CALL PTM with
-;; the text following each one inline.
+;; The tail of a confirmation prompt: a close quote, then compression
+;; code 4, which expands to " (y/n)".  Its one caller is PM7K, after
+;; FORMAT or FNM7K has printed a name in quotes.  Nothing here is a
+;; directory heading, whatever an earlier reading of it said.
 ;; --------------------------------------------------------------------
 
-; ---- PRINT_HEADINGS ---- from &591A
-PRINT_HEADINGS:
+; ---- PRINT_YN_PROMPT ---- from &591A
+PRINT_YN_PROMPT:
                CALL PTM                        ; 5815 CD 7C 57
                DEFB &22                        ; 5818
                DEFB &84                        ; 5819
@@ -6398,7 +6418,7 @@ FNM7K:
 
 ; ---- PM7K ---- from &54EC
 PM7K:
-               CALL PRINT_HEADINGS             ; 591A CD 15 58  "Y/N"
+               CALL PRINT_YN_PROMPT            ; 591A CD 15 58  "Y/N"
 
 ;; --------------------------------------------------------------------
 ;; COMPARE FOR Y or N
@@ -6503,7 +6523,7 @@ CALL_Label:
                DEC A                           ; 5974 3D
                OUT (HMPR),A                    ; 5975 D3 FB  PAGE 3 (SPECTRUM "ROM") AT 8000H
                DI                              ; 5977 F3
-               JP MB_BUILD_PUT_BLOCK_8         ; 5978 C3 14 B9  JP TO "ROM"
+               JP &B914                        ; 5978 C3 14 B9  JP TO "ROM"
 
 ;; --------------------------------------------------------------------
 ;; A filename, then optionally a second after a comma; without one, &8E
@@ -6695,7 +6715,7 @@ GCOP:
                LD (PGES1),A                    ; 5AAD 32 50 41
                LD A,L                          ; 5AB0 7D
                OUT (HMPR),A                    ; 5AB1 D3 FB
-               LD HL,MB_PUTSWA                 ; 5AB3 21 00 80
+               LD HL,&8000                     ; 5AB3 21 00 80
                RET                             ; 5AB6 C9
 
 ;; --------------------------------------------------------------------
@@ -6859,7 +6879,7 @@ HK_PCAT:
                CP &02                          ; 5B71 FE 02
                JR NZ,PCAT2                     ; 5B73 20 4E
                CALL DITOB                      ; 5B75 CD 30 5C
-               CALL SETBORDER_BORDCR           ; 5B78 CD 52 51  DIR TO BUFFER
+               CALL SETBORDER_BORDCOL          ; 5B78 CD 52 51  DIR TO BUFFER
                CALL PDIRH                      ; 5B7B CD 09 5C  PRINT HEADER
                LD HL,(PTRSCR)                  ; 5B7E 2A 2C 41
                LD DE,&A000                     ; 5B81 11 00 A0
@@ -7084,9 +7104,18 @@ PCT2:
                RET                             ; 5C8A C9
 
 ;; --------------------------------------------------------------------
-;; How many columns a directory listing gets: DCOLS if it is set, and
-;; otherwise MasterBASIC's SYS_CHAR_WIDTH read out of the system page --
-;; so a narrower character size gives a wider listing.
+;; How many columns a directory listing gets.
+;;
+;; DCOLS if the user has fixed it.  Otherwise SYS_CHAR_WIDTH, read out
+;; of the system page, is used only as a yes-or-no: CSIZE has changed
+;; the character width, so give up and print one name to a line.  Its
+;; value never enters the arithmetic -- the AND A that tests it is
+;; followed by LD A,&00, which throws it away and keeps the flags.
+;;
+;; With the width left alone the count comes from the window instead:
+;; WINDRHS gives the right and left edges, C minus B plus one is the
+;; width in characters, and dividing that by eleven -- ten for a name
+;; and one for the space after it -- is the number of columns.
 ;; --------------------------------------------------------------------
 
 ; ---- COLUMNS_FOR_DIRECTORY ---- from &5BA1
@@ -7201,7 +7230,7 @@ ERAZ33:
 ERAZ45:
                CALL OHASR                      ; 5CF0 CD 2F 5D
                JR NZ,ERAZ3                     ; 5CF3 20 E7  JR IF "?" AND "N"
-               CALL CALL_ROM_66CB              ; 5CF5 CD 70 5E
+               CALL BITF4                      ; 5CF5 CD 70 5E
                JR Z,ERAZ46                     ; 5CF8 28 1E  JR IF ERASE FILE, NOT DIR
                LD BC,DIRT                      ; 5CFA 01 FA 00
                ADD HL,BC                       ; 5CFD 09
@@ -7229,12 +7258,15 @@ ERAZ33_1:
                JR ERAZ3                        ; 5D25 18 B5
 
 ;; --------------------------------------------------------------------
-;; Check the channel is open through OHASR, and if it is, store A and
-;; leave for WSAD to write the sector.
+;; Ask through OHASR, and if the answer is yes store A over the entry's
+;; type byte and leave for WSAD to write the sector.
+;;
+;; Nothing here is about a channel being open, which the name this
+;; carried for a while claimed.
 ;; --------------------------------------------------------------------
 
-; ---- WRITE_BYTE_IF_OPEN ---- from &5E4D
-WRITE_BYTE_IF_OPEN:
+; ---- WRITE_TYPE_IF_CONFIRMED ---- from &5E4D
+WRITE_TYPE_IF_CONFIRMED:
                CALL OHASR                      ; 5D27 CD 2F 5D
                RET NZ                          ; 5D2A C0  RET IF "?" OPTION AND "N"
                LD (HL),A                       ; 5D2B 77  ERASED/PROTECTED/HIDDEN
@@ -7451,7 +7483,7 @@ SFB2:
 
 ; ---- SFB4 ---- from &5E4A
 SFB4:
-               CALL WRITE_BYTE_IF_OPEN         ; 5E4D CD 27 5D
+               CALL WRITE_TYPE_IF_CONFIRMED    ; 5E4D CD 27 5D
                JR SFB2                         ; 5E50 18 EA
 
 ;; --------------------------------------------------------------------
@@ -7494,12 +7526,16 @@ SNDTC:
                CP &01                          ; 5E6E FE 01  CY IF DIR TYPE
 
 ;; --------------------------------------------------------------------
-;; HLFG with &66CB after it -- the inline-parameter convention again,
-;; with the ROM 1 address as the word.
+;; HLFG, and then the CB 66 that HLFG returns into: BIT 4,(HL).
+;;
+;; Not the inline-parameter convention, which an earlier reading of it
+;; made this out to be -- the two bytes are executed, not read.  The
+;; other seven of the family are together at &50EC-&5145; this one is
+;; on its own, three and a half kilobytes away.
 ;; --------------------------------------------------------------------
 
-; ---- CALL_ROM_66CB ---- from &4D3C, &4DC3, &5CF5
-CALL_ROM_66CB:
+; ---- BITF4 ---- from &4D3C, &4DC3, &5CF5
+BITF4:
                CALL HLFG                       ; 5E70 CD DF 50
                BIT 4,(HL)                      ; 5E73 CB 66
                RET                             ; 5E75 C9
@@ -9108,10 +9144,9 @@ EPCOM_2:
                JR HVAR1_1                      ; 65D3 18 B8
 
 ;; --------------------------------------------------------------------
-;; MasterBASIC changed this routine: only 8 of the 12
-;; instructions stock MasterDOS 2.3 has in AUTNAM survive
-;; here, so that version's description of it has been
-;; left out rather than carried across.  Compare
+;; The code from here to the next routine carried across matches stock MasterDOS 2.3 in only 8 of 12 instructions, so
+;; that description has been left out rather than carried across. The stretch measured runs to the next carried label
+;; and may take in more than this one routine, so it is a hint and not a verdict. Compare AUTNAM in
 ;; ref/masterdos/annotated-src/masterdos23.asm.
 ;; --------------------------------------------------------------------
 
@@ -10935,10 +10970,9 @@ MCHN2_1:
                RET                             ; 6F3A C9
 
 ;; --------------------------------------------------------------------
-;; MasterBASIC changed this routine: only 62 of the 96
-;; instructions stock MasterDOS 2.3 has in MCHWR survive
-;; here, so that version's description of it has been
-;; left out rather than carried across.  Compare
+;; The code from here to the next routine carried across matches stock MasterDOS 2.3 in only 62 of 96 instructions, so
+;; that description has been left out rather than carried across. The stretch measured runs to the next carried label
+;; and may take in more than this one routine, so it is a hint and not a verdict. Compare MCHWR in
 ;; ref/masterdos/annotated-src/masterdos23.asm.
 ;; --------------------------------------------------------------------
 
@@ -13645,10 +13679,9 @@ SIBKS:
                JP ISEPX                        ; 7A0B C3 35 50
 
 ;; --------------------------------------------------------------------
-;; MasterBASIC changed this routine: only 17 of the 29
-;; instructions stock MasterDOS 2.3 has in INPST survive
-;; here, so that version's description of it has been
-;; left out rather than carried across.  Compare
+;; The code from here to the next routine carried across matches stock MasterDOS 2.3 in only 17 of 29 instructions, so
+;; that description has been left out rather than carried across. The stretch measured runs to the next carried label
+;; and may take in more than this one routine, so it is a hint and not a verdict. Compare INPST in
 ;; ref/masterdos/annotated-src/masterdos23.asm.
 ;; --------------------------------------------------------------------
 

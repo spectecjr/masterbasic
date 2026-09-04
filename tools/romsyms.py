@@ -556,6 +556,9 @@ FROM_MDOS_COMMENTS = {
 
 
 EXTRA_NOTES = {
+    'ROM_BORDCR': 'VALUE TO SEND TO BORDER PORT -- the ROM calls &5C4B'
+                  ' BORDCOL, and BORDCR is a different variable at &5C48.'
+                  " The name here is MasterDOS's own source's",
     'INVALID': 'a compressed substring in ERRTBL, printed as "Invalid "',
     'ERROR': 'a compressed substring in ERRTBL, printed as "Error"',
     'TREAM': 'a compressed substring in ERRTBL, printed as "tream"',

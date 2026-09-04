@@ -1,0 +1,12 @@
+# COPY, CALL MODE, and two helpers whose carried comments are a little
+# off.  Prose for clean/ only.
+
+DOS &5967 : only the low byte is looked at, so CALL MODE 256 passes as 0
+DOS &5975 : page 3, the Spectrum "ROM" -- so what follows is in that page and not MasterBASIC's
+DOS &5A18 : one sector's worth up front, which is what makes the total come out at BC times 510
+DOS &5AB3 : the base of the copy buffer in the page just put in the window
+
+DOS &6233 : &4F10 in the system page, not &4F00 as the line above says
+DOS &6236 : and &4F68, not &4F80
+
+DOS &71EB : counted down before the test, so the body runs one time fewer than BC

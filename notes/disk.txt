@@ -159,9 +159,12 @@ DOS &56BB PRINT_DATE_IF_SET
     Otherwise "/" goes in C as the separator and the fields are printed
     in pairs.
 
-DOS &56D0 PRINT_TWO_FIELDS
-    Two fields and a separator between them: print, separator, print,
-    separator, using the byte in C each time.
+DOS &56D0 PRINT_FIELDS_WITH_SEPARATORS
+    Three fields and two separators: print, separator, print,
+    separator, and then fall into PRINT_FIELD for the third.  The
+    fall-through is what prints the year of a date and the minute of
+    a time, and it is easy to miss because the routine looks as
+    though it ends at the second separator.
 
 DOS &56DE PRINT_FIELD
     One field as a decimal number through the ROM's PNUM2, with HL, DE
@@ -182,9 +185,11 @@ DOS &5774 SKIP_B_WORDS
     The RLA is the test and the two jumps are the two loops -- inner over
     a word, outer over the count -- with no counter of its own.
 
-DOS &5815 PRINT_HEADINGS
-    The directory's column headings, laid out as a row of CALL PTM with
-    the text following each one inline.
+DOS &5815 PRINT_YN_PROMPT
+    The tail of a confirmation prompt: a close quote, then compression
+    code 4, which expands to " (y/n)".  Its one caller is PM7K, after
+    FORMAT or FNM7K has printed a name in quotes.  Nothing here is a
+    directory heading, whatever an earlier reading of it said.
 
 DOS &597B EVAL_NAME_PAIR
     A filename, then optionally a second after a comma; without one, &8E
@@ -195,17 +200,33 @@ DOS &5C1B PRINT_B_CHARACTERS
     B characters from HL, each through PRINT_A_KEEPING_IT.
 
 DOS &5C8B COLUMNS_FOR_DIRECTORY
-    How many columns a directory listing gets: DCOLS if it is set, and
-    otherwise MasterBASIC's SYS_CHAR_WIDTH read out of the system page --
-    so a narrower character size gives a wider listing.
+    How many columns a directory listing gets.
 
-DOS &5D27 WRITE_BYTE_IF_OPEN
-    Check the channel is open through OHASR, and if it is, store A and
-    leave for WSAD to write the sector.
+    DCOLS if the user has fixed it.  Otherwise SYS_CHAR_WIDTH, read out
+    of the system page, is used only as a yes-or-no: CSIZE has changed
+    the character width, so give up and print one name to a line.  Its
+    value never enters the arithmetic -- the AND A that tests it is
+    followed by LD A,&00, which throws it away and keeps the flags.
 
-DOS &5E70 CALL_ROM_66CB
-    HLFG with &66CB after it -- the inline-parameter convention again,
-    with the ROM 1 address as the word.
+    With the width left alone the count comes from the window instead:
+    WINDRHS gives the right and left edges, C minus B plus one is the
+    width in characters, and dividing that by eleven -- ten for a name
+    and one for the space after it -- is the number of columns.
+
+DOS &5D27 WRITE_TYPE_IF_CONFIRMED
+    Ask through OHASR, and if the answer is yes store A over the entry's
+    type byte and leave for WSAD to write the sector.
+
+    Nothing here is about a channel being open, which the name this
+    carried for a while claimed.
+
+DOS &5E70 BITF4
+    HLFG, and then the CB 66 that HLFG returns into: BIT 4,(HL).
+
+    Not the inline-parameter convention, which an earlier reading of it
+    made this out to be -- the two bytes are executed, not read.  The
+    other seven of the family are together at &50EC-&5145; this one is
+    on its own, three and a half kilobytes away.
 
 DOS &6284 EVAL_STRING_IF_RUNNING
     A string expression, then CFSO so that syntax time returns without

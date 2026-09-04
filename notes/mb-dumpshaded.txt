@@ -1,0 +1,317 @@
+# The shaded screen dump, &67F0-&69F9.  Read by hand.
+#
+# DUMP 1, 2 and 3 are one routine.  notes/mb-dumpcolour.txt covers the
+# half that reads a pixel and decides what grey it is; this is the half
+# that turns those greys into Epson bit-image bytes and gets them to the
+# printer.  DUMP 4 and DUMP 5 are somewhere else entirely -- they are
+# copied into the ROM's INSTBUF and run there, and notes/mb-dump.txt has
+# them.
+#
+# XVAR n is MB &4000+n, which is worth holding on to while reading this:
+# every control string and every limit the user can change is an XVAR,
+# and the addresses in the listing are the manual's numbers plus &4000.
+#
+#     DTTH    XVAR  5   &4005   times to hit the paper
+#     SDORI   XVAR 15   &400F   orientation
+#     SDLHS   XVAR 16   &4010   the area dumped, left
+#     SDRHS   XVAR 17   &4011   right
+#     SDTOP   XVAR 18   &4012   top
+#     SDBOT   XVAR 19   &4013   bottom
+#     GCMX2   XVAR 20   &4014   sent before each bit-image line
+#     GCMX4   XVAR 28   &401C   sent at each line boundary
+#     GCMX1   XVAR 35   &4023   sent once, before the dump
+#     GCMX3   XVAR 52   &4034   sent once, after it
+#
+# The manual calls XVAR 52 "Applies to DUMP 4 only", and it does go to
+# the ROM's own variables at BOOT time for DUMP 4's benefit -- but the
+# shaded dump loads &4034 too, at &69E4, as its ending message.  The two
+# dumps share it.
+
+# ONE THING IS NOT SETTLED.  The manual calls the first number the
+# width magnification and the second the height: "DUMP 1,2 single width,
+# double height".  What the code does is magnify the bit axis by the
+# first number and the byte axis by the second, and which of those is
+# the paper's width depends on the orientation -- they exchange when the
+# dump is sideways.  For DUMP 3, and for anything in MODE 3, the
+# manual's names are right.  For an upright DUMP 1 or 2 they appear to
+# be the wrong way round.  Nothing here can settle it; it wants a
+# machine and a printer.  See docs/evidence-wanted.md.
+#
+MB &405D DUMP_BIT_FROM
+MB &405E DUMP_BIT_TO
+MB &405F DUMP_BYTE_TO
+MB &4060 DUMP_BYTE_FROM
+MB &409F DUMP_BIT_STEP
+MB &40A3 DUMP_DITHER_PHASE
+MB &40AF DUMP_LINE_BASE
+MB &40B0 DUMP_BITS_LEFT
+MB &40B1 DUMP_BITS_CARRY
+
+MB &6844 DUMP_ORIENT_SETUP
+MB &68AA DUMP_LINE
+MB &68B7 DUMP_STRIKE
+MB &6903 DUMP_BYTE
+MB &6915 DUMP_PIXEL
+MB &6962 DUMP_PIXEL_TRIPLE
+MB &6988 DUMP_EMIT
+MB &6989 DUMP_INVERT
+MB &69AE DUMP_LINE_END
+MB &69E4 DUMP_FINISH
+
+MB &67F0 : PLNS in the DOS page, before anything is printed
+MB &67F8 : the byte between "LD A,D" and the print call
+MB &67FB : NOP, so the byte goes out as it is
+MB &6801 : CPL, so every dot is inverted -- this is all INVERSE does
+MB &6815 : the second number is 1 to 3
+MB &681A : keep it while the first is fetched from under it
+MB &6827 : DUMP 5, the text dump, which is elsewhere
+MB &682C : DUMP 4, the unshaded dump, likewise
+MB &6831 : the first number above the second
+MB &6836 : and the first is 1 to 3 as well
+
+DOC DUMP_ORIENT_SETUP
+    Which way round the dump goes, and what area of the screen it covers.
+
+    ORIENTATION IS SDORI'S IF THE USER SET IT, and otherwise 1 for MODE 3
+    or DUMP 3 and 3 for everything else.  The two tests share their JR Z:
+    CP &02 against the screen mode and CP &03 against the DUMP number
+    both fall on the same LD A,&01, and only the second needs the
+    fall-through to LD A,&03.
+
+    The manual gives the numbering, and the code stores SDORI straight
+    through, so they are the same numbering: 1 sideways, 2 sideways
+    mirrored, 3 upright, 4 upside down and mirrored.
+
+    THE MANUAL SAYS "unless DUMP 3, or DUMP 2 and MODE 3".  The code is
+    less particular than that: in MODE 3 any of DUMP 1, 2 and 3 comes out
+    sideways, because the mode is tested before the DUMP number is looked
+    at and jumps clear of it.
+
+    THE FOUR LIMITS ARE PUT IN AXIS ORDER RATHER THAN SCREEN ORDER.  The
+    routine below works in two axes of its own -- one that fills the eight
+    bits of a bit-image byte, one that steps from byte to byte -- and
+    which screen axis each of those is depends on the orientation.  So for
+    an upright dump the pairs are exchanged here, and the rows are
+    subtracted from &BF because the manual's coordinates put 191 at the
+    top of the screen and the loop counts the other way.  After this,
+    DUMP_BIT_FROM/TO and DUMP_BYTE_FROM/TO mean the same thing whichever
+    way the picture is going, and TRANSFORM_DUMP_COORDS is the only other
+    place that has to know.
+
+MB &6844 : MODE 3 is always sideways, whichever DUMP was asked for
+MB &6848 : the user's own setting wins if there is one
+MB &684E : and otherwise DUMP 3 is the sideways one
+MB &6851 : sideways
+MB &6855 : upright
+MB &685A : the left and right edges of the dumped area
+MB &685D : and the top and bottom
+MB &6863 : sideways wants them as they are
+MB &6865 : upright wants the pairs the other way round
+MB &6868 : and the rows counted from the top rather than the bottom
+MB &6871 : the axis that fills the bits of a byte
+MB &6874 : and the axis that steps from byte to byte
+MB &6878 : the screen being displayed
+MB &687F : into the window, where the pixel reader expects it
+MB &6884 : stream &FB, the printer
+MB &6889 : GCMX1 -- left margin and line advance, sent once
+MB &6891 : MODE 3 has half the columns, so the start doubles
+MB &689C : and the bit that carries out of it is kept for the pixel reader
+
+DOC DUMP_LINE
+    One bit-image line: eight dots deep, the whole width of the dump.
+
+    DUMP_LINE_BASE holds where this line starts on the bit axis, and the
+    line advances it by eight each time round.  GCMX4 goes out first,
+    which is the carriage return and line feed that ends the line before
+    -- so a dump opens with one carriage return and line feed that has
+    nothing in front of it, and its last line is not followed by
+    anything until GCMX3.
+
+    DTTH says how many times to print the same line.  The manual: "DUMP
+    Times To Hit the paper.  Normally 1 ... POKE XVAR 5,2 for
+    double-strike."  The carriage return in GCMX2 is what makes a second
+    strike land on top of the first, and the manual says that too.
+
+MB &68AD : where this line starts on the bit axis
+MB &68AE : GCMX4, which ends the line before this one
+MB &68B4 : how many times to print this line
+
+DOC DUMP_STRIKE
+    One pass of the print head over one line.
+
+    THE DITHER PATTERN IS ROTATED BETWEEN LINES, and which way round
+    depends on whether the second magnification is 1.  &68BA reads it and
+    throws the value away immediately -- the DEC A is only there to set
+    Z -- so the branch is "is the byte axis being magnified at all".
+    Magnified, the phase counts down and wraps at 0; not magnified, it
+    counts up and wraps at 3.  Either way it stays in 0 to 2, and it is
+    what stops a flat area of colour printing as stripes.
+
+    THE COUNT SENT AFTER GCMX2 is worked out by adding, not multiplying:
+    the number of steps on the byte axis, added to itself once for every
+    unit of magnification.  That is the Epson n1/n2 pair -- how many
+    bytes of bit image follow -- and it is the only place the two
+    magnifications and the two axis limits all come together.
+
+MB &68BA : is the byte axis magnified?  the value itself is not wanted
+MB &68C8 : magnified: the phase counts down
+MB &68CB : not magnified: it counts up
+MB &68D5 : three bits to a pixel, carried across lines by the widest dump
+MB &68D8 : GCMX2 -- carriage return, then ESC "*" and the density
+MB &68E1 : the magnification, counted down once per byte
+MB &68E5 : how many steps the byte axis takes
+MB &68F2 : times the magnification, by adding rather than multiplying
+MB &68F6 : the Epson count, low byte first
+MB &68FD : and start at the beginning of the byte axis
+
+DOC DUMP_BYTE
+    One byte of bit image: eight dots stacked up the paper.
+
+    Everything is put back to the state the line started in -- the phase,
+    the leftover bit count, and the position on the bit axis, which is
+    what makes each byte cover the same eight dots at a new position
+    along the other axis.
+
+    D IS THE BYTE BEING BUILT, and it starts at 1 rather than 0.  Bits
+    are shifted in at the bottom with RL D, and after eight of them the
+    1 falls out into carry -- so the byte is finished by the carry and
+    not by a counter.  Every path that shifts a bit tests it, which is
+    why a pixel worth two or three bits can finish a byte in the middle
+    of itself.
+
+MB &6906 : three bits to a pixel again, or what was left of one
+MB &690C : the phase this line starts at
+MB &690F : back to the top of this line on the bit axis
+MB &6913 : the marker bit, which says when eight have been shifted in
+
+DOC DUMP_PIXEL
+    One screen pixel, worth one, two or three dots.
+
+    TRANSFORM_DUMP_COORDS turns the two loop axes into a screen row and
+    column and reads the colour there; the grey map at &7B80 turns the
+    colour into a level from 0 to 24; and the level chooses three bytes
+    of dot pattern.
+
+    THE PATTERN TABLE IS INDEXED FROM ONE.  The address loaded is
+    DUMP_BITS_CARRY, and the offset is three times the grey level plus
+    the phase, which runs 3, 2, 1 -- never 0.  So the table proper starts
+    at the byte after DUMP_BITS_CARRY, and that byte is free to be a
+    variable of its own.  Twenty-five levels of three bytes is seventy-five
+    bytes, &40B2 to &40FC.
+
+    HOW MANY BITS THE PIXEL IS WORTH is the first DUMP number, and the
+    three cases are written separately.  One bit: rotate the pattern byte
+    down by the phase and take the bottom bit.  Two: rotate by twice the
+    phase and take two.  Three has a routine of its own below, because
+    three does not divide eight.
+
+MB &691C : the grey map, sixteen colours to twenty-five levels
+MB &6921 : the table starts one byte past this, so index 0 never happens
+MB &6925 : three bytes to a level
+MB &6927 : and one of the three per printed line
+MB &692A : three bits to a pixel is the awkward case
+MB &6934 : the phase steps once per pixel and wraps at three
+MB &693E : one bit to a pixel, or two
+MB &6949 : one bit: rotate the pattern down by the phase
+MB &6952 : two bits: twice as far
+MB &6956 : the first of the two
+MB &6959 : and the bit itself, into the byte being built
+MB &695E : eight shifted in, so the byte is full
+
+DOC DUMP_PIXEL_TRIPLE
+    Three dots to a pixel, which does not divide into eight.
+
+    DUMP_BITS_LEFT carries the count across the byte boundary: a pixel
+    that runs out of room finishes in the next byte, and the count says
+    how many of its three dots are still owed.  The RRA RRA RRA before
+    the loop is the same rotation the narrower cases do, done once
+    because the phase is always the whole three here.
+
+    A pixel that fits entirely puts the count back to three on the way
+    out; one that does not leaves it as it stands, and DUMP_EMIT's
+    LD D,C picks it up.
+
+MB &6963 : the pattern for this level, rotated into place
+MB &6967 : how many of this pixel's three dots are still owed
+MB &6971 : line the remaining dots up at the top
+MB &6977 : one dot into the byte
+MB &6979 : which may fill it before the pixel is finished
+MB &697F : the pixel is complete, so the next one gets all three
+
+DOC DUMP_EMIT
+    A finished byte, out to the printer.
+
+    DUMP_INVERT is the patched byte -- NOP or CPL -- and this is the only
+    place INVERSE has any effect.
+
+    THEN THE BOOKKEEPING FOR THE NEXT BYTE.  D is reloaded from C, which
+    is 1 for the narrow dumps and the leftover count for the widest one;
+    when it comes down to zero the pixel really is finished and the
+    position on the bit axis moves on.  The magnification counter decides
+    whether the next byte repeats this column or moves along, and the
+    three-phase counter for the dither pattern steps once a byte.
+
+MB &6989 : NOP, or CPL if INVERSE was asked for
+MB &698D : 1 normally; the leftover count in the widest dump
+MB &6992 : that pixel is done, so move along the bit axis
+MB &6995 : the magnification: this many bytes to a step
+MB &699F : and stop when the byte axis runs out
+MB &69A6 : one of the three pattern bytes per printed line
+
+DOC DUMP_LINE_END
+    The line is printed.  Print it again, move down, or stop.
+
+    DTTH's count is spent first.  Then MODE 3, whose columns were
+    doubled on the way in, is halved again here so that the bit axis
+    advances by eight screen pixels and not sixteen.
+
+    THE END TEST IS TWO SHORT OF THE LIMIT, because a bit-image byte is
+    eight dots and the position has already stepped past the last one it
+    used.
+
+    THE SPACE BAR STOPS THE DUMP HERE, and stops it cleanly: the exit is
+    the same one the finished dump takes, so GCMX3 still goes out and the
+    printer is left in text mode.  The manual says exactly that -- "All
+    the DUMPs can be stopped immediately by ESC, but this may leave the
+    printer in graphics mode ... you may prefer to use the space bar,
+    which will stop the DUMP but leave the printer in the normal text
+    mode."  ESC is the ROM's doing, not this routine's.
+
+MB &69AE : another strike of the same line?
+MB &69B5 : MODE 3 doubled the columns on the way in
+MB &69D4 : two short, because a byte is eight dots deep
+MB &69DD : the half-row holding the space bar
+MB &69E1 : held down, so stop -- but stop tidily
+MB &69E4 : GCMX3, which puts the printer back in text mode
+
+DOC DUMP_BIT_FROM
+    Where the eight dots of a bit-image byte start.
+
+    Set up before the dump from SDLHS or from &BF minus SDTOP, depending
+    on the orientation, and not touched again.  DUMP_LINE_BASE is the
+    working position on the same axis.
+
+DOC DUMP_BYTE_FROM
+    Where the stepping from byte to byte starts, and DUMP_BYTE_TO where
+    it ends.
+
+    The pair are SDBOT/SDTOP for a sideways dump and SDLHS/SDRHS for an
+    upright one, and the number of steps between them, times the second
+    magnification, is the byte count sent to the printer.
+
+DOC DUMP_BIT_STEP
+    How many dots one screen pixel is worth along the bit axis: 1, 2 or 3,
+    the first number of the DUMP command.
+
+    Which direction on the paper that magnifies depends on the
+    orientation -- see the note at the top of the file about the manual's
+    "width" and "height".
+
+DOC DUMP_BITS_CARRY
+    Three, and the byte before the dot-pattern table.
+
+    Two things at one address, and they do not collide because the table
+    is indexed from one: DUMP_PIXEL_TRIPLE reloads DUMP_BITS_LEFT from
+    here at the start of every byte, and DUMP_PIXEL adds three times the
+    grey level plus one, two or three to the same address to reach the
+    pattern.

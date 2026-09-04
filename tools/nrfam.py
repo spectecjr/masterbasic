@@ -33,15 +33,19 @@ FAMILY = """\
 %s
 
 Preserves:   %s
-Corrupts:    AF' -- the family uses the alternate accumulator to carry
-             the saved HMPR across the access
+%s
 Side effect: HMPR is set to 0 for the access and put back before the
              return.  Interrupts are not disabled, so an interrupt
              during the access sees the ROM's page at &8000."""
 
 
-def _entry(title, name, body, preserved):
-    return FAMILY % (title, name, body, preserved)
+AFPRIME = ("Corrupts:    AF' -- the primitive under this entry uses the"
+           ' alternate\n             accumulator to carry the saved HMPR'
+           ' across the access\n')
+
+
+def _entry(title, name, body, preserved, corrupts=AFPRIME):
+    return FAMILY % (title, name, body, preserved, corrupts)
 
 
 DOC = {
@@ -65,7 +69,12 @@ DOC = {
     'Takes:       A = the byte to write.\n'
     'Returns:     A = that same byte, so the value can be used again\n'
     '             without reloading it.',
-    'HL, DE, BC'),
+    "HL, DE, BC, and AF' as well: this is the one entry of the\n"
+    '             four that calls no primitive.  Its write is inlined\n'
+    '             and the saved HMPR travels in D, which is the point\n'
+    '             of the authors own note, "replace CALL CMR:DW\n'
+    '             NRREAD - faster".',
+    ''),
 
 'NRWRD': _entry(
     'Write two bytes to a ROM system variable.',
@@ -99,7 +108,7 @@ Read the byte at HL from the ROM's system page.
 Entry:   HL = an address in &4000-&7FFF.
 Returns: A = the byte there.
 Corrupts HL, which is left windowed into &8000-&BFFF, and AF'.
-HMPR is put back through PPXR before the return.
+HMPR is put back by BCRWC, which RDA falls into.
 
 The primitive under NRRD.  Called directly where the address is already
 in HL rather than in the two bytes after a call.""",
@@ -129,10 +138,14 @@ D and E as the scratch it has already saved, which is how it manages to
 give the written byte back in A.""",
 
 'PPXR': """\
-Put HMPR back and return.
+Restore the caller's registers and return past the inline word.
 
-The tail every primitive above jumps to.  The value read is in A and
-the saved HMPR in A', so it swaps them, writes HMPR, and swaps back --
-leaving the value in A and the port as it found it.""",
+The shared exit of the four NR entries -- not of the primitives,
+which end at BCRWC.  The caller's HL and DE come back off the stack,
+and EX (SP),HL puts the stepped-on return address where the RET will
+find it.
+
+MasterBASIC has a routine of its own under this name that does
+something else: there, PPXR is the tail that puts HMPR back.""",
 
 }
