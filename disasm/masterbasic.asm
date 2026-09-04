@@ -834,13 +834,9 @@ V40B1:
 
 ; ---- V40F5 ---- from &4A46
 V40F5:
-               DEFB &24,&12,&00,&12,&00,&00,&00,&00,&00,&00 ; 40F5 $.........
-
-; ---- V40FF ---- from DOS &6A58
-V40FF:
-               DEFB &00,&FF,&FF,&FF,&F0,&FF,&0F,&FF,&00,&F0,&FF,&F0,&F0,&F0,&0F ; 40FF ....p....p.ppp.
-               DEFB &F0,&00,&0F,&FF,&0F,&F0,&0F,&0F,&0F,&00,&00,&FF,&00,&F0,&00 ; 410E p....p.......p.
-               DEFB &0F,&00,&00                                                 ; 411D ...
+               DEFB &24,&12,&00,&12,&00,&00,&00,&00,&00,&00,&00,&FF,&FF,&FF,&F0 ; 40F5 $.............p
+               DEFB &FF,&0F,&FF,&00,&F0,&FF,&F0,&F0,&F0,&0F,&F0,&00,&0F,&FF,&0F ; 4104 ....p.ppp.p....
+               DEFB &F0,&0F,&0F,&0F,&00,&00,&FF,&00,&F0,&00,&0F,&00,&00         ; 4113 p.......p....
 
 ; ---- V4120 ---- from &48DD, &48E9, &4901
 V4120:
@@ -2844,8 +2840,8 @@ PAGE_ON_TWO_4:
                CALL COMPARE_FAR_STRINGS        ; 4708 CD 25 47
                JR NC,PAGE_ON_TWO_LOOP7         ; 470B 30 ED
                JR PAGE_ON_TWO_LOOP6            ; 470D 18 E8
-               DEFB &10,&F0,&C9                ; 470F .pI  skipped: reads as DJNZ &4701 from here, and as part of the
-                                               ; instruction above it
+               DEFB &10,&F0,&C9                ; 470F .pI  reads as DJNZ &4701, and nothing the trace can follow reaches
+                                               ; it
 
 ; ---- PAGE_ON_TWO_5 ---- from &46FC
 PAGE_ON_TWO_5:
@@ -7528,7 +7524,7 @@ SCREEN_BLANK_TICK:
 SCREEN_BLANK_TICK_1:
                LD A,(V4085+&4000)              ; 59FC 3A 85 80
                AND A                           ; 59FF A7
-               JR Z,SCREEN_BLANK_TICK_8        ; 5A00 28 69
+               JR Z,SCREEN_BLANK_TICK_7        ; 5A00 28 69
                DEC A                           ; 5A02 3D
                LD B,A                          ; 5A03 47
                IN A,(LMPR)                     ; 5A04 DB FA
@@ -7546,7 +7542,7 @@ SCREEN_BLANK_TICK_LOOP:
                LD A,(DOS_BOOT_14)              ; 5A17 3A 88 80
                DEC A                           ; 5A1A 3D
                CP B                            ; 5A1B B8
-               JR Z,SCREEN_BLANK_TICK_7        ; 5A1C 28 4C
+               JR Z,SCREEN_BLANK_TICK_6        ; 5A1C 28 4C
 
 ; ---- SCREEN_BLANK_TICK_2 ---- from &5A15
 SCREEN_BLANK_TICK_2:
@@ -7584,7 +7580,7 @@ SCREEN_BLANK_TICK_4:
 
 ; ---- SCREEN_BLANK_TICK_5 ---- from &71D4
 SCREEN_BLANK_TICK_5:
-               JR C,SCREEN_BLANK_TICK_7        ; 5A45 38 23
+               JR C,SCREEN_BLANK_TICK_6        ; 5A45 38 23
                LD A,B                          ; 5A47 78
                OUT (LMPR),A                    ; 5A48 D3 FA
                LD A,(DE)                       ; 5A4A 1A
@@ -7593,14 +7589,11 @@ SCREEN_BLANK_TICK_5:
                LD D,A                          ; 5A50 57
                LD A,C                          ; 5A51 79
                OUT (LMPR),A                    ; 5A52 D3 FA
-
-; ---- SCREEN_BLANK_TICK_6 ---- from DOS &6884, DOS &688C
-SCREEN_BLANK_TICK_6:
                LD A,D                          ; 5A54 7A
                CALL SEND_BYTE_TO_PRINTER+&4000 ; 5A55 CD 37 81
                POP AF                          ; 5A58 F1
                DEC A                           ; 5A59 3D
-               JR Z,SCREEN_BLANK_TICK_8        ; 5A5A 28 0F
+               JR Z,SCREEN_BLANK_TICK_7        ; 5A5A 28 0F
                PUSH AF                         ; 5A5C F5
                LD HL,(ILPD+&4000)              ; 5A5D 2A 09 80  the not-ready delay, from XVAR 9
 
@@ -7613,12 +7606,12 @@ SCREEN_BLANK_TICK_LOOP2:
                OR L                            ; 5A67 B5
                JR NZ,SCREEN_BLANK_TICK_LOOP2   ; 5A68 20 F6
 
-; ---- SCREEN_BLANK_TICK_7 ---- from &5A1C when A = B, &5A45
-SCREEN_BLANK_TICK_7:
+; ---- SCREEN_BLANK_TICK_6 ---- from &5A1C when A = B, &5A45
+SCREEN_BLANK_TICK_6:
                POP AF                          ; 5A6A F1
 
-; ---- SCREEN_BLANK_TICK_8 ---- from &5A00 when A = 0, &5A5A when A reaches 0
-SCREEN_BLANK_TICK_8:
+; ---- SCREEN_BLANK_TICK_7 ---- from &5A00 when A = 0, &5A5A when A reaches 0
+SCREEN_BLANK_TICK_7:
                LD A,(&8084)                    ; 5A6B 3A 84 80
                AND A                           ; 5A6E A7
                RET Z                           ; 5A6F C8
@@ -7637,7 +7630,7 @@ SCREEN_BLANK_TICK_LOOP3:
                LD HL,(&8082)                   ; 5A82 2A 82 80
                AND A                           ; 5A85 A7
                SBC HL,DE                       ; 5A86 ED 52
-               JR NZ,SCREEN_BLANK_TICK_9       ; 5A88 20 0A
+               JR NZ,SCREEN_BLANK_TICK_8       ; 5A88 20 0A
                IN A,(LMPR)                     ; 5A8A DB FA
                INC A                           ; 5A8C 3C
                LD H,A                          ; 5A8D 67
@@ -7645,25 +7638,25 @@ SCREEN_BLANK_TICK_LOOP3:
                CP H                            ; 5A91 BC
                JR Z,SCREEN_BLANK_TICK_DONE     ; 5A92 28 2A
 
-; ---- SCREEN_BLANK_TICK_9 ---- from &5A88
-SCREEN_BLANK_TICK_9:
+; ---- SCREEN_BLANK_TICK_8 ---- from &5A88
+SCREEN_BLANK_TICK_8:
                LD A,D                          ; 5A94 7A
                INC A                           ; 5A95 3C
 
-; ---- SCREEN_BLANK_TICK_10 ---- from &5DB1
-SCREEN_BLANK_TICK_10:
+; ---- SCREEN_BLANK_TICK_9 ---- from &5DB1
+SCREEN_BLANK_TICK_9:
                AND &03                         ; 5A96 E6 03
-               JR NZ,SCREEN_BLANK_TICK_12      ; 5A98 20 19
+               JR NZ,SCREEN_BLANK_TICK_11      ; 5A98 20 19
                LD A,D                          ; 5A9A 7A
                CP &7F                          ; 5A9B FE 7F
                LD A,E                          ; 5A9D 7B
-               JR NZ,SCREEN_BLANK_TICK_11      ; 5A9E 20 02
+               JR NZ,SCREEN_BLANK_TICK_10      ; 5A9E 20 02
                ADD A,&10                       ; 5AA0 C6 10
 
-; ---- SCREEN_BLANK_TICK_11 ---- from &5A9E when A <> &7F
-SCREEN_BLANK_TICK_11:
+; ---- SCREEN_BLANK_TICK_10 ---- from &5A9E when A <> &7F
+SCREEN_BLANK_TICK_10:
                CP &FE                          ; 5AA2 FE FE
-               JR NZ,SCREEN_BLANK_TICK_12      ; 5AA4 20 0D
+               JR NZ,SCREEN_BLANK_TICK_11      ; 5AA4 20 0D
                LD A,(DE)                       ; 5AA6 1A
                LD H,A                          ; 5AA7 67
                INC E                           ; 5AA8 1C
@@ -7674,12 +7667,12 @@ SCREEN_BLANK_TICK_11:
                DEC A                           ; 5AB0 3D
                OUT (LMPR),A                    ; 5AB1 D3 FA
 
-; ---- SCREEN_BLANK_TICK_12 ---- from &5A98 when a bit of &03 is set, &5AA4 when A <> &FE
-SCREEN_BLANK_TICK_12:
+; ---- SCREEN_BLANK_TICK_11 ---- from &5A98 when a bit of &03 is set, &5AA4 when A <> &FE
+SCREEN_BLANK_TICK_11:
                LD A,(DE)                       ; 5AB3 1A
                INC DE                          ; 5AB4 13
                CP CH_SPACE                     ; 5AB5 FE 20
-               JR NZ,SCREEN_BLANK_TICK_13      ; 5AB7 20 0D
+               JR NZ,SCREEN_BLANK_TICK_12      ; 5AB7 20 0D
                LD A,(DE)                       ; 5AB9 1A
                INC DE                          ; 5ABA 13
                LD (&8084),A                    ; 5ABB 32 84 80
@@ -7691,8 +7684,8 @@ SCREEN_BLANK_TICK_DONE:
                LD (DOS_BOOT_11),DE             ; 5AC1 ED 53 7F 80
                RET                             ; 5AC5 C9
 
-; ---- SCREEN_BLANK_TICK_13 ---- from &5AB7 when A <> CH_SPACE
-SCREEN_BLANK_TICK_13:
+; ---- SCREEN_BLANK_TICK_12 ---- from &5AB7 when A <> CH_SPACE
+SCREEN_BLANK_TICK_12:
                LD H,C                          ; 5AC6 61
                LD BC,&01FF                     ; 5AC7 01 FF 01
                OUT (C),A                       ; 5ACA ED 79
@@ -8053,13 +8046,10 @@ PREPARE_ROM1_COPY:
                EX DE,HL                        ; 5C4D EB
                LD E,(HL)                       ; 5C4E 5E
 
-; ---- PREPARE_ROM1_COPY_1 ---- from DOS &68AB, DOS &69C1, DOS &6D28, DOS &6DF0, DOS &6E5D, DOS &7020
+; ---- PREPARE_ROM1_COPY_1 ---- from DOS &7020
 PREPARE_ROM1_COPY_1:
                INC HL                          ; 5C4F 23
                LD D,(HL)                       ; 5C50 56
-
-; ---- PREPARE_ROM1_COPY_2 ---- from DOS &6852, DOS &691C, DOS &691F, DOS &6943, DOS &6981
-PREPARE_ROM1_COPY_2:
                LD B,&E7                        ; 5C51 06 E7
                POP HL                          ; 5C53 E1
                JR PAGE_IN_ROM1                 ; 5C54 18 03
@@ -8426,7 +8416,7 @@ COPY_THEN_APPEND_CALL_1:
 ; ---- CMD_KEYIN_1 ---- from &5D93
 CMD_KEYIN_1:
                LD A,(ELINEP)                   ; 5DAE 3A 93 5A
-               LD (SCREEN_BLANK_TICK_10),A     ; 5DB1 32 96 5A
+               LD (SCREEN_BLANK_TICK_9),A      ; 5DB1 32 96 5A
                LD HL,WORKSPP                   ; 5DB4 21 90 5A
                CP (HL)                         ; 5DB7 BE
                RET Z                           ; 5DB8 C8
@@ -8991,7 +8981,6 @@ SHOW_LINE_AND_STATEMENT_2:
 ;; error restart.
 ;; --------------------------------------------------------------------
 
-; ---- CHECK_BREAK ---- from DOS &5B81, DOS &5B93, DOS &5C33, DOS &7936
 CHECK_BREAK:
                IN A,(STAT)                     ; 6000 DB F9
                AND &20                         ; 6002 E6 20
@@ -9224,8 +9213,7 @@ CHECK_BREAK_LOOP11:
                RET P                           ; 610E F0
                RET C                           ; 610F D8
                JR CHECK_BREAK_LOOP11           ; 6110 18 FC
-               DEFB &9C,&FF                    ; 6112 ..  skipped: reads as SBC A,H from here, and as part of the
-                                               ; instruction above it
+               DEFB &9C,&FF                    ; 6112 ..  reads as SBC A,H, and nothing the trace can follow reaches it
 
 CHECK_BREAK_10:
                OR &FF                          ; 6114 F6 FF
@@ -10248,8 +10236,7 @@ SAVE_BOOT:
 
 ; ---- V647E ---- from &6425
 V647E:
-               DEFB &03,&00                    ; 647E ..  skipped: reads as INC BC from here, and as part of the
-                                               ; instruction above it
+               DEFB &03,&00                    ; 647E ..  reads as INC BC, and nothing the trace can follow reaches it
                ADD A,B                         ; 6480 80
                LD BC,DOS_V7F77                 ; 6481 01 77 BF
                DEFB &FF                        ; 6484 .
@@ -13864,7 +13851,7 @@ HK_PROGPREP:
                PUSH AF                         ; 732C F5
                XOR A                           ; 732D AF
                OUT (HMPR),A                    ; 732E D3 FB
-               LD HL,&9BB6                     ; 7330 21 B6 9B  DCT+&4000 -- the disc error counter, in the system page
+               LD HL,DCT+&4000                 ; 7330 21 B6 9B  DCT+&4000 -- the disc error counter, in the system page
                LD A,(HL)                       ; 7333 7E
                PUSH AF                         ; 7334 F5
                AND &FA                         ; 7335 E6 FA
@@ -15403,9 +15390,6 @@ BUILD_PUT_BLOCK_7:
                EXX                             ; 78FB D9
                LD E,A                          ; 78FC 5F
                LD A,(INVERT)                   ; 78FD 3A 54 5A
-
-; ---- BUILD_PUT_BLOCK_8 ---- from DOS &549B
-BUILD_PUT_BLOCK_8:
                EX AF,AF'                       ; 7900 08
                LD C,A                          ; 7901 4F
                LD A,(CUSCRNP)                  ; 7902 3A 78 5A
@@ -15417,8 +15401,8 @@ BUILD_PUT_BLOCK_8:
                LD (&EFFE),SP                   ; 790D ED 73 FE EF
                LD SP,&EFFE                     ; 7911 31 FE EF
 
-; ---- BUILD_PUT_BLOCK_9 ---- from DOS &5978
-BUILD_PUT_BLOCK_9:
+; ---- BUILD_PUT_BLOCK_8 ---- from DOS &5978
+BUILD_PUT_BLOCK_8:
                JP &F000                        ; 7914 C3 00 F0
                LD HL,(STKEND)                  ; 7917 2A 65 5C
                PUSH HL                         ; 791A E5
@@ -15431,38 +15415,38 @@ BUILD_PUT_BLOCK_9:
                INC DE                          ; 7925 13
                ADD HL,BC                       ; 7926 09
                BIT 6,H                         ; 7927 CB 74
-               JR NZ,BUILD_PUT_BLOCK_10        ; 7929 20 13
+               JR NZ,BUILD_PUT_BLOCK_9         ; 7929 20 13
                EX AF,AF'                       ; 792B 08
                EXX                             ; 792C D9
                CALL GETSTR                     ; 792D CD 24 01
                LD H,A                          ; 7930 67
                EX AF,AF'                       ; 7931 08
                CP H                            ; 7932 BC
-               JR NZ,BUILD_PUT_BLOCK_10        ; 7933 20 09
+               JR NZ,BUILD_PUT_BLOCK_9         ; 7933 20 09
                LD H,D                          ; 7935 62
                LD L,E                          ; 7936 6B
                ADD HL,BC                       ; 7937 09
                BIT 6,H                         ; 7938 CB 74
                POP HL                          ; 793A E1
-               JR NZ,BUILD_PUT_BLOCK_11        ; 793B 20 02
+               JR NZ,BUILD_PUT_BLOCK_10        ; 793B 20 02
                RET                             ; 793D C9
 
-; ---- BUILD_PUT_BLOCK_10 ---- from &7929 when bit 6 of H set, &7933 when A <> H
-BUILD_PUT_BLOCK_10:
+; ---- BUILD_PUT_BLOCK_9 ---- from &7929 when bit 6 of H set, &7933 when A <> H
+BUILD_PUT_BLOCK_9:
                POP HL                          ; 793E E1
 
-; ---- BUILD_PUT_BLOCK_11 ---- from &793B when bit 6 of H set
-BUILD_PUT_BLOCK_11:
+; ---- BUILD_PUT_BLOCK_10 ---- from &793B when bit 6 of H set
+BUILD_PUT_BLOCK_10:
                LD (STKEND),HL                  ; 793F 22 65 5C
                POP HL                          ; 7942 E1
                LD A,(SYS_FN_INDEX)             ; 7943 3A F0 4A
                AND A                           ; 7946 A7
-               JR NZ,BUILD_PUT_BLOCK_12        ; 7947 20 02
+               JR NZ,BUILD_PUT_BLOCK_11        ; 7947 20 02
                RST ERR_HOOK                    ; 7949 CF
                DEFB ERR_PAGE_OVERLAP           ; 794A 76 error 118, "Page overlap"
 
-; ---- BUILD_PUT_BLOCK_12 ---- from &7947 when A <> 0
-BUILD_PUT_BLOCK_12:
+; ---- BUILD_PUT_BLOCK_11 ---- from &7947 when A <> 0
+BUILD_PUT_BLOCK_11:
                JP &0000                        ; 794B C3 00 00
                OUT (LMPR),A                    ; 794E D3 FA
                LD A,C                          ; 7950 79
@@ -15513,7 +15497,7 @@ BUILD_PUT_BLOCK_LOOP2:
                EXX                             ; 7981 D9
                POP HL                          ; 7982 E1
                INC HL                          ; 7983 23
-               JR BUILD_PUT_BLOCK_13           ; 7984 18 15
+               JR BUILD_PUT_BLOCK_12           ; 7984 18 15
                POP HL                          ; 7986 E1  from here to &798F this code is written for &45A2: subtract
                                                ; &33E4 from any address in it
                RST NEXT_CHAR                   ; 7987 E7
@@ -15566,8 +15550,8 @@ RESOLVE_ROM_ENTRIES:
                LD E,(HL)                       ; 7999 5E
                INC HL                          ; 799A 23
 
-; ---- BUILD_PUT_BLOCK_13 ---- from &7984
-BUILD_PUT_BLOCK_13:
+; ---- BUILD_PUT_BLOCK_12 ---- from &7984
+BUILD_PUT_BLOCK_12:
                LD D,(HL)                       ; 799B 56
                INC HL                          ; 799C 23
                LD (&7DFB),DE                   ; 799D ED 53 FB 7D  two of these results fill the JP &0000 operands in
@@ -15949,8 +15933,7 @@ INSTALL_ROM_PATCHES_2:
 ; ---- WRITE_A_DESCENDING_2 ---- from &5743
 WRITE_A_DESCENDING_2:
                JR INSTALL_ROM_PATCHES_DONE     ; 7B81 18 03
-               DEFB &CF,&97,&C9                ; 7B83 O.I  skipped: reads as RST &08 from here, and as part of the
-                                               ; instruction above it
+               DEFB &CF,&97,&C9                ; 7B83 O.I  reads as RST &08, and nothing the trace can follow reaches it
 
 ; ---- INSTALL_ROM_PATCHES_DONE ---- from &7B81
 INSTALL_ROM_PATCHES_DONE:
@@ -16482,8 +16465,8 @@ TBL_7D58:
                DEFW &512A,&5E5C,&5623,&53ED,OPSTORE ; 7D5A 2A 51 5C 5E 23 56 ED 53 B5 5A
                LD DE,&4A12                          ; 7D64 11 12 4A
                JR TBL_7D58_1                        ; 7D67 18 06
-               DEFB &32,&BF,&5B,&11,&1F,&4A         ; 7D69 2?[..J  skipped: reads as LD (&5BBF),A from here, and as part
-                                                    ; of the instruction above it
+               DEFB &32,&BF,&5B,&11,&1F,&4A         ; 7D69 2?[..J  reads as LD (&5BBF),A, and nothing the trace can
+                                                    ; follow reaches it
 
 ; ---- TBL_7D58_1 ---- from &7D67
 TBL_7D58_1:
@@ -16636,8 +16619,8 @@ INSTALL_ROM_PATCHES_4:
                                                ; SAVE BOOT reads it back out as its third block -- which also carries
                                                ; the alternate character set at &7E64, see notes/mb-saveboot.txt
                JP &0000                        ; 7DF3 C3 00 00
-               DEFB &22,&9E,&4B,&E1            ; 7DF6 ".Ka  skipped: reads as LD (&4B9E),HL from here, and as part of
-                                               ; the instruction above it
+               DEFB &22,&9E,&4B,&E1            ; 7DF6 ".Ka  reads as LD (&4B9E),HL, and nothing the trace can follow
+                                               ; reaches it
                CALL &0000                      ; 7DFA CD 00 00
                LD HL,(&4B9E)                   ; 7DFD 2A 9E 4B
                JP &0000                        ; 7E00 C3 00 00

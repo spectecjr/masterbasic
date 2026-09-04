@@ -43,6 +43,7 @@ BEEPR:                      EQU  &016F
 BSTKEND:                    EQU  &5BC4         ; end of that stack
 CHADD:                      EQU  &5A97         ; address of the character being interpreted
 CHADP:                      EQU  &5A96         ; page holding the character being interpreted
+CHANS:                      EQU  &5C4F         ; address of the channel information area
 CLSLOW:                     EQU  &0151         ; clear the lower screen
 CSTAT:                      EQU  &5A7B         ; address of the start of the current statement
 CURCHL:                     EQU  &5C51         ; address of the current channel
@@ -70,6 +71,7 @@ INCURPDE:                   EQU  &3FEB         ; Increments the upper RAM page, 
                                                ; the range C000-FFFF. Uses A, alters D.
 INQUFG:                     EQU  &5ABA         ; IN QUOTES FLAG. BIT 0=1 IF IN QUOTES. OUTLINE ZEROS
 INSTBUF:                    EQU  &4F00         ; BUFFER FOR ROM1 XFER CODE, ETC. 0200H
+INVERT:                     EQU  &5A54         ; 00/FF FOR NORMAL/INVERSE ;
 IYJUMP:                     EQU  &0006         ; JP (IY)
 JCLSBL:                     EQU  &014E         ; clear the whole screen if A is zero, otherwise the window
 JMKRBIG:                    EQU  &010C         ; open A*16K + BC bytes at HL
@@ -104,13 +106,11 @@ NOT_IN_THIS_PAGE:           EQU  &4000
 ; this one is at &4000.  The names are its own labels.  A stored
 ; pointer written as NAME+&4000 has bit 15 set, the flag INDJP
 ; and CTAB use to mean "not in this page".
-MB_BUILD_PUT_BLOCK_8:       EQU  &B900
-MB_BUILD_PUT_BLOCK_9:       EQU  &B914
+MB_BUILD_PUT_BLOCK_8:       EQU  &B914
 MB_BUILD_TRACK_IMAGE:       EQU  &9352
 MB_BYTE_TO_DECIMAL:         EQU  &8240
 MB_CALLDOS_2:               EQU  &82FF
 MB_CALL_STKSTR_2:           EQU  &8200
-MB_CHECK_BREAK:             EQU  &A000
 MB_CMD_ALTER:               EQU  &94CA
 MB_CMD_BLITZ:               EQU  &9AD4
 MB_CMD_CLS:                 EQU  &B1A4
@@ -164,13 +164,10 @@ MB_HPRTOK:                  EQU  &900E
 MB_MULTIPLY_BY_24:          EQU  &85F9
 MB_NEXT_SCREEN_BYTE_1:      EQU  &A280
 MB_PREPARE_ROM1_COPY_1:     EQU  &9C4F
-MB_PREPARE_ROM1_COPY_2:     EQU  &9C51
 MB_PUTSWA:                  EQU  &8000
-MB_SCREEN_BLANK_TICK_6:     EQU  &9A54
 MB_SET_DCT_COMPILE_BITS:    EQU  &859C
 MB_SOFV:                    EQU  &8002
 MB_SUBSTITUTE_PRINTER_CHAR: EQU  &9973
-MB_V40FF:                   EQU  &80FF
 MB_V4125:                   EQU  &8125
 MB_WAIT_FOR_CLOCK:          EQU  &8978
 
@@ -7541,7 +7538,7 @@ GTHL:
                RET                             ; 50DE C9
 
 ;; --------------------------------------------------------------------
-;; HLFG -- &50DF to &50EB
+;; HLFG -- &50DF to &50E9
 ;;
 ;; This routine moves the return address about with EX (SP),HL, so the
 ;; register tracking below cannot be trusted: read it as a list of what
@@ -7586,24 +7583,33 @@ HLFG:
                LD HL,FLAG3                     ; 50E6 21 0C 7C
                RET                             ; 50E9 C9
 
+;; --------------------------------------------------------------------
+;; PHLR -- &50EA to &50EB
+;;
+;; Takes:     nothing in registers
+;; Leaves:    HL
+;; Ends:      RET
+;; --------------------------------------------------------------------
+
 ; ---- PHLR ---- from &50E1
 PHLR:
-               DEFB &E1,&C9                    ; 50EA aI  skipped: reads as POP HL from here, and as part of the
-                                               ; instruction above it
+               POP HL                          ; 50EA E1
+               RET                             ; 50EB C9
 
 ;; --------------------------------------------------------------------
 ;; SETF0 -- &50EC to &50F1
 ;;
 ;; Takes:     HL
 ;; Leaves:    HL
+;; Ends:      RET
 ;;
-;; ? calls HLFG; falls into whatever follows rather than returning.
+;; ? calls HLFG.
 ;; --------------------------------------------------------------------
 
 ; ---- SETF0 ---- from &5D2F, &5DBC
 SETF0:
                CALL HLFG                       ; 50EC CD DF 50
-               DEFW &C6CB                      ; 50EF CB C6
+               SET 0,(HL)                      ; 50EF CB C6
                RET                             ; 50F1 C9
 
 ;; --------------------------------------------------------------------
@@ -7611,14 +7617,15 @@ SETF0:
 ;;
 ;; Takes:     HL
 ;; Leaves:    HL
+;; Ends:      RET
 ;;
-;; ? calls HLFG; falls into whatever follows rather than returning.
+;; ? calls HLFG.
 ;; --------------------------------------------------------------------
 
 ; ---- SETF1 ---- from &5A49, &5CB6, &6A2D, &6DCC
 SETF1:
                CALL HLFG                       ; 50F2 CD DF 50
-               DEFW &CECB                      ; 50F5 CB CE
+               SET 1,(HL)                      ; 50F5 CB CE
                RET                             ; 50F7 C9
 
 ;; --------------------------------------------------------------------
@@ -7626,14 +7633,15 @@ SETF1:
 ;;
 ;; Takes:     HL
 ;; Leaves:    HL
+;; Ends:      RET
 ;;
-;; ? calls HLFG; falls into whatever follows rather than returning.
+;; ? calls HLFG.
 ;; --------------------------------------------------------------------
 
 ; ---- SETF2 ---- from &5E7B, &67B1, &73F1
 SETF2:
                CALL HLFG                       ; 50F8 CD DF 50
-               DEFW &D6CB                      ; 50FB CB D6
+               SET 2,(HL)                      ; 50FB CB D6
                RET                             ; 50FD C9
 
 ;; --------------------------------------------------------------------
@@ -7641,14 +7649,15 @@ SETF2:
 ;;
 ;; Takes:     HL
 ;; Leaves:    HL
+;; Ends:      RET
 ;;
-;; ? calls HLFG; falls into whatever follows rather than returning.
+;; ? calls HLFG.
 ;; --------------------------------------------------------------------
 
 ; ---- SETF3 ---- from &5A74, &5D22
 SETF3:
                CALL HLFG                       ; 50FE CD DF 50
-               DEFW &DECB                      ; 5101 CB DE
+               SET 3,(HL)                      ; 5101 CB DE
                RET                             ; 5103 C9
 
 ;; --------------------------------------------------------------------
@@ -7656,14 +7665,15 @@ SETF3:
 ;;
 ;; Takes:     HL
 ;; Leaves:    HL
+;; Ends:      RET
 ;;
-;; ? calls HLFG; falls into whatever follows rather than returning.
+;; ? calls HLFG.
 ;; --------------------------------------------------------------------
 
 ; ---- SETF4 ---- from &5CC1, &6CA6, &720E
 SETF4:
                CALL HLFG                       ; 5104 CD DF 50
-               DEFW &E6CB                      ; 5107 CB E6
+               SET 4,(HL)                      ; 5107 CB E6
                RET                             ; 5109 C9
 
 ;; --------------------------------------------------------------------
@@ -7671,14 +7681,15 @@ SETF4:
 ;;
 ;; Takes:     HL
 ;; Leaves:    HL
+;; Ends:      RET
 ;;
-;; ? calls HLFG; falls into whatever follows rather than returning.
+;; ? calls HLFG.
 ;; --------------------------------------------------------------------
 
 ; ---- SETF5 ---- from &59B7 when A < &03
 SETF5:
                CALL HLFG                       ; 510A CD DF 50
-               DEFW &EECB                      ; 510D CB EE
+               SET 5,(HL)                      ; 510D CB EE
                RET                             ; 510F C9
 
 ;; --------------------------------------------------------------------
@@ -7686,14 +7697,15 @@ SETF5:
 ;;
 ;; Takes:     HL
 ;; Leaves:    HL
+;; Ends:      RET
 ;;
-;; ? calls HLFG; falls into whatever follows rather than returning.
+;; ? calls HLFG.
 ;; --------------------------------------------------------------------
 
 ; ---- SETF6 ---- from &4856, &496F, &6A5E
 SETF6:
                CALL HLFG                       ; 5110 CD DF 50
-               DEFW &F6CB                      ; 5113 CB F6
+               SET 6,(HL)                      ; 5113 CB F6
                RET                             ; 5115 C9
 
 ;; --------------------------------------------------------------------
@@ -7701,119 +7713,127 @@ SETF6:
 ;;
 ;; Takes:     HL
 ;; Leaves:    HL
+;; Ends:      RET
 ;;
-;; ? calls HLFG; falls into whatever follows rather than returning.
+;; ? calls HLFG.
 ;; --------------------------------------------------------------------
 
 ; ---- SETF7 ---- from &4F7F, &599A
 SETF7:
                CALL HLFG                       ; 5116 CD DF 50
-               DEFW &FECB                      ; 5119 CB FE
+               SET 7,(HL)                      ; 5119 CB FE
                RET                             ; 511B C9
 
 ;; --------------------------------------------------------------------
 ;; BITF0 -- &511C to &5121
 ;;
 ;; Takes:     HL
-;; Leaves:    HL
+;; Leaves:    F, HL
+;; Ends:      RET
 ;;
-;; ? calls HLFG; falls into whatever follows rather than returning.
+;; ? calls HLFG.
 ;; --------------------------------------------------------------------
 
 ; ---- BITF0 ---- from &5E58
 BITF0:
                CALL HLFG                       ; 511C CD DF 50
-               DEFW &46CB                      ; 511F CB 46
+               BIT 0,(HL)                      ; 511F CB 46
                RET                             ; 5121 C9
 
 ;; --------------------------------------------------------------------
 ;; BITF1 -- &5122 to &5127
 ;;
 ;; Takes:     HL
-;; Leaves:    HL
+;; Leaves:    F, HL
+;; Ends:      RET
 ;;
-;; ? calls HLFG; falls into whatever follows rather than returning.
+;; ? calls HLFG.
 ;; --------------------------------------------------------------------
 
 ; ---- BITF1 ---- from &58E2, &59E6, &5A8D, &5CE7, &5E47, &6805, &68C8, &6A6C ...
 BITF1:
                CALL HLFG                       ; 5122 CD DF 50
-               DEFW &4ECB                      ; 5125 CB 4E
+               BIT 1,(HL)                      ; 5125 CB 4E
                RET                             ; 5127 C9
 
 ;; --------------------------------------------------------------------
 ;; BITF2 -- &5128 to &512D
 ;;
 ;; Takes:     HL
-;; Leaves:    HL
+;; Leaves:    F, HL
+;; Ends:      RET
 ;;
-;; ? calls HLFG; falls into whatever follows rather than returning.
+;; ? calls HLFG.
 ;; --------------------------------------------------------------------
 
 ; ---- BITF2 ---- from &5DC4, &5E76, &6D07, &6EFE
 BITF2:
                CALL HLFG                       ; 5128 CD DF 50
-               DEFW &56CB                      ; 512B CB 56
+               BIT 2,(HL)                      ; 512B CB 56
                RET                             ; 512D C9
 
 ;; --------------------------------------------------------------------
 ;; BITF3 -- &512E to &5133
 ;;
 ;; Takes:     HL
-;; Leaves:    HL
+;; Leaves:    F, HL
+;; Ends:      RET
 ;;
-;; ? calls HLFG; falls into whatever follows rather than returning.
+;; ? calls HLFG.
 ;; --------------------------------------------------------------------
 
 ; ---- BITF3 ---- from &5A6A, &5E5C
 BITF3:
                CALL HLFG                       ; 512E CD DF 50
-               DEFW &5ECB                      ; 5131 CB 5E
+               BIT 3,(HL)                      ; 5131 CB 5E
                RET                             ; 5133 C9
 
 ;; --------------------------------------------------------------------
 ;; BITF5 -- &5134 to &5139
 ;;
 ;; Takes:     HL
-;; Leaves:    HL
+;; Leaves:    F, HL
+;; Ends:      RET
 ;;
-;; ? calls HLFG; falls into whatever follows rather than returning.
+;; ? calls HLFG.
 ;; --------------------------------------------------------------------
 
 ; ---- BITF5 ---- from &5934, &593D
 BITF5:
                CALL HLFG                       ; 5134 CD DF 50
-               DEFW &6ECB                      ; 5137 CB 6E
+               BIT 5,(HL)                      ; 5137 CB 6E
                RET                             ; 5139 C9
 
 ;; --------------------------------------------------------------------
 ;; BITF6 -- &513A to &513F
 ;;
 ;; Takes:     HL
-;; Leaves:    HL
+;; Leaves:    F, HL
+;; Ends:      RET
 ;;
-;; ? calls HLFG; falls into whatever follows rather than returning.
+;; ? calls HLFG.
 ;; --------------------------------------------------------------------
 
 ; ---- BITF6 ---- from &4759, &6A4E
 BITF6:
                CALL HLFG                       ; 513A CD DF 50
-               DEFW &76CB                      ; 513D CB 76
+               BIT 6,(HL)                      ; 513D CB 76
                RET                             ; 513F C9
 
 ;; --------------------------------------------------------------------
 ;; BITF7 -- &5140 to &5145
 ;;
 ;; Takes:     HL
-;; Leaves:    HL
+;; Leaves:    F, HL
+;; Ends:      RET
 ;;
-;; ? calls HLFG; falls into whatever follows rather than returning.
+;; ? calls HLFG.
 ;; --------------------------------------------------------------------
 
 ; ---- BITF7 ---- from &4EE0, &5D32, &5FC2, &5FFB
 BITF7:
                CALL HLFG                       ; 5140 CD DF 50
-               DEFW &7ECB                      ; 5143 CB 7E
+               BIT 7,(HL)                      ; 5143 CB 7E
                RET                             ; 5145 C9
 
 ;; --------------------------------------------------------------------
@@ -8627,7 +8647,7 @@ SNAP3C:
 ; ---- SNAP4 ---- from &539F, &53A9
 SNAP4:
                LD (SNME),A                     ; 53CF 32 E4 41
-               LD HL,MB_PUTSWA                 ; 53D2 21 00 80  ZX RAM STARTS AT 8000H
+               LD HL,&8000                     ; 53D2 21 00 80  ZX RAM STARTS AT 8000H
                LD E,L                          ; 53D5 5D  ZERO E
                LD (SNLEN),DE                   ; 53D6 ED 53 F4 41
                LD (SNADD),HL                   ; 53DA 22 F6 41
@@ -8797,7 +8817,7 @@ SNAP7:
 SNAP8:
                                                ; the stack is being reset, so this path does not return
                LD SP,(STR)                     ; 5497 ED 7B 90 7F
-               JP MB_BUILD_PUT_BLOCK_8         ; 549B C3 00 B9
+               JP &B900                        ; 549B C3 00 B9
 
 ;; --------------------------------------------------------------------
 ;; DFMT -- &549E to &54A6
@@ -10682,7 +10702,7 @@ TSPCE1:
 ;; TSPCE2 -- &593D to &5943
 ;;
 ;; Takes:     HL
-;; Leaves:    HL
+;; Leaves:    F, HL
 ;;
 ;; ? calls BITF5, PMO9; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
@@ -10793,7 +10813,7 @@ CALL_Label:
                DEC A                           ; 5974 3D
                OUT (HMPR),A                    ; 5975 D3 FB  PAGE 3 (SPECTRUM "ROM") AT 8000H
                DI                              ; 5977 F3
-               JP MB_BUILD_PUT_BLOCK_9         ; 5978 C3 14 B9  JP TO "ROM"
+               JP MB_BUILD_PUT_BLOCK_8         ; 5978 C3 14 B9  JP TO "ROM"
 
 ;; --------------------------------------------------------------------
 ;; EVAL_NAME_PAIR -- &597B to &5984
@@ -11431,7 +11451,7 @@ HK_PCAT:
                CALL SETBORDER_BORDCR           ; 5B78 CD 52 51  DIR TO BUFFER
                CALL PDIRH                      ; 5B7B CD 09 5C  PRINT HEADER
                LD HL,(PTRSCR)                  ; 5B7E 2A 2C 41
-               LD DE,MB_CHECK_BREAK            ; 5B81 11 00 A0
+               LD DE,&A000                     ; 5B81 11 00 A0
                AND A                           ; 5B84 A7
                SBC HL,DE                       ; 5B85 ED 52  HL=TEXT LEN (1SL
                JR Z,PCN3                       ; 5B87 28 32  L5AA9 ? L5AA9 ? L5AA9_PCN3 ?  ;*
@@ -11453,7 +11473,7 @@ HK_PCAT_LOOP:
                INC DE                          ; 5B8E 13  *
                SBC HL,BC                       ; 5B8F ED 42  *
                JR NZ,HK_PCAT_LOOP              ; 5B91 20 FB  L5A80 = L5A80 = L5A80         ;*
-               LD HL,MB_CHECK_BREAK            ; 5B93 21 00 A0  HL=START, DE=FILES
+               LD HL,&A000                     ; 5B93 21 00 A0  HL=START, DE=FILES
                LD A,(SRTFG)                    ; 5B96 3A 29 42
                AND A                           ; 5B99 A7
                JR Z,HK_PCAT_1                  ; 5B9A 28 05
@@ -11711,7 +11731,7 @@ ZDVS:
 ; ---- DITOB ---- from &5B75, &7930, &7996
 DITOB:
                CALL GETSCR                     ; 5C30 CD 2C 49
-               LD HL,MB_CHECK_BREAK            ; 5C33 21 00 A0
+               LD HL,&A000                     ; 5C33 21 00 A0
                LD (PTRSCR),HL                  ; 5C36 22 2C 41  INIT BUFFER PTR
                LD A,&02                        ; 5C39 3E 02
                JP FDHR                         ; 5C3B C3 31 4B  SIMPLE DIR TO SCREEN BUFFER
@@ -12314,7 +12334,7 @@ RENM3:
 ;; REFBUF -- &5DC4 to &5DC7
 ;;
 ;; Takes:     HL
-;; Leaves:    HL
+;; Leaves:    F, HL
 ;;
 ;; ? calls BITF2; falls into whatever follows rather than returning.
 ;;
@@ -12597,9 +12617,10 @@ SNDTC:
 ;; CALL_ROM_66CB -- &5E70 to &5E75
 ;;
 ;; Takes:     HL
-;; Leaves:    HL
+;; Leaves:    F, HL
+;; Ends:      RET
 ;;
-;; ? calls HLFG; falls into whatever follows rather than returning.
+;; ? calls HLFG.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -12610,7 +12631,7 @@ SNDTC:
 ; ---- CALL_ROM_66CB ---- from &4D3C, &4DC3, &5CF5
 CALL_ROM_66CB:
                CALL HLFG                       ; 5E70 CD DF 50
-               DEFW &66CB                      ; 5E73 CB 66
+               BIT 4,(HL)                      ; 5E73 CB 66
                RET                             ; 5E75 C9
 
 ;; --------------------------------------------------------------------
@@ -16390,7 +16411,7 @@ MOVA_1:
                PUSH AF                         ; 684B F5
                CALL MOVRC                      ; 684C CD 19 69  LINE NO. LSB
                LD HL,(NSTR2)                   ; 684F 2A 56 41
-               LD (MB_PREPARE_ROM1_COPY_2),HL  ; 6852 22 51 9C
+               LD (CURCHL+&4000),HL            ; 6852 22 51 9C
                POP HL                          ; 6855 E1
                LD L,A                          ; 6856 6F  HL=LINE NO
                CALL PNUM5                      ; 6857 CD 1D 57
@@ -16464,11 +16485,11 @@ MOVJ_LOOP:
                CALL MOVRC                      ; 687C CD 19 69  READ CHAR
                JR NC,MEOF                      ; 687F 30 1A  JR IF EOF
                CALL STREAM_OR_CHANNEL          ; 6881 CD DA 68
-               LD HL,MB_SCREEN_BLANK_TICK_6    ; 6884 21 54 9A
+               LD HL,INVERT+&4000              ; 6884 21 54 9A
                LD (HL),B                       ; 6887 70
                CALL MOVWC                      ; 6888 CD 40 69  WRITE PRINTABLE CHAR
                XOR A                           ; 688B AF
-               LD (MB_SCREEN_BLANK_TICK_6),A   ; 688C 32 54 9A
+               LD (INVERT+&4000),A             ; 688C 32 54 9A
                JR MOVJ_LOOP                    ; 688F 18 EB
 
 ;; --------------------------------------------------------------------
@@ -16521,7 +16542,7 @@ MEOF:
 
 ; ---- FIRST_DISC_CHANNEL ---- from &68C6, &68D0, &6DDA
 FIRST_DISC_CHANNEL:
-               LD IX,(MB_PREPARE_ROM1_COPY_1)  ; 68AB DD 2A 4F 9C
+               LD IX,(CHANS+&4000)             ; 68AB DD 2A 4F 9C
                LD DE,&401E                     ; 68AF 11 1E 40
 
 ;; --------------------------------------------------------------------
@@ -16698,7 +16719,7 @@ TOSCQ:
 ; ---- MOVRC ---- from &6844, &684C, &685F, &6875, &687C, &6891
 MOVRC:
                LD HL,(NSTR1)                   ; 6919 2A 3A 41
-               LD (MB_PREPARE_ROM1_COPY_2),HL  ; 691C 22 51 9C
+               LD (CURCHL+&4000),HL            ; 691C 22 51 9C
 
 ;; --------------------------------------------------------------------
 ;; MOVRC2 -- &691F to &6938
@@ -16711,7 +16732,7 @@ MOVRC:
 
 ; ---- MOVRC2 ---- from &693D, &7A57
 MOVRC2:
-               LD HL,(MB_PREPARE_ROM1_COPY_2)  ; 691F 2A 51 9C
+               LD HL,(CURCHL+&4000)            ; 691F 2A 51 9C
                LD DE,FS+2                      ; 6922 11 02 40
                ADD HL,DE                       ; 6925 19  SYS PAGE IS AT 8000H
                LD E,(HL)                       ; 6926 5E
@@ -16768,7 +16789,7 @@ GIPC:
 ; ---- MOVWC ---- from &6868, &6888, &6896
 MOVWC:
                LD HL,(NSTR2)                   ; 6940 2A 56 41
-               LD (MB_PREPARE_ROM1_COPY_2),HL  ; 6943 22 51 9C
+               LD (CURCHL+&4000),HL            ; 6943 22 51 9C
                LD DE,FS+1                      ; 6946 11 01 40
                ADD HL,DE                       ; 6949 19
                LD D,A                          ; 694A 57
@@ -16879,7 +16900,7 @@ OPMOV:
                                                ; call the ROM at STREAM with ROM1 paged in, and page back on the way out
                CALL CMR                        ; 697C CD B2 7B
                DEFW STREAM                     ; 697F 12 01
-               LD IX,(MB_PREPARE_ROM1_COPY_2)  ; 6981 DD 2A 51 9C
+               LD IX,(CURCHL+&4000)            ; 6981 DD 2A 51 9C
                JR OPMV2                        ; 6985 18 1F
 
 ;; --------------------------------------------------------------------
@@ -16953,7 +16974,7 @@ DELD:
                POP HL                          ; 69BC E1
                LD DE,&C000                     ; 69BD 11 00 C0
                ADD HL,DE                       ; 69C0 19  CORRECT TO SECT B, LIKE CHANS
-               LD DE,(MB_PREPARE_ROM1_COPY_1)  ; 69C1 ED 5B 4F 9C
+               LD DE,(CHANS+&4000)             ; 69C1 ED 5B 4F 9C
                OR A                            ; 69C5 B7
                SBC HL,DE                       ; 69C6 ED 52
                INC HL                          ; 69C8 23
@@ -17118,7 +17139,7 @@ BKU4:
                JR NZ,BKU5                      ; 6A51 20 0E  JR IF NOT FIRST PASS
                LD A,(HKBC)                     ; 6A53 3A E2 41
                OUT (HMPR),A                    ; 6A56 D3 FB
-               LD HL,MB_V40FF                  ; 6A58 21 FF 80
+               LD HL,&80FF                     ; 6A58 21 FF 80
                CALL FESE2                      ; 6A5B CD F8 55  SET RND WORD AND NAME
                CALL SETF6                      ; 6A5E CD 10 51  "NOT FIRST PASS"
 
@@ -17335,7 +17356,7 @@ CMD_OPEN_DONE:
 CHANNEL_ENTRY_AT_ZERO_PAGE:
                XOR A                           ; 6AEA AF
                OUT (HMPR),A                    ; 6AEB D3 FB
-               LD HL,(&9C4F)                   ; 6AED 2A 4F 9C
+               LD HL,(CHANS+&4000)             ; 6AED 2A 4F 9C
                LD DE,&401E                     ; 6AF0 11 1E 40
 
 ;; --------------------------------------------------------------------
@@ -17505,7 +17526,7 @@ RESET_CHANNEL_SCAN:
                XOR A                           ; 6B77 AF
                OUT (HMPR),A                    ; 6B78 D3 FB
                LD (V4213),A                    ; 6B7A 32 13 42
-               LD IX,(&9C4F)                   ; 6B7D DD 2A 4F 9C
+               LD IX,(CHANS+&4000)             ; 6B7D DD 2A 4F 9C
                LD DE,&401E                     ; 6B81 11 1E 40
 
 ;; --------------------------------------------------------------------
@@ -17981,7 +18002,7 @@ OPND8:
                LD DE,HEADER                    ; 6D22 11 00 40
                AND A                           ; 6D25 A7
                SBC HL,DE                       ; 6D26 ED 52
-               LD DE,(MB_PREPARE_ROM1_COPY_1)  ; 6D28 ED 5B 4F 9C
+               LD DE,(CHANS+&4000)             ; 6D28 ED 5B 4F 9C
                SBC HL,DE                       ; 6D2C ED 52
                INC HL                          ; 6D2E 23
                RET                             ; 6D2F C9  NC - OK
@@ -18277,7 +18298,7 @@ CLSRM:
                RET Z                           ; 6DEA C8  RET IF CLOSED ALREADY
                LD (SVTRS),BC                   ; 6DEB ED 43 24 41
                PUSH HL                         ; 6DEF E5  PTR TO STRMS
-               LD HL,(MB_PREPARE_ROM1_COPY_1)  ; 6DF0 2A 4F 9C
+               LD HL,(CHANS+&4000)             ; 6DF0 2A 4F 9C
                DEC HL                          ; 6DF3 2B
                ADD HL,BC                       ; 6DF4 09
                                                ; HMPR is 0, so setting bit 7 and clearing bit 6 turns an address in
@@ -18418,7 +18439,7 @@ RCLM1:
                INC HL                          ; 6E5A 23
                LD (HL),D                       ; 6E5B 72  REDUCED DISP REPLACED
                DEC DE                          ; 6E5C 1B
-               LD HL,(MB_PREPARE_ROM1_COPY_1)  ; 6E5D 2A 4F 9C
+               LD HL,(CHANS+&4000)             ; 6E5D 2A 4F 9C
                ADD HL,DE                       ; 6E60 19
                LD DE,FS+4                      ; 6E61 11 04 40
                ADD HL,DE                       ; 6E64 19
@@ -18602,7 +18623,7 @@ MCHIN:
                PUSH IX                         ; 6F0D DD E5  KEEP FPC HAPPY DURING INKEY$
                LD HL,TVFLAG+&4000              ; 6F0F 21 3C 9C
                RES 3,(HL)                      ; 6F12 CB 9E  "NO NEED TO COPY LINE TO LS"
-               LD IX,(&9C51)                   ; 6F14 DD 2A 51 9C  - NEEDED?
+               LD IX,(CURCHL+&4000)            ; 6F14 DD 2A 51 9C  - NEEDED?
                LD BC,HEADER                    ; 6F18 01 00 40
                ADD IX,BC                       ; 6F1B DD 09
                BIT 0,(IX+&0C)                  ; 6F1D DD CB 0C 46
@@ -18684,7 +18705,7 @@ MCHWR:
                PUSH AF                         ; 6F3E F5
                XOR A                           ; 6F3F AF
                OUT (HMPR),A                    ; 6F40 D3 FB
-               LD IX,(&9C51)                   ; 6F42 DD 2A 51 9C
+               LD IX,(CURCHL+&4000)            ; 6F42 DD 2A 51 9C
                LD BC,HEADER                    ; 6F46 01 00 40
                ADD IX,BC                       ; 6F49 DD 09
                LD A,(IX+&0C)                   ; 6F4B DD 7E 0C
@@ -20331,8 +20352,8 @@ PRP2:
 
 ; ---- PRPD ---- from &734B
 PRPD:
-               DEFB &20,&2A                    ; 7358 *  skipped: reads as JR NZ,&7384 from here, and as part of the
-                                               ; instruction above it
+               DEFB &20,&2A                    ; 7358 *  reads as JR NZ,&7384, and nothing the trace can follow reaches
+                                               ; it
 
 ;; --------------------------------------------------------------------
 ;; DTREE -- &735A to &7369
@@ -22943,7 +22964,7 @@ FNDI2:
 FNDI3:
                CALL DITOB                      ; 7930 CD 30 5C  DIR TO BUFFER
                LD HL,(PTRSCR)                  ; 7933 2A 2C 41
-               LD DE,MB_CHECK_BREAK            ; 7936 11 00 A0
+               LD DE,&A000                     ; 7936 11 00 A0
                AND A                           ; 7939 A7
                SBC HL,DE                       ; 793A ED 52  HL=TEXT LEN (10 PER NAME)
                LD B,H                          ; 793C 44

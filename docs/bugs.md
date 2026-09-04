@@ -193,18 +193,35 @@ LD A,(SNPRT2) / OUT (VMPR),A    ; 53C6   the saved VMPR, into VMPR
 `SNPRT1` is the byte that holds an `HMPR` value, and it is not read
 here at all.
 
-**What it costs** Less than it might. `LMPR` and `HMPR` both take a page
-number in their low five bits, so the effect is the wrong page at
-`&8000` rather than anything wilder, and the path ends at `JP ENDS`,
-which returns through the DOS's own exit into BASIC. Whether the window
-is left wrong afterwards depends on what the ROM does with `HMPR` on the
-way out, which this project has not established.
+**Nothing puts it back.** The path ends at `JP ENDS`, which unwinds to
+the last DOS-command entry and returns through the ROM's `DOSC`
+(`misc2.asm`). That restores `LMPR` from the value `PTDOS` saved, and
+`SP`, and nothing else:
+
+```asm
+DOSC:      POP HL            ;PREV STACK PTR
+           POP BC
+           DI
+           OUT (C),B         ;PREV LRPORT RESTORED
+           LD SP,HL          ;PREV STACK
+```
+
+`C` is 250, which is `LMPR`. The ROM never saves or restores `HMPR`
+around a DOS call, so whatever the DOS leaves there is what BASIC gets
+back.
+
+**What it costs** Both ports take a page number in their low five bits,
+so the effect is the wrong page at `&8000` rather than anything wilder,
+and it lasts only until the next thing that sets `HMPR` -- which the ROM
+does whenever it uses the window. If Spectrum mode was never entered
+`SNPRT0` is zero and the window ends up holding the system page, which
+is harmless. The bug is real; its consequences are mostly invisible.
 
 **Not certain enough to call settled.** The pairing is plainly
 inconsistent with the only other place all three are restored, which is
-what makes it worth writing down; the consequence is not worked out.
-Anyone with a machine can settle it in a minute: enter Spectrum mode,
-press NMI, press X, and see what `PEEK` through the window gives.
+what makes it worth writing down; whether any BASIC program can be made
+to notice is another matter. Anyone with a machine can look in a minute:
+enter Spectrum mode, press NMI, press X, and `PEEK` through the window.
 
 ---
 

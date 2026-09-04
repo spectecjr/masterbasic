@@ -103,8 +103,13 @@ in `STR` itself, and the interrupted `PC` is on *that* stack, under the `AF` and
 **This is the one that will bite you.** `NMI` set `SP` to `STR` and pushed
 eleven words, so you are called with `SP` at about `&7F7A` — and the bytes below
 it are not spare. `PTH2` is at `&7F39` and `PTH1` at `&7F13`: the current
-directory paths for the two drives, live data. There are perhaps sixty bytes
-before you start writing over them, and no warning when you do.
+directory paths for the two drives.
+
+MasterDOS is doing this on purpose: `STR` is the top of the `PTH2` buffer, and
+the snapshot code is borrowing a path it can read back off the disc rather than
+finding sixty spare bytes it has not got. That is a fair trade for MasterDOS,
+which knows what it is spending. It is not one for you — there are about sixty
+bytes between where you are called and `PTH2`, and nothing warns you.
 
 Switch to your own stack as the first thing you do, and put it back before you
 return:
@@ -161,16 +166,29 @@ paging — `SNAP7` does that itself, and does it in a way you cannot.
 
 ### What will not work — restoring the paging yourself
 
-You cannot put `LMPR`, `HMPR` and `VMPR` back and then jump to the interrupted
-code, because the instruction that restores `LMPR` is the one that takes your
-page away. `SNAP7` solves it by writing the target address and the three port
-values into the Spectrum page at `&B8F6`–`&B8FA` and jumping to a stub at
-`&B900` — code in a page that will still be mapped once the ports have been put
-back. That stub is not in this image; it belongs to the page the ROM keeps for
-Spectrum mode.
+`HMPR` alone is easy: ROM 0 holds three bytes at `&005C` that do exactly this
+job, and both halves of this image already use them.
+
+```asm
+      LD   HL,<where to go>
+      LD   A,<page for &8000>
+      JP   &005C                      ; OUT (&FB),A : JP (HL)
+```
+
+`LMPR` is the problem. The instruction that restores it is the one that takes
+your page away, so the jump after it cannot be in your page — or in the DOS's,
+if the DOS is what you are paging out. `SNAP7` gets round it by writing the
+target address and the three port values into the Spectrum page at
+`&B8F6`–`&B8FA` and jumping to a stub at `&B900`: code in a page that will still
+be mapped once the ports have been put back.
+
+That stub is in neither half of this image, and it is not the ROM's either — the
+ROM's source has no Spectrum emulation in it at all. Page 3 holds a Spectrum ROM
+image loaded into RAM, and the stub comes with it.
 
 If you want to resume, use `SNAP7`. If you need to resume *somewhere else*, you
-will have to build the same trick in a page of your own.
+will have to put the same trampoline in a page of your own — or arrange that
+only `HMPR` has to change, and use `&005C`.
 
 ---
 

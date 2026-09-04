@@ -112,7 +112,7 @@ class Symbols:
         self._add(self.data, value, name)
 
     def from_vars_file(self, path):
-        """The ROM's own variable list, for page-0 addresses below &5000.
+        """The ROM's own variable list, which is the authority for it.
 
         `vars.asm` is where the ROM names the system page, and below
         &5000 those names have to be kept apart from ordinary code
@@ -122,12 +122,28 @@ class Symbols:
         so keep them in a table of their own and let that branch ask for
         it first.
         """
-        pat = re.compile(r'^(\w+):\s*EQU\s+&?([0-9A-Fa-f]{1,4})H?')
+        lit = re.compile(r'^(\w+):\s*EQU\s+(&|)([0-9A-Fa-f]{1,4})(H?)\s*(?:;|$)')
+        rel = re.compile(r'^(\w+):\s*EQU\s+(\w+)\s*\+\s*&?([0-9A-Fa-f]{1,4})H?')
+        base = {}
         for line in open(path, encoding='latin-1'):
-            m = pat.match(line)
-            if not m:
-                continue
-            addr = int(m.group(2), 16)
+            m = lit.match(line)
+            if m:
+                # The list is mostly hex, but the hook codes are written
+                # in decimal -- BTHK is 128, not &128 -- so a bare number
+                # with no & and no H is decimal.
+                base16 = m.group(2) or m.group(4)
+                addr = int(m.group(3), 16 if base16 else 10)
+            else:
+                # Most of the list is written as an offset from the page
+                # the block starts on -- VAR2+&BA and the like -- and
+                # those are the majority of the names, so a list that
+                # only understood literals had most of the ROM's own
+                # variables missing.
+                m = rel.match(line)
+                if not m or m.group(2) not in base:
+                    continue
+                addr = base[m.group(2)] + int(m.group(3), 16)
+            base[m.group(1)] = addr
             if SYSVARS[0] <= addr < 0x5000:
                 # Three addresses carry two names: INTSTK/BUFF256,
                 # FPSB/CDBUFF and ISPVAL/INSTBUF.  In each the list
@@ -135,6 +151,11 @@ class Symbols:
                 # buffer second, and an operand pointing at one of
                 # them means the buffer, so the later name wins.
                 self.lowvars[addr] = m.group(1)
+            elif SYSVARS[0] <= addr < SYSVARS[1]:
+                # Above &5000 the pickle has already named some of
+                # these, and those names are the ones the listings and
+                # the prose already use.  Fill the gaps only.
+                self.vars.setdefault(addr, m.group(1))
 
     def lowvar(self, value):
         return self.lowvars.get(value)
