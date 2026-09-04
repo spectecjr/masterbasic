@@ -22,6 +22,15 @@ DOC STAMP_WITH_DATE
     ROM's header tail that no file type uses, which is how MasterDOS
     finds room for them without changing the disc format.
 
+    THE ROM RESERVED A PLACE FOR THIS AND MASTERDOS DID NOT USE IT.
+    vars.asm names offset 26 of the ROM's 48-byte header "DISP TO HEADER
+    DATE/TIME", and nothing in the ROM's source ever reads or writes it.
+    The directory keeps that header from byte 15 at offset 220, so the
+    ROM's field would be offset 231; MasterDOS's stamp is at 245, which
+    is header offset 40 -- past the last field the ROM defines.  Both are
+    five bytes.  Why the reserved one was left alone is not recorded
+    anywhere this project can see.
+
     THE CLOCK MAY NOT BE SET, and the loop stops at the first field that
     reads zero.  A day of zero cannot be real, so the byte at &F5 is
     left as it was and PRINT_DATE_IF_SET, at the other end, treats both
