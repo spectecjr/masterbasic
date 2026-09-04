@@ -54,10 +54,10 @@ DOS &4628 SET_SCREEN_POINTER
     that ends every access to a screen the DOS has borrowed.
 
 DOS &467F READ_SECTOR_TO_ADDRESS
-    Like READ_SECTOR but with the destination given: the drive's data
-    port is poked into the operands of SRSA3 and SRSA2 -- the two
-    instructions the transfer loop uses -- and the address pushed for
-    them before it starts.
+    Like READ_SECTOR but with the destination given: the drive's status
+    port is poked into SRSA3 and its data port, three above it, into
+    SRSA2 -- the two instructions the transfer loop uses -- and the
+    address pushed for them before it starts.
 
 DOS &46C6 RETRY_OR_GIVE_UP
     What the sector routines do with a controller status they do not
@@ -80,15 +80,18 @@ DOS &4829 SELECT_DRIVE
     block: DISKCTL_0_BASE for one drive and DISKCTL_1_BASE for the other,
     chosen on the number rather than by two copies of the code.
 
-DOS &4847 IS_LAST_PAGE
-    GRPNT, then return NZ unless the page count says &FE with one page
-    left -- the shape the DOS uses for "this is the last page of the
-    transfer".
+DOS &4847 AT_SECTOR_LINK
+    GRPNT, then return Z only when RPT has reached &01FE -- offset 510,
+    where the two-byte link to the next sector sits.  The byte-at-a-time
+    file code calls it to ask "is this sector's data used up?".  RPT is
+    the pointer into the 512-byte sector buffer; nothing here is about
+    pages.
 
-DOS &4856 ROOM_LEFT_IN_PAGE
-    How much of the current page is still to come: &01FE less the offset,
-    with the page adjusted first, and the result narrowed against what
-    the caller has left.
+DOS &4856 ROOM_LEFT_IN_SECTOR
+    How much of the current sector's data is still to come: &01FE less
+    RPT, the offset into the sector buffer, narrowed against what the
+    caller has left.  510 because the last two bytes of a sector are its
+    link, not data.
 
 DOS &4E75 CHECK_FILE_TYPE
     The file type out of the header, masked to five bits and bounded: &15
@@ -266,8 +269,8 @@ DOS &6D4F COPY_MTBLS
     table and the room it needs, laid down in one go.
 
 DOS &6F8D WRITE_LAST_PAGE
-    The tail of a write: IS_LAST_PAGE decides whether this is the final
-    page, and everything is pushed around the decision so the caller's
+    The tail of a write: AT_SECTOR_LINK decides whether the sector's
+    data is used up, and everything is pushed around the decision so the caller's
     registers survive either path.
 
 DOS &6FC0 WRITE_AT_LINKED_SECTOR

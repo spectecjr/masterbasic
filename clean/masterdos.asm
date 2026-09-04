@@ -2060,7 +2060,7 @@ PRECMX:
 ;;
 ;; So the routine asks which half of the disc the head is over.  TSTD
 ;; gives the track count, which RRA and the mask halve -- 40 for the
-;; usual 80-track disc -- and the current track is subtracted from it.
+;; usual 80-track disc -- and is subtracted from the current track.
 ;; A borrow puts the head in the outer half and the jump is taken,
 ;; leaving bit 1 of C as it was, which is how the WD1772 spells
 ;; "precompensation off".  No borrow puts it in the inner half, and
@@ -2497,10 +2497,10 @@ NRSA3:
                JR NRSA2                        ; 467D 18 EC
 
 ;; --------------------------------------------------------------------
-;; Like READ_SECTOR but with the destination given: the drive's data
-;; port is poked into the operands of SRSA3 and SRSA2 -- the two
-;; instructions the transfer loop uses -- and the address pushed for
-;; them before it starts.
+;; Like READ_SECTOR but with the destination given: the drive's status
+;; port is poked into SRSA3 and its data port, three above it, into
+;; SRSA2 -- the two instructions the transfer loop uses -- and the
+;; address pushed for them before it starts.
 ;; --------------------------------------------------------------------
 
 ; ---- READ_SECTOR_TO_ADDRESS ---- from &714C
@@ -3011,13 +3011,15 @@ SEL1_DONE:
                RET                             ; 4846 C9
 
 ;; --------------------------------------------------------------------
-;; GRPNT, then return NZ unless the page count says &FE with one page
-;; left -- the shape the DOS uses for "this is the last page of the
-;; transfer".
+;; GRPNT, then return Z only when RPT has reached &01FE -- offset 510,
+;; where the two-byte link to the next sector sits.  The byte-at-a-time
+;; file code calls it to ask "is this sector's data used up?".  RPT is
+;; the pointer into the 512-byte sector buffer; nothing here is about
+;; pages.
 ;; --------------------------------------------------------------------
 
-; ---- IS_LAST_PAGE ---- from &497D, &6F78, &6F90, &6FF9
-IS_LAST_PAGE:
+; ---- AT_SECTOR_LINK ---- from &497D, &6F78, &6F90, &6FF9
+AT_SECTOR_LINK:
                CALL GRPNT                      ; 4847 CD B1 4F
                LD A,C                          ; 484A 79
                CP &FE                          ; 484B FE FE
@@ -3036,18 +3038,19 @@ HK_HLDBK:
                LD (PGES1),A                    ; 4853 32 50 41
 
 ;; --------------------------------------------------------------------
-;; How much of the current page is still to come: &01FE less the offset,
-;; with the page adjusted first, and the result narrowed against what
-;; the caller has left.
+;; How much of the current sector's data is still to come: &01FE less
+;; RPT, the offset into the sector buffer, narrowed against what the
+;; caller has left.  510 because the last two bytes of a sector are its
+;; link, not data.
 ;; --------------------------------------------------------------------
 
-; ---- ROOM_LEFT_IN_PAGE ---- from &5A5B, &5FEE, &6479
-ROOM_LEFT_IN_PAGE:
+; ---- ROOM_LEFT_IN_SECTOR ---- from &5A5B, &5FEE, &6479
+ROOM_LEFT_IN_SECTOR:
                CALL SETF6                      ; 4856 CD 10 51
                CALL ADJUST_PAGE_DE             ; 4859 CD 39 45
 
-; ---- ROOM_LEFT_IN_PAGE_1 ---- from &4909
-ROOM_LEFT_IN_PAGE_1:
+; ---- ROOM_LEFT_IN_SECTOR_1 ---- from &4909
+ROOM_LEFT_IN_SECTOR_1:
                PUSH HL                         ; 485C E5
                CALL GRPNT                      ; 485D CD B1 4F
                PUSH HL                         ; 4860 E5
@@ -3055,13 +3058,13 @@ ROOM_LEFT_IN_PAGE_1:
                SBC HL,BC                       ; 4864 ED 42
                EX DE,HL                        ; 4866 EB
                SBC HL,DE                       ; 4867 ED 52
-               JR NC,ROOM_LEFT_IN_PAGE_2       ; 4869 30 03
+               JR NC,ROOM_LEFT_IN_SECTOR_2     ; 4869 30 03
                ADD HL,DE                       ; 486B 19
                EX DE,HL                        ; 486C EB
                CP A                            ; 486D BF
 
-; ---- ROOM_LEFT_IN_PAGE_2 ---- from &4869
-ROOM_LEFT_IN_PAGE_2:
+; ---- ROOM_LEFT_IN_SECTOR_2 ---- from &4869
+ROOM_LEFT_IN_SECTOR_2:
                LD (SVDE),HL                    ; 486E 22 02 7C
                LD B,D                          ; 4871 42
                LD C,E                          ; 4872 4B
@@ -3070,11 +3073,11 @@ ROOM_LEFT_IN_PAGE_2:
                PUSH AF                         ; 4875 F5
                LD A,B                          ; 4876 78
                OR C                            ; 4877 B1
-               JR Z,ROOM_LEFT_IN_PAGE_3        ; 4878 28 02
+               JR Z,ROOM_LEFT_IN_SECTOR_3      ; 4878 28 02
                LDIR                            ; 487A ED B0
 
-; ---- ROOM_LEFT_IN_PAGE_3 ---- from &4878
-ROOM_LEFT_IN_PAGE_3:
+; ---- ROOM_LEFT_IN_SECTOR_3 ---- from &4878
+ROOM_LEFT_IN_SECTOR_3:
                EX DE,HL                        ; 487C EB
                LD (SVHL),HL                    ; 487D 22 05 7C
                CALL GTBUF                      ; 4880 CD A0 4F
@@ -3184,7 +3187,7 @@ LDB3_2:
                CALL READ_SECTOR                ; 48FF CD B7 45
                LD HL,(SVHL)                    ; 4902 2A 05 7C
                LD DE,(SVDE)                    ; 4905 ED 5B 02 7C
-               JP ROOM_LEFT_IN_PAGE_1          ; 4909 C3 5C 48
+               JP ROOM_LEFT_IN_SECTOR_1        ; 4909 C3 5C 48
 
 ;; --------------------------------------------------------------------
 ;; CALCULATE COUNT
@@ -3284,7 +3287,7 @@ SBLOK:
 
 Fix_L4861_4x:
                LD (SVHL),HL                    ; 497A 22 05 7C
-               CALL IS_LAST_PAGE               ; 497D CD 47 48
+               CALL AT_SECTOR_LINK             ; 497D CD 47 48
                JR NZ,SVB1                      ; 4980 20 E3
                POP DE                          ; 4982 D1
                LD (SVDE),DE                    ; 4983 ED 53 02 7C
@@ -7840,7 +7843,7 @@ FCP1:
                LD H,A                          ; 5A54 67
                LD (TEMPW2),HL                  ; 5A55 22 14 42  PGES1/PAGE OF BUFFER
                CALL GCOP                       ; 5A58 CD A9 5A
-               CALL ROOM_LEFT_IN_PAGE          ; 5A5B CD 56 48
+               CALL ROOM_LEFT_IN_SECTOR        ; 5A5B CD 56 48
                CALL TSPCE1                     ; 5A5E CD 34 59
                CALL BSWOP                      ; 5A61 CD 61 62
                CALL TRX                        ; 5A64 CD E6 62
@@ -9106,7 +9109,7 @@ CMD_LOAD_1:
                LD DE,HEADER                    ; 5FE6 11 00 40
                LD A,&02                        ; 5FE9 3E 02
                LD (PGES1),A                    ; 5FEB 32 50 41
-               CALL ROOM_LEFT_IN_PAGE          ; 5FEE CD 56 48  LOAD 48K TO ZX IMAGE
+               CALL ROOM_LEFT_IN_SECTOR        ; 5FEE CD 56 48  LOAD 48K TO ZX IMAGE
                CALL HK_SKSAFE                  ; 5FF1 CD 23 47
                JP SNAP7                        ; 5FF4 C3 57 54
 
@@ -10108,7 +10111,7 @@ HK_HLOAD_2:
 
 ; ---- HK_HLOAD_3 ---- from &6461 when A <> &10, &646A when A <> &95
 HK_HLOAD_3:
-               CALL ROOM_LEFT_IN_PAGE          ; 6479 CD 56 48
+               CALL ROOM_LEFT_IN_SECTOR        ; 6479 CD 56 48
 
 ; ---- HK_HLOAD_4 ---- from &6441, &6457
 HK_HLOAD_4:
@@ -12413,7 +12416,7 @@ HK_SBYT:
                PUSH BC                         ; 6F75 C5
                PUSH HL                         ; 6F76 E5
                PUSH AF                         ; 6F77 F5
-               CALL IS_LAST_PAGE               ; 6F78 CD 47 48  HL=ADDR OF WRITE POINT
+               CALL AT_SECTOR_LINK             ; 6F78 CD 47 48  HL=ADDR OF WRITE POINT
                JR NZ,WRITE_LAST_PAGE_2         ; 6F7B 20 3D
                PUSH DE                         ; 6F7D D5
                CALL FNFS                       ; 6F7E CD 83 4A
@@ -12426,8 +12429,8 @@ HK_SBYT:
                JR HK_SBYT_1                    ; 6F8B 18 2C
 
 ;; --------------------------------------------------------------------
-;; The tail of a write: IS_LAST_PAGE decides whether this is the final
-;; page, and everything is pushed around the decision so the caller's
+;; The tail of a write: AT_SECTOR_LINK decides whether the sector's
+;; data is used up, and everything is pushed around the decision so the caller's
 ;; registers survive either path.
 ;; --------------------------------------------------------------------
 
@@ -12436,7 +12439,7 @@ WRITE_LAST_PAGE:
                PUSH BC                         ; 6F8D C5
                PUSH HL                         ; 6F8E E5
                PUSH AF                         ; 6F8F F5
-               CALL IS_LAST_PAGE               ; 6F90 CD 47 48
+               CALL AT_SECTOR_LINK             ; 6F90 CD 47 48
                JR NZ,WRITE_LAST_PAGE_2         ; 6F93 20 25  JR IF BUFFER NOT FULL
                PUSH DE                         ; 6F95 D5
                PUSH HL                         ; 6F96 E5
@@ -12550,7 +12553,7 @@ LBYT:
                PUSH BC                         ; 6FF6 C5
                PUSH DE                         ; 6FF7 D5
                PUSH HL                         ; 6FF8 E5
-               CALL IS_LAST_PAGE               ; 6FF9 CD 47 48
+               CALL AT_SECTOR_LINK             ; 6FF9 CD 47 48
                CALL Z,WRITE_AT_LINKED_SECTOR   ; 6FFC CC C0 6F  CALL IF BUFFER FULL.
                LD A,(HL)                       ; 6FFF 7E
                POP HL                          ; 7000 E1

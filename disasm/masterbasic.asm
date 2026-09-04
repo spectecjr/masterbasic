@@ -236,7 +236,7 @@ DOS_PORT2:                      EQU  &812F
 DOS_PTH1:                       EQU  &BF13
 DOS_PTH2:                       EQU  &BF39
 DOS_REPORTA:                    EQU  &91A0
-DOS_ROOM_LEFT_IN_PAGE:          EQU  &8856
+DOS_ROOM_LEFT_IN_SECTOR:        EQU  &8856
 DOS_SAMCNT:                     EQU  &8234
 DOS_SCFSM:                      EQU  &8DF8
 DOS_SNPRT2:                     EQU  &8108
@@ -5455,64 +5455,64 @@ CMD_MERGE_1:
 ;; --------------------------------------------------------------------
 
 OPEN_GAP_AT_LINE:
-               CALL FIND_LINE_FROM_START        ; 5188 CD FD 58
-               POP BC                           ; 518B C1
-               POP AF                           ; 518C F1
-               LD D,(HL)                        ; 518D 56
-               PUSH DE                          ; 518E D5
-               LD (HL),&FF                      ; 518F 36 FF
-               PUSH BC                          ; 5191 C5
-               CALL CALL_JMKRBIG                ; 5192 CD F3 58
-               POP DE                           ; 5195 D1
-               PUSH HL                          ; 5196 E5
-               IN A,(HMPR)                      ; 5197 DB FB
-               PUSH AF                          ; 5199 F5
-               CALL CALLDOS                     ; 519A CD C1 42
-               DEFW DOS_ROOM_LEFT_IN_PAGE-&4000 ; 519D 56 48
-               POP AF                           ; 519F F1
-               POP HL                           ; 51A0 E1
-               LD BC,&FF00                      ; 51A1 01 00 FF
-               CALL FIND_LINE_FROM_HL           ; 51A4 CD 0B 59
-               POP AF                           ; 51A7 F1
-               LD (HL),A                        ; 51A8 77
-               PUSH HL                          ; 51A9 E5
-               IN A,(HMPR)                      ; 51AA DB FB
-               PUSH AF                          ; 51AC F5
-               EX DE,HL                         ; 51AD EB
-               LD B,(HL)                        ; 51AE 46
-               INC HL                           ; 51AF 23
-               LD C,(HL)                        ; 51B0 4E
-               DEC HL                           ; 51B1 2B
-               INC BC                           ; 51B2 03
-               CALL FIND_LINE_FROM_HL           ; 51B3 CD 0B 59
-               IN A,(HMPR)                      ; 51B6 DB FB
-               CALL PAGED_TO_LONG               ; 51B8 CD DC 62
-               LD B,A                           ; 51BB 47
-               EX DE,HL                         ; 51BC EB
-               POP AF                           ; 51BD F1
-               OUT (HMPR),A                     ; 51BE D3 FB
-               POP HL                           ; 51C0 E1
-               PUSH HL                          ; 51C1 E5
-               CALL PAGED_TO_LONG               ; 51C2 CD DC 62
-               EX DE,HL                         ; 51C5 EB
-               LD C,A                           ; 51C6 4F
-               LD A,B                           ; 51C7 78
-               SBC HL,DE                        ; 51C8 ED 52
-               SBC A,C                          ; 51CA 99
-               LD C,A                           ; 51CB 4F
-               POP DE                           ; 51CC D1
-               OR H                             ; 51CD B4
-               OR L                             ; 51CE B5
-               RET Z                            ; 51CF C8
-               LD A,C                           ; 51D0 79
-               CALL LONGADDR_TO_PAGED           ; 51D1 CD 27 44
-               LD B,H                           ; 51D4 44
-               LD C,L                           ; 51D5 4D
-               EX DE,HL                         ; 51D6 EB
-               CALL CMR                         ; 51D7 CD F0 44  &0162 is the high byte of the ROM's DW at &0161, which
-                                                ; is LD (HL),D, and falls into JP RECLAIM2 at &0163
-               DEFW &0162                       ; 51DA 62 01
-               RET                              ; 51DC C9
+               CALL FIND_LINE_FROM_START          ; 5188 CD FD 58
+               POP BC                             ; 518B C1
+               POP AF                             ; 518C F1
+               LD D,(HL)                          ; 518D 56
+               PUSH DE                            ; 518E D5
+               LD (HL),&FF                        ; 518F 36 FF
+               PUSH BC                            ; 5191 C5
+               CALL CALL_JMKRBIG                  ; 5192 CD F3 58
+               POP DE                             ; 5195 D1
+               PUSH HL                            ; 5196 E5
+               IN A,(HMPR)                        ; 5197 DB FB
+               PUSH AF                            ; 5199 F5
+               CALL CALLDOS                       ; 519A CD C1 42
+               DEFW DOS_ROOM_LEFT_IN_SECTOR-&4000 ; 519D 56 48
+               POP AF                             ; 519F F1
+               POP HL                             ; 51A0 E1
+               LD BC,&FF00                        ; 51A1 01 00 FF
+               CALL FIND_LINE_FROM_HL             ; 51A4 CD 0B 59
+               POP AF                             ; 51A7 F1
+               LD (HL),A                          ; 51A8 77
+               PUSH HL                            ; 51A9 E5
+               IN A,(HMPR)                        ; 51AA DB FB
+               PUSH AF                            ; 51AC F5
+               EX DE,HL                           ; 51AD EB
+               LD B,(HL)                          ; 51AE 46
+               INC HL                             ; 51AF 23
+               LD C,(HL)                          ; 51B0 4E
+               DEC HL                             ; 51B1 2B
+               INC BC                             ; 51B2 03
+               CALL FIND_LINE_FROM_HL             ; 51B3 CD 0B 59
+               IN A,(HMPR)                        ; 51B6 DB FB
+               CALL PAGED_TO_LONG                 ; 51B8 CD DC 62
+               LD B,A                             ; 51BB 47
+               EX DE,HL                           ; 51BC EB
+               POP AF                             ; 51BD F1
+               OUT (HMPR),A                       ; 51BE D3 FB
+               POP HL                             ; 51C0 E1
+               PUSH HL                            ; 51C1 E5
+               CALL PAGED_TO_LONG                 ; 51C2 CD DC 62
+               EX DE,HL                           ; 51C5 EB
+               LD C,A                             ; 51C6 4F
+               LD A,B                             ; 51C7 78
+               SBC HL,DE                          ; 51C8 ED 52
+               SBC A,C                            ; 51CA 99
+               LD C,A                             ; 51CB 4F
+               POP DE                             ; 51CC D1
+               OR H                               ; 51CD B4
+               OR L                               ; 51CE B5
+               RET Z                              ; 51CF C8
+               LD A,C                             ; 51D0 79
+               CALL LONGADDR_TO_PAGED             ; 51D1 CD 27 44
+               LD B,H                             ; 51D4 44
+               LD C,L                             ; 51D5 4D
+               EX DE,HL                           ; 51D6 EB
+               CALL CMR                           ; 51D7 CD F0 44  &0162 is the high byte of the ROM's DW at &0161,
+                                                  ; which is LD (HL),D, and falls into JP RECLAIM2 at &0163
+               DEFW &0162                         ; 51DA 62 01
+               RET                                ; 51DC C9
 
 HK_RCPTCH:
                PUSH AF                         ; 51DD F5

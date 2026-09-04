@@ -23,7 +23,7 @@ DOC PRECMP
 
     So the routine asks which half of the disc the head is over.  TSTD
     gives the track count, which RRA and the mask halve -- 40 for the
-    usual 80-track disc -- and the current track is subtracted from it.
+    usual 80-track disc -- and is subtracted from the current track.
     A borrow puts the head in the outer half and the jump is taken,
     leaving bit 1 of C as it was, which is how the WD1772 spells
     "precompensation off".  No borrow puts it in the inner half, and

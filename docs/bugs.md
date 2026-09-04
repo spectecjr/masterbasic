@@ -58,7 +58,7 @@ sites pointing at it; and in `notes/disk.txt` for the working copy.
 
 ---
 
-## 2. The RECORD NOT FOUND recovery cannot be reached
+## 2. The RECORD NOT FOUND recovery is never chosen by the bit it tests
 
 **Where** `BIT 4,A` at `&46DF`, in `CDE1`, guarding the jump to
 `CDE1_1`.
@@ -88,12 +88,21 @@ tested. `BIT 3,A` would be both correct and inside the mask. This is
 the same rotate that produced defect 1, in the same routine family.
 
 **The third caller is the worst of the three.** `SVB7` loads `A` from
-`PORT1` before calling `CDE1`, so the test is applied to a page number.
-Whether that comes out set is not worth working through. The point is
-that on none of the three paths is the branch decided by the RECORD NOT
-FOUND bit, which is the only thing it exists to test: twice by a mask
-that had already cleared that bit, once by a byte that was never a
-status. It is broken on all three, and that is enough.
+`PORT1` before calling `CDE1`, so the test is applied to a saved `HMPR`
+value — a page number. Bit 4 of a page number is set for pages 16 to
+31, which exist on a 512K SAM and not on a 256K one. So on a 256K
+machine the recovery is dead code; on a 512K machine it *fires at
+random*: any failed block save whose transfer address sits in the upper
+256K takes the branch and runs the mis-seek recovery, read-address
+command and all, for an error that may have been anything. The point
+stands either way — on none of the three paths is the branch decided by
+the RECORD NOT FOUND bit, which is the only thing it exists to test:
+twice a mask has already cleared it, once the byte was never a status.
+What varies with the machine is only whether the broken branch does
+nothing or does something uncalled-for.
+
+An earlier version of this entry was headed "cannot be reached", which
+the 512K case makes literally false. A fresh review caught it.
 
 **What SAMDOS does** Both halves work there. Its mask is `%00011100`,
 which includes bit 4, so the bit survives to be tested; and its save path
@@ -105,7 +114,8 @@ and let `SVB7` overwrite `A`.
 track is recovered from by the blind route — step in, out, out, in —
 rather than by reading an ID field to find out where the head actually
 is. `CDE1_1` and `CTS1` between them are some ninety bytes that are never
-entered for the reason they were written.
+entered for the reason they were written — and on a 512K machine are
+entered for no reason at all.
 
 **Written up at** `&46DF` in `clean/masterdos.asm`.
 
