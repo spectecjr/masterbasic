@@ -65,6 +65,11 @@ Run the proposal shape only on regions that are genuinely bare.
    Not what the model believes it is — what its environment states. This exists
    because a run was once reported under the wrong model's name, and the
    conclusions drawn from it about model choice were therefore worthless.
+   Treat that string as a label, not as proof: in the second round every report
+   said `claude-fable-5` while the user believed the runs were still on Opus,
+   because the enablement had not taken effect. The line is there so a run can
+   be *questioned*, not so it can be trusted. Don't credit a model in a commit
+   message on the strength of it.
 6. **"I found nothing wrong" is a success.** Say so in the prompt, in those
    words. Otherwise the agent pads, and a padded report costs more to audit than
    a short one is worth.
@@ -268,8 +273,11 @@ The differences from the review prompt:
 | PART RAMD (&74C1–&7861) | proposal | 87 comments, 6 headers | — (used as raw material) |
 | PART C12 (&4A78–&5010) | review | 12 findings | 12 |
 | PART C11 (&4549–&4A76) | review | 12 findings | 12 |
+| PART F11 (&595B–&5E75) | review | 13 findings | 13 |
+| PART D1 (&4FF0–&549B) | review | 17 findings | 17 |
+| PART E1 (&549E–&595A) | review | 17 findings | 17 |
 
-Two things follow from 24 out of 24, and only one of them is the obvious one.
+Two things follow from 71 out of 71, and only one of them is the obvious one.
 
 **The obvious one:** the annotations had a real error rate, and forward reading
 by the author was not finding them. One of the C11 findings landed on
@@ -284,6 +292,13 @@ the audit and the incentive that produces the rate goes with it. The audit is
 also where the finding gets reworded into the repository's voice, and where the
 *partly right* case gets separated from the right one — neither of which the
 score measures.
+
+A third thing showed up in the second round: a few findings are best applied
+as *softenings* rather than reversals. The reviewer shows a claim is not
+supported; the honest fix is often "this is not established, and here is what
+would settle it" rather than asserting the opposite. Count those as confirmed —
+the finding was right — but do not let the tally tempt you into writing a new
+claim you cannot support either.
 
 Track the score anyway, per region. A region that comes back with nothing is
 evidence the commentary there is sound; a region that comes back with twelve is
