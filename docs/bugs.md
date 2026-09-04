@@ -5,7 +5,8 @@ as they were sold. The listings cannot be corrected: they assemble to the
 original image byte for byte, and that is the point of them. So a defect
 gets written down here and explained where it sits.
 
-Three are confirmed. The rest of this file is a plan for looking properly.
+Three are confirmed and one is suspected. The rest of this file is a plan
+for looking properly.
 
 ---
 
@@ -163,6 +164,47 @@ holds the channel record, and changed nothing else. This one was
 inherited, not introduced, which is the opposite of the two above.
 
 **Written up at** `&4CDB` in `clean/masterdos.asm`.
+
+---
+
+## 4. The NMI menu's exit restores HMPR from the saved LMPR
+
+**Where** `&53C1`, on the path the X key takes out of the snapshot menu.
+
+**What** Three ports are saved when Spectrum mode is entered, at `&5FCE`
+onwards, and each into its own byte:
+
+```
+IN A,(LMPR) / LD (SNPRT0),A     ; 5FCE
+IN A,(HMPR) / LD (SNPRT1),A     ; 5FD3
+IN A,(VMPR) / LD (SNPRT2),A     ; 5FD8
+```
+
+`SNAP7` puts all three back through the resume stub, and pairs them
+correctly: `SNPRT0` to `&B8F8`, `SNPRT1` to `&B8F9`, `SNPRT2` to
+`&B8FA`. The X path puts two of them back itself, and pairs one of them
+wrongly:
+
+```
+LD A,(SNPRT0) / OUT (HMPR),A    ; 53C1   the saved LMPR, into HMPR
+LD A,(SNPRT2) / OUT (VMPR),A    ; 53C6   the saved VMPR, into VMPR
+```
+
+`SNPRT1` is the byte that holds an `HMPR` value, and it is not read
+here at all.
+
+**What it costs** Less than it might. `LMPR` and `HMPR` both take a page
+number in their low five bits, so the effect is the wrong page at
+`&8000` rather than anything wilder, and the path ends at `JP ENDS`,
+which returns through the DOS's own exit into BASIC. Whether the window
+is left wrong afterwards depends on what the ROM does with `HMPR` on the
+way out, which this project has not established.
+
+**Not certain enough to call settled.** The pairing is plainly
+inconsistent with the only other place all three are restored, which is
+what makes it worth writing down; the consequence is not worked out.
+Anyone with a machine can settle it in a minute: enter Spectrum mode,
+press NMI, press X, and see what `PEEK` through the window gives.
 
 ---
 

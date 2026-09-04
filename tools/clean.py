@@ -80,6 +80,12 @@ CARRIED_FIXES = [
      [';;  quadratic. The position is kept in FFHL and FFDE. Stock MasterDOS 2.3 keeps those in the four bytes of',
       ';;  the "BOOT" file name at &4100, reused once the DOS is in memory and the name is no longer needed. This',
       ';;  image does not: it leaves the name alone and uses four spare bytes at &42E6 instead.']),
+    ([';;  Step to the next page and wait for the key to be released, so the user can pick which page is captured. The border',
+      ';;  changes as they go, which is the only feedback available with the machine frozen.'],
+     [';;  Nothing of the five was pressed, so step the border colour and go round again -- the only sign of life a stopped',
+      ';;  machine can give.  The port written is &FE, which is the border as well as the keyboard, so BC needs no',
+      ';;  reloading.  X is tested here rather than with the digits because it is on another row, and holding it leaves',
+      ';;  the menu for good.']),
 ]
 
 

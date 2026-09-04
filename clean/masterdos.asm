@@ -6229,13 +6229,14 @@ V5233:
 ;;     2        resume
 ;;     3        save the screen as a SCREEN$
 ;;     4        save a 48K snapshot
-;;     X        step the page at &8000, so a page other than the
-;;              default can be captured
+;;     X        give up: put the ports back, enable interrupts and
+;;              return to BASIC, abandoning the frozen program
 ;;
-;; THE BORDER IS THE ONLY FEEDBACK on the X key, and it is changed by
-;; OUT (C),A with BC still holding the keyboard port -- &FE is the
-;; border port as well as the keyboard's, so one register pair serves
-;; both.
+;; THE BORDER SAYS THAT IT IS WAITING.  With none of those keys down
+;; the colour is stepped and the loop goes round again, which is the
+;; only sign of life a stopped machine can give.  It is written with
+;; OUT (C),A while BC still holds the keyboard port, since &FE is the
+;; border port as well -- one register pair serves both.
 ;; --------------------------------------------------------------------
 
 ; ---- NMI ---- from &4206, &546F
@@ -6302,32 +6303,35 @@ SNAP3A:
                JR SNAP4                        ; 53A9 18 24
 
 ;; --------------------------------------------------------------------
-;;  Step to the next page and wait for the key to be released, so the user can pick which page is captured. The border
-;;  changes as they go, which is the only feedback available with the machine frozen.
+;;  Nothing of the five was pressed, so step the border colour and go round again -- the only sign of life a stopped
+;;  machine can give.  The port written is &FE, which is the border as well as the keyboard, so BC needs no
+;;  reloading.  X is tested here rather than with the digits because it is on another row, and holding it leaves
+;;  the menu for good.
 ;; --------------------------------------------------------------------
 
 ; ---- SNAP3B ---- from &53A3 when bit 3 of E set
 SNAP3B:
-               INC A                           ; 53AB 3C  the next page, wrapping at eight
+               INC A                           ; 53AB 3C  the next colour, wrapping at eight
                AND &07                         ; 53AC E6 07
-               OUT (C),A                       ; 53AE ED 79  shown in the border, the only display there is
-               LD B,&FE                        ; 53B0 06 FE
-               IN E,(C)                        ; 53B2 ED 58  is X still down?
-               BIT 2,E                         ; 53B4 CB 53
-               JR NZ,SNAP3                     ; 53B6 20 C2  LOOP IF NOT "X"
+               OUT (C),A                       ; 53AE ED 79  into the border, which is the only sign the machine is
+                                               ; alive
+               LD B,&FE                        ; 53B0 06 FE  the row holding shift, Z, X, C and V
+               IN E,(C)                        ; 53B2 ED 58
+               BIT 2,E                         ; 53B4 CB 53  is X down?
+               JR NZ,SNAP3                     ; 53B6 20 C2  no, so go round the menu again
 
 ; ---- SNAP3C ---- from &53BC when bit 2 of E clear
 SNAP3C:
-               IN E,(C)                        ; 53B8 ED 58
+               IN E,(C)                        ; 53B8 ED 58  it is, so wait until it is let go
                BIT 2,E                         ; 53BA CB 53
                JR Z,SNAP3C                     ; 53BC 28 FA  LOOP TILL NOT "X"
-               CALL DELBC                      ; 53BE CD 5F 00  and a pause, so one press is one step
-               LD A,(SNPRT0)                   ; 53C1 3A 06 41  the ports as they were when the button was pressed
+               CALL DELBC                      ; 53BE CD 5F 00  and settle
+               LD A,(SNPRT0)                   ; 53C1 3A 06 41  the ports as they were when Spectrum mode was entered
                OUT (HMPR),A                    ; 53C4 D3 FB
                LD A,(SNPRT2)                   ; 53C6 3A 08 41
                OUT (VMPR),A                    ; 53C9 D3 FC
                EI                              ; 53CB FB
-               JP ENDS                         ; 53CC C3 10 50  and back to the command loop
+               JP ENDS                         ; 53CC C3 10 50  and back to BASIC, leaving the frozen program behind
 
 ;; --------------------------------------------------------------------
 ;; Build a file name nothing else has, and write the file.
@@ -6462,7 +6466,7 @@ SNAP7:
                EXX                             ; 546E D9
                LD HL,NMI                       ; 546F 21 55 53  where the button is to come back to
                LD (&B8F6),HL                   ; 5472 22 F6 B8
-               LD A,(SNPRT0)                   ; 5475 3A 06 41  and the three ports as they were
+               LD A,(SNPRT0)                   ; 5475 3A 06 41  and the three ports as Spectrum mode left them
                LD (&B8F8),A                    ; 5478 32 F8 B8
                LD A,(SNPRT1)                   ; 547B 3A 07 41
                LD (&B8F9),A                    ; 547E 32 F9 B8

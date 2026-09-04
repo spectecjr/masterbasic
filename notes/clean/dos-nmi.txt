@@ -42,13 +42,14 @@ DOC NMI
         2        resume
         3        save the screen as a SCREEN$
         4        save a 48K snapshot
-        X        step the page at &8000, so a page other than the
-                 default can be captured
+        X        give up: put the ports back, enable interrupts and
+                 return to BASIC, abandoning the frozen program
 
-    THE BORDER IS THE ONLY FEEDBACK on the X key, and it is changed by
-    OUT (C),A with BC still holding the keyboard port -- &FE is the
-    border port as well as the keyboard's, so one register pair serves
-    both.
+    THE BORDER SAYS THAT IT IS WAITING.  With none of those keys down
+    the colour is stepped and the loop goes round again, which is the
+    only sign of life a stopped machine can give.  It is written with
+    OUT (C),A while BC still holds the keyboard port, since &FE is the
+    border port as well -- one register pair serves both.
 
 DOS &5355 : the interrupted program's stack pointer, out of the way
 DOS &5359 : and a stack of our own, which is certainly usable
@@ -70,12 +71,15 @@ DOS &539D : which is &1B00 bytes
 DOS &53A1 : "4"
 DOS &53A5 : a 48K snapshot
 DOS &53A7 : which is &C000 bytes
-DOS &53AB : the next page, wrapping at eight
-DOS &53AE : shown in the border, the only display there is
-DOS &53B2 : is X still down?
-DOS &53BE : and a pause, so one press is one step
-DOS &53C1 : the ports as they were when the button was pressed
-DOS &53CC : and back to the command loop
+DOS &53AB : the next colour, wrapping at eight
+DOS &53AE : into the border, which is the only sign the machine is alive
+DOS &53B0 : the row holding shift, Z, X, C and V
+DOS &53B4 : is X down?
+DOS &53B6 : no, so go round the menu again
+DOS &53B8 : it is, so wait until it is let go
+DOS &53BE : and settle
+DOS &53C1 : the ports as they were when Spectrum mode was entered
+DOS &53CC : and back to BASIC, leaving the frozen program behind
 
 DOC SNAP4
     Build a file name nothing else has, and write the file.
@@ -151,7 +155,7 @@ DOS &5458 : page 3, the Spectrum's "ROM", into the window
 DOS &545F : no unwind address any more
 DOS &5462 : the alternate set, as NMI pushed it
 DOS &546F : where the button is to come back to
-DOS &5475 : and the three ports as they were
+DOS &5475 : and the three ports as Spectrum mode left them
 DOS &5487 : the main set
 DOS &548B : the interrupt register
 DOS &548D : &00 or &3F in I means the program was not in mode 2
