@@ -23,7 +23,42 @@ DOS &77CD expr RAMDISC_PAGE+&0200
 DOS &77E2 expr RAMDISC_PAGE
 
 DOC RDWSCT
-    Write a sector to a RAM disc, which is a memory copy.
+     PART RAMD -- RAM discs and MegaRAM
+
+     Drives 3 to RDLIM-1 are RAM discs: a set of 16K pages pretending to
+     be a floppy.  Every disk operation in the DOS begins with TIRD, and
+     for these drives is diverted to the equivalent here -- RDRSCT for a
+     read, RDWSCT for a write, and so on -- so nothing above this level
+     knows the difference.
+
+     Where the sectors go
+
+     A RAM disc owns a list of pages, kept in the first of them.  CPFTS
+     turns a track and sector into a linear sector number and then adds
+     one plus a thirty-first of itself, which skips the first 512-byte
+     block of every page.  Those blocks are not wasted: each holds a
+     copy of the block mover described below, together with the page
+     list and, in the first page, the disc's name, random word and
+     current path.
+
+     Pages 0 to &1F are ordinary internal RAM.  Pages &20 and above are
+     MegaRAM -- external memory selected through port MRPRT with the
+     paging register's top bit set.  MRTAB is a bitmap of which MegaRAM
+     pages are in use, one bit each, so up to 256 of them can be tracked
+     in 32 bytes.
+
+     The mover in every page
+
+     Copying a sector out of a RAM disc means having the source page and
+     the destination page mapped at the same time, which leaves nowhere
+     for the code doing the copying to live -- it would be paged out
+     along with whatever it was reading.  The answer is to put a copy of
+     the mover in every RAM disc page: whichever page is mapped, the
+     code is there.  FORMRD writes it at &8002 as each page is claimed,
+     along with 128 LDI instructions at &8020 and a small loop around
+     them, so a 512-byte move is four passes of an unrolled block copy.
+
+     RDWSCT -- write a sector to a RAM disc, which is a memory copy.
 
     THE TWO ENDS CANNOT BE MAPPED AT ONCE.  There is one window, and the
     RAM disc page has to be in it, so the source cannot also be a page

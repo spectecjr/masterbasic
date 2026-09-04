@@ -233,6 +233,14 @@ def set_header(d, a, doc, banner):
     """
     body = list(doc)
     was = d.headers.get(a)
+    # A DOC replaces what is there, and the reading copy keeps only the
+    # replacement -- so a DOC on the routine that heads a section takes
+    # the section's own heading with it.  That happened once, to PART
+    # MOVE, and was noticed only because the heading was missing from
+    # the finished listing.
+    lost = None
+    if was and PART_HEADING.search(was) and not PART_HEADING.search(NL.join(doc)):
+        lost = 'the DOC displaces a PART heading; fold it into the DOC'
     if was:
         kept = [x[3:] if x.startswith(';; ') else x.lstrip(';')
                 for x in was.split('\n')]
@@ -246,6 +254,13 @@ def set_header(d, a, doc, banner):
             body += ['', 'What was here before:', '']
             body += ['    ' + x for x in kept]
     d.headers[a] = banner('\n'.join(body))
+    return lost
+
+
+NL = chr(10)
+# A section heading, in a banner (';;  PART x') or in the raw lines of
+# a DOC that has folded one in ('    PART x').
+PART_HEADING = re.compile(r'^(?:;;)?[ 	]*PART \S', re.M)
 
 
 def apply(pages, root, banner, folder='notes'):
@@ -449,7 +464,9 @@ def apply(pages, root, banner, folder='notes'):
                 named += 1
 
         if e['doc']:
-            set_header(d, a, e['doc'], banner)
+            lost = set_header(d, a, e['doc'], banner)
+            if lost:
+                problems.append('%s: %s' % (e['where'], lost))
 
     # The AFTER lines run last, so that a label named further down the
     # same file can still be referred to by name further up.
@@ -487,7 +504,9 @@ def apply(pages, root, banner, folder='notes'):
         d, a = where[0]
         if e['page'] == 'DOC':
             if e['doc']:
-                set_header(d, a, e['doc'], banner)
+                lost = set_header(d, a, e['doc'], banner)
+                if lost:
+                    problems.append('%s: %s' % (e['where'], lost))
                 noted += 1
             else:
                 problems.append('%s: DOC %s has no indented lines under it'

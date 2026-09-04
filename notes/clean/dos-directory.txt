@@ -319,7 +319,46 @@ CONST DIR_MODE_NAME = &08 : match the name, honouring * and ?
 CONST DIR_MODE_NAME_ONLY = &10 : match the name, ignoring the type
 
 DOC OPNDIR
-    OPEN DIR "name" -- make a subdirectory.
+     PART SUBD -- Subdirectories
+
+     MasterDOS's largest addition to the SAMDOS disk format, and it is
+     done without changing that format at all.
+
+     How a directory tree is stored in a flat directory
+
+     The catalogue is still the same flat list of entries in tracks 0 to
+     DTKS-1.  Two spare bytes in each entry carry the tree:
+
+       offset &FE   the tag of the directory this file belongs to; 0
+                    means the root
+       offset &FA   for an entry of type DFT, the tag it gives to the
+                    files inside it
+
+     So a subdirectory is an ordinary entry that owns a number, and
+     "being in a directory" means "carrying that number".  Creating one
+     allocates the next unused tag, which FDHR has already found for it
+     in MAXT.  Listing a directory means showing only the entries whose
+     tag matches CDIRT; setting CDIRT to &FF shows all of them, which is
+     what DIR "?" does.
+
+     Nothing else in the DOS has to know: the free-space map, the
+     allocation and the file chains are unchanged.
+
+     Paths
+
+     The current directory is remembered per drive, as a tag in CDIT and
+     as a printable path string in PTH1, PTH2 or -- for a RAM disc --
+     PTHRD, with its length in PLT.  Both root symbols in RTSYM are
+     accepted on input, normally "\" and "/", and the first is always
+     the one written into the path.
+
+     DTREE walks a path a name at a time, selecting each directory as it
+     goes and leaving the final component in NSTR1 for the caller to
+     find; "^" means the parent, and a leading root symbol restarts from
+     the root.  That is why a name like "\GAMES\CHESS" works anywhere a
+     file name is accepted, not only in DIR =.
+
+     OPEN DIR "name" -- make a subdirectory.
 
     A subdirectory is an ordinary directory entry of type DFT that owns
     a number, and everything else follows from that: it needs no data

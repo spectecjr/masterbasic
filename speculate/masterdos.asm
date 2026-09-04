@@ -2181,6 +2181,14 @@ SAMHK:
 ;;
 ;; Shown for this routine in disasm/:
 ;;
+;;     PART C11 -- The disk driver
+;;
+;;       COMMP .. COMMR        addressing the controller's registers
+;;       PRECMP / SADC / BUSY  issuing a command
+;;       WSAD / RSAD           write and read one sector, with retries
+;;       NRSAD                 read a directory sector, building the
+;;                             free-sector map as it goes
+;;
 ;;     Gets the disk port IO base, incorporating the disk controller
 ;;     selection and disk head (side) selection bit.
 ;;
@@ -14526,6 +14534,8 @@ GDIFA:
 ;; ? calls RXSS.
 ;;
 ;; Shown for this routine in disasm/:
+;;
+;;     PART G1 -- The load and save hooks, and file name parsing
 ;;
 ;;     RXSS, and anything but Z is error 10.  Three callers use it as the
 ;;     "the sector had better be there" step before going on.

@@ -45,8 +45,16 @@ DOS &45D9 CHECK_READ_STATUS
 RENAME RSA2 READ_DATA_LOOP
 
 DOS &451A GET_DISK_PORT_BASE
-    Gets the disk port IO base, incorporating the disk controller
-    selection and disk head (side) selection bit.
+     PART C11 -- The disk driver
+
+       COMMP .. COMMR        addressing the controller's registers
+       PRECMP / SADC / BUSY  issuing a command
+       WSAD / RSAD           write and read one sector, with retries
+       NRSAD                 read a directory sector, building the
+                             free-sector map as it goes
+
+     Gets the disk port IO base, incorporating the disk controller
+     selection and disk head (side) selection bit.
 
 DOC TIRDXDCT
     Resets the sector error retry count to 0, then tests if the current disk device

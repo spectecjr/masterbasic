@@ -1956,6 +1956,14 @@ SAMHK:
                DEFW MB_HK_SETUPREGS+NOT_IN_THIS_PAGE            ; 4518 code 185
 
 ;; --------------------------------------------------------------------
+;; PART C11 -- The disk driver
+;;
+;;   COMMP .. COMMR        addressing the controller's registers
+;;   PRECMP / SADC / BUSY  issuing a command
+;;   WSAD / RSAD           write and read one sector, with retries
+;;   NRSAD                 read a directory sector, building the
+;;                         free-sector map as it goes
+;;
 ;; Gets the disk port IO base, incorporating the disk controller
 ;; selection and disk head (side) selection bit.
 ;; --------------------------------------------------------------------
@@ -9834,6 +9842,8 @@ GDIFA:
                RET                             ; 6335 C9
 
 ;; --------------------------------------------------------------------
+;; PART G1 -- The load and save hooks, and file name parsing
+;;
 ;; RXSS, and anything but Z is error 10.  Three callers use it as the
 ;; "the sector had better be there" step before going on.
 ;; --------------------------------------------------------------------
@@ -12953,7 +12963,46 @@ CHANNEL_LENGTH_FIELD:
                RET                             ; 71FA C9
 
 ;; --------------------------------------------------------------------
-;; OPEN DIR "name" -- make a subdirectory.
+;;  PART SUBD -- Subdirectories
+;;
+;;  MasterDOS's largest addition to the SAMDOS disk format, and it is
+;;  done without changing that format at all.
+;;
+;;  How a directory tree is stored in a flat directory
+;;
+;;  The catalogue is still the same flat list of entries in tracks 0 to
+;;  DTKS-1.  Two spare bytes in each entry carry the tree:
+;;
+;;    offset &FE   the tag of the directory this file belongs to; 0
+;;                 means the root
+;;    offset &FA   for an entry of type DFT, the tag it gives to the
+;;                 files inside it
+;;
+;;  So a subdirectory is an ordinary entry that owns a number, and
+;;  "being in a directory" means "carrying that number".  Creating one
+;;  allocates the next unused tag, which FDHR has already found for it
+;;  in MAXT.  Listing a directory means showing only the entries whose
+;;  tag matches CDIRT; setting CDIRT to &FF shows all of them, which is
+;;  what DIR "?" does.
+;;
+;;  Nothing else in the DOS has to know: the free-space map, the
+;;  allocation and the file chains are unchanged.
+;;
+;;  Paths
+;;
+;;  The current directory is remembered per drive, as a tag in CDIT and
+;;  as a printable path string in PTH1, PTH2 or -- for a RAM disc --
+;;  PTHRD, with its length in PLT.  Both root symbols in RTSYM are
+;;  accepted on input, normally "\" and "/", and the first is always
+;;  the one written into the path.
+;;
+;;  DTREE walks a path a name at a time, selecting each directory as it
+;;  goes and leaving the final component in NSTR1 for the caller to
+;;  find; "^" means the parent, and a leading root symbol restarts from
+;;  the root.  That is why a name like "\GAMES\CHESS" works anywhere a
+;;  file name is accepted, not only in DIR =.
+;;
+;;  OPEN DIR "name" -- make a subdirectory.
 ;;
 ;; A subdirectory is an ordinary directory entry of type DFT that owns
 ;; a number, and everything else follows from that: it needs no data
@@ -13636,7 +13685,42 @@ SDTK4:
                RET                             ; 74C0 C9
 
 ;; --------------------------------------------------------------------
-;; Write a sector to a RAM disc, which is a memory copy.
+;;  PART RAMD -- RAM discs and MegaRAM
+;;
+;;  Drives 3 to RDLIM-1 are RAM discs: a set of 16K pages pretending to
+;;  be a floppy.  Every disk operation in the DOS begins with TIRD, and
+;;  for these drives is diverted to the equivalent here -- RDRSCT for a
+;;  read, RDWSCT for a write, and so on -- so nothing above this level
+;;  knows the difference.
+;;
+;;  Where the sectors go
+;;
+;;  A RAM disc owns a list of pages, kept in the first of them.  CPFTS
+;;  turns a track and sector into a linear sector number and then adds
+;;  one plus a thirty-first of itself, which skips the first 512-byte
+;;  block of every page.  Those blocks are not wasted: each holds a
+;;  copy of the block mover described below, together with the page
+;;  list and, in the first page, the disc's name, random word and
+;;  current path.
+;;
+;;  Pages 0 to &1F are ordinary internal RAM.  Pages &20 and above are
+;;  MegaRAM -- external memory selected through port MRPRT with the
+;;  paging register's top bit set.  MRTAB is a bitmap of which MegaRAM
+;;  pages are in use, one bit each, so up to 256 of them can be tracked
+;;  in 32 bytes.
+;;
+;;  The mover in every page
+;;
+;;  Copying a sector out of a RAM disc means having the source page and
+;;  the destination page mapped at the same time, which leaves nowhere
+;;  for the code doing the copying to live -- it would be paged out
+;;  along with whatever it was reading.  The answer is to put a copy of
+;;  the mover in every RAM disc page: whichever page is mapped, the
+;;  code is there.  FORMRD writes it at &8002 as each page is claimed,
+;;  along with 128 LDI instructions at &8020 and a small loop around
+;;  them, so a 512-byte move is four passes of an unrolled block copy.
+;;
+;;  RDWSCT -- write a sector to a RAM disc, which is a memory copy.
 ;;
 ;; THE TWO ENDS CANNOT BE MAPPED AT ONCE.  There is one window, and the
 ;; RAM disc page has to be in it, so the source cannot also be a page

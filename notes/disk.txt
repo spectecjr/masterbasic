@@ -204,8 +204,10 @@ DOS &6284 EVAL_STRING_IF_RUNNING
     page comes back in SVC.
 
 DOS &6336 REQUIRE_SECTOR
-    RXSS, and anything but Z is error 10.  Three callers use it as the
-    "the sector had better be there" step before going on.
+     PART G1 -- The load and save hooks, and file name parsing
+
+     RXSS, and anything but Z is error 10.  Three callers use it as the
+     "the sector had better be there" step before going on.
 
 DOS &6482 HOOK_ARGS_TO_HEADER
     Unpack the registers a hook was called with -- HKHL, HKBC and HKDE --
