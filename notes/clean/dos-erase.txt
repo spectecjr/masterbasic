@@ -1,0 +1,104 @@
+# ERASE, and the "?" option every one of these commands accepts.
+#
+# Prose for clean/ only.
+
+DOC ERAZ
+    ERASE, which is a loop over SNDFX with a filter and a prompt in it.
+
+    ERASING IS ZEROING THE TYPE BYTE.  Nothing else about the entry is
+    touched -- the name, the sector map and the header all stay -- which
+    is what lets FDHF tell an erased slot from one that was never used,
+    and what makes an undelete possible in principle.
+
+    ERASE AND ERASE DIR SHARE THE LOOP, and the three jumps at the top
+    are how one filter serves both.  SNDFX comes back with the zero flag
+    saying which command this is and the carry saying whether the entry
+    it found is a directory; the two have to agree, and disagreeing
+    means going round for the next match.  The AND A on the ERASE DIR
+    path is there only to clear the carry, so that the JR C the two
+    paths share does not fire on the path that wants a directory.
+
+    A PROTECTED FILE IS NOT ERASED unless OVER was given.  It beeps and
+    sets flag 3, so that a command which matched nothing else can report
+    "protected file" rather than "file not found".
+
+    ERASE DIR CHECKS THE DIRECTORY IS EMPTY first, and does it with the
+    scan it already has.  The subdirectory's own tag is put into the
+    temporary CDIRT and the catalogue searched for a name of "*" -- any
+    file at all -- which will only match something carrying that tag.
+    Anything found is REP33.  The pattern is built by storing HL over
+    NSTR1+1 so that "*" is followed by whatever the high byte of the
+    entry pointer happens to be; CKNAM lets a star swallow the rest
+    unless a "." follows it, and the sector buffer is nowhere near
+    &2Exx, so it never does.
+
+DOS &5CD0 : OVER, which erases protected files too
+DOS &5CD3 : a leading DIR, which makes this ERASE DIR
+DOS &5CD6 : the name, and the "?" option after it
+DOS &5CDC : the next entry that matches the name
+DOS &5CDF : erasing files, so a directory is not wanted
+DOS &5CE1 : erasing a directory, so a file is not wanted
+DOS &5CE3 : and clear the carry, so the shared test below lets it past
+DOS &5CE4 : a directory when a file was asked for, or the other way
+DOS &5CE6 : the type byte, with its flags
+DOS &5CE7 : was OVER given?
+DOS &5CEA : then protection does not stop it
+DOS &5CEC : bit 6 is the protected bit
+DOS &5CF0 : with "?", ask before this one
+DOS &5CF3 : the answer was no
+DOS &5CF5 : a file, so there is nothing more to check
+DOS &5CFA : the tag this directory gives to the files inside it
+DOS &5CFF : which becomes the directory the next scan looks in
+DOS &5D02 : the current file's details, put aside
+DOS &5D05 : a pattern of "*" and whatever follows it in H
+DOS &5D0A expr DIR_MODE_NAME_ONLY
+DOS &5D0C : is there anything at all in that directory?
+DOS &5D0F : then it may not be erased
+DOS &5D12 : the details back
+DOS &5D15 : and the directory's own entry back under HL
+DOS &5D18 : zero the type byte, which is the whole of erasing
+DOS &5D1A : and write the sector out
+DOS &5D1F : a protected file, and no OVER
+DOS &5D22 : remembered, so the command can say so if it did nothing
+
+DOC OHASR
+    Ask about this file, if the "?" option was given.
+
+    Flag 0 goes up first and unconditionally: it records that something
+    matched, so that a command which is asked about every file and told
+    no to each of them reports nothing rather than "file not found".
+
+    THE ANSWER COMES BACK IN THE FLAGS, and the registers have to come
+    back too, which is why A is recovered through B rather than by
+    popping AF.  FNMAE leaves the verdict in the zero flag; POP AF would
+    throw it away, so the saved AF is popped into BC and only its A half
+    put back, leaving the flags as FNMAE set them.
+
+DOS &5D2F : something matched, whatever the answer turns out to be
+DOS &5D32 : was "?" given?
+DOS &5D35 : no, so the answer is yes
+DOS &5D39 : "ERASE", or whichever command this is
+DOS &5D3C : the file name, and wait for Y, N, A or E
+DOS &5D41 : the saved A and F, but not into AF
+DOS &5D42 : A back, and the answer's flags left alone
+
+DOC CKDIR
+    Is this entry in the directory we are working in?
+
+    Offset &FE of the entry against CDIRT, with &FF matching any -- the
+    same test FDH9 makes, in the form the resumable search needs.
+
+DOS &5D44 : offset &FE, the tag of the directory this file is in
+DOS &5D4A : &FF is no directory's tag, so it means all of them
+DOS &5D4D : otherwise it has to be the one we are in
+
+DOC WRITE_BYTE_IF_OPEN
+    Ask, and if the answer is yes put A into the entry and write it.
+
+    The one place PROTECT, HIDE and their OFF forms end at: each has
+    worked out the type byte it wants, and all that is left is the
+    question and the sector write.
+
+DOS &5D27 : with "?", ask before this one
+DOS &5D2A : the answer was no
+DOS &5D2B : the new type byte, with its flags set or cleared

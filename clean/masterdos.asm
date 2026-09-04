@@ -6612,8 +6612,21 @@ FESET:
                LD (HL),A                       ; 55F7 77  MARK DIR ENTRY 1 (T0,S1)
 
 ;; --------------------------------------------------------------------
-;;  WITH TKS/DIR-4
-;; CALLED BY RENAME
+;; Write the disc's name and give it a fresh identity.
+;;
+;; THE IDENTIFYING WORD IS MADE OF WHAT IS TO HAND: the refresh
+;; register, which counts memory cycles and is therefore unpredictable
+;; at any given instant, and the ROM's frame counter.  It does not have
+;; to be random so much as different from the last one, because its
+;; only job is to let the DOS notice that the disc in the drive has
+;; been changed under an open file.
+;;
+;; THE NAME IS 42 BYTES BACK from there, which is why BC is loaded with
+;; -42 rather than the address being worked out again.
+;;
+;; A NAME BEGINNING "D" AND A DIGIT WOULD READ AS A DRIVE, so one that
+;; does has its first character replaced with "*".  C11SP is what
+;; decides: a "D", a digit and then nothing but spaces.
 ;; --------------------------------------------------------------------
 
 ; ---- FESE2 ---- from &5D6D, &6A5B
@@ -6621,29 +6634,29 @@ FESE2:
                PUSH HL                         ; 55F8 E5
                DEC HL                          ; 55F9 2B
                DEC HL                          ; 55FA 2B
-               LD A,R                          ; 55FB ED 5F
-               LD (HL),A                       ; 55FD 77
+               LD A,R                          ; 55FB ED 5F  the refresh register, which is unpredictable enough
+               LD (HL),A                       ; 55FD 77  the high half of the disc's identity
                DEC HL                          ; 55FE 2B
-               CALL NRRD                       ; 55FF CD 5E 50
+               CALL NRRD                       ; 55FF CD 5E 50  and the frame counter for the low half
                DEFW FRAMES                     ; 5602 78 5C
                LD (HL),A                       ; 5604 77  RND NO USES R REG AND FRAMES
-               LD BC,&FFD6                     ; 5605 01 D6 FF
-               ADD HL,BC                       ; 5608 09  PT TO DISC NAME DEST (BYTE D2H)
+               LD BC,&FFD6                     ; 5605 01 D6 FF  forty-two bytes back
+               ADD HL,BC                       ; 5608 09  is offset 210, where the disc's name goes
                PUSH DE                         ; 5609 D5
                LD DE,NSTR1+1                   ; 560A 11 3B 41
                EX DE,HL                        ; 560D EB
                LD A,(HL)                       ; 560E 7E
-               AND &DF                         ; 560F E6 DF
-               CP &44                          ; 5611 FE 44
+               AND CASE_BLIND                  ; 560F E6 DF
+               CP &44                          ; 5611 FE 44  does the name start with a D?
                JR NZ,FESE3                     ; 5613 20 07
-               CALL C11SP                      ; 5615 CD 8C 67
+               CALL C11SP                      ; 5615 CD 8C 67  and is the rest of it a digit and spaces?
                JR NZ,FESE3                     ; 5618 20 02
-               LD (HL),&2A                     ; 561A 36 2A  ALTER "D      " TO "*       " SO
+               LD (HL),&2A                     ; 561A 36 2A  then it would read as a drive, so make it a star instead
 
 ; ---- FESE3 ---- from &5613 when A <> &44, &5618
 FESE3:
-               LD BC,&000A                     ; 561C 01 0A 00
-               LDIR                            ; 561F ED B0  COPY NAME TO TRACK BUFFER
+               LD BC,&000A                     ; 561C 01 0A 00  ten characters of name
+               LDIR                            ; 561F ED B0  into the sector, ready to be written
                POP DE                          ; 5621 D1
                POP HL                          ; 5622 E1
                RET                             ; 5623 C9
@@ -8114,137 +8127,189 @@ GTNCH:
                JP GTNC                         ; 5CCD C3 3C 50  SKIP "?"
 
 ;; --------------------------------------------------------------------
-;;  ERAZ -- ERASE
+;; ERASE, which is a loop over SNDFX with a filter and a prompt in it.
 ;;
-;;  Deletes every matching file by zeroing the first byte of its entry. A protected file is skipped with a beep unless
-;;  OVER was given, and the fact that one was met is remembered so that "protected file" can be reported if nothing
-;;  else was erased.
+;; ERASING IS ZEROING THE TYPE BYTE.  Nothing else about the entry is
+;; touched -- the name, the sector map and the header all stay -- which
+;; is what lets FDHF tell an erased slot from one that was never used,
+;; and what makes an undelete possible in principle.
 ;;
-;;  ERASE DIR deletes a subdirectory, but only if it is empty: the directory's own tag is put into CDIRT and the
-;;  catalogue searched for any file carrying it.
+;; ERASE AND ERASE DIR SHARE THE LOOP, and the three jumps at the top
+;; are how one filter serves both.  SNDFX comes back with the zero flag
+;; saying which command this is and the carry saying whether the entry
+;; it found is a directory; the two have to agree, and disagreeing
+;; means going round for the next match.  The AND A on the ERASE DIR
+;; path is there only to clear the carry, so that the JR C the two
+;; paths share does not fire on the path that wants a directory.
 ;;
-;;  Errors: REP33 "directory not empty", REP36 "protected file", REP26 "file not found"
+;; A PROTECTED FILE IS NOT ERASED unless OVER was given.  It beeps and
+;; sets flag 3, so that a command which matched nothing else can report
+;; "protected file" rather than "file not found".
 ;;
-;; ERASE A FILE
+;; ERASE DIR CHECKS THE DIRECTORY IS EMPTY first, and does it with the
+;; scan it already has.  The subdirectory's own tag is put into the
+;; temporary CDIRT and the catalogue searched for a name of "*" -- any
+;; file at all -- which will only match something carrying that tag.
+;; Anything found is REP33.  The pattern is built by storing HL over
+;; NSTR1+1 so that "*" is followed by whatever the high byte of the
+;; entry pointer happens to be; CKNAM lets a star swallow the rest
+;; unless a "." follows it, and the sector buffer is nowhere near
+;; &2Exx, so it never does.
 ;; --------------------------------------------------------------------
 
 ERAZ:
-               CALL OVERO                      ; 5CD0 CD B0 5C
-               CALL REDI2                      ; 5CD3 CD BE 5C
-               CALL NMQU                       ; 5CD6 CD 90 59
+               CALL OVERO                      ; 5CD0 CD B0 5C  OVER, which erases protected files too
+               CALL REDI2                      ; 5CD3 CD BE 5C  a leading DIR, which makes this ERASE DIR
+               CALL NMQU                       ; 5CD6 CD 90 59  the name, and the "?" option after it
                CALL EVFINS                     ; 5CD9 CD 21 73
 
 ; ---- ERAZ3 ---- from &5CE1, &5CE4, &5CF3, &5D1D, &5D25
 ERAZ3:
-               CALL SNDFX                      ; 5CDC CD 52 5E
-               JR Z,ERAZ33                     ; 5CDF 28 03  JR IF FLAG=ERASE FILE, NOT DIR
-               JR NC,ERAZ3                     ; 5CE1 30 F9  SKIP ERASE IF NOT DIR TYPE
-               AND A                           ; 5CE3 A7  NC
+               CALL SNDFX                      ; 5CDC CD 52 5E  the next entry that matches the name
+               JR Z,ERAZ33                     ; 5CDF 28 03  erasing files, so a directory is not wanted
+               JR NC,ERAZ3                     ; 5CE1 30 F9  erasing a directory, so a file is not wanted
+               AND A                           ; 5CE3 A7  and clear the carry, so the shared test below lets it past
 
 ; ---- ERAZ33 ---- from &5CDF
 ERAZ33:
-               JR C,ERAZ3                      ; 5CE4 38 F6  SKIP RENAME IF DIR TYPE
-               LD A,(HL)                       ; 5CE6 7E
-               CALL BITF1                      ; 5CE7 CD 22 51
-               JR NZ,ERAZ45                    ; 5CEA 20 04  JR IF "ERASE OVER"
-               BIT 6,A                         ; 5CEC CB 77
+               JR C,ERAZ3                      ; 5CE4 38 F6  a directory when a file was asked for, or the other way
+               LD A,(HL)                       ; 5CE6 7E  the type byte, with its flags
+               CALL BITF1                      ; 5CE7 CD 22 51  was OVER given?
+               JR NZ,ERAZ45                    ; 5CEA 20 04  then protection does not stop it
+               BIT 6,A                         ; 5CEC CB 77  bit 6 is the protected bit
                JR NZ,ERAZ33_1                  ; 5CEE 20 2F  JR IF PROTECTED
 
 ; ---- ERAZ45 ---- from &5CEA
 ERAZ45:
-               CALL OHASR                      ; 5CF0 CD 2F 5D
-               JR NZ,ERAZ3                     ; 5CF3 20 E7  JR IF "?" AND "N"
-               CALL CALL_ROM_66CB              ; 5CF5 CD 70 5E
+               CALL OHASR                      ; 5CF0 CD 2F 5D  with "?", ask before this one
+               JR NZ,ERAZ3                     ; 5CF3 20 E7  the answer was no
+               CALL CALL_ROM_66CB              ; 5CF5 CD 70 5E  a file, so there is nothing more to check
                JR Z,ERAZ46                     ; 5CF8 28 1E  JR IF ERASE FILE, NOT DIR
-               LD BC,DIRT                      ; 5CFA 01 FA 00
+               LD BC,DIRT                      ; 5CFA 01 FA 00  the tag this directory gives to the files inside it
                ADD HL,BC                       ; 5CFD 09
                LD A,(HL)                       ; 5CFE 7E
-               LD (CDIRT+1),A                  ; 5CFF 32 32 42  SET TEMP DIR TO SUBJECT OF
-               CALL EXDAT                      ; 5D02 CD 43 62  SAVE CURRENT FILE DETAILS
-               LD L,&2A                        ; 5D05 2E 2A
+               LD (CDIRT+1),A                  ; 5CFF 32 32 42  which becomes the directory the next scan looks in
+               CALL EXDAT                      ; 5D02 CD 43 62  the current file's details, put aside
+               LD L,&2A                        ; 5D05 2E 2A  a pattern of "*" and whatever follows it in H
                LD (NSTR1+1),HL                 ; 5D07 22 3B 41  H CANNOT BE "." (2EH) SO NAME
-               LD A,&10                        ; 5D0A 3E 10  FIND FILE, IGNORE TYPE
-               CALL FDHR                       ; 5D0C CD 31 4B  FIND ANY FILE IN THIS DIRECTORY
-               JP Z,REP33                      ; 5D0F CA 98 51  "DIRECTORY NOT EMPTY" IF A FILE
-               CALL EXDAT                      ; 5D12 CD 43 62  ORIG CDIRT AND NAME BACK
-               CALL PTSVT                      ; 5D15 CD CF 5D  LOAD AND POINT TO DIR FILE ENTRY
+               LD A,DIR_MODE_NAME_ONLY         ; 5D0A 3E 10  FIND FILE, IGNORE TYPE
+               CALL FDHR                       ; 5D0C CD 31 4B  is there anything at all in that directory?
+               JP Z,REP33                      ; 5D0F CA 98 51  then it may not be erased
+               CALL EXDAT                      ; 5D12 CD 43 62  the details back
+               CALL PTSVT                      ; 5D15 CD CF 5D  and the directory's own entry back under HL
 
 ; ---- ERAZ46 ---- from &5CF8
 ERAZ46:
-               LD (HL),&00                     ; 5D18 36 00
-               CALL WSAD                       ; 5D1A CD 86 45
+               LD (HL),&00                     ; 5D18 36 00  zero the type byte, which is the whole of erasing
+               CALL WSAD                       ; 5D1A CD 86 45  and write the sector out
                JR ERAZ3                        ; 5D1D 18 BD
 
 ; ---- ERAZ33_1 ---- from &5CEE when bit 6 of A set
 ERAZ33_1:
-               CALL BEEP                       ; 5D1F CD E1 4D
-               CALL SETF3                      ; 5D22 CD FE 50  "TRIED TO ERASE PROTECTED FILE"
+               CALL BEEP                       ; 5D1F CD E1 4D  a protected file, and no OVER
+               CALL SETF3                      ; 5D22 CD FE 50  remembered, so the command can say so if it did nothing
                JR ERAZ3                        ; 5D25 18 B5
 
 ;; --------------------------------------------------------------------
-;; Check the channel is open through OHASR, and if it is, store A and
-;; leave for WSAD to write the sector.
+;; Ask, and if the answer is yes put A into the entry and write it.
+;;
+;; The one place PROTECT, HIDE and their OFF forms end at: each has
+;; worked out the type byte it wants, and all that is left is the
+;; question and the sector write.
 ;; --------------------------------------------------------------------
 
 ; ---- WRITE_BYTE_IF_OPEN ---- from &5E4D
 WRITE_BYTE_IF_OPEN:
-               CALL OHASR                      ; 5D27 CD 2F 5D
-               RET NZ                          ; 5D2A C0  RET IF "?" OPTION AND "N"
-               LD (HL),A                       ; 5D2B 77  ERASED/PROTECTED/HIDDEN
+               CALL OHASR                      ; 5D27 CD 2F 5D  with "?", ask before this one
+               RET NZ                          ; 5D2A C0  the answer was no
+               LD (HL),A                       ; 5D2B 77  the new type byte, with its flags set or cleared
                JP WSAD                         ; 5D2C C3 86 45
+
+;; --------------------------------------------------------------------
+;; Ask about this file, if the "?" option was given.
+;;
+;; Flag 0 goes up first and unconditionally: it records that something
+;; matched, so that a command which is asked about every file and told
+;; no to each of them reports nothing rather than "file not found".
+;;
+;; THE ANSWER COMES BACK IN THE FLAGS, and the registers have to come
+;; back too, which is why A is recovered through B rather than by
+;; popping AF.  FNMAE leaves the verdict in the zero flag; POP AF would
+;; throw it away, so the saved AF is popped into BC and only its A half
+;; put back, leaving the flags as FNMAE set them.
+;; --------------------------------------------------------------------
 
 ; ---- OHASR ---- from &59FE, &5CF0, &5D27, &5D8F
 OHASR:
-               CALL SETF0                      ; 5D2F CD EC 50  "GOT ONE"
-               CALL BITF7                      ; 5D32 CD 40 51
-               RET Z                           ; 5D35 C8  RET IF NOT "?" OPTION
+               CALL SETF0                      ; 5D2F CD EC 50  something matched, whatever the answer turns out to be
+               CALL BITF7                      ; 5D32 CD 40 51  was "?" given?
+               RET Z                           ; 5D35 C8  no, so the answer is yes
                PUSH AF                         ; 5D36 F5
                PUSH DE                         ; 5D37 D5
                PUSH HL                         ; 5D38 E5
-               CALL OHNM                       ; 5D39 CD D1 58  CMD NAME
-               CALL FNMAE                      ; 5D3C CD FE 58  FILE NAME, Y/N/A/E, KEY.
+               CALL OHNM                       ; 5D39 CD D1 58  "ERASE", or whichever command this is
+               CALL FNMAE                      ; 5D3C CD FE 58  the file name, and wait for Y, N, A or E
                POP HL                          ; 5D3F E1  Z IF YES OR ALL
                POP DE                          ; 5D40 D1
-               POP BC                          ; 5D41 C1
-               LD A,B                          ; 5D42 78
+               POP BC                          ; 5D41 C1  the saved A and F, but not into AF
+               LD A,B                          ; 5D42 78  A back, and the answer's flags left alone
                RET                             ; 5D43 C9  Z IF YES
+
+;; --------------------------------------------------------------------
+;; Is this entry in the directory we are working in?
+;;
+;; Offset &FE of the entry against CDIRT, with &FF matching any -- the
+;; same test FDH9 makes, in the form the resumable search needs.
+;; --------------------------------------------------------------------
 
 ; ---- CKDIR ---- from &5EA7
 CKDIR:
-               INC H                           ; 5D44 24
+               INC H                           ; 5D44 24  offset &FE, the tag of the directory this file is in
                DEC HL                          ; 5D45 2B
                DEC HL                          ; 5D46 2B
                LD A,(CDIRT)                    ; 5D47 3A 31 42
-               CP &FF                          ; 5D4A FE FF
+               CP &FF                          ; 5D4A FE FF  &FF is no directory's tag, so it means all of them
                RET Z                           ; 5D4C C8  RET IF "MATCH ANY"
-               CP (HL)                         ; 5D4D BE
+               CP (HL)                         ; 5D4D BE  otherwise it has to be the one we are in
                RET                             ; 5D4E C9
 
 ;; --------------------------------------------------------------------
-;;  RENAM -- RENAME
+;; RENAME, in two unrelated forms.
 ;;
-;;  RENAME TO "name" renames the disk itself, which means rewriting the name field of the first directory entry and
-;;  giving the disk a fresh random word so that anything caching its identity notices the change.
+;; RENAME TO "name" RENAMES THE DISC, which is not a file operation at
+;; all: entry 0 of the directory carries the disc's name at offset 210
+;; and its identifying word at 252, and FESE2 writes both.
 ;;
-;;  Otherwise it is file to file, with the target acting as a template: TRX0 applies it to each matching name, so
-;;  wildcards rename in bulk.
+;; RENAME "a" TO "b" IS FILE TO FILE, and "b" is a template rather than
+;; a name.  TRX0 applies it to each matching name in turn, so "*.BAK"
+;; as a target renames in bulk and keeps whatever the wildcards
+;; matched.
 ;;
-;;  Errors: REP28 if the new name is already in use
+;; THE LOOP IS ERASE'S, down to the three jumps that decide whether the
+;; entry found is the kind this command wants -- see ERAZ for what the
+;; AND A between them is for.  What is different is that the sector is
+;; written back inside the loop, so the buffer cannot be trusted from
+;; one turn to the next: REFBUF re-reads it and PTSVT points back at
+;; the entry the search had reached.
 ;;
-;; RENAME A FILE
+;; RENAMING ALSO MOVES A FILE.  The subdirectory tag at offset &FE is
+;; written from CDIRT before the name is copied in, so a file renamed
+;; from inside another directory ends up in the current one.
+;;
+;; Errors: REP28 if the new name is already in use
 ;; --------------------------------------------------------------------
 
 RENAM:
-               CALL REDIR                      ; 5D4F CD BB 5C  SKIP ANY "DIR", SET FLAG4
-               CP &8E                          ; 5D52 FE 8E  "TO"
+               CALL REDIR                      ; 5D4F CD BB 5C  a leading DIR, which makes this RENAME DIR
+               CP &8E                          ; 5D52 FE 8E  "TO" straight after RENAME means the disc, not a file
                JR NZ,RENM1                     ; 5D54 20 1D
                CALL EVNAMX                     ; 5D56 CD CC 61
                CALL CEOS                       ; 5D59 CD 07 50
                CALL EVFINS                     ; 5D5C CD 21 73
-               LD DE,&0001                     ; 5D5F 11 01 00
+               LD DE,&0001                     ; 5D5F 11 01 00  track 0, sector 1, which is where entry 0 lives
                CALL READ_SECTOR                ; 5D62 CD B7 45
                CALL CLEAR_TRANSFER_COUNT       ; 5D65 CD 8E 4F
-               LD B,&FF                        ; 5D68 06 FF
+               LD B,&FF                        ; 5D68 06 FF  the far end of the entry, which is where FESE2 starts
                CALL GRPNTB                     ; 5D6A CD AE 4F
                CALL FESE2                      ; 5D6D CD F8 55  COPY NAME, NEW RND NO.
 
@@ -8255,45 +8320,47 @@ NWSADH:
 RENM1:
                CALL EVAL_NAME_PAIR             ; 5D73 CD 7B 59
                CALL COBUS                      ; 5D76 CD A0 59
-               CALL N2TN3                      ; 5D79 CD DB 5D  COPY 2ND NAME TO TEMPLATE AREA
-               LD A,(DSTR1)                    ; 5D7C 3A 36 41  FIRST FILE DRIVE
+               CALL N2TN3                      ; 5D79 CD DB 5D  the second name becomes the template
+               LD A,(DSTR1)                    ; 5D7C 3A 36 41  the drive the first name named
                CALL CKDRX                      ; 5D7F CD 0A 48  SO E.G. RENAME "D2:ASD"
 
 ; ---- RENM2 ---- from &5D8A, &5D8D, &5D92, &5DC2
 RENM2:
-               CALL REFBUF                     ; 5D82 CD C4 5D  REFRESH BUFFER
-               CALL SNDFX                      ; 5D85 CD 52 5E  FIND 1ST NAME FILE
-               JR Z,RENM3                      ; 5D88 28 03  JR IF FLAG= RENAME FILE, NOT DIR
-               JR NC,RENM2                     ; 5D8A 30 F6  SKIP RENAME IF NOT DIR TYPE
-               AND A                           ; 5D8C A7  NC
+               CALL REFBUF                     ; 5D82 CD C4 5D  the buffer may have been written over since the last
+                                               ; turn
+               CALL SNDFX                      ; 5D85 CD 52 5E  the next entry that matches
+               JR Z,RENM3                      ; 5D88 28 03  renaming files, so a directory is not wanted
+               JR NC,RENM2                     ; 5D8A 30 F6  renaming a directory, so a file is not wanted
+               AND A                           ; 5D8C A7  and clear the carry, so the shared test below lets it past
 
 ; ---- RENM3 ---- from &5D88
 RENM3:
                JR C,RENM2                      ; 5D8D 38 F3  SKIP RENAME IF DIR TYPE
-               CALL OHASR                      ; 5D8F CD 2F 5D
+               CALL OHASR                      ; 5D8F CD 2F 5D  with "?", ask before this one
                JR NZ,RENM2                     ; 5D92 20 EE  JR IF "?" AND "N"
                PUSH HL                         ; 5D94 E5
-               CALL EXDAT                      ; 5D95 CD 43 62  FIRST FILE NAME TO NSTR2
+               CALL EXDAT                      ; 5D95 CD 43 62  the name found, put where the template can be applied to
+                                               ; it
                POP HL                          ; 5D98 E1
-               CALL TRX0                       ; 5D99 CD E9 62  COPY LOADED NAME TO NSTR1,
-               CALL FINDC                      ; 5D9C CD A7 4F  USE TEMPLATE ON IT
-               JP Z,REP28                      ; 5D9F CA 8C 51  "FILE NAME USED"
-               CALL PTSVT                      ; 5DA2 CD CF 5D  PT TO FIRST FILE ENTRY AGAIN
+               CALL TRX0                       ; 5D99 CD E9 62  the template, applied
+               CALL FINDC                      ; 5D9C CD A7 4F  is the name it produced already on the disc?
+               JP Z,REP28                      ; 5D9F CA 8C 51  then it may not be used
+               CALL PTSVT                      ; 5DA2 CD CF 5D  back to the entry the search had reached
                PUSH DE                         ; 5DA5 D5  T/S
                PUSH HL                         ; 5DA6 E5
-               INC H                           ; 5DA7 24
+               INC H                           ; 5DA7 24  offset &FE, the tag of the directory the file is in
                DEC HL                          ; 5DA8 2B
                DEC HL                          ; 5DA9 2B  SUB DIR TAG
-               LD A,(CDIRT)                    ; 5DAA 3A 31 42  SUB DIR VALUE FOR 2ND NAME
-               LD (HL),A                       ; 5DAD 77  SET SUB DIR TAG
+               LD A,(CDIRT)                    ; 5DAA 3A 31 42  the directory we are in now
+               LD (HL),A                       ; 5DAD 77  so renaming a file also moves it here
                POP DE                          ; 5DAE D1
-               INC DE                          ; 5DAF 13  NAME POSN
+               INC DE                          ; 5DAF 13  offset 1, where the name goes
                LD HL,NSTR1+1                   ; 5DB0 21 3B 41
-               LD BC,&000A                     ; 5DB3 01 0A 00
+               LD BC,&000A                     ; 5DB3 01 0A 00  ten characters of it
                LDIR                            ; 5DB6 ED B0
                POP DE                          ; 5DB8 D1  T/S
-               CALL WSAD                       ; 5DB9 CD 86 45
-               CALL SETF0                      ; 5DBC CD EC 50  "DONE ONE"
+               CALL WSAD                       ; 5DB9 CD 86 45  and the sector goes back to the disc
+               CALL SETF0                      ; 5DBC CD EC 50  something was done, whatever else the command finds
                CALL EXDAT                      ; 5DBF CD 43 62
                JR RENM2                        ; 5DC2 18 BE
 
@@ -8332,14 +8399,24 @@ N2TN3:
                LDIR                            ; 5DE4 ED B0
                RET                             ; 5DE6 C9
 
+;; --------------------------------------------------------------------
+;; PROTECT and HIDE, which differ in one bit and share everything else.
+;;
+;; HSTR1 holds the bit -- &40 for protected, &80 for hidden -- and SFB2
+;; is written so that neither the command nor the direction needs a
+;; branch of its own.  The bit is complemented and ANDed off, which
+;; clears it whatever it was; then it is ORed back in unless flag 1
+;; says OFF was given.  Four instructions for four cases.
+;; --------------------------------------------------------------------
+
 CMD_PROTECT:
-               LD A,&40                        ; 5DE7 3E 40
+               LD A,&40                        ; 5DE7 3E 40  bit 6 of the type byte is the protected bit
                LD (HSTR1),A                    ; 5DE9 32 35 41
                CALL GTNC                       ; 5DEC CD 3C 50
                JR CMD_HIDE_3                   ; 5DEF 18 40
 
 CMD_HIDE:
-               LD A,&80                        ; 5DF1 3E 80
+               LD A,&80                        ; 5DF1 3E 80  and bit 7 is the hidden one
                LD (HSTR1),A                    ; 5DF3 32 35 41
                CALL GTNC                       ; 5DF6 CD 3C 50
                CP &8E                          ; 5DF9 FE 8E
@@ -8389,18 +8466,22 @@ CMD_HIDE_3:
                CALL NMQU                       ; 5E36 CD 90 59
                CALL EVFINS                     ; 5E39 CD 21 73
 
+;; --------------------------------------------------------------------
+;; One matching file: clear the bit, then put it back unless OFF.
+;; --------------------------------------------------------------------
+
 ; ---- SFB2 ---- from &5E50
 SFB2:
-               CALL SNDFX                      ; 5E3C CD 52 5E
-               LD A,(HSTR1)                    ; 5E3F 3A 35 41
+               CALL SNDFX                      ; 5E3C CD 52 5E  the next entry that matches
+               LD A,(HSTR1)                    ; 5E3F 3A 35 41  the bit this command works on
                LD C,A                          ; 5E42 4F
-               CPL                             ; 5E43 2F
+               CPL                             ; 5E43 2F  every bit but that one
                LD B,A                          ; 5E44 47
-               LD A,(HL)                       ; 5E45 7E
+               LD A,(HL)                       ; 5E45 7E  the entry's type byte
                AND B                           ; 5E46 A0  clear the bit either way
-               CALL BITF1                      ; 5E47 CD 22 51
-               JR NZ,SFB4                      ; 5E4A 20 01  OFF: leave it clear
-               OR C                            ; 5E4C B1  otherwise set it
+               CALL BITF1                      ; 5E47 CD 22 51  was OFF given?
+               JR NZ,SFB4                      ; 5E4A 20 01  then leaving it clear is the whole job
+               OR C                            ; 5E4C B1  otherwise put it back
 
 ; ---- SFB4 ---- from &5E4A
 SFB4:

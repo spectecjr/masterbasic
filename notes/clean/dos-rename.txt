@@ -1,0 +1,105 @@
+# RENAME, PROTECT and HIDE: three commands over one loop.
+#
+# Prose for clean/ only.
+
+DOC RENAM
+    RENAME, in two unrelated forms.
+
+    RENAME TO "name" RENAMES THE DISC, which is not a file operation at
+    all: entry 0 of the directory carries the disc's name at offset 210
+    and its identifying word at 252, and FESE2 writes both.
+
+    RENAME "a" TO "b" IS FILE TO FILE, and "b" is a template rather than
+    a name.  TRX0 applies it to each matching name in turn, so "*.BAK"
+    as a target renames in bulk and keeps whatever the wildcards
+    matched.
+
+    THE LOOP IS ERASE'S, down to the three jumps that decide whether the
+    entry found is the kind this command wants -- see ERAZ for what the
+    AND A between them is for.  What is different is that the sector is
+    written back inside the loop, so the buffer cannot be trusted from
+    one turn to the next: REFBUF re-reads it and PTSVT points back at
+    the entry the search had reached.
+
+    RENAMING ALSO MOVES A FILE.  The subdirectory tag at offset &FE is
+    written from CDIRT before the name is copied in, so a file renamed
+    from inside another directory ends up in the current one.
+
+    Errors: REP28 if the new name is already in use
+
+DOS &5D4F : a leading DIR, which makes this RENAME DIR
+DOS &5D52 : "TO" straight after RENAME means the disc, not a file
+DOS &5D5F : track 0, sector 1, which is where entry 0 lives
+DOS &5D68 : the far end of the entry, which is where FESE2 starts
+DOS &5D79 : the second name becomes the template
+DOS &5D7C : the drive the first name named
+DOS &5D82 : the buffer may have been written over since the last turn
+DOS &5D85 : the next entry that matches
+DOS &5D88 : renaming files, so a directory is not wanted
+DOS &5D8A : renaming a directory, so a file is not wanted
+DOS &5D8C : and clear the carry, so the shared test below lets it past
+DOS &5D8F : with "?", ask before this one
+DOS &5D95 : the name found, put where the template can be applied to it
+DOS &5D99 : the template, applied
+DOS &5D9C : is the name it produced already on the disc?
+DOS &5D9F : then it may not be used
+DOS &5DA2 : back to the entry the search had reached
+DOS &5DA7 : offset &FE, the tag of the directory the file is in
+DOS &5DAA : the directory we are in now
+DOS &5DAD : so renaming a file also moves it here
+DOS &5DAF : offset 1, where the name goes
+DOS &5DB3 : ten characters of it
+DOS &5DB9 : and the sector goes back to the disc
+DOS &5DBC : something was done, whatever else the command finds
+
+DOC FESE2
+    Write the disc's name and give it a fresh identity.
+
+    THE IDENTIFYING WORD IS MADE OF WHAT IS TO HAND: the refresh
+    register, which counts memory cycles and is therefore unpredictable
+    at any given instant, and the ROM's frame counter.  It does not have
+    to be random so much as different from the last one, because its
+    only job is to let the DOS notice that the disc in the drive has
+    been changed under an open file.
+
+    THE NAME IS 42 BYTES BACK from there, which is why BC is loaded with
+    -42 rather than the address being worked out again.
+
+    A NAME BEGINNING "D" AND A DIGIT WOULD READ AS A DRIVE, so one that
+    does has its first character replaced with "*".  C11SP is what
+    decides: a "D", a digit and then nothing but spaces.
+
+DOS &55FB : the refresh register, which is unpredictable enough
+DOS &55FD : the high half of the disc's identity
+DOS &55FF : and the frame counter for the low half
+DOS &5605 : forty-two bytes back
+DOS &5608 : is offset 210, where the disc's name goes
+DOS &560F expr CASE_BLIND
+DOS &5611 : does the name start with a D?
+DOS &5615 : and is the rest of it a digit and spaces?
+DOS &561A : then it would read as a drive, so make it a star instead
+DOS &561C : ten characters of name
+DOS &561F : into the sector, ready to be written
+
+DOC CMD_PROTECT
+    PROTECT and HIDE, which differ in one bit and share everything else.
+
+    HSTR1 holds the bit -- &40 for protected, &80 for hidden -- and SFB2
+    is written so that neither the command nor the direction needs a
+    branch of its own.  The bit is complemented and ANDed off, which
+    clears it whatever it was; then it is ORed back in unless flag 1
+    says OFF was given.  Four instructions for four cases.
+
+DOS &5DE7 : bit 6 of the type byte is the protected bit
+DOS &5DF1 : and bit 7 is the hidden one
+
+DOC SFB2
+    One matching file: clear the bit, then put it back unless OFF.
+
+DOS &5E3C : the next entry that matches
+DOS &5E3F : the bit this command works on
+DOS &5E43 : every bit but that one
+DOS &5E45 : the entry's type byte
+DOS &5E47 : was OFF given?
+DOS &5E4A : then leaving it clear is the whole job
+DOS &5E4C : otherwise put it back
