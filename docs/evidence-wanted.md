@@ -62,18 +62,43 @@ map at `&7C22`–`&7C2F` moving as the bits shift for a different allocation; an
 four counters at `&41FC`, `&41FE`, `&42E6` and `&42E9`. All of it is the record
 of the file being written, not settings.
 
-**Still open, and the obvious test for it was void.** `MDMB2.bin` was saved with
-`KEY 36+70,24` applied as well as the four pokes, and no system-page block moved
-a byte. That proves nothing, because the manual says two paragraphs earlier that
-*MasterBASIC already performs that exact assignment at boot* — so the command
-wrote a value over itself. The suggestion was taken from the manual sentence
-without reading what the sentence said.
+**The `KEY` question is answered too, by a third capture.** `file/MDMB3.bin` is
+a clean boot with no `XVAR` pokes and one `KEY 104,200`. Exactly one byte moved
+in a system-page block, and it is the 200:
 
-To try it properly, use a key you do not mind remapping and a code that cannot
-occur by accident — `KEY <n>,200` — and say which key number was used. Note
-that `KEY` definitions live in a buffer the ROM addresses through `DKDEF` and
-`DKLIM`, so they may not be in a saved block at all; that would be an answer
-too, and it would mean `SAVE BOOT` does not preserve key assignments.
+| | |
+|---|---|
+| file offset | 32437 |
+| block | 8, at +178 |
+| system page | `&5948` |
+| was | 71, `"G"` |
+| now | 200 |
+
+So `SAVE BOOT` **does** preserve key assignments, and they ride in block 8.
+
+*The first attempt at this was void, and the reason is worth keeping.*
+`MDMB2.bin` had `KEY 36+70,24` applied and no system-page block moved a byte —
+because the manual says two paragraphs earlier that MasterBASIC already performs
+that exact assignment at boot, so the command wrote a value over itself. The
+suggestion was taken from a manual sentence without reading what the sentence
+said. A code that cannot occur by accident, on a key whose default is not
+already that code, is what the test needed.
+
+**It confirms two things that had only been read, never seen from outside.**
+
+*The key table's base.* `notes/mb-syspatches.txt` puts the ROM's key table at
+`&58E0`, one byte per key, derived by reading what MasterBASIC pokes into it.
+Working the other way — from the manual's own `KEY 36+70,24` and `KEY 27+70,25`,
+whose codes 24 and 25 appear at `&594A` and `&5941`, nine apart for key numbers
+nine apart — gives a base of `&58E0` and makes the changed byte key 104. Two
+independent routes, same answer.
+
+*The block map.* Block 8's source was worked out by reading `SAVE_BOOT` at
+`&6404`. A byte poked into the live system page at `&5948` turning up at file
+offset 32437, which the map says is `&5896 + 178 = &5948`, is that map confirmed
+end to end by a write rather than by a comparison.
+
+**Nothing further is wanted here.** All three captures are in `file/`.
 
 
 ---

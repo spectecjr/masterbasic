@@ -26,6 +26,13 @@ DOC INSTALL_SYSPAGE_CODE
     the table directly.  The codes drive word-left and word-right in the
     editor.
 
+    CONFIRMED FROM OUTSIDE.  Three SAVE BOOT files taken from the same
+    disc differ in block 8 by exactly one byte when one KEY 104,200 is
+    issued between them, and that byte is system page &5948 -- which is
+    &58E0 plus 104.  So the base is right, the one-byte-per-key is
+    right, and SAVE BOOT carries key assignments.  See
+    docs/evidence-wanted.md item 1.
+
     The 29 bytes to &5A12 are the DUMP settings.  The ROM's variable
     table marks everything from LPTPRT1 to TABVAR with the single comment
     "ALL reserved for DUMP", and what goes there is DPVARS and the XVARs
