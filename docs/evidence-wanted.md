@@ -9,7 +9,7 @@ second `SAVE BOOT` in item 1.
 
 ---
 
-## 1. Answered — `file/MBPOST.bin` is a `SAVE BOOT` file, not a dump
+## 1. Answered — `file/MBPOST.bin` is a `SAVE BOOT` file, and it carries settings
 
 Kept here because the answer is worth more than the question was. It was made
 by booting `dsks/MasterDOS2_3_MasterBasic1_7.mgt` under SimCoupe and doing a
@@ -23,38 +23,47 @@ never was in MasterBASIC's page. It also confirms the block layout from the
 outside — every block whose source can be checked against the system page
 dumps matches byte for byte, 162, 36, 671 and 381 bytes respectively.
 
-**Still wanted, and cheap:** the same `SAVE BOOT` again after changing
-something a user would change. A `DUMP` setting is the easiest, because an
-`XVAR` is MasterBASIC's own `&4000+n` and block 5 is the MasterBASIC page at
-file offset 16320 — so the byte to read afterwards is known exactly, not
-hunted for. Pre-registered:
+**The second capture is in, as `file/MDMB2.bin`.** Four `DUMP` settings were
+poked and the machine re-saved. The predictions were written down first, in
+this file, and all four hold:
 
-```basic
-POKE XVAR 5,3   : REM DTTH,  normally 1
-POKE XVAR 15,4  : REM SDORI, normally 0
-POKE XVAR 16,32 : REM SDLHS, normally 0
-POKE XVAR 19,16 : REM SDBOT, normally 0
-SAVE BOOT "MDMB2"
-```
-
-| what | file offset | now | should become |
+| what | file offset | was | now |
 |---|---|---|---|
-| `XVAR 5` | 16325 | 1 | 3 |
-| `XVAR 15` | 16335 | 0 | 4 |
-| `XVAR 16` | 16336 | 0 | 32 |
-| `XVAR 19` | 16339 | 0 | 16 |
+| `XVAR 5` `DTTH` | 16325 | 1 | **3** |
+| `XVAR 15` `SDORI` | 16335 | 0 | **4** |
+| `XVAR 16` `SDLHS` | 16336 | 0 | **32** |
+| `XVAR 19` `SDBOT` | 16339 | 0 | **16** |
 
-and block 8 (32259–32639) should be byte-identical to `MBPOST.bin`, since its
-source is the system page and nothing here touches it. The file should still
-be 32640 bytes. Block 2, the live DOS page, will differ in its working
-variables; nothing should be read into that.
+Both files are 32640 bytes, and blocks 1, 3, 4, 6, 7 **and 8** are byte-identical
+between them — so `SAVE BOOT` does what it is for: a user's settings go into the
+file and come back at the next boot.
 
-An earlier version of this entry said block 8 would carry the change and block
-5 would not. That is wrong for a `DUMP` setting, which is an `XVAR` in
-MasterBASIC's own page. It may hold for a `KEY` assignment, whose table is in
-the system page — but which of the four system-page blocks would carry it is
-not established, so `KEY 36+70,24` before the `SAVE BOOT` would be a second,
-genuinely open question rather than a confirmation.
+**What differs, and all of it is accounted for.** Only two blocks move, and they
+are exactly the two that are live memory:
+
+*Block 5, the MasterBASIC page — five bytes.* Four are the pokes. The fifth is
+`&4062`, a word holding `&7C13` in the first file and `&7C5C` in the second.
+Five instructions use it (`&5428`, `&5455`, `&5461`, `&5481`, `&548C`) and every
+one moves it with `INC L` or `DEC L` and never `INC HL`, so it addresses a
+256-byte buffer at MasterBASIC's own `&7C00` and the high byte never changes.
+The code around it walks carriage-return-terminated text there and exchanges it
+with the ROM's `ELINE` and `KCUR`. That region is one of the blocks installed
+into the system page at boot; once installed the copy here is dead and gets
+reused, the same trick `DUMP` plays with the grey map at `&7B80`. It differs
+because it is live session state — where the pointer had got to when the file
+was saved.
+
+*Block 2, the DOS page — twenty-four bytes.* The file's own name in two places,
+`&413C` and `&7C15` in the channel record, `MBPOST` against `MDMB2`; the sector
+map at `&7C22`–`&7C2F` moving as the bits shift for a different allocation; and
+four counters at `&41FC`, `&41FE`, `&42E6` and `&42E9`. All of it is the record
+of the file being written, not settings.
+
+**Still open, and cheap:** the same again with a `KEY` assignment rather than a
+`DUMP` setting. `KEY` writes a table in the system page, so it should land in
+one of blocks 4, 6, 7 or 8 — which of them is not established, and this
+experiment cannot say, because those four blocks did not move at all.
+
 
 ---
 

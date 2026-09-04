@@ -1,0 +1,28 @@
+# A pointer into a buffer that is only a buffer after the boot has
+# finished with the block underneath it.
+#
+# MB &4062 holds a word whose high byte is always &7C.  Five instructions
+# use it -- &5428, &5455, &5461, &5481 and &548C -- and every one moves
+# it with INC L or DEC L and never INC HL, so what it addresses is 256
+# bytes at this page's own &7C00 and the pointer cannot leave them.  The
+# code around it walks carriage-return-terminated text there and trades
+# it with the ROM's ELINE and KCUR.
+#
+# &7C00 IS NOT SPARE SPACE IN THE FILE.  It is one of the blocks the
+# installer copies into the system page; once copied, the copy here is
+# dead and this takes it over.  DUMP does the same thing at &7B80 with
+# its grey map -- see notes/mb-dumpcolour.txt -- so it is a habit of this
+# image rather than a one-off.
+#
+# EVIDENCE THAT IT IS LIVE SESSION STATE: two SAVE BOOT files taken from
+# the same disc, file/MBPOST.bin and file/MDMB2.bin, differ here and
+# nowhere else in block 5 except the four bytes deliberately poked
+# between them.  &7C13 in the first, &7C5C in the second.  See
+# docs/evidence-wanted.md item 1.
+#
+# WHAT THE BUFFER IS FOR is not established.  The surrounding labels are
+# synthesised from HK_MERGECOMPFLG above them, which is hook code 175 and
+# does something else entirely -- carry one bit of COMPFLG into DCT -- so
+# the name says only what precedes this code, not what it is.
+
+MB &4062 : a pointer into the 256 bytes at &7C00, moved by INC L alone -- see notes/mb-editbuf.txt

@@ -663,7 +663,8 @@ V4061:
 
 ; ---- V4062 ---- from &5428, &5455, &5461, &5481, &548C
 V4062:
-               DEFB &00,&7C                    ; 4062 .|
+               DEFB &00,&7C                    ; 4062 .|  a pointer into the 256 bytes at &7C00, moved by INC L alone --
+                                               ; see notes/mb-editbuf.txt
 
 ; ---- V4064 ---- from &764B
 V4064:
