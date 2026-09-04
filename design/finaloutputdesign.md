@@ -3,7 +3,7 @@
 So we need to do some cleanup still. It'd be nice if we could create a final output version of the source that is:
 
 - Has rewritten and clarified comments from the original source for MasterDOS where appropriate and where they add to the explanations we have here. That means reading them from the commentary there, not just carrying them over line-by-line in an automated fashion.
-- With temporary notes (e.g. like the section marked "WITHDRAWN" which are only relevant to you and me)
+- With temporary notes (e.g. like the section marked "WITHDRAWN" which are only relevant to you and me) removed
 - With pedagogical explanations of the source code and what it is doing for each routine.
 - With zero magic numbers in the opcodes wherever possible. 
 
