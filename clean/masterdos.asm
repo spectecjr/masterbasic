@@ -4022,7 +4022,7 @@ FDH5:
 
 ; ---- FDH4A ---- from &4C03 when bit 6 of A clear
 FDH4A:
-               CALL REPORT_PAGE_COUNT          ; 4C12 CD D7 4F  GET FILE NUMBER IN BC
+               CALL GET_FILE_NUMBER            ; 4C12 CD D7 4F  GET FILE NUMBER IN BC
                PUSH DE                         ; 4C15 D5
                LD HL,&0063                     ; 4C16 21 63 00
                AND A                           ; 4C19 A7
@@ -4269,8 +4269,9 @@ FDHF:
 ;; below it, which needs a program to put the control code there but is
 ;; otherwise no different.
 ;;
-;; Twenty-six pairs were wanted and thirty-two came free, which for one
-;; AND is a fair trade until something acts on the answer.  This is the
+;; Twenty-six pairs were wanted and thirty-eight came free -- the six
+;; printable ones above and the thirty-two from space to ? -- which for
+;; one AND is a fair trade until something acts on the answer.  This is the
 ;; only name compare in the DOS, and ERASE, RENAME and COPY reach it
 ;; through SNDF2 while the "does this name already exist" test reaches
 ;; it through FDH95: ERASE "A[" will erase A{, and a SAVE can be offered
@@ -4481,7 +4482,7 @@ OFSM_3:
 
 ; ---- OFSM_4 ---- from &4D52 when A = 0
 OFSM_4:
-               CALL DDEL                       ; 4D6E CD 5F 65  release the old file's space
+               CALL DDEL                       ; 4D6E CD 5F 65  let a drive that has just started come up to speed
                CALL POINT                      ; 4D71 CD AC 4F
                LD (HL),&00                     ; 4D74 36 00  zero the type byte, which is what erasing an entry means
                LD BC,&000F                     ; 4D76 01 0F 00  fifteen bytes in is the old file's own sector map
@@ -4671,7 +4672,8 @@ NCF25:
                LD A,(IX+&15)                   ; 4E3C DD 7E 15  the directory tag out of the image
                INC HL                          ; 4E3F 23
                INC HL                          ; 4E40 23
-               LD (HL),A                       ; 4E41 77  the file's tag is the file's, even in this entry
+               LD (HL),A                       ; 4E41 77  written here, and written over at &4E61 before the sector goes
+                                               ; out
                CP A                            ; 4E42 BF  set Z, so the copy below is not done twice
 
 ; ---- NCF25_1 ---- from &4E2C
@@ -4724,8 +4726,9 @@ CFMC:
 ;; leaves zero for &11 and for &12 -- the numeric and the string array
 ;; -- because subtracting borrows on the lower of the two and the ADC
 ;; puts the borrow back.  Two values tested in four bytes; see idiom
-;; 14 in docs/idioms.md.  What survives is BASIC, CODE, SCREEN$ and the
-;; Spectrum types below &10.
+;; 14 in docs/idioms.md.  What survives is BASIC, CODE and SCREEN$ --
+;; and only those, because FILE_TYPE_AT_POINT has already lifted every
+;; Spectrum type into the same range before either test runs.
 ;;
 ;; THE REST IS ASSEMBLY OF TWO STRUCTURES from the one entry, and the
 ;; addresses are chosen so that each is filled by walking forwards:
@@ -4943,7 +4946,8 @@ LCNTA:
 
 ;; --------------------------------------------------------------------
 ;; B bytes of A at DE.  Three instructions, four callers, and &4F69 is
-;; the entry for a caller that has already written the first one.
+;; its own DJNZ, which the caller list reports because the loop
+;; branches back to it.
 ;; --------------------------------------------------------------------
 
 ; ---- FILL_DE_WITH_A ---- from &4E91, &4EB9, &4F11, &4F69 when B is not 0 yet
@@ -5121,12 +5125,17 @@ SWAP_TRACK_AND_SECTOR:
                RET                             ; 4FD6 C9
 
 ;; --------------------------------------------------------------------
-;; Hand (IX+&0E) to MasterBASIC's BYTE_TO_DECIMAL through CALLMB, so the
-;; page count can be printed as three characters.
+;; The entry's track and sector, as the number DIR prints against it.
+;;
+;; MasterBASIC &4224 does the arithmetic: ten times the track, plus the
+;; sector less one, plus one more once the track is past 4 -- because
+;; track 4 sector 1 is the DOS file and holds no entry.  It is not
+;; BYTE_TO_DECIMAL, which is &4240 and sixteen bytes further on;
+;; nothing here prints anything.
 ;; --------------------------------------------------------------------
 
-; ---- REPORT_PAGE_COUNT ---- from &4C12, &7B46
-REPORT_PAGE_COUNT:
+; ---- GET_FILE_NUMBER ---- from &4C12, &7B46
+GET_FILE_NUMBER:
                LD A,(IX+RPT-DCHAN+1)           ; 4FD7 DD 7E 0E
                CALL CALLMB                     ; 4FDA CD BD 42
                DEFW &4224                      ; 4FDD 24 42
@@ -5136,9 +5145,10 @@ REPORT_PAGE_COUNT:
 ;; Remember the first free slot the scan meets, and only the first.
 ;;
 ;; FSLOT holds the track and sector, FSLTE which of the two entries in
-;; it.  A non-zero FSLOT means one has already been found, and the
-;; track is never zero for a slot that exists, so the one test does
-;; both jobs.
+;; it.  The test reads the low byte, which is the sector, because DE
+;; was stored with E first -- and a sector is numbered from one, so
+;; zero there means no slot has been found yet.  One test does both
+;; jobs.
 ;; --------------------------------------------------------------------
 
 ; ---- CLAIM_FREE_SLOT ---- from &4CB1, &4D87
@@ -15419,7 +15429,7 @@ FSTAT_7:
 
 ; ---- FSTAT_8 ---- from &7AD9 when C reaches 0
 FSTAT_8:
-               CALL REPORT_PAGE_COUNT          ; 7B46 CD D7 4F  CONVERT T/S IN D/E TO A NUMBER IN BC
+               CALL GET_FILE_NUMBER            ; 7B46 CD D7 4F  CONVERT T/S IN D/E TO A NUMBER IN BC
                LD H,B                          ; 7B49 60
                LD L,C                          ; 7B4A 69
 

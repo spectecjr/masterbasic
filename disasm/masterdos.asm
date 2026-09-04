@@ -3413,7 +3413,7 @@ FDH5:
 
 ; ---- FDH4A ---- from &4C03 when bit 6 of A clear
 FDH4A:
-               CALL REPORT_PAGE_COUNT          ; 4C12 CD D7 4F  GET FILE NUMBER IN BC
+               CALL GET_FILE_NUMBER            ; 4C12 CD D7 4F  GET FILE NUMBER IN BC
                PUSH DE                         ; 4C15 D5
                LD HL,&0063                     ; 4C16 21 63 00
                AND A                           ; 4C19 A7
@@ -4065,7 +4065,8 @@ LCNTA:
 
 ;; --------------------------------------------------------------------
 ;; B bytes of A at DE.  Three instructions, four callers, and &4F69 is
-;; the entry for a caller that has already written the first one.
+;; its own DJNZ, which the caller list reports because the loop
+;; branches back to it.
 ;; --------------------------------------------------------------------
 
 ; ---- FILL_DE_WITH_A ---- from &4E91, &4EB9, &4F11, &4F69 when B is not 0 yet
@@ -4192,12 +4193,17 @@ SWAP_TRACK_AND_SECTOR:
                RET                             ; 4FD6 C9
 
 ;; --------------------------------------------------------------------
-;; Hand (IX+&0E) to MasterBASIC's BYTE_TO_DECIMAL through CALLMB, so the
-;; page count can be printed as three characters.
+;; The entry's track and sector, as the number DIR prints against it.
+;;
+;; MasterBASIC &4224 does the arithmetic: ten times the track, plus the
+;; sector less one, plus one more once the track is past 4 -- because
+;; track 4 sector 1 is the DOS file and holds no entry.  It is not
+;; BYTE_TO_DECIMAL, which is &4240 and sixteen bytes further on;
+;; nothing here prints anything.
 ;; --------------------------------------------------------------------
 
-; ---- REPORT_PAGE_COUNT ---- from &4C12, &7B46
-REPORT_PAGE_COUNT:
+; ---- GET_FILE_NUMBER ---- from &4C12, &7B46
+GET_FILE_NUMBER:
                LD A,(IX+&0E)                   ; 4FD7 DD 7E 0E
                CALL CALLMB                     ; 4FDA CD BD 42
                DEFW &4224                      ; 4FDD 24 42
@@ -13913,7 +13919,7 @@ FSTAT_7:
 
 ; ---- FSTAT_8 ---- from &7AD9 when C reaches 0
 FSTAT_8:
-               CALL REPORT_PAGE_COUNT          ; 7B46 CD D7 4F  CONVERT T/S IN D/E TO A NUMBER IN BC
+               CALL GET_FILE_NUMBER            ; 7B46 CD D7 4F  CONVERT T/S IN D/E TO A NUMBER IN BC
                LD H,B                          ; 7B49 60
                LD L,C                          ; 7B4A 69
 

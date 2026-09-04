@@ -257,9 +257,10 @@ DOC CLAIM_FREE_SLOT
     Remember the first free slot the scan meets, and only the first.
 
     FSLOT holds the track and sector, FSLTE which of the two entries in
-    it.  A non-zero FSLOT means one has already been found, and the
-    track is never zero for a slot that exists, so the one test does
-    both jobs.
+    it.  The test reads the low byte, which is the sector, because DE
+    was stored with E first -- and a sector is numbered from one, so
+    zero there means no slot has been found yet.  One test does both
+    jobs.
 
 DOS &4FE0 : has a free slot already been found?
 DOS &4FE3 : FSLOT still zero means not
@@ -494,8 +495,9 @@ DOC CKNAM
     below it, which needs a program to put the control code there but is
     otherwise no different.
 
-    Twenty-six pairs were wanted and thirty-two came free, which for one
-    AND is a fair trade until something acts on the answer.  This is the
+    Twenty-six pairs were wanted and thirty-eight came free -- the six
+    printable ones above and the thirty-two from space to ? -- which for
+    one AND is a fair trade until something acts on the answer.  This is the
     only name compare in the DOS, and ERASE, RENAME and COPY reach it
     through SNDF2 while the "does this name already exist" test reaches
     it through FDH95: ERASE "A[" will erase A{, and a SAVE can be offered

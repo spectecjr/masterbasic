@@ -423,7 +423,8 @@ Going in, `HK_HSAVE` picks a compressor on `DVAR 154` and the file type —
 manual's three `SAVE MODE`s, implemented as one branch.
 
 Coming out, the DOS borrows arithmetic it does not have: `PRINT_BYTE_AS_DECIMAL`
-and `REPORT_PAGE_COUNT` both call `MB_BYTE_TO_DECIMAL`, and `TIME_TO_MINUTES`
+calls `MB_BYTE_TO_DECIMAL`, `GET_FILE_NUMBER` calls the routine sixteen bytes
+before it for a file's number, and `TIME_TO_MINUTES`
 calls `MB_MULTIPLY_BY_24`. `COLUMNS_FOR_DIRECTORY` at `&5C8B` reaches further
 still — it takes `DCOLS` if it is set and otherwise MasterBASIC's
 `SYS_CHAR_WIDTH` out of the ROM's system page, so a narrower character size

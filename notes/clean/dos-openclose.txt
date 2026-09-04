@@ -80,7 +80,7 @@ DOS &4D5E : "OVERWRITE"
 DOS &4D61 : the name, and wait for Y or N
 DOS &4D64 : Y, so go ahead
 DOS &4D69 : N: carry says the caller must give up
-DOS &4D6E : release the old file's space
+DOS &4D6E : let a drive that has just started come up to speed
 DOS &4D74 : zero the type byte, which is what erasing an entry means
 DOS &4D76 : fifteen bytes in is the old file's own sector map
 DOS &4D7A : and this is the disc's
@@ -130,8 +130,9 @@ DOC CHECK_FILE_TYPE
     leaves zero for &11 and for &12 -- the numeric and the string array
     -- because subtracting borrows on the lower of the two and the ADC
     puts the borrow back.  Two values tested in four bytes; see idiom
-    14 in docs/idioms.md.  What survives is BASIC, CODE, SCREEN$ and the
-    Spectrum types below &10.
+    14 in docs/idioms.md.  What survives is BASIC, CODE and SCREEN$ --
+    and only those, because FILE_TYPE_AT_POINT has already lifted every
+    Spectrum type into the same range before either test runs.
 
     THE REST IS ASSEMBLY OF TWO STRUCTURES from the one entry, and the
     addresses are chosen so that each is filled by walking forwards:
@@ -268,3 +269,8 @@ DOC CFMC
     the whole entry.
 
 DOS &4E6B expr FFSA
+
+# NCF25 writes the directory tag at offset &FE twice: once from the
+# entry image at &4E41 and again from CDIRT at &4E61, on every path.
+# The first is dead.
+DOS &4E41 : written here, and written over at &4E61 before the sector goes out
