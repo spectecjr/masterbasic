@@ -2388,7 +2388,7 @@ NRRDD:
                CALL GTHL                       ; 4561 CD E1 45
                PUSH DE                         ; 4564 D5
                CALL RDBC                       ; 4565 CD C2 45
-               JR NRWR_DONE                    ; 4568 18 2E
+               JR PPXR                         ; 4568 18 2E
 
 ;; --------------------------------------------------------------------
 ;; Read one byte of a ROM system variable.
@@ -2414,7 +2414,7 @@ NRRD:
                CALL GTHL                       ; 456C CD E1 45
                PUSH DE                         ; 456F D5
                CALL RDA                        ; 4570 CD D1 45
-               JR NRWR_DONE                    ; 4573 18 23
+               JR PPXR                         ; 4573 18 23
 
 ;; --------------------------------------------------------------------
 ;; Write HL to a ROM system variable.
@@ -2456,7 +2456,7 @@ NRWRD:
                CALL GTHL                       ; 4579 CD E1 45
                PUSH DE                         ; 457C D5
                CALL WRTBC                      ; 457D CD B3 45
-               JR NRWR_DONE                    ; 4580 18 16
+               JR PPXR                         ; 4580 18 16
 
 ;; --------------------------------------------------------------------
 ;; Write one byte to a ROM system variable.
@@ -2497,8 +2497,8 @@ NRWR:
                OUT (HMPR),A                    ; 4595 D3 FB
                LD A,E                          ; 4597 7B
 
-; ---- NRWR_DONE ---- from &4568, &4573, &4580
-NRWR_DONE:
+; ---- PPXR ---- from &4568, &4573, &4580
+PPXR:
                POP HL                          ; 4598 E1
                POP DE                          ; 4599 D1
                EX (SP),HL                      ; 459A E3

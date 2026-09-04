@@ -3190,7 +3190,7 @@ NRRDD:
                CALL GTHL                       ; 4561 CD E1 45
                PUSH DE                         ; 4564 D5
                CALL RDBC                       ; 4565 CD C2 45
-               JR NRWR_DONE                    ; 4568 18 2E
+               JR PPXR                         ; 4568 18 2E
 
 ;; --------------------------------------------------------------------
 ;; NRRD -- &456A to &4574
@@ -3233,7 +3233,7 @@ NRRD:
                CALL GTHL                       ; 456C CD E1 45
                PUSH DE                         ; 456F D5
                CALL RDA                        ; 4570 CD D1 45
-               JR NRWR_DONE                    ; 4573 18 23
+               JR PPXR                         ; 4573 18 23
 
 ;; --------------------------------------------------------------------
 ;; NRWRHL -- &4575 to &4576
@@ -3299,7 +3299,7 @@ NRWRD:
                CALL GTHL                       ; 4579 CD E1 45
                PUSH DE                         ; 457C D5
                CALL WRTBC                      ; 457D CD B3 45
-               JR NRWR_DONE                    ; 4580 18 16
+               JR PPXR                         ; 4580 18 16
 
 ;; --------------------------------------------------------------------
 ;; NRWR -- &4582 to &4597
@@ -3358,7 +3358,7 @@ NRWR:
                LD A,E                          ; 4597 7B
 
 ;; --------------------------------------------------------------------
-;; NRWR_DONE -- &4598 to &459B
+;; PPXR -- &4598 to &459B
 ;;
 ;; This routine moves the return address about with EX (SP),HL, so the
 ;; register tracking below cannot be trusted: read it as a list of what
@@ -3369,8 +3369,8 @@ NRWR:
 ;; Ends:      RET
 ;; --------------------------------------------------------------------
 
-; ---- NRWR_DONE ---- from &4568, &4573, &4580
-NRWR_DONE:
+; ---- PPXR ---- from &4568, &4573, &4580
+PPXR:
                POP HL                          ; 4598 E1
                POP DE                          ; 4599 D1
                EX (SP),HL                      ; 459A E3

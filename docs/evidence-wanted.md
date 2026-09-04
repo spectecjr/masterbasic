@@ -106,38 +106,70 @@ what is either side of those two paths is unread, and the disk images in
 
 ## 6. Wanted — which way round `DUMP n,m` magnifies
 
-**What to capture.** Two printed pages from a machine with an Epson-compatible
-printer, in MODE 4 with something obviously taller than it is wide on the
-screen:
+**What to capture.** Not a printed page — just the bytes. Run a full-screen
+MODE 4 dump twice and record what goes to the printer:
 
 ```basic
-10 MODE 4: CLS: FOR n=0 TO 90: PLOT 128,n: NEXT n
+10 MODE 4: CLS: CIRCLE 128,88,60
 20 DUMP 1,2
 30 DUMP 2,1
 ```
 
-Anything that makes the two directions distinguishable will do; a rectangle is
-easier to measure than a line.
+Each bit-image line begins `CR ESC "*" CHR$ 4 n1 n2` — that is `GCMX2`, XVAR 20,
+in its shipped form. **`n1 + 256*n2` is the number of dot columns across the
+paper**, and it is the whole answer:
 
-**Why.** The manual says the first number is the width magnification and the
-second the height — "`DUMP 1,2` single width, double height". Read against the
-code, that holds for a sideways dump and appears to be the wrong way round for
-an upright one.
+| | the code as read here | the manual's wording |
+|---|---|---|
+| `DUMP 1,2` | 512 | 256 |
+| `DUMP 2,1` | 256 | 512 |
 
-The routine works in two axes of its own: one that fills the eight bits of a
-bit-image byte (magnified by the **first** number, at `&693E`–`&6952`) and one
-that steps from byte to byte (magnified by the **second**, at `&6995`). Which
-of those is the paper's width depends on the orientation, and
-`TRANSFORM_DUMP_COORDS` exchanges them for an upright dump. `DUMP 3` and
-anything in MODE 3 are forced sideways, where the manual's names are right;
-an ordinary `DUMP 1` or `DUMP 2` in MODE 1, 2 or 4 is upright, where they
-appear to swap.
+An emulator's printer log is enough; so is anything that captures the stream.
+Two bytes settle it.
 
-**What it would decide.** Whether this is a genuine inconsistency in the
-program — worth an entry in `docs/bugs.md` — or a misreading here. If the
-first number turns out to magnify the width in an upright dump too, then the
-axis reasoning in `notes/mb-dumpshaded.txt` is wrong somewhere and wants
-finding.
+**Why it is open.** The manual says it twice, and the two do not agree once
+orientation is taken into account. Stated generally, under "Screen dumps":
+
+> The number 1, 2 or 3 actually specifies the width magnification of the dump…
+> `DUMP 1,2` — single width, double height
+
+and again in the MODE 3 paragraph:
+
+> `DUMP 1,2` or `DUMP 2,3` can be used to reduce the width relative to the
+> height.
+
+MODE 3 is forced **sideways**; an ordinary `DUMP 1` or `DUMP 2` in MODE 1, 2 or
+4 is **upright**. Read against the code the second passage is right and the
+first is inverted, because the two axes exchange between those cases.
+
+**The reading, in three steps**, each checkable in `clean/masterbasic.asm`:
+
+1. The first number sets how many bits a pixel contributes as `C` advances
+   (`&693E`–`&6952`); the second sets how many bytes are emitted before `B`
+   advances (`&6995`).
+2. Within one byte only `C` moves — `DUMP_BYTE` reloads it from
+   `DUMP_LINE_BASE` every time — and from byte to byte only `B` moves.
+3. In an Epson `ESC "*"` line a byte is eight dots stacked vertically and
+   successive bytes step across the paper. So `C` is the paper's vertical and
+   `B` its horizontal, and the count sent is the printed width in dots.
+
+For an upright dump `TRANSFORM_DUMP_COORDS` swaps the two, making `B` the screen
+column — so the **second** number magnifies horizontally.
+
+**What corroborates it, and what that costs the manual.** `XVAR 15` (`SDORI`)
+documents 1 as sideways and 3 as force-upright, and the code stores the poked
+value straight through. Working back from `TRANSFORM_DUMP_COORDS`, its swap can
+only mean "upright" if `B` is the paper's horizontal — the same assignment that
+makes the magnification labels swap. So the manual's orientation table and its
+width/height labels cannot both describe this code; one of them has to give.
+
+Step 3 is the only link resting on anything outside the listing: standard Epson
+bit-image geometry.
+
+**What it would decide.** Whether this is a real inconsistency in the program,
+worth an entry in `docs/bugs.md`, or a misreading here. If `DUMP 1,2` sends a
+count of 256, the axis reasoning in `notes/mb-dumpshaded.txt` is wrong somewhere
+and wants finding.
 
 ---
 

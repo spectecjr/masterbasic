@@ -5458,9 +5458,9 @@ NRWR:
 ;; and EX (SP),HL puts the stepped-on return address where the RET will
 ;; find it.
 ;;
-;; MasterBASIC's copy of the family calls this NRWR_DONE, after the one
-;; of its four users that reaches it by falling through rather than by
-;; a JR.
+;; Both halves carry this routine and both call it PPXR: MasterBASIC's
+;; is at &4598, where three of its four users reach it by a JR and
+;; NRWR falls through.
 ;; --------------------------------------------------------------------
 
 ; ---- PPXR ---- from &505C, &5067, &5072

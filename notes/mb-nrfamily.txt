@@ -1,0 +1,19 @@
+# MasterBASIC's copy of the NR family, and the one name it did not get
+# from the other half.
+#
+# Both halves carry the same seven routines for reaching the ROM's
+# system variables, and MasterBASIC's are named after MasterDOS's
+# because they are the same code: NRRD, NRRDD, NRWR, NRWRD, NRWRHL,
+# GTHL, RDA, RDBC, WRTBC, WRA and BCRWC all line up.
+#
+# The shared exit of the four NR entries did not.  The disassembler had
+# to invent a name for it and chose NRWR_DONE, after the one of its four
+# users that arrives by falling through rather than by a JR -- which
+# reads as though it belonged to NRWR alone.  MasterDOS's own source
+# calls it PPXR, so it is named that here.
+#
+# It is named by address rather than by a RENAME because the name being
+# replaced is synthesised, and a synthesised name is not a thing to
+# write down and depend on.
+
+MB &4598 PPXR

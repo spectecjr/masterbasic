@@ -28,15 +28,17 @@
 # dumps share it.
 
 # ONE THING IS NOT SETTLED.  The manual calls the first number the
-# width magnification and the second the height: "DUMP 1,2 single width,
-# double height".  What the code does is magnify the bit axis by the
-# first number and the byte axis by the second, and which of those is
-# the paper's width depends on the orientation -- they exchange when the
-# dump is sideways.  For DUMP 3, and for anything in MODE 3, the
-# manual's names are right.  For an upright DUMP 1 or 2 they appear to
-# be the wrong way round.  Nothing here can settle it; it wants a
-# machine and a printer.  See docs/evidence-wanted.md.
-#
+# width magnification and the second the height, and says so twice --
+# once generally ("DUMP 1,2 single width, double height") and once in
+# the MODE 3 paragraph ("DUMP 1,2 or DUMP 2,3 can be used to reduce the
+# width relative to the height").  MODE 3 is forced sideways and an
+# ordinary DUMP 1 or 2 is upright, and the two axes exchange between
+# those cases, so on the reading below the second passage is right and
+# the first is inverted.  The manual's own SDORI table corroborates the
+# axis assignment that makes them disagree, so the manual cannot be
+# self-consistent about this code.  Two bytes settle it -- the Epson
+# count after ESC "*" -- and docs/evidence-wanted.md item 6 says how to
+# capture them.
 MB &405D DUMP_BIT_FROM
 MB &405E DUMP_BIT_TO
 MB &405F DUMP_BYTE_TO
