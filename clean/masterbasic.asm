@@ -7622,7 +7622,7 @@ SCREEN_BLANK_TICK:
 SCREEN_BLANK_TICK_1:
                LD A,(V4085+IN_PAGE_C)          ; 59FC 3A 85 80
                AND A                           ; 59FF A7
-               JR Z,SCREEN_BLANK_TICK_8        ; 5A00 28 69
+               JR Z,SCREEN_BLANK_TICK_7        ; 5A00 28 69
                DEC A                           ; 5A02 3D
                LD B,A                          ; 5A03 47
                IN A,(LMPR)                     ; 5A04 DB FA
@@ -7640,7 +7640,7 @@ SCREEN_BLANK_TICK_LOOP:
                LD A,(DOS_BOOT_DATA_PORT_PLUS_2)  ; 5A17 3A 88 80
                DEC A                             ; 5A1A 3D
                CP B                              ; 5A1B B8
-               JR Z,SCREEN_BLANK_TICK_7          ; 5A1C 28 4C
+               JR Z,SCREEN_BLANK_TICK_6          ; 5A1C 28 4C
 
 ; ---- SCREEN_BLANK_TICK_2 ---- from &5A15
 SCREEN_BLANK_TICK_2:
@@ -7678,23 +7678,20 @@ SCREEN_BLANK_TICK_4:
 
 ; ---- SCREEN_BLANK_TICK_5 ---- from &71D4
 SCREEN_BLANK_TICK_5:
-               JR C,SCREEN_BLANK_TICK_7        ; 5A45 38 23
-               LD A,B                          ; 5A47 78
-               OUT (LMPR),A                    ; 5A48 D3 FA
-               LD A,(DE)                       ; 5A4A 1A
-               INC DE                          ; 5A4B 13
-               LD (V4086+IN_PAGE_C),DE         ; 5A4C ED 53 86 80
-               LD D,A                          ; 5A50 57
-               LD A,C                          ; 5A51 79
-               OUT (LMPR),A                    ; 5A52 D3 FA
-
-; ---- SCREEN_BLANK_TICK_6 ---- from DOS &6884, DOS &688C
-SCREEN_BLANK_TICK_6:
+               JR C,SCREEN_BLANK_TICK_6            ; 5A45 38 23
+               LD A,B                              ; 5A47 78
+               OUT (LMPR),A                        ; 5A48 D3 FA
+               LD A,(DE)                           ; 5A4A 1A
+               INC DE                              ; 5A4B 13
+               LD (V4086+IN_PAGE_C),DE             ; 5A4C ED 53 86 80
+               LD D,A                              ; 5A50 57
+               LD A,C                              ; 5A51 79
+               OUT (LMPR),A                        ; 5A52 D3 FA
                LD A,D                              ; 5A54 7A
                CALL SEND_BYTE_TO_PRINTER+IN_PAGE_C ; 5A55 CD 37 81
                POP AF                              ; 5A58 F1
                DEC A                               ; 5A59 3D
-               JR Z,SCREEN_BLANK_TICK_8            ; 5A5A 28 0F
+               JR Z,SCREEN_BLANK_TICK_7            ; 5A5A 28 0F
                PUSH AF                             ; 5A5C F5
                LD HL,(ILPD+IN_PAGE_C)              ; 5A5D 2A 09 80  the not-ready delay, from XVAR 9
 
@@ -7707,12 +7704,12 @@ SCREEN_BLANK_TICK_LOOP2:
                OR L                               ; 5A67 B5
                JR NZ,SCREEN_BLANK_TICK_LOOP2      ; 5A68 20 F6
 
-; ---- SCREEN_BLANK_TICK_7 ---- from &5A1C when A = B, &5A45
-SCREEN_BLANK_TICK_7:
+; ---- SCREEN_BLANK_TICK_6 ---- from &5A1C when A = B, &5A45
+SCREEN_BLANK_TICK_6:
                POP AF                          ; 5A6A F1
 
-; ---- SCREEN_BLANK_TICK_8 ---- from &5A00 when A = 0, &5A5A when A reaches 0
-SCREEN_BLANK_TICK_8:
+; ---- SCREEN_BLANK_TICK_7 ---- from &5A00 when A = 0, &5A5A when A reaches 0
+SCREEN_BLANK_TICK_7:
                LD A,(&8084)                           ; 5A6B 3A 84 80
                AND A                                  ; 5A6E A7
                RET Z                                  ; 5A6F C8
@@ -7731,7 +7728,7 @@ SCREEN_BLANK_TICK_LOOP3:
                LD HL,(&8082)                   ; 5A82 2A 82 80
                AND A                           ; 5A85 A7
                SBC HL,DE                       ; 5A86 ED 52
-               JR NZ,SCREEN_BLANK_TICK_9       ; 5A88 20 0A
+               JR NZ,SCREEN_BLANK_TICK_8       ; 5A88 20 0A
                IN A,(LMPR)                     ; 5A8A DB FA
                INC A                           ; 5A8C 3C
                LD H,A                          ; 5A8D 67
@@ -7739,25 +7736,25 @@ SCREEN_BLANK_TICK_LOOP3:
                CP H                            ; 5A91 BC
                JR Z,SCREEN_BLANK_TICK_DONE     ; 5A92 28 2A
 
-; ---- SCREEN_BLANK_TICK_9 ---- from &5A88
-SCREEN_BLANK_TICK_9:
+; ---- SCREEN_BLANK_TICK_8 ---- from &5A88
+SCREEN_BLANK_TICK_8:
                LD A,D                          ; 5A94 7A
                INC A                           ; 5A95 3C
 
-; ---- SCREEN_BLANK_TICK_10 ---- from &5DB1
-SCREEN_BLANK_TICK_10:
+; ---- SCREEN_BLANK_TICK_9 ---- from &5DB1
+SCREEN_BLANK_TICK_9:
                AND &03                         ; 5A96 E6 03
-               JR NZ,SCREEN_BLANK_TICK_12      ; 5A98 20 19
+               JR NZ,SCREEN_BLANK_TICK_11      ; 5A98 20 19
                LD A,D                          ; 5A9A 7A
                CP &7F                          ; 5A9B FE 7F
                LD A,E                          ; 5A9D 7B
-               JR NZ,SCREEN_BLANK_TICK_11      ; 5A9E 20 02
+               JR NZ,SCREEN_BLANK_TICK_10      ; 5A9E 20 02
                ADD A,&10                       ; 5AA0 C6 10
 
-; ---- SCREEN_BLANK_TICK_11 ---- from &5A9E when A <> &7F
-SCREEN_BLANK_TICK_11:
+; ---- SCREEN_BLANK_TICK_10 ---- from &5A9E when A <> &7F
+SCREEN_BLANK_TICK_10:
                CP &FE                          ; 5AA2 FE FE
-               JR NZ,SCREEN_BLANK_TICK_12      ; 5AA4 20 0D
+               JR NZ,SCREEN_BLANK_TICK_11      ; 5AA4 20 0D
                LD A,(DE)                       ; 5AA6 1A
                LD H,A                          ; 5AA7 67
                INC E                           ; 5AA8 1C
@@ -7768,12 +7765,12 @@ SCREEN_BLANK_TICK_11:
                DEC A                           ; 5AB0 3D
                OUT (LMPR),A                    ; 5AB1 D3 FA
 
-; ---- SCREEN_BLANK_TICK_12 ---- from &5A98 when a bit of &03 is set, &5AA4 when A <> &FE
-SCREEN_BLANK_TICK_12:
+; ---- SCREEN_BLANK_TICK_11 ---- from &5A98 when a bit of &03 is set, &5AA4 when A <> &FE
+SCREEN_BLANK_TICK_11:
                LD A,(DE)                       ; 5AB3 1A
                INC DE                          ; 5AB4 13
                CP CH_SPACE                     ; 5AB5 FE 20
-               JR NZ,SCREEN_BLANK_TICK_13      ; 5AB7 20 0D
+               JR NZ,SCREEN_BLANK_TICK_12      ; 5AB7 20 0D
                LD A,(DE)                       ; 5AB9 1A
                INC DE                          ; 5ABA 13
                LD (&8084),A                    ; 5ABB 32 84 80
@@ -7785,8 +7782,8 @@ SCREEN_BLANK_TICK_DONE:
                LD (DOS_BOOT_SETTLE_AFTER_READ_CMD),DE ; 5AC1 ED 53 7F 80
                RET                                    ; 5AC5 C9
 
-; ---- SCREEN_BLANK_TICK_13 ---- from &5AB7 when A <> CH_SPACE
-SCREEN_BLANK_TICK_13:
+; ---- SCREEN_BLANK_TICK_12 ---- from &5AB7 when A <> CH_SPACE
+SCREEN_BLANK_TICK_12:
                LD H,C                          ; 5AC6 61
                LD BC,&01FF                     ; 5AC7 01 FF 01
                OUT (C),A                       ; 5ACA ED 79
@@ -8147,13 +8144,10 @@ PREPARE_ROM1_COPY:
                EX DE,HL                        ; 5C4D EB
                LD E,(HL)                       ; 5C4E 5E
 
-; ---- PREPARE_ROM1_COPY_1 ---- from DOS &68AB, DOS &69C1, DOS &6D28, DOS &6DF0, DOS &6E5D, DOS &7020
+; ---- PREPARE_ROM1_COPY_1 ---- from DOS &7020
 PREPARE_ROM1_COPY_1:
                INC HL                          ; 5C4F 23
                LD D,(HL)                       ; 5C50 56
-
-; ---- PREPARE_ROM1_COPY_2 ---- from DOS &6852, DOS &691C, DOS &691F, DOS &6943, DOS &6981
-PREPARE_ROM1_COPY_2:
                LD B,&E7                        ; 5C51 06 E7
                POP HL                          ; 5C53 E1
                JR PAGE_IN_ROM1                 ; 5C54 18 03
@@ -8521,7 +8515,7 @@ COPY_THEN_APPEND_CALL_1:
 ; ---- CMD_KEYIN_1 ---- from &5D93
 CMD_KEYIN_1:
                LD A,(ELINEP)                   ; 5DAE 3A 93 5A
-               LD (SCREEN_BLANK_TICK_10),A     ; 5DB1 32 96 5A
+               LD (SCREEN_BLANK_TICK_9),A      ; 5DB1 32 96 5A
                LD HL,WORKSPP                   ; 5DB4 21 90 5A
                CP (HL)                         ; 5DB7 BE
                RET Z                           ; 5DB8 C8
@@ -13932,7 +13926,7 @@ HK_PROGPREP:
                PUSH AF                         ; 732C F5
                XOR A                           ; 732D AF
                OUT (HMPR),A                    ; 732E D3 FB
-               LD HL,&9BB6                     ; 7330 21 B6 9B  DCT+&4000 -- the disc error counter, in the system page
+               LD HL,DCT+IN_PAGE_C             ; 7330 21 B6 9B  DCT+&4000 -- the disc error counter, in the system page
                LD A,(HL)                       ; 7333 7E
                PUSH AF                         ; 7334 F5
                AND &FA                         ; 7335 E6 FA

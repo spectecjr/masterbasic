@@ -87,6 +87,7 @@ BEEPR:                        EQU  &016F
 BSTKEND:                      EQU  &5BC4       ; end of that stack
 CHADD:                        EQU  &5A97       ; address of the character being interpreted
 CHADP:                        EQU  &5A96       ; page holding the character being interpreted
+CHANS:                        EQU  &5C4F       ; address of the channel information area
 CLSLOW:                       EQU  &0151       ; clear the lower screen
 CSTAT:                        EQU  &5A7B       ; address of the start of the current statement
 CURCHL:                       EQU  &5C51       ; address of the current channel
@@ -114,6 +115,7 @@ INCURPDE:                     EQU  &3FEB       ; Increments the upper RAM page, 
                                                ; the range C000-FFFF. Uses A, alters D.
 INQUFG:                       EQU  &5ABA       ; IN QUOTES FLAG. BIT 0=1 IF IN QUOTES. OUTLINE ZEROS
 INSTBUF:                      EQU  &4F00       ; BUFFER FOR ROM1 XFER CODE, ETC. 0200H
+INVERT:                       EQU  &5A54       ; 00/FF FOR NORMAL/INVERSE ;
 IYJUMP:                       EQU  &0006       ; JP (IY)
 JCLSBL:                       EQU  &014E       ; clear the whole screen if A is zero, otherwise the window
 JMKRBIG:                      EQU  &010C       ; open A*16K + BC bytes at HL
@@ -212,9 +214,7 @@ MB_HPRTOK:                    EQU  &900E
 MB_MULTIPLY_BY_24:            EQU  &85F9
 MB_NEXT_SCREEN_BYTE_1:        EQU  &A280
 MB_PREPARE_ROM1_COPY_1:       EQU  &9C4F
-MB_PREPARE_ROM1_COPY_2:       EQU  &9C51
 MB_PUTSWA:                    EQU  &8000
-MB_SCREEN_BLANK_TICK_6:       EQU  &9A54
 MB_SET_DCT_COMPILE_BITS:      EQU  &859C
 MB_SORT_NAMES:                EQU  &87FB
 MB_STAMP_WITH_DATE:           EQU  &8A39
@@ -10826,7 +10826,7 @@ MOVA_1:
                PUSH AF                         ; 684B F5
                CALL MOVRC                      ; 684C CD 19 69  LINE NO. LSB
                LD HL,(NSTR2)                   ; 684F 2A 56 41
-               LD (MB_PREPARE_ROM1_COPY_2),HL  ; 6852 22 51 9C
+               LD (CURCHL+IN_PAGE_C),HL        ; 6852 22 51 9C
                POP HL                          ; 6855 E1
                LD L,A                          ; 6856 6F  HL=LINE NO
                CALL PNUM5                      ; 6857 CD 1D 57
@@ -10862,11 +10862,11 @@ MOVJ_LOOP:
                CALL MOVRC                      ; 687C CD 19 69  READ CHAR
                JR NC,MEOF                      ; 687F 30 1A  JR IF EOF
                CALL STREAM_OR_CHANNEL          ; 6881 CD DA 68
-               LD HL,MB_SCREEN_BLANK_TICK_6    ; 6884 21 54 9A
+               LD HL,INVERT+IN_PAGE_C          ; 6884 21 54 9A
                LD (HL),B                       ; 6887 70
                CALL MOVWC                      ; 6888 CD 40 69  WRITE PRINTABLE CHAR
                XOR A                           ; 688B AF
-               LD (MB_SCREEN_BLANK_TICK_6),A   ; 688C 32 54 9A
+               LD (INVERT+IN_PAGE_C),A         ; 688C 32 54 9A
                JR MOVJ_LOOP                    ; 688F 18 EB
 
 ; ---- MOVE1 ---- from &6823, &6833 when A = &0A, &6899
@@ -10893,7 +10893,7 @@ MEOF:
 
 ; ---- FIRST_DISC_CHANNEL ---- from &68C6, &68D0, &6DDA
 FIRST_DISC_CHANNEL:
-               LD IX,(MB_PREPARE_ROM1_COPY_1)  ; 68AB DD 2A 4F 9C
+               LD IX,(CHANS+IN_PAGE_C)         ; 68AB DD 2A 4F 9C
                LD DE,&401E                     ; 68AF 11 1E 40
 
 ; ---- FIRST_DISC_CHANNEL_LOOP ---- from &68D8
@@ -10995,11 +10995,11 @@ TOSCQ:
 ; ---- MOVRC ---- from &6844, &684C, &685F, &6875, &687C, &6891
 MOVRC:
                LD HL,(NSTR1)                   ; 6919 2A 3A 41
-               LD (MB_PREPARE_ROM1_COPY_2),HL  ; 691C 22 51 9C
+               LD (CURCHL+IN_PAGE_C),HL        ; 691C 22 51 9C
 
 ; ---- MOVRC2 ---- from &693D, &7A57
 MOVRC2:
-               LD HL,(MB_PREPARE_ROM1_COPY_2)  ; 691F 2A 51 9C
+               LD HL,(CURCHL+IN_PAGE_C)        ; 691F 2A 51 9C
                LD DE,FS+2                      ; 6922 11 02 40
                ADD HL,DE                       ; 6925 19  SYS PAGE IS AT 8000H
                LD E,(HL)                       ; 6926 5E
@@ -11030,7 +11030,7 @@ GIPC:
 ; ---- MOVWC ---- from &6868, &6888, &6896
 MOVWC:
                LD HL,(NSTR2)                   ; 6940 2A 56 41
-               LD (MB_PREPARE_ROM1_COPY_2),HL  ; 6943 22 51 9C
+               LD (CURCHL+IN_PAGE_C),HL        ; 6943 22 51 9C
                LD DE,FS+1                      ; 6946 11 01 40
                ADD HL,DE                       ; 6949 19
                LD D,A                          ; 694A 57
@@ -11091,7 +11091,7 @@ OPMOV:
                LD A,D                          ; 697B 7A
                CALL CMR                        ; 697C CD B2 7B
                DEFW STREAM                     ; 697F 12 01
-               LD IX,(MB_PREPARE_ROM1_COPY_2)  ; 6981 DD 2A 51 9C
+               LD IX,(CURCHL+IN_PAGE_C)        ; 6981 DD 2A 51 9C
                JR OPMV2                        ; 6985 18 1F
 
 ; ---- OPMV1 ---- from &6970 when A wraps to 0
@@ -11131,7 +11131,7 @@ DELD:
                POP HL                          ; 69BC E1
                LD DE,&C000                     ; 69BD 11 00 C0
                ADD HL,DE                       ; 69C0 19  CORRECT TO SECT B, LIKE CHANS
-               LD DE,(MB_PREPARE_ROM1_COPY_1)  ; 69C1 ED 5B 4F 9C
+               LD DE,(CHANS+IN_PAGE_C)         ; 69C1 ED 5B 4F 9C
                OR A                            ; 69C5 B7
                SBC HL,DE                       ; 69C6 ED 52
                INC HL                          ; 69C8 23
@@ -11371,7 +11371,7 @@ CMD_OPEN_DONE:
 CHANNEL_ENTRY_AT_ZERO_PAGE:
                XOR A                           ; 6AEA AF
                OUT (HMPR),A                    ; 6AEB D3 FB
-               LD HL,(&9C4F)                   ; 6AED 2A 4F 9C
+               LD HL,(CHANS+IN_PAGE_C)         ; 6AED 2A 4F 9C
                LD DE,&401E                     ; 6AF0 11 1E 40
 
 ; ---- CHANNEL_ENTRY_AT_ZERO_PAGE_LOOP ---- from &6B03 when A <> &0D
@@ -11469,7 +11469,7 @@ RESET_CHANNEL_SCAN:
                XOR A                           ; 6B77 AF
                OUT (HMPR),A                    ; 6B78 D3 FB
                LD (V4213),A                    ; 6B7A 32 13 42
-               LD IX,(&9C4F)                   ; 6B7D DD 2A 4F 9C
+               LD IX,(CHANS+IN_PAGE_C)         ; 6B7D DD 2A 4F 9C
                LD DE,&401E                     ; 6B81 11 1E 40
 
 ; ---- RESET_CHANNEL_SCAN_1 ---- from &6BD3
@@ -11766,7 +11766,7 @@ OPND8:
                LD DE,HEADER                    ; 6D22 11 00 40
                AND A                           ; 6D25 A7
                SBC HL,DE                       ; 6D26 ED 52
-               LD DE,(MB_PREPARE_ROM1_COPY_1)  ; 6D28 ED 5B 4F 9C
+               LD DE,(CHANS+IN_PAGE_C)         ; 6D28 ED 5B 4F 9C
                SBC HL,DE                       ; 6D2C ED 52
                INC HL                          ; 6D2E 23
                RET                             ; 6D2F C9  NC - OK
@@ -11935,7 +11935,7 @@ CLSRM:
                RET Z                           ; 6DEA C8  RET IF CLOSED ALREADY
                LD (SVTRS),BC                   ; 6DEB ED 43 24 41
                PUSH HL                         ; 6DEF E5  PTR TO STRMS
-               LD HL,(MB_PREPARE_ROM1_COPY_1)  ; 6DF0 2A 4F 9C
+               LD HL,(CHANS+IN_PAGE_C)         ; 6DF0 2A 4F 9C
                DEC HL                          ; 6DF3 2B
                ADD HL,BC                       ; 6DF4 09
                SET 7,H                         ; 6DF5 CB FC
@@ -12022,7 +12022,7 @@ RCLM1:
                INC HL                          ; 6E5A 23
                LD (HL),D                       ; 6E5B 72  REDUCED DISP REPLACED
                DEC DE                          ; 6E5C 1B
-               LD HL,(MB_PREPARE_ROM1_COPY_1)  ; 6E5D 2A 4F 9C
+               LD HL,(CHANS+IN_PAGE_C)         ; 6E5D 2A 4F 9C
                ADD HL,DE                       ; 6E60 19
                LD DE,FS+4                      ; 6E61 11 04 40
                ADD HL,DE                       ; 6E64 19
@@ -12157,7 +12157,7 @@ MCHIN:
                PUSH IX                         ; 6F0D DD E5  KEEP FPC HAPPY DURING INKEY$
                LD HL,TVFLAG+IN_PAGE_C          ; 6F0F 21 3C 9C
                RES 3,(HL)                      ; 6F12 CB 9E  "NO NEED TO COPY LINE TO LS"
-               LD IX,(&9C51)                   ; 6F14 DD 2A 51 9C  - NEEDED?
+               LD IX,(CURCHL+IN_PAGE_C)        ; 6F14 DD 2A 51 9C  - NEEDED?
                LD BC,HEADER                    ; 6F18 01 00 40
                ADD IX,BC                       ; 6F1B DD 09
                BIT 0,(IX+&0C)                  ; 6F1D DD CB 0C 46
@@ -12201,7 +12201,7 @@ MCHWR:
                PUSH AF                         ; 6F3E F5
                XOR A                           ; 6F3F AF
                OUT (HMPR),A                    ; 6F40 D3 FB
-               LD IX,(&9C51)                   ; 6F42 DD 2A 51 9C
+               LD IX,(CURCHL+IN_PAGE_C)        ; 6F42 DD 2A 51 9C
                LD BC,HEADER                    ; 6F46 01 00 40
                ADD IX,BC                       ; 6F49 DD 09
                LD A,(IX+&0C)                   ; 6F4B DD 7E 0C

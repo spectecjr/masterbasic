@@ -241,7 +241,7 @@ class Page(Disassembler):
             self.peer.peer_xrefs.setdefault(p, set()).add((self.tag, self._cur))
         return full
 
-    def windowed_var(self, a):
+    def windowed_var(self, a, frm=None):
         """A ROM system variable reached through the &8000 window.
 
         The NR primitives get at the ROM's variables by setting HMPR to 0
@@ -257,6 +257,13 @@ class Page(Disassembler):
         name = self.syms.var(a - 0x4000)
         if not name:
             return None
+        # Where the peer is out of the running anyway -- a stretch known
+        # to run with HMPR zero -- its label is not evidence either.
+        # &9C4F in MOVE is CHANS, and reads as MasterBASIC's &5C4F only
+        # because the two pages happen to have something at the same
+        # offset.
+        if self.peer_addr(a, frm) is None and frm is not None:
+            return name
         peer = self.peer.labels.get(a - PEER + BASE) if self.peer else None
         if peer and not re.match(r'^[LV][0-9A-F]{4}$', peer):
             return None
@@ -479,7 +486,7 @@ class Page(Disassembler):
         if n:
             self.used_bias = True
             return n + '+' + PAGE_BIAS[0]
-        n = self.windowed_var(v)
+        n = self.windowed_var(v, self._cur)
         if n:
             self.used_ext.add(n)
             self.used_bias = True
@@ -893,6 +900,15 @@ def seeds(dos, mb):
     # and BC for a caller to copy with.  Naming it after whatever this
     # half happens to hold at &7800 is worse than leaving it a number.
     dos.no_peer.append((0x5ADD, 0x5AE0))
+
+    # MOVE and the channel code run with HMPR zero for whole stretches
+    # at a time, and hmpr_zero_ranges stops at the first CALL because it
+    # cannot see whether the paging survives one.  Here it does: these
+    # twelve reach CHANS, CURCHL and INVERT in the ROM's system page,
+    # and MasterBASIC happens to have labels at the same offsets.
+    for at in (0x6852, 0x6884, 0x688C, 0x68AB, 0x691C, 0x691F,
+               0x6943, 0x6981, 0x69C1, 0x6D28, 0x6DF0, 0x6E5D):
+        dos.no_peer.append((at, at + 1))
 
     # The snapshot code names the page in the window itself, and it is
     # never MasterBASIC's: &5374 puts page 4 there for the Spectrum's
