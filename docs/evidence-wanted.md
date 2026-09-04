@@ -42,16 +42,19 @@ file and come back at the next boot.
 are exactly the two that are live memory:
 
 *Block 5, the MasterBASIC page — five bytes.* Four are the pokes. The fifth is
-`&4062`, a word holding `&7C13` in the first file and `&7C5C` in the second.
-Five instructions use it (`&5428`, `&5455`, `&5461`, `&5481`, `&548C`) and every
-one moves it with `INC L` or `DEC L` and never `INC HL`, so it addresses a
-256-byte buffer at MasterBASIC's own `&7C00` and the high byte never changes.
-The code around it walks carriage-return-terminated text there and exchanges it
-with the ROM's `ELINE` and `KCUR`. That region is one of the blocks installed
-into the system page at boot; once installed the copy here is dead and gets
-reused, the same trick `DUMP` plays with the grey map at `&7B80`. It differs
-because it is live session state — where the pointer had got to when the file
-was saved.
+`&4062`, a word holding `&7C13` in the first file and `&7C5C` in the second —
+the last-line recall pointer. The manual's own description of that feature
+names it: CNTRL/up-arrow recalls the line before, again goes back further,
+and "you can keep recalling lines until eventually you go right 'round' the
+line-storage buffer… (The buffer capacity is 256 bytes.)" Every instruction
+that touches the pointer moves it with `INC L` or `DEC L` and never `INC HL`,
+which is both the 256 bytes and the going-round, and the code beside it walks
+carriage-return-terminated text and trades it with the ROM's `ELINE` and
+`KCUR`. The buffer sits at MasterBASIC's `&7C00`, which is one of the blocks
+the installer copies into the system page — once copied, the copy here is dead
+and this takes it over, the same trick `DUMP` plays at `&7B80` with its grey
+map. It differs between the two files because it is live session state: the
+two sessions had typed different amounts at it. See `notes/mb-editbuf.txt`.
 
 *Block 2, the DOS page — twenty-four bytes.* The file's own name in two places,
 `&413C` and `&7C15` in the channel record, `MBPOST` against `MDMB2`; the sector
@@ -59,10 +62,18 @@ map at `&7C22`–`&7C2F` moving as the bits shift for a different allocation; an
 four counters at `&41FC`, `&41FE`, `&42E6` and `&42E9`. All of it is the record
 of the file being written, not settings.
 
-**Still open, and cheap:** the same again with a `KEY` assignment rather than a
-`DUMP` setting. `KEY` writes a table in the system page, so it should land in
-one of blocks 4, 6, 7 or 8 — which of them is not established, and this
-experiment cannot say, because those four blocks did not move at all.
+**Still open, and the obvious test for it was void.** `MDMB2.bin` was saved with
+`KEY 36+70,24` applied as well as the four pokes, and no system-page block moved
+a byte. That proves nothing, because the manual says two paragraphs earlier that
+*MasterBASIC already performs that exact assignment at boot* — so the command
+wrote a value over itself. The suggestion was taken from the manual sentence
+without reading what the sentence said.
+
+To try it properly, use a key you do not mind remapping and a code that cannot
+occur by accident — `KEY <n>,200` — and say which key number was used. Note
+that `KEY` definitions live in a buffer the ROM addresses through `DKDEF` and
+`DKLIM`, so they may not be in a saved block at all; that would be an answer
+too, and it would mean `SAVE BOOT` does not preserve key assignments.
 
 
 ---

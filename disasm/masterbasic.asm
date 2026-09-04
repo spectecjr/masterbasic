@@ -647,10 +647,18 @@ DUMP_BYTE_FROM:
 V4061:
                DEFB &00                        ; 4061 .
 
-; ---- V4062 ---- from &5428, &5455, &5461, &5481, &548C
-V4062:
-               DEFB &00,&7C                    ; 4062 .|  a pointer into the 256 bytes at &7C00, moved by INC L alone --
-                                               ; see notes/mb-editbuf.txt
+;; --------------------------------------------------------------------
+;; Where the last-line recall buffer has got to.
+;;
+;; The buffer is the 256 bytes at &7C00 and this is a pointer into it,
+;; moved only ever by INC L or DEC L -- so it wraps within the page
+;; rather than running off the end, which is the manual's "you go right
+;; round the line-storage buffer and come back to where you were".
+;; --------------------------------------------------------------------
+
+; ---- LINE_RECALL_PTR ---- from &5428, &5455, &5461, &5481, &548C
+LINE_RECALL_PTR:
+               DEFB &00,&7C                    ; 4062 .|  the high byte never changes: INC L is the whole of the wrap
 
 ; ---- V4064 ---- from &764B
 V4064:
@@ -6110,7 +6118,7 @@ HK_MERGECOMPFLG_LOOP2:
                LD A,B                          ; 5423 78
                OR C                            ; 5424 B1
                CALL NZ,RECLAIM_BC_AT_HL        ; 5425 C4 52 6E
-               LD HL,(V4062)                   ; 5428 2A 62 40
+               LD HL,(LINE_RECALL_PTR)         ; 5428 2A 62 40
                LD BC,&FFFF                     ; 542B 01 FF FF
                LD A,(V409E)                    ; 542E 3A 9E 40
                AND A                           ; 5431 A7
@@ -6154,14 +6162,14 @@ HK_MERGECOMPFLG_LOOP5:
 
 ; ---- HK_MERGECOMPFLG_3 ---- from &544C
 HK_MERGECOMPFLG_3:
-               LD (V4062),HL                   ; 5455 22 62 40
+               LD (LINE_RECALL_PTR),HL         ; 5455 22 62 40
                POP DE                          ; 5458 D1
                LD A,B                          ; 5459 78
                OR C                            ; 545A B1
                JR Z,HK_MERGECOMPFLG_4          ; 545B 28 11
                CALL OPEN_ROOM_AT_DE            ; 545D CD F1 58
                EX DE,HL                        ; 5460 EB
-               LD HL,(V4062)                   ; 5461 2A 62 40
+               LD HL,(LINE_RECALL_PTR)         ; 5461 2A 62 40
 
 ; ---- HK_MERGECOMPFLG_LOOP6 ---- from &546C
 HK_MERGECOMPFLG_LOOP6:
@@ -6190,7 +6198,7 @@ HK_MERGECOMPFLG_6:
                CALL NRRDD                      ; 547B CD 5F 45
                DEFW ELINE                      ; 547E 94 5A
                PUSH BC                         ; 5480 C5
-               LD HL,(V4062)                   ; 5481 2A 62 40
+               LD HL,(LINE_RECALL_PTR)         ; 5481 2A 62 40
 
 ; ---- HK_MERGECOMPFLG_LOOP7 ---- from &548A when A <> CH_CR
 HK_MERGECOMPFLG_LOOP7:
@@ -6200,7 +6208,7 @@ HK_MERGECOMPFLG_LOOP7:
                LD (HL),A                       ; 5487 77
                CP CH_CR                        ; 5488 FE 0D
                JR NZ,HK_MERGECOMPFLG_LOOP7     ; 548A 20 F8
-               LD (V4062),HL                   ; 548C 22 62 40
+               LD (LINE_RECALL_PTR),HL         ; 548C 22 62 40
                INC L                           ; 548F 2C
                LD (HL),&00                     ; 5490 36 00
                POP BC                          ; 5492 C1

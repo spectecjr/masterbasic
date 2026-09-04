@@ -1,4 +1,4 @@
-# A pointer into a buffer that is only a buffer after the boot has
+# LAST LINE RECALL, and a buffer that is only a buffer once the boot has
 # finished with the block underneath it.
 #
 # MB &4062 holds a word whose high byte is always &7C.  Five instructions
@@ -8,21 +8,49 @@
 # code around it walks carriage-return-terminated text there and trades
 # it with the ROM's ELINE and KCUR.
 #
+# THE MANUAL NAMES IT.  Under "LAST LINE RECALL": hold CNTRL and press
+# the up-arrow to recall the line you typed before, again to go back
+# further, CNTRL/down-arrow to come forward -- "you can keep recalling
+# lines until eventually you go right 'round' the line-storage buffer and
+# come back to where you were when you came in.  (The buffer capacity is
+# 256 bytes.)"
+#
+# Four things in the code answer to four things in that sentence, which
+# is what makes the identification rather than a guess:
+#
+#     256 bytes                the INC L that cannot leave one page
+#     go right "round"         the wrap that same INC L gives for free
+#     back, and forward again  DEC L as well as INC L
+#     lines                    CR-terminated text, traded with ELINE
+#
 # &7C00 IS NOT SPARE SPACE IN THE FILE.  It is one of the blocks the
 # installer copies into the system page; once copied, the copy here is
 # dead and this takes it over.  DUMP does the same thing at &7B80 with
 # its grey map -- see notes/mb-dumpcolour.txt -- so it is a habit of this
-# image rather than a one-off.
+# image rather than a one-off, and any address in &7B00-&7FFF wants
+# asking about twice: what it is in the file, and what it becomes after
+# the boot.
 #
 # EVIDENCE THAT IT IS LIVE SESSION STATE: two SAVE BOOT files taken from
 # the same disc, file/MBPOST.bin and file/MDMB2.bin, differ here and
 # nowhere else in block 5 except the four bytes deliberately poked
-# between them.  &7C13 in the first, &7C5C in the second.  See
-# docs/evidence-wanted.md item 1.
+# between them.  &7C13 in the first, &7C5C in the second -- which is to
+# say the two sessions had typed different numbers of characters at it.
+# See docs/evidence-wanted.md item 1.
 #
-# WHAT THE BUFFER IS FOR is not established.  The surrounding labels are
-# synthesised from HK_MERGECOMPFLG above them, which is hook code 175 and
-# does something else entirely -- carry one bit of COMPFLG into DCT -- so
-# the name says only what precedes this code, not what it is.
+# The labels around the code are synthesised from HK_MERGECOMPFLG above
+# them, which is hook code 175 and does something else entirely -- carry
+# one bit of COMPFLG into DCT.  The name says what precedes this code,
+# not what it is.
 
-MB &4062 : a pointer into the 256 bytes at &7C00, moved by INC L alone -- see notes/mb-editbuf.txt
+MB &4062 LINE_RECALL_PTR
+
+DOC LINE_RECALL_PTR
+    Where the last-line recall buffer has got to.
+
+    The buffer is the 256 bytes at &7C00 and this is a pointer into it,
+    moved only ever by INC L or DEC L -- so it wraps within the page
+    rather than running off the end, which is the manual's "you go right
+    round the line-storage buffer and come back to where you were".
+
+MB &4062 : the high byte never changes: INC L is the whole of the wrap
