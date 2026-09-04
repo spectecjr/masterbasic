@@ -5,7 +5,32 @@
 RENAME STREAM_OR_CHANNEL PRINTABLE_FORM
 
 DOC CMD_MOVE
-    MOVE a TO b -- the general copier.
+     PART MOVE -- MOVE, OPEN and CLOSE, the channels, the paths and the
+     RAM discs
+
+       CMD_MOVE / MOVA       the general copier, and the listing it does
+                             instead when the destination shows things
+       OPMOV / CLMOV         open and close one of MOVE's two ends
+       PRINTABLE_FORM        make a character fit to print
+       CMD_OPEN / CLOSE      the OPEN and CLOSE commands
+       RESET_CHANNEL_SCAN    finding, making and reclaiming channel
+                             records inside the ROM's channel list
+       MCHRD / MCHWR         one byte in or out of an open file
+       BACKUP                whole-disc copy, in as many passes as the
+                             free memory allows
+       PTREC / FITS / FPTR   the PTR function and its record arithmetic
+       STDIR / DTREE / PRPTH subdirectory paths: selecting, walking and
+                             printing them
+       RDWSCT / RDRSCT / ... the RAM discs, where a sector transfer is a
+                             memory copy
+       HKLEN / FNVEC / INDJP the function hooks the extension is reached
+                             through
+
+     The part is a mixture because the addresses are: what it holds is
+     everything MasterDOS added after the SAMDOS core it grew out of,
+     laid down in the order it was written.
+
+     MOVE a TO b -- the general copier.
 
     EITHER END CAN BE ANYTHING the machine can read or write: a stream
     (`#n`), a device letter ("s:" for the screen, "p:" for the printer,
