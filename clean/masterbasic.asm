@@ -272,10 +272,10 @@ DOS_BOOT_DATA_PORT_PLUS_2:      EQU  &8088
 DOS_BOOT_READ_CMD_SETTLE:       EQU  &8081
 DOS_BOOT_SETTLE_AFTER_READ_CMD: EQU  &807F
 DOS_BOOT_TRACK_TEST:            EQU  &806B
-DOS_CHANNEL_ENTRY_AT_ZERO_PAGE: EQU  &AAEA
 DOS_DATDT:                      EQU  &8271
 DOS_DRIVE:                      EQU  &BC0B
 DOS_ENDS:                       EQU  &9010
+DOS_END_OF_CHANNELS:            EQU  &AAEA
 DOS_EPCOM_1:                    EQU  &A5C4
 DOS_EVAL_STRING_IF_RUNNING:     EQU  &A284
 DOS_EVFINS:                     EQU  &B321
@@ -376,6 +376,7 @@ DISK_STATUS_CRC_ERROR:          EQU  &08       ; what was read did not check out
 DISK_STATUS_DRQ:                EQU  &02       ; a byte is waiting to be taken, or wanted
 DISK_STATUS_LOST_DATA:          EQU  &04       ; a byte was not moved in time and is gone
 DISK_STATUS_RECORD_NOT_FOUND:   EQU  &10       ; the sector was not on the track
+
 
 
 
@@ -13940,19 +13941,19 @@ HK_PROGPREP:
 
 ; ---- HK_PROGPREP_1 ---- from &733D when bit 0 was set
 HK_PROGPREP_1:
-               CALL CALLDOS                              ; 7345 CD C1 42
-               DEFW DOS_CHANNEL_ENTRY_AT_ZERO_PAGE-&4000 ; 7348 EA 6A
-               INC HL                                    ; 734A 23
-               LD B,H                                    ; 734B 44
-               LD C,L                                    ; 734C 4D
-               CALL NRWRD                                ; 734D CD 77 45
-               DEFW PROG                                 ; 7350 A0 5A
-               IN A,(HMPR)                               ; 7352 DB FB
-               CALL NRWR                                 ; 7354 CD 82 45
-               DEFW PROGP                                ; 7357 9F 5A
-               POP AF                                    ; 7359 F1
-               OUT (HMPR),A                              ; 735A D3 FB
-               RET                                       ; 735C C9
+               CALL CALLDOS                    ; 7345 CD C1 42
+               DEFW DOS_END_OF_CHANNELS-&4000  ; 7348 EA 6A
+               INC HL                          ; 734A 23
+               LD B,H                          ; 734B 44
+               LD C,L                          ; 734C 4D
+               CALL NRWRD                      ; 734D CD 77 45
+               DEFW PROG                       ; 7350 A0 5A
+               IN A,(HMPR)                     ; 7352 DB FB
+               CALL NRWR                       ; 7354 CD 82 45
+               DEFW PROGP                      ; 7357 9F 5A
+               POP AF                          ; 7359 F1
+               OUT (HMPR),A                    ; 735A D3 FB
+               RET                             ; 735C C9
 
 ;; --------------------------------------------------------------------
 ;; Build the replacement compile pass at CDBUFF+&11 in the ROM's system

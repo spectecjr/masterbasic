@@ -1,0 +1,97 @@
+# OPEN, and the channel records an open file lives in.
+#
+# Prose for clean/ only.
+
+RENAME CHANNEL_ENTRY_AT_ZERO_PAGE END_OF_CHANNELS
+
+GROUP Channels
+CONST CHANNEL_BLOCK = &0313 : bytes in one open file's channel record
+CONST CHANS_BIAS_AND_FIRST = &401E : the window bias, and past the standard channels
+CONST MAX_OPEN_BLOCKS = &06 : how many blocks OPEN BLOCKS will reserve
+
+DOC CMD_OPEN
+    OPEN, in three forms.
+
+        OPEN #s,"name" IN|OUT|RND    attach a stream to a file
+        OPEN DIR "name"              make a subdirectory
+        OPEN BLOCKS n                reserve n file blocks in advance
+
+    THE THIRD IS NOT IN EITHER MANUAL this project has.  It is reached
+    by the token &A9, which the ROM's tables call BLOCKS, and it takes a
+    number from 1 to 6.
+
+    WHAT IT RESERVES is n channel records of 787 bytes each, made at the
+    end of the ROM's channel area and left marked unused.  Opening a
+    file for real needs that space, and getting it means growing the
+    channel area, which moves the program and the variables above it --
+    slow, and a thing that can fail in the middle of a program that has
+    already written half a file.  Reserving the blocks first turns each
+    later OPEN into filling in a record that is already there.
+
+    A RESERVED BLOCK IS RECOGNISED BY THREE BYTES: the channel letter
+    zero rather than "D", the mode byte zero, and the length at offset 9
+    set to 787 so that anything walking the list steps over it correctly.
+
+    787 IS NOT ARBITRARY.  A channel record holds the ROM's five-byte
+    channel header, the DOS's own state, a whole 256-byte copy of the
+    file's directory entry, and a 512-byte sector buffer: everything the
+    DOS needs to service that file, in one block, which is what lets
+    several files be open at once.
+
+DOS &6AA0 : the BLOCKS token, which is the third form
+DOS &6AA2 : anything else is a stream or a directory
+DOS &6AAA : the count has to fit in a byte
+DOS &6AB1 : counted from one, so compare from zero
+DOS &6AB2 value MAX_OPEN_BLOCKS
+DOS &6AB4 : one to six, and no more
+DOS &6AB7 value CHANNEL_BLOCK
+DOS &6ABF : n of them, by adding rather than multiplying
+DOS &6AC4 : the end of the channel list, which is where they go
+DOS &6AC9 : and the ROM opens the gap
+DOS &6AD2 : no channel letter, so nothing takes this for an open file
+DOS &6AD6 : and no mode
+DOS &6ADA : but the length, so a walk of the list steps over it
+DOS &6AE0 : on to the next block
+DOS &6AE4 : and MasterBASIC is told the channel area has moved
+
+DOC CMD_OPEN_1
+    Not BLOCKS, so a stream or a subdirectory.
+
+    "#" is a stream, and anything else is passed to OPNDIR -- which is
+    how OPEN DIR gets there without a test of its own.
+
+DOS &6B21 : "#" introduces a stream
+DOS &6B23 : anything else had better be DIR
+
+DOC OPEX
+    Refuse a stream that is already attached to something unusual.
+
+    Streams 0 to 3 are the ROM's own and may be taken over freely; they
+    are put back to their defaults when closed.  For 4 upwards, the
+    displacement STRMD returns says which channel the stream points at,
+    and anything past the last standard channel means the stream is
+    already in use.
+
+DOS &6B3B : where in the stream table this stream points
+DOS &6B3E : streams 0 to 3 are the ROM's, and may be taken
+DOS &6B42 : the last of the standard channels
+DOS &6B48 : past it, so this stream is already attached to something
+
+DOC END_OF_CHANNELS
+    Find the end of the ROM's channel list, with the system page mapped.
+
+    CHANS holds the head of the list in the ROM's own numbering, so
+    &4000 is added to reach it through the window; &1E more steps past
+    the standard channels to the first that could be the DOS's.  From
+    there each record's own length at offset 9 says how far the next
+    one is, and a channel letter of carriage return is the end.
+
+    CHKHL is the ROM's own bounds check, called before each read, so a
+    corrupt length cannot walk this off into nothing.
+
+DOS &6AEB : the system page, where the channel list is
+DOS &6AED : the head of the list
+DOS &6AF0 expr CHANS_BIAS_AND_FIRST
+DOS &6AF4 : the ROM's own check that the address is safe to read
+DOS &6AF9 : offset 9 is this record's length
+DOS &6B01 : a carriage return for a channel letter is the end of the list

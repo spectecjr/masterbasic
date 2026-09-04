@@ -270,6 +270,11 @@ DISK_STATUS_RECORD_NOT_FOUND: EQU  &10         ; the sector was not on the track
 TRANSFER_ERROR_FLAGS:         EQU  (DISK_STATUS_LOST_DATA | DISK_STATUS_CRC_ERROR | DISK_STATUS_RECORD_NOT_FOUND) >> 1
                                                ; the right one, used by the sector read and write
 
+; Channels
+CHANNEL_BLOCK:                EQU  &0313       ; bytes in one open file's channel record
+CHANS_BIAS_AND_FIRST:         EQU  &401E       ; the window bias, and past the standard channels
+MAX_OPEN_BLOCKS:              EQU  &06         ; how many blocks OPEN BLOCKS will reserve
+
 ; Disk geometry
 SECTOR_LENGTH:                EQU  &0200       ; bytes in a sector, on a floppy or a RAM disc
 
@@ -8663,7 +8668,7 @@ CMD_HIDE:
                LD A,B                          ; 5E03 78
                OR C                            ; 5E04 B1
                JR NZ,CMD_HIDE_1                ; 5E05 20 06
-               CALL CHANNEL_ENTRY_AT_ZERO_PAGE ; 5E07 CD EA 6A
+               CALL END_OF_CHANNELS            ; 5E07 CD EA 6A
                INC HL                          ; 5E0A 23
                JR CMD_HIDE_2                   ; 5E0B 18 15
 
@@ -11430,37 +11435,63 @@ OPSR1:
                LD (FSTR1),A                    ; 6A91 32 37 41
                JP GTNC                         ; 6A94 C3 3C 50
 
+;; --------------------------------------------------------------------
+;; OPEN, in three forms.
+;;
+;;     OPEN #s,"name" IN|OUT|RND    attach a stream to a file
+;;     OPEN DIR "name"              make a subdirectory
+;;     OPEN BLOCKS n                reserve n file blocks in advance
+;;
+;; WHAT IT RESERVES is n channel records of 787 bytes each, made at the
+;; end of the ROM's channel area and left marked unused.  Opening a
+;; file for real needs that space, and getting it means growing the
+;; channel area, which moves the program and the variables above it --
+;; slow, and a thing that can fail in the middle of a program that has
+;; already written half a file.  Reserving the blocks first turns each
+;; later OPEN into filling in a record that is already there.
+;;
+;; A RESERVED BLOCK IS RECOGNISED BY THREE BYTES: the channel letter
+;; zero rather than "D", the mode byte zero, and the length at offset 9
+;; set to 787 so that anything walking the list steps over it correctly.
+;;
+;; 787 IS NOT ARBITRARY.  A channel record holds the ROM's five-byte
+;; channel header, the DOS's own state, a whole 256-byte copy of the
+;; file's directory entry, and a 512-byte sector buffer: everything the
+;; DOS needs to service that file, in one block, which is what lets
+;; several files be open at once.
+;; --------------------------------------------------------------------
+
 CMD_OPEN:
                CALL CFSO                       ; 6A97 CD F9 4F
                CALL Z,REMFP                    ; 6A9A CC 55 5F  REMOVE ANY FP FORMS IN SYNTAX TIME
                CALL GTNC                       ; 6A9D CD 3C 50
-               CP &A9                          ; 6AA0 FE A9
-               JR NZ,CMD_OPEN_1                ; 6AA2 20 7D
+               CP &A9                          ; 6AA0 FE A9  the BLOCKS token, which is the third form
+               JR NZ,CMD_OPEN_1                ; 6AA2 20 7D  anything else is a stream or a directory
                CALL EVNUMX                     ; 6AA4 CD AF 62
                CALL CEOS                       ; 6AA7 CD 07 50
-               INC B                           ; 6AAA 04
+               INC B                           ; 6AAA 04  the count has to fit in a byte
                DEC B                           ; 6AAB 05
                JP NZ,AHLNX_1                   ; 6AAC C2 91 60
                LD A,C                          ; 6AAF 79
                LD B,A                          ; 6AB0 47
-               DEC A                           ; 6AB1 3D
-               CP &06                          ; 6AB2 FE 06
-               JP NC,AHLNX_1                   ; 6AB4 D2 91 60
-               LD DE,&0313                     ; 6AB7 11 13 03
+               DEC A                           ; 6AB1 3D  counted from one, so compare from zero
+               CP MAX_OPEN_BLOCKS              ; 6AB2 FE 06
+               JP NC,AHLNX_1                   ; 6AB4 D2 91 60  one to six, and no more
+               LD DE,CHANNEL_BLOCK             ; 6AB7 11 13 03
                PUSH BC                         ; 6ABA C5
                PUSH DE                         ; 6ABB D5
                LD HL,&0000                     ; 6ABC 21 00 00
 
 ; ---- CMD_OPEN_LOOP ---- from &6AC0 when B is not 0 yet
 CMD_OPEN_LOOP:
-               ADD HL,DE                       ; 6ABF 19
+               ADD HL,DE                       ; 6ABF 19  n of them, by adding rather than multiplying
                DJNZ CMD_OPEN_LOOP              ; 6AC0 10 FD
                LD B,H                          ; 6AC2 44
                LD C,L                          ; 6AC3 4D
-               CALL CHANNEL_ENTRY_AT_ZERO_PAGE ; 6AC4 CD EA 6A
+               CALL END_OF_CHANNELS            ; 6AC4 CD EA 6A  the end of the channel list, which is where they go
                XOR A                           ; 6AC7 AF
                PUSH HL                         ; 6AC8 E5
-               CALL CMR                        ; 6AC9 CD B2 7B
+               CALL CMR                        ; 6AC9 CD B2 7B  and the ROM opens the gap
                DEFW JMKRBIG                    ; 6ACC 0C 01
                POP IX                          ; 6ACE DD E1
                POP DE                          ; 6AD0 D1
@@ -11468,16 +11499,17 @@ CMD_OPEN_LOOP:
 
 ; ---- CMD_OPEN_LOOP2 ---- from &6AE2 when B is not 0 yet
 CMD_OPEN_LOOP2:
-               LD (IX+&00),&00                 ; 6AD2 DD 36 00 00
-               LD (IX+RFDH-DCHAN),&00          ; 6AD6 DD 36 04 00
-               LD (IX+&09),E                   ; 6ADA DD 73 09
+               LD (IX+&00),&00                 ; 6AD2 DD 36 00 00  no channel letter, so nothing takes this for an open
+                                               ; file
+               LD (IX+RFDH-DCHAN),&00          ; 6AD6 DD 36 04 00  and no mode
+               LD (IX+&09),E                   ; 6ADA DD 73 09  but the length, so a walk of the list steps over it
                LD (IX+&0A),D                   ; 6ADD DD 72 0A
-               ADD IX,DE                       ; 6AE0 DD 19
+               ADD IX,DE                       ; 6AE0 DD 19  on to the next block
                DJNZ CMD_OPEN_LOOP2             ; 6AE2 10 EE
 
 ; ---- CMD_OPEN_DONE ---- from &681A, &6D63
 CMD_OPEN_DONE:
-               CALL CALLMB                        ; 6AE4 CD BD 42
+               CALL CALLMB                        ; 6AE4 CD BD 42  and MasterBASIC is told the channel area has moved
                DEFW MB_SET_DCT_COMPILE_BITS-&4000 ; 6AE7 9C 45
                RET                                ; 6AE9 C9
 
@@ -11487,26 +11519,28 @@ CMD_OPEN_DONE:
 ;; through it.
 ;; --------------------------------------------------------------------
 
-; ---- CHANNEL_ENTRY_AT_ZERO_PAGE ---- from &5E07, &6AC4
-CHANNEL_ENTRY_AT_ZERO_PAGE:
+; ---- END_OF_CHANNELS ---- from &5E07, &6AC4
+END_OF_CHANNELS:
                XOR A                           ; 6AEA AF
-               OUT (HMPR),A                    ; 6AEB D3 FB
-               LD HL,(CHANS+IN_PAGE_C)         ; 6AED 2A 4F 9C
-               LD DE,&401E                     ; 6AF0 11 1E 40
+               OUT (HMPR),A                    ; 6AEB D3 FB  the system page, where the channel list is
+               LD HL,(CHANS+IN_PAGE_C)         ; 6AED 2A 4F 9C  the head of the list
+               LD DE,CHANS_BIAS_AND_FIRST      ; 6AF0 11 1E 40
 
 ; ---- CHANNEL_ENTRY_AT_ZERO_PAGE_LOOP ---- from &6B03 when A <> &0D
 CHANNEL_ENTRY_AT_ZERO_PAGE_LOOP:
                ADD HL,DE                             ; 6AF3 19
-               CALL ROM_CHKHL                        ; 6AF4 CD EF 3F
+               CALL ROM_CHKHL                        ; 6AF4 CD EF 3F  the ROM's own check that the address is safe to
+                                                     ; read
                LD A,(HL)                             ; 6AF7 7E
                PUSH HL                               ; 6AF8 E5
-               LD DE,&0009                           ; 6AF9 11 09 00
+               LD DE,&0009                           ; 6AF9 11 09 00  offset 9 is this record's length
                ADD HL,DE                             ; 6AFC 19
                LD E,(HL)                             ; 6AFD 5E
                INC HL                                ; 6AFE 23
                LD D,(HL)                             ; 6AFF 56
                POP HL                                ; 6B00 E1
-               CP &0D                                ; 6B01 FE 0D
+               CP &0D                                ; 6B01 FE 0D  a carriage return for a channel letter is the end of
+                                                     ; the list
                JR NZ,CHANNEL_ENTRY_AT_ZERO_PAGE_LOOP ; 6B03 20 EE
                RET                                   ; 6B05 C9
 
@@ -11526,10 +11560,17 @@ HK_HOPEN:
                LD (SSTR1),A                    ; 6B1C 32 38 41
                JR OPEX                         ; 6B1F 18 17
 
+;; --------------------------------------------------------------------
+;; Not BLOCKS, so a stream or a subdirectory.
+;;
+;; "#" is a stream, and anything else is passed to OPNDIR -- which is
+;; how OPEN DIR gets there without a test of its own.
+;; --------------------------------------------------------------------
+
 ; ---- CMD_OPEN_1 ---- from &6AA2 when A <> &A9
 CMD_OPEN_1:
-               CP &23                          ; 6B21 FE 23
-               JP NZ,OPNDIR                    ; 6B23 C2 FB 71
+               CP &23                          ; 6B21 FE 23  "#" introduces a stream
+               JP NZ,OPNDIR                    ; 6B23 C2 FB 71  anything else had better be DIR
                CALL EVSRM                      ; 6B26 CD 99 62  SKIP, EVAL STREAM
                CALL SEPARX                     ; 6B29 CD DC 5E  INSIST ,/; (SKIPPED) OR QUOTE
                CALL EVSYN                      ; 6B2C CD 5D 69  NAME
@@ -11537,16 +11578,26 @@ CMD_OPEN_1:
                CALL PLNS                       ; 6B32 CD 8E 50  PLACE NEXT STAT ADDR
                CALL CEOS                       ; 6B35 CD 07 50
 
+;; --------------------------------------------------------------------
+;; Refuse a stream that is already attached to something unusual.
+;;
+;; Streams 0 to 3 are the ROM's own and may be taken over freely; they
+;; are put back to their defaults when closed.  For 4 upwards, the
+;; displacement STRMD returns says which channel the stream points at,
+;; and anything past the last standard channel means the stream is
+;; already in use.
+;; --------------------------------------------------------------------
+
 ; ---- OPEX ---- from &6B1F
 OPEX:
                LD A,(SSTR1)                    ; 6B38 3A 38 41
-               CALL STRMD                      ; 6B3B CD 4C 70  BC=CURRENT DISP IN STRMS
-               CP &04                          ; 6B3E FE 04
+               CALL STRMD                      ; 6B3B CD 4C 70  where in the stream table this stream points
+               CP &04                          ; 6B3E FE 04  streams 0 to 3 are the ROM's, and may be taken
                JR C,OPEN25                     ; 6B40 38 09  DON'T WORRY IF STREAMS 0-3
-               LD HL,&001A                     ; 6B42 21 1A 00  DISP OF LAST STANDARD CHANNEL
+               LD HL,&001A                     ; 6B42 21 1A 00  the last of the standard channels
                AND A                           ; 6B45 A7
                SBC HL,BC                       ; 6B46 ED 42
-               JP C,REP30                      ; 6B48 DA 8F 51  "STREAM USED" IF STREAM OPEN TO
+               JP C,REP30                      ; 6B48 DA 8F 51  past it, so this stream is already attached to something
 
 ; ---- OPEN25 ---- from &6B40 when A < &04
 OPEN25:
