@@ -3496,7 +3496,7 @@ SVBS3:
 ;;    FDHR                  scan the directory -- the routine behind DIR, file lookup and finding a free slot
 ;;    CKNAM                 wildcard name matching
 ;;    OFSM / CFSM           open and close a file for writing
-;;    GTFLE                 open a file for reading
+;;    GTFL3 / CHECK_FILE_TYPE  open a file for reading
 ;;    POINT / GRPNT / ...   the pointer arithmetic they all share
 ;;
 ;;  How free space is found
@@ -3521,7 +3521,7 @@ SVBS3:
 ;;  image does not: it leaves the name alone and uses four spare bytes at &42E6 instead.
 ;;
 ;;  Exit:   D = track, E = sector of the sector just claimed
-;;  Errors: REP24, "not enough space", when the map runs past the last track
+;;  Errors: REP24, "Disk full", when the map runs past the last track
 ;;
 ;; FAST FIND NEXT SCT IF FNFS USED BEFORE
 ;; --------------------------------------------------------------------
@@ -3562,7 +3562,7 @@ FFNS:
 ;; would be found by walking the map from the start again.
 ;;
 ;; Exit:   D = track, E = sector
-;; Errors: REP24, "not enough space", when the walk runs off the disc
+;; Errors: REP24, "Disk full", when the walk runs off the disc
 ;; --------------------------------------------------------------------
 
 ; ---- FNFS ---- from &4987, &4DC6, &6F7E, &6F9D
@@ -3800,7 +3800,11 @@ PFNM2:
 ;; channel record at RFDH before the scan starts so that the inner loop
 ;; can test it without reloading:
 ;;
-;;     bit 0   match the file number
+;;     bit 0   stock MasterDOS's "match the file number", for LOAD n.
+;;             No caller in this build sets it and nothing here tests
+;;             it: the matcher went when MasterBASIC relocated CONM,
+;;             and how LOAD by number is served now, if it is, has not
+;;             been traced
 ;;     bit 1   collect names for a sorted listing rather than printing
 ;;     bit 2   print a full listing, with a heading
 ;;     bit 3   match the name, honouring * and ?
@@ -4078,10 +4082,11 @@ FDH85:
 ;; deciding whether this entry is the file that was asked for, and
 ;; noting the subdirectory tags as they go past.
 ;;
-;; THE TAG IS TWO BYTES NEAR THE END OF THE ENTRY, and both are reached
-;; the same way -- INC H adds 256, and then two DECs come back down to
-;; &FE.  Offset &FA is the tag a directory gives to the files inside
-;; it; offset &FE is the tag of the directory this entry belongs to.
+;; THE TAG IS TWO BYTES NEAR THE END OF THE ENTRY, reached two ways:
+;; the directory's own tag at &FA by adding DIRT to the entry pointer,
+;; and the parent tag at &FE by INC H and two DECs.  Offset &FA is the
+;; tag a directory gives to the files inside it; offset &FE is the tag
+;; of the directory this entry belongs to.
 ;; An entry that is not a directory has no &FA worth reading, which is
 ;; why the type is tested first.
 ;;
@@ -4580,12 +4585,12 @@ BEEP:
 ;; --------------------------------------------------------------------
 ;;  CFSM -- close the file being written
 ;;
-;;  Writes the directory entry built up in the entry image into the slot FSLSR noted earlier, or finds one if that has
-;;  become stale.
+;;  Writes the directory entry built up in the entry image into the slot FSLOT and FSLTE noted earlier, or finds one
+;;  if they noted none.
 ;;
 ;;  The first entry of the directory -- track 0, sector 1, entry 1 -- is special: it also holds the disk name, the
-;;  disk's random identifying word, the directory tag and the count of extra directory tracks. Those are read from the
-;;  disk and written back unchanged, so only the parts of the entry that belong to the file are replaced.
+;;  disk's random identifying word and the count of extra directory tracks. Those are read from the disk and written
+;;  back unchanged, so only the parts of the entry that belong to the file are replaced.
 ;;
 ;; SPECIAL CFSM USED WHEN SEVERAL BLOCKS MAY BE WRITTEN TO SAME
 ;; FILE AND LAST SECTOR NEEDS SAVING BECAUSE HSVBL USED.

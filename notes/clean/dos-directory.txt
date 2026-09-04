@@ -14,7 +14,11 @@ DOC FDHR
     channel record at RFDH before the scan starts so that the inner loop
     can test it without reloading:
 
-        bit 0   match the file number
+        bit 0   stock MasterDOS's "match the file number", for LOAD n.
+                No caller in this build sets it and nothing here tests
+                it: the matcher went when MasterBASIC relocated CONM,
+                and how LOAD by number is served now, if it is, has not
+                been traced
         bit 1   collect names for a sorted listing rather than printing
         bit 2   print a full listing, with a heading
         bit 3   match the name, honouring * and ?
@@ -272,10 +276,11 @@ DOC FDH9
     deciding whether this entry is the file that was asked for, and
     noting the subdirectory tags as they go past.
 
-    THE TAG IS TWO BYTES NEAR THE END OF THE ENTRY, and both are reached
-    the same way -- INC H adds 256, and then two DECs come back down to
-    &FE.  Offset &FA is the tag a directory gives to the files inside
-    it; offset &FE is the tag of the directory this entry belongs to.
+    THE TAG IS TWO BYTES NEAR THE END OF THE ENTRY, reached two ways:
+    the directory's own tag at &FA by adding DIRT to the entry pointer,
+    and the parent tag at &FE by INC H and two DECs.  Offset &FA is the
+    tag a directory gives to the files inside it; offset &FE is the tag
+    of the directory this entry belongs to.
     An entry that is not a directory has no &FA worth reading, which is
     why the type is tested first.
 

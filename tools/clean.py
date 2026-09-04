@@ -86,6 +86,20 @@ CARRIED_FIXES = [
       ';;  machine can give.  The port written is &FE, which is the border as well as the keyboard, so BC needs no',
       ';;  reloading.  X is tested here rather than with the digits because it is on another row, and holding it leaves',
       ';;  the menu for good.']),
+    ([';;    GTFLE                 open a file for reading'],
+     [';;    GTFL3 / CHECK_FILE_TYPE  open a file for reading']),
+    ([';;  Errors: REP24, "not enough space", when the map runs past the last track'],
+     [';;  Errors: REP24, "Disk full", when the map runs past the last track']),
+    ([';;  Writes the directory entry built up in the entry image into the slot FSLSR noted earlier, or finds one if that has',
+      ';;  become stale.'],
+     [';;  Writes the directory entry built up in the entry image into the slot FSLOT and FSLTE noted earlier, or finds one',
+      ';;  if they noted none.']),
+    ([';;  The first entry of the directory -- track 0, sector 1, entry 1 -- is special: it also holds the disk name, the',
+      ";;  disk's random identifying word, the directory tag and the count of extra directory tracks. Those are read from the",
+      ';;  disk and written back unchanged, so only the parts of the entry that belong to the file are replaced.'],
+     [';;  The first entry of the directory -- track 0, sector 1, entry 1 -- is special: it also holds the disk name, the',
+      ";;  disk's random identifying word and the count of extra directory tracks. Those are read from the disk and written",
+      ';;  back unchanged, so only the parts of the entry that belong to the file are replaced.']),
 ]
 
 

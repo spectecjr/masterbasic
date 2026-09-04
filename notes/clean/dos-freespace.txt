@@ -44,7 +44,7 @@ DOC FNFS
     would be found by walking the map from the start again.
 
     Exit:   D = track, E = sector
-    Errors: REP24, "not enough space", when the walk runs off the disc
+    Errors: REP24, "Disk full", when the walk runs off the disc
 
 DOS &4A78 : the sector the last call stopped on
 DOS &4A7E : and the map byte it stopped in
