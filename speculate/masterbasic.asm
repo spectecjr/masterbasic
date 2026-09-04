@@ -3441,7 +3441,7 @@ WRA:
                RES 6,H                         ; 45AD CB B4
                POP AF                          ; 45AF F1
                LD (HL),A                       ; 45B0 77
-               JR PPXR                         ; 45B1 18 29
+               JR BCRWC                        ; 45B1 18 29
 
 ;; --------------------------------------------------------------------
 ;; WRTBC -- &45B3 to &45C1
@@ -3475,7 +3475,7 @@ WRTBC:
                LD (HL),C                       ; 45BD 71
                INC HL                          ; 45BE 23
                LD (HL),B                       ; 45BF 70
-               JR PPXR                         ; 45C0 18 1A
+               JR BCRWC                        ; 45C0 18 1A
 
 ;; --------------------------------------------------------------------
 ;; RDBC -- &45C2 to &45D0
@@ -3509,7 +3509,7 @@ RDBC:
                LD C,(HL)                       ; 45CC 4E
                INC HL                          ; 45CD 23
                LD B,(HL)                       ; 45CE 46
-               JR PPXR                         ; 45CF 18 0B
+               JR BCRWC                        ; 45CF 18 0B
 
 ;; --------------------------------------------------------------------
 ;; RDA -- &45D1 to &45DB
@@ -3546,7 +3546,7 @@ RDA:
                LD A,(HL)                       ; 45DB 7E
 
 ;; --------------------------------------------------------------------
-;; PPXR -- &45DC to &45E0
+;; BCRWC -- &45DC to &45E0
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F
@@ -3556,19 +3556,21 @@ RDA:
 ;;
 ;; Shown for this routine in disasm/:
 ;;
-;;     Restore the caller's registers and return past the inline word.
+;;     Put HMPR back and return.
 ;;
-;;     The shared exit of the four NR entries -- not of the primitives,
-;;     which end at BCRWC.  The caller's HL and DE come back off the stack,
-;;     and EX (SP),HL puts the stepped-on return address where the RET will
-;;     find it.
+;;     The tail of the three primitives that read or write through the
+;;     window.  The value is in A and the saved HMPR in A', so it swaps
+;;     them, writes the port, and swaps back -- leaving the value in A and
+;;     HMPR as it was found.  RDA reaches it by falling through; WRTBC and
+;;     RDBC jump.
 ;;
-;;     MasterBASIC has a routine of its own under this name that does
-;;     something else: there, PPXR is the tail that puts HMPR back.
+;;     Not to be confused with PPXR, which is the tail of the four NR
+;;     entries and restores registers rather than the port.  Both halves
+;;     carry both routines.
 ;; --------------------------------------------------------------------
 
-; ---- PPXR ---- from &45B1, &45C0, &45CF
-PPXR:
+; ---- BCRWC ---- from &45B1, &45C0, &45CF
+BCRWC:
                                                ; to the alternate register set and back again
                EX AF,AF'                       ; 45DC 08
                OUT (HMPR),A                    ; 45DD D3 FB

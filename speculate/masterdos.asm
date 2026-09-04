@@ -7347,8 +7347,9 @@ NRWR:
 ;;     and EX (SP),HL puts the stepped-on return address where the RET will
 ;;     find it.
 ;;
-;;     MasterBASIC has a routine of its own under this name that does
-;;     something else: there, PPXR is the tail that puts HMPR back.
+;;     MasterBASIC's copy of the family calls this NRWR_DONE, after the one
+;;     of its four users that reaches it by falling through rather than by
+;;     a JR.
 ;; --------------------------------------------------------------------
 
 ; ---- PPXR ---- from &505C, &5067, &5072
@@ -7522,6 +7523,20 @@ RDA:
 ;; Ends:      RET
 ;;
 ;; ? drives OUT (HMPR),A.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Put HMPR back and return.
+;;
+;;     The tail of the three primitives that read or write through the
+;;     window.  The value is in A and the saved HMPR in A', so it swaps
+;;     them, writes the port, and swaps back -- leaving the value in A and
+;;     HMPR as it was found.  RDA reaches it by falling through; WRTBC and
+;;     RDBC jump.
+;;
+;;     Not to be confused with PPXR, which is the tail of the four NR
+;;     entries and restores registers rather than the port.  Both halves
+;;     carry both routines.
 ;; --------------------------------------------------------------------
 
 ; ---- BCRWC ---- from &50B8, &50C7

@@ -89,7 +89,7 @@ WRA:
       RES 6,H                         ; 45AD
       POP AF                          ; 45AF  the value again
       LD (HL),A                       ; 45B0  the actual write
-      JR PPXR                         ; 45B1  restore HMPR and return
+      JR BCRWC                        ; 45B1  restore HMPR and return
 ```
 
 The caller passes an address in `HL` at its *proper* value and never thinks

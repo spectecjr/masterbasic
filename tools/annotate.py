@@ -317,7 +317,7 @@ MB = {
     0x45B3: ('WRTBC', None),
     0x45C2: ('RDBC', None),
     0x45D1: ('RDA', None),
-    0x45DC: ('PPXR', None),
+    0x45DC: ('BCRWC', None),
     0x45E1: ('GTHL', None),
     0x4E96: ('HCMDV', CMDV_DOC),
     0x43BE: ('REPORT', REPORT_DOC),
