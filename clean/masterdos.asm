@@ -4439,7 +4439,7 @@ OFSM_1:
 ; ---- OFSM_2 ---- from &4D94
 OFSM_2:
                PUSH DE                         ; 4D3B D5
-               CALL CALL_ROM_66CB              ; 4D3C CD 70 5E  is this OPEN DIR, which may not overwrite?
+               CALL BITF4                      ; 4D3C CD 70 5E  is this OPEN DIR, which may not overwrite?
                JP NZ,REP28                     ; 4D3F C2 8C 51  "FILE NAME USED" IF "OPEN DIR"
                CALL POINT                      ; 4D42 CD AC 4F  the entry that matched
                AND TYPE_MASK                   ; 4D45 E6 1F
@@ -4529,7 +4529,7 @@ OFM5:
                LD B,&21                        ; 4DBC 06 21
                CALL OFM6                       ; 4DBE CD D7 4D  date stamp and all
                POP IX                          ; 4DC1 DD E1
-               CALL CALL_ROM_66CB              ; 4DC3 CD 70 5E
+               CALL BITF4                      ; 4DC3 CD 70 5E
                CALL Z,FNFS                     ; 4DC6 CC 83 4A  an existing open-type file already has its first sector
                CALL SET_TRACK_AND_SECTOR       ; 4DC9 CD C6 4F
                LD (IX+FFSA+13),D               ; 4DCC DD 72 20  FIRST TRACK
@@ -5558,129 +5558,128 @@ GTHL:
                RET                             ; 50DE C9
 
 ;; --------------------------------------------------------------------
-;;  FLAG3 -- the DOS's flag byte
+;; Point HL at the flag byte and arrange for it to be put back.
 ;;
-;;  One routine per bit for setting and one for testing. HLFG is the shared prologue, and does something neater than
-;;  SAMDOS's version: as well as pointing HL at the flag byte it plants PHLR as the return address, so each SET or BIT
-;;  routine can simply RET and have HL restored on the way out.
+;; Every one of the fourteen routines below it is three instructions --
+;; call here, two bytes of a CB opcode, RET -- and the CB pair is
+;; executed as an inline parameter in the manner of idiom 3.  HLFG
+;; fetches it, so the caller's SET or BIT never has to name FLAG3
+;; itself.
 ;;
-;;  The bits, as far as the code reveals them:
+;; THE RETURN ADDRESS IS REWRITTEN so that the caller's HL comes back
+;; without anything having to restore it.  The stack is rearranged into
+;; the caller's HL, then PHLR, then the return address, and HLFG RETs
+;; into the parameter; the SET or BIT runs, its own RET goes to PHLR,
+;; and PHLR's POP HL and RET finish the job.  Two bytes, shared by
+;; every one of the fourteen.
 ;;
-;;    0  something was found or done, tested at the end of a command to decide whether to report "not found"
-;;    1  a qualifier was present -- OVER on ERASE and COPY, OFF on PROTECT and HIDE
-;;    2  a directory search is already in progress
-;;    3  a hook save is running
-;;    4  the operation is on a directory rather than an ordinary file
-;;    5  the caller wants the free-sector map rebuilt during the directory scan
-;;    6  a block transfer is running, which tells CTAS to fix up the address when it crosses &C000
-;;    7  the file is a Spectrum type, renumbered into the SAM range by GTFSR
-;;
-;; GET THE HALF FLAG3
+;; SAMDOS does the same thing without the second half, and each of its
+;; flag routines restores HL for itself.
 ;; --------------------------------------------------------------------
 
 ; ---- HLFG ---- from &50EC, &50F2, &50F8, &50FE, &5104, &510A, &5110, &5116 ...
 HLFG:
-               EX (SP),HL                      ; 50DF E3
-               PUSH HL                         ; 50E0 E5  ORIG HL ON STACK, THEN RET ADDR
-               LD HL,PHLR                      ; 50E1 21 EA 50
-               EX (SP),HL                      ; 50E4 E3
+               EX (SP),HL                      ; 50DF E3  the return address out, the caller's HL in
+               PUSH HL                         ; 50E0 E5  and the caller's HL on the stack under it
+               LD HL,PHLR                      ; 50E1 21 EA 50  the two instructions that will put it back
+               EX (SP),HL                      ; 50E4 E3  under the return address, so the parameter returns to them
                PUSH HL                         ; 50E5 E5  ORIG HL, PHLR, RET ADDR
-               LD HL,FLAG3                     ; 50E6 21 0C 7C
-               RET                             ; 50E9 C9
+               LD HL,FLAG3                     ; 50E6 21 0C 7C  the flag byte
+               RET                             ; 50E9 C9  and into the parameter the caller left after its CALL
 
 ; ---- PHLR ---- from &50E1
 PHLR:
-               DEFB &E1,&C9                    ; 50EA aI  skipped: reads as POP HL from here, and as part of the
-                                               ; instruction above it
+               POP HL                          ; 50EA E1  reached from the SET or BIT's own RET, not by a jump
+               RET                             ; 50EB C9
 
 ; ---- SETF0 ---- from &5D2F, &5DBC
 SETF0:
                CALL HLFG                       ; 50EC CD DF 50
-               DEFW &C6CB                      ; 50EF CB C6
+               SET 0,(HL)                      ; 50EF CB C6
                RET                             ; 50F1 C9
 
 ; ---- SETF1 ---- from &5A49, &5CB6, &6A2D, &6DCC
 SETF1:
                CALL HLFG                       ; 50F2 CD DF 50
-               DEFW &CECB                      ; 50F5 CB CE
+               SET 1,(HL)                      ; 50F5 CB CE
                RET                             ; 50F7 C9
 
 ; ---- SETF2 ---- from &5E7B, &67B1, &73F1
 SETF2:
                CALL HLFG                       ; 50F8 CD DF 50
-               DEFW &D6CB                      ; 50FB CB D6
+               SET 2,(HL)                      ; 50FB CB D6
                RET                             ; 50FD C9
 
 ; ---- SETF3 ---- from &5A74, &5D22
 SETF3:
                CALL HLFG                       ; 50FE CD DF 50
-               DEFW &DECB                      ; 5101 CB DE
+               SET 3,(HL)                      ; 5101 CB DE
                RET                             ; 5103 C9
 
 ; ---- SETF4 ---- from &5CC1, &6CA6, &720E
 SETF4:
                CALL HLFG                       ; 5104 CD DF 50
-               DEFW &E6CB                      ; 5107 CB E6
+               SET 4,(HL)                      ; 5107 CB E6
                RET                             ; 5109 C9
 
 ; ---- SETF5 ---- from &59B7 when A < &03
 SETF5:
                CALL HLFG                       ; 510A CD DF 50
-               DEFW &EECB                      ; 510D CB EE
+               SET 5,(HL)                      ; 510D CB EE
                RET                             ; 510F C9
 
 ; ---- SETF6 ---- from &4856, &496F, &6A5E
 SETF6:
                CALL HLFG                       ; 5110 CD DF 50
-               DEFW &F6CB                      ; 5113 CB F6
+               SET 6,(HL)                      ; 5113 CB F6
                RET                             ; 5115 C9
 
 ; ---- SETF7 ---- from &4F7F, &599A
 SETF7:
                CALL HLFG                       ; 5116 CD DF 50
-               DEFW &FECB                      ; 5119 CB FE
+               SET 7,(HL)                      ; 5119 CB FE
                RET                             ; 511B C9
 
 ; ---- BITF0 ---- from &5E58
 BITF0:
                CALL HLFG                       ; 511C CD DF 50
-               DEFW &46CB                      ; 511F CB 46
+               BIT 0,(HL)                      ; 511F CB 46
                RET                             ; 5121 C9
 
 ; ---- BITF1 ---- from &58E2, &59E6, &5A8D, &5CE7, &5E47, &6805, &68C8, &6A6C ...
 BITF1:
                CALL HLFG                       ; 5122 CD DF 50
-               DEFW &4ECB                      ; 5125 CB 4E
+               BIT 1,(HL)                      ; 5125 CB 4E
                RET                             ; 5127 C9
 
 ; ---- BITF2 ---- from &5DC4, &5E76, &6D07, &6EFE
 BITF2:
                CALL HLFG                       ; 5128 CD DF 50
-               DEFW &56CB                      ; 512B CB 56
+               BIT 2,(HL)                      ; 512B CB 56
                RET                             ; 512D C9
 
 ; ---- BITF3 ---- from &5A6A, &5E5C
 BITF3:
                CALL HLFG                       ; 512E CD DF 50
-               DEFW &5ECB                      ; 5131 CB 5E
+               BIT 3,(HL)                      ; 5131 CB 5E
                RET                             ; 5133 C9
 
 ; ---- BITF5 ---- from &5934, &593D
 BITF5:
                CALL HLFG                       ; 5134 CD DF 50
-               DEFW &6ECB                      ; 5137 CB 6E
+               BIT 5,(HL)                      ; 5137 CB 6E
                RET                             ; 5139 C9
 
 ; ---- BITF6 ---- from &4759, &6A4E
 BITF6:
                CALL HLFG                       ; 513A CD DF 50
-               DEFW &76CB                      ; 513D CB 76
+               BIT 6,(HL)                      ; 513D CB 76
                RET                             ; 513F C9
 
 ; ---- BITF7 ---- from &4EE0, &5D32, &5FC2, &5FFB
 BITF7:
                CALL HLFG                       ; 5140 CD DF 50
-               DEFW &7ECB                      ; 5143 CB 7E
+               BIT 7,(HL)                      ; 5143 CB 7E
                RET                             ; 5145 C9
 
 ;; --------------------------------------------------------------------
@@ -8183,7 +8182,7 @@ ERAZ33:
 ERAZ45:
                CALL OHASR                      ; 5CF0 CD 2F 5D  with "?", ask before this one
                JR NZ,ERAZ3                     ; 5CF3 20 E7  the answer was no
-               CALL CALL_ROM_66CB              ; 5CF5 CD 70 5E  a file, so there is nothing more to check
+               CALL BITF4                      ; 5CF5 CD 70 5E  a file, so there is nothing more to check
                JR Z,ERAZ46                     ; 5CF8 28 1E  JR IF ERASE FILE, NOT DIR
                LD BC,DIRT                      ; 5CFA 01 FA 00  the tag this directory gives to the files inside it
                ADD HL,BC                       ; 5CFD 09
@@ -8532,10 +8531,10 @@ SNDTC:
 ;; with the ROM 1 address as the word.
 ;; --------------------------------------------------------------------
 
-; ---- CALL_ROM_66CB ---- from &4D3C, &4DC3, &5CF5
-CALL_ROM_66CB:
+; ---- BITF4 ---- from &4D3C, &4DC3, &5CF5
+BITF4:
                CALL HLFG                       ; 5E70 CD DF 50
-               DEFW &66CB                      ; 5E73 CB 66
+               BIT 4,(HL)                      ; 5E73 CB 66  the test the block three hundred bytes back is missing
                RET                             ; 5E75 C9
 
 ;; --------------------------------------------------------------------
@@ -12930,8 +12929,8 @@ PRP2:
 
 ; ---- PRPD ---- from &734B
 PRPD:
-               DEFB &20,&2A                    ; 7358 *  skipped: reads as JR NZ,&7384 from here, and as part of the
-                                               ; instruction above it
+               DEFB &20,&2A                    ; 7358 *  reads as JR NZ,&7384, and nothing the trace can follow reaches
+                                               ; it
 
 ;; --------------------------------------------------------------------
 ;;  DTREE -- walk a path, selecting each directory in turn
@@ -15166,6 +15165,53 @@ REG1:
 ; ---- DRIVE ---- from &4825, &482C, &4D1C, &615A, &6186, &6781, &743F, &744D ...
 DRIVE:
                DEFB &3E                        ; 7C0B >  drive number
+
+;; --------------------------------------------------------------------
+;; The DOS's flag byte: eight bits, and rather more than eight uses.
+;;
+;; ZFSP CLEARS IT AT THE TOP OF EVERY COMMAND, which is what makes the
+;; reuse safe.  Nothing here survives from one command to the next, so
+;; a bit may mean one thing to ERASE and another to LOAD without the
+;; two ever being able to meet.
+;;
+;;     0   something was found or done.  OHASR raises it for every
+;;         file it is asked about, whatever the answer, and SNDFX
+;;         reads it at the end to decide between finishing quietly
+;;         and reporting "file not found"
+;;
+;;     1   the qualifier was present -- OVER on ERASE, OFF on PROTECT
+;;         and HIDE.  COPY borrows the same bit for "there is more of
+;;         this file still to do", which is safe because COPY takes
+;;         its own OVER through the ROM's OVERF instead
+;;
+;;     2   a directory search is under way, so SVTRS and SVDPT can be
+;;         trusted.  REFBUF returns at once when it is clear
+;;
+;;     3   ERASE: a protected file was met and skipped, so that a
+;;         command which erased nothing can say which of the two
+;;         reasons it was.  COPY: the first pass is done and OFSM is
+;;         not needed again
+;;
+;;     4   the operation is on a directory rather than an ordinary
+;;         file, which is also what tells OFSM to allocate no data
+;;         sectors for it
+;;
+;;     5   both ends of a COPY are the same drive, so the user has to
+;;         be asked to swap disks between the passes
+;;
+;;     6   a block transfer is running, which is what tells CTAS to
+;;         fix the address up when it crosses &C000
+;;
+;;     7   two meanings, on paths that do not meet.  NMQU raises it
+;;         for the "?" option and OHASR reads it there; GTFS1 raises
+;;         it for a file whose type was a Spectrum one, and LOAD and
+;;         COPY_HEADER_FIELDS read it there -- the latter to decide
+;;         whether the ROM header has to be invented rather than
+;;         copied.  COPY is the one command that uses "?" and also
+;;         wants that answer, and it does not ask: it passes "not a
+;;         Spectrum file" in the flags at &5A0C rather than reading
+;;         the bit
+;; --------------------------------------------------------------------
 
 ; ---- FLAG3 ---- from &448C, &50E6, &51F3, &5418, &5910, &59F4, &5A36, &67D4 ...
 FLAG3:

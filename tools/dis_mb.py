@@ -874,6 +874,19 @@ def seeds(dos, mb):
     # LD (nn),HL storing the pointer it hands back.
     mb._inline[0xBD79] = 6
 
+    # HLFG at &50DF begins with EX (SP),HL, which is how the NRRD family
+    # reads an inline word -- but HLFG does not read its parameter, it
+    # RETs into it.  The two bytes after each CALL HLFG are the SET or
+    # BIT that does the work, and treating them as a word turns fifteen
+    # instructions into fifteen DEFWs.
+    dos._inline[0x50DF] = 0
+
+    # And PHLR at &50EA is where those SETs and BITs return to.  HLFG
+    # plants it as a return address rather than jumping to it, so it is
+    # code nothing the trace can follow reaches: POP HL and RET, the two
+    # bytes that put the caller's HL back.
+    dos.seed(0x50EA, 'PHLR')
+
     # DOS &5ADD is LD DE,&B800 setting up a buffer address, not a
     # reference to anything in the other page: the 2.3 source comments it
     # "ALLOWS 1580H BYTES FOR SECTOR LIST" and the routine returns HL, DE
@@ -2806,14 +2819,23 @@ def classify_leftovers(d):
         if p >= e and not bad:
             first = d.decode(s)
             d.region(s, e, DATA)
+            # The overlap is the evidence.  A run whose decode finishes
+            # exactly on the gap is not swallowed by anything: it is a
+            # self-contained piece of code the trace could not reach,
+            # which is a different thing and reads as a different note.
+            # PHLR at &50EA is the example -- POP HL and RET, planted as
+            # a return address by HLFG, and nothing above it to be part
+            # of.
             d.comments.setdefault(
-                s, 'skipped: reads as %s from here, and as part of the '
-                   'instruction above it' % first.text)
+                s, ('skipped: reads as %s from here, and as part of the '
+                    'instruction above it' % first.text) if p > e else
+                   ('reads as %s, and nothing the trace can follow '
+                    'reaches it' % first.text))
             # The commonest of these is LD HL,nn standing there for
             # nothing but the two bytes it swallows -- docs/idioms.md
             # calls it the &21 skip.  Write the opcode under a name that
             # says what it is for; the value itself means nothing here.
-            if e - s == 1:
+            if e - s == 1 and p > e:
                 name_skip(d, s)
             other += e - s
     return zeros, other, text

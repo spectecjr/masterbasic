@@ -2911,8 +2911,8 @@ PAGE_ON_TWO_4:
                CALL COMPARE_FAR_STRINGS        ; 4708 CD 25 47
                JR NC,PAGE_ON_TWO_LOOP7         ; 470B 30 ED
                JR PAGE_ON_TWO_LOOP6            ; 470D 18 E8
-               DEFB &10,&F0,&C9                ; 470F .pI  skipped: reads as DJNZ &4701 from here, and as part of the
-                                               ; instruction above it
+               DEFB &10,&F0,&C9                ; 470F .pI  reads as DJNZ &4701, and nothing the trace can follow reaches
+                                               ; it
 
 ; ---- PAGE_ON_TWO_5 ---- from &46FC
 PAGE_ON_TWO_5:
@@ -9322,8 +9322,7 @@ CHECK_BREAK_LOOP11:
                RET P                           ; 610E F0
                RET C                           ; 610F D8
                JR CHECK_BREAK_LOOP11           ; 6110 18 FC
-               DEFB &9C,&FF                    ; 6112 ..  skipped: reads as SBC A,H from here, and as part of the
-                                               ; instruction above it
+               DEFB &9C,&FF                    ; 6112 ..  reads as SBC A,H, and nothing the trace can follow reaches it
 
 CHECK_BREAK_10:
                OR &FF                          ; 6114 F6 FF
@@ -10334,8 +10333,7 @@ SAVE_BOOT:
 
 ; ---- V647E ---- from &6425
 V647E:
-               DEFB &03,&00                    ; 647E ..  skipped: reads as INC BC from here, and as part of the
-                                               ; instruction above it
+               DEFB &03,&00                    ; 647E ..  reads as INC BC, and nothing the trace can follow reaches it
                ADD A,B                         ; 6480 80
                LD BC,DOS_V7F77                 ; 6481 01 77 BF
                DEFB &FF                        ; 6484 .
@@ -15972,8 +15970,7 @@ INSTALL_ROM_PATCHES_2:
 ; ---- WRITE_A_DESCENDING_2 ---- from &5743
 WRITE_A_DESCENDING_2:
                JR INSTALL_ROM_PATCHES_DONE     ; 7B81 18 03
-               DEFB &CF,&97,&C9                ; 7B83 O.I  skipped: reads as RST &08 from here, and as part of the
-                                               ; instruction above it
+               DEFB &CF,&97,&C9                ; 7B83 O.I  reads as RST &08, and nothing the trace can follow reaches it
 
 ; ---- INSTALL_ROM_PATCHES_DONE ---- from &7B81
 INSTALL_ROM_PATCHES_DONE:
@@ -16493,8 +16490,8 @@ TBL_7D58:
                DEFW &512A,&5E5C,&5623,&53ED,OPSTORE ; 7D5A 2A 51 5C 5E 23 56 ED 53 B5 5A
                LD DE,&4A12                          ; 7D64 11 12 4A
                JR TBL_7D58_1                        ; 7D67 18 06
-               DEFB &32,&BF,&5B,&11,&1F,&4A         ; 7D69 2?[..J  skipped: reads as LD (&5BBF),A from here, and as part
-                                                    ; of the instruction above it
+               DEFB &32,&BF,&5B,&11,&1F,&4A         ; 7D69 2?[..J  reads as LD (&5BBF),A, and nothing the trace can
+                                                    ; follow reaches it
 
 ; ---- TBL_7D58_1 ---- from &7D67
 TBL_7D58_1:
@@ -16642,8 +16639,8 @@ INSTALL_ROM_PATCHES_4:
                                                ; SAVE BOOT reads it back out as its third block -- which also carries
                                                ; the alternate character set at &7E64, see notes/mb-saveboot.txt
                JP &0000                        ; 7DF3 C3 00 00
-               DEFB &22,&9E,&4B,&E1            ; 7DF6 ".Ka  skipped: reads as LD (&4B9E),HL from here, and as part of
-                                               ; the instruction above it
+               DEFB &22,&9E,&4B,&E1            ; 7DF6 ".Ka  reads as LD (&4B9E),HL, and nothing the trace can follow
+                                               ; reaches it
                CALL &0000                      ; 7DFA CD 00 00
                LD HL,(&4B9E)                   ; 7DFD 2A 9E 4B
                JP &0000                        ; 7E00 C3 00 00

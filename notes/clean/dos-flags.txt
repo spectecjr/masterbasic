@@ -1,0 +1,100 @@
+# FLAG3, the DOS's flag byte, and the trick that reads and writes it.
+#
+# Prose for clean/ only.
+#
+# PHLR is two instructions, POP HL and RET, reached only through the
+# return address HLFG plants; the trace is seeded with it in dis_mb.py,
+# since nothing it can follow goes there.
+
+# BIT 4 is the one test that is not in the block with the others, and
+# being read as a word it looked like a ROM address.
+RENAME CALL_ROM_66CB BITF4
+
+DOC BITF4
+    Is the operation on a directory rather than an ordinary file?
+
+    The odd one out.  The other seven BIT routines sit together after the
+    eight SETs; this one is on its own three hundred bytes away, in the
+    middle of part F12, presumably because it was wanted after the block
+    had been assembled and there was no room to grow it.
+
+    Its three callers are the three questions flag 4 answers: whether
+    OPEN DIR is being asked to overwrite a name that exists, whether a
+    first sector has to be allocated -- a directory file has no contents
+    of its own -- and whether ERASE is erasing a file or a directory.
+
+DOS &5E73 : the test the block three hundred bytes back is missing
+
+
+DOC HLFG
+    Point HL at the flag byte and arrange for it to be put back.
+
+    Every one of the fourteen routines below it is three instructions --
+    call here, two bytes of a CB opcode, RET -- and the CB pair is
+    executed as an inline parameter in the manner of idiom 3.  HLFG
+    fetches it, so the caller's SET or BIT never has to name FLAG3
+    itself.
+
+    THE RETURN ADDRESS IS REWRITTEN so that the caller's HL comes back
+    without anything having to restore it.  The stack is rearranged into
+    the caller's HL, then PHLR, then the return address, and HLFG RETs
+    into the parameter; the SET or BIT runs, its own RET goes to PHLR,
+    and PHLR's POP HL and RET finish the job.  Two bytes, shared by
+    every one of the fourteen.
+
+    SAMDOS does the same thing without the second half, and each of its
+    flag routines restores HL for itself.
+
+DOS &50DF : the return address out, the caller's HL in
+DOS &50E0 : and the caller's HL on the stack under it
+DOS &50E1 : the two instructions that will put it back
+DOS &50E4 : under the return address, so the parameter returns to them
+DOS &50E6 : the flag byte
+DOS &50E9 : and into the parameter the caller left after its CALL
+DOS &50EA : reached from the SET or BIT's own RET, not by a jump
+
+DOC FLAG3
+    The DOS's flag byte: eight bits, and rather more than eight uses.
+
+    ZFSP CLEARS IT AT THE TOP OF EVERY COMMAND, which is what makes the
+    reuse safe.  Nothing here survives from one command to the next, so
+    a bit may mean one thing to ERASE and another to LOAD without the
+    two ever being able to meet.
+
+        0   something was found or done.  OHASR raises it for every
+            file it is asked about, whatever the answer, and SNDFX
+            reads it at the end to decide between finishing quietly
+            and reporting "file not found"
+
+        1   the qualifier was present -- OVER on ERASE, OFF on PROTECT
+            and HIDE.  COPY borrows the same bit for "there is more of
+            this file still to do", which is safe because COPY takes
+            its own OVER through the ROM's OVERF instead
+
+        2   a directory search is under way, so SVTRS and SVDPT can be
+            trusted.  REFBUF returns at once when it is clear
+
+        3   ERASE: a protected file was met and skipped, so that a
+            command which erased nothing can say which of the two
+            reasons it was.  COPY: the first pass is done and OFSM is
+            not needed again
+
+        4   the operation is on a directory rather than an ordinary
+            file, which is also what tells OFSM to allocate no data
+            sectors for it
+
+        5   both ends of a COPY are the same drive, so the user has to
+            be asked to swap disks between the passes
+
+        6   a block transfer is running, which is what tells CTAS to
+            fix the address up when it crosses &C000
+
+        7   two meanings, on paths that do not meet.  NMQU raises it
+            for the "?" option and OHASR reads it there; GTFS1 raises
+            it for a file whose type was a Spectrum one, and LOAD and
+            COPY_HEADER_FIELDS read it there -- the latter to decide
+            whether the ROM header has to be invented rather than
+            copied.  COPY is the one command that uses "?" and also
+            wants that answer, and it does not ask: it passes "not a
+            Spectrum file" in the flags at &5A0C rather than reading
+            the bit
