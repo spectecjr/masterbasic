@@ -157,8 +157,7 @@ IN_PAGE_C:                    EQU  &4000       ; the window, less where this is 
 ; this one is at &4000.  The names are its own labels.  A stored
 ; pointer written as NAME+&4000 has bit 15 set, the flag INDJP
 ; and CTAB use to mean "not in this page".
-MB_BUILD_PUT_BLOCK_8:         EQU  &B900
-MB_BUILD_PUT_BLOCK_9:         EQU  &B914
+MB_BUILD_PUT_BLOCK_8:         EQU  &B914
 MB_BUILD_TRACK_IMAGE:         EQU  &9352
 MB_BYTE_TO_DECIMAL:           EQU  &8240
 MB_CMD_ALTER:                 EQU  &94CA
@@ -220,7 +219,6 @@ MB_SET_DCT_COMPILE_BITS:      EQU  &859C
 MB_SORT_NAMES:                EQU  &87FB
 MB_STAMP_WITH_DATE:           EQU  &8A39
 MB_SUBSTITUTE_PRINTER_CHAR:   EQU  &9973
-MB_V40FF:                     EQU  &80FF
 MB_WAIT_FOR_CLOCK:            EQU  &8978
 
 ; The ROM's restarts, under the names its own source gives
@@ -240,6 +238,8 @@ PAST_RAMDISC_PAGE_TYPE:       EQU  &D8         ; one above the highest, so the t
 PAST_WINDOW_TOP:              EQU  &C0
 RAMDISC_PAGE_HIGH:            EQU  &80
 SCREEN_PAGE_TYPE:             EQU  &30         ; allocation code for a page holding a screen
+WINDOW:                       EQU  &8000       ; the window, holding whatever HMPR last selected
+ZX_RESUME:                    EQU  &B900       ; the resume stub in the Spectrum page
 
 ; Directory entry
 CASE_BLIND:                   EQU  &DF         ; every bit but the one that tells A from a
@@ -6203,29 +6203,47 @@ V5233:
                DEFB "h"+&80                    ; 5354 E8
 
 ;; --------------------------------------------------------------------
-;;  NMI -- the snapshot button
+;; The button.  Freeze everything, and offer to write it to disk.
 ;;
-;;  Pressing the NMI button freezes whatever is running and offers to write it to disk. The whole machine state is
-;;  pushed onto a stack in the DOS's own page, and the key held down when the button was pressed chooses what happens:
+;; THE WHOLE MACHINE STATE GOES ON A STACK OF THE DOS'S OWN, at STR in
+;; this page, because the interrupted program's stack cannot be
+;; trusted -- it may be full, it may be in a page about to be swapped
+;; out, it may not be a stack at all.  SP is put in STR first and the
+;; registers pushed under it: I, then the main set, then the alternate
+;; set, then IX and IY.
 ;;
-;;    1 or 5   call the user vector at NMIKA, with page NMIKP mapped -- the hook a utility installs itself on. The
-;;             default vector is &0004, which simply returns, so the default action is to do nothing and ask again
-;;    2        resume, having done nothing
-;;    3        save the screen as a SCREEN$
-;;    4        save a 48K snapshot
-;;    X        step the page mapped at &8000, so a page other than the default can be captured
+;; SNAP7'S ADDRESS IS PUSHED LAST, and its use is double.  A RET
+;; anywhere in what follows resumes the interrupted program, which is
+;; how "2" gets away with a bare RET; and HKSP is set to the stack
+;; pointer at that moment, so an error during the save unwinds to the
+;; same place rather than dropping the user back into BASIC with their
+;; program gone.
 ;;
-;;  The file name is formed from the drive and the directory position it lands in, so successive snapshots do not
-;;  collide. Control returns through SNAP7, which restores everything and jumps back into the interrupted code.
+;; THE KEY HELD DOWN CHOOSES what happens, read straight from the
+;; keyboard rather than through the ROM, because none of the ROM's
+;; machinery can be relied on with the machine stopped:
 ;;
-;; NON MASK INT ROUT.
+;;     1 or 5   call the user vector at NMIKA with page NMIKP mapped,
+;;              then ask again.  The vector defaults to &0004, which is
+;;              a RET, so out of the box this does nothing
+;;     2        resume
+;;     3        save the screen as a SCREEN$
+;;     4        save a 48K snapshot
+;;     X        step the page at &8000, so a page other than the
+;;              default can be captured
+;;
+;; THE BORDER IS THE ONLY FEEDBACK on the X key, and it is changed by
+;; OUT (C),A with BC still holding the keyboard port -- &FE is the
+;; border port as well as the keyboard's, so one register pair serves
+;; both.
 ;; --------------------------------------------------------------------
 
 ; ---- NMI ---- from &4206, &546F
 NMI:
-               LD (STR),SP                     ; 5355 ED 73 90 7F
-               LD SP,STR                       ; 5359 31 90 7F
-               LD A,I                          ; 535C ED 57
+               LD (STR),SP                     ; 5355 ED 73 90 7F  the interrupted program's stack pointer, out of the
+                                               ; way
+               LD SP,STR                       ; 5359 31 90 7F  and a stack of our own, which is certainly usable
+               LD A,I                          ; 535C ED 57  the interrupt register goes with everything else
                PUSH AF                         ; 535E F5
                PUSH HL                         ; 535F E5
                PUSH BC                         ; 5360 C5
@@ -6238,50 +6256,49 @@ NMI:
                PUSH DE                         ; 5367 D5
                PUSH IX                         ; 5368 DD E5
                PUSH IY                         ; 536A FD E5
-               LD HL,SNAP7                     ; 536C 21 57 54
+               LD HL,SNAP7                     ; 536C 21 57 54  a RET from here on resumes the program
                PUSH HL                         ; 536F E5
-               LD (HKSP),SP                    ; 5370 ED 73 0B 42  an error during the save unwinds here, which resumes
-                                               ; the program
+               LD (HKSP),SP                    ; 5370 ED 73 0B 42  and an error unwinds to the same place
 
 ; ---- SNAP29 ---- from &5392
 SNAP29:
-               LD A,&04                        ; 5374 3E 04
+               LD A,&04                        ; 5374 3E 04  page 4, the Spectrum's RAM, into the window
                OUT (HMPR),A                    ; 5376 D3 FB  ZX RAM AT 8000H
-               IM 1                            ; 5378 ED 56
+               IM 1                            ; 5378 ED 56  the ROM's interrupt mode, whatever the program was using
 
 ; ---- SNAP3 ---- from &53B6 when bit 2 of E set, &53F3
 SNAP3:
-               LD BC,&F7FE                     ; 537A 01 FE F7
+               LD BC,&F7FE                     ; 537A 01 FE F7  the keyboard row holding 1 to 5
                IN E,(C)                        ; 537D ED 58  BITS 0-4=DIGITS 1-5
-               BIT 0,E                         ; 537F CB 43
+               BIT 0,E                         ; 537F CB 43  "1"
                JR Z,SNAP31                     ; 5381 28 04  JR IF "1"
-               BIT 4,E                         ; 5383 CB 63
+               BIT 4,E                         ; 5383 CB 63  or "5"
                JR NZ,SNAP32                    ; 5385 20 0D  JR IF NOT "5"
 
 ; ---- SNAP31 ---- from &5381 when bit 0 of E clear
 SNAP31:
-               LD HL,(NMIKA)                   ; 5387 2A 3B 42
-               LD A,(NMIKP)                    ; 538A 3A 3A 42  NORMALLY 4
+               LD HL,(NMIKA)                   ; 5387 2A 3B 42  the user's own vector
+               LD A,(NMIKP)                    ; 538A 3A 3A 42  and the page it wants mapped
                OUT (HMPR),A                    ; 538D D3 FB
-               CALL HLJUMP                     ; 538F CD 05 00  JUST RET USUALLY (0004H)
+               CALL HLJUMP                     ; 538F CD 05 00  normally &0004, which is a RET
                JR SNAP29                       ; 5392 18 E0
 
 ; ---- SNAP32 ---- from &5385 when bit 4 of E set
 SNAP32:
-               BIT 1,E                         ; 5394 CB 4B  RET IF "2"
+               BIT 1,E                         ; 5394 CB 4B  "2" resumes, and the RET goes to the address pushed above
                RET Z                           ; 5396 C8
-               BIT 2,E                         ; 5397 CB 53
+               BIT 2,E                         ; 5397 CB 53  "3"
                JR NZ,SNAP3A                    ; 5399 20 06  JR IF NOT "3"
-               LD A,&14                        ; 539B 3E 14  SCREEN$ TYPE
-               LD D,&1B                        ; 539D 16 1B  SCREEN LENGTH MSB
+               LD A,&14                        ; 539B 3E 14  a SCREEN$
+               LD D,&1B                        ; 539D 16 1B  which is &1B00 bytes
                JR SNAP4                        ; 539F 18 2E
 
 ; ---- SNAP3A ---- from &5399 when bit 2 of E set
 SNAP3A:
-               BIT 3,E                         ; 53A1 CB 5B
+               BIT 3,E                         ; 53A1 CB 5B  "4"
                JR NZ,SNAP3B                    ; 53A3 20 06  JR IF NOT "4"
-               LD A,&05                        ; 53A5 3E 05  48K SNAPSHOT TYPE
-               LD D,&C0                        ; 53A7 16 C0  LEN MSB
+               LD A,&05                        ; 53A5 3E 05  a 48K snapshot
+               LD D,&C0                        ; 53A7 16 C0  which is &C000 bytes
                JR SNAP4                        ; 53A9 18 24
 
 ;; --------------------------------------------------------------------
@@ -6291,11 +6308,11 @@ SNAP3A:
 
 ; ---- SNAP3B ---- from &53A3 when bit 3 of E set
 SNAP3B:
-               INC A                           ; 53AB 3C
+               INC A                           ; 53AB 3C  the next page, wrapping at eight
                AND &07                         ; 53AC E6 07
-               OUT (C),A                       ; 53AE ED 79  BORDER
+               OUT (C),A                       ; 53AE ED 79  shown in the border, the only display there is
                LD B,&FE                        ; 53B0 06 FE
-               IN E,(C)                        ; 53B2 ED 58
+               IN E,(C)                        ; 53B2 ED 58  is X still down?
                BIT 2,E                         ; 53B4 CB 53
                JR NZ,SNAP3                     ; 53B6 20 C2  LOOP IF NOT "X"
 
@@ -6304,36 +6321,61 @@ SNAP3C:
                IN E,(C)                        ; 53B8 ED 58
                BIT 2,E                         ; 53BA CB 53
                JR Z,SNAP3C                     ; 53BC 28 FA  LOOP TILL NOT "X"
-               CALL DELBC                      ; 53BE CD 5F 00  DELAY BC
-               LD A,(SNPRT0)                   ; 53C1 3A 06 41
+               CALL DELBC                      ; 53BE CD 5F 00  and a pause, so one press is one step
+               LD A,(SNPRT0)                   ; 53C1 3A 06 41  the ports as they were when the button was pressed
                OUT (HMPR),A                    ; 53C4 D3 FB
                LD A,(SNPRT2)                   ; 53C6 3A 08 41
                OUT (VMPR),A                    ; 53C9 D3 FC
                EI                              ; 53CB FB
-               JP ENDS                         ; 53CC C3 10 50
+               JP ENDS                         ; 53CC C3 10 50  and back to the command loop
+
+;; --------------------------------------------------------------------
+;; Build a file name nothing else has, and write the file.
+;;
+;; THE NAME SAYS WHERE IT LANDED.  A snapshot is saved without anyone
+;; typing a name, so two of them would collide; the name is finished
+;; from the directory slot the file is about to take, which is unique
+;; by construction.  The track supplies a digit and the sector and
+;; entry a letter -- E doubled less one, plus which of the two entries,
+;; plus &40 to reach the letters.
+;;
+;; SHIFT MEANS DRIVE 2.  There is nowhere to ask, so the only choice
+;; offered is a key that is already down.
+;;
+;; THE FREE SLOT IS FOUND BEFORE THE FILE IS OPENED, and failing to
+;; find one goes back to the key loop rather than reporting an error --
+;; there is no BASIC to report it to.
+;;
+;; WHAT GOES IN THE HEADER differs between the two kinds.  A 48K
+;; snapshot has no ROM header of its own, so the twenty-two bytes at
+;; STR-20 -- the registers this routine pushed -- are written into the
+;; entry where a header would be, which is where SNAP7 reads them back
+;; from.  A SCREEN$ gets a header built the ordinary way, with the
+;; start and length taken from a table.
+;; --------------------------------------------------------------------
 
 ; ---- SNAP4 ---- from &539F, &53A9
 SNAP4:
-               LD (SNME),A                     ; 53CF 32 E4 41
-               LD HL,MB_PUTSWA                 ; 53D2 21 00 80  ZX RAM STARTS AT 8000H
+               LD (SNME),A                     ; 53CF 32 E4 41  the type, into the name template
+               LD HL,WINDOW                    ; 53D2 21 00 80  the Spectrum's RAM, as this page sees it
                LD E,L                          ; 53D5 5D  ZERO E
-               LD (SNLEN),DE                   ; 53D6 ED 53 F4 41
+               LD (SNLEN),DE                   ; 53D6 ED 53 F4 41  how much of it to write
                LD (SNADD),HL                   ; 53DA 22 F6 41
                LD IX,DOSBUF                    ; 53DD DD 21 00 7C
-               LD B,&FE                        ; 53E1 06 FE
+               LD B,&FE                        ; 53E1 06 FE  the keyboard again
                IN A,(C)                        ; 53E3 ED 78
-               RRA                             ; 53E5 1F
+               RRA                             ; 53E5 1F  is SHIFT down?
                LD A,&01                        ; 53E6 3E 01
                JR C,SNAP4A                     ; 53E8 38 01  JR IF NOT "SHIFT"
-               INC A                           ; 53EA 3C  DRIVE 2
+               INC A                           ; 53EA 3C  then drive 2
 
 ; ---- SNAP4A ---- from &53E8 when bit 0 was set
 SNAP4A:
                CALL CKDRX                      ; 53EB CD 0A 48
-               LD A,&40                        ; 53EE 3E 40
-               CALL FDHR                       ; 53F0 CD 31 4B
-               JR NZ,SNAP3                     ; 53F3 20 85  LOOP IF NO SPACE
-               LD A,D                          ; 53F5 7A
+               LD A,DIR_MODE_FREE_SLOT         ; 53EE 3E 40
+               CALL FDHR                       ; 53F0 CD 31 4B  where would this file go?
+               JR NZ,SNAP3                     ; 53F3 20 85  nowhere, so ask again rather than report it
+               LD A,D                          ; 53F5 7A  the track, as a digit
                AND &07                         ; 53F6 E6 07
                JR Z,SNAP5                      ; 53F8 28 05
                ADD A,&30                       ; 53FA C6 30
@@ -6341,70 +6383,75 @@ SNAP4A:
 
 ; ---- SNAP5 ---- from &53F8 when no bit of &07 is set
 SNAP5:
-               LD L,E                          ; 53FF 6B
+               LD L,E                          ; 53FF 6B  and the sector and entry, as a letter
                SLA L                           ; 5400 CB 25
                DEC L                           ; 5402 2D
                LD A,(IX+RPT-DCHAN+1)           ; 5403 DD 7E 0E
                ADD A,L                         ; 5406 85
-               ADD A,&40                       ; 5407 C6 40
+               ADD A,&40                       ; 5407 C6 40  &40 lifts it into the letters
                LD (SNME+6),A                   ; 5409 32 EA 41
-               LD HL,SNME                      ; 540C 21 E4 41
+               LD HL,SNME                      ; 540C 21 E4 41  the finished name
                LD DE,NSTR1                     ; 540F 11 3A 41
                LD BC,&0018                     ; 5412 01 18 00
                LDIR                            ; 5415 ED B0
-               XOR A                           ; 5417 AF
+               XOR A                           ; 5417 AF  nothing of the interrupted command's flags survives
                LD (FLAG3),A                    ; 5418 32 0C 7C
                LD (PGES1),A                    ; 541B 32 50 41
-               CALL OFSM                       ; 541E CD 2B 4D
-               LD HL,STR-20                    ; 5421 21 7C 7F
-               LD DE,FSA+220                   ; 5424 11 EF 7C
+               CALL OFSM                       ; 541E CD 2B 4D  open the file
+               LD HL,STR-20                    ; 5421 21 7C 7F  the registers this routine pushed
+               LD DE,FSA+220                   ; 5424 11 EF 7C  into the entry, where a ROM header would be
                LD BC,&0016                     ; 5427 01 16 00
-               LD A,(NSTR1)                    ; 542A 3A 3A 41
+               LD A,(NSTR1)                    ; 542A 3A 3A 41  which kind of file is this?
                CP &05                          ; 542D FE 05
-               JR Z,SNAP6                      ; 542F 28 10  JR IF 48K SNAP - NO HDR. COPY REGS
-               XOR A                           ; 5431 AF
+               JR Z,SNAP6                      ; 542F 28 10  a 48K snapshot keeps the registers there
+               XOR A                           ; 5431 AF  a SCREEN$ has flags and a screen mode of its own
                LD (DE),A                       ; 5432 12  FLAGS
                INC DE                          ; 5433 13
                LD (DE),A                       ; 5434 12  SCREEN MODE
                CALL SVHD                       ; 5435 CD 3B 5F
-               LD HL,SNPTAB                    ; 5438 21 50 54  SCREEN$ START, LEN
+               LD HL,SNPTAB                    ; 5438 21 50 54  and its start and length come from a table
                LD DE,FSA+236                   ; 543B 11 FF 7C
                LD BC,&0007                     ; 543E 01 07 00
 
 ; ---- SNAP6 ---- from &542F when A = &05
 SNAP6:
                LDIR                            ; 5441 ED B0
-               LD HL,(SNADD)                   ; 5443 2A F6 41
+               LD HL,(SNADD)                   ; 5443 2A F6 41  the block itself
                LD DE,(SNLEN)                   ; 5446 ED 5B F4 41
                CALL DSVBL                      ; 544A CD 59 49
-               JP CFSM                         ; 544D C3 FE 4D
+               JP CFSM                         ; 544D C3 FE 4D  and close the file
 
 ; ---- SNPTAB ---- from &5438
 SNPTAB:
-               DEFB &6E,&00                    ; 5450 n.  START (IF 256K MACHINE)
-               ADD A,B                         ; 5452 80
-               DEFB &00                        ; 5453 .  LEN
-               NOP                             ; 5454 00
-               DEC DE                          ; 5455 1B
-               DEFB &FF                        ; 5456 .
+               DEFB &6E,&00,&80                ; 5450 n..  a SCREEN$'s start: page &6E on a 256K machine
+               DEFB &00,&00,&1B,&FF            ; 5453 ....  its length, &1B00, and the &FF that means "no exec address"
 
 ;; --------------------------------------------------------------------
-;;  SNAP7 -- resume the interrupted program
+;; Start the interrupted program again.
 ;;
-;;  Unwinds the register stack, leaves a copy of the NMI entry point and the paging registers where a resumed snapshot
-;;  can find them, restores the interrupt mode, and jumps back into the code that was interrupted.
+;; Everything NMI pushed comes back off, and the order is the order it
+;; went on.  The alternate set is restored through EX AF,AF' and EXX,
+;; and I is put back before the interrupt mode is chosen from it: a
+;; high byte of &00 or &3F means the program was not using mode 2, so
+;; mode 1 is left alone.
 ;;
-;; RETURN ADDRESS OF SNAPSHOT
+;; THE LAST FEW STEPS CANNOT BE DONE FROM HERE.  Returning to the
+;; program means restoring three ports and jumping to an address, and
+;; every one of those makes this page vanish or the wrong one appear.
+;; So the address and the three port values are written into the
+;; Spectrum page at &B8F6, and the jump goes to the stub at &B900 which
+;; is already there -- code in the page that will still be mapped when
+;; the ports have been put back.
 ;; --------------------------------------------------------------------
 
 ; ---- SNAP7 ---- from &536C, &5971 when C reaches 0, &5FF4
 SNAP7:
-               DI                              ; 5457 F3
-               LD A,&03                        ; 5458 3E 03
+               DI                              ; 5457 F3  nothing may interrupt the restart
+               LD A,&03                        ; 5458 3E 03  page 3, the Spectrum's "ROM", into the window
                OUT (HMPR),A                    ; 545A D3 FB  SPECTRUM "ROM" AT 8000H
                LD HL,&0000                     ; 545C 21 00 00
-               LD (HKSP),HL                    ; 545F 22 0B 42
-               LD SP,STR-20                    ; 5462 31 7C 7F
+               LD (HKSP),HL                    ; 545F 22 0B 42  no unwind address any more
+               LD SP,STR-20                    ; 5462 31 7C 7F  the alternate set, as NMI pushed it
                POP IY                          ; 5465 FD E1
                POP IX                          ; 5467 DD E1
                POP DE                          ; 5469 D1
@@ -6413,29 +6460,29 @@ SNAP7:
                POP AF                          ; 546C F1
                EX AF,AF'                       ; 546D 08
                EXX                             ; 546E D9
-               LD HL,NMI                       ; 546F 21 55 53
+               LD HL,NMI                       ; 546F 21 55 53  where the button is to come back to
                LD (&B8F6),HL                   ; 5472 22 F6 B8
-               LD A,(SNPRT0)                   ; 5475 3A 06 41
+               LD A,(SNPRT0)                   ; 5475 3A 06 41  and the three ports as they were
                LD (&B8F8),A                    ; 5478 32 F8 B8
                LD A,(SNPRT1)                   ; 547B 3A 07 41
                LD (&B8F9),A                    ; 547E 32 F9 B8
                LD A,(SNPRT2)                   ; 5481 3A 08 41
                LD (&B8FA),A                    ; 5484 32 FA B8
-               POP DE                          ; 5487 D1
+               POP DE                          ; 5487 D1  the main set
                POP BC                          ; 5488 C1
                POP HL                          ; 5489 E1
                POP AF                          ; 548A F1
-               LD I,A                          ; 548B ED 47
-               CP &00                          ; 548D FE 00
+               LD I,A                          ; 548B ED 47  the interrupt register
+               CP &00                          ; 548D FE 00  &00 or &3F in I means the program was not in mode 2
                JR Z,SNAP8                      ; 548F 28 06
                CP &3F                          ; 5491 FE 3F
                JR Z,SNAP8                      ; 5493 28 02
-               IM 2                            ; 5495 ED 5E
+               IM 2                            ; 5495 ED 5E  anything else was, so put mode 2 back
 
 ; ---- SNAP8 ---- from &548F when A = &00, &5493 when A = &3F
 SNAP8:
-               LD SP,(STR)                     ; 5497 ED 7B 90 7F
-               JP MB_BUILD_PUT_BLOCK_8         ; 549B C3 00 B9
+               LD SP,(STR)                     ; 5497 ED 7B 90 7F  the program's own stack pointer
+               JP ZX_RESUME                    ; 549B C3 00 B9  and a stub in a page that will survive the paging
 
 ;; --------------------------------------------------------------------
 ;;  PART E1 -- Formatting, and the printing the catalogue needs
@@ -7561,7 +7608,7 @@ CALL_Label:
                DEC A                           ; 5974 3D
                OUT (HMPR),A                    ; 5975 D3 FB  PAGE 3 (SPECTRUM "ROM") AT 8000H
                DI                              ; 5977 F3
-               JP MB_BUILD_PUT_BLOCK_9         ; 5978 C3 14 B9  JP TO "ROM"
+               JP MB_BUILD_PUT_BLOCK_8         ; 5978 C3 14 B9  JP TO "ROM"
 
 ;; --------------------------------------------------------------------
 ;; A filename, then optionally a second after a comma; without one, &8E
@@ -11141,7 +11188,7 @@ BKU4:
                JR NZ,BKU5                      ; 6A51 20 0E  JR IF NOT FIRST PASS
                LD A,(HKBC)                     ; 6A53 3A E2 41
                OUT (HMPR),A                    ; 6A56 D3 FB
-               LD HL,MB_V40FF                  ; 6A58 21 FF 80
+               LD HL,WINDOW+&00FF              ; 6A58 21 FF 80
                CALL FESE2                      ; 6A5B CD F8 55  SET RND WORD AND NAME
                CALL SETF6                      ; 6A5E CD 10 51  "NOT FIRST PASS"
 

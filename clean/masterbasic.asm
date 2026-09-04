@@ -915,13 +915,9 @@ V40B1:
 
 ; ---- V40F5 ---- from &4A46
 V40F5:
-               DEFB &24,&12,&00,&12,&00,&00,&00,&00,&00,&00 ; 40F5 $.........
-
-; ---- V40FF ---- from DOS &6A58
-V40FF:
-               DEFB &00,&FF,&FF,&FF,&F0,&FF,&0F,&FF,&00,&F0,&FF,&F0,&F0,&F0,&0F ; 40FF ....p....p.ppp.
-               DEFB &F0,&00,&0F,&FF,&0F,&F0,&0F,&0F,&0F,&00,&00,&FF,&00,&F0,&00 ; 410E p....p.......p.
-               DEFB &0F,&00,&00                                                 ; 411D ...
+               DEFB &24,&12,&00,&12,&00,&00,&00,&00,&00,&00,&00,&FF,&FF,&FF,&F0 ; 40F5 $.............p
+               DEFB &FF,&0F,&FF,&00,&F0,&FF,&F0,&F0,&F0,&0F,&F0,&00,&0F,&FF,&0F ; 4104 ....p.ppp.p....
+               DEFB &F0,&0F,&0F,&0F,&00,&00,&FF,&00,&F0,&00,&0F,&00,&00         ; 4113 p.......p....
 
 ; ---- V4120 ---- from &48DD, &48E9, &4901
 V4120:
@@ -15424,9 +15420,6 @@ BUILD_PUT_BLOCK_7:
                EXX                             ; 78FB D9
                LD E,A                          ; 78FC 5F
                LD A,(INVERT)                   ; 78FD 3A 54 5A
-
-; ---- BUILD_PUT_BLOCK_8 ---- from DOS &549B
-BUILD_PUT_BLOCK_8:
                EX AF,AF'                       ; 7900 08
                LD C,A                          ; 7901 4F
                LD A,(CUSCRNP)                  ; 7902 3A 78 5A
@@ -15438,8 +15431,8 @@ BUILD_PUT_BLOCK_8:
                LD (&EFFE),SP                   ; 790D ED 73 FE EF
                LD SP,&EFFE                     ; 7911 31 FE EF
 
-; ---- BUILD_PUT_BLOCK_9 ---- from DOS &5978
-BUILD_PUT_BLOCK_9:
+; ---- BUILD_PUT_BLOCK_8 ---- from DOS &5978
+BUILD_PUT_BLOCK_8:
                JP &F000                        ; 7914 C3 00 F0
                LD HL,(STKEND)                  ; 7917 2A 65 5C
                PUSH HL                         ; 791A E5
@@ -15452,38 +15445,38 @@ BUILD_PUT_BLOCK_9:
                INC DE                          ; 7925 13
                ADD HL,BC                       ; 7926 09
                BIT 6,H                         ; 7927 CB 74
-               JR NZ,BUILD_PUT_BLOCK_10        ; 7929 20 13
+               JR NZ,BUILD_PUT_BLOCK_9         ; 7929 20 13
                EX AF,AF'                       ; 792B 08
                EXX                             ; 792C D9
                CALL GETSTR                     ; 792D CD 24 01
                LD H,A                          ; 7930 67
                EX AF,AF'                       ; 7931 08
                CP H                            ; 7932 BC
-               JR NZ,BUILD_PUT_BLOCK_10        ; 7933 20 09
+               JR NZ,BUILD_PUT_BLOCK_9         ; 7933 20 09
                LD H,D                          ; 7935 62
                LD L,E                          ; 7936 6B
                ADD HL,BC                       ; 7937 09
                BIT 6,H                         ; 7938 CB 74
                POP HL                          ; 793A E1
-               JR NZ,BUILD_PUT_BLOCK_11        ; 793B 20 02
+               JR NZ,BUILD_PUT_BLOCK_10        ; 793B 20 02
                RET                             ; 793D C9
 
-; ---- BUILD_PUT_BLOCK_10 ---- from &7929 when bit 6 of H set, &7933 when A <> H
-BUILD_PUT_BLOCK_10:
+; ---- BUILD_PUT_BLOCK_9 ---- from &7929 when bit 6 of H set, &7933 when A <> H
+BUILD_PUT_BLOCK_9:
                POP HL                          ; 793E E1
 
-; ---- BUILD_PUT_BLOCK_11 ---- from &793B when bit 6 of H set
-BUILD_PUT_BLOCK_11:
+; ---- BUILD_PUT_BLOCK_10 ---- from &793B when bit 6 of H set
+BUILD_PUT_BLOCK_10:
                LD (STKEND),HL                  ; 793F 22 65 5C
                POP HL                          ; 7942 E1
                LD A,(SYS_FN_INDEX)             ; 7943 3A F0 4A
                AND A                           ; 7946 A7
-               JR NZ,BUILD_PUT_BLOCK_12        ; 7947 20 02
+               JR NZ,BUILD_PUT_BLOCK_11        ; 7947 20 02
                RST ERR_HOOK                    ; 7949 CF
                DEFB ERR_PAGE_OVERLAP           ; 794A 76 error 118, "Page overlap"
 
-; ---- BUILD_PUT_BLOCK_12 ---- from &7947 when A <> 0
-BUILD_PUT_BLOCK_12:
+; ---- BUILD_PUT_BLOCK_11 ---- from &7947 when A <> 0
+BUILD_PUT_BLOCK_11:
                JP &0000                        ; 794B C3 00 00
                OUT (LMPR),A                    ; 794E D3 FA
                LD A,C                          ; 7950 79
@@ -15534,7 +15527,7 @@ BUILD_PUT_BLOCK_LOOP2:
                EXX                             ; 7981 D9
                POP HL                          ; 7982 E1
                INC HL                          ; 7983 23
-               JR BUILD_PUT_BLOCK_13           ; 7984 18 15
+               JR BUILD_PUT_BLOCK_12           ; 7984 18 15
                POP HL                          ; 7986 E1  from here to &798F this code is written for &45A2: subtract
                                                ; &33E4 from any address in it
                RST NEXT_CHAR                   ; 7987 E7
@@ -15587,8 +15580,8 @@ RESOLVE_ROM_ENTRIES:
                LD E,(HL)                       ; 7999 5E
                INC HL                          ; 799A 23
 
-; ---- BUILD_PUT_BLOCK_13 ---- from &7984
-BUILD_PUT_BLOCK_13:
+; ---- BUILD_PUT_BLOCK_12 ---- from &7984
+BUILD_PUT_BLOCK_12:
                LD D,(HL)                       ; 799B 56
                INC HL                          ; 799C 23
                LD (&7DFB),DE                   ; 799D ED 53 FB 7D  two of these results fill the JP &0000 operands in

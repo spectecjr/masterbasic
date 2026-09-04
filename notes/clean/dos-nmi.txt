@@ -1,0 +1,160 @@
+# The NMI button: freezing the machine, and starting it again.
+#
+# Prose for clean/ only.
+#
+# Three of the operands here point into whatever page the code has just
+# put in the window -- page 4 for the Spectrum's RAM, page 3 for its
+# "ROM", a track buffer in BACKUP -- and none of them is MasterBASIC.
+# dis_mb.py keeps them out of peer resolution; named here.
+
+GROUP Memory
+CONST WINDOW = &8000 : the window, holding whatever HMPR last selected
+CONST ZX_RESUME = &B900 : the resume stub in the Spectrum page
+
+DOS &53D2 value WINDOW
+DOS &549B value ZX_RESUME
+DOS &6A58 expr WINDOW+&00FF
+
+DOC NMI
+    The button.  Freeze everything, and offer to write it to disk.
+
+    THE WHOLE MACHINE STATE GOES ON A STACK OF THE DOS'S OWN, at STR in
+    this page, because the interrupted program's stack cannot be
+    trusted -- it may be full, it may be in a page about to be swapped
+    out, it may not be a stack at all.  SP is put in STR first and the
+    registers pushed under it: I, then the main set, then the alternate
+    set, then IX and IY.
+
+    SNAP7'S ADDRESS IS PUSHED LAST, and its use is double.  A RET
+    anywhere in what follows resumes the interrupted program, which is
+    how "2" gets away with a bare RET; and HKSP is set to the stack
+    pointer at that moment, so an error during the save unwinds to the
+    same place rather than dropping the user back into BASIC with their
+    program gone.
+
+    THE KEY HELD DOWN CHOOSES what happens, read straight from the
+    keyboard rather than through the ROM, because none of the ROM's
+    machinery can be relied on with the machine stopped:
+
+        1 or 5   call the user vector at NMIKA with page NMIKP mapped,
+                 then ask again.  The vector defaults to &0004, which is
+                 a RET, so out of the box this does nothing
+        2        resume
+        3        save the screen as a SCREEN$
+        4        save a 48K snapshot
+        X        step the page at &8000, so a page other than the
+                 default can be captured
+
+    THE BORDER IS THE ONLY FEEDBACK on the X key, and it is changed by
+    OUT (C),A with BC still holding the keyboard port -- &FE is the
+    border port as well as the keyboard's, so one register pair serves
+    both.
+
+DOS &5355 : the interrupted program's stack pointer, out of the way
+DOS &5359 : and a stack of our own, which is certainly usable
+DOS &535C : the interrupt register goes with everything else
+DOS &536C : a RET from here on resumes the program
+DOS &5370 : and an error unwinds to the same place
+DOS &5374 : page 4, the Spectrum's RAM, into the window
+DOS &5378 : the ROM's interrupt mode, whatever the program was using
+DOS &537A : the keyboard row holding 1 to 5
+DOS &537F : "1"
+DOS &5383 : or "5"
+DOS &5387 : the user's own vector
+DOS &538A : and the page it wants mapped
+DOS &538F : normally &0004, which is a RET
+DOS &5394 : "2" resumes, and the RET goes to the address pushed above
+DOS &5397 : "3"
+DOS &539B : a SCREEN$
+DOS &539D : which is &1B00 bytes
+DOS &53A1 : "4"
+DOS &53A5 : a 48K snapshot
+DOS &53A7 : which is &C000 bytes
+DOS &53AB : the next page, wrapping at eight
+DOS &53AE : shown in the border, the only display there is
+DOS &53B2 : is X still down?
+DOS &53BE : and a pause, so one press is one step
+DOS &53C1 : the ports as they were when the button was pressed
+DOS &53CC : and back to the command loop
+
+DOC SNAP4
+    Build a file name nothing else has, and write the file.
+
+    THE NAME SAYS WHERE IT LANDED.  A snapshot is saved without anyone
+    typing a name, so two of them would collide; the name is finished
+    from the directory slot the file is about to take, which is unique
+    by construction.  The track supplies a digit and the sector and
+    entry a letter -- E doubled less one, plus which of the two entries,
+    plus &40 to reach the letters.
+
+    SHIFT MEANS DRIVE 2.  There is nowhere to ask, so the only choice
+    offered is a key that is already down.
+
+    THE FREE SLOT IS FOUND BEFORE THE FILE IS OPENED, and failing to
+    find one goes back to the key loop rather than reporting an error --
+    there is no BASIC to report it to.
+
+    WHAT GOES IN THE HEADER differs between the two kinds.  A 48K
+    snapshot has no ROM header of its own, so the twenty-two bytes at
+    STR-20 -- the registers this routine pushed -- are written into the
+    entry where a header would be, which is where SNAP7 reads them back
+    from.  A SCREEN$ gets a header built the ordinary way, with the
+    start and length taken from a table.
+
+DOS &53CF : the type, into the name template
+DOS &53D2 : the Spectrum's RAM, as this page sees it
+DOS &53D6 : how much of it to write
+DOS &53E1 : the keyboard again
+DOS &53E5 : is SHIFT down?
+DOS &53EA : then drive 2
+DOS &53EE expr DIR_MODE_FREE_SLOT
+DOS &53F0 : where would this file go?
+DOS &53F3 : nowhere, so ask again rather than report it
+DOS &53F5 : the track, as a digit
+DOS &53FF : and the sector and entry, as a letter
+DOS &5407 : &40 lifts it into the letters
+DOS &540C : the finished name
+DOS &5417 : nothing of the interrupted command's flags survives
+DOS &541E : open the file
+DOS &5421 : the registers this routine pushed
+DOS &5424 : into the entry, where a ROM header would be
+DOS &542A : which kind of file is this?
+DOS &542F : a 48K snapshot keeps the registers there
+DOS &5431 : a SCREEN$ has flags and a screen mode of its own
+DOS &5438 : and its start and length come from a table
+DOS &5443 : the block itself
+DOS &544D : and close the file
+
+DOS &5450-&5456 data
+DOS &5450 : a SCREEN$'s start: page &6E on a 256K machine
+DOS &5453 : its length, &1B00, and the &FF that means "no exec address"
+
+DOC SNAP7
+    Start the interrupted program again.
+
+    Everything NMI pushed comes back off, and the order is the order it
+    went on.  The alternate set is restored through EX AF,AF' and EXX,
+    and I is put back before the interrupt mode is chosen from it: a
+    high byte of &00 or &3F means the program was not using mode 2, so
+    mode 1 is left alone.
+
+    THE LAST FEW STEPS CANNOT BE DONE FROM HERE.  Returning to the
+    program means restoring three ports and jumping to an address, and
+    every one of those makes this page vanish or the wrong one appear.
+    So the address and the three port values are written into the
+    Spectrum page at &B8F6, and the jump goes to the stub at &B900 which
+    is already there -- code in the page that will still be mapped when
+    the ports have been put back.
+
+DOS &5457 : nothing may interrupt the restart
+DOS &5458 : page 3, the Spectrum's "ROM", into the window
+DOS &545F : no unwind address any more
+DOS &5462 : the alternate set, as NMI pushed it
+DOS &546F : where the button is to come back to
+DOS &5475 : and the three ports as they were
+DOS &5487 : the main set
+DOS &548B : the interrupt register
+DOS &548D : &00 or &3F in I means the program was not in mode 2
+DOS &5495 : anything else was, so put mode 2 back
+DOS &5497 : the program's own stack pointer
+DOS &549B : and a stub in a page that will survive the paging

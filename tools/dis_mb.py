@@ -894,6 +894,14 @@ def seeds(dos, mb):
     # half happens to hold at &7800 is worse than leaving it a number.
     dos.no_peer.append((0x5ADD, 0x5AE0))
 
+    # The snapshot code names the page in the window itself, and it is
+    # never MasterBASIC's: &5374 puts page 4 there for the Spectrum's
+    # RAM, SNAP7 puts page 3 there for its "ROM", and BACKUP at &6A56
+    # puts a track buffer there.  An &8xxx or &Bxxx operand in those
+    # stretches belongs to whichever of those it is.
+    for lo, hi in ((0x53D2, 0x53D5), (0x549B, 0x549E), (0x6A58, 0x6A5B)):
+        dos.no_peer.append((lo, hi))
+
     # GETSCR puts the screen page in the window, and the sorted listing
     # collects its names at &A000 in it -- eight kilobytes into that
     # page, not eight into MasterBASIC's.  Naming it after whatever the
