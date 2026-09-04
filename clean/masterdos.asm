@@ -6569,7 +6569,7 @@ DFMTA_2:
 DFMTA_LOOP:
                LD A,(HL)                       ; 54DE 7E
                INC HL                          ; 54DF 23
-               CALL STREAM_OR_CHANNEL          ; 54E0 CD DA 68
+               CALL PRINTABLE_FORM             ; 54E0 CD DA 68
                CALL PRINT_A_KEEPING_IT         ; 54E3 CD 66 57
                DEC D                           ; 54E6 15
                JR NZ,DFMTA_LOOP                ; 54E7 20 F5
@@ -10724,39 +10724,63 @@ C11LP_DONE:
                RET                             ; 6798 C9
 
 ;; --------------------------------------------------------------------
-;;  PART MOVE -- the MOVE command, and BACKUP
+;; MOVE a TO b -- the general copier.
+;;
+;; EITHER END CAN BE ANYTHING the machine can read or write: a stream
+;; (`#n`), a device letter ("s:" for the screen, "p:" for the printer,
+;; "k:" for the keyboard, "d:" for a disc file), or a file.  MOVE does
+;; not care which, because it does not do the reading and writing
+;; itself -- it opens a channel at each end and works through the ROM's
+;; channel machinery, which is what makes one command serve every
+;; combination.
+;;
+;; TWO TEMPORARY CHANNELS ARE OPENED, and marked with the codes the ROM
+;; uses for a serial channel: MIN for the one being read, MOUT for the
+;; one being written.  OPMOV opens each in turn, and the two parameter
+;; blocks -- which the DOS keeps a pair of for exactly this sort of
+;; thing -- are swapped by EXDAT so that one routine can open either.
+;;
+;; THE WHOLE COMMAND RUNS WITH HMPR ZERO, which is why the operands in
+;; it read as ROM system variables through the window.  CURCHL, the
+;; ROM's "which channel am I talking to" pointer, is written before
+;; every single character; CHANS is where the channel records live.
+;;
+;; Flag 2 is raised to say a MOVE is running.  Nothing on the directory
+;; paths reads it; the open and end-of-file code does, to tell a MOVE
+;; from a command that would report "end of file".
 ;; --------------------------------------------------------------------
 
 CMD_MOVE:
                CALL EVMOV                      ; 6799 CD 55 69
-               CP &2C                          ; 679C FE 2C
+               CP &2C                          ; 679C FE 2C  "," or
                JR Z,CMD_MOVE_1                 ; 679E 28 05
-               CP &8E                          ; 67A0 FE 8E  "TO"
+               CP &8E                          ; 67A0 FE 8E  "TO" between the two
                JP NZ,REP0                      ; 67A2 C2 E0 5E  "NONSENSE"
 
 ; ---- CMD_MOVE_1 ---- from &679E when A = &2C
 CMD_MOVE_1:
-               CALL EXDAT                      ; 67A5 CD 43 62
+               CALL EXDAT                      ; 67A5 CD 43 62  the second name goes in the other parameter block
                CALL EVMOV                      ; 67A8 CD 55 69
                CALL EXDAT                      ; 67AB CD 43 62
                CALL CEOS                       ; 67AE CD 07 50
-               CALL SETF2                      ; 67B1 CD F8 50  "MOVE"
+               CALL SETF2                      ; 67B1 CD F8 50  which command this is, for the end-of-file code to read
                XOR A                           ; 67B4 AF
-               OUT (HMPR),A                    ; 67B5 D3 FB
-               LD A,MIN                        ; 67B7 3E BF
+               OUT (HMPR),A                    ; 67B5 D3 FB  the ROM's system page into the window, for the whole
+                                               ; command
+               LD A,MIN                        ; 67B7 3E BF  the code that marks a channel as one to read from
                LD (FSTR1),A                    ; 67B9 32 37 41
-               CALL OPMOV                      ; 67BC CD 6C 69  OPEN "IN" TEMP CHANNEL - GET
+               CALL OPMOV                      ; 67BC CD 6C 69  open it
                JP C,SNOP                       ; 67BF DA 48 70  IF OPMOV RETURNS C WHEN CREATING
                LD A,(FSTR1)                    ; 67C2 3A 37 41  DRIVE NO. FOR 2ND CHANNEL IS
                LD (NSTR2),A                    ; 67C5 32 56 41  SAME AS FIRST??
                CALL EXDAT                      ; 67C8 CD 43 62
-               LD A,MOUT                       ; 67CB 3E DF
+               LD A,MOUT                       ; 67CB 3E DF  and the code for one to write to
                LD (FSTR1),A                    ; 67CD 32 37 41
                LD IX,DOSBUF                    ; 67D0 DD 21 00 7C
                LD HL,FLAG3                     ; 67D4 21 0C 7C
-               RES 4,(HL)                      ; 67D7 CB A6  SO OFSM NORMAL (PREVIOUS OPMOV
-               CALL OPMOV                      ; 67D9 CD 6C 69  OPEN "OUT" TEMP CHANNEL
-               JR NC,MOVA                      ; 67DC 30 3F  JR IF OK, IF "OVERWRITE?" & "N"
+               RES 4,(HL)                      ; 67D7 CB A6  the second open is an ordinary one, whatever the first was
+               CALL OPMOV                      ; 67D9 CD 6C 69  open that too
+               JR NC,MOVA                      ; 67DC 30 3F  both open, so the copying can start
                PUSH AF                         ; 67DE F5  Z IF STRM NOT OPEN
                LD IX,(NSTR2)                   ; 67DF DD 2A 56 41  ADDR OF FIRST CHANNEL (IN NSTR1
                LD BC,HEADER                    ; 67E3 01 00 40  AFTER EXDAT)
@@ -10800,58 +10824,88 @@ CHANNEL_LENGTH_AND_FLAGS_1:
                POP BC                          ; 6819 C1
                JP CMD_OPEN_DONE                ; 681A C3 E4 6A
 
+;; --------------------------------------------------------------------
+;; Copy, with one special case that makes MOVE more than a copier.
+;;
+;; A DISC FILE MOVED TO THE SCREEN, PRINTER OR KEYBOARD IS LISTED, not
+;; copied byte for byte.  That is what TOSCQ asks, and it is the reason
+;; MOVE "d:PROG" TO "s:" shows you a program rather than a screenful of
+;; tokens.
+;;
+;; THE NINE-BYTE HEADER GOES FIRST, discarded by reading and dropping
+;; nine characters -- there is no seek on a channel, so skipping is
+;; reading.  Then, for a BASIC program only, each line is taken apart:
+;; the line number is printed as a number, the two-byte length is
+;; dropped, and the text is passed through with INQUFG cleared so that
+;; the ROM expands the tokens as it prints them.  A five-byte number
+;; embedded in a line -- the &0E form -- is dropped, because the digits
+;; that precede it are what the reader wants to see.
+;;
+;; ANY OTHER TYPE is passed through character by character with the
+;; tokens left alone, since they are not tokens.
+;;
+;; A file with type &0A, an open-type file, is copied and not listed:
+;; it has no header to skip.
+;; --------------------------------------------------------------------
+
 ; ---- MOVA ---- from &67DC
 MOVA:
                CALL EXDAT                      ; 681D CD 43 62  FIRST CHAN ADDR IN NSTR1 AGAIN
-               CALL TOSCQ                      ; 6820 CD F8 68
-               JP NZ,MOVE1                     ; 6823 C2 91 68  JR IF NOT MOVE D TO S/T/
+               CALL TOSCQ                      ; 6820 CD F8 68  is this a disc file going to the screen or the printer?
+               JP NZ,MOVE1                     ; 6823 C2 91 68  no, so copy it as it stands
                XOR A                           ; 6826 AF
-               LD (TVFLAG+IN_PAGE_C),A         ; 6827 32 3C 9C  NOT AUTO-LIST
+               LD (TVFLAG+IN_PAGE_C),A         ; 6827 32 3C 9C  do not let the ROM auto-list what goes past
                INC A                           ; 682A 3C
-               LD (INQUFG+IN_PAGE_C),A         ; 682B 32 BA 9A  IN QUOTES SO NO KEYWORDS
+               LD (INQUFG+IN_PAGE_C),A         ; 682B 32 BA 9A  in quotes, so keywords are not expanded yet
                LD A,D                          ; 682E 7A
                AND &1F                         ; 682F E6 1F
-               CP &0A                          ; 6831 FE 0A
+               CP &0A                          ; 6831 FE 0A  an open-type file has no header to skip
                JR Z,MOVE1                      ; 6833 28 5C  JR IF OPENTYPE
                PUSH AF                         ; 6835 F5
-               LD B,&09                        ; 6836 06 09
+               LD B,&09                        ; 6836 06 09  the nine-byte header, read and dropped
                CALL MOVJ                       ; 6838 CD 74 68  JUNK HEADER
                POP AF                          ; 683B F1
-               CP &10                          ; 683C FE 10
+               CP &10                          ; 683C FE 10  only a BASIC program is taken apart line by line
                JR NZ,MOVJ_LOOP                 ; 683E 20 3C  IF NOT PROGRAM, SUPPRESS
                XOR A                           ; 6840 AF
-               LD (INQUFG+IN_PAGE_C),A         ; 6841 32 BA 9A  NOT IN QUOTES - KEYWORDS ON
+               LD (INQUFG+IN_PAGE_C),A         ; 6841 32 BA 9A  out of quotes, so the ROM expands the tokens
 
 ; ---- MOVA_1 ---- from &6870
 MOVA_1:
-               CALL MOVRC                      ; 6844 CD 19 69  LINE NO. MSB
-               CP &FF                          ; 6847 FE FF
+               CALL MOVRC                      ; 6844 CD 19 69  the high byte of the line number
+               CP &FF                          ; 6847 FE FF  &FF there is the end of the program
                JR Z,MEOF                       ; 6849 28 50  END NOW IF END OF PROG
                PUSH AF                         ; 684B F5
-               CALL MOVRC                      ; 684C CD 19 69  LINE NO. LSB
-               LD HL,(NSTR2)                   ; 684F 2A 56 41
+               CALL MOVRC                      ; 684C CD 19 69  and the low byte
+               LD HL,(NSTR2)                   ; 684F 2A 56 41  the channel being written to
                LD (CURCHL+IN_PAGE_C),HL        ; 6852 22 51 9C
                POP HL                          ; 6855 E1
                LD L,A                          ; 6856 6F  HL=LINE NO
-               CALL PNUM5                      ; 6857 CD 1D 57
-               LD B,&02                        ; 685A 06 02
+               CALL PNUM5                      ; 6857 CD 1D 57  the line number, as a number
+               LD B,&02                        ; 685A 06 02  the two-byte line length, which the reader does not want
                CALL MOVJ                       ; 685C CD 74 68  JUNK LINE LEN DATA
 
 ; ---- MVSLP ---- from &686E when A <> &0D
 MVSLP:
-               CALL MOVRC                      ; 685F CD 19 69
-               CP &0E                          ; 6862 FE 0E
-               CALL Z,MOVJ6                    ; 6864 CC 72 68  JUNK 5-BYTE FORMS
+               CALL MOVRC                      ; 685F CD 19 69  one character of the line
+               CP &0E                          ; 6862 FE 0E  the marker before an embedded five-byte number
+               CALL Z,MOVJ6                    ; 6864 CC 72 68  which is dropped, digits and all
                PUSH AF                         ; 6867 F5
                CALL MOVWC                      ; 6868 CD 40 69
                POP AF                          ; 686B F1
-               CP &0D                          ; 686C FE 0D
+               CP &0D                          ; 686C FE 0D  end of the line?
                JR NZ,MVSLP                     ; 686E 20 EF
-               JR MOVA_1                       ; 6870 18 D2
+               JR MOVA_1                       ; 6870 18 D2  then the next one
 
 ; ---- MOVJ6 ---- from &6864 when A = &0E
 MOVJ6:
-               LD B,&06                        ; 6872 06 06
+               LD B,&06                        ; 6872 06 06  five bytes and the marker itself
+
+;; --------------------------------------------------------------------
+;; Read B characters and throw them away.
+;;
+;; There is no seek on a channel, so this is what skipping is.
+;; --------------------------------------------------------------------
 
 ; ---- MOVJ ---- from &6838, &685C, &6879 when B is not 0 yet
 MOVJ:
@@ -10863,14 +10917,14 @@ MOVJ:
 
 ; ---- MOVJ_LOOP ---- from &683E when A <> &10, &688F
 MOVJ_LOOP:
-               CALL MOVRC                      ; 687C CD 19 69  READ CHAR
-               JR NC,MEOF                      ; 687F 30 1A  JR IF EOF
-               CALL STREAM_OR_CHANNEL          ; 6881 CD DA 68
-               LD HL,INVERT+IN_PAGE_C          ; 6884 21 54 9A
+               CALL MOVRC                      ; 687C CD 19 69  one character
+               JR NC,MEOF                      ; 687F 30 1A  end of the file
+               CALL PRINTABLE_FORM             ; 6881 CD DA 68
+               LD HL,INVERT+IN_PAGE_C          ; 6884 21 54 9A  inverse video, if this character earned it
                LD (HL),B                       ; 6887 70
                CALL MOVWC                      ; 6888 CD 40 69  WRITE PRINTABLE CHAR
                XOR A                           ; 688B AF
-               LD (INVERT+IN_PAGE_C),A         ; 688C 32 54 9A
+               LD (INVERT+IN_PAGE_C),A         ; 688C 32 54 9A  and back to normal after it
                JR MOVJ_LOOP                    ; 688F 18 EB
 
 ; ---- MOVE1 ---- from &6823, &6833 when A = &0A, &6899
@@ -10880,37 +10934,50 @@ MOVE1:
                CALL MOVWC                      ; 6896 CD 40 69  WRITE CHAR
                JR MOVE1                        ; 6899 18 F6
 
+;; --------------------------------------------------------------------
+;; Both ends closed, and the flags cleared.
+;;
+;; CLMOV is called twice with the parameter blocks swapped between, so
+;; the one routine closes whichever end is in the first block.
+;; --------------------------------------------------------------------
+
 ; ---- MEOF ---- from &6849 when A = &FF, &687F, &6894
 MEOF:
                XOR A                           ; 689B AF
-               LD (FLAG3),A                    ; 689C 32 0C 7C
-               CALL EXDAT                      ; 689F CD 43 62
+               LD (FLAG3),A                    ; 689C 32 0C 7C  nothing of this command's flags outlives it
+               CALL EXDAT                      ; 689F CD 43 62  the first end
                CALL CLMOV                      ; 68A2 CD AC 69
-               CALL EXDAT                      ; 68A5 CD 43 62
+               CALL EXDAT                      ; 68A5 CD 43 62  and then the other
                CALL CLMOV                      ; 68A8 CD AC 69
 
 ;; --------------------------------------------------------------------
-;; Point IX at the channel table plus &1E -- CHANS read through the
-;; window and the offset added -- and return Z at once if the first byte
-;; is a carriage return, which is the DOS's empty-channel marker.
+;; Walk the ROM's channel list looking for the DOS's own channels.
+;;
+;; CHANS points at the list and each record is &401E long, so stepping
+;; is one ADD.  A record whose first byte is a carriage return is the
+;; end of the list -- that is the ROM's marker, not the DOS's.
+;;
+;; A channel whose mode byte says &C4 once bit 5 is cleared is one of
+;; MOVE's own, left over from a command that did not finish, and it is
+;; reclaimed rather than walked past.
 ;; --------------------------------------------------------------------
 
 ; ---- FIRST_DISC_CHANNEL ---- from &68C6, &68D0, &6DDA
 FIRST_DISC_CHANNEL:
-               LD IX,(CHANS+IN_PAGE_C)         ; 68AB DD 2A 4F 9C
-               LD DE,&401E                     ; 68AF 11 1E 40
+               LD IX,(CHANS+IN_PAGE_C)         ; 68AB DD 2A 4F 9C  the head of the ROM's channel list
+               LD DE,&401E                     ; 68AF 11 1E 40  one record's worth
 
 ; ---- FIRST_DISC_CHANNEL_LOOP ---- from &68D8
 FIRST_DISC_CHANNEL_LOOP:
                ADD IX,DE                       ; 68B2 DD 19
                LD A,(IX+&00)                   ; 68B4 DD 7E 00
-               CP &0D                          ; 68B7 FE 0D
+               CP &0D                          ; 68B7 FE 0D  a carriage return is the end of the list
                RET Z                           ; 68B9 C8
-               LD A,(IX+RFDH-DCHAN)            ; 68BA DD 7E 04
+               LD A,(IX+RFDH-DCHAN)            ; 68BA DD 7E 04  the channel's mode byte
                RES 5,A                         ; 68BD CB AF
-               CP &C4                          ; 68BF FE C4
+               CP &C4                          ; 68BF FE C4  one of MOVE's own, left behind
                JR NZ,FIRST_DISC_CHANNEL_1      ; 68C1 20 05
-               CALL DELD                       ; 68C3 CD BA 69
+               CALL DELD                       ; 68C3 CD BA 69  so reclaim it and start again
                JR FIRST_DISC_CHANNEL           ; 68C6 18 E3
 
 ; ---- FIRST_DISC_CHANNEL_1 ---- from &68C1 when A <> &C4
@@ -10922,7 +10989,7 @@ FIRST_DISC_CHANNEL_1:
 
 ; ---- FIRST_DISC_CHANNEL_2 ---- from &68CB
 FIRST_DISC_CHANNEL_2:
-               LD E,(IX+&09)                   ; 68D2 DD 5E 09
+               LD E,(IX+&09)                   ; 68D2 DD 5E 09  otherwise the record says how far to the next
                LD D,(IX+&0A)                   ; 68D5 DD 56 0A
                JR FIRST_DISC_CHANNEL_LOOP      ; 68D8 18 D8
 
@@ -10932,88 +10999,95 @@ FIRST_DISC_CHANNEL_2:
 ;; the caller gets a pair either way.
 ;; --------------------------------------------------------------------
 
-; ---- STREAM_OR_CHANNEL ---- from &54E0, &6881
-STREAM_OR_CHANNEL:
-               LD B,&00                        ; 68DA 06 00
-               BIT 7,A                         ; 68DC CB 7F
+; ---- PRINTABLE_FORM ---- from &54E0, &6881
+PRINTABLE_FORM:
+               LD B,&00                        ; 68DA 06 00  normal, unless something below says otherwise
+               BIT 7,A                         ; 68DC CB 7F  is this character above 127?
                JR Z,STREAM_OR_CHANNEL_2        ; 68DE 28 0F
                LD C,A                          ; 68E0 4F
-               LD A,(MSFLG)                    ; 68E1 3A 38 42
+               LD A,(MSFLG)                    ; 68E1 3A 38 42  and does MSFLG want those inverted?
                AND A                           ; 68E4 A7
                LD A,C                          ; 68E5 79
                JR Z,STREAM_OR_CHANNEL_1        ; 68E6 28 05
-               CP &FF                          ; 68E8 FE FF
+               CP &FF                          ; 68E8 FE FF  if not, only &FF is replaced
                RET NZ                          ; 68EA C0
                JR STREAM_OR_CHANNEL_DONE       ; 68EB 18 07
 
 ; ---- STREAM_OR_CHANNEL_1 ---- from &68E6 when A = 0
 STREAM_OR_CHANNEL_1:
-               LD B,&FF                        ; 68ED 06 FF
+               LD B,&FF                        ; 68ED 06 FF  inverse, and the low seven bits are what is printed
 
 ; ---- STREAM_OR_CHANNEL_2 ---- from &68DE when bit 7 of A clear
 STREAM_OR_CHANNEL_2:
-               AND &7F                         ; 68EF E6 7F
-               CP &20                          ; 68F1 FE 20
+               AND &7F                         ; 68EF E6 7F  the character without its top bit
+               CP &20                          ; 68F1 FE 20  anything from a space up prints as itself
                RET NC                          ; 68F3 D0
 
 ; ---- STREAM_OR_CHANNEL_DONE ---- from &68EB
 STREAM_OR_CHANNEL_DONE:
-               LD A,(MSUPC)                    ; 68F4 3A 39 42
+               LD A,(MSUPC)                    ; 68F4 3A 39 42  a control code prints as MSUPC instead
                RET                             ; 68F7 C9
+
+;; --------------------------------------------------------------------
+;; Is this a disc file being moved to something that shows it?
+;;
+;; The two channels' device letters answer it.  The source must be "D",
+;; with bit 7 set as the ROM marks a letter, and the destination one of
+;; "S", "P" or "K" -- screen, printer or keyboard.  D also comes back
+;; holding the source file's type, which is what MOVA branches on next.
+;; --------------------------------------------------------------------
 
 ; ---- TOSCQ ---- from &6820
 TOSCQ:
-               LD HL,(NSTR1)                   ; 68F8 2A 3A 41
-               LD BC,FS+4                      ; 68FB 01 04 40
+               LD HL,(NSTR1)                   ; 68F8 2A 3A 41  the channel being read from
+               LD BC,FS+4                      ; 68FB 01 04 40  four bytes into its record is the device letter
                ADD HL,BC                       ; 68FE 09  SYS PAGE IS AT 8000H. PT TO CHAN
                LD A,(HL)                       ; 68FF 7E  LETTER
-               CP &C4                          ; 6900 FE C4
-               RET NZ                          ; 6902 C0  RET IF DISC NOT SRC
-               LD BC,FFSA-4                    ; 6903 01 0F 00
+               CP &C4                          ; 6900 FE C4  "D" with bit 7 set: a disc file
+               RET NZ                          ; 6902 C0  anything else is copied rather than listed
+               LD BC,FFSA-4                    ; 6903 01 0F 00  and the type byte is fifteen further on
                ADD HL,BC                       ; 6906 09
                LD D,(HL)                       ; 6907 56  SRC FILE TYPE
-               LD HL,(NSTR2)                   ; 6908 2A 56 41
+               LD HL,(NSTR2)                   ; 6908 2A 56 41  now the channel being written to
                LD BC,FS+4                      ; 690B 01 04 40
                ADD HL,BC                       ; 690E 09  PT TO CHAN LETTER
                LD A,(HL)                       ; 690F 7E
-               CP &53                          ; 6910 FE 53
+               CP &53                          ; 6910 FE 53  the screen
                RET Z                           ; 6912 C8
-               CP &50                          ; 6913 FE 50
+               CP &50                          ; 6913 FE 50  the printer
                RET Z                           ; 6915 C8
-               CP &4B                          ; 6916 FE 4B
+               CP &4B                          ; 6916 FE 4B  or the keyboard
                RET                             ; 6918 C9
 
 ;; --------------------------------------------------------------------
-;;  MOVRC / MOVWC -- read and write one byte through a channel
+;; One character in, through the channel's own input routine.
 ;;
-;;  The channel's own input routine is called through an address patched into the instruction at MTARG, since it may
-;;  be anywhere. A channel whose routine lies in the DOS's own page -- recognised by the high byte being &4B -- is
-;;  handled directly instead, because it cannot be called that way.
-;;
-;;  Exit:   MOVRC -- CY and the byte in A, or NC at end of file
-;;
-;; MOVE - READ CHAR
-;; EXIT: CY IF GOT CHAR IN A, NC IF EOF
+;; CURCHL is set to the channel being read, and the address two bytes
+;; into its record is where the ROM keeps that channel's input routine.
+;; A high byte of &4B -- "K" -- means the DOS's own, and is called
+;; directly; anything else is the ROM's, and is reached through CMR
+;; with the address planted in the instruction that calls it.
 ;; --------------------------------------------------------------------
 
 ; ---- MOVRC ---- from &6844, &684C, &685F, &6875, &687C, &6891
 MOVRC:
-               LD HL,(NSTR1)                   ; 6919 2A 3A 41
-               LD (CURCHL+IN_PAGE_C),HL        ; 691C 22 51 9C
+               LD HL,(NSTR1)                   ; 6919 2A 3A 41  the channel being read from
+               LD (CURCHL+IN_PAGE_C),HL        ; 691C 22 51 9C  which is where the ROM will read from
 
 ; ---- MOVRC2 ---- from &693D, &7A57
 MOVRC2:
                LD HL,(CURCHL+IN_PAGE_C)        ; 691F 2A 51 9C
-               LD DE,FS+2                      ; 6922 11 02 40
+               LD DE,FS+2                      ; 6922 11 02 40  two bytes in is its input routine
                ADD HL,DE                       ; 6925 19  SYS PAGE IS AT 8000H
                LD E,(HL)                       ; 6926 5E
                INC HL                          ; 6927 23
                LD D,(HL)                       ; 6928 56
                EX DE,HL                        ; 6929 EB  HL=INPUT ADDRESS
                LD A,H                          ; 692A 7C
-               CP &4B                          ; 692B FE 4B
+               CP &4B                          ; 692B FE 4B  the DOS's own channels are marked with a "K"
                JR Z,DOSIP                      ; 692D 28 0A  JR IF DOS
-               LD (MTARG),HL                   ; 692F 22 35 69
+               LD (MTARG),HL                   ; 692F 22 35 69  anything else is the ROM's, so plant the address and
+                                               ; call it
                CALL CMR                        ; 6932 CD B2 7B
 
 ; ---- MTARG ---- from &692F
@@ -11031,18 +11105,25 @@ GIPC:
                JR Z,MOVRC2                     ; 693D 28 E0  LOOP UNLESS EOF
                RET                             ; 693F C9
 
+;; --------------------------------------------------------------------
+;; One character out, the same way round.
+;;
+;; The output routine is one byte into the record rather than two, and
+;; the same "K" marks the DOS's own.
+;; --------------------------------------------------------------------
+
 ; ---- MOVWC ---- from &6868, &6888, &6896
 MOVWC:
-               LD HL,(NSTR2)                   ; 6940 2A 56 41
+               LD HL,(NSTR2)                   ; 6940 2A 56 41  the channel being written to
                LD (CURCHL+IN_PAGE_C),HL        ; 6943 22 51 9C
-               LD DE,FS+1                      ; 6946 11 01 40
+               LD DE,FS+1                      ; 6946 11 01 40  one byte in is its output routine
                ADD HL,DE                       ; 6949 19
                LD D,A                          ; 694A 57
                LD A,(HL)                       ; 694B 7E
-               CP &4B                          ; 694C FE 4B
+               CP &4B                          ; 694C FE 4B  the DOS's own?
                LD A,D                          ; 694E 7A
-               JP Z,MCHWR                      ; 694F CA 3B 6F
-               JP PRINT_A_KEEPING_IT           ; 6952 C3 66 57
+               JP Z,MCHWR                      ; 694F CA 3B 6F  then write it as a file
+               JP PRINT_A_KEEPING_IT           ; 6952 C3 66 57  otherwise let the ROM print it
 
 ; ---- EVMOV ---- from &6799, &67A8
 EVMOV:

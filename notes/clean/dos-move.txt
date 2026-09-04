@@ -1,0 +1,195 @@
+# MOVE: copying between any two of a stream, a device and a disc file.
+#
+# Prose for clean/ only.
+
+RENAME STREAM_OR_CHANNEL PRINTABLE_FORM
+
+DOC CMD_MOVE
+    MOVE a TO b -- the general copier.
+
+    EITHER END CAN BE ANYTHING the machine can read or write: a stream
+    (`#n`), a device letter ("s:" for the screen, "p:" for the printer,
+    "k:" for the keyboard, "d:" for a disc file), or a file.  MOVE does
+    not care which, because it does not do the reading and writing
+    itself -- it opens a channel at each end and works through the ROM's
+    channel machinery, which is what makes one command serve every
+    combination.
+
+    TWO TEMPORARY CHANNELS ARE OPENED, and marked with the codes the ROM
+    uses for a serial channel: MIN for the one being read, MOUT for the
+    one being written.  OPMOV opens each in turn, and the two parameter
+    blocks -- which the DOS keeps a pair of for exactly this sort of
+    thing -- are swapped by EXDAT so that one routine can open either.
+
+    THE WHOLE COMMAND RUNS WITH HMPR ZERO, which is why the operands in
+    it read as ROM system variables through the window.  CURCHL, the
+    ROM's "which channel am I talking to" pointer, is written before
+    every single character; CHANS is where the channel records live.
+
+    Flag 2 is raised to say a MOVE is running.  Nothing on the directory
+    paths reads it; the open and end-of-file code does, to tell a MOVE
+    from a command that would report "end of file".
+
+DOS &679C : "," or
+DOS &67A0 : "TO" between the two
+DOS &67A5 : the second name goes in the other parameter block
+DOS &67B1 : which command this is, for the end-of-file code to read
+DOS &67B5 : the ROM's system page into the window, for the whole command
+DOS &67B7 : the code that marks a channel as one to read from
+DOS &67BC : open it
+DOS &67CB : and the code for one to write to
+DOS &67D7 : the second open is an ordinary one, whatever the first was
+DOS &67D9 : open that too
+DOS &67DC : both open, so the copying can start
+
+DOC MOVA
+    Copy, with one special case that makes MOVE more than a copier.
+
+    A DISC FILE MOVED TO THE SCREEN, PRINTER OR KEYBOARD IS LISTED, not
+    copied byte for byte.  That is what TOSCQ asks, and it is the reason
+    MOVE "d:PROG" TO "s:" shows you a program rather than a screenful of
+    tokens.
+
+    THE NINE-BYTE HEADER GOES FIRST, discarded by reading and dropping
+    nine characters -- there is no seek on a channel, so skipping is
+    reading.  Then, for a BASIC program only, each line is taken apart:
+    the line number is printed as a number, the two-byte length is
+    dropped, and the text is passed through with INQUFG cleared so that
+    the ROM expands the tokens as it prints them.  A five-byte number
+    embedded in a line -- the &0E form -- is dropped, because the digits
+    that precede it are what the reader wants to see.
+
+    ANY OTHER TYPE is passed through character by character with the
+    tokens left alone, since they are not tokens.
+
+    A file with type &0A, an open-type file, is copied and not listed:
+    it has no header to skip.
+
+DOS &6820 : is this a disc file going to the screen or the printer?
+DOS &6823 : no, so copy it as it stands
+DOS &6827 : do not let the ROM auto-list what goes past
+DOS &682B : in quotes, so keywords are not expanded yet
+DOS &6831 : an open-type file has no header to skip
+DOS &6836 : the nine-byte header, read and dropped
+DOS &683C : only a BASIC program is taken apart line by line
+DOS &6841 : out of quotes, so the ROM expands the tokens
+DOS &6844 : the high byte of the line number
+DOS &6847 : &FF there is the end of the program
+DOS &684C : and the low byte
+DOS &684F : the channel being written to
+DOS &6857 : the line number, as a number
+DOS &685A : the two-byte line length, which the reader does not want
+DOS &685F : one character of the line
+DOS &6862 : the marker before an embedded five-byte number
+DOS &6864 : which is dropped, digits and all
+DOS &686C : end of the line?
+DOS &6870 : then the next one
+DOS &6872 : five bytes and the marker itself
+DOS &687C : one character
+DOS &687F : end of the file
+DOS &6884 : inverse video, if this character earned it
+DOS &688C : and back to normal after it
+
+DOC MOVJ
+    Read B characters and throw them away.
+
+    There is no seek on a channel, so this is what skipping is.
+
+DOC MEOF
+    Both ends closed, and the flags cleared.
+
+    CLMOV is called twice with the parameter blocks swapped between, so
+    the one routine closes whichever end is in the first block.
+
+DOS &689C : nothing of this command's flags outlives it
+DOS &689F : the first end
+DOS &68A5 : and then the other
+
+DOC FIRST_DISC_CHANNEL
+    Walk the ROM's channel list looking for the DOS's own channels.
+
+    CHANS points at the list and each record is &401E long, so stepping
+    is one ADD.  A record whose first byte is a carriage return is the
+    end of the list -- that is the ROM's marker, not the DOS's.
+
+    A channel whose mode byte says &C4 once bit 5 is cleared is one of
+    MOVE's own, left over from a command that did not finish, and it is
+    reclaimed rather than walked past.
+
+DOS &68AB : the head of the ROM's channel list
+DOS &68AF : one record's worth
+DOS &68B7 : a carriage return is the end of the list
+DOS &68BA : the channel's mode byte
+DOS &68BF : one of MOVE's own, left behind
+DOS &68C3 : so reclaim it and start again
+DOS &68D2 : otherwise the record says how far to the next
+
+DOC PRINTABLE_FORM
+    Make a character safe to print, and say whether to invert it.
+
+    Two DOS variables decide, and both can be poked:
+
+        MSFLG   DVAR 24.  Zero means a character above 127 is printed
+                inverse; anything else means it is passed through, and
+                only &FF is replaced
+        MSUPC   DVAR 25.  What to print instead of a control code, or
+                of &FF.  Normally "."
+
+    B comes back as the value for INVERT -- &FF for inverse, zero for
+    normal -- and A as the character to print.  The caller writes B into
+    the ROM's INVERT and clears it again afterwards, so one character
+    comes out inverse rather than everything after it.
+
+DOS &68DA : normal, unless something below says otherwise
+DOS &68DC : is this character above 127?
+DOS &68E1 : and does MSFLG want those inverted?
+DOS &68E8 : if not, only &FF is replaced
+DOS &68ED : inverse, and the low seven bits are what is printed
+DOS &68EF : the character without its top bit
+DOS &68F1 : anything from a space up prints as itself
+DOS &68F4 : a control code prints as MSUPC instead
+
+DOC TOSCQ
+    Is this a disc file being moved to something that shows it?
+
+    The two channels' device letters answer it.  The source must be "D",
+    with bit 7 set as the ROM marks a letter, and the destination one of
+    "S", "P" or "K" -- screen, printer or keyboard.  D also comes back
+    holding the source file's type, which is what MOVA branches on next.
+
+DOS &68F8 : the channel being read from
+DOS &68FB : four bytes into its record is the device letter
+DOS &6900 : "D" with bit 7 set: a disc file
+DOS &6902 : anything else is copied rather than listed
+DOS &6903 : and the type byte is fifteen further on
+DOS &6908 : now the channel being written to
+DOS &6910 : the screen
+DOS &6913 : the printer
+DOS &6916 : or the keyboard
+
+DOC MOVRC
+    One character in, through the channel's own input routine.
+
+    CURCHL is set to the channel being read, and the address two bytes
+    into its record is where the ROM keeps that channel's input routine.
+    A high byte of &4B -- "K" -- means the DOS's own, and is called
+    directly; anything else is the ROM's, and is reached through CMR
+    with the address planted in the instruction that calls it.
+
+DOS &6919 : the channel being read from
+DOS &691C : which is where the ROM will read from
+DOS &6922 : two bytes in is its input routine
+DOS &692B : the DOS's own channels are marked with a "K"
+DOS &692F : anything else is the ROM's, so plant the address and call it
+
+DOC MOVWC
+    One character out, the same way round.
+
+    The output routine is one byte into the record rather than two, and
+    the same "K" marks the DOS's own.
+
+DOS &6940 : the channel being written to
+DOS &6946 : one byte in is its output routine
+DOS &694C : the DOS's own?
+DOS &694F : then write it as a file
+DOS &6952 : otherwise let the ROM print it

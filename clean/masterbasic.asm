@@ -300,6 +300,7 @@ DOS_PLNS:                       EQU  &908E
 DOS_POINT:                      EQU  &8FAC
 DOS_POINTC:                     EQU  &B076
 DOS_PORT2:                      EQU  &812F
+DOS_PRINTABLE_FORM:             EQU  &A8DA
 DOS_PTH1:                       EQU  &BF13
 DOS_PTH2:                       EQU  &BF39
 DOS_REPORTA:                    EQU  &91A0
@@ -308,7 +309,6 @@ DOS_SAMCNT:                     EQU  &8234
 DOS_SCFSM:                      EQU  &8DF8
 DOS_SNPRT2:                     EQU  &8108
 DOS_STACK_ON_ENTRY:             EQU  &80F9
-DOS_STREAM_OR_CHANNEL:          EQU  &A8DA
 DOS_SVHDR:                      EQU  &810A
 DOS_TEMPW1:                     EQU  &8212
 DOS_TIMDT:                      EQU  &8280
@@ -4691,18 +4691,18 @@ FN_SHIFT_S:
 
 ; ---- FN_SHIFT_S_LOOP ---- from &4E19
 FN_SHIFT_S_LOOP:
-               LD A,(DE)                        ; 4E0C 1A
-               PUSH BC                          ; 4E0D C5
-               CALL CALLDOS                     ; 4E0E CD C1 42
-               DEFW DOS_STREAM_OR_CHANNEL-&4000 ; 4E11 DA 68
-               POP BC                           ; 4E13 C1
-               LD (DE),A                        ; 4E14 12
-               INC DE                           ; 4E15 13
-               DEC BC                           ; 4E16 0B
-               LD A,B                           ; 4E17 78
-               OR C                             ; 4E18 B1
-               JR NZ,FN_SHIFT_S_LOOP            ; 4E19 20 F1
-               JR FN_SHIFT_S_1                  ; 4E1B 18 0F
+               LD A,(DE)                       ; 4E0C 1A
+               PUSH BC                         ; 4E0D C5
+               CALL CALLDOS                    ; 4E0E CD C1 42
+               DEFW DOS_PRINTABLE_FORM-&4000   ; 4E11 DA 68
+               POP BC                          ; 4E13 C1
+               LD (DE),A                       ; 4E14 12
+               INC DE                          ; 4E15 13
+               DEC BC                          ; 4E16 0B
+               LD A,B                          ; 4E17 78
+               OR C                            ; 4E18 B1
+               JR NZ,FN_SHIFT_S_LOOP           ; 4E19 20 F1
+               JR FN_SHIFT_S_1                 ; 4E1B 18 0F
 
 ;; --------------------------------------------------------------------
 ;; Force the case of one letter at (DE), leaving anything else alone.
