@@ -6,7 +6,7 @@
 # worrying about exactly where it is in memory, or how long it is."
 #
 # So the eight blocks it hands to the DOS are the layout of a file like
-# file/MasterBasicMasterDos.bin.  They add up to 32640 bytes, which is
+# dumps/MasterBasicMasterDos.bin.  They add up to 32640 bytes, which is
 # that file's size; they split into two halves of 16320 with no
 # remainder; and the three boundaries in the second half fall exactly on
 # &7B80, &7BA4 and &7E43, the three blocks the installer copies out,
@@ -63,7 +63,7 @@ MB &6404 SAVE_BOOT
     keyboard table and the DUMP settings, which is exactly the state a
     user changes and would want kept.
 
-    VERIFIED FROM THE OUTSIDE.  file/MBPOST.bin turns out to be the
+    VERIFIED FROM THE OUTSIDE.  dumps/MBPOST.bin turns out to be the
     output of this very routine -- booted from the shipped image under
     SimCoupe and saved to a fresh disk -- so the whole layout above can
     be checked against something it produced.  Every block whose source
@@ -142,7 +142,7 @@ MB &42AD SAVE_BLOCK_FROM_DOS_PAGE
 MB &42B3 : and here they meet: page set, A zeroed, and SVBLK called through CALLDOS
 
     WHAT MASTERBASIC'S PAGE ACTUALLY HOLDS AFTER A BOOT, which no dump
-    showed until file/FullMemoryDump_After_MB_Load.bin.  MasterBASIC is
+    showed until dumps/FullMemoryDump_After_MB_Load.bin.  MasterBASIC is
     page 28 and the DOS page 29; the file is 512K, 32 pages, and both
     were found by content rather than by number -- MasterBASIC's page
     begins FF 48, which is XVAR 0 PUTSWA.

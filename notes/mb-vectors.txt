@@ -38,7 +38,7 @@ DOC INSTALL_ROM_VECTORS
     at all.  &76DA is &F9 into INSTALLER, the 943 bytes at &75E1 that the
     boot sector copies to &BC00 and runs there, so this routine runs at
     &BCF9 -- in the window, in the DOS page, alongside the two routines
-    it calls at &BDAA and &BD79.  file/LiveDuringMRINIT.bin is that page
+    it calls at &BDAA and &BD79.  dumps/LiveDuringMRINIT.bin is that page
     caught mid-boot and has the copy at &7C00-&7FAE, matching the stored
     bytes over all 943.  See notes/mb-extmem.txt, which works the same
     arithmetic out from the other end.

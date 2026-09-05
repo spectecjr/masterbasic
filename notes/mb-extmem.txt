@@ -54,7 +54,7 @@ DOC SIZE_EXTERNAL_MEMORY
     &77DB, &F7DB and &B7DB as a stored word finds nothing at all.
 
     IT IS NOT DEAD CODE, and a machine with external memory fitted
-    overturned the reading above.  All the dumps in file/ were taken
+    overturned the reading above.  All the dumps in dumps/ were taken
     under SimCoupe with one 1MB external module enabled, and MBPOST.bin
     -- a SAVE BOOT of a machine booted from the combined file -- carries
     the DOS page, so MRTAB can be read out of it.  MRTAB is the bitmap
@@ -112,7 +112,7 @@ DOC SIZE_EXTERNAL_MEMORY
     it holds &7DFA -- the address the routine runs at.  Searching for
     &77DB was searching for something that was never going to be there.
 
-    file/LiveDuringMRINIT.bin IS SIXTEEN KILOBYTES OF ZERO.  Every one
+    dumps/LiveDuringMRINIT.bin IS SIXTEEN KILOBYTES OF ZERO.  Every one
     of its 16384 bytes is &00.  It was taken to catch the page this
     routine runs in and caught page &10, which is empty; the intended
     page was &1D.  It is evidence of nothing and should not be used.
@@ -125,7 +125,7 @@ DOC SIZE_EXTERNAL_MEMORY
     buffers says only that both are mostly empty.  Check what the
     agreement is made of before believing it.
 
-    WHICH PAGE THE COPY RUNS IN: THE DOS'S.  file/LiveDuringMRINIT.bin
+    WHICH PAGE THE COPY RUNS IN: THE DOS'S.  dumps/LiveDuringMRINIT.bin
     is that page, dumped while the routine was running, and it settles
     both the page and the operands.  It agrees with the image's DOS half
     in 90.3% of bytes counting only the ones that are not zero, and it

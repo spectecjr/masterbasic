@@ -6,14 +6,14 @@ the [README](../README.md).
 
 Claims are marked where the evidence is unusual. **Confirmed on hardware**
 means checked against a dump of a machine that had booted
-(`file/MBPOST.bin`, `file/SYSPAGE_after_MBMD_boot.bin`). **Open** means unsettled, and the
+(`dumps/MBPOST.bin`, `dumps/SYSPAGE_after_MBMD_boot.bin`). **Open** means unsettled, and the
 listing says so too.
 
 ---
 
 ## 1. One file, two pages, three address spaces
 
-`file/MasterBasicMasterDos.bin` is 32640 bytes: a nine-byte header and two
+`dumps/MasterBasicMasterDos.bin` is 32640 bytes: a nine-byte header and two
 halves of 16320. Both halves are assembled to run at `&4000`-`&7FBF`, and
 each expects to see the other at `&8000`-`&BFBF`.
 
@@ -299,7 +299,7 @@ own; hook 185 and `BUILD_PAGE_IN_TRAMPOLINE` both build at `+&50`; and
 buffer, out of a prologue, 88 bytes taken from ROM 1, and an epilogue.
 
 That last one is the clearest example of the whole mechanism, because a
-dump proves every byte of it. Both fixed pieces are in `file/SYSPAGE_after_MBMD_boot.bin`
+dump proves every byte of it. Both fixed pieces are in `dumps/SYSPAGE_after_MBMD_boot.bin`
 exactly as the listing holds them, the middle 88 are ROM 1's `&E019` in
 ROM 3.0 — the same code sits at `&E02F` in 2.1 and `&E041` in 1.4, which
 is why the address is taken from the ROM's own table rather than searched
@@ -328,7 +328,7 @@ keeping fragments of the original and splicing its own around them — which
 is why it survives a ROM whose `PUT` is at a different address.
 
 All 298 bytes have been reproduced from those sources and matched against
-`file/SYSPAGE_after_MBMD_boot.bin` exactly.
+`dumps/SYSPAGE_after_MBMD_boot.bin` exactly.
 
 **Patch sites.** The two-byte holes filled by signature searches, and single
 bytes holding page numbers. These read as `&0000` in the listing, which is

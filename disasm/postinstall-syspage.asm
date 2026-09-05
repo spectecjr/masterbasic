@@ -5,7 +5,7 @@
 ; MasterBASIC paged out.  In disasm/masterbasic.asm the same code sits at
 ; &7460 and &7BA4 and has to be read with a bias in your head.
 ;
-; WHERE THESE BYTES COME FROM.  If file/SYSPAGE_after_MBMD_boot.bin is
+; WHERE THESE BYTES COME FROM.  If dumps/SYSPAGE_after_MBMD_boot.bin is
 ; present -- all 16K of the page from a machine that has booted -- it is
 ; used, and it is the authority: it is what the hardware holds.  Without
 ; it the page is assembled from the copy rules read out of the installer,

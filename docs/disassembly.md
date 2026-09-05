@@ -1,6 +1,6 @@
 # Disassembling MD+MBAS17
 
-`file/MasterBasicMasterDos.bin` is the file `MD+MBAS17` from
+`dumps/MasterBasicMasterDos.bin` is the file `MD+MBAS17` from
 [dsks/MasterDOS2_3_MasterBasic1_7.mgt](../dsks/MasterDOS2_3_MasterBasic1_7.mgt),
 the only file on that disk. It is MasterDOS 2.3 and MasterBASIC 1.7 built into
 one bootable DOS image.

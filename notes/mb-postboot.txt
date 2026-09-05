@@ -1,4 +1,4 @@
-# What file/MBPOST.bin actually is, and what may be concluded from it.
+# What dumps/MBPOST.bin actually is, and what may be concluded from it.
 
 # IT IS NOT A MEMORY DUMP.  It is the output of SAVE BOOT, made by
 # booting dsks/MasterDOS2_3_MasterBasic1_7.mgt under SimCoupe and then

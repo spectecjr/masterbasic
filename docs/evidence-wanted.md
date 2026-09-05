@@ -9,7 +9,7 @@ second `SAVE BOOT` in item 1.
 
 ---
 
-## 1. Answered — `file/MBPOST.bin` is a `SAVE BOOT` file, and it carries settings
+## 1. Answered — `dumps/MBPOST.bin` is a `SAVE BOOT` file, and it carries settings
 
 Kept here because the answer is worth more than the question was. It was made
 by booting `dsks/MasterDOS2_3_MasterBasic1_7.mgt` under SimCoupe and doing a
@@ -23,7 +23,7 @@ never was in MasterBASIC's page. It also confirms the block layout from the
 outside — every block whose source can be checked against the system page
 dumps matches byte for byte, 162, 36, 671 and 381 bytes respectively.
 
-**The second capture is in, as `file/MDMB2.bin`.** Four `DUMP` settings were
+**The second capture is in, as `dumps/MDMB2.bin`.** Four `DUMP` settings were
 poked and the machine re-saved. The predictions were written down first, in
 this file, and all four hold:
 
@@ -62,7 +62,7 @@ map at `&7C22`–`&7C2F` moving as the bits shift for a different allocation; an
 four counters at `&41FC`, `&41FE`, `&42E6` and `&42E9`. All of it is the record
 of the file being written, not settings.
 
-**The `KEY` question is answered too, by a third capture.** `file/MDMB3.bin` is
+**The `KEY` question is answered too, by a third capture.** `dumps/MDMB3.bin` is
 a clean boot with no `XVAR` pokes and one `KEY 104,200`. Exactly one byte moved
 in a system-page block, and it is the 200:
 
@@ -98,16 +98,16 @@ independent routes, same answer.
 offset 32437, which the map says is `&5896 + 178 = &5948`, is that map confirmed
 end to end by a write rather than by a comparison.
 
-**Nothing further is wanted here.** All three captures are in `file/`.
+**Nothing further is wanted here.** All three captures are in `dumps/`.
 
 
 ---
 
 ## 2. Answered — the system page, all 16K of it
 
-Three dumps arrived: `file/SYSPAGE_before_boot.bin`, taken from a reset
-machine with no DOS in memory; `file/SYSPAGE_after_MasterDOS_loaded.bin`,
-with MasterDOS 2.3 booted alone; and `file/SYSPAGE_after_MBMD_boot.bin`,
+Three dumps arrived: `dumps/SYSPAGE_before_boot.bin`, taken from a reset
+machine with no DOS in memory; `dumps/SYSPAGE_after_MasterDOS_loaded.bin`,
+with MasterDOS 2.3 booted alone; and `dumps/SYSPAGE_after_MBMD_boot.bin`,
 after the combined DOS/MasterBASIC file. Each is the whole of page 0,
 `&4000`–`&7FFF`.
 
@@ -136,7 +136,7 @@ breakpoint caught it. A breakpoint on `&77DB` never fires: every search this
 project ran for `&77DB` was looking for something that was never going to be
 there.
 
-`file/LiveDuringMRINIT.bin` is the DOS page dumped while it ran, and it shows
+`dumps/LiveDuringMRINIT.bin` is the DOS page dumped while it ran, and it shows
 the copy at `&7C00`–`&7FAE` matching the stored bytes over all 943. The two
 operands that never agreed with any relocation — `CALL &7806` and `JP &77FE` —
 are calls into the DOS's own `RMRBIT` and `SMRBIT`, which clear and set a
@@ -147,7 +147,7 @@ against MasterBASIC's half, where those addresses happen to hold other code.
 
 ## 4. Answered — the last page, from a full memory dump
 
-`file/FullMemoryDump_After_MB_Load.bin` is 512K, all 32 pages, taken after the
+`dumps/FullMemoryDump_After_MB_Load.bin` is 512K, all 32 pages, taken after the
 boot. Both pages were found by content rather than by number: MasterBASIC's
 begins `FF 48` — `XVAR 0` `PUTSWA` — and it is **page 28**, with the DOS at
 **page 29**.
@@ -179,7 +179,7 @@ what is either side of those two paths is unread, and the disk images in
 
 ## 6. Answered — `DUMP n,m` magnifies the other way round from the manual
 
-**Captured.** `file/printmode4dump1,2.txt` and `file/printmode4dump2,1.txt`:
+**Captured.** `dumps/printmode4dump1,2.txt` and `dumps/printmode4dump2,1.txt`:
 the printer stream from a full MODE 4 screen, dumped twice. Every bit-image
 line begins `ESC "*" CHR$ 4 n1 n2`, and `n1 + 256*n2` is the number of dot
 columns across the paper.
@@ -221,7 +221,7 @@ the error number and re-runs the edit line, which is exactly what `SPLIT`
 wants to happen next. But `&0EED-17` is `&0EDC`, the middle of `LD HL,FLAGS`,
 and the word there is `&5C3B`: a system variable, not a routine.
 
-And the three system-page snapshots in `file/` say the base is not `MAINER`
+And the three system-page snapshots in `dumps/` say the base is not `MAINER`
 at all:
 
 | snapshot | word at `&4EFE` |
@@ -258,7 +258,7 @@ Failing that, two cheaper things would each narrow it:
 - Anything saved as a CODE file on an `.mgt` or `.dsk` image can be dropped
   in `dsks/` and extracted here — the directory format and sector chains are
   understood, and `ref/masterdos/docs/disk-format.md` documents them.
-- Raw binaries are just as good; `file/` is where the existing dumps live.
+- Raw binaries are just as good; `dumps/` is where the existing dumps live.
 - Say which ROM version the machine is running if it is not 3.0. The fifteen
   signature searches in the dump all resolve against ROM 3.0, which is how
   the current one was identified.

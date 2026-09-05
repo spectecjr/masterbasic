@@ -32,7 +32,7 @@
 # the boot.
 #
 # EVIDENCE THAT IT IS LIVE SESSION STATE: two SAVE BOOT files taken from
-# the same disc, file/MBPOST.bin and file/MDMB2.bin, differ here and
+# the same disc, dumps/MBPOST.bin and dumps/MDMB2.bin, differ here and
 # nowhere else in block 5 except the four bytes deliberately poked
 # between them.  &7C13 in the first, &7C5C in the second -- which is to
 # say the two sessions had typed different numbers of characters at it.

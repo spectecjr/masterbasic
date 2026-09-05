@@ -3,7 +3,7 @@
 # build.sh -- regenerate the two listings in disasm/ and prove them correct.
 #
 # Assembles the annotated MasterDOS 2.3 source to get a symbol table and
-# listing, disassembles file/MasterBasicMasterDos.bin against them, then
+# listing, disassembles dumps/MasterBasicMasterDos.bin against them, then
 # assembles the result and compares it with the original file byte for byte.
 #
 # Needs pyz80:  python -m pip install pyz80
@@ -87,7 +87,7 @@ done
 python - "$work" "$root" <<'EOF' || exit 1
 import sys, os
 work, root = sys.argv[1], sys.argv[2]
-raw = open(os.path.join(root, 'file', 'MasterBasicMasterDos.bin'), 'rb').read()
+raw = open(os.path.join(root, 'dumps', 'MasterBasicMasterDos.bin'), 'rb').read()
 half = len(raw) // 2
 ok = True
 for name, part in (('masterdos', raw[:half]), ('masterbasic', raw[half:]),

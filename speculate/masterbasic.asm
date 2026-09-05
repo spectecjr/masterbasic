@@ -1612,7 +1612,7 @@ SAVE_BLOCK_FROM_THIS_PAGE_1:
 ;; Shown for this routine in disasm/:
 ;;
 ;;     WHAT MASTERBASIC'S PAGE ACTUALLY HOLDS AFTER A BOOT, which no dump
-;;     showed until file/FullMemoryDump_After_MB_Load.bin.  MasterBASIC is
+;;     showed until dumps/FullMemoryDump_After_MB_Load.bin.  MasterBASIC is
 ;;     page 28 and the DOS page 29; the file is 512K, 32 pages, and both
 ;;     were found by content rather than by number -- MasterBASIC's page
 ;;     begins FF 48, which is XVAR 0 PUTSWA.
@@ -18272,7 +18272,7 @@ WRITE_DOS_BYTE:
 ;;     keyboard table and the DUMP settings, which is exactly the state a
 ;;     user changes and would want kept.
 ;;
-;;     VERIFIED FROM THE OUTSIDE.  file/MBPOST.bin turns out to be the
+;;     VERIFIED FROM THE OUTSIDE.  dumps/MBPOST.bin turns out to be the
 ;;     output of this very routine -- booted from the shipped image under
 ;;     SimCoupe and saved to a fresh disk -- so the whole layout above can
 ;;     be checked against something it produced.  Every block whose source
@@ -23489,7 +23489,7 @@ CMD_SPLIT_LINE_1:
 ;;     variable and not a routine.
 ;;
 ;;     So the base is not MAINER, and the three system-page snapshots in
-;;     file/ say the same thing from the other end.  The word at &4EFE is
+;;     dumps/ say the same thing from the other end.  The word at &4EFE is
 ;;     &0F78 before boot, &0E90 once MasterDOS has loaded, and &487F once
 ;;     MasterBASIC has -- MasterBASIC replaces the outermost handler with
 ;;     one of its own in the system page, and ERRSP is at &4EFA by then,
@@ -26416,7 +26416,7 @@ INSTALLER_2:
 ;;     at all.  &76DA is &F9 into INSTALLER, the 943 bytes at &75E1 that the
 ;;     boot sector copies to &BC00 and runs there, so this routine runs at
 ;;     &BCF9 -- in the window, in the DOS page, alongside the two routines
-;;     it calls at &BDAA and &BD79.  file/LiveDuringMRINIT.bin is that page
+;;     it calls at &BDAA and &BD79.  dumps/LiveDuringMRINIT.bin is that page
 ;;     caught mid-boot and has the copy at &7C00-&7FAE, matching the stored
 ;;     bytes over all 943.  See notes/mb-extmem.txt, which works the same
 ;;     arithmetic out from the other end.
@@ -26739,7 +26739,7 @@ MSG_EXTERNAL_MEMORY:
 ;;     &77DB, &F7DB and &B7DB as a stored word finds nothing at all.
 ;;
 ;;     IT IS NOT DEAD CODE, and a machine with external memory fitted
-;;     overturned the reading above.  All the dumps in file/ were taken
+;;     overturned the reading above.  All the dumps in dumps/ were taken
 ;;     under SimCoupe with one 1MB external module enabled, and MBPOST.bin
 ;;     -- a SAVE BOOT of a machine booted from the combined file -- carries
 ;;     the DOS page, so MRTAB can be read out of it.  MRTAB is the bitmap
@@ -26797,7 +26797,7 @@ MSG_EXTERNAL_MEMORY:
 ;;     it holds &7DFA -- the address the routine runs at.  Searching for
 ;;     &77DB was searching for something that was never going to be there.
 ;;
-;;     file/LiveDuringMRINIT.bin IS SIXTEEN KILOBYTES OF ZERO.  Every one
+;;     dumps/LiveDuringMRINIT.bin IS SIXTEEN KILOBYTES OF ZERO.  Every one
 ;;     of its 16384 bytes is &00.  It was taken to catch the page this
 ;;     routine runs in and caught page &10, which is empty; the intended
 ;;     page was &1D.  It is evidence of nothing and should not be used.
@@ -26810,7 +26810,7 @@ MSG_EXTERNAL_MEMORY:
 ;;     buffers says only that both are mostly empty.  Check what the
 ;;     agreement is made of before believing it.
 ;;
-;;     WHICH PAGE THE COPY RUNS IN: THE DOS'S.  file/LiveDuringMRINIT.bin
+;;     WHICH PAGE THE COPY RUNS IN: THE DOS'S.  dumps/LiveDuringMRINIT.bin
 ;;     is that page, dumped while the routine was running, and it settles
 ;;     both the page and the operands.  It agrees with the image's DOS half
 ;;     in 90.3% of bytes counting only the ones that are not zero, and it
@@ -27068,7 +27068,7 @@ STACK_FILL_LOOP_1:
 ;;     the two fill one continuous region &45A2-&4AEB.
 ;;
 ;;     All 298 bytes have been reproduced exactly from those five sources
-;;     and checked against file/SYSPAGE_after_MBMD_boot.bin, with the four patches applied.
+;;     and checked against dumps/SYSPAGE_after_MBMD_boot.bin, with the four patches applied.
 ;;     Nothing is left over.
 ;;
 ;;     What this corrects
@@ -28287,7 +28287,7 @@ EVALUV_STUB_1:
 ;;     settled; a captured return address, whose high byte says which
 ;;     caller, would fit the spread better than a token does.
 ;;
-;;     &45A2 is settled, by a dump of a running machine.  file/SYSPAGE_after_MBMD_boot.bin
+;;     &45A2 is settled, by a dump of a running machine.  dumps/SYSPAGE_after_MBMD_boot.bin
 ;;     holds &4000-&4BFF of the ROM's system page after boot, and at &45A2
 ;;     it has ten bytes that are MasterBASIC's own &7986:
 ;;

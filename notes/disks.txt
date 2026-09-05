@@ -123,7 +123,7 @@
 # because the decompressor travels inside it.
 #
 # The packing format is not read here, and nothing needs it: the DOS
-# half of file/MasterBasicMasterDos.bin is the unpacked result, and that
+# half of dumps/MasterBasicMasterDos.bin is the unpacked result, and that
 # is the thing this project disassembles.
 #
 # Nothing here depends on knowing.
@@ -155,7 +155,7 @@
 
 # dsks/liveboottest.mgt
 #
-#   Where file/MBPOST.bin came from, saved as a CODE file, along with
+#   Where dumps/MBPOST.bin came from, saved as a CODE file, along with
 #   the pair of partial system-page dumps that used to sit beside it --
 #   SYSPAGE.bin and SYS2.bin, since retired in favour of the full 16K
 #   ones.
@@ -166,7 +166,7 @@
 #   matters: only two of SAVE BOOT's eight blocks hold the memory whose
 #   address they appear to occupy.
 #
-#   "file/LICENSE and COPYRIGHT.md" said so from the start -- "MBPOST.bin
+#   "dumps/LICENSE and COPYRIGHT.md" said so from the start -- "MBPOST.bin
 #   is a post-installation SAVE BOOT MasterBASIC file" -- and this
 #   project spent days concluding it the hard way instead.  Read the
 #   provenance notes beside a binary before reasoning about it.

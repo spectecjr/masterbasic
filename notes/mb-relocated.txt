@@ -108,7 +108,7 @@ DOC RELOCATED_TO_484D
     settled; a captured return address, whose high byte says which
     caller, would fit the spread better than a token does.
 
-    &45A2 is settled, by a dump of a running machine.  file/SYSPAGE_after_MBMD_boot.bin
+    &45A2 is settled, by a dump of a running machine.  dumps/SYSPAGE_after_MBMD_boot.bin
     holds &4000-&4BFF of the ROM's system page after boot, and at &45A2
     it has ten bytes that are MasterBASIC's own &7986:
 

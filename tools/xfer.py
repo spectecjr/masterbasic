@@ -182,7 +182,7 @@ def monotone_filter(found):
 if __name__ == '__main__':
     work = sys.argv[1]
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    target = open(os.path.join(root, 'file', 'MasterBasicMasterDos.bin'), 'rb').read()[9:]
+    target = open(os.path.join(root, 'dumps', 'MasterBasicMasterDos.bin'), 'rb').read()[9:]
     mdos = open(os.path.join(root, 'ref', 'masterdos', 'res', 'MDOS23.bin'), 'rb').read()
     found, amb, miss = carry(target, MDOS_BASE, mdos, MDOS_BASE,
                              os.path.join(work, 'mdos.map'),

@@ -6,7 +6,7 @@ original file byte for byte.
 
 ## What the file is
 
-`file/MasterBasicMasterDos.bin` is a SAM Coupé CODE file of 32640 bytes: a
+`dumps/MasterBasicMasterDos.bin` is a SAM Coupé CODE file of 32640 bytes: a
 nine-byte header followed by the 32631 bytes it declares.
 
 The sector chain has already been followed. A disc sector holds 510 bytes of
@@ -106,7 +106,7 @@ git submodule update --init
 
 | | |
 |---|---|
-| `file/` | the image being disassembled |
+| `dumps/` | the image being disassembled, and the hardware captures it is checked against |
 | `clean/` | the reading copy — **start here**; also the ROM's system page as MasterBASIC leaves it |
 | `disasm/` | the same code with the working notes left in |
 | `speculate/` | the same again, with a machine's reading of every routine |

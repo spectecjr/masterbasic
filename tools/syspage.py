@@ -170,8 +170,8 @@ def build(image, dump=None):
 
 def main():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    image = os.path.join(root, 'file', 'MasterBasicMasterDos.bin')
-    dump = os.path.join(root, 'file', 'SYSPAGE_after_MBMD_boot.bin')
+    image = os.path.join(root, 'dumps', 'MasterBasicMasterDos.bin')
+    dump = os.path.join(root, 'dumps', 'SYSPAGE_after_MBMD_boot.bin')
     mem, placed, real, agree = build(image, dump)
     d = SysPage(mem)
     # Everything the installer does not write is not code, and the trace
@@ -280,7 +280,7 @@ HEAD = """\
 ; MasterBASIC paged out.  In disasm/masterbasic.asm the same code sits at
 ; &7460 and &7BA4 and has to be read with a bias in your head.
 ;
-; WHERE THESE BYTES COME FROM.  If file/SYSPAGE_after_MBMD_boot.bin is
+; WHERE THESE BYTES COME FROM.  If dumps/SYSPAGE_after_MBMD_boot.bin is
 ; present -- all 16K of the page from a machine that has booted -- it is
 ; used, and it is the authority: it is what the hardware holds.  Without
 ; it the page is assembled from the copy rules read out of the installer,

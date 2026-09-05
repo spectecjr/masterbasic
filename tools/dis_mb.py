@@ -1,4 +1,4 @@
-"""Disassemble file/MasterBasicMasterDos.bin -- MasterDOS 2.3 + MasterBASIC 1.7.
+"""Disassemble dumps/MasterBasicMasterDos.bin -- MasterDOS 2.3 + MasterBASIC 1.7.
 
 Layout
 ------
@@ -63,7 +63,7 @@ import speculate
 import infer
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-IMAGE = os.path.join(ROOT, 'file', 'MasterBasicMasterDos.bin')
+IMAGE = os.path.join(ROOT, 'dumps', 'MasterBasicMasterDos.bin')
 MDOS = os.path.join(ROOT, 'ref', 'masterdos', 'res', 'MDOS23.bin')
 
 BASE = 0x4000

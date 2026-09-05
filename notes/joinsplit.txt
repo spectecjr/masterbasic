@@ -135,7 +135,7 @@ MB &6F07 SPLIT_UNWIND_ROM_STACK
     variable and not a routine.
 
     So the base is not MAINER, and the three system-page snapshots in
-    file/ say the same thing from the other end.  The word at &4EFE is
+    dumps/ say the same thing from the other end.  The word at &4EFE is
     &0F78 before boot, &0E90 once MasterDOS has loaded, and &487F once
     MasterBASIC has -- MasterBASIC replaces the outermost handler with
     one of its own in the system page, and ERRSP is at &4EFA by then,

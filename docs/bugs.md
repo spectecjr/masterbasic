@@ -256,7 +256,7 @@ For an upright dump it is the other way round. `DUMP 1,2` gives **double
 width and single height**.
 
 **Measured.** Two captures of the printer stream, a full MODE 4 screen dumped
-twice, in `file/printmode4dump1,2.txt` and `file/printmode4dump2,1.txt`. Every
+twice, in `dumps/printmode4dump1,2.txt` and `dumps/printmode4dump2,1.txt`. Every
 bit-image line begins `ESC "*" CHR$ 4 n1 n2`, and `n1 + 256*n2` is the number
 of dot columns across the paper:
 
