@@ -92,7 +92,7 @@ WRA:
       RES 6,H                         ; 45AD
       POP AF                          ; 45AF  the value again
       LD (HL),A                       ; 45B0  the actual write
-      JR BCRWC                        ; 45B1  restore HMPR and return
+      JR MBBCRWC                      ; 45B1  restore HMPR and return
 ```
 
 The caller passes an address in `HL` at its *proper* value and never thinks
@@ -106,7 +106,7 @@ The `NR` entry points take the variable's address as *data following the call*,
 not in a register:
 
 ```asm
-      CALL NRRD                       ; 4292
+      CALL MBNRRD                     ; 4292
       DEFW CUSCRNP                    ; 4295  — read the ROM's CUSCRNP into A
 ```
 
@@ -447,8 +447,8 @@ What it is not is something to do by accident. `CMR` has to make a real change,
 and look at the trouble it takes:
 
 ```asm
-      JP CMR_1+&4000                  ; 4513  into the window first
-CMR_1:
+      JP MBCMR_1+&4000                ; 4513  into the window first
+MBCMR_1:
       LD A,B                          ; 4516
       OR SYSPAGE_IN_B                 ; 4517  page zero into section B
       LD HL,(V4076+&4000)             ; 4519
@@ -481,7 +481,7 @@ runs at `&5000` because sixteen bytes earlier it says so:
       LD BC,&00E7                     ; 722F  231 bytes
       ...
       LDIR                            ; 7238
-      CALL CMR                        ; 723D
+      CALL MBCMR                      ; 723D
       DEFW GTDT                       ; 7240  = &5000: call what was just put there
 ```
 

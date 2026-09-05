@@ -147,7 +147,6 @@ MB_HCMDV:                   EQU  &8E96
 MB_HGTTK:                   EQU  &8FB7
 MB_HK_COMADENT:             EQU  &AF3E
 MB_HK_FARSCAN:              EQU  &9AE3
-MB_HK_HDUMMY:               EQU  &9B81
 MB_HK_HORDER:               EQU  &8800
 MB_HK_HPFF:                 EQU  &908A
 MB_HK_MERGECOMPFLG:         EQU  &93C3
@@ -163,6 +162,7 @@ MB_HK_SWAPCHARS:            EQU  &B159
 MB_HK_TOKENARG:             EQU  &92FD
 MB_HK_VARSPACE:             EQU  &9293
 MB_HPRTOK:                  EQU  &900E
+MB_MBHK_HDUMMY:             EQU  &9B81
 MB_MULTIPLY_BY_24:          EQU  &85F9
 MB_NEXT_SCREEN_BYTE_1:      EQU  &A280
 MB_PRINT_OPEN_FILE_COUNT:   EQU  &9044
@@ -2092,7 +2092,7 @@ SAMHK:
                DEFW HDBOP                                       ; 44D4 code 151
                DEFW SCFSM                                       ; 44D6 code 152
                DEFW MB_HK_HORDER+NOT_IN_THIS_PAGE               ; 44D8 code 153
-               DEFW MB_HK_HDUMMY+NOT_IN_THIS_PAGE               ; 44DA code 154
+               DEFW MB_MBHK_HDUMMY+NOT_IN_THIS_PAGE             ; 44DA code 154
                DEFW MB_HK_PIXELCELL+NOT_IN_THIS_PAGE            ; 44DC code 155
                DEFW MB_HK_SWAPCHARS+NOT_IN_THIS_PAGE            ; 44DE code 156
                DEFW MB_HK_PROGPREP+NOT_IN_THIS_PAGE             ; 44E0 code 157

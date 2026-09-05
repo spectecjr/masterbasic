@@ -22,7 +22,45 @@ reader needs and the part the code does not say.
 
 DOC is keyed by label name rather than by address: the two pages hold
 the same routines at different addresses.
+
+Which is also why the two halves cannot both use the bare name once
+they are assembled together.  pyz80 keeps one symbol table for the
+whole assembly, so MasterDOS keeps the names -- they are its own
+source's -- and MasterBASIC's copies take an MB prefix.  name_for()
+and doc_for() below are the whole of that, and doc_for rewrites the
+prose too, so a banner in MasterBASIC's listing names MasterBASIC's
+routines and not the other half's.
 """
+
+import re
+
+# The routines both halves carry under one name.  WRA is not among them:
+# only MasterBASIC has it.
+SHARED_NAMES = ('CMR', 'CMR_DONE', 'NRRD', 'NRRDD', 'NRWR', 'NRWRD',
+                'NRWRHL', 'RDA', 'RDBC', 'WRTBC', 'GTHL', 'BCRWC',
+                'PPXR', 'HK_HDUMMY')
+
+
+def name_for(tag, name):
+    """What the half tagged `tag` calls one of the shared routines."""
+    if tag == 'MB' and name in SHARED_NAMES:
+        return 'MB' + name
+    return name
+
+
+def doc_for(tag, name):
+    """DOC[name] with every shared name rewritten to that half's.
+
+    The word boundaries are not decoration: without them NRWR matches
+    inside the MBNRWRD a previous pass has just written, and the name
+    comes out MBMBNRWRD.
+    """
+    text = DOC[name]
+    if tag != 'MB':
+        return text
+    for n in sorted(SHARED_NAMES, key=len, reverse=True):
+        text = re.sub(r'\b%s\b' % n, 'MB' + n, text)
+    return text
 
 FAMILY = """\
 %s

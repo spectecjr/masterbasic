@@ -291,9 +291,9 @@ MB &6331 NEXT_SCREEN_NIBBLE
     address folded into the same run of shifts.
 
 MB &6253 BUILD_NIBBLE_TABLE
-    How often each of the sixteen nibble values occurs in the screen:
-    sixteen counters of two bytes at &E500, both nibbles of every source
-    byte counted into them.
+    A histogram of the screen: how often each of the sixteen nibble
+    values occurs in it, as sixteen counters of two bytes at &E500, with
+    both nibbles of every source byte counted into them.
 
     THE SOURCE IS EXACTLY A MODE 4 SCREEN.  B is left at zero by the
     clearing loop above, so the inner DJNZ runs 256 times, and C is &60 --
@@ -311,7 +311,8 @@ MB &6253 BUILD_NIBBLE_TABLE
     zero.
 
 MB &6237 SCAN_NIBBLE_TABLE
-    Pick the value that occurs least often, and return it in A.
+    Read the histogram BUILD_NIBBLE_TABLE just made and pick the value
+    that occurs least often, returning it in A.
 
     IT IS LOOKING FOR THE RAREST, and the direction of the test settles
     it: SBC HL,BC borrows when this count is below the best so far, and

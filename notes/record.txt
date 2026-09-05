@@ -11,7 +11,7 @@ MB &5B75 : the keyboard half-row ESC sits on.  The ROM does the identical
 MB &5B79 : bit 5 of the status port, low while ESC is held
 MB &5B7B : not pressed is the common case, so that is the cheap exit
 
-MB &5B81 HK_HDUMMY
+MB &5B81 MBHK_HDUMMY
     Hook code &9A -- put one byte in the interrupt-driven printer buffer,
     waiting if it is full.
 

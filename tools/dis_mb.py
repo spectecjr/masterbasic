@@ -1495,9 +1495,26 @@ def errtbl_errors(dos):
     return out
 
 
-def load_symbols(d, work, dos=None):
+# Names MasterDOS carries from its own source onto DATA, which carrydoc
+# does long after load_symbols has run -- so finalise() cannot see them
+# in either half's labels and would hand the bare ROM name to the other
+# half.  DCT is the whole list: the ROM's disc error counter at &5BB6 and
+# MasterDOS's own retry counter at &4111.  check_name_collisions() below
+# fails the build if another one appears.
+CARRIED_LATE = frozenset(('DCT',))
+
+
+def load_symbols(d, work, dos=None, peer=None):
     """Names for everything outside both pages: ROM routines and variables,
-    the hardware ports, and the RST &08 codes."""
+    the hardware ports, and the RST &08 codes.
+
+    `peer` is the other half, and only finalise() wants it: a ROM name
+    has to keep clear of the labels in BOTH halves, not just this one,
+    or the two disagree about who owns a name.  MasterDOS calls its own
+    routines CHKHL, DCT and TEMPW1, so its ROM equates for those became
+    ROM_CHKHL and the rest; MasterBASIC, having no labels of those
+    names, kept the bare ones -- and the two could not then be assembled
+    together."""
     syms = romsyms.Symbols()
     lst = os.path.join(work, 'mdos.lst')
     if os.path.exists(lst):
@@ -1528,7 +1545,11 @@ def load_symbols(d, work, dos=None):
         sorted(glob.glob(os.path.join(ROOT, 'ref', 'samrom', '*.asm')))
         + [os.path.join(ROOT, 'ref', 'masterdos', 'annotated-src',
                         'masterdos23.asm')])
-    syms.finalise(set(d.labels.values()) | set(d.ports.values()))
+    reserved = set(d.labels.values()) | set(d.ports.values())
+    if peer is not None:
+        reserved |= set(peer.labels.values())
+    reserved |= CARRIED_LATE
+    syms.finalise(reserved)
     d.syms = syms
 
     taken = {}
@@ -2349,6 +2370,29 @@ def prune_equates(text):
     return chr(10).join(res) + chr(10), dropped
 
 
+def check_name_collisions(dos, mb):
+    """Names the two halves would fight over in one assembly.
+
+    base.asm INCLUDEs both, and pyz80 keeps one symbol table for the
+    whole assembly: a name defined twice with different values is a hard
+    error, and a name that is a label in one half and an equate in the
+    other is the same fault wearing a different hat.  Both classes have
+    been met and both are fixed at their source -- nrfam.SHARED_NAMES
+    for the routines both halves carry, CARRIED_LATE and finalise()'s
+    reserved set for the ROM names MasterDOS wants for itself.  This is
+    here so that the next one is a failed build and not a silence.
+    """
+    bad = []
+    dl, ml = set(dos.labels.values()), set(mb.labels.values())
+    for n in sorted(dl & ml):
+        bad.append('%s is a label in both halves' % n)
+    for tag, labels, other in (('DOS', dl, mb), ('MB', ml, dos)):
+        for n in sorted(labels & set(other.used_ext)):
+            bad.append('%s is a label in the %s half and an equate in the '
+                       'other' % (n, tag))
+    return bad
+
+
 def write_clean(pages):
     """Write listings/clean/, the reading copy, from a copy of the two pages.
 
@@ -2508,7 +2552,7 @@ def main():
     annotate.apply(mb, annotate.MB)
     toks = name_tables(dos, mb, args.work)
     for d in (dos, mb):
-        load_symbols(d, args.work, dos)
+        load_symbols(d, args.work, dos, peer=(mb if d is dos else dos))
         hooks_by_code = romsyms.hook_names(dos, HOOK_TABLE)
         # A hook MasterBASIC took over is handled by a routine in the
         # extension's own listing, and that routine already carries the
@@ -2565,14 +2609,18 @@ def main():
         rev = {}
         for at, name in d.labels.items():
             rev.setdefault(name, at)
-        head = rev.get('NRWRD')
+        head = rev.get(nrfam.name_for(d.tag, 'NRWRD'))
         if head is not None and d._starts_insn(head - 2)                 and d.insns[head - 2].text == 'LD B,H':
-            d.labels[head - 2] = 'NRWRHL'
-            rev['NRWRHL'] = head - 2
+            hl = nrfam.name_for(d.tag, 'NRWRHL')
+            d.labels[head - 2] = hl
+            rev[hl] = head - 2
+        # DOC is keyed by the bare name and serves both halves; name_for
+        # says what this half calls the routine and doc_for rewrites the
+        # prose to match, so MasterBASIC's banner names MasterBASIC's.
         for name, doc in nrfam.DOC.items():
-            at = rev.get(name)
+            at = rev.get(nrfam.name_for(d.tag, name))
             if at is not None and at not in d.headers:
-                d.headers[at] = annotate.banner(doc)
+                d.headers[at] = annotate.banner(nrfam.doc_for(d.tag, name))
                 nnr += 1
     print('documented %d routines of the NR family' % nnr)
 
@@ -2590,7 +2638,7 @@ def main():
     # named from what the code around them does -- and said to be.
     rev = {v: k for k, v in mb.labels.items()}
     mb.fetchers = set()
-    wrap = infer.wrappers(mb, rev.get('CMR'), mb.syms)
+    wrap = infer.wrappers(mb, rev.get('MBCMR'), mb.syms)
     for a, name in wrap.items():
         if name not in set(mb.labels.values()):
             mb.labels[a] = name
@@ -2723,6 +2771,13 @@ def main():
                 os.path.join(args.outdir, n)
                 for n in ('masterdos.asm', 'masterbasic.asm')]):
             print('notes/: ' + p)
+        clashes = check_name_collisions(dos, mb)
+        for c in clashes:
+            print('name clash: ' + c)
+        if clashes:
+            raise SystemExit('dis_mb: %d name(s) the two halves would fight '
+                             'over in one assembly -- base.asm could not be '
+                             'assembled' % len(clashes))
         # Before the speculation pass, which puts a header on every
         # routine and would swamp what the reading copy is for.
         write_clean((dos, mb))
