@@ -5,8 +5,8 @@ as they were sold. The listings cannot be corrected: they assemble to the
 original image byte for byte, and that is the point of them. So a defect
 gets written down here and explained where it sits.
 
-Four are confirmed and one is suspected. The rest of this file is a plan
-for looking properly.
+Four are confirmed and one is suspected. The three sweeps this file used to
+plan have now been run, and what they found is at the end.
 
 ---
 
@@ -300,7 +300,74 @@ unchanged, and the defaults follow the manual: sideways for `DUMP 3` or MODE
 ---
 
 
-## A pass to make, when the narrative work is further on
+## The three sweeps, run
+
+Each of these was proposed because it had already produced one result by
+accident. All three have now been run properly. One found nothing new, one
+found nothing at all, and one turned out to be mostly about the tool.
+
+### Constants used in the wrong space — no new instances
+
+The original sweep walked masks applied to a rotated status. `&46DF` escaped
+it because the value travels through `PUSH AF` and `POP AF`, so the walk was
+extended through the stack.
+
+Every status read in the driver was followed to every constant applied to it.
+The result rederives both known defects and adds nothing:
+
+- Both block-transfer loops (`&48DB`, `&4A28`) read the status, test `BIT 1,A`
+  for DRQ, rotate once, and then apply `&0D` — rotated bits 0, 2, 3, which are
+  DRQ, CRC and RECORD NOT FOUND. LOST DATA, rotated bit 1, is absent. The `&01`
+  is dead, because the `BIT 1` above already jumped away on DRQ. That is
+  defect 1.
+- `CDE1` reaches `BIT 4,A` at `&46DF` with the status having passed through
+  `PUSH AF` / `POP AF`. In rotated space RECORD NOT FOUND is bit 3, and the
+  mask above has cleared bit 4 in any case. That is defect 2.
+
+The four transfer loops at `&45AE`, `&45D9`, `&4676` and `&46B3` use the idiom
+correctly: two rotates, testing BUSY and then DRQ. `&454C` rotates a track
+count rather than a status.
+
+### Off-by-one in the other direction — nothing to find
+
+The concern was that Type I and Type II commands do not use the same status
+bits — bit 2 is TRACK 0 for one and LOST DATA for the other, bit 5 is SPIN-UP
+against RECORD TYPE — and that the DOS issues both.
+
+**The Type I commands are never polled.** `STEP_HEAD_IN` and `STEP_HEAD_OUT`
+issue the step and then call `STPDEL`, which waits out a delay taken from
+`STPRAT` or `STPRT2`; no status is read afterwards. The banner on `STEP` says
+why: the controller reports a step complete long before the head has settled,
+so the wait is the DOS's own. `RESTORE` in the boot at `&40AD` is followed by a
+latency loop and then a `POP AF` that recovers the retry count, not the status.
+
+So every status test in the driver follows a Type II or Type III command, and
+the ambiguity cannot arise. The one bit-5 test, at `&5511` after WRITE TRACK,
+reads the rotated status and so means bit 6, WRITE PROTECT — which is bit 6
+for Type III as well.
+
+### Divergence from the source — mostly the check's own fault
+
+`carrydoc` reported five routines as changed from the annotated source. Read as
+a list rather than one at a time, four were artefacts:
+
+| | reported | actually |
+|---|---|---|
+| `MRTAB` | 8 of 48 | data — `DEFS &20`, zeros decoded as instructions |
+| `AUTNAM` | 8 of 12 | data — `DEFB 1 / DEFM "AUTO*"` |
+| `GETSCR` | 8 of 12 | byte-identical to stock; the span ran on into `PUTSCR` |
+| `MCHWR` | 33 of 45 | the same overrun |
+
+Two causes, neither of them a change to the code: data counted as instructions,
+and a span measured past the routine because the next one carries no header.
+The check now skips declared data and bounds the span by the next label of any
+kind. Seven of these banners existed when the sweep began; one does now.
+
+`INPST` is the one real divergence, and it is a feature rather than a fault:
+MasterBASIC extended `INP$` so that a count of zero reads until a carriage
+return, where stock refuses it as out of range. See `notes/clean/dos-channel.txt`.
+
+
 
 The one above was found by reading, not by looking. Three sweeps would
 be worth running properly, because each has already produced one result
