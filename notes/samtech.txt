@@ -87,6 +87,37 @@
 #   -- NLESE/SLESE, NGRTE/SGRTE, NLESS/SLESS, NEQUAL/SEQUAL,
 #   NGRTR/SGRTR -- so NOTE is the only one in the manual missing its N.
 #
+# FOUR ERRORS IN THE TRANSCRIPTION ITSELF, found by checking that the
+# system variable table runs in increasing address order.  It does,
+# everywhere but here, and each of the four is confirmed three ways: by
+# the ordering, by the byte counts of the rows around it, and by
+# ref/samrom/vars.asm.
+#
+#   OVERT     5353  should be 5A53, between M23INKT 5A52 and INVERT 5A54
+#   Reserved  5371  should be 5A71 -- PRPOSN at 5A70 is two bytes, and
+#                   vars.asm calls the second "1 BYTE EXTRA FOR
+#                   CONVENIENT LD", which is what Reserved means here
+#   TEMPW1    53C8  should be 5AC8, with TEMPW2 at 5ACA and TEMPW3 5ACC
+#   LSPTR     5B8E  should be 5B8B.  AUTOSTEP at 5B89 is two bytes, LSPTR
+#                   is two more, LNPTR follows at 5B8D -- and 5B8E is
+#                   MSEDP's, so the file gives one address to two names
+#
+# The first three are one OCR substitution made three times, 5A read as
+# 53, and the project's README says OCR errors are in scope to fix.  The
+# fourth could be either the scan's or the manual's; without the scan
+# there is no telling, and it is wrong in the file either way.
+#
+# Not errors, though both look like one against vars.asm:
+#
+#   SLDEV at 5A06.  vars.asm has PSLD there and its own SLDEV at 5BB7,
+#   both described "DEVICE LETTER/NUMBER".  Two sources naming the same
+#   pair of bytes differently, not a mistake in either.
+#
+#   STREAMS at 5C0C with 42 bytes.  vars.asm puts the label at 5C10 and
+#   then says in its own comment "USES 5C0C-5C35 FOR STREAMS -5 TO 15",
+#   so the manual has the table's base and vars.asm an offset into it.
+#   21 streams of two bytes is the 42, and 5C0C + &2A is CHARS at 5C36.
+
 # WHAT IT CONFIRMED.  The calculator section was read against
 # tools/fpcalc.py, which takes its table from ref/samrom/fpcmain.asm.
 # Every code that eats bytes of its own agrees: JPTRUE, JPFALSE, JUMP
