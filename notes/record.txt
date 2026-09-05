@@ -1,0 +1,422 @@
+# RECORD, SOUND and the escape check -- and the three builds that copy
+# a ROM routine into the system page and patch a few bytes of it.
+# Proposed by a fresh reader, audited against the instructions.
+
+MB &5B70 : the write pointer has moved, so wake the player: 0 in V4084 means
+           idle, 1 means "take data on the next interrupt"
+
+MB &5B75 : the keyboard half-row ESC sits on.  The ROM does the identical
+           pair in tadjm.asm -- LD A,&F7 : IN A,(STATPORT) ";BIT 5 IS LOW IF
+           ESC PRESSED"
+MB &5B79 : bit 5 of the status port, low while ESC is held
+MB &5B7B : not pressed is the common case, so that is the cheap exit
+
+MB &5B81 HK_HDUMMY
+    Hook code &9A -- put one byte in the interrupt-driven printer buffer,
+    waiting if it is full.
+
+    A RING OF 1K SLOTS WITH TWO POINTERS.  V4085/V4086 are the page and
+    address the 50Hz tick reads from (&59FC-&5A68, which runs in the system
+    page with this half in the window, and so spells them &8085/&8086), and
+    V4088/V4089 are the page and address written here.  Equal pointers mean
+    empty, so the writer must never let its pointer catch the reader's --
+    hence the wait at &5BBB.
+
+    The manual promises exactly that wait: "If the buffer becomes full, the
+    computer will wait for the printer to deal with some of the data before
+    finishing the LLIST, DUMP or LPRINT."
+
+    The body from &5B8E to &5BBA is the same twenty-five instructions as
+    WINDOW_SOUND_POINTER at &5B22, which does the same job for the sound
+    buffer; the only difference is that this stores one byte where that
+    stores a register number and a value.
+
+MB &5B81 : the byte to print, kept in B because A is about to carry paging
+MB &5B82 : the wait below can be long, so it must be escapable
+MB &5B88 : the tick touches these same pointers, so no interrupt may land
+           between reading V4088 and writing V4089 back
+MB &5B8C : the buffer's page into the window; the pointer that follows is a
+           &4000-&7FFF value, read there by the SET 7,H / RES 6,H below
+MB &5B92 : H+1 with the low two bits clear means the pointer is inside the
+           last 256 bytes of a 1K slot, the only place a slot link can be
+MB &5B93 : E keeps the un-windowed high byte, put back at &5BB8
+MB &5B9D : &7F is the top slot of the page, whose last sixteen bytes are
+           SLOTT, so its link sits sixteen bytes lower
+MB &5BA2 : add those sixteen, so the one CP &FE below covers both cases
+MB &5BA4 : &FE means the two bytes left in the slot are the link, not data
+MB &5BA8 : the link is stored as high byte of address, then page
+MB &5BAB : and a slot always starts on a 256-byte boundary
+MB &5BB7 : the byte itself, at last
+MB &5BBB : the reader's address.  If the writer has arrived at it the ring is
+           full -- unless the reader is in another page, which the compare at
+           &5BCD settles
+MB &5BC3 : interrupts back on, because it is the interrupt that will empty
+           the buffer and end this wait
+
+DOC CMD_RECORD
+    Reached from MasterDOS's command-intercept table, which maps the ROM's
+    own RECORD token &EF to this address (&4330 in masterdos.asm).
+
+    IT DOES NOT IMPLEMENT RECORD; IT REWRITES THE ROM'S.  The ROM's RECORD --
+    assign.asm, "E.G. RECORD TO A$ OR: RECORD STOP" -- already knows how to
+    delete a string variable, copy its name to STRM16NM and open stream 16 on
+    it.  MasterBASIC copies that routine into the system page at &5000 and
+    changes exactly two operands, so that RECORD SOUND writes to
+    MasterBASIC's own flag and its own stream-16 record instead of the ROM's,
+    leaving the ROM's graphics RECORD alone.
+
+    In ROM 3.0 the routine is at &2C1A and the assembled copy comes out as
+
+        &5000  RST &18            the current character, not the next
+        &5001  38 bytes of the ROM's RECORD, up to and including CALL SCOPN1
+        &5027  12 bytes: set SYS_RECORD_STATE from SYS_RECORD_MODE
+        &5033  CALL SCOPNM       (the ROM's LD A,D : LD (GRARF),A skipped)
+        &5036  JP &2C9B          the ROM's JR ASNS1, made absolute
+
+    and then &5007 is patched from GRARF to SYS_RECORD_STATE and &5022 from
+    STRM16NM to SYS_STRM16_SAVE.
+
+MB &5BD8 : the word after RECORD must be SOUND, or "Not understood"
+MB &5BDD : &89 is the OFF token, so Z here means RECORD SOUND OFF
+MB &5BE0 : the mode is zero for OFF and non-zero otherwise; CMD_RECORD_1
+           turns that into the state byte later
+MB &5BE6 : only OFF has to be stepped past -- TO and STOP are what the ROM's
+           own code expects to find under the character pointer
+MB &5BEE : &BE is 2*(&EF-&90), the ROM command table's entry for token &EF,
+           which is RECORD.  Checked against ref/samrom/roms: in ROM 3.0 that
+           entry holds &2C1A, which is assign.asm's RECORD
+MB &5BF2 : the table is in ROM 1; the routine it names is in ROM 0 and needs
+           no paging of its own
+MB &5C05 : &DF is RST &18, "the character we are on", where the ROM's
+           dispatcher would have used RST &20.  CMD_RECORD has already
+           stepped past SOUND and any OFF, so a second step would eat the TO
+MB &5C09 : 38 bytes reaches the end of the ROM's CALL SCOPN1
+MB &5C17 : four bytes skipped -- the ROM's LD A,D : LD (GRARF),A, which would
+           switch the ROM's own graphics recording on
+MB &5C1F : the ROM ends with JR ASNS1; &54 is that JR's own two bytes plus its
+           &52 displacement, so this computes the target without reading it.
+           &52 is the displacement in every ROM image from 1.4 on
+MB &5C24 : and a JP, because a JR from &5036 could not reach it
+MB &5C2D : &5007 is the operand of the ROM's LD (GRARF),A on the STOP path, so
+           RECORD SOUND STOP zeroes SYS_RECORD_STATE instead of the ROM's
+           graphics flag
+MB &5C33 : &5022 is the operand of LD DE,STRM16NM.  The variable's name goes
+           into MasterBASIC's saved copy, not the ROM's live one -- which is
+           what the swap at &5E0C exists to shuttle back and forth
+MB &5C39 : and run what was just built
+
+MB &5C3C : the inline parameter of the CALL above -- &5000, the routine just
+           assembled
+
+DOC CMD_RECORD_1
+    The twelve bytes planted at &5027, on the RECORD SOUND TO path only --
+    RECORD SOUND STOP has returned from the ROM's own code long before.
+
+    SYS_RECORD_MODE is zero only for OFF, so the state comes out 2 for
+    "record but do not perform" and 1 for "record and perform".  Everything
+    downstream tests it with BIT 1 for the first and AND A for the second,
+    which is why the two values are 2 and 1 and not 1 and 2.
+
+MB &5C43 : 2 is the OFF value; the DEC A below turns it into 1
+
+MB &5C4B : the ROM's DEF KEYCODE and KEYIN entries both open with
+           LD HL,<source> -- &388D is 21 6E C4 and &3867 is 21 92 C2 in ROM
+           3.0 -- so the two bytes after the first are where the code really
+           lives
+MB &5C51 : RST &20 planted ahead of every copy, because the ROM's dispatcher
+           would have stepped past the keyword before entering
+
+MB &5C56 : &9000 is &5000 in the system page, with HMPR about to be zeroed
+
+MB &5C61 : the old HMPR leaves in C and comes back in A at &5C65, so the
+           caller can PUSH it in one instruction
+MB &5C62 : the system page into the window, which is what makes &9000 mean
+           &5000
+
+MB &5C66 : the first byte of the copy, planted before the LDIR so that the
+           destination pointer the caller is handed already steps over it
+MB &5C68 : out with HL = source, DE = destination, ready for LDIR
+
+MB &5C6D : SOUND CLEAR is the only form MasterBASIC handles for itself
+MB &5C77 : SOUND CLEAR on its own -- "clear the buffer and silence the sound
+           chip, without altering the buffer size"
+MB &5C80 : silence first, because what follows hands the old buffer back to
+           the allocator while the interrupt is still reading it
+MB &5C83 : the read pointer doubles as the handle on the slot chain; the chain
+           is circular, so freeing from wherever the reader stands frees all
+           of it
+MB &5C89 : page 0 means there is no buffer yet
+MB &5C90 : read pointer and write pointer both set to the new buffer, which is
+           the empty condition.  A size of zero comes back with A = 0 and
+           leaves both at page 0 -- the manual's "SOUND CLEAR 0 will delete
+           the buffer and free the memory for other uses", and what
+           HK_FARSCAN reports as "No Buffer"
+
+MB &5CA1 : wait for the frame interrupt, so the player is between bytes and
+           not halfway through a register pair
+MB &5CA3 : 0 stops the player -- it returns at once while this is zero
+MB &5CA6 : write pointer := read pointer.  Nothing is erased; the ring is
+           simply declared empty
+MB &5CB2 : 32 registers, counted down by the DEC A at the top of the loop so
+           that the first one written is 31
+MB &5CB4 : reloaded every turn because DEC B destroys it
+MB &5CBA : the address port is &1FF and the data port &0FF, so DEC B turns one
+           into the other -- and leaves B holding the zero that is about to be
+           written
+
+DOC CMD_SOUND_2
+    Ordinary SOUND.  Like PAUSE, it does not parse -- it assembles the ROM's
+    SOUND at &5000 in the system page, with eleven bytes of its own spliced
+    into the middle and fifty-six added at the end.
+
+    THE SPLICE IS FOUR INSTRUCTIONS AND IT IS THE WHOLE OF "OFF".  The ROM
+    leaves the sound chip's address port in BC as &01FF just before its output
+    loop; the eleven bytes at V5DBF land there and, when SYS_RECORD_STATE says
+    OFF, change C to &E2 so the loop's two OUTs go to a port nothing answers.
+    The sound is suppressed by writing somewhere else, not by skipping the
+    write.
+
+    Against ROM 3.0, whose SOUND is at &D88A and 67 bytes long, the copy is
+
+        &5000  NOP                     (B = 0, see below)
+        &5001  48 ROM bytes, up to and including LD BC,&01FF
+        &5031  11 bytes from V5DBF     the OFF test
+        &503C  18 ROM bytes            LD HL,INSTBUF and the output loop
+        &504E  56 bytes from &5DE7     the shared "append to the string" tail
+
+    The eighteen bytes stop one short of the ROM's own RET, so the output loop
+    falls into MasterBASIC's tail instead of returning.
+
+MB &5CC1 : NOP, not RST &20.  CMD_SOUND has already stepped past the SOUND
+           token looking for CLEAR, so the character pointer is where the
+           ROM's code expects it and a second step would eat an argument
+MB &5CC7 : forty-eight bytes -- everything up to and including the ROM's
+           LD BC,&01FF
+MB &5CCB : the ROM source pointer is put back at &5CD3, so the eighteen bytes
+           below carry on from offset 48, not from after the splice
+MB &5CDB : and &38 more from &5DE7, which PAUSE also uses
+
+MB &5D20 : entered through the window, as &9D20, by the trampoline built
+           above -- so this runs in MasterBASIC's own page while section B
+           holds the system page
+MB &5D23 : twenty-one more bytes of the ROM's POKE, overwriting the trampoline
+           that has just done its job
+MB &5D28 : and the sixty-nine byte far-move helper at &5E1F, which lands at
+           &4D65 -- the frame that makes its CALL &4D91 mean &5E4B
+
+MB &5D32 : RST &20, because the ROM's dispatcher would have stepped past the
+           PAUSE keyword and MasterBASIC's has not
+MB &5D3D : PUSH AF planted between the ROM's CALL GETINT and its LD E,7.
+           GETINT returns "A=C", the count mod 256, and this is the only copy
+           of it that survives the pause loop -- &5DDE pops it back
+MB &5D46 : seven bytes at &500D, in front of the pause loop
+MB &5D4E : the loop itself, sixteen ROM bytes at &5014
+MB &5D52 : and &4E bytes at &5024 replacing the rest of the ROM's PAUSE
+
+MB &5D59 : &5000, the routine just assembled, for STORE_BC_AT_XVAR76 below
+
+MB &5D69 : &91 bytes -- the ROM's own count.  Its DEF KEYCODE stub at &388D
+           reads LD HL,&C46E : LD IX,&C4EF : LD BC,&0091 : LD DE,&4F00, so
+           MasterBASIC copies exactly what the ROM would have copied, to
+           exactly where
+MB &5D6E : the one operand that changes, at INSTBUF+&0D
+
+MB &5D7F : nine, then &16, then &2C, then six -- 81 bytes in all, which is the
+           &0051 the ROM's own KEYIN stub at &3867 loads into BC
+MB &5D82 : the ROM's block is broken into three so that a CALL can be dropped
+           in after each
+MB &5D93 : and the seventeen bytes that CALL leads to, which land at &4B5B
+           because &4B00 + 1 + 9+3 + &16+3 + &2C+3 + 6 is exactly &4B5B
+
+MB &5DAB : &4B5B is where CMD_KEYIN_1 ends up in the block being built, so all
+           three appended calls call it
+
+DOC CMD_KEYIN_1
+    The seventeen bytes appended to the KEYIN build, and the target of the
+    three CALL &4B5B instructions interleaved with the ROM's own code.
+
+    It points the ROM's character pointer at the edit line's page and, if the
+    workspace was somewhere else, moves that too.  ELINEP, CHADP, WORKSPP and
+    WORKSP are all ROM system variables -- &5A93, &5A96, &5A90 and &5A91 in
+    vars.asm -- so every address here is a system-page one, not this page's.
+
+MB &5DAE : the page the edit line is in
+MB &5DB1 : &5A96 is the ROM's CHADP, not an address in this page
+MB &5DB7 : already the same page, so there is nothing to move
+MB &5DBC : two on from WORKSPP is the high byte of WORKSP; what setting bit 6
+           of it is for I cannot work out
+
+DOC V5DBF
+    Eleven bytes assembled for &5031 -- CMD_SOUND_2 copies them there.
+    Subtract &0D8E from any address in this fragment.
+
+        &5031  LD A,(SYS_RECORD_STATE)
+        &5034  BIT 1,A
+        &5036  JR Z,&503A
+        &5038  LD C,&E2
+        &503A  LD A,&FF
+
+    They sit between the ROM's LD BC,&01FF and its output loop, so C holds the
+    sound chip's port when they are entered.
+
+MB &5DC6 : RECORD SOUND OFF -- the loop below still runs and still OUTs, but
+           to &01E2/&00E2, which nothing on a standard SAM answers
+MB &5DC8 : A must go back to &FF: the ROM's loop compares it with each
+           register number to find the terminator, and the LD A above it
+           destroyed it
+
+DOC CMD_PAUSE_1
+    Seven bytes assembled for &500D.  Subtract &0DBD from any address here --
+    a different frame from CMD_PAUSE_2 sixteen bytes below, which is why the
+    listing's own arrow from &5DCF is sixteen bytes out.
+
+        &500D  LD A,(SYS_RECORD_STATE)
+        &5010  BIT 1,A
+        &5012  JR NZ,&5031
+
+    They sit between the ROM's CALL GRAREC and its wait loop, so taking the
+    jump means the machine never waits at all -- RECORD SOUND OFF recording a
+    PAUSE without performing it, the manual's "This makes the subroutine
+    execute faster".
+
+DOC CMD_PAUSE_2
+    &4E bytes assembled for &5024.  Subtract &0DAD from any address here.
+    They replace the ROM's PAUSE from its JR Z,PAU2 onwards, and the change is
+    one byte long:
+
+        ROM &F003+27   28 04  JR Z,PAU2 / 0B 78 B1 / C8    RET Z
+        here  &5024    28 05  JR Z      / 0B 78 B1 / 28 06 JR Z
+
+    THE ROM'S RET Z BECOMES A JR.  PAUSE cannot return from inside the loop
+    any more, because there is a PUSH AF at &5007 to unwind and, if recording
+    is on, a marker to append.  Every exit now lands on the POP HL at &5031.
+    That one extra byte is why the two displacements here read 05 and E5 where
+    the ROM's read 04 and E6.
+
+MB &5DD6 : counted out -- where the ROM would simply have returned
+MB &5DDC : the ROM's "no key" reset, and then it too falls into &5031
+MB &5DDE : the AF pushed at &5007, whose A is the pause count mod 256
+MB &5DDF : &20 is the PAUSE marker.  Register numbers only go up to 31, so 32
+           can never be mistaken for one -- the interrupt player at &5AB5
+           tests for exactly this byte and takes the one after it as a frame
+           count
+MB &5DE1 : so INSTBUF now holds the two bytes &20, count
+MB &5DE4 : four past INSTBUF, chosen so that the shared tail's
+           HL - INSTBUF - 2 comes out as 2, the length to append
+
+DOC SILENCE_SOUND_CHIP_2
+    Fifty-six bytes shared by both builds, and the only piece of this image
+    assembled for two addresses at once: CMD_SOUND_2 puts it at &504E and
+    CMD_PAUSE at &503A.
+
+    THAT IS WHY THERE IS NO PLAIN CALL IN IT.  Everything inside is either
+    relative or a fixed system-page address; the one forward call it needs is
+    made with CALL &0004 -- three bytes in ROM 0 that read POP HL : JP (HL),
+    so the CALL leaves HL holding the address of the instruction after it and
+    carries straight on.  Add &17, CALL (HL), and the block has called a point
+    twenty-three bytes ahead of itself without knowing where it is.
+
+    What it appends is the manual's "all the data that would have been sent to
+    the sound chip, plus extra codes denoting any PAUSEs":
+
+        select stream 16, swap MasterBASIC's stream-16 record in
+        print the bytes INSTBUF..HL-2 to it
+        select stream 2, swap the ROM's record back
+
+    The swap is eleven bytes, the size of STRM16NM, and it runs twice -- once
+    from the computed call and once by falling through -- because the routine
+    that call enters ends with the swap and a RET.
+
+MB &5DEB : not recording, so the SOUND or PAUSE is finished
+MB &5DED : stream 16, the ROM's "write to a string variable" stream
+           in HL", which works wherever this block has been copied
+MB &5DF5 : &17 ahead is the CALL STREAM at the tail, so the swap runs once on
+           the way in and once on the way out
+MB &5DFE : HL is where the ROM's parser stopped, two past the terminator
+MB &5E04 : the register/value pairs, or the two bytes PAUSE laid down
+MB &5E07 : back to the normal output stream
+MB &5E0C : STRM16NM is &5B76 in the system page -- vars.asm calls it
+           "TLBYTE/NAME OF VAR THAT STREAM 16 WRITES TO".  Nothing to do with
+           this page's &5B76, which is inside ESCCHK
+MB &5E12 : eleven bytes, exchanged rather than copied, so one variable name is
+           put in place and the other taken away in the same pass
+
+DOC COPY_THEN_APPEND_CALL_6
+    Sixty-nine bytes assembled for &4D65 in the system page -- the block at
+    &5D20 copies them there.  Subtract &10BA from any address in it.
+
+    A FAR BLOCK MOVE THAT PICKS ITS OWN DIRECTION.  Source page in A and
+    address in HL, destination page in C and address in DE, length in the
+    ROM's PAGCOUNT/MODCOUNT.  If the source outranks the destination the ROM's
+    forward FARLDIR at &012D cannot overtake itself; otherwise both ends are
+    advanced to their last byte and FARLDDR at &0130 is used instead.
+
+    Because of the frame, the two CALL &4D91 instructions in it are calls to
+    &5E4B, the tail of this same block -- not to anything at &4D91 in this
+    page.
+
+MB &5E1F : five bits is all a page number is
+MB &5E21 : same page, so the addresses decide; different pages, and the carry
+           from this compare is already the answer
+MB &5E24 : SBC then ADD restores HL and leaves the carry from the subtraction,
+           because adding DE back must carry out exactly when the subtraction
+           borrowed.  A 16-bit compare that costs no register
+MB &5E27 : source at or above destination, so copying forwards cannot
+           overtake
+MB &5E30 : the end-address routine at &5E4B, not &4D91 in this page
+MB &5E3D : two INC SPs throw away the HL pushed at &5E2A, which this path no
+           longer wants
+
+MB &5E4B : given page C and address DE and a length, leave the last byte's
+           page in A and its address in HL.  Reached only as &4D91, from the
+           two calls above
+MB &5E53 : the length carried HL out of the window, so one page on and &4000
+           back down -- the rotating window
+MB &5E5A : the last byte, not one past it
+MB &5E5B : and if that step fell out of the bottom of the window, one page
+           back
+
+MB &5E64 : called from MasterDOS &78E5 for immediate code &25, which its own
+           listing labels LENGTH
+MB &5E68 : ten in, then eight in again -- two levels of table before the
+           routine's address is reached
+MB &5E7F : &8F62 is &4F62 in the system page, INSTBUF+&62
+MB &5E90 : patches a byte inside what was just copied
+MB &5E99 : the old contents of &4F6E are used as the source of the twenty-five
+           bytes copied at &5EA7, and &4F6E is repointed at where they go
+MB &5EB8 : a "#" after the keyword means the channel form, which MasterDOS
+           handles at &6594
+MB &5EC8 : otherwise run what was built, at &4F62
+
+MB &5ECE : fifteen bytes planted at &4FDA, the rotating-window check again;
+           &5123 is MEMVAL+2 in the system page, the page byte of the pointer
+           being walked
+
+MB &5EDD : the value arrives as D:E in one pair and B:C in the other, high
+           word first -- GET_LONG_INTEGER splits it with MOD and IDIV by
+           65536
+MB &5EE0 : anything in the top byte is already past 16M
+MB &5EE8 : every byte zero, and the Z that says so is the caller's answer:
+           "SOUND CLEAR 0 will delete the buffer and free the memory for other
+           uses"
+MB &5EEB : &FFFF, so the ADD below is a 24-bit decrement -- size-1, which is
+           what makes the division round up
+MB &5EEE : and the borrow finishes the decrement in the third byte
+MB &5EEF : A and H shifted right twice as one 16-bit quantity, L thrown away:
+           (size-1) divided by 1024
+MB &5EF7 : which must fit in one byte.  Non-zero here is a size above 256K,
+           and the jump goes back to the "Integer out of range" at &5EE2 --
+           the manual's ceiling, "your sound buffer ... can be up to 256K"
+MB &5EFA : slots, rounded up.  LPRINT CLEAR 1025 and LPRINT CLEAR 2048 both
+           give 2, which is the manual's own worked example
+MB &5F00 : B = 0 marks nothing, so the first pass only asks whether the slots
+           exist; the count is saved because the pass consumes it
+MB &5F06 : and now for real -- &20 is the Technical Manual's "mark it 20H"
+MB &5F0F : out with the page in A and the slot's address in HL, and A non-zero
+           so that the caller's Z still means "the size was nought"
+
+MB &5F14 : &1F is the top page; the DEC L below walks down, which is the
+           Technical Manual's "look backwards through ALLOCT"
+MB &5F16 : &91xx is ALLOCT at &5100, read through the window
+MB &5F26 : off the bottom of ALLOCT with no page free
+

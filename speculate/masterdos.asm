@@ -774,7 +774,7 @@ FFDE:
 
 ; ---- ENTSP ---- from &43BD, &4481, &4485, &5021, &5026, &508E, &5FB1, &6060 ...
 ENTSP:
-               DEFB &00,&00                    ; 4104 ..  SP on entry to a command; SETSTK saves the previous value
+               DEFW &0000                      ; 4104 00 00  SP on entry to a command; SETSTK saves the previous value
                                                ; behind it
 
 ; ---- SNPRT0 ---- from &53C1, &5475, &5FD0
@@ -792,7 +792,7 @@ SNPRT2:
 
 ; ---- SVHDR ---- from &443E, &6681, &66CA, &6A30, MB &7664
 SVHDR:
-               DEFB &00,&00                    ; 410A ..  IX on entry to a hook: the ROM's header buffer
+               DEFW &0000                      ; 410A 00 00  IX on entry to a hook: the ROM's header buffer
 
 ; ---- CCHAD ---- from &4378, &43C0
 CCHAD:
@@ -1021,15 +1021,15 @@ HKA:
 
 ; ---- HKHL ---- from &4443, &6485, &667E, &66B5, &66C7, &69DE, &6B0F
 HKHL:
-               DEFB &00,&00                    ; 41DE ..
+               DEFW &0000                      ; 41DE 00 00
 
 ; ---- HKDE ---- from &4446, &5F2E, &61B9, &6492, &668C, &6A03, &6A3E, &6A65 ...
 HKDE:
-               DEFB &00,&00                    ; 41E0 ..
+               DEFW &0000                      ; 41E0 00 00
 
 ; ---- HKBC ---- from &444A, &61B5, &648B, &6685, &66C0, &6A14, &6A53, &6D88
 HKBC:
-               DEFB &00,&00                    ; 41E2 ..
+               DEFW &0000                      ; 41E2 00 00
 
 ; ---- SNME ---- from &53CF, &540C
 SNME:
@@ -1045,7 +1045,7 @@ V41EA:
 
 ; ---- SNLEN ---- from &53D6, &5446
 SNLEN:
-               DEFB &00,&C0                    ; 41F4 .@
+               DEFW &C000                      ; 41F4 00 C0
 
 ; ---- SNADD ---- from &53DA, &5443
 SNADD:
@@ -1053,7 +1053,7 @@ SNADD:
 
 ; ---- FSLOT ---- from &4B3B, &4E00, &4FE0, &4FE5, &6E8B
 FSLOT:
-               DEFB &00,&00                    ; 41FC ..  SECT/TRK OF FREE DIR SLOT, OR 00?? IF NO
+               DEFW &0000                      ; 41FC 00 00  SECT/TRK OF FREE DIR SLOT, OR 00?? IF NO
 
 ; ---- FSLTE ---- from &4E0B, &4FEC
 FSLTE:
@@ -1159,15 +1159,15 @@ V4215:
 
 ; ---- TEMPW3 ---- from &46A2, &676D, &7155, &733D, &750F
 TEMPW3:
-               DEFB &00,&00                    ; 4216 ..
+               DEFW &0000                      ; 4216 00 00
 
 ; ---- TEMPW4 ---- from &59E9, &5A45
 TEMPW4:
-               DEFB &00,&00                    ; 4218 ..
+               DEFW &0000                      ; 4218 00 00
 
 ; ---- TCNT ---- from &4BB2, &4BB6, &5C29, &5C81, &79CA
 TCNT:
-               DEFB &00,&00                    ; 421A ..  DIR'S 'TOTAL FILES ON DISC' COUNTER
+               DEFW &0000                      ; 421A 00 00  DIR'S 'TOTAL FILES ON DISC' COUNTER
 
 ;; --------------------------------------------------------------------
 ;; FCNT -- &421C to &421D
@@ -1289,7 +1289,7 @@ SAMCNT:
 ; ---- MAXT ---- from &4B3E, &4C6F, &4C76, &7214
 MAXT:
                DEFB &00                        ; 4235 .  21 MAX TAG VALUE FOR SUB DIRS
-               DEFB &F3,&43                    ; 4236 sC  22 (2) ADDR OF HOOKS
+               DEFW &43F3                      ; 4236 F3 43  22 (2) ADDR OF HOOKS
 
 ; ---- MSFLG ---- from &68E1
 MSFLG:
@@ -1311,7 +1311,7 @@ NMIKP:
 
 ; ---- NMIKA ---- from &5387
 NMIKA:
-               DEFB &04,&00                    ; 423B ..  27 (2) ADDR CALLED IF DITTO.
+               DEFW &0004                      ; 423B 04 00  27 (2) ADDR CALLED IF DITTO.
 
 ; ---- DWAI ---- from &6563
 DWAI:
@@ -1337,7 +1337,7 @@ NEXTST_1:
 
 ; ---- ONERR ---- from &43CA
 ONERR:
-               DEFW &0000                      ; 4241 00 00
+               DEFW &0000                      ; 4241 00 00  33 (2)
                DEFB &C9                        ; 4243 I
 
 ; ---- EAPG ---- from &43DC, &742F
@@ -1383,15 +1383,16 @@ V425D:
                DEFB &02,&02                    ; 425D ..
 
 CRWT:
-               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 425F ..............  (14) 63-76
+               DEFW &0000,&0000,&0000,&0000,&0000,&0000,&0000 ; 425F 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (14)
+                                                              ; 63-76
 
 ; ---- SAMRN ---- from &4D18, &74A4
 SAMRN:
-               DEFB &00,&00                    ; 426D ..  (2) 77 SAM RND NO. (DISC RND NO.
+               DEFW &0000                      ; 426D 00 00  (2) 77 SAM RND NO. (DISC RND NO.
 
 ; ---- TDVAR ---- from &4D1F, &7495
 TDVAR:
-               DEFB &00,&00                    ; 426F ..  (2) 79
+               DEFW &0000                      ; 426F 00 00  (2) 79
 
 ;; --------------------------------------------------------------------
 ;;  The date and time, as printable strings followed by their high and low limits. The clock code in part TIME keeps
@@ -1463,7 +1464,7 @@ CKPT:
 
 ; ---- BEEPT ---- from &4DE9
 BEEPT:
-               DEFB &85,&00                    ; 42B7 ..  151 (2) BEEP TIME
+               DEFW &0085                      ; 42B7 85 00  151 (2) BEEP TIME
 
 ; ---- V42B9 ---- from &558F
 V42B9:
@@ -6991,7 +6992,7 @@ END1:
                XOR A                           ; 5015 AF
                                                ; write the ROM variable XPTR+1
                CALL NRWR                       ; 5016 CD 74 50
-               DEFW XPTR+1                     ; 5019 A4 5A
+               DEFW XPTR+1                     ; 5019 A4 5A  NO ERROR
                CALL SETBORDER_BORDCOL          ; 501B CD 52 51
                LD (NRFLG),A                    ; 501E 32 1F 41  RECURSE OK
                                                ; the stack is being reset, so this path does not return
@@ -7395,7 +7396,7 @@ PLNS:
                                                ; read the ROM variable ERRSP -- the word below is its address, and the
                                                ; call returns past it
                CALL NRRDD                      ; 5097 CD 53 50
-               DEFW ERRSP                      ; 509A 3D 5C
+               DEFW ERRSP                      ; 509A 3D 5C  READ ERRSP INTO BC
                LD H,B                          ; 509C 60
                LD L,C                          ; 509D 69
                LD BC,(NEXTST)                  ; 509E ED 4B 1E 42
@@ -9442,7 +9443,7 @@ FESE2:
                                                ; read the ROM variable FRAMES -- the word below is its address, and the
                                                ; call returns past it
                CALL NRRD                       ; 55FF CD 5E 50
-               DEFW FRAMES                     ; 5602 78 5C
+               DEFW FRAMES                     ; 5602 78 5C  FRAMES LOW
                LD (HL),A                       ; 5604 77  RND NO USES R REG AND FRAMES
                LD BC,&FFD6                     ; 5605 01 D6 FF
                ADD HL,BC                       ; 5608 09  PT TO DISC NAME DEST (BYTE D2H)
@@ -10615,7 +10616,7 @@ OHNM2:
 WIQF:
                                                ; write the ROM variable INQUFG
                CALL NRWR                       ; 58F8 CD 74 50
-               DEFW INQUFG                     ; 58FB BA 5A
+               DEFW INQUFG                     ; 58FB BA 5A  TOKENS OFF
                RET                             ; 58FD C9
 
 ;; --------------------------------------------------------------------
@@ -14087,11 +14088,11 @@ EVNM1:
                LD A,C                          ; 6208 79
                                                ; write the ROM variable &4F60
                CALL NRWR                       ; 6209 CD 74 50
-               DEFW &4F60                      ; 620C 60 4F
+               DEFW &4F60                      ; 620C 60 4F  STORE REAL LEN
                LD DE,&4F10                     ; 620E 11 10 4F
                                                ; call the ROM at &008F with ROM1 paged in, and page back on the way out
                CALL CMR                        ; 6211 CD B2 7B
-               DEFW &008F                      ; 6214 8F 00
+               DEFW &008F                      ; 6214 8F 00  LDIR TO BUFFER IN SYS PAGE
                POP AF                          ; 6216 F1
                OUT (HMPR),A                    ; 6217 D3 FB
                POP AF                          ; 6219 F1
@@ -14442,7 +14443,7 @@ EVADDR:
                                                ; call the ROM at UNSTLEN with ROM1 paged in, and page back on the way
                                                ; out
                CALL CMR                        ; 62CC CD B2 7B
-               DEFW UNSTLEN                    ; 62CF 8C 3F
+               DEFW UNSTLEN                    ; 62CF 8C 3F  AHL=PAGES/ ADDR MOD 16K
                SET 7,H                         ; 62D1 CB FC  HL=OFFSET
                DEC A                           ; 62D3 3D
                LD C,&00                        ; 62D4 0E 00
@@ -16989,7 +16990,7 @@ OPMOV:
                LD A,D                          ; 697B 7A
                                                ; call the ROM at STREAM with ROM1 paged in, and page back on the way out
                CALL CMR                        ; 697C CD B2 7B
-               DEFW STREAM                     ; 697F 12 01
+               DEFW STREAM                     ; 697F 12 01  SET STREAM
                LD IX,(CURCHL+&4000)            ; 6981 DD 2A 51 9C
                JR OPMV2                        ; 6985 18 1F
 
@@ -18204,8 +18205,9 @@ COPY_MTBLS_LOOP:
 
 ; ---- MTBLS ---- from &6D4F
 MTBLS:
-               DEFB &A0,&4B,&A9,&4B,&C4,&00,&00,&00,&00 ; 6D66  K)KD....
-               DEFB &13,&03                             ; 6D6F ..  CHAN LEN (IX+9/10)
+               DEFW &4BA0,&4BA9,&00C4,&0000    ; 6D66 A0 4B A9 4B C4 00 00 00
+               DEFB &00                        ; 6D6E .
+               DEFW &0313                      ; 6D6F 13 03  CHAN LEN (IX+9/10)
 
 ;; --------------------------------------------------------------------
 ;; HK_HCLOS -- &6D71 to &6D83

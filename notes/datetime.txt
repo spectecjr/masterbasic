@@ -1,0 +1,370 @@
+# DATE and TIME: the commands that set the clock, and the helper that
+# scales a variable index.  Proposed by a fresh reader, audited
+# against the instructions.
+
+DOC TIMES_FIVE
+    Scale an element size, and swap the two pointer pairs while doing it.
+
+    THE VALUE COMES IN IN DE, NOT HL.  The EX DE,HL at the top is not a
+    convenience, it is the interface: on the way out DE holds what HL held
+    on the way in and HL holds five times what DE held, so the caller
+    writes one EX DE,HL after the call and everything is back where it
+    belongs with DE scaled in place.  &7106 does exactly that.
+
+    THE Z FLAG IS FIND_VARIABLE'S, NOT THIS ROUTINE'S.  FIND_VARIABLE
+    pushes the flags from BIT 6,(FLAGS) at &43E9 and pops them back at
+    &4404 or &441A, so the Z that reaches the RET here means "a string
+    was wanted".  A string element is already its own size; only a number
+    has to be multiplied by the five bytes it occupies.  The RET Z leaves
+    the exchange done and nothing else, which is why the caller's EX
+    undoes it cleanly on that path too.
+
+MB &484C : FIND_VARIABLE leaves the per-element size in DE -- 1 for a simple variable at &441D, the declared length for a fixed-length string at &4407 -- and the flags saying which kind it was
+
+MB &484F : the entry for a caller that already has a size in DE; everything below works in HL, so the two are exchanged first
+
+MB &4850 : nothing more to do for a string, but the exchange above has already happened and the caller's EX DE,HL will undo it
+
+MB &4851 : the caller's HL, handed back in DE so that one EX DE,HL at the call site restores it
+
+MB &4852 : the carry FIND_VARIABLE set to mean "found" matters to the caller as much as the value does, so the flags are carried over the arithmetic
+
+MB &4857 : doubled, doubled, plus itself is five -- the size of a number in the variables area
+
+DOC CMD_DATE
+    DATE, which sets the calendar rather than reading it.
+
+    DATE AND TIME ARE ONE ROUTINE with two entry points, and all that
+    separates them is which of MasterDOS's two buffers gets stored in
+    V4096: &4271, DATDT, "dd/mm/yy" with a CR and six limit bytes after
+    it, or &4280, TIMDT, "hh:mm:ss" in the same shape.  Everything from
+    &4918 down works through that pointer and never has to know which
+    command it is serving.
+
+    THE CHIP IS READ FIRST, before the arguments are even looked at, so
+    that "DATE" alone has something to print and "DATE d$" only has to
+    overwrite the digits it is actually given.  The write back at &4955
+    then sends every register, date and time together, so setting the
+    date rewrites the time from the copy read a moment earlier.
+
+MB &485B : &4271 is DATDT in MasterDOS's page.  A number in &4000-&7FBF is this page's range too, but nothing of this page's is being named here -- the accesses below all go through CALLDOS with the DOS page at &4000
+
+MB &485E : the buffer this command owns, read back at &492A, &4967 and &4A11
+
+MB &4861 : the clock into DATDT and TIMDT before anything else
+
+MB &4864 : step past the DATE token
+
+MB &4867 : a trampoline, and nothing more: the JR NZ at &487E cannot reach &4918
+
+DOC CMD_TIME
+    TIME, which shares all of DATE's code and adds the two fast-mode forms.
+
+    THE FIRST THREE INSTRUCTIONS ARE DATE'S, with TIMDT in place of
+    DATDT.  Only then is the character after the token examined, and
+    only '+' or '-' goes anywhere new; anything else -- a string, or the
+    end of the statement -- falls into DATE's path at &4867.
+
+    E CARRIES THE ANSWER TO THE WHOLE QUESTION.  It is loaded with 8
+    before either test and cut to 0 for '-', and 8 and 0 are exactly the
+    two values control register F wants for the chip's test mode.  From
+    &4882 on, the two forms are the same instructions.
+
+MB &486A : &4280 is TIMDT in MasterDOS's page, immediately after DATDT's fifteen bytes.  DECIMAL_DIGIT_3 is this page's label of the same value and has nothing to do with it -- see the notes
+
+MB &4876 : the bit pattern for the test mode, set here so that only the '-' case has to change it
+
+MB &4878 : '+'
+
+MB &487C : '-'
+
+MB &487E : neither sign, so this is DATE's argument handling with TIMDT selected
+
+MB &4880 : zero clears the same bit that 8 sets, which is why the two forms share every instruction below
+
+DOC CMD_TIME_1
+    TIME + and TIME -, and the correction that makes the pair honest.
+
+    THE MODE BIT GOES OUT FIRST and the bookkeeping follows.  &F0EF is
+    the clock at register 15, control F; bit 3 of it is the test bit,
+    which lets the counter chain run 5416.3 times too fast.  V4075 then
+    remembers the same value, and TICS reads it at &4ABD to decide
+    whether to divide its answer down.
+
+    THE OLD VALUE OF V4075, NOT THE NEW ONE, CHOOSES THE PATH.  Equal
+    means the mode is already in the state asked for and there is
+    nothing to correct.  Zero means it is being switched on, so the
+    saved copy is filled with the value the clock is about to be set to.
+    Otherwise it is being switched off, and the elapsed time has to be
+    added to the time that was saved.
+
+    THE FLAG IS PUT BACK FOR THE LENGTH OF ONE CALL at &4894 and cleared
+    again at &489A.  TICS divides by 5416.3 exactly while that byte is
+    non-zero, and the whole reason for calling it here is to get the
+    fast reading expressed in real seconds -- "MasterBASIC does the
+    division for you".
+
+    THE CORRECTION IS SMALL BY CONSTRUCTION.  TICS cannot exceed
+    2678399 fast seconds, so divided down it cannot exceed about 494
+    real seconds -- the manual's "about 8 minutes".  That is why the
+    minutes and hours below each need only one conditional subtraction,
+    and why the day gets a carry but the month never does.
+
+MB &4882 : step past the sign and demand the end of the statement.  On the syntax pass that never returns, so the chip is only touched when the line really runs
+
+MB &4885 : the clock port with register 15 selected.  Bits 12-15 of the port address are the chip's register number, which is why every B value in this region is a multiple of &10 and why PORT_BCD_DIGIT_1 steps registers with SUB &10
+
+MB &4888 : 8 turns the test mode on, 0 turns it off
+
+MB &488A : the byte TICS reads at &4ABD to know whether its answer needs dividing by 5416.3
+
+MB &4890 : TIME + twice, or TIME - when it was never on -- the mode is already right and there is nothing saved to correct
+
+MB &4892 : the value that was there, so zero means this is the switch on
+
+MB &4894 : non-zero again, for one call only: TICS divides by 5416.3 exactly while this byte is set, and that division is the point of calling it
+
+MB &4896 : fast seconds since TIME + zeroed the clock, handed back on the calculator stack as real seconds
+
+MB &489A : and now the mode is really off
+
+MB &489C : GETINT takes it into HL -- at most about 494, since a full month of fast time is only eight real minutes
+
+MB &489F : the seconds of the time saved when TIME + was selected.  This page keeps its own mirror of both DOS buffers at &4120
+
+MB &48A2 : read back as a number 0 to 99
+
+MB &48A6 : A is wanted as zero for the count below, and the XOR also clears the carry that the first SBC HL,BC depends on
+
+MB &48A8 : elapsed seconds added to the seconds that were on the clock when the mode was entered
+
+MB &48A9 : sixty, for a division by repeated subtraction -- the Z80 has no divide and the dividend is under 600
+
+MB &48B0 : one subtraction too many was counted, and one too many taken off
+
+MB &48B2 : the whole minutes, kept in H because TWO_DIGITS_BEFORE_DE and TWO_DIGITS_FROM_DE both leave HL alone
+
+MB &48B3 : and the remainder is the seconds to write back
+
+MB &48B4 : written where they were read from -- the helper steps DE back over the field it just consumed
+
+MB &48BD : the minutes on the clock plus the minutes carried out of the seconds
+
+MB &48BE : assume a carry into the hours, and take it away again if the subtraction below fails
+
+MB &48C0 : at most 59 + 9, so a single conditional subtraction of sixty is enough -- no loop needed
+
+MB &48D3 : the same shape again with twenty-four to the day
+
+MB &48E3 : the day gains the carry and that is all.  Nothing knows how long a month is, which is why the manual only promises the date "unless the real time was close to midnight"
+
+MB &48E4 : and no carry out of the day, so the month and year go back exactly as they were saved
+
+DOC CMD_TIME_4
+    TIME +: fill the saved copy with the value the clock is about to take.
+
+    &48FE swaps this block with MasterDOS's, so what is being built here
+    is what the DOS -- and then the chip -- will be left holding, while
+    the real date and time end up in this page's mirror.
+
+    THE DAY IS "01" AND NOT "00" because TICS computes day-1 at &4A8C
+    and a day of zero would wrap the whole calculation.  The month and
+    the year are not touched at all, which is why the manual's example
+    shows the date going to "O1/00/00": the mirror starts as zeroes and
+    only the day is ever written.
+
+MB &48F0 : day "01".  A day of 00 would make TICS's DEC A wrap
+
+MB &48F5 : three fields of the time
+
+MB &48F7 : both digits of a field, then three steps -- the extra INC HL walks over the ':' rather than writing to it
+
+DOC CMD_TIME_5
+    Exchange this page's mirror with MasterDOS's two buffers.
+
+    AN EXCHANGE, NOT A COPY, and the same code serves both directions.
+    On TIME + the real date and time end up here and the zeroed template
+    goes to the DOS; on TIME - the corrected values go back and the
+    fast-mode rubbish is what is left behind.
+
+    &17 IS 23 BYTES: DATDT's fifteen -- "dd/mm/yy", a CR and six limit
+    bytes -- plus the eight characters of TIMDT that follow it.  It
+    stops deliberately short of TIMDT's own CR and limits, which nothing
+    here needs to move.
+
+MB &48FE : the DOS's DATDT through the window; TIMDT follows it fifteen bytes later, so one run covers both
+
+MB &4901 : this page's mirror, which the labels at &4125, &412F, &4132 and &4135 split up but which is one 23-byte block
+
+MB &4904 : fifteen bytes of date plus eight characters of time
+
+MB &490D : each pair of bytes changes places, so one loop does the job in both directions
+
+MB &4914 : the caller's paging, saved by PAGE_IN_OTHER_HALF at &4906
+
+DOC CMD_DATE_2
+    The argument, for DATE and TIME alike: nothing at all, or a string.
+
+    SIX DIGITS ARE TAKEN FROM THE STRING AND SIX SLOTS FILLED, and
+    everything that is not a digit is ignored on both sides.  On the
+    string's side the skip at &4938 means "23/12/91", "23.12.91" and
+    "231291" all set the same date; on the buffer's side the skip at
+    &4948 steps over the '/' or ':' already sitting in the template.
+
+    WHEN THE STRING RUNS OUT THE REST BECOME '0'.  LD A,&30 at &4931
+    does not disturb flags, so it can be loaded before the test that
+    decides whether to use it -- the character from the string
+    overwrites it when there is one.
+
+    THE BUFFER IS ADDRESSED AT ITS OWN VALUE HERE, &4271 or &4280, and
+    reached through CALLDOS with the DOS page at &4000.  READ_CLOCK_FIELDS
+    a few bytes further on reaches the same bytes the other way, at
+    &8271 or &8280 through the window.  The two techniques sit side by
+    side because each is cheaper for what it is doing: one byte at a
+    time through a ROM primitive, or a whole field walked with DE.
+
+MB &4918 : "DATE" or "TIME" with nothing after it prints instead of setting
+
+MB &491D : the DOS's own string-expression helper -- EXPSTR, then GETSTR only if the program is running.  DE ends at the characters, C at the length and H at the page they live in
+
+MB &4922 : PUSH HL here and POP AF at &4926 is how H, the page the string lives in, survives a call that has A for its own purposes
+
+MB &4927 : that page into the window, so DE addresses real characters
+
+MB &492D : six digits: dd mm yy, or hh mm ss
+
+MB &4930 : anything left of the string?
+
+MB &4931 : loaded before the test that uses it, because LD A,n leaves the flags alone -- the padding digit for a string that has run out
+
+MB &493B : not a digit, so skip it and try the next character; separators of any kind are simply dropped
+
+MB &493D : the digit into the DOS's buffer, one byte at a time through the ROM's LD (HL),A
+
+MB &4942 : and now find the next slot that holds a digit
+
+MB &494B : the '/' or ':' of the template is stepped over rather than written to
+
+MB &494F : the limits MasterDOS keeps after each buffer -- 1 to 31, 1 to 12, 0 to 99 for the date, 0 to 23 and twice 0 to 59 for the time
+
+MB &4952 : "Integer out of range" for 32/13/99, and the chip is left alone
+
+MB &4955 : IY chooses which way WAIT_FOR_CLOCK_1 moves the digits; this one writes them to the chip
+
+MB &4959 : into the middle of WAIT_FOR_CLOCK, past the LD IY that would have chosen reading
+
+DOC CMD_TIME_8
+    DATE or TIME with no argument, which prints rather than sets.
+
+    Nine characters out of the DOS's buffer to stream 2: the eight of
+    "dd/mm/yy" or "hh:mm:ss", and the CR that MasterDOS keeps after
+    them, so the newline costs nothing extra.
+
+MB &495B : still has to reject "DATE 1,2", and still finishes the syntax pass here
+
+MB &4960 : stream 2, the screen
+
+MB &4965 : eight characters and the CR after them
+
+DOC WAIT_FOR_CLOCK
+    Get the chip to hold still, then move six fields either way.
+
+    IY IS THE DIRECTION.  This entry sets it to the reading half and
+    CMD_TIME_7 jumps in just below with the writing half, so one piece
+    of code both reads the clock into MasterDOS's buffers and writes
+    them back out.  Each CALL IYJUMP down at &49AC handles one field --
+    two digits -- because the routine IY points at calls the one-digit
+    worker and then falls into it a second time.
+
+    THE HANDSHAKE IS THE CHIP'S.  Register 13, control D, has HOLD in
+    bit 0 and BUSY in bit 1: writing 1 asks the counters to stop, and
+    reading back tells you whether the request landed mid-update.  If it
+    did, HOLD is dropped and the whole thing tried again; the release at
+    &49CA is what lets the clock run on afterwards.
+
+    IT GIVES UP RATHER THAN HANGS.  A CKPT of zero means no SAMBus and
+    returns at once, leaving the buffers as they were, and the countdown
+    in HL bounds the handshake.
+
+MB &497D : &42B6 is CKPT, DVAR 150, in MasterDOS's page -- the clock's port number.  SAVE_BLOCK_FROM_DOS_PAGE_DONE is this page's label of the same value and is not what is being read; see the notes
+
+MB &4987 : zero means no clock is fitted, and the DOS's buffers keep whatever they had
+
+MB &4988 : the handshake below must not be interrupted with HOLD asserted, or the clock would be stopped for the length of the interrupt
+
+MB &498B : register 13, control D
+
+MB &498D : the bound on the handshake.  Only H is compared, so it actually gives up once HL falls below &0100 -- about 1745 tries, not 2000
+
+MB &4990 : bit 0 of control D is HOLD: stop updating so that a read is consistent
+
+MB &4996 : bit 1 is BUSY -- the chip was already updating and the hold did not take
+
+MB &499A : drop HOLD, let the update finish, and come round again
+
+MB &499E : A is still zero here, so this is testing whether H has reached zero
+
+MB &49A1 : gave up.  The buffers are untouched and the caller is not told
+
+MB &49A7 : register 5, the tens of hours; the three calls below walk down to register 0
+
+MB &49A9 : TIMDT through the window -- registers 5,4 then 3,2 then 1,0 line up with "hh:mm:ss" exactly
+
+MB &49AC : CALL &0006 is the ROM's JP (IY): an indirect call, one field per call
+
+MB &49B5 : and now the date
+
+MB &49B8 : register 7, the tens of the day
+
+MB &49BD : register 9, the month.  B has to be reloaded rather than left to the SUB &10 chain, because the registers for the three date fields are 7-6, 9-8 and 11-10 -- not consecutive
+
+MB &49C2 : register 11, the year
+
+MB &49CA : HOLD released, and the clock runs on
+
+MB &49CF : the caller's HL, pushed at &4989
+
+MB &49DC : the tens digit of a field
+
+MB &49DF : the worker leaves HL two on, and this takes one back, so the fall-through below lands on the units digit of the same field
+
+MB &49E2 : the chip returns its digit in the low nibble; the top nibble is whatever the register does not use
+
+MB &49E6 : ':' -- a nibble of ten or more is not a BCD digit, so it came from a chip that is not there or not answering
+
+MB &49EA : only a real digit is stored, and a bad read leaves the template alone
+
+MB &49ED : the writing half, the same two-digits-per-call shape as &49DC
+
+MB &49F2 : the chip wants the digit, not the character
+
+MB &49F6 : two on, so a call that entered at the tens digit leaves pointing two past the units -- which is the tens digit of the next field, the separator stepped over for free
+
+MB &49F9 : one register lower; the register number lives in bits 12-15 of the port address
+
+MB &4A11 : the buffer this command owns, at its own value
+
+MB &4A15 : and windowed to &8271 or &8280, because the DOS's half is in section C
+
+MB &4A19 : nine bytes on -- eight characters and the CR -- is where MasterDOS keeps the limits
+
+MB &4A1D : three fields, three pairs of limits
+
+MB &4A25 : the high limit first: 31, 12, 99 for a date, 23, 59, 59 for a time
+
+MB &4A29 : then the low: 1, 1, 0 for a date, 0, 0, 0 for a time
+
+MB &4A32 : carry clear, so the caller at &4952 lets it through
+
+MB &4A37 : out of range, and the chip is never written
+
+
+# Two operands that name this page's labels by coincidence of value.
+# &42B6 is especially worth having: it is MasterDOS's CKPT, the clock
+# port, and this is a second reader of it that the DOS listing's own
+# cross-reference does not know about -- it lists only MB &770B.
+
+MB &486A expr &4280
+MB &486A : MasterDOS's TIMDT, read with the DOS page at &4000
+MB &497D expr &42B6
+MB &497D : MasterDOS's CKPT, the clock port, fetched through NRREAD

@@ -1,0 +1,413 @@
+# JOIN, JOIN TO, SPLIT, DELETE and the space-reclaim helpers.
+# Proposed by a fresh reader, audited against the instructions.
+
+# &6DF7-&7203 -- JOIN, SPLIT, DELETE a$, JOIN TO, and the reclaim helpers.
+#
+# Line comments and headers proposed for the region.  Headers already in the
+# listing are not repeated unless something in them needs replacing; where a
+# DOC below names a label that already has a header, the text is meant to be
+# added to it rather than to replace it, and says so.
+
+MB &6DF7 : error 43 is "screen number", so &2B is the report code minus one, the ROM's convention
+
+DOC CMD_JOIN
+    (to be added to the existing header.)
+
+    THE LINE NUMBER IS OPTIONAL, and the ROM already keeps the one the
+    user wants.  "JOIN 100" joins line 100 to the line below it; plain
+    "JOIN" joins "the line with the current line cursor", which is EPPC
+    -- the ROM's own record of where the ">" is sitting in the listing.
+    Both paths converge on FIND_LINE_FROM_START with the number in BC,
+    the difference being only whether HL was loaded from the argument or
+    left at zero to mean "use EPPC".
+
+MB &6DFC : past the JOIN token
+MB &6DFF : "JOIN TO" is the other command entirely -- the string join at &700C
+MB &6E04 : a colon or a carriage return means no line number was given
+MB &6E0C : nothing may follow; on the checking pass this never comes back
+MB &6E0F : zero stands for "the line the cursor is on"
+MB &6E14 : evaluate the line number and demand the end of the statement, then take it as an integer
+MB &6E1A : EPPC, the ROM's current-line cursor -- read whether it is wanted or not, because the test below is on HL, not on it
+MB &6E1F : HL zero: keep EPPC in BC.  Otherwise the argument replaces it
+MB &6E25 : the first line numbered BC or higher, from the top of the program
+MB &6E28 : past the two line-number bytes, to the length word
+MB &6E2A : kept: the length written back at &6E41 goes here
+MB &6E2B : the line's length, which counts the text and its terminating CR but not these four header bytes
+MB &6E2E : HL is only at the length word's high byte, so this lands one short of the next line -- on the CR that ends this one
+MB &6E2F : DE is that CR: the byte the colon will be written over
+MB &6E31 : now the next line's first byte
+MB &6E32 : a line number's high byte comes first, and &FF is the end-of-program marker; INC A tests for it in one instruction
+MB &6E36 : nothing below to join to, so drop the pushed length-word address and give up quietly -- the manual's "and the one below, if there is one"
+MB &6E38 : the second line's own length word
+MB &6E3E : the joined length is simply len1+len2.  The CR of the first line becomes the colon, so one byte is lost and one gained, and the four header bytes of the second line are the only thing reclaimed
+MB &6E3F : swap the sum for the address of the first line's length word
+MB &6E41 : the first line now claims both lines' text
+MB &6E44 : four bytes to close up -- the second line's number and length word
+MB &6E48 : ":", the "normal inter-statement marker" the manual promises, written over the first line's CR
+MB &6E4B : and the four dead header bytes start here.  There is no CALL: the routine below is entered by falling into it
+
+MB &6E52 : no whole pages to close up, only BC bytes
+MB &6E53 : the operand of the JP that JRECLAIM holds, not the jump-table entry itself
+MB &6E57 : one past it, to skip the ROM's own XOR A
+MB &6E58 : patched into the CMR argument two instructions down
+
+DOC CMD_SPLIT_LINE
+    (to be added to the existing header.)
+
+    WHY PRPTR: the ROM keeps a list of pointers it fixes up whenever
+    memory moves, and vars.asm marks PRPTR as the last of them -- "END
+    OF ADJUSTED PTRS" comes immediately after it.  So a value parked in
+    PRPTR and PRPTRP survives INSERTLN moving the whole edit line up,
+    which a value in a register or in this page would not.  It is used
+    that way twice in this half: here for WORKSP, and again in JOIN TO
+    at &7087 for the source address of the copy.
+
+    THE EDIT LINE'S SHAPE is what the arithmetic turns on.  ELINE is its
+    first byte, WORKSP is two past the terminating CR, and the ROM's
+    INSERTLN computes the text length as WORKSP-CHAD-1.  That is why
+    &6ED4 adds two to the cut point before storing it as WORKSP: it
+    makes the ROM see a line that ends at the colon.
+
+MB &6E62 : A is the "/" and HL is CHAD, pointing at it
+MB &6E65 : the slash's address, wanted later as the end of the part to be thrown away
+MB &6E67 : walk back over spaces -- the manual's "first non-space character after the colon"
+MB &6E6D : anything but a colon there and it is not a split at all
+MB &6E72 : THE CUT.  The colon becomes a CR, so the ROM now sees the line as ending here
+MB &6E75 : ELINE, the first byte of the edit line, into BC
+MB &6E7C : skip the leading spaces before the line number
+MB &6E82 : accumulate the line number from here
+MB &6E87 : times ten -- double, double, add the original back for five, double again
+MB &6E93 : more than 65535 and it is refused
+MB &6E9D : back onto the character that ended the digits
+MB &6E9E : CHAD now points just past the line number, which is where INSERTLN expects it
+MB &6EA4 : &FF00 and above is not a line number
+MB &6EA9 : A still holds H, so this tests the whole number for zero
+MB &6EAD : the slash's address, retrieved through AF because HL and DE are both wanted
+MB &6EB3 : the length from the character after the line number up to and including the slash -- everything the edit line is about to lose
+MB &6EB7 : the real end of the edit line
+MB &6EBE : parked in PRPTR, which the ROM adjusts when the program moves
+MB &6EC3 : and the edit line's total length, wanted below
+MB &6EC6 : the page as well, into PRPTRP
+MB &6ED4 : the cut point plus two: WORKSP counts the CR and the byte after it
+MB &6EDB : the line number for INSERTLN
+MB &6EDD : the first half goes into the program.  Everything above the insertion point moves up, including the rest of the edit line
+MB &6EE0 : PRPTR has been moved with the rest, so it now holds where WORKSP really is
+MB &6EF4 : CHAD was adjusted too, and still points just past the line number
+MB &6EFB : its page, put into HMPR so HL addresses the edit line through the window
+MB &6F03 : the length worked out at &6EB3
+MB &6F04 : close it up -- the first half and the slash both disappear, leaving the line number and the remainder.  "The slash disappears automatically"
+
+DOC CMD_SPLIT_LINE_LOOP4
+    (a header for the tail of SPLIT, &6F07-&6F3D, which has none.)
+
+    THE ROM'S RETURN CHAIN IS REWRITTEN, because the ROM must not now do
+    what it was going to do.  SPLIT runs while the line is being checked,
+    inside LINESCAN, and the edit line still starts with a line number --
+    so if the ROM were allowed to carry on it would enter the remainder
+    into the program as well, which is exactly what the manual says does
+    not happen.
+
+    &4EFE is ISPVAL-2, the bottom word of the ROM's machine stack in the
+    system page.  Every place the ROM resets that stack does the same
+    three things -- LD SP,ISPVAL, push a handler, LD (ERRSP),SP -- so
+    that word holds the outermost handler and ERRSP normally points at
+    it.  This reads it, calls the ROM routine whose address is stored
+    seventeen bytes before it, then puts the handler back twelve bytes
+    earlier than it was and writes &0004 into the five stack words below.
+
+    &0004 IS THE ROM'S "POP HL : JP (HL)", which is a RET by another
+    name.  MasterDOS calls the same constant FOWIA and uses it for the
+    same purpose in PLNS: a stack slot holding it makes that return
+    frame fall straight through to the next one.  Five of them collapse
+    five levels of ROM call, so the next RET after this routine walks all
+    the way out to &4EFE and lands on whatever was written there.
+
+    In ROM 3.0 the word at &4EFE is MAINER, &0EED, and &0EED-12 is the
+    XOR A of
+
+        XOR A / LD (HL),A / INC A / LD (NSPPC),A / CALL COMPILE / CALL LINERUN
+
+    -- the main loop's tail that clears the error number, sets NSPPC to
+    statement 1 and runs the edit line.  That reading is consistent with
+    the twelve, but not with the seventeen: &0EED-17 is the operand of
+    LD HL,FLAGS, so the routine called would be &5C3B, which is a system
+    variable and not code.  One of the two is being read from something
+    other than MAINER and I could not settle which, so the whole block is
+    a guess.  See the notes.
+
+MB &6F07 : HL is not the reclaimed address -- SET_DCT_COMPILE_BITS left it windowed onto DCT -- so this parks PRPTR on a fixed system-page byte, out of reach of the next pointer adjustment
+MB &6F0C : ISPVAL-2, the bottom word of the ROM's machine stack: the handler pushed there whenever the stack is reset, and ERRSP's usual value
+MB &6F14 : seventeen back from it
+MB &6F1B : and whatever is stored there is called as a ROM routine, patched into the CMR argument below
+MB &6F25 : twelve back from the handler
+MB &6F2C : which becomes the new bottom-of-stack return
+MB &6F2F : &0004 is the ROM's POP HL : JP (HL) -- a return that forwards to the next frame
+MB &6F32 : five of them, filling the five stack words below the bottom one
+MB &6F34 : WRTBC leaves HL one past the low byte, so three DECs step down a word each time
+
+MB &6F3E : Z while the syntax is only being checked
+MB &6F43 : the byte at &5A60 is a ROM variable, not the code the label names
+MB &6F4F : a fixed &6C into whatever COMAD points at -- COMAD is the ROM's "start of cmd addr table in ROM0"
+MB &6F53 : ROM 1 into &C000; nothing puts it back here, so the caller's paging is restored by the hook return
+MB &6F59 : the word found there becomes the ROM's return address, through the routine below
+
+DOC STORE_BC_AT_XVAR76
+    (replacing the existing header, which I believe is wrong -- see the notes.)
+
+    THE ROM'S RETURN ADDRESS, replaced.  V4076 is not a pointer to a
+    system variable: it is the ROM's own stack pointer, saved there by
+    CALLDOS with LD (V4076),IY and read back by CMR with LD HL,(V4076)
+    followed by LD SP,HL.  So writing BC through it overwrites the word
+    on top of the ROM's stack, which is the address the ROM will RET to
+    when the hook finishes.
+
+    That is how a hook redirects the interpreter, and every caller reads
+    that way: HK_MERGECOMPFLG_5 stores &4871 to send the ROM back into
+    the editor, HK_COMADENT stores a word taken from COMAD+&6C, and
+    DELETE stores &0058 -- POP AF : EI : RET in ROM 0, which discards one
+    more stack word and so unwinds a whole extra frame.
+
+DOC HK_SKIPNAME
+    (replacing the existing header.)
+
+    DELETE, for strings and string arrays.  Token &CD is DELETE -- the
+    keyword table in ROM 3.0 runs RENUM, DELETE, REF, COPY at &CC-&CF --
+    and the ROM's own DELETE removes program lines.  MasterBASIC catches
+    the token first and takes it only when the argument is a string:
+
+        DELETE a$
+        DELETE a$(start TO end)
+
+    "DELETE is used to remove part or all of a string or string array."
+    The manual's example, DELETE a$(3 TO 6) on "123456789", leaves
+    "12789", and DELETE dat$(5) takes the fifth string out of an array
+    and leaves the array one string shorter.
+
+    THE NAME IS SCANNED AND THEN UNSCANNED.  The classifier at
+    IS_NAME_CHAR is run forward over the name only to find the character
+    that ends it, and CHAD is then put straight back to where the scan
+    began.  It has to be: if the character is not "$" this returns NZ,
+    the stub at &7CB5 reloads A with &CD, and the ROM parses the same
+    argument again as a line number range.  Nothing may have moved.
+
+    If it is a string, the rest of the routine reads the slicer,
+    computes where the deleted part starts and how long it is, closes
+    that up with RECLAIM, and then takes the same amount off the
+    variable's own recorded length through VARIABLE_BODY_BY_KIND -- with
+    A non-zero, which is what tells that routine to subtract rather than
+    add.  JOIN TO below is the same machinery with the sign the other
+    way round.
+
+MB &6F62 : A is the first character of the name, HL is CHAD where the scan starts
+MB &6F6E : the address the scan started at, not where it stopped
+MB &6F70 : CHAD put back, so the ROM can re-read the argument if this turns out not to be a string
+MB &6F76 : "$"
+MB &6F78 : not a string, so this is the ROM's own DELETE; the caller hands the token back
+MB &6F79 : &0058 in ROM 0 is POP AF : EI : RET, so the ROM's return will drop an extra stack word and skip its own DELETE
+MB &6F82 : the variable, and its element count multiplied by five for the numeric case
+MB &6F87 : the variable's page, brought in from A' with the caller's HMPR saved on the stack
+MB &6F8E : the slicer, if there is one; an empty string is stacked when there is not, which is the whole-variable case
+MB &6F9E : close up A pages plus BC bytes -- the entry that keeps the caller's page count
+MB &6FA6 : non-zero: VARIABLE_BODY_BY_KIND subtracts
+MB &6FB0 : and a second reclaim for what the first one left
+
+DOC ENTRY_TO_LONG_ADDRESS
+    (replacing the existing header, which reads the three bytes as an
+    address; they are a length.)
+
+    ADD OR SUBTRACT A:BC FROM A VARIABLE'S RECORDED SIZE.  The ROM's own
+    lookvar.asm says what the three bytes at STRLOCN+11 are: "FOR
+    STRINGS, LEN IN PAGES, FOLLOWED BY LEN MOD 16K AND TEXT".  So they
+    are a 24-bit byte count in the same pages-plus-offset form that
+    PAGED_TO_LONG and LONGADDR_TO_PAGED convert between, and this is the
+    routine that grows or shrinks it when DELETE takes bytes out of a
+    string or JOIN TO puts bytes in.
+
+    V409E CHOOSES THE DIRECTION -- zero adds, anything else subtracts --
+    and VARIABLE_BODY_BY_KIND sets it from the A it was called with.
+    The high byte of the count travels in A through a PUSH AF and comes
+    back in B through a POP BC, which is why the same word is pushed as
+    AF and popped as BC.
+
+    RES 7,D on the way out undoes the windowing LONGADDR_TO_PAGED puts
+    in, so the value is stored as a plain count again, and OR D / OR E
+    leaves Z set when the variable has shrunk to nothing.
+
+MB &6FB3 : the high byte of the count, parked in AF so BC is free for the low sixteen bits
+MB &6FB4 : pages, then the count mod 16K
+MB &6FBE : the direction flag VARIABLE_BODY_BY_KIND set
+MB &6FC1 : and it clears the carry for the SBC below
+MB &6FC7 : the count's high byte, arriving in B
+MB &6FD3 : stored as a count again, not as a windowed address
+MB &6FDA : Z if the variable is now empty
+
+DOC ARRAY_ELEMENT_OFFSET
+    (to be added to the existing header.)
+
+    TWO MULTIPLIES BY THE SAME NUMBER.  DE holds the size of one
+    element, and the slicer has been evaluated into a start and a
+    length measured in elements; multiplying each of them by DE turns a
+    slice of an array into a byte offset and a byte count.  For a plain
+    string DE is one, so the multiply changes nothing and the slice is
+    already in bytes -- which is how DELETE a$(3 TO 6) and DELETE
+    dat$(5) share a single routine.
+
+    The result is left as RECLAIM_ABC_AT_HL wants it: A the number of
+    whole pages, BC the odd bytes, HL the address, with HMPR already
+    moved on to the page the offset landed in.  The two page counts are
+    kept apart through EX AF,AF', one in A and the other in A'.
+
+MB &6FDF : the slicer, giving a page, an offset and a length
+MB &6FE6 : the offset in elements times the element size
+MB &6FEB : and the same for the length
+MB &6FF7 : the offset is a count, not a windowed address, so the top bit comes off before it is added to the base
+MB &7004 : HMPR moves on by however many pages the offset crossed
+MB &7009 : back to the page count belonging to the other product
+
+DOC CMD_JOIN_FAIL
+    (this label is wrong -- see the notes.  Suggested name CMD_JOIN_TO.)
+
+    JOIN TO -- the other half of JOIN, and nothing to do with failure.
+
+        JOIN TO a$,b$
+
+    "JOIN TO is used to add a copy of the second string or string array
+    onto the first.  When using strings, JOIN TO a$,b$ is equivalent to
+    LET a$=a$+b$, but it is faster and requires less free memory."
+
+    WHAT MAKES ONE ROUTINE DO BOTH is what FIND_VARIABLE hands back.  For
+    a string array it returns BC = the number of strings and DE = the
+    length of each; for a plain string it returns BC = the length and
+    DE = one.  The product is the byte count either way, the equality
+    test on DE becomes the manual's "provided the strings in both arrays
+    are the same length", and the sum of the two BCs is the new element
+    count -- "the array fi$ now has 11 strings in it, not 10".
+
+    PRPTR AND PRPTRP AGAIN.  The second variable's record and page are
+    parked there before the gap is opened, for the same reason SPLIT
+    parks WORKSP: opening the gap moves everything above it, and PRPTR
+    is the last pointer the ROM adjusts automatically.  Without that the
+    copy would read from where the source used to be.
+
+MB &700C : past TO
+MB &7012 : on the checking pass FIND_VARIABLE only parses, and everything below is skipped
+MB &7018 : how many elements, and how long each one is
+MB &7020 : the record LOOKVARS stopped on
+MB &7025 : kept, because STRLOCN is about to be pointed at the second variable and has to come back
+MB &7029 : record+11: pages, then length mod 16K, then the body
+MB &702D : the page this is all happening in
+MB &7032 : plus the length's whole pages
+MB &7037 : record+13 plus the length mod 16K is the last byte of the body, and MKRBIG opens room after the byte it is given
+MB &7038 : the sum carried out of sixteen bits, so it is four pages on and &8000 back -- two pages net, with the address forced into the window
+MB &703F : bit 6 set means it has run past &BFFF, so one page on and back into the window
+MB &7046 : the page and address the gap will be opened at
+MB &704F : the comma, and then the second variable
+MB &7062 : its page, parked in PRPTRP so it is adjusted with everything else
+MB &7068 : the two element lengths must match, or "Size mismatch"
+MB &7071 : the new element count
+MB &7075 : the carry from the ADD above, or from the ADD fourteen bytes below -- the JR at &7080 jumps backwards onto this JP, so one error jump serves both tests
+MB &7078 : how many elements the second variable contributes; IX is loaded from here at &70FB
+MB &707C : plus a header, as an overflow test only -- HL is not used again
+MB &7087 : the second variable's record, parked in PRPTR
+MB &7096 : its length as a bank and an offset
+MB &7099 : record+14, the first byte of its body
+MB &709B : how far the text starts past the body: nothing for a plain string, the dimension words for an array
+MB &70A3 : so the count copied is the text alone, without the array header
+MB &70B3 : back to the page holding the end of the first variable
+MB &70BB : whole pages of gap
+MB &70BF : and the odd bytes, as a count rather than a windowed address
+MB &70C2 : open A pages plus BC bytes after HL.  Everything above moves, PRPTR and PRPTRP with it
+MB &70C6 : MODCOUNT and PAGCOUNT are FARLDIR's own counters, so the same two numbers are handed to the copy
+MB &70D3 : the header size worked out at &709B, plus the fourteen bytes before the body
+MB &70DA : PRPTR, now holding where the second variable ended up
+MB &70E0 : destination page is the current one, source page comes from PRPTRP
+MB &70E8 : the far copy, across as many pages as it takes
+MB &70ED : STRLOCN back to the first variable, because VARIABLE_BODY_BY_KIND reads it
+MB &70FB : the number of elements gained
+MB &70FF : zero: add, not subtract
+
+DOC VARIABLE_BODY_BY_KIND
+    (to be added to the existing header.)
+
+    THE LAST STEP OF BOTH COMMANDS: the bytes have been moved, and now
+    the variable's own bookkeeping has to say so.  A on entry is the
+    direction -- zero from JOIN TO to add, non-zero from DELETE to
+    subtract -- and IX is the number of elements.
+
+    An array has two numbers to fix and a plain string one.  Bits 5 and
+    6 of the type byte say which this is; for an array the 24-bit size
+    at record+11 is changed by IX times the element size, and the first
+    dimension at record+15 by IX itself.  For a plain string only the
+    size changes, and the page byte is then checked against four: a
+    string needing four pages has passed 64K, which is "String too
+    long".
+
+MB &7100 : the direction flag ENTRY_TO_LONG_ADDRESS reads
+MB &7106 : five bytes to a number, one to a character; DE comes out as the size of one element
+MB &7116 : bits 5 and 6 of the type byte are what tell an array from a simple variable
+MB &711E : elements times element size gives bytes
+MB &7124 : the 24-bit size at record+11, adjusted
+MB &712A : record+15, the first dimension -- how many strings the array holds
+MB &7141 : written back high byte first, which is the way the two DECs walk
+MB &7144 : Z if the array is now empty
+MB &7150 : four pages is 64K, the limit on one string
+MB &7152 : CCF turns "below four" into "four or more", so the carry means too long
+
+DOC HK_SWAPCHARS
+    (to be added to the existing header, which works out what is swapped
+    but not which command asks for it.)
+
+    BLOCKS -- and the argument 0, 1 or 2 is the manual's:
+
+        BLOCKS 0  block graphics off, CHR$ 128-168 as user-defined
+        BLOCKS 1  block graphics on, only CHR$ 144-168 user-defined
+        BLOCKS 2  block graphics off, and "swap the entire set of
+                  user-defined graphics with the set stored within
+                  MasterBASIC ... initially an IBM standard foreign
+                  character set"
+
+    BLOCKS 1 IS THE ONE THAT DOES NOTHING to the characters: DEC A leaves
+    zero and jumps straight to the tail, which writes that zero to BGFLG.
+    0 and 2 both fall through to the tail with &FF, so the flag is the
+    manual's block graphics on or off, and only the choice between the
+    two sets is left.  That choice is remembered in XVAR &4074, and the
+    swap happens only when the argument differs from what is there --
+    which is why "using BLOCKS 0 will ... swap the user-defined graphics
+    with the original" gets the first set back with the same code that
+    put the second one in.
+
+MB &715F : 3 or more is "Integer out of range", so the argument is 0, 1 or 2
+MB &7164 : 1 leaves zero in A, and the tail writes it to BGFLG: block graphics on, characters untouched
+MB &7167 : which set is in place now
+MB &716B : already the one asked for, so nothing to swap
+MB &7171 : the system page into the window, so &9490 reaches &5490
+MB &7174 : &300 into CHARSVAL is CHR$ 128, and &148 bytes from there is 41 characters ending where PALTAB begins
+MB &717D : an exchange, not a copy: A' carries one byte while A carries the other, so the same loop swaps back next time
+MB &718A : the two cursor characters live in the swapped range, so they are exchanged too, with the pair kept just past the buffer
+MB &719C : &FF into BGFLG -- block graphics off, for both 0 and 2
+
+MB &71A7 : only "*"; the ROM keeps plain CLS
+MB &71AF : PLNS puts the address of the next statement on the ROM's stack, so the interpreter carries on afterwards whatever it had planned
+MB &71B7 : stream &FE, the upper screen
+MB &71BE : CHR$ 16 then 0 is PEN 0
+MB &71C7 : CHR$ 17 then 15 is PAPER 15 -- with the line above, the manual's "PEN 0: PAPER 15"
+MB &71D1 : the five temporary print variables copied over the five permanent ones, so the new colours stick
+MB &71DF : &2F on the keyboard port is border 15
+MB &71E8 : &78 is PAPER 15 with PEN 0 -- fifteen shifted up three -- for the lower screen
+MB &71EF : and the mode 2/3 lower-screen colours to match
+MB &71F7 : A = 0, and JCLSBL clears the screen
+
+MB &71FE : XPTR, which the ROM uses to mark where an error was found
+
+
+RENAME HK_SKIPNAME CMD_DELETE
+RENAME CMD_JOIN_FAIL CMD_JOIN_TO
+
+# CMD_JOIN_FAIL is not an error path: it is the manual's JOIN TO a$,b$.
+# The ARRAY_ELEMENT_OFFSET_1..5 labels at &703F-&70B0 sit on its code
+# too, named after the routine that happens to precede them.
+#
+# HK_SKIPNAME is DELETE.  Token &CD is DELETETOK in the ROM's own source
+# (ref/samrom/miscx1.asm, RENTAB), and the routine puts CHAD back to the
+# START of the name -- not past it, as its header said -- so that the ROM
+# can re-parse the argument as a line range when it is not a string.

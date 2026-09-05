@@ -84,3 +84,11 @@
 # worth testing when there is reason to: the SAVE MODE compression ratios,
 # the LOCN search speeds (90K/s case-insensitive, 200K/s with ABS), and the
 # TICS divisor 5416.3 for the TIME + fast clock.
+
+# THE APPENDIX TOKEN TABLE IS SLIPPED BY A ROW, at least around &CC.
+# It gives "209 D1 RENUM", but the ROM's own source has RENTAB: DB &CD
+# ";DELETETOK" and the F1 key macro at text.asm:1001 emits &CC for RENUM.
+# So &CC is RENUM and &CD is DELETE, and the manual's keyword column is
+# one out.  Worth knowing before reading a token out of that appendix:
+# the ABS entry, "91 5B [ ABS", checks out, so the slip is local rather
+# than whole-table.

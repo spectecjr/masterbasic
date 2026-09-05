@@ -3347,118 +3347,173 @@ HK_HORDER_LOOP7:
 
 ; ---- FIND_VARIABLE_TIMES_FIVE ---- from &6F82
 FIND_VARIABLE_TIMES_FIVE:
-               CALL FIND_VARIABLE              ; 484C CD D5 43
+               CALL FIND_VARIABLE              ; 484C CD D5 43  FIND_VARIABLE leaves the per-element size in DE -- 1 for
+                                               ; a simple variable at &441D, the declared length for a fixed-length
+                                               ; string at &4407 -- and the flags saying which kind it was
 
 ;; --------------------------------------------------------------------
-;; HL times five, by ADD HL,HL twice and ADD HL,DE with the original in
-;; DE.  Five is the size of a number in the variables area, which is why
-;; FIND_VARIABLE_TIMES_FIVE falls into it.
+;; Scale an element size, and swap the two pointer pairs while doing it.
+;;
+;; THE VALUE COMES IN IN DE, NOT HL.  The EX DE,HL at the top is not a
+;; convenience, it is the interface: on the way out DE holds what HL held
+;; on the way in and HL holds five times what DE held, so the caller
+;; writes one EX DE,HL after the call and everything is back where it
+;; belongs with DE scaled in place.  &7106 does exactly that.
+;;
+;; THE Z FLAG IS FIND_VARIABLE'S, NOT THIS ROUTINE'S.  FIND_VARIABLE
+;; pushes the flags from BIT 6,(FLAGS) at &43E9 and pops them back at
+;; &4404 or &441A, so the Z that reaches the RET here means "a string
+;; was wanted".  A string element is already its own size; only a number
+;; has to be multiplied by the five bytes it occupies.  The RET Z leaves
+;; the exchange done and nothing else, which is why the caller's EX
+;; undoes it cleanly on that path too.
 ;; --------------------------------------------------------------------
 
 ; ---- TIMES_FIVE ---- from &7106
 TIMES_FIVE:
-               EX DE,HL                        ; 484F EB
-               RET Z                           ; 4850 C8
-               PUSH DE                         ; 4851 D5
-               PUSH AF                         ; 4852 F5
+               EX DE,HL                        ; 484F EB  the entry for a caller that already has a size in DE;
+                                               ; everything below works in HL, so the two are exchanged first
+               RET Z                           ; 4850 C8  nothing more to do for a string, but the exchange above has
+                                               ; already happened and the caller's EX DE,HL will undo it
+               PUSH DE                         ; 4851 D5  the caller's HL, handed back in DE so that one EX DE,HL at the
+                                               ; call site restores it
+               PUSH AF                         ; 4852 F5  the carry FIND_VARIABLE set to mean "found" matters to the
+                                               ; caller as much as the value does, so the flags are carried over the
+                                               ; arithmetic
                LD D,H                          ; 4853 54
                LD E,L                          ; 4854 5D
                ADD HL,HL                       ; 4855 29
                ADD HL,HL                       ; 4856 29
-               ADD HL,DE                       ; 4857 19
+               ADD HL,DE                       ; 4857 19  doubled, doubled, plus itself is five -- the size of a number
+                                               ; in the variables area
                POP AF                          ; 4858 F1
                POP DE                          ; 4859 D1
                RET                             ; 485A C9
 
 ;; --------------------------------------------------------------------
-;; DATE -- the DATE command, token 249.  MasterDOS's command for setting
-;; the calendar, taken over by MasterBASIC along with TIME so that the two
-;; stay consistent across the fast-mode switch.
+;; DATE, which sets the calendar rather than reading it.
 ;;
-;; Manual: "New timing facilities".
+;; DATE AND TIME ARE ONE ROUTINE with two entry points, and all that
+;; separates them is which of MasterDOS's two buffers gets stored in
+;; V4096: &4271, DATDT, "dd/mm/yy" with a CR and six limit bytes after
+;; it, or &4280, TIMDT, "hh:mm:ss" in the same shape.  Everything from
+;; &4918 down works through that pointer and never has to know which
+;; command it is serving.
+;;
+;; THE CHIP IS READ FIRST, before the arguments are even looked at, so
+;; that "DATE" alone has something to print and "DATE d$" only has to
+;; overwrite the digits it is actually given.  The write back at &4955
+;; then sends every register, date and time together, so setting the
+;; date rewrites the time from the copy read a moment earlier.
 ;; --------------------------------------------------------------------
 
 CMD_DATE:
-               LD HL,&4271                     ; 485B 21 71 42
-               LD (V4096),HL                   ; 485E 22 96 40
-               CALL WAIT_FOR_CLOCK             ; 4861 CD 78 49
-               CALL CALL_NEXTCHAR              ; 4864 CD 61 44
+               LD HL,&4271                     ; 485B 21 71 42  &4271 is DATDT in MasterDOS's page. A number in
+                                               ; &4000-&7FBF is this page's range too, but nothing of this page's is
+                                               ; being named here -- the accesses below all go through CALLDOS with the
+                                               ; DOS page at &4000
+               LD (V4096),HL                   ; 485E 22 96 40  the buffer this command owns, read back at &492A, &4967
+                                               ; and &4A11
+               CALL WAIT_FOR_CLOCK             ; 4861 CD 78 49  the clock into DATDT and TIMDT before anything else
+               CALL CALL_NEXTCHAR              ; 4864 CD 61 44  step past the DATE token
 
 ; ---- CMD_DATE_1 ---- from &487E when A <> &2D
 CMD_DATE_1:
-               JP CMD_DATE_2                   ; 4867 C3 18 49
+               JP CMD_DATE_2                   ; 4867 C3 18 49  a trampoline, and nothing more: the JR NZ at &487E
+                                               ; cannot reach &4918
 
 ;; --------------------------------------------------------------------
-;; TIME -- the TIME command, token 248.
+;; TIME, which shares all of DATE's code and adds the two fast-mode forms.
 ;;
-;; MasterDOS sets and reads the SAMBus clock with TIME; MasterBASIC adds
-;; two forms:
+;; THE FIRST THREE INSTRUCTIONS ARE DATE'S, with TIMDT in place of
+;; DATDT.  Only then is the character after the token examined, and
+;; only '+' or '-' goes anywhere new; anything else -- a string, or the
+;; end of the statement -- falls into DATE's path at &4867.
 ;;
-;;     TIME +      switch the clock into its high-speed test mode
-;;     TIME -      switch back
-;;
-;; The test mode runs 5416.3 times faster than real time, which is what
-;; makes TICS useful for timing.  MasterBASIC saves the real time and date
-;; on the way in and corrects them on the way out, so ordinary use costs
-;; nothing -- but more than about eight real minutes in the mode overruns
-;; the correction.
-;;
-;; Manual: "New timing facilities".
+;; E CARRIES THE ANSWER TO THE WHOLE QUESTION.  It is loaded with 8
+;; before either test and cut to 0 for '-', and 8 and 0 are exactly the
+;; two values control register F wants for the chip's test mode.  From
+;; &4882 on, the two forms are the same instructions.
 ;; --------------------------------------------------------------------
 
 CMD_TIME:
-               LD HL,DECIMAL_DIGIT_3           ; 486A 21 80 42
+               LD HL,&4280                     ; 486A 21 80 42  MasterDOS's TIMDT, read with the DOS page at &4000
                LD (V4096),HL                   ; 486D 22 96 40
                CALL WAIT_FOR_CLOCK             ; 4870 CD 78 49
                CALL CALL_NEXTCHAR              ; 4873 CD 61 44
-               LD E,&08                        ; 4876 1E 08
-               CP &2B                          ; 4878 FE 2B
+               LD E,&08                        ; 4876 1E 08  the bit pattern for the test mode, set here so that only
+                                               ; the '-' case has to change it
+               CP &2B                          ; 4878 FE 2B  '+'
                JR Z,CMD_TIME_1                 ; 487A 28 06
-               CP &2D                          ; 487C FE 2D
-               JR NZ,CMD_DATE_1                ; 487E 20 E7
-               LD E,&00                        ; 4880 1E 00
+               CP &2D                          ; 487C FE 2D  '-'
+               JR NZ,CMD_DATE_1                ; 487E 20 E7  neither sign, so this is DATE's argument handling with
+                                               ; TIMDT selected
+               LD E,&00                        ; 4880 1E 00  zero clears the same bit that 8 sets, which is why the two
+                                               ; forms share every instruction below
 
 ; ---- CMD_TIME_1 ---- from &487A when A = &2B
 CMD_TIME_1:
-               CALL SKIP_THEN_END              ; 4882 CD CD 44
-               LD BC,&F0EF                     ; 4885 01 EF F0
-               OUT (C),E                       ; 4888 ED 59
-               LD HL,V4075                     ; 488A 21 75 40
+               CALL SKIP_THEN_END              ; 4882 CD CD 44  step past the sign and demand the end of the statement.
+                                               ; On the syntax pass that never returns, so the chip is only touched when
+                                               ; the line really runs
+               LD BC,&F0EF                     ; 4885 01 EF F0  the clock port with register 15 selected. Bits 12-15 of
+                                               ; the port address are the chip's register number, which is why every B
+                                               ; value in this region is a multiple of &10 and why PORT_BCD_DIGIT_1
+                                               ; steps registers with SUB &10
+               OUT (C),E                       ; 4888 ED 59  8 turns the test mode on, 0 turns it off
+               LD HL,V4075                     ; 488A 21 75 40  the byte TICS reads at &4ABD to know whether its answer
+                                               ; needs dividing by 5416.3
                LD A,(HL)                       ; 488D 7E
                LD (HL),E                       ; 488E 73
                CP E                            ; 488F BB
-               RET Z                           ; 4890 C8
+               RET Z                           ; 4890 C8  TIME + twice, or TIME - when it was never on -- the mode is
+                                               ; already right and there is nothing saved to correct
                AND A                           ; 4891 A7
-               JR Z,CMD_TIME_4                 ; 4892 28 55
-               LD (HL),A                       ; 4894 77
+               JR Z,CMD_TIME_4                 ; 4892 28 55  the value that was there, so zero means this is the switch
+                                               ; on
+               LD (HL),A                       ; 4894 77  non-zero again, for one call only: TICS divides by 5416.3
+                                               ; exactly while this byte is set, and that division is the point of
+                                               ; calling it
                PUSH HL                         ; 4895 E5
-               CALL TICS_SECONDS_IN_MONTH      ; 4896 CD 7F 4A
+               CALL TICS_SECONDS_IN_MONTH      ; 4896 CD 7F 4A  fast seconds since TIME + zeroed the clock, handed back
+                                               ; on the calculator stack as real seconds
                POP HL                          ; 4899 E1
-               LD (HL),&00                     ; 489A 36 00
-               CALL CALL_GETINT                ; 489C CD 76 44
-               LD DE,V4135                     ; 489F 11 35 41
-               CALL TWO_DIGITS_FROM_DE         ; 48A2 CD 6A 4A
+               LD (HL),&00                     ; 489A 36 00  and now the mode is really off
+               CALL CALL_GETINT                ; 489C CD 76 44  GETINT takes it into HL -- at most about 494, since a
+                                               ; full month of fast time is only eight real minutes
+               LD DE,V4135                     ; 489F 11 35 41  the seconds of the time saved when TIME + was selected.
+                                               ; This page keeps its own mirror of both DOS buffers at &4120
+               CALL TWO_DIGITS_FROM_DE         ; 48A2 CD 6A 4A  read back as a number 0 to 99
                LD C,A                          ; 48A5 4F
-               XOR A                           ; 48A6 AF
+               XOR A                           ; 48A6 AF  A is wanted as zero for the count below, and the XOR also
+                                               ; clears the carry that the first SBC HL,BC depends on
                LD B,A                          ; 48A7 47
-               ADD HL,BC                       ; 48A8 09
-               LD C,&3C                        ; 48A9 0E 3C
+               ADD HL,BC                       ; 48A8 09  elapsed seconds added to the seconds that were on the clock
+                                               ; when the mode was entered
+               LD C,&3C                        ; 48A9 0E 3C  sixty, for a division by repeated subtraction -- the Z80
+                                               ; has no divide and the dividend is under 600
 
 ; ---- CMD_TIME_LOOP ---- from &48AE
 CMD_TIME_LOOP:
                INC A                           ; 48AB 3C
                SBC HL,BC                       ; 48AC ED 42
                JR NC,CMD_TIME_LOOP             ; 48AE 30 FB
-               DEC A                           ; 48B0 3D
+               DEC A                           ; 48B0 3D  one subtraction too many was counted, and one too many taken
+                                               ; off
                ADD HL,BC                       ; 48B1 09
-               LD H,A                          ; 48B2 67
-               LD A,L                          ; 48B3 7D
-               CALL TWO_DIGITS_BEFORE_DE       ; 48B4 CD FD 49
+               LD H,A                          ; 48B2 67  the whole minutes, kept in H because TWO_DIGITS_BEFORE_DE and
+                                               ; TWO_DIGITS_FROM_DE both leave HL alone
+               LD A,L                          ; 48B3 7D  and the remainder is the seconds to write back
+               CALL TWO_DIGITS_BEFORE_DE       ; 48B4 CD FD 49  written where they were read from -- the helper steps DE
+                                               ; back over the field it just consumed
                LD DE,V4132                     ; 48B7 11 32 41
                CALL TWO_DIGITS_FROM_DE         ; 48BA CD 6A 4A
-               ADD A,H                         ; 48BD 84
-               LD H,&01                        ; 48BE 26 01
-               SUB &3C                         ; 48C0 D6 3C
+               ADD A,H                         ; 48BD 84  the minutes on the clock plus the minutes carried out of the
+                                               ; seconds
+               LD H,&01                        ; 48BE 26 01  assume a carry into the hours, and take it away again if
+                                               ; the subtraction below fails
+               SUB &3C                         ; 48C0 D6 3C  at most 59 + 9, so a single conditional subtraction of
+                                               ; sixty is enough -- no loop needed
                JR NC,CMD_TIME_2                ; 48C2 30 03
                ADD A,&3C                       ; 48C4 C6 3C
                DEC H                           ; 48C6 25
@@ -3470,7 +3525,7 @@ CMD_TIME_2:
                CALL TWO_DIGITS_FROM_DE         ; 48CD CD 6A 4A
                ADD A,H                         ; 48D0 84
                LD H,&01                        ; 48D1 26 01
-               SUB &18                         ; 48D3 D6 18
+               SUB &18                         ; 48D3 D6 18  the same shape again with twenty-four to the day
                JR NC,CMD_TIME_3                ; 48D5 30 03
                ADD A,&18                       ; 48D7 C6 18
                DEC H                           ; 48D9 25
@@ -3480,8 +3535,11 @@ CMD_TIME_3:
                CALL TWO_DIGITS_BEFORE_DE       ; 48DA CD FD 49
                LD DE,V4120                     ; 48DD 11 20 41
                CALL TWO_DIGITS_FROM_DE         ; 48E0 CD 6A 4A
-               ADD A,H                         ; 48E3 84
-               CALL TWO_DIGITS_BEFORE_DE       ; 48E4 CD FD 49
+               ADD A,H                         ; 48E3 84  the day gains the carry and that is all. Nothing knows how
+                                               ; long a month is, which is why the manual only promises the date "unless
+                                               ; the real time was close to midnight"
+               CALL TWO_DIGITS_BEFORE_DE       ; 48E4 CD FD 49  and no carry out of the day, so the month and year go
+                                               ; back exactly as they were saved
                JR CMD_TIME_5                   ; 48E7 18 15
 
 ; ---- CMD_TIME_4 ---- from &4892 when A = 0
@@ -3490,13 +3548,14 @@ CMD_TIME_4:
                LD A,&30                        ; 48EC 3E 30
                LD (HL),A                       ; 48EE 77
                INC HL                          ; 48EF 23
-               LD (HL),&31                     ; 48F0 36 31
+               LD (HL),&31                     ; 48F0 36 31  day "01".  A day of 00 would make TICS's DEC A wrap
                LD HL,V412F                     ; 48F2 21 2F 41
-               LD B,&03                        ; 48F5 06 03
+               LD B,&03                        ; 48F5 06 03  three fields of the time
 
 ; ---- CMD_TIME_LOOP2 ---- from &48FC when B is not 0 yet
 CMD_TIME_LOOP2:
-               LD (HL),A                       ; 48F7 77
+               LD (HL),A                       ; 48F7 77  both digits of a field, then three steps -- the extra INC HL
+                                               ; walks over the ':' rather than writing to it
                INC HL                          ; 48F8 23
                LD (HL),A                       ; 48F9 77
                INC HL                          ; 48FA 23
@@ -3505,9 +3564,11 @@ CMD_TIME_LOOP2:
 
 ; ---- CMD_TIME_5 ---- from &48E7
 CMD_TIME_5:
-               LD DE,DOS_DATDT                 ; 48FE 11 71 82
-               LD HL,V4120                     ; 4901 21 20 41
-               LD B,&17                        ; 4904 06 17
+               LD DE,DOS_DATDT                 ; 48FE 11 71 82  the DOS's DATDT through the window; TIMDT follows it
+                                               ; fifteen bytes later, so one run covers both
+               LD HL,V4120                     ; 4901 21 20 41  this page's mirror, which the labels at &4125, &412F,
+                                               ; &4132 and &4135 split up but which is one 23-byte block
+               LD B,&17                        ; 4904 06 17  fifteen bytes of date plus eight characters of time
                CALL PAGE_IN_OTHER_HALF         ; 4906 CD D1 49
                PUSH AF                         ; 4909 F5
 
@@ -3516,68 +3577,83 @@ CMD_TIME_LOOP3:
                LD C,(HL)                       ; 490A 4E
                LD A,(DE)                       ; 490B 1A
                EX DE,HL                        ; 490C EB
-               LD (HL),C                       ; 490D 71
+               LD (HL),C                       ; 490D 71  each pair of bytes changes places, so one loop does the job in
+                                               ; both directions
                LD (DE),A                       ; 490E 12
                INC DE                          ; 490F 13
                INC HL                          ; 4910 23
                DJNZ CMD_TIME_LOOP3             ; 4911 10 F7
                POP AF                          ; 4913 F1
-               OUT (HMPR),A                    ; 4914 D3 FB
+               OUT (HMPR),A                    ; 4914 D3 FB  the caller's paging, saved by PAGE_IN_OTHER_HALF at &4906
                JR CMD_TIME_7                   ; 4916 18 3D
 
 ; ---- CMD_DATE_2 ---- from &4867
 CMD_DATE_2:
-               CALL AT_END_OF_STATEMENT              ; 4918 CD BC 44
+               CALL AT_END_OF_STATEMENT              ; 4918 CD BC 44  "DATE" or "TIME" with nothing after it prints
+                                                     ; instead of setting
                JR Z,CMD_TIME_8                       ; 491B 28 3E
-               CALL CALLDOS                          ; 491D CD C1 42
+               CALL CALLDOS                          ; 491D CD C1 42  the DOS's own string-expression helper -- EXPSTR,
+                                                     ; then GETSTR only if the program is running. DE ends at the
+                                                     ; characters, C at the length and H at the page they live in
                DEFW DOS_EVAL_STRING_IF_RUNNING-&4000 ; 4920 84 62
-               PUSH HL                               ; 4922 E5
+               PUSH HL                               ; 4922 E5  PUSH HL here and POP AF at &4926 is how H, the page the
+                                                     ; string lives in, survives a call that has A for its own purposes
                CALL EXPECT_END_OF_STATEMENT          ; 4923 CD D0 44
                POP AF                                ; 4926 F1
-               CALL TSURPG                           ; 4927 CD DF 3F
+               CALL TSURPG                           ; 4927 CD DF 3F  that page into the window, so DE addresses real
+                                                     ; characters
                LD HL,(V4096)                         ; 492A 2A 96 40
-               LD B,&06                              ; 492D 06 06
+               LD B,&06                              ; 492D 06 06  six digits: dd mm yy, or hh mm ss
 
 ; ---- CMD_TIME_LOOP4 ---- from &493B, &494D when B is not 0 yet
 CMD_TIME_LOOP4:
                LD A,C                          ; 492F 79
-               AND A                           ; 4930 A7
-               LD A,&30                        ; 4931 3E 30
+               AND A                           ; 4930 A7  anything left of the string?
+               LD A,&30                        ; 4931 3E 30  loaded before the test that uses it, because LD A,n leaves
+                                               ; the flags alone -- the padding digit for a string that has run out
                JR Z,CMD_TIME_6                 ; 4933 28 08
                LD A,(DE)                       ; 4935 1A
                INC DE                          ; 4936 13
                DEC C                           ; 4937 0D
                CALL IS_DIGIT                   ; 4938 CD 4E 45
-               JR NC,CMD_TIME_LOOP4            ; 493B 30 F2
+               JR NC,CMD_TIME_LOOP4            ; 493B 30 F2  not a digit, so skip it and try the next character;
+                                               ; separators of any kind are simply dropped
 
 ; ---- CMD_TIME_6 ---- from &4933 when A = 0
 CMD_TIME_6:
-               CALL CALLDOS                    ; 493D CD C1 42
+               CALL CALLDOS                    ; 493D CD C1 42  the digit into the DOS's buffer, one byte at a time
+                                               ; through the ROM's LD (HL),A
                DEFW NRWRITE                    ; 4940 0D 00
 
 ; ---- CMD_TIME_LOOP5 ---- from &494B
 CMD_TIME_LOOP5:
-               INC HL                          ; 4942 23
+               INC HL                          ; 4942 23  and now find the next slot that holds a digit
                CALL CALLDOS                    ; 4943 CD C1 42
                DEFW NRREAD                     ; 4946 AC 00
                CALL IS_DIGIT                   ; 4948 CD 4E 45
-               JR NC,CMD_TIME_LOOP5            ; 494B 30 F5
+               JR NC,CMD_TIME_LOOP5            ; 494B 30 F5  the '/' or ':' of the template is stepped over rather than
+                                               ; written to
                DJNZ CMD_TIME_LOOP4             ; 494D 10 E0
-               CALL READ_CLOCK_FIELDS          ; 494F CD 0D 4A
-               JP C,REP_INTEGER_OUT_OF_RANGE   ; 4952 DA A7 43
+               CALL READ_CLOCK_FIELDS          ; 494F CD 0D 4A  the limits MasterDOS keeps after each buffer -- 1 to 31,
+                                               ; 1 to 12, 0 to 99 for the date, 0 to 23 and twice 0 to 59 for the time
+               JP C,REP_INTEGER_OUT_OF_RANGE   ; 4952 DA A7 43  "Integer out of range" for 32/13/99, and the chip is
+                                               ; left alone
 
 ; ---- CMD_TIME_7 ---- from &4916
 CMD_TIME_7:
-               LD IY,CMD_TIME_10               ; 4955 FD 21 ED 49
-               JR CMD_TIME_9                   ; 4959 18 21
+               LD IY,CMD_TIME_10               ; 4955 FD 21 ED 49  IY chooses which way WAIT_FOR_CLOCK_1 moves the
+                                               ; digits; this one writes them to the chip
+               JR CMD_TIME_9                   ; 4959 18 21  into the middle of WAIT_FOR_CLOCK, past the LD IY that
+                                               ; would have chosen reading
 
 ; ---- CMD_TIME_8 ---- from &491B
 CMD_TIME_8:
-               CALL EXPECT_END_OF_STATEMENT    ; 495B CD D0 44
+               CALL EXPECT_END_OF_STATEMENT    ; 495B CD D0 44  still has to reject "DATE 1,2", and still finishes the
+                                               ; syntax pass here
                LD A,&02                        ; 495E 3E 02
-               CALL CMR                        ; 4960 CD F0 44
+               CALL CMR                        ; 4960 CD F0 44  stream 2, the screen
                DEFW STREAM                     ; 4963 12 01
-               LD B,&09                        ; 4965 06 09
+               LD B,&09                        ; 4965 06 09  eight characters and the CR after them
                LD HL,(V4096)                   ; 4967 2A 96 40
 
 ; ---- CMD_TIME_LOOP6 ---- from &4975 when B is not 0 yet
@@ -3591,12 +3667,24 @@ CMD_TIME_LOOP6:
                RET                             ; 4977 C9
 
 ;; --------------------------------------------------------------------
-;; Wait for the SAMBus clock to be ready, and give up rather than hang.
-;; A byte read from the DOS says whether a clock is fitted at all, and
-;; zero returns at once.  Otherwise C takes that byte as the port's low
-;; half, B is &D0, and the loop writes 1, reads back, and tests bit 1;
-;; while it is set the port is cleared and tried again, up to the 2000
-;; in HL.  Interrupts are off for the whole of it.
+;; Get the chip to hold still, then move six fields either way.
+;;
+;; IY IS THE DIRECTION.  This entry sets it to the reading half and
+;; CMD_TIME_7 jumps in just below with the writing half, so one piece
+;; of code both reads the clock into MasterDOS's buffers and writes
+;; them back out.  Each CALL IYJUMP down at &49AC handles one field --
+;; two digits -- because the routine IY points at calls the one-digit
+;; worker and then falls into it a second time.
+;;
+;; THE HANDSHAKE IS THE CHIP'S.  Register 13, control D, has HOLD in
+;; bit 0 and BUSY in bit 1: writing 1 asks the counters to stop, and
+;; reading back tells you whether the request landed mid-update.  If it
+;; did, HOLD is dropped and the whole thing tried again; the release at
+;; &49CA is what lets the clock run on afterwards.
+;;
+;; IT GIVES UP RATHER THAN HANGS.  A CKPT of zero means no SAMBus and
+;; returns at once, leaving the buffers as they were, and the countdown
+;; in HL bounds the handshake.
 ;; --------------------------------------------------------------------
 
 ; ---- WAIT_FOR_CLOCK ---- from &4861, &4870, &4A3E
@@ -3605,56 +3693,68 @@ WAIT_FOR_CLOCK:
 
 ; ---- CMD_TIME_9 ---- from &4959
 CMD_TIME_9:
-               PUSH HL                             ; 497C E5
-               LD HL,SAVE_BLOCK_FROM_DOS_PAGE_DONE ; 497D 21 B6 42
-               CALL CALLDOS                        ; 4980 CD C1 42
-               DEFW NRREAD                         ; 4983 AC 00
-               POP HL                              ; 4985 E1
-               AND A                               ; 4986 A7
-               RET Z                               ; 4987 C8
-               DI                                  ; 4988 F3
-               PUSH HL                             ; 4989 E5
-               LD C,A                              ; 498A 4F
-               LD B,&D0                            ; 498B 06 D0
-               LD HL,&07D0                         ; 498D 21 D0 07
+               PUSH HL                         ; 497C E5
+               LD HL,&42B6                     ; 497D 21 B6 42  MasterDOS's CKPT, the clock port, fetched through NRREAD
+               CALL CALLDOS                    ; 4980 CD C1 42
+               DEFW NRREAD                     ; 4983 AC 00
+               POP HL                          ; 4985 E1
+               AND A                           ; 4986 A7
+               RET Z                           ; 4987 C8  zero means no clock is fitted, and the DOS's buffers keep
+                                               ; whatever they had
+               DI                              ; 4988 F3  the handshake below must not be interrupted with HOLD
+                                               ; asserted, or the clock would be stopped for the length of the interrupt
+               PUSH HL                         ; 4989 E5
+               LD C,A                          ; 498A 4F
+               LD B,&D0                        ; 498B 06 D0  register 13, control D
+               LD HL,&07D0                     ; 498D 21 D0 07  the bound on the handshake. Only H is compared, so it
+                                               ; actually gives up once HL falls below &0100 -- about 1745 tries, not
+                                               ; 2000
 
 ; ---- WAIT_FOR_CLOCK_LOOP ---- from &499F when A <> H
 WAIT_FOR_CLOCK_LOOP:
-               LD A,&01                        ; 4990 3E 01
+               LD A,&01                        ; 4990 3E 01  bit 0 of control D is HOLD: stop updating so that a read is
+                                               ; consistent
                OUT (C),A                       ; 4992 ED 79
                IN A,(C)                        ; 4994 ED 78
-               BIT 1,A                         ; 4996 CB 4F
+               BIT 1,A                         ; 4996 CB 4F  bit 1 is BUSY -- the chip was already updating and the hold
+                                               ; did not take
                JR Z,WAIT_FOR_CLOCK_1           ; 4998 28 09
-               XOR A                           ; 499A AF
+               XOR A                           ; 499A AF  drop HOLD, let the update finish, and come round again
                OUT (C),A                       ; 499B ED 79
                DEC HL                          ; 499D 2B
-               CP H                            ; 499E BC
+               CP H                            ; 499E BC  A is still zero here, so this is testing whether H has reached
+                                               ; zero
                JR NZ,WAIT_FOR_CLOCK_LOOP       ; 499F 20 EF
-               POP HL                          ; 49A1 E1
+               POP HL                          ; 49A1 E1  gave up.  The buffers are untouched and the caller is not told
                RET                             ; 49A2 C9
 
 ; ---- WAIT_FOR_CLOCK_1 ---- from &4998 when bit 1 of A clear
 WAIT_FOR_CLOCK_1:
                CALL PAGE_IN_OTHER_HALF         ; 49A3 CD D1 49
                PUSH AF                         ; 49A6 F5
-               LD B,&50                        ; 49A7 06 50
-               LD HL,DOS_TIMDT                 ; 49A9 21 80 82
-               CALL IYJUMP                     ; 49AC CD 06 00
+               LD B,&50                        ; 49A7 06 50  register 5, the tens of hours; the three calls below walk
+                                               ; down to register 0
+               LD HL,DOS_TIMDT                 ; 49A9 21 80 82  TIMDT through the window -- registers 5,4 then 3,2 then
+                                               ; 1,0 line up with "hh:mm:ss" exactly
+               CALL IYJUMP                     ; 49AC CD 06 00  CALL &0006 is the ROM's JP (IY): an indirect call, one
+                                               ; field per call
                CALL IYJUMP                     ; 49AF CD 06 00
                CALL IYJUMP                     ; 49B2 CD 06 00
-               LD HL,DOS_DATDT                 ; 49B5 21 71 82
-               LD B,&70                        ; 49B8 06 70
+               LD HL,DOS_DATDT                 ; 49B5 21 71 82  and now the date
+               LD B,&70                        ; 49B8 06 70  register 7, the tens of the day
                CALL IYJUMP                     ; 49BA CD 06 00
-               LD B,&90                        ; 49BD 06 90
+               LD B,&90                        ; 49BD 06 90  register 9, the month. B has to be reloaded rather than
+                                               ; left to the SUB &10 chain, because the registers for the three date
+                                               ; fields are 7-6, 9-8 and 11-10 -- not consecutive
                CALL IYJUMP                     ; 49BF CD 06 00
-               LD B,&B0                        ; 49C2 06 B0
+               LD B,&B0                        ; 49C2 06 B0  register 11, the year
                CALL IYJUMP                     ; 49C4 CD 06 00
                POP AF                          ; 49C7 F1
                OUT (HMPR),A                    ; 49C8 D3 FB
-               XOR A                           ; 49CA AF
+               XOR A                           ; 49CA AF  HOLD released, and the clock runs on
                LD B,&D0                        ; 49CB 06 D0
                OUT (C),A                       ; 49CD ED 79
-               POP HL                          ; 49CF E1
+               POP HL                          ; 49CF E1  the caller's HL, pushed at &4989
                RET                             ; 49D0 C9
 
 ;; --------------------------------------------------------------------
@@ -3679,8 +3779,9 @@ PAGE_IN_OTHER_HALF:
 
 ; ---- WAIT_FOR_CLOCK_2 ---- from &4978
 WAIT_FOR_CLOCK_2:
-               CALL PORT_BCD_DIGIT             ; 49DC CD E0 49
-               DEC HL                          ; 49DF 2B
+               CALL PORT_BCD_DIGIT             ; 49DC CD E0 49  the tens digit of a field
+               DEC HL                          ; 49DF 2B  the worker leaves HL two on, and this takes one back, so the
+                                               ; fall-through below lands on the units digit of the same field
 
 ;; --------------------------------------------------------------------
 ;; One digit of the clock.  IN A,(C), keep the low nibble, add &30 to
@@ -3693,16 +3794,20 @@ WAIT_FOR_CLOCK_2:
 ; ---- PORT_BCD_DIGIT ---- from &49DC
 PORT_BCD_DIGIT:
                IN A,(C)                        ; 49E0 ED 78
-               AND &0F                         ; 49E2 E6 0F
+               AND &0F                         ; 49E2 E6 0F  the chip returns its digit in the low nibble; the top
+                                               ; nibble is whatever the register does not use
                ADD A,&30                       ; 49E4 C6 30
-               CP &3A                          ; 49E6 FE 3A
+               CP &3A                          ; 49E6 FE 3A  ':' -- a nibble of ten or more is not a BCD digit, so it
+                                               ; came from a chip that is not there or not answering
                JR NC,PORT_BCD_DIGIT_1          ; 49E8 30 0C
-               LD (HL),A                       ; 49EA 77
+               LD (HL),A                       ; 49EA 77  only a real digit is stored, and a bad read leaves the
+                                               ; template alone
                JR PORT_BCD_DIGIT_1             ; 49EB 18 09
 
 ; ---- CMD_TIME_10 ---- from &4955
 CMD_TIME_10:
-               CALL PORT_PUT_BCD_DIGIT         ; 49ED CD F1 49
+               CALL PORT_PUT_BCD_DIGIT         ; 49ED CD F1 49  the writing half, the same two-digits-per-call shape as
+                                               ; &49DC
                DEC HL                          ; 49F0 2B
 
 ;; --------------------------------------------------------------------
@@ -3714,15 +3819,18 @@ CMD_TIME_10:
 ; ---- PORT_PUT_BCD_DIGIT ---- from &49ED
 PORT_PUT_BCD_DIGIT:
                LD A,(HL)                       ; 49F1 7E
-               SUB CH_ZERO                     ; 49F2 D6 30
+               SUB CH_ZERO                     ; 49F2 D6 30  the chip wants the digit, not the character
                OUT (C),A                       ; 49F4 ED 79
 
 ; ---- PORT_BCD_DIGIT_1 ---- from &49E8 when A >= &3A, &49EB
 PORT_BCD_DIGIT_1:
-               INC HL                          ; 49F6 23
+               INC HL                          ; 49F6 23  two on, so a call that entered at the tens digit leaves
+                                               ; pointing two past the units -- which is the tens digit of the next
+                                               ; field, the separator stepped over for free
                INC HL                          ; 49F7 23
                LD A,B                          ; 49F8 78
-               SUB &10                         ; 49F9 D6 10
+               SUB &10                         ; 49F9 D6 10  one register lower; the register number lives in bits 12-15
+                                               ; of the port address
                LD B,A                          ; 49FB 47
                RET                             ; 49FC C9
 
@@ -3766,12 +3874,14 @@ TWO_DIGITS_BEFORE_DE_LOOP:
 READ_CLOCK_FIELDS:
                CALL PAGE_IN_OTHER_HALF         ; 4A0D CD D1 49
                PUSH AF                         ; 4A10 F5
-               LD DE,(V4096)                   ; 4A11 ED 5B 96 40
-               SET 7,D                         ; 4A15 CB FA
+               LD DE,(V4096)                   ; 4A11 ED 5B 96 40  the buffer this command owns, at its own value
+               SET 7,D                         ; 4A15 CB FA  and windowed to &8271 or &8280, because the DOS's half is
+                                               ; in section C
                RES 6,D                         ; 4A17 CB B2
-               LD HL,&0009                     ; 4A19 21 09 00
+               LD HL,&0009                     ; 4A19 21 09 00  nine bytes on -- eight characters and the CR -- is where
+                                               ; MasterDOS keeps the limits
                ADD HL,DE                       ; 4A1C 19
-               LD B,&03                        ; 4A1D 06 03
+               LD B,&03                        ; 4A1D 06 03  three fields, three pairs of limits
 
 ; ---- READ_CLOCK_FIELDS_LOOP ---- from &4A2D when B is not 0 yet
 READ_CLOCK_FIELDS_LOOP:
@@ -3779,23 +3889,24 @@ READ_CLOCK_FIELDS_LOOP:
                LD C,A                          ; 4A22 4F
                LD A,(HL)                       ; 4A23 7E
                INC HL                          ; 4A24 23
-               CP C                            ; 4A25 B9
+               CP C                            ; 4A25 B9  the high limit first: 31, 12, 99 for a date, 23, 59, 59 for a
+                                               ; time
                JR C,READ_CLOCK_FIELDS_DONE     ; 4A26 38 0C
                LD A,C                          ; 4A28 79
-               CP (HL)                         ; 4A29 BE
+               CP (HL)                         ; 4A29 BE  then the low: 1, 1, 0 for a date, 0, 0, 0 for a time
                JR C,READ_CLOCK_FIELDS_DONE     ; 4A2A 38 08
                INC HL                          ; 4A2C 23
                DJNZ READ_CLOCK_FIELDS_LOOP     ; 4A2D 10 F0
                POP AF                          ; 4A2F F1
                OUT (HMPR),A                    ; 4A30 D3 FB
-               AND A                           ; 4A32 A7
+               AND A                           ; 4A32 A7  carry clear, so the caller at &4952 lets it through
                RET                             ; 4A33 C9
 
 ; ---- READ_CLOCK_FIELDS_DONE ---- from &4A26 when A < C, &4A2A when A < (HL)
 READ_CLOCK_FIELDS_DONE:
                POP AF                          ; 4A34 F1
                OUT (HMPR),A                    ; 4A35 D3 FB
-               SCF                             ; 4A37 37
+               SCF                             ; 4A37 37  out of range, and the chip is never written
                RET                             ; 4A38 C9
 
 ;; --------------------------------------------------------------------
@@ -3829,7 +3940,10 @@ STAMP_WITH_DATE:
                CALL WAIT_FOR_CLOCK             ; 4A3E CD 78 49  the clock is read once and cached; wait for that to
                                                ; finish
                CALL CALLDOS                    ; 4A41 CD C1 42  the entry that is being closed
-               DEFW DOS_POINT-&4000            ; 4A44 AC 4F
+               DEFW DOS_POINT-&4000            ; 4A44 AC 4F  POINT zeroes the low byte of the channel's record pointer
+                                               ; before adding it to the buffer base, so what comes back is the start of
+                                               ; the 256-byte directory entry rather than wherever in it the DOS had got
+                                               ; to
                LD BC,DIR_DATE+&4000            ; 4A46 01 F5 40
                ADD HL,BC                       ; 4A49 09  the date stamp's five bytes, seen through the window
                LD DE,DOS_DATDT                 ; 4A4A 11 71 82  day, month and year, as characters
@@ -4027,7 +4141,8 @@ TICS_SECONDS_IN_MONTH:
                                                ; number
                OUT (HMPR),A                    ; 4AC8 D3 FB
                CALL CMR                        ; 4ACA CD F0 44
-               DEFW DOS_FNS56                  ; 4ACD D3 8A
+               DEFW DOS_FNS56                  ; 4ACD D3 8A  this page's own &4AD3 through the window, which is why HMPR
+                                               ; was just set to this page
 
 ; ---- TICS_SECONDS_IN_MONTH_DONE ---- from &4AC1 when A = 0
 TICS_SECONDS_IN_MONTH_DONE:
@@ -4236,7 +4351,8 @@ PARSE_OPTIONAL_RANGE_1:
                EX (SP),HL                      ; 4B7E E3
                PUSH BC                         ; 4B7F C5
                CALL NRWRHL                     ; 4B80 CD 75 45
-               DEFW CHADD                      ; 4B83 97 5A
+               DEFW CHADD                      ; 4B83 97 5A  CHADD put back, so the ROM's parser carries on from the
+                                               ; character this left off at
 
 ; ---- FN_INARRAY_2 ---- from &4B42
 FN_INARRAY_2:
@@ -4855,8 +4971,8 @@ TWO_PAGED_STRINGS_1:
 ;; only the Z.
 ;; --------------------------------------------------------------------
 
-; ---- COPY_BETWEEN_PAGES ---- from &5E30, &5E41
-COPY_BETWEEN_PAGES:
+; ---- COMPARE_FAR_STRINGS_FOLDED ---- from &5E30, &5E41
+COMPARE_FAR_STRINGS_FOLDED:
                LD C,&FB                        ; 4D91 0E FB  C is the HMPR port for the rest of the routine, and after
                                                ; the EXX the alternate set holds it, both page numbers, and the first
                                                ; string's pointer
@@ -5114,7 +5230,8 @@ FN_RESERVED:
                                                ; one -- so this puts MasterBASIC into the window as well
                OUT (HMPR),A                    ; 4E72 D3 FB
                CALL CMR                        ; 4E74 CD F0 44
-               DEFW &8E81                      ; 4E77 81 8E
+               DEFW &8E81                      ; 4E77 81 8E  &8E81 is &4E81 seen through the window, the fragment below,
+                                               ; run with the ROM paged in
                POP AF                          ; 4E79 F1
                OUT (HMPR),A                    ; 4E7A D3 FB
                LD B,D                          ; 4E7C 42  HEAPROOM's DE, the start of the space it handed out, is what
@@ -8391,59 +8508,108 @@ WINDOW_SOUND_POINTER_3:
                LD (V4082),DE                   ; 5B6A ED 53 82 40
                AND A                           ; 5B6E A7
                RET NZ                          ; 5B6F C0
-               INC A                           ; 5B70 3C
+
+;; --------------------------------------------------------------------
+;; idle, 1 means "take data on the next interrupt"
+;; --------------------------------------------------------------------
+
+               INC A                           ; 5B70 3C  the write pointer has moved, so wake the player: 0 in V4084
+                                               ; means
                LD (V4084),A                    ; 5B71 32 84 40
                RET                             ; 5B74 C9
 
 ;; --------------------------------------------------------------------
-;; Has ESC been pressed?  Reports "Escape requested" if it has.
-;;
-;; Reads the keyboard row through the status port and returns unless the
-;; key is down, the SAM's matrix being active low.  Both serial polling
-;; loops call this, which is what stops a missing or silent device at the
-;; other end from locking the machine up: the wait can always be broken
-;; out of.
+;; pair in tadjm.asm -- LD A,&F7 : IN A,(STATPORT) ";BIT 5 IS LOW IF
+;; ESC PRESSED"
 ;; --------------------------------------------------------------------
 
 ; ---- ESCCHK ---- from &4307, &431B, &4650, &5B56, &5B82, &5BC4
 ESCCHK:
-               LD A,&F7                        ; 5B75 3E F7
+               LD A,&F7                        ; 5B75 3E F7  the keyboard half-row ESC sits on. The ROM does the
+                                               ; identical
                IN A,(STAT)                     ; 5B77 DB F9
-               AND &20                         ; 5B79 E6 20
-               RET NZ                          ; 5B7B C0
+               AND &20                         ; 5B79 E6 20  bit 5 of the status port, low while ESC is held
+               RET NZ                          ; 5B7B C0  not pressed is the common case, so that is the cheap exit
                LD A,&54                        ; 5B7C 3E 54  error 84, "Escape requested"
                JP REPORT                       ; 5B7E C3 BE 43
 
+;; --------------------------------------------------------------------
+;; Hook code &9A -- put one byte in the interrupt-driven printer buffer,
+;; waiting if it is full.
+;;
+;; A RING OF 1K SLOTS WITH TWO POINTERS.  V4085/V4086 are the page and
+;; address the 50Hz tick reads from (&59FC-&5A68, which runs in the system
+;; page with this half in the window, and so spells them &8085/&8086), and
+;; V4088/V4089 are the page and address written here.  Equal pointers mean
+;; empty, so the writer must never let its pointer catch the reader's --
+;; hence the wait at &5BBB.
+;;
+;; The manual promises exactly that wait: "If the buffer becomes full, the
+;; computer will wait for the printer to deal with some of the data before
+;; finishing the LLIST, DUMP or LPRINT."
+;;
+;; The body from &5B8E to &5BBA is the same twenty-five instructions as
+;; WINDOW_SOUND_POINTER at &5B22, which does the same job for the sound
+;; buffer; the only difference is that this stores one byte where that
+;; stores a register number and a value.
+;; --------------------------------------------------------------------
+
 HK_HDUMMY:
-               LD B,A                          ; 5B81 47
-               CALL ESCCHK                     ; 5B82 CD 75 5B
+               LD B,A                          ; 5B81 47  the byte to print, kept in B because A is about to carry
+                                               ; paging
+               CALL ESCCHK                     ; 5B82 CD 75 5B  the wait below can be long, so it must be escapable
                IN A,(HMPR)                     ; 5B85 DB FB
                PUSH AF                         ; 5B87 F5
-               DI                              ; 5B88 F3
+
+;; --------------------------------------------------------------------
+;; between reading V4088 and writing V4089 back
+;; --------------------------------------------------------------------
+
+               DI                              ; 5B88 F3  the tick touches these same pointers, so no interrupt may land
                LD A,(V4088)                    ; 5B89 3A 88 40
-               OUT (HMPR),A                    ; 5B8C D3 FB
+
+;; --------------------------------------------------------------------
+;; &4000-&7FFF value, read there by the SET 7,H / RES 6,H below
+;; --------------------------------------------------------------------
+
+               OUT (HMPR),A                    ; 5B8C D3 FB  the buffer's page into the window; the pointer that follows
+                                               ; is a
                LD HL,(V4089)                   ; 5B8E 2A 89 40
                LD A,H                          ; 5B91 7C
-               INC A                           ; 5B92 3C
-               LD E,H                          ; 5B93 5C
+
+;; --------------------------------------------------------------------
+;; last 256 bytes of a 1K slot, the only place a slot link can be
+;; --------------------------------------------------------------------
+
+               INC A                           ; 5B92 3C  H+1 with the low two bits clear means the pointer is inside
+                                               ; the
+               LD E,H                          ; 5B93 5C  E keeps the un-windowed high byte, put back at &5BB8
                SET 7,H                         ; 5B94 CB FC
                RES 6,H                         ; 5B96 CB B4
                AND &03                         ; 5B98 E6 03
                JR NZ,HK_HDUMMY_2               ; 5B9A 20 1B
                LD A,E                          ; 5B9C 7B
-               CP &7F                          ; 5B9D FE 7F
+
+;; --------------------------------------------------------------------
+;; SLOTT, so its link sits sixteen bytes lower
+;; --------------------------------------------------------------------
+
+               CP &7F                          ; 5B9D FE 7F  &7F is the top slot of the page, whose last sixteen bytes
+                                               ; are
                LD A,L                          ; 5B9F 7D
                JR NZ,HK_HDUMMY_1               ; 5BA0 20 02
-               ADD A,&10                       ; 5BA2 C6 10
+               ADD A,&10                       ; 5BA2 C6 10  add those sixteen, so the one CP &FE below covers both
+                                               ; cases
 
 ; ---- HK_HDUMMY_1 ---- from &5BA0 when A <> &7F
 HK_HDUMMY_1:
-               CP &FE                          ; 5BA4 FE FE
+               CP &FE                          ; 5BA4 FE FE  &FE means the two bytes left in the slot are the link, not
+                                               ; data
                JR NZ,HK_HDUMMY_2               ; 5BA6 20 0F
-               LD E,(HL)                       ; 5BA8 5E
+               LD E,(HL)                       ; 5BA8 5E  the link is stored as high byte of address, then page
                INC L                           ; 5BA9 2C
                LD A,(HL)                       ; 5BAA 7E
-               LD L,&00                        ; 5BAB 2E 00
+               LD L,&00                        ; 5BAB 2E 00  and a slot always starts on a 256-byte boundary
                LD H,E                          ; 5BAD 63
                SET 7,H                         ; 5BAE CB FC
                RES 6,H                         ; 5BB0 CB B4
@@ -8452,18 +8618,30 @@ HK_HDUMMY_1:
 
 ; ---- HK_HDUMMY_2 ---- from &5B9A when a bit of &03 is set, &5BA6 when A <> &FE
 HK_HDUMMY_2:
-               LD (HL),B                       ; 5BB7 70
+               LD (HL),B                       ; 5BB7 70  the byte itself, at last
                LD H,E                          ; 5BB8 63
                INC HL                          ; 5BB9 23
                EX DE,HL                        ; 5BBA EB
 
+;; --------------------------------------------------------------------
+;; full -- unless the reader is in another page, which the compare at
+;; &5BCD settles
+;; --------------------------------------------------------------------
+
 ; ---- HK_HDUMMY_LOOP ---- from &5BCE when A = C
 HK_HDUMMY_LOOP:
-               LD HL,(V4086)                   ; 5BBB 2A 86 40
+               LD HL,(V4086)                   ; 5BBB 2A 86 40  the reader's address. If the writer has arrived at it
+                                               ; the ring is
                AND A                           ; 5BBE A7
                SBC HL,DE                       ; 5BBF ED 52
                JR NZ,HK_HDUMMY_DONE            ; 5BC1 20 0D
-               EI                              ; 5BC3 FB
+
+;; --------------------------------------------------------------------
+;; the buffer and end this wait
+;; --------------------------------------------------------------------
+
+               EI                              ; 5BC3 FB  interrupts back on, because it is the interrupt that will
+                                               ; empty
                CALL ESCCHK                     ; 5BC4 CD 75 5B
                IN A,(HMPR)                     ; 5BC7 DB FB
                LD C,A                          ; 5BC9 4F
@@ -8479,35 +8657,68 @@ HK_HDUMMY_DONE:
                RET                             ; 5BD7 C9
 
 ;; --------------------------------------------------------------------
-;; RECORD -- taken over from the ROM at token &EF, for RECORD SOUND.
+;; Reached from MasterDOS's command-intercept table, which maps the ROM's
+;; own RECORD token &EF to this address (&4330 in masterdos.asm).
 ;;
-;;     RECORD SOUND TO a$        add every SOUND and PAUSE to a$ as well
-;;                               as performing it
-;;     RECORD SOUND OFF TO a$    add them without performing them, which
-;;                               is much faster
-;;     RECORD SOUND STOP         stop adding
+;; IT DOES NOT IMPLEMENT RECORD; IT REWRITES THE ROM'S.  The ROM's RECORD --
+;; assign.asm, "E.G. RECORD TO A$ OR: RECORD STOP" -- already knows how to
+;; delete a string variable, copy its name to STRM16NM and open stream 16 on
+;; it.  MasterBASIC copies that routine into the system page at &5000 and
+;; changes exactly two operands, so that RECORD SOUND writes to
+;; MasterBASIC's own flag and its own stream-16 record instead of the ROM's,
+;; leaving the ROM's graphics RECORD alone.
 ;;
-;; The string then holds everything that would have gone to the sound
-;; chip, with markers where the PAUSEs were, ready for BLITZ SOUND.  SOUND
-;; CLEAR sets the size of the buffer they are played back through.
+;; In ROM 3.0 the routine is at &2C1A and the assembled copy comes out as
 ;;
-;; Manual: "Sound commands".
+;;     &5000  RST &18            the current character, not the next
+;;     &5001  38 bytes of the ROM's RECORD, up to and including CALL SCOPN1
+;;     &5027  12 bytes: set SYS_RECORD_STATE from SYS_RECORD_MODE
+;;     &5033  CALL SCOPNM       (the ROM's LD A,D : LD (GRARF),A skipped)
+;;     &5036  JP &2C9B          the ROM's JR ASNS1, made absolute
+;;
+;; and then &5007 is patched from GRARF to SYS_RECORD_STATE and &5022 from
+;; STRM16NM to SYS_STRM16_SAVE.
 ;; --------------------------------------------------------------------
 
 CMD_RECORD:
-               LD C,&AE                        ; 5BD8 0E AE
+               LD C,&AE                        ; 5BD8 0E AE  the word after RECORD must be SOUND, or "Not understood"
                CALL NEXT_CHAR_MUST_BE_C        ; 5BDA CD 5A 44
-               SUB &89                         ; 5BDD D6 89
+               SUB &89                         ; 5BDD D6 89  &89 is the OFF token, so Z here means RECORD SOUND OFF
                PUSH AF                         ; 5BDF F5
-               CALL NRWR                       ; 5BE0 CD 82 45
+
+;; --------------------------------------------------------------------
+;; turns that into the state byte later
+;; --------------------------------------------------------------------
+
+               CALL NRWR                       ; 5BE0 CD 82 45  the mode is zero for OFF and non-zero otherwise;
+                                               ; CMD_RECORD_1
                DEFW SYS_RECORD_MODE            ; 5BE3 F3 4A
                POP AF                          ; 5BE5 F1
-               CALL Z,CALL_NEXTCHAR            ; 5BE6 CC 61 44
+
+;; --------------------------------------------------------------------
+;; own code expects to find under the character pointer
+;; --------------------------------------------------------------------
+
+               CALL Z,CALL_NEXTCHAR            ; 5BE6 CC 61 44  only OFF has to be stepped past -- TO and STOP are what
+                                               ; the ROM's
                CALL NRRDD                      ; 5BE9 CD 5F 45
                DEFW COMAD                      ; 5BEC DA 5B
-               LD HL,&00BE                     ; 5BEE 21 BE 00
+
+;; --------------------------------------------------------------------
+;; which is RECORD.  Checked against ref/samrom/roms: in ROM 3.0 that
+;; entry holds &2C1A, which is assign.asm's RECORD
+;; --------------------------------------------------------------------
+
+               LD HL,&00BE                     ; 5BEE 21 BE 00  &BE is 2*(&EF-&90), the ROM command table's entry for
+                                               ; token &EF,
                ADD HL,BC                       ; 5BF1 09
-               IN A,(LMPR)                     ; 5BF2 DB FA
+
+;; --------------------------------------------------------------------
+;; no paging of its own
+;; --------------------------------------------------------------------
+
+               IN A,(LMPR)                     ; 5BF2 DB FA  the table is in ROM 1; the routine it names is in ROM 0 and
+                                               ; needs
                OR ENABLE_ROM1                  ; 5BF4 F6 40
                OUT (LMPR),A                    ; 5BF6 D3 FA
                LD E,(HL)                       ; 5BF8 5E
@@ -8519,47 +8730,85 @@ CMD_RECORD:
                XOR A                           ; 5BFF AF
                OUT (HMPR),A                    ; 5C00 D3 FB
                LD DE,&9000                     ; 5C02 11 00 90
-               LD A,&DF                        ; 5C05 3E DF
+
+;; --------------------------------------------------------------------
+;; dispatcher would have used RST &20.  CMD_RECORD has already
+;; stepped past SOUND and any OFF, so a second step would eat the TO
+;; --------------------------------------------------------------------
+
+               LD A,&DF                        ; 5C05 3E DF  &DF is RST &18, "the character we are on", where the ROM's
                LD (DE),A                       ; 5C07 12
                INC DE                          ; 5C08 13
-               LD BC,&0026                     ; 5C09 01 26 00
+               LD BC,&0026                     ; 5C09 01 26 00  38 bytes reaches the end of the ROM's CALL SCOPN1
                LDIR                            ; 5C0C ED B0
                PUSH HL                         ; 5C0E E5
                LD HL,CMD_RECORD_1              ; 5C0F 21 3F 5C
                LD C,&0C                        ; 5C12 0E 0C
                LDIR                            ; 5C14 ED B0
                POP HL                          ; 5C16 E1
-               INC HL                          ; 5C17 23
+
+;; --------------------------------------------------------------------
+;; switch the ROM's own graphics recording on
+;; --------------------------------------------------------------------
+
+               INC HL                          ; 5C17 23  four bytes skipped -- the ROM's LD A,D : LD (GRARF),A, which
+                                               ; would
                INC HL                          ; 5C18 23
                INC HL                          ; 5C19 23
                INC HL                          ; 5C1A 23
                LD C,&03                        ; 5C1B 0E 03
                LDIR                            ; 5C1D ED B0
-               LD BC,&0054                     ; 5C1F 01 54 00
+
+;; --------------------------------------------------------------------
+;; &52 displacement, so this computes the target without reading it.
+;; &52 is the displacement in every ROM image from 1.4 on
+;; --------------------------------------------------------------------
+
+               LD BC,&0054                     ; 5C1F 01 54 00  the ROM ends with JR ASNS1; &54 is that JR's own two
+                                               ; bytes plus its
                ADD HL,BC                       ; 5C22 09
                EX DE,HL                        ; 5C23 EB
-               LD (HL),&C3                     ; 5C24 36 C3
+               LD (HL),&C3                     ; 5C24 36 C3  and a JP, because a JR from &5036 could not reach it
                INC HL                          ; 5C26 23
                LD (HL),E                       ; 5C27 73
                INC HL                          ; 5C28 23
                LD (HL),D                       ; 5C29 72
                LD HL,&4AF4                     ; 5C2A 21 F4 4A
-               LD (&9007),HL                   ; 5C2D 22 07 90
+
+;; --------------------------------------------------------------------
+;; RECORD SOUND STOP zeroes SYS_RECORD_STATE instead of the ROM's
+;; graphics flag
+;; --------------------------------------------------------------------
+
+               LD (&9007),HL                   ; 5C2D 22 07 90  &5007 is the operand of the ROM's LD (GRARF),A on the
+                                               ; STOP path, so
                LD HL,&4AF5                     ; 5C30 21 F5 4A
-               LD (&9022),HL                   ; 5C33 22 22 90
+
+;; --------------------------------------------------------------------
+;; into MasterBASIC's saved copy, not the ROM's live one -- which is
+;; what the swap at &5E0C exists to shuttle back and forth
+;; --------------------------------------------------------------------
+
+               LD (&9022),HL                   ; 5C33 22 22 90  &5022 is the operand of LD DE,STRM16NM. The variable's
+                                               ; name goes
                POP AF                          ; 5C36 F1
                OUT (HMPR),A                    ; 5C37 D3 FB
-               CALL CMR                        ; 5C39 CD F0 44
+               CALL CMR                        ; 5C39 CD F0 44  and run what was just built
+
+;; --------------------------------------------------------------------
+;; assembled
+;; --------------------------------------------------------------------
 
 V5C3C:
-               DEFW GTDT                       ; 5C3C 00 50
+               DEFW GTDT                       ; 5C3C 00 50  the inline parameter of the CALL above -- &5000, the
+                                               ; routine just
                RET                             ; 5C3E C9
 
 ; ---- CMD_RECORD_1 ---- from &5C0F
 CMD_RECORD_1:
                LD A,(SYS_RECORD_MODE)          ; 5C3F 3A F3 4A
                AND A                           ; 5C42 A7
-               LD A,&02                        ; 5C43 3E 02
+               LD A,&02                        ; 5C43 3E 02  2 is the OFF value; the DEC A below turns it into 1
                JR Z,CMD_RECORD_2               ; 5C45 28 01
                DEC A                           ; 5C47 3D
 
@@ -8568,24 +8817,26 @@ CMD_RECORD_2:
                LD (SYS_RECORD_STATE),A         ; 5C48 32 F4 4A
 
 ;; --------------------------------------------------------------------
-;; Set up to copy one of the ROM's own ROM 1 routines into the system
-;; page.  DE points at a command table entry; the word after its first
-;; byte is the routine's address.  B is loaded with &E7 -- RST &20, the
-;; ROM's next-character restart -- and PAGE_IN_ROM1 plants it at the
-;; destination, so every copy begins by fetching a character.  It comes
-;; back with HL at the source, DE one past the planted byte, and the old
-;; HMPR in A.
+;; LD HL,<source> -- &388D is 21 6E C4 and &3867 is 21 92 C2 in ROM
+;; 3.0 -- so the two bytes after the first are where the code really
+;; lives
 ;; --------------------------------------------------------------------
 
 ; ---- PREPARE_ROM1_COPY ---- from &5D65, &5D7B, DOS &6F6E
 PREPARE_ROM1_COPY:
-               PUSH HL                         ; 5C4B E5
+               PUSH HL                         ; 5C4B E5  the ROM's DEF KEYCODE and KEYIN entries both open with
                INC DE                          ; 5C4C 13
                EX DE,HL                        ; 5C4D EB
                LD E,(HL)                       ; 5C4E 5E
                INC HL                          ; 5C4F 23
                LD D,(HL)                       ; 5C50 56
-               LD B,&E7                        ; 5C51 06 E7
+
+;; --------------------------------------------------------------------
+;; would have stepped past the keyword before entering
+;; --------------------------------------------------------------------
+
+               LD B,&E7                        ; 5C51 06 E7  RST &20 planted ahead of every copy, because the ROM's
+                                               ; dispatcher
                POP HL                          ; 5C53 E1
                JR PAGE_IN_ROM1                 ; 5C54 18 03
 
@@ -8596,7 +8847,8 @@ PREPARE_ROM1_COPY:
 
 ; ---- PREPARE_COPY_AT_5000 ---- from &5CC3, &5D34
 PREPARE_COPY_AT_5000:
-               LD HL,&9000                     ; 5C56 21 00 90
+               LD HL,&9000                     ; 5C56 21 00 90  &9000 is &5000 in the system page, with HMPR about to be
+                                               ; zeroed
 
 ;; --------------------------------------------------------------------
 ;; Set bit 6 of LMPR, which pages ROM1 in, and save the old HMPR in C.
@@ -8611,15 +8863,32 @@ PAGE_IN_ROM1:
                OR ENABLE_ROM1                  ; 5C5B F6 40
                OUT (LMPR),A                    ; 5C5D D3 FA
                IN A,(HMPR)                     ; 5C5F DB FB
-               LD C,A                          ; 5C61 4F
-               XOR A                           ; 5C62 AF
+
+;; --------------------------------------------------------------------
+;; caller can PUSH it in one instruction
+;; --------------------------------------------------------------------
+
+               LD C,A                          ; 5C61 4F  the old HMPR leaves in C and comes back in A at &5C65, so the
+
+;; --------------------------------------------------------------------
+;; &5000
+;; --------------------------------------------------------------------
+
+               XOR A                           ; 5C62 AF  the system page into the window, which is what makes &9000
+                                               ; mean
                OUT (HMPR),A                    ; 5C63 D3 FB
 
 PAGE_IN_ROM1_1:
                LD A,C                          ; 5C65 79
-               LD (HL),B                       ; 5C66 70
+
+;; --------------------------------------------------------------------
+;; destination pointer the caller is handed already steps over it
+;; --------------------------------------------------------------------
+
+               LD (HL),B                       ; 5C66 70  the first byte of the copy, planted before the LDIR so that
+                                               ; the
                INC HL                          ; 5C67 23
-               EX DE,HL                        ; 5C68 EB
+               EX DE,HL                        ; 5C68 EB  out with HL = source, DE = destination, ready for LDIR
                RET                             ; 5C69 C9
 
 ;; --------------------------------------------------------------------
@@ -8642,21 +8911,49 @@ PAGE_IN_ROM1_1:
 ; ---- CMD_SOUND ---- from &4ECC when A = &AE
 CMD_SOUND:
                CALL CALL_NEXTCHAR              ; 5C6A CD 61 44
-               CP T_CLEAR                      ; 5C6D FE B3
+               CP T_CLEAR                      ; 5C6D FE B3  SOUND CLEAR is the only form MasterBASIC handles for itself
                JP NZ,CMD_SOUND_2               ; 5C6F C2 C1 5C
                CALL CALL_NEXTCHAR              ; 5C72 CD 61 44
                CP CH_COLON                     ; 5C75 FE 3A
-               JR Z,CMD_SOUND_1                ; 5C77 28 24
+
+;; --------------------------------------------------------------------
+;; chip, without altering the buffer size"
+;; --------------------------------------------------------------------
+
+               JR Z,CMD_SOUND_1                ; 5C77 28 24  SOUND CLEAR on its own -- "clear the buffer and silence the
+                                               ; sound
                CP CH_CR                        ; 5C79 FE 0D
                JR Z,CMD_SOUND_1                ; 5C7B 28 20
                CALL NUMBER_THEN_END            ; 5C7D CD C8 44
-               CALL SILENCE_SOUND_CHIP         ; 5C80 CD A0 5C
-               LD A,(V407E)                    ; 5C83 3A 7E 40
+
+;; --------------------------------------------------------------------
+;; the allocator while the interrupt is still reading it
+;; --------------------------------------------------------------------
+
+               CALL SILENCE_SOUND_CHIP         ; 5C80 CD A0 5C  silence first, because what follows hands the old buffer
+                                               ; back to
+
+;; --------------------------------------------------------------------
+;; is circular, so freeing from wherever the reader stands frees all
+;; of it
+;; --------------------------------------------------------------------
+
+               LD A,(V407E)                    ; 5C83 3A 7E 40  the read pointer doubles as the handle on the slot
+                                               ; chain; the chain
                LD HL,(V407F)                   ; 5C86 2A 7F 40
-               AND A                           ; 5C89 A7
+               AND A                           ; 5C89 A7  page 0 means there is no buffer yet
                CALL NZ,FREE_SLOT_CHAIN         ; 5C8A C4 7B 5F
                CALL GET_BUFFER_SIZE            ; 5C8D CD DD 5E
-               LD (V407E),A                    ; 5C90 32 7E 40
+
+;; --------------------------------------------------------------------
+;; the empty condition.  A size of zero comes back with A = 0 and
+;; leaves both at page 0 -- the manual's "SOUND CLEAR 0 will delete
+;; the buffer and free the memory for other uses", and what
+;; HK_FARSCAN reports as "No Buffer"
+;; --------------------------------------------------------------------
+
+               LD (V407E),A                    ; 5C90 32 7E 40  read pointer and write pointer both set to the new
+                                               ; buffer, which is
                LD (V407F),HL                   ; 5C93 22 7F 40
                LD (V4081),A                    ; 5C96 32 81 40
                LD (V4082),HL                   ; 5C99 22 82 40
@@ -8684,34 +8981,78 @@ CMD_SOUND_1:
 ; ---- SILENCE_SOUND_CHIP ---- from &5C80
 SILENCE_SOUND_CHIP:
                EI                              ; 5CA0 FB
-               HALT                            ; 5CA1 76
+
+;; --------------------------------------------------------------------
+;; not halfway through a register pair
+;; --------------------------------------------------------------------
+
+               HALT                            ; 5CA1 76  wait for the frame interrupt, so the player is between bytes
+                                               ; and
                XOR A                           ; 5CA2 AF
-               LD (V4084),A                    ; 5CA3 32 84 40
-               LD HL,(V407F)                   ; 5CA6 2A 7F 40
+               LD (V4084),A                    ; 5CA3 32 84 40  0 stops the player -- it returns at once while this is
+                                               ; zero
+
+;; --------------------------------------------------------------------
+;; simply declared empty
+;; --------------------------------------------------------------------
+
+               LD HL,(V407F)                   ; 5CA6 2A 7F 40  write pointer := read pointer. Nothing is erased; the
+                                               ; ring is
                LD (V4082),HL                   ; 5CA9 22 82 40
                LD A,(V407E)                    ; 5CAC 3A 7E 40
                LD (V4081),A                    ; 5CAF 32 81 40
-               LD A,&20                        ; 5CB2 3E 20
+
+;; --------------------------------------------------------------------
+;; that the first one written is 31
+;; --------------------------------------------------------------------
+
+               LD A,&20                        ; 5CB2 3E 20  32 registers, counted down by the DEC A at the top of the
+                                               ; loop so
 
 ; ---- SILENCE_SOUND_CHIP_LOOP ---- from &5CBE when A <> 0
 SILENCE_SOUND_CHIP_LOOP:
-               LD BC,&01FF                     ; 5CB4 01 FF 01
+               LD BC,&01FF                     ; 5CB4 01 FF 01  reloaded every turn because DEC B destroys it
                DEC A                           ; 5CB7 3D
                OUT (C),A                       ; 5CB8 ED 79
-               DEC B                           ; 5CBA 05
+
+;; --------------------------------------------------------------------
+;; into the other -- and leaves B holding the zero that is about to be
+;; written
+;; --------------------------------------------------------------------
+
+               DEC B                           ; 5CBA 05  the address port is &1FF and the data port &0FF, so DEC B
+                                               ; turns one
                OUT (C),B                       ; 5CBB ED 41
                AND A                           ; 5CBD A7
                JR NZ,SILENCE_SOUND_CHIP_LOOP   ; 5CBE 20 F4
                RET                             ; 5CC0 C9
 
+;; --------------------------------------------------------------------
+;; token looking for CLEAR, so the character pointer is where the
+;; ROM's code expects it and a second step would eat an argument
+;; --------------------------------------------------------------------
+
 ; ---- CMD_SOUND_2 ---- from &5C6F when A <> T_CLEAR
 CMD_SOUND_2:
-               LD B,&00                        ; 5CC1 06 00
+               LD B,&00                        ; 5CC1 06 00  NOP, not RST &20. CMD_SOUND has already stepped past the
+                                               ; SOUND
                CALL PREPARE_COPY_AT_5000       ; 5CC3 CD 56 5C
                PUSH AF                         ; 5CC6 F5
-               LD C,&30                        ; 5CC7 0E 30
+
+;; --------------------------------------------------------------------
+;; LD BC,&01FF
+;; --------------------------------------------------------------------
+
+               LD C,&30                        ; 5CC7 0E 30  forty-eight bytes -- everything up to and including the
+                                               ; ROM's
                LDIR                            ; 5CC9 ED B0
-               PUSH HL                         ; 5CCB E5
+
+;; --------------------------------------------------------------------
+;; below carry on from offset 48, not from after the splice
+;; --------------------------------------------------------------------
+
+               PUSH HL                         ; 5CCB E5  the ROM source pointer is put back at &5CD3, so the eighteen
+                                               ; bytes
                LD HL,V5DBF                     ; 5CCC 21 BF 5D
                LD C,&0B                        ; 5CCF 0E 0B
                LDIR                            ; 5CD1 ED B0
@@ -8719,7 +9060,7 @@ CMD_SOUND_2:
                LD C,&12                        ; 5CD4 0E 12
                LDIR                            ; 5CD6 ED B0
                LD HL,SILENCE_SOUND_CHIP_2      ; 5CD8 21 E7 5D
-               LD C,&38                        ; 5CDB 0E 38
+               LD C,&38                        ; 5CDB 0E 38  and &38 more from &5DE7, which PAUSE also uses
                JR SILENCE_SOUND_CHIP_1         ; 5CDD 18 78
 
 ;; --------------------------------------------------------------------
@@ -8764,87 +9105,105 @@ BUILD_PAGE_IN_TRAMPOLINE:
                INC HL                          ; 5CF0 23
 
 L5CF1:
-               LD BC,&0000                             ; 5CF1 01 00 00  the operand is written here at run time, from
-                                                       ; &79BA
-               LD (HL),C                               ; 5CF4 71
-               INC HL                                  ; 5CF5 23
-               LD (HL),B                               ; 5CF6 70
-               INC HL                                  ; 5CF7 23
-               LD (HL),&D0                             ; 5CF8 36 D0
-               INC HL                                  ; 5CFA 23
-               LD (HL),&3E                             ; 5CFB 36 3E
-               INC HL                                  ; 5CFD 23
-               IN A,(LMPR)                             ; 5CFE DB FA
-               INC A                                   ; 5D00 3C
-               AND PAGEMASK                            ; 5D01 E6 1F
-               LD (HL),A                               ; 5D03 77
-               INC HL                                  ; 5D04 23
-               LD (HL),&D3                             ; 5D05 36 D3
-               INC HL                                  ; 5D07 23
-               LD (HL),&FB                             ; 5D08 36 FB
-               INC HL                                  ; 5D0A 23
-               LD (HL),&21                             ; 5D0B 36 21
-               INC HL                                  ; 5D0D 23
-               LD (HL),E                               ; 5D0E 73
-               INC HL                                  ; 5D0F 23
-               LD (HL),D                               ; 5D10 72
-               INC HL                                  ; 5D11 23
-               LD (HL),&C3                             ; 5D12 36 C3
-               INC HL                                  ; 5D14 23
-               LD BC,&9D20                             ; 5D15 01 20 9D
-               LD (HL),C                               ; 5D18 71
-               INC HL                                  ; 5D19 23
-               LD (HL),B                               ; 5D1A 70
-               LD BC,&4D50                             ; 5D1B 01 50 4D
-               JR RESTORE_HMPR_AND_STORE               ; 5D1E 18 3C
-               LD DE,SYS_CDBUFF_50                     ; 5D20 11 50 4D  where the trampoline lands, with this half paged
-                                                       ; in at &8000
-               LD BC,&0015                             ; 5D23 01 15 00
-               LDIR                                    ; 5D26 ED B0
-               LD HL,COPY_THEN_APPEND_CALL_6+IN_PAGE_C ; 5D28 21 1F 9E
+               LD BC,&0000                     ; 5CF1 01 00 00  the operand is written here at run time, from &79BA
+               LD (HL),C                       ; 5CF4 71
+               INC HL                          ; 5CF5 23
+               LD (HL),B                       ; 5CF6 70
+               INC HL                          ; 5CF7 23
+               LD (HL),&D0                     ; 5CF8 36 D0
+               INC HL                          ; 5CFA 23
+               LD (HL),&3E                     ; 5CFB 36 3E
+               INC HL                          ; 5CFD 23
+               IN A,(LMPR)                     ; 5CFE DB FA
+               INC A                           ; 5D00 3C
+               AND PAGEMASK                    ; 5D01 E6 1F
+               LD (HL),A                       ; 5D03 77
+               INC HL                          ; 5D04 23
+               LD (HL),&D3                     ; 5D05 36 D3
+               INC HL                          ; 5D07 23
+               LD (HL),&FB                     ; 5D08 36 FB
+               INC HL                          ; 5D0A 23
+               LD (HL),&21                     ; 5D0B 36 21
+               INC HL                          ; 5D0D 23
+               LD (HL),E                       ; 5D0E 73
+               INC HL                          ; 5D0F 23
+               LD (HL),D                       ; 5D10 72
+               INC HL                          ; 5D11 23
+               LD (HL),&C3                     ; 5D12 36 C3
+               INC HL                          ; 5D14 23
+               LD BC,&9D20                     ; 5D15 01 20 9D
+               LD (HL),C                       ; 5D18 71
+               INC HL                          ; 5D19 23
+               LD (HL),B                       ; 5D1A 70
+               LD BC,&4D50                     ; 5D1B 01 50 4D
+               JR RESTORE_HMPR_AND_STORE       ; 5D1E 18 3C
+
+;; --------------------------------------------------------------------
+;; above -- so this runs in MasterBASIC's own page while section B
+;; holds the system page
+;; --------------------------------------------------------------------
+
+               LD DE,SYS_CDBUFF_50             ; 5D20 11 50 4D  entered through the window, as &9D20, by the trampoline
+                                               ; built
+
+;; --------------------------------------------------------------------
+;; that has just done its job
+;; --------------------------------------------------------------------
+
+               LD BC,&0015                     ; 5D23 01 15 00  twenty-one more bytes of the ROM's POKE, overwriting the
+                                               ; trampoline
+               LDIR                            ; 5D26 ED B0
+
+;; --------------------------------------------------------------------
+;; &4D65 -- the frame that makes its CALL &4D91 mean &5E4B
+;; --------------------------------------------------------------------
+
+               LD HL,COPY_THEN_APPEND_CALL_6+IN_PAGE_C ; 5D28 21 1F 9E  and the sixty-nine byte far-move helper at
+                                                       ; &5E1F, which lands at
                LD C,&45                                ; 5D2B 0E 45
                LDIR                                    ; 5D2D ED B0
                JP &4D53                                ; 5D2F C3 53 4D
 
 ;; --------------------------------------------------------------------
-;; PAUSE, token &C2.  It parses nothing: it builds.  PREPARE_COPY_AT_5000 puts &5000 in
-;; the system page in HL and PAGE_IN_ROM1 writes &E7 -- RST &20, the
-;; ROM's next-character restart -- as the first byte, then six bytes are
-;; copied in, &F5 (PUSH AF) is planted, five more bytes, seven from
-;; CMD_PAUSE_1, sixteen more and &4E from CMD_PAUSE_2.
-;;
-;; The manual says why PAUSE and not just SOUND: with RECORD SOUND on,
-;; "the SOUNDs and the PAUSEs that determine their length" both have to
-;; add codes to the string being recorded, so PAUSE needs a hook of its
-;; own.
+;; PAUSE keyword and MasterBASIC's has not
 ;; --------------------------------------------------------------------
 
 ; ---- CMD_PAUSE ---- from &4EBD when A = &C2
 CMD_PAUSE:
-               LD B,&E7                        ; 5D32 06 E7
+               LD B,&E7                        ; 5D32 06 E7  RST &20, because the ROM's dispatcher would have stepped
+                                               ; past the
                CALL PREPARE_COPY_AT_5000       ; 5D34 CD 56 5C
                PUSH AF                         ; 5D37 F5
                LD BC,&0006                     ; 5D38 01 06 00
                LDIR                            ; 5D3B ED B0
-               LD A,&F5                        ; 5D3D 3E F5
+
+;; --------------------------------------------------------------------
+;; GETINT returns "A=C", the count mod 256, and this is the only copy
+;; of it that survives the pause loop -- &5DDE pops it back
+;; --------------------------------------------------------------------
+
+               LD A,&F5                        ; 5D3D 3E F5  PUSH AF planted between the ROM's CALL GETINT and its LD
+                                               ; E,7.
                LD (DE),A                       ; 5D3F 12
                INC DE                          ; 5D40 13
                LD C,&05                        ; 5D41 0E 05
                LDIR                            ; 5D43 ED B0
                PUSH HL                         ; 5D45 E5
-               LD HL,CMD_PAUSE_1               ; 5D46 21 CA 5D
+               LD HL,CMD_PAUSE_1               ; 5D46 21 CA 5D  seven bytes at &500D, in front of the pause loop
                LD C,&07                        ; 5D49 0E 07
                LDIR                            ; 5D4B ED B0
                POP HL                          ; 5D4D E1
-               LD C,&10                        ; 5D4E 0E 10
+               LD C,&10                        ; 5D4E 0E 10  the loop itself, sixteen ROM bytes at &5014
                LDIR                            ; 5D50 ED B0
-               LD HL,CMD_PAUSE_2               ; 5D52 21 D1 5D
+               LD HL,CMD_PAUSE_2               ; 5D52 21 D1 5D  and &4E bytes at &5024 replacing the rest of the ROM's
+                                               ; PAUSE
                LD C,&4E                        ; 5D55 0E 4E
 
 ; ---- SILENCE_SOUND_CHIP_1 ---- from &5CDD
 SILENCE_SOUND_CHIP_1:
                LDIR                            ; 5D57 ED B0
-               LD BC,GTDT                      ; 5D59 01 00 50
+               LD BC,GTDT                      ; 5D59 01 00 50  &5000, the routine just assembled, for
+                                               ; STORE_BC_AT_XVAR76 below
 
 ;; --------------------------------------------------------------------
 ;; Put HMPR back from the stack, then fall into STORE_BC_AT_XVAR76.
@@ -8881,9 +9240,17 @@ CMD_DEF_KEYCODE:
                LD HL,&8F00                     ; 5D62 21 00 8F
                CALL PREPARE_ROM1_COPY          ; 5D65 CD 4B 5C
                PUSH AF                         ; 5D68 F5
-               LD BC,&0091                     ; 5D69 01 91 00
+
+;; --------------------------------------------------------------------
+;; reads LD HL,&C46E : LD IX,&C4EF : LD BC,&0091 : LD DE,&4F00, so
+;; MasterBASIC copies exactly what the ROM would have copied, to
+;; exactly where
+;; --------------------------------------------------------------------
+
+               LD BC,&0091                     ; 5D69 01 91 00  &91 bytes -- the ROM's own count. Its DEF KEYCODE stub
+                                               ; at &388D
                LDIR                            ; 5D6C ED B0
-               LD HL,&4A9F                     ; 5D6E 21 9F 4A
+               LD HL,&4A9F                     ; 5D6E 21 9F 4A  the one operand that changes, at INSTBUF+&0D
                LD (&8F0D),HL                   ; 5D71 22 0D 8F
                LD B,&4F                        ; 5D74 06 4F
                JR RESTORE_HMPR_AND_STORE       ; 5D76 18 E4
@@ -8910,15 +9277,33 @@ CMD_KEYIN:
                LD HL,&8B00                     ; 5D78 21 00 8B
                CALL PREPARE_ROM1_COPY          ; 5D7B CD 4B 5C
                PUSH AF                         ; 5D7E F5
-               LD BC,&0009                     ; 5D7F 01 09 00
-               CALL COPY_THEN_APPEND_CALL      ; 5D82 CD 9F 5D
+
+;; --------------------------------------------------------------------
+;; &0051 the ROM's own KEYIN stub at &3867 loads into BC
+;; --------------------------------------------------------------------
+
+               LD BC,&0009                     ; 5D7F 01 09 00  nine, then &16, then &2C, then six -- 81 bytes in all,
+                                               ; which is the
+
+;; --------------------------------------------------------------------
+;; in after each
+;; --------------------------------------------------------------------
+
+               CALL COPY_THEN_APPEND_CALL      ; 5D82 CD 9F 5D  the ROM's block is broken into three so that a CALL can
+                                               ; be dropped
                LD C,&16                        ; 5D85 0E 16
                CALL COPY_THEN_APPEND_CALL      ; 5D87 CD 9F 5D
                LD C,&2C                        ; 5D8A 0E 2C
                CALL COPY_THEN_APPEND_CALL      ; 5D8C CD 9F 5D
                LD C,&06                        ; 5D8F 0E 06
                LDIR                            ; 5D91 ED B0
-               LD HL,CMD_KEYIN_1               ; 5D93 21 AE 5D
+
+;; --------------------------------------------------------------------
+;; because &4B00 + 1 + 9+3 + &16+3 + &2C+3 + 6 is exactly &4B5B
+;; --------------------------------------------------------------------
+
+               LD HL,CMD_KEYIN_1               ; 5D93 21 AE 5D  and the seventeen bytes that CALL leads to, which land
+                                               ; at &4B5B
                LD C,&11                        ; 5D96 0E 11
                LDIR                            ; 5D98 ED B0
                LD BC,HDR                       ; 5D9A 01 00 4B
@@ -8945,22 +9330,32 @@ COPY_THEN_APPEND_CALL:
                POP HL                          ; 5DA9 E1
                RET                             ; 5DAA C9
 
+;; --------------------------------------------------------------------
+;; three appended calls call it
+;; --------------------------------------------------------------------
+
 ; ---- COPY_THEN_APPEND_CALL_1 ---- from &5DA2
 COPY_THEN_APPEND_CALL_1:
-               CALL &4B5B                      ; 5DAB CD 5B 4B  three bytes built into the ROM's header buffer, whose
-                                               ; base LD BC,HDR loaded above
+               CALL &4B5B                      ; 5DAB CD 5B 4B  &4B5B is where CMD_KEYIN_1 ends up in the block being
+                                               ; built, so all
 
 ; ---- CMD_KEYIN_1 ---- from &5D93
 CMD_KEYIN_1:
-               LD A,(ELINEP)                   ; 5DAE 3A 93 5A
-               LD (SCREEN_BLANK_TICK_9),A      ; 5DB1 32 96 5A
+               LD A,(ELINEP)                   ; 5DAE 3A 93 5A  the page the edit line is in
+               LD (SCREEN_BLANK_TICK_9),A      ; 5DB1 32 96 5A  &5A96 is the ROM's CHADP, not an address in this page
                LD HL,WORKSPP                   ; 5DB4 21 90 5A
-               CP (HL)                         ; 5DB7 BE
+               CP (HL)                         ; 5DB7 BE  already the same page, so there is nothing to move
                RET Z                           ; 5DB8 C8
                LD (HL),A                       ; 5DB9 77
                INC HL                          ; 5DBA 23
                INC HL                          ; 5DBB 23
-               DEFB &CB                        ; 5DBC K
+
+;; --------------------------------------------------------------------
+;; of it is for I cannot work out
+;; --------------------------------------------------------------------
+
+               DEFB &CB                        ; 5DBC K  two on from WORKSPP is the high byte of WORKSP; what setting
+                                               ; bit 6
 
 ; ---- V5DBD ---- from &5DEE when B is not 0 yet
 V5DBD:
@@ -8978,11 +9373,22 @@ COPY_THEN_APPEND_CALL_LOOP:
                LD C,D                          ; 5DC1 4A
                BIT 1,A                         ; 5DC2 CB 4F
                JR Z,COPY_THEN_APPEND_CALL_2    ; 5DC4 28 02
-               LD C,&E2                        ; 5DC6 0E E2
+
+;; --------------------------------------------------------------------
+;; to &01E2/&00E2, which nothing on a standard SAM answers
+;; --------------------------------------------------------------------
+
+               LD C,&E2                        ; 5DC6 0E E2  RECORD SOUND OFF -- the loop below still runs and still
+                                               ; OUTs, but
+
+;; --------------------------------------------------------------------
+;; register number to find the terminator, and the LD A above it
+;; destroyed it
+;; --------------------------------------------------------------------
 
 ; ---- COPY_THEN_APPEND_CALL_2 ---- from &5DC4 when bit 1 of A clear
 COPY_THEN_APPEND_CALL_2:
-               LD A,&FF                        ; 5DC8 3E FF
+               LD A,&FF                        ; 5DC8 3E FF  A must go back to &FF: the ROM's loop compares it with each
 
 ; ---- CMD_PAUSE_1 ---- from &5D46
 CMD_PAUSE_1:
@@ -8998,29 +9404,46 @@ CMD_PAUSE_2:
                DEC BC                          ; 5DD3 0B
                LD A,B                          ; 5DD4 78
                OR C                            ; 5DD5 B1
-               JR Z,COPY_THEN_APPEND_CALL_4    ; 5DD6 28 06
+               JR Z,COPY_THEN_APPEND_CALL_4    ; 5DD6 28 06  counted out -- where the ROM would simply have returned
 
 ; ---- COPY_THEN_APPEND_CALL_3 ---- from &5DD1
 COPY_THEN_APPEND_CALL_3:
                BIT 5,(HL)                      ; 5DD8 CB 6E
                JR Z,COPY_THEN_APPEND_CALL_LOOP ; 5DDA 28 E5
-               RES 5,(HL)                      ; 5DDC CB AE
+               RES 5,(HL)                      ; 5DDC CB AE  the ROM's "no key" reset, and then it too falls into &5031
 
 ; ---- COPY_THEN_APPEND_CALL_4 ---- from &5DD6
 COPY_THEN_APPEND_CALL_4:
-               POP HL                          ; 5DDE E1
-               LD L,&20                        ; 5DDF 2E 20
-               LD (INSTBUF),HL                 ; 5DE1 22 00 4F
-               LD HL,&4F04                     ; 5DE4 21 04 4F
+               POP HL                          ; 5DDE E1  the AF pushed at &5007, whose A is the pause count mod 256
+
+;; --------------------------------------------------------------------
+;; can never be mistaken for one -- the interrupt player at &5AB5
+;; tests for exactly this byte and takes the one after it as a frame
+;; count
+;; --------------------------------------------------------------------
+
+               LD L,&20                        ; 5DDF 2E 20  &20 is the PAUSE marker. Register numbers only go up to 31,
+                                               ; so 32
+               LD (INSTBUF),HL                 ; 5DE1 22 00 4F  so INSTBUF now holds the two bytes &20, count
+
+;; --------------------------------------------------------------------
+;; HL - INSTBUF - 2 comes out as 2, the length to append
+;; --------------------------------------------------------------------
+
+               LD HL,&4F04                     ; 5DE4 21 04 4F  four past INSTBUF, chosen so that the shared tail's
 
 ; ---- SILENCE_SOUND_CHIP_2 ---- from &5CD8
 SILENCE_SOUND_CHIP_2:
                LD A,(SYS_RECORD_STATE)         ; 5DE7 3A F4 4A
                AND A                           ; 5DEA A7
-               RET Z                           ; 5DEB C8
+               RET Z                           ; 5DEB C8  not recording, so the SOUND or PAUSE is finished
                PUSH HL                         ; 5DEC E5
-               DEFB SKIP_1_VIA_LD_A            ; 5DED >  skipped: reads as LD A,&10 from here, and as part of the
-                                               ; instruction above it
+
+;; --------------------------------------------------------------------
+;; in HL", which works wherever this block has been copied
+;; --------------------------------------------------------------------
+
+               DEFB SKIP_1_VIA_LD_A            ; 5DED >  stream 16, the ROM's "write to a string variable" stream
 
 ; ---- COPY_THEN_APPEND_CALL_5 ---- from &5DCF when bit 1 of A set
 COPY_THEN_APPEND_CALL_5:
@@ -9028,22 +9451,43 @@ COPY_THEN_APPEND_CALL_5:
                INC B                           ; 5DF0 04
                NOP                             ; 5DF1 00
                LD BC,&0017                     ; 5DF2 01 17 00
-               ADD HL,BC                       ; 5DF5 09
+
+;; --------------------------------------------------------------------
+;; the way in and once on the way out
+;; --------------------------------------------------------------------
+
+               ADD HL,BC                       ; 5DF5 09  &17 ahead is the CALL STREAM at the tail, so the swap runs
+                                               ; once on
                CALL HLJUMP                     ; 5DF6 CD 05 00
                POP HL                          ; 5DF9 E1
                LD DE,INSTBUF                   ; 5DFA 11 00 4F
                AND A                           ; 5DFD A7
-               SBC HL,DE                       ; 5DFE ED 52
+               SBC HL,DE                       ; 5DFE ED 52  HL is where the ROM's parser stopped, two past the
+                                               ; terminator
                DEC HL                          ; 5E00 2B
                DEC HL                          ; 5E01 2B
                LD B,H                          ; 5E02 44
                LD C,L                          ; 5E03 4D
-               CALL PRINTSTR                   ; 5E04 CD 13 00
-               LD A,&02                        ; 5E07 3E 02
+               CALL PRINTSTR                   ; 5E04 CD 13 00  the register/value pairs, or the two bytes PAUSE laid
+                                               ; down
+               LD A,&02                        ; 5E07 3E 02  back to the normal output stream
                CALL STREAM                     ; 5E09 CD 12 01
-               LD HL,STRM16NM                  ; 5E0C 21 76 5B
+
+;; --------------------------------------------------------------------
+;; "TLBYTE/NAME OF VAR THAT STREAM 16 WRITES TO".  Nothing to do with
+;; this page's &5B76, which is inside ESCCHK
+;; --------------------------------------------------------------------
+
+               LD HL,STRM16NM                  ; 5E0C 21 76 5B  STRM16NM is &5B76 in the system page -- vars.asm calls
+                                               ; it
                LD DE,SYS_STRM16_SAVE           ; 5E0F 11 F5 4A
-               LD B,&0B                        ; 5E12 06 0B
+
+;; --------------------------------------------------------------------
+;; put in place and the other taken away in the same pass
+;; --------------------------------------------------------------------
+
+               LD B,&0B                        ; 5E12 06 0B  eleven bytes, exchanged rather than copied, so one variable
+                                               ; name is
 
 ; ---- COPY_THEN_APPEND_CALL_LOOP2 ---- from &5E1C when B is not 0 yet
 COPY_THEN_APPEND_CALL_LOOP2:
@@ -9059,22 +9503,40 @@ COPY_THEN_APPEND_CALL_LOOP2:
                RET                              ; 5E1E C9
 
 COPY_THEN_APPEND_CALL_6:
-               AND &1F                         ; 5E1F E6 1F
-               CP C                            ; 5E21 B9
+               AND &1F                         ; 5E1F E6 1F  five bits is all a page number is
+
+;; --------------------------------------------------------------------
+;; from this compare is already the answer
+;; --------------------------------------------------------------------
+
+               CP C                            ; 5E21 B9  same page, so the addresses decide; different pages, and the
+                                               ; carry
                JR NZ,COPY_THEN_APPEND_CALL_7   ; 5E22 20 03
-               SBC HL,DE                       ; 5E24 ED 52
+
+;; --------------------------------------------------------------------
+;; because adding DE back must carry out exactly when the subtraction
+;; borrowed.  A 16-bit compare that costs no register
+;; --------------------------------------------------------------------
+
+               SBC HL,DE                       ; 5E24 ED 52  SBC then ADD restores HL and leaves the carry from the
+                                               ; subtraction,
                ADD HL,DE                       ; 5E26 19
+
+;; --------------------------------------------------------------------
+;; overtake
+;; --------------------------------------------------------------------
 
 ; ---- COPY_THEN_APPEND_CALL_7 ---- from &5E22 when A <> C
 COPY_THEN_APPEND_CALL_7:
-               JP NC,J_FARLDIR                 ; 5E27 D2 2D 01
+               JP NC,J_FARLDIR                 ; 5E27 D2 2D 01  source at or above destination, so copying forwards
+                                               ; cannot
                PUSH HL                         ; 5E2A E5
                LD B,A                          ; 5E2B 47
                PUSH BC                         ; 5E2C C5
                PUSH DE                         ; 5E2D D5
                EX DE,HL                        ; 5E2E EB
                LD C,A                          ; 5E2F 4F
-               CALL COPY_BETWEEN_PAGES         ; 5E30 CD 91 4D
+               CALL &4D91                      ; 5E30 CD 91 4D  the end-address routine at &5E4B, not &4D91 in this page
                POP DE                          ; 5E33 D1
                POP BC                          ; 5E34 C1
                CP C                            ; 5E35 B9
@@ -9083,39 +9545,74 @@ COPY_THEN_APPEND_CALL_7:
                POP HL                          ; 5E39 E1
                JP J_FARLDIR                    ; 5E3A C3 2D 01
 
+;; --------------------------------------------------------------------
+;; longer wants
+;; --------------------------------------------------------------------
+
 ; ---- COPY_THEN_APPEND_CALL_8 ---- from &5E36 when A >= C
 COPY_THEN_APPEND_CALL_8:
-               INC SP                          ; 5E3D 33
+               INC SP                          ; 5E3D 33  two INC SPs throw away the HL pushed at &5E2A, which this path
+                                               ; no
                INC SP                          ; 5E3E 33
                PUSH AF                         ; 5E3F F5
                PUSH HL                         ; 5E40 E5
-               CALL COPY_BETWEEN_PAGES         ; 5E41 CD 91 4D
+               CALL &4D91                      ; 5E41 CD 91 4D  likewise
                EX DE,HL                        ; 5E44 EB
                LD C,A                          ; 5E45 4F
                POP HL                          ; 5E46 E1
                POP AF                          ; 5E47 F1
                JP J_FARLDDR                    ; 5E48 C3 30 01
-               LD A,(PAGCOUNT)                 ; 5E4B 3A 83 5B
+
+;; --------------------------------------------------------------------
+;; page in A and its address in HL.  Reached only as &4D91, from the
+;; two calls above
+;; --------------------------------------------------------------------
+
+               LD A,(PAGCOUNT)                 ; 5E4B 3A 83 5B  given page C and address DE and a length, leave the last
+                                               ; byte's
                LD HL,(MODCOUNT)                ; 5E4E 2A 84 5B
                ADD HL,DE                       ; 5E51 19
                ADD A,C                         ; 5E52 81
-               BIT 6,H                         ; 5E53 CB 74
+
+;; --------------------------------------------------------------------
+;; back down -- the rotating window
+;; --------------------------------------------------------------------
+
+               BIT 6,H                         ; 5E53 CB 74  the length carried HL out of the window, so one page on and
+                                               ; &4000
                JR Z,COPY_THEN_APPEND_CALL_9    ; 5E55 28 03
                RES 6,H                         ; 5E57 CB B4
                INC A                           ; 5E59 3C
 
 ; ---- COPY_THEN_APPEND_CALL_9 ---- from &5E55 when bit 6 of H clear
 COPY_THEN_APPEND_CALL_9:
-               DEC HL                          ; 5E5A 2B
-               BIT 7,H                         ; 5E5B CB 7C
+               DEC HL                          ; 5E5A 2B  the last byte, not one past it
+
+;; --------------------------------------------------------------------
+;; back
+;; --------------------------------------------------------------------
+
+               BIT 7,H                         ; 5E5B CB 7C  and if that step fell out of the bottom of the window, one
+                                               ; page
                RET NZ                          ; 5E5D C0
                SET 7,H                         ; 5E5E CB FC
                RES 6,H                         ; 5E60 CB B4
                DEC A                           ; 5E62 3D
                RET                             ; 5E63 C9
-               LD BC,&000A                     ; 5E64 01 0A 00
+
+;; --------------------------------------------------------------------
+;; listing labels LENGTH
+;; --------------------------------------------------------------------
+
+               LD BC,&000A                     ; 5E64 01 0A 00  called from MasterDOS &78E5 for immediate code &25,
+                                               ; which its own
                ADD HL,BC                       ; 5E67 09
-               LD C,(HL)                       ; 5E68 4E
+
+;; --------------------------------------------------------------------
+;; routine's address is reached
+;; --------------------------------------------------------------------
+
+               LD C,(HL)                       ; 5E68 4E  ten in, then eight in again -- two levels of table before the
                INC HL                          ; 5E69 23
                LD B,(HL)                       ; 5E6A 46
                LD HL,&0008                     ; 5E6B 21 08 00
@@ -9131,34 +9628,46 @@ COPY_THEN_APPEND_CALL_9:
                XOR A                           ; 5E7B AF
                OUT (HMPR),A                    ; 5E7C D3 FB
                EX DE,HL                        ; 5E7E EB
-               LD DE,&8F62                     ; 5E7F 11 62 8F
+               LD DE,&8F62                     ; 5E7F 11 62 8F  &8F62 is &4F62 in the system page, INSTBUF+&62
                LD BC,&0078                     ; 5E82 01 78 00
 
 ; ---- COPY_THEN_APPEND_CALL_LOOP3 ---- from &5EDB
 COPY_THEN_APPEND_CALL_LOOP3:
-               LDIR                             ; 5E85 ED B0
-               LD HL,COPY_THEN_APPEND_CALL_10   ; 5E87 21 CE 5E
-               LD C,&0F                         ; 5E8A 0E 0F
-               LDIR                             ; 5E8C ED B0
-               LD A,&0B                         ; 5E8E 3E 0B
-               LD (&8FCE),A                     ; 5E90 32 CE 8F
-               LD HL,&4F98                      ; 5E93 21 98 4F
-               LD (&8F86),HL                    ; 5E96 22 86 8F
-               LD HL,(&8F6E)                    ; 5E99 2A 6E 8F
-               LD DE,&4FF2                      ; 5E9C 11 F2 4F
-               LD (&8F6E),DE                    ; 5E9F ED 53 6E 8F
-               LD D,&8F                         ; 5EA3 16 8F
-               LD C,&19                         ; 5EA5 0E 19
-               LDIR                             ; 5EA7 ED B0
-               LD A,&08                         ; 5EA9 3E 08
-               LD (&9003),A                     ; 5EAB 32 03 90
-               POP AF                           ; 5EAE F1
-               OUT (HMPR),A                     ; 5EAF D3 FB
-               CALL NRRDD                       ; 5EB1 CD 5F 45
-               DEFW CHADD                       ; 5EB4 97 5A
-               INC BC                           ; 5EB6 03
-               LD A,(BC)                        ; 5EB7 0A
-               CP CH_HASH                       ; 5EB8 FE 23
+               LDIR                            ; 5E85 ED B0
+               LD HL,COPY_THEN_APPEND_CALL_10  ; 5E87 21 CE 5E
+               LD C,&0F                        ; 5E8A 0E 0F
+               LDIR                            ; 5E8C ED B0
+               LD A,&0B                        ; 5E8E 3E 0B
+               LD (&8FCE),A                    ; 5E90 32 CE 8F  patches a byte inside what was just copied
+               LD HL,&4F98                     ; 5E93 21 98 4F
+               LD (&8F86),HL                   ; 5E96 22 86 8F
+
+;; --------------------------------------------------------------------
+;; bytes copied at &5EA7, and &4F6E is repointed at where they go
+;; --------------------------------------------------------------------
+
+               LD HL,(&8F6E)                   ; 5E99 2A 6E 8F  the old contents of &4F6E are used as the source of the
+                                               ; twenty-five
+               LD DE,&4FF2                     ; 5E9C 11 F2 4F
+               LD (&8F6E),DE                   ; 5E9F ED 53 6E 8F
+               LD D,&8F                        ; 5EA3 16 8F
+               LD C,&19                        ; 5EA5 0E 19
+               LDIR                            ; 5EA7 ED B0
+               LD A,&08                        ; 5EA9 3E 08
+               LD (&9003),A                    ; 5EAB 32 03 90
+               POP AF                          ; 5EAE F1
+               OUT (HMPR),A                    ; 5EAF D3 FB
+               CALL NRRDD                      ; 5EB1 CD 5F 45
+               DEFW CHADD                      ; 5EB4 97 5A
+               INC BC                          ; 5EB6 03
+               LD A,(BC)                       ; 5EB7 0A
+
+;; --------------------------------------------------------------------
+;; handles at &6594
+;; --------------------------------------------------------------------
+
+               CP CH_HASH                       ; 5EB8 FE 23  a "#" after the keyword means the channel form, which
+                                                ; MasterDOS
                JR NZ,COPY_THEN_APPEND_CALL_DONE ; 5EBA 20 0C
                CALL CALL_NEXTCHAR               ; 5EBC CD 61 44
                CALL SKIP_THEN_NUMBER            ; 5EBF CD 82 44
@@ -9168,13 +9677,19 @@ COPY_THEN_APPEND_CALL_LOOP3:
 
 ; ---- COPY_THEN_APPEND_CALL_DONE ---- from &5EBA when A <> CH_HASH
 COPY_THEN_APPEND_CALL_DONE:
-               CALL CMR                        ; 5EC8 CD F0 44
+               CALL CMR                        ; 5EC8 CD F0 44  otherwise run what was built, at &4F62
                DEFW &4F62                      ; 5ECB 62 4F
                RET                             ; 5ECD C9
 
+;; --------------------------------------------------------------------
+;; &5123 is MEMVAL+2 in the system page, the page byte of the pointer
+;; being walked
+;; --------------------------------------------------------------------
+
 ; ---- COPY_THEN_APPEND_CALL_10 ---- from &5E87
 COPY_THEN_APPEND_CALL_10:
-               BIT 6,H                         ; 5ECE CB 74
+               BIT 6,H                         ; 5ECE CB 74  fifteen bytes planted at &4FDA, the rotating-window check
+                                               ; again;
                JR Z,COPY_THEN_APPEND_CALL_11   ; 5ED0 28 09
                RES 6,H                         ; 5ED2 CB B4
                LD A,(&5123)                    ; 5ED4 3A 23 51
@@ -9186,17 +9701,15 @@ COPY_THEN_APPEND_CALL_11:
                JR COPY_THEN_APPEND_CALL_LOOP3  ; 5EDB 18 A8
 
 ;; --------------------------------------------------------------------
-;; The size argument of SOUND CLEAR.  GET_LONG_INTEGER, D refused as
-;; "Integer out of range", and then OR E : OR B : OR C so that a return
-;; with Z means every byte of it was zero -- which is the manual's
-;; "SOUND CLEAR 0 will delete the buffer and free the memory for other
-;; uses".
+;; word first -- GET_LONG_INTEGER splits it with MOD and IDIV by
+;; 65536
 ;; --------------------------------------------------------------------
 
 ; ---- GET_BUFFER_SIZE ---- from &55E1, &5C8D
 GET_BUFFER_SIZE:
-               CALL GET_LONG_INTEGER           ; 5EDD CD 92 44
-               LD A,D                          ; 5EE0 7A
+               CALL GET_LONG_INTEGER           ; 5EDD CD 92 44  the value arrives as D:E in one pair and B:C in the
+                                               ; other, high
+               LD A,D                          ; 5EE0 7A  anything in the top byte is already past 16M
                AND A                           ; 5EE1 A7
 
 ; ---- GET_BUFFER_SIZE_LOOP ---- from &5EF8 when A <> 0
@@ -9205,39 +9718,89 @@ GET_BUFFER_SIZE_LOOP:
                OR E                            ; 5EE5 B3
                OR B                            ; 5EE6 B0
                OR C                            ; 5EE7 B1
-               RET Z                           ; 5EE8 C8
+
+;; --------------------------------------------------------------------
+;; "SOUND CLEAR 0 will delete the buffer and free the memory for other
+;; uses"
+;; --------------------------------------------------------------------
+
+               RET Z                           ; 5EE8 C8  every byte zero, and the Z that says so is the caller's
+                                               ; answer:
                LD A,&FF                        ; 5EE9 3E FF
-               LD H,A                          ; 5EEB 67
+
+;; --------------------------------------------------------------------
+;; what makes the division round up
+;; --------------------------------------------------------------------
+
+               LD H,A                          ; 5EEB 67  &FFFF, so the ADD below is a 24-bit decrement -- size-1, which
+                                               ; is
                LD L,A                          ; 5EEC 6F
                ADD HL,BC                       ; 5EED 09
-               ADC A,E                         ; 5EEE 8B
-               SRL A                           ; 5EEF CB 3F
+               ADC A,E                         ; 5EEE 8B  and the borrow finishes the decrement in the third byte
+
+;; --------------------------------------------------------------------
+;; (size-1) divided by 1024
+;; --------------------------------------------------------------------
+
+               SRL A                           ; 5EEF CB 3F  A and H shifted right twice as one 16-bit quantity, L
+                                               ; thrown away:
                RR H                            ; 5EF1 CB 1C
                SRL A                           ; 5EF3 CB 3F
                RR H                            ; 5EF5 CB 1C
-               AND A                           ; 5EF7 A7
+
+;; --------------------------------------------------------------------
+;; and the jump goes back to the "Integer out of range" at &5EE2 --
+;; the manual's ceiling, "your sound buffer ... can be up to 256K"
+;; --------------------------------------------------------------------
+
+               AND A                           ; 5EF7 A7  which must fit in one byte. Non-zero here is a size above
+                                               ; 256K,
                JR NZ,GET_BUFFER_SIZE_LOOP      ; 5EF8 20 E8
-               LD C,H                          ; 5EFA 4C
+
+;; --------------------------------------------------------------------
+;; give 2, which is the manual's own worked example
+;; --------------------------------------------------------------------
+
+               LD C,H                          ; 5EFA 4C  slots, rounded up. LPRINT CLEAR 1025 and LPRINT CLEAR 2048
+                                               ; both
                INC C                           ; 5EFB 0C
                IN A,(HMPR)                     ; 5EFC DB FB
                PUSH AF                         ; 5EFE F5
                PUSH BC                         ; 5EFF C5
-               LD B,&00                        ; 5F00 06 00
+
+;; --------------------------------------------------------------------
+;; exist; the count is saved because the pass consumes it
+;; --------------------------------------------------------------------
+
+               LD B,&00                        ; 5F00 06 00  B = 0 marks nothing, so the first pass only asks whether
+                                               ; the slots
                CALL FIND_SLOTS                 ; 5F02 CD 14 5F
                POP BC                          ; 5F05 C1
-               LD B,&20                        ; 5F06 06 20
+               LD B,&20                        ; 5F06 06 20  and now for real -- &20 is the Technical Manual's "mark it
+                                               ; 20H"
                CALL FIND_SLOTS                 ; 5F08 CD 14 5F
                EX DE,HL                        ; 5F0B EB
                POP AF                          ; 5F0C F1
                OUT (HMPR),A                    ; 5F0D D3 FB
-               LD A,L                          ; 5F0F 7D
+
+;; --------------------------------------------------------------------
+;; so that the caller's Z still means "the size was nought"
+;; --------------------------------------------------------------------
+
+               LD A,L                          ; 5F0F 7D  out with the page in A and the slot's address in HL, and A
+                                               ; non-zero
                LD L,&00                        ; 5F10 2E 00
                AND A                           ; 5F12 A7
                RET                             ; 5F13 C9
 
+;; --------------------------------------------------------------------
+;; Technical Manual's "look backwards through ALLOCT"
+;; --------------------------------------------------------------------
+
 ; ---- FIND_SLOTS ---- from &5F02, &5F08
 FIND_SLOTS:
-               LD L,&1F                        ; 5F14 2E 1F
+               LD L,&1F                        ; 5F14 2E 1F  &1F is the top page; the DEC L below walks down, which is
+                                               ; the
 
 ;; --------------------------------------------------------------------
 ;; Reserve a 1K slot in a utilities page, taking a new page if none of
@@ -9290,7 +9853,7 @@ FIND_SLOTS:
 
 ; ---- ALLOC_UTILITY_SLOT ---- from &5F79
 ALLOC_UTILITY_SLOT:
-               LD H,&91                        ; 5F16 26 91
+               LD H,&91                        ; 5F16 26 91  &91xx is ALLOCT at &5100, read through the window
                XOR A                           ; 5F18 AF
                OUT (HMPR),A                    ; 5F19 D3 FB
 
@@ -9303,7 +9866,7 @@ ALLOC_UTILITY_SLOT_LOOP:
                JR Z,ALLOC_UTILITY_SLOT_2       ; 5F21 28 15
                DEC L                           ; 5F23 2D
                JR NZ,ALLOC_UTILITY_SLOT_LOOP   ; 5F24 20 F5
-               LD A,&01                        ; 5F26 3E 01  error 1, "Out of memory"
+               LD A,&01                        ; 5F26 3E 01  off the bottom of ALLOCT with no page free
                JP REPORT                       ; 5F28 C3 BE 43
 
 ; ---- ALLOC_UTILITY_SLOT_1 ---- from &5F1D when A = 0
@@ -13373,51 +13936,51 @@ SCREEN_NUMBER_ARGUMENT:
 
 ; ---- SCREEN_NUMBER_ARGUMENT_1 ---- from &6DDE when A >= &10, &6DE8 when A wraps to 0
 SCREEN_NUMBER_ARGUMENT_1:
-               LD A,&2B                        ; 6DF7 3E 2B  error 43, "screen number"
+               LD A,&2B                        ; 6DF7 3E 2B  error 43 is "screen number", so &2B is the report code
+                                               ; minus one, the ROM's convention
                JP REPORT                       ; 6DF9 C3 BE 43
 
 ;; --------------------------------------------------------------------
-;; JOIN -- the JOIN command, token 252.  Two unrelated jobs.
+;; (to be added to the existing header.)
 ;;
-;;     JOIN [line]        join a program line to the one below it,
-;;                        dropping the second line number and separating
-;;                        the two with a colon
-;;     JOIN TO a$,b$      append the second string or string array to the
-;;                        first
-;;
-;; JOIN TO is LET a$=a$+b$ but faster and in less free memory; the second
-;; string is unchanged.  Arrays join when their strings are the same
-;; length, and the first array grows by the number of strings in the
-;; second.
-;;
-;; Manual: "JOIN program lines" and "Joining strings and string arrays".
+;; THE LINE NUMBER IS OPTIONAL, and the ROM already keeps the one the
+;; user wants.  "JOIN 100" joins line 100 to the line below it; plain
+;; "JOIN" joins "the line with the current line cursor", which is EPPC
+;; -- the ROM's own record of where the ">" is sitting in the listing.
+;; Both paths converge on FIND_LINE_FROM_START with the number in BC,
+;; the difference being only whether HL was loaded from the argument or
+;; left at zero to mean "use EPPC".
 ;; --------------------------------------------------------------------
 
 CMD_JOIN:
-               CALL CALL_NEXTCHAR              ; 6DFC CD 61 44
-               CP T_TO                         ; 6DFF FE 8E
-               JP Z,CMD_JOIN_FAIL              ; 6E01 CA 0C 70
-               CP CH_COLON                     ; 6E04 FE 3A
+               CALL CALL_NEXTCHAR              ; 6DFC CD 61 44  past the JOIN token
+               CP T_TO                         ; 6DFF FE 8E  "JOIN TO" is the other command entirely -- the string join
+                                               ; at &700C
+               JP Z,CMD_JOIN_TO                ; 6E01 CA 0C 70
+               CP CH_COLON                     ; 6E04 FE 3A  a colon or a carriage return means no line number was given
                JR Z,CMD_JOIN_1                 ; 6E06 28 04
                CP &0D                          ; 6E08 FE 0D
                JR NZ,CMD_JOIN_2                ; 6E0A 20 08
 
 ; ---- CMD_JOIN_1 ---- from &6E06 when A = CH_COLON
 CMD_JOIN_1:
-               CALL EXPECT_END_OF_STATEMENT    ; 6E0C CD D0 44
-               LD HL,&0000                     ; 6E0F 21 00 00
+               CALL EXPECT_END_OF_STATEMENT    ; 6E0C CD D0 44  nothing may follow; on the checking pass this never
+                                               ; comes back
+               LD HL,&0000                     ; 6E0F 21 00 00  zero stands for "the line the cursor is on"
                JR CMD_JOIN_3                   ; 6E12 18 06
 
 ; ---- CMD_JOIN_2 ---- from &6E0A when A <> &0D
 CMD_JOIN_2:
-               CALL NUMBER_THEN_END            ; 6E14 CD C8 44
+               CALL NUMBER_THEN_END            ; 6E14 CD C8 44  evaluate the line number and demand the end of the
+                                               ; statement, then take it as an integer
                CALL CALL_GETINT                ; 6E17 CD 76 44
 
 ; ---- CMD_JOIN_3 ---- from &6E12
 CMD_JOIN_3:
-               CALL NRRDD                      ; 6E1A CD 5F 45
+               CALL NRRDD                      ; 6E1A CD 5F 45  EPPC, the ROM's current-line cursor -- read whether it
+                                               ; is wanted or not, because the test below is on HL, not on it
                DEFW EPPC                       ; 6E1D 49 5C
-               LD A,H                          ; 6E1F 7C
+               LD A,H                          ; 6E1F 7C  HL zero: keep EPPC in BC.  Otherwise the argument replaces it
                OR L                            ; 6E20 B5
                JR Z,CMD_JOIN_4                 ; 6E21 28 02
                LD B,H                          ; 6E23 44
@@ -13425,42 +13988,53 @@ CMD_JOIN_3:
 
 ; ---- CMD_JOIN_4 ---- from &6E21
 CMD_JOIN_4:
-               CALL FIND_LINE_FROM_START       ; 6E25 CD FD 58
-               INC HL                          ; 6E28 23
+               CALL FIND_LINE_FROM_START       ; 6E25 CD FD 58  the first line numbered BC or higher, from the top of
+                                               ; the program
+               INC HL                          ; 6E28 23  past the two line-number bytes, to the length word
                INC HL                          ; 6E29 23
-               PUSH HL                         ; 6E2A E5
-               LD C,(HL)                       ; 6E2B 4E
+               PUSH HL                         ; 6E2A E5  kept: the length written back at &6E41 goes here
+               LD C,(HL)                       ; 6E2B 4E  the line's length, which counts the text and its terminating
+                                               ; CR but not these four header bytes
                INC HL                          ; 6E2C 23
                LD B,(HL)                       ; 6E2D 46
-               ADD HL,BC                       ; 6E2E 09
-               LD D,H                          ; 6E2F 54
+               ADD HL,BC                       ; 6E2E 09  HL is only at the length word's high byte, so this lands one
+                                               ; short of the next line -- on the CR that ends this one
+               LD D,H                          ; 6E2F 54  DE is that CR: the byte the colon will be written over
                LD E,L                          ; 6E30 5D
-               INC HL                          ; 6E31 23
-               LD A,(HL)                       ; 6E32 7E
+               INC HL                          ; 6E31 23  now the next line's first byte
+               LD A,(HL)                       ; 6E32 7E  a line number's high byte comes first, and &FF is the
+                                               ; end-of-program marker; INC A tests for it in one instruction
                INC A                           ; 6E33 3C
                JR NZ,CMD_JOIN_5                ; 6E34 20 02
-               POP AF                          ; 6E36 F1
+               POP AF                          ; 6E36 F1  nothing below to join to, so drop the pushed length-word
+                                               ; address and give up quietly -- the manual's "and the one below, if
+                                               ; there is one"
                RET                             ; 6E37 C9
 
 ; ---- CMD_JOIN_5 ---- from &6E34 when A is not 0
 CMD_JOIN_5:
-               INC HL                          ; 6E38 23
+               INC HL                          ; 6E38 23  the second line's own length word
                INC HL                          ; 6E39 23
                LD A,(HL)                       ; 6E3A 7E
                INC HL                          ; 6E3B 23
                LD H,(HL)                       ; 6E3C 66
                LD L,A                          ; 6E3D 6F
-               ADD HL,BC                       ; 6E3E 09
-               EX (SP),HL                      ; 6E3F E3
+               ADD HL,BC                       ; 6E3E 09  the joined length is simply len1+len2. The CR of the first
+                                               ; line becomes the colon, so one byte is lost and one gained, and the
+                                               ; four header bytes of the second line are the only thing reclaimed
+               EX (SP),HL                      ; 6E3F E3  swap the sum for the address of the first line's length word
                POP BC                          ; 6E40 C1
-               LD (HL),C                       ; 6E41 71
+               LD (HL),C                       ; 6E41 71  the first line now claims both lines' text
                INC HL                          ; 6E42 23
                LD (HL),B                       ; 6E43 70
-               LD BC,&0004                     ; 6E44 01 04 00
+               LD BC,&0004                     ; 6E44 01 04 00  four bytes to close up -- the second line's number and
+                                               ; length word
                EX DE,HL                        ; 6E47 EB
-               LD A,&3A                        ; 6E48 3E 3A
+               LD A,&3A                        ; 6E48 3E 3A  ":", the "normal inter-statement marker" the manual
+                                               ; promises, written over the first line's CR
                LD (HL),A                       ; 6E4A 77
-               INC HL                          ; 6E4B 23
+               INC HL                          ; 6E4B 23  and the four dead header bytes start here. There is no CALL:
+                                               ; the routine below is entered by falling into it
 
 ;; --------------------------------------------------------------------
 ;; Close up BC bytes at HL and then set the compile bits in DCT, since
@@ -13496,7 +14070,7 @@ RECLAIM_AND_MARK:
 
 ; ---- RECLAIM_BC_AT_HL ---- from &5425, &6E4C, &6FB0
 RECLAIM_BC_AT_HL:
-               XOR A                           ; 6E52 AF
+               XOR A                           ; 6E52 AF  no whole pages to close up, only BC bytes
 
 ;; --------------------------------------------------------------------
 ;; The same with A already holding the number of whole pages.
@@ -13504,9 +14078,10 @@ RECLAIM_BC_AT_HL:
 
 ; ---- RECLAIM_ABC_AT_HL ---- from &6F9E
 RECLAIM_ABC_AT_HL:
-               LD DE,(&0164)                   ; 6E53 ED 5B 64 01
-               INC DE                          ; 6E57 13
-               LD (V6E5F),DE                   ; 6E58 ED 53 5F 6E
+               LD DE,(&0164)                   ; 6E53 ED 5B 64 01  the operand of the JP that JRECLAIM holds, not the
+                                               ; jump-table entry itself
+               INC DE                          ; 6E57 13  one past it, to skip the ROM's own XOR A
+               LD (V6E5F),DE                   ; 6E58 ED 53 5F 6E  patched into the CMR argument two instructions down
                CALL CMR                        ; 6E5C CD F0 44
 
 ; ---- V6E5F ---- from &6E58
@@ -13555,37 +14130,41 @@ V6E5F:
 ;; --------------------------------------------------------------------
 
 CMD_SPLIT_LINE:
-               CALL CALL_GETCHAR               ; 6E62 CD 67 44
-               LD D,H                          ; 6E65 54
+               CALL CALL_GETCHAR               ; 6E62 CD 67 44  A is the "/" and HL is CHAD, pointing at it
+               LD D,H                          ; 6E65 54  the slash's address, wanted later as the end of the part to be
+                                               ; thrown away
                LD E,L                          ; 6E66 5D
 
 ; ---- CMD_SPLIT_LINE_LOOP ---- from &6E6B when A = CH_SPACE
 CMD_SPLIT_LINE_LOOP:
-               DEC HL                          ; 6E67 2B
+               DEC HL                          ; 6E67 2B  walk back over spaces -- the manual's "first non-space
+                                               ; character after the colon"
                LD A,(HL)                       ; 6E68 7E
                CP CH_SPACE                     ; 6E69 FE 20
                JR Z,CMD_SPLIT_LINE_LOOP        ; 6E6B 28 FA
-               CP CH_COLON                     ; 6E6D FE 3A
+               CP CH_COLON                     ; 6E6D FE 3A  anything but a colon there and it is not a split at all
                JP NZ,REP_NOT_UNDERSTOOD        ; 6E6F C2 B0 43
-               LD (HL),&0D                     ; 6E72 36 0D
+               LD (HL),&0D                     ; 6E72 36 0D  THE CUT. The colon becomes a CR, so the ROM now sees the
+                                               ; line as ending here
                PUSH HL                         ; 6E74 E5
-               CALL NRRDD                      ; 6E75 CD 5F 45
+               CALL NRRDD                      ; 6E75 CD 5F 45  ELINE, the first byte of the edit line, into BC
                DEFW ELINE                      ; 6E78 94 5A
                PUSH BC                         ; 6E7A C5
                PUSH DE                         ; 6E7B D5
 
 ; ---- CMD_SPLIT_LINE_LOOP2 ---- from &6E80 when A = CH_SPACE
 CMD_SPLIT_LINE_LOOP2:
-               LD A,(BC)                       ; 6E7C 0A
+               LD A,(BC)                       ; 6E7C 0A  skip the leading spaces before the line number
                INC BC                          ; 6E7D 03
                CP CH_SPACE                     ; 6E7E FE 20
                JR Z,CMD_SPLIT_LINE_LOOP2       ; 6E80 28 FA
-               LD HL,&0000                     ; 6E82 21 00 00
+               LD HL,&0000                     ; 6E82 21 00 00  accumulate the line number from here
                JR CMD_SPLIT_LINE_1             ; 6E85 18 11
 
 ; ---- CMD_SPLIT_LINE_LOOP3 ---- from &6E9B
 CMD_SPLIT_LINE_LOOP3:
-               LD D,H                          ; 6E87 54
+               LD D,H                          ; 6E87 54  times ten -- double, double, add the original back for five,
+                                               ; double again
                LD E,L                          ; 6E88 5D
                ADD HL,HL                       ; 6E89 29
                ADD HL,HL                       ; 6E8A 29
@@ -13595,7 +14174,7 @@ CMD_SPLIT_LINE_LOOP3:
                LD E,A                          ; 6E8F 5F
                LD D,&00                        ; 6E90 16 00
                ADD HL,DE                       ; 6E92 19
-               JP C,REP_NOT_UNDERSTOOD         ; 6E93 DA B0 43
+               JP C,REP_NOT_UNDERSTOOD         ; 6E93 DA B0 43  more than 65535 and it is refused
                LD A,(BC)                       ; 6E96 0A
                INC BC                          ; 6E97 03
 
@@ -13603,32 +14182,36 @@ CMD_SPLIT_LINE_LOOP3:
 CMD_SPLIT_LINE_1:
                CALL IS_DIGIT                   ; 6E98 CD 4E 45
                JR C,CMD_SPLIT_LINE_LOOP3       ; 6E9B 38 EA
-               DEC BC                          ; 6E9D 0B
-               CALL NRWRD                      ; 6E9E CD 77 45
+               DEC BC                          ; 6E9D 0B  back onto the character that ended the digits
+               CALL NRWRD                      ; 6E9E CD 77 45  CHAD now points just past the line number, which is
+                                               ; where INSERTLN expects it
                DEFW CHADD                      ; 6EA1 97 5A
                LD A,H                          ; 6EA3 7C
-               CP &FF                          ; 6EA4 FE FF
+               CP &FF                          ; 6EA4 FE FF  &FF00 and above is not a line number
                JP NC,REP_NOT_UNDERSTOOD        ; 6EA6 D2 B0 43
-               OR L                            ; 6EA9 B5
+               OR L                            ; 6EA9 B5  A still holds H, so this tests the whole number for zero
                JP Z,REP_NOT_UNDERSTOOD         ; 6EAA CA B0 43
-               POP AF                          ; 6EAD F1
+               POP AF                          ; 6EAD F1  the slash's address, retrieved through AF because HL and DE
+                                               ; are both wanted
                POP DE                          ; 6EAE D1
                PUSH HL                         ; 6EAF E5
                PUSH AF                         ; 6EB0 F5
                POP HL                          ; 6EB1 E1
                AND A                           ; 6EB2 A7
-               SBC HL,BC                       ; 6EB3 ED 42
+               SBC HL,BC                       ; 6EB3 ED 42  the length from the character after the line number up to
+                                               ; and including the slash -- everything the edit line is about to lose
                INC HL                          ; 6EB5 23
                PUSH HL                         ; 6EB6 E5
-               CALL NRRDD                      ; 6EB7 CD 5F 45
+               CALL NRRDD                      ; 6EB7 CD 5F 45  the real end of the edit line
                DEFW WORKSP                     ; 6EBA 91 5A
                LD H,B                          ; 6EBC 60
                LD L,C                          ; 6EBD 69
-               CALL NRWRD                      ; 6EBE CD 77 45
+               CALL NRWRD                      ; 6EBE CD 77 45  parked in PRPTR, which the ROM adjusts when the program
+                                               ; moves
                DEFW PRPTR                      ; 6EC1 A9 5A
-               AND A                           ; 6EC3 A7
+               AND A                           ; 6EC3 A7  and the edit line's total length, wanted below
                SBC HL,DE                       ; 6EC4 ED 52
-               CALL NRRD                       ; 6EC6 CD 6A 45
+               CALL NRRD                       ; 6EC6 CD 6A 45  the page as well, into PRPTRP
                DEFW WORKSPP                    ; 6EC9 90 5A
                CALL NRWR                       ; 6ECB CD 82 45
                DEFW PRPTRP                     ; 6ECE A8 5A
@@ -13636,14 +14219,17 @@ CMD_SPLIT_LINE_1:
                POP HL                          ; 6ED1 E1
                POP BC                          ; 6ED2 C1
                PUSH DE                         ; 6ED3 D5
-               INC BC                          ; 6ED4 03
+               INC BC                          ; 6ED4 03  the cut point plus two: WORKSP counts the CR and the byte
+                                               ; after it
                INC BC                          ; 6ED5 03
                CALL NRWRD                      ; 6ED6 CD 77 45
                DEFW WORKSP                     ; 6ED9 91 5A
-               LD B,H                          ; 6EDB 44
+               LD B,H                          ; 6EDB 44  the line number for INSERTLN
                LD C,L                          ; 6EDC 4D
-               CALL CALL_INSERTLN              ; 6EDD CD F3 45
-               CALL NRRDD                      ; 6EE0 CD 5F 45
+               CALL CALL_INSERTLN              ; 6EDD CD F3 45  the first half goes into the program. Everything above
+                                               ; the insertion point moves up, including the rest of the edit line
+               CALL NRRDD                      ; 6EE0 CD 5F 45  PRPTR has been moved with the rest, so it now holds
+                                               ; where WORKSP really is
                DEFW PRPTR                      ; 6EE3 A9 5A
                CALL NRWRD                      ; 6EE5 CD 77 45
                DEFW WORKSP                     ; 6EE8 91 5A
@@ -13651,45 +14237,57 @@ CMD_SPLIT_LINE_1:
                DEFW PRPTRP                     ; 6EED A8 5A
                CALL NRWR                       ; 6EEF CD 82 45
                DEFW WORKSPP                    ; 6EF2 90 5A
-               CALL NRRDD                      ; 6EF4 CD 5F 45
+               CALL NRRDD                      ; 6EF4 CD 5F 45  CHAD was adjusted too, and still points just past the
+                                               ; line number
                DEFW CHADD                      ; 6EF7 97 5A
                LD H,B                          ; 6EF9 60
                LD L,C                          ; 6EFA 69
-               CALL NRRD                       ; 6EFB CD 6A 45
+               CALL NRRD                       ; 6EFB CD 6A 45  its page, put into HMPR so HL addresses the edit line
+                                               ; through the window
                DEFW CHADP                      ; 6EFE 96 5A
                CALL TSURPG                     ; 6F00 CD DF 3F
-               POP BC                          ; 6F03 C1
-               CALL RECLAIM_AND_MARK           ; 6F04 CD 4C 6E
-               CALL NRWRHL                     ; 6F07 CD 75 45
+               POP BC                          ; 6F03 C1  the length worked out at &6EB3
+               CALL RECLAIM_AND_MARK           ; 6F04 CD 4C 6E  close it up -- the first half and the slash both
+                                               ; disappear, leaving the line number and the remainder. "The slash
+                                               ; disappears automatically"
+               CALL NRWRHL                     ; 6F07 CD 75 45  HL is not the reclaimed address -- SET_DCT_COMPILE_BITS
+                                               ; left it windowed onto DCT -- so this parks PRPTR on a fixed system-page
+                                               ; byte, out of reach of the next pointer adjustment
                DEFW PRPTR                      ; 6F0A A9 5A
-               LD HL,&4EFE                     ; 6F0C 21 FE 4E
+               LD HL,&4EFE                     ; 6F0C 21 FE 4E  ISPVAL-2, the bottom word of the ROM's machine stack:
+                                               ; the handler pushed there whenever the stack is reset, and ERRSP's usual
+                                               ; value
                PUSH HL                         ; 6F0F E5
                CALL RDBC                       ; 6F10 CD C2 45
                PUSH BC                         ; 6F13 C5
-               LD HL,&FFEF                     ; 6F14 21 EF FF
+               LD HL,&FFEF                     ; 6F14 21 EF FF  seventeen back from it
                ADD HL,BC                       ; 6F17 09
                LD C,(HL)                       ; 6F18 4E
                INC HL                          ; 6F19 23
                LD B,(HL)                       ; 6F1A 46
-               LD (V6F22),BC                   ; 6F1B ED 43 22 6F
+               LD (V6F22),BC                   ; 6F1B ED 43 22 6F  and whatever is stored there is called as a ROM
+                                               ; routine, patched into the CMR argument below
                CALL CMR                        ; 6F1F CD F0 44
 
 ; ---- V6F22 ---- from &6F1B
 V6F22:
                DEFW &0000                      ; 6F22 00 00
                POP BC                          ; 6F24 C1
-               LD HL,&FFF4                     ; 6F25 21 F4 FF
+               LD HL,&FFF4                     ; 6F25 21 F4 FF  twelve back from the handler
                ADD HL,BC                       ; 6F28 09
                LD B,H                          ; 6F29 44
                LD C,L                          ; 6F2A 4D
                POP HL                          ; 6F2B E1
-               CALL WRTBC                      ; 6F2C CD B3 45
-               LD BC,&0004                     ; 6F2F 01 04 00
-               LD E,&05                        ; 6F32 1E 05
+               CALL WRTBC                      ; 6F2C CD B3 45  which becomes the new bottom-of-stack return
+               LD BC,&0004                     ; 6F2F 01 04 00  &0004 is the ROM's POP HL : JP (HL) -- a return that
+                                               ; forwards to the next frame
+               LD E,&05                        ; 6F32 1E 05  five of them, filling the five stack words below the bottom
+                                               ; one
 
 ; ---- CMD_SPLIT_LINE_LOOP4 ---- from &6F3B when E is not 0 yet
 CMD_SPLIT_LINE_LOOP4:
-               DEC HL                          ; 6F34 2B
+               DEC HL                          ; 6F34 2B  WRTBC leaves HL one past the low byte, so three DECs step down
+                                               ; a word each time
                DEC HL                          ; 6F35 2B
                DEC HL                          ; 6F36 2B
                CALL WRTBC                      ; 6F37 CD B3 45
@@ -13709,9 +14307,10 @@ CMD_SPLIT_LINE_LOOP4:
 ;; --------------------------------------------------------------------
 
 HK_COMADENT:
-               CALL SKIP_THEN_TEST_RUNNING     ; 6F3E CD DF 44
+               CALL SKIP_THEN_TEST_RUNNING     ; 6F3E CD DF 44  Z while the syntax is only being checked
                JR Z,HK_COMADENT_1              ; 6F41 28 07
-               LD A,&FF                        ; 6F43 3E FF
+               LD A,&FF                        ; 6F43 3E FF  the byte at &5A60 is a ROM variable, not the code the label
+                                               ; names
                CALL NRWR                       ; 6F45 CD 82 45
                DEFW SCREEN_BLANK_TICK_LOOP2    ; 6F48 60 5A
 
@@ -13719,12 +14318,15 @@ HK_COMADENT:
 HK_COMADENT_1:
                CALL NRRDD                      ; 6F4A CD 5F 45
                DEFW COMAD                      ; 6F4D DA 5B
-               LD HL,&006C                     ; 6F4F 21 6C 00
+               LD HL,&006C                     ; 6F4F 21 6C 00  a fixed &6C into whatever COMAD points at -- COMAD is
+                                               ; the ROM's "start of cmd addr table in ROM0"
                ADD HL,BC                       ; 6F52 09
-               IN A,(LMPR)                     ; 6F53 DB FA
+               IN A,(LMPR)                     ; 6F53 DB FA  ROM 1 into &C000; nothing puts it back here, so the
+                                               ; caller's paging is restored by the hook return
                OR ENABLE_ROM1                  ; 6F55 F6 40
                OUT (LMPR),A                    ; 6F57 D3 FA
-               LD C,(HL)                       ; 6F59 4E
+               LD C,(HL)                       ; 6F59 4E  the word found there becomes the ROM's return address, through
+                                               ; the routine below
                INC HL                          ; 6F5A 23
                LD B,(HL)                       ; 6F5B 46
 
@@ -13739,15 +14341,40 @@ STORE_BC_AT_XVAR76:
                JP WRTBC                        ; 6F5F C3 B3 45
 
 ;; --------------------------------------------------------------------
-;; Hook code 178.  Step over a name and say whether it is a string.
+;; (replacing the existing header.)
 ;;
-;; Takes the current character, then reads forward while the classifier at
-;; L4555 keeps saying the character belongs to a name.  CHADD is updated to
-;; where it stopped, and the character that ended it is compared with "$".
+;; DELETE, for strings and string arrays.  Token &CD is DELETE -- the
+;; keyword table in ROM 3.0 runs RENUM, DELETE, REF, COPY at &CC-&CF --
+;; and the ROM's own DELETE removes program lines.  MasterBASIC catches
+;; the token first and takes it only when the argument is a string:
+;;
+;;     DELETE a$
+;;     DELETE a$(start TO end)
+;;
+;; "DELETE is used to remove part or all of a string or string array."
+;; The manual's example, DELETE a$(3 TO 6) on "123456789", leaves
+;; "12789", and DELETE dat$(5) takes the fifth string out of an array
+;; and leaves the array one string shorter.
+;;
+;; THE NAME IS SCANNED AND THEN UNSCANNED.  The classifier at
+;; IS_NAME_CHAR is run forward over the name only to find the character
+;; that ends it, and CHAD is then put straight back to where the scan
+;; began.  It has to be: if the character is not "$" this returns NZ,
+;; the stub at &7CB5 reloads A with &CD, and the ROM parses the same
+;; argument again as a line number range.  Nothing may have moved.
+;;
+;; If it is a string, the rest of the routine reads the slicer,
+;; computes where the deleted part starts and how long it is, closes
+;; that up with RECLAIM, and then takes the same amount off the
+;; variable's own recorded length through VARIABLE_BODY_BY_KIND -- with
+;; A non-zero, which is what tells that routine to subtract rather than
+;; add.  JOIN TO below is the same machinery with the sign the other
+;; way round.
 ;; --------------------------------------------------------------------
 
-HK_SKIPNAME:
-               CALL CALL_GETCHAR               ; 6F62 CD 67 44
+CMD_DELETE:
+               CALL CALL_GETCHAR               ; 6F62 CD 67 44  A is the first character of the name, HL is CHAD where
+                                               ; the scan starts
                PUSH HL                         ; 6F65 E5
 
 ; ---- HK_SKIPNAME_LOOP ---- from &6F6C
@@ -13755,24 +14382,30 @@ HK_SKIPNAME_LOOP:
                CALL CALL_NEXTCHAR               ; 6F66 CD 61 44
                CALL IS_NAME_CHAR                ; 6F69 CD 55 45
                JR C,HK_SKIPNAME_LOOP            ; 6F6C 38 F8
-               POP BC                           ; 6F6E C1
+               POP BC                           ; 6F6E C1  the address the scan started at, not where it stopped
                PUSH AF                          ; 6F6F F5
-               CALL NRWRD                       ; 6F70 CD 77 45
+               CALL NRWRD                       ; 6F70 CD 77 45  CHAD put back, so the ROM can re-read the argument if
+                                                ; this turns out not to be a string
                DEFW CHADD                       ; 6F73 97 5A
                POP AF                           ; 6F75 F1
-               CP &24                           ; 6F76 FE 24
-               RET NZ                           ; 6F78 C0
-               LD BC,&0058                      ; 6F79 01 58 00
+               CP &24                           ; 6F76 FE 24  "$"
+               RET NZ                           ; 6F78 C0  not a string, so this is the ROM's own DELETE; the caller
+                                                ; hands the token back
+               LD BC,&0058                      ; 6F79 01 58 00  &0058 in ROM 0 is POP AF : EI : RET, so the ROM's
+                                                ; return will drop an extra stack word and skip its own DELETE
                CALL STORE_BC_AT_XVAR76          ; 6F7C CD 5C 6F
                CALL CALL_NEXTCHAR               ; 6F7F CD 61 44
-               CALL FIND_VARIABLE_TIMES_FIVE    ; 6F82 CD 4C 48
+               CALL FIND_VARIABLE_TIMES_FIVE    ; 6F82 CD 4C 48  the variable, and its element count multiplied by five
+                                                ; for the numeric case
                JR NC,HK_SKIPNAME_1              ; 6F85 30 0B
-               EX AF,AF'                        ; 6F87 08
+               EX AF,AF'                        ; 6F87 08  the variable's page, brought in from A' with the caller's
+                                                ; HMPR saved on the stack
                IN A,(HMPR)                      ; 6F88 DB FB
                PUSH AF                          ; 6F8A F5
                EX AF,AF'                        ; 6F8B 08
                OUT (HMPR),A                     ; 6F8C D3 FB
-               CALL STACK_EMPTY_STRING_OR_SLICE ; 6F8E CD C3 47
+               CALL STACK_EMPTY_STRING_OR_SLICE ; 6F8E CD C3 47  the slicer, if there is one; an empty string is stacked
+                                                ; when there is not, which is the whole-variable case
                PUSH HL                          ; 6F91 E5
 
 ; ---- HK_SKIPNAME_1 ---- from &6F85
@@ -13784,29 +14417,48 @@ HK_SKIPNAME_1:
                PUSH AF                         ; 6F99 F5
                CALL ARRAY_ELEMENT_OFFSET       ; 6F9A CD DD 6F
                PUSH DE                         ; 6F9D D5
-               CALL RECLAIM_ABC_AT_HL          ; 6F9E CD 53 6E
+               CALL RECLAIM_ABC_AT_HL          ; 6F9E CD 53 6E  close up A pages plus BC bytes -- the entry that keeps
+                                               ; the caller's page count
                POP IX                          ; 6FA1 DD E1
                POP AF                          ; 6FA3 F1
                OUT (HMPR),A                    ; 6FA4 D3 FB
-               INC A                           ; 6FA6 3C
+               INC A                           ; 6FA6 3C  non-zero: VARIABLE_BODY_BY_KIND subtracts
                CALL VARIABLE_BODY_BY_KIND      ; 6FA7 CD 00 71
                RET NZ                          ; 6FAA C0
                SBC HL,DE                       ; 6FAB ED 52
                LD B,H                          ; 6FAD 44
                LD C,L                          ; 6FAE 4D
                EX DE,HL                        ; 6FAF EB
-               JP RECLAIM_BC_AT_HL             ; 6FB0 C3 52 6E
+               JP RECLAIM_BC_AT_HL             ; 6FB0 C3 52 6E  and a second reclaim for what the first one left
 
 ;; --------------------------------------------------------------------
-;; Read a page byte and an address from the three bytes at HL, turn them
-;; into a long address through PAGED_TO_LONG, and check it against
-;; V409E.
+;; (replacing the existing header, which reads the three bytes as an
+;; address; they are a length.)
+;;
+;; ADD OR SUBTRACT A:BC FROM A VARIABLE'S RECORDED SIZE.  The ROM's own
+;; lookvar.asm says what the three bytes at STRLOCN+11 are: "FOR
+;; STRINGS, LEN IN PAGES, FOLLOWED BY LEN MOD 16K AND TEXT".  So they
+;; are a 24-bit byte count in the same pages-plus-offset form that
+;; PAGED_TO_LONG and LONGADDR_TO_PAGED convert between, and this is the
+;; routine that grows or shrinks it when DELETE takes bytes out of a
+;; string or JOIN TO puts bytes in.
+;;
+;; V409E CHOOSES THE DIRECTION -- zero adds, anything else subtracts --
+;; and VARIABLE_BODY_BY_KIND sets it from the A it was called with.
+;; The high byte of the count travels in A through a PUSH AF and comes
+;; back in B through a POP BC, which is why the same word is pushed as
+;; AF and popped as BC.
+;;
+;; RES 7,D on the way out undoes the windowing LONGADDR_TO_PAGED puts
+;; in, so the value is stored as a plain count again, and OR D / OR E
+;; leaves Z set when the variable has shrunk to nothing.
 ;; --------------------------------------------------------------------
 
 ; ---- ENTRY_TO_LONG_ADDRESS ---- from &7124, &714B
 ENTRY_TO_LONG_ADDRESS:
-               PUSH AF                         ; 6FB3 F5
-               LD A,(HL)                       ; 6FB4 7E
+               PUSH AF                         ; 6FB3 F5  the high byte of the count, parked in AF so BC is free for the
+                                               ; low sixteen bits
+               LD A,(HL)                       ; 6FB4 7E  pages, then the count mod 16K
                INC HL                          ; 6FB5 23
                LD E,(HL)                       ; 6FB6 5E
                INC HL                          ; 6FB7 23
@@ -13814,12 +14466,12 @@ ENTRY_TO_LONG_ADDRESS:
                EX DE,HL                        ; 6FB9 EB
                CALL PAGED_TO_LONG              ; 6FBA CD DC 62
                PUSH AF                         ; 6FBD F5
-               LD A,(V409E)                    ; 6FBE 3A 9E 40
-               AND A                           ; 6FC1 A7
+               LD A,(V409E)                    ; 6FBE 3A 9E 40  the direction flag VARIABLE_BODY_BY_KIND set
+               AND A                           ; 6FC1 A7  and it clears the carry for the SBC below
                JR Z,ENTRY_TO_LONG_ADDRESS_1    ; 6FC2 28 07
                SBC HL,BC                       ; 6FC4 ED 42
                POP AF                          ; 6FC6 F1
-               POP BC                          ; 6FC7 C1
+               POP BC                          ; 6FC7 C1  the count's high byte, arriving in B
                SBC A,B                         ; 6FC8 98
                JR ENTRY_TO_LONG_ADDRESS_2      ; 6FC9 18 04
 
@@ -13834,36 +14486,46 @@ ENTRY_TO_LONG_ADDRESS_1:
 ENTRY_TO_LONG_ADDRESS_2:
                CALL LONGADDR_TO_PAGED          ; 6FCF CD 27 44
                EX DE,HL                        ; 6FD2 EB
-               RES 7,D                         ; 6FD3 CB BA
+               RES 7,D                         ; 6FD3 CB BA  stored as a count again, not as a windowed address
                LD (HL),D                       ; 6FD5 72
                DEC HL                          ; 6FD6 2B
                LD (HL),E                       ; 6FD7 73
                DEC HL                          ; 6FD8 2B
                LD (HL),A                       ; 6FD9 77
-               OR D                            ; 6FDA B2
+               OR D                            ; 6FDA B2  Z if the variable is now empty
                OR E                            ; 6FDB B3
                RET                             ; 6FDC C9
 
 ;; --------------------------------------------------------------------
-;; Two multiplies to find an element: the string's length is taken, then
-;; MULTIPLY_HL_BY_DE twice with the intermediate kept on the stack
-;; through EX (SP),HL, and LONGADDR_TO_PAGED turns the result back into
-;; a page and an address.
+;; (to be added to the existing header.)
+;;
+;; TWO MULTIPLIES BY THE SAME NUMBER.  DE holds the size of one
+;; element, and the slicer has been evaluated into a start and a
+;; length measured in elements; multiplying each of them by DE turns a
+;; slice of an array into a byte offset and a byte count.  For a plain
+;; string DE is one, so the multiply changes nothing and the slice is
+;; already in bytes -- which is how DELETE a$(3 TO 6) and DELETE
+;; dat$(5) share a single routine.
+;;
+;; The result is left as RECLAIM_ABC_AT_HL wants it: A the number of
+;; whole pages, BC the odd bytes, HL the address, with HMPR already
+;; moved on to the page the offset landed in.  The two page counts are
+;; kept apart through EX AF,AF', one in A and the other in A'.
 ;; --------------------------------------------------------------------
 
 ; ---- ARRAY_ELEMENT_OFFSET ---- from &6F9A
 ARRAY_ELEMENT_OFFSET:
                PUSH DE                         ; 6FDD D5
                PUSH HL                         ; 6FDE E5
-               CALL GET_STRING_PAGED           ; 6FDF CD E6 47
+               CALL GET_STRING_PAGED           ; 6FDF CD E6 47  the slicer, giving a page, an offset and a length
                POP HL                          ; 6FE2 E1
                PUSH BC                         ; 6FE3 C5
                PUSH BC                         ; 6FE4 C5
                EX DE,HL                        ; 6FE5 EB
-               CALL MULTIPLY_HL_BY_DE          ; 6FE6 CD 33 44
+               CALL MULTIPLY_HL_BY_DE          ; 6FE6 CD 33 44  the offset in elements times the element size
                EX (SP),HL                      ; 6FE9 E3
                PUSH AF                         ; 6FEA F5
-               CALL MULTIPLY_HL_BY_DE          ; 6FEB CD 33 44
+               CALL MULTIPLY_HL_BY_DE          ; 6FEB CD 33 44  and the same for the length
                CALL LONGADDR_TO_PAGED          ; 6FEE CD 27 44
                EX AF,AF'                       ; 6FF1 08
                POP AF                          ; 6FF2 F1
@@ -13871,51 +14533,58 @@ ARRAY_ELEMENT_OFFSET:
                EX DE,HL                        ; 6FF4 EB
                POP HL                          ; 6FF5 E1
                EX (SP),HL                      ; 6FF6 E3
-               RES 7,H                         ; 6FF7 CB BC
+               RES 7,H                         ; 6FF7 CB BC  the offset is a count, not a windowed address, so the top
+                                               ; bit comes off before it is added to the base
                ADD HL,BC                       ; 6FF9 09
                ADC A,&00                       ; 6FFA CE 00
                CALL LONGADDR_TO_PAGED          ; 6FFC CD 27 44
                LD C,A                          ; 6FFF 4F
                IN A,(HMPR)                     ; 7000 DB FB
                AND PAGEMASK                    ; 7002 E6 1F
-               ADD A,C                         ; 7004 81
+               ADD A,C                         ; 7004 81  HMPR moves on by however many pages the offset crossed
                OUT (HMPR),A                    ; 7005 D3 FB
                LD B,D                          ; 7007 42
                LD C,E                          ; 7008 4B
-               EX AF,AF'                       ; 7009 08
+               EX AF,AF'                       ; 7009 08  back to the page count belonging to the other product
                POP DE                          ; 700A D1
                RET                             ; 700B C9
 
-; ---- CMD_JOIN_FAIL ---- from &6E01 when A = T_TO
-CMD_JOIN_FAIL:
-               CALL CALL_NEXTCHAR              ; 700C CD 61 44
+; ---- CMD_JOIN_TO ---- from &6E01 when A = T_TO
+CMD_JOIN_TO:
+               CALL CALL_NEXTCHAR              ; 700C CD 61 44  past TO
                CALL FIND_VARIABLE              ; 700F CD D5 43
-               JR NC,ARRAY_ELEMENT_OFFSET_4    ; 7012 30 3B
+               JR NC,ARRAY_ELEMENT_OFFSET_4    ; 7012 30 3B  on the checking pass FIND_VARIABLE only parses, and
+                                               ; everything below is skipped
                JP NZ,REP_NOT_UNDERSTOOD        ; 7014 C2 B0 43
                PUSH AF                         ; 7017 F5
-               LD (V40A6),BC                   ; 7018 ED 43 A6 40
+               LD (V40A6),BC                   ; 7018 ED 43 A6 40  how many elements, and how long each one is
                LD (V40A8),DE                   ; 701C ED 53 A8 40
-               CALL NRRDD                      ; 7020 CD 5F 45
+               CALL NRRDD                      ; 7020 CD 5F 45  the record LOOKVARS stopped on
                DEFW STRLOCN                    ; 7023 BC 5B
-               LD (V409E),BC                   ; 7025 ED 43 9E 40
-               LD HL,&000B                     ; 7029 21 0B 00
+               LD (V409E),BC                   ; 7025 ED 43 9E 40  kept, because STRLOCN is about to be pointed at the
+                                               ; second variable and has to come back
+               LD HL,&000B                     ; 7029 21 0B 00  record+11: pages, then length mod 16K, then the body
                ADD HL,BC                       ; 702C 09
-               IN A,(HMPR)                     ; 702D DB FB
+               IN A,(HMPR)                     ; 702D DB FB  the page this is all happening in
                LD (V40AA),A                    ; 702F 32 AA 40
-               ADD A,(HL)                      ; 7032 86
+               ADD A,(HL)                      ; 7032 86  plus the length's whole pages
                INC HL                          ; 7033 23
                LD C,(HL)                       ; 7034 4E
                INC HL                          ; 7035 23
                LD B,(HL)                       ; 7036 46
-               ADD HL,BC                       ; 7037 09
-               JR NC,ARRAY_ELEMENT_OFFSET_1    ; 7038 30 05
+               ADD HL,BC                       ; 7037 09  record+13 plus the length mod 16K is the last byte of the
+                                               ; body, and MKRBIG opens room after the byte it is given
+               JR NC,ARRAY_ELEMENT_OFFSET_1    ; 7038 30 05  the sum carried out of sixteen bits, so it is four pages on
+                                               ; and &8000 back -- two pages net, with the address forced into the
+                                               ; window
                INC A                           ; 703A 3C
                SET 7,H                         ; 703B CB FC
                JR ARRAY_ELEMENT_OFFSET_2       ; 703D 18 06
 
 ; ---- ARRAY_ELEMENT_OFFSET_1 ---- from &7038
 ARRAY_ELEMENT_OFFSET_1:
-               BIT 6,H                         ; 703F CB 74
+               BIT 6,H                         ; 703F CB 74  bit 6 set means it has run past &BFFF, so one page on and
+                                               ; back into the window
                JR Z,ARRAY_ELEMENT_OFFSET_3     ; 7041 28 03
                RES 6,H                         ; 7043 CB B4
 
@@ -13925,14 +14594,14 @@ ARRAY_ELEMENT_OFFSET_2:
 
 ; ---- ARRAY_ELEMENT_OFFSET_3 ---- from &7041 when bit 6 of H clear
 ARRAY_ELEMENT_OFFSET_3:
-               LD (V40AB),A                    ; 7046 32 AB 40
+               LD (V40AB),A                    ; 7046 32 AB 40  the page and address the gap will be opened at
                LD (V40A0),HL                   ; 7049 22 A0 40
                POP AF                          ; 704C F1
                OUT (HMPR),A                    ; 704D D3 FB
 
 ; ---- ARRAY_ELEMENT_OFFSET_4 ---- from &7012
 ARRAY_ELEMENT_OFFSET_4:
-               CALL CALL_GETCHAR               ; 704F CD 67 44
+               CALL CALL_GETCHAR               ; 704F CD 67 44  the comma, and then the second variable
                CALL EXPECT_COMMA               ; 7052 CD 50 44
                CALL FIND_VARIABLE              ; 7055 CD D5 43
                JR NC,ARRAY_ELEMENT_OFFSET_5    ; 7058 30 56
@@ -13940,26 +14609,31 @@ ARRAY_ELEMENT_OFFSET_4:
                PUSH AF                         ; 705D F5
                IN A,(HMPR)                     ; 705E DB FB
                AND PAGEMASK                    ; 7060 E6 1F
-               CALL NRWR                       ; 7062 CD 82 45
+               CALL NRWR                       ; 7062 CD 82 45  its page, parked in PRPTRP so it is adjusted with
+                                               ; everything else
                DEFW PRPTRP                     ; 7065 A8 5A
                PUSH HL                         ; 7067 E5
-               LD HL,(V40A8)                   ; 7068 2A A8 40
+               LD HL,(V40A8)                   ; 7068 2A A8 40  the two element lengths must match, or "Size mismatch"
                AND A                           ; 706B A7
                SBC HL,DE                       ; 706C ED 52
                JP NZ,REP_SIZE_MISMATCH         ; 706E C2 AD 43
-               LD HL,(V40A6)                   ; 7071 2A A6 40
+               LD HL,(V40A6)                   ; 7071 2A A6 40  the new element count
                ADD HL,BC                       ; 7074 09
 
 ; ---- ARRAY_ELEMENT_OFFSET_LOOP ---- from &7080
 ARRAY_ELEMENT_OFFSET_LOOP:
-               JP C,REP_STRING_TOO_LONG        ; 7075 DA B9 43
-               LD (V40A4),BC                   ; 7078 ED 43 A4 40
-               LD BC,&000E                     ; 707C 01 0E 00
+               JP C,REP_STRING_TOO_LONG        ; 7075 DA B9 43  the carry from the ADD above, or from the ADD fourteen
+                                               ; bytes below -- the JR at &7080 jumps backwards onto this JP, so one
+                                               ; error jump serves both tests
+               LD (V40A4),BC                   ; 7078 ED 43 A4 40  how many elements the second variable contributes; IX
+                                               ; is loaded from here at &70FB
+               LD BC,&000E                     ; 707C 01 0E 00  plus a header, as an overflow test only -- HL is not
+                                               ; used again
                ADD HL,BC                       ; 707F 09
                JR C,ARRAY_ELEMENT_OFFSET_LOOP  ; 7080 38 F3
                CALL NRRDD                      ; 7082 CD 5F 45
                DEFW STRLOCN                    ; 7085 BC 5B
-               CALL NRWRD                      ; 7087 CD 77 45
+               CALL NRWRD                      ; 7087 CD 77 45  the second variable's record, parked in PRPTR
                DEFW PRPTR                      ; 708A A9 5A
                LD HL,&000B                     ; 708C 21 0B 00
                ADD HL,BC                       ; 708F 09
@@ -13969,15 +14643,17 @@ ARRAY_ELEMENT_OFFSET_LOOP:
                INC HL                          ; 7093 23
                LD D,(HL)                       ; 7094 56
                EX DE,HL                        ; 7095 EB
-               CALL PAGED_TO_LONG              ; 7096 CD DC 62
-               INC DE                          ; 7099 13
+               CALL PAGED_TO_LONG              ; 7096 CD DC 62  its length as a bank and an offset
+               INC DE                          ; 7099 13  record+14, the first byte of its body
                EX (SP),HL                      ; 709A E3
-               AND A                           ; 709B A7
+               AND A                           ; 709B A7  how far the text starts past the body: nothing for a plain
+                                               ; string, the dimension words for an array
                SBC HL,DE                       ; 709C ED 52
                LD (V40A2),HL                   ; 709E 22 A2 40
                EX DE,HL                        ; 70A1 EB
                POP HL                          ; 70A2 E1
-               SBC HL,DE                       ; 70A3 ED 52
+               SBC HL,DE                       ; 70A3 ED 52  so the count copied is the text alone, without the array
+                                               ; header
                SBC A,&00                       ; 70A5 DE 00
                CALL LONGADDR_TO_PAGED          ; 70A7 CD 27 44
                LD D,A                          ; 70AA 57
@@ -13989,54 +14665,72 @@ ARRAY_ELEMENT_OFFSET_LOOP:
 ; ---- ARRAY_ELEMENT_OFFSET_5 ---- from &7058
 ARRAY_ELEMENT_OFFSET_5:
                CALL EXPECT_END_OF_STATEMENT    ; 70B0 CD D0 44
-               LD A,(V40AB)                    ; 70B3 3A AB 40
+               LD A,(V40AB)                    ; 70B3 3A AB 40  back to the page holding the end of the first variable
                OUT (HMPR),A                    ; 70B6 D3 FB
                LD HL,(V40A0)                   ; 70B8 2A A0 40
-               LD A,D                          ; 70BB 7A
+               LD A,D                          ; 70BB 7A  whole pages of gap
                AND PAGEMASK                    ; 70BC E6 1F
                PUSH AF                         ; 70BE F5
-               RES 7,B                         ; 70BF CB B8
+               RES 7,B                         ; 70BF CB B8  and the odd bytes, as a count rather than a windowed
+                                               ; address
                PUSH BC                         ; 70C1 C5
-               CALL CALL_JMKRBIG               ; 70C2 CD F3 58
+               CALL CALL_JMKRBIG               ; 70C2 CD F3 58  open A pages plus BC bytes after HL. Everything above
+                                               ; moves, PRPTR and PRPTRP with it
                POP BC                          ; 70C5 C1
-               CALL NRWRD                      ; 70C6 CD 77 45
+               CALL NRWRD                      ; 70C6 CD 77 45  MODCOUNT and PAGCOUNT are FARLDIR's own counters, so the
+                                               ; same two numbers are handed to the copy
                DEFW MODCOUNT                   ; 70C9 84 5B
                POP AF                          ; 70CB F1
                CALL NRWR                       ; 70CC CD 82 45
                DEFW PAGCOUNT                   ; 70CF 83 5B
                EX DE,HL                        ; 70D1 EB
                INC DE                          ; 70D2 13
-               LD HL,(V40A2)                   ; 70D3 2A A2 40
+               LD HL,(V40A2)                   ; 70D3 2A A2 40  the header size worked out at &709B, plus the fourteen
+                                               ; bytes before the body
                LD BC,&000E                     ; 70D6 01 0E 00
                ADD HL,BC                       ; 70D9 09
-               CALL NRRDD                      ; 70DA CD 5F 45
+               CALL NRRDD                      ; 70DA CD 5F 45  PRPTR, now holding where the second variable ended up
                DEFW PRPTR                      ; 70DD A9 5A
                ADD HL,BC                       ; 70DF 09
-               IN A,(HMPR)                     ; 70E0 DB FB
+               IN A,(HMPR)                     ; 70E0 DB FB  destination page is the current one, source page comes from
+                                               ; PRPTRP
                LD C,A                          ; 70E2 4F
                CALL NRRD                       ; 70E3 CD 6A 45
                DEFW PRPTRP                     ; 70E6 A8 5A
-               CALL CMR                        ; 70E8 CD F0 44
+               CALL CMR                        ; 70E8 CD F0 44  the far copy, across as many pages as it takes
                DEFW J_FARLDIR                  ; 70EB 2D 01
-               LD BC,(V409E)                   ; 70ED ED 4B 9E 40
+               LD BC,(V409E)                   ; 70ED ED 4B 9E 40  STRLOCN back to the first variable, because
+                                               ; VARIABLE_BODY_BY_KIND reads it
                CALL NRWRD                      ; 70F1 CD 77 45
                DEFW STRLOCN                    ; 70F4 BC 5B
                LD A,(V40AA)                    ; 70F6 3A AA 40
                OUT (HMPR),A                    ; 70F9 D3 FB
-               LD IX,(V40A4)                   ; 70FB DD 2A A4 40
-               XOR A                           ; 70FF AF
+               LD IX,(V40A4)                   ; 70FB DD 2A A4 40  the number of elements gained
+               XOR A                           ; 70FF AF  zero: add, not subtract
 
 ;; --------------------------------------------------------------------
-;; The same again, and then a branch on AND &60 -- bits 5 and 6 of the
-;; type byte, which are what tell the kinds of variable apart.  It keeps
-;; IX across the lookup, so the caller's own record survives it.
+;; (to be added to the existing header.)
+;;
+;; THE LAST STEP OF BOTH COMMANDS: the bytes have been moved, and now
+;; the variable's own bookkeeping has to say so.  A on entry is the
+;; direction -- zero from JOIN TO to add, non-zero from DELETE to
+;; subtract -- and IX is the number of elements.
+;;
+;; An array has two numbers to fix and a plain string one.  Bits 5 and
+;; 6 of the type byte say which this is; for an array the 24-bit size
+;; at record+11 is changed by IX times the element size, and the first
+;; dimension at record+15 by IX itself.  For a plain string only the
+;; size changes, and the page byte is then checked against four: a
+;; string needing four pages has passed 64K, which is "String too
+;; long".
 ;; --------------------------------------------------------------------
 
 ; ---- VARIABLE_BODY_BY_KIND ---- from &6FA7
 VARIABLE_BODY_BY_KIND:
-               LD (V409E),A                    ; 7100 32 9E 40
+               LD (V409E),A                    ; 7100 32 9E 40  the direction flag ENTRY_TO_LONG_ADDRESS reads
                CALL POINT_INTO_VARIABLE        ; 7103 CD C3 43
-               CALL TIMES_FIVE                 ; 7106 CD 4F 48
+               CALL TIMES_FIVE                 ; 7106 CD 4F 48  five bytes to a number, one to a character; DE comes out
+                                               ; as the size of one element
                EX DE,HL                        ; 7109 EB
                PUSH HL                         ; 710A E5
                CALL NRRDD                      ; 710B CD 5F 45
@@ -14045,19 +14739,21 @@ VARIABLE_BODY_BY_KIND:
                PUSH BC                         ; 7111 C5
                LD HL,&000B                     ; 7112 21 0B 00
                ADD HL,BC                       ; 7115 09
-               AND &60                         ; 7116 E6 60
+               AND &60                         ; 7116 E6 60  bits 5 and 6 of the type byte are what tell an array from a
+                                               ; simple variable
                JR Z,VARIABLE_BODY_BY_KIND_2    ; 7118 28 2E
                PUSH HL                         ; 711A E5
                PUSH IX                         ; 711B DD E5
                POP HL                          ; 711D E1
-               CALL MULTIPLY_HL_BY_DE          ; 711E CD 33 44
+               CALL MULTIPLY_HL_BY_DE          ; 711E CD 33 44  elements times element size gives bytes
                LD B,H                          ; 7121 44
                LD C,L                          ; 7122 4D
                POP HL                          ; 7123 E1
-               CALL ENTRY_TO_LONG_ADDRESS      ; 7124 CD B3 6F
+               CALL ENTRY_TO_LONG_ADDRESS      ; 7124 CD B3 6F  the 24-bit size at record+11, adjusted
                PUSH IX                         ; 7127 DD E5
                POP BC                          ; 7129 C1
-               INC HL                          ; 712A 23
+               INC HL                          ; 712A 23  record+15, the first dimension -- how many strings the array
+                                               ; holds
                INC HL                          ; 712B 23
                INC HL                          ; 712C 23
                INC HL                          ; 712D 23
@@ -14082,10 +14778,11 @@ VARIABLE_BODY_BY_KIND_LOOP:
 ; ---- VARIABLE_BODY_BY_KIND_1 ---- from &713A
 VARIABLE_BODY_BY_KIND_1:
                EX DE,HL                        ; 7140 EB
-               LD (HL),D                       ; 7141 72
+               LD (HL),D                       ; 7141 72  written back high byte first, which is the way the two DECs
+                                               ; walk
                DEC HL                          ; 7142 2B
                LD (HL),E                       ; 7143 73
-               LD A,D                          ; 7144 7A
+               LD A,D                          ; 7144 7A  Z if the array is now empty
                OR E                            ; 7145 B3
                JR VARIABLE_BODY_BY_KIND_DONE   ; 7146 18 0E
 
@@ -14096,8 +14793,9 @@ VARIABLE_BODY_BY_KIND_2:
                CALL ENTRY_TO_LONG_ADDRESS      ; 714B CD B3 6F
                PUSH AF                         ; 714E F5
                LD A,(HL)                       ; 714F 7E
-               CP &04                          ; 7150 FE 04
-               CCF                             ; 7152 3F
+               CP &04                          ; 7150 FE 04  four pages is 64K, the limit on one string
+               CCF                             ; 7152 3F  CCF turns "below four" into "four or more", so the carry means
+                                               ; too long
                JR C,VARIABLE_BODY_BY_KIND_LOOP ; 7153 38 E8
                POP AF                          ; 7155 F1
 
@@ -14108,46 +14806,54 @@ VARIABLE_BODY_BY_KIND_DONE:
                RET                             ; 7158 C9
 
 ;; --------------------------------------------------------------------
-;; Hook code 156.  Swap the top of the character set for another.
+;; (to be added to the existing header, which works out what is swapped
+;; but not which command asks for it.)
 ;;
-;; Takes an integer and rejects 3 or more with "Integer out of range", so
-;; the argument is 0, 1 or 2.  If it differs from the byte kept at XVAR
-;; &4074, that byte is updated and 328 bytes are *exchanged* -- not
-;; copied -- between &5490 in the ROM's system page and a buffer at &7E64
-;; in this page, a byte at a time through the alternate accumulator.
+;; BLOCKS -- and the argument 0, 1 or 2 is the manual's:
 ;;
-;; Those 328 bytes are 41 characters of eight rows each.  The ROM's
-;; character set starts at CHARSVAL, &5190, and the block swapped begins
-;; &300 bytes into it, which is 96 characters along, and ends exactly
-;; where PALTAB begins.  Counting from CHR$ 32, that is CHR$ 128 upwards:
-;; the block graphics and the user-defined characters.
+;;     BLOCKS 0  block graphics off, CHR$ 128-168 as user-defined
+;;     BLOCKS 1  block graphics on, only CHR$ 144-168 user-defined
+;;     BLOCKS 2  block graphics off, and "swap the entire set of
+;;               user-defined graphics with the set stored within
+;;               MasterBASIC ... initially an IBM standard foreign
+;;               character set"
 ;;
-;; So this swaps one set of graphics characters for another and remembers
-;; which is in place.  Exchanging rather than copying is what lets it
-;; swap back with the same code.
+;; BLOCKS 1 IS THE ONE THAT DOES NOTHING to the characters: DEC A leaves
+;; zero and jumps straight to the tail, which writes that zero to BGFLG.
+;; 0 and 2 both fall through to the tail with &FF, so the flag is the
+;; manual's block graphics on or off, and only the choice between the
+;; two sets is left.  That choice is remembered in XVAR &4074, and the
+;; swap happens only when the argument differs from what is there --
+;; which is why "using BLOCKS 0 will ... swap the user-defined graphics
+;; with the original" gets the first set back with the same code that
+;; put the second one in.
 ;; --------------------------------------------------------------------
 
 HK_SWAPCHARS:
                CALL CALL_NEXTCHAR              ; 7159 CD 61 44
                CALL INT_ARG_THEN_END           ; 715C CD 73 44
-               CP &03                          ; 715F FE 03
+               CP &03                          ; 715F FE 03  3 or more is "Integer out of range", so the argument is 0,
+                                               ; 1 or 2
                JP NC,REP_INTEGER_OUT_OF_RANGE  ; 7161 D2 A7 43
-               DEC A                           ; 7164 3D
+               DEC A                           ; 7164 3D  1 leaves zero in A, and the tail writes it to BGFLG: block
+                                               ; graphics on, characters untouched
                JR Z,HK_SWAPCHARS_DONE2         ; 7165 28 37
-               LD A,(V4074)                    ; 7167 3A 74 40
+               LD A,(V4074)                    ; 7167 3A 74 40  which set is in place now
                SUB C                           ; 716A 91
-               JR Z,HK_SWAPCHARS_DONE          ; 716B 28 30
+               JR Z,HK_SWAPCHARS_DONE          ; 716B 28 30  already the one asked for, so nothing to swap
                LD A,C                          ; 716D 79
                LD (V4074),A                    ; 716E 32 74 40
-               XOR A                           ; 7171 AF
+               XOR A                           ; 7171 AF  the system page into the window, so &9490 reaches &5490
                OUT (HMPR),A                    ; 7172 D3 FB
-               LD HL,&9490                     ; 7174 21 90 94
+               LD HL,&9490                     ; 7174 21 90 94  &300 into CHARSVAL is CHR$ 128, and &148 bytes from
+                                               ; there is 41 characters ending where PALTAB begins
                LD DE,HK_SWAPCHARS_1            ; 7177 11 64 7E
                LD BC,&0148                     ; 717A 01 48 01
 
 ; ---- HK_SWAPCHARS_LOOP ---- from &7188
 HK_SWAPCHARS_LOOP:
-               LD A,(HL)                       ; 717D 7E
+               LD A,(HL)                       ; 717D 7E  an exchange, not a copy: A' carries one byte while A carries
+                                               ; the other, so the same loop swaps back next time
                EX AF,AF'                       ; 717E 08
                LD A,(DE)                       ; 717F 1A
                LD (HL),A                       ; 7180 77
@@ -14159,7 +14865,8 @@ HK_SWAPCHARS_LOOP:
                LD A,B                          ; 7186 78
                OR C                            ; 7187 B1
                JR NZ,HK_SWAPCHARS_LOOP         ; 7188 20 F3
-               CALL NRRDD                      ; 718A CD 5F 45
+               CALL NRRDD                      ; 718A CD 5F 45  the two cursor characters live in the swapped range, so
+                                               ; they are exchanged too, with the pair kept just past the buffer
                DEFW KURCHAR                    ; 718D 01 5A
                EX DE,HL                        ; 718F EB
                LD E,(HL)                       ; 7190 5E
@@ -14171,7 +14878,7 @@ HK_SWAPCHARS_LOOP:
                LD C,E                          ; 7196 4B
                CALL NRWRD                      ; 7197 CD 77 45
                DEFW KURCHAR                    ; 719A 01 5A
-               XOR A                           ; 719C AF
+               XOR A                           ; 719C AF  &FF into BGFLG -- block graphics off, for both 0 and 2
 
 ; ---- HK_SWAPCHARS_DONE ---- from &716B when A = C
 HK_SWAPCHARS_DONE:
@@ -14196,39 +14903,43 @@ HK_SWAPCHARS_DONE2:
 
 CMD_CLS:
                CALL CALL_NEXTCHAR              ; 71A4 CD 61 44
-               CP &2A                          ; 71A7 FE 2A
+               CP &2A                          ; 71A7 FE 2A  only "*"; the ROM keeps plain CLS
                JP NZ,REP_NOT_UNDERSTOOD        ; 71A9 C2 B0 43
                CALL CALL_NEXTCHAR              ; 71AC CD 61 44
-               CALL CALLDOS                    ; 71AF CD C1 42
+               CALL CALLDOS                    ; 71AF CD C1 42  PLNS puts the address of the next statement on the ROM's
+                                               ; stack, so the interpreter carries on afterwards whatever it had planned
                DEFW DOS_PLNS-&4000             ; 71B2 8E 50
                CALL EXPECT_END_OF_STATEMENT    ; 71B4 CD D0 44
-               LD A,&FE                        ; 71B7 3E FE
+               LD A,&FE                        ; 71B7 3E FE  stream &FE, the upper screen
                CALL CMR                        ; 71B9 CD F0 44
                DEFW STREAM                     ; 71BC 12 01
-               LD A,&10                        ; 71BE 3E 10
+               LD A,&10                        ; 71BE 3E 10  CHR$ 16 then 0 is PEN 0
                CALL CALL_PRINT_A               ; 71C0 CD FA 69
                XOR A                           ; 71C3 AF
                CALL CALL_PRINT_A               ; 71C4 CD FA 69
-               LD A,&11                        ; 71C7 3E 11
+               LD A,&11                        ; 71C7 3E 11  CHR$ 17 then 15 is PAPER 15 -- with the line above, the
+                                               ; manual's "PEN 0: PAPER 15"
                CALL CALL_PRINT_A               ; 71C9 CD FA 69
                LD A,&0F                        ; 71CC 3E 0F
                CALL CALL_PRINT_A               ; 71CE CD FA 69
-               LD HL,ATTRT                     ; 71D1 21 4E 5A
+               LD HL,ATTRT                     ; 71D1 21 4E 5A  the five temporary print variables copied over the five
+                                               ; permanent ones, so the new colours stick
                LD DE,SCREEN_BLANK_TICK_5       ; 71D4 11 45 5A
                LD BC,&0005                     ; 71D7 01 05 00
                CALL CMR                        ; 71DA CD F0 44
                DEFW &008F                      ; 71DD 8F 00
-               LD A,&2F                        ; 71DF 3E 2F
+               LD A,&2F                        ; 71DF 3E 2F  &2F on the keyboard port is border 15
                OUT (KEYBOARD),A                ; 71E1 D3 FE
                CALL NRWR                       ; 71E3 CD 82 45
                DEFW ROM_BORDCR                 ; 71E6 4B 5C
-               LD A,&78                        ; 71E8 3E 78
+               LD A,&78                        ; 71E8 3E 78  &78 is PAPER 15 with PEN 0 -- fifteen shifted up three --
+                                               ; for the lower screen
                CALL NRWR                       ; 71EA CD 82 45
                DEFW BORDCR                     ; 71ED 48 5C
-               LD BC,&00FF                     ; 71EF 01 FF 00
+               LD BC,&00FF                     ; 71EF 01 FF 00  and the mode 2/3 lower-screen colours to match
                CALL NRWRD                      ; 71F2 CD 77 45
                DEFW M23LSC                     ; 71F5 30 5A
-               XOR A                           ; 71F7 AF
+               XOR A                           ; 71F7 AF  A = 0, and JCLSBL clears the screen
 
 CALL_JCLSBL:
                CALL CMR                        ; 71F8 CD F0 44
@@ -14258,7 +14969,8 @@ CALL_JCLSBL:
 ;; --------------------------------------------------------------------
 
 HK_SETUPREGS:
-               CALL NRWRHL                     ; 71FE CD 75 45
+               CALL NRWRHL                     ; 71FE CD 75 45  XPTR, which the ROM uses to mark where an error was
+                                               ; found
                DEFW XPTR                       ; 7201 A3 5A
                LD HL,V7221                     ; 7203 21 21 72
                LD DE,&8D50                     ; 7206 11 50 8D  CDBUFF+&50 in the system page -- HMPR is zeroed at &720F
@@ -14310,7 +15022,8 @@ FN_USING_S:
                POP AF                          ; 723A F1
                OUT (HMPR),A                    ; 723B D3 FB
                CALL CMR                        ; 723D CD F0 44
-               DEFW GTDT                       ; 7240 00 50
+               DEFW GTDT                       ; 7240 00 50  &5000 in the system page -- what the LDIR above has just
+                                               ; put there, not the GTDT that usually lives at that address
                RET                             ; 7242 C9
 
 ; ---- FN_USING_S_1 ---- from &7229

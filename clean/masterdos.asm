@@ -842,7 +842,7 @@ BOOTNM_2:
 
 ; ---- ENTSP ---- from &43BD, &4481, &4485, &5021, &5026, &508E, &5FB1, &6060 ...
 ENTSP:
-               DEFB &00,&00                    ; 4104 ..  SP on entry to a command; SETSTK saves the previous value
+               DEFW &0000                      ; 4104 00 00  SP on entry to a command; SETSTK saves the previous value
                                                ; behind it
 
 ; ---- SNPRT0 ---- from &53C1, &5475, &5FD0
@@ -860,16 +860,16 @@ SNPRT2:
 
 ; ---- SVHDR ---- from &443E, &6681, &66CA, &6A30, MB &7664
 SVHDR:
-               DEFB &00,&00                    ; 410A ..  IX on entry to a hook: the ROM's header buffer
+               DEFW &0000                      ; 410A 00 00  IX on entry to a hook: the ROM's header buffer
 
 ; ---- CCHAD ---- from &4378, &43C0
 CCHAD:
-               DEFB &00,&00                    ; 410C ..  CHADD saved on entry, so it can be put back for an external
+               DEFW &0000                      ; 410C 00 00  CHADD saved on entry, so it can be put back for an external
                                                ; command
 
 ; ---- CNT ---- from &4BAB, &4BAF, &5C26, &5C67
 CNT:
-               DEFB &00,&00                    ; 410E ..  running total of sectors, accumulated by DIR
+               DEFW &0000                      ; 410E 00 00  running total of sectors, accumulated by DIR
 
 ; ---- DSC ---- from &451B, &4593, &45C8, &464E, &468B, &4794, &4843, &48BE ...
 DSC:
@@ -900,19 +900,19 @@ NRFLG:
 
 ; ---- SVDPT ---- from &5DD2, &5EA0, &5EB4
 SVDPT:
-               DEFB &00,&00                    ; 4122 ..  directory entry index during a find
+               DEFW &0000                      ; 4122 00 00  directory entry index during a find
 
 ; ---- SVTRS ---- from &5DC8, &5E96, &5EC5, &69C9, &6DEB, &6E49
 SVTRS:
-               DEFB &00,&00,&00,&00            ; 4124 ....  track and sector during a find
+               DEFW &0000,&0000                ; 4124 00 00 00 00  track and sector during a find
 
 ; ---- SVCNT ---- from &49B7, &49BC, &49E3, &49ED, &4A0D, &7623, &7628
 SVCNT:
-               DEFB &00,&00,&00,&00            ; 4128 ....  sectors still to transfer
+               DEFW &0000,&0000                ; 4128 00 00 00 00  sectors still to transfer
 
 ; ---- PTRSCR ---- from &4628, &4936, &49DF, &4BEC, &4BF5, &5B7E, &5C36, &7933
 PTRSCR:
-               DEFB &00,&00                    ; 412C ..  pointer into the screen page when it is used as a buffer
+               DEFW &0000                      ; 412C 00 00  pointer into the screen page when it is used as a buffer
 
 ; ---- PORT1 ---- from &462B, &476D, &492E, &4A41, &4A4C, &778B
 PORT1:
@@ -972,11 +972,11 @@ HD001:
 
 ; ---- HD0B1 ---- from &63C0, &6498, &64F6
 HD0B1:
-               DEFB &00,&00                    ; 414A ..  length
+               DEFW &0000                      ; 414A 00 00  length
 
 ; ---- HD0D1 ---- from &63AD, &6488, &64F3, &651C
 HD0D1:
-               DEFB &00,&00,&00,&00            ; 414C ....  start address
+               DEFW &0000,&0000                ; 414C 00 00 00 00  start address
 
 ; ---- PGES1 ---- from &4539, &453F, &4853, &4916, &491D, &493A, &4943, &541B ...
 PGES1:
@@ -1004,11 +1004,11 @@ HD002:
 
 ; ---- HD0B2 ---- from &4F14, &4F26
 HD0B2:
-               DEFB &00,&00                    ; 4166 ..
+               DEFW &0000                      ; 4166 00 00
 
 ; ---- HD0D2 ---- from &4F29, &4F3C
 HD0D2:
-               DEFB &00,&00,&00,&00            ; 4168 ....
+               DEFW &0000,&0000                ; 4168 00 00 00 00
 
 ; ---- PGES2 ---- from &4F20
 PGES2:
@@ -1089,15 +1089,15 @@ HKA:
 
 ; ---- HKHL ---- from &4443, &6485, &667E, &66B5, &66C7, &69DE, &6B0F
 HKHL:
-               DEFB &00,&00                    ; 41DE ..
+               DEFW &0000                      ; 41DE 00 00
 
 ; ---- HKDE ---- from &4446, &5F2E, &61B9, &6492, &668C, &6A03, &6A3E, &6A65 ...
 HKDE:
-               DEFB &00,&00                    ; 41E0 ..
+               DEFW &0000                      ; 41E0 00 00
 
 ; ---- HKBC ---- from &444A, &61B5, &648B, &6685, &66C0, &6A14, &6A53, &6D88
 HKBC:
-               DEFB &00,&00                    ; 41E2 ..
+               DEFW &0000                      ; 41E2 00 00
 
 ; ---- SNME ---- from &53CF, &540C
 SNME:
@@ -1113,15 +1113,15 @@ V41EA:
 
 ; ---- SNLEN ---- from &53D6, &5446
 SNLEN:
-               DEFB &00,&C0                    ; 41F4 .@
+               DEFW &C000                      ; 41F4 00 C0
 
 ; ---- SNADD ---- from &53DA, &5443
 SNADD:
-               DEFB &00,&40,&00,&00,&FF,&FF    ; 41F6 .@....
+               DEFW HEADER,&0000,&FFFF         ; 41F6 00 40 00 00 FF FF
 
 ; ---- FSLOT ---- from &4B3B, &4E00, &4FE0, &4FE5, &6E8B
 FSLOT:
-               DEFB &00,&00                    ; 41FC ..  SECT/TRK OF FREE DIR SLOT, OR 00?? IF NO
+               DEFW &0000                      ; 41FC 00 00  SECT/TRK OF FREE DIR SLOT, OR 00?? IF NO
 
 ; ---- FSLTE ---- from &4E0B, &4FEC
 FSLTE:
@@ -1179,15 +1179,15 @@ V4215:
 
 ; ---- TEMPW3 ---- from &46A2, &676D, &7155, &733D, &750F
 TEMPW3:
-               DEFB &00,&00                    ; 4216 ..
+               DEFW &0000                      ; 4216 00 00
 
 ; ---- TEMPW4 ---- from &59E9, &5A45
 TEMPW4:
-               DEFB &00,&00                    ; 4218 ..
+               DEFW &0000                      ; 4218 00 00
 
 ; ---- TCNT ---- from &4BB2, &4BB6, &5C29, &5C81, &79CA
 TCNT:
-               DEFB &00,&00                    ; 421A ..  DIR'S 'TOTAL FILES ON DISC' COUNTER
+               DEFW &0000                      ; 421A 00 00  DIR'S 'TOTAL FILES ON DISC' COUNTER
 
 ; ---- FCNT ---- from &4BC5, &4BC9, &5BD8, &5C2C, &79D1
 FCNT:
@@ -1295,7 +1295,7 @@ SAMCNT:
 ; ---- MAXT ---- from &4B3E, &4C6F, &4C76, &7214
 MAXT:
                DEFB &00                        ; 4235 .  21 MAX TAG VALUE FOR SUB DIRS
-               DEFB &F3,&43                    ; 4236 sC  22 (2) ADDR OF HOOKS
+               DEFW &43F3                      ; 4236 F3 43  22 (2) ADDR OF HOOKS
 
 ; ---- MSFLG ---- from &68E1
 MSFLG:
@@ -1317,7 +1317,7 @@ NMIKP:
 
 ; ---- NMIKA ---- from &5387
 NMIKA:
-               DEFB &04,&00                    ; 423B ..  27 (2) ADDR CALLED IF DITTO.
+               DEFW &0004                      ; 423B 04 00  27 (2) ADDR CALLED IF DITTO.
 
 ; ---- DWAI ---- from &6563
 DWAI:
@@ -1333,7 +1333,7 @@ NEXTST_1:
 
 ; ---- ONERR ---- from &43CA
 ONERR:
-               DEFW &0000                      ; 4241 00 00
+               DEFW &0000                      ; 4241 00 00  33 (2)
                DEFB &C9                        ; 4243 I
 
 ; ---- EAPG ---- from &43DC, &742F
@@ -1379,15 +1379,16 @@ V425D:
                DEFB &02,&02                    ; 425D ..
 
 CRWT:
-               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 425F ..............  (14) 63-76
+               DEFW &0000,&0000,&0000,&0000,&0000,&0000,&0000 ; 425F 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (14)
+                                                              ; 63-76
 
 ; ---- SAMRN ---- from &4D18, &74A4
 SAMRN:
-               DEFB &00,&00                    ; 426D ..  (2) 77 SAM RND NO. (DISC RND NO.
+               DEFW &0000                      ; 426D 00 00  (2) 77 SAM RND NO. (DISC RND NO.
 
 ; ---- TDVAR ---- from &4D1F, &7495
 TDVAR:
-               DEFB &00,&00                    ; 426F ..  (2) 79
+               DEFW &0000                      ; 426F 00 00  (2) 79
 
 ;; --------------------------------------------------------------------
 ;;  The date and time, as printable strings followed by their high and low limits. The clock code in part TIME keeps
@@ -1453,7 +1454,7 @@ CKPT:
 
 ; ---- BEEPT ---- from &4DE9
 BEEPT:
-               DEFB &85,&00                    ; 42B7 ..  151 (2) BEEP TIME
+               DEFW &0085                      ; 42B7 85 00  151 (2) BEEP TIME
 
 ; ---- V42B9 ---- from &558F
 V42B9:
@@ -5273,7 +5274,7 @@ ENDSX:
 END1:
                XOR A                           ; 5015 AF
                CALL NRWR                       ; 5016 CD 74 50
-               DEFW XPTR+1                     ; 5019 A4 5A
+               DEFW XPTR+1                     ; 5019 A4 5A  NO ERROR
                CALL SETBORDER_BORDCOL          ; 501B CD 52 51
                LD (NRFLG),A                    ; 501E 32 1F 41  RECURSE OK
                LD SP,(ENTSP)                   ; 5021 ED 7B 04 41
@@ -5498,7 +5499,7 @@ PLNS:
                DEC (HL)                        ; 5095 35
                DEC (HL)                        ; 5096 35  DEC STORED SP LSB
                CALL NRRDD                      ; 5097 CD 53 50
-               DEFW ERRSP                      ; 509A 3D 5C
+               DEFW ERRSP                      ; 509A 3D 5C  READ ERRSP INTO BC
                LD H,B                          ; 509C 60
                LD L,C                          ; 509D 69
                LD BC,(NEXTST)                  ; 509E ED 4B 1E 42
@@ -6948,7 +6949,7 @@ FESE2:
                                                ; and &FC into B
                DEC HL                          ; 55FE 2B
                CALL NRRD                       ; 55FF CD 5E 50  and the frame counter for the high half
-               DEFW FRAMES                     ; 5602 78 5C
+               DEFW FRAMES                     ; 5602 78 5C  FRAMES LOW
                LD (HL),A                       ; 5604 77  RND NO USES R REG AND FRAMES
                LD BC,&FFD6                     ; 5605 01 D6 FF  forty-two bytes back
                ADD HL,BC                       ; 5608 09  is offset 210, where the disc's name goes
@@ -7625,7 +7626,7 @@ OHNM2:
 ; ---- WIQF ---- from &58D5
 WIQF:
                CALL NRWR                       ; 58F8 CD 74 50
-               DEFW INQUFG                     ; 58FB BA 5A
+               DEFW INQUFG                     ; 58FB BA 5A  TOKENS OFF
                RET                             ; 58FD C9
 
 ;; --------------------------------------------------------------------
@@ -9707,10 +9708,10 @@ EVNM1:
                POP BC                          ; 6207 C1  REAL LEN
                LD A,C                          ; 6208 79
                CALL NRWR                       ; 6209 CD 74 50
-               DEFW &4F60                      ; 620C 60 4F
+               DEFW &4F60                      ; 620C 60 4F  STORE REAL LEN
                LD DE,&4F10                     ; 620E 11 10 4F
                CALL CMR                        ; 6211 CD B2 7B
-               DEFW &008F                      ; 6214 8F 00
+               DEFW &008F                      ; 6214 8F 00  LDIR TO BUFFER IN SYS PAGE
                POP AF                          ; 6216 F1
                OUT (HMPR),A                    ; 6217 D3 FB
                POP AF                          ; 6219 F1
@@ -9893,7 +9894,7 @@ EVADDR:
                CALL CFSO                       ; 62C8 CD F9 4F
                RET Z                           ; 62CB C8
                CALL CMR                        ; 62CC CD B2 7B
-               DEFW UNSTLEN                    ; 62CF 8C 3F
+               DEFW UNSTLEN                    ; 62CF 8C 3F  AHL=PAGES/ ADDR MOD 16K
                SET 7,H                         ; 62D1 CB FC  HL=OFFSET
                DEC A                           ; 62D3 3D
                LD C,&00                        ; 62D4 0E 00
@@ -11387,7 +11388,7 @@ OPMOV:
                RET Z                           ; 697A C8  RET IF STREAM NOT OPEN, WITH CY
                LD A,D                          ; 697B 7A
                CALL CMR                        ; 697C CD B2 7B
-               DEFW STREAM                     ; 697F 12 01
+               DEFW STREAM                     ; 697F 12 01  SET STREAM
                LD IX,(CURCHL+IN_PAGE_C)        ; 6981 DD 2A 51 9C
                JR OPMV2                        ; 6985 18 1F
 
@@ -12189,8 +12190,9 @@ COPY_MTBLS_LOOP:
 MTBLS:
                DEFW &4BA0,&4BA9                ; 6D66 A0 4B A9 4B
                DEFB "D"+&80                    ; 6D6A D  the channel letter, with bit 7 set as the DOS marks its own
-               DEFW &0000,&0000                ; 6D6B 00 00 00 00
-               DEFW &0313                      ; 6D6F 13 03
+               DEFW &0000,&0000                ; 6D6B 00 00 00 00  two empty words, and then 787 -- the length of a
+                                               ; channel record
+               DEFW &0313                      ; 6D6F 13 03  CHAN LEN (IX+9/10)
 
 HK_HCLOS:
                LD HL,(HKDE)                    ; 6D71 2A E0 41

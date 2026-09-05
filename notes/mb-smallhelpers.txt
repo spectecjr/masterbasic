@@ -346,8 +346,17 @@ MB &4978 WAIT_FOR_CLOCK
     A byte read from the DOS says whether a clock is fitted at all, and
     zero returns at once.  Otherwise C takes that byte as the port's low
     half, B is &D0, and the loop writes 1, reads back, and tests bit 1;
-    while it is set the port is cleared and tried again, up to the 2000
-    in HL.  Interrupts are off for the whole of it.
+    while it is set the port is cleared and tried again.
+
+    IT GIVES UP AFTER 1745 PASSES, NOT 2000.  HL is loaded with 2000, but
+    the test is CP H against a zero A, so only the high byte counts and
+    the loop ends the moment HL falls below 256 -- &07D0 less &00FF.  The
+    low byte of the count is never looked at.
+
+    Interrupts are off for the whole of it, and the DI at &4988 has no
+    matching EI: the last caller returns to the ROM with them still off,
+    and the others get them back only as a side effect of CMR.  Whether
+    that is deliberate is not established.
 
 MB &4D6D TWO_PAGED_STRINGS
     Evaluate two strings, keep each one's page masked to five bits, and
@@ -390,9 +399,15 @@ MB &57A7 GET_STRING_AND_PAGE_IT
     its address on the stack for the code that joins at &57DE.
 
 MB &484F TIMES_FIVE
-    HL times five, by ADD HL,HL twice and ADD HL,DE with the original in
-    DE.  Five is the size of a number in the variables area, which is why
+    The value in DE times five, left in HL: EX DE,HL brings it over,
+    then ADD HL,HL twice and ADD HL,DE with a copy kept in DE.  Five
+    is the size of a number in the variables area, which is why
     FIND_VARIABLE_TIMES_FIVE falls into it.
+
+    THE RET Z IS THE POINT.  It comes before any of the arithmetic,
+    on the flags the caller arrived with, and it is what leaves a
+    string element unscaled -- a string is not five bytes and must
+    not be multiplied as though it were.
 
 MB &4A7F TICS_SECONDS_IN_MONTH
     FN_TICS's arithmetic: the day less one times 24, plus the hours,

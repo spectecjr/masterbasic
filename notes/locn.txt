@@ -303,3 +303,22 @@ MB &4E90 : HEAPROOM returns carry when there was room, and DE as the old HEAPEND
 
 MB &4E94 : "If you try to reserve more space than is available, you will get an 'Out of memory' error and no space will have been reserved"
 
+
+RENAME COPY_BETWEEN_PAGES COMPARE_FAR_STRINGS_FOLDED
+
+# Nothing is copied: the loop reads a byte from each page, forces bit 5
+# on in both so that case does not matter, and compares.  It is the
+# case-blind sibling of COMPARE_FAR_STRINGS.
+#
+# The two CALLs to it at &5E30 and &5E41 are not calls to it.  It opens
+# POP BC / POP HL on two values the fall-through above pushed, so a CALL
+# would hand it the return address instead and it could not work.  That
+# code is relocated -- it is assembled to run somewhere else -- and its
+# &4D91 means an address in its own frame.  Two readers agreed the
+# reference is false and gave different accounts of the real target, so
+# only the agreed part is written here.
+
+MB &5E30 expr &4D91
+MB &5E30 : an address in this block's own frame, not this page's
+MB &5E41 expr &4D91
+MB &5E41 : likewise
