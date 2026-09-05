@@ -1043,53 +1043,119 @@ V41C4:
                DEFB &00                        ; 41C4 .
 
 ;; --------------------------------------------------------------------
-;; CALL_STKSTR_1 -- &41C5 to &41E3
+;; FN_NVAL -- &41C5 to &41E3
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? reaches the ROM through J_SBUFFET; calls MBCMR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     NVAL a$ -- an SVAL$ string turned back into a number.  This is the
+;;     &50 branch of hook 179 and the only way in.
+;;
+;;     The ROM has already evaluated a$ and left its descriptor on the
+;;     calculator stack; J_SBUFFET pops that and copies the characters to
+;;     INSTBUF, &4F00 in the system page, leaving the length in BC.  It
+;;     refuses anything over 255, so B is always zero here, which the code
+;;     below leans on.
+;;
+;;     THE LENGTH PICKS THE FORM.  Two characters is SVAL$'s integer form,
+;;     the value 0 to 65535 stored high byte first; three, four or five
+;;     characters are that many leading bytes of SVAL$'s transformed
+;;     five-byte float; any other length is "Invalid argument".  Both paths
+;;     end with the number on the calculator stack, DE holding the new
+;;     STKEND -- which is what the ROM's evaluator wants back from a
+;;     function hook -- and HMPR as it was found.
+;;
+;;     The whole routine runs with page 0 in the window, so INSTBUF is at
+;;     &8F00 from here and STKEND at &9C65.
 ;; --------------------------------------------------------------------
 
-; ---- CALL_STKSTR_1 ---- from &4E39 when A = &50
-CALL_STKSTR_1:
-               CALL MBCMR                      ; 41C5 CD F0 44
+; ---- FN_NVAL ---- from &4E39 when A = &50
+FN_NVAL:
+               CALL MBCMR                      ; 41C5 CD F0 44  the argument is already on the calculator stack; SBUFFET
+                                               ; pops it into INSTBUF and leaves the length in BC, B zero because it
+                                               ; refuses more than 255
                DEFW J_SBUFFET                  ; 41C8 2A 01
                IN A,(HMPR)                     ; 41CA DB FB
                PUSH AF                         ; 41CC F5
-               XOR A                           ; 41CD AF
+               XOR A                           ; 41CD AF  page 0 into the window, which puts INSTBUF at &8F00 and STKEND
+                                               ; at &9C65
                OUT (HMPR),A                    ; 41CE D3 FB
-               LD HL,FN_SVAL_S_4+&4000         ; 41D0 21 00 8F
+               LD HL,FN_SVAL_S_4+&4000         ; 41D0 21 00 8F  INSTBUF, &4F00 in the system page, seen through the
+                                               ; window. FN_SVAL_S_4 is a code label of this page that happens to share
+                                               ; the address
                LD A,C                          ; 41D3 79
-               CP &02                          ; 41D4 FE 02
-               JR NZ,CALL_STKSTR_FAIL          ; 41D6 20 0C
-               LD B,(HL)                       ; 41D8 46
+               CP &02                          ; 41D4 FE 02  the length, not a type code: two characters is SVAL$'s
+                                               ; integer form
+               JR NZ,FN_NVAL_FLOAT             ; 41D6 20 0C
+               LD B,(HL)                       ; 41D8 46  high byte first, then low -- SVAL$ writes it big-endian so
+                                               ; that the strings compare in numeric order
                INC HL                          ; 41D9 23
                LD C,(HL)                       ; 41DA 4E
-               CALL STACK_PAGE0_STRING         ; 41DB CD 6B 4C
-               LD DE,(PAGE_IN_ROM1_1+&4000)    ; 41DE ED 5B 65 9C
-               JR CALL_STKSTR_DONE             ; 41E2 18 3C
+               CALL STACK_PAGE0_STRING         ; 41DB CD 6B 4C  no string is stacked, whatever the label says. A, E and
+                                               ; B all leave here zero, so what goes on the calculator stack is 00 00 lo
+                                               ; hi 00 -- the small-integer form
+               LD DE,(PAGE_IN_ROM1_1+&4000)    ; 41DE ED 5B 65 9C  STKEND read through the window; the same four bytes
+                                               ; as &420D, which the listing labels correctly. The new STKEND in DE is
+                                               ; what the hook hands back
+               JR FN_NVAL_DONE                 ; 41E2 18 3C
 
 ;; --------------------------------------------------------------------
-;; CALL_STKSTR_FAIL -- &41E4 to &41FF
+;; FN_NVAL_FLOAT -- &41E4 to &41FF
 ;;
 ;; Takes:     A, BC, HL
 ;; Leaves:    A, F, BC, HL
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     The three-, four- and five-character path.  Not a failure, whatever
+;;     the old name said.  The string is padded out to five bytes, the
+;;     transform SVAL$ applied at &419E-&41B1 is run backwards, and the
+;;     five bytes are copied straight onto the calculator stack.
+;;
+;;     THE TRANSFORM EXISTS SO THAT STRING ORDER IS NUMERIC ORDER.  SVAL$
+;;     swaps the mantissa's sign bit into the top of byte 0 and the
+;;     exponent's low bit into the top of byte 1, so that comparing the
+;;     strings byte by byte compares sign, then exponent, then mantissa.
+;;     Positive numbers are then stored with all five bytes complemented
+;;     and negative ones plain.  Undoing it here: the two bits are swapped
+;;     back, and if the top bit of byte 0 was clear -- positive -- byte 1
+;;     gets bit 7 set and all five bytes are complemented, which leaves
+;;     that bit clear again, the positive sign a mantissa wants.
+;;
+;;     THE PAD IS &FF AND NOT ZERO because of that complement.  For a
+;;     positive number &FF complements to zero mantissa bits, so a
+;;     truncated string decodes to the number rounded towards zero and
+;;     SVAL$(0,3) comes back as exactly 0.  For a negative number the &FF
+;;     stays put and the magnitude rounds up instead.
+;;
+;;     Which direction the ordering actually runs is not settled here: see
+;;     the note at the foot of this file.
 ;; --------------------------------------------------------------------
 
-; ---- CALL_STKSTR_FAIL ---- from &41D6 when A <> &02
-CALL_STKSTR_FAIL:
-               SUB &03                         ; 41E4 D6 03
+; ---- FN_NVAL_FLOAT ---- from &41D6 when A <> &02
+FN_NVAL_FLOAT:
+               SUB &03                         ; 41E4 D6 03  SUB 3 then CP 3 -- lengths 3, 4 and 5 become 0, 1 and 2,
+                                               ; while 0 and 1 wrap to &FD and &FE, so one unsigned compare throws out
+                                               ; too short and too long together
                CP &03                          ; 41E6 FE 03
                JP NC,REP_ARGUMENT              ; 41E8 D2 BC 43
-               PUSH HL                         ; 41EB E5
+               PUSH HL                         ; 41EB E5  pad to five with &FF, the first byte past the string and the
+                                               ; one after it. B is zero, so DEC B is a one-byte way to get &FF. For a
+                                               ; five-character string both land past the number and do no harm
                ADD HL,BC                       ; 41EC 09
                DEC B                           ; 41ED 05
                LD (HL),B                       ; 41EE 70
                INC HL                          ; 41EF 23
                LD (HL),B                       ; 41F0 70
                POP HL                          ; 41F1 E1
-               LD C,(HL)                       ; 41F2 4E
+               LD C,(HL)                       ; 41F2 4E  undo the swap SVAL$ made at &419E -- the sign bit back out of
+                                               ; the top of byte 0 into byte 1, the exponent's low bit out of byte 1
+                                               ; into byte 0. The carry RLA rotates in is the one ADD HL,BC left clear,
+                                               ; and RRA rotates it straight back out
                INC HL                          ; 41F3 23
                LD A,(HL)                       ; 41F4 7E
                RLA                             ; 41F5 17
@@ -1098,60 +1164,81 @@ CALL_STKSTR_FAIL:
                LD (HL),A                       ; 41F9 77
                DEC HL                          ; 41FA 2B
                LD (HL),C                       ; 41FB 71
-               RLA                             ; 41FC 17
-               JR C,CALL_STKSTR_3              ; 41FD 38 0E
-               INC HL                          ; 41FF 23
+               RLA                             ; 41FC 17  the top bit of byte 0 as stored is the sign: set means
+                                               ; negative, which SVAL$ stored plain, so there is nothing more to do
+               JR C,FN_NVAL_STACK              ; 41FD 38 0E
+               INC HL                          ; 41FF 23  step to byte 1 so the SET 7 lands on the mantissa's top byte;
+                                               ; the complement to come turns that 1 into the clear sign bit a positive
+                                               ; mantissa needs
 
 ;; --------------------------------------------------------------------
-;; CALL_STKSTR_2 -- &4200 to &4206
+;; FN_NVAL_POSITIVE -- &4200 to &4206
 ;;
 ;; Takes:     HL
 ;; Leaves:    B, DE, HL
 ;; --------------------------------------------------------------------
 
-; ---- CALL_STKSTR_2 ---- from DOS &77CD
-CALL_STKSTR_2:
+; ---- FN_NVAL_POSITIVE ---- from DOS &77CD
+FN_NVAL_POSITIVE:
                SET 7,(HL)                      ; 4200 CB FE
                DEC HL                          ; 4202 2B
                LD D,H                          ; 4203 54
                LD E,L                          ; 4204 5D
-               LD B,&05                        ; 4205 06 05
+               LD B,&05                        ; 4205 06 05  all five bytes back through CPL, the pad included, which is
+                                               ; why the pad had to be &FF
 
 ;; --------------------------------------------------------------------
-;; CALL_STKSTR_LOOP -- &4207 to &420C
+;; FN_NVAL_POSITIVE_LOOP -- &4207 to &420C
 ;;
 ;; Takes:     B, DE
 ;; Leaves:    A, F, B, DE
 ;; --------------------------------------------------------------------
 
-; ---- CALL_STKSTR_LOOP ---- from &420B when B is not 0 yet
-CALL_STKSTR_LOOP:
+; ---- FN_NVAL_POSITIVE_LOOP ---- from &420B when B is not 0 yet
+FN_NVAL_POSITIVE_LOOP:
                LD A,(DE)                       ; 4207 1A
                CPL                             ; 4208 2F
                LD (DE),A                       ; 4209 12
                INC DE                          ; 420A 13
-               DJNZ CALL_STKSTR_LOOP           ; 420B 10 FA
+               DJNZ FN_NVAL_POSITIVE_LOOP      ; 420B 10 FA
 
 ;; --------------------------------------------------------------------
-;; CALL_STKSTR_3 -- &420D to &421F
+;; FN_NVAL_STACK -- &420D to &421F
 ;;
 ;; Takes:     HL
 ;; Leaves:    A, F, BC, DE, HL
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Push the five bytes at INSTBUF onto the calculator stack by hand.
+;;     STKSTR is not used because the number is already laid out in memory
+;;     in the shape the stack wants: read STKEND, window it, LDIR five
+;;     bytes, write STKEND back.
+;;
+;;     THE WRITE-BACK DROPS A CARRY, and that is a defect -- see
+;;     docs/bugs.md entry 9.  D is restored wholesale from the copy taken
+;;     before the LDIR, which is right in the top two bits but loses any
+;;     carry the LDIR propagated out of E.
 ;; --------------------------------------------------------------------
 
-; ---- CALL_STKSTR_3 ---- from &41FD when bit 7 was set
-CALL_STKSTR_3:
-               LD DE,(STKEND+&4000)            ; 420D ED 5B 65 9C
-               LD A,D                          ; 4211 7A
+; ---- FN_NVAL_STACK ---- from &41FD when bit 7 was set
+FN_NVAL_STACK:
+               LD DE,(STKEND+&4000)            ; 420D ED 5B 65 9C  the ROM's STKEND, an address in &4000-&7FFF as the
+                                               ; ROM sees the system page
+               LD A,D                          ; 4211 7A  keep the ROM-view high byte for the write-back, then SET 7 and
+                                               ; RES 6 make it the same byte seen through the window
                SET 7,D                         ; 4212 CB FA
                RES 6,D                         ; 4214 CB B2
-               LD BC,&0005                     ; 4216 01 05 00
+               LD BC,&0005                     ; 4216 01 05 00  five bytes straight onto the calculator stack -- no
+                                               ; STKSTR, because the number is already in memory in the right shape
                LDIR                            ; 4219 ED B0
-               LD D,A                          ; 421B 57
+               LD D,A                          ; 421B 57  the high byte from before the LDIR, which throws away any
+                                               ; carry out of E. A STKEND ending &FB to &FF is written back 256 too low;
+                                               ; docs/bugs.md entry 9
                LD (STKEND+&4000),DE            ; 421C ED 53 65 9C
 
 ;; --------------------------------------------------------------------
-;; CALL_STKSTR_DONE -- &4220 to &4223
+;; FN_NVAL_DONE -- &4220 to &4223
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F
@@ -1160,24 +1247,40 @@ CALL_STKSTR_3:
 ;; ? drives OUT (HMPR),A.
 ;; --------------------------------------------------------------------
 
-; ---- CALL_STKSTR_DONE ---- from &41E2
-CALL_STKSTR_DONE:
-               POP AF                          ; 4220 F1
+; ---- FN_NVAL_DONE ---- from &41E2
+FN_NVAL_DONE:
+               POP AF                          ; 4220 F1  HMPR back to what the hook found, and DE the new STKEND, which
+                                               ; is the return value
                OUT (HMPR),A                    ; 4221 D3 FB
                RET                             ; 4223 C9
 
 ;; --------------------------------------------------------------------
-;; L4224 -- &4224 to &423F
+;; TRACK_SECTOR_TO_FILE_NUMBER -- &4224 to &423F
 ;;
 ;; Takes:     A, DE, HL
 ;; Leaves:    A, F, BC
 ;; Preserves: HL (saved and restored)
 ;; Ends:      RET
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     The DOS's GET_FILE_NUMBER, which the DOS reaches through CALLMB
+;;     from &4FDA.  D is the track, E the sector and A which of the
+;;     sector's two entries, 0 or 1; out comes BC as the number DIR
+;;     prints, with A holding its low byte.  HL is preserved.
+;;
+;;     THE ARITHMETIC.  Ten sectors to a track and two entries to a
+;;     sector, numbered from 1, so entry A of sector E on track D is
+;;     20D + 2(E-1) + A + 1.  The CP 4 and ADC pair takes two off that
+;;     from track 4 onwards, because track 4 sector 1 is the boot sector
+;;     and holds no entries.  The inverse is at &426F.
 ;; --------------------------------------------------------------------
 
+TRACK_SECTOR_TO_FILE_NUMBER:
                PUSH HL                         ; 4224 E5
                PUSH AF                         ; 4225 F5
-               LD H,&00                        ; 4226 26 00
+               LD H,&00                        ; 4226 26 00  HL = D times ten by shift and add -- (4D + D) doubled --
+                                               ; ten sectors to a track
                LD L,D                          ; 4228 6A
                LD B,H                          ; 4229 44
                LD C,L                          ; 422A 4D
@@ -1185,17 +1288,22 @@ CALL_STKSTR_DONE:
                ADD HL,HL                       ; 422C 29
                ADD HL,BC                       ; 422D 09
                ADD HL,HL                       ; 422E 29
-               LD C,E                          ; 422F 4B
+               LD C,E                          ; 422F 4B  the sector less one, into C; B is still the zero H left there
                DEC C                           ; 4230 0D
                LD A,D                          ; 4231 7A
-               CP &04                          ; 4232 FE 04
+               CP &04                          ; 4232 FE 04  CP 4 sets carry for tracks 0 to 3, and ADC adds it, so
+                                               ; those are the tracks that count a sector the later ones do not --
+                                               ; doubled below, that is the two entries the boot sector would have held
                ADC HL,BC                       ; 4234 ED 4A
-               ADD HL,HL                       ; 4236 29
+               ADD HL,HL                       ; 4236 29  two entries to a sector; the DEC makes the pair 2x-1 and 2x
+                                               ; rather than 2x and 2x+1, so the numbering starts at 1
                DEC HL                          ; 4237 2B
-               POP AF                          ; 4238 F1
+               POP AF                          ; 4238 F1  which entry within the sector, 0 or 1, which the DOS passes
+                                               ; from the channel's RPTH
                LD C,A                          ; 4239 4F
                ADD HL,BC                       ; 423A 09
-               LD B,H                          ; 423B 44
+               LD B,H                          ; 423B 44  BC and A both carry the answer, which is how GET_FILE_NUMBER's
+                                               ; callers want it
                LD C,L                          ; 423C 4D
                LD A,C                          ; 423D 79
                POP HL                          ; 423E E1
@@ -1213,30 +1321,41 @@ CALL_STKSTR_DONE:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     A to three decimal characters, returned in B, C and A -- hundreds,
-;;     tens and units.  DECIMAL_DIGIT is called with DE = 100 and then with
+;;     A to three decimal characters, returned in A, C and B -- hundreds,
+;;     tens and units.  &4249 pushes the hundreds and &4250 the tens; the
+;;     units go into B at &4257, and the two POPs then take the tens into
+;;     C and leave the hundreds in A.  DECIMAL_DIGIT is called with DE = 100 and then with
 ;;     DE = 10, and what is left in L is the units.  C carries the padding:
 ;;     &20 going in, so a leading zero prints as a space, and DECIMAL_DIGIT
 ;;     sets it to &30 as soon as a digit is non-zero, so the zeros after it
 ;;     print as zeros.
 ;;
-;;     Nothing in this listing calls it.
+;;     Nothing in THIS listing calls it, but the DOS does:
+;;     PRINT_BYTE_AS_DECIMAL at DOS &51A7 reaches it through CALLMB, and
+;;     DERR uses it to put the failing track and sector into its error
+;;     messages.  DERR's LD (PRTRK),A followed by LD (PRTRK+1),BC lays the
+;;     three characters out in print order only because A is the
+;;     hundreds.
 ;; --------------------------------------------------------------------
 
 BYTE_TO_DECIMAL:
-               PUSH DE                         ; 4240 D5
+               PUSH DE                         ; 4240 D5  DE goes round the whole thing because the DOS's caller, DERR,
+                                               ; has the failing track and sector in it
                LD H,&00                        ; 4241 26 00
                LD L,A                          ; 4243 6F
                LD DE,&0064                     ; 4244 11 64 00
                LD C,&20                        ; 4247 0E 20
-               CALL DECIMAL_DIGIT              ; 4249 CD 5D 42
+               CALL DECIMAL_DIGIT              ; 4249 CD 5D 42  A comes back as the hundreds character, or C's padding
+                                               ; when that digit is zero
                PUSH AF                         ; 424C F5
                LD DE,&000A                     ; 424D 11 0A 00
                CALL DECIMAL_DIGIT              ; 4250 CD 5D 42
                PUSH AF                         ; 4253 F5
                LD A,L                          ; 4254 7D
                ADD A,&30                       ; 4255 C6 30
-               LD B,A                          ; 4257 47
+               LD B,A                          ; 4257 47  the units always print as a digit and never as padding. From
+                                               ; here on A is the hundreds, C the tens and B the units, which is the
+                                               ; order DERR stores as A and then BC
                POP AF                          ; 4258 F1
                LD C,A                          ; 4259 4F
                POP AF                          ; 425A F1
@@ -1260,7 +1379,8 @@ BYTE_TO_DECIMAL:
 
 ; ---- DECIMAL_DIGIT ---- from &4249, &4250
 DECIMAL_DIGIT:
-               XOR A                           ; 425D AF
+               XOR A                           ; 425D AF  XOR A also clears carry for the first SBC; inside the loop the
+                                               ; previous SBC has left it clear
 
 ;; --------------------------------------------------------------------
 ;; DECIMAL_DIGIT_LOOP -- &425E to &4264
@@ -1308,65 +1428,83 @@ DECIMAL_DIGIT_DONE:
                RET                             ; 426E C9
 
 ;; --------------------------------------------------------------------
-;; L426F -- &426F to &4278
+;; FILE_NUMBER_TO_TRACK_SECTOR -- &426F to &4278
 ;;
 ;; Takes:     HL
 ;; Leaves:    F, BC, HL
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     The inverse of &4224, and the DOS's LOAD n calls it through CALLMB
+;;     from &5F87.  HL is a file number; out come D as the track, E as the
+;;     sector and A as which entry, 0 or 1 -- the same shape
+;;     GET_FILE_NUMBER takes in.
+;;
+;;     THE TWO CONSTANTS.  &FFAF is -81, the first number past track 4
+;;     sector 1, so from 81 on the number is moved up by the two entries
+;;     the boot sector would have held; &0014 is 20, the entries on a
+;;     track.
+;;
+;;     Its internal labels read DECIMAL_DIGIT_2, _LOOP2 and _3, which hang
+;;     it off the digit converter above.  They belong here: the DEC HL at
+;;     &4279 is entered from &4275 inside this routine, and nothing in
+;;     DECIMAL_DIGIT reaches past its RET at &426E.
 ;; --------------------------------------------------------------------
 
-               PUSH HL                         ; 426F E5
-               LD BC,&FFAF                     ; 4270 01 AF FF
-               ADD HL,BC                       ; 4273 09
-               POP HL                          ; 4274 E1
-               JR NC,DECIMAL_DIGIT_2           ; 4275 30 02
-               INC HL                          ; 4277 23
-               INC HL                          ; 4278 23
+FILE_NUMBER_TO_TRACK_SECTOR:
+               PUSH HL                             ; 426F E5
+               LD BC,&FFAF                         ; 4270 01 AF FF
+               ADD HL,BC                           ; 4273 09
+               POP HL                              ; 4274 E1
+               JR NC,FILE_NUMBER_TO_TRACK_SECTOR_1 ; 4275 30 02
+               INC HL                              ; 4277 23
+               INC HL                              ; 4278 23
 
 ;; --------------------------------------------------------------------
-;; DECIMAL_DIGIT_2 -- &4279 to &427E
+;; FILE_NUMBER_TO_TRACK_SECTOR_1 -- &4279 to &427E
 ;;
 ;; Takes:     A, HL
 ;; Leaves:    A, F, BC, HL
 ;; --------------------------------------------------------------------
 
-; ---- DECIMAL_DIGIT_2 ---- from &4275
-DECIMAL_DIGIT_2:
+; ---- FILE_NUMBER_TO_TRACK_SECTOR_1 ---- from &4275
+FILE_NUMBER_TO_TRACK_SECTOR_1:
                DEC HL                          ; 4279 2B
                LD BC,&0014                     ; 427A 01 14 00
                XOR A                           ; 427D AF
                DEC A                           ; 427E 3D
 
 ;; --------------------------------------------------------------------
-;; DECIMAL_DIGIT_LOOP2 -- &427F to &427F
+;; FILE_NUMBER_TO_TRACK_SECTOR_LOOP -- &427F to &427F
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F
 ;; --------------------------------------------------------------------
 
-; ---- DECIMAL_DIGIT_LOOP2 ---- from &4282
-DECIMAL_DIGIT_LOOP2:
+; ---- FILE_NUMBER_TO_TRACK_SECTOR_LOOP ---- from &4282
+FILE_NUMBER_TO_TRACK_SECTOR_LOOP:
                INC A                           ; 427F 3C
 
 ;; --------------------------------------------------------------------
-;; DECIMAL_DIGIT_3 -- &4280 to &428D
+;; FILE_NUMBER_TO_TRACK_SECTOR_2 -- &4280 to &428D
 ;;
 ;; Takes:     A, BC, HL
 ;; Leaves:    A, F, DE, HL
 ;; Ends:      RET
 ;; --------------------------------------------------------------------
 
-; ---- DECIMAL_DIGIT_3 ---- from &486A
-DECIMAL_DIGIT_3:
-               SBC HL,BC                       ; 4280 ED 42
-               JR NC,DECIMAL_DIGIT_LOOP2       ; 4282 30 FB
-               LD D,A                          ; 4284 57
-               ADD HL,BC                       ; 4285 09
-               SRL L                           ; 4286 CB 3D
-               RL H                            ; 4288 CB 14
-               LD A,H                          ; 428A 7C
-               INC L                           ; 428B 2C
-               LD E,L                          ; 428C 5D
-               RET                             ; 428D C9
+; ---- FILE_NUMBER_TO_TRACK_SECTOR_2 ---- from &486A
+FILE_NUMBER_TO_TRACK_SECTOR_2:
+               SBC HL,BC                              ; 4280 ED 42
+               JR NC,FILE_NUMBER_TO_TRACK_SECTOR_LOOP ; 4282 30 FB
+               LD D,A                                 ; 4284 57
+               ADD HL,BC                              ; 4285 09
+               SRL L                                  ; 4286 CB 3D
+               RL H                                   ; 4288 CB 14
+               LD A,H                                 ; 428A 7C
+               INC L                                  ; 428B 2C
+               LD E,L                                 ; 428C 5D
+               RET                                    ; 428D C9
 
 ;; --------------------------------------------------------------------
 ;; FN_SCRAD -- &428E to &42A5
@@ -8021,7 +8159,7 @@ FN_SHIFT_S_1:
                RET                             ; 4E36 C9
 
 ;; --------------------------------------------------------------------
-;; HK_PUTARG -- &4E37 to &4E50
+;; HK_XVARNVAL -- &4E37 to &4E50
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
@@ -8030,17 +8168,26 @@ FN_SHIFT_S_1:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     Hook code 179.  Read the argument of a PUT.
+;;     Hook code 179.  The XVAR and NVAL functions.
 ;;
-;;     Tests for "P", evaluates an integer, and points HL at PUTSWA -- XVAR 0,
-;;     which the manual describes as the address of the PUT dispatch byte,
-;;     "POKE it 0 for the ROM PUT, 172 for ours".  It reads LMPR, calls into
-;;     the DOS page, and returns the ROM's STKEND in DE.
+;;     The two values the stub at &7E03 lets through are &4E and &50, which are
+;;     &1A below the second bytes of XVAR (FF 68) and NVAL (FF 6A) -- the two
+;;     MasterBASIC functions that take an argument with no bracket, which is
+;;     why the token printer at &50CE singles the same pair out.  The &50 that
+;;     looks like the letter "P" is NVAL's token, and it goes to FN_NVAL.
+;;
+;;     &4E is XVAR n.  It evaluates the integer, points HL at PUTSWA -- this
+;;     page's &4000, which is XVAR 0 -- and enters the DOS at &6579, just past
+;;     that routine's own LD HL,DVAR.  So XVAR n is the DOS's DVAR code aimed
+;;     at MasterBASIC's page instead of its own.  The ROM's STKEND comes back
+;;     in DE either way.
+;;
+;;     The &1A is read off the two constants, not from the ROM.
 ;; --------------------------------------------------------------------
 
-HK_PUTARG:
+HK_XVARNVAL:
                CP &50                          ; 4E37 FE 50
-               JP Z,CALL_STKSTR_1              ; 4E39 CA C5 41
+               JP Z,FN_NVAL                    ; 4E39 CA C5 41
                CALL CALL_GETINT                ; 4E3C CD 76 44
                LD HL,PUTSWA                    ; 4E3F 21 00 40
                IN A,(LMPR)                     ; 4E42 DB FA
@@ -19051,7 +19198,7 @@ HK_CSIZE_LOOP3:
 ; ---- COMPRESS_BLOCK_SATURATE ---- from &6652
 COMPRESS_BLOCK_SATURATE:
                DEC (HL)                        ; 65E7 35  the counter is a byte and has just wrapped: saturate it at 255
-               JR COMPRESS_BLOCK_NEXT_BYTE     ; 65E8 18 6A
+               JR COMPRESS_BLOCK_SATURATE_1    ; 65E8 18 6A
 
 ;; --------------------------------------------------------------------
 ;; COMPRESS_FILE -- &65EA to &65F0
@@ -19260,148 +19407,148 @@ COMPRESS_BLOCK_LOOP:
                JR NZ,COMPRESS_BLOCK_LOOP       ; 664D 20 FC
 
 ;; --------------------------------------------------------------------
-;; COMPRESS_BLOCK_1 -- &664F to &6653
+;; COMPRESS_BLOCK_LOOP2 -- &664F to &6653
 ;;
 ;; Takes:     DE, H
 ;; Leaves:    A, HL
 ;; --------------------------------------------------------------------
 
-; ---- COMPRESS_BLOCK_1 ---- from &6655 when E is not 0, &6658 when D is not 0
-COMPRESS_BLOCK_1:
+; ---- COMPRESS_BLOCK_LOOP2 ---- from &6655 when E is not 0, &6658 when D is not 0
+COMPRESS_BLOCK_LOOP2:
                LD A,(DE)                       ; 664F 1A  the byte value is the index
                LD L,A                          ; 6650 6F
                INC (HL)                        ; 6651 34
                JR Z,COMPRESS_BLOCK_SATURATE    ; 6652 28 93  wrapped from 255, so the detour at &65E7 puts it back
 
 ;; --------------------------------------------------------------------
-;; COMPRESS_BLOCK_NEXT_BYTE -- &6654 to &665D
+;; COMPRESS_BLOCK_SATURATE_1 -- &6654 to &665D
 ;;
 ;; Takes:     DE
 ;; Leaves:    F, DE, HL
 ;; --------------------------------------------------------------------
 
-; ---- COMPRESS_BLOCK_NEXT_BYTE ---- from &65E8
-COMPRESS_BLOCK_NEXT_BYTE:
+; ---- COMPRESS_BLOCK_SATURATE_1 ---- from &65E8
+COMPRESS_BLOCK_SATURATE_1:
                INC E                           ; 6654 1C  on until DE wraps out of the top of the page -- no count,
                                                ; because the data was placed to end at &FFFF
-               JR NZ,COMPRESS_BLOCK_1          ; 6655 20 F8
+               JR NZ,COMPRESS_BLOCK_LOOP2      ; 6655 20 F8
                INC D                           ; 6657 14
-               JR NZ,COMPRESS_BLOCK_1          ; 6658 20 F5
+               JR NZ,COMPRESS_BLOCK_LOOP2      ; 6658 20 F5
                LD HL,INSTALL_ROM_PATCHES       ; 665A 21 00 7B  D is 0 after the wrap, so DEC makes it 255, the worst
                                                ; count possible, and the scan below finds the value occurring least
                DEC D                           ; 665D 15
 
 ;; --------------------------------------------------------------------
-;; COMPRESS_BLOCK_NEXT_BYTE_LOOP -- &665E to &6663
+;; COMPRESS_BLOCK_LOOP3 -- &665E to &6663
 ;;
 ;; Takes:     D, HL
 ;; Leaves:    A, F, C, D
 ;; --------------------------------------------------------------------
 
-; ---- COMPRESS_BLOCK_NEXT_BYTE_LOOP ---- from &6665 when L is not 0
-COMPRESS_BLOCK_NEXT_BYTE_LOOP:
-               LD A,(HL)                        ; 665E 7E
-               CP D                             ; 665F BA  strictly less only, so ties go to the lower value
-               JR NC,COMPRESS_BLOCK_NEXT_BYTE_1 ; 6660 30 02
-               LD C,L                           ; 6662 4D
-               LD D,A                           ; 6663 57
+; ---- COMPRESS_BLOCK_LOOP3 ---- from &6665 when L is not 0
+COMPRESS_BLOCK_LOOP3:
+               LD A,(HL)                       ; 665E 7E
+               CP D                            ; 665F BA  strictly less only, so ties go to the lower value
+               JR NC,COMPRESS_BLOCK_1          ; 6660 30 02
+               LD C,L                          ; 6662 4D
+               LD D,A                          ; 6663 57
 
 ;; --------------------------------------------------------------------
-;; COMPRESS_BLOCK_NEXT_BYTE_1 -- &6664 to &6672
+;; COMPRESS_BLOCK_1 -- &6664 to &6672
 ;;
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;; --------------------------------------------------------------------
 
-; ---- COMPRESS_BLOCK_NEXT_BYTE_1 ---- from &6660 when A >= D
-COMPRESS_BLOCK_NEXT_BYTE_1:
-               INC L                               ; 6664 2C
-               JR NZ,COMPRESS_BLOCK_NEXT_BYTE_LOOP ; 6665 20 F7
-               LD A,C                              ; 6667 79  header byte 0, the escape
-               LD (INSTALL_ROM_PATCHES),A          ; 6668 32 00 7B
-                                                   ; to the alternate register set and back again
-               EXX                                 ; 666B D9  DE-prime is the side buffer at &7B05 -- header byte 5
-                                                   ; onwards -- for the byte that follows each literal escape; see &669B
-               LD DE,&7B05                         ; 666C 11 05 7B
-                                                   ; to the alternate register set and back again
-               EXX                                 ; 666F D9
-               POP HL                              ; 6670 E1  output and input start together, because the encoder works
-                                                   ; in place and no case below writes more than it reads
-               LD D,H                              ; 6671 54
-               LD E,L                              ; 6672 5D
+; ---- COMPRESS_BLOCK_1 ---- from &6660 when A >= D
+COMPRESS_BLOCK_1:
+               INC L                           ; 6664 2C
+               JR NZ,COMPRESS_BLOCK_LOOP3      ; 6665 20 F7
+               LD A,C                          ; 6667 79  header byte 0, the escape
+               LD (INSTALL_ROM_PATCHES),A      ; 6668 32 00 7B
+                                               ; to the alternate register set and back again
+               EXX                             ; 666B D9  DE-prime is the side buffer at &7B05 -- header byte 5 onwards
+                                               ; -- for the byte that follows each literal escape; see &669B
+               LD DE,&7B05                     ; 666C 11 05 7B
+                                               ; to the alternate register set and back again
+               EXX                             ; 666F D9
+               POP HL                          ; 6670 E1  output and input start together, because the encoder works in
+                                               ; place and no case below writes more than it reads
+               LD D,H                          ; 6671 54
+               LD E,L                          ; 6672 5D
 
 ;; --------------------------------------------------------------------
-;; COMPRESS_BLOCK_NEXT_BYTE_LOOP2 -- &6673 to &667C
+;; COMPRESS_BLOCK_LOOP4 -- &6673 to &667C
 ;;
 ;; Takes:     C, HL
 ;; Leaves:    A, F, B
 ;; --------------------------------------------------------------------
 
-; ---- COMPRESS_BLOCK_NEXT_BYTE_LOOP2 ---- from &668D, &6699
-COMPRESS_BLOCK_NEXT_BYTE_LOOP2:
+; ---- COMPRESS_BLOCK_LOOP4 ---- from &668D, &6699
+COMPRESS_BLOCK_LOOP4:
                LD A,H                          ; 6673 7C  H is zero only once HL has wrapped past &FFFF, so the block is
                                                ; done
                AND A                           ; 6674 A7
-               JR Z,COMPRESS_BLOCK_NEXT_BYTE_6 ; 6675 28 30
+               JR Z,COMPRESS_BLOCK_6           ; 6675 28 30
                LD A,(HL)                       ; 6677 7E  a byte equal to the escape cannot be copied as it stands
                CP C                            ; 6678 B9
-               JR Z,COMPRESS_BLOCK_NEXT_BYTE_5 ; 6679 28 20
+               JR Z,COMPRESS_BLOCK_5           ; 6679 28 20
                LD B,&00                        ; 667B 06 00  count the run in B; B wrapping to zero means 256 in a row
 
 ;; --------------------------------------------------------------------
-;; COMPRESS_BLOCK_NEXT_BYTE_LOOP3 -- &667D to &6683
+;; COMPRESS_BLOCK_LOOP5 -- &667D to &6683
 ;;
 ;; Takes:     A, B, HL
 ;; Leaves:    F, B, HL
 ;; --------------------------------------------------------------------
 
-; ---- COMPRESS_BLOCK_NEXT_BYTE_LOOP3 ---- from &6682 when A = (HL)
-COMPRESS_BLOCK_NEXT_BYTE_LOOP3:
-               INC HL                              ; 667D 23
-               INC B                               ; 667E 04
-               JR Z,COMPRESS_BLOCK_NEXT_BYTE_2     ; 667F 28 03
-               CP (HL)                             ; 6681 BE
-               JR Z,COMPRESS_BLOCK_NEXT_BYTE_LOOP3 ; 6682 28 F9
+; ---- COMPRESS_BLOCK_LOOP5 ---- from &6682 when A = (HL)
+COMPRESS_BLOCK_LOOP5:
+               INC HL                          ; 667D 23
+               INC B                           ; 667E 04
+               JR Z,COMPRESS_BLOCK_2           ; 667F 28 03
+               CP (HL)                         ; 6681 BE
+               JR Z,COMPRESS_BLOCK_LOOP5       ; 6682 28 F9
 
 ;; --------------------------------------------------------------------
-;; COMPRESS_BLOCK_NEXT_BYTE_2 -- &6684 to &668A
+;; COMPRESS_BLOCK_2 -- &6684 to &668A
 ;;
 ;; Takes:     A, B, DE
 ;; Leaves:    F, B, DE
 ;; --------------------------------------------------------------------
 
-; ---- COMPRESS_BLOCK_NEXT_BYTE_2 ---- from &667F when B wraps to 0
-COMPRESS_BLOCK_NEXT_BYTE_2:
+; ---- COMPRESS_BLOCK_2 ---- from &667F when B wraps to 0
+COMPRESS_BLOCK_2:
                DEC B                           ; 6684 05  a run of one is just the byte itself
-               JR Z,COMPRESS_BLOCK_NEXT_BYTE_3 ; 6685 28 04
-               DJNZ COMPRESS_BLOCK_NEXT_BYTE_4 ; 6687 10 06  three or more is worth encoding
+               JR Z,COMPRESS_BLOCK_3           ; 6685 28 04
+               DJNZ COMPRESS_BLOCK_4           ; 6687 10 06  three or more is worth encoding
                LD (DE),A                       ; 6689 12  a run of two is written out twice, because the encoded form is
                                                ; three bytes -- longer, and in place one more than was read
                INC DE                          ; 668A 13
 
 ;; --------------------------------------------------------------------
-;; COMPRESS_BLOCK_NEXT_BYTE_3 -- &668B to &668E
+;; COMPRESS_BLOCK_3 -- &668B to &668E
 ;;
 ;; Takes:     A, C, DE, HL
 ;; Leaves:    A, F, B, DE, HL
 ;; Ends:      JR
 ;; --------------------------------------------------------------------
 
-; ---- COMPRESS_BLOCK_NEXT_BYTE_3 ---- from &6685 when B reaches 0
-COMPRESS_BLOCK_NEXT_BYTE_3:
-               LD (DE),A                         ; 668B 12
-               INC DE                            ; 668C 13
-               JR COMPRESS_BLOCK_NEXT_BYTE_LOOP2 ; 668D 18 E4
+; ---- COMPRESS_BLOCK_3 ---- from &6685 when B reaches 0
+COMPRESS_BLOCK_3:
+               LD (DE),A                       ; 668B 12
+               INC DE                          ; 668C 13
+               JR COMPRESS_BLOCK_LOOP4         ; 668D 18 E4
 
 ;; --------------------------------------------------------------------
-;; COMPRESS_BLOCK_NEXT_BYTE_4 -- &668F to &6694
+;; COMPRESS_BLOCK_4 -- &668F to &6694
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    F, B, DE, HL
 ;; --------------------------------------------------------------------
 
-; ---- COMPRESS_BLOCK_NEXT_BYTE_4 ---- from &6687 when B is not 0 yet
-COMPRESS_BLOCK_NEXT_BYTE_4:
+; ---- COMPRESS_BLOCK_4 ---- from &6687 when B is not 0 yet
+COMPRESS_BLOCK_4:
                INC B                           ; 668F 04  back to the true length; 256 goes out as 0, which the expander
                                                ; turns back into 256
                INC B                           ; 6690 04
@@ -19411,52 +19558,52 @@ COMPRESS_BLOCK_NEXT_BYTE_4:
                LD (HL),A                       ; 6694 77
 
 ;; --------------------------------------------------------------------
-;; COMPRESS_BLOCK_NEXT_BYTE_LOOP4 -- &6695 to &669A
+;; COMPRESS_BLOCK_LOOP6 -- &6695 to &669A
 ;;
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, B, DE, HL
 ;; Ends:      JR
 ;; --------------------------------------------------------------------
 
-; ---- COMPRESS_BLOCK_NEXT_BYTE_LOOP4 ---- from &66A5
-COMPRESS_BLOCK_NEXT_BYTE_LOOP4:
-               INC HL                            ; 6695 23
-               LD (HL),B                         ; 6696 70
-               INC HL                            ; 6697 23
-               EX DE,HL                          ; 6698 EB
-               JR COMPRESS_BLOCK_NEXT_BYTE_LOOP2 ; 6699 18 D8
+; ---- COMPRESS_BLOCK_LOOP6 ---- from &66A5
+COMPRESS_BLOCK_LOOP6:
+               INC HL                          ; 6695 23
+               LD (HL),B                       ; 6696 70
+               INC HL                          ; 6697 23
+               EX DE,HL                        ; 6698 EB
+               JR COMPRESS_BLOCK_LOOP4         ; 6699 18 D8
 
 ;; --------------------------------------------------------------------
-;; COMPRESS_BLOCK_NEXT_BYTE_5 -- &669B to &66A6
+;; COMPRESS_BLOCK_5 -- &669B to &66A6
 ;;
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JR
 ;; --------------------------------------------------------------------
 
-; ---- COMPRESS_BLOCK_NEXT_BYTE_5 ---- from &6679 when A = C
-COMPRESS_BLOCK_NEXT_BYTE_5:
-               INC HL                            ; 669B 23  A literal escape, written as ESC ESC -- one byte more than
-                                                 ; was read. So the byte after it is taken as well and parked in the
-                                                 ; side buffer at &7B05 instead of going into the stream: two in, two
-                                                 ; out, and the output still cannot overtake the input. The expander
-                                                 ; takes it back from the same buffer. The rarest of 256 values in a 16K
-                                                 ; block occurs at most 64 times, so the buffer never passes &7B45
-               LD A,(HL)                         ; 669C 7E
-               INC HL                            ; 669D 23
-                                                 ; to the alternate register set and back again
-               EXX                               ; 669E D9
-               LD (DE),A                         ; 669F 12
-               INC E                             ; 66A0 1C
-                                                 ; to the alternate register set and back again
-               EXX                               ; 66A1 D9
-               EX DE,HL                          ; 66A2 EB
-               LD B,C                            ; 66A3 41
-               LD (HL),C                         ; 66A4 71
-               JR COMPRESS_BLOCK_NEXT_BYTE_LOOP4 ; 66A5 18 EE
+; ---- COMPRESS_BLOCK_5 ---- from &6679 when A = C
+COMPRESS_BLOCK_5:
+               INC HL                          ; 669B 23  A literal escape, written as ESC ESC -- one byte more than was
+                                               ; read. So the byte after it is taken as well and parked in the side
+                                               ; buffer at &7B05 instead of going into the stream: two in, two out, and
+                                               ; the output still cannot overtake the input. The expander takes it back
+                                               ; from the same buffer. The rarest of 256 values in a 16K block occurs at
+                                               ; most 64 times, so the buffer never passes &7B45
+               LD A,(HL)                       ; 669C 7E
+               INC HL                          ; 669D 23
+                                               ; to the alternate register set and back again
+               EXX                             ; 669E D9
+               LD (DE),A                       ; 669F 12
+               INC E                           ; 66A0 1C
+                                               ; to the alternate register set and back again
+               EXX                             ; 66A1 D9
+               EX DE,HL                        ; 66A2 EB
+               LD B,C                          ; 66A3 41
+               LD (HL),C                       ; 66A4 71
+               JR COMPRESS_BLOCK_LOOP6         ; 66A5 18 EE
 
 ;; --------------------------------------------------------------------
-;; COMPRESS_BLOCK_NEXT_BYTE_6 -- &66A7 to &66BF
+;; COMPRESS_BLOCK_6 -- &66A7 to &66BF
 ;;
 ;; Takes:     DE, HL, IY
 ;; Leaves:    A, F, BC, DE, HL
@@ -19464,8 +19611,8 @@ COMPRESS_BLOCK_NEXT_BYTE_5:
 ;; ? reaches the ROM through DOS_HK_SBYT-&4000; calls CALLDOS; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- COMPRESS_BLOCK_NEXT_BYTE_6 ---- from &6675 when A = 0
-COMPRESS_BLOCK_NEXT_BYTE_6:
+; ---- COMPRESS_BLOCK_6 ---- from &6675 when A = 0
+COMPRESS_BLOCK_6:
                EX DE,HL                        ; 66A7 EB  HL is one past the last output byte and DE the start; BC is
                                                ; the uncompressed length pushed at &660A
                POP DE                          ; 66A8 D1
@@ -19489,7 +19636,7 @@ COMPRESS_BLOCK_NEXT_BYTE_6:
                LD HL,INSTALL_ROM_PATCHES       ; 66BD 21 00 7B
 
 ;; --------------------------------------------------------------------
-;; COMPRESS_BLOCK_NEXT_BYTE_LOOP5 -- &66C0 to &66D1
+;; COMPRESS_BLOCK_LOOP7 -- &66C0 to &66D1
 ;;
 ;; Takes:     BC, DE, HL, IY
 ;; Leaves:    A, F, BC, DE, HL
@@ -19497,23 +19644,23 @@ COMPRESS_BLOCK_NEXT_BYTE_6:
 ;; ? reaches the ROM through DOS_HK_SBYT-&4000; calls CALLDOS; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- COMPRESS_BLOCK_NEXT_BYTE_LOOP5 ---- from &66C7 when B is not 0 yet
-COMPRESS_BLOCK_NEXT_BYTE_LOOP5:
-               LD A,(HL)                           ; 66C0 7E
-               INC HL                              ; 66C1 23
-                                                   ; call DOS_HK_SBYT-&4000 in the other page: LMPR is switched first,
-                                                   ; so that address is how the other listing numbers it
-               CALL CALLDOS                        ; 66C2 CD C1 42
-               DEFW DOS_HK_SBYT-&4000              ; 66C5 75 6F
-               DJNZ COMPRESS_BLOCK_NEXT_BYTE_LOOP5 ; 66C7 10 F7
-               POP DE                              ; 66C9 D1
-               POP HL                              ; 66CA E1
-               XOR A                               ; 66CB AF
-                                                   ; call &493A in the other page: LMPR is switched first, so that
-                                                   ; address is how the other listing numbers it
-               CALL CALLDOS                        ; 66CC CD C1 42
-               DEFW &493A                          ; 66CF 3A 49
-               RET                                 ; 66D1 C9
+; ---- COMPRESS_BLOCK_LOOP7 ---- from &66C7 when B is not 0 yet
+COMPRESS_BLOCK_LOOP7:
+               LD A,(HL)                       ; 66C0 7E
+               INC HL                          ; 66C1 23
+                                               ; call DOS_HK_SBYT-&4000 in the other page: LMPR is switched first, so
+                                               ; that address is how the other listing numbers it
+               CALL CALLDOS                    ; 66C2 CD C1 42
+               DEFW DOS_HK_SBYT-&4000          ; 66C5 75 6F
+               DJNZ COMPRESS_BLOCK_LOOP7       ; 66C7 10 F7
+               POP DE                          ; 66C9 D1
+               POP HL                          ; 66CA E1
+               XOR A                           ; 66CB AF
+                                               ; call &493A in the other page: LMPR is switched first, so that address
+                                               ; is how the other listing numbers it
+               CALL CALLDOS                    ; 66CC CD C1 42
+               DEFW &493A                      ; 66CF 3A 49
+               RET                             ; 66D1 C9
 
 ;; --------------------------------------------------------------------
 ;; EXPAND_FILE -- &66D2 to &66D8
@@ -29229,7 +29376,7 @@ HK_SETUPREGS_1:
 TBL_7D58_DONE:
                POP HL                          ; 7E0A E1
                RST ERR_HOOK                    ; 7E0B CF
-               DEFB &B3                        ; 7E0C B3 hook code, handled by HK_PUTARG
+               DEFB &B3                        ; 7E0C B3 hook code, handled by HK_XVARNVAL
                                                ; to the alternate register set and back again
                EXX                             ; 7E0D D9
                RET                             ; 7E0E C9

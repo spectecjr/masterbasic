@@ -329,8 +329,6 @@ MB &65E7 COMPRESS_BLOCK_SATURATE
     so its JR Z is a not-taken branch except on the 256th occurrence of
     a value -- the cheap way round for every other byte.
 
-MB &6654 COMPRESS_BLOCK_NEXT_BYTE
-
 MB &65E7 : the counter is a byte and has just wrapped: saturate it at 255
 
 MB &65EA : only C, the file type, is read back later -- at &663B and &670A -- because the numeric-array case needs it

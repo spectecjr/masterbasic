@@ -31,14 +31,21 @@ DOC COPY_THEN_APPEND_CALL
     its own block.
 
 MB &4240 BYTE_TO_DECIMAL
-    A to three decimal characters, returned in B, C and A -- hundreds,
-    tens and units.  DECIMAL_DIGIT is called with DE = 100 and then with
+    A to three decimal characters, returned in A, C and B -- hundreds,
+    tens and units.  &4249 pushes the hundreds and &4250 the tens; the
+    units go into B at &4257, and the two POPs then take the tens into
+    C and leave the hundreds in A.  DECIMAL_DIGIT is called with DE = 100 and then with
     DE = 10, and what is left in L is the units.  C carries the padding:
     &20 going in, so a leading zero prints as a space, and DECIMAL_DIGIT
     sets it to &30 as soon as a digit is non-zero, so the zeros after it
     print as zeros.
 
-    Nothing in this listing calls it.
+    Nothing in THIS listing calls it, but the DOS does:
+    PRINT_BYTE_AS_DECIMAL at DOS &51A7 reaches it through CALLMB, and
+    DERR uses it to put the failing track and sector into its error
+    messages.  DERR's LD (PRTRK),A followed by LD (PRTRK+1),BC lays the
+    three characters out in print order only because A is the
+    hundreds.
 
 MB &425D DECIMAL_DIGIT
     One digit by repeated subtraction: take DE from HL counting in A

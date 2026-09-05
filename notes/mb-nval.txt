@@ -1,0 +1,165 @@
+# NVAL, and the two routines that turn a file number into a place on the
+# disc.  &41C5-&42B1, read by hand.
+#
+# The region is three unrelated things sharing an address range: NVAL and
+# its float decoder, the byte-to-decimal converter the DOS borrows for
+# its error messages, and a pair of inverse routines the DOS calls to map
+# between file numbers and track/sector/entry.
+
+MB &41C5 FN_NVAL
+    NVAL a$ -- an SVAL$ string turned back into a number.  This is the
+    &50 branch of hook 179 and the only way in.
+
+    The ROM has already evaluated a$ and left its descriptor on the
+    calculator stack; J_SBUFFET pops that and copies the characters to
+    INSTBUF, &4F00 in the system page, leaving the length in BC.  It
+    refuses anything over 255, so B is always zero here, which the code
+    below leans on.
+
+    THE LENGTH PICKS THE FORM.  Two characters is SVAL$'s integer form,
+    the value 0 to 65535 stored high byte first; three, four or five
+    characters are that many leading bytes of SVAL$'s transformed
+    five-byte float; any other length is "Invalid argument".  Both paths
+    end with the number on the calculator stack, DE holding the new
+    STKEND -- which is what the ROM's evaluator wants back from a
+    function hook -- and HMPR as it was found.
+
+    The whole routine runs with page 0 in the window, so INSTBUF is at
+    &8F00 from here and STKEND at &9C65.
+
+MB &41C5 : the argument is already on the calculator stack; SBUFFET pops it into INSTBUF and leaves the length in BC, B zero because it refuses more than 255
+
+MB &41CD : page 0 into the window, which puts INSTBUF at &8F00 and STKEND at &9C65
+
+MB &41D0 : INSTBUF, &4F00 in the system page, seen through the window.  FN_SVAL_S_4 is a code label of this page that happens to share the address
+
+MB &41D4 : the length, not a type code: two characters is SVAL$'s integer form
+
+MB &41D8 : high byte first, then low -- SVAL$ writes it big-endian so that the strings compare in numeric order
+
+MB &41DB : no string is stacked, whatever the label says.  A, E and B all leave here zero, so what goes on the calculator stack is 00 00 lo hi 00 -- the small-integer form
+
+MB &41DE : STKEND read through the window; the same four bytes as &420D, which the listing labels correctly.  The new STKEND in DE is what the hook hands back
+
+MB &41E4 FN_NVAL_FLOAT
+    The three-, four- and five-character path.  Not a failure, whatever
+    the old name said.  The string is padded out to five bytes, the
+    transform SVAL$ applied at &419E-&41B1 is run backwards, and the
+    five bytes are copied straight onto the calculator stack.
+
+    THE TRANSFORM EXISTS SO THAT STRING ORDER IS NUMERIC ORDER.  SVAL$
+    swaps the mantissa's sign bit into the top of byte 0 and the
+    exponent's low bit into the top of byte 1, so that comparing the
+    strings byte by byte compares sign, then exponent, then mantissa.
+    Positive numbers are then stored with all five bytes complemented
+    and negative ones plain.  Undoing it here: the two bits are swapped
+    back, and if the top bit of byte 0 was clear -- positive -- byte 1
+    gets bit 7 set and all five bytes are complemented, which leaves
+    that bit clear again, the positive sign a mantissa wants.
+
+    THE PAD IS &FF AND NOT ZERO because of that complement.  For a
+    positive number &FF complements to zero mantissa bits, so a
+    truncated string decodes to the number rounded towards zero and
+    SVAL$(0,3) comes back as exactly 0.  For a negative number the &FF
+    stays put and the magnitude rounds up instead.
+
+    Which direction the ordering actually runs is not settled here: see
+    the note at the foot of this file.
+
+MB &41E4 : SUB 3 then CP 3 -- lengths 3, 4 and 5 become 0, 1 and 2, while 0 and 1 wrap to &FD and &FE, so one unsigned compare throws out too short and too long together
+
+MB &41EB : pad to five with &FF, the first byte past the string and the one after it.  B is zero, so DEC B is a one-byte way to get &FF.  For a five-character string both land past the number and do no harm
+
+MB &41F2 : undo the swap SVAL$ made at &419E -- the sign bit back out of the top of byte 0 into byte 1, the exponent's low bit out of byte 1 into byte 0.  The carry RLA rotates in is the one ADD HL,BC left clear, and RRA rotates it straight back out
+
+MB &41FC : the top bit of byte 0 as stored is the sign: set means negative, which SVAL$ stored plain, so there is nothing more to do
+
+MB &41FF : step to byte 1 so the SET 7 lands on the mantissa's top byte; the complement to come turns that 1 into the clear sign bit a positive mantissa needs
+
+MB &4200 FN_NVAL_POSITIVE
+
+MB &4205 : all five bytes back through CPL, the pad included, which is why the pad had to be &FF
+
+MB &420D FN_NVAL_STACK
+    Push the five bytes at INSTBUF onto the calculator stack by hand.
+    STKSTR is not used because the number is already laid out in memory
+    in the shape the stack wants: read STKEND, window it, LDIR five
+    bytes, write STKEND back.
+
+    THE WRITE-BACK DROPS A CARRY, and that is a defect -- see
+    docs/bugs.md entry 9.  D is restored wholesale from the copy taken
+    before the LDIR, which is right in the top two bits but loses any
+    carry the LDIR propagated out of E.
+
+MB &420D : the ROM's STKEND, an address in &4000-&7FFF as the ROM sees the system page
+
+MB &4211 : keep the ROM-view high byte for the write-back, then SET 7 and RES 6 make it the same byte seen through the window
+
+MB &4216 : five bytes straight onto the calculator stack -- no STKSTR, because the number is already in memory in the right shape
+
+MB &421B : the high byte from before the LDIR, which throws away any carry out of E.  A STKEND ending &FB to &FF is written back 256 too low; docs/bugs.md entry 9
+
+MB &4220 FN_NVAL_DONE
+
+MB &4220 : HMPR back to what the hook found, and DE the new STKEND, which is the return value
+
+MB &4224 TRACK_SECTOR_TO_FILE_NUMBER
+    The DOS's GET_FILE_NUMBER, which the DOS reaches through CALLMB
+    from &4FDA.  D is the track, E the sector and A which of the
+    sector's two entries, 0 or 1; out comes BC as the number DIR
+    prints, with A holding its low byte.  HL is preserved.
+
+    THE ARITHMETIC.  Ten sectors to a track and two entries to a
+    sector, numbered from 1, so entry A of sector E on track D is
+    20D + 2(E-1) + A + 1.  The CP 4 and ADC pair takes two off that
+    from track 4 onwards, because track 4 sector 1 is the boot sector
+    and holds no entries.  The inverse is at &426F.
+
+MB &4226 : HL = D times ten by shift and add -- (4D + D) doubled -- ten sectors to a track
+
+MB &422F : the sector less one, into C; B is still the zero H left there
+
+MB &4232 : CP 4 sets carry for tracks 0 to 3, and ADC adds it, so those are the tracks that count a sector the later ones do not -- doubled below, that is the two entries the boot sector would have held
+
+MB &4236 : two entries to a sector; the DEC makes the pair 2x-1 and 2x rather than 2x and 2x+1, so the numbering starts at 1
+
+MB &4238 : which entry within the sector, 0 or 1, which the DOS passes from the channel's RPTH
+
+MB &423B : BC and A both carry the answer, which is how GET_FILE_NUMBER's callers want it
+
+MB &4240 : DE goes round the whole thing because the DOS's caller, DERR, has the failing track and sector in it
+
+MB &4249 : A comes back as the hundreds character, or C's padding when that digit is zero
+
+MB &4257 : the units always print as a digit and never as padding.  From here on A is the hundreds, C the tens and B the units, which is the order DERR stores as A and then BC
+
+MB &425D : XOR A also clears carry for the first SBC; inside the loop the previous SBC has left it clear
+
+MB &426F FILE_NUMBER_TO_TRACK_SECTOR
+    The inverse of &4224, and the DOS's LOAD n calls it through CALLMB
+    from &5F87.  HL is a file number; out come D as the track, E as the
+    sector and A as which entry, 0 or 1 -- the same shape
+    GET_FILE_NUMBER takes in.
+
+    THE TWO CONSTANTS.  &FFAF is -81, the first number past track 4
+    sector 1, so from 81 on the number is moved up by the two entries
+    the boot sector would have held; &0014 is 20, the entries on a
+    track.
+
+    Its internal labels read DECIMAL_DIGIT_2, _LOOP2 and _3, which hang
+    it off the digit converter above.  They belong here: the DEC HL at
+    &4279 is entered from &4275 inside this routine, and nothing in
+    DECIMAL_DIGIT reaches past its RET at &426E.
+
+# Not worked out.
+#
+# Which way SVAL$'s ordering runs.  As decoded at &41E4, a positive
+# number gets a first byte below &80 with larger positives giving
+# smaller bytes, and a negative one a first byte at or above &80 with
+# larger magnitudes giving larger bytes -- descending numeric order
+# under SORT.  Whether SVAL$'s own calculator program at INSTBUF (RST 28
+# with literals 00, 31, 34, written at &4182-&418A) negates the number
+# first, which would make it ascending, is not settled: those two
+# calculator opcodes are not among this listing's FPC_ equates.  NVAL
+# does not negate, so if SVAL$ did, NVAL would be its inverse only up to
+# sign -- which argues that it does not.

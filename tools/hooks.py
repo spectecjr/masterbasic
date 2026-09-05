@@ -31,7 +31,7 @@ NAMES = {
     0x5AE3: 'HK_FARSCAN',
     0x52FD: 'HK_TOKENARG',
     0x6F62: 'HK_SKIPNAME',
-    0x4E37: 'HK_PUTARG',
+    0x4E37: 'HK_XVARNVAL',
     0x4300: 'HK_SERSEND',
     0x4315: 'HK_SERRECV',
     0x5973: 'HK_SUBCHAR',
@@ -146,12 +146,21 @@ L4555 keeps saying the character belongs to a name.  CHADD is updated to
 where it stopped, and the character that ended it is compared with "$".""",
 
 0x4E37: """\
-Hook code 179.  Read the argument of a PUT.
+Hook code 179.  The XVAR and NVAL functions.
 
-Tests for "P", evaluates an integer, and points HL at PUTSWA -- XVAR 0,
-which the manual describes as the address of the PUT dispatch byte,
-"POKE it 0 for the ROM PUT, 172 for ours".  It reads LMPR, calls into
-the DOS page, and returns the ROM's STKEND in DE.""",
+The two values the stub at &7E03 lets through are &4E and &50, which are
+&1A below the second bytes of XVAR (FF 68) and NVAL (FF 6A) -- the two
+MasterBASIC functions that take an argument with no bracket, which is
+why the token printer at &50CE singles the same pair out.  The &50 that
+looks like the letter "P" is NVAL's token, and it goes to FN_NVAL.
+
+&4E is XVAR n.  It evaluates the integer, points HL at PUTSWA -- this
+page's &4000, which is XVAR 0 -- and enters the DOS at &6579, just past
+that routine's own LD HL,DVAR.  So XVAR n is the DOS's DVAR code aimed
+at MasterBASIC's page instead of its own.  The ROM's STKEND comes back
+in DE either way.
+
+The &1A is read off the two constants, not from the ROM.""",
 
 0x4300: """\
 Hook code 180.  Send one character over the serial line.

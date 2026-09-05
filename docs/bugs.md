@@ -5,7 +5,7 @@ as they were sold. The listings cannot be corrected: they assemble to the
 original image byte for byte, and that is the point of them. So a defect
 gets written down here and explained where it sits.
 
-Seven are confirmed and one is suspected. The three sweeps this file used to
+Eight are confirmed and one is suspected. The three sweeps this file used to
 plan have now been run, and what they found is at the end.
 
 ---
@@ -429,6 +429,47 @@ changed the mode representation and left one test behind.
 
 **Not observed.** Read out of the instructions. `&20` is MODE 2 in `VMPR`
 terms, which is what makes the intent legible.
+
+---
+
+## 9. `NVAL` writes `STKEND` back 256 too low when the copy crosses a page
+
+**Where** `&4211`–`&421C` in `FN_NVAL_STACK`, the tail of `NVAL` that pushes a
+three-, four- or five-character `SVAL$` string onto the calculator stack.
+
+**What** The five bytes are copied by `LDIR`, and `STKEND` has to be written
+back past them. `STKEND` is read as the ROM sees it, in `&4000`–`&7FFF`, and
+has to be turned into a windowed address to be written through:
+
+```
+LD DE,(STKEND+&4000)   ; the ROM's view
+LD A,D                 ; keep the ROM-view high byte
+SET 7,D : RES 6,D      ; window it: &4x -> &8x
+LD BC,&0005
+LDIR                   ; DE advances by five
+LD D,A                 ; put the ROM-view high byte back
+LD (STKEND+&4000),DE   ; and store it
+```
+
+`LD D,A` restores the high byte *as it was before the `LDIR`*. When `E` was
+`&FB` to `&FF` the `LDIR` carried out of `E` into `D`, and that carry is thrown
+away — so the `STKEND` written at `&421C` is 256 below where the calculator
+stack actually ends.
+
+**What follows** The ROM reads `NVAL`'s result from `STKEND`, so it gets stale
+bytes, and the calculator stack is left inconsistent for whatever comes next.
+`RES 7,D : SET 6,D` in place of `LD D,A` would undo the windowing on the
+*post-`LDIR`* high byte and be correct, at a cost of three bytes.
+
+**Five alignments in 256.** `STKEND` where `NVAL` runs depends on the
+expression around it, so this shows up as `NVAL` of a 3-, 4- or 5-character
+string going wrong in some contexts and not others — which is the shape of
+fault that survives testing. The two-character integer path is not affected: it
+goes through the ROM's own stacking routine, which maintains `STKEND` itself.
+
+**Not observed.** Read out of the instructions. The windowing either side of
+the `LDIR` is what makes the intent legible: the author knew `D` had to be
+converted back and reached for the saved copy rather than the arithmetic.
 
 ---
 

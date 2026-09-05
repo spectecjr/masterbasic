@@ -1773,7 +1773,7 @@ SAMHK:
                DEFW MB_HK_FARSCAN+NOT_IN_THIS_PAGE              ; 4506 code 176
                DEFW MB_HK_TOKENARG+NOT_IN_THIS_PAGE             ; 4508 code 177
                DEFW MB_HK_SKIPNAME+NOT_IN_THIS_PAGE             ; 450A code 178
-               DEFW MB_HK_PUTARG+NOT_IN_THIS_PAGE               ; 450C code 179
+               DEFW MB_HK_XVARNVAL+NOT_IN_THIS_PAGE             ; 450C code 179
                DEFW MB_HK_SERSEND+NOT_IN_THIS_PAGE              ; 450E code 180
                DEFW MB_HK_SERRECV+NOT_IN_THIS_PAGE              ; 4510 code 181
                DEFW MB_SUBSTITUTE_PRINTER_CHAR+NOT_IN_THIS_PAGE ; 4512 code 182
@@ -4955,18 +4955,18 @@ SWAP_TRACK_AND_SECTOR:
 ;; The entry's track and sector, as the number DIR prints against it.
 ;;
 ;; MasterBASIC &4224 does the arithmetic: ten times the track, plus the
-;; sector less one, plus one more once the track is past 4 -- because
+;; sector less one, plus one more on tracks 0 to 3 -- because
 ;; track 4 sector 1 is the DOS file and holds no entry.  It is not
-;; BYTE_TO_DECIMAL, which is &4240 and sixteen bytes further on;
+;; BYTE_TO_DECIMAL, which is &4240 and twenty-eight bytes further on;
 ;; nothing here prints anything.
 ;; --------------------------------------------------------------------
 
 ; ---- GET_FILE_NUMBER ---- from &4C12, &7B46
 GET_FILE_NUMBER:
-               LD A,(IX+RPT-DCHAN+1)           ; 4FD7 DD 7E 0E
-               CALL CALLMB                     ; 4FDA CD BD 42
-               DEFW &4224                      ; 4FDD 24 42
-               RET                             ; 4FDF C9
+               LD A,(IX+RPT-DCHAN+1)                     ; 4FD7 DD 7E 0E
+               CALL CALLMB                               ; 4FDA CD BD 42
+               DEFW MB_TRACK_SECTOR_TO_FILE_NUMBER-&4000 ; 4FDD 24 42
+               RET                                       ; 4FDF C9
 
 ;; --------------------------------------------------------------------
 ;; Remember the first free slot the scan meets, and only the first.
@@ -8966,48 +8966,48 @@ REMP1:
 ;; --------------------------------------------------------------------
 
 CMD_LOAD:
-               CALL GTNC                       ; 5F69 CD 3C 50  CHAR AFTER LOAD
-               CALL CFSO                       ; 5F6C CD F9 4F
-               CALL Z,REMFP                    ; 5F6F CC 55 5F  REMOVE FP FORMS FROM HL ON
-               CALL EVNUM                      ; 5F72 CD B2 62
-               JP Z,CEOS                       ; 5F75 CA 07 50
-               DI                              ; 5F78 F3
-               PUSH HL                         ; 5F79 E5
-               CALL RESET_BUFFER_POINTERS      ; 5F7A CD 84 4F
-               CALL REST                       ; 5F7D CD AD 47
-               CALL READ_SECTOR                ; 5F80 CD B7 45
-               CALL SDTKS                      ; 5F83 CD 55 74
-               POP HL                          ; 5F86 E1
-               CALL CALLMB                     ; 5F87 CD BD 42
-               DEFW &426F                      ; 5F8A 6F 42
-               PUSH AF                         ; 5F8C F5
-               LD A,(DTKS)                     ; 5F8D 3A 30 42
-               DEC A                           ; 5F90 3D
-               CP D                            ; 5F91 BA
-               JP C,REP26                      ; 5F92 DA 62 5E
-               LD A,E                          ; 5F95 7B
-               DEC A                           ; 5F96 3D
-               OR D                            ; 5F97 B2
-               CALL NZ,READ_SECTOR             ; 5F98 C4 B7 45
-               POP AF                          ; 5F9B F1
-               LD (DCHAN+RPTH),A               ; 5F9C 32 0E 7C
-               CALL POINT                      ; 5F9F CD AC 4F
-               LD A,(HL)                       ; 5FA2 7E
-               AND A                           ; 5FA3 A7
-               JP Z,REP26                      ; 5FA4 CA 62 5E
-               CALL CHECK_FILE_TYPE            ; 5FA7 CD 75 4E
-               CALL NRRDD                      ; 5FAA CD 53 50
-               DEFW ERRSP                      ; 5FAD 3D 5C
-               DEC BC                          ; 5FAF 0B
-               DEC BC                          ; 5FB0 0B
-               LD HL,(ENTSP)                   ; 5FB1 2A 04 41
-               INC HL                          ; 5FB4 23
-               INC HL                          ; 5FB5 23
-               INC HL                          ; 5FB6 23
-               INC HL                          ; 5FB7 23
-               LD (HL),C                       ; 5FB8 71
-               INC HL                          ; 5FB9 23
-               LD (HL),B                       ; 5FBA 70
+               CALL GTNC                                 ; 5F69 CD 3C 50  CHAR AFTER LOAD
+               CALL CFSO                                 ; 5F6C CD F9 4F
+               CALL Z,REMFP                              ; 5F6F CC 55 5F  REMOVE FP FORMS FROM HL ON
+               CALL EVNUM                                ; 5F72 CD B2 62
+               JP Z,CEOS                                 ; 5F75 CA 07 50
+               DI                                        ; 5F78 F3
+               PUSH HL                                   ; 5F79 E5
+               CALL RESET_BUFFER_POINTERS                ; 5F7A CD 84 4F
+               CALL REST                                 ; 5F7D CD AD 47
+               CALL READ_SECTOR                          ; 5F80 CD B7 45
+               CALL SDTKS                                ; 5F83 CD 55 74
+               POP HL                                    ; 5F86 E1
+               CALL CALLMB                               ; 5F87 CD BD 42
+               DEFW MB_FILE_NUMBER_TO_TRACK_SECTOR-&4000 ; 5F8A 6F 42
+               PUSH AF                                   ; 5F8C F5
+               LD A,(DTKS)                               ; 5F8D 3A 30 42
+               DEC A                                     ; 5F90 3D
+               CP D                                      ; 5F91 BA
+               JP C,REP26                                ; 5F92 DA 62 5E
+               LD A,E                                    ; 5F95 7B
+               DEC A                                     ; 5F96 3D
+               OR D                                      ; 5F97 B2
+               CALL NZ,READ_SECTOR                       ; 5F98 C4 B7 45
+               POP AF                                    ; 5F9B F1
+               LD (DCHAN+RPTH),A                         ; 5F9C 32 0E 7C
+               CALL POINT                                ; 5F9F CD AC 4F
+               LD A,(HL)                                 ; 5FA2 7E
+               AND A                                     ; 5FA3 A7
+               JP Z,REP26                                ; 5FA4 CA 62 5E
+               CALL CHECK_FILE_TYPE                      ; 5FA7 CD 75 4E
+               CALL NRRDD                                ; 5FAA CD 53 50
+               DEFW ERRSP                                ; 5FAD 3D 5C
+               DEC BC                                    ; 5FAF 0B
+               DEC BC                                    ; 5FB0 0B
+               LD HL,(ENTSP)                             ; 5FB1 2A 04 41
+               INC HL                                    ; 5FB4 23
+               INC HL                                    ; 5FB5 23
+               INC HL                                    ; 5FB6 23
+               INC HL                                    ; 5FB7 23
+               LD (HL),C                                 ; 5FB8 71
+               INC HL                                    ; 5FB9 23
+               LD (HL),B                                 ; 5FBA 70
 
 ; ---- CMD_LOAD_1 ---- from &65FA
 CMD_LOAD_1:

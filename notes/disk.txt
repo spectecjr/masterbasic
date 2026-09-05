@@ -136,9 +136,9 @@ DOS &4FD7 GET_FILE_NUMBER
     The entry's track and sector, as the number DIR prints against it.
 
     MasterBASIC &4224 does the arithmetic: ten times the track, plus the
-    sector less one, plus one more once the track is past 4 -- because
+    sector less one, plus one more on tracks 0 to 3 -- because
     track 4 sector 1 is the DOS file and holds no entry.  It is not
-    BYTE_TO_DECIMAL, which is &4240 and sixteen bytes further on;
+    BYTE_TO_DECIMAL, which is &4240 and twenty-eight bytes further on;
     nothing here prints anything.
 
 DOS &4FE0 CLAIM_FREE_SLOT

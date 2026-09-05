@@ -56,7 +56,7 @@ Run the proposal shape only on regions that are genuinely bare.
 3. **Nothing is applied unaudited.** Every finding is checked against the actual
    instructions before a character of it reaches the repository. This is not a
    formality — see the calibration note below for why it is still worth doing
-   even at a 100% hit rate.
+   at a hit rate this high.
 4. **Every entry carries a confidence marker**, `[C]` / `[P]` / `[G]`, as the
    last thing on the line. `[C]` means "I can point at the instructions that
    prove it". The prompt must say plainly that a `[G]` costs nothing and a wrong
@@ -284,29 +284,66 @@ The differences from the review prompt:
 | PART F11 (&595B–&5E75) | review | 13 findings | 13 |
 | PART D1 (&4FF0–&549B) | review | 17 findings | 17 |
 | PART E1 (&549E–&595A) | review | 17 findings | 17 |
-| PART MOVE A/B, HOOKS, RAMD | review | *in flight* | — |
+| PART MOVE A/B, HOOKS, RAMD | review | 55 findings | 55 |
+| PART F12 + two sweeps | review | — | — |
+| PART G1 (&5E78–&61FF) | review | 8 findings | 6 |
+| MB &500C–&51D6 (tokens) | review | 8 findings | 8 |
+| MB &69E7–&6AD4 (grey DUMP) | review | 7 findings | 6 |
+| MB &6C01–&6DF6 (COPY SCREEN) | review | 11 findings | 11 |
+| MB &6594–&66AE (CSIZE, compressor) | proposal | 61 comments, 4 headers | — |
+| MB &41C5–&42B1 (NVAL) | proposal | 53 comments, 7 headers | — |
 
-The first five ran on one model; the four after them on another, after the
-first hit a session limit mid-run. The prompts were byte-identical across the
-change, which is the only reason the two groups can be compared at all — if
-the brief had been retuned at the same time, nothing could be concluded from
-a difference in yield.
+The first five ran on one model; the rest on another, after the first hit a
+session limit mid-run. The prompts were byte-identical across the change,
+which is the only reason the two groups can be compared at all — if the brief
+had been retuned at the same time, nothing could be concluded from a
+difference in yield.
 
-Two things follow from 71 out of 71, and only one of them is the obvious one.
+G1 is the first row that is not a clean sweep, and it is the useful kind of
+miss: two of its eight findings were stale because the region had been cut
+before a rebuild, and *the agent said so* rather than reporting them as
+current. The lesson is a process one — re-cut the extract after a rebuild —
+and it recurred on the MasterBASIC batch, where five regions cut before the
+`base.asm` work still said `CALL CMR` where the listing had come to say
+`MBCMR`. Re-cutting also showed which of the five had been annotated in the
+meantime, and so which shape to run.
 
-**The obvious one:** the annotations had a real error rate, and forward reading
-by the author was not finding them. One of the C11 findings landed on
-`docs/bugs.md` itself and changed a documented bug from "cannot be reached" to
-"is never chosen by the bit it tests" — an error that had been read past
-repeatedly.
+The three MasterBASIC reviews cost one refutation and one deferral between
+them. Both are worth more than the tally suggests. The refutation (that
+`&BF - B` is a coordinate conversion) is refuted by a sibling case that would
+need the same conversion and does not do it — an argument the next reviewer
+would otherwise have to reconstruct. The deferral is a generator fault, not a
+prose one: two auto-generated "from" lines describe flags for a value a later
+`LD A,H` has replaced. Fixing it properly touches every listing, so it is
+written down rather than done.
 
-**The less obvious one:** a 100% rate is *not* a reason to stop auditing. It is
-the rate at which findings survive an audit, and the reason it is 100% is that
-the prompt spends a third of its length telling the agent not to guess. Relax
-the audit and the incentive that produces the rate goes with it. The audit is
-also where the finding gets reworded into the repository's voice, and where the
-*partly right* case gets separated from the right one — neither of which the
+That is 157 of 160 across the review rows, and the first two rounds were a
+clean 71 of 71.
+
+**The obvious thing it shows:** the annotations had a real error rate, and
+forward reading by the author was not finding them. One of the C11 findings
+landed on `docs/bugs.md` itself and changed a documented bug from "cannot be
+reached" to "is never chosen by the bit it tests" — an error that had been read
+past repeatedly. A later round found that every "call the ROM with ROM 1 paged
+in" in the repository was wrong about which ROM, while the correct account sat
+three files away in an equate comment, a `docs/` page, and the 1991 author's own
+remark on the very instruction.
+
+**The less obvious thing:** a rate this high is *not* a reason to stop auditing.
+It is the rate at which findings survive an audit, and the reason it is so high
+is that the prompt spends a third of its length telling the agent not to guess.
+Relax the audit and the incentive that produces the rate goes with it. The audit
+is also where the finding gets reworded into the repository's voice, and where
+the *partly right* case gets separated from the right one — neither of which the
 score measures.
+
+**And the three that did not survive are the ones worth reading.** Two were
+stale rather than wrong, from a region cut before a rebuild. The third proposed
+a better explanation for a subtraction and was refuted by a sibling case that
+would need the same explanation and does not do it. None of the three was a
+fabrication, which is the failure the brief is actually written against — so the
+number to watch is not the rate but whether a miss is ever an invention. So far
+it has not been.
 
 A third thing showed up in the second round: a few findings are best applied
 as *softenings* rather than reversals. The reviewer shows a claim is not

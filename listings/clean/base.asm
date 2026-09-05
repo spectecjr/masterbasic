@@ -77,15 +77,15 @@
 
 ; Hardware ports, under the names the two source trees use.
 ; What each one does is from the SAM Coupe Technical Manual.
-XMPRL:                          EQU  &80                                    ; External memory lower port address
-STAT:                           EQU  &F9                                    ; read: STATUS, key rows and interrupt
-                                                                            ; flags; write: line interrupt
-LMPR:                           EQU  &FA                                    ; the page at &0000, and the two ROM
-                                                                            ; switches
-HMPR:                           EQU  &FB                                    ; the page at &8000
-VMPR:                           EQU  &FC                                    ; the page the screen is displayed from
-KEYBOARD:                       EQU  &FE                                    ; read: keyboard columns; write: border, MIC
-                                                                            ; and the speaker
+XMPRL:                          EQU  &80                                     ; External memory lower port address
+STAT:                           EQU  &F9                                     ; read: STATUS, key rows and interrupt
+                                                                             ; flags; write: line interrupt
+LMPR:                           EQU  &FA                                     ; the page at &0000, and the two ROM
+                                                                             ; switches
+HMPR:                           EQU  &FB                                     ; the page at &8000
+VMPR:                           EQU  &FC                                     ; the page the screen is displayed from
+KEYBOARD:                       EQU  &FE                                     ; read: keyboard columns; write: border,
+                                                                             ; MIC and the speaker
 
 ; SAM ROM entry points and system variables.  A page cannot
 ; address the variables directly -- it occupies the same
@@ -93,61 +93,63 @@ KEYBOARD:                       EQU  &FE                                    ; re
 ; page them in, or does the same windowing inline, which is what a
 ; name written here as NAME+&4000 means.
 ; The notes are mostly the ROM source's own words.
-ANYIV:                          EQU  &5B70                                  ; ANY INTERRUPT VECTOR
-BSTKEND:                        EQU  &5BC4                                  ; end of that stack
-CHADD:                          EQU  &5A97                                  ; address of the character being interpreted
-CHADP:                          EQU  &5A96                                  ; page holding the character being
-                                                                            ; interpreted
-CHANS:                          EQU  &5C4F                                  ; address of the channel information area
-CLSLOW:                         EQU  &0151                                  ; clear the lower screen
-CURCHL:                         EQU  &5C51                                  ; address of the current channel
-CURCMD:                         EQU  &5B74                                  ; CODE OF CMD BEING EXECUTED
-DELBC:                          EQU  &005F                                  ; ROM entry: a delay of BC iterations
-DOSSTK:                         EQU  &5C59                                  ; stack pointer saved across a DOS call
-ELINE:                          EQU  &5A94                                  ; address of the edit line
-ERRSP:                          EQU  &5C3D                                  ; stack pointer to unwind to on an error
-EXPEXP:                         EQU  &011E                                  ; evaluate an expression of either type
-EXPNUM:                         EQU  &0118                                  ; evaluate a numeric expression at (CHADD)
-EXPSTR:                         EQU  &011B                                  ; evaluate a string expression
-FLAGS:                          EQU  &5C3B                                  ; bit 7 set while running, clear while
-                                                                            ; syntax-checking
-FRAMIV:                         EQU  &5AE2                                  ; The Frame interrupt vector - usually this
-                                                                            ; reads the keyboard, and updates the frame
-                                                                            ; counter.
-GETCHAR:                        EQU  &0018                                  ; ROM entry: the character at CHAD, control
-                                                                            ; codes skipped
-GETINT:                         EQU  &0121                                  ; UNSTACK WORD FROM CALCULATOR STACK TO BC.
-                                                                            ; HL=BC, A=C
-GETSTR:                         EQU  &0124                                  ; pop a string descriptor: A = page, DE =
-                                                                            ; start, BC = length
-HLJUMP:                         EQU  &0005                                  ; JP (HL)
-INCURPAGE:                      EQU  &3FF2                                  ; ! ;2* page on and wind HL back
-                                                                            ; unconditionally
-INSTBUF:                        EQU  &4F00                                  ; BUFFER FOR ROM1 XFER CODE, ETC. 0200H
-INVERT:                         EQU  &5A54                                  ; 00/FF FOR NORMAL/INVERSE ;
-IYJUMP:                         EQU  &0006                                  ; JP (IY)
-JCLSBL:                         EQU  &014E                                  ; clear the whole screen if A is zero,
-                                                                            ; otherwise the window
-JMKRBIG:                        EQU  &010C                                  ; open A*16K + BC bytes at HL
-JRECLAIM:                       EQU  &0163                                  ; close up BC bytes at HL
-NEXTCHAR:                       EQU  &0020                                  ; ROM entry: step CHAD and fetch the
-                                                                            ; character there
-PRINT_A:                        EQU  &0010                                  ; ROM entry: print the character in A
-PROG:                           EQU  &5AA0                                  ; address of the BASIC program
-PROGP:                          EQU  &5A9F                                  ; page holding the BASIC program
-RDKEY:                          EQU  &0169                                  ; read a key as INKEY$ does
-ROM_BORDCR:                     EQU  &5C4B                                  ; VALUE TO SEND TO BORDER PORT -- the ROM
-                                                                            ; calls &5C4B BORDCOL, and BORDCR is a
-                                                                            ; different variable at &5C48. The name here
-                                                                            ; is MasterDOS's own source's
-ROM_CHKHL:                      EQU  &3FEF                                  ; Checks if HL is in the range C000-FFFF,
-                                                                            ; and if so, adjusts it back into the range
-                                                                            ; 8000-BFFF, and increments the upper page.
-STKSTR:                         EQU  &0127                                  ; push a five-byte number from A, E, D, C, B
-STREAM:                         EQU  &0112                                  ; select the stream in A
-TVFLAG:                         EQU  &5C3C                                  ; television flags
-WKROOM:                         EQU  &0109                                  ; open BC bytes at the end of workspace
-XPTR:                           EQU  &5AA3                                  ; address of the error marker
+ANYIV:                          EQU  &5B70                                   ; ANY INTERRUPT VECTOR
+BSTKEND:                        EQU  &5BC4                                   ; end of that stack
+CHADD:                          EQU  &5A97                                   ; address of the character being
+                                                                             ; interpreted
+CHADP:                          EQU  &5A96                                   ; page holding the character being
+                                                                             ; interpreted
+CHANS:                          EQU  &5C4F                                   ; address of the channel information area
+CLSLOW:                         EQU  &0151                                   ; clear the lower screen
+CURCHL:                         EQU  &5C51                                   ; address of the current channel
+CURCMD:                         EQU  &5B74                                   ; CODE OF CMD BEING EXECUTED
+DELBC:                          EQU  &005F                                   ; ROM entry: a delay of BC iterations
+DOSSTK:                         EQU  &5C59                                   ; stack pointer saved across a DOS call
+ELINE:                          EQU  &5A94                                   ; address of the edit line
+ERRSP:                          EQU  &5C3D                                   ; stack pointer to unwind to on an error
+EXPEXP:                         EQU  &011E                                   ; evaluate an expression of either type
+EXPNUM:                         EQU  &0118                                   ; evaluate a numeric expression at (CHADD)
+EXPSTR:                         EQU  &011B                                   ; evaluate a string expression
+FLAGS:                          EQU  &5C3B                                   ; bit 7 set while running, clear while
+                                                                             ; syntax-checking
+FRAMIV:                         EQU  &5AE2                                   ; The Frame interrupt vector - usually this
+                                                                             ; reads the keyboard, and updates the frame
+                                                                             ; counter.
+GETCHAR:                        EQU  &0018                                   ; ROM entry: the character at CHAD, control
+                                                                             ; codes skipped
+GETINT:                         EQU  &0121                                   ; UNSTACK WORD FROM CALCULATOR STACK TO BC.
+                                                                             ; HL=BC, A=C
+GETSTR:                         EQU  &0124                                   ; pop a string descriptor: A = page, DE =
+                                                                             ; start, BC = length
+HLJUMP:                         EQU  &0005                                   ; JP (HL)
+INCURPAGE:                      EQU  &3FF2                                   ; ! ;2* page on and wind HL back
+                                                                             ; unconditionally
+INSTBUF:                        EQU  &4F00                                   ; BUFFER FOR ROM1 XFER CODE, ETC. 0200H
+INVERT:                         EQU  &5A54                                   ; 00/FF FOR NORMAL/INVERSE ;
+IYJUMP:                         EQU  &0006                                   ; JP (IY)
+JCLSBL:                         EQU  &014E                                   ; clear the whole screen if A is zero,
+                                                                             ; otherwise the window
+JMKRBIG:                        EQU  &010C                                   ; open A*16K + BC bytes at HL
+JRECLAIM:                       EQU  &0163                                   ; close up BC bytes at HL
+NEXTCHAR:                       EQU  &0020                                   ; ROM entry: step CHAD and fetch the
+                                                                             ; character there
+PRINT_A:                        EQU  &0010                                   ; ROM entry: print the character in A
+PROG:                           EQU  &5AA0                                   ; address of the BASIC program
+PROGP:                          EQU  &5A9F                                   ; page holding the BASIC program
+RDKEY:                          EQU  &0169                                   ; read a key as INKEY$ does
+ROM_BORDCR:                     EQU  &5C4B                                   ; VALUE TO SEND TO BORDER PORT -- the ROM
+                                                                             ; calls &5C4B BORDCOL, and BORDCR is a
+                                                                             ; different variable at &5C48. The name
+                                                                             ; here is MasterDOS's own source's
+ROM_CHKHL:                      EQU  &3FEF                                   ; Checks if HL is in the range C000-FFFF,
+                                                                             ; and if so, adjusts it back into the range
+                                                                             ; 8000-BFFF, and increments the upper page.
+STKSTR:                         EQU  &0127                                   ; push a five-byte number from A, E, D, C,
+                                                                             ; B
+STREAM:                         EQU  &0112                                   ; select the stream in A
+TVFLAG:                         EQU  &5C3C                                   ; television flags
+WKROOM:                         EQU  &0109                                   ; open BC bytes at the end of workspace
+XPTR:                           EQU  &5AA3                                   ; address of the error marker
 
 ; Idioms.
 ; Some of this half is assembled at &4000 and executed at
@@ -156,34 +158,34 @@ XPTR:                           EQU  &5AA3                                  ; ad
 ; other way round.  Its own labels are what the assembler
 ; put them at, so reaching one from code that is running
 ; high means adding the 16K between the two views.
-IN_PAGE_C:                      EQU  &4000                                  ; the window, less where this is assembled
+IN_PAGE_C:                      EQU  &4000                                   ; the window, less where this is assembled
 
 ; The ROM's restarts, under the names its own source gives
 ; them.  A restart is a one-byte call to a fixed address, so
 ; these are those addresses.
-ERR_HOOK:                       EQU  &08                                    ; report an error, or call a DOS hook: the
-                                                                            ; byte after is
+ERR_HOOK:                       EQU  &08                                     ; report an error, or call a DOS hook: the
+                                                                             ; byte after is
 
 ; Disk controller status
-DISK_STATUS_CRC_ERROR:          EQU  &08                                    ; what was read did not check out
-DISK_STATUS_DRQ:                EQU  &02                                    ; a byte is waiting to be taken, or wanted
-DISK_STATUS_LOST_DATA:          EQU  &04                                    ; a byte was not moved in time and is gone
-DISK_STATUS_RECORD_NOT_FOUND:   EQU  &10                                    ; the sector was not on the track
+DISK_STATUS_CRC_ERROR:          EQU  &08                                     ; what was read did not check out
+DISK_STATUS_DRQ:                EQU  &02                                     ; a byte is waiting to be taken, or wanted
+DISK_STATUS_LOST_DATA:          EQU  &04                                     ; a byte was not moved in time and is gone
+DISK_STATUS_RECORD_NOT_FOUND:   EQU  &10                                     ; the sector was not on the track
 
 ; Numbers named in notes/, each for one instruction
 ; where the same value means something else elsewhere.
-ENABLE_ROM1:                    EQU  &40                                    ; LMPR bit 6: ROM 1 in at &C000. Does not
-                                                                            ; move the page in section B
-SKIP_1_VIA_CP:                  EQU  &FE                                    ; CP n, skipping one byte and clobbering the
-                                                                            ; flags
-SKIP_1_VIA_LD_A:                EQU  &3E                                    ; LD A,n, standing here only to swallow the
-                                                                            ; byte after it
-SKIP_2_VIA_LD_HL:               EQU  &21                                    ; LD HL,nn, standing here only to swallow
-                                                                            ; the two bytes after it -- see
-                                                                            ; docs/idioms.md
-SYSPAGE_IN_B:                   EQU  &1F                                    ; LMPR &1F: page 31 at &0000, so section B
-                                                                            ; gets page 32, which wraps to the system
-                                                                            ; page. The ROM source calls it PAGE1F
+ENABLE_ROM1:                    EQU  &40                                     ; LMPR bit 6: ROM 1 in at &C000. Does not
+                                                                             ; move the page in section B
+SKIP_1_VIA_CP:                  EQU  &FE                                     ; CP n, skipping one byte and clobbering
+                                                                             ; the flags
+SKIP_1_VIA_LD_A:                EQU  &3E                                     ; LD A,n, standing here only to swallow the
+                                                                             ; byte after it
+SKIP_2_VIA_LD_HL:               EQU  &21                                     ; LD HL,nn, standing here only to swallow
+                                                                             ; the two bytes after it -- see
+                                                                             ; docs/idioms.md
+SYSPAGE_IN_B:                   EQU  &1F                                     ; LMPR &1F: page 31 at &0000, so section B
+                                                                             ; gets page 32, which wraps to the system
+                                                                             ; page. The ROM source calls it PAGE1F
 SYS_CHAR_WIDTH:                 EQU  &4AEE
 
 ; The byte after RST &08: a DOS error, or a hook code, which is
@@ -226,6 +228,7 @@ MB_COMPRESS_FILE:               EQU  COMPRESS_FILE + IN_PAGE_C
 MB_COMPRESS_SCREEN_FILE:        EQU  COMPRESS_SCREEN_FILE + IN_PAGE_C
 MB_EXPAND_FILE:                 EQU  EXPAND_FILE + IN_PAGE_C
 MB_EXPR_TO_32BIT:               EQU  EXPR_TO_32BIT + IN_PAGE_C
+MB_FILE_NUMBER_TO_TRACK_SECTOR: EQU  FILE_NUMBER_TO_TRACK_SECTOR + IN_PAGE_C
 MB_FIND_LINE_FROM_START:        EQU  FIND_LINE_FROM_START + IN_PAGE_C
 MB_FN_EQU:                      EQU  FN_EQU + IN_PAGE_C
 MB_FN_INARRAY:                  EQU  FN_INARRAY + IN_PAGE_C
@@ -245,7 +248,6 @@ MB_HK_HORDER:                   EQU  HK_HORDER + IN_PAGE_C
 MB_HK_HPFF:                     EQU  HK_HPFF + IN_PAGE_C
 MB_HK_MERGECOMPFLG:             EQU  HK_MERGECOMPFLG + IN_PAGE_C
 MB_HK_PROGPREP:                 EQU  HK_PROGPREP + IN_PAGE_C
-MB_HK_PUTARG:                   EQU  HK_PUTARG + IN_PAGE_C
 MB_HK_RCPTCH:                   EQU  HK_RCPTCH + IN_PAGE_C
 MB_HK_SERRECV:                  EQU  HK_SERRECV + IN_PAGE_C
 MB_HK_SERSEND:                  EQU  HK_SERSEND + IN_PAGE_C
@@ -254,6 +256,7 @@ MB_HK_SKIPNAME:                 EQU  CMD_DELETE + IN_PAGE_C
 MB_HK_SWAPCHARS:                EQU  HK_SWAPCHARS + IN_PAGE_C
 MB_HK_TOKENARG:                 EQU  HK_TOKENARG + IN_PAGE_C
 MB_HK_VARSPACE:                 EQU  HK_VARSPACE + IN_PAGE_C
+MB_HK_XVARNVAL:                 EQU  HK_XVARNVAL + IN_PAGE_C
 MB_HPRTOK:                      EQU  HPRTOK + IN_PAGE_C
 MB_MBHK_HDUMMY:                 EQU  MBHK_HDUMMY + IN_PAGE_C
 MB_MULTIPLY_BY_24:              EQU  MULTIPLY_BY_24 + IN_PAGE_C
@@ -263,6 +266,7 @@ MB_SET_DCT_COMPILE_BITS:        EQU  SET_DCT_COMPILE_BITS + IN_PAGE_C
 MB_SORT_NAMES:                  EQU  SORT_NAMES + IN_PAGE_C
 MB_STAMP_WITH_DATE:             EQU  STAMP_WITH_DATE + IN_PAGE_C
 MB_SUBSTITUTE_PRINTER_CHAR:     EQU  SUBSTITUTE_PRINTER_CHAR + IN_PAGE_C
+MB_TRACK_SECTOR_TO_FILE_NUMBER: EQU  TRACK_SECTOR_TO_FILE_NUMBER + IN_PAGE_C
 MB_WAIT_FOR_CLOCK:              EQU  WAIT_FOR_CLOCK + IN_PAGE_C
 
 ; MasterBASIC reaching MasterDOS.
