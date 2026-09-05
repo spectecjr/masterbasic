@@ -11,11 +11,17 @@ DOC OPEN_GAP_AT_LINE
     then opens the gap, and a routine in the DOS page is called with the
     paging saved around it.
 
-    Afterwards the same line is found twice more and the two long
-    addresses are subtracted as 24-bit values, page and all, through
-    PAGED_TO_LONG.  A difference of zero means nothing moved and the
-    routine returns; otherwise the difference is handed to
-    LONGADDR_TO_PAGED and passed to the ROM.
+    Afterwards two more searches run and the two long addresses are
+    subtracted as 24-bit values, page and all, through PAGED_TO_LONG.
+    THEY ARE NOT THE SAME LINE: the first asks for &FF00, which finds
+    the planted marker, and the second reads a line number and does
+    INC BC at &51B2 before searching, so it lands on the line after it.
+    If both searches found one line the difference would be zero every
+    time and the routine would always return at that point.  What the
+    difference measures is not established here beyond that.  A
+    difference of zero means nothing moved and the routine returns;
+    otherwise it is handed to LONGADDR_TO_PAGED and passed to the
+    ROM.
 
     The difference is then handed to LONGADDR_TO_PAGED and given to the
     ROM's RECLAIM2, which takes the leftover back out again.  So the

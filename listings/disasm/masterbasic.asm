@@ -5926,17 +5926,25 @@ GTDT_1:
 ;; chosen constant: it is 247 less 22, the offset that makes the
 ;; single-byte tokens continue the numbering the FF forms started.
 ;;
-;; It is also the inverse of the + &A6 here and the ROM's + &3B in
-;; HGTTK, which come to the same &E1 going the other way.
+;; It is also the inverse of the + &A6 in MasterBASIC's own HGTTK and
+;; the ROM's + &3B in TOK42 (miscx2.asm, "CONVERT LIST ENTRY TO TOKEN
+;; CODE"), which come to the same &E1 going the other way.
 ;;
-;; FLAGS BIT 0 DECIDES THE LEADING SPACE.  The ROM keeps "the last
-;; thing printed was a keyword" there, and a space goes in front of
+;; FLAGS BIT 0 DECIDES THE LEADING SPACE.  The bit is the ROM's "the
+;; last character printed was a space" -- tprint.asm sets it with
+;; SET 0,(HL) ;'SPACE WAS LAST CHAR' and clears it for anything else --
+;; and a space goes in front of
 ;; this one only when it is clear, so two keywords in a row are
 ;; separated once and not twice.
 ;;
-;; The caller's HL is parked in XPTR before anything is printed and not
-;; restored here, because printing goes through the ROM and the ROM
-;; expects to find it there.
+;; &5020 RESTORES XPTR RATHER THAN PARKING ANYTHING.  There is no
+;; caller's HL: PRTOKV_STUB at &7B90 drops the ROM's return address and
+;; does LD HL,(XPTR) before raising the hook, so what arrives is XPTR's
+;; own previous value.  The hook route then destroys it -- the ROM's
+;; RST &08 handler stores CHAD there, and the DOS's hook entry zeroes
+;; the high byte -- and &5020 writes it back, after the leading space
+;; has already gone out at &501C, so LIST and the error printer find it
+;; as it was.
 ;;
 ;; What was here before:
 ;;
@@ -5958,8 +5966,8 @@ HPRTOK:
                PUSH HL                         ; 5015 E5
                CALL MBNRRD                     ; 5016 CD 6A 45
                DEFW FLAGS                      ; 5019 3B 5C
-               RRA                             ; 501B 1F  FLAGS bit 0 into carry. Clear means the last thing out was not
-                                               ; a keyword, so this one needs a space in front of it
+               RRA                             ; 501B 1F  FLAGS bit 0 into carry. Clear means the last character printed
+                                               ; was not a space, so this word needs one in front of it
                CALL NC,PRINT_SPACE             ; 501C D4 2C 50
                POP BC                          ; 501F C1
                CALL MBNRWRD                    ; 5020 CD 77 45
@@ -5971,8 +5979,8 @@ HPRTOK:
                                                ; SKIP_TO_END_OF_WORD falls into PRINT_WORD
 
 ;; --------------------------------------------------------------------
-;; LD A,&20 and a JP into CALL_PRINT_A.  Two bytes and a jump, four
-;; times over, against three bytes and a call each time.
+;; LD A,&20 and a JP into CALL_PRINT_A, called from &501C and &50D0
+;; and nowhere else.
 ;;
 ;; What was here before:
 ;;
@@ -6087,10 +6095,11 @@ V505C:
 ;; that the second byte of the token comes back here.
 ;;
 ;; A two-byte token reaches PRTOKV as &FF and then as its second byte,
-;; and nothing carries between the two calls -- so the state goes into
-;; the system page instead.  The channel's output address is swapped
-;; for SYS_GAP_BLOCK at &5896, the old one kept in OPSTORE, and the
-;; caller's HL parked in the DOS through PARK_WORD.  The next character
+;; and nothing carries between the two calls -- so the state is put
+;; somewhere both calls can reach.  Two places, in fact: the channel's
+;; output address is swapped for SYS_GAP_BLOCK at &5896 and the old one
+;; kept in OPSTORE, both in the system page, while the word itself goes
+;; to the DOS page through PARK_WORD.  The next character
 ;; the ROM prints therefore arrives at &5896, which is nine bytes of
 ;; installed code beginning RST &08 : DEFB &AA -- hook 170, which is
 ;; HK_HPFF below.
@@ -6406,11 +6415,17 @@ CMD_MERGE_1:
 ;; then opens the gap, and a routine in the DOS page is called with the
 ;; paging saved around it.
 ;;
-;; Afterwards the same line is found twice more and the two long
-;; addresses are subtracted as 24-bit values, page and all, through
-;; PAGED_TO_LONG.  A difference of zero means nothing moved and the
-;; routine returns; otherwise the difference is handed to
-;; LONGADDR_TO_PAGED and passed to the ROM.
+;; Afterwards two more searches run and the two long addresses are
+;; subtracted as 24-bit values, page and all, through PAGED_TO_LONG.
+;; THEY ARE NOT THE SAME LINE: the first asks for &FF00, which finds
+;; the planted marker, and the second reads a line number and does
+;; INC BC at &51B2 before searching, so it lands on the line after it.
+;; If both searches found one line the difference would be zero every
+;; time and the routine would always return at that point.  What the
+;; difference measures is not established here beyond that.  A
+;; difference of zero means nothing moved and the routine returns;
+;; otherwise it is handed to LONGADDR_TO_PAGED and passed to the
+;; ROM.
 ;;
 ;; The difference is then handed to LONGADDR_TO_PAGED and given to the
 ;; ROM's RECLAIM2, which takes the leftover back out again.  So the
@@ -14215,13 +14230,22 @@ PRINT_COUNTED_STRING_LOOP:
                RET                             ; 69F9 C9
 
 ;; --------------------------------------------------------------------
-;; Print the character in A, through the ROM, with ROM1 paged in.
+;; Print the character in A, through the ROM, with the system page at
+;; &4000.
 ;;
 ;; One of the CALL CMR / DEFW / RET wrappers.  &0010 carries no label in
 ;; the ROM's map, which is why this was CALL_ROM_0010 for so long, but
 ;; ref/samrom/main.asm heads the three bytes there ";RST 10H - PRINT A"
-;; -- so it is the same entry as the RST, reached the long way round
-;; because the RST cannot page ROM1 in on the way.
+;; -- so it is the same entry as the RST.
+;;
+;; THE LONG WAY ROUND IS ABOUT &4000, NOT ABOUT WHICH ROM.  &0010 is in
+;; ROM 0, which is already there; what the ROM's print routine has not
+;; got is its own variables, because MasterBASIC is sitting in the
+;; &4000 section where the system page belongs.  CMR writes
+;; SYSPAGE_IN_B to LMPR -- page 31 at &0000, so that page 0 wraps into
+;; section B -- and leaves bit 6 alone, so ROM 1 is no more paged in
+;; afterwards than it was before.  A plain RST &10 would reach the same
+;; three bytes with the wrong page at &4000.
 ;; --------------------------------------------------------------------
 
 ; ---- CALL_PRINT_A ---- from &502E, &503B, &504E, &56D6, &68F6, &68FA, &698A, &69F4 ...
@@ -14241,11 +14265,20 @@ CALL_PRINT_A:
 ;;     1   mirror the row, &BF minus B                sideways
 ;;     2   neither                                    sideways, mirrored
 ;;     3   exchange B and C                           upright
-;;     4   exchange them and then mirror              upright, mirrored
+;;     4   exchange them and then mirror              upside down and
+;;                                                    mirrored
 ;;
 ;; Four cases and not three: the DEC A chain runs off its end for 4,
 ;; and the exchange at &6A0A is done before the JR Z that would have
 ;; left, so 4 gets both.
+;;
+;; THE MIRROR ALWAYS ACTS ON B, AND THE EXCHANGE DECIDES WHAT B IS.
+;; READ_PIXEL_NIBBLE forms the address as B*128 + C/2, so B is the
+;; screen row throughout.  Before the exchange B is the printer's
+;; across-the-paper axis and reversing it turns 2 into 1; after the
+;; exchange B holds what was the down-the-paper axis, and reversing
+;; that stands the picture on its head.  Which is why 4 is the
+;; manual's "upside down, mirror image" and not an upright dump.
 ;;
 ;; THE EXCHANGE IS WHAT MAKES A DUMP UPRIGHT, which reads backwards
 ;; until you notice which axis is which.  Leaving B and C alone puts
@@ -14286,7 +14319,9 @@ TRANSFORM_DUMP_COORDS_1:
 ;;
 ;; MODE 4 is READ_PIXEL_NIBBLE by itself: the answer is a whole nibble
 ;; and is already the colour.  MODE 3 reads the nibble the same way and
-;; then takes half of it, choosing which half by bit 0 of the row, and
+;; then takes half of it, choosing which half by bit 0 of the column
+;; -- LD H,C at &6A1C saves C before SRL C halves it, so the BIT 0,H at
+;; &6A27 is testing the odd/even of the original column -- and
 ;; exchanges 1 and 2 on the way out -- the two bits come out of the
 ;; byte in the opposite order from the palette index, and 0 and 3 are
 ;; the same either way round, which is why only the middle two move.
@@ -14466,10 +14501,10 @@ BUILD_GREY_MAP_LOOP2:
 ;;
 ;; PALETTE_INTENSITY gives 0 to 49 and SRL A gives 0 to 24 -- twenty-five
 ;; levels, which is what the flag table above is sized for.  Halving
-;; rather than scaling is what makes the two numbers come out that way:
-;; 49 is odd, so level 24 is reached only by intensity 48 or 49 and the
-;; top of the range is one value narrower than the rest.  Nothing
-;; depends on that.
+;; rather than scaling is what makes the two numbers come out that way,
+;; and it divides exactly: fifty intensities, two to a level, with 48
+;; and 49 landing on level 24 just as 0 and 1 land on level 0.  No
+;; level is wider or narrower than its neighbours.
 ;;
 ;; What was here before:
 ;;
@@ -14488,8 +14523,8 @@ ASSIGN_GREY_LEVEL:
                                                ; starts at none
 
 ;; --------------------------------------------------------------------
-;; Look for an unclaimed level, trying the wanted one first and then up
-;; to three either side.
+;; Look for an unclaimed level, trying the wanted one first and then
+;; one and two either side.
 ;;
 ;; GREY_LEVEL_ABOVE and GREY_LEVEL_BELOW are the two probes, and they
 ;; are one fall-through rather than two calls: above tries C+D, and if
@@ -14502,20 +14537,22 @@ ASSIGN_GREY_LEVEL:
 ;; address out a second time.  BC is pushed round the call because the
 ;; probes write the candidate into C.
 ;;
-;; If nothing within three is free the wanted level is claimed anyway,
-;; and two colours then print as the same grey.  With sixteen colours
-;; and twenty-five levels that needs seven of the sixteen to have
-;; landed within three of each other, which a photograph would manage
-;; and a screen of solid colours would not.
+;; If nothing within two is free the wanted level is claimed anyway,
+;; and two colours then print as the same grey.  That needs the five
+;; levels from C-2 to C+2 all to be spoken for, so six of the sixteen
+;; colours have to have landed inside a five-level window -- or four of
+;; them at either end of the range, where half the probes fall outside
+;; it and there are only three levels to fill.  A photograph would
+;; manage it and a screen of solid colours would not.
 ;;
 ;; What was here before:
 ;;
 ;;     Look for an unclaimed level, trying the wanted one first and then
-;;     up to three either side.
+;;     one and two either side.
 ;;
 ;;     GREY_LEVEL_ABOVE and GREY_LEVEL_BELOW are the two probes; each
 ;;     returns carry set with the level in A if it was free.  If nothing
-;;     within three is free the wanted level is claimed anyway, which can
+;;     within two is free the wanted level is claimed anyway, which can
 ;;     give two colours the same grey.
 ;; --------------------------------------------------------------------
 
@@ -14523,8 +14560,9 @@ ASSIGN_GREY_LEVEL:
 FIND_FREE_GREY_LEVEL:
                LD HL,GREY_TAKEN                ; 6A95 21 90 7B
                LD A,D                          ; 6A98 7A
-               CP &03                          ; 6A99 FE 03  three either side and then give up; D is the distance, not
-                                               ; a count of tries
+               CP &03                          ; 6A99 FE 03  D has already been stepped past the distance just tried, so
+                                               ; the probes run at 0, 1 and 2 and &03 is where the search gives up --
+                                               ; two either side, not three
                LD A,C                          ; 6A9B 79  the wanted level, loaded before the RET so that giving up
                                                ; still returns something usable
                RET NC                          ; 6A9C D0
@@ -14611,8 +14649,9 @@ GREY_LEVEL_BELOW:
 ;; 4:2:1 without a single multiply -- and 4:2:1 is a fair approximation
 ;; to what the eye does, the usual luminance weights being about 0.59,
 ;; 0.30 and 0.11, or near enough 5.4:2.7:1.  Getting those exactly right
-;; would have cost three multiplies.  This costs eight instructions and
-;; is out by about a tenth in the blues.
+;; would have cost three multiplies.  This costs eight instructions, and
+;; blue is the channel it treats worst: a seventh of the total here
+;; against about a ninth from the eye's weights.
 ;;
 ;; Run the ROM's own starting palette through it:
 ;;
@@ -14946,27 +14985,41 @@ DUMP_UNSHADED_LOOP9:
                                                ; line
 
 ;; --------------------------------------------------------------------
-;; Send the counted string at GCM3, once, after the last line.
+;; Three bytes that load GCM3 and fall into the sender below.  Nothing
+;; calls &6C01: it is where &6BFE drops out of the line loop, so GCM3
+;; goes to the printer once, after the last line.
 ;;
 ;; The manual's XVAR 52: "Applies to DUMP 4 only.  Copied to the ROM's
 ;; system variables at BOOT time.  Normally 4,13,10,27,64,0" -- CR, LF,
-;; ESC "@" to reset the printer, one spare.  The first byte is the
-;; count, which is why B is loaded from (DE) before the loop rather
-;; than being a constant.
+;; ESC "@" to reset the printer, one spare.
 ;; --------------------------------------------------------------------
 
-GCM3_TO_PRINTER:
+SEND_GCM3:
                LD DE,GCM3                      ; 6C01 11 27 5A
+
+;; --------------------------------------------------------------------
+;; Send DE's counted string to the printer: B characters, the count
+;; taken from (DE) first, which is why B is loaded rather than being a
+;; constant.
+;;
+;; THIS IS THE &500B THAT DUMP_UNSHADED CALLS TWICE.  Once the block is
+;; moved it lies at &500B, and &6B4A and &6B5F call it there for GCM1
+;; and GCM2.  So all three of the ROM's dump control strings go out
+;; through this loop, and the POP BC : RET at &6C0C is the return for
+;; those two calls as well as for the GCM3 fall-through above.
+;; --------------------------------------------------------------------
+
+SEND_COUNTED_STRING:
                PUSH BC                         ; 6C04 C5
                LD A,(DE)                       ; 6C05 1A
                LD B,A                          ; 6C06 47
 
-; ---- GCM3_TO_PRINTER_LOOP ---- from &6C0A when B is not 0 yet
-GCM3_TO_PRINTER_LOOP:
+; ---- SEND_COUNTED_STRING_LOOP ---- from &6C0A when B is not 0 yet
+SEND_COUNTED_STRING_LOOP:
                INC DE                          ; 6C07 13
                LD A,(DE)                       ; 6C08 1A
                RST PRINT_A                     ; 6C09 D7
-               DJNZ GCM3_TO_PRINTER_LOOP       ; 6C0A 10 FB
+               DJNZ SEND_COUNTED_STRING_LOOP   ; 6C0A 10 FB
                POP BC                          ; 6C0C C1
                RET                             ; 6C0D C9
 
@@ -15064,8 +15117,10 @@ MODE1_PIXEL_AND_ATTR:
 MODE1_SCREEN_ADDRESS:
                LD L,B                          ; 6C38 68
                LD A,B                          ; 6C39 78
-               OR A                            ; 6C3A B7  OR A rather than AND A -- either would do, and both are here
-                                               ; only to clear the carry the three RRAs would otherwise rotate in
+               OR A                            ; 6C3A B7  OR A clears the carry the three RRAs would rotate in, though
+                                               ; it need not: after three rotates that bit is bit 5, and the AND &1F
+                                               ; below removes it anyway. MODE1_ATTR_ADDRESS relies on that and does not
+                                               ; bother
                RRA                             ; 6C3B 1F
                RRA                             ; 6C3C 1F
                RRA                             ; 6C3D 1F
@@ -15130,9 +15185,12 @@ MODE2_PIXEL_AND_ATTR:
 ;; (row*256 + column)/8, and putting the row in H and the column in L
 ;; makes row*256 + column free.  Three shifts of HL do the divide.
 ;;
-;; THE LAST SHIFT ALSO PAGES IT.  SCF before the third RR H puts a one
-;; into bit 15, so the &2000 the divide would have produced becomes
-;; &A000 -- the display seen at &8000 -- without a separate OR.
+;; THE LAST SHIFT ALSO PAGES IT.  HL is at most &BFFF, so the divide
+;; gives 0 to &17FF; SCF before the third RR H puts a one into bit 15,
+;; and the address comes out at &8000 to &97FF -- the display seen in
+;; the window -- without a separate OR.  The attributes at +&2000 are
+;; a caller's business: SET 5,H at &6C61 and &6D47 is what reaches
+;; them.
 ;;
 ;; A holds the column throughout, which is what the two AND A
 ;; instructions between the shifts are really for: each clears the
@@ -15168,11 +15226,12 @@ MODE2_SCREEN_ADDRESS:
 
 ;; --------------------------------------------------------------------
 ;; Set one pixel of a MODE 1 or MODE 2 screen from the corresponding
-;; bit of D.  Called by ALTER DISPLAY at &6D16.
+;; bit of D.  Called from &6D16, inside COPY SCREEN's conversion
+;; loop, and from nowhere else.
 ;;
 ;; THE NAME IT USED TO HAVE, SCREEN_ADDRESS_FOR_MODE, described the
-;; first four instructions and not the routine: they pick the address,
-;; and everything after &6C85 writes the pixel.
+;; first five instructions and not the routine: they pick the address,
+;; and everything from &6C85 on writes the pixel.
 ;;
 ;; A conditional call stands in for a branch and a join.  A non-zero
 ;; mode byte takes MODE2_SCREEN_ADDRESS and then sets carry so the
@@ -15225,17 +15284,27 @@ PLOT_PIXEL_IN_MODE_LOOP:
 ;; second screen".
 ;;
 ;; Both numbers go through SCREEN_NUMBER_ARGUMENT, which gives the
-;; screen's page in C and its mode in A and B.  The destination's mode
-;; is put in DUMP_MODE, which the pixel readers consult; the two are
-;; then compared at the head of the conversion code, and the manual
-;; says what equality buys: "The screen is copied very quickly in the
-;; example above, because both source and destination screens are in
-;; MODE 4, and no conversion work needs to be done."
+;; screen's page in C and its mode in A and B.
 ;;
-;; THE PALETTE IS COPIED FIRST, before any pixel.  Forty bytes, from
-;; wherever the source's palette lives to wherever the destination's
-;; does, which is what the two SCREEN_PAGE_OR_BUFFER calls and the
-;; stack juggling between them work out.
+;; THE SECOND CALL FETCHES THE FIRST NUMBER.  Both expressions have
+;; already been evaluated -- SKIP_THEN_NUMBER took n and
+;; CHAR_THEN_NUMBER_THEN_END took m -- and BYTE_ARGUMENT reaches the
+;; ROM's GETINT, which pops the calculator stack.  So the first
+;; SCREEN_NUMBER_ARGUMENT pops m, the destination, and the second pops
+;; n, the source.  The mode written to DUMP_MODE is therefore the
+;; source's, which is what SCREEN_PIXEL_COLOUR wants: DUMP_MODE tells
+;; it how to decode the screen it is reading.
+;;
+;; The two modes are then compared at the head of the conversion code,
+;; and the manual says what equality buys: "The screen is copied very
+;; quickly in the example above, because both source and destination
+;; screens are in MODE 4, and no conversion work needs to be done."
+;;
+;; THE PALETTE IS COPIED LAST.  The CALL at &6CAB is not a set-up step
+;; -- it is the whole pixel copy, and it has moved every pixel by the
+;; time &6CAE runs.  Only then do the two SCREEN_PAGE_OR_BUFFER calls
+;; and the stack juggling between them work out where the two palettes
+;; live, for the forty-byte move that ends the command.
 ;; --------------------------------------------------------------------
 
 CMD_COPY_SCREEN:
@@ -15246,12 +15315,12 @@ CMD_COPY_SCREEN:
                CALL SCREEN_NUMBER_ARGUMENT     ; 6C9E CD D8 6D
                PUSH BC                         ; 6CA1 C5
                CALL SCREEN_NUMBER_ARGUMENT     ; 6CA2 CD D8 6D
-               LD (DUMP_MODE),A                ; 6CA5 32 AE 40  the destination's mode, kept where the pixel readers
-                                               ; look for it
+               LD (DUMP_MODE),A                ; 6CA5 32 AE 40  the source's mode -- the second pop is the first number
+                                               ; written -- kept where SCREEN_PIXEL_COLOUR looks for it
                POP HL                          ; 6CA8 E1
                PUSH HL                         ; 6CA9 E5
                PUSH BC                         ; 6CAA C5
-               CALL PAGE_PAIR_INTO_ALTERNATES  ; 6CAB CD D1 6C
+               CALL COPY_SCREEN_CONVERT        ; 6CAB CD D1 6C
                POP HL                          ; 6CAE E1
                CALL SCREEN_PAGE_OR_BUFFER      ; 6CAF CD C2 6C
                EX DE,HL                        ; 6CB2 EB
@@ -15315,45 +15384,58 @@ SCREEN_PAGE_OR_BUFFER:
                RET                             ; 6CD0 C9
 
 ;; --------------------------------------------------------------------
-;; Move a page number and an address into the alternate registers with C
-;; set to HMPR, so the copying loop after it can page between two places
-;; without reloading anything.
+;; COPY SCREEN's whole engine: the two conversion loops and, when no
+;; conversion is needed, the fast copy.  &6CF1 to &6D57 writes a MODE 1
+;; or MODE 2 destination a pixel at a time; &6D58 to &6DAC writes a
+;; MODE 3 or MODE 4 one; &6DAD falls into SET_UP_FAR_LDIR for the
+;; same-layout case.  Nothing runs after it -- the loops are inside.
+;;
+;; FOUR NUMBERS GO INTO THE ALTERNATES, NOT A PAGE AND AN ADDRESS.
+;; H' is the source page and L' the destination page; B' is the source
+;; mode and E' the destination mode; C' holds &FB, the HMPR port, so
+;; the loops can page between the two screens with OUT (C),H and
+;; OUT (C),L and never reload anything.  E' is what &6D12 and &6D37
+;; read to pick the destination's layout, B' what &6D60 tests to pick
+;; the source's reader.
+;;
+;; The equal-modes test comes first, at &6CD1, so the fast path leaves
+;; before any of that is loaded.
 ;; --------------------------------------------------------------------
 
-; ---- PAGE_PAIR_INTO_ALTERNATES ---- from &6CAB
-PAGE_PAIR_INTO_ALTERNATES:
-               CP H                              ; 6CD1 BC
-               JR Z,PAGE_PAIR_INTO_ALTERNATES_2  ; 6CD2 28 17
-               CP &02                            ; 6CD4 FE 02
-               LD A,H                            ; 6CD6 7C
-               PUSH HL                           ; 6CD7 E5
-               PUSH BC                           ; 6CD8 C5
-               EXX                               ; 6CD9 D9
-               POP BC                            ; 6CDA C1
-               POP HL                            ; 6CDB E1
-               LD H,C                            ; 6CDC 61
-               LD C,&FB                          ; 6CDD 0E FB
-               LD E,A                            ; 6CDF 5F
-               EXX                               ; 6CE0 D9
-               JR NC,PAGE_PAIR_INTO_ALTERNATES_1 ; 6CE1 30 06
-               CP &02                            ; 6CE3 FE 02
-               JR NC,PAGE_PAIR_INTO_ALTERNATES_9 ; 6CE5 30 71
-               JR PAGE_PAIR_INTO_ALTERNATES_3    ; 6CE7 18 05
+; ---- COPY_SCREEN_CONVERT ---- from &6CAB
+COPY_SCREEN_CONVERT:
+               CP H                            ; 6CD1 BC
+               JR Z,COPY_SCREEN_CONVERT_2      ; 6CD2 28 17
+               CP &02                          ; 6CD4 FE 02
+               LD A,H                          ; 6CD6 7C
+               PUSH HL                         ; 6CD7 E5
+               PUSH BC                         ; 6CD8 C5
+               EXX                             ; 6CD9 D9
+               POP BC                          ; 6CDA C1
+               POP HL                          ; 6CDB E1
+               LD H,C                          ; 6CDC 61
+               LD C,&FB                        ; 6CDD 0E FB
+               LD E,A                          ; 6CDF 5F
+               EXX                             ; 6CE0 D9
+               JR NC,COPY_SCREEN_CONVERT_1     ; 6CE1 30 06
+               CP &02                          ; 6CE3 FE 02
+               JR NC,COPY_SCREEN_CONVERT_9     ; 6CE5 30 71
+               JR COPY_SCREEN_CONVERT_3        ; 6CE7 18 05
 
-; ---- PAGE_PAIR_INTO_ALTERNATES_1 ---- from &6CE1 when A >= &02
-PAGE_PAIR_INTO_ALTERNATES_1:
+; ---- COPY_SCREEN_CONVERT_1 ---- from &6CE1 when A >= &02
+COPY_SCREEN_CONVERT_1:
                CP &02                          ; 6CE9 FE 02
 
-; ---- PAGE_PAIR_INTO_ALTERNATES_2 ---- from &6CD2 when A = H
-PAGE_PAIR_INTO_ALTERNATES_2:
-               JP NC,PAGE_PAIR_INTO_ALTERNATES_14 ; 6CEB D2 AD 6D
+; ---- COPY_SCREEN_CONVERT_2 ---- from &6CD2 when A = H
+COPY_SCREEN_CONVERT_2:
+               JP NC,COPY_SCREEN_CONVERT_14    ; 6CEB D2 AD 6D
 
-; ---- PAGE_PAIR_INTO_ALTERNATES_3 ---- from &6CE7
-PAGE_PAIR_INTO_ALTERNATES_3:
+; ---- COPY_SCREEN_CONVERT_3 ---- from &6CE7
+COPY_SCREEN_CONVERT_3:
                LD BC,&0000                     ; 6CEE 01 00 00
 
-; ---- PAGE_PAIR_INTO_ALTERNATES_LOOP ---- from &6D4D when A < &C0, &6D55
-PAGE_PAIR_INTO_ALTERNATES_LOOP:
+; ---- COPY_SCREEN_CONVERT_LOOP ---- from &6D4D when A < &C0, &6D55
+COPY_SCREEN_CONVERT_LOOP:
                PUSH BC                         ; 6CF1 C5
                EXX                             ; 6CF2 D9
                OUT (C),H                       ; 6CF3 ED 61
@@ -15361,116 +15443,116 @@ PAGE_PAIR_INTO_ALTERNATES_LOOP:
                CALL SCREEN_PIXEL_COLOUR        ; 6CF6 CD 13 6A
                LD E,A                          ; 6CF9 5F
                EX AF,AF'                       ; 6CFA 08
-               JR PAGE_PAIR_INTO_ALTERNATES_4  ; 6CFB 18 10
+               JR COPY_SCREEN_CONVERT_4        ; 6CFB 18 10
 
-; ---- PAGE_PAIR_INTO_ALTERNATES_LOOP2 ---- from &6D1E when a bit of &07 is set, &6D45 when A = 0
-PAGE_PAIR_INTO_ALTERNATES_LOOP2:
-               PUSH BC                          ; 6CFD C5
-               EXX                              ; 6CFE D9
-               OUT (C),H                        ; 6CFF ED 61
-               EXX                              ; 6D01 D9
-               CALL SCREEN_PIXEL_COLOUR         ; 6D02 CD 13 6A
-               CP E                             ; 6D05 BB
-               JR Z,PAGE_PAIR_INTO_ALTERNATES_4 ; 6D06 28 05
-               EX AF,AF'                        ; 6D08 08
-               LD D,&FF                         ; 6D09 16 FF
-               JR PAGE_PAIR_INTO_ALTERNATES_5   ; 6D0B 18 02
+; ---- COPY_SCREEN_CONVERT_LOOP2 ---- from &6D1E when a bit of &07 is set, &6D45 when A = 0
+COPY_SCREEN_CONVERT_LOOP2:
+               PUSH BC                         ; 6CFD C5
+               EXX                             ; 6CFE D9
+               OUT (C),H                       ; 6CFF ED 61
+               EXX                             ; 6D01 D9
+               CALL SCREEN_PIXEL_COLOUR        ; 6D02 CD 13 6A
+               CP E                            ; 6D05 BB
+               JR Z,COPY_SCREEN_CONVERT_4      ; 6D06 28 05
+               EX AF,AF'                       ; 6D08 08
+               LD D,&FF                        ; 6D09 16 FF
+               JR COPY_SCREEN_CONVERT_5        ; 6D0B 18 02
 
-; ---- PAGE_PAIR_INTO_ALTERNATES_4 ---- from &6CFB, &6D06 when A = E
-PAGE_PAIR_INTO_ALTERNATES_4:
+; ---- COPY_SCREEN_CONVERT_4 ---- from &6CFB, &6D06 when A = E
+COPY_SCREEN_CONVERT_4:
                LD D,&00                        ; 6D0D 16 00
 
-; ---- PAGE_PAIR_INTO_ALTERNATES_5 ---- from &6D0B
-PAGE_PAIR_INTO_ALTERNATES_5:
-               EXX                                   ; 6D0F D9
-               OUT (C),L                             ; 6D10 ED 69
-               LD A,E                                ; 6D12 7B
-               EXX                                   ; 6D13 D9
-               POP BC                                ; 6D14 C1
-               PUSH BC                               ; 6D15 C5
-               CALL PLOT_PIXEL_IN_MODE               ; 6D16 CD 7B 6C
-               POP BC                                ; 6D19 C1
-               INC C                                 ; 6D1A 0C
-               LD A,C                                ; 6D1B 79
-               AND &07                               ; 6D1C E6 07
-               JR NZ,PAGE_PAIR_INTO_ALTERNATES_LOOP2 ; 6D1E 20 DD
-               PUSH BC                               ; 6D20 C5
-               EX AF,AF'                             ; 6D21 08
-               LD B,A                                ; 6D22 47
-               EX AF,AF'                             ; 6D23 08
-               LD A,E                                ; 6D24 7B
-               RLCA                                  ; 6D25 07
-               RLCA                                  ; 6D26 07
-               RLCA                                  ; 6D27 07
-               XOR B                                 ; 6D28 A8
-               AND &78                               ; 6D29 E6 78
-               XOR B                                 ; 6D2B A8
-               LD D,A                                ; 6D2C 57
-               POP BC                                ; 6D2D C1
-               LD A,C                                ; 6D2E 79
-               SUB &08                               ; 6D2F D6 08
-               LD C,A                                ; 6D31 4F
-               INC B                                 ; 6D32 04
-               LD A,B                                ; 6D33 78
-               AND &07                               ; 6D34 E6 07
-               EXX                                   ; 6D36 D9
-               LD A,E                                ; 6D37 7B
-               EXX                                   ; 6D38 D9
-               JR NZ,PAGE_PAIR_INTO_ALTERNATES_6     ; 6D39 20 09
-               AND A                                 ; 6D3B A7
-               JR NZ,PAGE_PAIR_INTO_ALTERNATES_7     ; 6D3C 20 09
-               CALL MODE1_ATTR_ADDRESS               ; 6D3E CD 53 6C
-               LD (HL),D                             ; 6D41 72
-               JR PAGE_PAIR_INTO_ALTERNATES_8        ; 6D42 18 06
+; ---- COPY_SCREEN_CONVERT_5 ---- from &6D0B
+COPY_SCREEN_CONVERT_5:
+               EXX                             ; 6D0F D9
+               OUT (C),L                       ; 6D10 ED 69
+               LD A,E                          ; 6D12 7B
+               EXX                             ; 6D13 D9
+               POP BC                          ; 6D14 C1
+               PUSH BC                         ; 6D15 C5
+               CALL PLOT_PIXEL_IN_MODE         ; 6D16 CD 7B 6C
+               POP BC                          ; 6D19 C1
+               INC C                           ; 6D1A 0C
+               LD A,C                          ; 6D1B 79
+               AND &07                         ; 6D1C E6 07
+               JR NZ,COPY_SCREEN_CONVERT_LOOP2 ; 6D1E 20 DD
+               PUSH BC                         ; 6D20 C5
+               EX AF,AF'                       ; 6D21 08
+               LD B,A                          ; 6D22 47
+               EX AF,AF'                       ; 6D23 08
+               LD A,E                          ; 6D24 7B
+               RLCA                            ; 6D25 07
+               RLCA                            ; 6D26 07
+               RLCA                            ; 6D27 07
+               XOR B                           ; 6D28 A8
+               AND &78                         ; 6D29 E6 78
+               XOR B                           ; 6D2B A8
+               LD D,A                          ; 6D2C 57
+               POP BC                          ; 6D2D C1
+               LD A,C                          ; 6D2E 79
+               SUB &08                         ; 6D2F D6 08
+               LD C,A                          ; 6D31 4F
+               INC B                           ; 6D32 04
+               LD A,B                          ; 6D33 78
+               AND &07                         ; 6D34 E6 07
+               EXX                             ; 6D36 D9
+               LD A,E                          ; 6D37 7B
+               EXX                             ; 6D38 D9
+               JR NZ,COPY_SCREEN_CONVERT_6     ; 6D39 20 09
+               AND A                           ; 6D3B A7
+               JR NZ,COPY_SCREEN_CONVERT_7     ; 6D3C 20 09
+               CALL MODE1_ATTR_ADDRESS         ; 6D3E CD 53 6C
+               LD (HL),D                       ; 6D41 72
+               JR COPY_SCREEN_CONVERT_8        ; 6D42 18 06
 
-; ---- PAGE_PAIR_INTO_ALTERNATES_6 ---- from &6D39 when a bit of &07 is set
-PAGE_PAIR_INTO_ALTERNATES_6:
-               AND A                                ; 6D44 A7
-               JR Z,PAGE_PAIR_INTO_ALTERNATES_LOOP2 ; 6D45 28 B6
+; ---- COPY_SCREEN_CONVERT_6 ---- from &6D39 when a bit of &07 is set
+COPY_SCREEN_CONVERT_6:
+               AND A                           ; 6D44 A7
+               JR Z,COPY_SCREEN_CONVERT_LOOP2  ; 6D45 28 B6
 
-; ---- PAGE_PAIR_INTO_ALTERNATES_7 ---- from &6D3C when A <> 0
-PAGE_PAIR_INTO_ALTERNATES_7:
+; ---- COPY_SCREEN_CONVERT_7 ---- from &6D3C when A <> 0
+COPY_SCREEN_CONVERT_7:
                SET 5,H                         ; 6D47 CB EC
                LD (HL),D                       ; 6D49 72
 
-; ---- PAGE_PAIR_INTO_ALTERNATES_8 ---- from &6D42
-PAGE_PAIR_INTO_ALTERNATES_8:
-               LD A,B                               ; 6D4A 78
-               CP &C0                               ; 6D4B FE C0
-               JR C,PAGE_PAIR_INTO_ALTERNATES_LOOP  ; 6D4D 38 A2
-               LD B,&00                             ; 6D4F 06 00
-               LD A,C                               ; 6D51 79
-               ADD A,&08                            ; 6D52 C6 08
-               LD C,A                               ; 6D54 4F
-               JR NZ,PAGE_PAIR_INTO_ALTERNATES_LOOP ; 6D55 20 9A
-               RET                                  ; 6D57 C9
+; ---- COPY_SCREEN_CONVERT_8 ---- from &6D42
+COPY_SCREEN_CONVERT_8:
+               LD A,B                          ; 6D4A 78
+               CP &C0                          ; 6D4B FE C0
+               JR C,COPY_SCREEN_CONVERT_LOOP   ; 6D4D 38 A2
+               LD B,&00                        ; 6D4F 06 00
+               LD A,C                          ; 6D51 79
+               ADD A,&08                       ; 6D52 C6 08
+               LD C,A                          ; 6D54 4F
+               JR NZ,COPY_SCREEN_CONVERT_LOOP  ; 6D55 20 9A
+               RET                             ; 6D57 C9
 
-; ---- PAGE_PAIR_INTO_ALTERNATES_9 ---- from &6CE5 when A >= &02
-PAGE_PAIR_INTO_ALTERNATES_9:
+; ---- COPY_SCREEN_CONVERT_9 ---- from &6CE5 when A >= &02
+COPY_SCREEN_CONVERT_9:
                LD BC,&0000                     ; 6D58 01 00 00
 
-; ---- PAGE_PAIR_INTO_ALTERNATES_LOOP3 ---- from &6DAA when A < &C0
-PAGE_PAIR_INTO_ALTERNATES_LOOP3:
+; ---- COPY_SCREEN_CONVERT_LOOP3 ---- from &6DAA when A < &C0
+COPY_SCREEN_CONVERT_LOOP3:
                PUSH BC                         ; 6D5B C5
 
-; ---- PAGE_PAIR_INTO_ALTERNATES_LOOP4 ---- from &6DA3 when A <> 0
-PAGE_PAIR_INTO_ALTERNATES_LOOP4:
-               PUSH BC                           ; 6D5C C5
-               EXX                               ; 6D5D D9
-               OUT (C),H                         ; 6D5E ED 61
-               INC B                             ; 6D60 04
-               DEC B                             ; 6D61 05
-               EXX                               ; 6D62 D9
-               JR Z,PAGE_PAIR_INTO_ALTERNATES_10 ; 6D63 28 05
-               CALL MODE2_PIXEL_AND_ATTR         ; 6D65 CD 5D 6C
-               JR PAGE_PAIR_INTO_ALTERNATES_11   ; 6D68 18 03
+; ---- COPY_SCREEN_CONVERT_LOOP4 ---- from &6DA3 when A <> 0
+COPY_SCREEN_CONVERT_LOOP4:
+               PUSH BC                         ; 6D5C C5
+               EXX                             ; 6D5D D9
+               OUT (C),H                       ; 6D5E ED 61
+               INC B                           ; 6D60 04
+               DEC B                           ; 6D61 05
+               EXX                             ; 6D62 D9
+               JR Z,COPY_SCREEN_CONVERT_10     ; 6D63 28 05
+               CALL MODE2_PIXEL_AND_ATTR       ; 6D65 CD 5D 6C
+               JR COPY_SCREEN_CONVERT_11       ; 6D68 18 03
 
-; ---- PAGE_PAIR_INTO_ALTERNATES_10 ---- from &6D63 when B reaches 0
-PAGE_PAIR_INTO_ALTERNATES_10:
+; ---- COPY_SCREEN_CONVERT_10 ---- from &6D63 when B reaches 0
+COPY_SCREEN_CONVERT_10:
                CALL MODE1_PIXEL_AND_ATTR       ; 6D6A CD 2F 6C
 
-; ---- PAGE_PAIR_INTO_ALTERNATES_11 ---- from &6D68
-PAGE_PAIR_INTO_ALTERNATES_11:
+; ---- COPY_SCREEN_CONVERT_11 ---- from &6D68
+COPY_SCREEN_CONVERT_11:
                LD A,L                          ; 6D6D 7D
                RRCA                            ; 6D6E 0F
                RRCA                            ; 6D6F 0F
@@ -15492,62 +15574,64 @@ PAGE_PAIR_INTO_ALTERNATES_11:
                RR L                            ; 6D84 CB 1D
                LD D,&04                        ; 6D86 16 04
 
-; ---- PAGE_PAIR_INTO_ALTERNATES_LOOP5 ---- from &6D9C when D is not 0 yet
-PAGE_PAIR_INTO_ALTERNATES_LOOP5:
-               RL B                              ; 6D88 CB 10
-               LD A,E                            ; 6D8A 7B
-               JR C,PAGE_PAIR_INTO_ALTERNATES_12 ; 6D8B 38 01
-               LD A,C                            ; 6D8D 79
+; ---- COPY_SCREEN_CONVERT_LOOP5 ---- from &6D9C when D is not 0 yet
+COPY_SCREEN_CONVERT_LOOP5:
+               RL B                            ; 6D88 CB 10
+               LD A,E                          ; 6D8A 7B
+               JR C,COPY_SCREEN_CONVERT_12     ; 6D8B 38 01
+               LD A,C                          ; 6D8D 79
 
-; ---- PAGE_PAIR_INTO_ALTERNATES_12 ---- from &6D8B when bit 7 of B was set
-PAGE_PAIR_INTO_ALTERNATES_12:
-               ADD A,A                           ; 6D8E 87
-               ADD A,A                           ; 6D8F 87
-               ADD A,A                           ; 6D90 87
-               ADD A,A                           ; 6D91 87
-               RL B                              ; 6D92 CB 10
-               JR C,PAGE_PAIR_INTO_ALTERNATES_13 ; 6D94 38 02
-               OR C                              ; 6D96 B1
-               DEFB SKIP_1_VIA_CP                ; 6D97 ~  skipped: reads as CP &B3 from here, and as part of the
-                                                 ; instruction above it
+; ---- COPY_SCREEN_CONVERT_12 ---- from &6D8B when bit 7 of B was set
+COPY_SCREEN_CONVERT_12:
+               ADD A,A                         ; 6D8E 87
+               ADD A,A                         ; 6D8F 87
+               ADD A,A                         ; 6D90 87
+               ADD A,A                         ; 6D91 87
+               RL B                            ; 6D92 CB 10
+               JR C,COPY_SCREEN_CONVERT_13     ; 6D94 38 02
+               OR C                            ; 6D96 B1
+               DEFB SKIP_1_VIA_CP              ; 6D97 ~  skipped: reads as CP &B3 from here, and as part of the
+                                               ; instruction above it
 
-; ---- PAGE_PAIR_INTO_ALTERNATES_13 ---- from &6D94 when bit 7 of B was set
-PAGE_PAIR_INTO_ALTERNATES_13:
-               OR E                                  ; 6D98 B3
-               LD (HL),A                             ; 6D99 77
-               INC L                                 ; 6D9A 2C
-               DEC D                                 ; 6D9B 15
-               JR NZ,PAGE_PAIR_INTO_ALTERNATES_LOOP5 ; 6D9C 20 EA
-               ADD HL,HL                             ; 6D9E 29
-               LD B,H                                ; 6D9F 44
-               LD C,L                                ; 6DA0 4D
-               LD A,L                                ; 6DA1 7D
-               AND A                                 ; 6DA2 A7
-               JR NZ,PAGE_PAIR_INTO_ALTERNATES_LOOP4 ; 6DA3 20 B7
-               POP BC                                ; 6DA5 C1
-               INC B                                 ; 6DA6 04
-               LD A,B                                ; 6DA7 78
-               CP &C0                                ; 6DA8 FE C0
-               JR C,PAGE_PAIR_INTO_ALTERNATES_LOOP3  ; 6DAA 38 AF
-               RET                                   ; 6DAC C9
+; ---- COPY_SCREEN_CONVERT_13 ---- from &6D94 when bit 7 of B was set
+COPY_SCREEN_CONVERT_13:
+               OR E                            ; 6D98 B3
+               LD (HL),A                       ; 6D99 77
+               INC L                           ; 6D9A 2C
+               DEC D                           ; 6D9B 15
+               JR NZ,COPY_SCREEN_CONVERT_LOOP5 ; 6D9C 20 EA
+               ADD HL,HL                       ; 6D9E 29
+               LD B,H                          ; 6D9F 44
+               LD C,L                          ; 6DA0 4D
+               LD A,L                          ; 6DA1 7D
+               AND A                           ; 6DA2 A7
+               JR NZ,COPY_SCREEN_CONVERT_LOOP4 ; 6DA3 20 B7
+               POP BC                          ; 6DA5 C1
+               INC B                           ; 6DA6 04
+               LD A,B                          ; 6DA7 78
+               CP &C0                          ; 6DA8 FE C0
+               JR C,COPY_SCREEN_CONVERT_LOOP3  ; 6DAA 38 AF
+               RET                             ; 6DAC C9
 
-; ---- PAGE_PAIR_INTO_ALTERNATES_14 ---- from &6CEB when A >= &02
-PAGE_PAIR_INTO_ALTERNATES_14:
-               LD B,C                            ; 6DAD 41
-               PUSH BC                           ; 6DAE C5
-               LD BC,&1B00                       ; 6DAF 01 00 1B
-               AND A                             ; 6DB2 A7
-               JR Z,PAGE_PAIR_INTO_ALTERNATES_15 ; 6DB3 28 0B
-               LD B,&38                          ; 6DB5 06 38
-               SUB &20                           ; 6DB7 D6 20
-               JR Z,PAGE_PAIR_INTO_ALTERNATES_15 ; 6DB9 28 05
-               LD A,&01                          ; 6DBB 3E 01
-               LD BC,&2000                       ; 6DBD 01 00 20
+; ---- COPY_SCREEN_CONVERT_14 ---- from &6CEB when A >= &02
+COPY_SCREEN_CONVERT_14:
+               LD B,C                          ; 6DAD 41
+               PUSH BC                         ; 6DAE C5
+               LD BC,&1B00                     ; 6DAF 01 00 1B
+               AND A                           ; 6DB2 A7
+               JR Z,COPY_SCREEN_CONVERT_15     ; 6DB3 28 0B
+               LD B,&38                        ; 6DB5 06 38
+               SUB &20                         ; 6DB7 D6 20
+               JR Z,COPY_SCREEN_CONVERT_15     ; 6DB9 28 05
+               LD A,&01                        ; 6DBB 3E 01
+               LD BC,&2000                     ; 6DBD 01 00 20
 
-; ---- PAGE_PAIR_INTO_ALTERNATES_15 ---- from &6DB3 when A = 0, &6DB9 when A = &20
-PAGE_PAIR_INTO_ALTERNATES_15:
+; ---- COPY_SCREEN_CONVERT_15 ---- from &6DB3 when A = 0, &6DB9 when A = &20
+COPY_SCREEN_CONVERT_15:
                PUSH HL                         ; 6DC0 E5
-               LD HL,DOS_HEADER                ; 6DC1 21 00 80
+               LD HL,&8000                     ; 6DC1 21 00 80  the start of the screen in the window, and both offsets
+                                               ; FARLDIR is given -- LD D,H : LD E,L copies it to DE. Not HEADER seen
+                                               ; through the window, which is only the same number
                LD D,H                          ; 6DC4 54
                LD E,L                          ; 6DC5 5D
 

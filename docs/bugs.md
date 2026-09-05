@@ -5,7 +5,7 @@ as they were sold. The listings cannot be corrected: they assemble to the
 original image byte for byte, and that is the point of them. So a defect
 gets written down here and explained where it sits.
 
-Six are confirmed and one is suspected. The three sweeps this file used to
+Seven are confirmed and one is suspected. The three sweeps this file used to
 plan have now been run, and what they found is at the end.
 
 ---
@@ -392,6 +392,43 @@ legitimately, because it is their own tail.
 It wants an array of more than 256 strings and a `SORT INVERSE`. The dead three
 bytes decoding as exactly the instruction the exit should reach is what makes it
 worth writing down rather than a suspicion.
+
+---
+
+## 8. COPY SCREEN's MODE 2 fast path tests for a mode number it never gets
+
+**Where** `&6DB7` in `COPY_SCREEN_CONVERT`, on the fast path taken when the
+two screens have the same layout.
+
+**What** The fast copy picks how many bytes to move from the mode, and means
+to choose between three answers:
+
+```
+AND A     : JR Z   ->  BC = &1B00   MODE 1, 6144 pixels + 768 attributes
+LD B,&38
+SUB &20   : JR Z   ->  BC = &3800   MODE 2, pixels and attributes &2000 apart
+                   ->  A = 1, BC = &2000   MODE 3 or 4, one page + &2000
+```
+
+`SUB &20` tests for `&20`, which is the mode in bits 5 and 6 of a `VMPR`-style
+byte. But `A` here is the 0-to-3 mode that `SCREEN_NUMBER_ARGUMENT` builds at
+`&6DF0`–`&6DF3` with `RLCA` three times and `AND &03`, and every other test in
+the routine — `CP &02` at `&6CD4`, `&6CE3` and `&6CE9` — reads it that way. So
+`SUB &20` gives `&E1`, `&E2` or `&E3` and never zero.
+
+**What follows** The MODE 2 branch is unreachable, the `LD B,&38` two bytes
+above it is dead, and a MODE 2 to MODE 2 `COPY SCREEN` falls through to the
+MODE 3/4 case and moves 24576 bytes where 14336 would do.
+
+**Harmless, and worth writing down anyway.** The extra 10K is read from and
+written to the same offsets of the two screens' own page pairs, so the copy
+still lands correctly and nothing outside the screens is touched; the command
+is slower than it needs to be and that is all. It is here because the dead
+branch is evidence about the code rather than about the picture: someone
+changed the mode representation and left one test behind.
+
+**Not observed.** Read out of the instructions. `&20` is MODE 2 in `VMPR`
+terms, which is what makes the intent legible.
 
 ---
 

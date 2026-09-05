@@ -68,8 +68,8 @@ def notes_for(d, bodies):
             elif who in ('NRWR', 'NRWRD', 'NRWRHL'):
                 out[a] = 'write the ROM variable %s' % nm
             elif who == 'CMR':
-                out[a] = ('call the ROM at %s with ROM1 paged in, and page '
-                          'back on the way out' % nm)
+                out[a] = ('call the ROM at %s with the system page at '
+                          '&4000, and page back on the way out' % nm)
             elif who in ('CALLDOS', 'CALLMB'):
                 out[a] = ('call %s in the other page: LMPR is switched '
                           'first, so that address is how the other listing '

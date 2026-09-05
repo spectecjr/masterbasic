@@ -49,13 +49,22 @@ DOC PAGE_IN_ROM1
     "OR &40 -- BIT FOR ROM1=HI (ACTIVE)".
 
 DOC CALL_PRINT_A
-    Print the character in A, through the ROM, with ROM1 paged in.
+    Print the character in A, through the ROM, with the system page at
+    &4000.
 
     One of the CALL CMR / DEFW / RET wrappers.  &0010 carries no label in
     the ROM's map, which is why this was CALL_ROM_0010 for so long, but
     ref/samrom/main.asm heads the three bytes there ";RST 10H - PRINT A"
-    -- so it is the same entry as the RST, reached the long way round
-    because the RST cannot page ROM1 in on the way.
+    -- so it is the same entry as the RST.
+
+    THE LONG WAY ROUND IS ABOUT &4000, NOT ABOUT WHICH ROM.  &0010 is in
+    ROM 0, which is already there; what the ROM's print routine has not
+    got is its own variables, because MasterBASIC is sitting in the
+    &4000 section where the system page belongs.  CMR writes
+    SYSPAGE_IN_B to LMPR -- page 31 at &0000, so that page 0 wraps into
+    section B -- and leaves bit 6 alone, so ROM 1 is no more paged in
+    afterwards than it was before.  A plain RST &10 would reach the same
+    three bytes with the wrong page at &4000.
 
 DOC PRINT_COUNTED_STRING
     Print a string whose first byte is its length: LD B,(HL), then B

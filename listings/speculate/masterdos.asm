@@ -1148,7 +1148,8 @@ DWAI:
 
 ; ---- RDAT_1 ---- from &43D6 when bit 7 of H clear
 RDAT_1:
-                                               ; call the ROM at &0000 with ROM1 paged in, and page back on the way out
+                                               ; call the ROM at &0000 with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 423E CD B2 7B
 
 ; ---- ONERR ---- from &43CA
@@ -5924,7 +5925,8 @@ BEEP:
                PUSH IX                         ; 4DE4 DD E5
                LD HL,&036A                     ; 4DE6 21 6A 03
                LD DE,(BEEPT)                   ; 4DE9 ED 5B B7 42
-                                               ; call the ROM at BEEPR with ROM1 paged in, and page back on the way out
+                                               ; call the ROM at BEEPR with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 4DED CD B2 7B
                DEFW BEEPR                      ; 4DF0 6F 01
                POP IX                          ; 4DF2 DD E1
@@ -6909,8 +6911,8 @@ REP0HC:
 
 ; ---- GTNC ---- from &4394 when A = &3A, &5035, &5997, &59BB, &59CC, &5AFA, &5B13, &5B45 ...
 GTNC:
-                                               ; call the ROM at NEXTCHAR with ROM1 paged in, and page back on the way
-                                               ; out
+                                               ; call the ROM at NEXTCHAR with the system page at &4000, and page back
+                                               ; on the way out
                CALL CMR                        ; 503C CD B2 7B
                DEFW NEXTCHAR                   ; 503F 20 00
                RET                             ; 5041 C9
@@ -6926,8 +6928,8 @@ GTNC:
 
 ; ---- GCHR ---- from &438F, &4FF0, &598B, &5B3E, &60C1, &6178, &6B06, &7925
 GCHR:
-                                               ; call the ROM at GETCHAR with ROM1 paged in, and page back on the way
-                                               ; out
+                                               ; call the ROM at GETCHAR with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 5042 CD B2 7B
                DEFW GETCHAR                    ; 5045 18 00
                RET                             ; 5047 C9
@@ -9852,8 +9854,8 @@ SPC:
 ; ---- PRINT_A_KEEPING_IT ---- from &4B29, &4C0A, &54E3, &5676, &5695, &56AA, &56AF, &56B2 ...
 PRINT_A_KEEPING_IT:
                PUSH AF                         ; 5766 F5
-                                               ; call the ROM at PRINT_A with ROM1 paged in, and page back on the way
-                                               ; out
+                                               ; call the ROM at PRINT_A with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 5767 CD B2 7B
                DEFW PRINT_A                    ; 576A 10 00
                POP AF                          ; 576C F1
@@ -10623,7 +10625,8 @@ TSPC2:
 ; ---- RDKY ---- from &5920, &592A, &5944, &5949
 RDKY:
                PUSH IX                         ; 5951 DD E5
-                                               ; call the ROM at RDKEY with ROM1 paged in, and page back on the way out
+                                               ; call the ROM at RDKEY with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 5953 CD B2 7B
                DEFW RDKEY                      ; 5956 69 01
                POP IX                          ; 5958 DD E1
@@ -11139,7 +11142,8 @@ BUDT:
 ; ---- CLSL ---- from &55A0, &5789, &58D1, &592F, &594E
 CLSL:
                PUSH IX                         ; 5AE4 DD E5  USED BY MODE 1/2 CLS
-                                               ; call the ROM at CLSLOW with ROM1 paged in, and page back on the way out
+                                               ; call the ROM at CLSLOW with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 5AE6 CD B2 7B
                DEFW CLSLOW                     ; 5AE9 51 01
                POP IX                          ; 5AEB DD E1
@@ -11291,7 +11295,8 @@ CAT2:
                CALL ALLSR                      ; 5B52 CD C6 5C
                CALL CEOS                       ; 5B55 CD 07 50
                LD A,&01                        ; 5B58 3E 01  WINDOW
-                                               ; call the ROM at JCLSBL with ROM1 paged in, and page back on the way out
+                                               ; call the ROM at JCLSBL with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 5B5A CD B2 7B
                DEFW JCLSBL                     ; 5B5D 4E 01
                LD A,&04                        ; 5B5F 3E 04  SINGLE COLUMN DETAILED DIR
@@ -11310,7 +11315,8 @@ HK_PCAT:
                PUSH AF                         ; 5B61 F5
                CALL CKDRV                      ; 5B62 CD 07 48
                LD A,(SSTR1)                    ; 5B65 3A 38 41
-                                               ; call the ROM at STREAM with ROM1 paged in, and page back on the way out
+                                               ; call the ROM at STREAM with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 5B68 CD B2 7B
                DEFW STREAM                     ; 5B6B 12 01
                CALL ZDVS                       ; 5B6D CD 23 5C  ZERO VARS
@@ -12923,8 +12929,8 @@ REMFP:
                CP &0E                          ; 5F56 FE 0E
                JR NZ,REMP1                     ; 5F58 20 08
                LD BC,&0006                     ; 5F5A 01 06 00
-                                               ; call the ROM at JRECLAIM with ROM1 paged in, and page back on the way
-                                               ; out
+                                               ; call the ROM at JRECLAIM with the system page at &4000, and page back
+                                               ; on the way out
                CALL CMR                        ; 5F5D CD B2 7B
                DEFW JRECLAIM                   ; 5F60 63 01
 
@@ -13594,7 +13600,8 @@ TIRD:
 EVEXP:
                CP &2A                          ; 6160 FE 2A
                JR Z,EVDN1                      ; 6162 28 1B
-                                               ; call the ROM at EXPEXP with ROM1 paged in, and page back on the way out
+                                               ; call the ROM at EXPEXP with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 6164 CD B2 7B
                DEFW EXPEXP                     ; 6167 1E 01
                JR Z,EVEXP2                     ; 6169 28 06  JR IF STRING
@@ -13897,7 +13904,8 @@ EVNM1:
                CALL NRWR                       ; 6209 CD 74 50
                DEFW &4F60                      ; 620C 60 4F  STORE REAL LEN
                LD DE,&4F10                     ; 620E 11 10 4F
-                                               ; call the ROM at &008F with ROM1 paged in, and page back on the way out
+                                               ; call the ROM at &008F with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 6211 CD B2 7B
                DEFW &008F                      ; 6214 8F 00  LDIR TO BUFFER IN SYS PAGE
                POP AF                          ; 6216 F1
@@ -14089,7 +14097,8 @@ EXDT1_DONE:
 
 ; ---- EVAL_STRING_IF_RUNNING ---- from &61CF
 EVAL_STRING_IF_RUNNING:
-                                               ; call the ROM at EXPSTR with ROM1 paged in, and page back on the way out
+                                               ; call the ROM at EXPSTR with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 6284 CD B2 7B
                DEFW EXPSTR                     ; 6287 1B 01
 
@@ -14107,7 +14116,8 @@ EVST2:
                CALL CFSO                       ; 6289 CD F9 4F
                RET Z                           ; 628C C8
                PUSH AF                         ; 628D F5
-                                               ; call the ROM at GETSTR with ROM1 paged in, and page back on the way out
+                                               ; call the ROM at GETSTR with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 628E CD B2 7B
                DEFW GETSTR                     ; 6291 24 01
                LD (SVC),A                      ; 6293 32 1E 41  the page the string lives in
@@ -14189,7 +14199,8 @@ EVNUMX:
 
 ; ---- EVNUM ---- from &5960, &5EFF, &5F06, &5F72, &6191, &629C, &7A96, &7A9F
 EVNUM:
-                                               ; call the ROM at EXPNUM with ROM1 paged in, and page back on the way out
+                                               ; call the ROM at EXPNUM with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 62B2 CD B2 7B
                DEFW EXPNUM                     ; 62B5 18 01
 
@@ -14219,7 +14230,8 @@ EVNU2:
 ; ---- CGTINT ---- from &6571
 CGTINT:
                PUSH AF                         ; 62BB F5
-                                               ; call the ROM at GETINT with ROM1 paged in, and page back on the way out
+                                               ; call the ROM at GETINT with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 62BC CD B2 7B
                DEFW GETINT                     ; 62BF 21 01
                POP AF                          ; 62C1 F1
@@ -14242,13 +14254,14 @@ CGTINT:
 
 ; ---- EVADDR ---- from &5F0F
 EVADDR:
-                                               ; call the ROM at EXPNUM with ROM1 paged in, and page back on the way out
+                                               ; call the ROM at EXPNUM with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 62C3 CD B2 7B
                DEFW EXPNUM                     ; 62C6 18 01
                CALL CFSO                       ; 62C8 CD F9 4F
                RET Z                           ; 62CB C8
-                                               ; call the ROM at UNSTLEN with ROM1 paged in, and page back on the way
-                                               ; out
+                                               ; call the ROM at UNSTLEN with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 62CC CD B2 7B
                DEFW UNSTLEN                    ; 62CF 8C 3F  AHL=PAGES/ ADDR MOD 16K
                SET 7,H                         ; 62D1 CB FC  HL=OFFSET
@@ -16251,8 +16264,8 @@ CHANNEL_LENGTH_AND_FLAGS:
 ; ---- CHANNEL_LENGTH_AND_FLAGS_1 ---- from &6808
 CHANNEL_LENGTH_AND_FLAGS_1:
                PUSH BC                         ; 6813 C5
-                                               ; call the ROM at JRECLAIM with ROM1 paged in, and page back on the way
-                                               ; out
+                                               ; call the ROM at JRECLAIM with the system page at &4000, and page back
+                                               ; on the way out
                CALL CMR                        ; 6814 CD B2 7B
                DEFW JRECLAIM                   ; 6817 63 01
                POP BC                          ; 6819 C1
@@ -16641,7 +16654,8 @@ MOVRC2:
                CP &4B                          ; 692B FE 4B
                JR Z,DOSIP                      ; 692D 28 0A  JR IF DOS
                LD (MTARG),HL                   ; 692F 22 35 69
-                                               ; call the ROM at &0000 with ROM1 paged in, and page back on the way out
+                                               ; call the ROM at &0000 with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 6932 CD B2 7B
 
 ; ---- MTARG ---- from &692F
@@ -16795,7 +16809,8 @@ OPMOV:
                SCF                             ; 6979 37
                RET Z                           ; 697A C8  RET IF STREAM NOT OPEN, WITH CY
                LD A,D                          ; 697B 7A
-                                               ; call the ROM at STREAM with ROM1 paged in, and page back on the way out
+                                               ; call the ROM at STREAM with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 697C CD B2 7B
                DEFW STREAM                     ; 697F 12 01  SET STREAM
                LD IX,(CURCHL+&4000)            ; 6981 DD 2A 51 9C
@@ -17193,8 +17208,8 @@ CMD_OPEN_LOOP:
                CALL CHANNEL_ENTRY_AT_ZERO_PAGE ; 6AC4 CD EA 6A
                XOR A                           ; 6AC7 AF
                PUSH HL                         ; 6AC8 E5
-                                               ; call the ROM at JMKRBIG with ROM1 paged in, and page back on the way
-                                               ; out
+                                               ; call the ROM at JMKRBIG with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 6AC9 CD B2 7B
                DEFW JMKRBIG                    ; 6ACC 0C 01
                POP IX                          ; 6ACE DD E1
@@ -17858,8 +17873,8 @@ OPND7:
                LD BC,&0313                     ; 6CFA 01 13 03
                PUSH IX                         ; 6CFD DD E5
                POP HL                          ; 6CFF E1
-                                               ; call the ROM at JRECLAIM with ROM1 paged in, and page back on the way
-                                               ; out
+                                               ; call the ROM at JRECLAIM with the system page at &4000, and page back
+                                               ; on the way out
                CALL CMR                        ; 6D00 CD B2 7B
                DEFW JRECLAIM                   ; 6D03 63 01
                SCF                             ; 6D05 37  "OPEND ABORTED"
@@ -17959,8 +17974,8 @@ CRMCH_1:
                PUSH HL                         ; 6D44 E5
                LD BC,&0313                     ; 6D45 01 13 03
                DEC HL                          ; 6D48 2B
-                                               ; call the ROM at JMKRBIG with ROM1 paged in, and page back on the way
-                                               ; out
+                                               ; call the ROM at JMKRBIG with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 6D49 CD B2 7B
                DEFW JMKRBIG                    ; 6D4C 0C 01
                POP DE                          ; 6D4E D1
@@ -18922,7 +18937,8 @@ BUMP_TRANSFER_COUNT:
 
 ; ---- GET_STREAM_NUMBER ---- from &65A6
 GET_STREAM_NUMBER:
-                                               ; call the ROM at GETINT with ROM1 paged in, and page back on the way out
+                                               ; call the ROM at GETINT with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 700B CD B2 7B
                DEFW GETINT                     ; 700E 21 01
                INC H                           ; 7010 24
@@ -20849,8 +20865,8 @@ SDTKS_2:
                CALL PLUR                           ; 74B0 CD 01 5C  "OPEN file"
                CALL BEEP                           ; 74B3 CD E1 4D
                LD A,(SSTR1)                        ; 74B6 3A 38 41
-                                                   ; call the ROM at STREAM with ROM1 paged in, and page back on the way
-                                                   ; out
+                                                   ; call the ROM at STREAM with the system page at &4000, and page back
+                                                   ; on the way out
                CALL CMR                            ; 74B9 CD B2 7B
                DEFW STREAM                         ; 74BC 12 01
 
@@ -23242,7 +23258,8 @@ INPST:
                PUSH AF                         ; 7A2C F5
                PUSH HL                         ; 7A2D E5
                LD A,E                          ; 7A2E 7B
-                                               ; call the ROM at STREAM with ROM1 paged in, and page back on the way out
+                                               ; call the ROM at STREAM with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 7A2F CD B2 7B
                DEFW STREAM                     ; 7A32 12 01
                POP BC                          ; 7A34 C1
@@ -23281,7 +23298,8 @@ INPST_1:
 ; ---- INPST_2 ---- from &7A41
 INPST_2:
                INC BC                          ; 7A46 03
-                                               ; call the ROM at WKROOM with ROM1 paged in, and page back on the way out
+                                               ; call the ROM at WKROOM with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 7A47 CD B2 7B
                DEFW WKROOM                     ; 7A4A 09 01
                POP BC                          ; 7A4C C1
@@ -23340,7 +23358,8 @@ INPSL:
 ; ---- INPSL_1 ---- from &7A6B when A <> &0D
 INPSL_1:
                LD C,&01                        ; 7A76 0E 01
-                                               ; call the ROM at WKROOM with ROM1 paged in, and page back on the way out
+                                               ; call the ROM at WKROOM with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 7A78 CD B2 7B
                DEFW WKROOM                     ; 7A7B 09 01
 
@@ -23891,7 +23910,8 @@ HPTH2:
 
 ; ---- STACK_FIVE_BYTE_NUMBER ---- from &6591, &7940, &7A8C
 STACK_FIVE_BYTE_NUMBER:
-                                               ; call the ROM at STKSTR with ROM1 paged in, and page back on the way out
+                                               ; call the ROM at STKSTR with the system page at &4000, and page back on
+                                               ; the way out
                CALL CMR                        ; 7BA6 CD B2 7B
                DEFW STKSTR                     ; 7BA9 27 01
                RET                             ; 7BAB C9

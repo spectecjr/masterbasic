@@ -159,11 +159,16 @@ bit 7 of its last character, in the order `HGTTK` numbers them.
 | 13 | `INP$` | `FF 32` | | 27 | `JOIN` | 252 |
 | 14 | `DIR$` | `FF 33` | | 28 | `EDIT` | 253 |
 
-Three of these are slots the SAM ROM reserved and never used, and MasterBASIC
-has filled them with the very names the ROM's own source pencils in against
-them — `text.asm` writes `DB "-"+&80 ; UNUSED INARRAY` at `&38`, and leaves
-`&68` and `&6A` blank in the floating-point list where `XVAR` and `NVAL` now
-sit. Seven more, `TIME$` through `FPAGES` at `&30`–`&36`, are MasterDOS's own,
+Two of these — `XVAR` and `NVAL` at `&68` and `&6A` — are unused slots in the
+ROM's floating-point function list, each a bare `DB "-"+&80` in `text.asm` with
+no name written against it. The other nineteen, `&26`–`&38`, are not reserved
+slots at all: the ROM's function numbering starts at `PI` = `&3B`
+(`IMFNTL: DM "P" ;&3B`), so that whole run sits below anything the ROM's tables
+reach.
+
+The ROM does pencil a name into one unused slot — `DB "-"+&80 ; UNUSED INARRAY`
+— but that slot is `&49`, anchored by the `INSTR` entry marked `;&4A` directly
+after it, and MasterBASIC does not use it: its own `INARRAY` is `FF 38`. Seven more, `TIME$` through `FPAGES` at `&30`–`&36`, are MasterDOS's own,
 kept at the values MasterDOS gave them so that a program written for the DOS
 alone still tokenises the same way. `SCRAD` at `&37` is a name MasterDOS's
 source has commented out; MasterBASIC has finished it.

@@ -123,7 +123,8 @@ gets exchanged back on the way out, leaving the return address stepped past the
 parameter. **`EX (SP),HL` as the first instruction of a routine always means
 "what follows my caller's `CALL` is data, not code."**
 
-The same convention carries `CMR` (call the ROM with ROM 1 paged in), `CALLDOS`
+The same convention carries `CMR` (call the ROM with the system page in
+section B), `CALLDOS`
 (call the other half), and the six-byte signature searches below.
 
 ## 4. `RST &08` plus a byte — the hook interface

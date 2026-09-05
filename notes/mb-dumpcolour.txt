@@ -61,11 +61,20 @@ DOC TRANSFORM_DUMP_COORDS
         1   mirror the row, &BF minus B                sideways
         2   neither                                    sideways, mirrored
         3   exchange B and C                           upright
-        4   exchange them and then mirror              upright, mirrored
+        4   exchange them and then mirror              upside down and
+                                                       mirrored
 
     Four cases and not three: the DEC A chain runs off its end for 4,
     and the exchange at &6A0A is done before the JR Z that would have
     left, so 4 gets both.
+
+    THE MIRROR ALWAYS ACTS ON B, AND THE EXCHANGE DECIDES WHAT B IS.
+    READ_PIXEL_NIBBLE forms the address as B*128 + C/2, so B is the
+    screen row throughout.  Before the exchange B is the printer's
+    across-the-paper axis and reversing it turns 2 into 1; after the
+    exchange B holds what was the down-the-paper axis, and reversing
+    that stands the picture on its head.  Which is why 4 is the
+    manual's "upside down, mirror image" and not an upright dump.
 
     THE EXCHANGE IS WHAT MAKES A DUMP UPRIGHT, which reads backwards
     until you notice which axis is which.  Leaving B and C alone puts
@@ -86,7 +95,9 @@ DOC SCREEN_PIXEL_COLOUR
 
     MODE 4 is READ_PIXEL_NIBBLE by itself: the answer is a whole nibble
     and is already the colour.  MODE 3 reads the nibble the same way and
-    then takes half of it, choosing which half by bit 0 of the row, and
+    then takes half of it, choosing which half by bit 0 of the column
+    -- LD H,C at &6A1C saves C before SRL C halves it, so the BIT 0,H at
+    &6A27 is testing the odd/even of the original column -- and
     exchanges 1 and 2 on the way out -- the two bits come out of the
     byte in the opposite order from the palette index, and 0 and 3 are
     the same either way round, which is why only the middle two move.
@@ -146,9 +157,9 @@ DOC ASSIGN_GREY_LEVEL
 
 DOC FIND_FREE_GREY_LEVEL
     Look for an unclaimed level, trying the wanted one first and then
-    up to three either side.
+    one and two either side.
 
     GREY_LEVEL_ABOVE and GREY_LEVEL_BELOW are the two probes; each
     returns carry set with the level in A if it was free.  If nothing
-    within three is free the wanted level is claimed anyway, which can
+    within two is free the wanted level is claimed anyway, which can
     give two colours the same grey.

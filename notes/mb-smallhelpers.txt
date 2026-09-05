@@ -484,10 +484,23 @@ MB &6CC2 SCREEN_PAGE_OR_BUFFER
     page is stepped on and H becomes &BF, which is the top of the window
     rather than the display.
 
-MB &6CD1 PAGE_PAIR_INTO_ALTERNATES
-    Move a page number and an address into the alternate registers with C
-    set to HMPR, so the copying loop after it can page between two places
-    without reloading anything.
+MB &6CD1 COPY_SCREEN_CONVERT
+    COPY SCREEN's whole engine: the two conversion loops and, when no
+    conversion is needed, the fast copy.  &6CF1 to &6D57 writes a MODE 1
+    or MODE 2 destination a pixel at a time; &6D58 to &6DAC writes a
+    MODE 3 or MODE 4 one; &6DAD falls into SET_UP_FAR_LDIR for the
+    same-layout case.  Nothing runs after it -- the loops are inside.
+
+    FOUR NUMBERS GO INTO THE ALTERNATES, NOT A PAGE AND AN ADDRESS.
+    H' is the source page and L' the destination page; B' is the source
+    mode and E' the destination mode; C' holds &FB, the HMPR port, so
+    the loops can page between the two screens with OUT (C),H and
+    OUT (C),L and never reload anything.  E' is what &6D12 and &6D37
+    read to pick the destination's layout, B' what &6D60 tests to pick
+    the source's reader.
+
+    The equal-modes test comes first, at &6CD1, so the fast path leaves
+    before any of that is loaded.
 
 MB &6FB3 ENTRY_TO_LONG_ADDRESS
     Read a page byte and an address from the three bytes at HL, turn them

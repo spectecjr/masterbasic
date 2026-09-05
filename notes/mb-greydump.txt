@@ -46,18 +46,18 @@ DOC ASSIGN_GREY_LEVEL
 
     PALETTE_INTENSITY gives 0 to 49 and SRL A gives 0 to 24 -- twenty-five
     levels, which is what the flag table above is sized for.  Halving
-    rather than scaling is what makes the two numbers come out that way:
-    49 is odd, so level 24 is reached only by intensity 48 or 49 and the
-    top of the range is one value narrower than the rest.  Nothing
-    depends on that.
+    rather than scaling is what makes the two numbers come out that way,
+    and it divides exactly: fifty intensities, two to a level, with 48
+    and 49 landing on level 24 just as 0 and 1 land on level 0.  No
+    level is wider or narrower than its neighbours.
 
 MB &6A92 : BC is the index into the flag table, so B has to be cleared once and stays cleared
 
 MB &6A94 : D counts how far from the wanted level the search has got, and starts at none
 
 DOC FIND_FREE_GREY_LEVEL
-    Look for an unclaimed level, trying the wanted one first and then up
-    to three either side.
+    Look for an unclaimed level, trying the wanted one first and then
+    one and two either side.
 
     GREY_LEVEL_ABOVE and GREY_LEVEL_BELOW are the two probes, and they
     are one fall-through rather than two calls: above tries C+D, and if
@@ -70,13 +70,15 @@ DOC FIND_FREE_GREY_LEVEL
     address out a second time.  BC is pushed round the call because the
     probes write the candidate into C.
 
-    If nothing within three is free the wanted level is claimed anyway,
-    and two colours then print as the same grey.  With sixteen colours
-    and twenty-five levels that needs seven of the sixteen to have
-    landed within three of each other, which a photograph would manage
-    and a screen of solid colours would not.
+    If nothing within two is free the wanted level is claimed anyway,
+    and two colours then print as the same grey.  That needs the five
+    levels from C-2 to C+2 all to be spoken for, so six of the sixteen
+    colours have to have landed inside a five-level window -- or four of
+    them at either end of the range, where half the probes fall outside
+    it and there are only three levels to fill.  A photograph would
+    manage it and a screen of solid colours would not.
 
-MB &6A99 : three either side and then give up; D is the distance, not a count of tries
+MB &6A99 : D has already been stepped past the distance just tried, so the probes run at 0, 1 and 2 and &03 is where the search gives up -- two either side, not three
 
 MB &6A9B : the wanted level, loaded before the RET so that giving up still returns something usable
 
@@ -130,8 +132,9 @@ DOC PALETTE_INTENSITY
     4:2:1 without a single multiply -- and 4:2:1 is a fair approximation
     to what the eye does, the usual luminance weights being about 0.59,
     0.30 and 0.11, or near enough 5.4:2.7:1.  Getting those exactly right
-    would have cost three multiplies.  This costs eight instructions and
-    is out by about a tenth in the blues.
+    would have cost three multiplies.  This costs eight instructions, and
+    blue is the channel it treats worst: a seventh of the total here
+    against about a ninth from the eye's weights.
 
     Run the ROM's own starting palette through it:
 

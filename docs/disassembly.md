@@ -423,7 +423,7 @@ now produced the same error in four separate parts of the listing.
 
 `&4000`–`&7FBF` is the DOS's own page. It is *also* where the ROM's system page
 appears whenever `LMPR` puts it in section B, which is what `SYSPAGE_IN_B`
-(`&1F`) does and what `CMR` does on the way to ROM 1. So an operand anywhere in
+(`&1F`) does and what `CMR` does on the way into the ROM. So an operand anywhere in
 that range is genuinely ambiguous, and the namer always resolves it one way.
 
 Three kinds of number get caught:

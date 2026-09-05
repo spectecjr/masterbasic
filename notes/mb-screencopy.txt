@@ -13,14 +13,25 @@ MB &6BFB : B rows skipped, which is how the dump gets from one bit-image line to
 
 MB &6BFE : &4F62 is &62 bytes in, or &6B5B here: back for the next line
 
-MB &6C01 GCM3_TO_PRINTER
-    Send the counted string at GCM3, once, after the last line.
+MB &6C01 SEND_GCM3
+    Three bytes that load GCM3 and fall into the sender below.  Nothing
+    calls &6C01: it is where &6BFE drops out of the line loop, so GCM3
+    goes to the printer once, after the last line.
 
     The manual's XVAR 52: "Applies to DUMP 4 only.  Copied to the ROM's
     system variables at BOOT time.  Normally 4,13,10,27,64,0" -- CR, LF,
-    ESC "@" to reset the printer, one spare.  The first byte is the
-    count, which is why B is loaded from (DE) before the loop rather
-    than being a constant.
+    ESC "@" to reset the printer, one spare.
+
+MB &6C04 SEND_COUNTED_STRING
+    Send DE's counted string to the printer: B characters, the count
+    taken from (DE) first, which is why B is loaded rather than being a
+    constant.
+
+    THIS IS THE &500B THAT DUMP_UNSHADED CALLS TWICE.  Once the block is
+    moved it lies at &500B, and &6B4A and &6B5F call it there for GCM1
+    and GCM2.  So all three of the ROM's dump control strings go out
+    through this loop, and the POP BC : RET at &6C0C is the return for
+    those two calls as well as for the GCM3 fall-through above.
 
 MB &6C0E STEP_TO_NEXT_PIXEL_ROW
     HL to the same column one pixel row down, in whichever mode.
@@ -72,7 +83,7 @@ DOC MODE1_SCREEN_ADDRESS
     place: five rotates in total move the column's top five bits down to
     the bottom and the row's three character-row bits up to the top.
 
-MB &6C3A : OR A rather than AND A -- either would do, and both are here only to clear the carry the three RRAs would otherwise rotate in
+MB &6C3A : OR A clears the carry the three RRAs would rotate in, though it need not: after three rotates that bit is bit 5, and the AND &1F below removes it anyway.  MODE1_ATTR_ADDRESS relies on that and does not bother
 
 MB &6C3E : the character row, 0 to 23
 
@@ -107,9 +118,12 @@ DOC MODE2_SCREEN_ADDRESS
     (row*256 + column)/8, and putting the row in H and the column in L
     makes row*256 + column free.  Three shifts of HL do the divide.
 
-    THE LAST SHIFT ALSO PAGES IT.  SCF before the third RR H puts a one
-    into bit 15, so the &2000 the divide would have produced becomes
-    &A000 -- the display seen at &8000 -- without a separate OR.
+    THE LAST SHIFT ALSO PAGES IT.  HL is at most &BFFF, so the divide
+    gives 0 to &17FF; SCF before the third RR H puts a one into bit 15,
+    and the address comes out at &8000 to &97FF -- the display seen in
+    the window -- without a separate OR.  The attributes at +&2000 are
+    a caller's business: SET 5,H at &6C61 and &6D47 is what reaches
+    them.
 
     A holds the column throughout, which is what the two AND A
     instructions between the shifts are really for: each clears the
@@ -124,13 +138,17 @@ MB &6C72 : the pixel's bit within the byte, 0 to 7
 
 MB &6C75 : SCF makes the third shift set bit 15 as it divides, so the address comes out at &8000 and not &0000
 
+MB &6DC1 expr &8000
+MB &6DC1 : the start of the screen in the window, and both offsets FARLDIR is given -- LD D,H : LD E,L copies it to DE.  Not HEADER seen through the window, which is only the same number
+
 MB &6C7B PLOT_PIXEL_IN_MODE
     Set one pixel of a MODE 1 or MODE 2 screen from the corresponding
-    bit of D.  Called by ALTER DISPLAY at &6D16.
+    bit of D.  Called from &6D16, inside COPY SCREEN's conversion
+    loop, and from nowhere else.
 
     THE NAME IT USED TO HAVE, SCREEN_ADDRESS_FOR_MODE, described the
-    first four instructions and not the routine: they pick the address,
-    and everything after &6C85 writes the pixel.
+    first five instructions and not the routine: they pick the address,
+    and everything from &6C85 on writes the pixel.
 
     A conditional call stands in for a branch and a join.  A non-zero
     mode byte takes MODE2_SCREEN_ADDRESS and then sets carry so the
@@ -160,21 +178,31 @@ MB &6C96 CMD_COPY_SCREEN
     second screen".
 
     Both numbers go through SCREEN_NUMBER_ARGUMENT, which gives the
-    screen's page in C and its mode in A and B.  The destination's mode
-    is put in DUMP_MODE, which the pixel readers consult; the two are
-    then compared at the head of the conversion code, and the manual
-    says what equality buys: "The screen is copied very quickly in the
-    example above, because both source and destination screens are in
-    MODE 4, and no conversion work needs to be done."
+    screen's page in C and its mode in A and B.
 
-    THE PALETTE IS COPIED FIRST, before any pixel.  Forty bytes, from
-    wherever the source's palette lives to wherever the destination's
-    does, which is what the two SCREEN_PAGE_OR_BUFFER calls and the
-    stack juggling between them work out.
+    THE SECOND CALL FETCHES THE FIRST NUMBER.  Both expressions have
+    already been evaluated -- SKIP_THEN_NUMBER took n and
+    CHAR_THEN_NUMBER_THEN_END took m -- and BYTE_ARGUMENT reaches the
+    ROM's GETINT, which pops the calculator stack.  So the first
+    SCREEN_NUMBER_ARGUMENT pops m, the destination, and the second pops
+    n, the source.  The mode written to DUMP_MODE is therefore the
+    source's, which is what SCREEN_PIXEL_COLOUR wants: DUMP_MODE tells
+    it how to decode the screen it is reading.
+
+    The two modes are then compared at the head of the conversion code,
+    and the manual says what equality buys: "The screen is copied very
+    quickly in the example above, because both source and destination
+    screens are in MODE 4, and no conversion work needs to be done."
+
+    THE PALETTE IS COPIED LAST.  The CALL at &6CAB is not a set-up step
+    -- it is the whole pixel copy, and it has moved every pixel by the
+    time &6CAE runs.  Only then do the two SCREEN_PAGE_OR_BUFFER calls
+    and the stack juggling between them work out where the two palettes
+    live, for the forty-byte move that ends the command.
 
 MB &6C99 : the TO token, which CHAR_THEN_NUMBER_THEN_END demands between the two numbers
 
-MB &6CA5 : the destination's mode, kept where the pixel readers look for it
+MB &6CA5 : the source's mode -- the second pop is the first number written -- kept where SCREEN_PIXEL_COLOUR looks for it
 
 MB &6CBC : forty bytes -- PALBUF is &FFD8 to &FFFF, which is the palette and nothing else
 
