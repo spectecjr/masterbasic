@@ -229,7 +229,7 @@ class Page(Disassembler):
             return a - PEER + BASE
         return None
 
-    def peer_name(self, a, frm=None):
+    def peer_name(self, a, frm=None, site=None):
         p = self.peer_addr(a, frm)
         if p is None or self.peer is None:
             return None
@@ -238,8 +238,13 @@ class Page(Disassembler):
             return None
         full = self.peer.tag + '_' + name
         self.used_peer[full] = a
-        if self._cur is not None:
-            self.peer.peer_xrefs.setdefault(p, set()).add((self.tag, self._cur))
+        # Who to credit the reference to.  relabel() sets _cur for every
+        # instruction, but the target of a cross-page call is the DEFW
+        # after it, which is data -- so that path passes `site` instead
+        # and the call is recorded like any other caller.
+        where = self._cur if self._cur is not None else site
+        if where is not None:
+            self.peer.peer_xrefs.setdefault(p, set()).add((self.tag, where))
         return full
 
     def windowed_var(self, a, frm=None):
@@ -371,7 +376,15 @@ class Page(Disassembler):
             return '?'
         if at is not None and at in self.peer_params:
             if self.peer and self.peer.inside(v):
-                name = self.peer_name(v - BASE + PEER)
+                # Credit the CALL rather than the DEFW that carries its
+                # target, so a cross-page caller reads like every other
+                # one on the line: an instruction, not the word after it.
+                site = at
+                for cand in range(max(self.base, at - 4), at):
+                    if cand in self.insns and self.insns[cand].end == at:
+                        site = cand
+                        break
+                name = self.peer_name(v - BASE + PEER, site=site)
                 if name:
                     # The peer's names are defined for &8000-&BFBF, where
                     # this page sees it.  Under the paging this call sets

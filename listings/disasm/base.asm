@@ -243,6 +243,7 @@ DOS_ROOM_LEFT_IN_SECTOR:        EQU  ROOM_LEFT_IN_SECTOR + &4000
 DOS_SAMCNT:                     EQU  SAMCNT + &4000
 DOS_SCFSM:                      EQU  SCFSM + &4000
 DOS_SNPRT2:                     EQU  SNPRT2 + &4000
+DOS_STACK_VAR_ADDRESS:          EQU  STACK_VAR_ADDRESS + &4000
 DOS_SVHDR:                      EQU  SVHDR + &4000
 DOS_TEMPW1:                     EQU  TEMPW1 + &4000
 DOS_TIMDT:                      EQU  TIMDT + &4000

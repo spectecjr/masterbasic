@@ -8946,7 +8946,39 @@ HK_HVAR:
                CALL CGTINT                     ; 6571 CD BB 62  GET DVAR PARAM
                LD HL,DVAR                      ; 6574 21 20 42
                IN A,(LMPR)                     ; 6577 DB FA
-               ADD HL,BC                       ; 6579 09  ADD DVAR BASE
+
+;; --------------------------------------------------------------------
+;; Index a block of variables and stack the address of the entry, which
+;; is what both DVAR n and XVAR n return.
+;;
+;; Entered with HL holding the base of the block as the caller sees it,
+;; BC the subscript, and A the caller's own LMPR.  ADD HL,BC does the
+;; indexing; the rest packs the page and the address into one number and
+;; stacks it as a five-byte float.
+;;
+;; THE ANSWER IS AN ADDRESS, NOT A VALUE.  The manual works both
+;; functions that way -- "POKE XVAR 2,20", "PRINT PEEK XVAR 2", "PEEK
+;; DVAR 7" -- and XVAR 0 is the extreme case, "unusual in that it holds
+;; the ADDRESS of a place you can POKE, rather than the XVAR itself
+;; being POKEable".
+;;
+;; THE PACKING.  AND &1F takes the page out of LMPR and ADD A,&02 steps
+;; it on, which the 1991 comment reads "A=DOS PAGE+1"; the two ADD HL,HL
+;; then shift the window's top two bits off the address.  The loop at
+;; HVAR1 shifts the rest up into A until bit 7 is set, counting the
+;; exponent down from &96, and RES 7,A drops the leading bit a
+;; normalised mantissa does not store.
+;;
+;; Exactly which number that leaves -- whether the &4000 the shifts
+;; discard is what the ADD A,&02 is putting back, and so whether the
+;; result is a flat byte address or a page-plus-window one -- is not
+;; settled here.  Both readings fit the instructions; telling them apart
+;; wants a machine and a known DVAR.
+;; --------------------------------------------------------------------
+
+STACK_VAR_ADDRESS:
+               ADD HL,BC                       ; 6579 09  HL is the caller's own base, so the DOS arrives with DVAR and
+                                               ; MasterBASIC with PUTSWA, and everything after this point is shared
                AND &1F                         ; 657A E6 1F
                ADD A,&02                       ; 657C C6 02  A=DOS PAGE+1
                ADD HL,HL                       ; 657E 29

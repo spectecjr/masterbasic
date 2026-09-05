@@ -314,6 +314,7 @@ DOS_SAMCNT:                     EQU  SAMCNT + IN_PAGE_C
 DOS_SCFSM:                      EQU  SCFSM + IN_PAGE_C
 DOS_SNPRT2:                     EQU  SNPRT2 + IN_PAGE_C
 DOS_STACK_ON_ENTRY:             EQU  STACK_ON_ENTRY + IN_PAGE_C
+DOS_STACK_VAR_ADDRESS:          EQU  STACK_VAR_ADDRESS + IN_PAGE_C
 DOS_SVHDR:                      EQU  SVHDR + IN_PAGE_C
 DOS_TEMPW1:                     EQU  TEMPW1 + IN_PAGE_C
 DOS_TIMDT:                      EQU  TIMDT + IN_PAGE_C

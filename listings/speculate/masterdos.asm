@@ -3735,7 +3735,7 @@ HK_HLDBK:
 ;;     link, not data.
 ;; --------------------------------------------------------------------
 
-; ---- ROOM_LEFT_IN_SECTOR ---- from &5A5B, &5FEE, &6479
+; ---- ROOM_LEFT_IN_SECTOR ---- from &5A5B, &5FEE, &6479, MB &519A
 ROOM_LEFT_IN_SECTOR:
                CALL SETF6                      ; 4856 CD 10 51
                CALL ADJUST_PAGE_DE             ; 4859 CD 39 45
@@ -5960,7 +5960,7 @@ BEEP:
 ;;     FILE AND LAST SECTOR NEEDS SAVING BECAUSE HSVBL USED.
 ;; --------------------------------------------------------------------
 
-; ---- SCFSM ---- from &5A9D, &6549
+; ---- SCFSM ---- from &5A9D, &6549, MB &6478
 SCFSM:
                CALL GET_TRACK_AND_SECTOR       ; 4DF8 CD BF 4F
                CALL WSAD                       ; 4DFB CD 86 45  LAST SECTOR
@@ -6782,7 +6782,7 @@ ABORT:
 ;;      carry on from here.
 ;; --------------------------------------------------------------------
 
-; ---- ENDS ---- from &4366, &53CC, &590A when A = &45
+; ---- ENDS ---- from &4366, &53CC, &590A when A = &45, MB &44DA
 ENDS:
                LD E,&00                        ; 5010 1E 00  NO ACTION
                DEFB &21                        ; 5012 !  "JR+2"
@@ -7204,7 +7204,7 @@ PPXR:
 ;;     ERRSP TO FOWIA/NEXTSTAT/ERRSP
 ;; --------------------------------------------------------------------
 
-; ---- PLNS ---- from &6B32, &7203
+; ---- PLNS ---- from &6B32, &7203, MB &5659, MB &67F0, MB &71AF
 PLNS:
                LD HL,(ENTSP)                   ; 508E 2A 04 41
                INC HL                          ; 5091 23
@@ -8033,6 +8033,7 @@ REP33_2:
 ;; ? calls DERR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
+; ---- REPORTA ---- from MB &43BE
 REPORTA:
                LD (V51A6),A                    ; 51A0 32 A6 51  plant the code in the byte DERR will read
                CALL DERR                       ; 51A3 CD AD 51
@@ -11057,7 +11058,7 @@ GCOP:
 ;;           E=PAGE NUMBER
 ;; --------------------------------------------------------------------
 
-; ---- FFPG ---- from &5A2E, &6A0C
+; ---- FFPG ---- from &5A2E, &6A0C, MB &67DB
 FFPG:
                XOR A                           ; 5AB7 AF
                OUT (HMPR),A                    ; 5AB8 D3 FB
@@ -13831,7 +13832,7 @@ EVNAMX:
 ;;     EXIT: Z/NZ FOR SYN/RUN, A=CHAR AFTER
 ;; --------------------------------------------------------------------
 
-; ---- EVNAM ---- from &597B, &5990, &5B31, &60AD, &6221, &695D, &7245, &7AB6
+; ---- EVNAM ---- from &597B, &5990, &5B31, &60AD, &6221, &695D, &7245, &7AB6 ...
 EVNAM:
                CALL EVAL_STRING_IF_RUNNING     ; 61CF CD 84 62
 
@@ -14104,7 +14105,7 @@ EXDT1_DONE:
 ;;     page comes back in SVC.
 ;; --------------------------------------------------------------------
 
-; ---- EVAL_STRING_IF_RUNNING ---- from &61CF
+; ---- EVAL_STRING_IF_RUNNING ---- from &61CF, MB &491D
 EVAL_STRING_IF_RUNNING:
                                                ; call the ROM at EXPSTR with the system page at &4000, and page back on
                                                ; the way out
@@ -14193,7 +14194,7 @@ EVSRE:
 ;; ? calls GTNC; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- EVNUMX ---- from &5DFD, &5F1C, &60B4, &60C8, &6AA4, &7108
+; ---- EVNUMX ---- from &5DFD, &5F1C, &60B4, &60C8, &6AA4, &7108, MB &5764, MB &576F
 EVNUMX:
                CALL GTNC                       ; 62AF CD 3C 50
 
@@ -15264,7 +15265,7 @@ DDLP:
                RET                             ; 6570 C9
 
 ;; --------------------------------------------------------------------
-;; HK_HVAR -- &6571 to &6581
+;; HK_HVAR -- &6571 to &6578
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
@@ -15276,7 +15277,47 @@ HK_HVAR:
                CALL CGTINT                     ; 6571 CD BB 62  GET DVAR PARAM
                LD HL,DVAR                      ; 6574 21 20 42
                IN A,(LMPR)                     ; 6577 DB FA
-               ADD HL,BC                       ; 6579 09  ADD DVAR BASE
+
+;; --------------------------------------------------------------------
+;; STACK_VAR_ADDRESS -- &6579 to &6581
+;;
+;; Takes:     A, BC, HL
+;; Leaves:    A, F, B, HL
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Index a block of variables and stack the address of the entry, which
+;;     is what both DVAR n and XVAR n return.
+;;
+;;     Entered with HL holding the base of the block as the caller sees it,
+;;     BC the subscript, and A the caller's own LMPR.  ADD HL,BC does the
+;;     indexing; the rest packs the page and the address into one number and
+;;     stacks it as a five-byte float.
+;;
+;;     THE ANSWER IS AN ADDRESS, NOT A VALUE.  The manual works both
+;;     functions that way -- "POKE XVAR 2,20", "PRINT PEEK XVAR 2", "PEEK
+;;     DVAR 7" -- and XVAR 0 is the extreme case, "unusual in that it holds
+;;     the ADDRESS of a place you can POKE, rather than the XVAR itself
+;;     being POKEable".
+;;
+;;     THE PACKING.  AND &1F takes the page out of LMPR and ADD A,&02 steps
+;;     it on, which the 1991 comment reads "A=DOS PAGE+1"; the two ADD HL,HL
+;;     then shift the window's top two bits off the address.  The loop at
+;;     HVAR1 shifts the rest up into A until bit 7 is set, counting the
+;;     exponent down from &96, and RES 7,A drops the leading bit a
+;;     normalised mantissa does not store.
+;;
+;;     Exactly which number that leaves -- whether the &4000 the shifts
+;;     discard is what the ADD A,&02 is putting back, and so whether the
+;;     result is a flat byte address or a page-plus-window one -- is not
+;;     settled here.  Both readings fit the instructions; telling them apart
+;;     wants a machine and a known DVAR.
+;; --------------------------------------------------------------------
+
+; ---- STACK_VAR_ADDRESS ---- from MB &4E44
+STACK_VAR_ADDRESS:
+               ADD HL,BC                       ; 6579 09  HL is the caller's own base, so the DOS arrives with DVAR and
+                                               ; MasterBASIC with PUTSWA, and everything after this point is shared
                AND &1F                         ; 657A E6 1F
                ADD A,&02                       ; 657C C6 02  A=DOS PAGE+1
                ADD HL,HL                       ; 657E 29
@@ -15424,7 +15465,7 @@ EPCOM:
 ;; Ends:      JP, JR
 ;; --------------------------------------------------------------------
 
-; ---- EPCOM_1 ---- from &79C7, &7B64
+; ---- EPCOM_1 ---- from &79C7, &7B64, MB &42A0, MB &4AB8, MB &4C65
 EPCOM_1:
                LD B,A                          ; 65C4 47
                OR H                            ; 65C5 B4
@@ -16536,7 +16577,7 @@ FIRST_DISC_CHANNEL_2:
 ;;     through, and everything else becomes MSUPC.
 ;; --------------------------------------------------------------------
 
-; ---- PRINTABLE_FORM ---- from &54E0, &6881
+; ---- PRINTABLE_FORM ---- from &54E0, &6881, MB &4E0E
 PRINTABLE_FORM:
                LD B,&00                        ; 68DA 06 00
                BIT 7,A                         ; 68DC CB 7F
@@ -17275,7 +17316,7 @@ CMD_OPEN_DONE:
 ;;     through it.
 ;; --------------------------------------------------------------------
 
-; ---- CHANNEL_ENTRY_AT_ZERO_PAGE ---- from &5E07, &6AC4
+; ---- CHANNEL_ENTRY_AT_ZERO_PAGE ---- from &5E07, &6AC4, MB &7345
 CHANNEL_ENTRY_AT_ZERO_PAGE:
                XOR A                           ; 6AEA AF
                OUT (HMPR),A                    ; 6AEB D3 FB
@@ -18668,7 +18709,7 @@ MCHWR:
 ;; ? calls WSAD, AT_SECTOR_LINK, FNFS, SWAP_TRACK_AND_SECTOR.
 ;; --------------------------------------------------------------------
 
-; ---- HK_SBYT ---- from &5F45
+; ---- HK_SBYT ---- from &5F45, MB &6198, MB &66B7, MB &66C2
 HK_SBYT:
                PUSH BC                         ; 6F75 C5
                PUSH HL                         ; 6F76 E5
@@ -18897,7 +18938,7 @@ CPPTR:
 ;; ? calls AT_SECTOR_LINK, WRITE_AT_LINKED_SECTOR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- LBYT ---- from &5F4F, &64C5, &6F2D
+; ---- LBYT ---- from &5F4F, &64C5, &6F2D, MB &62D6, MB &6726, MB &672F
 LBYT:
                PUSH BC                         ; 6FF6 C5
                PUSH DE                         ; 6FF7 D5
@@ -19124,6 +19165,7 @@ RAMST:
 ;;     POINT #S,X OR POINT #S,OVER X
 ;; --------------------------------------------------------------------
 
+; ---- POINTC ---- from MB &530F
 POINTC:
                LD C,&23                        ; 7076 0E 23
                CALL ISEPX                      ; 7078 CD 35 50

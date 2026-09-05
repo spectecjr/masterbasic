@@ -445,6 +445,32 @@ is well established. An own-page collision has no equivalent, so it passes
 silently and then reads as a cross-reference: `MCHRD` still lists a caller that
 only loads `TABLE+8`.
 
+### Cross-page calls now count as callers
+
+Until recently the `from` line above a routine listed only the references the
+disassembler saw as operands of instructions. A cross-page call does not look
+like one: it is `CALL CALLDOS` followed by a `DEFW` holding the target, and that
+`DEFW` is data. `relabel` sets the current address only for instructions, so
+`peer_name` found nothing to credit the reference to and dropped it.
+
+The result was exactly backwards. **Sixty-eight real call edges** — 46 `CALLDOS`
+in MasterBASIC, 22 `CALLMB` in MasterDOS — produced no `from` line at all, while
+the cross-page `from` lines that did appear came from `&8xxx` operands that
+resolve into the other half *by arithmetic accident*. `EXPAND_FILE`, which only
+MasterDOS calls, looked like dead code; `FN_NVAL_POSITIVE` was credited to a
+`LD SP,RAMDISC_PAGE+&0200`.
+
+The call edges are recorded now, and the reference is credited to the `CALL`
+rather than to the `DEFW` after it, so it reads like every other caller on the
+line. `STACK_VAR_ADDRESS` says `from MB &4E44`; `EXPAND_FILE` says
+`from DOS &643C`.
+
+**The coincidences are still there.** Recording the real edges does not remove
+the false ones, and the two are now mixed on the same lines. A `from DOS &xxxx`
+is worth checking against the DOS listing before it is believed: a call says
+`CALL CALLMB` three bytes above the address named, and anything else is an
+operand that happened to have the right value.
+
 The fix for a single instance is an `expr` note, which rewrites the operand and
 is checked against the number when the listing is assembled, so it cannot drift.
 What would catch them in bulk is a pass that flags any operand naming a label

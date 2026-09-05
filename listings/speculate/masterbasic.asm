@@ -1281,6 +1281,7 @@ FN_NVAL_DONE:
 ;;     and holds no entries.  The inverse is at &426F.
 ;; --------------------------------------------------------------------
 
+; ---- TRACK_SECTOR_TO_FILE_NUMBER ---- from DOS &4FDA
 TRACK_SECTOR_TO_FILE_NUMBER:
                PUSH HL                         ; 4224 E5
                PUSH AF                         ; 4225 F5
@@ -1345,6 +1346,7 @@ TRACK_SECTOR_TO_FILE_NUMBER:
 ;;     hundreds.
 ;; --------------------------------------------------------------------
 
+; ---- BYTE_TO_DECIMAL ---- from DOS &51A7
 BYTE_TO_DECIMAL:
                PUSH DE                         ; 4240 D5  DE goes round the whole thing because the DOS's caller, DERR,
                                                ; has the failing track and sector in it
@@ -1458,6 +1460,7 @@ DECIMAL_DIGIT_DONE:
 ;;     DECIMAL_DIGIT reaches past its RET at &426E.
 ;; --------------------------------------------------------------------
 
+; ---- FILE_NUMBER_TO_TRACK_SECTOR ---- from DOS &5F87
 FILE_NUMBER_TO_TRACK_SECTOR:
                PUSH HL                             ; 426F E5
                LD BC,&FFAF                         ; 4270 01 AF FF
@@ -2739,6 +2742,7 @@ CALL_EXPNUM:
 ;;     DIV 64K".
 ;; --------------------------------------------------------------------
 
+; ---- EXPR_TO_32BIT ---- from DOS &7086
 EXPR_TO_32BIT:
                CALL CALL_EXPNUM                ; 448B CD 85 44
                CALL TEST_RUNNING               ; 448E CD E2 44
@@ -3414,7 +3418,7 @@ MBPPXR:
 ;;     those two bits are the "needs compiling" state.
 ;; --------------------------------------------------------------------
 
-; ---- SET_DCT_COMPILE_BITS ---- from &5176, &58EB, &6E4F
+; ---- SET_DCT_COMPILE_BITS ---- from &5176, &58EB, &6E4F, DOS &6AE4
 SET_DCT_COMPILE_BITS:
                LD HL,ROM_DCT                   ; 459C 21 B6 5B
                CALL MBRDA                      ; 459F CD D1 45
@@ -3711,6 +3715,7 @@ V45F6:
 ;;     minute -- and like it, reached from the DOS.
 ;; --------------------------------------------------------------------
 
+; ---- MULTIPLY_BY_24 ---- from DOS &7B35
 MULTIPLY_BY_24:
                LD B,H                          ; 45F9 44
                LD C,L                          ; 45FA 4D
@@ -5828,7 +5833,7 @@ CMD_TIME_LOOP6:
 ;;         that is deliberate is not established.
 ;; --------------------------------------------------------------------
 
-; ---- WAIT_FOR_CLOCK ---- from &4861, &4870, &4A3E
+; ---- WAIT_FOR_CLOCK ---- from &4861, &4870, &4A3E, DOS &7B8E
 WAIT_FOR_CLOCK:
                LD IY,WAIT_FOR_CLOCK_2          ; 4978 FD 21 DC 49
 
@@ -8171,7 +8176,8 @@ FN_SHIFT_S_1:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? drives IN A,(LMPR); calls CALLDOS, CALL_GETINT; falls into whatever follows rather than returning.
+;; ? reaches the ROM through DOS_STACK_VAR_ADDRESS-&4000; drives IN A,(LMPR); calls CALLDOS, CALL_GETINT; falls into
+;; whatever follows rather than returning.
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
@@ -8198,22 +8204,22 @@ FN_SHIFT_S_1:
 ;; --------------------------------------------------------------------
 
 HK_XVARNVAL:
-               CP F_NVAL - FN_TOKEN_BIAS       ; 4E37 FE 50
-               JP Z,FN_NVAL                    ; 4E39 CA C5 41
-               CALL CALL_GETINT                ; 4E3C CD 76 44  the token is XVAR. Nothing here says so: the JP above
-                                               ; has taken NVAL away and the stub at &7E03 let nothing but those two
-                                               ; through, so what is left is XVAR n, and this reads the n
-               LD HL,PUTSWA                    ; 4E3F 21 00 40
-               IN A,(LMPR)                     ; 4E42 DB FA
-                                               ; call &6579 in the other page: LMPR is switched first, so that address
-                                               ; is how the other listing numbers it
-               CALL CALLDOS                    ; 4E44 CD C1 42
-               DEFW &6579                      ; 4E47 79 65
-               CALL MBNRRDD                    ; 4E49 CD 5F 45
-               DEFW STKEND                     ; 4E4C 65 5C
-               LD D,B                          ; 4E4E 50
-               LD E,C                          ; 4E4F 59
-               RET                             ; 4E50 C9
+               CP F_NVAL - FN_TOKEN_BIAS        ; 4E37 FE 50
+               JP Z,FN_NVAL                     ; 4E39 CA C5 41
+               CALL CALL_GETINT                 ; 4E3C CD 76 44  the token is XVAR. Nothing here says so: the JP above
+                                                ; has taken NVAL away and the stub at &7E03 let nothing but those two
+                                                ; through, so what is left is XVAR n, and this reads the n
+               LD HL,PUTSWA                     ; 4E3F 21 00 40
+               IN A,(LMPR)                      ; 4E42 DB FA
+                                                ; call DOS_STACK_VAR_ADDRESS-&4000 in the other page: LMPR is switched
+                                                ; first, so that address is how the other listing numbers it
+               CALL CALLDOS                     ; 4E44 CD C1 42
+               DEFW DOS_STACK_VAR_ADDRESS-&4000 ; 4E47 79 65
+               CALL MBNRRDD                     ; 4E49 CD 5F 45
+               DEFW STKEND                      ; 4E4C 65 5C
+               LD D,B                           ; 4E4E 50
+               LD E,C                           ; 4E4F 59
+               RET                              ; 4E50 C9
 
 ;; --------------------------------------------------------------------
 ;; ARGS_STRING_AND_NUMBER -- &4E51 to &4E59
@@ -9060,6 +9066,7 @@ PRINT_WORD:
 ;;     somewhere the program has not been writing.
 ;; --------------------------------------------------------------------
 
+; ---- PRINT_OPEN_FILE_COUNT ---- from DOS &74AB
 PRINT_OPEN_FILE_COUNT:
                PUSH AF                         ; 5044 F5
                CALL MBCMR                      ; 5045 CD F0 44  CLSLOW, so the warning has a clear lower screen to
@@ -10115,6 +10122,7 @@ L534D:
 ;;     and wrap at 11 back to 1.
 ;; --------------------------------------------------------------------
 
+; ---- BUILD_TRACK_IMAGE ---- from DOS &54F9, DOS &5506
 BUILD_TRACK_IMAGE:
                LD HL,DOS_EXDT1_DONE            ; 5352 21 80 A2  &A280 here is FTADD, the screen used as scratch -- not
                                                ; the peer page's &6280
@@ -12739,7 +12747,7 @@ FIND_FIRST_LINE_IN_RANGE:
 ;;     ROM accesses by being pushed around them.
 ;; --------------------------------------------------------------------
 
-; ---- FIND_LINE_FROM_START ---- from &5188, &6E25
+; ---- FIND_LINE_FROM_START ---- from &5188, &6E25, DOS &5E12
 FIND_LINE_FROM_START:
                PUSH BC                         ; 58FD C5  NRRDD hands its answer back in BC, so the caller's BC has to
                                                ; be got out of the way for both reads
@@ -16919,6 +16927,7 @@ CMD_LINE_4:
 ;;     WRITE_THREE_FF closes the stream.
 ;; --------------------------------------------------------------------
 
+; ---- COMPRESS_SCREEN_FILE ---- from DOS &652D
 COMPRESS_SCREEN_FILE:
                CALL PICK_COMPRESSION_CONSTANTS ; 614E CD C5 63
                PUSH DE                         ; 6151 D5
@@ -19258,6 +19267,7 @@ COMPRESS_BLOCK_SATURATE:
 ;;     The DOS reaches it as CALL CALLMB / DEFW &65EA from HK_HSAVE.
 ;; --------------------------------------------------------------------
 
+; ---- COMPRESS_FILE ---- from DOS &6522
 COMPRESS_FILE:
                LD (V40A0),BC                   ; 65EA ED 43 A0 40  only C, the file type, is read back later -- at &663B
                                                ; and &670A -- because the numeric-array case needs it
@@ -19690,6 +19700,7 @@ COMPRESS_BLOCK_LOOP7:
 ;;     HK_HLOAD at DOS &643C, which is the only thing that calls it.
 ;; --------------------------------------------------------------------
 
+; ---- EXPAND_FILE ---- from DOS &643C
 EXPAND_FILE:
                LD (V40A0),BC                   ; 66D2 ED 43 A0 40
                AND A                           ; 66D6 A7
@@ -22597,6 +22608,7 @@ PLOT_PIXEL_IN_MODE_LOOP:
 ;;     live, for the forty-byte move that ends the command.
 ;; --------------------------------------------------------------------
 
+; ---- CMD_COPY_SCREEN ---- from DOS &59C2
 CMD_COPY_SCREEN:
                CALL SKIP_THEN_NUMBER           ; 6C96 CD 82 44
                LD C,&8E                        ; 6C99 0E 8E  the TO token, which CHAR_THEN_NUMBER_THEN_END demands
