@@ -173,10 +173,10 @@ MB &426F FILE_NUMBER_TO_TRACK_SECTOR
     the boot sector would have held; &0014 is 20, the entries on a
     track.
 
-    Its internal labels read DECIMAL_DIGIT_2, _LOOP2 and _3, which hang
-    it off the digit converter above.  They belong here: the DEC HL at
-    &4279 is entered from &4275 inside this routine, and nothing in
-    DECIMAL_DIGIT reaches past its RET at &426E.
+    Its internal labels used to hang off the digit converter above,
+    which was wrong: the DEC HL at &4279 is entered from &4275 inside
+    this routine, and nothing in DECIMAL_DIGIT reaches past its RET at
+    &426E.  Naming the routine gives them the right prefix.
 
 # Not worked out.
 #

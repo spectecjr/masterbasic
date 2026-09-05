@@ -31,7 +31,7 @@ and the stub does the reaching:
                POP HL
                LD HL,(&5AA3)
                RST &08
-               DEFB HOOK_HPRTOK                  ; = 169
+               DEFB HKC_HPRTOK                 ; = 169
                RET
 ```
 

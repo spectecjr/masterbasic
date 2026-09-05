@@ -459,7 +459,7 @@ MBCMR_1:
       EI                              ; 4520
 ```
 
-The `JP` to `CMR_1+&4000` runs the very next instruction through the `&8000`
+The `JP` to `MBCMR_1+&4000` runs the very next instruction through the `&8000`
 window, so that when `OUT (LMPR),A` lands three instructions later the code is in
 section C and section B is free to change. The stack is switched in the same
 breath, which is why the `DI`.

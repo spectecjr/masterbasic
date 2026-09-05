@@ -544,7 +544,6 @@ MB &66F2 EXPAND_INTO_WORK_PAGE
     counted string that heads the data, and clear the ROM's PAGCOUNT
     before the run begins.
 
-MB &610E DECIMAL_DIVISORS
     Minus ten thousand, a thousand, a hundred and ten, for printing a
     number as decimal digits by repeated subtraction.
 

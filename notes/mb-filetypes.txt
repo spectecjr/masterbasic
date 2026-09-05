@@ -2,7 +2,7 @@
 
 RENAME FILETYPE_NAMES DRTAB
 
-MB &4349-&43A0 text FILETYPE_NAMES
+MB &4349-&43A0 text DRTAB
     DRTAB, the table DIR prints a file's type from, indexed by the type
     itself rather than searched -- so there is one entry for every code
     from 0 to 21 and the table is exactly 22 words long.  Each word ends

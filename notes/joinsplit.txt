@@ -180,7 +180,7 @@ DOC STORE_BC_AT_XVAR76
     DELETE stores &0058 -- POP AF : EI : RET in ROM 0, which discards one
     more stack word and so unwinds a whole extra frame.
 
-DOC HOOK_SKIPNAME
+DOC CMD_DELETE
     (replacing the existing header.)
 
     DELETE, for strings and string arrays.  Token &CD is DELETE -- the
@@ -418,7 +418,7 @@ RENAME CMD_JOIN_FAIL CMD_JOIN_TO
 # The ARRAY_ELEMENT_OFFSET_1..5 labels at &703F-&70B0 sit on its code
 # too, named after the routine that happens to precede them.
 #
-# HOOK_SKIPNAME is DELETE.  Token &CD is DELETETOK in the ROM's own source
+# CMD_DELETE is the DELETE command.  Token &CD is DELETETOK in the ROM's own source
 # (ref/samrom/miscx1.asm, RENTAB), and the routine puts CHAD back to the
 # START of the name -- not past it, as its header said -- so that the ROM
 # can re-parse the argument as a line range when it is not a string.

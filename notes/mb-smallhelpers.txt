@@ -8,7 +8,7 @@ DOC IS_NAME_CHAR
     Carry set if the character in A may appear in a name.
 
     It chains onto the letter-or-digit test at &454A and adds underscore,
-    &5F, which the ROM's own classifier does not accept.  HOOK_SKIPNAME
+    &5F, which the ROM's own classifier does not accept.  CMD_DELETE
     already described this routine from the outside -- "reads forward
     while the classifier at IS_NAME_CHAR keeps saying the character belongs to a
     name" -- so this is the classifier that description meant.
@@ -126,8 +126,12 @@ MB &4492 GET_LONG_INTEGER
     x DIV 65536.  Two GETINTs then take them off, the second under the
     first, so HL is the low word and DE the high one.
 
-    Windowing itself is what makes this work: CMR pages ROM 1 in, and the
-    literals have to stay reachable while it is.
+    Windowing itself is what makes this work, though not for the reason
+    it looks like.  CMR does not page ROM 1 in; it writes SYSPAGE_IN_B to
+    LMPR, which puts the system page over &4000-&7FFF.  This half's own
+    &44AE is underneath that, so the literals would be covered exactly
+    when the ROM went to read them -- and putting the half at &8000
+    first is what keeps them reachable.
 
     Both callers refuse a value with anything in D, so what they really
     want is 24 bits -- a page and an address, or a length that may exceed
@@ -371,7 +375,7 @@ MB &4D6D TWO_PAGED_STRINGS
     take one length from the other.  The pages are pushed and popped
     around the second evaluation so that the first survives it.
 
-MB &4D91 COPY_BETWEEN_PAGES
+MB &4D91 COMPARE_FAR_STRINGS_FOLDED
     Copy with a different page at each end.  C holds HMPR in the
     alternate set and L and H the two page numbers, so each byte costs
     OUT (C),L to page the source in, a read, OUT (C),H to page the

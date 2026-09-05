@@ -1271,10 +1271,10 @@ DECIMAL_DIGIT_DONE:
 ;; the boot sector would have held; &0014 is 20, the entries on a
 ;; track.
 ;;
-;; Its internal labels read DECIMAL_DIGIT_2, _LOOP2 and _3, which hang
-;; it off the digit converter above.  They belong here: the DEC HL at
-;; &4279 is entered from &4275 inside this routine, and nothing in
-;; DECIMAL_DIGIT reaches past its RET at &426E.
+;; Its internal labels used to hang off the digit converter above,
+;; which was wrong: the DEC HL at &4279 is entered from &4275 inside
+;; this routine, and nothing in DECIMAL_DIGIT reaches past its RET at
+;; &426E.  Naming the routine gives them the right prefix.
 ;; --------------------------------------------------------------------
 
 ; ---- FILE_NUMBER_TO_TRACK_SECTOR ---- from DOS &5F87
@@ -2344,7 +2344,7 @@ IS_DIGIT:
 ;; Carry set if the character in A may appear in a name.
 ;;
 ;; It chains onto the letter-or-digit test at &454A and adds underscore,
-;; &5F, which the ROM's own classifier does not accept.  HOOK_SKIPNAME
+;; &5F, which the ROM's own classifier does not accept.  CMD_DELETE
 ;; already described this routine from the outside -- "reads forward
 ;; while the classifier at IS_NAME_CHAR keeps saying the character belongs to a
 ;; name" -- so this is the classifier that description meant.
@@ -5413,38 +5413,38 @@ COMPARE_FAR_STRINGS_FOLDED:
                POP BC                          ; 4D94 C1  both pushed by the fall-through above. A CALL to this address
                                                ; would get the return address here instead
                POP HL                          ; 4D95 E1
-               JR COPY_BETWEEN_PAGES_1         ; 4D96 18 12
+               JR COMPARE_FAR_STRINGS_FOLDED_1 ; 4D96 18 12
 
-; ---- COPY_BETWEEN_PAGES_LOOP ---- from &4DAC
-COPY_BETWEEN_PAGES_LOOP:
-               EXX                             ; 4D98 D9
-               OUT (C),L                       ; 4D99 ED 69  page in the first string, read a byte, then page in the
-                                               ; second
-               LD A,(DE)                       ; 4D9B 1A
-               INC DE                          ; 4D9C 13
-               OUT (C),H                       ; 4D9D ED 61
-               EXX                             ; 4D9F D9
-               OR &20                          ; 4DA0 F6 20  bit 5 forced on in both, so upper and lower case compare
-                                               ; equal
-               LD D,(HL)                       ; 4DA2 56
-               SET 5,D                         ; 4DA3 CB EA
-               CP D                            ; 4DA5 BA
-               JR NZ,COPY_BETWEEN_PAGES_2      ; 4DA6 20 08  the first difference decides it, and CP's carry says which
-                                               ; way round
-               INC HL                          ; 4DA8 23
-               DEC BC                          ; 4DA9 0B
+; ---- COMPARE_FAR_STRINGS_FOLDED_LOOP ---- from &4DAC
+COMPARE_FAR_STRINGS_FOLDED_LOOP:
+               EXX                                ; 4D98 D9
+               OUT (C),L                          ; 4D99 ED 69  page in the first string, read a byte, then page in the
+                                                  ; second
+               LD A,(DE)                          ; 4D9B 1A
+               INC DE                             ; 4D9C 13
+               OUT (C),H                          ; 4D9D ED 61
+               EXX                                ; 4D9F D9
+               OR &20                             ; 4DA0 F6 20  bit 5 forced on in both, so upper and lower case compare
+                                                  ; equal
+               LD D,(HL)                          ; 4DA2 56
+               SET 5,D                            ; 4DA3 CB EA
+               CP D                               ; 4DA5 BA
+               JR NZ,COMPARE_FAR_STRINGS_FOLDED_2 ; 4DA6 20 08  the first difference decides it, and CP's carry says
+                                                  ; which way round
+               INC HL                             ; 4DA8 23
+               DEC BC                             ; 4DA9 0B
 
-; ---- COPY_BETWEEN_PAGES_1 ---- from &4D96
-COPY_BETWEEN_PAGES_1:
-               LD A,B                          ; 4DAA 78
-               OR C                            ; 4DAB B1
-               JR NZ,COPY_BETWEEN_PAGES_LOOP   ; 4DAC 20 EA
-               EX AF,AF'                       ; 4DAE 08
-               CCF                             ; 4DAF 3F  the bytes ran out with everything equal, so the answer is the
-                                               ; length verdict brought back by the EX above
+; ---- COMPARE_FAR_STRINGS_FOLDED_1 ---- from &4D96
+COMPARE_FAR_STRINGS_FOLDED_1:
+               LD A,B                                ; 4DAA 78
+               OR C                                  ; 4DAB B1
+               JR NZ,COMPARE_FAR_STRINGS_FOLDED_LOOP ; 4DAC 20 EA
+               EX AF,AF'                             ; 4DAE 08
+               CCF                                   ; 4DAF 3F  the bytes ran out with everything equal, so the answer
+                                                     ; is the length verdict brought back by the EX above
 
-; ---- COPY_BETWEEN_PAGES_2 ---- from &4DA6 when A <> D
-COPY_BETWEEN_PAGES_2:
+; ---- COMPARE_FAR_STRINGS_FOLDED_2 ---- from &4DA6 when A <> D
+COMPARE_FAR_STRINGS_FOLDED_2:
                POP HL                          ; 4DB0 E1
                EX AF,AF'                       ; 4DB1 08  the verdict goes into AF' so that A is free to carry the old
                                                ; HMPR to the port, then comes back at &4DB5
@@ -11721,17 +11721,6 @@ TRACE_PRINT_DECIMAL_2:
                POP BC                          ; 610C C1
                RET                             ; 610D C9
 
-;; --------------------------------------------------------------------
-;; Minus ten thousand, a thousand, a hundred and ten, for printing a
-;; number as decimal digits by repeated subtraction.
-;;
-;; Not code, whatever the trace made of it: as instructions the four
-;; words read as RET P / RET C / JR to itself, an infinite loop nothing
-;; could survive.  The routines above them are a character plotter and a
-;; decimal printer, and their CHECK_BREAK names come from the label
-;; above them rather than from anything they do.
-;; --------------------------------------------------------------------
-
 TRACE_DIVISORS_5:
                DEFW &D8F0,&FC18                ; 610E F0 D8 18 FC  not code -- this is the divisor table
                                                ; TRACE_PRINT_LINE_NUMBER points at, the words &D8F0 &FC18 &FF9C &FFF6,
@@ -13703,6 +13692,15 @@ EXPAND_FILE_1:
 ;; which falls back on the display if there is none free -- read the
 ;; counted string that heads the data, and clear the ROM's PAGCOUNT
 ;; before the run begins.
+;;
+;; Minus ten thousand, a thousand, a hundred and ten, for printing a
+;; number as decimal digits by repeated subtraction.
+;;
+;; Not code, whatever the trace made of it: as instructions the four
+;; words read as RET P / RET C / JR to itself, an infinite loop nothing
+;; could survive.  The routines above them are a character plotter and a
+;; decimal printer, and their CHECK_BREAK names come from the label
+;; above them rather than from anything they do.
 ;; --------------------------------------------------------------------
 
 ; ---- EXPAND_INTO_WORK_PAGE ---- from &66E2
@@ -19658,7 +19656,7 @@ PRTOKV_STUB:
 ;;
 ;; &25 passes, and so does anything below &21; the rest returns with
 ;; carry clear for the ROM to deal with.  What is left drops the return
-;; address and raises HOOK_HKLEN.
+;; address and raises HKC_HKLEN.
 ;; --------------------------------------------------------------------
 
 EVALUV_STUB:

@@ -70,7 +70,7 @@ DOC CMD_TIME
     two values control register F wants for the chip's test mode.  From
     &4882 on, the two forms are the same instructions.
 
-MB &486A : &4280 is TIMDT in MasterDOS's page, immediately after DATDT's fifteen bytes.  DECIMAL_DIGIT_3 is this page's label of the same value and has nothing to do with it -- see the notes
+MB &486A : &4280 is TIMDT in MasterDOS's page, immediately after DATDT's fifteen bytes.  &4280 is also an address inside this page, and the label there has nothing to do with it -- see the notes
 
 MB &4876 : the bit pattern for the test mode, set here so that only the '-' case has to change it
 

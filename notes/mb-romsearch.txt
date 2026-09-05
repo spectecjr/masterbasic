@@ -2,7 +2,7 @@
 
 RENAME MBCOPY_775A FIND_ROM_CODE
 
-DOC MBCOPY_775A
+DOC FIND_ROM_CODE
     Find a three-byte instruction sequence in the ROM and hand back a
     pointer to it, adjusted by a signed offset.
 

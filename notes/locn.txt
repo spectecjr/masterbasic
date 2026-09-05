@@ -217,7 +217,7 @@ MB &4D89 : both strings are reached through the &8000 window, so 16K is as much 
 
 MB &4D90 : the count, and under it the second string's start from &4D76: the two values the code below pops
 
-DOC COPY_BETWEEN_PAGES
+DOC COMPARE_FAR_STRINGS_FOLDED
     A byte-for-byte comparison of two strings in two different pages,
     ignoring case.  Nothing is written anywhere -- see the notes, the
     name is wrong.
