@@ -1,8 +1,15 @@
 # The run-length encoder at &61D2-&62A1.  Read by hand.
 #
-# The nibble stream WRITE_NEXT_NIBBLE fills is not pixels: it is pairs
-# of four-bit values, a run length and then the byte that repeats.
-# READ_NEXT_NIBBLE at &6367 takes them back out again.
+# The nibble stream WRITE_NEXT_NIBBLE fills is not pixels.  It is
+# nibbles of source with runs escaped: one value is set aside as an
+# escape marker, and wherever it appears the nibbles that follow say
+# what repeats and how often.  READ_NEXT_NIBBLE at &6367 takes them
+# back out again.
+#
+# THE ESCAPE IS THE RAREST VALUE IN THE SCREEN, which is what
+# BUILD_NIBBLE_TABLE and SCAN_NIBBLE_TABLE are for and why the stream
+# opens by naming it.  A nibble equal to the escape has to be escaped
+# as well, so the fewer of them there are the less that costs.
 #
 # ANSWERED: it is SAVE MODE's, and it walks a screen because the file it
 # is compressing is a screen.  Both halves of the argument were right and
@@ -46,28 +53,55 @@ DOC NEXT_SCREEN_BYTE
     rather than along each line.
 
 DOC COUNT_RUN
-    Count how many bytes below this one are the same, up to 139.
+    Count how many nibbles below this one are the same.
 
-    B starts at &8B and counts down while NEXT_SCREEN_BYTE keeps
-    returning the byte held in E, so &8C minus B is the length of the
-    run.  The odd starting value is what makes the arithmetic below come
-    out with the short cases first.
+    B counts down from &8B while NEXT_SCREEN_BYTE keeps returning the
+    value held in E, so &8C minus B is the run's length: no match at all
+    leaves B at &8B and gives 1, which is the nibble by itself.
+
+    THE ESCAPE VALUE ARRIVES WITH B THREE HIGHER, from &61C5, and that
+    is the whole difference between the two paths.  Starting at &88
+    makes every length come out four larger, so a run of the escape can
+    never be shorter than four and never takes the literal path below --
+    which it must not, because a literal escape nibble is what tells the
+    decoder a run is starting.
 
 DOC ENCODE_RUN
-    Write one run to the nibble stream.
+    Write one run to the nibble stream, in one of three shapes.
 
-    A run shorter than four is not worth encoding and goes elsewhere.
-    From four to eleven it fits in a single nibble pair.  Longer than
-    that and the length is split, the top half rotated into place and
-    emitted first, so a long run costs three nibbles instead of two.
+    Under four, the run is written as itself: WRITE_NEXT_NIBBLE_LOOP
+    puts the value out that many times and no escape is involved.  Three
+    nibbles is what the shortest escaped form costs, so a run of three
+    or fewer could not be worth escaping.
 
-DOC EMIT_RUN_PAIR
-    Write a run as two nibbles: the count in C, then the value in E.
+    Four to eleven costs three nibbles -- escape, value, count -- with
+    the count holding the length less four, which is 0 to 7.
+
+    Twelve and up costs four.  SUB &88 after the SUB &04 maps lengths 12
+    to 139 onto &80 to &FF, the nibbles are swapped so the top half goes
+    out first, and EMIT_RUN's fall-through writes it before the POP AF
+    and the jump below write the bottom half.
+
+    THE TOP BIT OF THE FIRST COUNT NIBBLE IS THE DISCRIMINATOR, and that
+    is what the &88 buys.  A short run's count nibble is 0 to 7 and a
+    long run's is 8 to F, so the decoder learns from that one nibble
+    whether another follows.  The length is the byte less 116.
+
+DOC EMIT_RUN
+    Write the escape and the value, and fall into WRITE_NEXT_NIBBLE to
+    write the count.
+
+    THREE NIBBLES, NOT TWO, AND THE FALL-THROUGH IS THE THIRD.  There is
+    no RET here: WRITE_NEXT_NIBBLE is the next instruction, so the A this
+    was called with -- pushed at the top, popped at the bottom, untouched
+    in between -- goes out as the count.  The C written first is not a
+    count at all.  It is the escape value SCAN_NIBBLE_TABLE chose, which
+    is the whole of how the decoder knows a run follows.
 
 MB &627E NEXT_SCREEN_BYTE
 MB &61D2 COUNT_RUN
 MB &61DE ENCODE_RUN
-MB &61F8 EMIT_RUN_PAIR
+MB &61F8 EMIT_RUN
 
 # ANSWERED: the ROM's system page is at &4000, and &500B is not this
 # half's.
@@ -257,15 +291,43 @@ MB &6331 NEXT_SCREEN_NIBBLE
     address folded into the same run of shifts.
 
 MB &6253 BUILD_NIBBLE_TABLE
-    Clear thirty-two bytes at &E500 and then count something over the
-    source into them, a nibble at a time -- AND &0F on each byte read,
-    doubled to index the table.  Thirty-two entries is sixteen nibble
-    values with two bytes each.
+    How often each of the sixteen nibble values occurs in the screen:
+    sixteen counters of two bytes at &E500, both nibbles of every source
+    byte counted into them.
+
+    THE SOURCE IS EXACTLY A MODE 4 SCREEN.  B is left at zero by the
+    clearing loop above, so the inner DJNZ runs 256 times, and C is &60 --
+    96 times 256 is &6000, the 24K a MODE 4 screen occupies.  Neither
+    number is written down as a screen size anywhere here; the loop
+    simply covers one.
+
+    Two bytes to a counter because 24576 bytes is 49152 nibbles, which
+    one byte could not hold a share of.  The carry is taken by hand:
+    INC (HL) : JR NZ steps the low byte and reaches the high one only
+    when it wraps.
+
+    The clearing loop writes E rather than a zero it has loaded, because
+    DE has just been pointed at the source and its low byte is already
+    zero.
 
 MB &6237 SCAN_NIBBLE_TABLE
-    Walk that table back down from its end, comparing each entry against
-    BC.  Named for what it does; which entry it is looking for is not
-    established here.
+    Pick the value that occurs least often, and return it in A.
+
+    IT IS LOOKING FOR THE RAREST, and the direction of the test settles
+    it: SBC HL,BC borrows when this count is below the best so far, and
+    it is the borrow that falls through to replace it.  BC starts at
+    &2000, so a value has to occur fewer than 8192 times to be considered
+    at all -- and one that never occurs cannot be beaten, which is the
+    ordinary case on a screen using fewer than sixteen colours.
+
+    What is wanted is the escape marker for the run encoding, and the
+    rarest value is the cheapest thing to spend on it: every literal
+    occurrence of the escape costs three nibbles instead of one.
+
+    The index is carried in the low byte of the table pointer rather
+    than counted.  EX DE,HL leaves that byte in E, LD A,E takes it at
+    each improvement, and the SRL A at the end halves it back from a
+    two-byte stride to a value 0 to 15.
 
 MB &5B22 WINDOW_SOUND_POINTER
     Take the pointer at V4082, keep its high byte, and window it with the
@@ -277,17 +339,20 @@ MB &61A0 ENCODE_SCREEN
     The encoder's driver.  SCAN_NIBBLE_TABLE picks a value into C, the
     alternate registers take DE = &000F and HL = &E500 for the output
     stream, and that value is written out first through
-    WRITE_NEXT_NIBBLE -- so the stream begins by saying what the run
-    encoding is relative to.  Then HL counts nibbles from zero and each
-    one is read and handed to ENCODE_ONE_NIBBLE, until H comes round to
-    &FF.
+    WRITE_NEXT_NIBBLE -- so the stream opens by naming its own escape
+    marker, which is the one thing a decoder could not work out for
+    itself.  Then HL counts nibbles from zero and each one is read and
+    handed to ENCODE_ONE_NIBBLE, until H comes round to &FF.
 
 MB &61C2 ENCODE_ONE_NIBBLE
-    One nibble of the source.  If it does not match the value in C it
-    goes straight to COUNT_RUN; if it does, the long-run path counts up
-    to &88 more of the same through NEXT_SCREEN_BYTE and leaves for
-    ENCODE_RUN as soon as one differs.  The two cases are what make the
-    common value cheaper than the rest.
+    One nibble of the source, counted into a run.
+
+    The two paths differ only in where B starts -- &88 for a nibble
+    equal to the escape, &8B for anything else -- and share the counting
+    loop's shape and all of ENCODE_RUN.  The three between them is what
+    forces an escape nibble to be written as a run even when there is
+    only one of it, since writing it literally would tell the decoder a
+    run was starting.
 
 MB &63C5 PICK_COMPRESSION_CONSTANTS
     Load the three constants the compressor works to -- H, BC and DE --
@@ -319,3 +384,57 @@ MB &610E DECIMAL_DIVISORS
 MB &610E-&6115 word
 MB &610E : -10000, -1000, -100, -10 -- the divisors, biggest first
 MB &6112 : the third of the four, and not the SBC A,H the trace made of it
+
+MB &6253 : E is zero because DE has just been pointed at the source, so the clearing loop needs no separate zero
+
+MB &6259 : thirty-two bytes -- sixteen values, two bytes each
+
+MB &625F : &60 outer passes of an inner DJNZ that B left at zero, so 96 times 256, which is the &6000 of a MODE 4 screen
+
+MB &6264 : doubled, because each value has a two-byte counter
+
+MB &6266 : INC (HL) then JR NZ is a sixteen-bit increment done by hand: the high byte is only touched when the low one wraps
+
+MB &626C : three rotates and AND &1E give the high nibble already doubled, which is the counter's offset without a separate shift
+
+MB &623A : one past the end of the table, and the low byte doubles as the index all the way down
+
+MB &623C : B and C are the best count so far, and &2000 starts it -- a value has to be rarer than 8192 to be taken at all
+
+MB &6243 : the borrow is the whole test: carry set means this value is rarer than the best so far
+
+MB &624A : E is the low byte of the table pointer, which is twice the value's index -- so the index comes free rather than being counted
+
+MB &624C : INC L then DEC L tests L without disturbing BC, which is holding the answer
+
+MB &6250 : halve it, because the pointer stepped two bytes for every value
+
+MB &61AC : the escape marker goes out first, before any data: it is the one thing the decoder cannot work out for itself
+
+MB &61C5 : three more than the other path, which is what stops a lone escape nibble ever being written literally
+
+MB &61E1 : under four, and three nibbles is what escaping costs, so there is nothing to gain
+
+MB &61EB : &88 maps lengths 12 to 139 onto &80 to &FF, so the first count nibble comes out 8 to F and says a second follows
+
+MB &61EE : four rotates swap the nibbles, putting the top half where WRITE_NEXT_NIBBLE will take it
+
+MB &61F9 : the escape, which is what marks this as a run rather than data
+
+MB &61FD : and the value that repeats
+
+MB &6201 : the count, restored and written by the fall-through into WRITE_NEXT_NIBBLE below
+
+MB &6203 : D counts nibbles written, and only its bottom bit matters -- odd plants a fresh byte, even merges into the one already there
+
+MB &620F : XOR (HL) : AND E : XOR (HL) keeps the bits E clears and takes the rest from A, which is the high half already in place
+
+MB &6213 : only now does the pointer move, so one byte has held two nibbles
+
+MB &6219 : &FE00 is &1900 past &E500, so the buffer is full
+
+MB &621D : &1900 bytes, the whole buffer, handed to the DOS
+
+MB &6225 : and the buffer starts again from the bottom
+
+MB &622E : the value itself, written as many times as the run is long -- no escape, because there is nothing to mark

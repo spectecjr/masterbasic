@@ -11565,10 +11565,10 @@ WRITE_THREE_FF_LOOP:
 ;; The encoder's driver.  SCAN_NIBBLE_TABLE picks a value into C, the
 ;; alternate registers take DE = &000F and HL = &E500 for the output
 ;; stream, and that value is written out first through
-;; WRITE_NEXT_NIBBLE -- so the stream begins by saying what the run
-;; encoding is relative to.  Then HL counts nibbles from zero and each
-;; one is read and handed to ENCODE_ONE_NIBBLE, until H comes round to
-;; &FF.
+;; WRITE_NEXT_NIBBLE -- so the stream opens by naming its own escape
+;; marker, which is the one thing a decoder could not work out for
+;; itself.  Then HL counts nibbles from zero and each one is read and
+;; handed to ENCODE_ONE_NIBBLE, until H comes round to &FF.
 ;; --------------------------------------------------------------------
 
 ; ---- ENCODE_SCREEN ---- from &6155
@@ -11579,7 +11579,8 @@ ENCODE_SCREEN:
                LD DE,&000F                     ; 61A5 11 0F 00
                LD HL,&E500                     ; 61A8 21 00 E5
                EXX                             ; 61AB D9
-               CALL WRITE_NEXT_NIBBLE          ; 61AC CD 02 62
+               CALL WRITE_NEXT_NIBBLE          ; 61AC CD 02 62  the escape marker goes out first, before any data: it is
+                                               ; the one thing the decoder cannot work out for itself
                LD HL,&0000                     ; 61AF 21 00 00
 
 ; ---- ENCODE_SCREEN_LOOP ---- from &61BA when A is not 0
@@ -11596,18 +11597,22 @@ ENCODE_SCREEN_LOOP:
                RET                             ; 61C1 C9
 
 ;; --------------------------------------------------------------------
-;; One nibble of the source.  If it does not match the value in C it
-;; goes straight to COUNT_RUN; if it does, the long-run path counts up
-;; to &88 more of the same through NEXT_SCREEN_BYTE and leaves for
-;; ENCODE_RUN as soon as one differs.  The two cases are what make the
-;; common value cheaper than the rest.
+;; One nibble of the source, counted into a run.
+;;
+;; The two paths differ only in where B starts -- &88 for a nibble
+;; equal to the escape, &8B for anything else -- and share the counting
+;; loop's shape and all of ENCODE_RUN.  The three between them is what
+;; forces an escape nibble to be written as a run even when there is
+;; only one of it, since writing it literally would tell the decoder a
+;; run was starting.
 ;; --------------------------------------------------------------------
 
 ; ---- ENCODE_ONE_NIBBLE ---- from &61B5
 ENCODE_ONE_NIBBLE:
                CP C                            ; 61C2 B9
                JR NZ,COUNT_RUN                 ; 61C3 20 0D
-               LD B,&88                        ; 61C5 06 88
+               LD B,&88                        ; 61C5 06 88  three more than the other path, which is what stops a lone
+                                               ; escape nibble ever being written literally
                LD E,A                          ; 61C7 5F
 
 ; ---- ENCODE_ONE_NIBBLE_LOOP ---- from &61CE when B is not 0 yet
@@ -11619,12 +11624,18 @@ ENCODE_ONE_NIBBLE_LOOP:
                JR ENCODE_ONE_NIBBLE_1          ; 61D0 18 0B
 
 ;; --------------------------------------------------------------------
-;; Count how many bytes below this one are the same, up to 139.
+;; Count how many nibbles below this one are the same.
 ;;
-;; B starts at &8B and counts down while NEXT_SCREEN_BYTE keeps
-;; returning the byte held in E, so &8C minus B is the length of the
-;; run.  The odd starting value is what makes the arithmetic below come
-;; out with the short cases first.
+;; B counts down from &8B while NEXT_SCREEN_BYTE keeps returning the
+;; value held in E, so &8C minus B is the run's length: no match at all
+;; leaves B at &8B and gives 1, which is the nibble by itself.
+;;
+;; THE ESCAPE VALUE ARRIVES WITH B THREE HIGHER, from &61C5, and that
+;; is the whole difference between the two paths.  Starting at &88
+;; makes every length come out four larger, so a run of the escape can
+;; never be shorter than four and never takes the literal path below --
+;; which it must not, because a literal escape nibble is what tells the
+;; decoder a run is starting.
 ;; --------------------------------------------------------------------
 
 ; ---- COUNT_RUN ---- from &61C3 when A <> C
@@ -11644,45 +11655,70 @@ ENCODE_ONE_NIBBLE_1:
                INC B                           ; 61DD 04
 
 ;; --------------------------------------------------------------------
-;; Write one run to the nibble stream.
+;; Write one run to the nibble stream, in one of three shapes.
 ;;
-;; A run shorter than four is not worth encoding and goes elsewhere.
-;; From four to eleven it fits in a single nibble pair.  Longer than
-;; that and the length is split, the top half rotated into place and
-;; emitted first, so a long run costs three nibbles instead of two.
+;; Under four, the run is written as itself: WRITE_NEXT_NIBBLE_LOOP
+;; puts the value out that many times and no escape is involved.  Three
+;; nibbles is what the shortest escaped form costs, so a run of three
+;; or fewer could not be worth escaping.
+;;
+;; Four to eleven costs three nibbles -- escape, value, count -- with
+;; the count holding the length less four, which is 0 to 7.
+;;
+;; Twelve and up costs four.  SUB &88 after the SUB &04 maps lengths 12
+;; to 139 onto &80 to &FF, the nibbles are swapped so the top half goes
+;; out first, and EMIT_RUN's fall-through writes it before the POP AF
+;; and the jump below write the bottom half.
+;;
+;; THE TOP BIT OF THE FIRST COUNT NIBBLE IS THE DISCRIMINATOR, and that
+;; is what the &88 buys.  A short run's count nibble is 0 to 7 and a
+;; long run's is 8 to F, so the decoder learns from that one nibble
+;; whether another follows.  The length is the byte less 116.
 ;; --------------------------------------------------------------------
 
 ; ---- ENCODE_RUN ---- from &61CC when A <> E, &61D9 when A <> E
 ENCODE_RUN:
                LD A,&8C                        ; 61DE 3E 8C
                SUB B                           ; 61E0 90
-               CP &04                          ; 61E1 FE 04
+               CP &04                          ; 61E1 FE 04  under four, and three nibbles is what escaping costs, so
+                                               ; there is nothing to gain
                JR C,WRITE_NEXT_NIBBLE_LOOP     ; 61E3 38 48
                SUB &04                         ; 61E5 D6 04
                CP &08                          ; 61E7 FE 08
-               JR C,EMIT_RUN_PAIR              ; 61E9 38 0D
-               SUB &88                         ; 61EB D6 88
+               JR C,EMIT_RUN                   ; 61E9 38 0D
+               SUB &88                         ; 61EB D6 88  &88 maps lengths 12 to 139 onto &80 to &FF, so the first
+                                               ; count nibble comes out 8 to F and says a second follows
                PUSH AF                         ; 61ED F5
-               RLCA                            ; 61EE 07
+               RLCA                            ; 61EE 07  four rotates swap the nibbles, putting the top half where
+                                               ; WRITE_NEXT_NIBBLE will take it
                RLCA                            ; 61EF 07
                RLCA                            ; 61F0 07
                RLCA                            ; 61F1 07
-               CALL EMIT_RUN_PAIR              ; 61F2 CD F8 61
+               CALL EMIT_RUN                   ; 61F2 CD F8 61
                POP AF                          ; 61F5 F1
                JR WRITE_NEXT_NIBBLE            ; 61F6 18 0A
 
 ;; --------------------------------------------------------------------
-;; Write a run as two nibbles: the count in C, then the value in E.
+;; Write the escape and the value, and fall into WRITE_NEXT_NIBBLE to
+;; write the count.
+;;
+;; THREE NIBBLES, NOT TWO, AND THE FALL-THROUGH IS THE THIRD.  There is
+;; no RET here: WRITE_NEXT_NIBBLE is the next instruction, so the A this
+;; was called with -- pushed at the top, popped at the bottom, untouched
+;; in between -- goes out as the count.  The C written first is not a
+;; count at all.  It is the escape value SCAN_NIBBLE_TABLE chose, which
+;; is the whole of how the decoder knows a run follows.
 ;; --------------------------------------------------------------------
 
-; ---- EMIT_RUN_PAIR ---- from &61E9 when A < &08, &61F2
-EMIT_RUN_PAIR:
+; ---- EMIT_RUN ---- from &61E9 when A < &08, &61F2
+EMIT_RUN:
                PUSH AF                         ; 61F8 F5
-               LD A,C                          ; 61F9 79
+               LD A,C                          ; 61F9 79  the escape, which is what marks this as a run rather than data
                CALL WRITE_NEXT_NIBBLE          ; 61FA CD 02 62
-               LD A,E                          ; 61FD 7B
+               LD A,E                          ; 61FD 7B  and the value that repeats
                CALL WRITE_NEXT_NIBBLE          ; 61FE CD 02 62
-               POP AF                          ; 6201 F1
+               POP AF                          ; 6201 F1  the count, restored and written by the fall-through into
+                                               ; WRITE_NEXT_NIBBLE below
 
 ;; --------------------------------------------------------------------
 ;; Write four bits into a packed stream.
@@ -11701,7 +11737,8 @@ EMIT_RUN_PAIR:
 ; ---- WRITE_NEXT_NIBBLE ---- from &61AC, &61F6, &61FA, &61FE, &622F
 WRITE_NEXT_NIBBLE:
                EXX                             ; 6202 D9
-               INC D                           ; 6203 14
+               INC D                           ; 6203 14  D counts nibbles written, and only its bottom bit matters --
+                                               ; odd plants a fresh byte, even merges into the one already there
                BIT 0,D                         ; 6204 CB 42
                JR Z,WRITE_NEXT_NIBBLE_1        ; 6206 28 07
                RLCA                            ; 6208 07
@@ -11714,23 +11751,25 @@ WRITE_NEXT_NIBBLE:
 
 ; ---- WRITE_NEXT_NIBBLE_1 ---- from &6206 when bit 0 of D clear
 WRITE_NEXT_NIBBLE_1:
-               XOR (HL)                        ; 620F AE
+               XOR (HL)                        ; 620F AE  XOR (HL) : AND E : XOR (HL) keeps the bits E clears and takes
+                                               ; the rest from A, which is the high half already in place
                AND E                           ; 6210 A3
                XOR (HL)                        ; 6211 AE
                LD (HL),A                       ; 6212 77
-               INC L                           ; 6213 2C
+               INC L                           ; 6213 2C  only now does the pointer move, so one byte has held two
+                                               ; nibbles
                EXX                             ; 6214 D9
                RET NZ                          ; 6215 C0
                EXX                             ; 6216 D9
                INC H                           ; 6217 24
                LD A,H                          ; 6218 7C
-               CP &FE                          ; 6219 FE FE
+               CP &FE                          ; 6219 FE FE  &FE00 is &1900 past &E500, so the buffer is full
                EXX                             ; 621B D9
                RET NZ                          ; 621C C0
-               LD IY,&1900                     ; 621D FD 21 00 19
+               LD IY,&1900                     ; 621D FD 21 00 19  &1900 bytes, the whole buffer, handed to the DOS
                CALL SEND_COMPRESSED_BLOCK      ; 6221 CD 72 61
                EXX                             ; 6224 D9
-               LD HL,&E500                     ; 6225 21 00 E5
+               LD HL,&E500                     ; 6225 21 00 E5  and the buffer starts again from the bottom
                LD DE,&000F                     ; 6228 11 0F 00
                EXX                             ; 622B D9
                RET                             ; 622C C9
@@ -11738,7 +11777,8 @@ WRITE_NEXT_NIBBLE_1:
 ; ---- WRITE_NEXT_NIBBLE_LOOP ---- from &61E3 when A < &04, &6234 when A is not 0 yet
 WRITE_NEXT_NIBBLE_LOOP:
                PUSH AF                         ; 622D F5
-               LD A,E                          ; 622E 7B
+               LD A,E                          ; 622E 7B  the value itself, written as many times as the run is long --
+                                               ; no escape, because there is nothing to mark
                CALL WRITE_NEXT_NIBBLE          ; 622F CD 02 62
                POP AF                          ; 6232 F1
                DEC A                           ; 6233 3D
@@ -11746,16 +11786,32 @@ WRITE_NEXT_NIBBLE_LOOP:
                RET                             ; 6236 C9
 
 ;; --------------------------------------------------------------------
-;; Walk that table back down from its end, comparing each entry against
-;; BC.  Named for what it does; which entry it is looking for is not
-;; established here.
+;; Pick the value that occurs least often, and return it in A.
+;;
+;; IT IS LOOKING FOR THE RAREST, and the direction of the test settles
+;; it: SBC HL,BC borrows when this count is below the best so far, and
+;; it is the borrow that falls through to replace it.  BC starts at
+;; &2000, so a value has to occur fewer than 8192 times to be considered
+;; at all -- and one that never occurs cannot be beaten, which is the
+;; ordinary case on a screen using fewer than sixteen colours.
+;;
+;; What is wanted is the escape marker for the run encoding, and the
+;; rarest value is the cheapest thing to spend on it: every literal
+;; occurrence of the escape costs three nibbles instead of one.
+;;
+;; The index is carried in the low byte of the table pointer rather
+;; than counted.  EX DE,HL leaves that byte in E, LD A,E takes it at
+;; each improvement, and the SRL A at the end halves it back from a
+;; two-byte stride to a value 0 to 15.
 ;; --------------------------------------------------------------------
 
 ; ---- SCAN_NIBBLE_TABLE ---- from &61A0
 SCAN_NIBBLE_TABLE:
                CALL BUILD_NIBBLE_TABLE         ; 6237 CD 53 62
-               LD L,&20                        ; 623A 2E 20
-               LD B,L                          ; 623C 45
+               LD L,&20                        ; 623A 2E 20  one past the end of the table, and the low byte doubles as
+                                               ; the index all the way down
+               LD B,L                          ; 623C 45  B and C are the best count so far, and &2000 starts it -- a
+                                               ; value has to be rarer than 8192 to be taken at all
 
 ; ---- SCAN_NIBBLE_TABLE_LOOP ---- from &624E when L is not 0 yet
 SCAN_NIBBLE_TABLE_LOOP:
@@ -11765,49 +11821,70 @@ SCAN_NIBBLE_TABLE_LOOP:
                LD E,(HL)                       ; 6240 5E
                EX DE,HL                        ; 6241 EB
                AND A                           ; 6242 A7
-               SBC HL,BC                       ; 6243 ED 42
+               SBC HL,BC                       ; 6243 ED 42  the borrow is the whole test: carry set means this value is
+                                               ; rarer than the best so far
                JR NC,SCAN_NIBBLE_TABLE_1       ; 6245 30 04
                ADD HL,BC                       ; 6247 09
                LD B,H                          ; 6248 44
                LD C,L                          ; 6249 4D
-               LD A,E                          ; 624A 7B
+               LD A,E                          ; 624A 7B  E is the low byte of the table pointer, which is twice the
+                                               ; value's index -- so the index comes free rather than being counted
 
 ; ---- SCAN_NIBBLE_TABLE_1 ---- from &6245
 SCAN_NIBBLE_TABLE_1:
                EX DE,HL                        ; 624B EB
-               INC L                           ; 624C 2C
+               INC L                           ; 624C 2C  INC L then DEC L tests L without disturbing BC, which is
+                                               ; holding the answer
                DEC L                           ; 624D 2D
                JR NZ,SCAN_NIBBLE_TABLE_LOOP    ; 624E 20 ED
-               SRL A                           ; 6250 CB 3F
+               SRL A                           ; 6250 CB 3F  halve it, because the pointer stepped two bytes for every
+                                               ; value
                RET                             ; 6252 C9
 
 ;; --------------------------------------------------------------------
-;; Clear thirty-two bytes at &E500 and then count something over the
-;; source into them, a nibble at a time -- AND &0F on each byte read,
-;; doubled to index the table.  Thirty-two entries is sixteen nibble
-;; values with two bytes each.
+;; How often each of the sixteen nibble values occurs in the screen:
+;; sixteen counters of two bytes at &E500, both nibbles of every source
+;; byte counted into them.
+;;
+;; THE SOURCE IS EXACTLY A MODE 4 SCREEN.  B is left at zero by the
+;; clearing loop above, so the inner DJNZ runs 256 times, and C is &60 --
+;; 96 times 256 is &6000, the 24K a MODE 4 screen occupies.  Neither
+;; number is written down as a screen size anywhere here; the loop
+;; simply covers one.
+;;
+;; Two bytes to a counter because 24576 bytes is 49152 nibbles, which
+;; one byte could not hold a share of.  The carry is taken by hand:
+;; INC (HL) : JR NZ steps the low byte and reaches the high one only
+;; when it wraps.
+;;
+;; The clearing loop writes E rather than a zero it has loaded, because
+;; DE has just been pointed at the source and its low byte is already
+;; zero.
 ;; --------------------------------------------------------------------
 
 ; ---- BUILD_NIBBLE_TABLE ---- from &6237
 BUILD_NIBBLE_TABLE:
-               LD HL,&E500                     ; 6253 21 00 E5
+               LD HL,&E500                     ; 6253 21 00 E5  E is zero because DE has just been pointed at the
+                                               ; source, so the clearing loop needs no separate zero
                LD DE,DOS_HEADER                ; 6256 11 00 80
-               LD B,&20                        ; 6259 06 20
+               LD B,&20                        ; 6259 06 20  thirty-two bytes -- sixteen values, two bytes each
 
 ; ---- BUILD_NIBBLE_TABLE_LOOP ---- from &625D when B is not 0 yet
 BUILD_NIBBLE_TABLE_LOOP:
                LD (HL),E                       ; 625B 73
                INC HL                          ; 625C 23
                DJNZ BUILD_NIBBLE_TABLE_LOOP    ; 625D 10 FC
-               LD C,&60                        ; 625F 0E 60
+               LD C,&60                        ; 625F 0E 60  &60 outer passes of an inner DJNZ that B left at zero, so
+                                               ; 96 times 256, which is the &6000 of a MODE 4 screen
 
 ; ---- BUILD_NIBBLE_TABLE_LOOP2 ---- from &6278 when B is not 0 yet, &627B when C is not 0 yet
 BUILD_NIBBLE_TABLE_LOOP2:
                LD A,(DE)                       ; 6261 1A
                AND &0F                         ; 6262 E6 0F
-               ADD A,A                         ; 6264 87
+               ADD A,A                         ; 6264 87  doubled, because each value has a two-byte counter
                LD L,A                          ; 6265 6F
-               INC (HL)                        ; 6266 34
+               INC (HL)                        ; 6266 34  INC (HL) then JR NZ is a sixteen-bit increment done by hand:
+                                               ; the high byte is only touched when the low one wraps
                JR NZ,BUILD_NIBBLE_TABLE_1      ; 6267 20 02
                INC HL                          ; 6269 23
                INC (HL)                        ; 626A 34
@@ -11815,7 +11892,8 @@ BUILD_NIBBLE_TABLE_LOOP2:
 ; ---- BUILD_NIBBLE_TABLE_1 ---- from &6267
 BUILD_NIBBLE_TABLE_1:
                LD A,(DE)                       ; 626B 1A
-               RRCA                            ; 626C 0F
+               RRCA                            ; 626C 0F  three rotates and AND &1E give the high nibble already
+                                               ; doubled, which is the counter's offset without a separate shift
                RRCA                            ; 626D 0F
                RRCA                            ; 626E 0F
                AND &1E                         ; 626F E6 1E
