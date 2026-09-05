@@ -198,14 +198,11 @@ XPTR:                           EQU  &5AA3     ; address of the error marker
 ; pointer written as NAME+&4000 has bit 15 set, the flag INDJP
 ; and CTAB use to mean "not in this page".
 DOS_BOOT:                       EQU  &8009
-DOS_BOOT_11:                    EQU  &807F
-DOS_BOOT_12:                    EQU  &8081
-DOS_BOOT_13:                    EQU  &8086
-DOS_BOOT_14:                    EQU  &8088
-DOS_BOOT_15:                    EQU  &8089
-DOS_BOOT_5:                     EQU  &8069
-DOS_BOOT_6:                     EQU  &806B
-DOS_BOOT_7:                     EQU  &806D
+DOS_BOOT_10:                    EQU  &8086
+DOS_BOOT_11:                    EQU  &8088
+DOS_BOOT_12:                    EQU  &8089
+DOS_BOOT_8:                     EQU  &807F
+DOS_BOOT_9:                     EQU  &8081
 DOS_CHANNEL_ENTRY_AT_ZERO_PAGE: EQU  &AAEA
 DOS_CKPT:                       EQU  &82B6
 DOS_DATDT:                      EQU  &8271
@@ -225,7 +222,6 @@ DOS_HEADER:                     EQU  &8000
 DOS_HK_HSAVE_1:                 EQU  &A500
 DOS_HK_SBYT:                    EQU  &AF75
 DOS_ITRCK:                      EQU  &95D8
-DOS_LAB2_1:                     EQU  &A02A
 DOS_LBYT:                       EQU  &AFF6
 DOS_MBCOPY_7774:                EQU  &BD93
 DOS_MBCOPY_778B:                EQU  &BDAA
@@ -249,7 +245,6 @@ DOS_TEMPW1:                     EQU  &8212
 DOS_TIMDT:                      EQU  &8280
 DOS_V40F9:                      EQU  &80F9
 DOS_V4222:                      EQU  &8222
-DOS_V42E2:                      EQU  &82E2
 DOS_V5000:                      EQU  &9000
 DOS_V7CFF:                      EQU  &BCFF
 DOS_V7DE8:                      EQU  &BDE8
@@ -668,18 +663,24 @@ V4064:
 V4066:
                DEFB &81,&01                    ; 4066 ..
 
-; ---- V4068 ---- from &75E1
-V4068:
-               DEFB &00,&00,&00,&00,&00        ; 4068 .....
+; ---- TRACE_SAVED_LMPR ---- from &75E1
+TRACE_SAVED_LMPR:
+               DEFB &00                        ; 4068 .
 
-V406D:
+TRACE_SAVED_DE:
+               DEFB &00,&00                    ; 4069 ..
+
+TRACE_SAVED_BC:
+               DEFB &00,&00                    ; 406B ..
+
+TRACE_CURSOR:
                DEFB &00,&00                    ; 406D ..
 
-; ---- V406F ---- from &614A
-V406F:
+; ---- LINE_TRACE_SETTING ---- from &614A
+LINE_TRACE_SETTING:
                DEFB &00,&00                    ; 406F ..
 
-V4071:
+TRACE_SAVED_SP:
                DEFB &00,&00                    ; 4071 ..
 
 SOFCOUNT:
@@ -1422,6 +1423,8 @@ CALLDOS_1:
                OUT (C),B                       ; 42DE ED 41
                EXX                             ; 42E0 D9
                RET                             ; 42E1 C9
+
+TRACE_FONT_BYTES:
                DEFB &00,&00,&00                ; 42E2 ...  zero fill
                DEFS 26                         ; 42E5 26 NOPs
 
@@ -8605,12 +8608,12 @@ SCREEN_BLANK_TICK_1:
 
 ; ---- SCREEN_BLANK_TICK_LOOP ---- from &5A63
 SCREEN_BLANK_TICK_LOOP:
-               LD DE,(DOS_BOOT_13)             ; 5A0B ED 5B 86 80  the read position and the write position
-               LD HL,(DOS_BOOT_15)             ; 5A0F 2A 89 80
+               LD DE,(DOS_BOOT_10)             ; 5A0B ED 5B 86 80  the read position and the write position
+               LD HL,(DOS_BOOT_12)             ; 5A0F 2A 89 80
                AND A                           ; 5A12 A7
                SBC HL,DE                       ; 5A13 ED 52
                JR NZ,SCREEN_BLANK_TICK_2       ; 5A15 20 07  the addresses differ, so there is something to send
-               LD A,(DOS_BOOT_14)              ; 5A17 3A 88 80  same address and same page as well: the buffer is empty
+               LD A,(DOS_BOOT_11)              ; 5A17 3A 88 80  same address and same page as well: the buffer is empty
                                                ; and there is nothing to do
                DEC A                           ; 5A1A 3D
                CP B                            ; 5A1B B8
@@ -8701,7 +8704,7 @@ SCREEN_BLANK_TICK_7:
                LD A,(&807E)                    ; 5A78 3A 7E 80
                DEC A                           ; 5A7B 3D
                OUT (LMPR),A                    ; 5A7C D3 FA
-               LD DE,(DOS_BOOT_11)             ; 5A7E ED 5B 7F 80
+               LD DE,(DOS_BOOT_8)              ; 5A7E ED 5B 7F 80
 
 ; ---- SCREEN_BLANK_TICK_LOOP3 ---- from &5AD2
 SCREEN_BLANK_TICK_LOOP3:
@@ -8712,7 +8715,7 @@ SCREEN_BLANK_TICK_LOOP3:
                IN A,(LMPR)                     ; 5A8A DB FA
                INC A                           ; 5A8C 3C
                LD H,A                          ; 5A8D 67
-               LD A,(DOS_BOOT_12)              ; 5A8E 3A 81 80
+               LD A,(DOS_BOOT_9)               ; 5A8E 3A 81 80
                CP H                            ; 5A91 BC
                JR Z,SCREEN_BLANK_TICK_DONE     ; 5A92 28 2A
 
@@ -8759,7 +8762,7 @@ SCREEN_BLANK_TICK_11:
 SCREEN_BLANK_TICK_DONE:
                LD A,C                          ; 5ABE 79
                OUT (LMPR),A                    ; 5ABF D3 FA
-               LD (DOS_BOOT_11),DE             ; 5AC1 ED 53 7F 80
+               LD (DOS_BOOT_8),DE              ; 5AC1 ED 53 7F 80
                RET                             ; 5AC5 C9
 
 ; ---- SCREEN_BLANK_TICK_12 ---- from &5AB7 when A <> CH_SPACE
@@ -10602,9 +10605,11 @@ SHOW_LINE_AND_STATEMENT:
                INC B                           ; 5FBD 04  LINERUN sets PPC to &FFFF for the edit line, so B = &FF means
                                                ; a direct command with no line number to show
                RET Z                           ; 5FBE C8
-               LD (V4071+&4000),SP             ; 5FBF ED 73 71 80
+               LD (TRACE_SAVED_SP+&4000),SP    ; 5FBF ED 73 71 80
                LD SP,HK_SERSEND+&4000          ; 5FC3 31 00 83  &4300 in this page seen through the window; the stack
-                                               ; grows down into the spare bytes from &42E2
+                                               ; grows down into the spare bytes from &42E2. TRACE_FONT_BYTES takes the
+                                               ; first eight of those and the stack the last twenty-two, so the two uses
+                                               ; of the gap do not meet
                DEC B                           ; 5FC6 05
                LD HL,&5860                     ; 5FC7 21 60 58  the same place on the screen in each mode -- character
                                                ; row 22, about three-quarters across -- but each mode lays the screen
@@ -10622,26 +10627,28 @@ SHOW_LINE_AND_STATEMENT:
 
 ; ---- SHOW_LINE_AND_STATEMENT_1 ---- from &5FCE when bit 6 of A set, &5FD5 when bit 5 of A set
 SHOW_LINE_AND_STATEMENT_1:
-               LD (V406D+&4000),HL             ; 5FDA 22 6D 80  the plotter's cursor -- it steps this on itself, so the
-                                               ; two numbers and the colon follow each other along
-               CALL CHECK_BREAK_6+&4000        ; 5FDD CD E1 A0
-               LD A,&3A                        ; 5FE0 3E 3A  ':' between the line number and the statement number
-               CALL CHECK_BREAK_2+&4000        ; 5FE2 CD 2A A0
-               LD A,(SUBPPC)                   ; 5FE5 3A 47 5C
-               LD HL,V6114+&4000               ; 5FE8 21 14 A1  the divisor table starting at -10, so a statement number
-                                               ; prints in two digits
-               LD C,A                          ; 5FEB 4F
-               LD B,&00                        ; 5FEC 06 00  CHECK_BREAK_7 takes its value in BC, not HL
-               CALL CHECK_BREAK_7+&4000        ; 5FEE CD E4 A0
-               LD SP,(V4071+&4000)             ; 5FF1 ED 7B 71 80
-               LD A,(V406F+&4000)              ; 5FF5 3A 6F 80  what LINE stored: 0 for no pause, &FF for STEP, anything
-                                               ; else a delay
-               AND A                           ; 5FF8 A7
-               RET Z                           ; 5FF9 C8
-               LD B,A                          ; 5FFA 47
-               INC A                           ; 5FFB 3C
-               JR NZ,CHECK_BREAK_LOOP3         ; 5FFC 20 22  &FF is STEP, which waits for a key instead of counting; any
-                                               ; other value falls through to the delay loop
+               LD (TRACE_CURSOR+&4000),HL         ; 5FDA 22 6D 80  the plotter's cursor -- it steps this on itself, so
+                                                  ; the two numbers and the colon follow each other along
+               CALL TRACE_PRINT_LINE_NUMBER+&4000 ; 5FDD CD E1 A0
+               LD A,&3A                           ; 5FE0 3E 3A  ':' between the line number and the statement number
+               CALL TRACE_PLOT_CHAR+&4000         ; 5FE2 CD 2A A0
+               LD A,(SUBPPC)                      ; 5FE5 3A 47 5C
+               LD HL,TRACE_DIVISORS_2+&4000       ; 5FE8 21 14 A1  the divisor table starting at -10, so a statement
+                                                  ; number prints in two digits
+               LD C,A                             ; 5FEB 4F
+               LD B,&00                           ; 5FEC 06 00  TRACE_PRINT_DECIMAL takes its value in BC, not HL
+               CALL TRACE_PRINT_DECIMAL+&4000     ; 5FEE CD E4 A0
+               LD SP,(TRACE_SAVED_SP+&4000)       ; 5FF1 ED 7B 71 80
+               LD A,(LINE_TRACE_SETTING+&4000)    ; 5FF5 3A 6F 80  what LINE stored: 0 for no pause, &FF for STEP,
+                                                  ; anything else a delay. &614A is the only place that writes it, and
+                                                  ; writes it as &406F -- the command runs at home, the trace runs in
+                                                  ; the window
+               AND A                              ; 5FF8 A7
+               RET Z                              ; 5FF9 C8
+               LD B,A                             ; 5FFA 47
+               INC A                              ; 5FFB 3C
+               JR NZ,CHECK_BREAK_LOOP3            ; 5FFC 20 22  &FF is STEP, which waits for a key instead of counting;
+                                                  ; any other value falls through to the delay loop
 
 ; ---- SHOW_LINE_AND_STATEMENT_2 ---- from &600B
 SHOW_LINE_AND_STATEMENT_2:
@@ -10707,7 +10714,23 @@ CHECK_BREAK_LOOP4:
                DJNZ CHECK_BREAK_LOOP3          ; 6027 10 F7
                RET                             ; 6029 C9
 
-CHECK_BREAK_2:
+;; --------------------------------------------------------------------
+;; Plot one character at the trace position, in whichever screen mode
+;; is current.
+;;
+;; THE FONT IS COPIED OUT BEFORE THE PAGING CHANGES, into eight bytes
+;; at &42E2, because CHARS points into memory that the LMPR switch
+;; below is about to displace.  LMPR is saved at &4068 and put back at
+;; the end.
+;;
+;; Modes 1 and 2 have the screen page brought in one page low, so the
+;; screen sits at &4000-&7FFF; modes 3 and 4 bring it in as it is, so
+;; its top 16K sits there instead.  Either way the address chosen in
+;; SHOW_LINE_AND_STATEMENT is a section B address and the code, running
+;; in the window, is untouched.
+;; --------------------------------------------------------------------
+
+TRACE_PLOT_CHAR:
                LD DE,(CHARS)                   ; 602A ED 5B 36 5C
                ADD A,A                         ; 602E 87  eight bytes a character, so the code is multiplied by eight --
                                                ; ADD A,A first because a code of &80 or more would not fit the doubling
@@ -10717,35 +10740,35 @@ CHECK_BREAK_2:
                ADD HL,HL                       ; 6032 29
                ADD HL,HL                       ; 6033 29
                ADD HL,DE                       ; 6034 19
-               LD DE,DOS_V42E2                 ; 6035 11 E2 82
+               LD DE,TRACE_FONT_BYTES+&4000    ; 6035 11 E2 82
                LD BC,&0008                     ; 6038 01 08 00
                LDIR                            ; 603B ED B0
-               LD HL,DOS_V42E2                 ; 603D 21 E2 82
+               LD HL,TRACE_FONT_BYTES+&4000    ; 603D 21 E2 82
                IN A,(LMPR)                     ; 6040 DB FA
-               LD (&8068),A                    ; 6042 32 68 80  LMPR is about to be changed and has to come back
+               LD (TRACE_SAVED_LMPR+&4000),A   ; 6042 32 68 80  LMPR is about to be changed and has to come back
                IN A,(VMPR)                     ; 6045 DB FC
                BIT 6,A                         ; 6047 CB 77
-               JR NZ,CHECK_BREAK_3             ; 6049 20 01
+               JR NZ,TRACE_PLOT_CHAR_1         ; 6049 20 01
                DEC A                           ; 604B 3D  modes 1 and 2 want the screen page at &4000, so LMPR takes one
                                                ; less; modes 3 and 4 want it at &0000 with its second half at &4000
 
-; ---- CHECK_BREAK_3 ---- from &6049 when bit 6 of A set
-CHECK_BREAK_3:
+; ---- TRACE_PLOT_CHAR_1 ---- from &6049 when bit 6 of A set
+TRACE_PLOT_CHAR_1:
                AND PAGEMASK                    ; 604C E6 1F  clearing bits 5 and 6 re-enables ROM 0 under the screen,
                                                ; which does not matter -- nothing here touches &0000-&3FFF
                OUT (LMPR),A                    ; 604E D3 FA
                LD B,&08                        ; 6050 06 08
-               LD DE,(DOS_BOOT_7)              ; 6052 ED 5B 6D 80  the trace cursor, left by SHOW_LINE_AND_STATEMENT and
+               LD DE,(TRACE_CURSOR+&4000)      ; 6052 ED 5B 6D 80  the trace cursor, left by SHOW_LINE_AND_STATEMENT and
                                                ; stepped on at the end of each character
                IN A,(VMPR)                     ; 6056 DB FC
                AND &60                         ; 6058 E6 60  &00 mode 1, &20 mode 2, &40 and &60 modes 3 and 4, which
                                                ; share the last path
-               JR Z,CHECK_BREAK_LOOP7          ; 605A 28 21
+               JR Z,TRACE_PLOT_CHAR_LOOP3      ; 605A 28 21
                CP &20                          ; 605C FE 20
-               JR NZ,CHECK_BREAK_4             ; 605E 20 31
+               JR NZ,TRACE_PLOT_CHAR_2         ; 605E 20 31
 
-; ---- CHECK_BREAK_LOOP5 ---- from &6067 when B is not 0 yet
-CHECK_BREAK_LOOP5:
+; ---- TRACE_PLOT_CHAR_LOOP ---- from &6067 when B is not 0 yet
+TRACE_PLOT_CHAR_LOOP:
                LD A,(HL)                       ; 6060 7E
                LD (DE),A                       ; 6061 12
                INC HL                          ; 6062 23
@@ -10753,30 +10776,30 @@ CHECK_BREAK_LOOP5:
                ADD A,&20                       ; 6064 C6 20  mode 2 is 32 bytes a row; only E needs adding to because
                                                ; eight rows cannot cross a page from a row-176 start
                LD E,A                          ; 6066 5F
-               DJNZ CHECK_BREAK_LOOP5          ; 6067 10 F7
+               DJNZ TRACE_PLOT_CHAR_LOOP       ; 6067 10 F7
                LD HL,&2000                     ; 6069 21 00 20  mode 2 attributes sit &2000 above the pixels, one byte
                                                ; per cell per pixel row, so eight of them are needed
                ADD HL,DE                       ; 606C 19
                LD DE,&0020                     ; 606D 11 20 00
                LD B,&08                        ; 6070 06 08
 
-; ---- CHECK_BREAK_LOOP6 ---- from &6075 when B is not 0 yet, &608F
-CHECK_BREAK_LOOP6:
+; ---- TRACE_PLOT_CHAR_LOOP2 ---- from &6075 when B is not 0 yet, &608F
+TRACE_PLOT_CHAR_LOOP2:
                LD (HL),&78                     ; 6072 36 78  &78 is bright, paper 7, ink 0 -- the manual's "PEN 0 on
                                                ; PAPER 15"
                ADD HL,DE                       ; 6074 19
-               DJNZ CHECK_BREAK_LOOP6          ; 6075 10 FB
-               LD HL,DOS_BOOT_7                ; 6077 21 6D 80
+               DJNZ TRACE_PLOT_CHAR_LOOP2      ; 6075 10 FB
+               LD HL,TRACE_CURSOR+&4000        ; 6077 21 6D 80
                INC (HL)                        ; 607A 34  one byte along, the next character cell in modes 1 and 2
-               JR CHECK_BREAK_DONE             ; 607B 18 5E
+               JR TRACE_PLOT_CHAR_DONE         ; 607B 18 5E
 
-; ---- CHECK_BREAK_LOOP7 ---- from &605A when no bit of &60 is set, &6081 when B is not 0 yet
-CHECK_BREAK_LOOP7:
+; ---- TRACE_PLOT_CHAR_LOOP3 ---- from &605A when no bit of &60 is set, &6081 when B is not 0 yet
+TRACE_PLOT_CHAR_LOOP3:
                LD A,(HL)                       ; 607D 7E
                LD (DE),A                       ; 607E 12
                INC HL                          ; 607F 23
                INC D                           ; 6080 14  mode 1 steps a pixel row by adding 256, the ROM's own layout
-               DJNZ CHECK_BREAK_LOOP7          ; 6081 10 FA
+               DJNZ TRACE_PLOT_CHAR_LOOP3      ; 6081 10 FA
                EX DE,HL                        ; 6083 EB
                DEC H                           ; 6084 25  DEC H undoes the ninth INC D; the three rotates and OR &58 are
                                                ; the ROM's way of turning a display address into its attribute address
@@ -10789,18 +10812,18 @@ CHECK_BREAK_LOOP7:
                LD H,A                          ; 608D 67
                INC B                           ; 608E 04  B is 0 after the DJNZ, so this makes it 1 -- mode 1 needs one
                                                ; attribute byte where mode 2 needed eight, and the same loop serves both
-               JR CHECK_BREAK_LOOP6            ; 608F 18 E1
+               JR TRACE_PLOT_CHAR_LOOP2        ; 608F 18 E1
 
-; ---- CHECK_BREAK_4 ---- from &605E when A <> &20
-CHECK_BREAK_4:
+; ---- TRACE_PLOT_CHAR_2 ---- from &605E when A <> &20
+TRACE_PLOT_CHAR_2:
                LD A,H                          ; 6091 7C  &8100 is a sixteen-entry table, two bytes each, expanding a
                                                ; font nibble into mode 4 pixels: a set bit becomes pen 0 and a clear bit
                                                ; pen 15
                LD H,&81                        ; 6092 26 81
                EXX                             ; 6094 D9
-               LD (DOS_BOOT_6),BC              ; 6095 ED 43 6B 80  the shadow set is wanted for the source pointer, so
+               LD (TRACE_SAVED_BC+&4000),BC    ; 6095 ED 43 6B 80  the shadow set is wanted for the source pointer, so
                                                ; what was in it is parked in two spare words
-               LD (DOS_BOOT_5),DE              ; 6099 ED 53 69 80
+               LD (TRACE_SAVED_DE+&4000),DE    ; 6099 ED 53 69 80
                LD D,A                          ; 609D 57
                EXX                             ; 609E D9
                LD A,L                          ; 609F 7D
@@ -10811,8 +10834,8 @@ CHECK_BREAK_4:
                EXX                             ; 60A4 D9
                LD B,&08                        ; 60A5 06 08
 
-; ---- CHECK_BREAK_LOOP8 ---- from &60C8 when B is not 0 yet
-CHECK_BREAK_LOOP8:
+; ---- TRACE_PLOT_CHAR_LOOP4 ---- from &60C8 when B is not 0 yet
+TRACE_PLOT_CHAR_LOOP4:
                LD A,(DE)                       ; 60A7 1A
                INC DE                          ; 60A8 13
                EXX                             ; 60A9 D9
@@ -10838,38 +10861,56 @@ CHECK_BREAK_LOOP8:
                ADD A,&7C                       ; 60C1 C6 7C  four bytes went out with the LDIs, and a mode 4 row is &80
                                                ; wide, so &7C more reaches the next row
                LD E,A                          ; 60C3 5F
-               JR NC,CHECK_BREAK_5             ; 60C4 30 01
+               JR NC,TRACE_PLOT_CHAR_3         ; 60C4 30 01
                INC D                           ; 60C6 14
 
-; ---- CHECK_BREAK_5 ---- from &60C4
-CHECK_BREAK_5:
+; ---- TRACE_PLOT_CHAR_3 ---- from &60C4
+TRACE_PLOT_CHAR_3:
                EXX                             ; 60C7 D9
-               DJNZ CHECK_BREAK_LOOP8          ; 60C8 10 DD
-               LD DE,(DOS_BOOT_5)              ; 60CA ED 5B 69 80
-               LD BC,(DOS_BOOT_6)              ; 60CE ED 4B 6B 80
+               DJNZ TRACE_PLOT_CHAR_LOOP4      ; 60C8 10 DD
+               LD DE,(TRACE_SAVED_DE+&4000)    ; 60CA ED 5B 69 80
+               LD BC,(TRACE_SAVED_BC+&4000)    ; 60CE ED 4B 6B 80
                EXX                             ; 60D2 D9
-               LD A,(DOS_BOOT_7)               ; 60D3 3A 6D 80
+               LD A,(TRACE_CURSOR+&4000)       ; 60D3 3A 6D 80
                ADD A,&04                       ; 60D6 C6 04  four bytes to the next character cell -- in mode 3 that is
                                                ; sixteen pixels rather than eight, so the trace simply comes out double
                                                ; width there
-               LD (DOS_BOOT_7),A               ; 60D8 32 6D 80
+               LD (TRACE_CURSOR+&4000),A       ; 60D8 32 6D 80
 
-; ---- CHECK_BREAK_DONE ---- from &607B
-CHECK_BREAK_DONE:
-               LD A,(&8068)                    ; 60DB 3A 68 80
+; ---- TRACE_PLOT_CHAR_DONE ---- from &607B
+TRACE_PLOT_CHAR_DONE:
+               LD A,(TRACE_SAVED_LMPR+&4000)   ; 60DB 3A 68 80
                OUT (LMPR),A                    ; 60DE D3 FA
                RET                             ; 60E0 C9
 
-CHECK_BREAK_6:
-               LD HL,&A10E                     ; 60E1 21 0E A1
+;; --------------------------------------------------------------------
+;; One instruction: point HL at the five-digit divisor table and fall
+;; through.  The two-digit table is passed in by the caller instead,
+;; which is why the statement number goes through TRACE_PRINT_DECIMAL
+;; directly and the line number comes here first.
+;; --------------------------------------------------------------------
 
-CHECK_BREAK_7:
+TRACE_PRINT_LINE_NUMBER:
+               LD HL,TRACE_DIVISORS_5+&4000    ; 60E1 21 0E A1
+
+;; --------------------------------------------------------------------
+;; Print the number in BC as decimal, leading zeros shown as spaces.
+;; HL points at a table of negative powers of ten, and the entry point
+;; one instruction above supplies the five-digit one.
+;;
+;; E IS THE PAD CHARACTER AND ITS OWN FLAG.  It starts at &20, and the
+;; fall-through at &60F9 sets it to &30 the first time a digit comes
+;; out non-zero -- so leading zeros print as spaces and everything
+;; after them as digits, with no separate flag and no test.
+;; --------------------------------------------------------------------
+
+TRACE_PRINT_DECIMAL:
                LD E,&20                        ; 60E4 1E 20
                PUSH BC                         ; 60E6 C5  the value is pushed and reached by EX (SP),HL, which frees HL
                                                ; to walk the table
 
-; ---- CHECK_BREAK_LOOP9 ---- from &610A when C is not 0 yet
-CHECK_BREAK_LOOP9:
+; ---- TRACE_PRINT_DECIMAL_LOOP ---- from &610A when C is not 0 yet
+TRACE_PRINT_DECIMAL_LOOP:
                LD C,(HL)                       ; 60E7 4E
                INC HL                          ; 60E8 23
                LD B,(HL)                       ; 60E9 46
@@ -10879,38 +10920,38 @@ CHECK_BREAK_LOOP9:
                INC C                           ; 60ED 0C  a divisor whose low byte is zero ends the table, and the units
                                                ; digit is then just what is left in L
                DEC C                           ; 60EE 0D
-               JR Z,CHECK_BREAK_8              ; 60EF 28 0A
+               JR Z,TRACE_PRINT_DECIMAL_1      ; 60EF 28 0A
                XOR A                           ; 60F1 AF
 
-; ---- CHECK_BREAK_LOOP10 ---- from &60F4
-CHECK_BREAK_LOOP10:
+; ---- TRACE_PRINT_DECIMAL_LOOP2 ---- from &60F4
+TRACE_PRINT_DECIMAL_LOOP2:
                INC A                           ; 60F2 3C  add the negative power of ten until it carries -- the count of
                                                ; times round is the digit
                ADD HL,BC                       ; 60F3 09
-               JR C,CHECK_BREAK_LOOP10         ; 60F4 38 FC
+               JR C,TRACE_PRINT_DECIMAL_LOOP2  ; 60F4 38 FC
                SBC HL,BC                       ; 60F6 ED 42  one too many, so take it back off
                DEC A                           ; 60F8 3D
-               JR Z,CHECK_BREAK_9              ; 60F9 28 02
+               JR Z,TRACE_PRINT_DECIMAL_2      ; 60F9 28 02
 
-; ---- CHECK_BREAK_8 ---- from &60EF when C reaches 0
-CHECK_BREAK_8:
+; ---- TRACE_PRINT_DECIMAL_1 ---- from &60EF when C reaches 0
+TRACE_PRINT_DECIMAL_1:
                LD E,&30                        ; 60FB 1E 30  also the target for the last digit, which forces &30 so a
                                                ; final zero still prints
 
-; ---- CHECK_BREAK_9 ---- from &60F9 when A reaches 0
-CHECK_BREAK_9:
+; ---- TRACE_PRINT_DECIMAL_2 ---- from &60F9 when A reaches 0
+TRACE_PRINT_DECIMAL_2:
                ADD A,E                         ; 60FD 83
                PUSH BC                         ; 60FE C5
                PUSH DE                         ; 60FF D5
                PUSH HL                         ; 6100 E5
-               CALL DOS_LAB2_1                 ; 6101 CD 2A A0
+               CALL TRACE_PLOT_CHAR+&4000      ; 6101 CD 2A A0
                POP HL                          ; 6104 E1
                POP DE                          ; 6105 D1
                POP BC                          ; 6106 C1
                EX (SP),HL                      ; 6107 E3
                INC C                           ; 6108 0C
                DEC C                           ; 6109 0D
-               JR NZ,CHECK_BREAK_LOOP9         ; 610A 20 DB
+               JR NZ,TRACE_PRINT_DECIMAL_LOOP  ; 610A 20 DB
                POP BC                          ; 610C C1
                RET                             ; 610D C9
 
@@ -10925,14 +10966,14 @@ CHECK_BREAK_9:
 ;; above them rather than from anything they do.
 ;; --------------------------------------------------------------------
 
-DECIMAL_DIVISORS:
-               DEFW &D8F0,&FC18                ; 610E F0 D8 18 FC  not code -- this is the divisor table CHECK_BREAK_6
-                                               ; points at, the words &D8F0 &FC18 &FF9C &FFF6, which are -10000, -1000,
-                                               ; -100 and -10
+TRACE_DIVISORS_5:
+               DEFW &D8F0,&FC18                ; 610E F0 D8 18 FC  not code -- this is the divisor table
+                                               ; TRACE_PRINT_LINE_NUMBER points at, the words &D8F0 &FC18 &FF9C &FFF6,
+                                               ; which are -10000, -1000, -100 and -10
                DEFW &FF9C                      ; 6112 9C FF  the third of the four, and not the SBC A,H the trace made
                                                ; of it
 
-V6114:
+TRACE_DIVISORS_2:
                DEFW &FFF6                      ; 6114 F6 FF  the two-digit table used for the statement number, -10 and
                                                ; then the &00 that ends it. Only the low byte of the last entry has to
                                                ; be zero, so the &CD of the CALL below serves as its high byte
@@ -10953,7 +10994,7 @@ V6114:
 ;; --------------------------------------------------------------------
 
 CMD_LINE:
-               CALL CALL_NEXTCHAR              ; 6117 CD 61 44
+               CALL &4461                      ; 6117 CD 61 44
                CP T_OFF                        ; 611A FE 89
                PUSH AF                         ; 611C F5  the OFF test has to survive all the argument parsing that
                                                ; follows, so its flags go on the stack here and come back at &613E
@@ -10996,7 +11037,7 @@ CMD_LINE_4:
                LD A,C                          ; 6149 79  after LINE OFF C was never loaded and this stores rubbish,
                                                ; which does not matter because bit 1 is now clear and nothing will read
                                                ; it
-               LD (V406F),A                    ; 614A 32 6F 40
+               LD (LINE_TRACE_SETTING),A       ; 614A 32 6F 40
                RET                             ; 614D C9
 
 ;; --------------------------------------------------------------------
@@ -16702,7 +16743,7 @@ RELOCATED_TO_46CC_10:
 ;; ------------------------------------------------------------------
 
 INSTALLER:
-               LD HL,V4068                     ; 75E1 21 68 40
+               LD HL,TRACE_SAVED_LMPR          ; 75E1 21 68 40
                LD B,&4A                        ; 75E4 06 4A
 
 ; ---- INSTALLER_LOOP ---- from &75E7 when B is not 0 yet

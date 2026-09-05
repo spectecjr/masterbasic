@@ -352,57 +352,48 @@ BOOT_LOOP3:
                JR C,BOOT_LOOP3                 ; 4064 38 FB
                INC C                           ; 4066 0C
                IN A,(C)                        ; 4067 ED 78
-
-; ---- BOOT_5 ---- from MB &6099, MB &60CA
-BOOT_5:
                DEC C                           ; 4069 0D
                CP D                            ; 406A BA
-
-; ---- BOOT_6 ---- from MB &6095, MB &60CE
-BOOT_6:
-               JR Z,BOOT_10                    ; 406B 28 0E
-
-; ---- BOOT_7 ---- from MB &6052, MB &6077, MB &60D3, MB &60D8
-BOOT_7:
+               JR Z,BOOT_7                     ; 406B 28 0E
                LD A,STEP_OUT_CMD               ; 406D 3E 7B
-               JR NC,BOOT_8                    ; 406F 30 02
+               JR NC,BOOT_5                    ; 406F 30 02
                LD A,STEP_IN_CMD                ; 4071 3E 5B
 
-; ---- BOOT_8 ---- from &406F
-BOOT_8:
+; ---- BOOT_5 ---- from &406F
+BOOT_5:
                OUT (C),A                       ; 4073 ED 79
                LD B,&14                        ; 4075 06 14
 
-; ---- BOOT_9 ---- from &4077 when B is not 0 yet
-BOOT_9:
-               DJNZ BOOT_9                     ; 4077 10 FE
+; ---- BOOT_6 ---- from &4077 when B is not 0 yet
+BOOT_6:
+               DJNZ BOOT_6                     ; 4077 10 FE
                JR BOOT_LOOP3                   ; 4079 18 E6
 
-; ---- BOOT_10 ---- from &406B when A = D
-BOOT_10:
+; ---- BOOT_7 ---- from &406B when A = D
+BOOT_7:
                LD A,READ_SECTOR_CMD            ; 407B 3E 80
                OUT (C),A                       ; 407D ED 79
 
-; ---- BOOT_11 ---- from MB &5A7E, MB &5AC1
-BOOT_11:
+; ---- BOOT_8 ---- from MB &5A7E, MB &5AC1
+BOOT_8:
                LD B,&14                        ; 407F 06 14
 
-; ---- BOOT_12 ---- from &4081 when B is not 0 yet, MB &5A8E
-BOOT_12:
-               DJNZ BOOT_12                    ; 4081 10 FE
+; ---- BOOT_9 ---- from &4081 when B is not 0 yet, MB &5A8E
+BOOT_9:
+               DJNZ BOOT_9                     ; 4081 10 FE
                LD HL,(V40FB+&4000)             ; 4083 2A FB 80
 
-; ---- BOOT_13 ---- from MB &5A0B
-BOOT_13:
+; ---- BOOT_10 ---- from MB &5A0B
+BOOT_10:
                LD B,C                          ; 4086 41
                INC B                           ; 4087 04
 
-; ---- BOOT_14 ---- from MB &5A17
-BOOT_14:
+; ---- BOOT_11 ---- from MB &5A17
+BOOT_11:
                INC B                           ; 4088 04
 
-; ---- BOOT_15 ---- from MB &5A0F
-BOOT_15:
+; ---- BOOT_12 ---- from MB &5A0F
+BOOT_12:
                INC B                           ; 4089 04
                JR BOOT_LOOP5                   ; 408A 18 08
 
@@ -424,23 +415,23 @@ BOOT_LOOP5:
                RRCA                            ; 409A 0F
                JR C,BOOT_LOOP5                 ; 409B 38 F7
                AND &0D                         ; 409D E6 0D
-               JR Z,BOOT_18                    ; 409F 28 1F
+               JR Z,BOOT_15                    ; 409F 28 1F
                LD A,(V40FD+&4000)              ; 40A1 3A FD 80
                INC A                           ; 40A4 3C
                LD (V40FD+&4000),A              ; 40A5 32 FD 80
                PUSH AF                         ; 40A8 F5
                AND &02                         ; 40A9 E6 02
-               JR Z,BOOT_17                    ; 40AB 28 08
+               JR Z,BOOT_14                    ; 40AB 28 08
                LD A,&09                        ; 40AD 3E 09
                OUT (C),A                       ; 40AF ED 79
                LD B,&14                        ; 40B1 06 14
 
-; ---- BOOT_16 ---- from &40B3 when B is not 0 yet
-BOOT_16:
-               DJNZ BOOT_16                    ; 40B3 10 FE
+; ---- BOOT_13 ---- from &40B3 when B is not 0 yet
+BOOT_13:
+               DJNZ BOOT_13                    ; 40B3 10 FE
 
-; ---- BOOT_17 ---- from &40AB when no bit of &02 is set
-BOOT_17:
+; ---- BOOT_14 ---- from &40AB when no bit of &02 is set
+BOOT_14:
                POP AF                          ; 40B5 F1
                CP &0A                          ; 40B6 FE 0A
                JR C,BOOT_LOOP3                 ; 40B8 38 A7
@@ -449,8 +440,8 @@ BOOT_17:
                RST ERR_HOOK                    ; 40BE CF
                DEFB ERR_LOADING_ERROR          ; 40BF 13 error 19, "Loading error"
 
-; ---- BOOT_18 ---- from &409F when no bit of &0D is set
-BOOT_18:
+; ---- BOOT_15 ---- from &409F when no bit of &0D is set
+BOOT_15:
                POP BC                               ; 40C0 C1
                DEC HL                               ; 40C1 2B
                LD E,(HL)                            ; 40C2 5E
@@ -458,15 +449,15 @@ BOOT_18:
                LD D,(HL)                            ; 40C4 56
                LD A,D                               ; 40C5 7A
                OR E                                 ; 40C6 B3
-               JR Z,BOOT_21                         ; 40C7 28 17
-               DJNZ BOOT_20                         ; 40C9 10 12
+               JR Z,BOOT_18                         ; 40C7 28 17
+               DJNZ BOOT_17                         ; 40C9 10 12
                PUSH BC                              ; 40CB C5
                PUSH DE                              ; 40CC D5
                CALL INSTALL_TAIL_INTO_SYSPAGE+&4000 ; 40CD CD 60 BD
                POP DE                               ; 40D0 D1
 
-; ---- BOOT_19 ---- from &69EB
-BOOT_19:
+; ---- BOOT_16 ---- from &69EB
+BOOT_16:
                POP BC                          ; 40D1 C1
 
 ; ---- PTHRD ---- from &6CAE, &7429, &7751
@@ -482,12 +473,12 @@ PTHRD_1:
                OUT (LMPR),A                    ; 40D8 D3 FA
                LD HL,HEADER                    ; 40DA 21 00 40
 
-; ---- BOOT_20 ---- from &40C9 when B is not 0 yet
-BOOT_20:
+; ---- BOOT_17 ---- from &40C9 when B is not 0 yet
+BOOT_17:
                JP BOOT_3+&4000                 ; 40DD C3 49 80
 
-; ---- BOOT_21 ---- from &40C7
-BOOT_21:
+; ---- BOOT_18 ---- from &40C7
+BOOT_18:
                LD HL,PTHRD_2                   ; 40E0 21 E1 75
                LD DE,DOSBUF+&4000              ; 40E3 11 00 BC
                LD BC,&03AF                     ; 40E6 01 AF 03
@@ -1216,7 +1207,7 @@ CALLMB_1:
                EXX                             ; 42E0 D9
                RET                             ; 42E1 C9
 
-; ---- V42E2 ---- from &4E9E, &4EF2, &642B, MB &6035, MB &603D
+; ---- V42E2 ---- from &4E9E, &4EF2, &642B
 V42E2:
                DEFB &00,&00                    ; 42E2 ..  zero fill
 
@@ -7901,9 +7892,6 @@ DLVM1:
 ; ---- LAB2 ---- from &6026 when bit 7 of H set
 LAB2:
                PUSH BC                         ; 6029 C5
-
-; ---- LAB2_1 ---- from MB &6101
-LAB2_1:
                PUSH DE                         ; 602A D5
                CALL AHLN                       ; 602B CD 7E 60
                PUSH AF                         ; 602E F5

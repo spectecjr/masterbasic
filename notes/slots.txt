@@ -114,7 +114,7 @@ DOC SHOW_LINE_AND_STATEMENT
 
 MB &5FBD : LINERUN sets PPC to &FFFF for the edit line, so B = &FF means a direct command with no line number to show
 
-MB &5FC3 : &4300 in this page seen through the window; the stack grows down into the spare bytes from &42E2
+MB &5FC3 : &4300 in this page seen through the window; the stack grows down into the spare bytes from &42E2.  TRACE_FONT_BYTES takes the first eight of those and the stack the last twenty-two, so the two uses of the gap do not meet
 
 MB &5FC7 : the same place on the screen in each mode -- character row 22, about three-quarters across -- but each mode lays the screen out differently, so the address has to be picked rather than computed
 
@@ -130,9 +130,9 @@ MB &5FE0 : ':' between the line number and the statement number
 
 MB &5FE8 : the divisor table starting at -10, so a statement number prints in two digits
 
-MB &5FEC : CHECK_BREAK_7 takes its value in BC, not HL
+MB &5FEC : TRACE_PRINT_DECIMAL takes its value in BC, not HL
 
-MB &5FF5 : what LINE stored: 0 for no pause, &FF for STEP, anything else a delay
+MB &5FF5 : what LINE stored: 0 for no pause, &FF for STEP, anything else a delay.  &614A is the only place that writes it, and writes it as &406F -- the command runs at home, the trace runs in the window
 
 MB &5FFC : &FF is STEP, which waits for a key instead of counting; any other value falls through to the delay loop
 
@@ -146,9 +146,32 @@ MB &6019 : the release wait gives up after about &0A00 turns, so a key held down
 
 MB &6020 : the outer count is the delay LINE was given -- "1 is brief, 200 very long"
 
-DOC CHECK_BREAK_2
+# The plotter and the decimal printer sit under CHECK_BREAK, and the
+# disassembler numbered them off it -- CHECK_BREAK_2 through _9.  The
+# label above says nothing about them: naming them here is the whole of
+# the correction.
+MB &602A TRACE_PLOT_CHAR
+MB &4068 TRACE_SAVED_LMPR
+MB &4069 TRACE_SAVED_DE
+MB &406B TRACE_SAVED_BC
+MB &406D TRACE_CURSOR
+MB &406F LINE_TRACE_SETTING
+MB &4071 TRACE_SAVED_SP
+MB &42E2 TRACE_FONT_BYTES
+MB &60E1 TRACE_PRINT_LINE_NUMBER
+MB &60E4 TRACE_PRINT_DECIMAL
+MB &610E TRACE_DIVISORS_5
+MB &6114 TRACE_DIVISORS_2
+
+DOC TRACE_PRINT_LINE_NUMBER
+    One instruction: point HL at the five-digit divisor table and fall
+    through.  The two-digit table is passed in by the caller instead,
+    which is why the statement number goes through TRACE_PRINT_DECIMAL
+    directly and the line number comes here first.
+
+DOC TRACE_PLOT_CHAR
     Plot one character at the trace position, in whichever screen mode
-    is current.  The name is wrong: this has nothing to do with BREAK.
+    is current.
 
     THE FONT IS COPIED OUT BEFORE THE PAGING CHANGES, into eight bytes
     at &42E2, because CHARS points into memory that the LMPR switch
@@ -203,10 +226,10 @@ MB &60C1 : four bytes went out with the LDIs, and a mode 4 row is &80 wide, so &
 
 MB &60D6 : four bytes to the next character cell -- in mode 3 that is sixteen pixels rather than eight, so the trace simply comes out double width there
 
-DOC CHECK_BREAK_7
+DOC TRACE_PRINT_DECIMAL
     Print the number in BC as decimal, leading zeros shown as spaces.
-    Nothing to do with BREAK either; HL points at a table of negative
-    powers of ten and CHECK_BREAK_6 supplies the five-digit one.
+    HL points at a table of negative powers of ten, and the entry point
+    one instruction above supplies the five-digit one.
 
     E IS THE PAD CHARACTER AND ITS OWN FLAG.  It starts at &20, and the
     fall-through at &60F9 sets it to &30 the first time a digit comes
@@ -223,7 +246,7 @@ MB &60F6 : one too many, so take it back off
 
 MB &60FB : also the target for the last digit, which forces &30 so a final zero still prints
 
-MB &610E : not code -- this is the divisor table CHECK_BREAK_6 points at, the words &D8F0 &FC18 &FF9C &FFF6, which are -10000, -1000, -100 and -10
+MB &610E : not code -- this is the divisor table TRACE_PRINT_LINE_NUMBER points at, the words &D8F0 &FC18 &FF9C &FFF6, which are -10000, -1000, -100 and -10
 
 MB &6114 : the two-digit table used for the statement number, -10 and then the &00 that ends it.  Only the low byte of the last entry has to be zero, so the &CD of the CALL below serves as its high byte
 

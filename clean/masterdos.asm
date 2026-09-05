@@ -569,24 +569,15 @@ BOOT_WAIT_READY:
 ; one track at a time.  There is no seek command in use here: the
 ; controller is stepped by hand and the track register read back after
 ; each move.
-
-; ---- BOOT_COMPARE_TRACK ---- from MB &6099, MB &60CA
-BOOT_COMPARE_TRACK:
                DEC C                           ; 4069 0D
                CP D                            ; 406A BA
-
-; ---- BOOT_TRACK_TEST ---- from MB &6095, MB &60CE
-BOOT_TRACK_TEST:
-               JR Z,BOOT_FOUND_TRACK           ; 406B 28 0E  already there
-
-; ---- BOOT_CHOOSE_STEP_DIRECTION ---- from MB &6052, MB &6077, MB &60D3, MB &60D8
-BOOT_CHOOSE_STEP_DIRECTION:
+               JR Z,BOOT_CHOOSE_STEP_DIRECTION ; 406B 28 0E  already there
                LD A,STEP_OUT_CMD               ; 406D 3E 7B  the head is beyond the track wanted
-               JR NC,BOOT_STEP_HEAD            ; 406F 30 02
+               JR NC,BOOT_COMPARE_TRACK        ; 406F 30 02
                LD A,STEP_IN_CMD                ; 4071 3E 5B  the head is short of it
 
-; ---- BOOT_STEP_HEAD ---- from &406F
-BOOT_STEP_HEAD:
+; ---- BOOT_COMPARE_TRACK ---- from &406F
+BOOT_COMPARE_TRACK:
                OUT (C),A                       ; 4073 ED 79
                LD B,CMD_LATENCY_LOOPS          ; 4075 06 14
                DJNZ $                          ; 4077 10 FE
@@ -595,17 +586,17 @@ BOOT_STEP_HEAD:
 ; On the right track.  Ask for the sector and let the command settle
 ; before the first status read.
 
-; ---- BOOT_FOUND_TRACK ---- from &406B when A = D
-BOOT_FOUND_TRACK:
+; ---- BOOT_CHOOSE_STEP_DIRECTION ---- from &406B when A = D
+BOOT_CHOOSE_STEP_DIRECTION:
                LD A,READ_SECTOR_CMD            ; 407B 3E 80
                OUT (C),A                       ; 407D ED 79
 
-; ---- BOOT_SETTLE_AFTER_READ_CMD ---- from MB &5A7E, MB &5AC1
-BOOT_SETTLE_AFTER_READ_CMD:
+; ---- BOOT_STEP_HEAD ---- from MB &5A7E, MB &5AC1
+BOOT_STEP_HEAD:
                LD B,CMD_LATENCY_LOOPS          ; 407F 06 14
 
-; ---- BOOT_READ_CMD_SETTLE ---- from MB &5A8E
-BOOT_READ_CMD_SETTLE:
+; ---- BOOT_STEP_SETTLE ---- from MB &5A8E
+BOOT_STEP_SETTLE:
                DJNZ $                                ; 4081 10 FE
                LD HL,(SECTOR_LOAD_ADDRESS+IN_PAGE_C) ; 4083 2A FB 80  where this sector is to land
 
@@ -614,17 +605,17 @@ BOOT_READ_CMD_SETTLE:
 ; suits what it has in hand, and all three arrive at the command port
 ; plus three.
 
-; ---- BOOT_DATA_PORT_FROM_C ---- from MB &5A0B
-BOOT_DATA_PORT_FROM_C:
+; ---- BOOT_FOUND_TRACK ---- from MB &5A0B
+BOOT_FOUND_TRACK:
                LD B,C                          ; 4086 41
                INC B                           ; 4087 04
 
-; ---- BOOT_DATA_PORT_PLUS_2 ---- from MB &5A17
-BOOT_DATA_PORT_PLUS_2:
+; ---- BOOT_SETTLE_AFTER_READ_CMD ---- from MB &5A17
+BOOT_SETTLE_AFTER_READ_CMD:
                INC B                           ; 4088 04
 
-; ---- BOOT_DATA_PORT_PLUS_1 ---- from MB &5A0F
-BOOT_DATA_PORT_PLUS_1:
+; ---- BOOT_READ_CMD_SETTLE ---- from MB &5A0F
+BOOT_READ_CMD_SETTLE:
                INC B                           ; 4089 04
                JR BOOT_CHECK_READ_STATUS       ; 408A 18 08
 
@@ -696,7 +687,7 @@ BOOT_CHECK_READ_STATUS:
 ; have it.  The ordinary sector read and write do not: they reach
 ; &46C6 and get the right mask.
                AND BLOCK_ERROR_FLAGS           ; 409D E6 0D
-               JR Z,BOOT_SECTOR_READ_OK        ; 409F 28 1F  a clean read
+               JR Z,BOOT_DATA_PORT_PLUS_1      ; 409F 28 1F  a clean read
 
 ; The read failed.  Count it, and on every other pair of failures
 ; restore the head to track 0 first, on the theory that a mis-seek is
@@ -706,7 +697,7 @@ BOOT_CHECK_READ_STATUS:
                LD (SECTOR_RETRY_COUNT+IN_PAGE_C),A ; 40A5 32 FD 80
                PUSH AF                             ; 40A8 F5
                AND &02                             ; 40A9 E6 02  bit 1 of the count
-               JR Z,BOOT_TEST_RETRY_COUNT          ; 40AB 28 08
+               JR Z,BOOT_DATA_PORT_PLUS_2          ; 40AB 28 08
                LD A,RESTORE_CMD                    ; 40AD 3E 09
                OUT (C),A                           ; 40AF ED 79
                LD B,CMD_LATENCY_LOOPS              ; 40B1 06 14
@@ -716,8 +707,8 @@ BOOT_CHECK_READ_STATUS:
 ; reporting here yet either: the system page has to be put back at
 ; &0000 before the ROM can be asked to print anything.
 
-; ---- BOOT_TEST_RETRY_COUNT ---- from &40AB when no bit of &02 is set
-BOOT_TEST_RETRY_COUNT:
+; ---- BOOT_DATA_PORT_PLUS_2 ---- from &40AB when no bit of &02 is set
+BOOT_DATA_PORT_PLUS_2:
                POP AF                          ; 40B5 F1
                CP MAX_SECTOR_RETRIES           ; 40B6 FE 0A
                JR C,BOOT_WAIT_READY            ; 40B8 38 A7  try the sector again
@@ -729,17 +720,17 @@ BOOT_TEST_RETRY_COUNT:
 ; The sector is in.  Its last four bytes are the track and sector of
 ; the next one; zero for both ends the file.
 
-; ---- BOOT_SECTOR_READ_OK ---- from &409F when no bit of BLOCK_ERROR_FLAGS is set
-BOOT_SECTOR_READ_OK:
-               POP BC                           ; 40C0 C1
-               DEC HL                           ; 40C1 2B
-               LD E,(HL)                        ; 40C2 5E
-               DEC HL                           ; 40C3 2B
-               LD D,(HL)                        ; 40C4 56
-               LD A,D                           ; 40C5 7A
-               OR E                             ; 40C6 B3
-               JR Z,BOOT_LOAD_COMPLETE          ; 40C7 28 17  the end of the chain
-               DJNZ BOOT_NEXT_SECTOR_TRAMPOLINE ; 40C9 10 12  more of this wave to read
+; ---- BOOT_DATA_PORT_PLUS_1 ---- from &409F when no bit of BLOCK_ERROR_FLAGS is set
+BOOT_DATA_PORT_PLUS_1:
+               POP BC                          ; 40C0 C1
+               DEC HL                          ; 40C1 2B
+               LD E,(HL)                       ; 40C2 5E
+               DEC HL                          ; 40C3 2B
+               LD D,(HL)                       ; 40C4 56
+               LD A,D                          ; 40C5 7A
+               OR E                            ; 40C6 B3
+               JR Z,BOOT_SECTOR_READ_OK        ; 40C7 28 17  the end of the chain
+               DJNZ BOOT_TEST_RETRY_COUNT      ; 40C9 10 12  more of this wave to read
 
 ; The end of the first wave, which is the DOS.  Enough of it is now in
 ; memory to install the part that lives in the system page, and the
@@ -749,8 +740,8 @@ BOOT_SECTOR_READ_OK:
                CALL INSTALL_TAIL_INTO_SYSPAGE+IN_PAGE_C ; 40CD CD 60 BD
                POP DE                                   ; 40D0 D1
 
-; ---- BOOT_19 ---- from &69EB
-BOOT_19:
+; ---- BOOT_RESTORE_SETTLE ---- from &69EB
+BOOT_RESTORE_SETTLE:
                POP BC                          ; 40D1 C1
 
 ; The end of a wave.  The page number found earlier comes back off the
@@ -786,8 +777,8 @@ PTHRD_1:
 ; reaches it is already at the limit of its range, and this is far
 ; enough away to need three bytes anyway.
 
-; ---- BOOT_NEXT_SECTOR_TRAMPOLINE ---- from &40C9 when B is not 0 yet
-BOOT_NEXT_SECTOR_TRAMPOLINE:
+; ---- BOOT_TEST_RETRY_COUNT ---- from &40C9 when B is not 0 yet
+BOOT_TEST_RETRY_COUNT:
                JP READ_NEXT_SECTOR+IN_PAGE_C   ; 40DD C3 49 80
 
 ; Both waves are in.  Copy INSTALLER -- 943 bytes at MasterBASIC's
@@ -795,8 +786,8 @@ BOOT_NEXT_SECTOR_TRAMPOLINE:
 ; through the window, and jump to it there.  From &40F6 on, the code
 ; that runs is the copy at DOSBUF and not anything in these listings.
 
-; ---- BOOT_LOAD_COMPLETE ---- from &40C7
-BOOT_LOAD_COMPLETE:
+; ---- BOOT_SECTOR_READ_OK ---- from &40C7
+BOOT_SECTOR_READ_OK:
                LD HL,&75E1                     ; 40E0 21 E1 75  INSTALLER, in the page LMPR has just put at &4000
                LD DE,DOSBUF+IN_PAGE_C          ; 40E3 11 00 BC  the installer's landing ground, reached through the
                                                ; window
@@ -1523,7 +1514,7 @@ CALLMB_1:
                EXX                             ; 42E0 D9
                RET                             ; 42E1 C9
 
-; ---- V42E2 ---- from &4E9E, &4EF2, &642B, MB &6035, MB &603D
+; ---- V42E2 ---- from &4E9E, &4EF2, &642B
 V42E2:
                DEFB &00,&00                    ; 42E2 ..  zero fill
 
@@ -9246,9 +9237,6 @@ DLVM1:
 ; ---- LAB2 ---- from &6026 when bit 7 of H set
 LAB2:
                PUSH BC                         ; 6029 C5
-
-; ---- LAB2_1 ---- from MB &6101
-LAB2_1:
                PUSH DE                         ; 602A D5
                CALL AHLN                       ; 602B CD 7E 60
                PUSH AF                         ; 602E F5

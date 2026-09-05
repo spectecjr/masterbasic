@@ -1128,8 +1128,16 @@ def seeds(dos, mb):
     # &8076, jumps into the installed gap block at &589F, and reads and
     # writes &5C59 -- which is a system-page variable here and this
     # half's own PAGE_IN_ROM1 routine everywhere else.
+    # &5FB9-&6118 rather than &5FB9-&6030: the trace runs from the window
+    # end to end, and the plotter at &602A is the reason the rest of it
+    # has to.  It puts the screen page at &4000 with OUT (LMPR) at &604E,
+    # which displaces this half's own home -- so its &8068, &806D, &8069,
+    # &806B and &82E2 are this half's &4068, &406D, &4069, &406B and
+    # &42E2, and the CALL &A02A at &6101 is the plotter calling itself.
+    # Read as the peer they came out as MasterDOS boot variables, which
+    # would have the trace scribbling in the other half while it drew.
     for lo, hi in ((0x4510, 0x4536), (0x5A3E, 0x5A64),
-                   (0x5FB9, 0x6030), (0x7900, 0x7940)):
+                   (0x5FB9, 0x6118), (0x7900, 0x7940)):
         mb.self_window.append((lo, hi))
     # &5C16 used to be in that list and should not have been.  &5BFF is
     # XOR A : OUT (HMPR),A, so from &5C02 on the window holds the ROM's
