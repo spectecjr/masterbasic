@@ -483,9 +483,10 @@ BOOT_CHECK_READ_STATUS:
                PUSH AF                             ; 40A8 F5
                AND &02                             ; 40A9 E6 02  bit 1 of the count
                JR Z,BOOT_RETRY_OR_GIVE_UP          ; 40AB 28 08
-               LD A,RESTORE_CMD                    ; 40AD 3E 09
+               LD A,RESTORE_CMD                    ; 40AD 3E 09  every other failure, put the head back to track 0 first
                OUT (C),A                           ; 40AF ED 79
-               LD B,CMD_LATENCY_LOOPS              ; 40B1 06 14
+               LD B,CMD_LATENCY_LOOPS              ; 40B1 06 14  and let the restore settle before the sector is tried
+                                                   ; again
                DJNZ $                              ; 40B3 10 FE
 
 ; Ten attempts at one sector, then give up.  There is no error

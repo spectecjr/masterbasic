@@ -69,14 +69,16 @@ HISTORICAL = {
     ('notes/clean/dos-boot.txt', 'BOOT_18'),
     ('notes/clean/dos-boot.txt', 'BOOT_20'),
     ('notes/clean/dos-boot.txt', 'BOOT_21'),
-    # The nine names invented for &407F-&4089 when five word loads of
-    # MasterBASIC's own buffer pointers were being read as branches into
-    # this page.  The note lists them to say what is no longer there.
+    # The nine names the boot's by-number renames used to carry, listed
+    # in that note to say what is no longer there and where each had got
+    # to.  Five were on addresses that were never entry points, three on
+    # real code they did not describe, two on nothing at all.
     ('notes/clean/dos-boot.txt', 'BOOT_STEP_HEAD'),
     ('notes/clean/dos-boot.txt', 'BOOT_STEP_SETTLE'),
     ('notes/clean/dos-boot.txt', 'BOOT_FOUND_TRACK'),
     ('notes/clean/dos-boot.txt', 'BOOT_SETTLE_AFTER_READ_CMD'),
     ('notes/clean/dos-boot.txt', 'BOOT_READ_CMD_SETTLE'),
+    ('notes/clean/dos-boot.txt', 'BOOT_RESTORE_SETTLE'),
     ('notes/clean/dos-boot.txt', 'BOOT_TRACK_TEST'),
     ('notes/clean/dos-boot.txt', 'BOOT_DATA_PORT_FROM_C'),
     ('notes/clean/dos-boot.txt', 'BOOT_DATA_PORT_PLUS_1'),

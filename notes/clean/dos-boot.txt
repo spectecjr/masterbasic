@@ -28,18 +28,31 @@ DOS &408C BOOT_READ_SECTOR_BYTE
 DOS &4094 BOOT_CHECK_READ_STATUS
 DOS &40B5 BOOT_RETRY_OR_GIVE_UP
 DOS &40C0 BOOT_SECTOR_LOADED
-# BOOT_STEP_HEAD, BOOT_STEP_SETTLE, BOOT_FOUND_TRACK,
-# BOOT_SETTLE_AFTER_READ_CMD, BOOT_READ_CMD_SETTLE, BOOT_TRACK_TEST,
-# BOOT_DATA_PORT_FROM_C, BOOT_DATA_PORT_PLUS_1 and BOOT_DATA_PORT_PLUS_2
-# were the names in this file's place before.  There is nothing left for
-# them to name.  Every one of them was invented for an address in
-# &407F-&4089 that only looked like a branch target: the references were
-# MasterBASIC's PRINTER_FEED_TICK and SOUND_FEED_TICK reading their own
-# buffer pointers at &8086, &8088, &8089, &807F and &8081, which were
-# being resolved against this page instead of that one.  They are word
-# loads -- LD DE,(&8086) -- so nothing was ever entered at any of them,
-# and the run from &407B to &408C is straight-line code with no entry
-# point in it at all.
+# Nine names stood in this file's place before and have nothing left to
+# name.  WHERE EACH WAS FIRST MEANT IS NOT RECOVERABLE -- the numbering
+# had already moved once before any of this -- so what follows is only
+# where they had got to, which is all the listing can show.
+#
+# Five were on addresses in &407F-&4089 that were never entry points at
+# all: BOOT_STEP_HEAD, BOOT_STEP_SETTLE, BOOT_FOUND_TRACK,
+# BOOT_SETTLE_AFTER_READ_CMD and BOOT_READ_CMD_SETTLE.  What referred to
+# those addresses was MasterBASIC's PRINTER_FEED_TICK and SOUND_FEED_TICK
+# reading their own buffer pointers at &8086, &8088, &8089, &807F and
+# &8081, resolved against this page instead of that one.  They are loads
+# -- LD DE,(&8086) -- so nothing was ever entered at any of them, and
+# &407B to &408C is straight-line code with no entry point in it.
+#
+# Three were on real code, describing something else: BOOT_DATA_PORT_PLUS_2
+# on the retry count at &40B5, BOOT_DATA_PORT_PLUS_1 on the loaded sector
+# at &40C0, and BOOT_RESTORE_SETTLE on the POP BC at &40D1.  Each is an
+# accurate reading of some part of this routine and none of them was on
+# the part it read: BOOT_RESTORE_SETTLE is what &40B1 does, four
+# instructions before the label ever sat, and it is written there as a
+# comment below so the reading survives its name.  The other two belong
+# to the &407F-&4089 misreading and go with it.
+#
+# Two named nothing already, before any of this: BOOT_TRACK_TEST and
+# BOOT_DATA_PORT_FROM_C.
 RENAME V40F9 STACK_ON_ENTRY
 RENAME V40FB SECTOR_LOAD_ADDRESS
 RENAME V40FD SECTOR_RETRY_COUNT
@@ -257,6 +270,8 @@ DOS &40A1 step
     the likeliest cause.
 
 DOS &40A9 : bit 1 of the count
+DOS &40AD : every other failure, put the head back to track 0 first
+DOS &40B1 : and let the restore settle before the sector is tried again
 
 DOS &40B5 step
     Ten attempts at one sector, then give up.  There is no error
