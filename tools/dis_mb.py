@@ -2189,15 +2189,24 @@ def hook_notes(dos, mb, table=HOOK_TABLE, count=64):
         name = home.labels.get(target)
         if not name:
             continue
-        text = home.headers.get(target) or ''
-        # The banner as prose: drop the ;; and join what is left.
-        prose = ' '.join(l.lstrip(';').strip()
-                         for l in text.split('\n') if l.strip(';').strip())
-        prose = re.sub(r'^Hook code \d+\.\s*', '', prose).strip()
-        # One sentence, and not a whole paragraph of one.
-        m = re.match(r'(.{0,150}?[.?])(?:\s|$)', prose)
-        sentence = (m.group(1) if m else prose[:150]).strip()
-        out[128 + i] = (name, sentence)
+        # The banner's FIRST PARAGRAPH is the description and the rest
+        # is the argument for it.  The ;; rules that box a banner in are
+        # not prose, and a blank line ends the paragraph.
+        para = []
+        for raw in (home.headers.get(target) or '').split('\n'):
+            line = raw.lstrip(';').strip()
+            if line and not line.strip('-'):
+                continue                      # a rule, not a sentence
+            if not line:
+                if para:
+                    break
+                continue
+            para.append(line)
+        # "Hook code 155." opens most of them and says only what the
+        # equate already says.
+        prose = re.sub(r'^Hook code \d+\.\s*', '', ' '.join(para)).strip()
+        m = re.match(r'(.+?[.?])(?:\s|$)', prose)
+        out[128 + i] = (name, (m.group(1) if m else prose).strip())
     return out
 
 

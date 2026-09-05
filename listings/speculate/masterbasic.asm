@@ -249,55 +249,36 @@ ERR_PUT_BLOCK:            EQU  &25
 ERR_STRING_TOO_LONG:      EQU  &2A
 ERR_PAGE_OVERLAP:         EQU  &76
 ERR_SIZE_MISMATCH:        EQU  &77
-HKC_LPRINT_BYTE:          EQU  &9A             ; --------------------------------------------------------------------
-                                               ; Hook code 154. (see HOOK_LPRINT_BYTE)
-HKC_CSIZE:                EQU  &9B             ; --------------------------------------------------------------------
-                                               ; Hook code 155. (see HOOK_CSIZE)
-HKC_SWAPCHARS:            EQU  &9C             ; --------------------------------------------------------------------
-                                               ; (to be added to the existing header, which works out what is swapped
-                                               ; but not whic (see HOOK_SWAPCHARS)
-HKC_PROGPREP:             EQU  &9D             ; --------------------------------------------------------------------
-                                               ; Hook code 157. (see HOOK_PROGPREP)
-HKC_MCHWR:                EQU  &A7             ; --------------------------------------------------------------------
-                                               ; HOOK ROUTINE TO WRITE BYTE IN A TO DISC. (see MCHWR)
-HKC_MCHRD:                EQU  &A8             ; --------------------------------------------------------------------
-                                               ; HOOK ROUTINE TO READ BYTE FROM DISC. (see MCHRD)
-HKC_HPRTOK:               EQU  &A9             ; --------------------------------------------------------------------
-                                               ; Hook 169, and the ROM's PRTOKV points here, so LIST and the error
-                                               ; printer both co (see HPRTOK)
-HKC_HPFF:                 EQU  &AA             ; --------------------------------------------------------------------
-                                               ; Hook 170: the second byte of a two-byte token has arrived. (see
+HKC_LPRINT_BYTE:          EQU  &9A             ; Put one byte in the interrupt-driven printer buffer, waiting if it is
+                                               ; full. (see HOOK_LPRINT_BYTE)
+HKC_CSIZE:                EQU  &9B             ; CSIZE, the manual's "Improved CSIZE command". (see HOOK_CSIZE)
+HKC_SWAPCHARS:            EQU  &9C             ; BLOCKS -- and the argument 0, 1 or 2 is the manual's: (see
+                                               ; HOOK_SWAPCHARS)
+HKC_PROGPREP:             EQU  &9D             ; Rebuild the compile pass for a program that has changed. (see
+                                               ; HOOK_PROGPREP)
+HKC_MCHWR:                EQU  &A7             ; HOOK ROUTINE TO WRITE BYTE IN A TO DISC. (see MCHWR)
+HKC_MCHRD:                EQU  &A8             ; HOOK ROUTINE TO READ BYTE FROM DISC. (see MCHRD)
+HKC_HPRTOK:               EQU  &A9             ; Hook 169, and the ROM's PRTOKV points here, so LIST and the error
+                                               ; printer both come through it. (see HPRTOK)
+HKC_HPFF:                 EQU  &AA             ; Hook 170: the second byte of a two-byte token has arrived. (see
                                                ; HOOK_HPFF)
-HKC_HGTTK:                EQU  &AB             ; --------------------------------------------------------------------
-                                               ; Hook 171 -- match a keyword while tokenising. (see HGTTK)
-HKC_HKLEN:                EQU  &AC             ; --------------------------------------------------------------------
-                                               ; Hook 172 -- evaluate a function. (see HKLEN)
-HKC_HCMDV:                EQU  &AD             ; --------------------------------------------------------------------
-                                               ; Hook 173 -- dispatch one of MasterBASIC's commands. (see HCMDV)
+HKC_HGTTK:                EQU  &AB             ; Hook 171 -- match a keyword while tokenising. (see HGTTK)
+HKC_HKLEN:                EQU  &AC             ; Hook 172 -- evaluate a function. (see HKLEN)
+HKC_HCMDV:                EQU  &AD             ; Hook 173 -- dispatch one of MasterBASIC's commands. (see HCMDV)
 HKC_RCPTCH:               EQU  &AE             ; see HOOK_RCPTCH
-HKC_MERGECOMPFLG:         EQU  &AF             ; --------------------------------------------------------------------
-                                               ; Hook code 175, and the label is right only for its first twenty-seven
+HKC_MERGECOMPFLG:         EQU  &AF             ; Hook code 175, and the label is right only for its first twenty-seven
                                                ; bytes. (see HOOK_MERGECOMPFLG)
-HKC_TOKENARG:             EQU  &B1             ; --------------------------------------------------------------------
-                                               ; Hook code 177. (see HOOK_TOKENARG)
-HKC_SKIPNAME:             EQU  &B2             ; --------------------------------------------------------------------
-                                               ; (replacing the existing header.) DELETE, for strings and string arrays.
-                                               ; (see CMD_DELETE)
-HKC_XVARNVAL:             EQU  &B3             ; --------------------------------------------------------------------
-                                               ; Hook code 179. (see HOOK_XVARNVAL)
-HKC_SERSEND:              EQU  &B4             ; --------------------------------------------------------------------
-                                               ; Hook code 180. (see HOOK_SERSEND)
-HKC_SERRECV:              EQU  &B5             ; --------------------------------------------------------------------
-                                               ; Hook code 181. (see HOOK_SERRECV)
-HKC_SUBCHAR:              EQU  &B6             ; --------------------------------------------------------------------
-                                               ; Replace one character with a string on its way to the printer. (see
+HKC_TOKENARG:             EQU  &B1             ; Read the argument after one of MasterBASIC's keywords. (see
+                                               ; HOOK_TOKENARG)
+HKC_SKIPNAME:             EQU  &B2             ; DELETE, for strings and string arrays. (see CMD_DELETE)
+HKC_XVARNVAL:             EQU  &B3             ; The XVAR and NVAL functions. (see HOOK_XVARNVAL)
+HKC_SERSEND:              EQU  &B4             ; Send one character over the serial line. (see HOOK_SERSEND)
+HKC_SERRECV:              EQU  &B5             ; Read one character from the serial line. (see HOOK_SERRECV)
+HKC_SUBCHAR:              EQU  &B6             ; Replace one character with a string on its way to the printer. (see
                                                ; SUBSTITUTE_PRINTER_CHAR)
-HKC_COMADENT:             EQU  &B7             ; --------------------------------------------------------------------
-                                               ; Hook code 183. (see HOOK_COMADENT)
-HKC_VARSPACE:             EQU  &B8             ; --------------------------------------------------------------------
-                                               ; Hook code 184. (see HOOK_VARSPACE)
-HKC_SETUPREGS:            EQU  &B9             ; --------------------------------------------------------------------
-                                               ; Hook code 185. (see HOOK_SETUPREGS)
+HKC_COMADENT:             EQU  &B7             ; Find an entry through COMAD. (see HOOK_COMADENT)
+HKC_VARSPACE:             EQU  &B8             ; Check the room above the variables area. (see HOOK_VARSPACE)
+HKC_SETUPREGS:            EQU  &B9             ; Build a routine in the ROM's code buffer. (see HOOK_SETUPREGS)
 
 ; The manual also describes these, which no table points at, so they have
 ; not been located in the code:
@@ -23341,8 +23322,6 @@ SCREEN_NUMBER_ARGUMENT_1:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     (to be added to the existing header.)
-;;
 ;;     THE LINE NUMBER IS OPTIONAL, and the ROM already keeps the one the
 ;;     user wants.  "JOIN 100" joins line 100 to the line below it; plain
 ;;     "JOIN" joins "the line with the current line cursor", which is EPPC
@@ -23630,8 +23609,6 @@ V6E5F:
 ;;     below every command token.
 ;;
 ;;     What was here before:
-;;
-;;         (to be added to the existing header.)
 ;;
 ;;         WHY PRPTR: the ROM keeps a list of pointers it fixes up whenever
 ;;         memory moves, and vars.asm marks PRPTR as the last of them -- "END
@@ -23991,8 +23968,6 @@ HOOK_COMADENT_1:
 ;;
 ;;     What was here before:
 ;;
-;;         (replacing the existing header, which I believe is wrong -- see the notes.)
-;;
 ;;         THE ROM'S RETURN ADDRESS, replaced.  V4076 is not a pointer to a
 ;;         system variable: it is the ROM's own stack pointer, saved there by
 ;;         CALLDOS with LD (V4076),IY and read back by CMR with LD HL,(V4076)
@@ -24021,8 +23996,6 @@ STORE_BC_AT_XVAR76:
 ;; ? calls CALL_GETCHAR; falls into whatever follows rather than returning.
 ;;
 ;; Shown for this routine in listings/disasm/:
-;;
-;;     (replacing the existing header.)
 ;;
 ;;     DELETE, for strings and string arrays.  Token &CD is DELETE -- the
 ;;     keyword table in ROM 3.0 runs RENUM, DELETE, REF, COPY at &CC-&CF --
@@ -24153,9 +24126,6 @@ HOOK_SKIPNAME_1:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     (replacing the existing header, which reads the three bytes as an
-;;     address; they are a length.)
-;;
 ;;     ADD OR SUBTRACT A:BC FROM A VARIABLE'S RECORDED SIZE.  The ROM's own
 ;;     lookvar.asm says what the three bytes at STRLOCN+11 are: "FOR
 ;;     STRINGS, LEN IN PAGES, FOLLOWED BY LEN MOD 16K AND TEXT".  So they
@@ -24255,8 +24225,6 @@ ENTRY_TO_LONG_ADDRESS_2:
 ;; ? drives IN A,(HMPR), OUT (HMPR),A; calls LONGADDR_TO_PAGED, MULTIPLY_HL_BY_DE, GET_STRING_PAGED.
 ;;
 ;; Shown for this routine in listings/disasm/:
-;;
-;;     (to be added to the existing header.)
 ;;
 ;;     TWO MULTIPLIES BY THE SAME NUMBER.  DE holds the size of one
 ;;     element, and the slicer has been evaluated into a start and a
@@ -24578,8 +24546,6 @@ ARRAY_ELEMENT_OFFSET_5:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     (to be added to the existing header.)
-;;
 ;;     THE LAST STEP OF BOTH COMMANDS: the bytes have been moved, and now
 ;;     the variable's own bookkeeping has to say so.  A on entry is the
 ;;     direction -- zero from JOIN TO to add, non-zero from DELETE to
@@ -24729,9 +24695,6 @@ VARIABLE_BODY_BY_KIND_DONE:
 ;; ? drives OUT (HMPR),A; calls CALL_NEXTCHAR, INT_ARG_THEN_END; falls into whatever follows rather than returning.
 ;;
 ;; Shown for this routine in listings/disasm/:
-;;
-;;     (to be added to the existing header, which works out what is swapped
-;;     but not which command asks for it.)
 ;;
 ;;     BLOCKS -- and the argument 0, 1 or 2 is the manual's:
 ;;

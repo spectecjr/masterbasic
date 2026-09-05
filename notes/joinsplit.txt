@@ -11,8 +11,6 @@
 MB &6DF7 : error 43 is "screen number", so &2B is the report code minus one, the ROM's convention
 
 DOC CMD_JOIN
-    (to be added to the existing header.)
-
     THE LINE NUMBER IS OPTIONAL, and the ROM already keeps the one the
     user wants.  "JOIN 100" joins line 100 to the line below it; plain
     "JOIN" joins "the line with the current line cursor", which is EPPC
@@ -52,8 +50,6 @@ MB &6E57 : one past it, to skip the ROM's own XOR A
 MB &6E58 : patched into the CMR argument two instructions down
 
 DOC CMD_SPLIT_LINE
-    (to be added to the existing header.)
-
     WHY PRPTR: the ROM keeps a list of pointers it fixes up whenever
     memory moves, and vars.asm marks PRPTR as the last of them -- "END
     OF ADJUSTED PTRS" comes immediately after it.  So a value parked in
@@ -165,8 +161,6 @@ MB &6F53 : ROM 1 into &C000; nothing puts it back here, so the caller's paging i
 MB &6F59 : the word found there becomes the ROM's return address, through the routine below
 
 DOC STORE_BC_AT_XVAR76
-    (replacing the existing header, which I believe is wrong -- see the notes.)
-
     THE ROM'S RETURN ADDRESS, replaced.  V4076 is not a pointer to a
     system variable: it is the ROM's own stack pointer, saved there by
     CALLDOS with LD (V4076),IY and read back by CMR with LD HL,(V4076)
@@ -181,8 +175,6 @@ DOC STORE_BC_AT_XVAR76
     more stack word and so unwinds a whole extra frame.
 
 DOC CMD_DELETE
-    (replacing the existing header.)
-
     DELETE, for strings and string arrays.  Token &CD is DELETE -- the
     keyword table in ROM 3.0 runs RENUM, DELETE, REF, COPY at &CC-&CF --
     and the ROM's own DELETE removes program lines.  MasterBASIC catches
@@ -225,9 +217,6 @@ MB &6FA6 : non-zero: VARIABLE_BODY_BY_KIND subtracts
 MB &6FB0 : and a second reclaim for what the first one left
 
 DOC ENTRY_TO_LONG_ADDRESS
-    (replacing the existing header, which reads the three bytes as an
-    address; they are a length.)
-
     ADD OR SUBTRACT A:BC FROM A VARIABLE'S RECORDED SIZE.  The ROM's own
     lookvar.asm says what the three bytes at STRLOCN+11 are: "FOR
     STRINGS, LEN IN PAGES, FOLLOWED BY LEN MOD 16K AND TEXT".  So they
@@ -255,8 +244,6 @@ MB &6FD3 : stored as a count again, not as a windowed address
 MB &6FDA : Z if the variable is now empty
 
 DOC ARRAY_ELEMENT_OFFSET
-    (to be added to the existing header.)
-
     TWO MULTIPLIES BY THE SAME NUMBER.  DE holds the size of one
     element, and the slicer has been evaluated into a start and a
     length measured in elements; multiplying each of them by DE turns a
@@ -338,8 +325,6 @@ MB &70FB : the number of elements gained
 MB &70FF : zero: add, not subtract
 
 DOC VARIABLE_BODY_BY_KIND
-    (to be added to the existing header.)
-
     THE LAST STEP OF BOTH COMMANDS: the bytes have been moved, and now
     the variable's own bookkeeping has to say so.  A on entry is the
     direction -- zero from JOIN TO to add, non-zero from DELETE to
@@ -365,9 +350,6 @@ MB &7150 : four pages is 64K, the limit on one string
 MB &7152 : CCF turns "below four" into "four or more", so the carry means too long
 
 DOC HOOK_SWAPCHARS
-    (to be added to the existing header, which works out what is swapped
-    but not which command asks for it.)
-
     BLOCKS -- and the argument 0, 1 or 2 is the manual's:
 
         BLOCKS 0  block graphics off, CHR$ 128-168 as user-defined
