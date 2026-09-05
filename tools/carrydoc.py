@@ -628,6 +628,14 @@ def apply(dos, work, root, banner, data_mark=None, data_region=None):
     # removes false positives without inventing any.
     src_labels = xfer.read_map(mapfile)
     documented = sorted(a for a, nm in src_labels.items() if nm in headers)
+    # And a third bound: the next label of any kind in the source.  The
+    # 1991 author put a label where a routine starts, so this is the
+    # tightest honest end -- GETSCR is byte-identical to stock and was
+    # still reported as changed, because PUTSCR carries no header and
+    # the span ran on into it.  An internal loop label can cut a routine
+    # short, which loses a verdict rather than inventing one; that is
+    # the safe direction for a check whose job is to SUPPRESS a header.
+    every = sorted(src_labels)
     starts = sorted(a for a, _ in at.values())
     nhdr, changed = 0, []
     for name, (a, t) in sorted(at.items(), key=lambda kv: kv[1][0]):
@@ -639,7 +647,14 @@ def apply(dos, work, root, banner, data_mark=None, data_region=None):
         j = bisect.bisect_right(documented, a)
         if j < len(documented):
             stop = min(stop, documented[j])
-        hit, tot = routine_match(pairs, src_starts, a, stop)
+        k = bisect.bisect_right(every, a)
+        if k < len(every):
+            stop = min(stop, every[k])
+        # Data is not instructions.  MRTAB is DEFS &20 in the source, and
+        # comparing zero bytes decoded as instructions gave it 8 of 48 --
+        # a number about nothing.  Count only what the source assembles.
+        hit, tot = routine_match(pairs, [x for x in src_starts
+                                         if x not in declared], a, stop)
         if tot >= MIN_BODY and hit < tot * MIN_MATCH:
             changed.append((name, t, hit, tot))
             # Say so in the listing: a description that may belong to

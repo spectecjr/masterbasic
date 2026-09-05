@@ -1425,9 +1425,8 @@ DRPT:
                DEFB &01,&02,&03,&04,&05,&06,&07 ; 428F .......  (7) 111-117
 
 ;; --------------------------------------------------------------------
-;; Of the 48 instructions between this label and the next routine the source documents, 8 survive into this image, so
-;; that source's description of MRTAB has been left out rather than carried across. Compare
-;; ref/masterdos/annotated-src/masterdos23.asm.
+;; TABLE OF BITS, 1 PER 16K PAGE IN A MEGA RAM=64 BITS =8 BYTES
+;; 4 POSSIBLE MEGA RAMS=32 BYTES
 ;; --------------------------------------------------------------------
 
 ; ---- MRTAB ---- from &7823
@@ -1439,8 +1438,15 @@ V429A:
                DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 429A ...............
                DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00         ; 42A9 .............
 
-; ---- V42B6 ---- from MB &770B
-V42B6:
+;; --------------------------------------------------------------------
+;; The clock port, which the 1991 source calls CKPT and numbers as DVAR
+;; 150.  Its comment was carried across; the name was not, because the
+;; thirty-two bytes of MRTAB above it are data and the label matcher
+;; works on decoded instructions.  MasterBASIC reads it at MB &770B.
+;; --------------------------------------------------------------------
+
+; ---- CKPT ---- from MB &770B
+CKPT:
                DEFB &EF                        ; 42B6 o  150 CLOCK PORT
 
 ; ---- BEEPT ---- from &4DE9
@@ -3211,9 +3217,9 @@ CCNT:
                JR CCNT                         ; 492A 18 E0
 
 ;; --------------------------------------------------------------------
-;; Of the 12 instructions between this label and the next routine the source documents, 8 survive into this image, so
-;; that source's description of GETSCR has been left out rather than carried across. Compare
-;; ref/masterdos/annotated-src/masterdos23.asm.
+;; GET SCREEN MEMORY AND POINTER
+;;  A long save allocates all of its sectors up front and keeps the list in the screen page, which is large and not
+;;  being written to while a save runs. PORT1 remembers the caller's paging.
 ;; --------------------------------------------------------------------
 
 ; ---- GETSCR ---- from &45E9, &4998, &54F0, &5AD7, &5C30
@@ -7746,7 +7752,7 @@ CALL_Label:
                LD A,C                          ; 5966 79
                CP &02                          ; 5967 FE 02  only the low byte is looked at, so CALL MODE 256 passes as
                                                ; 0
-               JP NC,AHLNX_1                   ; 5969 D2 91 60
+               JP NC,IOOR                      ; 5969 D2 91 60
                LD A,&04                        ; 596C 3E 04
                OUT (VMPR),A                    ; 596E D3 FC  SCREEN IN PAGE 4, SPECTRUM MODE
                DEC C                           ; 5970 0D
@@ -8776,7 +8782,7 @@ CMD_HIDE:
 ; ---- CMD_HIDE_1 ---- from &5E05
 CMD_HIDE_1:
                INC B                              ; 5E0D 04
-               JP Z,AHLNX_1                       ; 5E0E CA 91 60
+               JP Z,IOOR                          ; 5E0E CA 91 60
                DEC B                              ; 5E11 05
                CALL CALLMB                        ; 5E12 CD BD 42
                DEFW MB_FIND_LINE_FROM_START-&4000 ; 5E15 FD 58
@@ -9058,7 +9064,7 @@ EVPRM:
                DEC HL                          ; 5F21 2B
                LD A,H                          ; 5F22 7C
                CP &04                          ; 5F23 FE 04
-               JP NC,AHLNX_1                   ; 5F25 D2 91 60  ALLOW 0000-03FFH IN DECED,
+               JP NC,IOOR                      ; 5F25 D2 91 60  ALLOW 0000-03FFH IN DECED,
 
 ;; --------------------------------------------------------------------
 ;;       0001-0400H IN ORIG,
@@ -9199,7 +9205,8 @@ CMD_LOAD_1:
                OUT (HMPR),A                    ; 5FDF D3 FB  ZX "SCREEN" AT 8000H
                OUT (VMPR),A                    ; 5FE1 D3 FC  DISPLAY PAGE 4, SCREEN MODE 1
                LD HL,&8000                     ; 5FE3 21 00 80
-               LD DE,HEADER                    ; 5FE6 11 00 40
+               LD DE,&4000                     ; 5FE6 11 00 40  a count, not an address -- &4000 bytes a pass, which is
+                                               ; the 48K the comment claims in three
                LD A,&02                        ; 5FE9 3E 02
                LD (PGES1),A                    ; 5FEB 32 50 41
                CALL ROOM_LEFT_IN_SECTOR        ; 5FEE CD 56 48  LOAD 48K TO ZX IMAGE
@@ -9263,7 +9270,8 @@ LAB2_1:
 
 ; ---- DLVM2 ---- from &5FF9 when A <> &10
 DLVM2:
-               LD IX,TSTD_DONE                 ; 604A DD 21 00 4B
+               LD IX,&4B00                     ; 604A DD 21 00 4B  the ROM's own HDR buffer, reached with page 0 in the
+                                               ; window
                CALL EVFL8B                     ; 604E CD 80 63
                CALL TXHED                      ; 6051 CD D3 63
                LD HL,&7FE5                     ; 6054 21 E5 7F
@@ -9285,7 +9293,8 @@ DLVM2:
                CALL NRWRD                      ; 606F CD 69 50
                DEFW &4A9D                      ; 6072 9D 4A
                POP HL                          ; 6074 E1
-               LD BC,FNS2_1                    ; 6075 01 99 4A
+               LD BC,&4A99                     ; 6075 01 99 4A  a system-page address just under the ROM's BSTACK,
+                                               ; written through WRTBC which pages page 0 in
                CALL WRTBC                      ; 6078 CD AB 50
 
 ; ---- DLVM2_1 ---- from &605E when A <> &10
@@ -9294,7 +9303,11 @@ DLVM2_1:
 
 ;; --------------------------------------------------------------------
 ;; GET 19-BIT NUMBER
-;;  Normalise a page and address pair so the address lies within one page and the surplus is in the page number.
+;;  Flatten a page and address pair into one number.  Not the other way about: the window base is discarded and
+;;  the page's low bits are shifted down into the address, so what comes back is a flat byte address rather than
+;;  a tidied pair.  PAGEFORM is the inverse, and &602A does one then the other -- two pairs flattened so that
+;;  SBC HL,DE and SBC A,C can subtract them, then PAGEFORM to put the difference back into page-and-address
+;;  form.
 ;; --------------------------------------------------------------------
 
 ; ---- AHLN ---- from &602B, &6031
@@ -9314,9 +9327,18 @@ AHLNX:
                AND &0F                         ; 608E E6 0F
                RET                             ; 6090 C9
 
-; ---- AHLNX_1 ---- from &5969 when A >= &02, &5E0E when B wraps to 0, &5F25 when A >= &04, &60BB when A <> 0, &60CF
-; when A <> 0, &60D8, &66C4 when A wraps to 0, &6AAC when B is not 0 yet ...
-AHLNX_1:
+;; --------------------------------------------------------------------
+;; Report "integer out of range", which is what CALL DERR with a code of
+;; &1E does.
+;;
+;; A stub of its own with nine callers, not a continuation of AHLNX --
+;; it only sits below it.  The 1991 source calls it IOOR and so does
+;; this now.
+;; --------------------------------------------------------------------
+
+; ---- IOOR ---- from &5969 when A >= &02, &5E0E when B wraps to 0, &5F25 when A >= &04, &60BB when A <> 0, &60CF when A
+; <> 0, &60D8, &66C4 when A wraps to 0, &6AAC when B is not 0 yet ...
+IOOR:
                CALL DERR                       ; 6091 CD AD 51
                DEFB &1E                        ; 6094 .
 
@@ -9355,7 +9377,7 @@ WFOD:
                JR Z,WFOD01                     ; 60B7 28 08
                LD A,B                          ; 60B9 78
                AND A                           ; 60BA A7
-               JR NZ,AHLNX_1                   ; 60BB 20 D4
+               JR NZ,IOOR                      ; 60BB 20 D4
                LD A,C                          ; 60BD 79
                LD (DTKS),A                     ; 60BE 32 30 42
 
@@ -9368,7 +9390,7 @@ WFOD01:
                JR Z,WFOD2                      ; 60CB 28 34
                LD A,B                          ; 60CD 78
                AND A                           ; 60CE A7
-               JR NZ,AHLNX_1                   ; 60CF 20 C0
+               JR NZ,IOOR                      ; 60CF 20 C0
                LD A,C                          ; 60D1 79
                LD (TEMPW1),A                   ; 60D2 32 12 42  TKS/DISC
                AND A                           ; 60D5 A7
@@ -9377,7 +9399,7 @@ WFOD01:
 ; ---- WIOOR ---- from &610D when A >= &28, &6122 when A = 0, &612A when A <> 0, &612E when A < B, &613D when A >= C,
 ; &614A when A >= B
 WIOOR:
-               JP AHLNX_1                      ; 60D8 C3 91 60
+               JP IOOR                         ; 60D8 C3 91 60
 
 ; ---- WFOD0 ---- from &60B2 when A <> &2C
 WFOD0:
@@ -10491,9 +10513,8 @@ EPCOM_2:
                JR HVAR1_1                      ; 65D3 18 B8
 
 ;; --------------------------------------------------------------------
-;; Of the 12 instructions between this label and the next routine the source documents, 8 survive into this image, so
-;; that source's description of AUTNAM has been left out rather than carried across. Compare
-;; ref/masterdos/annotated-src/masterdos23.asm.
+;;  The auto-load file's name, laid out as a ready-made parameter block so one copy sets up drive, device, type and
+;;  name together.
 ;; --------------------------------------------------------------------
 
 AUTNAM:
@@ -10665,7 +10686,7 @@ CALS:
 SCASD:
                LD (HKBC),A                     ; 66C0 32 E2 41
                INC A                           ; 66C3 3C
-               JP Z,AHLNX_1                    ; 66C4 CA 91 60  0-3FFFH ILLEGAL ADDR
+               JP Z,IOOR                       ; 66C4 CA 91 60  0-3FFFH ILLEGAL ADDR
                LD (HKHL),HL                    ; 66C7 22 DE 41  OFFSET
                LD (SVHDR),BC                   ; 66CA ED 43 0A 41  SECTORS TO DO
 
@@ -11610,12 +11631,12 @@ CMD_OPEN:
                CALL CEOS                       ; 6AA7 CD 07 50
                INC B                           ; 6AAA 04  the count has to fit in a byte
                DEC B                           ; 6AAB 05
-               JP NZ,AHLNX_1                   ; 6AAC C2 91 60
+               JP NZ,IOOR                      ; 6AAC C2 91 60
                LD A,C                          ; 6AAF 79
                LD B,A                          ; 6AB0 47
                DEC A                           ; 6AB1 3D  counted from one, so compare from zero
                CP MAX_OPEN_BLOCKS              ; 6AB2 FE 06
-               JP NC,AHLNX_1                   ; 6AB4 D2 91 60  one to six, and no more
+               JP NC,IOOR                      ; 6AB4 D2 91 60  one to six, and no more
                LD DE,CHANNEL_BLOCK             ; 6AB7 11 13 03
                PUSH BC                         ; 6ABA C5
                PUSH DE                         ; 6ABB D5
@@ -12508,9 +12529,9 @@ MCHN2_1:
                RET                             ; 6F3A C9
 
 ;; --------------------------------------------------------------------
-;; Of the 45 instructions between this label and the next routine the source documents, 33 survive into this image, so
-;; that source's description of MCHWR has been left out rather than carried across. Compare
-;; ref/masterdos/annotated-src/masterdos23.asm.
+;; HOOK ROUTINE TO WRITE BYTE IN A TO DISC. USED BY "D" CHANNEL
+;;  INPUT # echoes what it reads, which would write it straight back to the file, so writes are suppressed while an
+;;  INPUT is in progress.
 ;; --------------------------------------------------------------------
 
 ; ---- MCHWR ---- from &694F when A = &4B, &6D9D
@@ -15208,7 +15229,7 @@ DST1:
 NSTKAH:
                JR Z,STKA                       ; 7989 28 54
                LD A,C                          ; 798B 79
-               JP NC,AHLNX_1                   ; 798C D2 91 60
+               JP NC,IOOR                      ; 798C D2 91 60
 
 ; ---- DST15 ---- from &797E
 DST15:
@@ -15317,9 +15338,32 @@ SIBKS:
                JP ISEPX                        ; 7A0B C3 35 50
 
 ;; --------------------------------------------------------------------
-;; Of the 29 instructions between this label and the next routine the source documents, 17 survive into this image, so
-;; that source's description of INPST has been left out rather than carried across. Compare
-;; ref/masterdos/annotated-src/masterdos23.asm.
+;; INP$(#stream, n) -- n characters from a stream, or a whole line.
+;;
+;; THE ZERO IS THE EXTENSION, and it is why this routine no longer
+;; matches stock MasterDOS 2.3.  There, a count of zero was rejected:
+;; DEC BC made it &FFFF, B came out &40 or more, and the range check
+;; reported "integer out of range".  Here the count is tested first and
+;; zero takes a path of its own.
+;;
+;; WHAT THAT PATH DOES is arrange for the read loop to stop at a
+;; carriage return instead of at a count.  Zero is decremented to &FFFF
+;; and that is what goes on the stack as the count, while BC is brought
+;; back up to one for the workspace claim -- one byte, because the
+;; length is not known yet.  In the loop, INC B on a B of &FF gives
+;; zero, which is the branch that tests for &0D; any real count leaves B
+;; non-zero and skips it.  So &FFFF is not a number of characters at
+;; all, it is the marker for "until the line ends".
+;;
+;; The manual: "you can use a special value of zero in place of the
+;; number of characters.  This reads in all characters until a carriage
+;; return is found, like INPUT ... it does not clear the lower part of
+;; the screen, it does not beep with each input character, and it is
+;; much faster than INPUT."
+;;
+;; THE RANGE CHECK ALSO MOVED.  Stock made it before opening the
+;; stream; here it happens after, because the zero test has to come
+;; first.  A count of &4000 or more is still refused.
 ;; --------------------------------------------------------------------
 
 INPST:
@@ -15343,25 +15387,25 @@ INPST:
                CALL CMR                        ; 7A2F CD B2 7B
                DEFW STREAM                     ; 7A32 12 01
                POP BC                          ; 7A34 C1
-               LD A,B                          ; 7A35 78
+               LD A,B                          ; 7A35 78  is a count given at all?
                OR C                            ; 7A36 B1
                JR Z,INPST_1                    ; 7A37 28 0A
                PUSH BC                         ; 7A39 C5
                DEC BC                          ; 7A3A 0B  Z->FFFF
                LD A,B                          ; 7A3B 78
                CP &40                          ; 7A3C FE 40
-               JP NC,AHLNX_1                   ; 7A3E D2 91 60
+               JP NC,IOOR                      ; 7A3E D2 91 60
                JR INPST_2                      ; 7A41 18 03
 
 ; ---- INPST_1 ---- from &7A37
 INPST_1:
-               DEC BC                          ; 7A43 0B
+               DEC BC                          ; 7A43 0B  none, so &FFFF goes on the stack as the marker
                PUSH BC                         ; 7A44 C5
-               INC BC                          ; 7A45 03
+               INC BC                          ; 7A45 03  and the claim is for one byte, the length not being known yet
 
 ; ---- INPST_2 ---- from &7A41
 INPST_2:
-               INC BC                          ; 7A46 03
+               INC BC                          ; 7A46 03  the count again, or that one byte
                CALL CMR                        ; 7A47 CD B2 7B
                DEFW WKROOM                     ; 7A4A 09 01
                POP BC                          ; 7A4C C1
@@ -15386,7 +15430,8 @@ INPSL:
                POP BC                          ; 7A63 C1
                LD (DE),A                       ; 7A64 12
                INC DE                          ; 7A65 13
-               INC B                           ; 7A66 04
+               INC B                           ; 7A66 04  a marker of &FF comes round to zero here, and only then is &0D
+                                               ; tested
                JR NZ,INPSL_2                   ; 7A67 20 14
                CP &0D                          ; 7A69 FE 0D
                JR NZ,INPSL_1                   ; 7A6B 20 09
@@ -15478,7 +15523,7 @@ FSTAT:
                LD HL,&0007                     ; 7ABE 21 07 00
                AND A                           ; 7AC1 A7
                SBC HL,BC                       ; 7AC2 ED 42
-               JP C,AHLNX_1                    ; 7AC4 DA 91 60
+               JP C,IOOR                       ; 7AC4 DA 91 60
                CALL EVFINS                     ; 7AC7 CD 21 73
                CALL HOCHK                      ; 7ACA CD 67 7B
                POP BC                          ; 7ACD C1

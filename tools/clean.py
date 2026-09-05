@@ -75,6 +75,12 @@ BAR = ';; ' + '-' * 68
 #  correction that no longer matches is a correction that has gone
 #  stale, and a silent miss is the failure this file exists to prevent.
 CARRIED_FIXES = [
+    ([';;  Normalise a page and address pair so the address lies within one page and the surplus is in the page number.'],
+     [';;  Flatten a page and address pair into one number.  Not the other way about: the window base is discarded and',
+      ";;  the page's low bits are shifted down into the address, so what comes back is a flat byte address rather than",
+      ";;  a tidied pair.  PAGEFORM is the inverse, and &602A does one then the other -- two pairs flattened so that",
+      ';;  SBC HL,DE and SBC A,C can subtract them, then PAGEFORM to put the difference back into page-and-address',
+      ';;  form.']),
     ([';;  Errors: REP22 for a drive above RDLIM, "out of memory" if there are not enough free pages'],
      [';;  Errors: REP22 for a drive of RDLIM or above -- the test is CP RDLIM / JP NC, so RDLIM itself is refused --',
       ';;  and "out of memory" if there are not enough free pages']),

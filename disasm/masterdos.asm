@@ -1120,9 +1120,8 @@ DRPT:
                DEFB &01,&02,&03,&04,&05,&06,&07 ; 428F .......  (7) 111-117
 
 ;; --------------------------------------------------------------------
-;; Of the 48 instructions between this label and the next routine the source documents, 8 survive into this image, so
-;; that source's description of MRTAB has been left out rather than carried across. Compare
-;; ref/masterdos/annotated-src/masterdos23.asm.
+;; TABLE OF BITS, 1 PER 16K PAGE IN A MEGA RAM=64 BITS =8 BYTES
+;; 4 POSSIBLE MEGA RAMS=32 BYTES
 ;; --------------------------------------------------------------------
 
 ; ---- MRTAB ---- from &7823
@@ -1134,8 +1133,15 @@ V429A:
                DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 429A ...............
                DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00         ; 42A9 .............
 
-; ---- V42B6 ---- from MB &770B
-V42B6:
+;; --------------------------------------------------------------------
+;; The clock port, which the 1991 source calls CKPT and numbers as DVAR
+;; 150.  Its comment was carried across; the name was not, because the
+;; thirty-two bytes of MRTAB above it are data and the label matcher
+;; works on decoded instructions.  MasterBASIC reads it at MB &770B.
+;; --------------------------------------------------------------------
+
+; ---- CKPT ---- from MB &770B
+CKPT:
                DEFB &EF                        ; 42B6 o  150 CLOCK PORT
 
 ; ---- BEEPT ---- from &4DE9
@@ -2730,9 +2736,9 @@ CCNT:
                JR CCNT                         ; 492A 18 E0
 
 ;; --------------------------------------------------------------------
-;; Of the 12 instructions between this label and the next routine the source documents, 8 survive into this image, so
-;; that source's description of GETSCR has been left out rather than carried across. Compare
-;; ref/masterdos/annotated-src/masterdos23.asm.
+;; GET SCREEN MEMORY AND POINTER
+;;  A long save allocates all of its sectors up front and keeps the list in the screen page, which is large and not
+;;  being written to while a save runs. PORT1 remembers the caller's paging.
 ;; --------------------------------------------------------------------
 
 ; ---- GETSCR ---- from &45E9, &4998, &54F0, &5AD7, &5C30
@@ -3542,9 +3548,9 @@ FDHE2:
                RET                             ; 4CB0 C9
 
 ;; --------------------------------------------------------------------
-;; Of the 18 instructions between this label and the next routine the source documents, 11 survive into this image, so
-;; that source's description of FDHF has been left out rather than carried across. Compare
-;; ref/masterdos/annotated-src/masterdos23.asm.
+;; FOUND FREE DIRECTORY SPACE - SEE IF THAT IS WHAT IS WANTED
+;;  An entry whose first byte is zero is free. If the second byte is non-zero it is a deleted file and the scan goes
+;;  on; if both are zero the entry has never been used, which marks the end of the directory.
 ;; --------------------------------------------------------------------
 
 ; ---- FDHF ---- from &4B8D when A = 0
@@ -6524,7 +6530,7 @@ CALL_Label:
                CALL CEOS                       ; 5963 CD 07 50
                LD A,C                          ; 5966 79
                CP &02                          ; 5967 FE 02
-               JP NC,AHLNX_1                   ; 5969 D2 91 60
+               JP NC,IOOR                      ; 5969 D2 91 60
                LD A,&04                        ; 596C 3E 04
                OUT (VMPR),A                    ; 596E D3 FC  SCREEN IN PAGE 4, SPECTRUM MODE
                DEC C                           ; 5970 0D
@@ -7444,7 +7450,7 @@ CMD_HIDE:
 ; ---- CMD_HIDE_1 ---- from &5E05
 CMD_HIDE_1:
                INC B                              ; 5E0D 04
-               JP Z,AHLNX_1                       ; 5E0E CA 91 60
+               JP Z,IOOR                          ; 5E0E CA 91 60
                DEC B                              ; 5E11 05
                CALL CALLMB                        ; 5E12 CD BD 42
                DEFW MB_FIND_LINE_FROM_START-&4000 ; 5E15 FD 58
@@ -7716,7 +7722,7 @@ EVPRM:
                DEC HL                          ; 5F21 2B
                LD A,H                          ; 5F22 7C
                CP &04                          ; 5F23 FE 04
-               JP NC,AHLNX_1                   ; 5F25 D2 91 60  ALLOW 0000-03FFH IN DECED,
+               JP NC,IOOR                      ; 5F25 D2 91 60  ALLOW 0000-03FFH IN DECED,
 
 ;; --------------------------------------------------------------------
 ;;       0001-0400H IN ORIG,
@@ -7972,9 +7978,18 @@ AHLNX:
                AND &0F                         ; 608E E6 0F
                RET                             ; 6090 C9
 
-; ---- AHLNX_1 ---- from &5969 when A >= &02, &5E0E when B wraps to 0, &5F25 when A >= &04, &60BB when A <> 0, &60CF
-; when A <> 0, &60D8, &66C4 when A wraps to 0, &6AAC when B is not 0 yet ...
-AHLNX_1:
+;; --------------------------------------------------------------------
+;; Report "integer out of range", which is what CALL DERR with a code of
+;; &1E does.
+;;
+;; A stub of its own with nine callers, not a continuation of AHLNX --
+;; it only sits below it.  The 1991 source calls it IOOR and so does
+;; this now.
+;; --------------------------------------------------------------------
+
+; ---- IOOR ---- from &5969 when A >= &02, &5E0E when B wraps to 0, &5F25 when A >= &04, &60BB when A <> 0, &60CF when A
+; <> 0, &60D8, &66C4 when A wraps to 0, &6AAC when B is not 0 yet ...
+IOOR:
                CALL DERR                       ; 6091 CD AD 51
                DEFB &1E                        ; 6094 .
 
@@ -8013,7 +8028,7 @@ WFOD:
                JR Z,WFOD01                     ; 60B7 28 08
                LD A,B                          ; 60B9 78
                AND A                           ; 60BA A7
-               JR NZ,AHLNX_1                   ; 60BB 20 D4
+               JR NZ,IOOR                      ; 60BB 20 D4
                LD A,C                          ; 60BD 79
                LD (DTKS),A                     ; 60BE 32 30 42
 
@@ -8026,7 +8041,7 @@ WFOD01:
                JR Z,WFOD2                      ; 60CB 28 34
                LD A,B                          ; 60CD 78
                AND A                           ; 60CE A7
-               JR NZ,AHLNX_1                   ; 60CF 20 C0
+               JR NZ,IOOR                      ; 60CF 20 C0
                LD A,C                          ; 60D1 79
                LD (TEMPW1),A                   ; 60D2 32 12 42  TKS/DISC
                AND A                           ; 60D5 A7
@@ -8035,7 +8050,7 @@ WFOD01:
 ; ---- WIOOR ---- from &610D when A >= &28, &6122 when A = 0, &612A when A <> 0, &612E when A < B, &613D when A >= C,
 ; &614A when A >= B
 WIOOR:
-               JP AHLNX_1                      ; 60D8 C3 91 60
+               JP IOOR                         ; 60D8 C3 91 60
 
 ; ---- WFOD0 ---- from &60B2 when A <> &2C
 WFOD0:
@@ -9153,9 +9168,8 @@ EPCOM_2:
                JR HVAR1_1                      ; 65D3 18 B8
 
 ;; --------------------------------------------------------------------
-;; Of the 12 instructions between this label and the next routine the source documents, 8 survive into this image, so
-;; that source's description of AUTNAM has been left out rather than carried across. Compare
-;; ref/masterdos/annotated-src/masterdos23.asm.
+;;  The auto-load file's name, laid out as a ready-made parameter block so one copy sets up drive, device, type and
+;;  name together.
 ;; --------------------------------------------------------------------
 
 AUTNAM:
@@ -9327,7 +9341,7 @@ CALS:
 SCASD:
                LD (HKBC),A                     ; 66C0 32 E2 41
                INC A                           ; 66C3 3C
-               JP Z,AHLNX_1                    ; 66C4 CA 91 60  0-3FFFH ILLEGAL ADDR
+               JP Z,IOOR                       ; 66C4 CA 91 60  0-3FFFH ILLEGAL ADDR
                LD (HKHL),HL                    ; 66C7 22 DE 41  OFFSET
                LD (SVHDR),BC                   ; 66CA ED 43 0A 41  SECTORS TO DO
 
@@ -10114,12 +10128,12 @@ CMD_OPEN:
                CALL CEOS                       ; 6AA7 CD 07 50
                INC B                           ; 6AAA 04
                DEC B                           ; 6AAB 05
-               JP NZ,AHLNX_1                   ; 6AAC C2 91 60
+               JP NZ,IOOR                      ; 6AAC C2 91 60
                LD A,C                          ; 6AAF 79
                LD B,A                          ; 6AB0 47
                DEC A                           ; 6AB1 3D
                CP &06                          ; 6AB2 FE 06
-               JP NC,AHLNX_1                   ; 6AB4 D2 91 60
+               JP NC,IOOR                      ; 6AB4 D2 91 60
                LD DE,&0313                     ; 6AB7 11 13 03
                PUSH BC                         ; 6ABA C5
                PUSH DE                         ; 6ABB D5
@@ -10990,9 +11004,9 @@ MCHN2_1:
                RET                             ; 6F3A C9
 
 ;; --------------------------------------------------------------------
-;; Of the 45 instructions between this label and the next routine the source documents, 33 survive into this image, so
-;; that source's description of MCHWR has been left out rather than carried across. Compare
-;; ref/masterdos/annotated-src/masterdos23.asm.
+;; HOOK ROUTINE TO WRITE BYTE IN A TO DISC. USED BY "D" CHANNEL
+;;  INPUT # echoes what it reads, which would write it straight back to the file, so writes are suppressed while an
+;;  INPUT is in progress.
 ;; --------------------------------------------------------------------
 
 ; ---- MCHWR ---- from &694F when A = &4B, &6D9D
@@ -13601,7 +13615,7 @@ DST1:
 NSTKAH:
                JR Z,STKA                       ; 7989 28 54
                LD A,C                          ; 798B 79
-               JP NC,AHLNX_1                   ; 798C D2 91 60
+               JP NC,IOOR                      ; 798C D2 91 60
 
 ; ---- DST15 ---- from &797E
 DST15:
@@ -13710,7 +13724,7 @@ SIBKS:
                JP ISEPX                        ; 7A0B C3 35 50
 
 ;; --------------------------------------------------------------------
-;; Of the 29 instructions between this label and the next routine the source documents, 17 survive into this image, so
+;; Of the 26 instructions between this label and the next routine the source documents, 17 survive into this image, so
 ;; that source's description of INPST has been left out rather than carried across. Compare
 ;; ref/masterdos/annotated-src/masterdos23.asm.
 ;; --------------------------------------------------------------------
@@ -13743,7 +13757,7 @@ INPST:
                DEC BC                          ; 7A3A 0B  Z->FFFF
                LD A,B                          ; 7A3B 78
                CP &40                          ; 7A3C FE 40
-               JP NC,AHLNX_1                   ; 7A3E D2 91 60
+               JP NC,IOOR                      ; 7A3E D2 91 60
                JR INPST_2                      ; 7A41 18 03
 
 ; ---- INPST_1 ---- from &7A37
@@ -13871,7 +13885,7 @@ FSTAT:
                LD HL,&0007                     ; 7ABE 21 07 00
                AND A                           ; 7AC1 A7
                SBC HL,BC                       ; 7AC2 ED 42
-               JP C,AHLNX_1                    ; 7AC4 DA 91 60
+               JP C,IOOR                       ; 7AC4 DA 91 60
                CALL EVFINS                     ; 7AC7 CD 21 73
                CALL HOCHK                      ; 7ACA CD 67 7B
                POP BC                          ; 7ACD C1

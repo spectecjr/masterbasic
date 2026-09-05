@@ -433,3 +433,19 @@ DOS &46DF : the mask above was shifted for a rotated A and this bit number was n
 # byte and a few cycles in the tightest loop it has.  That rotate is what
 # made a shifted mask necessary; %00011100 >> 1 is &0E, which &46C6 has
 # and the three loops do not.
+
+DOS &42B6 CKPT
+    The clock port, which the 1991 source calls CKPT and numbers as DVAR
+    150.  Its comment was carried across; the name was not, because the
+    thirty-two bytes of MRTAB above it are data and the label matcher
+    works on decoded instructions.  MasterBASIC reads it at MB &770B.
+
+RENAME AHLNX_1 IOOR
+
+DOS &6091 IOOR
+    Report "integer out of range", which is what CALL DERR with a code of
+    &1E does.
+
+    A stub of its own with nine callers, not a continuation of AHLNX --
+    it only sits below it.  The 1991 source calls it IOOR and so does
+    this now.

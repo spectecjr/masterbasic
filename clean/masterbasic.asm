@@ -274,6 +274,7 @@ DOS_BOOT_DATA_PORT_PLUS_2:      EQU  &8088
 DOS_BOOT_READ_CMD_SETTLE:       EQU  &8081
 DOS_BOOT_SETTLE_AFTER_READ_CMD: EQU  &807F
 DOS_BOOT_TRACK_TEST:            EQU  &806B
+DOS_CKPT:                       EQU  &82B6
 DOS_DATDT:                      EQU  &8271
 DOS_DRIVE:                      EQU  &BC0B
 DOS_ENDS:                       EQU  &9010
@@ -317,7 +318,6 @@ DOS_TEMPW1:                     EQU  &8212
 DOS_TIMDT:                      EQU  &8280
 DOS_UNPARK_WORD:                EQU  &B85D
 DOS_V4222:                      EQU  &8222
-DOS_V42B6:                      EQU  &82B6
 DOS_V42E2:                      EQU  &82E2
 DOS_V5000:                      EQU  &9000
 DOS_V7CFF:                      EQU  &BCFF
@@ -15044,7 +15044,7 @@ INSTALL_ROM_VECTORS:
                CALL DOS_FIND_ROM_CODE          ; 76FF CD 79 BD
                DEFB &5B,&D6,&5B,&3D,&00,&FC    ; 7702 signature 5B D6 5B from &3D00, -4  -> &3DAD POSTFF
                LD (SYS_GAP_BLOCK+&06),HL       ; 7708 22 9C 58
-               LD A,(DOS_V42B6)                ; 770B 3A B6 82
+               LD A,(DOS_CKPT)                 ; 770B 3A B6 82
                LD C,A                          ; 770E 4F
                LD B,&F0                        ; 770F 06 F0
                LD A,&05                        ; 7711 3E 05
