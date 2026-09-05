@@ -4,3 +4,12 @@
 [submodule "ref/samrom"]
 	path = ref/samrom
 	url = https://github.com/simonowen/samrom
+[submodule "ref/sam-coupe-datasheets"]
+	path = ref/sam-coupe-datasheets
+	url = https://github.com/sam-users/sam-coupe-datasheets.git
+[submodule "ref/samdos"]
+	path = ref/samdos
+	url = https://github.com/stefandrissen/samdos.git
+[submodule "ref/sam-coupe-technical-manual"]
+	path = ref/sam-coupe-technical-manual
+	url = https://github.com/stefandrissen/sam-coupe-technical-manual.git
