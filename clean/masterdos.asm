@@ -12185,8 +12185,10 @@ COPY_MTBLS_LOOP:
 
 ; ---- MTBLS ---- from &6D4F
 MTBLS:
-               DEFB &A0,&4B,&A9,&4B,&C4,&00,&00,&00,&00 ; 6D66  K)KD....
-               DEFB &13,&03                             ; 6D6F ..  CHAN LEN (IX+9/10)
+               DEFW &4BA0,&4BA9                ; 6D66 A0 4B A9 4B
+               DEFB "D"+&80                    ; 6D6A D  the channel letter, with bit 7 set as the DOS marks its own
+               DEFW &0000,&0000                ; 6D6B 00 00 00 00
+               DEFW &0313                      ; 6D6F 13 03
 
 HK_HCLOS:
                LD HL,(HKDE)                    ; 6D71 2A E0 41

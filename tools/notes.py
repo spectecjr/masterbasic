@@ -7,7 +7,7 @@ instead, and it is deliberately a plain text file rather than another
 Python module, so that adding a name costs one line and no imports.
 
 Eight kinds of entry, one per line, blank lines and # comments ignored
-(a range takes one of three markers, which is why the list runs longer):
+(a range takes one of four markers, which is why the list runs longer):
 
     MB &5934 SERINIT              name a routine (or any address)
         Set up the SCC2691.       indented lines below become its header
@@ -19,6 +19,15 @@ Eight kinds of entry, one per line, blank lines and # comments ignored
     DOS &4220-&42BC data DVAR     mark a range as data, and name its start
     MB &7E6B-&7FBF text           mark a range as text
     MB &4349-&43A0 code           mark a range as code
+    MB &43A1-&43BD word           a run of DEFW, each named as an address
+
+    A data run is broken by a label, a header or a COMMENT -- not by a
+    change of marker -- and the marker that counts is the one at the
+    run's first byte.  So a table of mixed shapes needs a comment where
+    each shape begins:  MTBLS is two addresses, a letter and three
+    words, and it renders that way because &6D6A and &6D6B carry one
+    comment each.  Without them the whole eleven bytes take the marker
+    at &6D66 and come out as five and a half DEFWs.
 
     DOS &4835 value DISKCTL_0_BASE
                                   name the number in that one instruction,
@@ -74,7 +83,7 @@ GROUP = re.compile(r'^GROUP\s+(\S.*?)\s*$')
 CONST = re.compile(r'^CONST\s+(\w+)\s*=\s*([^:]+?)\s*(?::\s*(\S.*?))?\s*$')
 # RENAME ULA BORDER -- change a name everywhere it is written.
 RENAME = re.compile(r'^RENAME\s+(\w+)\s+(\w+)\s*$')
-KINDS = ('data', 'text', 'code', 'value', 'step', 'expr')
+KINDS = ('data', 'text', 'word', 'code', 'value', 'step', 'expr')
 # Register and condition names, so that the operand of an
 # instruction can be told from the rest of it.
 REGS = set('A B C D E H L F I R AF BC DE HL IX IY SP AF2 NZ Z NC PO PE P M IXH IXL IYH IYL'.split())
@@ -282,7 +291,10 @@ def apply(pages, root, banner, folder='notes'):
     by_tag = dict((p.tag, p) for p in pages)
     named = noted = marked = stepped = 0
     problems = []
-    kinds = {'data': 3, 'text': 5, 'code': 1}
+    # 'word' is DEFW: a run of two-byte values, each named through mem16,
+    # so an address that has a label is written as that label rather than
+    # as a number a reader has to look up.
+    kinds = {'data': 3, 'text': 5, 'word': 4, 'code': 1}
 
     equates, later, expressions = {}, [], []
     entries, complaints = load(root, folder)
@@ -366,7 +378,11 @@ def apply(pages, root, banner, folder='notes'):
                 # and the value still comes from the byte, so the equate
                 # cannot disagree with what is there.
                 d.byte_names[a] = e['name']
-                d.user_equs[e['name']] = d.byte(a)
+                if re.fullmatch(r'\w+', e['name']):
+                    d.user_equs[e['name']] = d.byte(a)
+                # A name that is not an identifier -- "D"+&80 -- is an
+                # expression the assembler works out for itself, and
+                # must not be declared as an equate.
                 named += 1
             elif not ins:
                 problems.append('%s: &%04X is neither an instruction nor a'
