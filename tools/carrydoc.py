@@ -617,6 +617,17 @@ def apply(dos, work, root, banner, data_mark=None, data_region=None):
     at = {}
     for a, v in found.items():
         at.setdefault(v[1], (a, v[0]))
+    # How far does this routine reach?  Two answers, and the right one
+    # is whichever comes first.  The matched labels say where the next
+    # piece of recognisable code starts, but they are sparse -- GTVAL
+    # was measured across forty-five instructions when GTVAL is eleven.
+    # The source's own documented routines say where the next thing with
+    # a description of its own starts, but between two of those there may
+    # be undocumented helpers this header never claimed to cover.
+    # Taking the nearer of the two can only narrow the window, so it
+    # removes false positives without inventing any.
+    src_labels = xfer.read_map(mapfile)
+    documented = sorted(a for a, nm in src_labels.items() if nm in headers)
     starts = sorted(a for a, _ in at.values())
     nhdr, changed = 0, []
     for name, (a, t) in sorted(at.items(), key=lambda kv: kv[1][0]):
@@ -625,6 +636,9 @@ def apply(dos, work, root, banner, data_mark=None, data_region=None):
             continue
         i = bisect.bisect_right(starts, a)
         stop = starts[i] if i < len(starts) else 0x4009 + len(mdos)
+        j = bisect.bisect_right(documented, a)
+        if j < len(documented):
+            stop = min(stop, documented[j])
         hit, tot = routine_match(pairs, src_starts, a, stop)
         if tot >= MIN_BODY and hit < tot * MIN_MATCH:
             changed.append((name, t, hit, tot))
@@ -633,15 +647,12 @@ def apply(dos, work, root, banner, data_mark=None, data_region=None):
             # follow the citation and judge.
             if t in dos.labels and t not in dos.headers:
                 dos.headers[t] = banner(
-                    'The code from here to the next routine carried across'
-                    ' matches stock MasterDOS 2.3 in only %d of %d'
-                    ' instructions, so that description has been left out'
-                    ' rather than carried across.  The stretch measured runs'
-                    ' to the next carried label and may take in more than'
-                    ' this one routine, so it is a hint and not a verdict.'
-                    '  Compare %s in'
+                    'Of the %d instructions between this label and the next'
+                    ' routine the source documents, %d survive into this'
+                    " image, so that source's description of %s has been left"
+                    ' out rather than carried across.  Compare'
                     ' ref/masterdos/annotated-src/masterdos23.asm.'
-                    % (hit, tot, name))
+                    % (tot, hit, name))
             continue
         if t in dos.headers or t not in dos.labels:
             continue

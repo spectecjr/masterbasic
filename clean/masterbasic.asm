@@ -3241,7 +3241,7 @@ GET_NONEMPTY_STRING:
 SORT_NAMES:
                LD BC,&000A                     ; 47FB 01 0A 00  ten bytes to a record, and ten of them compared
                LD A,C                          ; 47FE 79
-               DEFB &FE                        ; 47FF ~  skips the EXX, which belongs to the other entry
+               DEFB SKIP_1_VIA_CP              ; 47FF ~  skips the EXX, which belongs to the other entry
 
 HK_HORDER:
                EXX                             ; 4800 D9  the ORDER command arrives with its lengths in the other set

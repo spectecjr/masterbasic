@@ -263,6 +263,20 @@ NL = chr(10)
 PART_HEADING = re.compile(r'^(?:;;)?[ 	]*PART \S', re.M)
 
 
+def _inside_insn(d, a):
+    """True if `a` is a byte of some decoded instruction rather than data.
+
+    A `value` note on a data byte is meaningful -- naming a skip byte is
+    the obvious case -- but one that lands in the middle of an
+    instruction is a mistake, and the two have to be told apart before
+    the first can be allowed.
+    """
+    for start, ins in d.insns.items():
+        if start <= a < start + ins.length:
+            return True
+    return False
+
+
 def apply(pages, root, banner, folder='notes'):
     """Put the entries on the pages.  Returns counts and complaints."""
     by_tag = dict((p.tag, p) for p in pages)
@@ -345,9 +359,18 @@ def apply(pages, root, banner, folder='notes'):
             ins = d.insns.get(a)
             text = d.overrides.get(a, ins.text) if ins else None
             lits = re.findall(r'&[0-9A-Fa-f]+', text or '')
-            if not ins:
-                problems.append('%s: &%04X does not start an instruction'
-                                % (e['where'], a))
+            if not ins and e['name'] and not _inside_insn(d, a):
+                # A skip byte is data rather than an instruction -- the
+                # whole point of it is that what follows is swallowed --
+                # but naming it is exactly what this directive is for,
+                # and the value still comes from the byte, so the equate
+                # cannot disagree with what is there.
+                d.byte_names[a] = e['name']
+                d.user_equs[e['name']] = d.byte(a)
+                named += 1
+            elif not ins:
+                problems.append('%s: &%04X is neither an instruction nor a'
+                                ' named byte' % (e['where'], a))
             elif len(lits) != 1:
                 # Naming the same number twice is the common way to get
                 # here: the first entry replaced it, so the second finds

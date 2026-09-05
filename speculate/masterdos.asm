@@ -1438,9 +1438,8 @@ DRPT:
                DEFB &01,&02,&03,&04,&05,&06,&07 ; 428F .......  (7) 111-117
 
 ;; --------------------------------------------------------------------
-;; The code from here to the next routine carried across matches stock MasterDOS 2.3 in only 8 of 48 instructions, so
-;; that description has been left out rather than carried across. The stretch measured runs to the next carried label
-;; and may take in more than this one routine, so it is a hint and not a verdict. Compare MRTAB in
+;; Of the 48 instructions between this label and the next routine the source documents, 8 survive into this image, so
+;; that source's description of MRTAB has been left out rather than carried across. Compare
 ;; ref/masterdos/annotated-src/masterdos23.asm.
 ;; --------------------------------------------------------------------
 
@@ -4192,9 +4191,8 @@ CCNT:
 ;;
 ;; Shown for this routine in disasm/:
 ;;
-;;     The code from here to the next routine carried across matches stock MasterDOS 2.3 in only 8 of 12 instructions,
-;;     so that description has been left out rather than carried across. The stretch measured runs to the next carried
-;;     label and may take in more than this one routine, so it is a hint and not a verdict. Compare GETSCR in
+;;     Of the 12 instructions between this label and the next routine the source documents, 8 survive into this image,
+;;     so that source's description of GETSCR has been left out rather than carried across. Compare
 ;;     ref/masterdos/annotated-src/masterdos23.asm.
 ;; --------------------------------------------------------------------
 
@@ -5642,9 +5640,8 @@ FDHE2:
 ;;
 ;; Shown for this routine in disasm/:
 ;;
-;;     The code from here to the next routine carried across matches stock MasterDOS 2.3 in only 11 of 18 instructions,
-;;     so that description has been left out rather than carried across. The stretch measured runs to the next carried
-;;     label and may take in more than this one routine, so it is a hint and not a verdict. Compare FDHF in
+;;     Of the 18 instructions between this label and the next routine the source documents, 11 survive into this image,
+;;     so that source's description of FDHF has been left out rather than carried across. Compare
 ;;     ref/masterdos/annotated-src/masterdos23.asm.
 ;; --------------------------------------------------------------------
 
@@ -9758,10 +9755,8 @@ PRINT_FIELD:
 ;;
 ;; Shown for this routine in disasm/:
 ;;
-;;     The code from here to the next routine carried across matches stock MasterDOS 2.3 in only 11 of 45 instructions,
-;;     so that description has been left out rather than carried across. The stretch measured runs to the next carried
-;;     label and may take in more than this one routine, so it is a hint and not a verdict. Compare GTVAL in
-;;     ref/masterdos/annotated-src/masterdos23.asm.
+;;     GET NUMBER FROM HEADER
+;;      Exit: C = page, DE = address, HL advanced past the three bytes.
 ;; --------------------------------------------------------------------
 
 ; ---- GTVAL ---- from &5669, &567A
@@ -15605,9 +15600,8 @@ EPCOM_2:
                JR HVAR1_1                      ; 65D3 18 B8
 
 ;; --------------------------------------------------------------------
-;; The code from here to the next routine carried across matches stock MasterDOS 2.3 in only 8 of 12 instructions, so
-;; that description has been left out rather than carried across. The stretch measured runs to the next carried label
-;; and may take in more than this one routine, so it is a hint and not a verdict. Compare AUTNAM in
+;; Of the 12 instructions between this label and the next routine the source documents, 8 survive into this image, so
+;; that source's description of AUTNAM has been left out rather than carried across. Compare
 ;; ref/masterdos/annotated-src/masterdos23.asm.
 ;; --------------------------------------------------------------------
 
@@ -18760,9 +18754,8 @@ MCHN2_1:
 ;;
 ;; Shown for this routine in disasm/:
 ;;
-;;     The code from here to the next routine carried across matches stock MasterDOS 2.3 in only 62 of 96 instructions,
-;;     so that description has been left out rather than carried across. The stretch measured runs to the next carried
-;;     label and may take in more than this one routine, so it is a hint and not a verdict. Compare MCHWR in
+;;     Of the 45 instructions between this label and the next routine the source documents, 33 survive into this image,
+;;     so that source's description of MCHWR has been left out rather than carried across. Compare
 ;;     ref/masterdos/annotated-src/masterdos23.asm.
 ;; --------------------------------------------------------------------
 
@@ -23365,9 +23358,8 @@ SIBKS:
 ;;
 ;; Shown for this routine in disasm/:
 ;;
-;;     The code from here to the next routine carried across matches stock MasterDOS 2.3 in only 17 of 29 instructions,
-;;     so that description has been left out rather than carried across. The stretch measured runs to the next carried
-;;     label and may take in more than this one routine, so it is a hint and not a verdict. Compare INPST in
+;;     Of the 29 instructions between this label and the next routine the source documents, 17 survive into this image,
+;;     so that source's description of INPST has been left out rather than carried across. Compare
 ;;     ref/masterdos/annotated-src/masterdos23.asm.
 ;; --------------------------------------------------------------------
 
