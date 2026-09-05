@@ -31,6 +31,8 @@ MB &4E37 value F_NVAL - FN_TOKEN_BIAS
 
 MB &7E03 : the two codes this stub lets through are XVAR's and NVAL's, the only MasterBASIC functions whose argument has no bracket round it
 
+MB &4E3C : the token is XVAR.  Nothing here says so: the JP above has taken NVAL away and the stub at &7E03 let nothing but those two through, so what is left is XVAR n, and this reads the n
+
 MB &41C5 FN_NVAL
     NVAL a$ -- an SVAL$ string turned back into a number.  This is the
     &50 branch of hook 179 and the only way in.

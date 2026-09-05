@@ -5532,7 +5532,9 @@ FN_SHIFT_S_1:
 HK_XVARNVAL:
                CP F_NVAL - FN_TOKEN_BIAS       ; 4E37 FE 50
                JP Z,FN_NVAL                    ; 4E39 CA C5 41
-               CALL CALL_GETINT                ; 4E3C CD 76 44
+               CALL CALL_GETINT                ; 4E3C CD 76 44  the token is XVAR. Nothing here says so: the JP above
+                                               ; has taken NVAL away and the stub at &7E03 let nothing but those two
+                                               ; through, so what is left is XVAR n, and this reads the n
                LD HL,PUTSWA                    ; 4E3F 21 00 40
                IN A,(LMPR)                     ; 4E42 DB FA
                CALL CALLDOS                    ; 4E44 CD C1 42
