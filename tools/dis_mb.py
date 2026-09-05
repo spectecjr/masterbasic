@@ -1572,6 +1572,22 @@ def load_symbols(d, work, dos=None, peer=None):
 
 def render_basic(d, work):
     """Decode the tokenised BASIC at the end of the MasterBASIC page."""
+    # XVAR and NVAL occupy two slots the ROM's own function list leaves
+    # blank -- both are a bare DB "-"+&80 in text.asm -- so sambasic
+    # cannot name them from the ROM.  They are function tokens like any
+    # other, hence the F_ prefix, and the names are MasterBASIC's own,
+    # from annotate.MB_TOKENS.  Said before the ROM check below, because
+    # they do not come from the ROM: notes/mb-nval.txt writes three
+    # operands as F_XVAR - &1A and F_NVAL - &1A, and those have to
+    # resolve whether or not there is a ROM build to read.
+    for code in (0x68, 0x6A):
+        d.basic_equs['F_' + annotate.MB_TOKENS[code]] = code
+    # And the adjustment the ROM makes to a function code before it
+    # dispatches: ABOVLETS (ref/samrom/eval.asm) does SUB &1A with the
+    # comment "ADJUST 3B-83H TO 21H-69H", so what a function hook is
+    # handed is the token less this.  MasterDOS's FNVEC banner cites the
+    # same instruction for the same reason.
+    d.basic_equs['FN_TOKEN_BIAS'] = 0x1A
     rom = os.path.join(work, 'samrom.bin')
     mapfile = os.path.join(work, 'samrom.map')
     if not (os.path.exists(rom) and os.path.exists(mapfile)):
@@ -1580,6 +1596,8 @@ def render_basic(d, work):
     toks = sambasic.Tokens(open(rom, 'rb').read(), sambasic.read_map(mapfile))
     text, equs = sambasic.BasicText(d, MBTEXT[0], MBTEXT[1], toks).render()
     _table(d, MBTEXT[0], MBTEXT[1], text)
+    # render() builds its own dict, so the two above are put back.
+    equs.update(d.basic_equs)
     d.basic_equs = equs
 
 
@@ -2259,7 +2277,9 @@ def header(d):
                     for line in annotate.UNPLACED.rstrip().split('\n'))
     if d.basic_equs:
         head.append('')
-        head.append('; SAM BASIC tokens, from the ROM tables -- see MBTEXT.')
+        head.append('; SAM BASIC tokens, from the ROM tables -- see MBTEXT --')
+        head.append("; plus MasterBASIC's own two, in slots the ROM left blank,")
+        head.append('; and the adjustment the ROM makes before dispatching one.')
         for name in sorted(d.basic_equs):
             head.append('%-14s EQU  %s' % (name + ':', hexn(d.basic_equs[name], 2)))
     bad = d.unplaced()

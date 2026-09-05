@@ -148,15 +148,20 @@ where it stopped, and the character that ended it is compared with "$".""",
 0x4E37: """\
 Hook code 179.  The XVAR and NVAL functions.
 
-The two values the stub at &7E03 lets through are &4E and &50, which are
-&1A below the second bytes of XVAR (FF 68) and NVAL (FF 6A) -- the two
-MasterBASIC functions that take an argument with no bracket, which is
-why the token printer at &50CE singles the same pair out.  The &50 that
-looks like the letter "P" is NVAL's token, and it goes to FN_NVAL.
+The two values the stub at &7E03 lets through are F_XVAR - FN_TOKEN_BIAS
+and F_NVAL - FN_TOKEN_BIAS -- &4E and &50.  XVAR and NVAL are the two
+MasterBASIC functions that take an argument with no bracket, which is why
+the token printer at &50CE singles the same pair out.  The &50 that looks
+like the letter "P" is NVAL's, and it goes to FN_NVAL.
 
-&4E is XVAR n.  It evaluates the integer, points HL at PUTSWA -- this
-page's &4000, which is XVAR 0 -- and enters the DOS at &6579, just past
-that routine's own LD HL,DVAR.  So XVAR n is the DOS's DVAR code aimed
+THE BIAS IS THE ROM'S, NOT A CHOSEN CONSTANT.  ABOVLETS reads the byte
+after the FF and does SUB &1A -- "ADJUST 3B-83H TO 21H-69H" -- before
+calling through EVALUV, so every function hook is handed its token less
+that.  The assembler checks the subtraction on every build.
+
+F_XVAR - FN_TOKEN_BIAS is XVAR n.  It evaluates the integer, points HL
+at PUTSWA -- this page's &4000, which is XVAR 0 -- and enters the DOS at
+&6579, just past that routine's own LD HL,DVAR.  So XVAR n is the DOS's DVAR code aimed
 at MasterBASIC's page instead of its own.  The ROM's STKEND comes back
 in DE either way.
 

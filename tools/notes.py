@@ -532,10 +532,20 @@ def apply(pages, root, banner, folder='notes', deferred=None):
     # same file can still be referred to by name further up.
     for d, a, lit, expr, where in expressions:
         want = int(lit[1:], 16)
-        env = dict(d.user_equs)
+        # Every table the listing declares equates from, not just the
+        # ones notes made: an expression may name a ROM token or a
+        # MasterDOS constant as readily as a `value` of its own.
+        env = {}
+        for table in (d.mdos_equs, d.inferred, d.rst_equs, d.basic_equs,
+                      d.user_equs):
+            env.update(table)
         try:
-            got = eval(re.sub(r'\w+', lambda m: str(env[m.group(0)])
-                              if m.group(0) in env else m.group(0), expr),
+            # &1A is how this repository writes a number; Python reads &
+            # as bitwise-and, so the literals are converted before eval.
+            py = re.sub(r'&([0-9A-Fa-f]+)', r'0x\1', expr)
+            got = eval(re.sub(r'(?<!x)\b[A-Za-z_]\w*',
+                              lambda m: str(env[m.group(0)])
+                              if m.group(0) in env else m.group(0), py),
                        {'__builtins__': {}}, {})
         except Exception:
             got = None

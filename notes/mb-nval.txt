@@ -6,6 +6,31 @@
 # its error messages, and a pair of inverse routines the DOS calls to map
 # between file numbers and track/sector/entry.
 
+# The codes that reach hook 179.
+#
+# XVAR is the function token &68 and NVAL &6A -- two slots the ROM's own
+# function list leaves blank, which is why F_XVAR and F_NVAL are said in
+# the equate block rather than coming from the ROM tables like the rest
+# of the F_ names.
+#
+# What a function hook is handed is the token less FN_TOKEN_BIAS, so
+# XVAR arrives as &4E and NVAL as &50.  That bias is the ROM's own:
+# ABOVLETS (ref/samrom/eval.asm) reads the byte after the FF and does
+# SUB &1A, commented "ADJUST 3B-83H TO 21H-69H", before calling through
+# EVALUV.  MasterDOS's FNVEC banner cites the same instruction to
+# explain why its table entry i is token &29+i.
+#
+# Written as F_XVAR - FN_TOKEN_BIAS the arithmetic is on the page and
+# the assembler checks it on every build, which a bare &4E and &50 did
+# not -- and &50 read as the letter "P" for a long time on the strength
+# of being a bare number.
+
+MB &7E07 value F_XVAR - FN_TOKEN_BIAS
+MB &7E03 value F_NVAL - FN_TOKEN_BIAS
+MB &4E37 value F_NVAL - FN_TOKEN_BIAS
+
+MB &7E03 : the two codes this stub lets through are XVAR's and NVAL's, the only MasterBASIC functions whose argument has no bracket round it
+
 MB &41C5 FN_NVAL
     NVAL a$ -- an SVAL$ string turned back into a number.  This is the
     &50 branch of hook 179 and the only way in.

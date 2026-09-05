@@ -302,9 +302,12 @@ HK_HCMDV:                 EQU  &AD
 ;
 ; notes/ has each of them, and docs/how-it-works.md puts them in order.
 
-; SAM BASIC tokens, from the ROM tables -- see MBTEXT.
+; SAM BASIC tokens, from the ROM tables -- see MBTEXT --
+; plus MasterBASIC's own two, in slots the ROM left blank,
+; and the adjustment the ROM makes before dispatching one.
 C_PAPER:                  EQU  &11
 FN_PFX:                   EQU  &FF
+FN_TOKEN_BIAS:            EQU  &1A
 FPC_ADDN:                 EQU  &01
 FPC_CONST2:               EQU  &E2
 FPC_DIVN:                 EQU  &05
@@ -323,6 +326,8 @@ FPC_SWOP:                 EQU  &06
 FPC_SWOP13:               EQU  &1C
 F_BAND:                   EQU  &7E
 F_CODE:                   EQU  &6C
+F_NVAL:                   EQU  &6A
+F_XVAR:                   EQU  &68
 TK_CR:                    EQU  &0D
 TK_NUM:                   EQU  &0E
 T_AT:                     EQU  &87
@@ -994,7 +999,7 @@ V41C4:
 ;; &8F00 from here and STKEND at &9C65.
 ;; --------------------------------------------------------------------
 
-; ---- FN_NVAL ---- from &4E39 when A = &50
+; ---- FN_NVAL ---- from &4E39 when A = F_NVAL - FN_TOKEN_BIAS
 FN_NVAL:
                CALL MBCMR                       ; 41C5 CD F0 44  the argument is already on the calculator stack;
                                                 ; SBUFFET pops it into INSTBUF and leaves the length in BC, B zero
@@ -1187,8 +1192,10 @@ TRACK_SECTOR_TO_FILE_NUMBER:
 ;; A to three decimal characters, returned in A, C and B -- hundreds,
 ;; tens and units.  &4249 pushes the hundreds and &4250 the tens; the
 ;; units go into B at &4257, and the two POPs then take the tens into
-;; C and leave the hundreds in A.  DECIMAL_DIGIT is called with DE = 100 and then with
-;; DE = 10, and what is left in L is the units.  C carries the padding:
+;; C and leave the hundreds in A.
+;;
+;; DECIMAL_DIGIT is called with DE = 100 and then with DE = 10, and
+;; what is left in L is the units.  C carries the padding:
 ;; &20 going in, so a leading zero prints as a space, and DECIMAL_DIGIT
 ;; sets it to &30 as soon as a digit is non-zero, so the zeros after it
 ;; print as zeros.
@@ -5502,15 +5509,20 @@ FN_SHIFT_S_1:
 ;; --------------------------------------------------------------------
 ;; Hook code 179.  The XVAR and NVAL functions.
 ;;
-;; The two values the stub at &7E03 lets through are &4E and &50, which are
-;; &1A below the second bytes of XVAR (FF 68) and NVAL (FF 6A) -- the two
-;; MasterBASIC functions that take an argument with no bracket, which is
-;; why the token printer at &50CE singles the same pair out.  The &50 that
-;; looks like the letter "P" is NVAL's token, and it goes to FN_NVAL.
+;; The two values the stub at &7E03 lets through are F_XVAR - FN_TOKEN_BIAS
+;; and F_NVAL - FN_TOKEN_BIAS -- &4E and &50.  XVAR and NVAL are the two
+;; MasterBASIC functions that take an argument with no bracket, which is why
+;; the token printer at &50CE singles the same pair out.  The &50 that looks
+;; like the letter "P" is NVAL's, and it goes to FN_NVAL.
 ;;
-;; &4E is XVAR n.  It evaluates the integer, points HL at PUTSWA -- this
-;; page's &4000, which is XVAR 0 -- and enters the DOS at &6579, just past
-;; that routine's own LD HL,DVAR.  So XVAR n is the DOS's DVAR code aimed
+;; THE BIAS IS THE ROM'S, NOT A CHOSEN CONSTANT.  ABOVLETS reads the byte
+;; after the FF and does SUB &1A -- "ADJUST 3B-83H TO 21H-69H" -- before
+;; calling through EVALUV, so every function hook is handed its token less
+;; that.  The assembler checks the subtraction on every build.
+;;
+;; F_XVAR - FN_TOKEN_BIAS is XVAR n.  It evaluates the integer, points HL
+;; at PUTSWA -- this page's &4000, which is XVAR 0 -- and enters the DOS at
+;; &6579, just past that routine's own LD HL,DVAR.  So XVAR n is the DOS's DVAR code aimed
 ;; at MasterBASIC's page instead of its own.  The ROM's STKEND comes back
 ;; in DE either way.
 ;;
@@ -5518,7 +5530,7 @@ FN_SHIFT_S_1:
 ;; --------------------------------------------------------------------
 
 HK_XVARNVAL:
-               CP &50                          ; 4E37 FE 50
+               CP F_NVAL - FN_TOKEN_BIAS       ; 4E37 FE 50
                JP Z,FN_NVAL                    ; 4E39 CA C5 41
                CALL CALL_GETINT                ; 4E3C CD 76 44
                LD HL,PUTSWA                    ; 4E3F 21 00 40
@@ -19675,12 +19687,13 @@ INSTALL_ROM_PATCHES_4:
 
 ; ---- HK_SETUPREGS_1 ---- from &7214
 HK_SETUPREGS_1:
-               CP &50                          ; 7E03 FE 50
+               CP F_NVAL - FN_TOKEN_BIAS       ; 7E03 FE 50  the two codes this stub lets through are XVAR's and NVAL's,
+                                               ; the only MasterBASIC functions whose argument has no bracket round it
                JR Z,TBL_7D58_DONE              ; 7E05 28 03
-               CP &4E                          ; 7E07 FE 4E
+               CP F_XVAR - FN_TOKEN_BIAS       ; 7E07 FE 4E
                RET NZ                          ; 7E09 C0
 
-; ---- TBL_7D58_DONE ---- from &7E05 when A = &50
+; ---- TBL_7D58_DONE ---- from &7E05 when A = F_NVAL - FN_TOKEN_BIAS
 TBL_7D58_DONE:
                POP HL                          ; 7E0A E1
                RST ERR_HOOK                    ; 7E0B CF
