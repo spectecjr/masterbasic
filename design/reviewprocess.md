@@ -70,6 +70,14 @@ Run the proposal shape only on regions that are genuinely bare.
    because the enablement had not taken effect. The line is there so a run can
    be *questioned*, not so it can be trusted. Don't credit a model in a commit
    message on the strength of it.
+
+   **The transport is a better witness than the report.** When four of these
+   agents died at once, the 429 named the model the API had actually been
+   sent — `claude-fable-5-1`. That settled in one line what the `MODEL:`
+   self-reports had left ambiguous for two rounds, because it came from the
+   plumbing rather than from the thing being asked about itself. Read the
+   error text when a run fails; it is the only place the answer is not
+   self-reported.
 6. **"I found nothing wrong" is a success.** Say so in the prompt, in those
    words. Otherwise the agent pads, and a padded report costs more to audit than
    a short one is worth.
@@ -276,6 +284,13 @@ The differences from the review prompt:
 | PART F11 (&595B–&5E75) | review | 13 findings | 13 |
 | PART D1 (&4FF0–&549B) | review | 17 findings | 17 |
 | PART E1 (&549E–&595A) | review | 17 findings | 17 |
+| PART MOVE A/B, HOOKS, RAMD | review | *in flight* | — |
+
+The first five ran on one model; the four after them on another, after the
+first hit a session limit mid-run. The prompts were byte-identical across the
+change, which is the only reason the two groups can be compared at all — if
+the brief had been retuned at the same time, nothing could be concluded from
+a difference in yield.
 
 Two things follow from 71 out of 71, and only one of them is the obvious one.
 
