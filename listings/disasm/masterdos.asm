@@ -15,36 +15,12 @@
 ; wrongly, and the routines it changed are marked as changed.
 
 
-; SAM ROM entry points and system variables.  A page cannot
-; address the variables directly -- it occupies the same
-; &4000-&7FFF they live in -- so it either calls NRRD/NRWR, which
-; page them in, or does the same windowing inline, which is what a
-; name written here as NAME+&4000 means.
-; The notes are mostly the ROM source's own words.
-BEEPR:                    EQU  &016F
-CSTAT:                    EQU  &5A7B           ; address of the start of the current statement
-DEVL:                     EQU  &5A06           ; default device letter
-DEVN:                     EQU  &5A07           ; default device number
-ELINP:                    EQU  &5A93           ; page holding the edit line
-FRAMES:                   EQU  &5C78           ; the frame counter, incremented 50 times a second
-INCURPDE:                 EQU  &3FEB           ; Increments the upper RAM page, adjusting DE to make sure it's not in
-                                               ; the range C000-FFFF. Uses A, alters D.
-INQUFG:                   EQU  &5ABA           ; IN QUOTES FLAG. BIT 0=1 IF IN QUOTES. OUTLINE ZEROS
-OVERF:                    EQU  &5BB9           ; 'SAVE OVER' FLAG. 0 IF SAVE OVER, ELSE NZ
-SLDEV:                    EQU  &5BB7           ; DEVICE LETTER/NUMBER (TEMP)
-SPOSNL:                   EQU  &5A6E           ; SCREEN POSN (LOWER) 0,19 AFTER CLS
-UNSTLEN:                  EQU  &3F8C           ; ! ;1* split the calculator stack top into a page count and an offset
-WINDRHS:                  EQU  &5A56           ; right-hand column of the current window
-XPTRP:                    EQU  &5AA2           ; page holding the error marker
-
 ; What a dispatch table adds to one of the names below to
 ; make the word it stores.  Not bit 15 itself, which is
 ; &8000: it is &4000 off to undo the window this page sees
 ; the other one through, then &8000 on to set the flag.
 NOT_IN_THIS_PAGE:         EQU  &4000
 
-
-                                               ; an error number, or a hook code from 128 up
 
 ; Numbers named in notes/, each for one instruction
 ; where the same value means something else elsewhere.

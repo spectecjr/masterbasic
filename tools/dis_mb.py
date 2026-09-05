@@ -2210,20 +2210,112 @@ def hook_notes(dos, mb, table=HOOK_TABLE, count=64):
     return out
 
 
+def _describer(d):
+    """name -> the source's own words for it, or ''.
+
+    J_FARLDIR is the jump table's FARLDIR and ROM_BORDCR is the ROM's own
+    BORDCR under a name that does not clash with ours; the sources
+    describe them without the prefix.
+    """
+    def described(name):
+        for key in (name, re.sub(r'^(J_|ROM_)', '', name)):
+            got = d.romdesc.get(key) or romsyms.EXTRA_NOTES.get(key)
+            if got:
+                return got
+        return ''
+    return described
+
+
+def samhw_text(pages):
+    """samhw.asm -- the Coupe's ports, for whichever half uses them.
+
+    Both halves talk to the same machine, so the ports were declared in
+    each of them and are declared once here instead.
+    """
+    seen, clash = {}, []
+    for d in pages:
+        for v, name in d.ports.items():
+            if seen.setdefault(name, v) != v:
+                clash.append('%s is &%02X here and &%02X there'
+                             % (name, v, seen[name]))
+    for note in clash:
+        print('samhw.asm: the halves disagree -- ' + note)
+    if clash:
+        raise SystemExit('dis_mb: a port means two things')
+
+    out = [SAMHW_TITLE, '']
+    for name in sorted(seen, key=lambda n: seen[n]):
+        v = seen[name]
+        note = romsyms.PORT_NOTES.get(v) or ''
+        if not note:
+            for d in pages:
+                note = note or d.romdesc.get(name, '')
+        out.append(('%-14s EQU  %-6s %s'
+                    % (name + ':', hexn(v, 2),
+                       '; ' + note if note else '')).rstrip())
+    return chr(10).join(out) + chr(10)
+
+
+def samrom_text(pages):
+    """samrom.asm -- the ROM's entry points, variables and restarts.
+
+    None of this is MasterDOS's or MasterBASIC's: it is the machine they
+    both sit on, and each half used to carry its own copy of whichever
+    names it happened to use.
+    """
+    eq, notes, rst = {}, {}, {}
+    for d in pages:
+        described = _describer(d)
+        got = d.syms.equates(d.used_ext) if d.syms else {}
+        for name, v in got.items():
+            if name in d.rst_equs:      # emitted with the restarts below
+                continue
+            eq[name] = v
+            notes[name] = notes.get(name) or described(name)
+        for name, (v, why) in d.rst_equs.items():
+            rst[name] = (v, why)
+    # An address with two names -- CHAD and CHADD are one byte -- is
+    # described once, so the other one borrows it.
+    byvalue = {}
+    for name, v in eq.items():
+        if notes.get(name):
+            byvalue.setdefault(v, notes[name])
+
+    out = [SAMROM_TITLE, '']
+    if rst:
+        out.append("; The ROM's restarts, under the names its own source gives")
+        out.append('; them.  A restart is a one-byte call to a fixed address, so')
+        out.append('; these are those addresses.')
+        for name in sorted(rst, key=lambda n: rst[n][0]):
+            v, why = rst[name]
+            lines = why.split(chr(10))
+            out.append('%-14s EQU  %-6s ; %s' % (name + ':', hexn(v, 2), lines[0]))
+            for extra in lines[1:]:
+                out.append('%-14s %-11s ; %s' % ('', '', extra))
+        out.append('')
+    out.append('; Entry points and system variables.  Neither half can address')
+    out.append('; the variables directly -- both occupy the same &4000-&7FFF the')
+    out.append('; variables live in -- so a half either calls NRRD/NRWR, which')
+    out.append('; page them in, or does the same windowing inline, which is what')
+    out.append('; a name written NAME+&4000 in an operand means.')
+    out.append("; The notes are mostly the ROM source's own words.")
+    for name in sorted(eq):
+        note = notes.get(name) or byvalue.get(eq[name], '')
+        out.append(('%-14s EQU  %-6s %s'
+                    % (name + ':', hexn(eq[name], 4),
+                       '; ' + note if note else '')).rstrip())
+    return chr(10).join(out) + chr(10)
+
+
 def header(d):
     head = [d.title, '']
-    if d.ports:
-        head.append('; Hardware ports, under the names the two source trees use.')
-        head.append('; What each one does is from the SAM Coupe Technical Manual.')
-        for v in sorted(d.ports):
-            # The Coupe's own ports come from the technical manual; the
-            # disk and printer ports are the DOS's, and its source says
-            # what they are.
-            note = romsyms.PORT_NOTES.get(v) or d.romdesc.get(d.ports[v], '')
-            head.append(('%-14s EQU  %-6s %s'
-                         % (d.ports[v] + ':', hexn(v, 2),
-                            '; ' + note if note else '')).rstrip())
-    eq = d.syms.equates(d.used_ext) if d.syms else {}
+    # Used by several groups below, and bound here rather than inside one
+    # of them: the group that used to define it now lives in samrom.asm.
+    described = _describer(d)
+    # The ports, the ROM's entry points and its restarts are the
+    # machine rather than either half, and are in samhw.asm and
+    # samrom.asm, which base.asm includes before both.
+    eq = {}
     # A restart's name is emitted once, with the RST equates below.
     # &0010 reached as a CMR parameter is the same address under the same
     # name, so it must not bring a second EQU with it.
@@ -2236,18 +2328,7 @@ def header(d):
         head.append('; page them in, or does the same windowing inline, which is what a')
         head.append('; name written here as NAME+&4000 means.')
         head.append("; The notes are mostly the ROM source's own words.")
-        # Several addresses have two names -- CHAD and CHADD are the same
-        # byte -- and only one of them is described.  Share it.
         shared = {}
-        def described(name):
-            # J_FARLDIR is the jump table's FARLDIR, and ROM_BORDCR is
-            # the ROM's own BORDCR under a name that does not clash with
-            # ours; the sources describe them without the prefix.
-            for key in (name, re.sub(r'^(J_|ROM_)', '', name)):
-                got = d.romdesc.get(key) or romsyms.EXTRA_NOTES.get(key)
-                if got:
-                    return got
-            return ''
 
         for name in eq:
             got = described(name)
@@ -2284,17 +2365,6 @@ def header(d):
         head.append('; and CTAB use to mean "not in this page".')
         for name in sorted(d.used_peer):
             head.append('%-14s EQU  %s' % (name + ':', hexn(d.used_peer[name], 4)))
-    if d.rst_equs:
-        head.append('')
-        head.append("; The ROM's restarts, under the names its own source gives")
-        head.append('; them.  A restart is a one-byte call to a fixed address, so')
-        head.append('; these are those addresses.')
-        for name in sorted(d.rst_equs, key=lambda n: d.rst_equs[n][0]):
-            v, why = d.rst_equs[name]
-            lines = why.split(chr(10))
-            head.append('%-14s EQU  %-6s ; %s' % (name + ':', hexn(v, 2), lines[0]))
-            for extra in lines[1:]:
-                head.append('%-14s %-11s ; %s' % ('', '', extra))
     if d.inferred:
         head.append('')
         head.append('; Read from the code, not carried from a source.  MasterBASIC')
@@ -2488,6 +2558,30 @@ def prune_equates(text):
     return chr(10).join(res) + chr(10), dropped
 
 
+SAMHW_TITLE = """; samhw.asm -- the SAM Coupe's ports.
+;
+; Nothing here belongs to MasterDOS or MasterBASIC.  It is the machine
+; both of them run on, and each half used to declare whichever ports it
+; happened to touch, so a port that both used was written down twice.
+;
+; base.asm includes this before either half, so the names exist before
+; anything uses them.  What each port does is from the SAM Coupe
+; Technical Manual, except the disk and printer ports, which are the
+; DOS's own and described by its source.
+"""
+
+
+SAMROM_TITLE = """; samrom.asm -- the SAM ROM's entry points, variables and restarts.
+;
+; The other half of the machine: addresses in ROM 0 and ROM 1, and the
+; system variables at &5A00-&5CFF that neither half can reach without
+; paging.  Again neither half owns them, and again each used to carry a
+; copy of the ones it used.
+;
+; base.asm includes this before either half.
+"""
+
+
 BASE_TITLE = """; base.asm -- both halves of the image, in one assembly.
 ;
 ; masterdos.asm and masterbasic.asm are the two halves, and each is
@@ -2562,6 +2656,11 @@ def write_trio(outdir, dos, mb, texts, bias, preamble=None):
         body.append(preamble.rstrip(chr(10)))
         body.append('')
     body += [chr(10).join(block), '']
+    body.append('; The machine both halves sit on, included before either of')
+    body.append('; them so the names exist by the time anything uses one.')
+    body.append('%-14s INC  "samhw.asm"' % '')
+    body.append('%-14s INC  "samrom.asm"' % '')
+    body.append('')
     body.append('%-14s ORG  %s' % ('', hexn(BASE, 4)))
     body.append('%-14s DUMP 0,&0000' % '')
     body.append('%-14s INC  "masterdos.asm"' % '')
@@ -2581,7 +2680,11 @@ def write_trio(outdir, dos, mb, texts, bias, preamble=None):
         print('base.asm: dropped %d equates nothing refers to' % dropped)
     texts['base.asm'] = chr(10).join(kept) + chr(10)
 
-    for name in ('masterdos.asm', 'masterbasic.asm', 'base.asm'):
+    texts['samhw.asm'] = samhw_text((dos, mb))
+    texts['samrom.asm'] = samrom_text((dos, mb))
+
+    for name in ('masterdos.asm', 'masterbasic.asm', 'base.asm',
+                 'samhw.asm', 'samrom.asm'):
         path = os.path.join(outdir, name)
         with open(path, 'w') as f:
             f.write(asmfmt.format_listing(texts[name]))

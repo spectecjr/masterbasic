@@ -32,7 +32,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LISTINGS = tuple(
     'listings/%s/%s.asm' % (tree, part)
     for tree in ('disasm', 'clean', 'speculate')
-    for part in ('masterdos', 'masterbasic', 'base')
+    for part in ('masterdos', 'masterbasic', 'base', 'samhw', 'samrom')
 ) + ('listings/disasm/postinstall-syspage.asm',)
 
 PROSE = ('docs', 'notes')
