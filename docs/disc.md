@@ -286,7 +286,12 @@ the operand renders as `DOS_EXDT1_DONE`: there is a label at the peer page's
 There is only one directory scan in the DOS. `FDHR` at `&4B31` is behind
 `DIR`, behind every file lookup, and behind finding somewhere to put a new
 file, and which of those it is doing comes from a mode byte kept at `(IX+4)`
-so the inner loop can test it without reloading:
+so the inner loop can test it without reloading: Beware the
+collision: `(IX+4)` is this scan's mode byte only because `IX` points at
+`DCHAN`. In a channel record belonging to the *ROM* the same offset is the
+channel letter — it is the fifth byte of the ROM's header, after the output
+and input routine addresses — and the DOS's own mode byte `MFLG` is at
+`+&0C`. Both are true, of different records.
 
 | bit | |
 |---|---|

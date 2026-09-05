@@ -926,6 +926,21 @@ def seeds(dos, mb):
     for at in (0x5B81, 0x5B93, 0x5C33, 0x7936):
         dos.no_peer.append((at, at + 3))
 
+    # Two more coincidences of address.  &6E04's LD BC,&6EF9 is a table
+    # base added to a stream displacement, not the routine that happens
+    # to start there; and &7020 reads CHANS through the window, which
+    # five other reads in the same region name correctly.
+    for at in (0x6E04, 0x7020):
+        dos.no_peer.append((at, at + 3))
+
+    # BACKUP's transfer address is the window, not MasterBASIC's PUTSWA:
+    # the page that goes with it comes from HKBC a few instructions later,
+    # and the same routine writes WINDOW+&00FF for &80FF at &6A58.  The
+    # DOS's own nine-byte HEADER at &4000 collects the same mistake where
+    # &4000 is the window bias and the original writes "LD BC,FS".
+    for at in (0x5FE3, 0x69DB, 0x67E3, 0x69B5):
+        dos.no_peer.append((at, at + 3))
+
     # Two more operands in the window that are not the peer half.  &5975
     # puts page 3 -- the Spectrum "ROM" -- in the window one instruction
     # before the JP at &5978, and GCOP at &5AB1 puts the copy buffer's

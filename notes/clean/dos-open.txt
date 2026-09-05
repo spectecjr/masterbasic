@@ -28,8 +28,11 @@ DOC CMD_OPEN
     already written half a file.  Reserving the blocks first turns each
     later OPEN into filling in a record that is already there.
 
-    A RESERVED BLOCK IS RECOGNISED BY THREE BYTES: the channel letter
-    zero rather than "D", the mode byte zero, and the length at offset 9
+    A RESERVED BLOCK IS RECOGNISED BY THE CHANNEL LETTER AT OFFSET 4
+    being zero -- that is what the scan for a free block tests.  Offset 0
+    is zeroed too, but for a different reason: it is the low byte of the
+    output-routine address, and a zero there stops the record reading as
+    the carriage return that ends the list.  The length at offset 9 is
     set to 787 so that anything walking the list steps over it correctly.
 
     787 IS NOT ARBITRARY.  A channel record holds the ROM's five-byte
@@ -48,8 +51,8 @@ DOS &6AB7 value CHANNEL_BLOCK
 DOS &6ABF : n of them, by adding rather than multiplying
 DOS &6AC4 : the end of the channel list, which is where they go
 DOS &6AC9 : and the ROM opens the gap
-DOS &6AD2 : no channel letter, so nothing takes this for an open file
-DOS &6AD6 : and no mode
+DOS &6AD2 : offset 0, so the record is not read as the end-of-list marker
+DOS &6AD6 : and the letter at offset 4, which is what marks the block free
 DOS &6ADA : but the length, so a walk of the list steps over it
 DOS &6AE0 : on to the next block
 DOS &6AE4 : and MasterBASIC is told the channel area has moved
@@ -92,6 +95,6 @@ DOC END_OF_CHANNELS
 DOS &6AEB : the system page, where the channel list is
 DOS &6AED : the head of the list
 DOS &6AF0 expr CHANS_BIAS_AND_FIRST
-DOS &6AF4 : the ROM's own check that the address is safe to read
+DOS &6AF4 : the ROM's window step -- past &BFFF it pages the next 16K in and drops HL back to &8000
 DOS &6AF9 : offset 9 is this record's length
 DOS &6B01 : a carriage return for a channel letter is the end of the list

@@ -236,13 +236,23 @@ It moves to the DOS's own stack, pushes ENDS as the return address so
 that every command routine ends there, and looks the token up in CTAB."""
 
 
-FNVEC_DOC = """The table HEVV2 dispatches a function token through, sixteen entries,
-every one of them in the MasterBASIC page.
+FNVEC_DOC = """The table HEVV2 dispatches a function token through: sixteen entries, of
+which nine are in the MasterBASIC page and seven are this page's own.
 
-HEVV2 range-checks the value it is given, subtracts &0F and uses the
-result as the index.  Which slot belongs to which token has not been
-worked out -- the ROM adjusts the token before it reaches EVALUV, and
-that adjustment has not been traced."""
+The seven -- TIME$, DATE$, INP$, DIR$, FSTAT, DSTAT and FPAGES -- are
+defined a few hundred bytes below and carry no NOT_IN_THIS_PAGE bit, so
+INDJP's BIT 7,H is false for them and they are reached by its plain
+JP (HL) without ever going through CALLMB.
+
+WHICH SLOT BELONGS TO WHICH TOKEN is written on every line of the table
+below: entry i is token &29+i, from LOCN to INARRAY.  The ROM's own
+adjustment is the SUB &1A in ABOVLETS (ref/samrom/eval.asm) just before
+it calls through EVALUV, which is what HKLEN's banner describes.
+
+The mapping checks itself.  The values &13 to &19, the ones routed to
+the STRCONT fetch rather than NUMCONT, land on entries 4 to 10 -- and
+those are exactly SHIFT$, SVAL$, USING$, TIME$, DATE$, INP$ and DIR$,
+the seven functions whose result is a string."""
 
 REPORT_DOC = """Report the BASIC error whose number is in A.
 

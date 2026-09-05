@@ -3,6 +3,7 @@
 # Prose for clean/ only.
 
 RENAME STREAM_OR_CHANNEL PRINTABLE_FORM
+RENAME FIRST_DISC_CHANNEL RECLAIM_TEMP_CHANNELS
 
 DOC CMD_MOVE
      PART MOVE -- MOVE, OPEN and CLOSE, the channels, the paths and the
@@ -40,11 +41,17 @@ DOC CMD_MOVE
     channel machinery, which is what makes one command serve every
     combination.
 
-    TWO TEMPORARY CHANNELS ARE OPENED, and marked with the codes the ROM
-    uses for a serial channel: MIN for the one being read, MOUT for the
-    one being written.  OPMOV opens each in turn, and the two parameter
-    blocks -- which the DOS keeps a pair of for exactly this sort of
-    thing -- are swapped by EXDAT so that one routine can open either.
+    THE ACCESS MODE FOR EACH END GOES IN FSTR1 FIRST -- MIN, the ZX IN
+    token, for the end being read, MOUT for the end being written.  They
+    are access modes and have nothing to do with a serial port, whatever
+    an earlier reading of this said; OPMOV reads FSTR1 to decide which.
+
+    AN END THAT NAMES A FILE gets a temporary disc channel, marked by a
+    channel letter of "D" with bit 7 set so that the reclaim pass can
+    find it afterwards.  An end that names a stream uses that stream's
+    existing channel and is not closed with the other.  The two
+    parameter blocks the DOS keeps for this sort of thing are swapped by
+    EXDAT so that one routine can open either.
 
     THE WHOLE COMMAND RUNS WITH HMPR ZERO, which is why the operands in
     it read as ROM system variables through the window.  CURCHL, the
@@ -109,7 +116,7 @@ DOS &6862 : the marker before an embedded five-byte number
 DOS &6864 : which is dropped, digits and all
 DOS &686C : end of the line?
 DOS &6870 : then the next one
-DOS &6872 : five bytes and the marker itself
+DOS &6872 : the five number bytes and one more -- the sixth is left in A and is the character written above
 DOS &687C : one character
 DOS &687F : end of the file
 DOS &6884 : inverse video, if this character earned it
@@ -133,18 +140,25 @@ DOS &68A5 : and then the other
 DOC FIRST_DISC_CHANNEL
     Walk the ROM's channel list looking for the DOS's own channels.
 
-    CHANS points at the list and each record is &401E long, so stepping
-    is one ADD.  A record whose first byte is a carriage return is the
+    CHANS points at the list, and &401E steps past two things at once:
+    the &4000 window bias, and the thirty bytes of the six five-byte
+    standard channels the ROM installs.  It is added exactly once.
+    Every step after that comes from the record's own length at +9,
+    which is what the comment further down says.
     end of the list -- that is the ROM's marker, not the DOS's.
 
-    A channel whose mode byte says &C4 once bit 5 is cleared is one of
-    MOVE's own, left over from a command that did not finish, and it is
+    A channel whose LETTER is "D" with bit 7 set is one of MOVE's own,
+    left over from a command that did not finish, and it is reclaimed
+    rather than walked past.  The letter is at offset 4 -- the fifth
+    byte of the ROM's header, after the output and input routines --
+    and RES 5 first folds "d" onto "D".
     reclaimed rather than walked past.
 
 DOS &68AB : the head of the ROM's channel list
 DOS &68AF : one record's worth
 DOS &68B7 : a carriage return is the end of the list
-DOS &68BA : the channel's mode byte
+DOS &68BA : offset 4 of a ROM channel record is its letter
+DOS &68BD : and clearing bit 5 makes "d" match "D"
 DOS &68BF : one of MOVE's own, left behind
 DOS &68C3 : so reclaim it and start again
 DOS &68D2 : otherwise the record says how far to the next
@@ -203,8 +217,8 @@ DOC MOVRC
 
 DOS &6919 : the channel being read from
 DOS &691C : which is where the ROM will read from
-DOS &6922 : two bytes in is its input routine
-DOS &692B : the DOS's own channels are marked with a "K"
+DOS &6922 : the input routine is the word at offset 2
+DOS &692B : an address of &4Bxx is one of the DOS's own two stubs at &4BA0 and &4BA9
 DOS &692F : anything else is the ROM's, so plant the address and call it
 
 DOC MOVWC
@@ -214,7 +228,7 @@ DOC MOVWC
     the same "K" marks the DOS's own.
 
 DOS &6940 : the channel being written to
-DOS &6946 : one byte in is its output routine
-DOS &694C : the DOS's own?
+DOS &6946 : the output routine is the word at offset 0, and only its high byte is wanted
+DOS &694C : &4Bxx again, so the DOS writes it as a file
 DOS &694F : then write it as a file
 DOS &6952 : otherwise let the ROM print it

@@ -214,8 +214,6 @@ MB_HK_VARSPACE:               EQU  &9293
 MB_HPRTOK:                    EQU  &900E
 MB_MULTIPLY_BY_24:            EQU  &85F9
 MB_NEXT_SCREEN_BYTE_1:        EQU  &A280
-MB_PREPARE_ROM1_COPY_1:       EQU  &9C4F
-MB_PUTSWA:                    EQU  &8000
 MB_SET_DCT_COMPILE_BITS:      EQU  &859C
 MB_SORT_NAMES:                EQU  &87FB
 MB_STAMP_WITH_DATE:           EQU  &8A39
@@ -9200,7 +9198,7 @@ CMD_LOAD_1:
                LD A,&04                        ; 5FDD 3E 04
                OUT (HMPR),A                    ; 5FDF D3 FB  ZX "SCREEN" AT 8000H
                OUT (VMPR),A                    ; 5FE1 D3 FC  DISPLAY PAGE 4, SCREEN MODE 1
-               LD HL,MB_PUTSWA                 ; 5FE3 21 00 80
+               LD HL,&8000                     ; 5FE3 21 00 80
                LD DE,HEADER                    ; 5FE6 11 00 40
                LD A,&02                        ; 5FE9 3E 02
                LD (PGES1),A                    ; 5FEB 32 50 41
@@ -10886,11 +10884,17 @@ C11LP_DONE:
 ;; channel machinery, which is what makes one command serve every
 ;; combination.
 ;;
-;; TWO TEMPORARY CHANNELS ARE OPENED, and marked with the codes the ROM
-;; uses for a serial channel: MIN for the one being read, MOUT for the
-;; one being written.  OPMOV opens each in turn, and the two parameter
-;; blocks -- which the DOS keeps a pair of for exactly this sort of
-;; thing -- are swapped by EXDAT so that one routine can open either.
+;; THE ACCESS MODE FOR EACH END GOES IN FSTR1 FIRST -- MIN, the ZX IN
+;; token, for the end being read, MOUT for the end being written.  They
+;; are access modes and have nothing to do with a serial port, whatever
+;; an earlier reading of this said; OPMOV reads FSTR1 to decide which.
+;;
+;; AN END THAT NAMES A FILE gets a temporary disc channel, marked by a
+;; channel letter of "D" with bit 7 set so that the reclaim pass can
+;; find it afterwards.  An end that names a stream uses that stream's
+;; existing channel and is not closed with the other.  The two
+;; parameter blocks the DOS keeps for this sort of thing are swapped by
+;; EXDAT so that one routine can open either.
 ;;
 ;; THE WHOLE COMMAND RUNS WITH HMPR ZERO, which is why the operands in
 ;; it read as ROM system variables through the window.  CURCHL, the
@@ -11051,7 +11055,8 @@ MVSLP:
 
 ; ---- MOVJ6 ---- from &6864 when A = &0E
 MOVJ6:
-               LD B,&06                        ; 6872 06 06  five bytes and the marker itself
+               LD B,&06                        ; 6872 06 06  the five number bytes and one more -- the sixth is left in
+                                               ; A and is the character written above
 
 ;; --------------------------------------------------------------------
 ;; Read B characters and throw them away.
@@ -11105,17 +11110,23 @@ MEOF:
 ;; --------------------------------------------------------------------
 ;; Walk the ROM's channel list looking for the DOS's own channels.
 ;;
-;; CHANS points at the list and each record is &401E long, so stepping
-;; is one ADD.  A record whose first byte is a carriage return is the
+;; CHANS points at the list, and &401E steps past two things at once:
+;; the &4000 window bias, and the thirty bytes of the six five-byte
+;; standard channels the ROM installs.  It is added exactly once.
+;; Every step after that comes from the record's own length at +9,
+;; which is what the comment further down says.
 ;; end of the list -- that is the ROM's marker, not the DOS's.
 ;;
-;; A channel whose mode byte says &C4 once bit 5 is cleared is one of
-;; MOVE's own, left over from a command that did not finish, and it is
+;; A channel whose LETTER is "D" with bit 7 set is one of MOVE's own,
+;; left over from a command that did not finish, and it is reclaimed
+;; rather than walked past.  The letter is at offset 4 -- the fifth
+;; byte of the ROM's header, after the output and input routines --
+;; and RES 5 first folds "d" onto "D".
 ;; reclaimed rather than walked past.
 ;; --------------------------------------------------------------------
 
-; ---- FIRST_DISC_CHANNEL ---- from &68C6, &68D0, &6DDA
-FIRST_DISC_CHANNEL:
+; ---- RECLAIM_TEMP_CHANNELS ---- from &68C6, &68D0, &6DDA
+RECLAIM_TEMP_CHANNELS:
                LD IX,(CHANS+IN_PAGE_C)         ; 68AB DD 2A 4F 9C  the head of the ROM's channel list
                LD DE,&401E                     ; 68AF 11 1E 40  one record's worth
 
@@ -11125,19 +11136,19 @@ FIRST_DISC_CHANNEL_LOOP:
                LD A,(IX+&00)                   ; 68B4 DD 7E 00
                CP &0D                          ; 68B7 FE 0D  a carriage return is the end of the list
                RET Z                           ; 68B9 C8
-               LD A,(IX+RFDH-DCHAN)            ; 68BA DD 7E 04  the channel's mode byte
-               RES 5,A                         ; 68BD CB AF
+               LD A,(IX+RFDH-DCHAN)            ; 68BA DD 7E 04  offset 4 of a ROM channel record is its letter
+               RES 5,A                         ; 68BD CB AF  and clearing bit 5 makes "d" match "D"
                CP &C4                          ; 68BF FE C4  one of MOVE's own, left behind
                JR NZ,FIRST_DISC_CHANNEL_1      ; 68C1 20 05
                CALL DELD                       ; 68C3 CD BA 69  so reclaim it and start again
-               JR FIRST_DISC_CHANNEL           ; 68C6 18 E3
+               JR RECLAIM_TEMP_CHANNELS        ; 68C6 18 E3
 
 ; ---- FIRST_DISC_CHANNEL_1 ---- from &68C1 when A <> &C4
 FIRST_DISC_CHANNEL_1:
                CALL BITF1                      ; 68C8 CD 22 51
                JR Z,FIRST_DISC_CHANNEL_2       ; 68CB 28 05
                CALL CHANNEL_LENGTH_AND_FLAGS   ; 68CD CD FC 67
-               JR FIRST_DISC_CHANNEL           ; 68D0 18 D9
+               JR RECLAIM_TEMP_CHANNELS        ; 68D0 18 D9
 
 ; ---- FIRST_DISC_CHANNEL_2 ---- from &68CB
 FIRST_DISC_CHANNEL_2:
@@ -11146,37 +11157,48 @@ FIRST_DISC_CHANNEL_2:
                JR FIRST_DISC_CHANNEL_LOOP      ; 68D8 18 D8
 
 ;; --------------------------------------------------------------------
-;; Sort a stream number from a channel: bit 7 set means the other kind,
-;; and MSFLG decides which way round when it is.  B is zeroed first so
-;; the caller gets a pair either way.
+;; Make a character safe to print, and say whether to invert it.
+;;
+;; Two DOS variables decide, and both can be poked:
+;;
+;;     MSFLG   DVAR 24.  Zero means a character above 127 is printed
+;;             inverse; anything else means it is passed through, and
+;;             only &FF is replaced
+;;     MSUPC   DVAR 25.  What to print instead of a control code, or
+;;             of &FF.  Normally "."
+;;
+;; B comes back as the value for INVERT -- &FF for inverse, zero for
+;; normal -- and A as the character to print.  The caller writes B into
+;; the ROM's INVERT and clears it again afterwards, so one character
+;; comes out inverse rather than everything after it.
 ;; --------------------------------------------------------------------
 
 ; ---- PRINTABLE_FORM ---- from &54E0, &6881
 PRINTABLE_FORM:
                LD B,&00                        ; 68DA 06 00  normal, unless something below says otherwise
                BIT 7,A                         ; 68DC CB 7F  is this character above 127?
-               JR Z,STREAM_OR_CHANNEL_2        ; 68DE 28 0F
+               JR Z,PRINTABLE_FORM_2           ; 68DE 28 0F
                LD C,A                          ; 68E0 4F
                LD A,(MSFLG)                    ; 68E1 3A 38 42  and does MSFLG want those inverted?
                AND A                           ; 68E4 A7
                LD A,C                          ; 68E5 79
-               JR Z,STREAM_OR_CHANNEL_1        ; 68E6 28 05
+               JR Z,PRINTABLE_FORM_1           ; 68E6 28 05
                CP &FF                          ; 68E8 FE FF  if not, only &FF is replaced
                RET NZ                          ; 68EA C0
-               JR STREAM_OR_CHANNEL_DONE       ; 68EB 18 07
+               JR PRINTABLE_FORM_DONE          ; 68EB 18 07
 
-; ---- STREAM_OR_CHANNEL_1 ---- from &68E6 when A = 0
-STREAM_OR_CHANNEL_1:
+; ---- PRINTABLE_FORM_1 ---- from &68E6 when A = 0
+PRINTABLE_FORM_1:
                LD B,&FF                        ; 68ED 06 FF  inverse, and the low seven bits are what is printed
 
-; ---- STREAM_OR_CHANNEL_2 ---- from &68DE when bit 7 of A clear
-STREAM_OR_CHANNEL_2:
+; ---- PRINTABLE_FORM_2 ---- from &68DE when bit 7 of A clear
+PRINTABLE_FORM_2:
                AND &7F                         ; 68EF E6 7F  the character without its top bit
                CP &20                          ; 68F1 FE 20  anything from a space up prints as itself
                RET NC                          ; 68F3 D0
 
-; ---- STREAM_OR_CHANNEL_DONE ---- from &68EB
-STREAM_OR_CHANNEL_DONE:
+; ---- PRINTABLE_FORM_DONE ---- from &68EB
+PRINTABLE_FORM_DONE:
                LD A,(MSUPC)                    ; 68F4 3A 39 42  a control code prints as MSUPC instead
                RET                             ; 68F7 C9
 
@@ -11229,14 +11251,15 @@ MOVRC:
 ; ---- MOVRC2 ---- from &693D, &7A57
 MOVRC2:
                LD HL,(CURCHL+IN_PAGE_C)        ; 691F 2A 51 9C
-               LD DE,FS+2                      ; 6922 11 02 40  two bytes in is its input routine
+               LD DE,FS+2                      ; 6922 11 02 40  the input routine is the word at offset 2
                ADD HL,DE                       ; 6925 19  SYS PAGE IS AT 8000H
                LD E,(HL)                       ; 6926 5E
                INC HL                          ; 6927 23
                LD D,(HL)                       ; 6928 56
                EX DE,HL                        ; 6929 EB  HL=INPUT ADDRESS
                LD A,H                          ; 692A 7C
-               CP &4B                          ; 692B FE 4B  the DOS's own channels are marked with a "K"
+               CP &4B                          ; 692B FE 4B  an address of &4Bxx is one of the DOS's own two stubs at
+                                               ; &4BA0 and &4BA9
                JR Z,DOSIP                      ; 692D 28 0A  JR IF DOS
                LD (MTARG),HL                   ; 692F 22 35 69  anything else is the ROM's, so plant the address and
                                                ; call it
@@ -11268,11 +11291,12 @@ GIPC:
 MOVWC:
                LD HL,(NSTR2)                   ; 6940 2A 56 41  the channel being written to
                LD (CURCHL+IN_PAGE_C),HL        ; 6943 22 51 9C
-               LD DE,FS+1                      ; 6946 11 01 40  one byte in is its output routine
+               LD DE,FS+1                      ; 6946 11 01 40  the output routine is the word at offset 0, and only its
+                                               ; high byte is wanted
                ADD HL,DE                       ; 6949 19
                LD D,A                          ; 694A 57
                LD A,(HL)                       ; 694B 7E
-               CP &4B                          ; 694C FE 4B  the DOS's own?
+               CP &4B                          ; 694C FE 4B  &4Bxx again, so the DOS writes it as a file
                LD A,D                          ; 694E 7A
                JP Z,MCHWR                      ; 694F CA 3B 6F  then write it as a file
                JP PRINT_A_KEEPING_IT           ; 6952 C3 66 57  otherwise let the ROM print it
@@ -11396,7 +11420,7 @@ BACKUP:
                CALL EVAL_NAME_PAIR             ; 69D2 CD 7B 59  EVAL FILE TO FILE
                CALL COBUS                      ; 69D5 CD A0 59  EVFILES, SET SINGLE-DISC FLAG
                CALL CKDRV                      ; 69D8 CD 07 48  AS NEEDED
-               LD HL,MB_PUTSWA                 ; 69DB 21 00 80
+               LD HL,&8000                     ; 69DB 21 00 80
                LD (HKHL),HL                    ; 69DE 22 DE 41  SRC/DEST
                CALL CLSAM                      ; 69E1 CD FA 4C  CLEAR SAM
                LD A,&20                        ; 69E4 3E 20
@@ -11562,8 +11586,11 @@ OPSR1:
 ;; already written half a file.  Reserving the blocks first turns each
 ;; later OPEN into filling in a record that is already there.
 ;;
-;; A RESERVED BLOCK IS RECOGNISED BY THREE BYTES: the channel letter
-;; zero rather than "D", the mode byte zero, and the length at offset 9
+;; A RESERVED BLOCK IS RECOGNISED BY THE CHANNEL LETTER AT OFFSET 4
+;; being zero -- that is what the scan for a free block tests.  Offset 0
+;; is zeroed too, but for a different reason: it is the low byte of the
+;; output-routine address, and a zero there stops the record reading as
+;; the carriage return that ends the list.  The length at offset 9 is
 ;; set to 787 so that anything walking the list steps over it correctly.
 ;;
 ;; 787 IS NOT ARBITRARY.  A channel record holds the ROM's five-byte
@@ -11611,9 +11638,10 @@ CMD_OPEN_LOOP:
 
 ; ---- CMD_OPEN_LOOP2 ---- from &6AE2 when B is not 0 yet
 CMD_OPEN_LOOP2:
-               LD (IX+&00),&00                 ; 6AD2 DD 36 00 00  no channel letter, so nothing takes this for an open
-                                               ; file
-               LD (IX+RFDH-DCHAN),&00          ; 6AD6 DD 36 04 00  and no mode
+               LD (IX+&00),&00                 ; 6AD2 DD 36 00 00  offset 0, so the record is not read as the
+                                               ; end-of-list marker
+               LD (IX+RFDH-DCHAN),&00          ; 6AD6 DD 36 04 00  and the letter at offset 4, which is what marks the
+                                               ; block free
                LD (IX+&09),E                   ; 6ADA DD 73 09  but the length, so a walk of the list steps over it
                LD (IX+&0A),D                   ; 6ADD DD 72 0A
                ADD IX,DE                       ; 6AE0 DD 19  on to the next block
@@ -11641,8 +11669,8 @@ END_OF_CHANNELS:
 ; ---- CHANNEL_ENTRY_AT_ZERO_PAGE_LOOP ---- from &6B03 when A <> &0D
 CHANNEL_ENTRY_AT_ZERO_PAGE_LOOP:
                ADD HL,DE                             ; 6AF3 19
-               CALL ROM_CHKHL                        ; 6AF4 CD EF 3F  the ROM's own check that the address is safe to
-                                                     ; read
+               CALL ROM_CHKHL                        ; 6AF4 CD EF 3F  the ROM's window step -- past &BFFF it pages the
+                                                     ; next 16K in and drops HL back to &8000
                LD A,(HL)                             ; 6AF7 7E
                PUSH HL                               ; 6AF8 E5
                LD DE,&0009                           ; 6AF9 11 09 00  offset 9 is this record's length
@@ -11662,9 +11690,9 @@ HK_HOPEN:
                CALL HEVSY                      ; 6B0C CD 67 69
                LD HL,(HKHL)                    ; 6B0F 2A DE 41
                DEC HL                          ; 6B12 2B
-               LD BC,PDIRH_1                   ; 6B13 01 16 5C  &5C16 is the ROM's STRMS, the stream table in the system
-                                               ; page -- not this page's PDIRH_1, which happens to sit at the same
-                                               ; address
+               LD BC,PDIRH_1                   ; 6B13 01 16 5C  the stream-zero entry of the ROM's STREAMS table, which
+                                               ; starts &06 lower at &5C10 -- not this page's PDIRH_1, which happens to
+                                               ; sit at the same address
                AND A                           ; 6B16 A7
                SBC HL,BC                       ; 6B17 ED 42
                LD A,L                          ; 6B19 7D
@@ -11824,7 +11852,7 @@ OPND2_2:
                LD A,(FSTR1)                    ; 6BE6 3A 37 41
                JP NZ,OPND45                    ; 6BE9 C2 BF 6C  JR IF NOT FOUND
                PUSH AF                         ; 6BEC F5
-               CALL MOVE_TABLE_IF_PAGED        ; 6BED CD 30 6D  CREATE CHANNEL
+               CALL CRMCH                      ; 6BED CD 30 6D  CREATE CHANNEL
                CALL POINT                      ; 6BF0 CD AC 4F  HL=DIR ENTRY  (USES IX=DCHAN)
                POP AF                          ; 6BF3 F1
                POP IX                          ; 6BF4 DD E1  CHANS PTR
@@ -11977,7 +12005,7 @@ OPND45:
                CP MIN                          ; 6CBF FE BF
                JP Z,REP26                      ; 6CC1 CA 62 5E  "FILE NOT FOUND" IF "IN" WITH
                PUSH AF                         ; 6CC4 F5
-               CALL MOVE_TABLE_IF_PAGED        ; 6CC5 CD 30 6D
+               CALL CRMCH                      ; 6CC5 CD 30 6D
                POP AF                          ; 6CC8 F1
                POP IX                          ; 6CC9 DD E1
                CP MRND                         ; 6CCB FE A5
@@ -11988,15 +12016,19 @@ OPND45:
 ; ---- OPND45_1 ---- from &6CCF when A = MRND
 OPND45_1:
                CALL OPND7                      ; 6CD2 CD EF 6C  SETS FTRK/FSCT, CNT=1
-               RET C                           ; 6CD5 D8
+               RET C                           ; 6CD5 D8  this is the RET the 1991 comment four lines down belongs to
 
 ;; --------------------------------------------------------------------
-;; Write the two count bytes at (IX+&0D) and (IX+&0E) out through the
-;; pointer &71F3 returns.
+;; Write the file's length into its LENGTH field: four bytes, not two.
+;;
+;; RPT at (IX+&0D) and (IX+&0E), then (IX+&1F) and (IX+&1E), all
+;; through the pointer CHANNEL_LENGTH_FIELD returns.  The caller at
+;; &6F6B says the same thing in the 1991 author's words -- "COPY PTR
+;; TO LEN".
 ;; --------------------------------------------------------------------
 
-; ---- STORE_TRANSFER_COUNT ---- from &6F6B
-STORE_TRANSFER_COUNT:
+; ---- SETLEN ---- from &6F6B
+SETLEN:
                PUSH HL                         ; 6CD6 E5
                CALL CHANNEL_LENGTH_FIELD       ; 6CD7 CD F3 71
                LD A,(IX+RPT-DCHAN)             ; 6CDA DD 7E 0D
@@ -12055,16 +12087,21 @@ OPND8:
                RET                             ; 6D2F C9  NC - OK
 
 ;; --------------------------------------------------------------------
-;; Return at once unless the high byte of TEMPW1 says there is a page to
-;; deal with, and otherwise move the table below before going on.
+;; Create a "D" channel, which is what the call site at &6BED asks
+;; for.
+;;
+;; Neither branch returns at once and the table is laid down on both:
+;; the difference is whether room has to be claimed first.  TEMPW1
+;; holds an address, not a page, and an earlier reading of this had
+;; both branches the wrong way round.
 ;; --------------------------------------------------------------------
 
-; ---- MOVE_TABLE_IF_PAGED ---- from &6BED, &6CC5
-MOVE_TABLE_IF_PAGED:
+; ---- CRMCH ---- from &6BED, &6CC5
+CRMCH:
                LD DE,(TEMPW1)                  ; 6D30 ED 5B 12 42
                LD A,D                          ; 6D34 7A
                AND A                           ; 6D35 A7
-               JR Z,MOVE_TABLE_IF_PAGED_1      ; 6D36 28 0C
+               JR Z,CRMCH_1                    ; 6D36 28 0C
                PUSH DE                         ; 6D38 D5
                CALL COPY_MTBLS                 ; 6D39 CD 4F 6D
                POP HL                          ; 6D3C E1
@@ -12075,8 +12112,8 @@ MOVE_TABLE_IF_PAGED:
                SET 5,(HL)                      ; 6D41 CB EE
                RET                             ; 6D43 C9
 
-; ---- MOVE_TABLE_IF_PAGED_1 ---- from &6D36 when A = 0
-MOVE_TABLE_IF_PAGED_1:
+; ---- CRMCH_1 ---- from &6D36 when A = 0
+CRMCH_1:
                PUSH HL                         ; 6D44 E5
                LD BC,&0313                     ; 6D45 01 13 03
                DEC HL                          ; 6D48 2B
@@ -12199,7 +12236,7 @@ CLRS2:
                INC A                           ; 6DD5 3C
                CP &10                          ; 6DD6 FE 10
                JR C,CLRS2                      ; 6DD8 38 F6
-               CALL FIRST_DISC_CHANNEL         ; 6DDA CD AB 68
+               CALL RECLAIM_TEMP_CHANNELS      ; 6DDA CD AB 68
                XOR A                           ; 6DDD AF
                LD (SAMCNT),A                   ; 6DDE 32 34 42
                LD (FLAG3),A                    ; 6DE1 32 0C 7C
@@ -12229,7 +12266,8 @@ CLSRM:
                EX DE,HL                        ; 6E00 EB
                ADD HL,DE                       ; 6E01 19  ADD -9C1EH, STRMS PTR
                JR C,CLOSE1                     ; 6E02 38 07  JR IF STREAM >3
-               LD BC,MCHRD                     ; 6E04 01 F9 6E
+               LD BC,TABLE+&08                 ; 6E04 01 F9 6E  one past the table, so a displacement counted back from
+                                               ; here indexes it
                ADD HL,BC                       ; 6E07 09
                LD C,(HL)                       ; 6E08 4E
                INC HL                          ; 6E09 23
@@ -12498,7 +12536,7 @@ MCHWR:
                SET 3,(IX+&0C)                  ; 6F62 DD CB 0C DE  "SECTOR WRITTEN TO"
                SET 5,(IX+&0C)                  ; 6F66 DD CB 0C EE  "FILE WRITTEN TO"
                POP AF                          ; 6F6A F1
-               CALL Z,STORE_TRANSFER_COUNT     ; 6F6B CC D6 6C  COPY PTR TO LEN IF WRITING TO
+               CALL Z,SETLEN                   ; 6F6B CC D6 6C  COPY PTR TO LEN IF WRITING TO
                LD A,(&5C4B+FS)                 ; 6F6E 3A 4B 9C  RESTORE BORDER COLOUR - QUICK
                OUT (BORDER),A                  ; 6F71 D3 FE
                JR MCHN2_1                      ; 6F73 18 C0
@@ -12573,8 +12611,10 @@ WRITE_LAST_PAGE_2:
 
 ;; --------------------------------------------------------------------
 ;; Take a track and sector out of the two bytes at HL, exchange them
-;; with the channel's through SWAP_TRACK_AND_SECTOR, and write there --
-;; which is how the DOS follows a file's chain of sectors.
+;; with the channel's through SWAP_TRACK_AND_SECTOR, flush the buffer to
+;; the sector the swap gave back, and read the linked one -- which is
+;; how the DOS follows a file's chain of sectors.  The write goes to
+;; the old sector, not the new one.
 ;; --------------------------------------------------------------------
 
 ; ---- WRITE_AT_LINKED_SECTOR ---- from &6FB6, &6FFC
@@ -12693,7 +12733,7 @@ CHANNEL_FOR_STREAM:
                OR C                            ; 701C B1
                JR Z,SNOP                       ; 701D 28 29  ERROR IF STREAM NOT OPEN
                DEC BC                          ; 701F 0B
-               LD HL,(MB_PREPARE_ROM1_COPY_1)  ; 7020 2A 4F 9C
+               LD HL,(CHANS+IN_PAGE_C)         ; 7020 2A 4F 9C
                ADD HL,BC                       ; 7023 09
                LD BC,HEADER                    ; 7024 01 00 40
                ADD HL,BC                       ; 7027 09  CHANNEL START
@@ -13862,7 +13902,7 @@ SDTK4:
 ;;  one plus a thirty-first of itself, which skips the first 512-byte
 ;;  block of every page.  Those blocks are not wasted: each holds a
 ;;  copy of the block mover described below, and the first page holds
-;;  the page list, the disc's name, its random word and its current
+;;  the page list and the current path as well.
 ;;  path as well.  Only the first: FORMRD copies the list in once, at
 ;;  &7704, after the loop that claims the pages has finished, and
 ;;  PTRD2 always reads it from there.
@@ -14317,7 +14357,8 @@ RDSB3:
 ;;  built at &8020, and every position that could hold a directory entry is set to start 00/00 so the directory scan
 ;;  reads it as never used. Only then is the page list written into the first page and the disc marked usable.
 ;;
-;;  Errors: REP22 for a drive above RDLIM, "out of memory" if there are not enough free pages
+;;  Errors: REP22 for a drive of RDLIM or above -- the test is CP RDLIM / JP NC, so RDLIM itself is refused --
+;;  and "out of memory" if there are not enough free pages
 ;;
 ;; FORMAT RAM DISC. A=DSTR1
 ;; --------------------------------------------------------------------
@@ -14598,7 +14639,7 @@ COPY_SECTOR_512:
                JR COPY_SECTOR_MOVE             ; 7797 18 08
 
 ;; --------------------------------------------------------------------
-;; Read the sector's address mark through RDADR, and differ in one
+;; The same page-and-offset lookup as COPY_SECTOR_512, differing in one
 ;; instruction: AND A leaves carry clear where SCF sets it, and both
 ;; join at &77A1.  The flag is the caller's answer, carried out in the
 ;; alternate accumulator.
@@ -14624,7 +14665,8 @@ COPY_SECTOR_MOVE:
                AND &E0                         ; 77A8 E6 E0
                XOR C                           ; 77AA A9  A=VALUE FOR PORT 250 TO PAGE
                CALL RAMDISC_PAGE+&0002         ; 77AB CD 02 80  the mover, in the page it is moving out of
-               LD B,(HL)                       ; 77AE 46  the link to the next sector, read while the page is there
+               LD B,(HL)                       ; 77AE 46  the link, on the entry that left it alone; on the other the
+                                               ; mover has already passed it
                INC HL                          ; 77AF 23
                LD C,(HL)                       ; 77B0 4E  NEXT T/S
                POP AF                          ; 77B1 F1
@@ -14863,9 +14905,21 @@ CFPBL_DONE:
 ;;
 ;; Two stubs with no callers in this half.  MasterBASIC reaches them
 ;; through CALLDOS -- HPRTOK_1 at MB &5066 parks a word here, HK_HPFF
-;; at MB &508B fetches it back and writes it to the ROM's XPTR.  They
-;; exist because a CALLDOS returns through the paging, so a register
-;; cannot be handed back across it.
+;; at MB &508B fetches it back and writes it to the ROM's XPTR.
+;;
+;; NOT BECAUSE A REGISTER CANNOT CROSS A CALLDOS.  UNPARK_WORD is the
+;; counter-example three lines below: it returns the word in BC and
+;; MasterBASIC uses that BC on the other side.  CALLDOS keeps its own
+;; bookkeeping in the alternate set precisely so the main registers
+;; can carry a result.  The two stubs exist because they serve two
+;; different hook invocations -- one hook parks the word, a later one
+;; collects it -- and nothing survives in a register between them.
+;;
+;; WHERE IT IS PARKED IS NOT SPARE SPACE.  V42E4 is the DOS's own copy
+;; of the ROM's XPTR, read at &437C and compared against CHADD at
+;; &51D3 to decide whether an error marker can be placed.  Parking a
+;; word here overwrites that, which is safe only because the two never
+;; matter at once.
 ;; --------------------------------------------------------------------
 
 PARK_WORD:
@@ -15010,13 +15064,23 @@ HEVV2_DONE:
                RET                             ; 78EA C9
 
 ;; --------------------------------------------------------------------
-;; The table HEVV2 dispatches a function token through, sixteen entries,
-;; every one of them in the MasterBASIC page.
+;; The table HEVV2 dispatches a function token through: sixteen entries, of
+;; which nine are in the MasterBASIC page and seven are this page's own.
 ;;
-;; HEVV2 range-checks the value it is given, subtracts &0F and uses the
-;; result as the index.  Which slot belongs to which token has not been
-;; worked out -- the ROM adjusts the token before it reaches EVALUV, and
-;; that adjustment has not been traced.
+;; The seven -- TIME$, DATE$, INP$, DIR$, FSTAT, DSTAT and FPAGES -- are
+;; defined a few hundred bytes below and carry no NOT_IN_THIS_PAGE bit, so
+;; INDJP's BIT 7,H is false for them and they are reached by its plain
+;; JP (HL) without ever going through CALLMB.
+;;
+;; WHICH SLOT BELONGS TO WHICH TOKEN is written on every line of the table
+;; below: entry i is token &29+i, from LOCN to INARRAY.  The ROM's own
+;; adjustment is the SUB &1A in ABOVLETS (ref/samrom/eval.asm) just before
+;; it calls through EVALUV, which is what HKLEN's banner describes.
+;;
+;; The mapping checks itself.  The values &13 to &19, the ones routed to
+;; the STRCONT fetch rather than NUMCONT, land on entries 4 to 10 -- and
+;; those are exactly SHIFT$, SVAL$, USING$, TIME$, DATE$, INP$ and DIR$,
+;; the seven functions whose result is a string.
 ;; --------------------------------------------------------------------
 
 FNVEC:

@@ -8216,9 +8216,6 @@ PREPARE_ROM1_COPY:
                INC DE                          ; 5C4C 13
                EX DE,HL                        ; 5C4D EB
                LD E,(HL)                       ; 5C4E 5E
-
-; ---- PREPARE_ROM1_COPY_1 ---- from DOS &7020
-PREPARE_ROM1_COPY_1:
                INC HL                          ; 5C4F 23
                LD D,(HL)                       ; 5C50 56
                LD B,&E7                        ; 5C51 06 E7

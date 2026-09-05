@@ -75,6 +75,9 @@ BAR = ';; ' + '-' * 68
 #  correction that no longer matches is a correction that has gone
 #  stale, and a silent miss is the failure this file exists to prevent.
 CARRIED_FIXES = [
+    ([';;  Errors: REP22 for a drive above RDLIM, "out of memory" if there are not enough free pages'],
+     [';;  Errors: REP22 for a drive of RDLIM or above -- the test is CP RDLIM / JP NC, so RDLIM itself is refused --',
+      ';;  and "out of memory" if there are not enough free pages']),
     ([';;    DFMT / DMT1 / WFM     format a disk, and build the track image the controller writes'],
      [';;    DFMT / FMTSR          format a disk; the track image it writes is built by MasterBASIC']),
     ([";;    PNTYP / DRTAB         print a file's type, and for some types its address and length"],

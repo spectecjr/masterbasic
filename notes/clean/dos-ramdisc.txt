@@ -38,7 +38,7 @@ DOC RDWSCT
      one plus a thirty-first of itself, which skips the first 512-byte
      block of every page.  Those blocks are not wasted: each holds a
      copy of the block mover described below, and the first page holds
-     the page list, the disc's name, its random word and its current
+     the page list and the current path as well.
      path as well.  Only the first: FORMRD copies the list in once, at
      &7704, after the loop that claims the pages has finished, and
      PTRD2 always reads it from there.
@@ -147,16 +147,28 @@ DOC COPY_SECTOR_MOVE
 DOS &77A3 : LMPR maps N at &0000 and N+1 at &4000, so one less
 DOS &77A7 : the page number replaced, the ROM and protect bits kept
 DOS &77AB : the mover, in the page it is moving out of
-DOS &77AE : the link to the next sector, read while the page is there
+DOS &77AE : the link, on the entry that left it alone; on the other the mover has already passed it
 
 DOC PARK_WORD
     Put HL somewhere MasterBASIC can fetch it from.
 
     Two stubs with no callers in this half.  MasterBASIC reaches them
     through CALLDOS -- HPRTOK_1 at MB &5066 parks a word here, HK_HPFF
-    at MB &508B fetches it back and writes it to the ROM's XPTR.  They
-    exist because a CALLDOS returns through the paging, so a register
-    cannot be handed back across it.
+    at MB &508B fetches it back and writes it to the ROM's XPTR.
+
+    NOT BECAUSE A REGISTER CANNOT CROSS A CALLDOS.  UNPARK_WORD is the
+    counter-example three lines below: it returns the word in BC and
+    MasterBASIC uses that BC on the other side.  CALLDOS keeps its own
+    bookkeeping in the alternate set precisely so the main registers
+    can carry a result.  The two stubs exist because they serve two
+    different hook invocations -- one hook parks the word, a later one
+    collects it -- and nothing survives in a register between them.
+
+    WHERE IT IS PARKED IS NOT SPARE SPACE.  V42E4 is the DOS's own copy
+    of the ROM's XPTR, read at &437C and compared against CHADD at
+    &51D3 to decide whether an error marker can be placed.  Parking a
+    word here overwrites that, which is safe only because the two never
+    matter at once.
 
 DOC UNPARK_WORD
     The other half of PARK_WORD: the parked word, into BC.

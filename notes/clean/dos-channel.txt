@@ -86,3 +86,19 @@ DOC SET_TRACK_AND_SECTOR
     GET_TRACK_AND_SECTOR reads it, and &4FCD does both -- reading the old
     pair out through GET_TRACK_AND_SECTOR and putting HL in its place, so
     that a caller following the chain can exchange them in one call.
+
+# The 1991 comment "C=ABORTED" sits on the wrong RET.  It describes the
+# RET C at &6CD5, which is the aborted path out of OPND7; the plain RET
+# at &6CEE ends SETLEN, which cannot abort and returns no flag anyone
+# reads.  The edit that inserted SETLEN between them carried the comment
+# along with the wrong instruction.
+
+DOS &6CD5 : this is the RET the 1991 comment four lines down belongs to
+
+# &6E04 loads a table base, not a routine.  TABLE is the eight bytes at
+# &6EF1 and MCHRD begins at &6EF9 immediately after it, so the number is
+# TABLE+8 and the label is a coincidence of address -- one that also
+# hangs a caller MCHRD does not have on its cross-reference header.
+
+DOS &6E04 expr TABLE+&08
+DOS &6E04 : one past the table, so a displacement counted back from here indexes it

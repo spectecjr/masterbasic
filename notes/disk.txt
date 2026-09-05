@@ -262,10 +262,13 @@ DOS &68AB FIRST_DISC_CHANNEL
     window and the offset added -- and return Z at once if the first byte
     is a carriage return, which is the DOS's empty-channel marker.
 
-DOS &68DA STREAM_OR_CHANNEL
-    Sort a stream number from a channel: bit 7 set means the other kind,
-    and MSFLG decides which way round when it is.  B is zeroed first so
-    the caller gets a pair either way.
+DOS &68DA PRINTABLE_FORM
+    Make a character safe to print, and say whether to invert it.
+
+    No stream number is read anywhere in it, whatever an earlier
+    reading of this said.  Bit 7 of the character decides inverse
+    video, AND &7F strips it, anything from a space up passes
+    through, and everything else becomes MSUPC.
 
 DOS &6AEA CHANNEL_ENTRY_AT_ZERO_PAGE
     Zero HMPR so the system page is in the window, take CHANS from it and
@@ -277,13 +280,22 @@ DOS &6B77 RESET_CHANNEL_SCAN
     which is what makes it the start of a scan rather than a single
     lookup.
 
-DOS &6CD6 STORE_TRANSFER_COUNT
-    Write the two count bytes at (IX+&0D) and (IX+&0E) out through the
-    pointer &71F3 returns.
+DOS &6CD6 SETLEN
+    Write the file's length into its LENGTH field: four bytes, not two.
 
-DOS &6D30 MOVE_TABLE_IF_PAGED
-    Return at once unless the high byte of TEMPW1 says there is a page to
-    deal with, and otherwise move the table below before going on.
+    RPT at (IX+&0D) and (IX+&0E), then (IX+&1F) and (IX+&1E), all
+    through the pointer CHANNEL_LENGTH_FIELD returns.  The caller at
+    &6F6B says the same thing in the 1991 author's words -- "COPY PTR
+    TO LEN".
+
+DOS &6D30 CRMCH
+    Create a "D" channel, which is what the call site at &6BED asks
+    for.
+
+    Neither branch returns at once and the table is laid down on both:
+    the difference is whether room has to be claimed first.  TEMPW1
+    holds an address, not a page, and an earlier reading of this had
+    both branches the wrong way round.
 
 DOS &6D4F COPY_MTBLS
     Eleven bytes from MTBLS, then &0308 bytes of zero after them -- the
@@ -296,8 +308,10 @@ DOS &6F8D WRITE_LAST_PAGE
 
 DOS &6FC0 WRITE_AT_LINKED_SECTOR
     Take a track and sector out of the two bytes at HL, exchange them
-    with the channel's through SWAP_TRACK_AND_SECTOR, and write there --
-    which is how the DOS follows a file's chain of sectors.
+    with the channel's through SWAP_TRACK_AND_SECTOR, flush the buffer to
+    the sector the swap gave back, and read the linked one -- which is
+    how the DOS follows a file's chain of sectors.  The write goes to
+    the old sector, not the new one.
 
 DOS &6FCC COUNT_AND_READ_SECTOR
     ICNT, then fall into the entry below.  Three entry points, one after
@@ -355,7 +369,7 @@ DOC RDRS2
 
 DOS &778F READ_ADDRESS_CLEAR
 DOS &7799 READ_ADDRESS_SET
-    Read the sector's address mark through RDADR, and differ in one
+    The same page-and-offset lookup as COPY_SECTOR_512, differing in one
     instruction: AND A leaves carry clear where SCF sets it, and both
     join at &77A1.  The flag is the caller's answer, carried out in the
     alternate accumulator.
