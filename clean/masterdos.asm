@@ -833,10 +833,12 @@ SECTOR_RETRY_COUNT:
 
 ; ---- BOOTNM ---- from MB &6439
 BOOTNM:
-               DEFB &42,&4F                    ; 4100 BO  the name the ROM's BOOT command looks for, bit 7 ending it
+               DEFM "BO"                       ; 4100 42 4F  "BOOT", with bit 7 on the last letter as the ROM's BOOT
+                                               ; command expects
 
 BOOTNM_2:
-               DEFB &4F,&D4                    ; 4102 OT
+               DEFM "O"                        ; 4102 4F
+               DEFB "T"+&80                    ; 4103 D4
 
 ; ---- ENTSP ---- from &43BD, &4481, &4485, &5021, &5026, &508E, &5FB1, &6060 ...
 ENTSP:
@@ -6173,9 +6175,9 @@ ERRTBL:
                DEFB " "+&80                    ; 5200 A0
                DEFB " "+&80                    ; 5201 A0
                DEFB " "+&80                    ; 5202 A0
-               DEFM "Escape requeste"          ; 5203 45 73 63 61 70 65 20 72
+               DEFM "Escape requeste"          ; 5203 45 73 63 61 70 65 20 72  3
                DEFB "d"+&80                    ; 5212 E4
-               DEFM "TRK-"                     ; 5213 54 52 4B 2D
+               DEFM "TRK-"                     ; 5213 54 52 4B 2D  4
 
 ; ---- PRTRK ---- from &51BD
 PRTRK:
@@ -6189,7 +6191,7 @@ V5218:
 PRSEC:
                DEFM "  ,Erro"                  ; 521F 20 20 2C 45 72 72 6F
                DEFB "r"+&80                    ; 5226 F2
-               DEFM "Format TRK-"              ; 5227 46 6F 72 6D 61 74 20 54
+               DEFM "Format TRK-"              ; 5227 46 6F 72 6D 61 74 20 54  5
 
 ; ---- FMTRK ---- from &51C0
 FMTRK:
@@ -7530,7 +7532,7 @@ PMYNAE:
                DEFM " (y/n/a/"                 ; 588E 20 28 79 2F 6E 2F 61 2F
 
 XTRA:
-               DEFM "e"                        ; 5896 65
+               DEFM "e"                        ; 5896 65  XTRA HOOKS ETC. IN SYS PAGE
                DEFB ")"+&80                    ; 5897 A9
 
 ;; --------------------------------------------------------------------
@@ -7586,7 +7588,7 @@ DNAME:
 
 ; ---- MSGUN ---- from &58E5
 MSGUN:
-               DEFM "UN "                      ; 58CD 55 4E 20
+               DEFM "UN "                      ; 58CD 55 4E 20  SPACE, BACKSPACE CANCELS LEADING
                DEFB &08                        ; 58D0
 
 ;; --------------------------------------------------------------------

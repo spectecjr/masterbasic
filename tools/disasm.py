@@ -316,11 +316,18 @@ class Disassembler(Decoder):
             ch = chr(c)
             return c not in codes and ch.isprintable() and ch != '"'
 
+        def note(a):
+            # A comment on a text range was silently dropped before: the
+            # region loop breaks a run at a commented address, so the
+            # comment is always on the first byte of what it describes.
+            c = self.comments.get(a)
+            return '  ' + c if c else ''
+
         def emit_defm(a, b):
-            w('%-14s DEFM %-25s ; %04X %s\n'
+            w(('%-14s DEFM %-25s ; %04X %s%s' + chr(10))
               % ('', '"%s"' % ''.join(chr(self.byte(i)) for i in range(a, b)),
                  a, ' '.join(hexn(self.byte(i), 2)[1:]
-                             for i in range(a, min(b, a + 8)))))
+                             for i in range(a, min(b, a + 8))), note(a)))
 
         def one(i):
             c = self.byte(i)

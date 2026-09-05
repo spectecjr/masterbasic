@@ -114,3 +114,17 @@ DOS &4AD0 : a RAM disc's side 1 is always eighty tracks
 DOS &4AD4 : the limit, without the bit that says two sides
 DOS &4AD6 : the end of side 1?
 DOS &4AD8 : then carry on at the first track of side 2
+
+# The BOOT name is text, and the 1991 source writes it as text:
+#
+#     FFHL:   DEFM "BO"
+#     FFDE:   DEFB "O","T"+&80
+#
+# Two labels for four bytes because stock MasterDOS reuses them as FFHL
+# and FFDE once the ROM has looked for the name and the DOS is running.
+# This image does not reuse them -- it keeps four spare bytes at &42E6
+# for that instead -- so the second label marks nothing here but the
+# middle of a word.
+
+DOS &4100-&4103 text
+DOS &4100 : "BOOT", with bit 7 on the last letter as the ROM's BOOT command expects
