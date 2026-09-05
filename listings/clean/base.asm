@@ -190,6 +190,8 @@ SYS_CHAR_WIDTH:                 EQU  &4AEE
 
 ; The byte after RST &08: a DOS error, or a hook code, which is
 ; 128 plus the index of an entry in the DOS hook table at &44A6.
+; A hook code says which routine to run and the routine says
+; what it does, so each line points at the one that answers it.
 ERR_OUT_OF_MEMORY:              EQU  &01
 
                ORG  &4000
@@ -246,6 +248,7 @@ MB_HOOK_CSIZE:                  EQU  HOOK_CSIZE + IN_PAGE_C
 MB_HOOK_FARSCAN:                EQU  HOOK_FARSCAN + IN_PAGE_C
 MB_HOOK_HORDER:                 EQU  HOOK_HORDER + IN_PAGE_C
 MB_HOOK_HPFF:                   EQU  HOOK_HPFF + IN_PAGE_C
+MB_HOOK_LPRINT_BYTE:            EQU  HOOK_LPRINT_BYTE + IN_PAGE_C
 MB_HOOK_MERGECOMPFLG:           EQU  HOOK_MERGECOMPFLG + IN_PAGE_C
 MB_HOOK_PROGPREP:               EQU  HOOK_PROGPREP + IN_PAGE_C
 MB_HOOK_RCPTCH:                 EQU  HOOK_RCPTCH + IN_PAGE_C
@@ -258,7 +261,6 @@ MB_HOOK_TOKENARG:               EQU  HOOK_TOKENARG + IN_PAGE_C
 MB_HOOK_VARSPACE:               EQU  HOOK_VARSPACE + IN_PAGE_C
 MB_HOOK_XVARNVAL:               EQU  HOOK_XVARNVAL + IN_PAGE_C
 MB_HPRTOK:                      EQU  HPRTOK + IN_PAGE_C
-MB_MBHK_HDUMMY:                 EQU  MBHK_HDUMMY + IN_PAGE_C
 MB_MULTIPLY_BY_24:              EQU  MULTIPLY_BY_24 + IN_PAGE_C
 MB_NEXT_SCREEN_BYTE_1:          EQU  NEXT_SCREEN_BYTE_1 + IN_PAGE_C
 MB_PRINT_OPEN_FILE_COUNT:       EQU  PRINT_OPEN_FILE_COUNT + IN_PAGE_C
@@ -272,11 +274,6 @@ MB_WAIT_FOR_CLOCK:              EQU  WAIT_FOR_CLOCK + IN_PAGE_C
 ; MasterBASIC reaching MasterDOS.
 DOS_BOOT:                       EQU  BOOT + IN_PAGE_C
 DOS_BOOTNM:                     EQU  BOOTNM + IN_PAGE_C
-DOS_BOOT_FOUND_TRACK:           EQU  BOOT_FOUND_TRACK + IN_PAGE_C
-DOS_BOOT_READ_CMD_SETTLE:       EQU  BOOT_READ_CMD_SETTLE + IN_PAGE_C
-DOS_BOOT_SETTLE_AFTER_READ_CMD: EQU  BOOT_SETTLE_AFTER_READ_CMD + IN_PAGE_C
-DOS_BOOT_STEP_HEAD:             EQU  BOOT_STEP_HEAD + IN_PAGE_C
-DOS_BOOT_STEP_SETTLE:           EQU  BOOT_STEP_SETTLE + IN_PAGE_C
 DOS_CKPT:                       EQU  CKPT + IN_PAGE_C
 DOS_DATDT:                      EQU  DATDT + IN_PAGE_C
 DOS_DRIVE:                      EQU  DRIVE + IN_PAGE_C

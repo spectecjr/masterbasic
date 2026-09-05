@@ -1,7 +1,7 @@
-"""The hooks MasterBASIC adds: codes 155 to 157 and 175 to 185.
+"""The hooks MasterBASIC adds: codes 154 to 157 and 175 to 185.
 
 The DOS's own hook codes are named in its source and described in
-ref/masterdos/docs/hook-interface.md.  These fourteen are not: they are
+ref/masterdos/docs/hook-interface.md.  These fifteen are not: they are
 MasterBASIC's, and the MasterBASIC manual never mentions the hook
 interface at all -- no occurrence of "hook", "RST" or "&08" anywhere in
 it, which is consistent with it being a user manual rather than a
@@ -12,8 +12,10 @@ page: it reaches ROM system variables directly, calls the ROM's HLJUMP
 at &0005, and cannot see the extension page, which is why it has to come
 back through RST &08 rather than call anything here.
 
-Codes 155 to 157 sit among the DOS's own, in four slots MasterDOS fills
-with HDUMMY; MasterBASIC points three of them at routines of its own.
+Codes 154 to 157 sit among the DOS's own, in four slots MasterDOS fills
+with HDUMMY; MasterBASIC points all four at routines of its own.  HDUMMY
+is the DOS's name for a reserved slot, not a description of anything, so
+none of the four keeps it here.
 
 Names describe what each routine demonstrably does.  Where that is not
 the same as knowing what it is *for*, the header says so.  Three are
@@ -24,6 +26,7 @@ The rest are readings.
 """
 
 NAMES = {
+    0x5B81: 'HOOK_LPRINT_BYTE',
     0x6534: 'HOOK_CSIZE',
     0x7159: 'HOOK_SWAPCHARS',
     0x732A: 'HOOK_PROGPREP',
@@ -41,6 +44,31 @@ NAMES = {
 }
 
 DOCS = {
+
+0x5B81: """Hook code 154.  Put one byte in the interrupt-driven printer
+buffer, waiting if it is full.
+
+This is the writing half of the background printer.  The reading half is
+PRINTER_FEED_TICK at &59FC, which runs from the interrupt fifty times a
+second and sends what is here to the port.
+
+A RING OF 1K SLOTS WITH TWO POINTERS.  V4085/V4086 are the page and
+address the tick reads from (it runs in the system page with this half in
+the window, and so spells them &8085/&8086), and V4088/V4089 are the page
+and address written here.  Equal pointers mean empty, so the writer must
+never let its pointer catch the reader's -- hence the wait at &5BBB.
+
+The manual promises exactly that wait: "If the buffer becomes full, the
+computer will wait for the printer to deal with some of the data before
+finishing the LLIST, DUMP or LPRINT."
+
+The body from &5B8E to &5BBA is the same twenty-five instructions as
+WINDOW_SOUND_POINTER at &5B22, which does the same job for the sound
+buffer; the only difference is that this stores one byte where that
+stores a register number and a value.
+
+Hook 154 is HDUMMY in the DOS's table, a reserved slot; this is what
+MasterBASIC put in it.""",
 
 0x6534: """Hook code 155.  CSIZE, the manual's "Improved CSIZE command".
 

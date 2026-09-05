@@ -1013,7 +1013,18 @@ def seeds(dos, mb):
     # The screen-blanker tick and its neighbours run from the interrupt,
     # with the ROM's system page at &4000 and this half in the window: they
     # read SOFFCT at &5AC4 straight, and their own SOFV as &8002.
-    mb.self_window.append((0x59A3, 0x5A00))
+    #
+    # &59A3-&5AD4 rather than &59A3-&5A00 and &5A3E-&5A64, which is what
+    # this used to be.  The one arrangement holds for the whole stretch --
+    # the blanker, PRINTER_FEED_TICK and SOUND_FEED_TICK are three jobs in
+    # a row on one entry, and nothing between them touches HMPR; the OUTs
+    # in the two feeds are to LMPR, which moves what is under &4000 and
+    # leaves the window alone.  The two gaps were reading this half's own
+    # buffer pointers as the DOS page's: &8086, &8088 and &8089 at &5A0B,
+    # &5A0F and &5A17 came out as MasterDOS boot variables while the same
+    # &8086 at &5A4C, inside the covered part, came out correctly as
+    # V4086 -- one address, two answers, three instructions apart.
+    mb.self_window.append((0x59A3, 0x5AD4))
     # The printer-ready test is the same: LPTPRT1 read straight at &5A10,
     # and its own SORP and SPORT as &8006 and &800B.
     mb.self_window.append((0x432B, 0x4349))
@@ -1080,6 +1091,16 @@ def seeds(dos, mb):
     # pages, so &42BA is the DOS's byte -- DVAR 154, CMPFG -- and not
     # this half's own.
     mb.sys_low.append((0x63FB, 0x63FE))
+    # Two operands in &5A00-&5BFF that are ROM system variables and not
+    # addresses in this half.  &71D4's LD DE,&5A45 is ATTRP, the write
+    # end of the copy whose read end two instructions earlier already
+    # reads as ATTRT; &5DB1's LD (&5A96),A is CHADP, which &7C16 in this
+    # same half reads by name.  Both had a label put on them instead,
+    # because a label in this page beats an equate for the same address
+    # -- and each label was the only reference to what it named, so the
+    # interrupt feeds were carrying a spurious entry point apiece.
+    mb.sys_low.append((0x71D4, 0x71D7))
+    mb.sys_low.append((0x5DB1, 0x5DB4))
     # &5635 compares a channel's word against an address in the second
     # installed stub, so &4AE9 there is the system page's, not this
     # half's -- the whole point of the test is whether the channel has
@@ -1152,7 +1173,7 @@ def seeds(dos, mb):
     # &42E2, and the CALL &A02A at &6101 is the plotter calling itself.
     # Read as the peer they came out as MasterDOS boot variables, which
     # would have the trace scribbling in the other half while it drew.
-    for lo, hi in ((0x4510, 0x4536), (0x5A3E, 0x5A64),
+    for lo, hi in ((0x4510, 0x4536),
                    (0x5FB9, 0x6118), (0x7900, 0x7940)):
         mb.self_window.append((lo, hi))
     # &5C16 used to be in that list and should not have been.  &5BFF is
@@ -2143,6 +2164,43 @@ def analyse(d):
     report(d, 'final')
 
 
+def hook_notes(dos, mb, table=HOOK_TABLE, count=64):
+    """code -> (handler name, one sentence saying what the hook does).
+
+    The sentence is the handler's own banner, not a second description
+    kept beside the first: a routine that gets re-read and re-explained
+    takes its hook code's comment with it, and cannot drift from it.
+
+    Banners on a hook routine open "Hook code 155.  ...", which says
+    nothing the equate does not already say, so that opening is dropped
+    and the sentence after it taken instead.
+    """
+    out = {}
+    for i in range(count):
+        a = table + 2 * i
+        if not dos.inside(a + 1):
+            break
+        target, home = dos.word(a), dos
+        if not dos.inside(target):
+            if mb is None or not mb.inside(target - PEER):
+                continue
+            target -= PEER
+            home = mb
+        name = home.labels.get(target)
+        if not name:
+            continue
+        text = home.headers.get(target) or ''
+        # The banner as prose: drop the ;; and join what is left.
+        prose = ' '.join(l.lstrip(';').strip()
+                         for l in text.split('\n') if l.strip(';').strip())
+        prose = re.sub(r'^Hook code \d+\.\s*', '', prose).strip()
+        # One sentence, and not a whole paragraph of one.
+        m = re.match(r'(.{0,150}?[.?])(?:\s|$)', prose)
+        sentence = (m.group(1) if m else prose[:150]).strip()
+        out[128 + i] = (name, sentence)
+    return out
+
+
 def header(d):
     head = [d.title, '']
     if d.ports:
@@ -2282,8 +2340,23 @@ def header(d):
         head.append('')
         head.append('; The byte after RST &08: a DOS error, or a hook code, which is')
         head.append('; 128 plus the index of an entry in the DOS hook table at &44A6.')
+        head.append('; A hook code says which routine to run and the routine says')
+        head.append('; what it does, so each line points at the one that answers it.')
+        if not hasattr(d, '_hook_notes'):
+            other = getattr(d, 'peer', None)
+            pair = (d, other) if d.tag == 'DOS' else (other, d)
+            d._hook_notes = hook_notes(*pair) if pair[0] is not None else {}
+        notes = d._hook_notes
         for name in sorted(codes, key=lambda n: codes[n]):
-            head.append('%-14s EQU  %s' % (name + ':', hexn(codes[name], 2)))
+            code = codes[name]
+            handler, sentence = notes.get(code, ('', ''))
+            note = ''
+            if sentence and handler:
+                note = '  ; %s (see %s)' % (sentence, handler)
+            elif handler:
+                note = '  ; see %s' % handler
+            head.append(('%-14s EQU  %-6s%s'
+                         % (name + ':', hexn(code, 2), note)).rstrip())
     if d.tag == 'MB':
         head.append('')
         head.extend('; ' + line if line else ';'

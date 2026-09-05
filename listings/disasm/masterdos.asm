@@ -97,6 +97,8 @@ WRRAM:                    EQU  &0113           ; and write address
 
 ; The byte after RST &08: a DOS error, or a hook code, which is
 ; 128 plus the index of an entry in the DOS hook table at &44A6.
+; A hook code says which routine to run and the routine says
+; what it does, so each line points at the one that answers it.
 ERR_LOADING_ERROR:        EQU  &13
 ERR_END_OF_FILE:          EQU  &16
 ERR_TRK_NNN_SCT_NN_ERROR: EQU  &55
@@ -243,27 +245,15 @@ BOOT_6:
 BOOT_7:
                LD A,READ_SECTOR_CMD            ; 407B 3E 80
                OUT (C),A                       ; 407D ED 79
-
-; ---- BOOT_8 ---- from MB &5A7E, MB &5AC1
-BOOT_8:
                LD B,&14                        ; 407F 06 14
 
-; ---- BOOT_9 ---- from &4081 when B is not 0 yet, MB &5A8E
-BOOT_9:
-               DJNZ BOOT_9                     ; 4081 10 FE
+; ---- BOOT_8 ---- from &4081 when B is not 0 yet
+BOOT_8:
+               DJNZ BOOT_8                     ; 4081 10 FE
                LD HL,(V40FB+&4000)             ; 4083 2A FB 80
-
-; ---- BOOT_10 ---- from MB &5A0B
-BOOT_10:
                LD B,C                          ; 4086 41
                INC B                           ; 4087 04
-
-; ---- BOOT_11 ---- from MB &5A17
-BOOT_11:
                INC B                           ; 4088 04
-
-; ---- BOOT_12 ---- from MB &5A0F
-BOOT_12:
                INC B                           ; 4089 04
                JR BOOT_LOOP5                   ; 408A 18 08
 
@@ -285,23 +275,23 @@ BOOT_LOOP5:
                RRCA                            ; 409A 0F
                JR C,BOOT_LOOP5                 ; 409B 38 F7
                AND &0D                         ; 409D E6 0D
-               JR Z,BOOT_15                    ; 409F 28 1F
+               JR Z,BOOT_11                    ; 409F 28 1F
                LD A,(V40FD+&4000)              ; 40A1 3A FD 80
                INC A                           ; 40A4 3C
                LD (V40FD+&4000),A              ; 40A5 32 FD 80
                PUSH AF                         ; 40A8 F5
                AND &02                         ; 40A9 E6 02
-               JR Z,BOOT_14                    ; 40AB 28 08
+               JR Z,BOOT_10                    ; 40AB 28 08
                LD A,&09                        ; 40AD 3E 09
                OUT (C),A                       ; 40AF ED 79
                LD B,&14                        ; 40B1 06 14
 
-; ---- BOOT_13 ---- from &40B3 when B is not 0 yet
-BOOT_13:
-               DJNZ BOOT_13                    ; 40B3 10 FE
+; ---- BOOT_9 ---- from &40B3 when B is not 0 yet
+BOOT_9:
+               DJNZ BOOT_9                     ; 40B3 10 FE
 
-; ---- BOOT_14 ---- from &40AB when no bit of &02 is set
-BOOT_14:
+; ---- BOOT_10 ---- from &40AB when no bit of &02 is set
+BOOT_10:
                POP AF                          ; 40B5 F1
                CP &0A                          ; 40B6 FE 0A
                JR C,BOOT_LOOP3                 ; 40B8 38 A7
@@ -310,8 +300,8 @@ BOOT_14:
                RST ERR_HOOK                    ; 40BE CF
                DEFB ERR_LOADING_ERROR          ; 40BF 13 error 19, "Loading error"
 
-; ---- BOOT_15 ---- from &409F when no bit of &0D is set
-BOOT_15:
+; ---- BOOT_11 ---- from &409F when no bit of &0D is set
+BOOT_11:
                POP BC                               ; 40C0 C1
                DEC HL                               ; 40C1 2B
                LD E,(HL)                            ; 40C2 5E
@@ -319,15 +309,15 @@ BOOT_15:
                LD D,(HL)                            ; 40C4 56
                LD A,D                               ; 40C5 7A
                OR E                                 ; 40C6 B3
-               JR Z,BOOT_18                         ; 40C7 28 17
-               DJNZ BOOT_17                         ; 40C9 10 12
+               JR Z,BOOT_14                         ; 40C7 28 17
+               DJNZ BOOT_13                         ; 40C9 10 12
                PUSH BC                              ; 40CB C5
                PUSH DE                              ; 40CC D5
                CALL INSTALL_TAIL_INTO_SYSPAGE+&4000 ; 40CD CD 60 BD
                POP DE                               ; 40D0 D1
 
-; ---- BOOT_16 ---- from &69EB
-BOOT_16:
+; ---- BOOT_12 ---- from &69EB
+BOOT_12:
                POP BC                          ; 40D1 C1
 
 ; ---- PTHRD ---- from &6CAE, &7429, &7751
@@ -343,12 +333,12 @@ PTHRD_1:
                OUT (LMPR),A                    ; 40D8 D3 FA
                LD HL,HEADER                    ; 40DA 21 00 40
 
-; ---- BOOT_17 ---- from &40C9 when B is not 0 yet
-BOOT_17:
+; ---- BOOT_13 ---- from &40C9 when B is not 0 yet
+BOOT_13:
                JP BOOT_3+&4000                 ; 40DD C3 49 80
 
-; ---- BOOT_18 ---- from &40C7
-BOOT_18:
+; ---- BOOT_14 ---- from &40C7
+BOOT_14:
                LD HL,PTHRD_2                   ; 40E0 21 E1 75
                LD DE,DOSBUF+&4000              ; 40E3 11 00 BC
                LD BC,&03AF                     ; 40E6 01 AF 03
@@ -1485,7 +1475,7 @@ SAMHK:
                DEFW HDBOP                                       ; 44D4 code 151
                DEFW SCFSM                                       ; 44D6 code 152
                DEFW MB_HOOK_HORDER+NOT_IN_THIS_PAGE             ; 44D8 code 153
-               DEFW MB_MBHK_HDUMMY+NOT_IN_THIS_PAGE             ; 44DA code 154
+               DEFW MB_HOOK_LPRINT_BYTE+NOT_IN_THIS_PAGE        ; 44DA code 154
                DEFW MB_HOOK_CSIZE+NOT_IN_THIS_PAGE              ; 44DC code 155
                DEFW MB_HOOK_SWAPCHARS+NOT_IN_THIS_PAGE          ; 44DE code 156
                DEFW MB_HOOK_PROGPREP+NOT_IN_THIS_PAGE           ; 44E0 code 157

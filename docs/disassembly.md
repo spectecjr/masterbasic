@@ -496,7 +496,7 @@ what they are with certainty:
 | `_FAIL` | it reports an error | 8 |
 | `_1`, `_2`, … | none of the above is certain | 527 |
 
-So `CHECK_BREAK_LOOP2` says more than `L6016` did, and `BOOT_17` at least says
+So `CHECK_BREAK_LOOP2` says more than `L6016` did, and `FSTAT_10` at least says
 whose it is. Nothing here is a reading of what the code means: the three
 suffixes are properties of the flow graph, and where the graph says nothing
 the label gets a number rather than a guess. A name in `notes/` still beats

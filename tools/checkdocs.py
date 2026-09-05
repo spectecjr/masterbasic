@@ -65,8 +65,22 @@ HISTORICAL = {
     ('notes/mb-printerready.txt', 'DOS_FSTR1'),
     ('notes/mb-format.txt', 'WRITE_ENTRY_HEADER'),
     ('notes/joinsplit.txt', 'CMD_JOIN_FAIL'),
+    ('notes/clean/dos-boot.txt', 'BOOT_17'),
+    ('notes/clean/dos-boot.txt', 'BOOT_18'),
     ('notes/clean/dos-boot.txt', 'BOOT_20'),
     ('notes/clean/dos-boot.txt', 'BOOT_21'),
+    # The nine names invented for &407F-&4089 when five word loads of
+    # MasterBASIC's own buffer pointers were being read as branches into
+    # this page.  The note lists them to say what is no longer there.
+    ('notes/clean/dos-boot.txt', 'BOOT_STEP_HEAD'),
+    ('notes/clean/dos-boot.txt', 'BOOT_STEP_SETTLE'),
+    ('notes/clean/dos-boot.txt', 'BOOT_FOUND_TRACK'),
+    ('notes/clean/dos-boot.txt', 'BOOT_SETTLE_AFTER_READ_CMD'),
+    ('notes/clean/dos-boot.txt', 'BOOT_READ_CMD_SETTLE'),
+    ('notes/clean/dos-boot.txt', 'BOOT_TRACK_TEST'),
+    ('notes/clean/dos-boot.txt', 'BOOT_DATA_PORT_FROM_C'),
+    ('notes/clean/dos-boot.txt', 'BOOT_DATA_PORT_PLUS_1'),
+    ('notes/clean/dos-boot.txt', 'BOOT_DATA_PORT_PLUS_2'),
 }
 
 INSN = re.compile(r'^\s{10,}(\S.*?)\s+;\s([0-9A-F]{4})\s')

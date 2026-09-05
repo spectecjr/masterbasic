@@ -1,7 +1,16 @@
-# The screen blanker, and code that runs with itself in the window.
+# The three things the interrupt does, and code that runs with itself in
+# the window.
+#
+# &59E8 to &5AD3 is one straight-line stretch entered once per interrupt,
+# and it is three unrelated jobs in a row: count down towards blanking
+# the screen, feed the printer, feed the sound chip.  Naming only the
+# first of them left the other two carrying the blanker's name and a
+# number, which said the opposite of what they do.
 
 MB &4073 SOFCOUNT
 MB &59E8 SCREEN_BLANK_TICK
+MB &59FC PRINTER_FEED_TICK
+MB &5A6B SOUND_FEED_TICK
 
 DOC SCREEN_BLANK_TICK
     Count down towards blanking the screen, once per interrupt.
@@ -25,3 +34,59 @@ DOC SCREEN_BLANK_TICK
     That is why the listing used to call SOFCOUNT "DOS_L4073": an &80xx
     here is this page, not the other one, and the tools now know it for
     &59A3-&59FF.
+
+DOC PRINTER_FEED_TICK
+    Send up to ILPC bytes from the printer buffer, once per interrupt.
+
+    This is the reading half of the background printer.  The writing half
+    is hook code 154 at &5B81, which BASIC calls to put a byte in, and
+    which blocks when the buffer is full until this has taken some out.
+    The manual's promise that "the computer will wait for the printer to
+    deal with some of the data" is that block; this is what ends it.
+
+    THE BUFFER IS A RING OF 1K SLOTS WITH TWO POINTERS.  V4085 and V4086
+    are the page and address read from here, V4088 and V4089 the page and
+    address written by the hook.  Both pointers are read at &8085 and
+    &8086 rather than at &4085 and &4086, because this code runs from the
+    interrupt with the ROM's system page low and this half in the window.
+    V4085 is biased by one, so zero means there is no buffer at all --
+    which is what LPRINT CLEAR 0 leaves behind, and the first test here.
+
+    Equal addresses and equal pages mean the ring is empty and there is
+    nothing to do.  The link walk at &5A1E is the same test the writer
+    makes: a pointer in the last two bytes of a 1K slot is pointing at the
+    slot's link rather than at data, and the link names the next slot's
+    high byte and page.
+
+    ILPC IS THE THROTTLE.  XVAR 8 is pushed at &5A0A and counted down at
+    &5A59, so a frame sends at most that many characters however fast the
+    printer is; the manual calls it the characters sent per interrupt.
+    CHECK_PRINTER_READY is asked before every byte, and a printer that is
+    not ready is waited on for ILPD -- XVAR 9, in ~25us units -- before
+    the loop gives up for this frame rather than holding the interrupt.
+
+    It runs on into SOUND_FEED_TICK, which the two exits at &5A00 and
+    &5A5A jump straight to.
+
+DOC SOUND_FEED_TICK
+    Feed the sound chip from the sound buffer, once per interrupt.
+
+    The reading half of BLITZ SOUND, and the counterpart of
+    WINDOW_SOUND_POINTER at &5B22, which writes the same buffer in the
+    same 1K-slot form.  The buffer's page, read address and write address
+    are at &807E, &807F and &8082 -- this half through the window again --
+    and the link walk at &5A96 is the same one the printer feed makes.
+
+    V4084 IS A FRAME COUNTER, NOT A FLAG.  Zero means idle and returns at
+    once.  Otherwise it is decremented every interrupt and nothing is sent
+    until it reaches zero, so a value of n holds the sound still for n
+    frames.  That is where the manual's PAUSE goes: a space, &20, in the
+    recorded stream is the pause marker, and the byte after it is written
+    to V4084 at &5ABB and the feed stops for now.  Timing in a recorded
+    program therefore has to come from PAUSE, because nothing else in the
+    stream takes any time at all.
+
+    Anything that is not the marker is a register number and a value, sent
+    at &5ACA to &01FF and then &00FF -- the SAA1099's address port and its
+    data port -- and the loop goes back for the next pair until the read
+    pointer reaches the write pointer.

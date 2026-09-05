@@ -35,6 +35,7 @@ CLUT:                     EQU  &F8             ; base of the colour look-up tabl
 ; The notes are mostly the ROM source's own words.
 AFTERCR:                  EQU  &5A0F           ; 0A OR NUL ACCORDING TO WHETHER AUTO LF NEEDED
 ANYI:                     EQU  &0049           ; The ROM's default maskable interrupt handler, reached through ANYIV
+ATTRP:                    EQU  &5A45           ; ATTR USED BY MODES 0 AND 1
 ATTRT:                    EQU  &5A4E           ; attribute used by temporary colour statements
 BASSTK:                   EQU  &5BC6           ; base of BASIC's GOSUB, DO and PROC stack
 BGFLG:                    EQU  &5A34           ; BLOCK GRAPHICS FLAG
@@ -245,6 +246,8 @@ SYS_TOKEN_TO_FN_INDEX:    EQU  &45A2
 
 ; The byte after RST &08: a DOS error, or a hook code, which is
 ; 128 plus the index of an entry in the DOS hook table at &44A6.
+; A hook code says which routine to run and the routine says
+; what it does, so each line points at the one that answers it.
 ERR_NOT_FOUND:            EQU  &02
 ERR_SUBSCRIPT_WRONG:      EQU  &04
 ERR_NEXT_WITHOUT_FOR:     EQU  &05
@@ -257,28 +260,55 @@ ERR_PUT_BLOCK:            EQU  &25
 ERR_STRING_TOO_LONG:      EQU  &2A
 ERR_PAGE_OVERLAP:         EQU  &76
 ERR_SIZE_MISMATCH:        EQU  &77
-HKC_HDUMMY:               EQU  &9A
-HKC_CSIZE:                EQU  &9B
-HKC_SWAPCHARS:            EQU  &9C
-HKC_PROGPREP:             EQU  &9D
-HKC_MCHWR:                EQU  &A7
-HKC_MCHRD:                EQU  &A8
-HKC_HPRTOK:               EQU  &A9
-HKC_HPFF:                 EQU  &AA
-HKC_HGTTK:                EQU  &AB
-HKC_HKLEN:                EQU  &AC
-HKC_HCMDV:                EQU  &AD
-HKC_RCPTCH:               EQU  &AE
-HKC_MERGECOMPFLG:         EQU  &AF
-HKC_TOKENARG:             EQU  &B1
-HKC_SKIPNAME:             EQU  &B2
-HKC_XVARNVAL:             EQU  &B3
-HKC_SERSEND:              EQU  &B4
-HKC_SERRECV:              EQU  &B5
-HKC_SUBCHAR:              EQU  &B6
-HKC_COMADENT:             EQU  &B7
-HKC_VARSPACE:             EQU  &B8
-HKC_SETUPREGS:            EQU  &B9
+HKC_LPRINT_BYTE:          EQU  &9A             ; --------------------------------------------------------------------
+                                               ; Hook code 154. (see HOOK_LPRINT_BYTE)
+HKC_CSIZE:                EQU  &9B             ; --------------------------------------------------------------------
+                                               ; Hook code 155. (see HOOK_CSIZE)
+HKC_SWAPCHARS:            EQU  &9C             ; --------------------------------------------------------------------
+                                               ; (to be added to the existing header, which works out what is swapped
+                                               ; but not whic (see HOOK_SWAPCHARS)
+HKC_PROGPREP:             EQU  &9D             ; --------------------------------------------------------------------
+                                               ; Hook code 157. (see HOOK_PROGPREP)
+HKC_MCHWR:                EQU  &A7             ; --------------------------------------------------------------------
+                                               ; HOOK ROUTINE TO WRITE BYTE IN A TO DISC. (see MCHWR)
+HKC_MCHRD:                EQU  &A8             ; --------------------------------------------------------------------
+                                               ; HOOK ROUTINE TO READ BYTE FROM DISC. (see MCHRD)
+HKC_HPRTOK:               EQU  &A9             ; --------------------------------------------------------------------
+                                               ; Hook 169, and the ROM's PRTOKV points here, so LIST and the error
+                                               ; printer both co (see HPRTOK)
+HKC_HPFF:                 EQU  &AA             ; --------------------------------------------------------------------
+                                               ; Hook 170: the second byte of a two-byte token has arrived. (see
+                                               ; HOOK_HPFF)
+HKC_HGTTK:                EQU  &AB             ; --------------------------------------------------------------------
+                                               ; Hook 171 -- match a keyword while tokenising. (see HGTTK)
+HKC_HKLEN:                EQU  &AC             ; --------------------------------------------------------------------
+                                               ; Hook 172 -- evaluate a function. (see HKLEN)
+HKC_HCMDV:                EQU  &AD             ; --------------------------------------------------------------------
+                                               ; Hook 173 -- dispatch one of MasterBASIC's commands. (see HCMDV)
+HKC_RCPTCH:               EQU  &AE             ; see HOOK_RCPTCH
+HKC_MERGECOMPFLG:         EQU  &AF             ; --------------------------------------------------------------------
+                                               ; Hook code 175, and the label is right only for its first twenty-seven
+                                               ; bytes. (see HOOK_MERGECOMPFLG)
+HKC_TOKENARG:             EQU  &B1             ; --------------------------------------------------------------------
+                                               ; Hook code 177. (see HOOK_TOKENARG)
+HKC_SKIPNAME:             EQU  &B2             ; --------------------------------------------------------------------
+                                               ; (replacing the existing header.) DELETE, for strings and string arrays.
+                                               ; (see CMD_DELETE)
+HKC_XVARNVAL:             EQU  &B3             ; --------------------------------------------------------------------
+                                               ; Hook code 179. (see HOOK_XVARNVAL)
+HKC_SERSEND:              EQU  &B4             ; --------------------------------------------------------------------
+                                               ; Hook code 180. (see HOOK_SERSEND)
+HKC_SERRECV:              EQU  &B5             ; --------------------------------------------------------------------
+                                               ; Hook code 181. (see HOOK_SERRECV)
+HKC_SUBCHAR:              EQU  &B6             ; --------------------------------------------------------------------
+                                               ; Replace one character with a string on its way to the printer. (see
+                                               ; SUBSTITUTE_PRINTER_CHAR)
+HKC_COMADENT:             EQU  &B7             ; --------------------------------------------------------------------
+                                               ; Hook code 183. (see HOOK_COMADENT)
+HKC_VARSPACE:             EQU  &B8             ; --------------------------------------------------------------------
+                                               ; Hook code 184. (see HOOK_VARSPACE)
+HKC_SETUPREGS:            EQU  &B9             ; --------------------------------------------------------------------
+                                               ; Hook code 185. (see HOOK_SETUPREGS)
 
 ; The manual also describes these, which no table points at, so they have
 ; not been located in the code:
@@ -2106,8 +2136,12 @@ EXPR_TO_32BIT:
 ;; x DIV 65536.  Two GETINTs then take them off, the second under the
 ;; first, so HL is the low word and DE the high one.
 ;;
-;; Windowing itself is what makes this work: CMR pages ROM 1 in, and the
-;; literals have to stay reachable while it is.
+;; Windowing itself is what makes this work, though not for the reason
+;; it looks like.  CMR does not page ROM 1 in; it writes SYSPAGE_IN_B to
+;; LMPR, which puts the system page over &4000-&7FFF.  This half's own
+;; &44AE is underneath that, so the literals would be covered exactly
+;; when the ROM went to read them -- and putting the half at &8000
+;; first is what keeps them reachable.
 ;;
 ;; Both callers refuse a value with anything in D, so what they really
 ;; want is 24 bits -- a page and an address, or a length that may exceed
@@ -9043,64 +9077,98 @@ SCREEN_BLANK_TICK:
                                                ; the system page low. Both in four instructions, which is only possible
                                                ; from the interrupt
                AND A                           ; 59EB A7
-               JR Z,SCREEN_BLANK_TICK_1        ; 59EC 28 0E
+               JR Z,PRINTER_FEED_TICK          ; 59EC 28 0E
                LD HL,SOFCOUNT+IN_PAGE_C        ; 59EE 21 73 80
                DEC (HL)                        ; 59F1 35
-               JR NZ,SCREEN_BLANK_TICK_1       ; 59F2 20 08
+               JR NZ,PRINTER_FEED_TICK         ; 59F2 20 08
                LD (HL),A                       ; 59F4 77
                LD HL,SOFFCT                    ; 59F5 21 C4 5A
                DEC (HL)                        ; 59F8 35
-               JR NZ,SCREEN_BLANK_TICK_1       ; 59F9 20 01
+               JR NZ,PRINTER_FEED_TICK         ; 59F9 20 01
                INC (HL)                        ; 59FB 34
 
-; ---- SCREEN_BLANK_TICK_1 ---- from &59EC when A = 0, &59F2, &59F9
-SCREEN_BLANK_TICK_1:
+;; --------------------------------------------------------------------
+;; Send up to ILPC bytes from the printer buffer, once per interrupt.
+;;
+;; This is the reading half of the background printer.  The writing half
+;; is hook code 154 at &5B81, which BASIC calls to put a byte in, and
+;; which blocks when the buffer is full until this has taken some out.
+;; The manual's promise that "the computer will wait for the printer to
+;; deal with some of the data" is that block; this is what ends it.
+;;
+;; THE BUFFER IS A RING OF 1K SLOTS WITH TWO POINTERS.  V4085 and V4086
+;; are the page and address read from here, V4088 and V4089 the page and
+;; address written by the hook.  Both pointers are read at &8085 and
+;; &8086 rather than at &4085 and &4086, because this code runs from the
+;; interrupt with the ROM's system page low and this half in the window.
+;; V4085 is biased by one, so zero means there is no buffer at all --
+;; which is what LPRINT CLEAR 0 leaves behind, and the first test here.
+;;
+;; Equal addresses and equal pages mean the ring is empty and there is
+;; nothing to do.  The link walk at &5A1E is the same test the writer
+;; makes: a pointer in the last two bytes of a 1K slot is pointing at the
+;; slot's link rather than at data, and the link names the next slot's
+;; high byte and page.
+;;
+;; ILPC IS THE THROTTLE.  XVAR 8 is pushed at &5A0A and counted down at
+;; &5A59, so a frame sends at most that many characters however fast the
+;; printer is; the manual calls it the characters sent per interrupt.
+;; CHECK_PRINTER_READY is asked before every byte, and a printer that is
+;; not ready is waited on for ILPD -- XVAR 9, in ~25us units -- before
+;; the loop gives up for this frame rather than holding the interrupt.
+;;
+;; It runs on into SOUND_FEED_TICK, which the two exits at &5A00 and
+;; &5A5A jump straight to.
+;; --------------------------------------------------------------------
+
+; ---- PRINTER_FEED_TICK ---- from &59EC when A = 0, &59F2, &59F9
+PRINTER_FEED_TICK:
                LD A,(V4085+IN_PAGE_C)          ; 59FC 3A 85 80  the printer buffer's page, biased by one so that zero
                                                ; means there is no buffer -- which is what LPRINT CLEAR 0 leaves behind
                AND A                           ; 59FF A7
-               JR Z,SCREEN_BLANK_TICK_7        ; 5A00 28 69
+               JR Z,SOUND_FEED_TICK            ; 5A00 28 69
                DEC A                           ; 5A02 3D  the real page number, kept in B because the feed below pages
                                                ; it in and out repeatedly
                LD B,A                          ; 5A03 47
                IN A,(LMPR)                     ; 5A04 DB FA  the paging to come back to after each dip into the buffer
                LD C,A                          ; 5A06 4F
-               LD A,(&8008)                    ; 5A07 3A 08 80  XVAR 8, the number of characters to feed per interrupt;
+               LD A,(ILPC+IN_PAGE_C)           ; 5A07 3A 08 80  XVAR 8, the number of characters to feed per interrupt;
                                                ; it is counted down at &5A59 and is the throttle on how much of a frame
                                                ; printing may take
                PUSH AF                         ; 5A0A F5
 
-; ---- SCREEN_BLANK_TICK_LOOP ---- from &5A63
-SCREEN_BLANK_TICK_LOOP:
-               LD DE,(DOS_BOOT_FOUND_TRACK)          ; 5A0B ED 5B 86 80  the read position and the write position
-               LD HL,(DOS_BOOT_READ_CMD_SETTLE)      ; 5A0F 2A 89 80
-               AND A                                 ; 5A12 A7
-               SBC HL,DE                             ; 5A13 ED 52
-               JR NZ,SCREEN_BLANK_TICK_2             ; 5A15 20 07  the addresses differ, so there is something to send
-               LD A,(DOS_BOOT_SETTLE_AFTER_READ_CMD) ; 5A17 3A 88 80  same address and same page as well: the buffer is
-                                                     ; empty and there is nothing to do
-               DEC A                                 ; 5A1A 3D
-               CP B                                  ; 5A1B B8
-               JR Z,SCREEN_BLANK_TICK_6              ; 5A1C 28 4C
+; ---- PRINTER_FEED_TICK_LOOP ---- from &5A63
+PRINTER_FEED_TICK_LOOP:
+               LD DE,(V4086+IN_PAGE_C)         ; 5A0B ED 5B 86 80  the read position and the write position
+               LD HL,(V4089+IN_PAGE_C)         ; 5A0F 2A 89 80
+               AND A                           ; 5A12 A7
+               SBC HL,DE                       ; 5A13 ED 52
+               JR NZ,PRINTER_FEED_TICK_1       ; 5A15 20 07  the addresses differ, so there is something to send
+               LD A,(V4088+IN_PAGE_C)          ; 5A17 3A 88 80  same address and same page as well: the buffer is empty
+                                               ; and there is nothing to do
+               DEC A                           ; 5A1A 3D
+               CP B                            ; 5A1B B8
+               JR Z,PRINTER_FEED_TICK_4        ; 5A1C 28 4C
 
-; ---- SCREEN_BLANK_TICK_2 ---- from &5A15
-SCREEN_BLANK_TICK_2:
+; ---- PRINTER_FEED_TICK_1 ---- from &5A15
+PRINTER_FEED_TICK_1:
                LD A,D                          ; 5A1E 7A  D+1 divisible by four picks out &3F, &7F, &BF and &FF -- the
                                                ; high byte of the last page of a 16K block -- in one AND, before the
                                                ; fuller test below
                INC A                           ; 5A1F 3C
                AND &03                         ; 5A20 E6 03
-               JR NZ,SCREEN_BLANK_TICK_4       ; 5A22 20 1E
+               JR NZ,PRINTER_FEED_TICK_3       ; 5A22 20 1E
                LD A,D                          ; 5A24 7A  the block mapped at &4000 has its link sixteen bytes lower
                                                ; than the others. Why is not clear from this code
                CP &7F                          ; 5A25 FE 7F
                LD A,E                          ; 5A27 7B
-               JR NZ,SCREEN_BLANK_TICK_3       ; 5A28 20 02
+               JR NZ,PRINTER_FEED_TICK_2       ; 5A28 20 02
                ADD A,&10                       ; 5A2A C6 10
 
-; ---- SCREEN_BLANK_TICK_3 ---- from &5A28 when A <> &7F
-SCREEN_BLANK_TICK_3:
+; ---- PRINTER_FEED_TICK_2 ---- from &5A28 when A <> &7F
+PRINTER_FEED_TICK_2:
                CP &FE                          ; 5A2C FE FE
-               JR NZ,SCREEN_BLANK_TICK_4       ; 5A2E 20 12
+               JR NZ,PRINTER_FEED_TICK_3       ; 5A2E 20 12
                LD A,B                          ; 5A30 78
                OUT (LMPR),A                    ; 5A31 D3 FA
                LD A,(DE)                       ; 5A33 1A  the last two bytes of a block are the link: the next block's
@@ -9110,21 +9178,18 @@ SCREEN_BLANK_TICK_3:
                LD A,(DE)                       ; 5A36 1A
                LD E,&00                        ; 5A37 1E 00
                LD D,H                          ; 5A39 54
-               LD (&8085),A                    ; 5A3A 32 85 80  the same biased page byte read at &59FC, so the feed
+               LD (V4085+IN_PAGE_C),A          ; 5A3A 32 85 80  the same biased page byte read at &59FC, so the feed
                                                ; picks up where it left off next interrupt
                DEC A                           ; 5A3D 3D
                LD B,A                          ; 5A3E 47
                LD A,C                          ; 5A3F 79
                OUT (LMPR),A                    ; 5A40 D3 FA
 
-; ---- SCREEN_BLANK_TICK_4 ---- from &5A22 when a bit of &03 is set, &5A2E when A <> &FE
-SCREEN_BLANK_TICK_4:
-               CALL CHECK_PRINTER_READY+IN_PAGE_C ; 5A42 CD 2B 83  the printer-ready test is in the other half's own
-                                                  ; page, reached through the window
-
-; ---- SCREEN_BLANK_TICK_5 ---- from &71D4
-SCREEN_BLANK_TICK_5:
-               JR C,SCREEN_BLANK_TICK_6            ; 5A45 38 23
+; ---- PRINTER_FEED_TICK_3 ---- from &5A22 when a bit of &03 is set, &5A2E when A <> &FE
+PRINTER_FEED_TICK_3:
+               CALL CHECK_PRINTER_READY+IN_PAGE_C  ; 5A42 CD 2B 83  the printer-ready test is in the other half's own
+                                                   ; page, reached through the window
+               JR C,PRINTER_FEED_TICK_4            ; 5A45 38 23
                LD A,B                              ; 5A47 78
                OUT (LMPR),A                        ; 5A48 D3 FA
                LD A,(DE)                           ; 5A4A 1A
@@ -9137,99 +9202,120 @@ SCREEN_BLANK_TICK_5:
                CALL SEND_BYTE_TO_PRINTER+IN_PAGE_C ; 5A55 CD 37 81
                POP AF                              ; 5A58 F1
                DEC A                               ; 5A59 3D
-               JR Z,SCREEN_BLANK_TICK_7            ; 5A5A 28 0F
+               JR Z,SOUND_FEED_TICK                ; 5A5A 28 0F
                PUSH AF                             ; 5A5C F5
                LD HL,(ILPD+IN_PAGE_C)              ; 5A5D 2A 09 80  the not-ready delay, from XVAR 9
 
-; ---- SCREEN_BLANK_TICK_LOOP2 ---- from &5A68
-SCREEN_BLANK_TICK_LOOP2:
+; ---- PRINTER_FEED_TICK_LOOP2 ---- from &5A68
+PRINTER_FEED_TICK_LOOP2:
                CALL CHECK_PRINTER_READY+IN_PAGE_C ; 5A60 CD 2B 83
-               JR NC,SCREEN_BLANK_TICK_LOOP       ; 5A63 30 A6
+               JR NC,PRINTER_FEED_TICK_LOOP       ; 5A63 30 A6
                DEC HL                             ; 5A65 2B
                LD A,H                             ; 5A66 7C
                OR L                               ; 5A67 B5
-               JR NZ,SCREEN_BLANK_TICK_LOOP2      ; 5A68 20 F6
+               JR NZ,PRINTER_FEED_TICK_LOOP2      ; 5A68 20 F6
 
-; ---- SCREEN_BLANK_TICK_6 ---- from &5A1C when A = B, &5A45
-SCREEN_BLANK_TICK_6:
+; ---- PRINTER_FEED_TICK_4 ---- from &5A1C when A = B, &5A45
+PRINTER_FEED_TICK_4:
                POP AF                          ; 5A6A F1
 
-; ---- SCREEN_BLANK_TICK_7 ---- from &5A00 when A = 0, &5A5A when A reaches 0
-SCREEN_BLANK_TICK_7:
-               LD A,(&8084)                    ; 5A6B 3A 84 80
+;; --------------------------------------------------------------------
+;; Feed the sound chip from the sound buffer, once per interrupt.
+;;
+;; The reading half of BLITZ SOUND, and the counterpart of
+;; WINDOW_SOUND_POINTER at &5B22, which writes the same buffer in the
+;; same 1K-slot form.  The buffer's page, read address and write address
+;; are at &807E, &807F and &8082 -- this half through the window again --
+;; and the link walk at &5A96 is the same one the printer feed makes.
+;;
+;; V4084 IS A FRAME COUNTER, NOT A FLAG.  Zero means idle and returns at
+;; once.  Otherwise it is decremented every interrupt and nothing is sent
+;; until it reaches zero, so a value of n holds the sound still for n
+;; frames.  That is where the manual's PAUSE goes: a space, &20, in the
+;; recorded stream is the pause marker, and the byte after it is written
+;; to V4084 at &5ABB and the feed stops for now.  Timing in a recorded
+;; program therefore has to come from PAUSE, because nothing else in the
+;; stream takes any time at all.
+;;
+;; Anything that is not the marker is a register number and a value, sent
+;; at &5ACA to &01FF and then &00FF -- the SAA1099's address port and its
+;; data port -- and the loop goes back for the next pair until the read
+;; pointer reaches the write pointer.
+;; --------------------------------------------------------------------
+
+; ---- SOUND_FEED_TICK ---- from &5A00 when A = 0, &5A5A when A reaches 0
+SOUND_FEED_TICK:
+               LD A,(V4084+IN_PAGE_C)          ; 5A6B 3A 84 80
                AND A                           ; 5A6E A7
                RET Z                           ; 5A6F C8
                DEC A                           ; 5A70 3D
-               LD (&8084),A                    ; 5A71 32 84 80
+               LD (V4084+IN_PAGE_C),A          ; 5A71 32 84 80
                RET NZ                          ; 5A74 C0
                IN A,(LMPR)                     ; 5A75 DB FA
                LD C,A                          ; 5A77 4F
-               LD A,(&807E)                    ; 5A78 3A 7E 80
+               LD A,(V407E+IN_PAGE_C)          ; 5A78 3A 7E 80
                DEC A                           ; 5A7B 3D
                OUT (LMPR),A                    ; 5A7C D3 FA
-               LD DE,(DOS_BOOT_STEP_HEAD)      ; 5A7E ED 5B 7F 80
+               LD DE,(V407F+IN_PAGE_C)         ; 5A7E ED 5B 7F 80
 
-; ---- SCREEN_BLANK_TICK_LOOP3 ---- from &5AD2
-SCREEN_BLANK_TICK_LOOP3:
-               LD HL,(&8082)                   ; 5A82 2A 82 80
+; ---- SOUND_FEED_TICK_LOOP ---- from &5AD2
+SOUND_FEED_TICK_LOOP:
+               LD HL,(V4082+IN_PAGE_C)         ; 5A82 2A 82 80
                AND A                           ; 5A85 A7
                SBC HL,DE                       ; 5A86 ED 52
-               JR NZ,SCREEN_BLANK_TICK_8       ; 5A88 20 0A
+               JR NZ,SOUND_FEED_TICK_1         ; 5A88 20 0A
                IN A,(LMPR)                     ; 5A8A DB FA
                INC A                           ; 5A8C 3C
                LD H,A                          ; 5A8D 67
-               LD A,(DOS_BOOT_STEP_SETTLE)     ; 5A8E 3A 81 80
+               LD A,(V4081+IN_PAGE_C)          ; 5A8E 3A 81 80
                CP H                            ; 5A91 BC
-               JR Z,SCREEN_BLANK_TICK_DONE     ; 5A92 28 2A
+               JR Z,SOUND_FEED_TICK_DONE       ; 5A92 28 2A
 
-; ---- SCREEN_BLANK_TICK_8 ---- from &5A88
-SCREEN_BLANK_TICK_8:
+; ---- SOUND_FEED_TICK_1 ---- from &5A88
+SOUND_FEED_TICK_1:
                LD A,D                          ; 5A94 7A
                INC A                           ; 5A95 3C
-
-; ---- SCREEN_BLANK_TICK_9 ---- from &5DB1
-SCREEN_BLANK_TICK_9:
                AND &03                         ; 5A96 E6 03
-               JR NZ,SCREEN_BLANK_TICK_11      ; 5A98 20 19
+               JR NZ,SOUND_FEED_TICK_3         ; 5A98 20 19
                LD A,D                          ; 5A9A 7A
                CP &7F                          ; 5A9B FE 7F
                LD A,E                          ; 5A9D 7B
-               JR NZ,SCREEN_BLANK_TICK_10      ; 5A9E 20 02
+               JR NZ,SOUND_FEED_TICK_2         ; 5A9E 20 02
                ADD A,&10                       ; 5AA0 C6 10
 
-; ---- SCREEN_BLANK_TICK_10 ---- from &5A9E when A <> &7F
-SCREEN_BLANK_TICK_10:
+; ---- SOUND_FEED_TICK_2 ---- from &5A9E when A <> &7F
+SOUND_FEED_TICK_2:
                CP &FE                          ; 5AA2 FE FE
-               JR NZ,SCREEN_BLANK_TICK_11      ; 5AA4 20 0D
+               JR NZ,SOUND_FEED_TICK_3         ; 5AA4 20 0D
                LD A,(DE)                       ; 5AA6 1A
                LD H,A                          ; 5AA7 67
                INC E                           ; 5AA8 1C
                LD A,(DE)                       ; 5AA9 1A
                LD E,&00                        ; 5AAA 1E 00
                LD D,H                          ; 5AAC 54
-               LD (&807E),A                    ; 5AAD 32 7E 80
+               LD (V407E+IN_PAGE_C),A          ; 5AAD 32 7E 80
                DEC A                           ; 5AB0 3D
                OUT (LMPR),A                    ; 5AB1 D3 FA
 
-; ---- SCREEN_BLANK_TICK_11 ---- from &5A98 when a bit of &03 is set, &5AA4 when A <> &FE
-SCREEN_BLANK_TICK_11:
+; ---- SOUND_FEED_TICK_3 ---- from &5A98 when a bit of &03 is set, &5AA4 when A <> &FE
+SOUND_FEED_TICK_3:
                LD A,(DE)                       ; 5AB3 1A
                INC DE                          ; 5AB4 13
                CP CH_SPACE                     ; 5AB5 FE 20
-               JR NZ,SCREEN_BLANK_TICK_12      ; 5AB7 20 0D
+               JR NZ,SOUND_FEED_TICK_4         ; 5AB7 20 0D
                LD A,(DE)                       ; 5AB9 1A
                INC DE                          ; 5ABA 13
-               LD (&8084),A                    ; 5ABB 32 84 80
+               LD (V4084+IN_PAGE_C),A          ; 5ABB 32 84 80
 
-; ---- SCREEN_BLANK_TICK_DONE ---- from &5A92 when A = H
-SCREEN_BLANK_TICK_DONE:
+; ---- SOUND_FEED_TICK_DONE ---- from &5A92 when A = H
+SOUND_FEED_TICK_DONE:
                LD A,C                          ; 5ABE 79
                OUT (LMPR),A                    ; 5ABF D3 FA
-               LD (DOS_BOOT_STEP_HEAD),DE      ; 5AC1 ED 53 7F 80
+               LD (V407F+IN_PAGE_C),DE         ; 5AC1 ED 53 7F 80
                RET                             ; 5AC5 C9
 
-; ---- SCREEN_BLANK_TICK_12 ---- from &5AB7 when A <> CH_SPACE
-SCREEN_BLANK_TICK_12:
+; ---- SOUND_FEED_TICK_4 ---- from &5AB7 when A <> CH_SPACE
+SOUND_FEED_TICK_4:
                LD H,C                          ; 5AC6 61
                LD BC,&01FF                     ; 5AC7 01 FF 01
                OUT (C),A                       ; 5ACA ED 79
@@ -9238,7 +9324,7 @@ SCREEN_BLANK_TICK_12:
                OUT (C),A                       ; 5ACE ED 79
                LD C,H                          ; 5AD0 4C
                INC DE                          ; 5AD1 13
-               JR SCREEN_BLANK_TICK_LOOP3      ; 5AD2 18 AE
+               JR SOUND_FEED_TICK_LOOP         ; 5AD2 18 AE
 
 ;; --------------------------------------------------------------------
 ;; BLITZ -- taken over from the ROM at token &9D, for BLITZ SOUND.
@@ -9423,15 +9509,18 @@ ESCCHK:
                JP REPORT                       ; 5B7E C3 BE 43
 
 ;; --------------------------------------------------------------------
-;; Hook code &9A -- put one byte in the interrupt-driven printer buffer,
-;; waiting if it is full.
+;; Hook code 154.  Put one byte in the interrupt-driven printer
+;; buffer, waiting if it is full.
+;;
+;; This is the writing half of the background printer.  The reading half is
+;; PRINTER_FEED_TICK at &59FC, which runs from the interrupt fifty times a
+;; second and sends what is here to the port.
 ;;
 ;; A RING OF 1K SLOTS WITH TWO POINTERS.  V4085/V4086 are the page and
-;; address the 50Hz tick reads from (&59FC-&5A68, which runs in the system
-;; page with this half in the window, and so spells them &8085/&8086), and
-;; V4088/V4089 are the page and address written here.  Equal pointers mean
-;; empty, so the writer must never let its pointer catch the reader's --
-;; hence the wait at &5BBB.
+;; address the tick reads from (it runs in the system page with this half in
+;; the window, and so spells them &8085/&8086), and V4088/V4089 are the page
+;; and address written here.  Equal pointers mean empty, so the writer must
+;; never let its pointer catch the reader's -- hence the wait at &5BBB.
 ;;
 ;; The manual promises exactly that wait: "If the buffer becomes full, the
 ;; computer will wait for the printer to deal with some of the data before
@@ -9441,9 +9530,12 @@ ESCCHK:
 ;; WINDOW_SOUND_POINTER at &5B22, which does the same job for the sound
 ;; buffer; the only difference is that this stores one byte where that
 ;; stores a register number and a value.
+;;
+;; Hook 154 is HDUMMY in the DOS's table, a reserved slot; this is what
+;; MasterBASIC put in it.
 ;; --------------------------------------------------------------------
 
-MBHK_HDUMMY:
+HOOK_LPRINT_BYTE:
                LD B,A                          ; 5B81 47  the byte to print, kept in B because A is about to carry
                                                ; paging
                CALL ESCCHK                     ; 5B82 CD 75 5B  the wait below can be long, so it must be escapable
@@ -9476,7 +9568,7 @@ MBHK_HDUMMY:
                SET 7,H                         ; 5B94 CB FC
                RES 6,H                         ; 5B96 CB B4
                AND &03                         ; 5B98 E6 03
-               JR NZ,MBHK_HDUMMY_2             ; 5B9A 20 1B
+               JR NZ,HOOK_LPRINT_BYTE_2        ; 5B9A 20 1B
                LD A,E                          ; 5B9C 7B
 
 ;; --------------------------------------------------------------------
@@ -9486,15 +9578,15 @@ MBHK_HDUMMY:
                CP &7F                          ; 5B9D FE 7F  &7F is the top slot of the page, whose last sixteen bytes
                                                ; are
                LD A,L                          ; 5B9F 7D
-               JR NZ,MBHK_HDUMMY_1             ; 5BA0 20 02
+               JR NZ,HOOK_LPRINT_BYTE_1        ; 5BA0 20 02
                ADD A,&10                       ; 5BA2 C6 10  add those sixteen, so the one CP &FE below covers both
                                                ; cases
 
-; ---- MBHK_HDUMMY_1 ---- from &5BA0 when A <> &7F
-MBHK_HDUMMY_1:
+; ---- HOOK_LPRINT_BYTE_1 ---- from &5BA0 when A <> &7F
+HOOK_LPRINT_BYTE_1:
                CP &FE                          ; 5BA4 FE FE  &FE means the two bytes left in the slot are the link, not
                                                ; data
-               JR NZ,MBHK_HDUMMY_2             ; 5BA6 20 0F
+               JR NZ,HOOK_LPRINT_BYTE_2        ; 5BA6 20 0F
                LD E,(HL)                       ; 5BA8 5E  the link is stored as high byte of address, then page
                INC L                           ; 5BA9 2C
                LD A,(HL)                       ; 5BAA 7E
@@ -9505,8 +9597,8 @@ MBHK_HDUMMY_1:
                LD (V4088),A                    ; 5BB2 32 88 40
                OUT (HMPR),A                    ; 5BB5 D3 FB
 
-; ---- MBHK_HDUMMY_2 ---- from &5B9A when a bit of &03 is set, &5BA6 when A <> &FE
-MBHK_HDUMMY_2:
+; ---- HOOK_LPRINT_BYTE_2 ---- from &5B9A when a bit of &03 is set, &5BA6 when A <> &FE
+HOOK_LPRINT_BYTE_2:
                LD (HL),B                       ; 5BB7 70  the byte itself, at last
                LD H,E                          ; 5BB8 63
                INC HL                          ; 5BB9 23
@@ -9517,13 +9609,13 @@ MBHK_HDUMMY_2:
 ;; &5BCD settles
 ;; --------------------------------------------------------------------
 
-; ---- MBHK_HDUMMY_LOOP ---- from &5BCE when A = C
-MBHK_HDUMMY_LOOP:
+; ---- HOOK_LPRINT_BYTE_LOOP ---- from &5BCE when A = C
+HOOK_LPRINT_BYTE_LOOP:
                LD HL,(V4086)                   ; 5BBB 2A 86 40  the reader's address. If the writer has arrived at it
                                                ; the ring is
                AND A                           ; 5BBE A7
                SBC HL,DE                       ; 5BBF ED 52
-               JR NZ,MBHK_HDUMMY_DONE          ; 5BC1 20 0D
+               JR NZ,HOOK_LPRINT_BYTE_DONE     ; 5BC1 20 0D
 
 ;; --------------------------------------------------------------------
 ;; the buffer and end this wait
@@ -9536,10 +9628,10 @@ MBHK_HDUMMY_LOOP:
                LD C,A                          ; 5BC9 4F
                LD A,(V4085)                    ; 5BCA 3A 85 40
                CP C                            ; 5BCD B9
-               JR Z,MBHK_HDUMMY_LOOP           ; 5BCE 28 EB
+               JR Z,HOOK_LPRINT_BYTE_LOOP      ; 5BCE 28 EB
 
-; ---- MBHK_HDUMMY_DONE ---- from &5BC1
-MBHK_HDUMMY_DONE:
+; ---- HOOK_LPRINT_BYTE_DONE ---- from &5BC1
+HOOK_LPRINT_BYTE_DONE:
                LD (V4089),DE                   ; 5BD0 ED 53 89 40
                POP AF                          ; 5BD4 F1
                OUT (HMPR),A                    ; 5BD5 D3 FB
@@ -10270,7 +10362,7 @@ COPY_THEN_APPEND_CALL_1:
 ; ---- CMD_KEYIN_1 ---- from &5D93
 CMD_KEYIN_1:
                LD A,(ELINEP)                   ; 5DAE 3A 93 5A  the page the edit line is in
-               LD (SCREEN_BLANK_TICK_9),A      ; 5DB1 32 96 5A  &5A96 is the ROM's CHADP, not an address in this page
+               LD (CHADP),A                    ; 5DB1 32 96 5A  &5A96 is the ROM's CHADP, not an address in this page
                LD HL,WORKSPP                   ; 5DB4 21 90 5A
                CP (HL)                         ; 5DB7 BE  already the same page, so there is nothing to move
                RET Z                           ; 5DB8 C8
@@ -16023,7 +16115,7 @@ HOOK_COMADENT:
                LD A,&FF                        ; 6F43 3E FF  the byte at &5A60 is a ROM variable, not the code the label
                                                ; names
                CALL MBNRWR                     ; 6F45 CD 82 45
-               DEFW SCREEN_BLANK_TICK_LOOP2    ; 6F48 60 5A
+               DEFW PRINTER_FEED_TICK_LOOP2    ; 6F48 60 5A
 
 ; ---- HOOK_COMADENT_1 ---- from &6F41
 HOOK_COMADENT_1:
@@ -16653,7 +16745,7 @@ CMD_CLS:
                CALL CALL_PRINT_A               ; 71CE CD FA 69
                LD HL,ATTRT                     ; 71D1 21 4E 5A  the five temporary print variables copied over the five
                                                ; permanent ones, so the new colours stick
-               LD DE,SCREEN_BLANK_TICK_5       ; 71D4 11 45 5A
+               LD DE,ATTRP                     ; 71D4 11 45 5A
                LD BC,&0005                     ; 71D7 01 05 00
                CALL MBCMR                      ; 71DA CD F0 44
                DEFW &008F                      ; 71DD 8F 00
@@ -19772,7 +19864,7 @@ TBL_7D58_DONE3:
                DEFB HKC_SUBCHAR                ; 7E3E B6 hook code
                RET                             ; 7E3F C9
                RST ERR_HOOK                    ; 7E40 CF
-               DEFB HKC_HDUMMY                 ; 7E41 9A hook code
+               DEFB HKC_LPRINT_BYTE            ; 7E41 9A hook code
                RET                             ; 7E42 C9
 
 ;; --------------------------------------------------------------------

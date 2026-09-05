@@ -117,6 +117,8 @@ SYS_CHAR_WIDTH:                 EQU  &4AEE
 
 ; The byte after RST &08: a DOS error, or a hook code, which is
 ; 128 plus the index of an entry in the DOS hook table at &44A6.
+; A hook code says which routine to run and the routine says
+; what it does, so each line points at the one that answers it.
 ERR_OUT_OF_MEMORY:              EQU  &01
 
                ORG  &4000
@@ -176,6 +178,7 @@ MB_HOOK_CSIZE:                  EQU  HOOK_CSIZE + &4000
 MB_HOOK_FARSCAN:                EQU  HOOK_FARSCAN + &4000
 MB_HOOK_HORDER:                 EQU  HOOK_HORDER + &4000
 MB_HOOK_HPFF:                   EQU  HOOK_HPFF + &4000
+MB_HOOK_LPRINT_BYTE:            EQU  HOOK_LPRINT_BYTE + &4000
 MB_HOOK_MERGECOMPFLG:           EQU  HOOK_MERGECOMPFLG + &4000
 MB_HOOK_PROGPREP:               EQU  HOOK_PROGPREP + &4000
 MB_HOOK_RCPTCH:                 EQU  HOOK_RCPTCH + &4000
@@ -188,7 +191,6 @@ MB_HOOK_TOKENARG:               EQU  HOOK_TOKENARG + &4000
 MB_HOOK_VARSPACE:               EQU  HOOK_VARSPACE + &4000
 MB_HOOK_XVARNVAL:               EQU  HOOK_XVARNVAL + &4000
 MB_HPRTOK:                      EQU  HPRTOK + &4000
-MB_MBHK_HDUMMY:                 EQU  MBHK_HDUMMY + &4000
 MB_MULTIPLY_BY_24:              EQU  MULTIPLY_BY_24 + &4000
 MB_NEXT_SCREEN_BYTE_1:          EQU  NEXT_SCREEN_BYTE_1 + &4000
 MB_PRINT_OPEN_FILE_COUNT:       EQU  PRINT_OPEN_FILE_COUNT + &4000
@@ -202,11 +204,6 @@ MB_WAIT_FOR_CLOCK:              EQU  WAIT_FOR_CLOCK + &4000
 
 ; MasterBASIC reaching MasterDOS.
 DOS_BOOT:                       EQU  BOOT + &4000
-DOS_BOOT_10:                    EQU  BOOT_10 + &4000
-DOS_BOOT_11:                    EQU  BOOT_11 + &4000
-DOS_BOOT_12:                    EQU  BOOT_12 + &4000
-DOS_BOOT_8:                     EQU  BOOT_8 + &4000
-DOS_BOOT_9:                     EQU  BOOT_9 + &4000
 DOS_CHANNEL_ENTRY_AT_ZERO_PAGE: EQU  CHANNEL_ENTRY_AT_ZERO_PAGE + &4000
 DOS_CKPT:                       EQU  CKPT + &4000
 DOS_DATDT:                      EQU  DATDT + &4000

@@ -178,6 +178,8 @@ WRRAM:                    EQU  &0113           ; and write address
 
 ; The byte after RST &08: a DOS error, or a hook code, which is
 ; 128 plus the index of an entry in the DOS hook table at &44A6.
+; A hook code says which routine to run and the routine says
+; what it does, so each line points at the one that answers it.
 ERR_LOADING_ERROR:        EQU  &13
 ERR_END_OF_FILE:          EQU  &16
 ERR_TRK_NNN_SCT_NN_ERROR: EQU  &55
@@ -405,34 +407,24 @@ BOOT_COMPARE_TRACK:
 
 ; ---- BOOT_CHOOSE_STEP_DIRECTION ---- from &406B when A = D
 BOOT_CHOOSE_STEP_DIRECTION:
-               LD A,READ_SECTOR_CMD            ; 407B 3E 80
-               OUT (C),A                       ; 407D ED 79
-
-; ---- BOOT_STEP_HEAD ---- from MB &5A7E, MB &5AC1
-BOOT_STEP_HEAD:
-               LD B,CMD_LATENCY_LOOPS          ; 407F 06 14
-
-; ---- BOOT_STEP_SETTLE ---- from MB &5A8E
-BOOT_STEP_SETTLE:
+               LD A,READ_SECTOR_CMD                  ; 407B 3E 80
+               OUT (C),A                             ; 407D ED 79
+               LD B,CMD_LATENCY_LOOPS                ; 407F 06 14
                DJNZ $                                ; 4081 10 FE
                LD HL,(SECTOR_LOAD_ADDRESS+IN_PAGE_C) ; 4083 2A FB 80  where this sector is to land
 
-; Put the data register's port in B.  The three entries differ only in
-; how much of the sum is already done: MasterBASIC jumps into whichever
-; suits what it has in hand, and all three arrive at the command port
-; plus three.
-
-; ---- BOOT_FOUND_TRACK ---- from MB &5A0B
-BOOT_FOUND_TRACK:
+; Put the data register's port in B, three on from the command and
+; status register the loop above has been working with.
+;
+; NOTHING ENTERS HERE.  This used to be read as three entry points that
+; MasterBASIC jumped into, each with a different amount of the sum
+; already done.  It is one run of straight-line code: the three
+; references were word loads of MasterBASIC's own printer and sound
+; buffer pointers, which the disassembler was resolving against this
+; page rather than that one.
                LD B,C                          ; 4086 41
                INC B                           ; 4087 04
-
-; ---- BOOT_SETTLE_AFTER_READ_CMD ---- from MB &5A17
-BOOT_SETTLE_AFTER_READ_CMD:
                INC B                           ; 4088 04
-
-; ---- BOOT_READ_CMD_SETTLE ---- from MB &5A0F
-BOOT_READ_CMD_SETTLE:
                INC B                           ; 4089 04
                JR BOOT_CHECK_READ_STATUS       ; 408A 18 08
 
@@ -504,7 +496,7 @@ BOOT_CHECK_READ_STATUS:
 ; have it.  The ordinary sector read and write do not: they reach
 ; &46C6 and get the right mask.
                AND BLOCK_ERROR_FLAGS           ; 409D E6 0D
-               JR Z,BOOT_DATA_PORT_PLUS_1      ; 409F 28 1F  a clean read
+               JR Z,BOOT_SECTOR_LOADED         ; 409F 28 1F  a clean read
 
 ; The read failed.  Count it, and on every other pair of failures
 ; restore the head to track 0 first, on the theory that a mis-seek is
@@ -514,7 +506,7 @@ BOOT_CHECK_READ_STATUS:
                LD (SECTOR_RETRY_COUNT+IN_PAGE_C),A ; 40A5 32 FD 80
                PUSH AF                             ; 40A8 F5
                AND &02                             ; 40A9 E6 02  bit 1 of the count
-               JR Z,BOOT_DATA_PORT_PLUS_2          ; 40AB 28 08
+               JR Z,BOOT_RETRY_OR_GIVE_UP          ; 40AB 28 08
                LD A,RESTORE_CMD                    ; 40AD 3E 09
                OUT (C),A                           ; 40AF ED 79
                LD B,CMD_LATENCY_LOOPS              ; 40B1 06 14
@@ -524,8 +516,8 @@ BOOT_CHECK_READ_STATUS:
 ; reporting here yet either: the system page has to be put back at
 ; &0000 before the ROM can be asked to print anything.
 
-; ---- BOOT_DATA_PORT_PLUS_2 ---- from &40AB when no bit of &02 is set
-BOOT_DATA_PORT_PLUS_2:
+; ---- BOOT_RETRY_OR_GIVE_UP ---- from &40AB when no bit of &02 is set
+BOOT_RETRY_OR_GIVE_UP:
                POP AF                          ; 40B5 F1
                CP MAX_SECTOR_RETRIES           ; 40B6 FE 0A
                JR C,BOOT_WAIT_READY            ; 40B8 38 A7  try the sector again
@@ -537,8 +529,8 @@ BOOT_DATA_PORT_PLUS_2:
 ; The sector is in.  Its last four bytes are the track and sector of
 ; the next one; zero for both ends the file.
 
-; ---- BOOT_DATA_PORT_PLUS_1 ---- from &409F when no bit of BLOCK_ERROR_FLAGS is set
-BOOT_DATA_PORT_PLUS_1:
+; ---- BOOT_SECTOR_LOADED ---- from &409F when no bit of BLOCK_ERROR_FLAGS is set
+BOOT_SECTOR_LOADED:
                POP BC                           ; 40C0 C1
                DEC HL                           ; 40C1 2B
                LD E,(HL)                        ; 40C2 5E
@@ -557,8 +549,8 @@ BOOT_DATA_PORT_PLUS_1:
                CALL INSTALL_TAIL_INTO_SYSPAGE+IN_PAGE_C ; 40CD CD 60 BD
                POP DE                                   ; 40D0 D1
 
-; ---- BOOT_RESTORE_SETTLE ---- from &69EB
-BOOT_RESTORE_SETTLE:
+; ---- BOOT_12 ---- from &69EB
+BOOT_12:
                POP BC                          ; 40D1 C1
 
 ; The end of a wave.  The page number found earlier comes back off the
@@ -1748,7 +1740,7 @@ SAMHK:
                DEFW HDBOP                                       ; 44D4 code 151
                DEFW SCFSM                                       ; 44D6 code 152
                DEFW MB_HOOK_HORDER+NOT_IN_THIS_PAGE             ; 44D8 code 153
-               DEFW MB_MBHK_HDUMMY+NOT_IN_THIS_PAGE             ; 44DA code 154
+               DEFW MB_HOOK_LPRINT_BYTE+NOT_IN_THIS_PAGE        ; 44DA code 154
                DEFW MB_HOOK_CSIZE+NOT_IN_THIS_PAGE              ; 44DC code 155
                DEFW MB_HOOK_SWAPCHARS+NOT_IN_THIS_PAGE          ; 44DE code 156
                DEFW MB_HOOK_PROGPREP+NOT_IN_THIS_PAGE           ; 44E0 code 157

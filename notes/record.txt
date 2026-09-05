@@ -11,25 +11,8 @@ MB &5B75 : the keyboard half-row ESC sits on.  The ROM does the identical
 MB &5B79 : bit 5 of the status port, low while ESC is held
 MB &5B7B : not pressed is the common case, so that is the cheap exit
 
-MB &5B81 MBHK_HDUMMY
-    Hook code &9A -- put one byte in the interrupt-driven printer buffer,
-    waiting if it is full.
-
-    A RING OF 1K SLOTS WITH TWO POINTERS.  V4085/V4086 are the page and
-    address the 50Hz tick reads from (&59FC-&5A68, which runs in the system
-    page with this half in the window, and so spells them &8085/&8086), and
-    V4088/V4089 are the page and address written here.  Equal pointers mean
-    empty, so the writer must never let its pointer catch the reader's --
-    hence the wait at &5BBB.
-
-    The manual promises exactly that wait: "If the buffer becomes full, the
-    computer will wait for the printer to deal with some of the data before
-    finishing the LLIST, DUMP or LPRINT."
-
-    The body from &5B8E to &5BBA is the same twenty-five instructions as
-    WINDOW_SOUND_POINTER at &5B22, which does the same job for the sound
-    buffer; the only difference is that this stores one byte where that
-    stores a register number and a value.
+# &5B81 is hook code 154.  Its name and header are in tools/hooks.py,
+# beside the other three MasterBASIC puts in the DOS's reserved slots.
 
 MB &5B81 : the byte to print, kept in B because A is about to carry paging
 MB &5B82 : the wait below can be long, so it must be escapable
