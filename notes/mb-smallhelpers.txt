@@ -454,10 +454,7 @@ MB &589F EXCHANGE_CHANNEL_WORD
     back what was there.  Exchanging rather than writing is what lets the
     same routine put it back.
 
-MB &58BF STEP_BY_TABLE_ENTRY
-    Take C from A and return if nothing is left, then read the word two
-    bytes on as the next step and negate what remains.  Named for what it
-    does; the table it walks is not established here.
+MB &58BF ALTER_RESIZE_GAP
 
 MB &63FE WRITE_DOS_BYTE
     Write A to the address in HL in the DOS page, through CALLDOS and the

@@ -451,8 +451,6 @@ DOS &42B6 CKPT
     thirty-two bytes of MRTAB above it are data and the label matcher
     works on decoded instructions.  MasterBASIC reads it at MB &770B.
 
-RENAME AHLNX_1 IOOR
-
 DOS &6091 IOOR
     Report "integer out of range", which is what CALL DERR with a code of
     &1E does.

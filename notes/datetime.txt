@@ -286,11 +286,26 @@ DOC WAIT_FOR_CLOCK
     returns at once, leaving the buffers as they were, and the countdown
     in HL bounds the handshake.
 
+    THE DI AT &4988 HAS NO EI.  Both ways out -- the give-up at &49A2 and
+    the finish at &49D0 -- return with interrupts still disabled, and
+    nothing in this half turns them back on.  The ROM does it: CMR
+    switches LMPR with DI : OUT : LD SP,HL : EI, and the EI at &4520 is
+    unconditional.  DATE and TIME both call CALL_NEXTCHAR as their very
+    next instruction, at &4864 and &4873, so for those two the gap is a
+    handful of microseconds.
+
+    The date stamp is the exception.  &4A3E calls this from
+    STAMP_WITH_DATE, and what follows it is CALLDOS and local code --
+    neither of which does an EI -- so interrupts stay off until whatever
+    runs after the stamp reaches a CMR of its own.  That is longer than
+    the other two paths and still bounded by the statement, but it is
+    the one place where the missing EI is worth knowing about.
+
 MB &497D : &42B6 is CKPT, DVAR 150, in MasterDOS's page -- the clock's port number.  SAVE_BLOCK_FROM_DOS_PAGE_DONE is this page's label of the same value and is not what is being read; see the notes
 
 MB &4987 : zero means no clock is fitted, and the DOS's buffers keep whatever they had
 
-MB &4988 : the handshake below must not be interrupted with HOLD asserted, or the clock would be stopped for the length of the interrupt
+MB &4988 : the handshake below must not be interrupted with HOLD asserted, or the clock would be stopped for the length of the interrupt.  There is no matching EI anywhere in the routine -- see the header
 
 MB &498B : register 13, control D
 

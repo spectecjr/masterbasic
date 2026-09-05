@@ -15,8 +15,15 @@ DOC SCAN_TEXT_FOR_D_OR_E
 
     A carriage return ends it with carry set.  A quote makes it skip to
     the matching quote, so a delimiter inside a string is not found.
-    Otherwise A is compared with D and then E, returning on either, and
-    the loop stops at &FF.
+    Otherwise A is compared with D and then E, returning on either.
+
+    &FF DOES NOT STOP THE SCAN, IT SKIPS A BYTE.  INC A : JR NZ at &5892
+    goes round again for every byte but &FF; &FF falls through to a bare
+    INC HL and then goes round anyway.  &FF is the prefix a two-byte
+    function token carries, so the byte behind it is a token code and
+    not text, and stepping over it is what stops a reference matching
+    half a token.  It is the same rule as the test at &5869, applied
+    from the other side.
 
     Returns: carry set if the line ended, clear if D or E was found, with
     HL on the character.

@@ -313,6 +313,11 @@ UPPER:                          EQU  &DF       ; clearing bit 5 folds a letter t
 ; where the same value means something else elsewhere.
 DVAR_CMPFG:                     EQU  &42BA     ; DVAR 154 in the DOS page: SAVE MODE 1, 2 or 3 less one
 ENABLE_ROM1:                    EQU  &40       ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
+GREY_MAP:                       EQU  &7B80
+GREY_TAKEN:                     EQU  &7B90
+REF_BUFFER:                     EQU  &7B00
+REF_BUFFER_2:                   EQU  &7B80
+REF_BUFFER_2_TEXT:              EQU  &7B81
 SKIP_1_VIA_CP:                  EQU  &FE       ; CP n, skipping one byte and clobbering the flags
 SKIP_1_VIA_LD_A:                EQU  &3E       ; LD A,n, standing here only to swallow the byte after it
 SKIP_1_VIA_LD_C:                EQU  &0E       ; LD C,n, skipping one byte and clobbering C
@@ -3788,6 +3793,22 @@ CMD_SORT_1:
 ;;
 ;; ? drives OUT (HMPR),A; calls EXPECT_END_OF_STATEMENT, FIND_STRING_VARIABLE; falls into whatever follows rather than
 ;; returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Patch the comparison, find the array, then sort it.
+;;
+;;     THE ONE BYTE AT &4745 IS THE WHOLE OF THE ABS OPTION.  It is the
+;;     operand of the JR NZ at &4744, the only place a key byte is ever
+;;     tested: &02 lands on the RET path at &4748 and quits on the first
+;;     difference, &05 diverts to &474B, which folds bit 5 out of both
+;;     bytes and tries again.  Nothing else is conditional on ABS -- and
+;;     because the byte stays where it was written, &47B8 can read it back
+;;     later instead of keeping a flag of its own.
+;;
+;;     That is also the manual's "the sort speed is also slightly better
+;;     using this ABS option": the folding path costs a PUSH BC, an AND, a
+;;     LD, a RES, a CP and a POP on every byte that matches.
 ;; --------------------------------------------------------------------
 
 ; ---- CMD_SORT_2 ---- from &461B
@@ -3811,6 +3832,39 @@ CMD_SORT_2:
 ;; Leaves:    A, F, BC, DE, HL
 ;;
 ;; ? drives IN A,(HMPR); calls ESCCHK; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     One pass of a selection sort: find the smallest element still
+;;     unsorted, exchange it with the one this pass stands on.
+;;
+;;     THE STATE OF A PASS is HL the element it stands on, BC how many
+;;     elements are left counting that one, DE the element size -- which
+;;     is both the step from one element to the next and the number of
+;;     bytes an exchange has to move.  BC is the two-register count the
+;;     rest of the image uses (high byte plus one unless the low byte is
+;;     zero), made that way by GET_NONEMPTY_STRING at &47F6, so C counting
+;;     down to zero with B counting the wraps needs no test of its own.
+;;
+;;     THE SCAN AND THE EXCHANGE LOOK AT DIFFERENT ADDRESSES.  V409E, the
+;;     offset of the part being compared, is added to HL before the scan
+;;     and taken off again afterwards, so SORT a$()(2 TO ) orders on the
+;;     second character onwards but still moves the first with the rest --
+;;     exactly as the manual says.
+;;
+;;     THE TWO REGISTER BANKS SWAP OVER EVERY PASS.  There are seven EXX
+;;     in a pass, an odd number, so the pass that follows runs in the
+;;     other bank.  Nothing depends on which is which: the pass pointer
+;;     and the counts are always in whichever bank is live at &463B, and
+;;     the exchange only needs one pointer in each.
+;;
+;;     A SELECTION SORT IS QUADRATIC, and the manual's own timings say so:
+;;     100 strings in 0.14s, 200 in 0.46, 400 in 1.6, 800 in 6 -- close to
+;;     four times the work for twice the data.  The same manual note that
+;;     the time "will increase relatively little if you use longer
+;;     strings" is the other half of the same fact: only the first byte of
+;;     each key is normally looked at, and only one element is moved per
+;;     pass.
 ;; --------------------------------------------------------------------
 
 ; ---- CMD_SORT_LOOP ---- from &469F when C is not 0 yet, &46A1 when B is not 0 yet
@@ -3974,6 +4028,29 @@ CMD_SORT_LOOP2:
 ;; Leaves:    A, F
 ;;
 ;; ? calls SAVE_FAR_POINTER; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     The ABS ascending scan: walk what is left of the array and leave
+;;     the smallest element in V409A/V409C.
+;;
+;;     THE FIRST BYTE DECIDES ALMOST EVERYTHING.  A holds the first key
+;;     byte of the best element found so far and never has to be reloaded
+;;     while that element stays the best, so a comparison is usually one
+;;     CP and one JR.  Only when the first bytes are equal does
+;;     COMPARE_FAR_STRINGS get called to walk the rest of the key, and
+;;     only that call needs the other element's page mapped.
+;;
+;;     A IS RELOADED FROM THE WRONG POINTER ON PURPOSE.  COMPARE_FAR_STRINGS
+;;     destroys A, and the best element is in another page by then; &46A7
+;;     reloads it from HL, which is the element that lost.  That is exact,
+;;     because the only way to reach &46A7 is through a CP that said the
+;;     two first bytes were equal.
+;;
+;;     AN EQUAL KEY TAKES OVER.  COMPARE_FAR_STRINGS returning Z gives NC,
+;;     which falls into "this one is the new best", so a run of equal keys
+;;     is left with the last of them chosen.  SORT is not stable, and the
+;;     manual does not claim it is.
 ;; --------------------------------------------------------------------
 
 ; ---- CMD_SORT_LOOP3 ---- from &46B1, &46B8, &47B4
@@ -4122,6 +4199,27 @@ PAGE_ON_TWO:
 ;;
 ;; Takes:     BC
 ;; Leaves:    registers unchanged
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     The case-folding ascending scan -- plain SORT, the default.
+;;
+;;     THE SAME SCAN AS CMD_SORT_LOOP3 with bit 5 taken out of both bytes
+;;     before they are compared, which is the manual's "bit 5 of each
+;;     character's CODE is irrelevant to sort order, so CHR$ 96-127 are
+;;     seen as equal to CHR$ 64-95".
+;;
+;;     B IS BORROWED FOR THE FOLD, so the high half of the count cannot
+;;     stay in it and lives on the stack instead: PUSH on entry, and
+;;     &46E9-&46F1 pops it, decrements it and pushes it back at every
+;;     two-hundred-and-fifty-sixth element.  That is the only structural
+;;     difference from the ABS scan.
+;;
+;;     The manual's worked example agrees exactly.  "Fred Bloggs" input to
+;;     SORT s$ folds to 00 42 44 45 46 47 47 4C 4F 52 53, which read back
+;;     unfolded is " BdeFgglors" -- the space folding to &00 is what puts
+;;     it first.  A plain string reaches here with an element size of 1
+;;     (&441D), so its characters are the elements.
 ;; --------------------------------------------------------------------
 
 ; ---- PAGE_ON_TWO_1 ---- from &47BE
@@ -4244,6 +4342,25 @@ PAGE_ON_TWO_3:
 ;; Leaves:    A, F
 ;;
 ;; ? calls SAVE_FAR_POINTER; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     The descending scan -- SORT ABS INVERSE.
+;;
+;;     THE SAME SCAN WITH THE SENSE OF THE COMPARISON TURNED ROUND, and
+;;     arranged differently to get it: equal first bytes are picked off
+;;     first (JR Z), then NC keeps the best, so the element kept is the
+;;     larger one.  Unlike the two ascending scans, an all-equal key keeps
+;;     the element already held rather than taking the new one.
+;;
+;;     THE EXIT IS WRONG.  &46FF jumps to &46BA, which is the tail of the
+;;     ASCENDING scan, and its DJNZ carries on at &46AE.  Three bytes of
+;;     dead code at &470F -- DJNZ &4701 : RET -- are the tail this loop
+;;     should have had, and reaching them needs nothing but a different
+;;     operand on the JR at &46FF.  Below 257 elements it never shows,
+;;     because the first time the count wraps is also the last and the
+;;     DJNZ falls through to the RET; above that, the tail of every pass
+;;     of an INVERSE sort is scanned with ascending comparisons.
 ;; --------------------------------------------------------------------
 
 ; ---- PAGE_ON_TWO_LOOP6 ---- from &4706, &470D, &47AA
@@ -4540,7 +4657,7 @@ COMPARE_FAR_STRINGS_LOOP3:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? drives IN A,(HMPR), OUT (HMPR),A; calls FIND_VARIABLE, STACK_EMPTY_STRING_OR_SLICE; falls into whatever follows
+;; ? drives IN A,(HMPR), OUT (HMPR),A; calls FIND_VARIABLE, STACK_STRIDE_AND_SLICE_IT; falls into whatever follows
 ;; rather than returning.
 ;;
 ;; Shown for this routine in disasm/:
@@ -4552,22 +4669,25 @@ COMPARE_FAR_STRINGS_LOOP3:
 
 ; ---- FIND_STRING_VARIABLE ---- from &462D
 FIND_STRING_VARIABLE:
-               CALL FIND_VARIABLE               ; 4759 CD D5 43
-               RET NC                           ; 475C D0
-               JP NZ,REP_NOT_UNDERSTOOD         ; 475D C2 B0 43
-                                                ; to the alternate register set and back again
-               EX AF,AF'                        ; 4760 08
-               IN A,(HMPR)                      ; 4761 DB FB
-               PUSH AF                          ; 4763 F5
-                                                ; to the alternate register set and back again
-               EX AF,AF'                        ; 4764 08
-               OUT (HMPR),A                     ; 4765 D3 FB
-               CALL STACK_EMPTY_STRING_OR_SLICE ; 4767 CD C3 47
-               LD B,D                           ; 476A 42
-               LD C,E                           ; 476B 4B
-               CALL STACK_EMPTY_STRING_OR_SLICE ; 476C CD C3 47
-               LD A,B                           ; 476F 78
-               CP &40                           ; 4770 FE 40
+               CALL FIND_VARIABLE              ; 4759 CD D5 43
+               RET NC                          ; 475C D0
+               JP NZ,REP_NOT_UNDERSTOOD        ; 475D C2 B0 43
+                                               ; to the alternate register set and back again
+               EX AF,AF'                       ; 4760 08
+               IN A,(HMPR)                     ; 4761 DB FB
+               PUSH AF                         ; 4763 F5
+                                               ; to the alternate register set and back again
+               EX AF,AF'                       ; 4764 08
+               OUT (HMPR),A                    ; 4765 D3 FB
+               CALL STACK_STRIDE_AND_SLICE_IT  ; 4767 CD C3 47
+               LD B,D                          ; 476A 42  the second dimension, passed as the length for the second
+                                               ; slice. BC came back from the first call unchanged, which is why this
+                                               ; can be written as a move rather than a reload
+               LD C,E                          ; 476B 4B
+               CALL STACK_STRIDE_AND_SLICE_IT  ; 476C CD C3 47
+               LD A,B                          ; 476F 78
+               CP &40                          ; 4770 FE 40  &4000 or more, so the slice is at least 16K and cannot be a
+                                               ; string
 
 ;; --------------------------------------------------------------------
 ;; L4772 -- &4772 to &4783
@@ -4640,7 +4760,7 @@ FIND_STRING_VARIABLE_1:
                RET                             ; 47C2 C9
 
 ;; --------------------------------------------------------------------
-;; STACK_EMPTY_STRING_OR_SLICE -- &47C3 to &47E1
+;; STACK_STRIDE_AND_SLICE_IT -- &47C3 to &47E1
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
@@ -4650,55 +4770,85 @@ FIND_STRING_VARIABLE_1:
 ;;
 ;; Shown for this routine in disasm/:
 ;;
-;;     Put an empty string on the calculator stack, and apply a slice to it
-;;     if one follows.
+;;     Turn a subscript like `(3 TO 9)` into an offset and a count, by
+;;     handing it to the ROM's slicer with a string that does not exist.
 ;;
-;;         XOR A : LD D,A : LD E,A : CALL STKSTR   -- a string of length
-;;                                                    zero at address zero
+;;         XOR A : LD D,A : LD E,A : CALL STKSTR
 ;;         CP CH_CR    : JR Z,done
 ;;         CP CH_COLON : JR Z,done
 ;;         CALL SLICING
 ;;         CALL NEXTCHAR : CP "(" : CALL Z,NEXTCHAR
 ;;
-;;     So at the end of a statement the result is the empty string, and
-;;     otherwise the ROM's SLICING is left to read whatever subscript is
-;;     there.  Both of the ROM routines it uses -- STKSTR and SLICING --
-;;     are reached through thunks whose targets are found by signature
-;;     search at boot.
+;;     THE STACKED STRING IS BC BYTES AT PAGE 0, ADDRESS &0000, and no byte
+;;     of it is ever read.  STKSTR takes its five bytes from A, E, D, C, B
+;;     -- page, address low and high, length low and high -- so zeroing A
+;;     and DE while leaving BC alone stacks a descriptor whose length is
+;;     whatever the caller passed and whose address is nothing.  The ROM's
+;;     SLICING then does the arithmetic it always does: it checks the
+;;     subscript against the length, adds the start to the address and
+;;     works out the count.  What comes back is the offset in place of the
+;;     address and the slice length in place of the length -- which is
+;;     exactly what the caller wanted and could not have got as cheaply any
+;;     other way, since SLICING also raises the ROM's own "Subscript out of
+;;     range" for it.
 ;;
-;;     Everything is preserved: BC, DE and HL are pushed on entry and popped
-;;     on both exits.
+;;     An earlier reading of this header said "a string of length zero at
+;;     address zero".  Zero is the address; BC is not touched, and if it
+;;     were zero the routine would have nothing to slice.  &476A is the
+;;     proof: FIND_STRING_VARIABLE calls this twice, and sets BC from DE in
+;;     between so the second call gets the array's second dimension.
+;;
+;;     With no subscript -- end of statement, or a colon -- the descriptor
+;;     is left as stacked, which for a caller that passed BC = 0 is an
+;;     empty string and otherwise is the whole extent.
+;;
+;;     Both of the ROM routines it uses -- STKSTR and SLICING -- are
+;;     reached through thunks whose targets are found by signature search
+;;     at boot.
+;;
+;;     Everything is preserved: BC, DE and HL are pushed on entry and
+;;     popped on both exits, so the result is on the ROM's calculator stack
+;;     and nowhere else.  GET_STRING_PAGED at &47E6 is what takes it off.
 ;; --------------------------------------------------------------------
 
-; ---- STACK_EMPTY_STRING_OR_SLICE ---- from &4767, &476C, &6F8E
-STACK_EMPTY_STRING_OR_SLICE:
-               PUSH BC                               ; 47C3 C5
-               PUSH DE                               ; 47C4 D5
-               PUSH HL                               ; 47C5 E5
-               XOR A                                 ; 47C6 AF
-               LD D,A                                ; 47C7 57
-               LD E,A                                ; 47C8 5F
-               CALL CALL_STKSTR                      ; 47C9 CD BA 41
-               CALL CALL_GETCHAR                     ; 47CC CD 67 44
-               CP CH_CR                              ; 47CF FE 0D
-               JR Z,STACK_EMPTY_STRING_OR_SLICE_DONE ; 47D1 28 0F
-               CP CH_COLON                           ; 47D3 FE 3A
-               JR Z,STACK_EMPTY_STRING_OR_SLICE_DONE ; 47D5 28 0B
-               CALL CALL_SLICING                     ; 47D7 CD ED 45
-               CALL CALL_NEXTCHAR                    ; 47DA CD 61 44
-               CP CH_LPAREN                          ; 47DD FE 28
-               CALL Z,CALL_NEXTCHAR                  ; 47DF CC 61 44
+; ---- STACK_STRIDE_AND_SLICE_IT ---- from &4767, &476C, &6F8E
+STACK_STRIDE_AND_SLICE_IT:
+               PUSH BC                             ; 47C3 C5
+               PUSH DE                             ; 47C4 D5
+               PUSH HL                             ; 47C5 E5
+               XOR A                               ; 47C6 AF  A is the page and DE the address, and both are wanted at
+                                                   ; zero -- BC is deliberately left as the caller set it, because that
+                                                   ; is the length being sliced
+               LD D,A                              ; 47C7 57
+               LD E,A                              ; 47C8 5F
+               CALL CALL_STKSTR                    ; 47C9 CD BA 41  STKSTR takes its five bytes from A, E, D, C, B, so
+                                                   ; this stacks page 0, address &0000, length BC
+               CALL CALL_GETCHAR                   ; 47CC CD 67 44
+               CP CH_CR                            ; 47CF FE 0D  end of statement, so there is no subscript and the
+                                                   ; descriptor stands as stacked
+               JR Z,STACK_STRIDE_AND_SLICE_IT_DONE ; 47D1 28 0F
+               CP CH_COLON                         ; 47D3 FE 3A
+               JR Z,STACK_STRIDE_AND_SLICE_IT_DONE ; 47D5 28 0B
+               CALL CALL_SLICING                   ; 47D7 CD ED 45  the ROM's slicer, doing arithmetic on a string that
+                                                   ; is not there. It checks the subscript against the length and
+                                                   ; rewrites the descriptor as offset and count, which is the whole
+                                                   ; point of the call
+               CALL CALL_NEXTCHAR                  ; 47DA CD 61 44
+               CP CH_LPAREN                        ; 47DD FE 28  SLICING leaves CHAD on the closing bracket, so this
+                                                   ; steps past it -- CALL Z so a missing bracket is left for the ROM to
+                                                   ; complain about
+               CALL Z,CALL_NEXTCHAR                ; 47DF CC 61 44
 
 ;; --------------------------------------------------------------------
-;; STACK_EMPTY_STRING_OR_SLICE_DONE -- &47E2 to &47E5
+;; STACK_STRIDE_AND_SLICE_IT_DONE -- &47E2 to &47E5
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    BC, DE, HL
 ;; Ends:      RET
 ;; --------------------------------------------------------------------
 
-; ---- STACK_EMPTY_STRING_OR_SLICE_DONE ---- from &47D1 when A = CH_CR, &47D5 when A = CH_COLON
-STACK_EMPTY_STRING_OR_SLICE_DONE:
+; ---- STACK_STRIDE_AND_SLICE_IT_DONE ---- from &47D1 when A = CH_CR, &47D5 when A = CH_COLON
+STACK_STRIDE_AND_SLICE_IT_DONE:
                POP HL                          ; 47E2 E1
                POP DE                          ; 47E3 D1
                POP BC                          ; 47E4 C1
@@ -5174,6 +5324,35 @@ CMD_TIME:
 ;;
 ;; ? drives OUT (C),E; calls CALL_GETINT, SKIP_THEN_END, TWO_DIGITS_FROM_DE, TICS_SECONDS_IN_MONTH; falls into whatever
 ;; follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     TIME + and TIME -, and the correction that makes the pair honest.
+;;
+;;     THE MODE BIT GOES OUT FIRST and the bookkeeping follows.  &F0EF is
+;;     the clock at register 15, control F; bit 3 of it is the test bit,
+;;     which lets the counter chain run 5416.3 times too fast.  V4075 then
+;;     remembers the same value, and TICS reads it at &4ABD to decide
+;;     whether to divide its answer down.
+;;
+;;     THE OLD VALUE OF V4075, NOT THE NEW ONE, CHOOSES THE PATH.  Equal
+;;     means the mode is already in the state asked for and there is
+;;     nothing to correct.  Zero means it is being switched on, so the
+;;     saved copy is filled with the value the clock is about to be set to.
+;;     Otherwise it is being switched off, and the elapsed time has to be
+;;     added to the time that was saved.
+;;
+;;     THE FLAG IS PUT BACK FOR THE LENGTH OF ONE CALL at &4894 and cleared
+;;     again at &489A.  TICS divides by 5416.3 exactly while that byte is
+;;     non-zero, and the whole reason for calling it here is to get the
+;;     fast reading expressed in real seconds -- "MasterBASIC does the
+;;     division for you".
+;;
+;;     THE CORRECTION IS SMALL BY CONSTRUCTION.  TICS cannot exceed
+;;     2678399 fast seconds, so divided down it cannot exceed about 494
+;;     real seconds -- the manual's "about 8 minutes".  That is why the
+;;     minutes and hours below each need only one conditional subtraction,
+;;     and why the day gets a carry but the month never does.
 ;; --------------------------------------------------------------------
 
 ; ---- CMD_TIME_1 ---- from &487A when A = &2B
@@ -5301,6 +5480,20 @@ CMD_TIME_3:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A, B, HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     TIME +: fill the saved copy with the value the clock is about to take.
+;;
+;;     &48FE swaps this block with MasterDOS's, so what is being built here
+;;     is what the DOS -- and then the chip -- will be left holding, while
+;;     the real date and time end up in this page's mirror.
+;;
+;;     THE DAY IS "01" AND NOT "00" because TICS computes day-1 at &4A8C
+;;     and a day of zero would wrap the whole calculation.  The month and
+;;     the year are not touched at all, which is why the manual's example
+;;     shows the date going to "O1/00/00": the mirror starts as zeroes and
+;;     only the day is ever written.
 ;; --------------------------------------------------------------------
 
 ; ---- CMD_TIME_4 ---- from &4892 when A = 0
@@ -5337,6 +5530,20 @@ CMD_TIME_LOOP2:
 ;; Leaves:    B, DE, HL
 ;;
 ;; ? calls PAGE_IN_OTHER_HALF; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Exchange this page's mirror with MasterDOS's two buffers.
+;;
+;;     AN EXCHANGE, NOT A COPY, and the same code serves both directions.
+;;     On TIME + the real date and time end up here and the zeroed template
+;;     goes to the DOS; on TIME - the corrected values go back and the
+;;     fast-mode rubbish is what is left behind.
+;;
+;;     &17 IS 23 BYTES: DATDT's fifteen -- "dd/mm/yy", a CR and six limit
+;;     bytes -- plus the eight characters of TIMDT that follow it.  It
+;;     stops deliberately short of TIMDT's own CR and limits, which nothing
+;;     here needs to move.
 ;; --------------------------------------------------------------------
 
 ; ---- CMD_TIME_5 ---- from &48E7
@@ -5382,6 +5589,28 @@ CMD_TIME_LOOP3:
 ;;
 ;; ? reaches the ROM through DOS_EVAL_STRING_IF_RUNNING-&4000; calls CALLDOS, AT_END_OF_STATEMENT; falls into whatever
 ;; follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     The argument, for DATE and TIME alike: nothing at all, or a string.
+;;
+;;     SIX DIGITS ARE TAKEN FROM THE STRING AND SIX SLOTS FILLED, and
+;;     everything that is not a digit is ignored on both sides.  On the
+;;     string's side the skip at &4938 means "23/12/91", "23.12.91" and
+;;     "231291" all set the same date; on the buffer's side the skip at
+;;     &4948 steps over the '/' or ':' already sitting in the template.
+;;
+;;     WHEN THE STRING RUNS OUT THE REST BECOME '0'.  LD A,&30 at &4931
+;;     does not disturb flags, so it can be loaded before the test that
+;;     decides whether to use it -- the character from the string
+;;     overwrites it when there is one.
+;;
+;;     THE BUFFER IS ADDRESSED AT ITS OWN VALUE HERE, &4271 or &4280, and
+;;     reached through CALLDOS with the DOS page at &4000.  READ_CLOCK_FIELDS
+;;     a few bytes further on reaches the same bytes the other way, at
+;;     &8271 or &8280 through the window.  The two techniques sit side by
+;;     side because each is cheaper for what it is doing: one byte at a
+;;     time through a ROM primitive, or a whole field walked with DE.
 ;; --------------------------------------------------------------------
 
 ; ---- CMD_DATE_2 ---- from &4867
@@ -5495,6 +5724,14 @@ CMD_TIME_7:
 ;;
 ;; ? reaches the ROM through STREAM; calls EXPECT_END_OF_STATEMENT, CMR; falls into whatever follows rather than
 ;; returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     DATE or TIME with no argument, which prints rather than sets.
+;;
+;;     Nine characters out of the DOS's buffer to stream 2: the eight of
+;;     "dd/mm/yy" or "hh:mm:ss", and the CR that MasterDOS keeps after
+;;     them, so the newline costs nothing extra.
 ;; --------------------------------------------------------------------
 
 ; ---- CMD_TIME_8 ---- from &491B
@@ -5558,6 +5795,21 @@ CMD_TIME_LOOP6:
 ;;     returns at once, leaving the buffers as they were, and the countdown
 ;;     in HL bounds the handshake.
 ;;
+;;     THE DI AT &4988 HAS NO EI.  Both ways out -- the give-up at &49A2 and
+;;     the finish at &49D0 -- return with interrupts still disabled, and
+;;     nothing in this half turns them back on.  The ROM does it: CMR
+;;     switches LMPR with DI : OUT : LD SP,HL : EI, and the EI at &4520 is
+;;     unconditional.  DATE and TIME both call CALL_NEXTCHAR as their very
+;;     next instruction, at &4864 and &4873, so for those two the gap is a
+;;     handful of microseconds.
+;;
+;;     The date stamp is the exception.  &4A3E calls this from
+;;     STAMP_WITH_DATE, and what follows it is CALLDOS and local code --
+;;     neither of which does an EI -- so interrupts stay off until whatever
+;;     runs after the stamp reaches a CMR of its own.  That is longer than
+;;     the other two paths and still bounded by the statement, but it is
+;;     the one place where the missing EI is worth knowing about.
+;;
 ;;     What was here before:
 ;;
 ;;         Wait for the SAMBus clock to be ready, and give up rather than hang.
@@ -5603,7 +5855,9 @@ CMD_TIME_9:
                RET Z                           ; 4987 C8  zero means no clock is fitted, and the DOS's buffers keep
                                                ; whatever they had
                DI                              ; 4988 F3  the handshake below must not be interrupted with HOLD
-                                               ; asserted, or the clock would be stopped for the length of the interrupt
+                                               ; asserted, or the clock would be stopped for the length of the
+                                               ; interrupt. There is no matching EI anywhere in the routine -- see the
+                                               ; header
                PUSH HL                         ; 4989 E5
                LD C,A                          ; 498A 4F
                LD B,&D0                        ; 498B 06 D0  register 13, control D
@@ -6823,7 +7077,7 @@ COPY_STRING_TO_BUFFER:
                AND A                           ; 4C3A A7
                RET Z                           ; 4C3B C8
                EX DE,HL                        ; 4C3C EB
-               LD DE,INSTALL_ROM_PATCHES       ; 4C3D 11 00 7B  &7B00 is the installer's own code, dead since boot: this
+               LD DE,REF_BUFFER                ; 4C3D 11 00 7B  &7B00 is the installer's own code, dead since boot: this
                                                ; is the search-string buffer
                LDIR                            ; 4C40 ED B0
                RET                             ; 4C42 C9
@@ -7018,7 +7272,7 @@ SEARCH_MEMORY:
                EX AF,AF'                       ; 4C9C 08
                LD B,D                          ; 4C9D 42
                LD C,E                          ; 4C9E 4B
-               LD DE,INSTALL_ROM_PATCHES       ; 4C9F 11 00 7B  the same buffer, searched against
+               LD DE,REF_BUFFER                ; 4C9F 11 00 7B  the same buffer, searched against
                LD A,(V4061)                    ; 4CA2 3A 61 40  which of the two searches to run.
                                                ; PARSE_STRING_AND_SUBSCRIPT leaves this zero only when the argument list
                                                ; ended ",ABS"
@@ -7035,6 +7289,19 @@ SEARCH_MEMORY:
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     The exact search.  CPIR does the hunting for the pattern's first
+;;     byte and the fall-through at &4CB3 checks the rest, so the cost of a
+;;     non-matching byte is one CPIR iteration -- which is why the manual
+;;     warns the speed only holds "unless there are frequent occurrences of
+;;     the first character of the target string".
+;;
+;;     The pattern length is carried in A' as a countdown and a fresh copy
+;;     is pushed each time round, because a failed comparison has to start
+;;     it again.  BC is left exactly as CPIR left it, so the retry picks
+;;     the scan up where it stopped instead of starting over.
 ;; --------------------------------------------------------------------
 
 ; ---- SEARCH_MEMORY_LOOP ---- from &4CC8
@@ -7085,7 +7352,7 @@ SEARCH_MEMORY_LOOP2:
                                                ; is never tested this way, which is the manual's "the only time [it] is
                                                ; looked for [literally] is when it is the first character of the string
                                                ; being looked for"
-               LD DE,INSTALL_ROM_PATCHES       ; 4CC3 11 00 7B  back to the start of the pattern for the next attempt
+               LD DE,REF_BUFFER                ; 4CC3 11 00 7B  back to the start of the pattern for the next attempt
                POP HL                          ; 4CC6 E1  and back to where CPIR stopped, with BC still counting down,
                                                ; so the scan carries on rather than restarting
                POP AF                          ; 4CC7 F1
@@ -7125,6 +7392,14 @@ SEARCH_MEMORY_1:
 ;; Takes:     A, BC
 ;; Leaves:    A, F, BC, HL
 ;; Ends:      RET
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     The answer, shared by both searches.  Three pops for two saved
+;;     registers and the AF that was carrying the pattern length; the third
+;;     is the one that matters, because it recovers the number of start
+;;     positions the search began with.  That, less the number still
+;;     unexamined, is how far in the match was found, counting from 1.
 ;; --------------------------------------------------------------------
 
 ; ---- SEARCH_MEMORY_2 ---- from &4CB6 when A reaches 0
@@ -7173,6 +7448,19 @@ SEARCH_MEMORY_DONE:
 ;;
 ;; Takes:     BC
 ;; Leaves:    registers unchanged
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     The case-insensitive search.  It cannot use CPIR, because it is
+;;     looking for either of two bytes, so the scan is written out by hand
+;;     at COMPARE_TO_TERMINATOR and the two bytes -- the capital and the
+;;     small letter form of the pattern's first character -- are worked out
+;;     once here and parked in V40A6.
+;;
+;;     ONLY THE FIRST CHARACTER IS FOLDED CAREFULLY.  IS_LETTER decides
+;;     whether folding applies at all, so a non-letter is scanned for
+;;     exactly; the remaining characters are compared with the cheap
+;;     XOR-then-AND-&DF at &4D1A instead.
 ;; --------------------------------------------------------------------
 
 ; ---- SEARCH_MEMORY_3 ---- from &4CA6 when A <> 0
@@ -7251,7 +7539,7 @@ SEARCH_MEMORY_LOOP4:
                                                ; for every scan
                CALL COMPARE_TO_TERMINATOR      ; 4D03 CD 2A 4D  the stand-in for CPIR: it stops on either form
                JR NZ,SEARCH_MEMORY_LOOP3       ; 4D06 20 D3
-               LD DE,INSTALL_ROM_PATCHES       ; 4D08 11 00 7B  the scan has just had DE for the two letter forms, so
+               LD DE,REF_BUFFER                ; 4D08 11 00 7B  the scan has just had DE for the two letter forms, so
                                                ; the pattern pointer has to be put back
                PUSH HL                         ; 4D0B E5
                DEFB SKIP_1_VIA_LD_A            ; 4D0C >  the scan leaves HL past the byte it matched, exactly as CPIR
@@ -7300,7 +7588,7 @@ SEARCH_MEMORY_LOOP5:
                                                ; calling IS_LETTER for every byte, at the price of also matching pairs
                                                ; like "@" and "`" or "[" and "{"
                JR Z,SEARCH_MEMORY_LOOP5        ; 4D1D 28 EE
-               LD DE,INSTALL_ROM_PATCHES       ; 4D1F 11 00 7B  the pattern again from the start, and &4D22 gives HL
+               LD DE,REF_BUFFER                ; 4D1F 11 00 7B  the pattern again from the start, and &4D22 gives HL
                                                ; back so the scan resumes where it stopped
                POP HL                          ; 4D22 E1
                POP AF                          ; 4D23 F1
@@ -10294,6 +10582,27 @@ HK_MERGECOMPFLG_5:
 ;; Leaves:    A, F, BC, HL
 ;;
 ;; ? reaches the ROM through ELINE; calls NRRDD; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     File the line just finished in the recall buffer.  Reached when
+;;     CNTRL was not held, which is the ordinary end of an edit.
+;;
+;;     The line is copied out of ELINE, CR and all, into the 256 bytes at
+;;     &7C00, and LINE_RECALL_PTR is left on the CR -- which is where the
+;;     next entry's copy will start, and where a backwards walk will stop.
+;;     A zero written one further on marks the newest entry; the next line
+;;     filed overwrites it.
+;;
+;;     NOTHING BOUNDS THE BUFFER.  The pointer is only ever moved by INC L,
+;;     so a long enough session overwrites its own oldest entries and the
+;;     history is a ring -- exactly the manual's "you go right 'round' the
+;;     line-storage buffer and come back to where you were".
+;;
+;;     From &5493 on it does something further, counting down the byte at
+;;     V407D that SCAN_TEXT_PAGED set to 2, and only when that reaches
+;;     zero and the edit line is empty; that tail is past this region and
+;;     I have not worked it out.
 ;; --------------------------------------------------------------------
 
 ; ---- HK_MERGECOMPFLG_6 ---- from &53E1
@@ -10545,7 +10854,7 @@ CMD_ALTER_3:
                CP T_TO                          ; 5559 FE 8E
                JP NZ,REP_NOT_UNDERSTOOD         ; 555B C2 B0 43
                CALL CALL_NEXTCHAR               ; 555E CD 61 44
-               LD HL,INSTALL_ROM_PATCHES_2      ; 5561 21 80 7B
+               LD HL,REF_BUFFER_2               ; 5561 21 80 7B
                LD A,(REFERENCE_KIND)            ; 5564 3A 93 40
                PUSH AF                          ; 5567 F5
                CALL PARSE_REFERENCE_SAVING_PAGE ; 5568 CD 7F 57
@@ -10984,7 +11293,7 @@ CMD_PRINT_2:
 CMD_ALTER_4:
                CALL FIND_FIRST_LINE_IN_RANGE   ; 5670 CD F9 58
                PUSH HL                         ; 5673 E5
-               LD HL,INSTALL_ROM_PATCHES       ; 5674 21 00 7B  reads the first two bytes of the buffer at &7B00
+               LD HL,REF_BUFFER                ; 5674 21 00 7B  reads the first two bytes of the buffer at &7B00
                LD B,(HL)                       ; 5677 46
                INC HL                          ; 5678 23
                LD A,(HL)                       ; 5679 7E
@@ -11151,6 +11460,32 @@ SCAN_TEXT_PAGED_3:
                DEFW &5A67                      ; 56F0 67 5A
                POP BC                          ; 56F2 C1
 
+;; --------------------------------------------------------------------
+;; The tail of REF: hand the found line to the ROM's editor, then arrange
+;; for RETURN to come back here and carry on searching.
+;;
+;; THE LINE IS NOT COPIED BY THIS CODE AT ALL.  &56E2 has just put the
+;; address of the match into the ROM's spare variable at &5A5E and hung
+;; MasterBASIC's own routine (assembled at &7BA4, running at &484D) on
+;; the channel word ten bytes into CHANS.  The CALL below is the ROM's
+;; EDKY1 -- the guts of the EDIT key -- which prints the line into the
+;; edit buffer through that channel.  Every character printed goes past
+;; the hook, which watches the ROM's list pointer and, the moment before
+;; it reaches &5A5E, records the cursor position in &5A65.  That is how
+;; the manual's promise is kept:
+;;
+;;     "the line containing it will appear in the edit line with the
+;;     cursor just after the reference"
+;;
+;; -- the cursor is not computed, it is caught in passing.
+;;
+;; &5A5E, &5A62, &5A65 and &5A67 are four of the fourteen bytes the SAM
+;; ROM's variable table marks "14 SPARE" between LSOFF and SPOSNU.  They
+;; are used rather than MasterBASIC's own page because both the hook and
+;; the code that reads them back run with the system page at &4000 and
+;; MasterBASIC nowhere in sight.
+;; --------------------------------------------------------------------
+
 L56F3:
                                                ; call the ROM at &0000 with ROM1 paged in, and page back on the way out
                CALL CMR                        ; 56F3 CD F0 44  the operand is written at boot from &79AE, where a
@@ -11283,7 +11618,22 @@ WRITE_A_DESCENDING:
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;;
-;; ? calls STEP_BY_TABLE_ENTRY; falls into whatever follows rather than returning.
+;; ? calls ALTER_RESIZE_GAP; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     ALTER's third of the search: the reference has been found, so replace
+;;     it with the second one.
+;;
+;;     THE TWO REFERENCES SIT IN TWO BUFFERS, at &7B00 and &7B80, each a
+;;     length byte followed by its text; PARSE_REFERENCE_INTO_BUFFER filled
+;;     the first and &5561 pointed the second parse at the other.  All this
+;;     routine has to do is make the hole in the program text the right
+;;     size and copy.
+;;
+;;     The manual's warning that ALTER is irreversible is the whole of the
+;;     behaviour: there is no undo buffer here, the text is edited in place
+;;     and the scan resumes immediately after what was written.
 ;; --------------------------------------------------------------------
 
 ; ---- SCAN_TEXT_PAGED_4 ---- from &56B8 when bit 7 of A was set
@@ -11295,23 +11645,23 @@ SCAN_TEXT_PAGED_4:
                                                ; character, which MATCH_REFERENCE handed back untouched and the resumed
                                                ; scan will need again
                PUSH HL                         ; 5732 E5
-               LD DE,INSTALL_ROM_PATCHES       ; 5733 11 00 7B
+               LD DE,REF_BUFFER                ; 5733 11 00 7B
                LD A,(DE)                       ; 5736 1A  the length of the reference being replaced, from the first
                                                ; buffer
                LD D,B                          ; 5737 50  DE = BC, the address in the program text where the match
                                                ; starts; MATCH_REFERENCE left HL past the match and the caller kept the
                                                ; start in BC
                LD E,C                          ; 5738 59
-               LD HL,INSTALL_ROM_PATCHES_2     ; 5739 21 80 7B
+               LD HL,REF_BUFFER_2              ; 5739 21 80 7B
                LD C,(HL)                       ; 573C 4E  the length of the replacement, from the second buffer; B is
                                                ; cleared so BC is a byte count for the LDIR below
                LD B,&00                        ; 573D 06 00
                POP HL                          ; 573F E1
-               CALL STEP_BY_TABLE_ENTRY        ; 5740 CD BF 58  with A = old length, C = new length, DE = the text and
+               CALL ALTER_RESIZE_GAP           ; 5740 CD BF 58  with A = old length, C = new length, DE = the text and
                                                ; HL = the line start, this opens or reclaims the difference and fixes
                                                ; the line's length field. It comes back with DE at the gap and BC still
                                                ; the new length
-               LD HL,WRITE_A_DESCENDING_2      ; 5743 21 81 7B  the replacement text, one past its length byte
+               LD HL,REF_BUFFER_2_TEXT         ; 5743 21 81 7B  the replacement text, one past its length byte
                LD A,B                          ; 5746 78  ALTER x TO nothing is legal, and an LDIR with BC = 0 would
                                                ; copy 64K
                OR C                            ; 5747 B1
@@ -11426,7 +11776,7 @@ PARSE_REFERENCE_INTO_BUFFER:
                                                ; &56B3 later takes apart with a single SLA A, carry for ALTER and zero
                                                ; for PRINT REF
                LD (V4094),A                    ; 5779 32 94 40
-               LD HL,INSTALL_ROM_PATCHES       ; 577C 21 00 7B  the first reference buffer. The label is the
+               LD HL,REF_BUFFER                ; 577C 21 00 7B  the first reference buffer. The label is the
                                                ; installer's, and &7B00 has been dead code since boot; here it is 128
                                                ; bytes of scratch
 
@@ -11629,6 +11979,21 @@ GET_STRING_AND_PAGE_IT_1:
 ;;
 ;; Takes:     C
 ;; Leaves:    A, F, BC, HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     The buffer, which is the whole interface between the parsing here and
+;;     the matching in MATCH_REFERENCE:
+;;
+;;         +0        length of the text
+;;         +1..      the text
+;;         +len+1    a terminator byte, and its VALUE IS A FLAG:
+;;                   zero means "insist on a word boundary at both ends",
+;;                   anything else means "match anywhere"
+;;
+;;     Nothing else distinguishes REF count from REF "count".  The zero is
+;;     pushed by the bare-name path at &57D6; every other path pushes
+;;     something that happens to be non-zero and never says so.
 ;; --------------------------------------------------------------------
 
 ; ---- GET_STRING_AND_PAGE_IT_2 ---- from &57AE
@@ -11681,6 +12046,33 @@ GET_STRING_AND_PAGE_IT_DONE:
 ;; Leaves:    A, F, BC, HL
 ;;
 ;; ? reaches the ROM through DKP2; calls NRWRD; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     REF (x) where x is a number: build the printed form and the invisible
+;;     form, because the manual says both are searched for --
+;;
+;;         "REF (x)  Looks for: value of x, such as 10(invisible form)"
+;;
+;;     FOUR BYTES OF CODE ARE POKED INTO THE ROM'S OWN BUFFER and called.
+;;     They are
+;;
+;;         EF        RST &28, the floating-point calculator
+;;         25        DUP
+;;         57        STR$
+;;         34        EXIT2
+;;
+;;     -- duplicate the value, turn the copy into a string, come back.  The
+;;     stub has to live in the system page because CMR maps that page at
+;;     &4000 while it runs, so MasterBASIC's own bytes are not reachable;
+;;     INSTBUF, which the ROM uses to page in optional command overlays, is
+;;     the scratch that is there.
+;;
+;;     GET_STRING_AND_PAGE_IT then takes the string into the buffer in the
+;;     ordinary way.  The original value is still on the calculator stack,
+;;     so the rest of the routine drops it by five and copies those five
+;;     bytes into the buffer behind an &0E marker, which is exactly how the
+;;     number appears in a program line.
 ;; --------------------------------------------------------------------
 
 ; ---- PARSE_REFERENCE_3 ---- from &57A0
@@ -11785,7 +12177,7 @@ GET_STRING_AND_PAGE_IT_LOOP2:
 MATCH_REFERENCE:
                PUSH DE                         ; 5836 D5
                PUSH HL                         ; 5837 E5
-               LD DE,INSTALL_ROM_PATCHES       ; 5838 11 00 7B
+               LD DE,REF_BUFFER                ; 5838 11 00 7B
                LD A,(DE)                       ; 583B 1A  the length byte
                INC DE                          ; 583C 13
                DEC A                           ; 583D 3D  one less, because SCAN_TEXT_FOR_D_OR_E has already matched the
@@ -11948,8 +12340,15 @@ MATCH_REFERENCE_DONE:
 ;;
 ;;     A carriage return ends it with carry set.  A quote makes it skip to
 ;;     the matching quote, so a delimiter inside a string is not found.
-;;     Otherwise A is compared with D and then E, returning on either, and
-;;     the loop stops at &FF.
+;;     Otherwise A is compared with D and then E, returning on either.
+;;
+;;     &FF DOES NOT STOP THE SCAN, IT SKIPS A BYTE.  INC A : JR NZ at &5892
+;;     goes round again for every byte but &FF; &FF falls through to a bare
+;;     INC HL and then goes round anyway.  &FF is the prefix a two-byte
+;;     function token carries, so the byte behind it is a token code and
+;;     not text, and stepping over it is what stops a reference matching
+;;     half a token.  It is the same rule as the test at &5869, applied
+;;     from the other side.
 ;;
 ;;     Returns: carry set if the line ended, clear if D or E was found, with
 ;;     HL on the character.
@@ -12082,7 +12481,7 @@ EXCHANGE_CHANNEL_WORD:
                JP WRA                          ; 58BC C3 A4 45  the second byte's write is the return
 
 ;; --------------------------------------------------------------------
-;; STEP_BY_TABLE_ENTRY -- &58BF to &58E2
+;; ALTER_RESIZE_GAP -- &58BF to &58E2
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, DE, HL
@@ -12093,9 +12492,11 @@ EXCHANGE_CHANNEL_WORD:
 ;;
 ;; Shown for this routine in disasm/:
 ;;
-;;     Nothing to do with tables.  This is ALTER's edit: make the gap in the
-;;     program text the size of the replacement and correct the line's
-;;     length field to match.
+;;     ALTER's edit: make the gap in the program text the size of the
+;;     replacement and correct the line's length field to match.  The
+;;     routine used to be called STEP_BY_TABLE_ENTRY, which was a reading
+;;     of the two INC HLs at &58C1 as a table stride; they are the offset
+;;     of the line's length field, and there is no table.
 ;;
 ;;     Entry:  A = length being removed, C = length going in,
 ;;             DE = the text, HL = the line's start.
@@ -12108,16 +12509,10 @@ EXCHANGE_CHANNEL_WORD:
 ;;     LD L,A : RLA : SBC A,A : LD H,A -- three bytes that sign-extend an
 ;;     eight-bit number into HL without a branch -- and added to the line
 ;;     length.
-;;
-;;     What was here before:
-;;
-;;         Take C from A and return if nothing is left, then read the word two
-;;         bytes on as the next step and negate what remains.  Named for what it
-;;         does; the table it walks is not established here.
 ;; --------------------------------------------------------------------
 
-; ---- STEP_BY_TABLE_ENTRY ---- from &5740
-STEP_BY_TABLE_ENTRY:
+; ---- ALTER_RESIZE_GAP ---- from &5740
+ALTER_RESIZE_GAP:
                SUB C                           ; 58BF 91  same length, nothing to move and the length field is already
                                                ; right
                RET Z                           ; 58C0 C8
@@ -12149,15 +12544,15 @@ STEP_BY_TABLE_ENTRY:
                LD (HL),C                       ; 58D5 71
                POP AF                          ; 58D6 F1
                LD B,&00                        ; 58D7 06 00
-               JR NC,STEP_BY_TABLE_ENTRY_1     ; 58D9 30 08  no borrow means the replacement is shorter, so bytes come
+               JR NC,ALTER_RESIZE_GAP_1        ; 58D9 30 08  no borrow means the replacement is shorter, so bytes come
                                                ; out; a borrow means it is longer, so bytes go in
                NEG                             ; 58DB ED 44  back to a positive count for the amount to open
                LD C,A                          ; 58DD 4F
                CALL OPEN_ROOM_AT_DE            ; 58DE CD F1 58
-               JR STEP_BY_TABLE_ENTRY_2        ; 58E1 18 07
+               JR ALTER_RESIZE_GAP_2           ; 58E1 18 07
 
 ;; --------------------------------------------------------------------
-;; STEP_BY_TABLE_ENTRY_1 -- &58E3 to &58E9
+;; ALTER_RESIZE_GAP_1 -- &58E3 to &58E9
 ;;
 ;; Takes:     A, B, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
@@ -12165,8 +12560,8 @@ STEP_BY_TABLE_ENTRY:
 ;; ? reaches the ROM through JRECLAIM; calls CMR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- STEP_BY_TABLE_ENTRY_1 ---- from &58D9
-STEP_BY_TABLE_ENTRY_1:
+; ---- ALTER_RESIZE_GAP_1 ---- from &58D9
+ALTER_RESIZE_GAP_1:
                LD C,A                          ; 58E3 4F
                EX DE,HL                        ; 58E4 EB
                                                ; call the ROM at JRECLAIM with ROM1 paged in, and page back on the way
@@ -12175,7 +12570,7 @@ STEP_BY_TABLE_ENTRY_1:
                DEFW JRECLAIM                   ; 58E8 63 01
 
 ;; --------------------------------------------------------------------
-;; STEP_BY_TABLE_ENTRY_2 -- &58EA to &58F0
+;; ALTER_RESIZE_GAP_2 -- &58EA to &58F0
 ;;
 ;; Takes:     HL
 ;; Leaves:    A, F, BC, DE, HL
@@ -12184,8 +12579,8 @@ STEP_BY_TABLE_ENTRY_1:
 ;; ? calls SET_DCT_COMPILE_BITS.
 ;; --------------------------------------------------------------------
 
-; ---- STEP_BY_TABLE_ENTRY_2 ---- from &58E1
-STEP_BY_TABLE_ENTRY_2:
+; ---- ALTER_RESIZE_GAP_2 ---- from &58E1
+ALTER_RESIZE_GAP_2:
                PUSH HL                         ; 58EA E5
                CALL SET_DCT_COMPILE_BITS       ; 58EB CD 9C 45  the program text has changed, so the ROM's DCT flags are
                                                ; marked to force a recompile
@@ -12666,6 +13061,22 @@ SEND_COUNTED_TO_CHANNEL_LOOP:
 ;; Leaves:    A, F, BC, DE, HL
 ;;
 ;; ? drives IN A,(STAT); falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Not part of the routine above it, and nothing to do with channels:
+;;     this is the whole of MasterBASIC's per-interrupt work, reached fifty
+;;     times a second from the hook at &7CF9.
+;;
+;;     THE PAGING IS THE OPPOSITE WAY ROUND HERE.  The caller has just set
+;;     HMPR to MasterBASIC's page, so this code is executing at &99A3 and
+;;     its own variables are at &8xxx, while the ROM's system page is at
+;;     &4000 where the interrupt left it.  That is why SPSTORE and TVFLAG
+;;     are read as plain addresses and V4085 is read as &8085.
+;;
+;;     Three unrelated jobs in a row: a keyboard escape, a rescue for the
+;;     ROM's automatic listing, and the screen-blank countdown and printer
+;;     feed below.
 ;; --------------------------------------------------------------------
 
 SEND_COUNTED_TO_CHANNEL_1:
@@ -13782,6 +14193,16 @@ V5C3C:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     The twelve bytes planted at &5027, on the RECORD SOUND TO path only --
+;;     RECORD SOUND STOP has returned from the ROM's own code long before.
+;;
+;;     SYS_RECORD_MODE is zero only for OFF, so the state comes out 2 for
+;;     "record but do not perform" and 1 for "record and perform".  Everything
+;;     downstream tests it with BIT 1 for the first and AND A for the second,
+;;     which is why the two values are 2 and 1 and not 1 and 2.
 ;; --------------------------------------------------------------------
 
 ; ---- CMD_RECORD_1 ---- from &5C0F
@@ -14106,8 +14527,32 @@ SILENCE_SOUND_CHIP_LOOP:
 ;;
 ;; Shown for this routine in disasm/:
 ;;
-;;     token looking for CLEAR, so the character pointer is where the
-;;     ROM's code expects it and a second step would eat an argument
+;;     Ordinary SOUND.  Like PAUSE, it does not parse -- it assembles the ROM's
+;;     SOUND at &5000 in the system page, with eleven bytes of its own spliced
+;;     into the middle and fifty-six added at the end.
+;;
+;;     THE SPLICE IS FOUR INSTRUCTIONS AND IT IS THE WHOLE OF "OFF".  The ROM
+;;     leaves the sound chip's address port in BC as &01FF just before its output
+;;     loop; the eleven bytes at V5DBF land there and, when SYS_RECORD_STATE says
+;;     OFF, change C to &E2 so the loop's two OUTs go to a port nothing answers.
+;;     The sound is suppressed by writing somewhere else, not by skipping the
+;;     write.
+;;
+;;     Against ROM 3.0, whose SOUND is at &D88A and 67 bytes long, the copy is
+;;
+;;         &5000  NOP                     (B = 0, see below)
+;;         &5001  48 ROM bytes, up to and including LD BC,&01FF
+;;         &5031  11 bytes from V5DBF     the OFF test
+;;         &503C  18 ROM bytes            LD HL,INSTBUF and the output loop
+;;         &504E  56 bytes from &5DE7     the shared "append to the string" tail
+;;
+;;     The eighteen bytes stop one short of the ROM's own RET, so the output loop
+;;     falls into MasterBASIC's tail instead of returning.
+;;
+;;     What was here before:
+;;
+;;         token looking for CLEAR, so the character pointer is where the
+;;         ROM's code expects it and a second step would eat an argument
 ;; --------------------------------------------------------------------
 
 ; ---- CMD_SOUND_2 ---- from &5C6F when A <> T_CLEAR
@@ -14522,6 +14967,16 @@ COPY_THEN_APPEND_CALL_1:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F, HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     The seventeen bytes appended to the KEYIN build, and the target of the
+;;     three CALL &4B5B instructions interleaved with the ROM's own code.
+;;
+;;     It points the ROM's character pointer at the edit line's page and, if the
+;;     workspace was somewhere else, moves that too.  ELINEP, CHADP, WORKSPP and
+;;     WORKSP are all ROM system variables -- &5A93, &5A96, &5A90 and &5A91 in
+;;     vars.asm -- so every address here is a system-page one, not this page's.
 ;; --------------------------------------------------------------------
 
 ; ---- CMD_KEYIN_1 ---- from &5D93
@@ -14547,6 +15002,20 @@ V5DBD:
                DEFB SKIP_1_VIA_OR              ; 5DBD v  skipped: reads as OR &C9 from here, and as part of the
                                                ; instruction above it
                RET                             ; 5DBE C9
+
+;; --------------------------------------------------------------------
+;; Eleven bytes assembled for &5031 -- CMD_SOUND_2 copies them there.
+;; Subtract &0D8E from any address in this fragment.
+;;
+;;     &5031  LD A,(SYS_RECORD_STATE)
+;;     &5034  BIT 1,A
+;;     &5036  JR Z,&503A
+;;     &5038  LD C,&E2
+;;     &503A  LD A,&FF
+;;
+;; They sit between the ROM's LD BC,&01FF and its output loop, so C holds the
+;; sound chip's port when they are entered.
+;; --------------------------------------------------------------------
 
 ; ---- V5DBF ---- from &5CCC
 V5DBF:
@@ -14594,6 +15063,21 @@ COPY_THEN_APPEND_CALL_2:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Seven bytes assembled for &500D.  Subtract &0DBD from any address here --
+;;     a different frame from CMD_PAUSE_2 sixteen bytes below, which is why the
+;;     listing's own arrow from &5DCF is sixteen bytes out.
+;;
+;;         &500D  LD A,(SYS_RECORD_STATE)
+;;         &5010  BIT 1,A
+;;         &5012  JR NZ,&5031
+;;
+;;     They sit between the ROM's CALL GRAREC and its wait loop, so taking the
+;;     jump means the machine never waits at all -- RECORD SOUND OFF recording a
+;;     PAUSE without performing it, the manual's "This makes the subroutine
+;;     execute faster".
 ;; --------------------------------------------------------------------
 
 ; ---- CMD_PAUSE_1 ---- from &5D46
@@ -14608,6 +15092,21 @@ CMD_PAUSE_1:
 ;;
 ;; Takes:     BC
 ;; Leaves:    A, F, BC
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     &4E bytes assembled for &5024.  Subtract &0DAD from any address here.
+;;     They replace the ROM's PAUSE from its JR Z,PAU2 onwards, and the change is
+;;     one byte long:
+;;
+;;         ROM &F003+27   28 04  JR Z,PAU2 / 0B 78 B1 / C8    RET Z
+;;         here  &5024    28 05  JR Z      / 0B 78 B1 / 28 06 JR Z
+;;
+;;     THE ROM'S RET Z BECOMES A JR.  PAUSE cannot return from inside the loop
+;;     any more, because there is a PUSH AF at &5007 to unwind and, if recording
+;;     is on, a marker to append.  Every exit now lands on the POP HL at &5031.
+;;     That one extra byte is why the two displacements here read 05 and E5 where
+;;     the ROM's read 04 and E6.
 ;; --------------------------------------------------------------------
 
 ; ---- CMD_PAUSE_2 ---- from &5D52
@@ -14664,6 +15163,30 @@ COPY_THEN_APPEND_CALL_4:
 ;;
 ;; Takes:     HL
 ;; Leaves:    A, F
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Fifty-six bytes shared by both builds, and the only piece of this image
+;;     assembled for two addresses at once: CMD_SOUND_2 puts it at &504E and
+;;     CMD_PAUSE at &503A.
+;;
+;;     THAT IS WHY THERE IS NO PLAIN CALL IN IT.  Everything inside is either
+;;     relative or a fixed system-page address; the one forward call it needs is
+;;     made with CALL &0004 -- three bytes in ROM 0 that read POP HL : JP (HL),
+;;     so the CALL leaves HL holding the address of the instruction after it and
+;;     carries straight on.  Add &17, CALL (HL), and the block has called a point
+;;     twenty-three bytes ahead of itself without knowing where it is.
+;;
+;;     What it appends is the manual's "all the data that would have been sent to
+;;     the sound chip, plus extra codes denoting any PAUSEs":
+;;
+;;         select stream 16, swap MasterBASIC's stream-16 record in
+;;         print the bytes INSTBUF..HL-2 to it
+;;         select stream 2, swap the ROM's record back
+;;
+;;     The swap is eleven bytes, the size of STRM16NM, and it runs twice -- once
+;;     from the computed call and once by falling through -- because the routine
+;;     that call enters ends with the swap and a RET.
 ;; --------------------------------------------------------------------
 
 ; ---- SILENCE_SOUND_CHIP_2 ---- from &5CD8
@@ -14756,6 +15279,21 @@ COPY_THEN_APPEND_CALL_LOOP2:
 ;;
 ;; Takes:     A, C, DE, HL
 ;; Leaves:    A, F, HL
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     Sixty-nine bytes assembled for &4D65 in the system page -- the block at
+;;     &5D20 copies them there.  Subtract &10BA from any address in it.
+;;
+;;     A FAR BLOCK MOVE THAT PICKS ITS OWN DIRECTION.  Source page in A and
+;;     address in HL, destination page in C and address in DE, length in the
+;;     ROM's PAGCOUNT/MODCOUNT.  If the source outranks the destination the ROM's
+;;     forward FARLDIR at &012D cannot overtake itself; otherwise both ends are
+;;     advanced to their last byte and FARLDDR at &0130 is used instead.
+;;
+;;     Because of the frame, the two CALL &4D91 instructions in it are calls to
+;;     &5E4B, the tail of this same block -- not to anything at &4D91 in this
+;;     page.
 ;; --------------------------------------------------------------------
 
 COPY_THEN_APPEND_CALL_6:
@@ -19259,7 +19797,7 @@ SET_STEP_AND_COUNT_SWAPPED_LOOP:
 
 ; ---- COPY_EVERY_NTH_BYTE ---- from &67AF
 COPY_EVERY_NTH_BYTE:
-               LD DE,INSTALL_ROM_PATCHES       ; 67B7 11 00 7B  the buffer again, not a call into the installer
+               LD DE,REF_BUFFER                ; 67B7 11 00 7B  the buffer again, not a call into the installer
                PUSH HL                         ; 67BA E5
                PUSH DE                         ; 67BB D5
                LDI                             ; 67BC ED A0
@@ -20588,23 +21126,46 @@ ATTRIBUTE_PIXEL_COLOUR_LOOP:
 ;;
 ;; Shown for this routine in disasm/:
 ;;
-;;     Give each of the sixteen palette colours a grey level to print as.
+;;     Turn the sixteen live palette entries into sixteen grey levels, one
+;;     byte each, before a single dot is printed.
 ;;
-;;     Twenty-five levels, one byte each at &7B90 marking whether that
-;;     level is taken, and a sixteen-byte answer built at &7B80.  For each
-;;     entry of the ROM's PALTAB in turn, PALETTE_INTENSITY works out how
-;;     bright the colour is and ASSIGN_GREY_LEVEL claims a level for it.
+;;     A dump has to answer "how dark is this pixel" a quarter of a million
+;;     times, and the answer depends only on the pixel's palette index --
+;;     so it is worked out sixteen times here and looked up afterwards.
+;;     GREY_MAP at &7B80 is the answer table, indexed by palette register.
 ;;
-;;     &7B80 is not scratch space in the file.  It is the thirty-six bytes
-;;     installed in the system page at &4BA0 -- the stubs PRTOKV and
-;;     others point at.  Once they are installed the copy here is dead, and
-;;     DUMP takes it over: sixteen bytes of map over the block and
-;;     twenty-five of level flags reaching five bytes past its end.
+;;     THE PALETTE IS READ THROUGH RDA BECAUSE IT IS NOT IN THIS PAGE.
+;;     PALTAB is &55D8 in the ROM's system page, sixteen bytes; RDA windows
+;;     the system page in for one byte at a time and puts HMPR back.  L
+;;     running from &D8 to &E8 is the sixteen entries, and comparing L
+;;     alone is enough because the table cannot cross a page boundary from
+;;     that start.
+;;
+;;     GREY_TAKEN at &7B90 is twenty-five flags, one per level, cleared
+;;     here.  A level is claimed as it is handed out, which is what stops
+;;     two palette entries mapping to the same grey while a neighbouring
+;;     grey goes unused.
+;;
+;;     What was here before:
+;;
+;;         Give each of the sixteen palette colours a grey level to print as.
+;;
+;;         Twenty-five levels, one byte each at &7B90 marking whether that
+;;         level is taken, and a sixteen-byte answer built at &7B80.  For each
+;;         entry of the ROM's PALTAB in turn, PALETTE_INTENSITY works out how
+;;         bright the colour is and ASSIGN_GREY_LEVEL claims a level for it.
+;;
+;;         &7B80 is not scratch space in the file.  It is the thirty-six bytes
+;;         installed in the system page at &4BA0 -- the stubs PRTOKV and
+;;         others point at.  Once they are installed the copy here is dead, and
+;;         DUMP takes it over: sixteen bytes of map over the block and
+;;         twenty-five of level flags reaching five bytes past its end.
 ;; --------------------------------------------------------------------
 
 ; ---- BUILD_GREY_MAP ---- from &6881
 BUILD_GREY_MAP:
-               LD HL,PRTOKV_STUB               ; 6A69 21 90 7B
+               LD HL,GREY_TAKEN                ; 6A69 21 90 7B  twenty-five flags, one per grey level -- another stub of
+                                               ; the installer's, dead since boot
                LD B,&19                        ; 6A6C 06 19
 
 ;; --------------------------------------------------------------------
@@ -20619,8 +21180,10 @@ BUILD_GREY_MAP_LOOP:
                LD (HL),&00                     ; 6A6E 36 00
                INC HL                          ; 6A70 23
                DJNZ BUILD_GREY_MAP_LOOP        ; 6A71 10 FB
-               LD HL,PALTAB                    ; 6A73 21 D8 55
-               LD DE,INSTALL_ROM_PATCHES_2     ; 6A76 11 80 7B
+               LD HL,PALTAB                    ; 6A73 21 D8 55  the ROM's palette table in the system page, which is why
+                                               ; every read below goes through RDA
+               LD DE,GREY_MAP                  ; 6A76 11 80 7B  the answer table, sixteen bytes, indexed by palette
+                                               ; register
 
 ;; --------------------------------------------------------------------
 ;; BUILD_GREY_MAP_LOOP2 -- &6A79 to &6A8B
@@ -20640,11 +21203,12 @@ BUILD_GREY_MAP_LOOP2:
                CALL ASSIGN_GREY_LEVEL          ; 6A7E CD 8C 6A
                POP HL                          ; 6A81 E1
                POP DE                          ; 6A82 D1
-               LD (DE),A                       ; 6A83 12
+               LD (DE),A                       ; 6A83 12  the level for this entry, stored against its index
                INC DE                          ; 6A84 13
                INC HL                          ; 6A85 23
                LD A,L                          ; 6A86 7D
-               CP &E8                          ; 6A87 FE E8
+               CP &E8                          ; 6A87 FE E8  &55D8 plus sixteen is &55E8, so L alone says when the
+                                               ; sixteen are done
                JR NZ,BUILD_GREY_MAP_LOOP2      ; 6A89 20 EE
                RET                             ; 6A8B C9
 
@@ -20660,6 +21224,18 @@ BUILD_GREY_MAP_LOOP2:
 ;;
 ;;     Halve the intensity to get a level 0 to 24, then take that level or
 ;;     the nearest free one.
+;;
+;;     PALETTE_INTENSITY gives 0 to 49 and SRL A gives 0 to 24 -- twenty-five
+;;     levels, which is what the flag table above is sized for.  Halving
+;;     rather than scaling is what makes the two numbers come out that way:
+;;     49 is odd, so level 24 is reached only by intensity 48 or 49 and the
+;;     top of the range is one value narrower than the rest.  Nothing
+;;     depends on that.
+;;
+;;     What was here before:
+;;
+;;         Halve the intensity to get a level 0 to 24, then take that level or
+;;         the nearest free one.
 ;; --------------------------------------------------------------------
 
 ; ---- ASSIGN_GREY_LEVEL ---- from &6A7E
@@ -20667,8 +21243,10 @@ ASSIGN_GREY_LEVEL:
                CALL PALETTE_INTENSITY          ; 6A8C CD C3 6A
                SRL A                           ; 6A8F CB 3F
                LD C,A                          ; 6A91 4F
-               LD B,&00                        ; 6A92 06 00
-               LD D,B                          ; 6A94 50
+               LD B,&00                        ; 6A92 06 00  BC is the index into the flag table, so B has to be cleared
+                                               ; once and stays cleared
+               LD D,B                          ; 6A94 50  D counts how far from the wanted level the search has got, and
+                                               ; starts at none
 
 ;; --------------------------------------------------------------------
 ;; FIND_FREE_GREY_LEVEL -- &6A95 to &6AA7
@@ -20682,28 +21260,53 @@ ASSIGN_GREY_LEVEL:
 ;;
 ;; Shown for this routine in disasm/:
 ;;
-;;     Look for an unclaimed level, trying the wanted one first and then
-;;     up to three either side.
+;;     Look for an unclaimed level, trying the wanted one first and then up
+;;     to three either side.
 ;;
-;;     GREY_LEVEL_ABOVE and GREY_LEVEL_BELOW are the two probes; each
-;;     returns carry set with the level in A if it was free.  If nothing
-;;     within three is free the wanted level is claimed anyway, which can
-;;     give two colours the same grey.
+;;     GREY_LEVEL_ABOVE and GREY_LEVEL_BELOW are the two probes, and they
+;;     are one fall-through rather than two calls: above tries C+D, and if
+;;     that is off the top of the range or already taken it drops into
+;;     below, which tries C-D.  Each returns carry set with the level in A
+;;     if it was free.
+;;
+;;     HL IS LEFT POINTING AT THE FLAG BY THE PROBE THAT FOUND IT, which is
+;;     why &6AA5 can claim the level with LD (HL),&01 and never work the
+;;     address out a second time.  BC is pushed round the call because the
+;;     probes write the candidate into C.
+;;
+;;     If nothing within three is free the wanted level is claimed anyway,
+;;     and two colours then print as the same grey.  With sixteen colours
+;;     and twenty-five levels that needs seven of the sixteen to have
+;;     landed within three of each other, which a photograph would manage
+;;     and a screen of solid colours would not.
+;;
+;;     What was here before:
+;;
+;;         Look for an unclaimed level, trying the wanted one first and then
+;;         up to three either side.
+;;
+;;         GREY_LEVEL_ABOVE and GREY_LEVEL_BELOW are the two probes; each
+;;         returns carry set with the level in A if it was free.  If nothing
+;;         within three is free the wanted level is claimed anyway, which can
+;;         give two colours the same grey.
 ;; --------------------------------------------------------------------
 
 ; ---- FIND_FREE_GREY_LEVEL ---- from &6AA3
 FIND_FREE_GREY_LEVEL:
-               LD HL,PRTOKV_STUB               ; 6A95 21 90 7B
+               LD HL,GREY_TAKEN                ; 6A95 21 90 7B
                LD A,D                          ; 6A98 7A
-               CP &03                          ; 6A99 FE 03
-               LD A,C                          ; 6A9B 79
+               CP &03                          ; 6A99 FE 03  three either side and then give up; D is the distance, not
+                                               ; a count of tries
+               LD A,C                          ; 6A9B 79  the wanted level, loaded before the RET so that giving up
+                                               ; still returns something usable
                RET NC                          ; 6A9C D0
                PUSH BC                         ; 6A9D C5
                CALL GREY_LEVEL_ABOVE           ; 6A9E CD A8 6A
                POP BC                          ; 6AA1 C1
                INC D                           ; 6AA2 14
                JR NC,FIND_FREE_GREY_LEVEL      ; 6AA3 30 F0
-               LD (HL),&01                     ; 6AA5 36 01
+               LD (HL),&01                     ; 6AA5 36 01  HL is still on the flag the probe stopped at, so claiming
+                                               ; the level costs one instruction
                RET                             ; 6AA7 C9
 
 ;; --------------------------------------------------------------------
@@ -20716,13 +21319,16 @@ FIND_FREE_GREY_LEVEL:
 ; ---- GREY_LEVEL_ABOVE ---- from &6A9E
 GREY_LEVEL_ABOVE:
                ADD A,D                         ; 6AA8 82
-               CP &19                          ; 6AA9 FE 19
+               CP &19                          ; 6AA9 FE 19  twenty-five levels, so &19 and above is off the top and the
+                                               ; search turns downwards instead
                JR NC,GREY_LEVEL_BELOW          ; 6AAB 30 07
                LD C,A                          ; 6AAD 4F
                ADD HL,BC                       ; 6AAE 09
                LD A,(HL)                       ; 6AAF 7E
                AND A                           ; 6AB0 A7
-               SCF                             ; 6AB1 37
+               SCF                             ; 6AB1 37  SCF has to come after AND A, which clears carry -- and LD A,C
+                                               ; does not touch flags, so the RET Z below carries both the answer and
+                                               ; the verdict
                LD A,C                          ; 6AB2 79
                RET Z                           ; 6AB3 C8
 
@@ -20736,16 +21342,20 @@ GREY_LEVEL_ABOVE:
 
 ; ---- GREY_LEVEL_BELOW ---- from &6AAB when A >= &19
 GREY_LEVEL_BELOW:
-               SUB D                           ; 6AB4 92
+               SUB D                           ; 6AB4 92  A is the wanted level plus D, so taking D off twice gives the
+                                               ; wanted level less D
                SUB D                           ; 6AB5 92
-               CCF                             ; 6AB6 3F
+               CCF                             ; 6AB6 3F  SUB sets carry on a borrow, so CCF turns "went below zero"
+                                               ; into carry clear and the RET NC gives up on it
                RET NC                          ; 6AB7 D0
                LD C,A                          ; 6AB8 4F
-               LD HL,PRTOKV_STUB               ; 6AB9 21 90 7B
+               LD HL,GREY_TAKEN                ; 6AB9 21 90 7B
                ADD HL,BC                       ; 6ABC 09
                LD A,(HL)                       ; 6ABD 7E
                AND A                           ; 6ABE A7
-               LD A,C                          ; 6ABF 79
+               LD A,C                          ; 6ABF 79  the level is loaded before the test's flags are needed,
+                                               ; because AND A already cleared carry -- so RET NZ means taken, and the
+                                               ; SCF below is only reached when it is free
                RET NZ                          ; 6AC0 C0
                SCF                             ; 6AC1 37
                RET                             ; 6AC2 C9
@@ -20761,23 +21371,77 @@ GREY_LEVEL_BELOW:
 ;;
 ;;     How bright a SAM palette byte is, 0 to 49.
 ;;
-;;     The three high colour bits are worth four each and the three low
-;;     ones two, which is the AND &70 shifted down twice and the AND &07
-;;     doubled, and bit 3 -- bright -- adds seven on top.
+;;     THE SAM PALETTE BYTE IS TWO BITS OF EACH COLOUR PLUS A SHARED
+;;     BRIGHT, and the two bits of one colour are not adjacent.  The ROM's
+;;     own table says the layout in one line -- "MS GRB BITS, BRIGHT BIT,
+;;     LS GRB BITS", written out as GRBbGRB -- so bits 6, 5 and 4 are the
+;;     high bits of green, red and blue, bits 2, 1 and 0 the low bits of
+;;     the same three four places down, and bit 3 bright, which lifts all
+;;     three together.  No shift gathers a single colour, but each triple
+;;     can be taken whole, and that is what this does.
+;;
+;;     THE WEIGHTS COME OUT RIGHT FOR NOTHING.  AND &70 with two RRCAs is
+;;     the high triple divided by four, AND &07 doubled is the low triple
+;;     times two, and bright adds seven.  Written out, the sum is
+;;
+;;         16*G1 + 8*R1 + 4*B1 + 8*G0 + 4*R0 + 2*B0 + 7*bright
+;;
+;;     -- green worth 24 at full, red 12, blue 6, and 24 + 12 + 6 + 7 = 49.
+;;     So green counts twice red and red twice blue, which is roughly what
+;;     the eye does: the usual luminance weights are about 0.59, 0.30 and
+;;     0.11, near enough 5:3:1 against this 4:2:1.  Nothing here computes
+;;     that.  It falls out of the order the three colours sit in inside the
+;;     palette byte, because green is the high bit of each triple and blue
+;;     the low one, and the two masks preserve that order.  A proper
+;;     weighting would have cost three multiplies; this costs eight
+;;     instructions and is wrong by about a tenth.
+;;
+;;     Within one colour the high bit is worth exactly twice the low, which
+;;     is the only part of the arithmetic that had to be arranged: it is
+;;     why the high triple is divided by four and the low doubled rather
+;;     than both being left where they lie.
+;;
+;;     Run the ROM's own starting palette through it and the ordering shows:
+;;
+;;         black    &00   0    level  0
+;;         blue     &10   4    level  2
+;;         red      &20   8    level  4
+;;         green    &40  16    level  8
+;;         white    &78  35    level 17
+;;         bright white &7F 49 level 24
+;;
+;;     -- blue, red, green in the ratio 1:2:4, and the two whites four
+;;     levels apart because bright and the three low bits are all that
+;;     separate them.
+;;
+;;     What was here before:
+;;
+;;         How bright a SAM palette byte is, 0 to 49.
+;;
+;;         The three high colour bits are worth four each and the three low
+;;         ones two, which is the AND &70 shifted down twice and the AND &07
+;;         doubled, and bit 3 -- bright -- adds seven on top.
 ;; --------------------------------------------------------------------
 
 ; ---- PALETTE_INTENSITY ---- from &6A8C
 PALETTE_INTENSITY:
                LD C,A                          ; 6AC3 4F
-               AND &07                         ; 6AC4 E6 07
+               AND &07                         ; 6AC4 E6 07  bits 2, 1 and 0 are the low bit of green, red and blue;
+                                               ; doubling them makes those bits worth 8, 4 and 2
                ADD A,A                         ; 6AC6 87
                LD B,A                          ; 6AC7 47
                LD A,C                          ; 6AC8 79
-               AND &70                         ; 6AC9 E6 70
-               RRCA                            ; 6ACB 0F
+               AND &70                         ; 6AC9 E6 70  bits 6, 5 and 4 are the high bit of the same three, four
+                                               ; places up
+               RRCA                            ; 6ACB 0F  two rotates bring the high triple down to weights of 16, 8 and
+                                               ; 4 -- twice the low bits, as they should be. RRCA rather than SRL A
+                                               ; because it is one byte instead of two, and the bits rotating in from
+                                               ; the bottom are the ones the AND just cleared
                RRCA                            ; 6ACC 0F
                ADD A,B                         ; 6ACD 80
-               BIT 3,C                         ; 6ACE CB 59
+               BIT 3,C                         ; 6ACE CB 59  bit 3 is bright, which the SAM applies to all three
+                                               ; components at once -- hence one addition of 7 rather than three of its
+                                               ; share
                RET Z                           ; 6AD0 C8
                ADD A,&07                       ; 6AD1 C6 07
                RET                             ; 6AD3 C9
@@ -22483,7 +23147,7 @@ CMD_SPLIT_LINE_LOOP3:
                INC BC                          ; 6E97 03
 
 ;; --------------------------------------------------------------------
-;; CMD_SPLIT_LINE_1 -- &6E98 to &6F33
+;; CMD_SPLIT_LINE_1 -- &6E98 to &6F06
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, HL
@@ -22581,6 +23245,69 @@ CMD_SPLIT_LINE_1:
                CALL RECLAIM_AND_MARK           ; 6F04 CD 4C 6E  close it up -- the first half and the slash both
                                                ; disappear, leaving the line number and the remainder. "The slash
                                                ; disappears automatically"
+
+;; --------------------------------------------------------------------
+;; SPLIT_UNWIND_ROM_STACK -- &6F07 to &6F33
+;;
+;; Takes:     HL
+;; Leaves:    BC
+;;
+;; ? reaches the ROM through PRPTR; calls NRWRHL; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     THE ROM'S RETURN CHAIN IS REWRITTEN, because the ROM must not now do
+;;     what it was going to do.  SPLIT runs while the line is being checked,
+;;     inside LINESCAN, and the edit line still starts with a line number --
+;;     so if the ROM were allowed to carry on it would enter the remainder
+;;     into the program as well, which is exactly what the manual says does
+;;     not happen.
+;;
+;;     &4EFE is ISPVAL-2, the bottom word of the ROM's machine stack in the
+;;     system page.  Every place the ROM resets that stack does the same
+;;     three things -- LD SP,ISPVAL, push a handler, LD (ERRSP),SP -- so
+;;     that word holds the outermost handler and ERRSP normally points at
+;;     it.  This reads it, calls the ROM routine whose address is stored
+;;     seventeen bytes before it, then puts the handler back twelve bytes
+;;     earlier than it was and writes &0004 into the five stack words below.
+;;
+;;     &0004 IS THE ROM'S "POP HL : JP (HL)", which is a RET by another
+;;     name.  MasterDOS calls the same constant FOWIA and uses it for the
+;;     same purpose in PLNS: a stack slot holding it makes that return
+;;     frame fall straight through to the next one.  Five of them collapse
+;;     five levels of ROM call, so the next RET after this routine walks all
+;;     the way out to &4EFE and lands on whatever was written there.
+;;
+;;     WHAT THE BASE IS, THE ROM AND THE SNAPSHOTS DISAGREE ABOUT, and that
+;;     is where this stops.
+;;
+;;     MAINER really is &0EED.  ROM30 has CD D1 3F there -- CALL R1OCHP --
+;;     and the fifteen bytes before it are the LD HL,FLAGS / SET 7,(HL) /
+;;     DEC HL / XOR A / LD (HL),A / INC A / LD (NSPPC),A / CALL COMPILE /
+;;     CALL LINERUN of the main loop, so &0EED-12 is exactly that XOR A:
+;;     the tail that clears the error number, sets NSPPC to statement 1 and
+;;     runs the edit line.  Twelve fits.
+;;
+;;     Seventeen does not.  &0EED-17 is &0EDC, the second byte of
+;;     LD HL,FLAGS, and the word there is &5C3B -- FLAGS itself, a system
+;;     variable and not a routine.
+;;
+;;     So the base is not MAINER, and the three system-page snapshots in
+;;     file/ say the same thing from the other end.  The word at &4EFE is
+;;     &0F78 before boot, &0E90 once MasterDOS has loaded, and &487F once
+;;     MasterBASIC has -- MasterBASIC replaces the outermost handler with
+;;     one of its own in the system page, and ERRSP is at &4EFA by then,
+;;     with two frames above it.  None of the three is MAINER.
+;;
+;;     &487F does not work either: seventeen back from it is &486E, whose
+;;     word is &F122, and twelve back is inside LD HL,(&4AF1).  Whatever
+;;     SPLIT finds at &4EFE is a fourth value, present only while a line is
+;;     being scanned, and the twelve landing on the main loop's tail is
+;;     what made MAINER look right.  The block stays a guess; see
+;;     docs/evidence-wanted.md.
+;; --------------------------------------------------------------------
+
+SPLIT_UNWIND_ROM_STACK:
                                                ; write the ROM variable PRPTR
                CALL NRWRHL                     ; 6F07 CD 75 45  HL is not the reclaimed address -- SET_DCT_COMPILE_BITS
                                                ; left it windowed onto DCT -- so this parks PRPTR on a fixed system-page
@@ -22618,7 +23345,7 @@ V6F22:
                                                ; one
 
 ;; --------------------------------------------------------------------
-;; CMD_SPLIT_LINE_LOOP4 -- &6F34 to &6F3D
+;; SPLIT_UNWIND_ROM_STACK_LOOP -- &6F34 to &6F3D
 ;;
 ;; Takes:     BC, E, HL
 ;; Leaves:    A, F, E, HL
@@ -22627,16 +23354,16 @@ V6F22:
 ;; ? calls WRTBC.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_SPLIT_LINE_LOOP4 ---- from &6F3B when E is not 0 yet
-CMD_SPLIT_LINE_LOOP4:
-               DEC HL                          ; 6F34 2B  WRTBC leaves HL one past the low byte, so three DECs step down
-                                               ; a word each time
-               DEC HL                          ; 6F35 2B
-               DEC HL                          ; 6F36 2B
-               CALL WRTBC                      ; 6F37 CD B3 45
-               DEC E                           ; 6F3A 1D
-               JR NZ,CMD_SPLIT_LINE_LOOP4      ; 6F3B 20 F7
-               RET                             ; 6F3D C9
+; ---- SPLIT_UNWIND_ROM_STACK_LOOP ---- from &6F3B when E is not 0 yet
+SPLIT_UNWIND_ROM_STACK_LOOP:
+               DEC HL                            ; 6F34 2B  WRTBC leaves HL one past the low byte, so three DECs step
+                                                 ; down a word each time
+               DEC HL                            ; 6F35 2B
+               DEC HL                            ; 6F36 2B
+               CALL WRTBC                        ; 6F37 CD B3 45
+               DEC E                             ; 6F3A 1D
+               JR NZ,SPLIT_UNWIND_ROM_STACK_LOOP ; 6F3B 20 F7
+               RET                               ; 6F3D C9
 
 ;; --------------------------------------------------------------------
 ;; HK_COMADENT -- &6F3E to &6F49
@@ -22796,37 +23523,37 @@ CMD_DELETE:
 
 ; ---- HK_SKIPNAME_LOOP ---- from &6F6C
 HK_SKIPNAME_LOOP:
-               CALL CALL_NEXTCHAR               ; 6F66 CD 61 44
-               CALL IS_NAME_CHAR                ; 6F69 CD 55 45
-               JR C,HK_SKIPNAME_LOOP            ; 6F6C 38 F8
-               POP BC                           ; 6F6E C1  the address the scan started at, not where it stopped
-               PUSH AF                          ; 6F6F F5
-                                                ; write the ROM variable CHADD
-               CALL NRWRD                       ; 6F70 CD 77 45  CHAD put back, so the ROM can re-read the argument if
-                                                ; this turns out not to be a string
-               DEFW CHADD                       ; 6F73 97 5A
-               POP AF                           ; 6F75 F1
-               CP &24                           ; 6F76 FE 24  "$"
-               RET NZ                           ; 6F78 C0  not a string, so this is the ROM's own DELETE; the caller
-                                                ; hands the token back
-               LD BC,&0058                      ; 6F79 01 58 00  &0058 in ROM 0 is POP AF : EI : RET, so the ROM's
-                                                ; return will drop an extra stack word and skip its own DELETE
-               CALL STORE_BC_AT_XVAR76          ; 6F7C CD 5C 6F
-               CALL CALL_NEXTCHAR               ; 6F7F CD 61 44
-               CALL FIND_VARIABLE_TIMES_FIVE    ; 6F82 CD 4C 48  the variable, and its element count multiplied by five
-                                                ; for the numeric case
-               JR NC,HK_SKIPNAME_1              ; 6F85 30 0B
-                                                ; to the alternate register set and back again
-               EX AF,AF'                        ; 6F87 08  the variable's page, brought in from A' with the caller's
-                                                ; HMPR saved on the stack
-               IN A,(HMPR)                      ; 6F88 DB FB
-               PUSH AF                          ; 6F8A F5
-                                                ; to the alternate register set and back again
-               EX AF,AF'                        ; 6F8B 08
-               OUT (HMPR),A                     ; 6F8C D3 FB
-               CALL STACK_EMPTY_STRING_OR_SLICE ; 6F8E CD C3 47  the slicer, if there is one; an empty string is stacked
-                                                ; when there is not, which is the whole-variable case
-               PUSH HL                          ; 6F91 E5
+               CALL CALL_NEXTCHAR              ; 6F66 CD 61 44
+               CALL IS_NAME_CHAR               ; 6F69 CD 55 45
+               JR C,HK_SKIPNAME_LOOP           ; 6F6C 38 F8
+               POP BC                          ; 6F6E C1  the address the scan started at, not where it stopped
+               PUSH AF                         ; 6F6F F5
+                                               ; write the ROM variable CHADD
+               CALL NRWRD                      ; 6F70 CD 77 45  CHAD put back, so the ROM can re-read the argument if
+                                               ; this turns out not to be a string
+               DEFW CHADD                      ; 6F73 97 5A
+               POP AF                          ; 6F75 F1
+               CP &24                          ; 6F76 FE 24  "$"
+               RET NZ                          ; 6F78 C0  not a string, so this is the ROM's own DELETE; the caller
+                                               ; hands the token back
+               LD BC,&0058                     ; 6F79 01 58 00  &0058 in ROM 0 is POP AF : EI : RET, so the ROM's return
+                                               ; will drop an extra stack word and skip its own DELETE
+               CALL STORE_BC_AT_XVAR76         ; 6F7C CD 5C 6F
+               CALL CALL_NEXTCHAR              ; 6F7F CD 61 44
+               CALL FIND_VARIABLE_TIMES_FIVE   ; 6F82 CD 4C 48  the variable, and its element count multiplied by five
+                                               ; for the numeric case
+               JR NC,HK_SKIPNAME_1             ; 6F85 30 0B
+                                               ; to the alternate register set and back again
+               EX AF,AF'                       ; 6F87 08  the variable's page, brought in from A' with the caller's HMPR
+                                               ; saved on the stack
+               IN A,(HMPR)                     ; 6F88 DB FB
+               PUSH AF                         ; 6F8A F5
+                                               ; to the alternate register set and back again
+               EX AF,AF'                       ; 6F8B 08
+               OUT (HMPR),A                    ; 6F8C D3 FB
+               CALL STACK_STRIDE_AND_SLICE_IT  ; 6F8E CD C3 47  the slicer, if there is one; an empty string is stacked
+                                               ; when there is not, which is the whole-variable case
+               PUSH HL                         ; 6F91 E5
 
 ;; --------------------------------------------------------------------
 ;; HK_SKIPNAME_1 -- &6F92 to &6FB2
@@ -23044,6 +23771,30 @@ ARRAY_ELEMENT_OFFSET:
 ;;
 ;; ? reaches the ROM through STRLOCN; calls FIND_VARIABLE, CALL_NEXTCHAR, NRRDD; falls into whatever follows rather than
 ;; returning.
+;;
+;; Shown for this routine in disasm/:
+;;
+;;     JOIN TO -- the other half of JOIN, and nothing to do with failure.
+;;
+;;         JOIN TO a$,b$
+;;
+;;     "JOIN TO is used to add a copy of the second string or string array
+;;     onto the first.  When using strings, JOIN TO a$,b$ is equivalent to
+;;     LET a$=a$+b$, but it is faster and requires less free memory."
+;;
+;;     WHAT MAKES ONE ROUTINE DO BOTH is what FIND_VARIABLE hands back.  For
+;;     a string array it returns BC = the number of strings and DE = the
+;;     length of each; for a plain string it returns BC = the length and
+;;     DE = one.  The product is the byte count either way, the equality
+;;     test on DE becomes the manual's "provided the strings in both arrays
+;;     are the same length", and the sum of the two BCs is the new element
+;;     count -- "the array fi$ now has 11 strings in it, not 10".
+;;
+;;     PRPTR AND PRPTRP AGAIN.  The second variable's record and page are
+;;     parked there before the gap is opened, for the same reason SPLIT
+;;     parks WORKSP: opening the gap moves everything above it, and PRPTR
+;;     is the last pointer the ROM adjusts automatically.  Without that the
+;;     copy would read from where the source used to be.
 ;; --------------------------------------------------------------------
 
 ; ---- CMD_JOIN_TO ---- from &6E01 when A = T_TO
@@ -27031,9 +27782,16 @@ MB_PAGER:
 ;;     variables, played on its own code.
 ;;
 ;;     Nothing marks the boundary, so how much of it is buffer is set by
-;;     the longest string allowed rather than by anything here: 255 bytes
-;;     from &7B00 reaches &7BFE, past the two blocks at &7B80 and &7BA4
-;;     that the installer has by then already copied out.
+;;     the longest string allowed rather than by anything here, and the two
+;;     callers do not agree on that.  COPY_STRING_TO_BUFFER, which serves
+;;     LOCN and the search at &4B95, takes up to 255 bytes: from &7B00 that
+;;     reaches &7BFE, over the two blocks at &7B80 and &7BA4 that the
+;;     installer has by then already copied out, and over nothing else,
+;;     because neither caller wants a second buffer.  REF and ALTER do want
+;;     one, and cap at 120 at &57E4 for exactly that reason -- 120 bytes
+;;     plus the length byte and the terminator ends at &7B7A, five short of
+;;     &7B80.  So the same buffer is 255 bytes long or 122, depending on
+;;     which command filled it.
 ;; --------------------------------------------------------------------
 
 ; ---- INSTALL_ROM_PATCHES ---- from &4C3D, &4C9F, &4CC3, &4D08, &4D1F, &5674, &5733, &577C ...

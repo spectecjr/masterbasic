@@ -8,8 +8,6 @@
 
 # BIT 4 is the one test that is not in the block with the others, and
 # being read as a word it looked like a ROM address.
-RENAME CALL_ROM_66CB BITF4
-
 DOC BITF4
     Is the operation on a directory rather than an ordinary file?
 

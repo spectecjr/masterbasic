@@ -274,10 +274,12 @@ MB &58AF : WRA pages the system page in and out and does not preserve HL
 
 MB &58BC : the second byte's write is the return
 
-DOC STEP_BY_TABLE_ENTRY
-    Nothing to do with tables.  This is ALTER's edit: make the gap in the
-    program text the size of the replacement and correct the line's
-    length field to match.
+DOC ALTER_RESIZE_GAP
+    ALTER's edit: make the gap in the program text the size of the
+    replacement and correct the line's length field to match.  The
+    routine used to be called STEP_BY_TABLE_ENTRY, which was a reading
+    of the two INC HLs at &58C1 as a table stride; they are the offset
+    of the line's length field, and there is no table.
 
     Entry:  A = length being removed, C = length going in,
             DE = the text, HL = the line's start.

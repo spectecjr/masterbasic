@@ -2355,9 +2355,10 @@ def write_clean(pages):
     copy cannot leak.
     """
     dos, mb = copy.deepcopy(pages)
+    deferred = []
     nn, nc, nm, ns, problems = notes.apply(
         (dos, mb), ROOT, annotate.banner,
-        folder=os.path.join('notes', 'clean'))
+        folder=os.path.join('notes', 'clean'), deferred=deferred)
     if nn or nc or nm or ns:
         print('clean/: %d names, %d line comments, %d bytes marked, '
               '%d steps from notes/clean' % (nn, nc, nm, ns))
@@ -2373,6 +2374,12 @@ def write_clean(pages):
         print('clean/: %d names changed' % nr)
     for problem in rp:
         print('notes/clean: ' + problem)
+    if deferred:
+        nl, lp = notes.apply_deferred((dos, mb), deferred, annotate.banner)
+        if nl:
+            print('clean/: %d headers placed once the names were final' % nl)
+        for problem in lp:
+            print('notes/clean: ' + problem)
     # After notes/clean and not before: replacing a header records the one
     # it displaced, so that the working copy can see what changed, and
     # that record is itself a working note.
@@ -2631,7 +2638,9 @@ def main():
     # Hand-written notes come last of the naming passes, so that a
     # person's name beats anything worked out, and before autolabel,
     # so nothing synthetic is invented for an address they named.
-    nn, nc, nm, ns, problems = notes.apply((dos, mb), ROOT, annotate.banner)
+    deferred = []
+    nn, nc, nm, ns, problems = notes.apply((dos, mb), ROOT, annotate.banner,
+                                           deferred=deferred)
     if nn or nc or nm:
         print('notes/: %d names, %d line comments, %d bytes marked'
               % (nn, nc, nm))
@@ -2671,6 +2680,17 @@ def main():
         print('notes/: %d names changed' % nr)
     for p in rp:
         print('notes/: ' + p)
+
+    # Last of all, the headers written against a name no pass had given
+    # out yet when notes/ was read -- a label autolabel invents, one
+    # name_synthetic_labels derives from the routine above it, or one a
+    # RENAME two lines up has only just created.
+    if deferred:
+        nl, lp = notes.apply_deferred((dos, mb), deferred, annotate.banner)
+        if nl:
+            print('notes/: %d headers placed once the labels existed' % nl)
+        for p in lp:
+            print('notes/: ' + p)
 
     print('%d signature searches given their parameters'
           % sum(note_signature_calls(d, args.work) for d in (dos, mb)))

@@ -85,11 +85,36 @@ MB &7B00 INSTALL_ROM_PATCHES
     variables, played on its own code.
 
     Nothing marks the boundary, so how much of it is buffer is set by
-    the longest string allowed rather than by anything here: 255 bytes
-    from &7B00 reaches &7BFE, past the two blocks at &7B80 and &7BA4
-    that the installer has by then already copied out.
+    the longest string allowed rather than by anything here, and the two
+    callers do not agree on that.  COPY_STRING_TO_BUFFER, which serves
+    LOCN and the search at &4B95, takes up to 255 bytes: from &7B00 that
+    reaches &7BFE, over the two blocks at &7B80 and &7BA4 that the
+    installer has by then already copied out, and over nothing else,
+    because neither caller wants a second buffer.  REF and ALTER do want
+    one, and cap at 120 at &57E4 for exactly that reason -- 120 bytes
+    plus the length byte and the terminator ends at &7B7A, five short of
+    &7B80.  So the same buffer is 255 bytes long or 122, depending on
+    which command filled it.
 
 MB &7B11 : &4000 here is the window offset -- CHANS is a system variable in the page now at &8000 -- and not the XVAR that shares the address
+
+# Every instruction that means the buffer rather than the routine.  The
+# label at &7B00 is the installer's and stays, because that is what the
+# bytes are until boot has run; these say what the number means at the
+# thirteen places that use it afterwards.
+MB &4C3D value REF_BUFFER
+MB &4C9F value REF_BUFFER
+MB &4CC3 value REF_BUFFER
+MB &4D08 value REF_BUFFER
+MB &4D1F value REF_BUFFER
+MB &5674 value REF_BUFFER
+MB &5733 value REF_BUFFER
+MB &577C value REF_BUFFER
+MB &5838 value REF_BUFFER
+MB &67B7 value REF_BUFFER
+MB &5561 value REF_BUFFER_2
+MB &5739 value REF_BUFFER_2
+MB &5743 value REF_BUFFER_2_TEXT
 
 MB &4C3D : &7B00 is the installer's own code, dead since boot: this is the search-string buffer
 MB &4C9F : the same buffer, searched against

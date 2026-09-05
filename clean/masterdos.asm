@@ -722,15 +722,15 @@ BOOT_DATA_PORT_PLUS_2:
 
 ; ---- BOOT_DATA_PORT_PLUS_1 ---- from &409F when no bit of BLOCK_ERROR_FLAGS is set
 BOOT_DATA_PORT_PLUS_1:
-               POP BC                          ; 40C0 C1
-               DEC HL                          ; 40C1 2B
-               LD E,(HL)                       ; 40C2 5E
-               DEC HL                          ; 40C3 2B
-               LD D,(HL)                       ; 40C4 56
-               LD A,D                          ; 40C5 7A
-               OR E                            ; 40C6 B3
-               JR Z,BOOT_SECTOR_READ_OK        ; 40C7 28 17  the end of the chain
-               DJNZ BOOT_TEST_RETRY_COUNT      ; 40C9 10 12  more of this wave to read
+               POP BC                           ; 40C0 C1
+               DEC HL                           ; 40C1 2B
+               LD E,(HL)                        ; 40C2 5E
+               DEC HL                           ; 40C3 2B
+               LD D,(HL)                        ; 40C4 56
+               LD A,D                           ; 40C5 7A
+               OR E                             ; 40C6 B3
+               JR Z,BOOT_LOAD_COMPLETE          ; 40C7 28 17  the end of the chain
+               DJNZ BOOT_NEXT_SECTOR_TRAMPOLINE ; 40C9 10 12  more of this wave to read
 
 ; The end of the first wave, which is the DOS.  Enough of it is now in
 ; memory to install the part that lives in the system page, and the
@@ -772,22 +772,31 @@ PTHRD_1:
                OUT (LMPR),A                    ; 40D8 D3 FA
                LD HL,&4000                     ; 40DA 21 00 40  the base of that page, where the second wave starts
 
-; Back round for the next sector.  It is an absolute jump through the
-; window, not the JR the loop would otherwise use: the DJNZ that
-; reaches it is already at the limit of its range, and this is far
-; enough away to need three bytes anyway.
+;; --------------------------------------------------------------------
+;; Back round for the next sector.  It is an absolute jump through the
+;; window, not the JR the loop would otherwise use: the DJNZ that
+;; reaches it is already at the limit of its range, and this is far
+;; enough away to need three bytes anyway.
+;; --------------------------------------------------------------------
 
-; ---- BOOT_TEST_RETRY_COUNT ---- from &40C9 when B is not 0 yet
-BOOT_TEST_RETRY_COUNT:
+; ---- BOOT_NEXT_SECTOR_TRAMPOLINE ---- from &40C9 when B is not 0 yet
+BOOT_NEXT_SECTOR_TRAMPOLINE:
                JP READ_NEXT_SECTOR+IN_PAGE_C   ; 40DD C3 49 80
+
+;; --------------------------------------------------------------------
+;; Both waves are in.  B counts the sectors of a wave and the DJNZ at
+;; &40C9 goes back for the next one; getting here instead means the
+;; chain ended -- the last sector's final four bytes were zero -- so
+;; there is nothing left to read.
+;; --------------------------------------------------------------------
 
 ; Both waves are in.  Copy INSTALLER -- 943 bytes at MasterBASIC's
 ; &75E1, which is at &4000 just here -- into the DOS's buffer area
 ; through the window, and jump to it there.  From &40F6 on, the code
 ; that runs is the copy at DOSBUF and not anything in these listings.
 
-; ---- BOOT_SECTOR_READ_OK ---- from &40C7
-BOOT_SECTOR_READ_OK:
+; ---- BOOT_LOAD_COMPLETE ---- from &40C7
+BOOT_LOAD_COMPLETE:
                LD HL,&75E1                     ; 40E0 21 E1 75  INSTALLER, in the page LMPR has just put at &4000
                LD DE,DOSBUF+IN_PAGE_C          ; 40E3 11 00 BC  the installer's landing ground, reached through the
                                                ; window
@@ -11677,9 +11686,16 @@ CMD_OPEN_DONE:
                RET                                ; 6AE9 C9
 
 ;; --------------------------------------------------------------------
-;; Zero HMPR so the system page is in the window, take CHANS from it and
-;; add &1E, then check the result with the ROM's CHKHL before reading
-;; through it.
+;; Find the end of the ROM's channel list, with the system page mapped.
+;;
+;; CHANS holds the head of the list in the ROM's own numbering, so
+;; &4000 is added to reach it through the window; &1E more steps past
+;; the standard channels to the first that could be the DOS's.  From
+;; there each record's own length at offset 9 says how far the next
+;; one is, and a channel letter of carriage return is the end.
+;;
+;; CHKHL is the ROM's own bounds check, called before each read, so a
+;; corrupt length cannot walk this off into nothing.
 ;; --------------------------------------------------------------------
 
 ; ---- END_OF_CHANNELS ---- from &5E07, &6AC4
@@ -14654,6 +14670,19 @@ CHKHL:
                LD (PORT1),A                    ; 778B 32 2E 41
                RET                             ; 778E C9
 
+;; --------------------------------------------------------------------
+;; Copy a whole sector out of a RAM disc page.
+;;
+;; NOTHING HERE READS AN ADDRESS MARK.  RDADR is address translation --
+;; a track and sector into a page and an offset -- and a RAM disc has
+;; no marks to read.  These two entries copy a sector through the mover
+;; that lives in the page, and differ in one instruction: AND A leaves
+;; the carry clear where SCF sets it, and the carry, carried across in
+;; the alternate accumulator, is what picks 512 bytes here or 510 at
+;; COPY_SECTOR_510.  The 510 is a sector less its two-byte link to the
+;; next.
+;; --------------------------------------------------------------------
+
 ; ---- COPY_SECTOR_512 ---- from &753C
 COPY_SECTOR_512:
                PUSH DE                         ; 778F D5  T/S
@@ -14679,6 +14708,20 @@ COPY_SECTOR_510:
                POP DE                          ; 779E D1
                PUSH AF                         ; 779F F5
                SCF                             ; 77A0 37  carry set: 510, leaving the link alone
+
+;; --------------------------------------------------------------------
+;; Page the destination in at &4000 and let the page's own mover run.
+;;
+;; The destination page goes into LMPR, which maps N at &0000 and N+1
+;; at &4000, so the page wanted at &4000 is written as one less.  The
+;; XOR/AND/XOR keeps the ROM and write-protect bits of LMPR as they
+;; were while replacing the page number, which is the standard way of
+;; changing part of a port whose other bits matter.
+;;
+;; The call is to &8002 -- the copy of the mover in whichever RAM disc
+;; page is in the window -- because with both pages mapped there is
+;; nowhere else for the code to be.
+;; --------------------------------------------------------------------
 
 ; ---- COPY_SECTOR_MOVE ---- from &7797
 COPY_SECTOR_MOVE:

@@ -97,9 +97,7 @@ MB &6EFB : its page, put into HMPR so HL addresses the edit line through the win
 MB &6F03 : the length worked out at &6EB3
 MB &6F04 : close it up -- the first half and the slash both disappear, leaving the line number and the remainder.  "The slash disappears automatically"
 
-DOC CMD_SPLIT_LINE_LOOP4
-    (a header for the tail of SPLIT, &6F07-&6F3D, which has none.)
-
+MB &6F07 SPLIT_UNWIND_ROM_STACK
     THE ROM'S RETURN CHAIN IS REWRITTEN, because the ROM must not now do
     what it was going to do.  SPLIT runs while the line is being checked,
     inside LINESCAN, and the edit line still starts with a line number --
@@ -122,18 +120,33 @@ DOC CMD_SPLIT_LINE_LOOP4
     five levels of ROM call, so the next RET after this routine walks all
     the way out to &4EFE and lands on whatever was written there.
 
-    In ROM 3.0 the word at &4EFE is MAINER, &0EED, and &0EED-12 is the
-    XOR A of
+    WHAT THE BASE IS, THE ROM AND THE SNAPSHOTS DISAGREE ABOUT, and that
+    is where this stops.
 
-        XOR A / LD (HL),A / INC A / LD (NSPPC),A / CALL COMPILE / CALL LINERUN
+    MAINER really is &0EED.  ROM30 has CD D1 3F there -- CALL R1OCHP --
+    and the fifteen bytes before it are the LD HL,FLAGS / SET 7,(HL) /
+    DEC HL / XOR A / LD (HL),A / INC A / LD (NSPPC),A / CALL COMPILE /
+    CALL LINERUN of the main loop, so &0EED-12 is exactly that XOR A:
+    the tail that clears the error number, sets NSPPC to statement 1 and
+    runs the edit line.  Twelve fits.
 
-    -- the main loop's tail that clears the error number, sets NSPPC to
-    statement 1 and runs the edit line.  That reading is consistent with
-    the twelve, but not with the seventeen: &0EED-17 is the operand of
-    LD HL,FLAGS, so the routine called would be &5C3B, which is a system
-    variable and not code.  One of the two is being read from something
-    other than MAINER and I could not settle which, so the whole block is
-    a guess.  See the notes.
+    Seventeen does not.  &0EED-17 is &0EDC, the second byte of
+    LD HL,FLAGS, and the word there is &5C3B -- FLAGS itself, a system
+    variable and not a routine.
+
+    So the base is not MAINER, and the three system-page snapshots in
+    file/ say the same thing from the other end.  The word at &4EFE is
+    &0F78 before boot, &0E90 once MasterDOS has loaded, and &487F once
+    MasterBASIC has -- MasterBASIC replaces the outermost handler with
+    one of its own in the system page, and ERRSP is at &4EFA by then,
+    with two frames above it.  None of the three is MAINER.
+
+    &487F does not work either: seventeen back from it is &486E, whose
+    word is &F122, and twelve back is inside LD HL,(&4AF1).  Whatever
+    SPLIT finds at &4EFE is a fourth value, present only while a line is
+    being scanned, and the twelve landing on the main loop's tail is
+    what made MAINER look right.  The block stays a guess; see
+    docs/evidence-wanted.md.
 
 MB &6F07 : HL is not the reclaimed address -- SET_DCT_COMPILE_BITS left it windowed onto DCT -- so this parks PRPTR on a fixed system-page byte, out of reach of the next pointer adjustment
 MB &6F0C : ISPVAL-2, the bottom word of the ROM's machine stack: the handler pushed there whenever the stack is reset, and ERRSP's usual value
@@ -264,9 +277,7 @@ MB &6FF7 : the offset is a count, not a windowed address, so the top bit comes o
 MB &7004 : HMPR moves on by however many pages the offset crossed
 MB &7009 : back to the page count belonging to the other product
 
-DOC CMD_JOIN_FAIL
-    (this label is wrong -- see the notes.  Suggested name CMD_JOIN_TO.)
-
+DOC CMD_JOIN_TO
     JOIN TO -- the other half of JOIN, and nothing to do with failure.
 
         JOIN TO a$,b$

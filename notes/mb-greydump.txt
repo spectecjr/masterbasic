@@ -1,0 +1,147 @@
+# How DUMP turns sixteen colours into twenty-five greys.
+# Read out of the instructions; the palette bit layout is the SAM's.
+
+# Two more of the installer's dead stubs, borrowed as tables.  &7B80 is
+# also ALTER's second reference buffer -- see notes/mb-install.txt -- and
+# no command uses both, which is the whole of the argument for reusing it.
+MB &6A76 value GREY_MAP
+MB &6A69 value GREY_TAKEN
+MB &6A95 value GREY_TAKEN
+MB &6AB9 value GREY_TAKEN
+
+DOC BUILD_GREY_MAP
+    Turn the sixteen live palette entries into sixteen grey levels, one
+    byte each, before a single dot is printed.
+
+    A dump has to answer "how dark is this pixel" a quarter of a million
+    times, and the answer depends only on the pixel's palette index --
+    so it is worked out sixteen times here and looked up afterwards.
+    GREY_MAP at &7B80 is the answer table, indexed by palette register.
+
+    THE PALETTE IS READ THROUGH RDA BECAUSE IT IS NOT IN THIS PAGE.
+    PALTAB is &55D8 in the ROM's system page, sixteen bytes; RDA windows
+    the system page in for one byte at a time and puts HMPR back.  L
+    running from &D8 to &E8 is the sixteen entries, and comparing L
+    alone is enough because the table cannot cross a page boundary from
+    that start.
+
+    GREY_TAKEN at &7B90 is twenty-five flags, one per level, cleared
+    here.  A level is claimed as it is handed out, which is what stops
+    two palette entries mapping to the same grey while a neighbouring
+    grey goes unused.
+
+MB &6A69 : twenty-five flags, one per grey level -- another stub of the installer's, dead since boot
+
+MB &6A73 : the ROM's palette table in the system page, which is why every read below goes through RDA
+
+MB &6A76 : the answer table, sixteen bytes, indexed by palette register
+
+MB &6A83 : the level for this entry, stored against its index
+
+MB &6A87 : &55D8 plus sixteen is &55E8, so L alone says when the sixteen are done
+
+DOC ASSIGN_GREY_LEVEL
+    Halve the intensity to get a level 0 to 24, then take that level or
+    the nearest free one.
+
+    PALETTE_INTENSITY gives 0 to 49 and SRL A gives 0 to 24 -- twenty-five
+    levels, which is what the flag table above is sized for.  Halving
+    rather than scaling is what makes the two numbers come out that way:
+    49 is odd, so level 24 is reached only by intensity 48 or 49 and the
+    top of the range is one value narrower than the rest.  Nothing
+    depends on that.
+
+MB &6A92 : BC is the index into the flag table, so B has to be cleared once and stays cleared
+
+MB &6A94 : D counts how far from the wanted level the search has got, and starts at none
+
+DOC FIND_FREE_GREY_LEVEL
+    Look for an unclaimed level, trying the wanted one first and then up
+    to three either side.
+
+    GREY_LEVEL_ABOVE and GREY_LEVEL_BELOW are the two probes, and they
+    are one fall-through rather than two calls: above tries C+D, and if
+    that is off the top of the range or already taken it drops into
+    below, which tries C-D.  Each returns carry set with the level in A
+    if it was free.
+
+    HL IS LEFT POINTING AT THE FLAG BY THE PROBE THAT FOUND IT, which is
+    why &6AA5 can claim the level with LD (HL),&01 and never work the
+    address out a second time.  BC is pushed round the call because the
+    probes write the candidate into C.
+
+    If nothing within three is free the wanted level is claimed anyway,
+    and two colours then print as the same grey.  With sixteen colours
+    and twenty-five levels that needs seven of the sixteen to have
+    landed within three of each other, which a photograph would manage
+    and a screen of solid colours would not.
+
+MB &6A99 : three either side and then give up; D is the distance, not a count of tries
+
+MB &6A9B : the wanted level, loaded before the RET so that giving up still returns something usable
+
+MB &6AA5 : HL is still on the flag the probe stopped at, so claiming the level costs one instruction
+
+MB &6AA9 : twenty-five levels, so &19 and above is off the top and the search turns downwards instead
+
+MB &6AB1 : SCF has to come after AND A, which clears carry -- and LD A,C does not touch flags, so the RET Z below carries both the answer and the verdict
+
+MB &6AB4 : A is the wanted level plus D, so taking D off twice gives the wanted level less D
+
+MB &6AB6 : SUB sets carry on a borrow, so CCF turns "went below zero" into carry clear and the RET NC gives up on it
+
+MB &6ABF : the level is loaded before the test's flags are needed, because AND A already cleared carry -- so RET NZ means taken, and the SCF below is only reached when it is free
+
+DOC PALETTE_INTENSITY
+    How bright a SAM palette byte is, 0 to 49.
+
+    THE SAM PALETTE BYTE IS TWO BITS OF EACH COLOUR PLUS A SHARED
+    BRIGHT, and the two bits of one colour are not adjacent.  The ROM's
+    own table says the layout in one line -- "MS GRB BITS, BRIGHT BIT,
+    LS GRB BITS", written out as GRBbGRB -- so bits 6, 5 and 4 are the
+    high bits of green, red and blue, bits 2, 1 and 0 the low bits of
+    the same three four places down, and bit 3 bright, which lifts all
+    three together.  No shift gathers a single colour, but each triple
+    can be taken whole, and that is what this does.
+
+    THE WEIGHTS COME OUT RIGHT FOR NOTHING.  AND &70 with two RRCAs is
+    the high triple divided by four, AND &07 doubled is the low triple
+    times two, and bright adds seven.  Written out, the sum is
+
+        16*G1 + 8*R1 + 4*B1 + 8*G0 + 4*R0 + 2*B0 + 7*bright
+
+    -- green worth 24 at full, red 12, blue 6, and 24 + 12 + 6 + 7 = 49.
+    So green counts twice red and red twice blue, which is roughly what
+    the eye does: the usual luminance weights are about 0.59, 0.30 and
+    0.11, near enough 5:3:1 against this 4:2:1.  Nothing here computes
+    that.  It falls out of the order the three colours sit in inside the
+    palette byte, because green is the high bit of each triple and blue
+    the low one, and the two masks preserve that order.  A proper
+    weighting would have cost three multiplies; this costs eight
+    instructions and is wrong by about a tenth.
+
+    Within one colour the high bit is worth exactly twice the low, which
+    is the only part of the arithmetic that had to be arranged: it is
+    why the high triple is divided by four and the low doubled rather
+    than both being left where they lie.
+
+    Run the ROM's own starting palette through it and the ordering shows:
+
+        black    &00   0    level  0
+        blue     &10   4    level  2
+        red      &20   8    level  4
+        green    &40  16    level  8
+        white    &78  35    level 17
+        bright white &7F 49 level 24
+
+    -- blue, red, green in the ratio 1:2:4, and the two whites four
+    levels apart because bright and the three low bits are all that
+    separate them.
+
+MB &6AC4 : bits 2, 1 and 0 are the low bit of green, red and blue; doubling them makes those bits worth 8, 4 and 2
+
+MB &6AC9 : bits 6, 5 and 4 are the high bit of the same three, four places up
+
+MB &6ACB : two rotates bring the high triple down to weights of 16, 8 and 4 -- twice the low bits, as they should be.  RRCA rather than SRL A because it is one byte instead of two, and the bits rotating in from the bottom are the ones the AND just cleared
+
+MB &6ACE : bit 3 is bright, which the SAM applies to all three components at once -- hence one addition of 7 rather than three of its share

@@ -206,6 +206,50 @@ result worth anything.
 
 ---
 
+## 7. What the ROM's outermost error handler is while `SPLIT` runs
+
+**Open.** `SPLIT`'s last thirty-nine bytes, `MB &6F07-&6F3D`, rewrite the
+bottom of the ROM's machine stack. They read the word at `&4EFE` -- the slot
+`LD SP,ISPVAL : PUSH HL : LD (ERRSP),SP` fills -- call whatever routine's
+address is stored seventeen bytes below it, then put the handler back twelve
+bytes earlier than it was and write `&0004` into the five stack words beneath.
+
+The twelve makes sense against `MAINER` and the seventeen does not.
+`MAINER` is `&0EED` in ROM 3.0 -- `CD D1 3F` is there and the fifteen bytes
+before it are the main loop's tail -- so `&0EED-12` is the `XOR A` that clears
+the error number and re-runs the edit line, which is exactly what `SPLIT`
+wants to happen next. But `&0EED-17` is `&0EDC`, the middle of `LD HL,FLAGS`,
+and the word there is `&5C3B`: a system variable, not a routine.
+
+And the three system-page snapshots in `file/` say the base is not `MAINER`
+at all:
+
+| snapshot | word at `&4EFE` |
+|---|---|
+| `SYSPAGE_before_boot.bin` | `&0F78` |
+| `SYSPAGE_after_MasterDOS_loaded.bin` | `&0E90` |
+| `SYSPAGE_after_MBMD_boot.bin` | `&487F` |
+
+`&487F` is MasterBASIC's own handler in the system page, and it fails both
+offsets: seventeen back is `&486E`, whose word is `&F122`, and twelve back is
+inside `LD HL,(&4AF1)`.
+
+**What would settle it.** The word at `&4EFE` in the system page at the moment
+a line containing a `/` is being scanned -- that is, with `SPLIT` about to run.
+Failing that, two cheaper things would each narrow it:
+
+- Whether `SPLIT` works at all on hardware. Type `10 PRINT 1/20 PRINT 2` with
+  the `/` where the manual's example puts it, press ENTER, and `LIST`. If the
+  two lines come out separately and the remainder is *not* also entered as a
+  line of its own, the block is doing what the header guesses and the
+  reasoning is wrong only about which address it starts from.
+- What `&4EFE` holds after a `RUN` that stops on an error, versus after a
+  plain direct command. The handler is pushed afresh at every stack reset, so
+  two readings would show whether it is stable enough to be read this way at
+  all.
+
+---
+
 
 
 

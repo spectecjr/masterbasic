@@ -286,8 +286,16 @@ def _inside_insn(d, a):
     return False
 
 
-def apply(pages, root, banner, folder='notes'):
-    """Put the entries on the pages.  Returns counts and complaints."""
+def apply(pages, root, banner, folder='notes', deferred=None):
+    """Put the entries on the pages.  Returns counts and complaints.
+
+    A DOC or AFTER whose name nothing answers to is not necessarily a
+    mistake.  This pass runs before autolabel and before the pass that
+    names a routine's internal labels after the routine, so a header
+    written against CMD_SPLIT_LINE_LOOP4 has nothing to attach to yet.
+    Pass a list as `deferred` and those entries are put there instead of
+    reported, for apply_deferred() to retry once the labels exist.
+    """
     by_tag = dict((p.tag, p) for p in pages)
     named = noted = marked = stepped = 0
     problems = []
@@ -546,8 +554,11 @@ def apply(pages, root, banner, folder='notes'):
         where = [(d, a) for d in pages
                  for a, n in d.labels.items() if n == e['name']]
         if not where:
-            problems.append('%s: nothing is called %s'
-                            % (e['where'], e['name']))
+            if deferred is None:
+                problems.append('%s: nothing is called %s'
+                                % (e['where'], e['name']))
+            else:
+                deferred.append(e)
             continue
         if len(where) > 1:
             problems.append('%s: %s names %d addresses, so which?'
@@ -579,6 +590,52 @@ def apply(pages, root, banner, folder='notes'):
     for d in pages:
         d.romdesc.update(equates)
     return named, noted, marked, stepped, problems
+
+
+def apply_deferred(pages, deferred, banner):
+    """Retry the DOC and AFTER entries apply() could not place.
+
+    Call this once the synthetic labels exist -- after autolabel and
+    after the pass that names a routine's internal labels.  Thirty-seven
+    headers were being written and silently dropped before this ran,
+    because the only label their routine has is one of those.
+    """
+    noted = 0
+    problems = []
+    for e in deferred:
+        where = [(d, a) for d in pages
+                 for a, n in d.labels.items() if n == e['name']]
+        if not where:
+            problems.append('%s: nothing is called %s'
+                            % (e['where'], e['name']))
+            continue
+        if len(where) > 1:
+            problems.append('%s: %s names %d addresses, so which?'
+                            % (e['where'], e['name'], len(where)))
+            continue
+        d, a = where[0]
+        if e['page'] == 'DOC':
+            if not e['doc']:
+                problems.append('%s: DOC %s has no indented lines under it'
+                                % (e['where'], e['name']))
+                continue
+            lost = set_header(d, a, e['doc'], banner)
+            if lost:
+                problems.append('%s: %s' % (e['where'], lost))
+            noted += 1
+            continue
+        for _ in range(e['end']):                # step on n instructions
+            ins = d.insns.get(a)
+            if ins is None:
+                break
+            a = ins.end
+        if not d._starts_insn(a):
+            problems.append('%s: %s+%d is not an instruction'
+                            % (e['where'], e['name'], e['end']))
+            continue
+        d.comments[a] = e['comment']
+        noted += 1
+    return noted, problems
 
 
 def rename(pages, root, folder='notes'):

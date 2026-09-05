@@ -1,26 +1,61 @@
 # Parsing an optional string slice.
 
-MB &47C3 STACK_EMPTY_STRING_OR_SLICE
+MB &47C3 STACK_STRIDE_AND_SLICE_IT
 
-DOC STACK_EMPTY_STRING_OR_SLICE
-    Put an empty string on the calculator stack, and apply a slice to it
-    if one follows.
+DOC STACK_STRIDE_AND_SLICE_IT
+    Turn a subscript like `(3 TO 9)` into an offset and a count, by
+    handing it to the ROM's slicer with a string that does not exist.
 
-        XOR A : LD D,A : LD E,A : CALL STKSTR   -- a string of length
-                                                   zero at address zero
+        XOR A : LD D,A : LD E,A : CALL STKSTR
         CP CH_CR    : JR Z,done
         CP CH_COLON : JR Z,done
         CALL SLICING
         CALL NEXTCHAR : CP "(" : CALL Z,NEXTCHAR
 
-    So at the end of a statement the result is the empty string, and
-    otherwise the ROM's SLICING is left to read whatever subscript is
-    there.  Both of the ROM routines it uses -- STKSTR and SLICING --
-    are reached through thunks whose targets are found by signature
-    search at boot.
+    THE STACKED STRING IS BC BYTES AT PAGE 0, ADDRESS &0000, and no byte
+    of it is ever read.  STKSTR takes its five bytes from A, E, D, C, B
+    -- page, address low and high, length low and high -- so zeroing A
+    and DE while leaving BC alone stacks a descriptor whose length is
+    whatever the caller passed and whose address is nothing.  The ROM's
+    SLICING then does the arithmetic it always does: it checks the
+    subscript against the length, adds the start to the address and
+    works out the count.  What comes back is the offset in place of the
+    address and the slice length in place of the length -- which is
+    exactly what the caller wanted and could not have got as cheaply any
+    other way, since SLICING also raises the ROM's own "Subscript out of
+    range" for it.
 
-    Everything is preserved: BC, DE and HL are pushed on entry and popped
-    on both exits.
+    An earlier reading of this header said "a string of length zero at
+    address zero".  Zero is the address; BC is not touched, and if it
+    were zero the routine would have nothing to slice.  &476A is the
+    proof: FIND_STRING_VARIABLE calls this twice, and sets BC from DE in
+    between so the second call gets the array's second dimension.
+
+    With no subscript -- end of statement, or a colon -- the descriptor
+    is left as stacked, which for a caller that passed BC = 0 is an
+    empty string and otherwise is the whole extent.
+
+    Both of the ROM routines it uses -- STKSTR and SLICING -- are
+    reached through thunks whose targets are found by signature search
+    at boot.
+
+    Everything is preserved: BC, DE and HL are pushed on entry and
+    popped on both exits, so the result is on the ROM's calculator stack
+    and nowhere else.  GET_STRING_PAGED at &47E6 is what takes it off.
+
+MB &47C6 : A is the page and DE the address, and both are wanted at zero -- BC is deliberately left as the caller set it, because that is the length being sliced
+
+MB &47C9 : STKSTR takes its five bytes from A, E, D, C, B, so this stacks page 0, address &0000, length BC
+
+MB &47CF : end of statement, so there is no subscript and the descriptor stands as stacked
+
+MB &47D7 : the ROM's slicer, doing arithmetic on a string that is not there.  It checks the subscript against the length and rewrites the descriptor as offset and count, which is the whole point of the call
+
+MB &47DD : SLICING leaves CHAD on the closing bracket, so this steps past it -- CALL Z so a missing bracket is left for the ROM to complain about
+
+MB &476A : the second dimension, passed as the length for the second slice.  BC came back from the first call unchanged, which is why this can be written as a move rather than a reload
+
+MB &4770 : &4000 or more, so the slice is at least 16K and cannot be a string
 
 # The reference REF, PRINT REF and ALTER search for.
 

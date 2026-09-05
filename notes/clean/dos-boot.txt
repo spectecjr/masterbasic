@@ -20,8 +20,11 @@ RENAME BOOT_12 BOOT_READ_CMD_SETTLE
 RENAME BOOT_LOOP4 BOOT_READ_SECTOR_BYTE
 RENAME BOOT_LOOP5 BOOT_CHECK_READ_STATUS
 RENAME BOOT_16 BOOT_RESTORE_SETTLE
-RENAME BOOT_17 BOOT_TEST_RETRY_COUNT
-RENAME BOOT_18 BOOT_SECTOR_READ_OK
+# &40DD and &40E0 are named by address below.  They were renamed here by
+# auto-number once, and the numbers had moved by the time the notes were
+# read: BOOT_17 and BOOT_18 landed on them with names that describe the
+# wrong thing, and BOOT_20 and BOOT_21 -- which carried the right ones --
+# found nothing to rename at all.
 RENAME V40F9 STACK_ON_ENTRY
 RENAME V40FB SECTOR_LOAD_ADDRESS
 RENAME V40FD SECTOR_RETRY_COUNT
@@ -271,14 +274,17 @@ RENAME BOOT_11 BOOT_SETTLE_AFTER_READ_CMD
 RENAME BOOT_13 BOOT_DATA_PORT_FROM_C
 RENAME BOOT_14 BOOT_DATA_PORT_PLUS_2
 RENAME BOOT_15 BOOT_DATA_PORT_PLUS_1
-RENAME BOOT_20 BOOT_NEXT_SECTOR_TRAMPOLINE
-RENAME BOOT_21 BOOT_LOAD_COMPLETE
-
-DOS &40DD step
+DOS &40DD BOOT_NEXT_SECTOR_TRAMPOLINE
     Back round for the next sector.  It is an absolute jump through the
     window, not the JR the loop would otherwise use: the DJNZ that
     reaches it is already at the limit of its range, and this is far
     enough away to need three bytes anyway.
+
+DOS &40E0 BOOT_LOAD_COMPLETE
+    Both waves are in.  B counts the sectors of a wave and the DJNZ at
+    &40C9 goes back for the next one; getting here instead means the
+    chain ended -- the last sector's final four bytes were zero -- so
+    there is nothing left to read.
 
 DOS &40D2 step
     The end of a wave.  The page number found earlier comes back off the
