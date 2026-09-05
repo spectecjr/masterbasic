@@ -24,7 +24,7 @@ The rest are readings.
 """
 
 NAMES = {
-    0x6534: 'HK_PIXELCELL',
+    0x6534: 'HK_CSIZE',
     0x7159: 'HK_SWAPCHARS',
     0x732A: 'HK_PROGPREP',
     0x53C3: 'HK_MERGECOMPFLG',
@@ -42,18 +42,30 @@ NAMES = {
 
 DOCS = {
 
-0x6534: """Hook code 155.  Turn a pixel position into a character cell.
+0x6534: """Hook code 155.  CSIZE, the manual's "Improved CSIZE command".
 
-Parses two values, keeps one in D and works on the other.  That one is
-range-checked to 6..176 and anything outside is abandoned, which is the
-usable height of the screen rather than its full 0..191.  Three RRCAs
-and AND &1F then divide it by eight and keep five bits -- the character
-row -- and a result below 3 is forced to 0.  The other coordinate is
-masked with AND 7 straight after, which is the pixel offset within a
-cell.
+SAM BASIC's own CSIZE takes a width of 6 or 8 and a height of 6 to 32.
+This takes any width and a height of 6 to 176, and magnifies the
+character to fill it.
 
-Named for the arithmetic, which is unmistakable.  What the cell is then
-used for is not established here.""",
+THE TWO NUMBERS BECOME MULTIPLICATION FACTORS, not sizes.  The height
+is range-checked at &6544 and &6548, then three RRCAs and AND &1F
+divide it by eight -- the manual's "INT(height/8) gives the height
+multiplication factor" -- and the SUB 6 loop at &656A does the same for
+the width in sixes.  Each factor is written to SYS_CHAR_HEIGHT or
+SYS_CHAR_WIDTH, and a factor of zero means the ROM can manage this size
+unaided.
+
+THE ROM'S OWN CSIZE IS THEN ENTERED PAST ITS RANGE CHECKS.  The
+installer at &761F searches the ROM for D6 06 32 -- "SUB 6 / LD
+(FL6OR8),A" inside the ROM's WIDTH -- and patches the address five bytes
+on into the operand at &6594, so the CALL lands after the checks this
+routine has already done for itself.  Only the ROM's window arithmetic
+runs.  Everything from &6596 to &65E6 then undoes the parts of that
+arithmetic which do not suit a magnified character.
+
+Hook 155 is HDUMMY in the DOS's table, a reserved slot; this is what
+MasterBASIC put in it.""",
 
 0x7159: """Hook code 156.  Swap the top of the character set for another.
 

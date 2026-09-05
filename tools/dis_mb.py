@@ -134,8 +134,8 @@ def _syspage_names():
         # in the space it freed by moving BASIC's stack down to &45A1:
         # the ROM's table put BSTACK at &4AFF, inside the second stub.
         0x4AED: 'SYS_DH_STATE',      # &40 while a double-height pair is open
-        0x4AEE: 'SYS_CHAR_WIDTH',    # written by CSIZE beside FL6OR8
-        0x4AEF: 'SYS_CHAR_HEIGHT',   # read at &49E4 to pick the output path
+        0x4AEE: 'SYS_CHAR_WIDTH',    # CSIZE's width factor, written beside FL6OR8
+        0x4AEF: 'SYS_CHAR_HEIGHT',   # CSIZE's height factor; 0 = leave it to the ROM
         0x4AF0: 'SYS_FN_INDEX',      # written by TOKEN_TO_FN_INDEX
         # RECORD SOUND keeps its state in the same nineteen bytes.
         0x4AF3: 'SYS_RECORD_MODE',   # CMD_RECORD writes the token less &89

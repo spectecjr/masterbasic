@@ -276,8 +276,10 @@ HK_HCMDV:                 EQU  &AD
 ;   the faster PUT is INSTALL_EXTENDED_PUT, which assembles 298 bytes into
 ;   the system page at &45A2 out of five runs, two of them lifted from the
 ;   ROM's own PUT
-;   the extended CSIZE is PRINT_MAGNIFIED_CHAR, which has no caller in
-;   either page: the system page reaches it through PAGER
+;   the extended CSIZE is the hook 155 routine HK_CSIZE, which sizes the
+;   character and enters the ROM's own CSIZE past its range checks; the
+;   printing half is PRINT_MAGNIFIED_CHAR, which has no caller in either
+;   page because the system page reaches it through PAGER
 ;   BLOCKS 2 is HK_SWAPCHARS exchanging 328 bytes with the alternate
 ;   character set at &7E64, the cursor kept out of the swap through HUDG
 ;   the FORMAT improvements are BUILD_TRACK_IMAGE, which lays out a whole
@@ -18717,7 +18719,7 @@ PRINT_MAGNIFIED_CHAR_1:
                RET                             ; 6533 C9
 
 ;; --------------------------------------------------------------------
-;; HK_PIXELCELL -- &6534 to &6556
+;; HK_CSIZE -- &6534 to &6556
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
@@ -18727,21 +18729,33 @@ PRINT_MAGNIFIED_CHAR_1:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     Hook code 155.  Turn a pixel position into a character cell.
+;;     Hook code 155.  CSIZE, the manual's "Improved CSIZE command".
 ;;
-;;     Parses two values, keeps one in D and works on the other.  That one is
-;;     range-checked to 6..176 and anything outside is abandoned, which is the
-;;     usable height of the screen rather than its full 0..191.  Three RRCAs
-;;     and AND &1F then divide it by eight and keep five bits -- the character
-;;     row -- and a result below 3 is forced to 0.  The other coordinate is
-;;     masked with AND 7 straight after, which is the pixel offset within a
-;;     cell.
+;;     SAM BASIC's own CSIZE takes a width of 6 or 8 and a height of 6 to 32.
+;;     This takes any width and a height of 6 to 176, and magnifies the
+;;     character to fill it.
 ;;
-;;     Named for the arithmetic, which is unmistakable.  What the cell is then
-;;     used for is not established here.
+;;     THE TWO NUMBERS BECOME MULTIPLICATION FACTORS, not sizes.  The height
+;;     is range-checked at &6544 and &6548, then three RRCAs and AND &1F
+;;     divide it by eight -- the manual's "INT(height/8) gives the height
+;;     multiplication factor" -- and the SUB 6 loop at &656A does the same for
+;;     the width in sixes.  Each factor is written to SYS_CHAR_HEIGHT or
+;;     SYS_CHAR_WIDTH, and a factor of zero means the ROM can manage this size
+;;     unaided.
+;;
+;;     THE ROM'S OWN CSIZE IS THEN ENTERED PAST ITS RANGE CHECKS.  The
+;;     installer at &761F searches the ROM for D6 06 32 -- "SUB 6 / LD
+;;     (FL6OR8),A" inside the ROM's WIDTH -- and patches the address five bytes
+;;     on into the operand at &6594, so the CALL lands after the checks this
+;;     routine has already done for itself.  Only the ROM's window arithmetic
+;;     runs.  Everything from &6596 to &65E6 then undoes the parts of that
+;;     arithmetic which do not suit a magnified character.
+;;
+;;     Hook 155 is HDUMMY in the DOS's table, a reserved slot; this is what
+;;     MasterBASIC put in it.
 ;; --------------------------------------------------------------------
 
-HK_PIXELCELL:
+HK_CSIZE:
                CALL SKIP_THEN_NUMBER           ; 6534 CD 82 44
                CALL EXPECT_COMMA               ; 6537 CD 50 44
                CALL INT_ARG_THEN_END           ; 653A CD 73 44
@@ -18751,20 +18765,20 @@ HK_PIXELCELL:
                LD D,A                          ; 6542 57
                LD A,E                          ; 6543 7B
                CP &06                          ; 6544 FE 06
-               JR C,HK_PIXELCELL_5             ; 6546 38 31
+               JR C,HK_CSIZE_5                 ; 6546 38 31
                CP &B1                          ; 6548 FE B1
-               JR NC,HK_PIXELCELL_5            ; 654A 30 2D
+               JR NC,HK_CSIZE_5                ; 654A 30 2D
                LD B,A                          ; 654C 47
                RRCA                            ; 654D 0F
                RRCA                            ; 654E 0F
                RRCA                            ; 654F 0F
                AND &1F                         ; 6550 E6 1F
                CP &03                          ; 6552 FE 03
-               JR NC,HK_PIXELCELL_1            ; 6554 30 01
+               JR NC,HK_CSIZE_1                ; 6554 30 01
                XOR A                           ; 6556 AF
 
 ;; --------------------------------------------------------------------
-;; HK_PIXELCELL_1 -- &6557 to &6566
+;; HK_CSIZE_1 -- &6557 to &6566
 ;;
 ;; Takes:     A, BC, DE, HL, IY
 ;; Leaves:    A, F, BC, DE, HL
@@ -18773,74 +18787,74 @@ HK_PIXELCELL:
 ;; ? calls CALLDOS.
 ;; --------------------------------------------------------------------
 
-; ---- HK_PIXELCELL_1 ---- from &6554 when A >= &03
-HK_PIXELCELL_1:
+; ---- HK_CSIZE_1 ---- from &6554 when A >= &03
+HK_CSIZE_1:
                PUSH AF                         ; 6557 F5
                EX DE,HL                        ; 6558 EB
                LD A,H                          ; 6559 7C
                AND &07                         ; 655A E6 07
                LD A,H                          ; 655C 7C
                PUSH AF                         ; 655D F5
-               JR NZ,HK_PIXELCELL_2            ; 655E 20 07
+               JR NZ,HK_CSIZE_2                ; 655E 20 07
                RRCA                            ; 6560 0F
                RRCA                            ; 6561 0F
                RRCA                            ; 6562 0F
                AND &1F                         ; 6563 E6 1F
-               JR HK_PIXELCELL_4               ; 6565 18 0B
+               JR HK_CSIZE_4                   ; 6565 18 0B
 
 ;; --------------------------------------------------------------------
-;; HK_PIXELCELL_2 -- &6567 to &6569
+;; HK_CSIZE_2 -- &6567 to &6569
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    BC
 ;; --------------------------------------------------------------------
 
-; ---- HK_PIXELCELL_2 ---- from &655E when a bit of &07 is set
-HK_PIXELCELL_2:
+; ---- HK_CSIZE_2 ---- from &655E when a bit of &07 is set
+HK_CSIZE_2:
                LD C,&00                        ; 6567 0E 00
                LD B,C                          ; 6569 41
 
 ;; --------------------------------------------------------------------
-;; HK_PIXELCELL_LOOP -- &656A to &6570
+;; HK_CSIZE_LOOP -- &656A to &6570
 ;;
 ;; Takes:     A, C
 ;; Leaves:    A, F, C
 ;; --------------------------------------------------------------------
 
-; ---- HK_PIXELCELL_LOOP ---- from &656F
-HK_PIXELCELL_LOOP:
+; ---- HK_CSIZE_LOOP ---- from &656F
+HK_CSIZE_LOOP:
                INC C                           ; 656A 0C
                SUB &06                         ; 656B D6 06
-               JR Z,HK_PIXELCELL_3             ; 656D 28 02
-               JR NC,HK_PIXELCELL_LOOP         ; 656F 30 F9
+               JR Z,HK_CSIZE_3                 ; 656D 28 02
+               JR NC,HK_CSIZE_LOOP             ; 656F 30 F9
 
 ;; --------------------------------------------------------------------
-;; HK_PIXELCELL_3 -- &6571 to &6571
+;; HK_CSIZE_3 -- &6571 to &6571
 ;;
 ;; Takes:     C
 ;; Leaves:    A
 ;; --------------------------------------------------------------------
 
-; ---- HK_PIXELCELL_3 ---- from &656D when A = &06
-HK_PIXELCELL_3:
+; ---- HK_CSIZE_3 ---- from &656D when A = &06
+HK_CSIZE_3:
                LD A,C                          ; 6571 79
 
 ;; --------------------------------------------------------------------
-;; HK_PIXELCELL_4 -- &6572 to &6578
+;; HK_CSIZE_4 -- &6572 to &6578
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F
 ;; --------------------------------------------------------------------
 
-; ---- HK_PIXELCELL_4 ---- from &6565
-HK_PIXELCELL_4:
+; ---- HK_CSIZE_4 ---- from &6565
+HK_CSIZE_4:
                DEC A                           ; 6572 3D
-               JR Z,HK_PIXELCELL_7             ; 6573 28 0A
+               JR Z,HK_CSIZE_7                 ; 6573 28 0A
                CP &1F                          ; 6575 FE 1F
-               JR C,HK_PIXELCELL_6             ; 6577 38 05
+               JR C,HK_CSIZE_6                 ; 6577 38 05
 
 ;; --------------------------------------------------------------------
-;; HK_PIXELCELL_5 -- &6579 to &657D
+;; HK_CSIZE_5 -- &6579 to &657D
 ;;
 ;; Takes:     BC, DE, HL, IY
 ;; Leaves:    A, F, BC, DE, HL
@@ -18849,24 +18863,24 @@ HK_PIXELCELL_4:
 ;; ? calls CALLDOS.
 ;; --------------------------------------------------------------------
 
-; ---- HK_PIXELCELL_5 ---- from &6546 when A < &06, &654A when A >= &B1
-HK_PIXELCELL_5:
+; ---- HK_CSIZE_5 ---- from &6546 when A < &06, &654A when A >= &B1
+HK_CSIZE_5:
                LD A,&1E                        ; 6579 3E 1E  error 30, "Integer out of range"
                JP REPORT                       ; 657B C3 BE 43
 
 ;; --------------------------------------------------------------------
-;; HK_PIXELCELL_6 -- &657E to &657E
+;; HK_CSIZE_6 -- &657E to &657E
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F
 ;; --------------------------------------------------------------------
 
-; ---- HK_PIXELCELL_6 ---- from &6577 when A < &1F
-HK_PIXELCELL_6:
+; ---- HK_CSIZE_6 ---- from &6577 when A < &1F
+HK_CSIZE_6:
                INC A                           ; 657E 3C
 
 ;; --------------------------------------------------------------------
-;; HK_PIXELCELL_7 -- &657F to &65B1
+;; HK_CSIZE_7 -- &657F to &65B1
 ;;
 ;; Takes:     A, DE, HL
 ;; Leaves:    A, F, DE, HL
@@ -18874,8 +18888,8 @@ HK_PIXELCELL_6:
 ;; ? reaches the ROM through SYS_CHAR_WIDTH; calls MBNRWR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- HK_PIXELCELL_7 ---- from &6573 when A reaches 0
-HK_PIXELCELL_7:
+; ---- HK_CSIZE_7 ---- from &6573 when A reaches 0
+HK_CSIZE_7:
                CALL MBNRWR                     ; 657F CD 82 45
                DEFW SYS_CHAR_WIDTH             ; 6582 EE 4A
                PUSH AF                         ; 6584 F5
@@ -18889,27 +18903,46 @@ HK_PIXELCELL_7:
 L6591:
                CALL MBCMR                      ; 6591 CD F0 44  the operand is written here at run time, from &761F
 
+;; --------------------------------------------------------------------
+;; The operand of the CALL MBCMR at &6591, filled in by the installer
+;; at &761F.  The signature it searches for is D6 06 32 -- the ROM's
+;; own "SUB 6 / LD (FL6OR8),A" inside its CSIZE handler -- and five
+;; bytes on is the LD A,(MODE) that follows, at &D80E.
+;;
+;; ENTERING THE ROM PAST ITS OWN RANGE CHECKS is the whole point.  The
+;; ROM allows widths of 6 or 8 and heights of 6 to 32; HK_CSIZE has
+;; already done its own looser checks, written FL6OR8 itself, and set
+;; HL to the width and height, so all that is wanted from the ROM is
+;; the window arithmetic.  Everything from &6596 on undoes the parts
+;; of that arithmetic which do not suit a magnified character.
+;; --------------------------------------------------------------------
+
 ; ---- V6594 ---- from &761F
 V6594:
                DEFW &0000                      ; 6594 00 00
-               POP BC                          ; 6596 C1
-               POP AF                          ; 6597 F1
+               POP BC                          ; 6596 C1  B is the width factor written to SYS_CHAR_WIDTH at &657F and
+                                               ; pushed at &6584 -- zero when the ROM can print this width unaided
+               POP AF                          ; 6597 F1  the width as the user asked for it, pushed at &655D. The ROM
+                                               ; has just written it to CSIZEW too, but replaces it with 6 if it decided
+                                               ; this was 85-column MODE 3, so put the real one back
                CALL MBNRWR                     ; 6598 CD 82 45
                DEFW &5A37                      ; 659B 37 5A
-               POP AF                          ; 659D F1
+               POP AF                          ; 659D F1  the height factor pushed at &6557 -- height/8, or zero for the
+                                               ; heights the ROM handles by itself
                CALL MBNRWR                     ; 659E CD 82 45
                DEFW SYS_CHAR_HEIGHT            ; 65A1 EF 4A
-               CALL MBNRRD                     ; 65A3 CD 6A 45
+               CALL MBNRRD                     ; 65A3 CD 6A 45  the ROM's window arithmetic set UWBOT to 192/height - 3
                DEFW UWBOT                      ; 65A6 3B 5A
                LD C,A                          ; 65A8 4F
-               INC A                           ; 65A9 3C
-               JR NZ,HK_PIXELCELL_8            ; 65AA 20 06
-               LD C,A                          ; 65AC 4F
+               INC A                           ; 65A9 3C  ... which comes out -1 for heights 65 to 96: not even one row
+                                               ; left in the upper window
+               JR NZ,HK_CSIZE_8                ; 65AA 20 06
+               LD C,A                          ; 65AC 4F  keep one row anyway, so PRINT still has somewhere to go
                CALL MBNRWR                     ; 65AD CD 82 45
                DEFW UWBOT                      ; 65B0 3B 5A
 
 ;; --------------------------------------------------------------------
-;; HK_PIXELCELL_8 -- &65B2 to &65BF
+;; HK_CSIZE_8 -- &65B2 to &65BF
 ;;
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, HL
@@ -18917,18 +18950,20 @@ V6594:
 ;; ? calls MBNRRD; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- HK_PIXELCELL_8 ---- from &65AA when A is not 0
-HK_PIXELCELL_8:
-               CALL MBNRRD                     ; 65B2 CD 6A 45
+; ---- HK_CSIZE_8 ---- from &65AA when A is not 0
+HK_CSIZE_8:
+               CALL MBNRRD                     ; 65B2 CD 6A 45  &5A6D is SPOSNU+1, the current print row in the upper
+                                               ; window
                DEFW &5A6D                      ; 65B5 6D 5A
                CP C                            ; 65B7 B9
-               JR C,HK_PIXELCELL_9             ; 65B8 38 06
-               LD A,C                          ; 65BA 79
+               JR C,HK_CSIZE_9                 ; 65B8 38 06  still inside the shrunken window, so leave the print
+                                               ; position alone
+               LD A,C                          ; 65BA 79  otherwise it is pulled up to the new bottom row
                CALL MBNRWR                     ; 65BB CD 82 45
                DEFW &5A6D                      ; 65BE 6D 5A
 
 ;; --------------------------------------------------------------------
-;; HK_PIXELCELL_9 -- &65C0 to &65CA
+;; HK_CSIZE_9 -- &65C0 to &65CA
 ;;
 ;; Takes:     B, DE, HL
 ;; Leaves:    A, F, HL
@@ -18936,18 +18971,21 @@ HK_PIXELCELL_8:
 ;; ? reaches the ROM through UWRHS; calls MBNRRD; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- HK_PIXELCELL_9 ---- from &65B8 when A < C
-HK_PIXELCELL_9:
-               LD A,B                          ; 65C0 78
+; ---- HK_CSIZE_9 ---- from &65B8 when A < C
+HK_CSIZE_9:
+               LD A,B                          ; 65C0 78  factor zero: the ROM prints this width itself and its window
+                                               ; edges are already right
                AND A                           ; 65C1 A7
                RET Z                           ; 65C2 C8
-               CALL MBNRRD                     ; 65C3 CD 6A 45
+               CALL MBNRRD                     ; 65C3 CD 6A 45  UWRHS + 1 is the number of 8-pixel columns across the
+                                               ; window -- 32, 64 or 85
                DEFW UWRHS                      ; 65C6 38 5A
                INC A                           ; 65C8 3C
-               LD C,&FF                        ; 65C9 0E FF
+               LD C,&FF                        ; 65C9 0E FF  C = columns / factor by repeated subtraction: how many
+                                               ; whole magnified characters fit on a line
 
 ;; --------------------------------------------------------------------
-;; HK_PIXELCELL_LOOP2 -- &65CB to &65D7
+;; HK_CSIZE_LOOP2 -- &65CB to &65D7
 ;;
 ;; Takes:     A, BC, DE, IY
 ;; Leaves:    A, F, BC, DE, HL
@@ -18955,19 +18993,23 @@ HK_PIXELCELL_9:
 ;; ? calls WRITE_DOS_BYTE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- HK_PIXELCELL_LOOP2 ---- from &65CD when A >= B
-HK_PIXELCELL_LOOP2:
+; ---- HK_CSIZE_LOOP2 ---- from &65CD when A >= B
+HK_CSIZE_LOOP2:
                INC C                           ; 65CB 0C
                SUB B                           ; 65CC 90
-               JR NC,HK_PIXELCELL_LOOP2        ; 65CD 30 FC
+               JR NC,HK_CSIZE_LOOP2            ; 65CD 30 FC
                LD A,C                          ; 65CF 79
-               LD HL,&5C98                     ; 65D0 21 98 5C
+               LD HL,&5C98                     ; 65D0 21 98 5C  written into the DOS page at &5C98, which is the
+                                               ; immediate of the LD A,&00 in COLUMNS_FOR_DIRECTORY. Once CSIZE has
+                                               ; widened the character, DIR lays names out across THIS many columns
+                                               ; instead of the window's own width
                CALL WRITE_DOS_BYTE             ; 65D3 CD FE 63
                LD C,A                          ; 65D6 4F
-               XOR A                           ; 65D7 AF
+               XOR A                           ; 65D7 AF  characters times factor is the last usable 8-pixel column,
+                                               ; plus one
 
 ;; --------------------------------------------------------------------
-;; HK_PIXELCELL_LOOP3 -- &65D8 to &65E6
+;; HK_CSIZE_LOOP3 -- &65D8 to &65E6
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, B, DE, HL
@@ -18975,11 +19017,12 @@ HK_PIXELCELL_LOOP2:
 ;; ? reaches the ROM through UWRHS; calls MBNRWR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- HK_PIXELCELL_LOOP3 ---- from &65D9 when B is not 0 yet
-HK_PIXELCELL_LOOP3:
+; ---- HK_CSIZE_LOOP3 ---- from &65D9 when B is not 0 yet
+HK_CSIZE_LOOP3:
                ADD A,C                         ; 65D8 81
-               DJNZ HK_PIXELCELL_LOOP3         ; 65D9 10 FD
-               DEC A                           ; 65DB 3D
+               DJNZ HK_CSIZE_LOOP3             ; 65D9 10 FD
+               DEC A                           ; 65DB 3D  ... less one is the new right edge of both windows, so a line
+                                               ; can never end in a fragment of a character
                CALL MBNRWR                     ; 65DC CD 82 45
                DEFW UWRHS                      ; 65DF 38 5A
                CALL MBNRWR                     ; 65E1 CD 82 45
@@ -18987,17 +19030,28 @@ HK_PIXELCELL_LOOP3:
                RET                             ; 65E6 C9
 
 ;; --------------------------------------------------------------------
-;; HK_PIXELCELL_10 -- &65E7 to &65E9
+;; COMPRESS_BLOCK_SATURATE -- &65E7 to &65E9
 ;;
 ;; Takes:     B, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JR
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     The overflow case of the histogram loop, parked in the three spare
+;;     bytes between the end of CSIZE and COMPRESS_FILE.  A counter that
+;;     has just wrapped from 255 to 0 is put back to 255 and the loop
+;;     rejoined.
+;;
+;;     OUT OF LINE ON PURPOSE.  The loop runs once per byte of the block,
+;;     so its JR Z is a not-taken branch except on the 256th occurrence of
+;;     a value -- the cheap way round for every other byte.
 ;; --------------------------------------------------------------------
 
-; ---- HK_PIXELCELL_10 ---- from &6652
-HK_PIXELCELL_10:
-               DEC (HL)                        ; 65E7 35
-               JR HK_PIXELCELL_11              ; 65E8 18 6A
+; ---- COMPRESS_BLOCK_SATURATE ---- from &6652
+COMPRESS_BLOCK_SATURATE:
+               DEC (HL)                        ; 65E7 35  the counter is a byte and has just wrapped: saturate it at 255
+               JR COMPRESS_BLOCK_NEXT_BYTE     ; 65E8 18 6A
 
 ;; --------------------------------------------------------------------
 ;; COMPRESS_FILE -- &65EA to &65F0
@@ -19027,9 +19081,13 @@ HK_PIXELCELL_10:
 ;;     less one, so:
 ;;
 ;;         CMPFG 0                     no compression at all
-;;         CMPFG 1                     this routine, whatever the type
+;;         CMPFG 1                     this routine, any type but BASIC
 ;;         CMPFG 2, type &14 SCREEN$   COMPRESS_SCREEN_FILE instead
 ;;         CMPFG 2, any other type     this routine
+;;
+;;     Type &10, a BASIC program, reaches neither: HK_HSAVE turns it away
+;;     at DOS &6504, which is the manual's "No attempt is made to compress
+;;     BASIC programs".
 ;;
 ;;     So this is the fast one that wants a spare page, and
 ;;     COMPRESS_SCREEN_FILE the slower screen-only one that does not -- and
@@ -19040,8 +19098,9 @@ HK_PIXELCELL_10:
 ;; --------------------------------------------------------------------
 
 COMPRESS_FILE:
-               LD (V40A0),BC                   ; 65EA ED 43 A0 40
-               AND A                           ; 65EE A7
+               LD (V40A0),BC                   ; 65EA ED 43 A0 40  only C, the file type, is read back later -- at &663B
+                                               ; and &670A -- because the numeric-array case needs it
+               AND A                           ; 65EE A7  no whole pages, so the file is all remainder
                JR Z,COMPRESS_FILE_1            ; 65EF 28 16
 
 ;; --------------------------------------------------------------------
@@ -19051,7 +19110,7 @@ COMPRESS_FILE:
 ;; Leaves:    A, F, BC
 ;; Preserves: DE, HL (saved and restored)
 ;;
-;; ? drives IN A,(HMPR), OUT (HMPR),A; calls SET_UP_WORK_AREA; falls into whatever follows rather than returning.
+;; ? drives IN A,(HMPR), OUT (HMPR),A; calls COMPRESS_BLOCK; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- COMPRESS_FILE_LOOP ---- from &6605 when A is not 0 yet
@@ -19059,17 +19118,20 @@ COMPRESS_FILE_LOOP:
                PUSH AF                         ; 65F1 F5
                PUSH DE                         ; 65F2 D5
                PUSH HL                         ; 65F3 E5
-               IN A,(HMPR)                     ; 65F4 DB FB
+               IN A,(HMPR)                     ; 65F4 DB FB  HMPR is the page this block lives in; COMPRESS_BLOCK leaves
+                                               ; it pointing elsewhere
                PUSH AF                         ; 65F6 F5
-               LD DE,PUTSWA                    ; 65F7 11 00 40
-               CALL SET_UP_WORK_AREA           ; 65FA CD 0A 66
+               LD DE,PUTSWA                    ; 65F7 11 00 40  PUTSWA is &4000 used as a byte count -- one whole page
+                                               ; -- and not as an address
+               CALL COMPRESS_BLOCK             ; 65FA CD 0A 66
                POP AF                          ; 65FD F1
-               INC A                           ; 65FE 3C
+               INC A                           ; 65FE 3C  the next 16K of the file is the next page up at the same
+                                               ; offset, which is why HL is kept and only HMPR moves
                OUT (HMPR),A                    ; 65FF D3 FB
                POP HL                          ; 6601 E1
                POP DE                          ; 6602 D1
                POP AF                          ; 6603 F1
-               DEC A                           ; 6604 3D
+               DEC A                           ; 6604 3D  one page fewer to go
                JR NZ,COMPRESS_FILE_LOOP        ; 6605 20 EA
 
 ;; --------------------------------------------------------------------
@@ -19081,12 +19143,13 @@ COMPRESS_FILE_LOOP:
 
 ; ---- COMPRESS_FILE_1 ---- from &65EF when A = 0
 COMPRESS_FILE_1:
-               LD A,D                          ; 6607 7A
+               LD A,D                          ; 6607 7A  the tail, under 16K; nothing to do if the length divided
+                                               ; exactly
                OR E                            ; 6608 B3
                RET Z                           ; 6609 C8
 
 ;; --------------------------------------------------------------------
-;; SET_UP_WORK_AREA -- &660A to &664A
+;; COMPRESS_BLOCK -- &660A to &664A
 ;;
 ;; Takes:     BC, DE, HL, IY
 ;; Leaves:    A, F, BC, DE, HL
@@ -19095,252 +19158,305 @@ COMPRESS_FILE_1:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     Take the work page, work out how much room is above the start
-;;     address -- &C000 less DE -- and put the two halves of it in the ROM's
-;;     PAGCOUNT and MODCOUNT.
+;;     Compress one block -- DE bytes from HL in the page HMPR names -- and
+;;     write it to the open file.  Copy, transpose, histogram, encode,
+;;     emit; the old name described only the first few instructions.
+;;
+;;     THE BLOCK IS COPIED TO THE TOP OF THE WORK PAGE.  FARLDIR is given
+;;     &C000 - length as its destination, so the copy ENDS at the page
+;;     boundary, and the page below the work page then goes into HMPR so
+;;     the same bytes are seen running up to &FFFF.  Every loop that walks
+;;     the data afterwards knows it has finished when its pointer wraps to
+;;     zero, and carries no count at all.  PAGCOUNT gets 0 and MODCOUNT the
+;;     length: no whole pages, DE bytes.
+;;
+;;     THE ESCAPE IS THE RAREST BYTE.  A 256-entry histogram is built at
+;;     &7B00 and the value with the lowest count becomes the escape, since
+;;     every real occurrence of it has to be escaped.  A 16K block cannot
+;;     hold more than 64 of its rarest value, which is what bounds the
+;;     header.
+;;
+;;     THE ENCODER RUNS IN PLACE.  Output starts where input starts and can
+;;     never overtake it, because no case writes more than it reads: a run
+;;     of one or two is copied literally, a run of three or more becomes
+;;     three bytes, and a literal escape -- which alone would cost two
+;;     bytes for one -- is written as ESC ESC together with the byte after
+;;     it, that byte going to a side buffer at &7B05 and travelling in the
+;;     header instead.  Two read, two written, and no bound check anywhere
+;;     in the loop.
+;;
+;;     NUMERIC ARRAYS ARE TRANSPOSED FIRST.  Type &11 elements are five
+;;     bytes each, so every 256-byte block is rewritten as one byte plus a
+;;     51 x 5 matrix on its side, putting the exponent bytes of
+;;     neighbouring elements next to each other where the run-length code
+;;     can see them.  This is the manual's "numeric arrays are highly
+;;     compressible if they are mainly filled with whole numbers".  The
+;;     expander applies the inverse after decoding.
 ;; --------------------------------------------------------------------
 
-; ---- SET_UP_WORK_AREA ---- from &65FA
-SET_UP_WORK_AREA:
-               PUSH DE                         ; 660A D5
+; ---- COMPRESS_BLOCK ---- from &65FA
+COMPRESS_BLOCK:
+               PUSH DE                         ; 660A D5  the length is pushed twice and the source once -- the second
+                                               ; copy is not wanted until the header at &66A9
                PUSH HL                         ; 660B E5
                PUSH DE                         ; 660C D5
                CALL GET_WORK_PAGE              ; 660D CD D7 67
-               LD HL,&C000                     ; 6610 21 00 C0
+               LD HL,&C000                     ; 6610 21 00 C0  &C000 - length: where in the window the copy has to go
+                                               ; so that it ENDS at the top of the page. Everything below relies on that
                AND A                           ; 6613 A7
                SBC HL,DE                       ; 6614 ED 52
                EX DE,HL                        ; 6616 EB
-               XOR A                           ; 6617 AF
+               XOR A                           ; 6617 AF  FARLDIR moves PAGCOUNT whole pages plus MODCOUNT bytes --
+                                               ; none, and DE
                CALL MBNRWR                     ; 6618 CD 82 45
                DEFW PAGCOUNT                   ; 661B 83 5B
                POP BC                          ; 661D C1
                CALL MBNRWRD                    ; 661E CD 77 45
                DEFW MODCOUNT                   ; 6621 84 5B
-               LD A,(V40AA)                    ; 6623 3A AA 40
+               LD A,(V40AA)                    ; 6623 3A AA 40  C is the destination page for FARLDIR, which
+                                               ; GET_WORK_PAGE left in V40AA
                LD C,A                          ; 6626 4F
                POP HL                          ; 6627 E1
-               IN A,(HMPR)                     ; 6628 DB FB
+               IN A,(HMPR)                     ; 6628 DB FB  the source page is the one HMPR still holds, the file's own
                PUSH DE                         ; 662A D5
                PUSH BC                         ; 662B C5
-               CALL MBCMR                      ; 662C CD F0 44
+               CALL MBCMR                      ; 662C CD F0 44  page A at HL to page C at DE
                DEFW J_FARLDIR                  ; 662F 2D 01
-               POP BC                          ; 6631 C1
+               POP BC                          ; 6631 C1  the page BELOW the work page into HMPR, which puts the work
+                                               ; page itself at &C000-&FFFF
                LD A,C                          ; 6632 79
                DEC A                           ; 6633 3D
                OUT (HMPR),A                    ; 6634 D3 FB
                POP HL                          ; 6636 E1
-               LD A,H                          ; 6637 7C
+               LD A,H                          ; 6637 7C  the same bytes seen through the top section: &C000 - length
+                                               ; becomes &10000 - length, so the data runs up to &FFFF exactly
                ADD A,&40                       ; 6638 C6 40
                LD H,A                          ; 663A 67
-               LD A,(V40A0)                    ; 663B 3A A0 40
+               LD A,(V40A0)                    ; 663B 3A A0 40  type &11 is a numeric array, five bytes to an element:
+                                               ; transpose each 256-byte block so that bytes in the same position within
+                                               ; an element become adjacent
                CP &11                          ; 663E FE 11
                PUSH HL                         ; 6640 E5
                CALL Z,SET_STEP_AND_COUNT       ; 6641 CC 96 67
-               POP DE                          ; 6644 D1
+               POP DE                          ; 6644 D1  the start of the data twice over -- the encoder's input
+                                               ; pointer, and the subtrahend for the compressed length at &66AE
                PUSH DE                         ; 6645 D5
                PUSH DE                         ; 6646 D5
-               LD HL,INSTALL_ROM_PATCHES       ; 6647 21 00 7B
+               LD HL,INSTALL_ROM_PATCHES       ; 6647 21 00 7B  256 byte-sized counters at &7B00, one per byte value:
+                                               ; the installer's dead bytes doing duty as a histogram
                XOR A                           ; 664A AF
 
 ;; --------------------------------------------------------------------
-;; SET_UP_WORK_AREA_LOOP -- &664B to &664E
+;; COMPRESS_BLOCK_LOOP -- &664B to &664E
 ;;
 ;; Takes:     A, HL
 ;; Leaves:    F, L
 ;; --------------------------------------------------------------------
 
-; ---- SET_UP_WORK_AREA_LOOP ---- from &664D when L is not 0
-SET_UP_WORK_AREA_LOOP:
+; ---- COMPRESS_BLOCK_LOOP ---- from &664D when L is not 0
+COMPRESS_BLOCK_LOOP:
                LD (HL),A                       ; 664B 77
                INC L                           ; 664C 2C
-               JR NZ,SET_UP_WORK_AREA_LOOP     ; 664D 20 FC
+               JR NZ,COMPRESS_BLOCK_LOOP       ; 664D 20 FC
 
 ;; --------------------------------------------------------------------
-;; SET_UP_WORK_AREA_LOOP2 -- &664F to &6653
+;; COMPRESS_BLOCK_1 -- &664F to &6653
 ;;
 ;; Takes:     DE, H
 ;; Leaves:    A, HL
 ;; --------------------------------------------------------------------
 
-; ---- SET_UP_WORK_AREA_LOOP2 ---- from &6655 when E is not 0, &6658 when D is not 0
-SET_UP_WORK_AREA_LOOP2:
-               LD A,(DE)                       ; 664F 1A
+; ---- COMPRESS_BLOCK_1 ---- from &6655 when E is not 0, &6658 when D is not 0
+COMPRESS_BLOCK_1:
+               LD A,(DE)                       ; 664F 1A  the byte value is the index
                LD L,A                          ; 6650 6F
                INC (HL)                        ; 6651 34
-               JR Z,HK_PIXELCELL_10            ; 6652 28 93
+               JR Z,COMPRESS_BLOCK_SATURATE    ; 6652 28 93  wrapped from 255, so the detour at &65E7 puts it back
 
 ;; --------------------------------------------------------------------
-;; HK_PIXELCELL_11 -- &6654 to &665D
+;; COMPRESS_BLOCK_NEXT_BYTE -- &6654 to &665D
 ;;
 ;; Takes:     DE
 ;; Leaves:    F, DE, HL
 ;; --------------------------------------------------------------------
 
-; ---- HK_PIXELCELL_11 ---- from &65E8
-HK_PIXELCELL_11:
-               INC E                           ; 6654 1C
-               JR NZ,SET_UP_WORK_AREA_LOOP2    ; 6655 20 F8
+; ---- COMPRESS_BLOCK_NEXT_BYTE ---- from &65E8
+COMPRESS_BLOCK_NEXT_BYTE:
+               INC E                           ; 6654 1C  on until DE wraps out of the top of the page -- no count,
+                                               ; because the data was placed to end at &FFFF
+               JR NZ,COMPRESS_BLOCK_1          ; 6655 20 F8
                INC D                           ; 6657 14
-               JR NZ,SET_UP_WORK_AREA_LOOP2    ; 6658 20 F5
-               LD HL,INSTALL_ROM_PATCHES       ; 665A 21 00 7B
+               JR NZ,COMPRESS_BLOCK_1          ; 6658 20 F5
+               LD HL,INSTALL_ROM_PATCHES       ; 665A 21 00 7B  D is 0 after the wrap, so DEC makes it 255, the worst
+                                               ; count possible, and the scan below finds the value occurring least
                DEC D                           ; 665D 15
 
 ;; --------------------------------------------------------------------
-;; SET_UP_WORK_AREA_LOOP3 -- &665E to &6663
+;; COMPRESS_BLOCK_NEXT_BYTE_LOOP -- &665E to &6663
 ;;
 ;; Takes:     D, HL
 ;; Leaves:    A, F, C, D
 ;; --------------------------------------------------------------------
 
-; ---- SET_UP_WORK_AREA_LOOP3 ---- from &6665 when L is not 0
-SET_UP_WORK_AREA_LOOP3:
-               LD A,(HL)                       ; 665E 7E
-               CP D                            ; 665F BA
-               JR NC,SET_UP_WORK_AREA_1        ; 6660 30 02
-               LD C,L                          ; 6662 4D
-               LD D,A                          ; 6663 57
+; ---- COMPRESS_BLOCK_NEXT_BYTE_LOOP ---- from &6665 when L is not 0
+COMPRESS_BLOCK_NEXT_BYTE_LOOP:
+               LD A,(HL)                        ; 665E 7E
+               CP D                             ; 665F BA  strictly less only, so ties go to the lower value
+               JR NC,COMPRESS_BLOCK_NEXT_BYTE_1 ; 6660 30 02
+               LD C,L                           ; 6662 4D
+               LD D,A                           ; 6663 57
 
 ;; --------------------------------------------------------------------
-;; SET_UP_WORK_AREA_1 -- &6664 to &6672
+;; COMPRESS_BLOCK_NEXT_BYTE_1 -- &6664 to &6672
 ;;
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;; --------------------------------------------------------------------
 
-; ---- SET_UP_WORK_AREA_1 ---- from &6660 when A >= D
-SET_UP_WORK_AREA_1:
-               INC L                           ; 6664 2C
-               JR NZ,SET_UP_WORK_AREA_LOOP3    ; 6665 20 F7
-               LD A,C                          ; 6667 79
-               LD (INSTALL_ROM_PATCHES),A      ; 6668 32 00 7B
-                                               ; to the alternate register set and back again
-               EXX                             ; 666B D9
-               LD DE,&7B05                     ; 666C 11 05 7B
-                                               ; to the alternate register set and back again
-               EXX                             ; 666F D9
-               POP HL                          ; 6670 E1
-               LD D,H                          ; 6671 54
-               LD E,L                          ; 6672 5D
+; ---- COMPRESS_BLOCK_NEXT_BYTE_1 ---- from &6660 when A >= D
+COMPRESS_BLOCK_NEXT_BYTE_1:
+               INC L                               ; 6664 2C
+               JR NZ,COMPRESS_BLOCK_NEXT_BYTE_LOOP ; 6665 20 F7
+               LD A,C                              ; 6667 79  header byte 0, the escape
+               LD (INSTALL_ROM_PATCHES),A          ; 6668 32 00 7B
+                                                   ; to the alternate register set and back again
+               EXX                                 ; 666B D9  DE-prime is the side buffer at &7B05 -- header byte 5
+                                                   ; onwards -- for the byte that follows each literal escape; see &669B
+               LD DE,&7B05                         ; 666C 11 05 7B
+                                                   ; to the alternate register set and back again
+               EXX                                 ; 666F D9
+               POP HL                              ; 6670 E1  output and input start together, because the encoder works
+                                                   ; in place and no case below writes more than it reads
+               LD D,H                              ; 6671 54
+               LD E,L                              ; 6672 5D
 
 ;; --------------------------------------------------------------------
-;; SET_UP_WORK_AREA_LOOP4 -- &6673 to &667C
+;; COMPRESS_BLOCK_NEXT_BYTE_LOOP2 -- &6673 to &667C
 ;;
 ;; Takes:     C, HL
 ;; Leaves:    A, F, B
 ;; --------------------------------------------------------------------
 
-; ---- SET_UP_WORK_AREA_LOOP4 ---- from &668D, &6699
-SET_UP_WORK_AREA_LOOP4:
-               LD A,H                          ; 6673 7C
+; ---- COMPRESS_BLOCK_NEXT_BYTE_LOOP2 ---- from &668D, &6699
+COMPRESS_BLOCK_NEXT_BYTE_LOOP2:
+               LD A,H                          ; 6673 7C  H is zero only once HL has wrapped past &FFFF, so the block is
+                                               ; done
                AND A                           ; 6674 A7
-               JR Z,SET_UP_WORK_AREA_6         ; 6675 28 30
-               LD A,(HL)                       ; 6677 7E
+               JR Z,COMPRESS_BLOCK_NEXT_BYTE_6 ; 6675 28 30
+               LD A,(HL)                       ; 6677 7E  a byte equal to the escape cannot be copied as it stands
                CP C                            ; 6678 B9
-               JR Z,SET_UP_WORK_AREA_5         ; 6679 28 20
-               LD B,&00                        ; 667B 06 00
+               JR Z,COMPRESS_BLOCK_NEXT_BYTE_5 ; 6679 28 20
+               LD B,&00                        ; 667B 06 00  count the run in B; B wrapping to zero means 256 in a row
 
 ;; --------------------------------------------------------------------
-;; SET_UP_WORK_AREA_LOOP5 -- &667D to &6683
+;; COMPRESS_BLOCK_NEXT_BYTE_LOOP3 -- &667D to &6683
 ;;
 ;; Takes:     A, B, HL
 ;; Leaves:    F, B, HL
 ;; --------------------------------------------------------------------
 
-; ---- SET_UP_WORK_AREA_LOOP5 ---- from &6682 when A = (HL)
-SET_UP_WORK_AREA_LOOP5:
-               INC HL                          ; 667D 23
-               INC B                           ; 667E 04
-               JR Z,SET_UP_WORK_AREA_2         ; 667F 28 03
-               CP (HL)                         ; 6681 BE
-               JR Z,SET_UP_WORK_AREA_LOOP5     ; 6682 28 F9
+; ---- COMPRESS_BLOCK_NEXT_BYTE_LOOP3 ---- from &6682 when A = (HL)
+COMPRESS_BLOCK_NEXT_BYTE_LOOP3:
+               INC HL                              ; 667D 23
+               INC B                               ; 667E 04
+               JR Z,COMPRESS_BLOCK_NEXT_BYTE_2     ; 667F 28 03
+               CP (HL)                             ; 6681 BE
+               JR Z,COMPRESS_BLOCK_NEXT_BYTE_LOOP3 ; 6682 28 F9
 
 ;; --------------------------------------------------------------------
-;; SET_UP_WORK_AREA_2 -- &6684 to &668A
+;; COMPRESS_BLOCK_NEXT_BYTE_2 -- &6684 to &668A
 ;;
 ;; Takes:     A, B, DE
 ;; Leaves:    F, B, DE
 ;; --------------------------------------------------------------------
 
-; ---- SET_UP_WORK_AREA_2 ---- from &667F when B wraps to 0
-SET_UP_WORK_AREA_2:
-               DEC B                           ; 6684 05
-               JR Z,SET_UP_WORK_AREA_3         ; 6685 28 04
-               DJNZ SET_UP_WORK_AREA_4         ; 6687 10 06
-               LD (DE),A                       ; 6689 12
+; ---- COMPRESS_BLOCK_NEXT_BYTE_2 ---- from &667F when B wraps to 0
+COMPRESS_BLOCK_NEXT_BYTE_2:
+               DEC B                           ; 6684 05  a run of one is just the byte itself
+               JR Z,COMPRESS_BLOCK_NEXT_BYTE_3 ; 6685 28 04
+               DJNZ COMPRESS_BLOCK_NEXT_BYTE_4 ; 6687 10 06  three or more is worth encoding
+               LD (DE),A                       ; 6689 12  a run of two is written out twice, because the encoded form is
+                                               ; three bytes -- longer, and in place one more than was read
                INC DE                          ; 668A 13
 
 ;; --------------------------------------------------------------------
-;; SET_UP_WORK_AREA_3 -- &668B to &668E
+;; COMPRESS_BLOCK_NEXT_BYTE_3 -- &668B to &668E
 ;;
 ;; Takes:     A, C, DE, HL
 ;; Leaves:    A, F, B, DE, HL
 ;; Ends:      JR
 ;; --------------------------------------------------------------------
 
-; ---- SET_UP_WORK_AREA_3 ---- from &6685 when B reaches 0
-SET_UP_WORK_AREA_3:
-               LD (DE),A                       ; 668B 12
-               INC DE                          ; 668C 13
-               JR SET_UP_WORK_AREA_LOOP4       ; 668D 18 E4
+; ---- COMPRESS_BLOCK_NEXT_BYTE_3 ---- from &6685 when B reaches 0
+COMPRESS_BLOCK_NEXT_BYTE_3:
+               LD (DE),A                         ; 668B 12
+               INC DE                            ; 668C 13
+               JR COMPRESS_BLOCK_NEXT_BYTE_LOOP2 ; 668D 18 E4
 
 ;; --------------------------------------------------------------------
-;; SET_UP_WORK_AREA_4 -- &668F to &6694
+;; COMPRESS_BLOCK_NEXT_BYTE_4 -- &668F to &6694
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    F, B, DE, HL
 ;; --------------------------------------------------------------------
 
-; ---- SET_UP_WORK_AREA_4 ---- from &6687 when B is not 0 yet
-SET_UP_WORK_AREA_4:
-               INC B                           ; 668F 04
+; ---- COMPRESS_BLOCK_NEXT_BYTE_4 ---- from &6687 when B is not 0 yet
+COMPRESS_BLOCK_NEXT_BYTE_4:
+               INC B                           ; 668F 04  back to the true length; 256 goes out as 0, which the expander
+                                               ; turns back into 256
                INC B                           ; 6690 04
-               EX DE,HL                        ; 6691 EB
+               EX DE,HL                        ; 6691 EB  escape, value, count
                LD (HL),C                       ; 6692 71
                INC HL                          ; 6693 23
                LD (HL),A                       ; 6694 77
 
 ;; --------------------------------------------------------------------
-;; SET_UP_WORK_AREA_LOOP6 -- &6695 to &669A
+;; COMPRESS_BLOCK_NEXT_BYTE_LOOP4 -- &6695 to &669A
 ;;
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, B, DE, HL
 ;; Ends:      JR
 ;; --------------------------------------------------------------------
 
-; ---- SET_UP_WORK_AREA_LOOP6 ---- from &66A5
-SET_UP_WORK_AREA_LOOP6:
-               INC HL                          ; 6695 23
-               LD (HL),B                       ; 6696 70
-               INC HL                          ; 6697 23
-               EX DE,HL                        ; 6698 EB
-               JR SET_UP_WORK_AREA_LOOP4       ; 6699 18 D8
+; ---- COMPRESS_BLOCK_NEXT_BYTE_LOOP4 ---- from &66A5
+COMPRESS_BLOCK_NEXT_BYTE_LOOP4:
+               INC HL                            ; 6695 23
+               LD (HL),B                         ; 6696 70
+               INC HL                            ; 6697 23
+               EX DE,HL                          ; 6698 EB
+               JR COMPRESS_BLOCK_NEXT_BYTE_LOOP2 ; 6699 18 D8
 
 ;; --------------------------------------------------------------------
-;; SET_UP_WORK_AREA_5 -- &669B to &66A6
+;; COMPRESS_BLOCK_NEXT_BYTE_5 -- &669B to &66A6
 ;;
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JR
 ;; --------------------------------------------------------------------
 
-; ---- SET_UP_WORK_AREA_5 ---- from &6679 when A = C
-SET_UP_WORK_AREA_5:
-               INC HL                          ; 669B 23
-               LD A,(HL)                       ; 669C 7E
-               INC HL                          ; 669D 23
-                                               ; to the alternate register set and back again
-               EXX                             ; 669E D9
-               LD (DE),A                       ; 669F 12
-               INC E                           ; 66A0 1C
-                                               ; to the alternate register set and back again
-               EXX                             ; 66A1 D9
-               EX DE,HL                        ; 66A2 EB
-               LD B,C                          ; 66A3 41
-               LD (HL),C                       ; 66A4 71
-               JR SET_UP_WORK_AREA_LOOP6       ; 66A5 18 EE
+; ---- COMPRESS_BLOCK_NEXT_BYTE_5 ---- from &6679 when A = C
+COMPRESS_BLOCK_NEXT_BYTE_5:
+               INC HL                            ; 669B 23  A literal escape, written as ESC ESC -- one byte more than
+                                                 ; was read. So the byte after it is taken as well and parked in the
+                                                 ; side buffer at &7B05 instead of going into the stream: two in, two
+                                                 ; out, and the output still cannot overtake the input. The expander
+                                                 ; takes it back from the same buffer. The rarest of 256 values in a 16K
+                                                 ; block occurs at most 64 times, so the buffer never passes &7B45
+               LD A,(HL)                         ; 669C 7E
+               INC HL                            ; 669D 23
+                                                 ; to the alternate register set and back again
+               EXX                               ; 669E D9
+               LD (DE),A                         ; 669F 12
+               INC E                             ; 66A0 1C
+                                                 ; to the alternate register set and back again
+               EXX                               ; 66A1 D9
+               EX DE,HL                          ; 66A2 EB
+               LD B,C                            ; 66A3 41
+               LD (HL),C                         ; 66A4 71
+               JR COMPRESS_BLOCK_NEXT_BYTE_LOOP4 ; 66A5 18 EE
 
 ;; --------------------------------------------------------------------
-;; SET_UP_WORK_AREA_6 -- &66A7 to &66BF
+;; COMPRESS_BLOCK_NEXT_BYTE_6 -- &66A7 to &66BF
 ;;
 ;; Takes:     DE, HL, IY
 ;; Leaves:    A, F, BC, DE, HL
@@ -19348,13 +19464,16 @@ SET_UP_WORK_AREA_5:
 ;; ? reaches the ROM through DOS_HK_SBYT-&4000; calls CALLDOS; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- SET_UP_WORK_AREA_6 ---- from &6675 when A = 0
-SET_UP_WORK_AREA_6:
-               EX DE,HL                        ; 66A7 EB
+; ---- COMPRESS_BLOCK_NEXT_BYTE_6 ---- from &6675 when A = 0
+COMPRESS_BLOCK_NEXT_BYTE_6:
+               EX DE,HL                        ; 66A7 EB  HL is one past the last output byte and DE the start; BC is
+                                               ; the uncompressed length pushed at &660A
                POP DE                          ; 66A8 D1
                POP BC                          ; 66A9 C1
-               LD (INSTALL_ROM_PATCHES_1),BC   ; 66AA ED 43 03 7B
-               SBC HL,DE                       ; 66AE ED 52
+               LD (INSTALL_ROM_PATCHES_1),BC   ; 66AA ED 43 03 7B  header bytes 3 and 4, the uncompressed length, which
+                                               ; is how the expander knows where in its work page the block goes
+               SBC HL,DE                       ; 66AE ED 52  end less start is the compressed length, header bytes 1 and
+                                               ; 2; carry is clear from the AND A at &6674
                                                ; self-modifying: patches the operand of the IN at &7B00
                LD (INSTALL_ROM_PATCHES+1),HL   ; 66B0 22 01 7B  patches the port of the IN at &7B00
                PUSH DE                         ; 66B3 D5
@@ -19370,7 +19489,7 @@ SET_UP_WORK_AREA_6:
                LD HL,INSTALL_ROM_PATCHES       ; 66BD 21 00 7B
 
 ;; --------------------------------------------------------------------
-;; SET_UP_WORK_AREA_LOOP7 -- &66C0 to &66D1
+;; COMPRESS_BLOCK_NEXT_BYTE_LOOP5 -- &66C0 to &66D1
 ;;
 ;; Takes:     BC, DE, HL, IY
 ;; Leaves:    A, F, BC, DE, HL
@@ -19378,37 +19497,45 @@ SET_UP_WORK_AREA_6:
 ;; ? reaches the ROM through DOS_HK_SBYT-&4000; calls CALLDOS; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- SET_UP_WORK_AREA_LOOP7 ---- from &66C7 when B is not 0 yet
-SET_UP_WORK_AREA_LOOP7:
-               LD A,(HL)                       ; 66C0 7E
-               INC HL                          ; 66C1 23
-                                               ; call DOS_HK_SBYT-&4000 in the other page: LMPR is switched first, so
-                                               ; that address is how the other listing numbers it
-               CALL CALLDOS                    ; 66C2 CD C1 42
-               DEFW DOS_HK_SBYT-&4000          ; 66C5 75 6F
-               DJNZ SET_UP_WORK_AREA_LOOP7     ; 66C7 10 F7
-               POP DE                          ; 66C9 D1
-               POP HL                          ; 66CA E1
-               XOR A                           ; 66CB AF
-                                               ; call &493A in the other page: LMPR is switched first, so that address
-                                               ; is how the other listing numbers it
-               CALL CALLDOS                    ; 66CC CD C1 42
-               DEFW &493A                      ; 66CF 3A 49
-               RET                             ; 66D1 C9
+; ---- COMPRESS_BLOCK_NEXT_BYTE_LOOP5 ---- from &66C7 when B is not 0 yet
+COMPRESS_BLOCK_NEXT_BYTE_LOOP5:
+               LD A,(HL)                           ; 66C0 7E
+               INC HL                              ; 66C1 23
+                                                   ; call DOS_HK_SBYT-&4000 in the other page: LMPR is switched first,
+                                                   ; so that address is how the other listing numbers it
+               CALL CALLDOS                        ; 66C2 CD C1 42
+               DEFW DOS_HK_SBYT-&4000              ; 66C5 75 6F
+               DJNZ COMPRESS_BLOCK_NEXT_BYTE_LOOP5 ; 66C7 10 F7
+               POP DE                              ; 66C9 D1
+               POP HL                              ; 66CA E1
+               XOR A                               ; 66CB AF
+                                                   ; call &493A in the other page: LMPR is switched first, so that
+                                                   ; address is how the other listing numbers it
+               CALL CALLDOS                        ; 66CC CD C1 42
+               DEFW &493A                          ; 66CF 3A 49
+               RET                                 ; 66D1 C9
 
 ;; --------------------------------------------------------------------
-;; L66D2 -- &66D2 to &66D8
+;; EXPAND_FILE -- &66D2 to &66D8
 ;;
 ;; Takes:     A, BC
 ;; Leaves:    A, F
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     The mirror of COMPRESS_FILE: one block per 16K plus the remainder,
+;;     each one read back through its own header and expanded into the
+;;     work page.  The DOS reaches it as CALL CALLMB / DEFW &66D2 from
+;;     HK_HLOAD at DOS &643C, which is the only thing that calls it.
 ;; --------------------------------------------------------------------
 
+EXPAND_FILE:
                LD (V40A0),BC                   ; 66D2 ED 43 A0 40
                AND A                           ; 66D6 A7
-               JR Z,SET_UP_WORK_AREA_7         ; 66D7 28 16
+               JR Z,EXPAND_FILE_1              ; 66D7 28 16
 
 ;; --------------------------------------------------------------------
-;; SET_UP_WORK_AREA_LOOP8 -- &66D9 to &66EE
+;; EXPAND_FILE_LOOP -- &66D9 to &66EE
 ;;
 ;; Takes:     A, BC, DE, HL, IY
 ;; Leaves:    A, F, BC
@@ -19417,8 +19544,8 @@ SET_UP_WORK_AREA_LOOP7:
 ;; ? drives IN A,(HMPR), OUT (HMPR),A; calls EXPAND_INTO_WORK_PAGE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- SET_UP_WORK_AREA_LOOP8 ---- from &66ED when A is not 0 yet
-SET_UP_WORK_AREA_LOOP8:
+; ---- EXPAND_FILE_LOOP ---- from &66ED when A is not 0 yet
+EXPAND_FILE_LOOP:
                PUSH AF                         ; 66D9 F5
                PUSH DE                         ; 66DA D5
                PUSH HL                         ; 66DB E5
@@ -19433,17 +19560,17 @@ SET_UP_WORK_AREA_LOOP8:
                POP DE                          ; 66EA D1
                POP AF                          ; 66EB F1
                DEC A                           ; 66EC 3D
-               JR NZ,SET_UP_WORK_AREA_LOOP8    ; 66ED 20 EA
+               JR NZ,EXPAND_FILE_LOOP          ; 66ED 20 EA
 
 ;; --------------------------------------------------------------------
-;; SET_UP_WORK_AREA_7 -- &66EF to &66F1
+;; EXPAND_FILE_1 -- &66EF to &66F1
 ;;
 ;; Takes:     DE
 ;; Leaves:    A, F
 ;; --------------------------------------------------------------------
 
-; ---- SET_UP_WORK_AREA_7 ---- from &66D7 when A = 0
-SET_UP_WORK_AREA_7:
+; ---- EXPAND_FILE_1 ---- from &66D7 when A = 0
+EXPAND_FILE_1:
                LD A,D                          ; 66EF 7A
                OR E                            ; 66F0 B3
                RET Z                           ; 66F1 C8
@@ -28532,7 +28659,7 @@ CALLBACK_HCMDV:
 DISPATCH_ON_COMMAND_TOKEN_DONE:
                POP HL                          ; 7CAA E1
                RST ERR_HOOK                    ; 7CAB CF
-               DEFB &9B                        ; 7CAC 9B hook code, handled by HK_PIXELCELL
+               DEFB &9B                        ; 7CAC 9B hook code, handled by HK_CSIZE
                RET                             ; 7CAD C9
 
 ;; --------------------------------------------------------------------

@@ -241,9 +241,13 @@ MB &65EA COMPRESS_FILE
     less one, so:
 
         CMPFG 0                     no compression at all
-        CMPFG 1                     this routine, whatever the type
+        CMPFG 1                     this routine, any type but BASIC
         CMPFG 2, type &14 SCREEN$   COMPRESS_SCREEN_FILE instead
         CMPFG 2, any other type     this routine
+
+    Type &10, a BASIC program, reaches neither: HK_HSAVE turns it away
+    at DOS &6504, which is the manual's "No attempt is made to compress
+    BASIC programs".
 
     So this is the fast one that wants a spare page, and
     COMPRESS_SCREEN_FILE the slower screen-only one that does not -- and
@@ -272,10 +276,180 @@ MB &67D7 GET_WORK_PAGE
     Two instructions for "use the screen if you have to", and the
     display corruption the manual warns about is that IN A,(VMPR).
 
-MB &660A SET_UP_WORK_AREA
-    Take the work page, work out how much room is above the start
-    address -- &C000 less DE -- and put the two halves of it in the ROM's
-    PAGCOUNT and MODCOUNT.
+MB &6594 V6594
+    The operand of the CALL MBCMR at &6591, filled in by the installer
+    at &761F.  The signature it searches for is D6 06 32 -- the ROM's
+    own "SUB 6 / LD (FL6OR8),A" inside its CSIZE handler -- and five
+    bytes on is the LD A,(MODE) that follows, at &D80E.
+
+    ENTERING THE ROM PAST ITS OWN RANGE CHECKS is the whole point.  The
+    ROM allows widths of 6 or 8 and heights of 6 to 32; HK_CSIZE has
+    already done its own looser checks, written FL6OR8 itself, and set
+    HL to the width and height, so all that is wanted from the ROM is
+    the window arithmetic.  Everything from &6596 on undoes the parts
+    of that arithmetic which do not suit a magnified character.
+
+MB &6596 : B is the width factor written to SYS_CHAR_WIDTH at &657F and pushed at &6584 -- zero when the ROM can print this width unaided
+
+MB &6597 : the width as the user asked for it, pushed at &655D.  The ROM has just written it to CSIZEW too, but replaces it with 6 if it decided this was 85-column MODE 3, so put the real one back
+
+MB &659D : the height factor pushed at &6557 -- height/8, or zero for the heights the ROM handles by itself
+
+MB &65A3 : the ROM's window arithmetic set UWBOT to 192/height - 3
+
+MB &65A9 : ... which comes out -1 for heights 65 to 96: not even one row left in the upper window
+
+MB &65AC : keep one row anyway, so PRINT still has somewhere to go
+
+MB &65B2 : &5A6D is SPOSNU+1, the current print row in the upper window
+
+MB &65B8 : still inside the shrunken window, so leave the print position alone
+
+MB &65BA : otherwise it is pulled up to the new bottom row
+
+MB &65C0 : factor zero: the ROM prints this width itself and its window edges are already right
+
+MB &65C3 : UWRHS + 1 is the number of 8-pixel columns across the window -- 32, 64 or 85
+
+MB &65C9 : C = columns / factor by repeated subtraction: how many whole magnified characters fit on a line
+
+MB &65D0 : written into the DOS page at &5C98, which is the immediate of the LD A,&00 in COLUMNS_FOR_DIRECTORY.  Once CSIZE has widened the character, DIR lays names out across THIS many columns instead of the window's own width
+
+MB &65D7 : characters times factor is the last usable 8-pixel column, plus one
+
+MB &65DB : ... less one is the new right edge of both windows, so a line can never end in a fragment of a character
+
+MB &65E7 COMPRESS_BLOCK_SATURATE
+    The overflow case of the histogram loop, parked in the three spare
+    bytes between the end of CSIZE and COMPRESS_FILE.  A counter that
+    has just wrapped from 255 to 0 is put back to 255 and the loop
+    rejoined.
+
+    OUT OF LINE ON PURPOSE.  The loop runs once per byte of the block,
+    so its JR Z is a not-taken branch except on the 256th occurrence of
+    a value -- the cheap way round for every other byte.
+
+MB &6654 COMPRESS_BLOCK_NEXT_BYTE
+
+MB &65E7 : the counter is a byte and has just wrapped: saturate it at 255
+
+MB &65EA : only C, the file type, is read back later -- at &663B and &670A -- because the numeric-array case needs it
+
+MB &65EE : no whole pages, so the file is all remainder
+
+MB &65F4 : HMPR is the page this block lives in; COMPRESS_BLOCK leaves it pointing elsewhere
+
+MB &65F7 : PUTSWA is &4000 used as a byte count -- one whole page -- and not as an address
+
+MB &65FE : the next 16K of the file is the next page up at the same offset, which is why HL is kept and only HMPR moves
+
+MB &6604 : one page fewer to go
+
+MB &6607 : the tail, under 16K; nothing to do if the length divided exactly
+
+MB &660A : the length is pushed twice and the source once -- the second copy is not wanted until the header at &66A9
+
+MB &6610 : &C000 - length: where in the window the copy has to go so that it ENDS at the top of the page.  Everything below relies on that
+
+MB &6617 : FARLDIR moves PAGCOUNT whole pages plus MODCOUNT bytes -- none, and DE
+
+MB &6623 : C is the destination page for FARLDIR, which GET_WORK_PAGE left in V40AA
+
+MB &6628 : the source page is the one HMPR still holds, the file's own
+
+MB &662C : page A at HL to page C at DE
+
+MB &6631 : the page BELOW the work page into HMPR, which puts the work page itself at &C000-&FFFF
+
+MB &6637 : the same bytes seen through the top section: &C000 - length becomes &10000 - length, so the data runs up to &FFFF exactly
+
+MB &663B : type &11 is a numeric array, five bytes to an element: transpose each 256-byte block so that bytes in the same position within an element become adjacent
+
+MB &6644 : the start of the data twice over -- the encoder's input pointer, and the subtrahend for the compressed length at &66AE
+
+MB &6647 : 256 byte-sized counters at &7B00, one per byte value: the installer's dead bytes doing duty as a histogram
+
+MB &664F : the byte value is the index
+
+MB &6652 : wrapped from 255, so the detour at &65E7 puts it back
+
+MB &6654 : on until DE wraps out of the top of the page -- no count, because the data was placed to end at &FFFF
+
+MB &665A : D is 0 after the wrap, so DEC makes it 255, the worst count possible, and the scan below finds the value occurring least
+
+MB &665F : strictly less only, so ties go to the lower value
+
+MB &6667 : header byte 0, the escape
+
+MB &666B : DE-prime is the side buffer at &7B05 -- header byte 5 onwards -- for the byte that follows each literal escape; see &669B
+
+MB &6670 : output and input start together, because the encoder works in place and no case below writes more than it reads
+
+MB &6673 : H is zero only once HL has wrapped past &FFFF, so the block is done
+
+MB &6677 : a byte equal to the escape cannot be copied as it stands
+
+MB &667B : count the run in B; B wrapping to zero means 256 in a row
+
+MB &6684 : a run of one is just the byte itself
+
+MB &6687 : three or more is worth encoding
+
+MB &6689 : a run of two is written out twice, because the encoded form is three bytes -- longer, and in place one more than was read
+
+MB &668F : back to the true length; 256 goes out as 0, which the expander turns back into 256
+
+MB &6691 : escape, value, count
+
+MB &669B : A literal escape, written as ESC ESC -- one byte more than was read.  So the byte after it is taken as well and parked in the side buffer at &7B05 instead of going into the stream: two in, two out, and the output still cannot overtake the input.  The expander takes it back from the same buffer.  The rarest of 256 values in a 16K block occurs at most 64 times, so the buffer never passes &7B45
+
+MB &66A7 : HL is one past the last output byte and DE the start; BC is the uncompressed length pushed at &660A
+
+MB &66AA : header bytes 3 and 4, the uncompressed length, which is how the expander knows where in its work page the block goes
+
+MB &66AE : end less start is the compressed length, header bytes 1 and 2; carry is clear from the AND A at &6674
+
+MB &66D2 EXPAND_FILE
+    The mirror of COMPRESS_FILE: one block per 16K plus the remainder,
+    each one read back through its own header and expanded into the
+    work page.  The DOS reaches it as CALL CALLMB / DEFW &66D2 from
+    HK_HLOAD at DOS &643C, which is the only thing that calls it.
+
+MB &660A COMPRESS_BLOCK
+    Compress one block -- DE bytes from HL in the page HMPR names -- and
+    write it to the open file.  Copy, transpose, histogram, encode,
+    emit; the old name described only the first few instructions.
+
+    THE BLOCK IS COPIED TO THE TOP OF THE WORK PAGE.  FARLDIR is given
+    &C000 - length as its destination, so the copy ENDS at the page
+    boundary, and the page below the work page then goes into HMPR so
+    the same bytes are seen running up to &FFFF.  Every loop that walks
+    the data afterwards knows it has finished when its pointer wraps to
+    zero, and carries no count at all.  PAGCOUNT gets 0 and MODCOUNT the
+    length: no whole pages, DE bytes.
+
+    THE ESCAPE IS THE RAREST BYTE.  A 256-entry histogram is built at
+    &7B00 and the value with the lowest count becomes the escape, since
+    every real occurrence of it has to be escaped.  A 16K block cannot
+    hold more than 64 of its rarest value, which is what bounds the
+    header.
+
+    THE ENCODER RUNS IN PLACE.  Output starts where input starts and can
+    never overtake it, because no case writes more than it reads: a run
+    of one or two is copied literally, a run of three or more becomes
+    three bytes, and a literal escape -- which alone would cost two
+    bytes for one -- is written as ESC ESC together with the byte after
+    it, that byte going to a side buffer at &7B05 and travelling in the
+    header instead.  Two read, two written, and no bound check anywhere
+    in the loop.
+
+    NUMERIC ARRAYS ARE TRANSPOSED FIRST.  Type &11 elements are five
+    bytes each, so every 256-byte block is rewritten as one byte plus a
+    51 x 5 matrix on its side, putting the exponent bytes of
+    neighbouring elements next to each other where the run-length code
+    can see them.  This is the manual's "numeric arrays are highly
+    compressible if they are mainly filled with whole numbers".  The
+    expander applies the inverse after decoding.
 
 MB &62E9 EXPAND_COMPRESSED_FILE
     The other half of the compression, and the manual's "A compressed

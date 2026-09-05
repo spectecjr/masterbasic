@@ -203,10 +203,15 @@ DOS &5C8B COLUMNS_FOR_DIRECTORY
     How many columns a directory listing gets.
 
     DCOLS if the user has fixed it.  Otherwise SYS_CHAR_WIDTH, read out
-    of the system page, is used only as a yes-or-no: CSIZE has changed
-    the character width, so give up and print one name to a line.  Its
-    value never enters the arithmetic -- the AND A that tests it is
-    followed by LD A,&00, which throws it away and keeps the flags.
+    of the system page, says whether CSIZE has magnified the character.
+
+    THE &00 IS NOT A DISCARD, IT IS A PATCH SITE.  The AND A that tests
+    the width is followed by LD A,&00, and that immediate at &5C98 is
+    written from MasterBASIC's side: &65D0 puts the number of magnified
+    characters that fit on a line into it, every time CSIZE runs.  So
+    when characters have been widened the count below divides THAT, and
+    a listing falls to one name a line only when fewer than eleven
+    magnified characters fit.
 
     With the width left alone the count comes from the window instead:
     WINDRHS gives the right and left edges, C minus B plus one is the

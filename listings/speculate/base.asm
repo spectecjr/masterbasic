@@ -154,6 +154,7 @@ MB_CMD_SPLIT_LINE:              EQU  CMD_SPLIT_LINE + &4000
 MB_CMD_TIME:                    EQU  CMD_TIME + &4000
 MB_COMPRESS_FILE:               EQU  COMPRESS_FILE + &4000
 MB_COMPRESS_SCREEN_FILE:        EQU  COMPRESS_SCREEN_FILE + &4000
+MB_EXPAND_FILE:                 EQU  EXPAND_FILE + &4000
 MB_EXPR_TO_32BIT:               EQU  EXPR_TO_32BIT + &4000
 MB_FIND_LINE_FROM_START:        EQU  FIND_LINE_FROM_START + &4000
 MB_FN_EQU:                      EQU  FN_EQU + &4000
@@ -169,11 +170,11 @@ MB_FN_USING_S:                  EQU  FN_USING_S + &4000
 MB_HCMDV:                       EQU  HCMDV + &4000
 MB_HGTTK:                       EQU  HGTTK + &4000
 MB_HK_COMADENT:                 EQU  HK_COMADENT + &4000
+MB_HK_CSIZE:                    EQU  HK_CSIZE + &4000
 MB_HK_FARSCAN:                  EQU  HK_FARSCAN + &4000
 MB_HK_HORDER:                   EQU  HK_HORDER + &4000
 MB_HK_HPFF:                     EQU  HK_HPFF + &4000
 MB_HK_MERGECOMPFLG:             EQU  HK_MERGECOMPFLG + &4000
-MB_HK_PIXELCELL:                EQU  HK_PIXELCELL + &4000
 MB_HK_PROGPREP:                 EQU  HK_PROGPREP + &4000
 MB_HK_PUTARG:                   EQU  HK_PUTARG + &4000
 MB_HK_RCPTCH:                   EQU  HK_RCPTCH + &4000

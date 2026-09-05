@@ -1961,7 +1961,7 @@ SAMHK:
                DEFW SCFSM                                       ; 44D6 code 152
                DEFW MB_HK_HORDER+NOT_IN_THIS_PAGE               ; 44D8 code 153
                DEFW MB_MBHK_HDUMMY+NOT_IN_THIS_PAGE             ; 44DA code 154
-               DEFW MB_HK_PIXELCELL+NOT_IN_THIS_PAGE            ; 44DC code 155
+               DEFW MB_HK_CSIZE+NOT_IN_THIS_PAGE                ; 44DC code 155
                DEFW MB_HK_SWAPCHARS+NOT_IN_THIS_PAGE            ; 44DE code 156
                DEFW MB_HK_PROGPREP+NOT_IN_THIS_PAGE             ; 44E0 code 157
                DEFW HK_HGFLE                                    ; 44E2 code 158
@@ -11746,10 +11746,15 @@ PCT2:
 ;;     How many columns a directory listing gets.
 ;;
 ;;     DCOLS if the user has fixed it.  Otherwise SYS_CHAR_WIDTH, read out
-;;     of the system page, is used only as a yes-or-no: CSIZE has changed
-;;     the character width, so give up and print one name to a line.  Its
-;;     value never enters the arithmetic -- the AND A that tests it is
-;;     followed by LD A,&00, which throws it away and keeps the flags.
+;;     of the system page, says whether CSIZE has magnified the character.
+;;
+;;     THE &00 IS NOT A DISCARD, IT IS A PATCH SITE.  The AND A that tests
+;;     the width is followed by LD A,&00, and that immediate at &5C98 is
+;;     written from MasterBASIC's side: &65D0 puts the number of magnified
+;;     characters that fit on a line into it, every time CSIZE runs.  So
+;;     when characters have been widened the count below divides THAT, and
+;;     a listing falls to one name a line only when fewer than eleven
+;;     magnified characters fit.
 ;;
 ;;     With the width left alone the count comes from the window instead:
 ;;     WINDRHS gives the right and left edges, C minus B plus one is the
@@ -14805,7 +14810,8 @@ HK_HLDPG:
 ;; Takes:     DE
 ;; Leaves:    A, F, BC, DE, HL, IX, IY
 ;;
-;; ? calls CALLMB, RESET_BUFFER_POINTERS, HOOK_ARGS_TO_HEADER, NETPA; falls into whatever follows rather than returning.
+;; ? reaches the ROM through MB_EXPAND_FILE-&4000; calls CALLMB, RESET_BUFFER_POINTERS, HOOK_ARGS_TO_HEADER, NETPA;
+;; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 HK_HLOAD:
@@ -14819,10 +14825,10 @@ HK_HLOAD:
                JR NZ,HK_HLOAD_1                ; 6434 20 0D
                CALL HOOK_ARGS_TO_HEADER        ; 6436 CD 82 64
                LD C,(IX+&13)                   ; 6439 DD 4E 13
-                                               ; call &66D2 in the other page: LMPR is switched first, so that address
-                                               ; is how the other listing numbers it
+                                               ; call MB_EXPAND_FILE-&4000 in the other page: LMPR is switched first, so
+                                               ; that address is how the other listing numbers it
                CALL CALLMB                     ; 643C CD BD 42
-               DEFW &66D2                      ; 643F D2 66
+               DEFW MB_EXPAND_FILE-&4000       ; 643F D2 66
                JR HK_HLOAD_4                   ; 6441 18 39
 
 ;; --------------------------------------------------------------------

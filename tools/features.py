@@ -406,8 +406,10 @@ looked like:
   the faster PUT is INSTALL_EXTENDED_PUT, which assembles 298 bytes into
   the system page at &45A2 out of five runs, two of them lifted from the
   ROM's own PUT
-  the extended CSIZE is PRINT_MAGNIFIED_CHAR, which has no caller in
-  either page: the system page reaches it through PAGER
+  the extended CSIZE is the hook 155 routine HK_CSIZE, which sizes the
+  character and enters the ROM's own CSIZE past its range checks; the
+  printing half is PRINT_MAGNIFIED_CHAR, which has no caller in either
+  page because the system page reaches it through PAGER
   BLOCKS 2 is HK_SWAPCHARS exchanging 328 bytes with the alternate
   character set at &7E64, the cursor kept out of the swap through HUDG
   the FORMAT improvements are BUILD_TRACK_IMAGE, which lays out a whole
