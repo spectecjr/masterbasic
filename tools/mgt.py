@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Read an MGT disk image: list the directory, or pull a file out of it.
 
-    python tools/mgt.py dsks/MasterBasic1.7.dsk
-    python tools/mgt.py dsks/MasterBasic1.7.dsk MBMC out.bin
+    python tools/mgt.py diskimages/MasterBasic1.7.dsk
+    python tools/mgt.py diskimages/MasterBasic1.7.dsk MBMC out.bin
 
 The format is in ref/masterdos/docs/disk-format.md and nothing here departs
 from it: 80 tracks, 2 sides, 10 sectors of 512 bytes, the last two bytes of

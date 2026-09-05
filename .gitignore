@@ -5,7 +5,7 @@ __pycache__/
 # pyz80 leftovers.  tools/build.sh assembles into a temporary directory
 # and cleans up after itself, so these should never appear -- but they do
 # if you run pyz80 by hand to look at something.  Scoped to the root so
-# that the source images in dsks/ are not caught by the .dsk rule.
+# that the source images in diskimages/ are not caught by the .dsk rule.
 /*.dsk
 /*.out
 /*.lst

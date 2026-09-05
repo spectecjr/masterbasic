@@ -1,7 +1,7 @@
 # What dumps/MBPOST.bin actually is, and what may be concluded from it.
 
 # IT IS NOT A MEMORY DUMP.  It is the output of SAVE BOOT, made by
-# booting dsks/MasterDOS2_3_MasterBasic1_7.mgt under SimCoupe and then
+# booting diskimages/MasterDOS2_3_MasterBasic1_7.mgt under SimCoupe and then
 # saving to a freshly formatted disk.  The name is a leftover from when
 # this file was believed to be a dump of the two halves after boot, and
 # several conclusions were drawn on that basis which had to be withdrawn.

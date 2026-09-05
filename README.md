@@ -116,7 +116,7 @@ git submodule update --init
 | `docs/original/` | the MasterBASIC manual as scanned, and its errata |
 | `ref/masterdos/` | annotated MasterDOS 2.3 source (submodule) |
 | `ref/samrom/` | SAM Coupé ROM 3.0 source (submodule) |
-| `dsks/` | the original disk images |
+| `diskimages/` | the original disk images |
 | `design/` | what this project set out to do |
 
 [docs/how-it-works.md](docs/how-it-works.md) is the narrative: what

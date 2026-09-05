@@ -17633,7 +17633,7 @@ MSG_EXTERNAL_MEMORY:
 ;; code at &77DB and nowhere else, and the system page has neither the
 ;; code nor the message.
 ;;
-;; Nor does any other DOS call it.  dsks/MasterBasic1.7.dsk carries two
+;; Nor does any other DOS call it.  diskimages/MasterBasic1.7.dsk carries two
 ;; more of them -- samdos2, which is SAMDOS 2, and MBMC, a third
 ;; bootable image that is neither -- and the same MasterBASIC runs with
 ;; them: MBASC on that disk is this half byte for byte, all 16320 of

@@ -1,11 +1,11 @@
 # What else is on the disk images, and what it settles.
 
-# dsks/ holds three images.  Files come out of them by following the
+# diskimages/ holds three images.  Files come out of them by following the
 # sector chain -- each 512-byte sector is 510 bytes of data and then the
 # track and sector of the next -- and the directory is two 256-byte
 # entries per sector across track 0.
 
-# dsks/MasterBasic1.7.dsk
+# diskimages/MasterBasic1.7.dsk
 #
 #   samdos2   type 19, 10200 bytes   SAMDOS 2
 #   MBMC      type 19, 16311 bytes   saved from &8009, page 97
@@ -149,11 +149,11 @@
 # What that pair settles: nothing in samdos2 or MBMC calls MasterBASIC's
 # SIZE_EXTERNAL_MEMORY either.  See notes/mb-extmem.txt.
 
-# dsks/MasterDOS2_3_MasterBasic1_7.mgt
+# diskimages/MasterDOS2_3_MasterBasic1_7.mgt
 #
 #   the combined file this project disassembles.
 
-# dsks/liveboottest.mgt
+# diskimages/liveboottest.mgt
 #
 #   Where dumps/MBPOST.bin came from, saved as a CODE file, along with
 #   the pair of partial system-page dumps that used to sit beside it --

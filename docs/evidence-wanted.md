@@ -12,7 +12,7 @@ second `SAVE BOOT` in item 1.
 ## 1. Answered — `dumps/MBPOST.bin` is a `SAVE BOOT` file, and it carries settings
 
 Kept here because the answer is worth more than the question was. It was made
-by booting `dsks/MasterDOS2_3_MasterBasic1_7.mgt` under SimCoupe and doing a
+by booting `diskimages/MasterDOS2_3_MasterBasic1_7.mgt` under SimCoupe and doing a
 `SAVE BOOT` onto a fresh disk, so it is not memory at those addresses — it is
 eight blocks assembled from four places, of which only two are the pages they
 appear to be. `notes/mb-postboot.txt` has the map.
@@ -173,7 +173,7 @@ Nothing here is outstanding.
 Formatting, the directory as a structure, and the RAM discs are reading time
 rather than evidence. `docs/disc.md` follows a read and a write end to end;
 what is either side of those two paths is unread, and the disk images in
-`dsks/` give enough test data to check any claims against.
+`diskimages/` give enough test data to check any claims against.
 
 ---
 
@@ -256,7 +256,7 @@ Failing that, two cheaper things would each narrow it:
 ## Notes on capturing
 
 - Anything saved as a CODE file on an `.mgt` or `.dsk` image can be dropped
-  in `dsks/` and extracted here — the directory format and sector chains are
+  in `diskimages/` and extracted here — the directory format and sector chains are
   understood, and `ref/masterdos/docs/disk-format.md` documents them.
 - Raw binaries are just as good; `dumps/` is where the existing dumps live.
 - Say which ROM version the machine is running if it is not 3.0. The fifteen

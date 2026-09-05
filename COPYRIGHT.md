@@ -6,7 +6,7 @@ MasterBASIC, MasterDOS, and the SAM Coupe BASIC ROM were written by Dr. Andy J.
 Wright, and copyright remains theirs.
 
 That includes everything in the `docs\original` folder, the disk images in
-`dsks`, the combined MasterBASIC and MasterDOS file in
+`diskimages`, the combined MasterBASIC and MasterDOS file in
 `file\MasterBasicMasterDos.bin`, and comments in the annotated disassembly which
 were brought directly over from previous documentation attempts.
 

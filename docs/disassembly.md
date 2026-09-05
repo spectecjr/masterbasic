@@ -1,7 +1,7 @@
 # Disassembling MD+MBAS17
 
 `dumps/MasterBasicMasterDos.bin` is the file `MD+MBAS17` from
-[dsks/MasterDOS2_3_MasterBasic1_7.mgt](../dsks/MasterDOS2_3_MasterBasic1_7.mgt),
+[diskimages/MasterDOS2_3_MasterBasic1_7.mgt](../diskimages/MasterDOS2_3_MasterBasic1_7.mgt),
 the only file on that disk. It is MasterDOS 2.3 and MasterBASIC 1.7 built into
 one bootable DOS image.
 
@@ -46,7 +46,7 @@ part of the image the boot sector loads, not something to skip.
 ### What the start page really is
 
 It reads 99 here, and 97 and 125 in the bootable files on
-`dsks/MasterBasic1.7.dsk`, none of which is a page a 512K SAM has — it runs 0
+`diskimages/MasterBasic1.7.dsk`, none of which is a page a 512K SAM has — it runs 0
 to 31. That is worth setting out properly, because it is easy to build a wrong
 theory on and this project built two.
 
