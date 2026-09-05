@@ -147,3 +147,14 @@ DOS &604A expr &4B00
 DOS &604A : the ROM's own HDR buffer, reached with page 0 in the window
 DOS &6075 expr &4A99
 DOS &6075 : a system-page address just under the ROM's BSTACK, written through WRTBC which pages page 0 in
+
+# Three more numbers that this page's own labels collide with, all of
+# them system-page addresses.  See docs/disassembly.md on why &4000-&7FBF
+# is ambiguous.
+
+DOS &6422 expr &4A64
+DOS &6422 : a system-page address -- the net-patch stub, not this page's sector-write code
+DOS &64AB expr &4A62
+DOS &64AB : the other of the pair, three bytes below it
+DOS &64C2 expr &4000
+DOS &64C2 : the verify loop's byte count for the next page, not an address

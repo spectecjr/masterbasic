@@ -9981,14 +9981,19 @@ GDIFA:
                RET                             ; 6335 C9
 
 ;; --------------------------------------------------------------------
-;; PART G1 -- The load and save hooks, and file name parsing
+;; Read a header from IX and require the device to be a disc.
 ;;
-;; RXSS, and anything but Z is error 10.  Three callers use it as the
-;; "the sector had better be there" step before going on.
+;; RXSS unpacks the header into UIFA and compares the device letter
+;; with "D"; anything else is REP10, which is "Invalid device" -- not
+;; a missing sector, which an earlier reading of this had it be.  No
+;; sector is involved at any point.  The 1991 source calls it RXHED,
+;; "INPUT A HEADER FROM IX", and the banner two routines down still
+;; says so.  Each of the three callers goes on to do its own drive
+;; check and directory search.
 ;; --------------------------------------------------------------------
 
-; ---- REQUIRE_SECTOR ---- from &6620, &662D, &663D
-REQUIRE_SECTOR:
+; ---- RXHED ---- from &6620, &662D, &663D
+RXHED:
                CALL RXSS                       ; 6336 CD 3D 63
                JP NZ,REP10                     ; 6339 C2 F4 47
                RET                             ; 633C C9
@@ -10064,7 +10069,7 @@ EVFL8B:
 HCONR:
                CALL CLEAR_TSTR                 ; 638A CD 95 44
                LD HL,UIFA+1                    ; 638D 21 7E 41
-               CALL DEFAULT_FILE_TYPE          ; 6390 CD 01 67
+               CALL EVFILE                     ; 6390 CD 01 67
                LD A,(&7FFF)                    ; 6393 3A FF 7F  ENTRY LRPORT VALUE ON STACK
                BIT 6,A                         ; 6396 CB 77
                CALL NZ,GTLNM                   ; 6398 C4 2A 73  IF ROM 1 USED HGTHD THEN USE
@@ -10181,7 +10186,8 @@ HK_HLDPG:
                OUT (HMPR),A                    ; 6420 D3 FB
 
 HK_HLOAD:
-               LD BC,SVBSI                     ; 6422 01 64 4A
+               LD BC,&4A64                     ; 6422 01 64 4A  a system-page address -- the net-patch stub, not this
+                                               ; page's sector-write code
                CALL NETPA                      ; 6425 CD 9D 64
                CALL RESET_BUFFER_POINTERS      ; 6428 CD 84 4F
                LD HL,V42E2                     ; 642B 21 E2 42
@@ -10238,9 +10244,11 @@ DSCHD:
                CALL RESET_BUFFER_POINTERS      ; 647F CD 84 4F
 
 ;; --------------------------------------------------------------------
-;; Unpack the registers a hook was called with -- HKHL, HKBC and HKDE --
-;; into the header fields HD0D1 and PGES1, clearing bit 7 of D on the
-;; way, which is the flag the caller used to mark a paged address.
+;; The hook's arguments, into the header the ROM wants.
+;;
+;; D IS THE HIGH BYTE OF THE LENGTH, and goes to HD0B1.  Bit 7 of it
+;; is not a paged-address marker, whatever an earlier reading said;
+;; the TXHED banner in this same region names that bit correctly.
 ;; --------------------------------------------------------------------
 
 ; ---- HOOK_ARGS_TO_HEADER ---- from &6436, &6446, &6459
@@ -10281,7 +10289,7 @@ HVEPG:
 ;; --------------------------------------------------------------------
 
 HVERY:
-               LD BC,SVBL2_1                   ; 64AB 01 62 4A
+               LD BC,&4A62                     ; 64AB 01 62 4A  the other of the pair, three bytes below it
                CALL NETPA                      ; 64AE CD 9D 64
                CALL DSCHD                      ; 64B1 CD 7F 64
                LD (IX+RPT-DCHAN),&09           ; 64B4 DD 36 0D 09
@@ -10295,7 +10303,8 @@ HVER1:
                AND A                           ; 64BD A7
                JP Z,HK_SKSAFE                  ; 64BE CA 23 47
                DEC C                           ; 64C1 0D
-               LD DE,HEADER                    ; 64C2 11 00 40
+               LD DE,&4000                     ; 64C2 11 00 40  the verify loop's byte count for the next page, not an
+                                               ; address
 
 ; ---- HVER2 ---- from &64BA
 HVER2:
@@ -10561,14 +10570,14 @@ INIT:
                JR AUINC                        ; 661E 18 D7
 
 HOFLE:
-               CALL REQUIRE_SECTOR             ; 6620 CD 36 63
+               CALL RXHED                      ; 6620 CD 36 63
                CALL CKDRV                      ; 6623 CD 07 48
                CALL GOFSM                      ; 6626 CD 28 4D
                JP NC,SVHD                      ; 6629 D2 3B 5F  JP IF NOT "OVERWRITE?"+N
                RET                             ; 662C C9
 
 HK_HGFLE:
-               CALL REQUIRE_SECTOR             ; 662D CD 36 63
+               CALL RXHED                      ; 662D CD 36 63
                CALL GTFL3                      ; 6630 CD BE 4E
 
 ;; --------------------------------------------------------------------
@@ -10583,7 +10592,7 @@ READ_SAVED_SECTOR:
                JP SVHD1_DONE                   ; 663A C3 4D 5F
 
 HERAZ:
-               CALL REQUIRE_SECTOR             ; 663D CD 36 63
+               CALL RXHED                      ; 663D CD 36 63
                CALL CKDRV                      ; 6640 CD 07 48
                CALL FINDC                      ; 6643 CD A7 4F
                JP NZ,REP26                     ; 6646 C2 62 5E
@@ -10737,12 +10746,16 @@ GTDD_2:
                RET                             ; 6700 C9
 
 ;; --------------------------------------------------------------------
-;; GTDEF, and if the type byte is &FF -- nothing chosen -- write &54 in
-;; its place before going on.
+;; Parse the device and drive prefix of a file name.
+;;
+;; A NULL NAME BECOMES "T:".  The byte tested is the first character
+;; of the name, not a type byte, and two are written where it was --
+;; &54 and &3A, "T" and ":" -- so LOAD "" is LOAD "T:", the tape.
+;; The 1991 comment on the instruction says exactly that.
 ;; --------------------------------------------------------------------
 
-; ---- DEFAULT_FILE_TYPE ---- from &6390, &724E, &7324
-DEFAULT_FILE_TYPE:
+; ---- EVFILE ---- from &6390, &724E, &7324
+EVFILE:
                CALL GTDEF                      ; 6701 CD D7 66
                PUSH HL                         ; 6704 E5
                LD (SVHL),HL                    ; 6705 22 05 7C
@@ -13302,7 +13315,7 @@ STDQ:
 ; ---- STDQC ---- from &7243
 STDQC:
                LD HL,NSTR1+1                   ; 724B 21 3B 41
-               CALL DEFAULT_FILE_TYPE          ; 724E CD 01 67
+               CALL EVFILE                     ; 724E CD 01 67
                CALL CKDISC                     ; 7251 CD 00 48
                CALL GPLA                       ; 7254 CD 4A 74  GET PATH LEN ADDR IN HL
                LD A,(HL)                       ; 7257 7E
@@ -13492,7 +13505,7 @@ REP32H:
 ; ---- EVFINS ---- from &59A0, &59A6, &5B34, &5B3B, &5CD9, &5D5C, &5E39, &60E5 ...
 EVFINS:
                LD HL,NSTR1+1                   ; 7321 21 3B 41
-               CALL DEFAULT_FILE_TYPE          ; 7324 CD 01 67
+               CALL EVFILE                     ; 7324 CD 01 67
                CALL CKDISC                     ; 7327 CD 00 48
 
 ; ---- GTLNM ---- from &6398 when bit 6 of A set

@@ -408,6 +408,43 @@ Only jump and call targets, and inline parameters, are named from the ROM.
 Runs of three or more `NOP`s are written as `DEFS n` — pyz80 zero-fills, so this
 round-trips, and in the DOS's variable area that is what the bytes are.
 
+## A number is not an address just because a label has that value
+
+The disassembler names an operand by looking its value up among the labels.
+That is right most of the time and wrong in a way worth stating, because it has
+now produced the same error in four separate parts of the listing.
+
+`&4000`–`&7FBF` is the DOS's own page. It is *also* where the ROM's system page
+appears whenever `LMPR` puts it in section B, which is what `SYSPAGE_IN_B`
+(`&1F`) does and what `CMR` does on the way to ROM 1. So an operand anywhere in
+that range is genuinely ambiguous, and the namer always resolves it one way.
+
+Three kinds of number get caught:
+
+| the number | what it really is | what it was named |
+|---|---|---|
+| `&4A62`, `&4A64` | the net-patch stubs in the system page | `SVBL2_1`, `SVBSI` |
+| `&4A99`, `&4B00` | a system-page address; the ROM's `HDR` buffer | `FNS2_1`, `TSTD_DONE` |
+| `&4000`, `&6EF9` | a byte count of 16384; `TABLE+8` | `HEADER`, `MCHRD` |
+
+The last row is the awkward one: those are not addresses at all. A count, a
+table base and a bit mask can each equal some label's address by arithmetic
+accident, and nothing distinguishes them from a reference.
+
+**The peer page has a mechanism and this does not.** An `&8xxx` operand that
+resolves into the other half goes through `no_peer`, which exists precisely
+because that resolution is often a coincidence — and the habit of suspecting it
+is well established. An own-page collision has no equivalent, so it passes
+silently and then reads as a cross-reference: `MCHRD` still lists a caller that
+only loads `TABLE+8`.
+
+The fix for a single instance is an `expr` note, which rewrites the operand and
+is checked against the number when the listing is assembled, so it cannot drift.
+What would catch them in bulk is a pass that flags any operand naming a label
+whose address lies in the system page's range while the code around it has the
+system page mapped. That has not been written.
+
+
 ## Internal labels
 
 Every address either listing refers to gets a name. Most of them are named by

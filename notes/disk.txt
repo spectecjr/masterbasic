@@ -233,24 +233,35 @@ DOS &6284 EVAL_STRING_IF_RUNNING
     fetching it, and GETSTR only if the program is really running.  The
     page comes back in SVC.
 
-DOS &6336 REQUIRE_SECTOR
-     PART G1 -- The load and save hooks, and file name parsing
+DOS &6336 RXHED
+    Read a header from IX and require the device to be a disc.
 
-     RXSS, and anything but Z is error 10.  Three callers use it as the
-     "the sector had better be there" step before going on.
+    RXSS unpacks the header into UIFA and compares the device letter
+    with "D"; anything else is REP10, which is "Invalid device" -- not
+    a missing sector, which an earlier reading of this had it be.  No
+    sector is involved at any point.  The 1991 source calls it RXHED,
+    "INPUT A HEADER FROM IX", and the banner two routines down still
+    says so.  Each of the three callers goes on to do its own drive
+    check and directory search.
 
 DOS &6482 HOOK_ARGS_TO_HEADER
-    Unpack the registers a hook was called with -- HKHL, HKBC and HKDE --
-    into the header fields HD0D1 and PGES1, clearing bit 7 of D on the
-    way, which is the flag the caller used to mark a paged address.
+    The hook's arguments, into the header the ROM wants.
+
+    D IS THE HIGH BYTE OF THE LENGTH, and goes to HD0B1.  Bit 7 of it
+    is not a paged-address marker, whatever an earlier reading said;
+    the TXHED banner in this same region names that bit correctly.
 
 DOS &6633 READ_SAVED_SECTOR
     Take the track and sector out of SVDE and read it, then leave for
     &5F4D rather than returning.
 
-DOS &6701 DEFAULT_FILE_TYPE
-    GTDEF, and if the type byte is &FF -- nothing chosen -- write &54 in
-    its place before going on.
+DOS &6701 EVFILE
+    Parse the device and drive prefix of a file name.
+
+    A NULL NAME BECOMES "T:".  The byte tested is the first character
+    of the name, not a type byte, and two are written where it was --
+    &54 and &3A, "T" and ":" -- so LOAD "" is LOAD "T:", the tape.
+    The 1991 comment on the instruction says exactly that.
 
 DOS &67FC CHANNEL_LENGTH_AND_FLAGS
     Take the two-byte length at (IX+&09) into BC and then look at the
