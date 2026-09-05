@@ -2,10 +2,14 @@
 #
 #     https://sam.speccy.cz/systech/sam-coupe_tech-man_v3-0.pdf
 #
-# Not a submodule, because it is a scanned PDF rather than something
-# that can be assembled or diffed.  Worth knowing about, because it
-# names things neither reference source does: ALLOCT's byte values,
-# SLOTT and utility pages, and the ROM vectors.
+# The scanned PDF is at the address above.  A transcription of the same
+# manual is a submodule -- ref/sam-coupe-technical-manual -- and having
+# both matters: where they differ, the difference is the PDF's copy and
+# not the manual's, which is what the typo list below turns on.
+#
+# Worth knowing about, because it names things neither reference source
+# does: ALLOCT's byte values, SLOTT and utility pages, and the ROM
+# vectors.
 #
 # It confirms, in its own words, things this project had derived:
 #
@@ -37,29 +41,51 @@
 # because it wants 5 of 7 in each channel, and bright white &7F wants 7.
 # Bit 3 is set for white and for nothing else in that table.
 
-# KNOWN TYPOS.  Online copies carry errors; these are the ones met so
-# far, all in the system variable tables.
+# KNOWN TYPOS, CHECKED AGAINST A SECOND TRANSCRIPTION.
 #
-#   INSLV is given as "BBBAH".  It is 5BBAH -- the entry sits between
-#   OVERF at 5BB9H and STRLOCN at 5BBCH, and is two bytes.
+# ref/sam-coupe-technical-manual is Stefan Drissen's transcription of the
+# same manual, and running the list past it splits it in two: errors the
+# online PDF introduced, which are gone there, and errors the manual
+# itself has, which are in both.  Every address below was then checked
+# against ref/samrom/vars.asm, which settles it either way.
 #
-#   5AFAH is MTOFCV in the table and MTOKV in the prose that describes
-#   it.  This project uses MTOKV.
+# THE PDF'S OWN, all five confirmed absent from the transcription:
 #
-#   DKDEF is given as 5BDCH, which is also MNOP's address.  It belongs
-#   at 5BCEH, between FPSBOT at 5BCAH and DKLIM at 5BD0H.
+#   INSLV given as "BBBAH".  The transcription has 5BBA, between OVERF
+#   at 5BB9 and STRLOCN at 5BBC, and vars.asm has INSLV at VAR2+&01BA.
 #
-#   BSTKEND and BASSTK are both given as 5BC4H.
+#   5AFAH as MTOFCV in the table and MTOKV in the prose.  The
+#   transcription says MTOKV in both, which is what this project uses.
 #
-#   In the 5C4FH-5C56H run the descriptions are shifted from the names
-#   by two rows: CURCHL is described as "number of line with > cursor",
-#   DEFADD as "start of channels area", and so on.
+#   DKDEF given as 5BDCH, MNOP's address.  The transcription has DKDEF
+#   at 5BCE and MNOP at 5BDC, and vars.asm has DKDEF at VAR2+&01CE.
+#   The derivation that put it at 5BCEH was right, but the neighbour it
+#   named was not: FPSBOT is 5BCC, not 5BCA.  Corrected here.
 #
-#   In the floating point calculator table: SQN for SGN at &42, SOR for
-#   SQR at &43, JFFALSE for JPFALSE at &1F, and "SWOp13" with a lower
-#   case p at &1C.  &0F is given as NOTE where the string series has
-#   SNOTE for the same comparison, so the numeric name looks a letter
-#   short, though that one is a guess.
+#   BSTKEND and BASSTK both given as 5BC4H.  They are 5BC4 and 5BC6, in
+#   the transcription and in vars.asm alike.
+#
+#   The 5C4FH-5C56H run with its descriptions shifted two rows.  The
+#   transcription has them lined up -- CHANS 5C4F "start of channels
+#   area", CURCHL 5C51 "start of current channel", and the "number of
+#   line with > cursor" back on EPPC at 5C49 where it belongs.
+#
+# AND FOUR IN THE CALCULATOR TABLE, where the split runs the other way.
+#
+#   JFFALSE for JPFALSE at &1F, and "SWOp13" with a lower case p at
+#   &1C, are the PDF's: the transcription has both right.
+#
+#   SQN for SGN at &42 and SOR for SQR at &43 are the manual's own --
+#   both transcriptions carry them.  The manual contradicts itself,
+#   which is how they are known to be slips: its token table gives SGN
+#   and SQR a few pages later, and fpcmain.asm has SGN at &42 and SQR
+#   at &43.
+#
+#   &0F as NOTE is the manual's own too, and the guess that it was a
+#   letter short is now settled: fpcmain.asm calls it NNOTE, N<>N,
+#   against SNOTE at &16 for $<>$.  The whole series is paired that way
+#   -- NLESE/SLESE, NGRTE/SGRTE, NLESS/SLESS, NEQUAL/SEQUAL,
+#   NGRTR/SGRTR -- so NOTE is the only one in the manual missing its N.
 #
 # WHAT IT CONFIRMED.  The calculator section was read against
 # tools/fpcalc.py, which takes its table from ref/samrom/fpcmain.asm.
