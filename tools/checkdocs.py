@@ -22,7 +22,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LISTINGS = ('disasm/masterdos.asm', 'disasm/masterbasic.asm',
-            'postinstall/syspage.asm')
+            'disasm/postinstall-syspage.asm')
 PROSE = ('docs', 'notes')
 
 # prose whose point is a name the listing no longer has, file by file
@@ -45,12 +45,20 @@ SYNTHETIC = re.compile(r'\b[LV][0-9A-F]{4}\b')
 
 
 def read_listings():
-    """(text at each address, every name defined)."""
+    """(text at each address, every name defined).
+
+    A listing that is not there is an error and not a skip.  This used
+    to `continue`, which meant a wrong path checked nothing and still
+    reported that every file checked out -- and the path did move once,
+    when postinstall/syspage.asm became disasm/postinstall-syspage.asm.
+    Silence is the one answer a checker must not give.
+    """
     at, names = {}, set()
     for rel in LISTINGS:
         path = os.path.join(ROOT, rel)
         if not os.path.exists(path):
-            continue
+            raise SystemExit('checkdocs: no %s -- run tools/build.sh first,'
+                             ' or fix LISTINGS if the file has moved' % rel)
         for line in open(path, encoding='utf-8'):
             m = INSN.match(line)
             if m:

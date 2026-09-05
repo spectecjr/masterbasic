@@ -57,16 +57,18 @@ each one is for, every guess marked with a leading `?`. It is useful for finding
 your way around 2,118 routines; it is not evidence. Its
 [README](speculate/README.md) sets out where it is wrong and why.
 
-**`postinstall/` is a third kind again: a reconstruction.** MasterBASIC
-builds seven blocks into the ROM's own system page at boot and points
-CMDV, EDITV, RST8V and five more vectors at them, so the code the ROM
-actually calls lives at `&45A2`, `&46CC`, `&484D` and `&4BA0` and appears
-in `clean/` and `disasm/` only at the addresses it was stored at -- and one of the
-blocks is not stored here at all, being assembled partly out of the ROM's
-own `PUT`. `tools/syspage.py` builds that page and
-disassembles it where it really runs. It cannot be verified by
-assembling -- there is no original to compare it with -- and it says so
-at the top of itself.
+**`postinstall-syspage.asm` is a third kind again: a reconstruction.**
+MasterBASIC builds seven blocks into the ROM's own system page at boot
+and points CMDV, EDITV, RST8V and five more vectors at them, so the code
+the ROM actually calls lives at `&45A2`, `&46CC`, `&484D` and `&4BA0` and
+appears in the two listings only at the addresses it was stored at -- and
+one of the blocks is not stored here at all, being assembled partly out
+of the ROM's own `PUT`. `tools/syspage.py` builds that page and
+disassembles it where it really runs, writing it beside the listings it
+belongs with: `clean/postinstall-syspage.asm` to read, and
+`disasm/postinstall-syspage.asm` with the working notes. It cannot be
+verified by assembling -- there is no original to compare it with -- and
+it says so at the top of itself.
 
 `clean/`, `disasm/` and `speculate/` all assemble to the original bytes —
 everything added is a comment — so all six files are checked on every build.
@@ -89,7 +91,7 @@ speculate/masterbasic.asm: BYTE-IDENTICAL
 
 The build assembles the annotated MasterDOS source and the SAM ROM first, for
 their symbol tables and BASIC token tables, then disassembles the image against
-them, rebuilds `postinstall/`, then reassembles everything it wrote and
+them, rebuilds the system page, then reassembles everything it wrote and
 compares. It prints the byte census and the description count as it goes, so
 the figures below are measured on every run rather than remembered. Nothing is
 left to be checked by eye.
@@ -105,10 +107,9 @@ git submodule update --init
 | | |
 |---|---|
 | `file/` | the image being disassembled |
-| `clean/` | the reading copy — **start here** |
+| `clean/` | the reading copy — **start here**; also the ROM's system page as MasterBASIC leaves it |
 | `disasm/` | the same code with the working notes left in |
 | `speculate/` | the same again, with a machine's reading of every routine |
-| `postinstall/` | the ROM's system page as MasterBASIC leaves it |
 | `notes/` | hand-written names and descriptions, fed into both |
 | `tools/` | the disassembler and the passes that annotate it |
 | `docs/` | how it works, the idiom guide, how it is built, the manual |

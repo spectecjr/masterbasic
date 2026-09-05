@@ -102,7 +102,7 @@ code about to be syntax checked or executed (normally a command code)",
 `EVALUV` "A=current character in expression", `PRTOKV` "A=token code to
 expand and print as ASCII", and `RST8V` an error code with the alternate
 registers already selected and `CHAD`/`CHADP` already copied to
-`XPTR`/`XPTRP`. `postinstall/syspage.asm` names the installed code after
+`XPTR`/`XPTRP`. `disasm/postinstall-syspage.asm` names the installed code after
 them.
 
 **Why any of this has to be installed at all** is stated in the same
@@ -128,7 +128,7 @@ MasterBASIC takes over editing, command dispatch, token printing and
 expression evaluation without the ROM knowing anything changed. This code
 runs in the system page with MasterBASIC paged *out*, which is why it is
 written for `&46CC` and `&484D` rather than where it is stored.
-`postinstall/syspage.asm` shows it at its real addresses.
+`disasm/postinstall-syspage.asm` shows it at its real addresses.
 
 **And back again, through `PAGER`.** The installed code is not self-contained:
 four times it reaches back into MasterBASIC, which by then is paged out. It gets
@@ -342,7 +342,7 @@ identified, so `LD (&45AF),A` reads as `LD (CHECK_WRITE_STATUS+1),A`.
 | what | where |
 |---|---|
 | boot and installation | `INSTALL_ROM_PATCHES` `&7B03`, `INSTALL_ROM_VECTORS` `&76DA`, `RESOLVE_ROM_ENTRIES` `&7990`, `INSTALL_SYSPAGE_CODE` `&7A9F`, `INSTALL_EXTENDED_PUT` `&7829` |
-| the code the ROM calls | `postinstall/syspage.asm`; sources at `&7460`, `&7BA4`, `&7B80`, `&7E43` |
+| the code the ROM calls | `disasm/postinstall-syspage.asm`; sources at `&7460`, `&7BA4`, `&7B80`, `&7E43` |
 | command dispatch | `CTAB` `&42EA`, `SYNTAX`, `CMD_*` |
 | functions | `FNVEC` `&78EB`, `FN_*` |
 | hooks | `SAMHK` `&44A6`, `HK_*` |

@@ -207,9 +207,9 @@ def main():
     for at, end, why in placed:
         d.headers[at] = ('; ' + '-' * 68 + '\n; %s\n; ' % why) + '-' * 68
 
-    out = os.path.join(root, 'postinstall')
+    out = os.path.join(root, 'disasm')
     os.makedirs(out, exist_ok=True)
-    path = os.path.join(out, 'syspage.asm')
+    path = os.path.join(out, 'postinstall-syspage.asm')
     covered = sum(1 for a in range(BASE, TOP)
                   if d.m(a) in (CODE, CONT))
     # With a dump, that one range is the page and the copy ranges lie
@@ -229,7 +229,10 @@ def main():
         d.emit(f, segs=segs)
     print('wrote', path)
 
-    # The same page, written to be read: see tools/clean.py.
+    # The same page, written to be read: see tools/clean.py.  The two sit
+    # beside their listings under the same names -- disasm/ carries the
+    # working notes and clean/ the conclusions -- rather than in a
+    # directory of their own.
     cpath = os.path.join(root, 'clean', 'postinstall-syspage.asm')
     os.makedirs(os.path.dirname(cpath), exist_ok=True)
     clean.clean_pages((d,))

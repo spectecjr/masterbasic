@@ -5,7 +5,7 @@ MasterDOS. Most are forced by the paging hardware; a few are just the cheapest
 way to do something on a Z80. None is obvious on first reading, and several look
 like different things than they are.
 
-Everything here is quoted from `disasm/`, `postinstall/` or the reference
+Everything here is quoted from `disasm/` or the reference
 sources, with the address it appears at -- `disasm/` because that is the copy
 whose working notes say how firmly each reading is held, and the one
 `tools/checkdocs.py` verifies these quotations against. To read the same code

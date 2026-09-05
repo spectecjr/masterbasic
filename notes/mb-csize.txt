@@ -32,7 +32,7 @@ DOC PRINT_MAGNIFIED_CHAR
 # How the ROM reaches it, which is the general answer for this half.
 #
 # &64F3 has no caller in either page.  It has one in the ROM's system
-# page, and postinstall/syspage.asm shows it:
+# page, and disasm/postinstall-syspage.asm shows it:
 #
 #     S49E4: LD A,(&4AEF) : AND A : JR Z,+
 #            EXX : LD HL,&A4F3
