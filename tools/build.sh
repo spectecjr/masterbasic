@@ -67,21 +67,13 @@ python "$here/dis_mb.py" "$work" -o "$out" || exit 1
 python "$here/syspage.py" || exit 1
 
 # --- prove it round-trips --------------------------------------------------
-for half in masterdos masterbasic; do
-    pyz80 --obj="$work/$half.out" -o "$work/$half.dsk" "$out/$half.asm"         >"$work/$half.log" 2>&1 || {
-        echo "*** $half reassembly failed ***"; tail -20 "$work/$half.log"; exit 1; }
-done
-
-for half in masterdos masterbasic; do
-    pyz80 --obj="$work/clean_$half.out" -o "$work/clean_$half.dsk"           "$root/listings/clean/$half.asm" >"$work/clean_$half.log" 2>&1 || {
-        echo "*** listings/clean/$half.asm reassembly failed ***"
-        tail -20 "$work/clean_$half.log"; exit 1; }
-done
-
-for half in masterdos masterbasic; do
-    pyz80 --obj="$work/spec_$half.out" -o "$work/spec_$half.dsk"           "$root/listings/speculate/$half.asm" >"$work/spec_$half.log" 2>&1 || {
-        echo "*** listings/speculate/$half.asm reassembly failed ***"
-        tail -20 "$work/spec_$half.log"; exit 1; }
+# One assembly per tree.  base.asm INCLUDEs both halves, each ORGed at
+# &4000 and DUMPed to a page of its own, so the object is 32704 bytes:
+# the DOS half, 64 bytes of page tail, then MasterBASIC's.
+for tree in disasm clean speculate; do
+    pyz80 --obj="$work/$tree.out" -o "$work/$tree.dsk"           "$root/listings/$tree/base.asm" >"$work/$tree.log" 2>&1 || {
+        echo "*** listings/$tree/base.asm assembly failed ***"
+        tail -20 "$work/$tree.log"; exit 1; }
 done
 
 python - "$work" "$root" <<'EOF' || exit 1
@@ -89,29 +81,30 @@ import sys, os
 work, root = sys.argv[1], sys.argv[2]
 raw = open(os.path.join(root, 'dumps', 'MasterBasicMasterDos.bin'), 'rb').read()
 half = len(raw) // 2
+PAGE = 16384
 ok = True
-for name, part in (('masterdos', raw[:half]), ('masterbasic', raw[half:]),
-                   ('clean_masterdos', raw[:half]),
-                   ('clean_masterbasic', raw[half:]),
-                   ('spec_masterdos', raw[:half]),
-                   ('spec_masterbasic', raw[half:])):
-    got = open(os.path.join(work, name + '.out'), 'rb').read()
-    got = got[:len(part)]
-    # The two with no prefix are the working listings; now that the other
-    # four say where they live, so should they.
-    shown = 'listings/disasm/' + name
-    for pre, dirname in (('spec_', 'listings/speculate/'),
-                         ('clean_', 'listings/clean/')):
-        if name.startswith(pre):
-            shown = name.replace(pre, dirname)
-    if got == part:
-        print('%s.asm: BYTE-IDENTICAL' % shown)
-    else:
+for tree in ('disasm', 'clean', 'speculate'):
+    got = open(os.path.join(work, tree + '.out'), 'rb').read()
+    # Each half is checked separately, as it always was: one assembly
+    # now, but still two answers, so a fault still says which half.
+    for name, want, at in (('masterdos', raw[:half], 0),
+                           ('masterbasic', raw[half:], PAGE)):
+        shown = 'listings/%s/%s.asm' % (tree, name)
+        mine = got[at:at + len(want)]
+        if mine == want:
+            print('%s: BYTE-IDENTICAL' % shown)
+        else:
+            ok = False
+            bad = [i for i in range(min(len(mine), len(want)))
+                   if mine[i] != want[i]]
+            print('*** %s DIFFERS in %d bytes, first at &%04X ***'
+                  % (shown, len(bad) + abs(len(mine) - len(want)),
+                     0x4000 + (bad[0] if bad else min(len(mine), len(want)))))
+    gap = got[half:PAGE]
+    if set(gap) - {0}:
         ok = False
-        bad = [i for i in range(min(len(got), len(part))) if got[i] != part[i]]
-        print('*** %s.asm DIFFERS in %d bytes, first at &%04X ***'
-              % (shown, len(bad) + abs(len(got) - len(part)),
-                 0x4000 + (bad[0] if bad else min(len(got), len(part)))))
+        print('*** listings/%s/base.asm: the page tail between the halves is '
+              'not empty ***' % tree)
 sys.exit(0 if ok else 1)
 EOF
 

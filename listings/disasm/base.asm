@@ -1,0 +1,256 @@
+; base.asm -- both halves of the image, in one assembly.
+;
+; masterdos.asm and masterbasic.asm are the two halves, and each is
+; assembled at &4000, because that is where it runs and where its own
+; labels have to land.  They cannot both hold &4000 in the output, so
+; each is DUMPed to a page of its own -- pyz80 keeps ORG and DUMP apart
+; for exactly this.  The 64 bytes between them, &7FC0 to &7FFF, are not
+; padding anyone wrote: a half is 16320 bytes and a page is 16384.
+;
+; Assembling this file produces 32704 bytes.  The first 16320 are the
+; DOS half and the 16320 from &4000 in are MasterBASIC's; each is
+; compared with its half of the image on every build, so a fault still
+; says which half it is in.
+;
+; THE EQUATES BELOW ARE THE ONES BOTH HALVES NEED.  They used to be
+; declared twice, once in each file, because neither file could see the
+; other.  Here they are said once.
+;
+; THE PEER EQUATES AT THE FOOT OF THE FILE ARE WHY THIS EXISTS.  DOS_BOOT
+; used to read EQU &8009 -- a number nothing checked, which would go on
+; meaning &8009 after BOOT had moved.  Written as BOOT + &4000 it is a
+; reference, and the assembler resolves it: a routine that moves now
+; takes its peer equate with it.
+
+; Hardware ports, under the names the two source trees use.
+; What each one does is from the SAM Coupe Technical Manual.
+XMPRL:                          EQU  &80                                ; External memory lower port address
+STAT:                           EQU  &F9                                ; read: STATUS, key rows and interrupt flags;
+                                                                        ; write: line interrupt
+LMPR:                           EQU  &FA                                ; the page at &0000, and the two ROM switches
+HMPR:                           EQU  &FB                                ; the page at &8000
+VMPR:                           EQU  &FC                                ; the page the screen is displayed from
+KEYBOARD:                       EQU  &FE                                ; read: keyboard columns; write: border, MIC and
+                                                                        ; the speaker
+
+; SAM ROM entry points and system variables.  A page cannot
+; address the variables directly -- it occupies the same
+; &4000-&7FFF they live in -- so it either calls NRRD/NRWR, which
+; page them in, or does the same windowing inline, which is what a
+; name written here as NAME+&4000 means.
+; The notes are mostly the ROM source's own words.
+ANYIV:                          EQU  &5B70                              ; ANY INTERRUPT VECTOR
+BSTKEND:                        EQU  &5BC4                              ; end of that stack
+CHADD:                          EQU  &5A97                              ; address of the character being interpreted
+CHADP:                          EQU  &5A96                              ; page holding the character being interpreted
+CHANS:                          EQU  &5C4F                              ; address of the channel information area
+CLSLOW:                         EQU  &0151                              ; clear the lower screen
+CURCHL:                         EQU  &5C51                              ; address of the current channel
+CURCMD:                         EQU  &5B74                              ; CODE OF CMD BEING EXECUTED
+DELBC:                          EQU  &005F                              ; ROM entry: a delay of BC iterations
+DOSSTK:                         EQU  &5C59                              ; stack pointer saved across a DOS call
+ELINE:                          EQU  &5A94                              ; address of the edit line
+ERRSP:                          EQU  &5C3D                              ; stack pointer to unwind to on an error
+EXPEXP:                         EQU  &011E                              ; evaluate an expression of either type
+EXPNUM:                         EQU  &0118                              ; evaluate a numeric expression at (CHADD)
+EXPSTR:                         EQU  &011B                              ; evaluate a string expression
+FLAGS:                          EQU  &5C3B                              ; bit 7 set while running, clear while
+                                                                        ; syntax-checking
+FRAMIV:                         EQU  &5AE2                              ; The Frame interrupt vector - usually this
+                                                                        ; reads the keyboard, and updates the frame
+                                                                        ; counter.
+GETCHAR:                        EQU  &0018                              ; ROM entry: the character at CHAD, control
+                                                                        ; codes skipped
+GETINT:                         EQU  &0121                              ; UNSTACK WORD FROM CALCULATOR STACK TO BC.
+                                                                        ; HL=BC, A=C
+GETSTR:                         EQU  &0124                              ; pop a string descriptor: A = page, DE = start,
+                                                                        ; BC = length
+HLJUMP:                         EQU  &0005                              ; JP (HL)
+INCURPAGE:                      EQU  &3FF2                              ; ! ;2* page on and wind HL back unconditionally
+INSTBUF:                        EQU  &4F00                              ; BUFFER FOR ROM1 XFER CODE, ETC. 0200H
+INVERT:                         EQU  &5A54                              ; 00/FF FOR NORMAL/INVERSE ;
+IYJUMP:                         EQU  &0006                              ; JP (IY)
+JCLSBL:                         EQU  &014E                              ; clear the whole screen if A is zero, otherwise
+                                                                        ; the window
+JMKRBIG:                        EQU  &010C                              ; open A*16K + BC bytes at HL
+JRECLAIM:                       EQU  &0163                              ; close up BC bytes at HL
+NEXTCHAR:                       EQU  &0020                              ; ROM entry: step CHAD and fetch the character
+                                                                        ; there
+PRINT_A:                        EQU  &0010                              ; ROM entry: print the character in A
+PROG:                           EQU  &5AA0                              ; address of the BASIC program
+PROGP:                          EQU  &5A9F                              ; page holding the BASIC program
+RDKEY:                          EQU  &0169                              ; read a key as INKEY$ does
+ROM_BORDCR:                     EQU  &5C4B                              ; VALUE TO SEND TO BORDER PORT -- the ROM calls
+                                                                        ; &5C4B BORDCOL, and BORDCR is a different
+                                                                        ; variable at &5C48. The name here is
+                                                                        ; MasterDOS's own source's
+ROM_CHKHL:                      EQU  &3FEF                              ; Checks if HL is in the range C000-FFFF, and if
+                                                                        ; so, adjusts it back into the range 8000-BFFF,
+                                                                        ; and increments the upper page.
+STKSTR:                         EQU  &0127                              ; push a five-byte number from A, E, D, C, B
+STREAM:                         EQU  &0112                              ; select the stream in A
+TVFLAG:                         EQU  &5C3C                              ; television flags
+WKROOM:                         EQU  &0109                              ; open BC bytes at the end of workspace
+XPTR:                           EQU  &5AA3                              ; address of the error marker
+
+; The ROM's restarts, under the names its own source gives
+; them.  A restart is a one-byte call to a fixed address, so
+; these are those addresses.
+ERR_HOOK:                       EQU  &08                                ; report an error, or call a DOS hook: the byte
+                                                                        ; after is
+
+; Numbers named in notes/, each for one instruction
+; where the same value means something else elsewhere.
+ENABLE_ROM1:                    EQU  &40                                ; LMPR bit 6: ROM 1 in at &C000. Does not move
+                                                                        ; the page in section B
+SKIP_1_VIA_CP:                  EQU  &FE                                ; CP n, skipping one byte and clobbering the
+                                                                        ; flags
+SKIP_1_VIA_LD_A:                EQU  &3E                                ; LD A,n, standing here only to swallow the byte
+                                                                        ; after it
+SKIP_2_VIA_LD_HL:               EQU  &21                                ; LD HL,nn, standing here only to swallow the
+                                                                        ; two bytes after it -- see docs/idioms.md
+SYSPAGE_IN_B:                   EQU  &1F                                ; LMPR &1F: page 31 at &0000, so section B gets
+                                                                        ; page 32, which wraps to the system page. The
+                                                                        ; ROM source calls it PAGE1F
+SYS_CHAR_WIDTH:                 EQU  &4AEE
+
+; The byte after RST &08: a DOS error, or a hook code, which is
+; 128 plus the index of an entry in the DOS hook table at &44A6.
+ERR_OUT_OF_MEMORY:              EQU  &01
+
+               ORG  &4000
+               DUMP 0,&0000
+               INC  "masterdos.asm"
+
+               ORG  &4000
+               DUMP 1,&0000
+               INC  "masterbasic.asm"
+
+; The two halves, each reaching the other.  These come after
+; the INCLUDEs because they name labels the INCLUDEs define;
+; pyz80's second pass is what makes that legal.
+
+; MasterDOS reaching MasterBASIC.
+MB_BUILD_TRACK_IMAGE:           EQU  BUILD_TRACK_IMAGE + &4000
+MB_BYTE_TO_DECIMAL:             EQU  BYTE_TO_DECIMAL + &4000
+MB_CALLDOS_2:                   EQU  CALLDOS_2 + &4000
+MB_CALL_STKSTR_2:               EQU  CALL_STKSTR_2 + &4000
+MB_CMD_ALTER:                   EQU  CMD_ALTER + &4000
+MB_CMD_BLITZ:                   EQU  CMD_BLITZ + &4000
+MB_CMD_CLS:                     EQU  CMD_CLS + &4000
+MB_CMD_COPY_SCREEN:             EQU  CMD_COPY_SCREEN + &4000
+MB_CMD_DATE:                    EQU  CMD_DATE + &4000
+MB_CMD_DUMP:                    EQU  CMD_DUMP + &4000
+MB_CMD_JOIN:                    EQU  CMD_JOIN + &4000
+MB_CMD_LINE:                    EQU  CMD_LINE + &4000
+MB_CMD_LPRINT:                  EQU  CMD_LPRINT + &4000
+MB_CMD_MERGE:                   EQU  CMD_MERGE + &4000
+MB_CMD_PRINT:                   EQU  CMD_PRINT + &4000
+MB_CMD_RECORD:                  EQU  CMD_RECORD + &4000
+MB_CMD_REF:                     EQU  CMD_REF + &4000
+MB_CMD_SAVE:                    EQU  CMD_SAVE + &4000
+MB_CMD_SORT:                    EQU  CMD_SORT + &4000
+MB_CMD_SPLIT_LINE:              EQU  CMD_SPLIT_LINE + &4000
+MB_CMD_TIME:                    EQU  CMD_TIME + &4000
+MB_COMPRESS_FILE:               EQU  COMPRESS_FILE + &4000
+MB_COMPRESS_SCREEN_FILE:        EQU  COMPRESS_SCREEN_FILE + &4000
+MB_EXPR_TO_32BIT:               EQU  EXPR_TO_32BIT + &4000
+MB_FIND_LINE_FROM_START:        EQU  FIND_LINE_FROM_START + &4000
+MB_FN_EQU:                      EQU  FN_EQU + &4000
+MB_FN_INARRAY:                  EQU  FN_INARRAY + &4000
+MB_FN_LOCN:                     EQU  FN_LOCN + &4000
+MB_FN_RESERVED:                 EQU  FN_RESERVED + &4000
+MB_FN_SCRAD:                    EQU  FN_SCRAD + &4000
+MB_FN_SHIFT_S:                  EQU  FN_SHIFT_S + &4000
+MB_FN_SVAL_S:                   EQU  FN_SVAL_S + &4000
+MB_FN_SVAL_S_1:                 EQU  FN_SVAL_S_1 + &4000
+MB_FN_TICS:                     EQU  FN_TICS + &4000
+MB_FN_USING_S:                  EQU  FN_USING_S + &4000
+MB_HCMDV:                       EQU  HCMDV + &4000
+MB_HGTTK:                       EQU  HGTTK + &4000
+MB_HK_COMADENT:                 EQU  HK_COMADENT + &4000
+MB_HK_FARSCAN:                  EQU  HK_FARSCAN + &4000
+MB_HK_HORDER:                   EQU  HK_HORDER + &4000
+MB_HK_HPFF:                     EQU  HK_HPFF + &4000
+MB_HK_MERGECOMPFLG:             EQU  HK_MERGECOMPFLG + &4000
+MB_HK_PIXELCELL:                EQU  HK_PIXELCELL + &4000
+MB_HK_PROGPREP:                 EQU  HK_PROGPREP + &4000
+MB_HK_PUTARG:                   EQU  HK_PUTARG + &4000
+MB_HK_RCPTCH:                   EQU  HK_RCPTCH + &4000
+MB_HK_SERRECV:                  EQU  HK_SERRECV + &4000
+MB_HK_SERSEND:                  EQU  HK_SERSEND + &4000
+MB_HK_SETUPREGS:                EQU  HK_SETUPREGS + &4000
+MB_HK_SKIPNAME:                 EQU  CMD_DELETE + &4000
+MB_HK_SWAPCHARS:                EQU  HK_SWAPCHARS + &4000
+MB_HK_TOKENARG:                 EQU  HK_TOKENARG + &4000
+MB_HK_VARSPACE:                 EQU  HK_VARSPACE + &4000
+MB_HPRTOK:                      EQU  HPRTOK + &4000
+MB_MBHK_HDUMMY:                 EQU  MBHK_HDUMMY + &4000
+MB_MULTIPLY_BY_24:              EQU  MULTIPLY_BY_24 + &4000
+MB_NEXT_SCREEN_BYTE_1:          EQU  NEXT_SCREEN_BYTE_1 + &4000
+MB_PRINT_OPEN_FILE_COUNT:       EQU  PRINT_OPEN_FILE_COUNT + &4000
+MB_PUTSWA:                      EQU  PUTSWA + &4000
+MB_SET_DCT_COMPILE_BITS:        EQU  SET_DCT_COMPILE_BITS + &4000
+MB_SOFV:                        EQU  SOFV + &4000
+MB_SUBSTITUTE_PRINTER_CHAR:     EQU  SUBSTITUTE_PRINTER_CHAR + &4000
+MB_V4125:                       EQU  V4125 + &4000
+MB_WAIT_FOR_CLOCK:              EQU  WAIT_FOR_CLOCK + &4000
+
+; MasterBASIC reaching MasterDOS.
+DOS_BOOT:                       EQU  BOOT + &4000
+DOS_BOOT_10:                    EQU  BOOT_10 + &4000
+DOS_BOOT_11:                    EQU  BOOT_11 + &4000
+DOS_BOOT_12:                    EQU  BOOT_12 + &4000
+DOS_BOOT_8:                     EQU  BOOT_8 + &4000
+DOS_BOOT_9:                     EQU  BOOT_9 + &4000
+DOS_CHANNEL_ENTRY_AT_ZERO_PAGE: EQU  CHANNEL_ENTRY_AT_ZERO_PAGE + &4000
+DOS_CKPT:                       EQU  CKPT + &4000
+DOS_DATDT:                      EQU  DATDT + &4000
+DOS_DRIVE:                      EQU  DRIVE + &4000
+DOS_ENDS:                       EQU  ENDS + &4000
+DOS_EPCOM_1:                    EQU  EPCOM_1 + &4000
+DOS_EVAL_STRING_IF_RUNNING:     EQU  EVAL_STRING_IF_RUNNING + &4000
+DOS_EVFINS:                     EQU  EVFINS + &4000
+DOS_EVNAM:                      EQU  EVNAM + &4000
+DOS_EVNUMX:                     EQU  EVNUMX + &4000
+DOS_EXDT1_DONE:                 EQU  EXDT1_DONE + &4000
+DOS_FFHL:                       EQU  FFHL + &4000
+DOS_FFPG:                       EQU  FFPG + &4000
+DOS_FIND_ROM_CODE:              EQU  FIND_ROM_CODE + &4000
+DOS_FNS56:                      EQU  FNS56 + &4000
+DOS_HEADER:                     EQU  HEADER + &4000
+DOS_HK_HSAVE_1:                 EQU  HK_HSAVE_1 + &4000
+DOS_HK_SBYT:                    EQU  HK_SBYT + &4000
+DOS_LBYT:                       EQU  LBYT + &4000
+DOS_MBCOPY_7774:                EQU  MBCOPY_7774 + &4000
+DOS_MBCOPY_778B:                EQU  MBCOPY_778B + &4000
+DOS_MBCOPY_7829:                EQU  MBCOPY_7829 + &4000
+DOS_NEXTST:                     EQU  NEXTST + &4000
+DOS_OFSM_1:                     EQU  OFSM_1 + &4000
+DOS_PLNS:                       EQU  PLNS + &4000
+DOS_POINT:                      EQU  POINT + &4000
+DOS_POINTC:                     EQU  POINTC + &4000
+DOS_PORT2:                      EQU  PORT2 + &4000
+DOS_PRINTABLE_FORM:             EQU  PRINTABLE_FORM + &4000
+DOS_PTH1:                       EQU  PTH1 + &4000
+DOS_PTH2:                       EQU  PTH2 + &4000
+DOS_REPORTA:                    EQU  REPORTA + &4000
+DOS_ROOM_LEFT_IN_SECTOR:        EQU  ROOM_LEFT_IN_SECTOR + &4000
+DOS_SAMCNT:                     EQU  SAMCNT + &4000
+DOS_SCFSM:                      EQU  SCFSM + &4000
+DOS_SNPRT2:                     EQU  SNPRT2 + &4000
+DOS_SVHDR:                      EQU  SVHDR + &4000
+DOS_TEMPW1:                     EQU  TEMPW1 + &4000
+DOS_TIMDT:                      EQU  TIMDT + &4000
+DOS_V40F9:                      EQU  V40F9 + &4000
+DOS_V4222:                      EQU  V4222 + &4000
+DOS_V5000:                      EQU  V5000 + &4000
+DOS_V7CFF:                      EQU  V7CFF + &4000
+DOS_V7DE8:                      EQU  V7DE8 + &4000
+DOS_V7E98:                      EQU  V7E98 + &4000
+DOS_V7EA6:                      EQU  V7EA6 + &4000
+DOS_V7EFC:                      EQU  V7EFC + &4000
+DOS_V7F0D:                      EQU  V7F0D + &4000
+DOS_V7F6B:                      EQU  V7F6B + &4000
+DOS_V7F77:                      EQU  V7F77 + &4000
+DOS_V7FA5:                      EQU  V7FA5 + &4000

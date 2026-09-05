@@ -73,6 +73,14 @@ it says so at the top of itself.
 `listings/clean/`, `listings/disasm/` and `listings/speculate/` all assemble to the original bytes —
 everything added is a comment — so all six files are checked on every build.
 
+Each tree has a `base.asm` that `INCLUDE`s both halves, and that is what is
+assembled: the two halves are `ORG`ed at `&4000`, where they run, and `DUMP`ed
+to a page each so they do not overlap in the output. It is one assembly and
+still two answers — each half is compared with its own half of the image, so a
+mismatch says which one it is in. `base.asm` also holds the equates both halves
+need, said once, and the equates that bridge between the halves, written as
+references rather than as numbers so that the assembler checks them.
+
 ## Rebuilding
 
 ```sh
@@ -109,7 +117,7 @@ git submodule update --init
 | | |
 |---|---|
 | `dumps/` | the image being disassembled, and the hardware captures it is checked against |
-| `listings/clean/` | the reading copy — **start here**; also the ROM's system page as MasterBASIC leaves it |
+| `listings/clean/` | the reading copy — **start here**; also the ROM's system page as MasterBASIC leaves it, and the `base.asm` that assembles both halves |
 | `listings/disasm/` | the same code with the working notes left in |
 | `listings/speculate/` | the same again, with a machine's reading of every routine |
 | `notes/` | hand-written names and descriptions, fed into both |

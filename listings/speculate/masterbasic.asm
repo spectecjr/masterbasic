@@ -25,13 +25,7 @@
 
 ; Hardware ports, under the names the two source trees use.
 ; What each one does is from the SAM Coupe Technical Manual.
-XMPRL:                          EQU  &80       ; External memory lower port address
-CLUT:                           EQU  &F8       ; base of the colour look-up table: sixteen write-only 7-bit registers
-STAT:                           EQU  &F9       ; read: STATUS, key rows and interrupt flags; write: line interrupt
-LMPR:                           EQU  &FA       ; the page at &0000, and the two ROM switches
-HMPR:                           EQU  &FB       ; the page at &8000
-VMPR:                           EQU  &FC       ; the page the screen is displayed from
-KEYBOARD:                       EQU  &FE       ; read: keyboard columns; write: border, MIC and the speaker
+CLUT:                     EQU  &F8             ; base of the colour look-up table: sixteen write-only 7-bit registers
 
 ; SAM ROM entry points and system variables.  A page cannot
 ; address the variables directly -- it occupies the same
@@ -39,250 +33,141 @@ KEYBOARD:                       EQU  &FE       ; read: keyboard columns; write: 
 ; page them in, or does the same windowing inline, which is what a
 ; name written here as NAME+&4000 means.
 ; The notes are mostly the ROM source's own words.
-AFTERCR:                        EQU  &5A0F     ; 0A OR NUL ACCORDING TO WHETHER AUTO LF NEEDED
-ANYI:                           EQU  &0049     ; The ROM's default maskable interrupt handler, reached through ANYIV
-ANYIV:                          EQU  &5B70     ; ANY INTERRUPT VECTOR
-ATTRT:                          EQU  &5A4E     ; attribute used by temporary colour statements
-BASSTK:                         EQU  &5BC6     ; base of BASIC's GOSUB, DO and PROC stack
-BGFLG:                          EQU  &5A34     ; BLOCK GRAPHICS FLAG
-BORDCR:                         EQU  &5C48     ; ATTRIBUTES FOR LOWER SCREEN IN MODES 1/2
-BSTKEND:                        EQU  &5BC4     ; end of that stack
-CEXTAB:                         EQU  &5B00     ; COLOUR IS APPLIED TO THIS DATA, SO EG. F0F0
-CHAD:                           EQU  &5A97     ; address of the character being interpreted
-CHADD:                          EQU  &5A97     ; address of the character being interpreted
-CHADP:                          EQU  &5A96     ; page holding the character being interpreted
-CHANS:                          EQU  &5C4F     ; address of the channel information area
-CHARS:                          EQU  &5C36     ; address of the character set less 256
-CLA:                            EQU  &5AAF     ; Current program line address (typically used for GOSUB return values).
-CLAPG:                          EQU  &5AAE     ; Current program line address page value
-CLSLOW:                         EQU  &0151     ; clear the lower screen
-CMDADDRT:                       EQU  &5BDA     ; START OF CMD ADDR TABLE IN ROM0
-CMDV:                           EQU  &5AF4     ; the ROM's command vector
-COMAD:                          EQU  &5BDA     ; START OF CMD ADDR TABLE IN ROM0
-COMPFLG:                        EQU  &5B40     ; FLAG BITS USED BY LABEL/FN/PROC COMPILER
-CURCHL:                         EQU  &5C51     ; address of the current channel
-CURCMD:                         EQU  &5B74     ; CODE OF CMD BEING EXECUTED
-CUSCRNP:                        EQU  &5A78     ; CURRENT SCREEN PAGE
-DECURPAGE:                      EQU  &3FF9     ; Adjusts H so that it points to 16KiB lower in memory, and decrements
+AFTERCR:                  EQU  &5A0F           ; 0A OR NUL ACCORDING TO WHETHER AUTO LF NEEDED
+ANYI:                     EQU  &0049           ; The ROM's default maskable interrupt handler, reached through ANYIV
+ATTRT:                    EQU  &5A4E           ; attribute used by temporary colour statements
+BASSTK:                   EQU  &5BC6           ; base of BASIC's GOSUB, DO and PROC stack
+BGFLG:                    EQU  &5A34           ; BLOCK GRAPHICS FLAG
+BORDCR:                   EQU  &5C48           ; ATTRIBUTES FOR LOWER SCREEN IN MODES 1/2
+CEXTAB:                   EQU  &5B00           ; COLOUR IS APPLIED TO THIS DATA, SO EG. F0F0
+CHAD:                     EQU  &5A97           ; address of the character being interpreted
+CHARS:                    EQU  &5C36           ; address of the character set less 256
+CLA:                      EQU  &5AAF           ; Current program line address (typically used for GOSUB return values).
+CLAPG:                    EQU  &5AAE           ; Current program line address page value
+CMDADDRT:                 EQU  &5BDA           ; START OF CMD ADDR TABLE IN ROM0
+CMDV:                     EQU  &5AF4           ; the ROM's command vector
+COMAD:                    EQU  &5BDA           ; START OF CMD ADDR TABLE IN ROM0
+COMPFLG:                  EQU  &5B40           ; FLAG BITS USED BY LABEL/FN/PROC COMPILER
+CUSCRNP:                  EQU  &5A78           ; CURRENT SCREEN PAGE
+DECURPAGE:                EQU  &3FF9           ; Adjusts H so that it points to 16KiB lower in memory, and decrements
                                                ; the HMPR page.
-DELBC:                          EQU  &005F     ; ROM entry: a delay of BC iterations
-DEVICE:                         EQU  &5A73     ; 0=US, 1=LS, 2=PRINTER, 3=
-DHADJ:                          EQU  &5B82     ; DOUBLE HEIGHT ADJ. 0 UNLESS BOTTOM OF DH CHAR O/PED
-DKP2:                           EQU  &4F00     ; NUMBER OF KEY CODE TO DEFINE
-DMPFG:                          EQU  &5AB7     ; IF NZ PRINT O/P DUMPED
-DOSCNT:                         EQU  &5BC3     ; BIT 0 IS SET IF DOS IN CONTROL
-DOSFLG:                         EQU  &5BC2     ; Z IF NO DOS LOADED
-DOSSTK:                         EQU  &5C59     ; stack pointer saved across a DOS call
-EDITV:                          EQU  &5AEC     ; vector taken by the editor
-ELINE:                          EQU  &5A94     ; address of the edit line
-ELINEP:                         EQU  &5A93     ; page holding the edit line
-EPPC:                           EQU  &5C49     ; line number of the cursor line
-ERRSP:                          EQU  &5C3D     ; stack pointer to unwind to on an error
-EVALUV:                         EQU  &5AF6     ; vector for evaluating an expression
-EXPEXP:                         EQU  &011E     ; evaluate an expression of either type
-EXPNUM:                         EQU  &0118     ; evaluate a numeric expression at (CHADD)
-EXPSTR:                         EQU  &011B     ; evaluate a string expression
-FISCRNP:                        EQU  &5C9F     ; PAGE OF SCREEN 1
-FL6OR8:                         EQU  &5A35     ; 00=6 BIT CHARS IN MODE 2, NZ=8 BIT
-FLAGS:                          EQU  &5C3B     ; bit 7 set while running, clear while syntax-checking
-FLAGX:                          EQU  &5C71     ; flags: bit 5 set while INPUT is in progress
-FRAMIV:                         EQU  &5AE2     ; The Frame interrupt vector - usually this reads the keyboard, and
-                                               ; updates the frame counter.
-GCM1:                           EQU  &5A16
-GCM2:                           EQU  &5A1F
-GCM3:                           EQU  &5A27
-GETCHAR:                        EQU  &0018     ; ROM entry: the character at CHAD, control codes skipped
-GETINT:                         EQU  &0121     ; UNSTACK WORD FROM CALCULATOR STACK TO BC. HL=BC, A=C
-GETSTR:                         EQU  &0124     ; pop a string descriptor: A = page, DE = start, BC = length
-HDR:                            EQU  &4B00     ; HEADER LEN=50H. ALSO USED FOR PARPRO RENAME STK
-HLJPI:                          EQU  &01C7     ; ROM entry: jump to the address in HL
-HLJUMP:                         EQU  &0005     ; JP (HL)
-HUDG:                           EQU  &5C7D     ; The high UDG range start pointer (for chars 169+).
-INCURPAGE:                      EQU  &3FF2     ; ! ;2* page on and wind HL back unconditionally
-INDOPFG:                        EQU  &5ABD     ; INDENTED O/P FLAG
-INP2:                           EQU  &4F49
-INSLV:                          EQU  &5BBA     ; The BASIC ROM's Block-Move Vector, which can be patched to implement
+DEVICE:                   EQU  &5A73           ; 0=US, 1=LS, 2=PRINTER, 3=
+DHADJ:                    EQU  &5B82           ; DOUBLE HEIGHT ADJ. 0 UNLESS BOTTOM OF DH CHAR O/PED
+DKP2:                     EQU  &4F00           ; NUMBER OF KEY CODE TO DEFINE
+DMPFG:                    EQU  &5AB7           ; IF NZ PRINT O/P DUMPED
+DOSCNT:                   EQU  &5BC3           ; BIT 0 IS SET IF DOS IN CONTROL
+DOSFLG:                   EQU  &5BC2           ; Z IF NO DOS LOADED
+EDITV:                    EQU  &5AEC           ; vector taken by the editor
+ELINEP:                   EQU  &5A93           ; page holding the edit line
+EPPC:                     EQU  &5C49           ; line number of the cursor line
+EVALUV:                   EQU  &5AF6           ; vector for evaluating an expression
+FISCRNP:                  EQU  &5C9F           ; PAGE OF SCREEN 1
+FL6OR8:                   EQU  &5A35           ; 00=6 BIT CHARS IN MODE 2, NZ=8 BIT
+FLAGX:                    EQU  &5C71           ; flags: bit 5 set while INPUT is in progress
+GCM1:                     EQU  &5A16
+GCM2:                     EQU  &5A1F
+GCM3:                     EQU  &5A27
+HDR:                      EQU  &4B00           ; HEADER LEN=50H. ALSO USED FOR PARPRO RENAME STK
+HLJPI:                    EQU  &01C7           ; ROM entry: jump to the address in HL
+HUDG:                     EQU  &5C7D           ; The high UDG range start pointer (for chars 169+).
+INDOPFG:                  EQU  &5ABD           ; INDENTED O/P FLAG
+INP2:                     EQU  &4F49
+INSLV:                    EQU  &5BBA           ; The BASIC ROM's Block-Move Vector, which can be patched to implement
                                                ; faster block-moves.
-INSTBUF:                        EQU  &4F00     ; BUFFER FOR ROM1 XFER CODE, ETC. 0200H
-INSTHASH:                       EQU  &5A05     ; NORMALLY '#'
-INVERT:                         EQU  &5A54     ; 00/FF FOR NORMAL/INVERSE ;
-IXJUMP:                         EQU  &002D     ; ROM entry: jump to the address in IX
-IYJUMP:                         EQU  &0006     ; JP (IY)
-JCLSBL:                         EQU  &014E     ; clear the whole screen if A is zero, otherwise the window
-JGTTOK:                         EQU  &018A     ; match text at DE against the keyword list at HL+1
-JMKRBIG:                        EQU  &010C     ; open A*16K + BC bytes at HL
-JMODE:                          EQU  &015A     ; Set screen MODE that is in the A register (0-3 gives MODEs 1-4).
-JNCHAR:                         EQU  &0184     ; Call SCREEN$ subroutine. Try to match a character at the provided line
+INSTHASH:                 EQU  &5A05           ; NORMALLY '#'
+IXJUMP:                   EQU  &002D           ; ROM entry: jump to the address in IX
+JGTTOK:                   EQU  &018A           ; match text at DE against the keyword list at HL+1
+JMODE:                    EQU  &015A           ; Set screen MODE that is in the A register (0-3 gives MODEs 1-4).
+JNCHAR:                   EQU  &0184           ; Call SCREEN$ subroutine. Try to match a character at the provided line
                                                ; and column.
-JPFSTRS:                        EQU  &017E     ; Create ASCII version of number on floating-point calculator stack in
+JPFSTRS:                  EQU  &017E           ; Create ASCII version of number on floating-point calculator stack in
                                                ; buffer at 5BA0H. On exit, DE holds 5BA0H and BC holds the number of
                                                ; characters in the buffer.
-JRECLAIM:                       EQU  &0163     ; close up BC bytes at HL
-J_FARLDDR:                      EQU  &0130     ; Jump table entry for FARLDDR, which copies data using LDDR. A, H, L
+J_FARLDDR:                EQU  &0130           ; Jump table entry for FARLDDR, which copies data using LDDR. A, H, L
                                                ; hold the source page and address, C, D, E hold the destination.
                                                ; PAGCOUNT/MODCOUNT are the number of bytes.
-J_FARLDIR:                      EQU  &012D     ; MOVE (PAGCOUNT/MODCOUNT) BYTES FROM PAGE A, HL TO PAGE C, DE, USING
+J_FARLDIR:                EQU  &012D           ; MOVE (PAGCOUNT/MODCOUNT) BYTES FROM PAGE A, HL TO PAGE C, DE, USING
                                                ; LDIR
-J_GRCOMP:                       EQU  &0187     ; GRAPHIC COPY SR
-J_HEAPROOM:                     EQU  &0106     ; (4200H TO ABOUT 4A00H)
-J_SBUFFET:                      EQU  &012A     ; UNSTACK STRING PARAMS AND COPY TO BUFFER IN SYS PAGE. ERROR IF >255
+J_GRCOMP:                 EQU  &0187           ; GRAPHIC COPY SR
+J_HEAPROOM:               EQU  &0106           ; (4200H TO ABOUT 4A00H)
+J_SBUFFET:                EQU  &012A           ; UNSTACK STRING PARAMS AND COPY TO BUFFER IN SYS PAGE. ERROR IF >255
                                                ; BYTES
-KCUR:                           EQU  &5A9A     ; address of the cursor in the edit line
-KURCHAR:                        EQU  &5A01     ; CURSOR CHARACTERS - LOWER CASE/UPPER CASE
-LINICOLS:                       EQU  &5600     ; per-line colour data for the current screen
-LPTPRT1:                        EQU  &5A10     ; PRINTER CONTROL PORT/01H STROBE VALUE
-LSPTR:                          EQU  &5B8B     ; LINE SCAN PTR
-LWRHS:                          EQU  &5A3C     ; Lower-window right-hand side boundary
-M23LSC:                         EQU  &5A30     ; M2/3 LOWER SCREEN COLOURS
-M23PAPP:                        EQU  &5A48     ; NIBBLES OR DOUBLE BITS MATCH
-MNIP:                           EQU  &5BDE     ; ADDR OF MAIN I/P ROUTINE
-MNOP:                           EQU  &5BDC     ; ADDR OF MAIN O/P ROUTINE
-MODCOUNT:                       EQU  &5B84     ; MOD 16K COUNTER USED BY FARLDIR
-MODE:                           EQU  &5A40     ; screen mode, 0 to 3
-MTOKV:                          EQU  &5AFA     ; vector for matching a keyword while tokenising
-NEXTCHAR:                       EQU  &0020     ; ROM entry: step CHAD and fetch the character there
-NRREAD:                         EQU  &00AC     ; ROM entry: read a byte of a system variable
-NRWRITE:                        EQU  &000D     ; ROM entry: write a byte of a system variable
-NUMBER:                         EQU  &00A2     ; Skips an embedded invisible 6-byte number form (if present) and returns
+KCUR:                     EQU  &5A9A           ; address of the cursor in the edit line
+KURCHAR:                  EQU  &5A01           ; CURSOR CHARACTERS - LOWER CASE/UPPER CASE
+LINICOLS:                 EQU  &5600           ; per-line colour data for the current screen
+LPTPRT1:                  EQU  &5A10           ; PRINTER CONTROL PORT/01H STROBE VALUE
+LSPTR:                    EQU  &5B8B           ; LINE SCAN PTR
+LWRHS:                    EQU  &5A3C           ; Lower-window right-hand side boundary
+M23LSC:                   EQU  &5A30           ; M2/3 LOWER SCREEN COLOURS
+M23PAPP:                  EQU  &5A48           ; NIBBLES OR DOUBLE BITS MATCH
+MNIP:                     EQU  &5BDE           ; ADDR OF MAIN I/P ROUTINE
+MNOP:                     EQU  &5BDC           ; ADDR OF MAIN O/P ROUTINE
+MODCOUNT:                 EQU  &5B84           ; MOD 16K COUNTER USED BY FARLDIR
+MODE:                     EQU  &5A40           ; screen mode, 0 to 3
+MTOKV:                    EQU  &5AFA           ; vector for matching a keyword while tokenising
+NRREAD:                   EQU  &00AC           ; ROM entry: read a byte of a system variable
+NRWRITE:                  EQU  &000D           ; ROM entry: write a byte of a system variable
+NUMBER:                   EQU  &00A2           ; Skips an embedded invisible 6-byte number form (if present) and returns
                                                ; the next character.
-NUMEND:                         EQU  &5A85     ; address of the end of the numeric variables
-NUMENDP:                        EQU  &5A84     ; NUMEND/NVARS/DATADD MUST BE IN ORDER
-NVARS:                          EQU  &5A88     ; address of the numeric variables
-NVARSP:                         EQU  &5A87     ; page holding the numeric variables
-OPSTORE:                        EQU  &5AB5     ; operator store used by the expression evaluator
-PAGCOUNT:                       EQU  &5B83     ; PAGE COUNTER USED BY FARLDIR
-PAGER:                          EQU  &5BE0     ; RESERVED FOR PAGING S.R
-PALTAB:                         EQU  &55D8     ; the sixteen CLUT entries, as the ROM's copy
-PATOUT:                         EQU  &5BD2     ; ADDR OF 'PRINTABLE CHARS' O/P
-PPC:                            EQU  &5C45     ; line number of the statement being run
-PRAMTP:                         EQU  &5CB4     ; LAST PAGE PRESENT IN MACHINE
-PRINTSTR:                       EQU  &0013     ; ROM entry: print BC characters from (DE)
-PRMAIN:                         EQU  &01CC     ; Main ROM Print routine entrypoint. Prints the character in A.
-PROG:                           EQU  &5AA0     ; address of the BASIC program
-PROGP:                          EQU  &5A9F     ; page holding the BASIC program
-PRPTR:                          EQU  &5AA9     ; Proc address (see PRPTRP)
-PRPTRP:                         EQU  &5AA8     ; Proc page (see PRPTR)
-PRRHS:                          EQU  &5A0E     ; PRINTER RHS LIMIT - 79
-PRTOKV:                         EQU  &5ADE     ; vector for printing a keyword token
-PSLD:                           EQU  &5A06     ; DEVICE LETTER/NUMBER
-RAMTOP:                         EQU  &5CB2     ; last address BASIC may use
-RAMTOPP:                        EQU  &5CB1     ; page holding RAMTOP
-RDKEY:                          EQU  &0169     ; read a key as INKEY$ does
-REFFLG:                         EQU  &5A76     ; Z IF REF VAR BEING WORKED ON
-ROM_BORDCR:                     EQU  &5C4B     ; VALUE TO SEND TO BORDER PORT -- the ROM calls &5C4B BORDCOL, and BORDCR
-                                               ; is a different variable at &5C48. The name here is MasterDOS's own
-                                               ; source's
-ROM_CHKHL:                      EQU  &3FEF     ; Checks if HL is in the range C000-FFFF, and if so, adjusts it back into
-                                               ; the range 8000-BFFF, and increments the upper page.
-ROM_DCT:                        EQU  &5BB6     ; DISC ERROR COUNTER
-ROM_DMPTL:                      EQU  &5A2D
-ROM_DPVARS:                     EQU  &5A12
-ROM_TEMPW1:                     EQU  &5AC8     ; Temporary word storage in system page (word #1)
-RST28V:                         EQU  &5AF0     ; vector taken by the calculator before each literal
-RST8V:                          EQU  &5AEE     ; vector taken by RST &08 before the ROM handles it
-SAVARS:                         EQU  &5A82     ; ;SAVARS/NUMEND/NVARS MUST BE IN ORDER
-SAVARSP:                        EQU  &5A81     ; page holding the string and array area
-SCPTR:                          EQU  &5C9D     ; ADDR OF CURRENT SCREEN IN SCLIST
-SCRNBUF:                        EQU  &5188     ; Eight bytes at &5188. The ROM's source gives the address two names:
+NUMEND:                   EQU  &5A85           ; address of the end of the numeric variables
+NUMENDP:                  EQU  &5A84           ; NUMEND/NVARS/DATADD MUST BE IN ORDER
+NVARS:                    EQU  &5A88           ; address of the numeric variables
+NVARSP:                   EQU  &5A87           ; page holding the numeric variables
+OPSTORE:                  EQU  &5AB5           ; operator store used by the expression evaluator
+PAGCOUNT:                 EQU  &5B83           ; PAGE COUNTER USED BY FARLDIR
+PAGER:                    EQU  &5BE0           ; RESERVED FOR PAGING S.R
+PALTAB:                   EQU  &55D8           ; the sixteen CLUT entries, as the ROM's copy
+PATOUT:                   EQU  &5BD2           ; ADDR OF 'PRINTABLE CHARS' O/P
+PPC:                      EQU  &5C45           ; line number of the statement being run
+PRAMTP:                   EQU  &5CB4           ; LAST PAGE PRESENT IN MACHINE
+PRINTSTR:                 EQU  &0013           ; ROM entry: print BC characters from (DE)
+PRMAIN:                   EQU  &01CC           ; Main ROM Print routine entrypoint. Prints the character in A.
+PRPTR:                    EQU  &5AA9           ; Proc address (see PRPTRP)
+PRPTRP:                   EQU  &5AA8           ; Proc page (see PRPTR)
+PRRHS:                    EQU  &5A0E           ; PRINTER RHS LIMIT - 79
+PRTOKV:                   EQU  &5ADE           ; vector for printing a keyword token
+PSLD:                     EQU  &5A06           ; DEVICE LETTER/NUMBER
+RAMTOP:                   EQU  &5CB2           ; last address BASIC may use
+RAMTOPP:                  EQU  &5CB1           ; page holding RAMTOP
+REFFLG:                   EQU  &5A76           ; Z IF REF VAR BEING WORKED ON
+ROM_DCT:                  EQU  &5BB6           ; DISC ERROR COUNTER
+ROM_DMPTL:                EQU  &5A2D
+ROM_DPVARS:               EQU  &5A12
+ROM_TEMPW1:               EQU  &5AC8           ; Temporary word storage in system page (word #1)
+RST28V:                   EQU  &5AF0           ; vector taken by the calculator before each literal
+RST8V:                    EQU  &5AEE           ; vector taken by RST &08 before the ROM handles it
+SAVARS:                   EQU  &5A82           ; ;SAVARS/NUMEND/NVARS MUST BE IN ORDER
+SAVARSP:                  EQU  &5A81           ; page holding the string and array area
+SCPTR:                    EQU  &5C9D           ; ADDR OF CURRENT SCREEN IN SCLIST
+SCRNBUF:                  EQU  &5188           ; Eight bytes at &5188. The ROM's source gives the address two names:
                                                ; NMISTK, the stack used for non-maskable interrupts, and SCRNBUF, "8
                                                ; BYTES USED BY SCREEN$ FOR COMP. FORM". SCRNBUF is the one this listing
                                                ; needs -- PRINT_MAGNIFIED_CHAR builds a character cell there and knows
                                                ; it is full when the pointer reaches CHARSVAL at &5190.
-SETCHADP:                       EQU  &3FCE     ; Sets the CHADP (current character) page, disables ROM1, and then pages
+SETCHADP:                 EQU  &3FCE           ; Sets the CHADP (current character) page, disables ROM1, and then pages
                                                ; it in to upper memory.
-SOFFCT:                         EQU  &5AC4     ; COUNTER FOR SCREEN OFF
-SPSTORE:                        EQU  &5AD2     ; SP STORE EXCLUSIVE TO INTERRUPTS
-SREAD:                          EQU  &3FBB     ; SELECT SCREEN, ROM1 OFF
-STKEND:                         EQU  &5C65     ; end of the calculator stack
-STKSTR:                         EQU  &0127     ; push a five-byte number from A, E, D, C, B
-STREAM:                         EQU  &0112     ; select the stream in A
-STRLOCN:                        EQU  &5BBC     ; USED BY LOOKVARS
-STRM16NM:                       EQU  &5B76     ; TLBYTE/NAME OF VAR THAT STREAM 16 WRITES TO
-SUBPPC:                         EQU  &5C47     ; number of that statement within its line
-TEMPB2:                         EQU  &5ACF     ; Temporary byte storage in system page (byte #2)
-TSURPG:                         EQU  &3FDF     ; Sets the upper memory area to the page in A (from 0-31). Bits 7-5 of
+SOFFCT:                   EQU  &5AC4           ; COUNTER FOR SCREEN OFF
+SPSTORE:                  EQU  &5AD2           ; SP STORE EXCLUSIVE TO INTERRUPTS
+SREAD:                    EQU  &3FBB           ; SELECT SCREEN, ROM1 OFF
+STKEND:                   EQU  &5C65           ; end of the calculator stack
+STRLOCN:                  EQU  &5BBC           ; USED BY LOOKVARS
+STRM16NM:                 EQU  &5B76           ; TLBYTE/NAME OF VAR THAT STREAM 16 WRITES TO
+SUBPPC:                   EQU  &5C47           ; number of that statement within its line
+TEMPB2:                   EQU  &5ACF           ; Temporary byte storage in system page (byte #2)
+TSURPG:                   EQU  &3FDF           ; Sets the upper memory area to the page in A (from 0-31). Bits 7-5 of
                                                ; the port are read in and preserved.
-TVDATA:                         EQU  &5BBE     ; the parameters of a control code being collected
-TVFLAG:                         EQU  &5C3C     ; television flags
-UWBOT:                          EQU  &5A3B     ; STARTS AT 18 (19 LINES IN UPPER, 2 IN LOWER SCR, 9 PIX)
-UWLHS:                          EQU  &5A39     ; STARTS AT 0
-UWRHS:                          EQU  &5A38     ; STARTS AT 31
-WKROOM:                         EQU  &0109     ; open BC bytes at the end of workspace
-WORKSP:                         EQU  &5A91     ; address of the workspace
-WORKSPP:                        EQU  &5A90     ; page holding the workspace
-XPTR:                           EQU  &5AA3     ; address of the error marker
+TVDATA:                   EQU  &5BBE           ; the parameters of a control code being collected
+UWBOT:                    EQU  &5A3B           ; STARTS AT 18 (19 LINES IN UPPER, 2 IN LOWER SCR, 9 PIX)
+UWLHS:                    EQU  &5A39           ; STARTS AT 0
+UWRHS:                    EQU  &5A38           ; STARTS AT 31
+WORKSP:                   EQU  &5A91           ; address of the workspace
+WORKSPP:                  EQU  &5A90           ; page holding the workspace
 
-; Addresses in the other page, which sits at &8000-&BFBF while
-; this one is at &4000.  The names are its own labels.  A stored
-; pointer written as NAME+&4000 has bit 15 set, the flag INDJP
-; and CTAB use to mean "not in this page".
-DOS_BOOT:                       EQU  &8009
-DOS_BOOT_10:                    EQU  &8086
-DOS_BOOT_11:                    EQU  &8088
-DOS_BOOT_12:                    EQU  &8089
-DOS_BOOT_8:                     EQU  &807F
-DOS_BOOT_9:                     EQU  &8081
-DOS_CHANNEL_ENTRY_AT_ZERO_PAGE: EQU  &AAEA
-DOS_CKPT:                       EQU  &82B6
-DOS_DATDT:                      EQU  &8271
-DOS_DRIVE:                      EQU  &BC0B
-DOS_ENDS:                       EQU  &9010
-DOS_EPCOM_1:                    EQU  &A5C4
-DOS_EVAL_STRING_IF_RUNNING:     EQU  &A284
-DOS_EVFINS:                     EQU  &B321
-DOS_EVNAM:                      EQU  &A1CF
-DOS_EVNUMX:                     EQU  &A2AF
-DOS_EXDT1_DONE:                 EQU  &A280
-DOS_FFHL:                       EQU  &8100
-DOS_FFPG:                       EQU  &9AB7
-DOS_FIND_ROM_CODE:              EQU  &BD79
-DOS_FNS56:                      EQU  &8AD3
-DOS_HEADER:                     EQU  &8000
-DOS_HK_HSAVE_1:                 EQU  &A500
-DOS_HK_SBYT:                    EQU  &AF75
-DOS_LBYT:                       EQU  &AFF6
-DOS_MBCOPY_7774:                EQU  &BD93
-DOS_MBCOPY_778B:                EQU  &BDAA
-DOS_MBCOPY_7829:                EQU  &BE48
-DOS_NEXTST:                     EQU  &821E
-DOS_OFSM_1:                     EQU  &8D2D
-DOS_PLNS:                       EQU  &908E
-DOS_POINT:                      EQU  &8FAC
-DOS_POINTC:                     EQU  &B076
-DOS_PORT2:                      EQU  &812F
-DOS_PRINTABLE_FORM:             EQU  &A8DA
-DOS_PTH1:                       EQU  &BF13
-DOS_PTH2:                       EQU  &BF39
-DOS_REPORTA:                    EQU  &91A0
-DOS_ROOM_LEFT_IN_SECTOR:        EQU  &8856
-DOS_SAMCNT:                     EQU  &8234
-DOS_SCFSM:                      EQU  &8DF8
-DOS_SNPRT2:                     EQU  &8108
-DOS_SVHDR:                      EQU  &810A
-DOS_TEMPW1:                     EQU  &8212
-DOS_TIMDT:                      EQU  &8280
-DOS_V40F9:                      EQU  &80F9
-DOS_V4222:                      EQU  &8222
-DOS_V5000:                      EQU  &9000
-DOS_V7CFF:                      EQU  &BCFF
-DOS_V7DE8:                      EQU  &BDE8
-DOS_V7E98:                      EQU  &BE98
-DOS_V7EA6:                      EQU  &BEA6
-DOS_V7EFC:                      EQU  &BEFC
-DOS_V7F0D:                      EQU  &BF0D
-DOS_V7F6B:                      EQU  &BF6B
-DOS_V7F77:                      EQU  &BF77
-DOS_V7FA5:                      EQU  &BFA5
 
-; The ROM's restarts, under the names its own source gives
-; them.  A restart is a one-byte call to a fixed address, so
-; these are those addresses.
-ERR_HOOK:                       EQU  &08       ; report an error, or call a DOS hook: the byte after is
                                                ; an error number, or a hook code from 128 up
-PRINT_A:                        EQU  &10       ; print the character in A
-GET_CHAR:                       EQU  &18       ; the character at CHAD, control codes skipped
-NEXT_CHAR:                      EQU  &20       ; step CHAD and get the character there
-FPCALC:                         EQU  &28       ; the floating-point calculator; the bytes after it are
+GET_CHAR:                 EQU  &18             ; the character at CHAD, control codes skipped
+NEXT_CHAR:                EQU  &20             ; step CHAD and get the character there
+FPCALC:                   EQU  &28             ; the floating-point calculator; the bytes after it are
                                                ; its literals, not instructions
 
 ; Read from the code, not carried from a source.  MasterBASIC
@@ -291,91 +176,82 @@ FPCALC:                         EQU  &28       ; the floating-point calculator; 
 ; given here so it can be judged.  Each is written only where
 ; the byte already had that value, so the file still assembles
 ; to the original either way.
-CH_COLON:                       EQU  &3A       ; the statement separator
-CH_COMMA:                       EQU  &2C       ; the argument separator
-CH_CR:                          EQU  &0D       ; carriage return, the end of a BASIC line
-CH_DOLLAR:                      EQU  &24       ; the string-variable suffix
-CH_DOT:                         EQU  &2E       ; the decimal point
-CH_HASH:                        EQU  &23       ; the stream marker, as in PRINT #
-CH_LPAREN:                      EQU  &28       ; open bracket
-CH_QUOTE:                       EQU  &22       ; the string delimiter
-CH_SPACE:                       EQU  &20       ; space
-CH_ZERO:                        EQU  &30       ; ASCII "0", for digit conversion
-PAGEMASK:                       EQU  &1F       ; the page number in LMPR and HMPR, bits 0 to 4
-T_BOOT:                         EQU  &E9       ; the BASIC keyword BOOT
-T_CLEAR:                        EQU  &B3       ; the BASIC keyword CLEAR
-T_DEVICE:                       EQU  &F0       ; the BASIC keyword DEVICE
-T_DISPLAY:                      EQU  &E8       ; the BASIC keyword DISPLAY
-T_INVERSE:                      EQU  &A5       ; the BASIC keyword INVERSE
-T_MODE:                         EQU  &AA       ; the BASIC keyword MODE
-T_OFF:                          EQU  &89       ; the BASIC keyword OFF
-T_REF:                          EQU  &CE       ; the BASIC keyword REF
-T_TO:                           EQU  &8E       ; the BASIC keyword TO
-UPPER:                          EQU  &DF       ; clearing bit 5 folds a letter to upper case
+CH_COLON:                 EQU  &3A             ; the statement separator
+CH_COMMA:                 EQU  &2C             ; the argument separator
+CH_CR:                    EQU  &0D             ; carriage return, the end of a BASIC line
+CH_DOLLAR:                EQU  &24             ; the string-variable suffix
+CH_DOT:                   EQU  &2E             ; the decimal point
+CH_HASH:                  EQU  &23             ; the stream marker, as in PRINT #
+CH_LPAREN:                EQU  &28             ; open bracket
+CH_QUOTE:                 EQU  &22             ; the string delimiter
+CH_SPACE:                 EQU  &20             ; space
+CH_ZERO:                  EQU  &30             ; ASCII "0", for digit conversion
+PAGEMASK:                 EQU  &1F             ; the page number in LMPR and HMPR, bits 0 to 4
+T_BOOT:                   EQU  &E9             ; the BASIC keyword BOOT
+T_CLEAR:                  EQU  &B3             ; the BASIC keyword CLEAR
+T_DEVICE:                 EQU  &F0             ; the BASIC keyword DEVICE
+T_DISPLAY:                EQU  &E8             ; the BASIC keyword DISPLAY
+T_INVERSE:                EQU  &A5             ; the BASIC keyword INVERSE
+T_MODE:                   EQU  &AA             ; the BASIC keyword MODE
+T_OFF:                    EQU  &89             ; the BASIC keyword OFF
+T_REF:                    EQU  &CE             ; the BASIC keyword REF
+T_TO:                     EQU  &8E             ; the BASIC keyword TO
+UPPER:                    EQU  &DF             ; clearing bit 5 folds a letter to upper case
 
 ; Numbers named in notes/, each for one instruction
 ; where the same value means something else elsewhere.
-DVAR_CMPFG:                     EQU  &42BA     ; DVAR 154 in the DOS page: SAVE MODE 1, 2 or 3 less one
-ENABLE_ROM1:                    EQU  &40       ; LMPR bit 6: ROM 1 in at &C000.  Does not move the page in section B
-GREY_MAP:                       EQU  &7B80
-GREY_TAKEN:                     EQU  &7B90
-REF_BUFFER:                     EQU  &7B00
-REF_BUFFER_2:                   EQU  &7B80
-REF_BUFFER_2_TEXT:              EQU  &7B81
-SKIP_1_VIA_CP:                  EQU  &FE       ; CP n, skipping one byte and clobbering the flags
-SKIP_1_VIA_LD_A:                EQU  &3E       ; LD A,n, standing here only to swallow the byte after it
-SKIP_1_VIA_LD_C:                EQU  &0E       ; LD C,n, skipping one byte and clobbering C
-SKIP_1_VIA_LD_D:                EQU  &16       ; LD D,n, skipping one byte and clobbering D
-SKIP_1_VIA_OR:                  EQU  &F6       ; OR n, skipping one byte and clobbering A and the flags
-SKIP_2_VIA_LD_DE:               EQU  &11       ; LD DE,nn, skipping two bytes and clobbering DE
-SKIP_2_VIA_LD_HL:               EQU  &21       ; LD HL,nn, standing here only to swallow the two bytes after it -- see
-                                               ; docs/idioms.md
-SKIP_2_VIA_LD_SP:               EQU  &31       ; LD SP,nn, skipping two bytes and clobbering SP
-SYSPAGE_IN_B:                   EQU  &1F       ; LMPR &1F: page 31 at &0000, so section B gets page 32, which wraps to
-                                               ; the system page. The ROM source calls it PAGE1F
-SYS_CDBUFF_11:                  EQU  &4D11
-SYS_CDBUFF_50:                  EQU  &4D50
-SYS_CHAR_HEIGHT:                EQU  &4AEF
-SYS_CHAR_OUT:                   EQU  &49E4
-SYS_CHAR_WIDTH:                 EQU  &4AEE
-SYS_CMDBUF:                     EQU  &4CD3
-SYS_CMDV_COMMAND:               EQU  &488E
-SYS_DH_STATE:                   EQU  &4AED
-SYS_EDITV_EDITOR:               EQU  &4866
-SYS_EVALUV_EVAL_FN:             EQU  &4BBA
-SYS_FN_INDEX:                   EQU  &4AF0
-SYS_FRAMIV_FRAME_INT:           EQU  &4986
-SYS_GAP_BLOCK:                  EQU  &5896
-SYS_INSLV_STRING_MOVE:          EQU  &46CC
-SYS_PATOUT_CHAR_OUT:            EQU  &49A9
-SYS_PRTOKV_PRINT_TOKEN:         EQU  &4BB0
-SYS_RECORD_MODE:                EQU  &4AF3
-SYS_RECORD_STATE:               EQU  &4AF4
-SYS_RST8V_ERROR:                EQU  &4AB8
-SYS_STRM16_SAVE:                EQU  &4AF5
-SYS_TOKEN_TO_FN_INDEX:          EQU  &45A2
+DVAR_CMPFG:               EQU  &42BA           ; DVAR 154 in the DOS page: SAVE MODE 1, 2 or 3 less one
+GREY_MAP:                 EQU  &7B80
+GREY_TAKEN:               EQU  &7B90
+REF_BUFFER:               EQU  &7B00
+REF_BUFFER_2:             EQU  &7B80
+REF_BUFFER_2_TEXT:        EQU  &7B81
+SKIP_1_VIA_LD_C:          EQU  &0E             ; LD C,n, skipping one byte and clobbering C
+SKIP_1_VIA_LD_D:          EQU  &16             ; LD D,n, skipping one byte and clobbering D
+SKIP_1_VIA_OR:            EQU  &F6             ; OR n, skipping one byte and clobbering A and the flags
+SKIP_2_VIA_LD_DE:         EQU  &11             ; LD DE,nn, skipping two bytes and clobbering DE
+SKIP_2_VIA_LD_SP:         EQU  &31             ; LD SP,nn, skipping two bytes and clobbering SP
+SYS_CDBUFF_11:            EQU  &4D11
+SYS_CDBUFF_50:            EQU  &4D50
+SYS_CHAR_HEIGHT:          EQU  &4AEF
+SYS_CHAR_OUT:             EQU  &49E4
+SYS_CMDBUF:               EQU  &4CD3
+SYS_CMDV_COMMAND:         EQU  &488E
+SYS_DH_STATE:             EQU  &4AED
+SYS_EDITV_EDITOR:         EQU  &4866
+SYS_EVALUV_EVAL_FN:       EQU  &4BBA
+SYS_FN_INDEX:             EQU  &4AF0
+SYS_FRAMIV_FRAME_INT:     EQU  &4986
+SYS_GAP_BLOCK:            EQU  &5896
+SYS_INSLV_STRING_MOVE:    EQU  &46CC
+SYS_PATOUT_CHAR_OUT:      EQU  &49A9
+SYS_PRTOKV_PRINT_TOKEN:   EQU  &4BB0
+SYS_RECORD_MODE:          EQU  &4AF3
+SYS_RECORD_STATE:         EQU  &4AF4
+SYS_RST8V_ERROR:          EQU  &4AB8
+SYS_STRM16_SAVE:          EQU  &4AF5
+SYS_TOKEN_TO_FN_INDEX:    EQU  &45A2
 
 ; The byte after RST &08: a DOS error, or a hook code, which is
 ; 128 plus the index of an entry in the DOS hook table at &44A6.
-ERR_OUT_OF_MEMORY:              EQU  &01
-ERR_NOT_FOUND:                  EQU  &02
-ERR_SUBSCRIPT_WRONG:            EQU  &04
-ERR_NEXT_WITHOUT_FOR:           EQU  &05
-ERR_MISSING_DEF_PROC:           EQU  &0C
-ERR_BREAK_INTO_PROGRAM:         EQU  &0F
-ERR_ARGUMENT:                   EQU  &1B
-ERR_NOT_UNDERSTOOD:             EQU  &1D
-ERR_INTEGER_OUT_OF_RANGE:       EQU  &1E
-ERR_PUT_BLOCK:                  EQU  &25
-ERR_STRING_TOO_LONG:            EQU  &2A
-ERR_PAGE_OVERLAP:               EQU  &76
-ERR_SIZE_MISMATCH:              EQU  &77
-HK_MCHWR:                       EQU  &A7
-HK_MCHRD:                       EQU  &A8
-HK_HPRTOK:                      EQU  &A9
-HK_HGTTK:                       EQU  &AB
-HK_HKLEN:                       EQU  &AC
-HK_HCMDV:                       EQU  &AD
+ERR_NOT_FOUND:            EQU  &02
+ERR_SUBSCRIPT_WRONG:      EQU  &04
+ERR_NEXT_WITHOUT_FOR:     EQU  &05
+ERR_MISSING_DEF_PROC:     EQU  &0C
+ERR_BREAK_INTO_PROGRAM:   EQU  &0F
+ERR_ARGUMENT:             EQU  &1B
+ERR_NOT_UNDERSTOOD:       EQU  &1D
+ERR_INTEGER_OUT_OF_RANGE: EQU  &1E
+ERR_PUT_BLOCK:            EQU  &25
+ERR_STRING_TOO_LONG:      EQU  &2A
+ERR_PAGE_OVERLAP:         EQU  &76
+ERR_SIZE_MISMATCH:        EQU  &77
+HK_MCHWR:                 EQU  &A7
+HK_MCHRD:                 EQU  &A8
+HK_HPRTOK:                EQU  &A9
+HK_HGTTK:                 EQU  &AB
+HK_HKLEN:                 EQU  &AC
+HK_HCMDV:                 EQU  &AD
 
 ; The manual also describes these, which no table points at, so they have
 ; not been located in the code:
@@ -414,35 +290,35 @@ HK_HCMDV:                       EQU  &AD
 ; notes/ has each of them, and docs/how-it-works.md puts them in order.
 
 ; SAM BASIC tokens, from the ROM tables -- see MBTEXT.
-C_PAPER:                        EQU  &11
-FN_PFX:                         EQU  &FF
-FPC_ADDN:                       EQU  &01
-FPC_CONST2:                     EQU  &E2
-FPC_DIVN:                       EQU  &05
-FPC_DUP:                        EQU  &25
-FPC_EXIT:                       EQU  &33
-FPC_EXIT2:                      EQU  &34
-FPC_FIVELIT:                    EQU  &27
-FPC_GRTE0:                      EQU  &2F
-FPC_IDIV:                       EQU  &09
-FPC_JPTRUE:                     EQU  &1E
-FPC_LKADDRW:                    EQU  &2A
-FPC_MOD:                        EQU  &08
-FPC_RCL5:                       EQU  &DD
-FPC_STO5:                       EQU  &D5
-FPC_SWOP:                       EQU  &06
-FPC_SWOP13:                     EQU  &1C
-F_BAND:                         EQU  &7E
-F_CODE:                         EQU  &6C
-TK_CR:                          EQU  &0D
-TK_NUM:                         EQU  &0E
-T_AT:                           EQU  &87
-T_DEF_PROC:                     EQU  &CA
-T_END_PROC:                     EQU  &CB
-T_LET:                          EQU  &9C
-T_OVER:                         EQU  &A6
-T_PRINT:                        EQU  &BB
-T_STEP:                         EQU  &8F
+C_PAPER:                  EQU  &11
+FN_PFX:                   EQU  &FF
+FPC_ADDN:                 EQU  &01
+FPC_CONST2:               EQU  &E2
+FPC_DIVN:                 EQU  &05
+FPC_DUP:                  EQU  &25
+FPC_EXIT:                 EQU  &33
+FPC_EXIT2:                EQU  &34
+FPC_FIVELIT:              EQU  &27
+FPC_GRTE0:                EQU  &2F
+FPC_IDIV:                 EQU  &09
+FPC_JPTRUE:               EQU  &1E
+FPC_LKADDRW:              EQU  &2A
+FPC_MOD:                  EQU  &08
+FPC_RCL5:                 EQU  &DD
+FPC_STO5:                 EQU  &D5
+FPC_SWOP:                 EQU  &06
+FPC_SWOP13:               EQU  &1C
+F_BAND:                   EQU  &7E
+F_CODE:                   EQU  &6C
+TK_CR:                    EQU  &0D
+TK_NUM:                   EQU  &0E
+T_AT:                     EQU  &87
+T_DEF_PROC:               EQU  &CA
+T_END_PROC:               EQU  &CB
+T_LET:                    EQU  &9C
+T_OVER:                   EQU  &A6
+T_PRINT:                  EQU  &BB
+T_STEP:                   EQU  &8F
 
                ORG  &4000
 
@@ -1970,10 +1846,10 @@ CHECK_PRINTER_READY_1:
 ;; is what a false decode looks like from the outside.
 ;; --------------------------------------------------------------------
 
-WHAT:                           EQU  8         ; "WHAT?"
-ARRAY:                          EQU  9         ; ".ARRAY"
-ZXS:                            EQU  10        ; "ZX"
-SCREENS:                        EQU  11        ; "SCREEN$"
+WHAT:                     EQU  8               ; "WHAT?"
+ARRAY:                    EQU  9               ; ".ARRAY"
+ZXS:                      EQU  10              ; "ZX"
+SCREENS:                  EQU  11              ; "SCREEN$"
 
 DRTAB:
                DEFB " "+&80                    ; 4349 A0

@@ -727,7 +727,15 @@ tools/build.sh
 ```
 
 Exit status is 0 only if all six listings came back byte-identical -- the two
-in `listings/clean/`, the two in `listings/disasm/` and the two in `listings/speculate/`.
+in `listings/clean/`, the two in `listings/disasm/` and the two in
+`listings/speculate/`.
+
+Three assemblies produce those six answers.  Each tree has a `base.asm` that
+`INCLUDE`s both halves: they are `ORG`ed at `&4000`, where they run and where
+their own labels have to land, and `DUMP`ed to a page each so they do not
+overlap in the output.  The object is 32704 bytes -- the DOS half, the 64-byte
+tail of its page, then MasterBASIC's -- and each half is compared separately, so
+a mismatch still says which one it is in.
 
 The run also rebuilds `listings/disasm/postinstall-syspage.asm`, which cannot be checked that
 way because there is no original to compare it with, and prints the byte census
