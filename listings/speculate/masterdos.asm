@@ -165,6 +165,7 @@ MB_HK_VARSPACE:             EQU  &9293
 MB_HPRTOK:                  EQU  &900E
 MB_MULTIPLY_BY_24:          EQU  &85F9
 MB_NEXT_SCREEN_BYTE_1:      EQU  &A280
+MB_PRINT_OPEN_FILE_COUNT:   EQU  &9044
 MB_PUTSWA:                  EQU  &8000
 MB_SET_DCT_COMPILE_BITS:    EQU  &859C
 MB_SOFV:                    EQU  &8002
@@ -20951,38 +20952,40 @@ SDTKS_1:
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls CALLMB; falls into whatever follows rather than returning.
+;; ? reaches the ROM through MB_PRINT_OPEN_FILE_COUNT-&4000; calls CALLMB; falls into whatever follows rather than
+;; returning.
 ;; --------------------------------------------------------------------
 
 ; ---- SDTKS_2 ---- from &7483 when A <> &FF
 SDTKS_2:
-               POP HL                          ; 7488 E1  POINT VALUE
-               LD BC,&00D2                     ; 7489 01 D2 00
-               ADD HL,BC                       ; 748C 09  DISC NAME ON DISC
-               LD DE,DNAME                     ; 748D 11 B5 58
-               LD C,&0A                        ; 7490 0E 0A
-               LDIR                            ; 7492 ED B0  COPY NAME TO MSG BUFFER
-               POP BC                          ; 7494 C1  CURRENT RND NO.
-               LD A,(TDVAR)                    ; 7495 3A 6F 42
-               LD HL,DRIVE                     ; 7498 21 0B 7C
-               CP (HL)                         ; 749B BE
-               JR NZ,SDTK4                     ; 749C 20 20
-               LD A,(SAMCNT)                   ; 749E 3A 34 42
-               AND A                           ; 74A1 A7
-               JR Z,SDTK4                      ; 74A2 28 1A  JR IF NO OPEN FILES TO WARN ABOUT
-               LD HL,(SAMRN)                   ; 74A4 2A 6D 42  SAM RND NO.
-               SBC HL,BC                       ; 74A7 ED 42
-               JR Z,SDTK4                      ; 74A9 28 13  JR IF SAME DISC AS WHEN
-                                               ; call &5044 in the other page: LMPR is switched first, so that address
-                                               ; is how the other listing numbers it
-               CALL CALLMB                     ; 74AB CD BD 42
-               DEFW &5044                      ; 74AE 44 50
-               CALL PLUR                       ; 74B0 CD 01 5C  "OPEN file"
-               CALL BEEP                       ; 74B3 CD E1 4D
-               LD A,(SSTR1)                    ; 74B6 3A 38 41
-                                               ; call the ROM at STREAM with ROM1 paged in, and page back on the way out
-               CALL CMR                        ; 74B9 CD B2 7B
-               DEFW STREAM                     ; 74BC 12 01
+               POP HL                              ; 7488 E1  POINT VALUE
+               LD BC,&00D2                         ; 7489 01 D2 00
+               ADD HL,BC                           ; 748C 09  DISC NAME ON DISC
+               LD DE,DNAME                         ; 748D 11 B5 58
+               LD C,&0A                            ; 7490 0E 0A
+               LDIR                                ; 7492 ED B0  COPY NAME TO MSG BUFFER
+               POP BC                              ; 7494 C1  CURRENT RND NO.
+               LD A,(TDVAR)                        ; 7495 3A 6F 42
+               LD HL,DRIVE                         ; 7498 21 0B 7C
+               CP (HL)                             ; 749B BE
+               JR NZ,SDTK4                         ; 749C 20 20
+               LD A,(SAMCNT)                       ; 749E 3A 34 42
+               AND A                               ; 74A1 A7
+               JR Z,SDTK4                          ; 74A2 28 1A  JR IF NO OPEN FILES TO WARN ABOUT
+               LD HL,(SAMRN)                       ; 74A4 2A 6D 42  SAM RND NO.
+               SBC HL,BC                           ; 74A7 ED 42
+               JR Z,SDTK4                          ; 74A9 28 13  JR IF SAME DISC AS WHEN
+                                                   ; call MB_PRINT_OPEN_FILE_COUNT-&4000 in the other page: LMPR is
+                                                   ; switched first, so that address is how the other listing numbers it
+               CALL CALLMB                         ; 74AB CD BD 42
+               DEFW MB_PRINT_OPEN_FILE_COUNT-&4000 ; 74AE 44 50
+               CALL PLUR                           ; 74B0 CD 01 5C  "OPEN file"
+               CALL BEEP                           ; 74B3 CD E1 4D
+               LD A,(SSTR1)                        ; 74B6 3A 38 41
+                                                   ; call the ROM at STREAM with ROM1 paged in, and page back on the way
+                                                   ; out
+               CALL CMR                            ; 74B9 CD B2 7B
+               DEFW STREAM                         ; 74BC 12 01
 
 ;; --------------------------------------------------------------------
 ;; SDTK4 -- &74BE to &74C0

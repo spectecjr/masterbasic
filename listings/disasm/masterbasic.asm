@@ -6038,33 +6038,69 @@ GTDT_1:
                JP (IY)                         ; 500C FD E9
 
 ;; --------------------------------------------------------------------
-;; Hook 169 -- print one of MasterBASIC's tokens.  The ROM's PRTOKV vector
-;; points here, so LIST and the error printer come through it.
+;; Hook 169, and the ROM's PRTOKV points here, so LIST and the error
+;; printer both come through it.
 ;;
-;; `SUB &E1` turns a command token back into its index into MBKEYS, which
-;; is the inverse of the `+ &A6` and the ROM's `+ &3B` in HGTTK.
+;; SUB &E1 IS THE WHOLE OF THE LOOKUP.  MBKEYS is one list holding both
+;; kinds of MasterBASIC keyword: words 1 to 21 are the two-byte FF nn
+;; forms and words 22 to 28 the single-byte tokens 247 to 253.  Taking
+;; &E1 off a single-byte token lands on its word -- 247 - &E1 is 22,
+;; which is BACKUP, and 253 - &E1 is 28, which is EDIT.  &E1 is not a
+;; chosen constant: it is 247 less 22, the offset that makes the
+;; single-byte tokens continue the numbering the FF forms started.
+;;
+;; It is also the inverse of the + &A6 here and the ROM's + &3B in
+;; HGTTK, which come to the same &E1 going the other way.
+;;
+;; FLAGS BIT 0 DECIDES THE LEADING SPACE.  The ROM keeps "the last
+;; thing printed was a keyword" there, and a space goes in front of
+;; this one only when it is clear, so two keywords in a row are
+;; separated once and not twice.
+;;
+;; The caller's HL is parked in XPTR before anything is printed and not
+;; restored here, because printing goes through the ROM and the ROM
+;; expects to find it there.
+;;
+;; What was here before:
+;;
+;;     Hook 169 -- print one of MasterBASIC's tokens.  The ROM's PRTOKV vector
+;;     points here, so LIST and the error printer come through it.
+;;
+;;     `SUB &E1` turns a command token back into its index into MBKEYS, which
+;;     is the inverse of the `+ &A6` and the ROM's `+ &3B` in HGTTK.
 ;; --------------------------------------------------------------------
 
 HPRTOK:
                CP &FF                          ; 500E FE FF
-               JR Z,HPRTOK_1                   ; 5010 28 54
-               SUB &E1                         ; 5012 D6 E1
+               JR Z,HPRTOK_1                   ; 5010 28 54  &FF is not a token to print, it is the first byte of a
+                                               ; two-byte one -- HPRTOK_1 sets up for the second byte instead of
+                                               ; printing anything
+               SUB &E1                         ; 5012 D6 E1  token less &E1 is its word in MBKEYS, the single-byte forms
+                                               ; continuing where the FF forms stop
                PUSH AF                         ; 5014 F5
                PUSH HL                         ; 5015 E5
                CALL NRRD                       ; 5016 CD 6A 45
                DEFW FLAGS                      ; 5019 3B 5C
-               RRA                             ; 501B 1F
+               RRA                             ; 501B 1F  FLAGS bit 0 into carry. Clear means the last thing out was not
+                                               ; a keyword, so this one needs a space in front of it
                CALL NC,PRINT_SPACE             ; 501C D4 2C 50
                POP BC                          ; 501F C1
                CALL NRWRD                      ; 5020 CD 77 45
                DEFW XPTR                       ; 5023 A3 5A
                POP BC                          ; 5025 C1
-               LD HL,V50D7                     ; 5026 21 D7 50
-               CALL SKIP_TO_END_OF_WORD        ; 5029 CD 31 50
+               LD HL,V50D7                     ; 5026 21 D7 50  the one-character word at &50D7, which makes MBKEYS
+                                               ; one-based
+               CALL SKIP_TO_END_OF_WORD        ; 5029 CD 31 50  one call skips B words and prints the next, because
+                                               ; SKIP_TO_END_OF_WORD falls into PRINT_WORD
 
 ;; --------------------------------------------------------------------
 ;; LD A,&20 and a JP into CALL_PRINT_A.  Two bytes and a jump, four
 ;; times over, against three bytes and a call each time.
+;;
+;; What was here before:
+;;
+;;     LD A,&20 and a JP into CALL_PRINT_A.  Two bytes and a jump, four
+;;     times over, against three bytes and a call each time.
 ;; --------------------------------------------------------------------
 
 ; ---- PRINT_SPACE ---- from &501C when bit 0 was clear, &50D0 when A >= &14
@@ -6073,23 +6109,48 @@ PRINT_SPACE:
                JP CALL_PRINT_A                 ; 502E C3 FA 69
 
 ;; --------------------------------------------------------------------
-;; Step HL past a run of characters, stopping after the one with bit 7
-;; set.  That is how every word list in this image is terminated.
+;; Step HL past B words, then print the next one.
+;;
+;; THE TWO ROUTINES ARE ONE CALL.  There is no RET here: after the
+;; DJNZ runs out this falls straight into PRINT_WORD, so a single
+;; CALL SKIP_TO_END_OF_WORD with B set means "print word B of the
+;; list".  Both callers use it that way and neither ever wants the
+;; skipping on its own.
+;;
+;; A word ends at the character with bit 7 set, which is how every word
+;; list in this image is terminated, and the first pass always runs
+;; before the DJNZ -- so word 0 is consumed on the way in.  That is
+;; what the lone " "+&80 at &50D7 is for: it makes the list one-based,
+;; so the index the token arithmetic produces can be used directly.
+;;
+;; What was here before:
+;;
+;;     Step HL past a run of characters, stopping after the one with bit 7
+;;     set.  That is how every word list in this image is terminated.
 ;; --------------------------------------------------------------------
 
 ; ---- SKIP_TO_END_OF_WORD ---- from &5029, &5034 when bit 7 was clear, &5036 when B is not 0 yet, &50CA
 SKIP_TO_END_OF_WORD:
                LD A,(HL)                       ; 5031 7E
                INC HL                          ; 5032 23
-               RLA                             ; 5033 17
+               RLA                             ; 5033 17  RLA puts bit 7 into carry without disturbing (HL), so the same
+                                               ; byte is both the test and the character
                JR NC,SKIP_TO_END_OF_WORD       ; 5034 30 FB
-               DJNZ SKIP_TO_END_OF_WORD        ; 5036 10 F9
+               DJNZ SKIP_TO_END_OF_WORD        ; 5036 10 F9  B words skipped, and no RET -- PRINT_WORD is the next
+                                               ; instruction and prints the word this landed on
 
 ;; --------------------------------------------------------------------
-;; Print a word from one of the keyword lists: the characters with bit 7
-;; masked off, stopping after the one that has it set.  The companion to
-;; SKIP_TO_END_OF_WORD, which steps over the same thing without printing
-;; it.
+;; Print a word from one of the keyword lists: the characters with bit
+;; 7 masked off, stopping after the one that has it set.  The companion
+;; to SKIP_TO_END_OF_WORD, which steps over the same thing without
+;; printing it.
+;;
+;; What was here before:
+;;
+;;     Print a word from one of the keyword lists: the characters with bit 7
+;;     masked off, stopping after the one that has it set.  The companion to
+;;     SKIP_TO_END_OF_WORD, which steps over the same thing without printing
+;;     it.
 ;; --------------------------------------------------------------------
 
 ; ---- PRINT_WORD ---- from &5042, &5054
@@ -6097,21 +6158,45 @@ PRINT_WORD:
                LD A,(HL)                       ; 5038 7E
                AND &7F                         ; 5039 E6 7F
                CALL CALL_PRINT_A               ; 503B CD FA 69
-               BIT 7,(HL)                      ; 503E CB 7E
+               BIT 7,(HL)                      ; 503E CB 7E  the test is made on (HL) rather than on A, because A has
+                                               ; had bit 7 masked off it and could no longer answer
                RET NZ                          ; 5040 C0
                INC HL                          ; 5041 23
                JR PRINT_WORD                   ; 5042 18 F4
+
+;; --------------------------------------------------------------------
+;; Print "<n> OPEN file" for MasterDOS, and hand the count back for it
+;; to pluralise.
+;;
+;; NOT CALLED FROM THIS HALF AT ALL.  MasterDOS reaches it through
+;; CALLMB at &74AB, in the warning it gives when a disc is swapped
+;; while files are open: it has already established that SAMCNT is not
+;; zero and that the disc's random number has changed, and A is the
+;; count.  What comes back is HL = A, which is exactly what the PLUR
+;; two instructions later wants -- PLUR does DEC HL : LD A,H : OR L :
+;; RET Z and adds an "s" only if more than one file was open.
+;;
+;; So one message is printed by both halves: the digit and the words by
+;; this routine, the plural by the DOS.  The lower screen is cleared
+;; first, through the ROM's CLSLOW, because the warning has to appear
+;; somewhere the program has not been writing.
+;; --------------------------------------------------------------------
+
+PRINT_OPEN_FILE_COUNT:
                PUSH AF                         ; 5044 F5
-               CALL CMR                        ; 5045 CD F0 44
+               CALL CMR                        ; 5045 CD F0 44  CLSLOW, so the warning has a clear lower screen to
+                                               ; appear in
                DEFW CLSLOW                     ; 5048 51 01
                POP AF                          ; 504A F1
                PUSH AF                         ; 504B F5
-               ADD A,&30                       ; 504C C6 30
+               ADD A,&30                       ; 504C C6 30  A is the count of open files, so adding &30 makes it a
+                                               ; digit -- one to nine, and SAMCNT cannot exceed the DOS's channel table
                CALL CALL_PRINT_A               ; 504E CD FA 69
                LD HL,V505C                     ; 5051 21 5C 50
                CALL PRINT_WORD                 ; 5054 CD 38 50
                POP AF                          ; 5057 F1
-               LD L,A                          ; 5058 6F
+               LD L,A                          ; 5058 6F  HL = the count, which is what the DOS's PLUR takes: it prints
+                                               ; an "s" unless the count is one
                LD H,&00                        ; 5059 26 00
                RET                             ; 505B C9
 
@@ -6120,53 +6205,108 @@ V505C:
                DEFM " OPEN fil"                ; 505C 20 4F 50 45 4E 20 66 69
                DEFB "e"+&80                    ; 5065 E5
 
+;; --------------------------------------------------------------------
+;; The FF case: point the current channel at MasterBASIC's own code so
+;; that the second byte of the token comes back here.
+;;
+;; A two-byte token reaches PRTOKV as &FF and then as its second byte,
+;; and nothing carries between the two calls -- so the state goes into
+;; the system page instead.  The channel's output address is swapped
+;; for SYS_GAP_BLOCK at &5896, the old one kept in OPSTORE, and the
+;; caller's HL parked in the DOS through PARK_WORD.  The next character
+;; the ROM prints therefore arrives at &5896, which is nine bytes of
+;; installed code beginning RST &08 : DEFB &AA -- hook 170, which is
+;; HK_HPFF below.
+;; --------------------------------------------------------------------
+
 ; ---- HPRTOK_1 ---- from &5010 when A = &FF
 HPRTOK_1:
                CALL CALLDOS                    ; 5066 CD C1 42
                DEFW &7859                      ; 5069 59 78
-               LD BC,&00FB                     ; 506B 01 FB 00
+               LD BC,&00FB                     ; 506B 01 FB 00  HMPR is read and zeroed in three instructions, with the
+                                               ; old value kept in B: the system page has to be in the window to reach
+                                               ; CURCHL and the channel behind it
                IN E,(C)                        ; 506E ED 58
                OUT (C),B                       ; 5070 ED 41
                LD B,E                          ; 5072 43
-               LD HL,(CURCHL+&4000)            ; 5073 2A 51 9C
-               SET 7,H                         ; 5076 CB FC
+               LD HL,(CURCHL+&4000)            ; 5073 2A 51 9C  the channel record the ROM is printing through, whose
+                                               ; first word is its output routine
+               SET 7,H                         ; 5076 CB FC  SET 7,H and RES 6,H turn a system-page address into the
+                                               ; same byte seen at &8000, which is where the window has just put it
                RES 6,H                         ; 5078 CB B4
                LD E,(HL)                       ; 507A 5E
                INC HL                          ; 507B 23
                LD D,(HL)                       ; 507C 56
-               LD (OPSTORE+&4000),DE           ; 507D ED 53 B5 9A
-               LD DE,SYS_GAP_BLOCK             ; 5081 11 96 58
+               LD (OPSTORE+&4000),DE           ; 507D ED 53 B5 9A  the real output routine, kept so HK_HPFF can put it
+                                               ; back
+               LD DE,SYS_GAP_BLOCK             ; 5081 11 96 58  &5896 is the block installed in the gap between the DEF
+                                               ; KEY buffer and the keyboard table. Its first two bytes are RST &08 and
+                                               ; hook code &AA, so the next character printed becomes a call to HK_HPFF
                LD (HL),D                       ; 5084 72
                DEC HL                          ; 5085 2B
                LD (HL),E                       ; 5086 73
                OUT (C),B                       ; 5087 ED 41
                RET                             ; 5089 C9
 
+;; --------------------------------------------------------------------
+;; Hook 170: the second byte of a two-byte token has arrived.  Print
+;; the word for it, put the channel back, and say whether it was ours.
+;;
+;; THE ANSWER GOES BACK IN C BECAUSE FLAGS CANNOT SURVIVE THE HOOK.
+;; PUSH AF : POP BC at the end puts F into C, and the installed block
+;; at &5896 does PUSH BC : POP AF to unpack it before its JP C -- so
+;; the carry this routine sets crosses the RST &08 dispatch in a
+;; register and becomes a branch on the other side.  Carry set means
+;; "not one of ours, print it the ROM's way"; clear means it has been
+;; printed.
+;;
+;; The accepted range is &26 to &3A, tested as CP &26 : JR C to reject
+;; below and CP &3B : CCF : JR C to reject at or above -- the CCF is
+;; there because CP sets carry for "less than" and the test wanted is
+;; "not less than".  SUB &25 then gives the word, so FF 26 is word 1.
+;;
+;; TWO TOKENS ARE FOLDED IN FROM OUTSIDE THAT RANGE.  The FF numbers
+;; run &26 to &38 for words 1 to 19 and then stop; XVAR is FF 68 and
+;; NVAL is FF 6A.  The two subtractions at the top bring those to &39
+;; and &3A, which continues the run, so one range test and one SUB
+;; serve all twenty-one.
+;;
+;; The trailing space at the end is for the same two.  CP &14 : CALL NC
+;; catches words 20 and 21, and those are the only entries that take an
+;; argument without a bracket in front of it: XVAR n and NVAL a$ need
+;; the space, INARRAY( at word 19 does not.
+;; --------------------------------------------------------------------
+
 HK_HPFF:
                PUSH AF                         ; 508A F5
-               CALL CALLDOS                    ; 508B CD C1 42
+               CALL CALLDOS                    ; 508B CD C1 42  the word HPRTOK_1 parked, fetched back and written to
+                                               ; XPTR -- two hook invocations with nothing surviving in a register
+                                               ; between them
                DEFW &785D                      ; 508E 5D 78
                CALL NRWRD                      ; 5090 CD 77 45
                DEFW XPTR                       ; 5093 A3 5A
                POP AF                          ; 5095 F1
-               CP &68                          ; 5096 FE 68
+               CP &68                          ; 5096 FE 68  XVAR is FF 68, outside the run that ends at FF 38, so it is
+                                               ; brought to &39 to continue it
                JR NZ,HK_HPFF_1                 ; 5098 20 02
                SUB &2F                         ; 509A D6 2F
 
 ; ---- HK_HPFF_1 ---- from &5098 when A <> &68
 HK_HPFF_1:
-               CP &6A                          ; 509C FE 6A
+               CP &6A                          ; 509C FE 6A  and NVAL, FF 6A, to &3A
                JR NZ,HK_HPFF_2                 ; 509E 20 02
                SUB &30                         ; 50A0 D6 30
 
 ; ---- HK_HPFF_2 ---- from &509E when A <> &6A
 HK_HPFF_2:
-               CP &26                          ; 50A2 FE 26
+               CP &26                          ; 50A2 FE 26  below FF 26 is not MasterBASIC's
                JR C,HK_HPFF_DONE               ; 50A4 38 2E
-               CP &3B                          ; 50A6 FE 3B
+               CP &3B                          ; 50A6 FE 3B  and &3B or above is not either. CP sets carry for "less
+                                               ; than", so CCF turns the test into the one wanted
                CCF                             ; 50A8 3F
                JR C,HK_HPFF_DONE               ; 50A9 38 29
-               SUB &25                         ; 50AB D6 25
+               SUB &25                         ; 50AB D6 25  &25 rather than &26, because the space at &50D7 makes the
+                                               ; list one-based
                LD BC,&00FB                     ; 50AD 01 FB 00
                IN E,(C)                        ; 50B0 ED 58
                OUT (C),B                       ; 50B2 ED 41
@@ -6174,7 +6314,8 @@ HK_HPFF_2:
                LD HL,(CURCHL+&4000)            ; 50B5 2A 51 9C
                SET 7,H                         ; 50B8 CB FC
                RES 6,H                         ; 50BA CB B4
-               LD DE,(OPSTORE+&4000)           ; 50BC ED 5B B5 9A
+               LD DE,(OPSTORE+&4000)           ; 50BC ED 5B B5 9A  the channel's real output routine, put back now the
+                                               ; token has been printed
                LD (HL),E                       ; 50C0 73
                INC HL                          ; 50C1 23
                LD (HL),D                       ; 50C2 72
@@ -6184,13 +6325,15 @@ HK_HPFF_2:
                LD HL,V50D7                     ; 50C7 21 D7 50
                CALL SKIP_TO_END_OF_WORD        ; 50CA CD 31 50
                LD A,C                          ; 50CD 79
-               CP &14                          ; 50CE FE 14
+               CP &14                          ; 50CE FE 14  words 20 and 21 are XVAR and NVAL, the only two that take
+                                               ; an argument with no bracket to separate it
                CALL NC,PRINT_SPACE             ; 50D0 D4 2C 50
-               AND A                           ; 50D3 A7
+               AND A                           ; 50D3 A7  carry clear -- printed, so the ROM should not print it again
 
 ; ---- HK_HPFF_DONE ---- from &50A4 when A < &26, &50A9
 HK_HPFF_DONE:
-               PUSH AF                         ; 50D4 F5
+               PUSH AF                         ; 50D4 F5  F into C, which is how the verdict crosses the RST &08 return;
+                                               ; &5896 unpacks it with PUSH BC : POP AF
                POP BC                          ; 50D5 C1
                RET                             ; 50D6 C9
 
