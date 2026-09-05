@@ -1,0 +1,305 @@
+# LOCN and INARRAY: searching memory and searching a string array.
+# Proposed by a fresh reader, audited against the instructions.
+
+DOC SEARCH_MEMORY
+    Find a pattern in a run of memory.  This is the engine under both
+    LOCN and INARRAY: "This function searches a specified part of memory
+    for a desired string", and for INARRAY the same code run once per
+    array element.
+
+    On entry A is the pattern length, HL the number of bytes to look
+    through, DE the first address, and the pattern itself is the copy
+    COPY_STRING_TO_BUFFER left at &7B00.  It returns BC = the position
+    of the match counting from 1, with carry clear; carry set and BC = 0
+    means no match.  That count is what the caller stores in IAPOS, XVAR
+    3 -- "the position within the array string that the target string
+    was found at (1 is the first position)".
+
+    TAKING THE PATTERN LENGTH OFF THE COUNT FIRST is what makes the rest
+    simple: HL - A + 1 is the number of places where the whole pattern
+    still fits, so the inner comparison can run off the end of the
+    pattern without any second test, and a region shorter than the
+    pattern falls straight out at &4C98.
+
+    THERE ARE TWO SEARCHES HERE, not one, chosen at &4CA2 by whether the
+    call ended ",ABS".  &4CAA is the exact one and leans on CPIR; &4CE2
+    is the case-insensitive one and has to do its own scanning, which is
+    the whole of the difference the manual quotes between "over 200K a
+    second" and "about 90K a second".  Both share the answer arithmetic
+    at &4CD2 and the failure exit at &4CDD.
+
+    Nothing here touches HMPR.  The caller works through the window at
+    &8000 and steps the page between chunks (&4BF8-&4C0D, idiom 6); it
+    hands over &2000 start positions at a time and overlaps consecutive
+    chunks by the pattern length less one, so a match lying across the
+    join is still found and no position is offered twice.
+
+MB &4CA2 : which of the two searches to run.  PARSE_STRING_AND_SUBSCRIPT leaves this zero only when the argument list ended ",ABS"
+
+MB &4CA8 : the number of start positions, kept to the end so the answer can be worked out by subtraction
+
+MB &4CA9 : A' has been holding the pattern length since &4C9C; bring it back so the loop below can push it
+
+DOC SEARCH_MEMORY_LOOP
+    The exact search.  CPIR does the hunting for the pattern's first
+    byte and the fall-through at &4CB3 checks the rest, so the cost of a
+    non-matching byte is one CPIR iteration -- which is why the manual
+    warns the speed only holds "unless there are frequent occurrences of
+    the first character of the target string".
+
+    The pattern length is carried in A' as a countdown and a fresh copy
+    is pushed each time round, because a failed comparison has to start
+    it again.  BC is left exactly as CPIR left it, so the retry picks
+    the scan up where it stopped instead of starting over.
+
+MB &4CAA : a fresh copy of the length, since the comparison below counts it down
+
+MB &4CAC : the pattern's first byte -- DE points into the copy at &7B00
+
+MB &4CAF : the first byte does not occur in what is left, so there is nothing to find
+
+MB &4CB1 : where CPIR stopped, to go back to if the rest of the pattern does not match
+
+MB &4CB2 : CPIR has already stepped HL past the byte it matched, so the loop's own INC HL is skipped on the way in
+
+MB &4CB5 : the countdown starts at the whole length because CPIR has already accounted for byte one
+
+MB &4CB6 : every byte of the pattern accounted for -- a match
+
+MB &4CBB : CP leaves A alone, which is why the wildcard test can come after it
+
+MB &4CBF : C' holds INSTHASH, the ROM's "don't care" character, normally "#"; the caller read it in at &4BB4
+
+MB &4CC1 : a hash in the pattern matches whatever is there.  Byte one is never tested this way, which is the manual's "the only time [it] is looked for [literally] is when it is the first character of the string being looked for"
+
+MB &4CC3 : back to the start of the pattern for the next attempt
+
+MB &4CC6 : and back to where CPIR stopped, with BC still counting down, so the scan carries on rather than restarting
+
+MB &4CCA : only the case-insensitive search arrives here, and only from &4D10.  Its count is split low-in-B, high-in-C and has to be made a plain sixteen-bit number again before the subtraction below
+
+MB &4CCD : the test at &4CF1 undone -- the high half was pushed up by one there if the low half was not zero
+
+MB &4CD1 : and this undoes the INC BC at &4CE3
+
+DOC SEARCH_MEMORY_2
+    The answer, shared by both searches.  Three pops for two saved
+    registers and the AF that was carrying the pattern length; the third
+    is the one that matters, because it recovers the number of start
+    positions the search began with.  That, less the number still
+    unexamined, is how far in the match was found, counting from 1.
+
+MB &4CD5 : positions used up = where the match starts, and the caller writes it to IAPOS
+
+MB &4CDA : carry is clear after the subtraction, and the caller at &4BF5 reads that as "found"
+
+MB &4CDB : two pops, matching the PUSH BC and PUSH AF of whichever of the two searches failed
+
+MB &4CDD : nothing found.  Zero is what LOCN and INARRAY both return for that
+
+MB &4CE0 : carry set is the "not found" answer
+
+DOC SEARCH_MEMORY_3
+    The case-insensitive search.  It cannot use CPIR, because it is
+    looking for either of two bytes, so the scan is written out by hand
+    at COMPARE_TO_TERMINATOR and the two bytes -- the capital and the
+    small letter form of the pattern's first character -- are worked out
+    once here and parked in V40A6.
+
+    ONLY THE FIRST CHARACTER IS FOLDED CAREFULLY.  IS_LETTER decides
+    whether folding applies at all, so a non-letter is scanned for
+    exactly; the remaining characters are compared with the cheap
+    XOR-then-AND-&DF at &4D1A instead.
+
+MB &4CE3 : one extra, because COMPARE_TO_TERMINATOR spends its last turn falling out of the loop rather than comparing; &4CD1 takes it off again
+
+MB &4CE6 : only a real letter gets both forms, so a search for "@" does not also match "`"
+
+MB &4CEB : D is the capital...
+
+MB &4CEE : ...and E the small letter.  For anything that is not a letter both hold the byte itself
+
+MB &4CF1 : the count becomes low-half in B, high-half-plus-one in C -- the usual shape for a DJNZ inner loop with a DEC C outer one, so a count over 255 costs nothing
+
+MB &4CF8 : parked, because DE has to be the pattern pointer inside the loop
+
+MB &4CFF : the two forms of the first character, wanted again for every scan
+
+MB &4D03 : the stand-in for CPIR: it stops on either form
+
+MB &4D08 : the scan has just had DE for the two letter forms, so the pattern pointer has to be put back
+
+MB &4D0C : the scan leaves HL past the byte it matched, exactly as CPIR does, so the same skip serves
+
+MB &4D10 : these two bytes are JR Z,&4CCA -- the whole pattern has matched.  Nothing enters at &4D11
+
+MB &4D15 : the wildcard test has to come first here, because XOR (HL) below destroys A
+
+MB &4D1B : equal but for bit 5, which is the case bit.  Cheaper than calling IS_LETTER for every byte, at the price of also matching pairs like "@" and "`" or "[" and "{"
+
+MB &4D1F : the pattern again from the start, and &4D22 gives HL back so the scan resumes where it stopped
+
+DOC COMPARE_TO_TERMINATOR
+    Scan for either of two bytes: CPIR for the case-insensitive search,
+    where D and E hold the capital and the small letter form of the
+    character wanted.
+
+    IT IS ENTERED IN THE MIDDLE OF ITS OWN LOOP, at the read rather than
+    at the test, so that the count is taken before the comparison and
+    the last turn round falls out instead of comparing.  That is what
+    the caller's INC BC at &4CE3 pays for.  B is the inner count and C
+    the outer, so a run longer than 255 costs nothing extra.
+
+    Returns Z when one of the two was found, HL just past it.
+
+MB &4D26 : the capital...
+
+MB &4D28 : ...or the small letter; either one will do
+
+MB &4D31 : the run is over.  The byte this compares is the one after the last legal starting place and it is only tested against E, not D
+
+DOC PARSE_STRING_AND_SUBSCRIPT
+    The tail of LOCN's and INARRAY's argument lists: the string to look
+    for, then the optional ABS, then the closing bracket.
+
+    ABS IS A TWO-BYTE TOKEN, &FF &5B, so it takes two checks; and the
+    decision is recorded not as a flag but as the difference between the
+    character found and a comma, which is zero exactly when one was
+    there.  SEARCH_MEMORY reads that at &4CA2.
+
+    Carry comes back as the ROM's run flag, saved over the bracket
+    checks, which is what lets every caller say RET NC to do nothing at
+    syntax-check time.
+
+MB &4D33 : the ROM's EXPTSTR -- A comes back as the character the expression stopped on, carry set if this is run time
+
+MB &4D3A : zero only if that character was a comma, i.e. only for the ",ABS" form
+
+MB &4D40 : &FF then &5B is ABS.  &5B is not a bracket here; it is the second byte of a function token
+
+MB &4D4D : the run flag from the string, handed back to the caller's RET NC
+
+MB &4D52 : these three bytes are one instruction, CALL CALL_EXPSTR; nothing enters at &4D53
+
+MB &4D5B : the run flag again, kept over the closing bracket
+
+MB &4D64 : true is 1 and false is 0, and the Z that chooses between them came out of TWO_PAGED_STRINGS -- it is the length comparison made before the byte loop, not the byte loop's own answer
+
+MB &4D6A : returned as a number, despite the label: STACK_PAGE0_STRING is the ROM's STACKBC written out
+
+DOC TWO_PAGED_STRINGS
+    EQU's comparison: two strings, each in its own page, compared
+    without regard to case.  "Compares two strings ignoring case, so
+    EQU(nm$,'Jones') accepts jONES and jOnEs."
+
+    THE LENGTHS ARE COMPARED FIRST AND THE VERDICT PARKED IN AF' for the
+    whole of the byte loop.  SBC HL,BC at &4D7F sets Z if the two are
+    the same length; ADD HL,BC puts the length back without disturbing Z
+    (ADD HL,rr leaves it alone); EX AF,AF' stows it, and if the bytes
+    run out with everything matching that stowed Z is what comes back.
+    So equality means same length and same bytes, in one flag, with no
+    second test.
+
+    Only the shorter of the two lengths is walked, so what the loop
+    really settles is whether one is a prefix of the other.
+
+MB &4D74 : bit 7 of the page byte says "sliced, or an array element"; only the page number is wanted
+
+MB &4D7F : the length difference, and its Z is the answer the routine finally returns
+
+MB &4D81 : puts the length back.  ADD HL,rr does not touch Z, so the verdict survives
+
+MB &4D84 : walk only as far as the shorter of the two
+
+MB &4D87 : the length verdict out of harm's way for the duration of the loop
+
+MB &4D89 : both strings are reached through the &8000 window, so 16K is as much as can be addressed at once
+
+MB &4D90 : the count, and under it the second string's start from &4D76: the two values the code below pops
+
+DOC COPY_BETWEEN_PAGES
+    A byte-for-byte comparison of two strings in two different pages,
+    ignoring case.  Nothing is written anywhere -- see the notes, the
+    name is wrong.
+
+    ONE BYTE COSTS TWO OUTS: the alternate set holds the HMPR port in C,
+    the two page numbers in L and H, and the first string's pointer in
+    DE, so each turn pages the first string in, reads a byte, pages the
+    second string in, and reads through HL in the main set.  The same
+    shape as COMPARE_FAR_STRINGS at &4725, which does it case-sensitively.
+
+    Bit 5 is forced on in both bytes before comparing, the same
+    case-folding as the search loop's AND &DF from the other end.
+
+    Two exits.  A difference returns the flags from CP, so carry says
+    which byte was the smaller; running out of bytes returns the length
+    verdict from &4D7F with the carry complemented.  Taken together,
+    carry set means the first string does not sort after the second and
+    Z means they are equal -- a three-way comparison, of which EQU uses
+    only the Z.
+
+MB &4D91 : C is the HMPR port for the rest of the routine, and after the EXX the alternate set holds it, both page numbers, and the first string's pointer
+
+MB &4D94 : both pushed by the fall-through above.  A CALL to this address would get the return address here instead
+
+MB &4D99 : page in the first string, read a byte, then page in the second
+
+MB &4DA0 : bit 5 forced on in both, so upper and lower case compare equal
+
+MB &4DA6 : the first difference decides it, and CP's carry says which way round
+
+MB &4DAF : the bytes ran out with everything equal, so the answer is the length verdict brought back by the EX above
+
+MB &4DB1 : the verdict goes into AF' so that A is free to carry the old HMPR to the port, then comes back at &4DB5
+
+MB &4DC3 : H is the string's page, L the option number 1 to 4
+
+MB &4DC6 : the empty string.  STKSTORE's five zero bytes serve as an empty string here as readily as they serve as zero elsewhere
+
+MB &4DD0 : the manual's "strings must be 16383 characters or less", and it is that because the copy below goes through the &8000 window
+
+MB &4DD5 : the answer is built in fresh workspace, so the argument itself is not altered
+
+MB &4DDA : MODCOUNT and PAGCOUNT are FARLDIR's byte count, low word and page count -- the string is under 16K so the page count is zero
+
+MB &4DE5 : WKROOM has left its own page in HMPR; that is the destination page
+
+MB &4DEC : FARLDIR: "move (PAGCOUNT/MODCOUNT) bytes from page A, HL to page C, DE" -- the string into the workspace
+
+MB &4DF7 : three constants for the three case options, reached by falling down the DEC A chain, each one shorter to set up than the last.  FORCE_CASE_BYTE ORs H in and XORs L out: &20/&20 forces upper, &20/&00 lower, &00/&20 swaps
+
+MB &4E09 : the fourth option is the printable one; anything else is out of range
+
+MB &4E0E : option 4 goes through MasterDOS a byte at a time -- "turns control codes into a full stop and strips the top bit from characters above 127", with DVAR 24 and DVAR 25 tuning both halves of that
+
+MB &4E1E : only letters are touched, so digits and punctuation pass through whichever option is in force
+
+MB &4E30 : a string this time, not a number: page, start and length as they now stand in the workspace
+
+MB &4E5D : the run flag kept over the closing bracket, as at &4D36
+
+DOC FN_RESERVED
+    RESERVED(n): "reserves space in the system heap, and returns its
+    address", and a negative n gives space back.
+
+    IT RUNS ITS OWN CODE THROUGH THE WINDOW.  &4E6D-&4E72 put the page
+    at &4000 -- which is this one, LMPR's page plus one -- into HMPR, so
+    that MasterBASIC appears at &8000 as well as at &4000.  Then CMR
+    pages the ROM back in, which takes &4000 away, and calls &8E81:
+    the same bytes as &4E81, reached through the window.  The fragment
+    there needs the ROM for RST FPCALC and for GETINT and HEAPROOM in
+    the jump table, and the ROM cannot be in at the same time as this
+    page, so the window is how it gets both.
+
+MB &4E70 : LMPR's page plus one is the page at &4000, which is this one -- so this puts MasterBASIC into the window as well
+
+MB &4E77 : &8E81 is &4E81 seen through the window, the fragment below, run with the ROM paged in
+
+MB &4E7C : HEAPROOM's DE, the start of the space it handed out, is what RESERVED returns
+
+MB &4E86 : CONST2 stacks 16384, so the four adds make 65536 and a negative n becomes its unsigned equal.  GETINT below wants a plain word, and 65536-n is what HEAPROOM reads as "give this much back" -- the manual's "LET junk=RESERVED(-10)"
+
+MB &4E90 : HEAPROOM returns carry when there was room, and DE as the old HEAPEND
+
+MB &4E94 : "If you try to reserve more space than is available, you will get an 'Out of memory' error and no space will have been reserved"
+

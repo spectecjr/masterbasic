@@ -5,7 +5,7 @@ as they were sold. The listings cannot be corrected: they assemble to the
 original image byte for byte, and that is the point of them. So a defect
 gets written down here and explained where it sits.
 
-Four are confirmed and one is suspected. The three sweeps this file used to
+Five are confirmed and one is suspected. The three sweeps this file used to
 plan have now been run, and what they found is at the end.
 
 ---
@@ -296,6 +296,53 @@ it horizontally instead. `docs/original/ERRATA.md` carries a note.
 sideways and 3 as force-upright, the code stores the poked value through
 unchanged, and the defaults follow the manual: sideways for `DUMP 3` or MODE
 3, upright otherwise.
+
+---
+
+
+## 6. A year of 00 stops the date stamp half-written
+
+**Where** `STAMP_WITH_DATE` at MasterBASIC `&4A39`, the loop at `&4A4F`.
+
+**What** The stamp is five bytes at offset `&F5` of the directory entry: day,
+month, year, hour, minute. The first three are read in a loop:
+
+```asm
+      LD B,&03                        ; 4A4D  day, month, year
+
+READ_CLOCK_FIELDS_LOOP2:
+      CALL TWO_DIGITS_FROM_DE         ; 4A4F  two characters, one byte
+      AND A                           ; 4A52  a zero field means the clock is unset
+      JR Z,READ_CLOCK_FIELDS_DONE2    ; 4A53  so stop and leave the stamp alone
+      LD (HL),A                       ; 4A55
+      INC HL                          ; 4A56
+      DJNZ READ_CLOCK_FIELDS_LOOP2    ; 4A57
+```
+
+The zero test is a sentinel for "the clock was never set", and as a sentinel it
+is sound for the **day**: a day of zero cannot be real, which is what the
+routine's own commentary says. But the same test runs on all three fields, and
+a **year** of zero is legal — it is 2000.
+
+**Consequence** In that year the loop writes the day and the month, then reads
+`00` for the year and jumps out. `READ_CLOCK_FIELDS_DONE2` is past the time
+loop as well, so the hour and minute are never written either. The entry keeps
+whatever was in those three bytes before — on a re-used slot, the previous
+file's year and time.
+
+Nothing downstream notices. `PRINT_DATE_IF_SET` tests only the day byte at
+`&F5` (`INC A` / `CP &02`, so `&00` and `&FF` both mean "no stamp"), and the
+day is non-zero, so a full catalogue prints all five bytes: today's day and
+month against a stale year and a stale time.
+
+**Scope** One year in a hundred. The time loop at `&4A5E` has no such test and
+writes unconditionally, so midnight and the top of the hour are safe. The fault
+is only that a sentinel written for the first field of a loop is applied to all
+of them.
+
+**Not observed.** This is read out of the instructions, not seen on a machine.
+Testing it needs the clock set to a year of 00 and a file saved onto a
+directory slot that already held a stamped one.
 
 ---
 

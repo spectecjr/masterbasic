@@ -1,0 +1,217 @@
+# FORMAT's track image, the key-line reader, and LAST LINE RECALL.
+# Proposed by a fresh reader, audited against the instructions.
+
+MB &5355 : B = 60 gap bytes, and the &4E stays in C for every other gap fill in the routine
+
+MB &535B : ten sectors to a track
+
+MB &535D : B is the sector countdown and C the gap byte; the fills inside the loop want C for their own values, so both are parked
+
+MB &535E : &FE, the ID address mark -- the only difference between this call and the one at &5385
+
+MB &5363 : D is the track number with the side in bit 7, as the directory numbers them; the ID field wants the track alone, so it is written and then bit 7 knocked off in place
+
+MB &5368 : and that same bit becomes the side byte, rotated round rather than shifted: &80 turns into &01, &00 stays &00
+
+MB &536D : the sector number, handed in by the DOS already skewed -- FMT1A works out E for the next track before calling back
+
+MB &536F : sectors are numbered 1 to 10 and wrap, so a skew that starts a track at 7 lays 7,8,9,10,1,2,...
+
+MB &5377 : the size code, 128 << 2 = 512 bytes
+
+MB &537A : &F7 is an instruction, not data: the controller lays down the two CRC bytes it has accumulated since the &F5s
+
+MB &537D : gap 2, 22 bytes.  It is the controller's turnround time between reading an ID field and starting to write the data field, so its length is the format's and not a choice
+
+MB &5383 : &FB, the data address mark
+
+MB &5388 : the sector body.  Only C has to be set, because B is still zero from the fill inside WRITE_SYNC_AND_MARK -- and zero means 256
+
+MB &538D : so two calls lay the 512 bytes, the second on the zero the first left behind
+
+MB &5390 : the data CRC
+
+MB &5393 : gap 3, 27 bytes, which is where the next sector's write may safely start
+
+MB &5399 : the sector counter back
+
+MB &539C : B is zero here for free -- DJNZ only falls through when it reaches zero -- so this lays 256 bytes without loading a count.  The trailing gap is deliberately longer than the space left: the controller stops at the index hole, so the surplus is simply never written
+
+DOC FILL_WITH_C
+    Write C into B bytes from HL upwards, leaving HL past them.
+
+    B ZERO MEANS 256, and every caller in BUILD_TRACK_IMAGE trades on
+    it.  DJNZ tests after decrementing, so entering with B = 0 runs 256
+    times, and it always *leaves* B = 0.  That is why the two fills of
+    the sector body at &5388 and &538D set only C, and why the 256-byte
+    trailing gap at &539C needs no count at all -- the DJNZ that ended
+    the sector loop put the zero there.
+
+MB &53A6 : twelve zero bytes, one MFM sync field
+
+MB &53AC : three &F5.  Also instructions rather than data: the controller writes each as an A1 with a missing clock bit -- a pattern no ordinary data byte can produce, which is what makes an address mark findable -- and presets its CRC generator on the way past, so the CRC covers the mark and everything after it
+
+MB &53B2 : the mark itself, whichever the caller wanted
+
+DOC READ_KEY_LINE
+    Read the one keyboard row that carries CNTRL and the four cursor
+    keys, and report it to the caller in two places at once.
+
+    &FFFE IS A ROW LIKE ANY OTHER on this machine, not "no row
+    selected".  The ROM's KEYSCAN calls it the "'SPECIAL' PORT FFFEH"
+    and reads it last; only bits 4-0 are valid, and the keys are
+
+        bit 0  CNTRL        bit 3  cursor left   (CHR$ 8)
+        bit 1  cursor up    bit 4  cursor right  (CHR$ 9)
+        bit 2  cursor down
+
+    a bit low meaning held down.  That is exactly the set LAST LINE
+    RECALL needs -- "holding down CNTRL and pressing the up-arrow
+    cursor key" -- and nothing else, which is why this reads one row
+    and not the matrix.
+
+    SEVEN READS ORed TOGETHER IS A DEBOUNCE, not a delay: a bit only
+    survives low if the key was down in all seven, so contact bounce
+    and a half-made contact cannot fake a press.  E carries the count
+    because B is the top half of the port address and cannot be spared.
+
+    The RRA at the end does two jobs with one instruction.  CNTRL falls
+    into carry, which is the caller's first test, and the four cursor
+    keys land in bits 3-0, which is the caller's second -- it can go
+    straight to AND &0F with no further shifting.
+
+MB &53B5 : E, not B: B is half the port address
+
+MB &53B8 : the CNTRL-and-cursors row; see the header for the bit map
+
+MB &53BD : OR, so a key counts as down only if it was down in all seven reads
+
+MB &53C1 : CNTRL into carry and the cursor keys down into bits 3-0, both wanted by the caller
+
+DOC HK_MERGECOMPFLG
+    Hook code 175, and the label is right only for its first
+    twenty-seven bytes.  This is what runs every time the ROM's line
+    editor comes back, and it is two features in one: it takes the
+    ROM's recompile flag away from the ROM, and it implements LAST LINE
+    RECALL.
+
+    IT IS NOT CALLED, IT IS RETURNED INTO.  The only RST for hook &AF
+    is at &7BDD, inside the block written for &484D -- so it really
+    sits at &4886 in the system page, in the stub that INSTALL_ROM_
+    VECTORS puts in EDITV.  That stub wraps the ROM's editor: it takes
+    the return address off the stack, CALLs through it so the ROM's own
+    editor runs as a subroutine, and comes here when it returns.  So by
+    the time this code runs the user has finished with the line, and
+    the question is why.
+
+    FIRST, THE COMPILE FLAG.  COMPFLG is the ROM's "flag bits used by
+    label/FN/PROC compiler".  Bit 0 of it is folded into DCT, bit 2 of
+    DCT is set as well, and COMPFLG is then zeroed -- so the ROM's
+    compiler never sees its own flag and never runs.  MasterBASIC's
+    replacement test is at &7C1C, also in the system page: if DCT is
+    non-zero it looks at bit 1 for line tracing and at bits 0 and 2
+    (AND &05) for "the program has changed", and the second of those
+    goes to hook &9D, HK_PROGPREP.  That is the manual's speed claim
+    made concrete -- "This has to be updated after the program is
+    edited, before it can be executed... MasterBASIC does this updating
+    rather faster, especially with long programs."  SET_DCT_COMPILE_
+    BITS at &459C sets the same two bits after memory has been moved.
+
+    THEN, WHY THE EDITOR CAME BACK.  Carry from READ_KEY_LINE is the
+    CNTRL key.  Not held: the editor finished for the ordinary reason,
+    so &547B files the line in the recall buffer and returns.  Held,
+    with up or down and nothing else: recall a line, and re-enter the
+    editor rather than returning at all.
+
+    Manual, LAST LINE RECALL: "you can keep recalling lines until
+    eventually you go right 'round' the line-storage buffer and come
+    back to where you were when you came in.  (The buffer capacity is
+    256 bytes.)  You can also use CNTRL/down-arrow to move from, say,
+    the second-to-last line to the last line."
+
+MB &53C8 : bit 0 alone -- the ROM's "the compiler must run" flag
+
+MB &53D1 : and bit 2 unconditionally, because the editor may have moved the text whatever COMPFLG thought
+
+MB &53D8 : the ROM's flag cleared, so its compiler never fires.  MasterBASIC's own test on DCT is at &7C1C in the system page
+
+MB &53E1 : CNTRL is not down, so this was an ordinary RETURN -- go and file the finished line
+
+MB &53E4 : the cursor-key bits are wanted after the flush, and RDKEY overwrites A
+
+MB &53E5 : RDKEY is called for its side effect.  It ends in KBFLUSH -- queue emptied, "no key" in FLAGS -- so the CNTRL/arrow is thrown away instead of being typed into the line
+
+MB &53EB : bits 1-4 of the row, already shifted down by the RRA at the end of READ_KEY_LINE
+
+MB &53ED : 1110 -- up down, the other three arrows up: CNTRL/up-arrow
+
+MB &53F1 : 1101 -- CNTRL/down-arrow.  Any other combination is somebody else's key, so leave the line alone
+
+MB &53F6 : &0E for up and, because the SUB left it zero, 0 for down.  Only "is it zero" is ever asked, at &542E
+
+MB &53F9 : wait for both arrow keys to come back up before doing anything.  Without it the ROM's auto-repeat would recall a fresh line every few frames.  BC is still the &FFFE that READ_KEY_LINE loaded -- CMR's EXX pair, closed by the EXX in the gap block at &589F, hands the caller's registers back untouched
+
+MB &53FB : bits 1 and 2 -- up and down -- are the only ones left to test, and INC A gives zero only when both are set
+
+MB &5400 : B = &C8 over the &FE the port left in C, so &C8FE iterations, about a fifth of a second at 6MHz.  The count costs one byte because C is already what it needs to be
+
+MB &5405 : flush again: anything typed during the wait is not wanted either
+
+MB &540A : clear the lower screen, which is where the line being edited is displayed, ready for the recalled one
+
+MB &540F : ELINE, the start of the line the user has been typing
+
+MB &5417 : &FFFF, so that the INC BC belonging to the terminating CR brings the count to exactly zero for an empty line -- and the CALL NZ below then reclaims nothing
+
+MB &5425 : throw away what was typed, closing the gap in memory, but leave the CR: the recalled text is about to be inserted in front of it
+
+MB &542B : the same &FFFF trick again, for the length of the entry about to be recalled
+
+MB &542E : &0E was CNTRL/up, so walk the buffer backwards; zero was CNTRL/down, so walk forwards
+
+MB &5434 : forwards first over the rest of the entry showing now, to the CR that ends it
+
+MB &543B : a zero byte after that CR is the end-of-history marker written at &5490.  Reaching it means there is nothing newer
+
+MB &5441 : so DE is left as the start of the (now emptied) edit line and the recall simply produces a blank line -- the manual's "come back to where you were when you came in"
+
+MB &5446 : two entry points into one counting loop: the first character has already been fetched by the end-of-history test above, the rest come from &5444
+
+MB &544B : the pointer that gets kept is the CR *before* the entry, not the one after it, because the copy at &5464 does INC L before its first read
+
+MB &544E : backwards, with no bounds check of any kind.  There is nothing to run off: INC L and DEC L cannot leave the 256 bytes at &7C00, and the installer filled every one of them with &0D at &765B, so the walk always meets a CR
+
+MB &5455 : LINE_RECALL_PTR always points at the CR immediately before the entry now showing, which is what makes forwards and backwards symmetrical
+
+MB &545D : open room for the recalled text at the front of the edit line, through the ROM's MKRBIG, which returns the address of the hole in HL
+
+MB &5464 : copy the entry out, one byte at a time because BC is not a count any more and the source may wrap
+
+MB &546E : KCUR is where the ROM will put the cursor, so it lands at the end of the recalled line, ready to edit or to RETURN
+
+MB &5475 : &4871 is NOT this page -- that address here is inside the CALL at &4870.  It is &7BC8 seen at its installed address, three instructions into the EDITV wrapper, just past where it saved the ROM's return address.  Writing it through the pointer in V4076 makes the hook return into the editor for another go instead of handing the line back to BASIC
+
+DOC HK_MERGECOMPFLG_6
+    File the line just finished in the recall buffer.  Reached when
+    CNTRL was not held, which is the ordinary end of an edit.
+
+    The line is copied out of ELINE, CR and all, into the 256 bytes at
+    &7C00, and LINE_RECALL_PTR is left on the CR -- which is where the
+    next entry's copy will start, and where a backwards walk will stop.
+    A zero written one further on marks the newest entry; the next line
+    filed overwrites it.
+
+    NOTHING BOUNDS THE BUFFER.  The pointer is only ever moved by INC L,
+    so a long enough session overwrites its own oldest entries and the
+    history is a ring -- exactly the manual's "you go right 'round' the
+    line-storage buffer and come back to where you were".
+
+    From &5493 on it does something further, counting down the byte at
+    V407D that SCAN_TEXT_PAGED set to 2, and only when that reaches
+    zero and the edit line is empty; that tail is past this region and
+    I have not worked it out.
+
+MB &547B : ELINE again -- the finished line, at its start
+
+MB &5480 : kept, because the loop below walks BC to the CR and the tail at &5493 wants the start again
+

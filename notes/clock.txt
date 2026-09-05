@@ -1,0 +1,188 @@
+# The clock, TICS, and the date stamp.  Proposed by a fresh reader,
+# audited against the instructions.
+
+MB &4A44 : POINT zeroes the low byte of the channel's record pointer before adding it to the buffer base, so what comes back is the start of the 256-byte directory entry rather than wherever in it the DOS had got to
+
+MB &4A55 : the field goes in as a number 0 to 99, not as the two characters it was read from -- five bytes instead of fourteen
+
+MB &4A5E : no zero test on this loop, unlike the one above.  An hour or a minute of 00 is a real time; only the date can prove the clock unset, and it already has
+
+MB &4A65 : the HMPR that PAGE_IN_OTHER_HALF returned at &4A3D.  Abandoning the first loop early needs no unwinding, because the loops push nothing
+
+MB &4A68 : the DOS's own DE, saved at &4A39 -- this runs inside MasterDOS's file-close and must give its registers back
+
+MB &4A6C : '0' off the tens digit.  No check that it was a digit: the buffer is the DOS's own DATDT/TIMDT, which PORT_BCD_DIGIT only ever writes '0' to '9' into
+
+MB &4A6F : doubled, doubled, plus itself is five times, doubled again is ten -- four one-byte instructions where the Z80 has no multiply
+
+MB &4A75 : two steps after the units digit, not one, so DE lands past the '/' or ':' as well.  That is the whole reason one call per field reads a "00/00/00" or "00:00:00" template straight through
+
+MB &4A7B : SKIP_THEN_TEST_RUNNING returns Z on the syntax pass, and the RET Z means the clock chip is never touched while a line is only being checked
+
+DOC TICS_SECONDS_IN_MONTH
+    Seconds elapsed in the month, as a number on the calculator stack.
+    The body of TICS; also called by TIME - at &4896 to find out how long
+    the fast mode ran for.
+
+    THE MONTH IS NOT COUNTED AT ALL, and that is the point.  The manual
+    only promises a value that "will restart at zero at midnight on the
+    last day of the month", so the arithmetic never has to know how long
+    a month is, and the awkward part of date arithmetic disappears.  What
+    is computed is (((day-1)*24 + hh)*60 + mm)*60 + ss, each field read
+    as two ASCII digits out of the DOS's DATDT and TIMDT.  At day 31,
+    23:59:59 that is 2678399, exactly the upper bound the manual quotes
+    as 31*24*60*60-1.
+
+    THE WIDTH IS CHOSEN FIELD BY FIELD.  Six times (day-1) is at most
+    180 and stays in A; the remaining factor of four is done in HL,
+    where hours reach 743 and minutes 44639, both inside sixteen bits;
+    only the last multiply needs a third byte, and that is why
+    MULTIPLY_BY_60 is a 24-bit routine used twice with A meaning
+    different things each time.
+
+    UNDER TIME + THE ANSWER IS DIVIDED BY 5416.3 here rather than by the
+    caller -- "MasterBASIC does the division for you".  CMD_TIME zeroed
+    the clock when TIME + was selected, so the reading is time since
+    then, and the divide turns fast ticks into real seconds.
+
+    Nothing checks that a clock is fitted.  WAIT_FOR_CLOCK returns at
+    once when CKPT is zero, leaving DATDT and TIMDT as the DOS
+    initialised them, "00/00/00" and "00:00:00" -- and a day of 00 makes
+    the DEC A at &4A8C wrap, so TICS answers 3600000 rather than
+    reporting anything.
+
+MB &4A7F : the DOS's half into the window, which is where DATDT and TIMDT are: &8271 and &8280 here are its own &4271 and &4280, DVARs 81 and 96
+
+MB &4A82 : the caller's paging, put back at &4AD0
+
+MB &4A83 : this is CALL WAIT_FOR_CLOCK -- &CD &78 &49 -- which reads the chip into DATDT and TIMDT.  Without it TICS would return whatever the last TIME$ or DATE$ left there.  A phantom label at &4A84 is all that splits the instruction in the listing; see the notes
+
+MB &4A86 : DATDT is "dd/mm/yy", so the day is the first field
+
+MB &4A8C : days count from 1 and seconds from 0, so the first of the month has to contribute nothing
+
+MB &4A8E : x2 then +x then x2 is six times the day, and six times 30 is 180, which still fits in A.  Twenty-four times 30 would not, which is why only part of the factor is done here
+
+MB &4A94 : the other four, once the value is in HL: hours since the first of the month, at most 720
+
+MB &4A96 : TIMDT is "hh:mm:ss", and DE now walks it for the three calls that follow
+
+MB &4A9F : hours in the month, at most 743
+
+MB &4AA0 : A is still the hour, so the top byte of this product comes out as rubbish.  HL does not: 743*60 is 44580 and cannot carry out of sixteen bits, and every step of MULTIPLY_BY_60 touches HL independently of A
+
+MB &4AAA : and here the rubbish goes, in one byte, just before the multiply that does need three
+
+MB &4AAB : minutes to seconds -- up to 2678340, which is where the third byte earns its place
+
+MB &4AAE : the top byte kept over a call that returns its answer in A
+
+MB &4AB5 : the POP has to come before the ADD, not after: POP AF would overwrite the carry the ADD is about to set
+
+MB &4AB7 : B is zero, so this adds nothing but HL's carry into the top byte -- the ordinary 24-bit carry, not the SUB/ADC pair idiom
+
+MB &4AB8 : the DOS's EPCOM_1 stacks A:HL as a floating-point number; its exponent starts at &98, which is 128 + 24, the width it is being handed
+
+MB &4ABD : non-zero exactly while TIME + is selected -- CMD_TIME writes the 8 it sent to the clock's control register there, and zeroed the time and date at the same moment, so what has just been computed is time since TIME +
+
+MB &4AC3 : LMPR's low five bits are the page at &0000 and this page is the one after it, so LMPR+1 is MasterBASIC's own number.  Writing it to HMPR puts this page in the window as well as in section B
+
+MB &4AC6 : LMPR's bits 5 and 6 disable ROM 0 and enable ROM 1; in HMPR they mean something else entirely and must not travel with the page number
+
+MB &4ACD : &8AD3 is this page's own &4AD3 seen through the window just opened.  It has to be reached that way twice over: CMR restores the caller's HMPR before jumping to the address, so the address must be meaningful under it -- and CMR also puts the system page into section B, which would page &4AD3 out from under the calculator
+
+MB &4AD3 : reached only by that call, never by falling through the RET above, and executing at &8AD3 when it runs
+
+MB &4AD4 : &8D &29 &42 &66 &66 is 5416.3 -- 2^(141-128) times &A9426666/2^32, which comes to 5416.30 -- the fast-mode factor the manual names
+
+DOC MULTIPLY_BY_60
+    A:HL times sixty, with the multiplicand kept in BC.
+
+    FOUR DOUBLINGS AND ONE SUBTRACTION, then two more doublings:
+    16x - x is 15x, and 15x times four is 60x.  Five shifts and a
+    subtract against a general multiply routine and a constant, and it
+    works in 24 bits because that is what TICS needs -- seconds in a
+    month reach 2678399.
+
+    The AND A before the SBC HL,BC is there to clear the carry the last
+    doubling left, and the SBC A,&00 after it carries the borrow out of
+    HL into the top byte.  Both calls come from TICS; the labels part of
+    the way down are phantoms, not entry points -- see the notes.
+
+MB &4ADC : the multiplicand kept whole, for the one subtraction that turns sixteen times into fifteen
+
+MB &4AE6 : clears the carry the doubling above left, so the SBC is a plain subtract
+
+MB &4AE7 : 16x - x = 15x
+
+MB &4AE9 : the borrow out of HL, into the top byte
+
+MB &4AEB : and 15x times four is 60x
+
+MB &4AF9 : PARSE_STRING_AND_SUBSCRIPT returns NC on the syntax pass, when the arguments have been checked and there is nothing to search
+
+MB &4AFA : the driver both LOCN and INARRAY share ends in a plain RET at &4C29, so where that RET goes is pushed here
+
+MB &4AFD : and the paging under it, for the POP AF at &4C26 -- the two are a matched pair with the exit, not with anything nearer
+
+MB &4B01 : the string being looked for, copied to &7B00 with its length left in V4098
+
+MB &4B04 : the calculator stack is last-in first-out, so with the string already taken this is the length argument and &4B16 the start
+
+MB &4B1D : GET_PAGED_ADDRESS counts 8K blocks of a flat address in which 0 to 16383 is the ROM, so RAM page 0 begins at 16384 -- two blocks in.  Taking those two off turns the argument into a physical block number
+
+MB &4B1F : and 64 blocks is 512K, the most the machine can have, so anything higher is "Integer out of range"
+
+MB &4B35 : the bottom bit of the block number is the half of the 16K page the address is in, so one rotate splits it: the carry says whether to add &2000 to the pointer, and what is left in A is the page for the OUT at &4B9E
+
+MB &4B3F : TEST_RUNNING is Z on the syntax pass, when there is no array to find -- the jump goes straight to the second argument and checks it
+
+MB &4B4D : the array's own page into the window, so its elements can be walked
+
+MB &4B51 : zero only when DE is exactly 1, which is the flag V40AD carries into the search
+
+MB &4B59 : one instruction, LD BC,&0001, jumped over by the JR NZ at &4B55.  It is split in the listing by a phantom label at &4B5B, and it is not an instance of the swallowed-opcode idiom the note there describes; see the notes
+
+MB &4B69 : a comma or TO at this point belongs to the enclosing expression, not to the subscript, so no further number is taken and the count stays at one
+
+MB &4B83 : CHADD put back, so the ROM's parser carries on from the character this left off at
+
+MB &4B8F : LOCN puts a length in V40A4 at &4B09; INARRAY has no such limit, so it stores zero and the test at &4BC3 falls the other way
+
+MB &4B95 : the target string, into the same &7B00 buffer LOCN used
+
+MB &4B9E : the page worked out at &4B35 for LOCN, or the string's own page for INARRAY -- the two paths meet here with the same thing in A
+
+MB &4BA1 : B is the high byte of the span, so anything from &3F00 bytes up falls into the error at &4BA3
+
+
+# Six operands that name this page's labels by coincidence of value.
+# See docs/disassembly.md: &4000-&7FBF is this page and also the ROM's
+# system page whenever LMPR maps it into section B.
+
+MB &5318 expr &4A6B
+MB &5318 : a value, not a call -- and &4A6B is inside TWO_DIGITS_FROM_DE, which nothing enters mid-way
+MB &55BF expr &4AE0
+MB &55BF : likewise; &4AE0 is the middle of MULTIPLY_BY_60's shift chain
+MB &55EA expr &4AE9
+MB &55EA : and &4AE9 begins SBC A,&00, which consumes a borrow set two bytes above it
+MB &5DAB expr &4B5B
+MB &5DAB : three bytes built into the ROM's header buffer, whose base LD BC,HDR loaded above
+MB &4F3E expr &4A84
+MB &4F3E : a system-page address -- this block runs at &4CD3 once copied, so its numbers are the ROM's
+MB &4ACD : this page's own &4AD3 through the window, which is why HMPR was just set to this page
+
+# WHY THE PHANTOM LABELS ARE STILL THERE.  The six operands above no
+# longer name this page's labels, but the labels themselves remain, and
+# at &4A84 one of them still splits CALL WAIT_FOR_CLOCK into a DEFB and
+# two instructions that are not really there.
+#
+# The reason is in the order things happen: an operand is named, and its
+# cross-reference recorded, while the instruction is being decoded -- in
+# tools/z80.py, long before any note is read.  A note can rewrite what is
+# printed; it cannot unmake the reference that caused a label to exist.
+# The same limitation leaves MCHRD listing a caller at DOS &6E04 that
+# only loads TABLE+8.
+#
+# What would fix it is a way to say "no label here", applied between
+# decoding and labelling.  Not written.
