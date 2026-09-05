@@ -804,7 +804,8 @@ SNLEN:
 
 ; ---- SNADD ---- from &53DA, &5443
 SNADD:
-               DEFW HEADER,&0000,&FFFF         ; 41F6 00 40 00 00 FF FF
+               DEFW HEADER,&0000,&FFFF         ; 41F6 00 40 00 00 FF FF  16384, the address a snapshot loads at -- the
+                                               ; name is this listing's own header, which happens to sit at &4000
 
 ; ---- FSLOT ---- from &4B3B, &4E00, &4FE0, &4FE5, &6E8B
 FSLOT:
@@ -837,8 +838,7 @@ DTKSX:
 
 ; ---- HKSP ---- from &4491, &51B0, &5370, &545F
 HKSP:
-               NOP                             ; 420B 00  stack pointer to unwind to if a hook fails
-               NOP                             ; 420C 00
+               DEFW &0000                      ; 420B 00 00  stack pointer to unwind to if a hook fails
 
 ; ---- RDAT ---- from &44A1, &6675, &7564
 RDAT:
@@ -878,13 +878,11 @@ TCNT:
 
 ; ---- FCNT ---- from &4BC5, &4BC9, &5BD8, &5C2C, &79D1
 FCNT:
-               NOP                             ; 421C 00  DIR'S 'FILES IN CURRENT DIR' COUNTER
-               DEFB &00                        ; 421D .
+               DEFW &0000                      ; 421C 00 00  DIR'S 'FILES IN CURRENT DIR' COUNTER
 
 ; ---- NEXTST ---- from &509E, &7889, MB &76DA
 NEXTST:
-               NOP                             ; 421E 00  address of the next BASIC statement, recorded at boot
-               DEFB &00                        ; 421F .
+               DEFW &0000                      ; 421E 00 00  address of the next BASIC statement, recorded at boot
 
 ;; --------------------------------------------------------------------
 ;; DVAR -- the DOS variables, at page offset &0220.
@@ -1014,8 +1012,8 @@ DWAI:
 ;;  DVAR -- the DOS variables, at &4220
 ;; --------------------------------------------------------------------
 
-; ---- NEXTST_1 ---- from &43D6 when bit 7 of H clear
-NEXTST_1:
+; ---- RDAT_1 ---- from &43D6 when bit 7 of H clear
+RDAT_1:
                CALL CMR                        ; 423E CD B2 7B
 
 ; ---- ONERR ---- from &43CA
@@ -1431,7 +1429,7 @@ CKESV:
                LD A,(SVCST)                    ; 43CF 3A 31 41
                JR Z,CKESV_1                    ; 43D2 28 11
                BIT 7,H                         ; 43D4 CB 7C
-               JP Z,NEXTST_1                   ; 43D6 CA 3E 42
+               JP Z,RDAT_1                     ; 43D6 CA 3E 42
                IN A,(HMPR)                     ; 43D9 DB FB
                LD D,A                          ; 43DB 57  ORIG
                LD A,(EAPG)                     ; 43DC 3A 44 42

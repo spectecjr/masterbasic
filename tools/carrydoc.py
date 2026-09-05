@@ -39,7 +39,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import xfer
-from disasm import CONT
+from disasm import CONT, DATA, WORD
 from z80 import Decoder
 
 LOW, HIGH = 0x4000, 0xC000
@@ -193,25 +193,26 @@ def read_source(asmfile, lstfile):
     return trailing, headers, sections(asm, rules, addr_of), label_line
 
 
-DIRECTIVE = re.compile(r'^\s*(?:[A-Za-z_][A-Za-z0-9_]*:)?\s*'
+DIRECTIVE = re.compile(r'^\s*(?:([A-Za-z_][A-Za-z0-9_]*):)?\s*'
                        r'(DEF[BWMS]|DS|DB|DW)\b', re.I)
 
 
-def data_lines(asmfile, lstfile):
-    """The addresses the annotated source reserves rather than assembles.
+def declarations(asmfile, lstfile):
+    """Every storage directive in the source, with its name and extent.
 
-    The DOS's variables sit inside the boot sector, and zero bytes decode
-    as NOP, so the trace runs straight through them and the listing shows
-    a variable block as a run of instructions.  The source says plainly
-    which addresses those are.
+    Yields the label it carries (or None), whether it is a word, and the
+    addresses it covers.  Two passes want different halves of that: one
+    needs to know which addresses are storage, the other which names are
+    words.
     """
     asm = open(asmfile, encoding='latin-1').read().split('\n')
     lst = open(lstfile, encoding='latin-1').read().split('\n')
     off = listing_offset(asm, lst)
-    out = set()
+    out = []
     for i, line in enumerate(asm):
         code, _ = split_comment(line)
-        if not DIRECTIVE.match(code):
+        directive = DIRECTIVE.match(code)
+        if not directive:
             continue
         j = i + off
         if j >= len(lst):
@@ -223,18 +224,47 @@ def data_lines(asmfile, lstfile):
         for k in range(j + 1, len(lst)):        # to the next address shown
             m2 = ADDR.match(lst[k])
             if m2:
-                out.update(range(start, int(m2.group(1), 16)))
+                out.append((directive.group(1),
+                            directive.group(2).upper() in ('DEFW', 'DW'),
+                            start, int(m2.group(1), 16)))
                 break
     return out
 
 
-def undo_code(dos, addrs, data_mark, zero_only=True):
+def data_lines(asmfile, lstfile):
+    """The addresses the annotated source reserves rather than assembles.
+
+    The DOS's variables sit inside the boot sector, and zero bytes decode
+    as NOP, so the trace runs straight through them and the listing shows
+    a variable block as a run of instructions.  The source says plainly
+    which addresses those are.
+
+    It also says what shape each one is, and that is worth keeping:
+    ENTSP holds a stack pointer and the source writes it DEFW, so a map
+    of address to "declared as a word" lets the listing write it DEFW
+    too, rather than flattening every declaration alike to bytes.
+    """
+    out = {}
+    for _name, word, start, stop in declarations(asmfile, lstfile):
+        for x in range(start, stop):
+            out[x] = word
+    return out
+
+
+def undo_code(dos, addrs, data_mark, zero_only=True, marks=None):
     """Turn addresses the source calls data back into data.
 
     Only where nothing jumps or calls there: a byte that is both reached
     by the flow and declared as storage is a disagreement worth leaving
     visible rather than resolving silently.
+
+    marks says what a particular byte becomes -- WORD where the source
+    declared a word -- and data_mark is what the rest become.  A mapping
+    passed as addrs is read as both at once, since data_lines returns
+    the addresses and their shapes together.
     """
+    if marks is None:
+        marks = addrs if isinstance(addrs, dict) else {}
     reached = set()
     for ins in dos.insns.values():
         if ins.target is not None and ins.text.startswith(('CALL', 'JP ', 'JR ', 'DJNZ')):
@@ -250,7 +280,7 @@ def undo_code(dos, addrs, data_mark, zero_only=True):
             continue                            # only the zero fill, to be safe
         dos.insns.pop(a)
         for x in range(a, ins.end):
-            dos.setm(x, data_mark)
+            dos.setm(x, marks.get(x, data_mark))
         n += ins.length
     return n
 
@@ -571,6 +601,7 @@ def apply(dos, work, root, banner, data_mark=None, data_region=None):
     src_starts = sorted(set(xfer.line_addresses(lstfile)))
 
     ndata = 0
+    here = {}
     declared = data_lines(asmfile, lstfile)
     if data_mark is not None:
         # The source declaring an address as storage is evidence enough:
@@ -578,10 +609,11 @@ def apply(dos, work, root, banner, data_mark=None, data_region=None):
         # extra "only if the bytes are zero" guard was keeping tables
         # like MTBLS -- two words, a letter and three more words -- being
         # read as instructions.
-        here = set(pairs[a] for a in declared if a in pairs)
+        here = dict((pairs[a], WORD if word else data_mark)
+                    for a, word in declared.items() if a in pairs)
         ndata = undo_code(dos, here, data_mark, zero_only=False)
         # Later passes re-run the trace, which claims some of these back
-        # again, so the set is kept for a second application once the
+        # again, so the map is kept for a second application once the
         # tracing has finished.
         dos.declared_data = here
     for region in (data_region or ()):
@@ -590,7 +622,8 @@ def apply(dos, work, root, banner, data_mark=None, data_region=None):
         # like plausible instructions.  Both are blocks MasterBASIC
         # rearranged, so the source cannot name them line by line -- but
         # it can still say that none of it is code.
-        ndata += undo_code(dos, range(*region), data_mark, zero_only=False)
+        ndata += undo_code(dos, range(*region), data_mark, zero_only=False,
+                           marks=here)
         # xfer matches labels by byte pattern, and a routine's opening
         # bytes can turn up by chance in a table of variables -- FFHL and
         # FFDE landed on the letters of "BOOT".  In a block that is all
@@ -782,6 +815,55 @@ def twins(page, work, root, banner):
         page.headers[a] = banner('\n'.join(block))
         nhdr += 1
     return n, ncom, nhdr
+
+
+def word_labels(page, work, root):
+    """Write a carried label's storage the way the source declares it.
+
+    Twin of describe_labels, and there for the same reason.  The
+    variable blocks are where the address alignment fails, so a DEFW
+    there does not reach the listing by address: ENTSP and SVHDR are
+    paired and came out as words, while CCHAD and CNT, three lines below
+    them and declared identically, were not paired at all and came out
+    as byte pairs.  The name is what carried, so the name is what the
+    shape hangs on -- and the label is only here because xfer matched
+    the bytes, so this adds no claim that was not already being made.
+
+    Conservative about how far it reaches.  MasterBASIC gave these
+    variables different neighbours, so the run stops at the next label
+    in this page however long the source's declaration was.
+
+    A cell the trace walked into is still code at this point and reads
+    as a pair of NOPs, which is what HKSP was: it sits between the two
+    blocks dis_mb declares as variables, so nothing undid it.  Undoing
+    it here is left to undo_code under its strictest terms -- every byte
+    zero, and nothing jumping or calling there -- so there is no code
+    being thrown away, and a real disagreement stays visible.
+    """
+    asmfile = os.path.join(root, 'ref', 'masterdos', 'annotated-src',
+                           'masterdos23.asm')
+    lstfile = os.path.join(work, 'mdos.lst')
+    at = {}
+    for a, name in sorted(page.labels.items()):
+        at.setdefault(name, a)
+    marked = 0
+    for name, word, start, stop in declarations(asmfile, lstfile):
+        a = at.get(name) if word and name else None
+        if a is None:
+            continue
+        end = a + (stop - start)
+        for x in range(a + 1, end):
+            if x in page.labels:
+                end = x
+                break
+        span = range(a, end)
+        was = sum(1 for x in span if page.m(x) == WORD)
+        undo_code(page, span, DATA, marks=dict((x, WORD) for x in span))
+        for x in span:
+            if page.inside(x) and page.m(x) == DATA:
+                page.setm(x, WORD)
+        marked += sum(1 for x in span if page.m(x) == WORD) - was
+    return marked
 
 
 def describe_labels(page, work, root):

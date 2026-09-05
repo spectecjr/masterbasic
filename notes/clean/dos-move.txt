@@ -237,9 +237,10 @@ DOS &6952 : otherwise let the ROM print it
 # addresses, a channel letter with bit 7 set, two empty words and the
 # channel length.  Flattened to eleven DEFB bytes it says none of that.
 
-DOS &6D66-&6D69 word
 DOS &6D6A-&6D6A data
 DOS &6D6A value "D"+&80
+# The source declares these DEFW but without a label, so the pass that
+# takes DEFW from the source cannot reach them.
+DOS &6D6B-&6D6E word
 DOS &6D6A : the channel letter, with bit 7 set as the DOS marks its own
-DOS &6D6B-&6D70 word
 DOS &6D6B : two empty words, and then 787 -- the length of a channel record

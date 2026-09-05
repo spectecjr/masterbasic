@@ -1,0 +1,7 @@
+# The DOS's variables, where the number in one of them needs saying.
+#
+# A DEFW cell is written through the label table, so an in-image address
+# comes out as a name.  That is right for a pointer and wrong for a
+# constant that happens to land on one.
+
+DOS &41F6 : 16384, the address a snapshot loads at -- the name is this listing's own header, which happens to sit at &4000

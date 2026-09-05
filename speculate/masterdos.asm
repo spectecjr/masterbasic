@@ -796,12 +796,12 @@ SVHDR:
 
 ; ---- CCHAD ---- from &4378, &43C0
 CCHAD:
-               DEFB &00,&00                    ; 410C ..  CHADD saved on entry, so it can be put back for an external
+               DEFW &0000                      ; 410C 00 00  CHADD saved on entry, so it can be put back for an external
                                                ; command
 
 ; ---- CNT ---- from &4BAB, &4BAF, &5C26, &5C67
 CNT:
-               DEFB &00,&00                    ; 410E ..  running total of sectors, accumulated by DIR
+               DEFW &0000                      ; 410E 00 00  running total of sectors, accumulated by DIR
 
 ; ---- DSC ---- from &451B, &4593, &45C8, &464E, &468B, &4794, &4843, &48BE ...
 DSC:
@@ -832,19 +832,19 @@ NRFLG:
 
 ; ---- SVDPT ---- from &5DD2, &5EA0, &5EB4
 SVDPT:
-               DEFB &00,&00                    ; 4122 ..  directory entry index during a find
+               DEFW &0000                      ; 4122 00 00  directory entry index during a find
 
 ; ---- SVTRS ---- from &5DC8, &5E96, &5EC5, &69C9, &6DEB, &6E49
 SVTRS:
-               DEFB &00,&00,&00,&00            ; 4124 ....  track and sector during a find
+               DEFW &0000,&0000                ; 4124 00 00 00 00  track and sector during a find
 
 ; ---- SVCNT ---- from &49B7, &49BC, &49E3, &49ED, &4A0D, &7623, &7628
 SVCNT:
-               DEFB &00,&00,&00,&00            ; 4128 ....  sectors still to transfer
+               DEFW &0000,&0000                ; 4128 00 00 00 00  sectors still to transfer
 
 ; ---- PTRSCR ---- from &4628, &4936, &49DF, &4BEC, &4BF5, &5B7E, &5C36, &7933
 PTRSCR:
-               DEFB &00,&00                    ; 412C ..  pointer into the screen page when it is used as a buffer
+               DEFW &0000                      ; 412C 00 00  pointer into the screen page when it is used as a buffer
 
 ; ---- PORT1 ---- from &462B, &476D, &492E, &4A41, &4A4C, &778B
 PORT1:
@@ -904,11 +904,11 @@ HD001:
 
 ; ---- HD0B1 ---- from &63C0, &6498, &64F6
 HD0B1:
-               DEFB &00,&00                    ; 414A ..  length
+               DEFW &0000                      ; 414A 00 00  length
 
 ; ---- HD0D1 ---- from &63AD, &6488, &64F3, &651C
 HD0D1:
-               DEFB &00,&00,&00,&00            ; 414C ....  start address
+               DEFW &0000,&0000                ; 414C 00 00 00 00  start address
 
 ; ---- PGES1 ---- from &4539, &453F, &4853, &4916, &491D, &493A, &4943, &541B ...
 PGES1:
@@ -936,11 +936,11 @@ HD002:
 
 ; ---- HD0B2 ---- from &4F14, &4F26
 HD0B2:
-               DEFB &00,&00                    ; 4166 ..
+               DEFW &0000                      ; 4166 00 00
 
 ; ---- HD0D2 ---- from &4F29, &4F3C
 HD0D2:
-               DEFB &00,&00,&00,&00            ; 4168 ....
+               DEFW &0000,&0000                ; 4168 00 00 00 00
 
 ; ---- PGES2 ---- from &4F20
 PGES2:
@@ -1049,7 +1049,8 @@ SNLEN:
 
 ; ---- SNADD ---- from &53DA, &5443
 SNADD:
-               DEFB &00,&40,&00,&00,&FF,&FF    ; 41F6 .@....
+               DEFW HEADER,&0000,&FFFF         ; 41F6 00 40 00 00 FF FF  16384, the address a snapshot loads at -- the
+                                               ; name is this listing's own header, which happens to sit at &4000
 
 ; ---- FSLOT ---- from &4B3B, &4E00, &4FE0, &4FE5, &6E8B
 FSLOT:
@@ -1095,7 +1096,7 @@ Pad_4200:
                JP SYNTAX                       ; 4203 C3 4E 43
 
 ;; --------------------------------------------------------------------
-;; L4206 -- &4206 to &420A
+;; L4206 -- &4206 to &420C
 ;;
 ;; Takes:     BC, DE, HL, IX, IY, I
 ;; Leaves:    A, F, BC, DE, HL
@@ -1114,20 +1115,12 @@ TEMPB1:
 DTKSX:
                DEFB &00                        ; 420A .  USED BY SNDFL AS DTKS
 
-;; --------------------------------------------------------------------
-;; HKSP -- &420B to &420C
-;;
-;; Takes:     nothing in registers
-;; Leaves:    registers unchanged
-;; --------------------------------------------------------------------
-
 ; ---- HKSP ---- from &4491, &51B0, &5370, &545F
 HKSP:
-               NOP                             ; 420B 00  stack pointer to unwind to if a hook fails
-               NOP                             ; 420C 00
+               DEFW &0000                      ; 420B 00 00  stack pointer to unwind to if a hook fails
 
 ;; --------------------------------------------------------------------
-;; RDAT -- &420D to &421B
+;; RDAT -- &420D to &423D
 ;;
 ;; Takes:     DE, H
 ;; Leaves:    A, F, L
@@ -1169,29 +1162,13 @@ TEMPW4:
 TCNT:
                DEFW &0000                      ; 421A 00 00  DIR'S 'TOTAL FILES ON DISC' COUNTER
 
-;; --------------------------------------------------------------------
-;; FCNT -- &421C to &421D
-;;
-;; Takes:     nothing in registers
-;; Leaves:    registers unchanged
-;; --------------------------------------------------------------------
-
 ; ---- FCNT ---- from &4BC5, &4BC9, &5BD8, &5C2C, &79D1
 FCNT:
-               NOP                             ; 421C 00  DIR'S 'FILES IN CURRENT DIR' COUNTER
-               DEFB &00                        ; 421D .
-
-;; --------------------------------------------------------------------
-;; NEXTST -- &421E to &423D
-;;
-;; Takes:     nothing in registers
-;; Leaves:    registers unchanged
-;; --------------------------------------------------------------------
+               DEFW &0000                      ; 421C 00 00  DIR'S 'FILES IN CURRENT DIR' COUNTER
 
 ; ---- NEXTST ---- from &509E, &7889, MB &76DA
 NEXTST:
-               NOP                             ; 421E 00  address of the next BASIC statement, recorded at boot
-               DEFB &00                        ; 421F .
+               DEFW &0000                      ; 421E 00 00  address of the next BASIC statement, recorded at boot
 
 ;; --------------------------------------------------------------------
 ;; DVAR -- the DOS variables, at page offset &0220.
@@ -1318,7 +1295,7 @@ DWAI:
                DEFB &00                        ; 423D .  29 NUMBER OF .25 SECS BEFORE SAVE,-1
 
 ;; --------------------------------------------------------------------
-;; NEXTST_1 -- &423E to &42BC
+;; RDAT_1 -- &423E to &42BC
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
@@ -1330,8 +1307,8 @@ DWAI:
 ;;      DVAR -- the DOS variables, at &4220
 ;; --------------------------------------------------------------------
 
-; ---- NEXTST_1 ---- from &43D6 when bit 7 of H clear
-NEXTST_1:
+; ---- RDAT_1 ---- from &43D6 when bit 7 of H clear
+RDAT_1:
                                                ; call the ROM at &0000 with ROM1 paged in, and page back on the way out
                CALL CMR                        ; 423E CD B2 7B
 
@@ -1855,7 +1832,7 @@ CKESV:
                LD A,(SVCST)                    ; 43CF 3A 31 41
                JR Z,CKESV_1                    ; 43D2 28 11
                BIT 7,H                         ; 43D4 CB 7C
-               JP Z,NEXTST_1                   ; 43D6 CA 3E 42
+               JP Z,RDAT_1                     ; 43D6 CA 3E 42
                IN A,(HMPR)                     ; 43D9 DB FB
                LD D,A                          ; 43DB 57  ORIG
                LD A,(EAPG)                     ; 43DC 3A 44 42

@@ -202,7 +202,7 @@ class Page(Disassembler):
         self.rst_equs = {}
         self.romdesc = {}
         self.fpc = []
-        self.declared_data = set()
+        self.declared_data = {}
         self.user_equs = {}
         # Hook codes whose handler is a routine in this same listing, so
         # the code cannot take the routine's name without colliding with
@@ -2556,6 +2556,8 @@ def main():
 
     print('described %d carried labels from their own source line'
           % carrydoc.describe_labels(dos, args.work, ROOT))
+    print('%d bytes written as words, from the label the source declares '
+          'DEFW' % carrydoc.word_labels(dos, args.work, ROOT))
     ntw, ntc, nth = carrydoc.twins(
         mb, args.work, os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
         annotate.banner)

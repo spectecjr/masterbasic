@@ -384,10 +384,16 @@ class Disassembler(Decoder):
                 vals = [self.word(a + 2 * i) for i in range(n)]
                 show = self.word_operand if kind == PARAM else self.mem16
                 raw = bytes(self.mem[a - self.base:a - self.base + 2 * n])
-                w('%-14s DEFW %-25s ; %04X %s\n'
+                # As with DEFM: the region loop breaks a run at a
+                # commented address, so the comment is on the first
+                # byte of what it describes, and an emitter that never
+                # read self.comments dropped it.
+                note = self.comments.get(a)
+                w('%-14s DEFW %-25s ; %04X %s%s\n'
                   % ('', ','.join(show(v, a + 2 * i)
                                   for i, v in enumerate(vals)), a,
-                     ' '.join(hexn(b, 2)[1:] for b in raw)))
+                     ' '.join(hexn(b, 2)[1:] for b in raw),
+                     '  ' + note if note else ''))
                 a += 2 * n
                 continue
             n = min(width, e - a)
