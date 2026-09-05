@@ -378,7 +378,10 @@ def hook_names(dis, table, count=64):
             home = peer
         name = home.labels.get(target)
         base = name if name else '%04X' % target
-        out[128 + i] = base if base.startswith('HK_') else 'HK_' + base
+        # The handler is HOOK_xxx (or a bare MasterDOS name); the code
+        # that raises it is HKC_xxx.  Two prefixes, so the code can
+        # always be named without colliding with the routine.
+        out[128 + i] = 'HKC_' + re.sub(r'^(?:HOOK|HK)_', '', base)
     return out
 
 

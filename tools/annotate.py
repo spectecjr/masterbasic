@@ -617,8 +617,8 @@ def name_tables(dos, mb, toks, hooks, ctab=0x42EA, samhk=0x44A6,
         word = dos.word(samhk + 2 * (code - 128))
         page, a = target(dos, word)
         name = hooks.get(code)
-        added += give(page, a, 'HK_' + name if name else 'HK_%d' % code,
-                      'HK_%d' % code)
+        added += give(page, a, 'HOOK_' + name if name else 'HOOK_%d' % code,
+                      'HOOK_%d' % code)
     return added
 
 

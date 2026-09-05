@@ -1461,62 +1461,62 @@ CLEAR_TSTR_LOOP:
 SAMHK:
                DEFW INIT                                        ; 44A6 code 128
                DEFW HGTHD                                       ; 44A8 code 129
-               DEFW HK_HLOAD                                    ; 44AA code 130
+               DEFW HOOK_HLOAD                                  ; 44AA code 130
                DEFW HVERY                                       ; 44AC code 131
-               DEFW HK_HSAVE                                    ; 44AE code 132
-               DEFW HK_SKSAFE                                   ; 44B0 code 133
-               DEFW HK_HOPEN                                    ; 44B2 code 134
-               DEFW HK_HCLOS                                    ; 44B4 code 135
+               DEFW HOOK_HSAVE                                  ; 44AE code 132
+               DEFW HOOK_SKSAFE                                 ; 44B0 code 133
+               DEFW HOOK_HOPEN                                  ; 44B2 code 134
+               DEFW HOOK_HCLOS                                  ; 44B4 code 135
                DEFW HAUTO                                       ; 44B6 code 136
                DEFW HSKTD                                       ; 44B8 code 137
-               DEFW HK_HDUMMY                                   ; 44BA code 138
-               DEFW HK_HVAR                                     ; 44BC code 139
+               DEFW HOOK_HDUMMY                                 ; 44BA code 138
+               DEFW HOOK_HVAR                                   ; 44BC code 139
                DEFW HEOF                                        ; 44BE code 140
                DEFW HPTR                                        ; 44C0 code 141
                DEFW HPATH                                       ; 44C2 code 142
-               DEFW HK_HLDPG                                    ; 44C4 code 143
+               DEFW HOOK_HLDPG                                  ; 44C4 code 143
                DEFW HVEPG                                       ; 44C6 code 144
                DEFW HSDIR                                       ; 44C8 code 145
                DEFW ROFSM                                       ; 44CA code 146
                DEFW HOFLE                                       ; 44CC code 147
-               DEFW HK_SBYT                                     ; 44CE code 148
+               DEFW HOOK_SBYT                                   ; 44CE code 148
                DEFW HWSAD                                       ; 44D0 code 149
-               DEFW HK_HKSB                                     ; 44D2 code 150
+               DEFW HOOK_HKSB                                   ; 44D2 code 150
                DEFW HDBOP                                       ; 44D4 code 151
                DEFW SCFSM                                       ; 44D6 code 152
-               DEFW MB_HK_HORDER+NOT_IN_THIS_PAGE               ; 44D8 code 153
+               DEFW MB_HOOK_HORDER+NOT_IN_THIS_PAGE             ; 44D8 code 153
                DEFW MB_MBHK_HDUMMY+NOT_IN_THIS_PAGE             ; 44DA code 154
-               DEFW MB_HK_CSIZE+NOT_IN_THIS_PAGE                ; 44DC code 155
-               DEFW MB_HK_SWAPCHARS+NOT_IN_THIS_PAGE            ; 44DE code 156
-               DEFW MB_HK_PROGPREP+NOT_IN_THIS_PAGE             ; 44E0 code 157
-               DEFW HK_HGFLE                                    ; 44E2 code 158
+               DEFW MB_HOOK_CSIZE+NOT_IN_THIS_PAGE              ; 44DC code 155
+               DEFW MB_HOOK_SWAPCHARS+NOT_IN_THIS_PAGE          ; 44DE code 156
+               DEFW MB_HOOK_PROGPREP+NOT_IN_THIS_PAGE           ; 44E0 code 157
+               DEFW HOOK_HGFLE                                  ; 44E2 code 158
                DEFW LBYT                                        ; 44E4 code 159
                DEFW HRSAD                                       ; 44E6 code 160
-               DEFW HK_HLDBK                                    ; 44E8 code 161
+               DEFW HOOK_HLDBK                                  ; 44E8 code 161
                DEFW HFRSAD                                      ; 44EA code 162
                DEFW HFWSAD                                      ; 44EC code 163
                DEFW REST                                        ; 44EE code 164
-               DEFW HK_PCAT                                     ; 44F0 code 165
+               DEFW HOOK_PCAT                                   ; 44F0 code 165
                DEFW HERAZ                                       ; 44F2 code 166
                DEFW MCHWR                                       ; 44F4 code 167
                DEFW MCHRD                                       ; 44F6 code 168
                DEFW MB_HPRTOK+NOT_IN_THIS_PAGE                  ; 44F8 code 169
-               DEFW MB_HK_HPFF+NOT_IN_THIS_PAGE                 ; 44FA code 170
+               DEFW MB_HOOK_HPFF+NOT_IN_THIS_PAGE               ; 44FA code 170
                DEFW MB_HGTTK+NOT_IN_THIS_PAGE                   ; 44FC code 171
                DEFW HKLEN                                       ; 44FE code 172
                DEFW MB_HCMDV+NOT_IN_THIS_PAGE                   ; 4500 code 173
-               DEFW MB_HK_RCPTCH+NOT_IN_THIS_PAGE               ; 4502 code 174
-               DEFW MB_HK_MERGECOMPFLG+NOT_IN_THIS_PAGE         ; 4504 code 175
-               DEFW MB_HK_FARSCAN+NOT_IN_THIS_PAGE              ; 4506 code 176
-               DEFW MB_HK_TOKENARG+NOT_IN_THIS_PAGE             ; 4508 code 177
-               DEFW MB_HK_SKIPNAME+NOT_IN_THIS_PAGE             ; 450A code 178
-               DEFW MB_HK_XVARNVAL+NOT_IN_THIS_PAGE             ; 450C code 179
-               DEFW MB_HK_SERSEND+NOT_IN_THIS_PAGE              ; 450E code 180
-               DEFW MB_HK_SERRECV+NOT_IN_THIS_PAGE              ; 4510 code 181
+               DEFW MB_HOOK_RCPTCH+NOT_IN_THIS_PAGE             ; 4502 code 174
+               DEFW MB_HOOK_MERGECOMPFLG+NOT_IN_THIS_PAGE       ; 4504 code 175
+               DEFW MB_HOOK_FARSCAN+NOT_IN_THIS_PAGE            ; 4506 code 176
+               DEFW MB_HOOK_TOKENARG+NOT_IN_THIS_PAGE           ; 4508 code 177
+               DEFW MB_HOOK_SKIPNAME+NOT_IN_THIS_PAGE           ; 450A code 178
+               DEFW MB_HOOK_XVARNVAL+NOT_IN_THIS_PAGE           ; 450C code 179
+               DEFW MB_HOOK_SERSEND+NOT_IN_THIS_PAGE            ; 450E code 180
+               DEFW MB_HOOK_SERRECV+NOT_IN_THIS_PAGE            ; 4510 code 181
                DEFW MB_SUBSTITUTE_PRINTER_CHAR+NOT_IN_THIS_PAGE ; 4512 code 182
-               DEFW MB_HK_COMADENT+NOT_IN_THIS_PAGE             ; 4514 code 183
-               DEFW MB_HK_VARSPACE+NOT_IN_THIS_PAGE             ; 4516 code 184
-               DEFW MB_HK_SETUPREGS+NOT_IN_THIS_PAGE            ; 4518 code 185
+               DEFW MB_HOOK_COMADENT+NOT_IN_THIS_PAGE           ; 4514 code 183
+               DEFW MB_HOOK_VARSPACE+NOT_IN_THIS_PAGE           ; 4516 code 184
+               DEFW MB_HOOK_SETUPREGS+NOT_IN_THIS_PAGE          ; 4518 code 185
 
 ;; --------------------------------------------------------------------
 ;; PART C11 -- The disk driver
@@ -2107,8 +2107,8 @@ CTS1_1:
                CALL STEP_HEAD_IN               ; 471E CD 7F 47
                JR CDE1_1                       ; 4721 18 CC
 
-; ---- HK_SKSAFE ---- from &4D55, &4E65, &5FF1, &647C, &64BE when A = 0
-HK_SKSAFE:
+; ---- HOOK_SKSAFE ---- from &4D55, &4E65, &5FF1, &647C, &64BE when A = 0
+HOOK_SKSAFE:
                CALL TIRD                       ; 4723 CD 5A 61
                RET NC                          ; 4726 D0
                LD A,(DTKS)                     ; 4727 3A 30 42
@@ -2427,7 +2427,7 @@ AT_SECTOR_LINK:
                CP &01                          ; 484F FE 01
                RET                             ; 4851 C9
 
-HK_HLDBK:
+HOOK_HLDBK:
                EXX                             ; 4852 D9
 
 ;; --------------------------------------------------------------------
@@ -2613,7 +2613,7 @@ GETSCR:
                CALL DWAIT                      ; 493D CD 64 45
                JR HSVB2                        ; 4940 18 07
 
-HK_HKSB:
+HOOK_HKSB:
                EXX                             ; 4942 D9
                LD (PGES1),A                    ; 4943 32 50 41
 
@@ -3577,7 +3577,7 @@ OFSM_2:
                AND A                           ; 4D51 A7
                JR Z,OFSM_4                     ; 4D52 28 1A  NO "OVERWRITE? Y/N" IF SAVE OVER
                PUSH HL                         ; 4D54 E5
-               CALL HK_SKSAFE                  ; 4D55 CD 23 47  IN CASE "N"
+               CALL HOOK_SKSAFE                ; 4D55 CD 23 47  IN CASE "N"
                POP HL                          ; 4D58 E1
                BIT 6,(HL)                      ; 4D59 CB 76
                JP NZ,REP33_2                   ; 4D5B C2 9E 51  "PROTECTED FILE"
@@ -3768,7 +3768,7 @@ NCF25_2:
                LD A,(CDIRT)                    ; 4E5E 3A 31 42
                LD (HL),A                       ; 4E61 77  TAG FILE WITH DIRECTORY CODE
                CALL WSAD                       ; 4E62 CD 86 45
-               CALL HK_SKSAFE                  ; 4E65 CD 23 47
+               CALL HOOK_SKSAFE                ; 4E65 CD 23 47
                POP IX                          ; 4E68 DD E1
                RET                             ; 4E6A C9
 
@@ -5504,7 +5504,7 @@ FMT10_2:
                CALL SET_SCREEN_POINTER         ; 55A6 CD 28 46
                JP REST                         ; 55A9 C3 AD 47
 
-HK_HDUMMY:
+HOOK_HDUMMY:
                RET                             ; 55AC C9
 
 ;; --------------------------------------------------------------------
@@ -6731,7 +6731,7 @@ CAT12:
 CAT1a:
                CALL CEOS                       ; 5B4B CD 07 50
                LD A,&02                        ; 5B4E 3E 02  SIMPLE DIR
-               JR HK_PCAT                      ; 5B50 18 0F
+               JR HOOK_PCAT                    ; 5B50 18 0F
 
 ; ---- CAT2 ---- from &5B19, &5B43 when A <> &21
 CAT2:
@@ -6742,8 +6742,8 @@ CAT2:
                DEFW JCLSBL                     ; 5B5D 4E 01
                LD A,&04                        ; 5B5F 3E 04  SINGLE COLUMN DETAILED DIR
 
-; ---- HK_PCAT ---- from &5B50
-HK_PCAT:
+; ---- HOOK_PCAT ---- from &5B50
+HOOK_PCAT:
                PUSH AF                         ; 5B61 F5
                CALL CKDRV                      ; 5B62 CD 07 48
                LD A,(SSTR1)                    ; 5B65 3A 38 41
@@ -6765,20 +6765,20 @@ HK_PCAT:
                LD D,B                          ; 5B8C 50  *
                LD E,B                          ; 5B8D 58  *
 
-; ---- HK_PCAT_LOOP ---- from &5B91
-HK_PCAT_LOOP:
+; ---- HOOK_PCAT_LOOP ---- from &5B91
+HOOK_PCAT_LOOP:
                INC DE                          ; 5B8E 13  *
                SBC HL,BC                       ; 5B8F ED 42  *
-               JR NZ,HK_PCAT_LOOP              ; 5B91 20 FB  L5A80 = L5A80 = L5A80         ;*
+               JR NZ,HOOK_PCAT_LOOP            ; 5B91 20 FB  L5A80 = L5A80 = L5A80         ;*
                LD HL,&A000                     ; 5B93 21 00 A0  HL=START, DE=FILES
                LD A,(SRTFG)                    ; 5B96 3A 29 42
                AND A                           ; 5B99 A7
-               JR Z,HK_PCAT_1                  ; 5B9A 28 05
+               JR Z,HOOK_PCAT_1                ; 5B9A 28 05
                CALL CALLMB                     ; 5B9C CD BD 42
                DEFW &47FB                      ; 5B9F FB 47
 
-; ---- HK_PCAT_1 ---- from &5B9A when A = 0
-HK_PCAT_1:
+; ---- HOOK_PCAT_1 ---- from &5B9A when A = 0
+HOOK_PCAT_1:
                CALL COLUMNS_FOR_DIRECTORY      ; 5BA1 CD 8B 5C  NAMES/LINE IN B. COULD BE 1,2,3...
                LD C,B                          ; 5BA4 48
 
@@ -7622,7 +7622,7 @@ SVHD:
 SVHD1:
                LD A,(HL)                       ; 5F43 7E
                LD (DE),A                       ; 5F44 12
-               CALL HK_SBYT                    ; 5F45 CD 75 6F
+               CALL HOOK_SBYT                  ; 5F45 CD 75 6F
                INC HL                          ; 5F48 23
                INC DE                          ; 5F49 13
                DJNZ SVHD1                      ; 5F4A 10 F7
@@ -7732,7 +7732,7 @@ CMD_LOAD_1:
                LD A,&02                        ; 5FE9 3E 02
                LD (PGES1),A                    ; 5FEB 32 50 41
                CALL ROOM_LEFT_IN_SECTOR        ; 5FEE CD 56 48  LOAD 48K TO ZX IMAGE
-               CALL HK_SKSAFE                  ; 5FF1 CD 23 47
+               CALL HOOK_SKSAFE                ; 5FF1 CD 23 47
                JP SNAP7                        ; 5FF4 C3 57 54
 
 ; ---- DLVM1 ---- from &5FC0 when A <> &14, &5FC5
@@ -8699,26 +8699,26 @@ HGTH2:
                LD E,&03                        ; 641B 1E 03  LOAD/MERGE VERIFY ENTIRE FILE
                JP END1                         ; 641D C3 15 50  FROM T/N
 
-HK_HLDPG:
+HOOK_HLDPG:
                OUT (HMPR),A                    ; 6420 D3 FB
 
-HK_HLOAD:
+HOOK_HLOAD:
                LD BC,SVBSI                     ; 6422 01 64 4A
                CALL NETPA                      ; 6425 CD 9D 64
                CALL RESET_BUFFER_POINTERS      ; 6428 CD 84 4F
                LD HL,V42E2                     ; 642B 21 E2 42
                BIT 2,(HL)                      ; 642E CB 56
-               JR Z,HK_HLOAD_2                 ; 6430 28 27
+               JR Z,HOOK_HLOAD_2               ; 6430 28 27
                BIT 3,(HL)                      ; 6432 CB 5E
-               JR NZ,HK_HLOAD_1                ; 6434 20 0D
+               JR NZ,HOOK_HLOAD_1              ; 6434 20 0D
                CALL HOOK_ARGS_TO_HEADER        ; 6436 CD 82 64
                LD C,(IX+&13)                   ; 6439 DD 4E 13
                CALL CALLMB                     ; 643C CD BD 42
                DEFW MB_EXPAND_FILE-&4000       ; 643F D2 66
-               JR HK_HLOAD_4                   ; 6441 18 39
+               JR HOOK_HLOAD_4                 ; 6441 18 39
 
-; ---- HK_HLOAD_1 ---- from &6434 when bit 3 of (HL) set
-HK_HLOAD_1:
+; ---- HOOK_HLOAD_1 ---- from &6434 when bit 3 of (HL) set
+HOOK_HLOAD_1:
                INC HL                          ; 6443 23
                LD A,(HL)                       ; 6444 7E
                PUSH AF                         ; 6445 F5
@@ -8729,31 +8729,31 @@ HK_HLOAD_1:
                POP AF                          ; 6451 F1
                CALL CALLMB                     ; 6452 CD BD 42
                DEFW &62A6                      ; 6455 A6 62
-               JR HK_HLOAD_4                   ; 6457 18 23
+               JR HOOK_HLOAD_4                 ; 6457 18 23
 
-; ---- HK_HLOAD_2 ---- from &6430 when bit 2 of (HL) clear
-HK_HLOAD_2:
+; ---- HOOK_HLOAD_2 ---- from &6430 when bit 2 of (HL) clear
+HOOK_HLOAD_2:
                CALL HOOK_ARGS_TO_HEADER        ; 6459 CD 82 64
                LD A,(NSTR1)                    ; 645C 3A 3A 41
                CP &10                          ; 645F FE 10
-               JR NZ,HK_HLOAD_3                ; 6461 20 16
+               JR NZ,HOOK_HLOAD_3              ; 6461 20 16
                CALL NRRD                       ; 6463 CD 5E 50
                DEFW CURCMD                     ; 6466 74 5B
                CP &95                          ; 6468 FE 95
-               JR NZ,HK_HLOAD_3                ; 646A 20 0D
+               JR NZ,HOOK_HLOAD_3              ; 646A 20 0D
                LD A,(V7D1C)                    ; 646C 3A 1C 7D
                CALL NRWR                       ; 646F CD 74 50
                DEFW &4A97                      ; 6472 97 4A
                LD A,&FF                        ; 6474 3E FF
                LD (V7D1C),A                    ; 6476 32 1C 7D
 
-; ---- HK_HLOAD_3 ---- from &6461 when A <> &10, &646A when A <> &95
-HK_HLOAD_3:
+; ---- HOOK_HLOAD_3 ---- from &6461 when A <> &10, &646A when A <> &95
+HOOK_HLOAD_3:
                CALL ROOM_LEFT_IN_SECTOR        ; 6479 CD 56 48
 
-; ---- HK_HLOAD_4 ---- from &6441, &6457
-HK_HLOAD_4:
-               JP HK_SKSAFE                    ; 647C C3 23 47
+; ---- HOOK_HLOAD_4 ---- from &6441, &6457
+HOOK_HLOAD_4:
+               JP HOOK_SKSAFE                  ; 647C C3 23 47
 
 ; ---- DSCHD ---- from &64B1, &787B
 DSCHD:
@@ -8817,7 +8817,7 @@ HVER1:
                JR NZ,HVER2                     ; 64BA 20 09
                LD A,C                          ; 64BC 79
                AND A                           ; 64BD A7
-               JP Z,HK_SKSAFE                  ; 64BE CA 23 47
+               JP Z,HOOK_SKSAFE                ; 64BE CA 23 47
                DEC C                           ; 64C1 0D
                LD DE,HEADER                    ; 64C2 11 00 40
 
@@ -8834,7 +8834,7 @@ HVER2:
                CALL INCURPAGE                  ; 64D3 CD F2 3F
                JR HVER1                        ; 64D6 18 E0
 
-HK_HSAVE:
+HOOK_HSAVE:
                CALL RXHED2                     ; 64D8 CD 49 63  GET HEADER, ALLOW DEVICES D/T/N
                JR C,HSAVE2                     ; 64DB 38 7D  JR IF T/N
                CALL CKDRV                      ; 64DD CD 07 48
@@ -8849,14 +8849,14 @@ HK_HSAVE:
                LD DE,(HD0B1)                   ; 64F6 ED 5B 4A 41
                LD A,(V42BA)                    ; 64FA 3A BA 42
                AND A                           ; 64FD A7
-               JR Z,HK_HSAVE_5                 ; 64FE 28 4E
+               JR Z,HOOK_HSAVE_5               ; 64FE 28 4E
 
-; ---- HK_HSAVE_1 ---- from MB &6173, MB &63A9
-HK_HSAVE_1:
+; ---- HOOK_HSAVE_1 ---- from MB &6173, MB &63A9
+HOOK_HSAVE_1:
                LD C,A                          ; 6500 4F
                LD A,(IX+&13)                   ; 6501 DD 7E 13
                CP &10                          ; 6504 FE 10
-               JR Z,HK_HSAVE_5                 ; 6506 28 46
+               JR Z,HOOK_HSAVE_5               ; 6506 28 46
                PUSH IX                         ; 6508 DD E5
                POP HL                          ; 650A E1
                LD BC,&00EF                     ; 650B 01 EF 00
@@ -8864,21 +8864,21 @@ HK_HSAVE_1:
                SET 2,(HL)                      ; 650F CB D6
                LD C,A                          ; 6511 4F
                CP &14                          ; 6512 FE 14
-               JR NZ,HK_HSAVE_2                ; 6514 20 06
+               JR NZ,HOOK_HSAVE_2              ; 6514 20 06
                LD A,(V42BA)                    ; 6516 3A BA 42
                DEC A                           ; 6519 3D
-               JR NZ,HK_HSAVE_3                ; 651A 20 0D
+               JR NZ,HOOK_HSAVE_3              ; 651A 20 0D
 
-; ---- HK_HSAVE_2 ---- from &6514 when A <> &14
-HK_HSAVE_2:
+; ---- HOOK_HSAVE_2 ---- from &6514 when A <> &14
+HOOK_HSAVE_2:
                LD HL,(HD0D1)                   ; 651C 2A 4C 41
                LD A,(PGES1)                    ; 651F 3A 50 41
                CALL CALLMB                     ; 6522 CD BD 42
                DEFW MB_COMPRESS_FILE-&4000     ; 6525 EA 65
-               JR HK_HSAVE_4                   ; 6527 18 20
+               JR HOOK_HSAVE_4                 ; 6527 18 20
 
-; ---- HK_HSAVE_3 ---- from &651A when A is not 0 yet
-HK_HSAVE_3:
+; ---- HOOK_HSAVE_3 ---- from &651A when A is not 0 yet
+HOOK_HSAVE_3:
                SET 3,(HL)                         ; 6529 CB DE
                INC HL                             ; 652B 23
                LD A,(HL)                          ; 652C 7E
@@ -8899,13 +8899,13 @@ HK_HSAVE_3:
                INC HL                             ; 6547 23
                LD (HL),D                          ; 6548 72
 
-; ---- HK_HSAVE_4 ---- from &6527
-HK_HSAVE_4:
+; ---- HOOK_HSAVE_4 ---- from &6527
+HOOK_HSAVE_4:
                CALL SCFSM                      ; 6549 CD F8 4D
                JR HSAVE1                       ; 654C 18 06
 
-; ---- HK_HSAVE_5 ---- from &64FE when A = 0, &6506 when A = &10
-HK_HSAVE_5:
+; ---- HOOK_HSAVE_5 ---- from &64FE when A = 0, &6506 when A = &10
+HOOK_HSAVE_5:
                CALL DSVBL                      ; 654E CD 59 49
                CALL CFSM                       ; 6551 CD FE 4D
 
@@ -8942,7 +8942,7 @@ DDLP:
                JR NZ,DDLP                      ; 656E 20 F7
                RET                             ; 6570 C9
 
-HK_HVAR:
+HOOK_HVAR:
                CALL CGTINT                     ; 6571 CD BB 62  GET DVAR PARAM
                LD HL,DVAR                      ; 6574 21 20 42
                IN A,(LMPR)                     ; 6577 DB FA
@@ -9123,7 +9123,7 @@ HOFLE:
                JP NC,SVHD                      ; 6629 D2 3B 5F  JP IF NOT "OVERWRITE?"+N
                RET                             ; 662C C9
 
-HK_HGFLE:
+HOOK_HGFLE:
                CALL RXHED                      ; 662D CD 36 63
                CALL GTFL3                      ; 6630 CD BE 4E
 
@@ -10103,7 +10103,7 @@ CHANNEL_ENTRY_AT_ZERO_PAGE_LOOP:
                JR NZ,CHANNEL_ENTRY_AT_ZERO_PAGE_LOOP ; 6B03 20 EE
                RET                                   ; 6B05 C9
 
-HK_HOPEN:
+HOOK_HOPEN:
                CALL GCHR                       ; 6B06 CD 42 50
                CALL OPSR                       ; 6B09 CD 72 6A
                CALL HEVSY                      ; 6B0C CD 67 69
@@ -10557,7 +10557,7 @@ MTBLS:
                DEFB &00                        ; 6D6E .
                DEFW &0313                      ; 6D6F 13 03  CHAN LEN (IX+9/10)
 
-HK_HCLOS:
+HOOK_HCLOS:
                LD HL,(HKDE)                    ; 6D71 2A E0 41
                LD BC,PDIRH_1                   ; 6D74 01 16 5C
                AND A                           ; 6D77 A7
@@ -10943,8 +10943,8 @@ MCHWR:
                OUT (BORDER),A                  ; 6F71 D3 FE
                JR MCHN2_1                      ; 6F73 18 C0
 
-; ---- HK_SBYT ---- from &5F45
-HK_SBYT:
+; ---- HOOK_SBYT ---- from &5F45
+HOOK_SBYT:
                PUSH BC                         ; 6F75 C5
                PUSH HL                         ; 6F76 E5
                PUSH AF                         ; 6F77 F5
@@ -10958,7 +10958,7 @@ HK_SBYT:
                EX DE,HL                        ; 6F84 EB
                CALL SWAP_TRACK_AND_SECTOR      ; 6F85 CD CD 4F  PLACE NEXT T/S IN IX+,
                CALL WSAD                       ; 6F88 CD 86 45  EXITS WITH HL POINTING TO BUFFER
-               JR HK_SBYT_1                    ; 6F8B 18 2C
+               JR HOOK_SBYT_1                  ; 6F8B 18 2C
 
 ;; --------------------------------------------------------------------
 ;; The tail of a write: AT_SECTOR_LINK decides whether the sector's
@@ -10999,8 +10999,8 @@ WRITE_LAST_PAGE:
 WRITE_LAST_PAGE_1:
                CALL NZ,WRITE_AT_LINKED_SECTOR  ; 6FB6 C4 C0 6F
 
-; ---- HK_SBYT_1 ---- from &6F8B
-HK_SBYT_1:
+; ---- HOOK_SBYT_1 ---- from &6F8B
+HOOK_SBYT_1:
                POP DE                          ; 6FB9 D1
 
 ; ---- WRITE_LAST_PAGE_2 ---- from &6F7B, &6F93

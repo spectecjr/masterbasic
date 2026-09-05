@@ -16,14 +16,14 @@ DOC EVALUV_STUB
 
     &25 passes, and so does anything below &21; the rest returns with
     carry clear for the ROM to deal with.  What is left drops the return
-    address and raises HK_HKLEN.
+    address and raises HOOK_HKLEN.
 
 # The block, at &7B80 in this listing and &4BA0 when it runs:
 #
 #     +&00  &40, then JR over the next stub
 #     +&03  hook &97
-#     +&06  HK_MCHWR
-#     +&09  HK_MCHRD, with EXX : PUSH BC : POP AF to fetch the flags back
+#     +&06  HOOK_MCHWR
+#     +&09  HOOK_MCHRD, with EXX : PUSH BC : POP AF to fetch the flags back
 #     +&10  PRTOKV_STUB
 #     +&1A  EVALUV_STUB
 #

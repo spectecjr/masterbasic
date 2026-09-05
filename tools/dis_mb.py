@@ -1006,7 +1006,7 @@ def seeds(dos, mb):
     # come out right either way, but the unnamed addresses were being
     # given the other page's labels.
     mb.no_peer.append((0x7B03, 0x7B75))
-    # HK_PROGPREP zeroes HMPR at &732E and does not put it back until
+    # HOOK_PROGPREP zeroes HMPR at &732E and does not put it back until
     # &735A, and the routine it calls builds code in the ROM's own code
     # buffer, so every &8Dxx through here is CDBUFF and not the DOS page.
     mb.no_peer.append((0x732A, 0x7385))
@@ -1163,7 +1163,7 @@ def seeds(dos, mb):
     # self_window they became this half's &5007 and &5022, and the second
     # of those landed inside a CALL and was reported as a self-patch.
     mb.no_peer.append((0x5C02, 0x5C36))
-    # HK_SETUPREGS does the same at &7210: its &8D50 is CDBUFF+&50 in the
+    # HOOK_SETUPREGS does the same at &7210: its &8D50 is CDBUFF+&50 in the
     # ROM's system page, not the DOS page's &4D50.
     mb.no_peer.append((0x7203, 0x7220))
     # FORMAT: SELRDP at &76BC pages the newly reserved RAM disc page in at
@@ -2691,17 +2691,11 @@ def main():
     for d in (dos, mb):
         load_symbols(d, args.work, dos, peer=(mb if d is dos else dos))
         hooks_by_code = romsyms.hook_names(dos, HOOK_TABLE)
-        # A hook MasterBASIC took over is handled by a routine in the
-        # extension's own listing, and that routine already carries the
-        # name.  Naming the code the same thing would define the symbol
-        # twice, so those become a number and a comment.
+        # Handlers are HOOK_xxx and the codes that raise them HKC_xxx,
+        # so there is nothing to decide: every code gets its name, and
+        # neither half can define a symbol the other means differently.
         for page in (dos, mb):
-            taken = set(page.labels.values())
-            for code, name in hooks_by_code.items():
-                if name in taken:
-                    page.rst8_note[code] = name
-                else:
-                    page.rst8[code] = name
+            page.rst8.update(hooks_by_code)
     render_basic(mb, args.work)
     mb.region(MBVARS2[0], MBVARS2[1], DATA)
     render_tables(dos, args.work)
@@ -3268,7 +3262,7 @@ RELOCATED = ((0x7986, 0x7990, 0x45A2),   # INSTALL_EXTENDED_PUT, five runs
              (0x6AF9, 0x6C2F, 0x4F00),
              # FN_USING_S copies &00E7 bytes from here to &9000 with HMPR
              # zeroed -- &5000 in the system page -- and calls it there.
-             # It ends where HK_PROGPREP begins.
+             # It ends where HOOK_PROGPREP begins.
              (0x7243, 0x732A, 0x5000))
 
 

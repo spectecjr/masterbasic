@@ -16,7 +16,7 @@ checks them against.
 
 | layer | what it deals in | where |
 |---|---|---|
-| hooks | a BASIC statement | `HK_HLOAD`, `HK_HSAVE`, `HK_HOPEN`, `SAMHK` |
+| hooks | a BASIC statement | `HOOK_HLOAD`, `HOOK_HSAVE`, `HOOK_HOPEN`, `SAMHK` |
 | streams and channels | `#4`, and the ROM's channel records | `CHANNEL_FOR_STREAM`, `STRMS` |
 | files | headers, directory entries, sector chains | `DCHAN`, `FSA`, the `POINT` family |
 | the controller | tracks, sectors and the WD1772's ports | `READ_SECTOR`, `WRITE_SECTOR` |
@@ -47,7 +47,7 @@ falls into `CLEAR_TRANSFER_COUNT`, which zeroes the two count bytes at
 
 ## A read
 
-**1. The statement.** `LOAD` reaches `HK_HLOAD` at `&6422` through the hook
+**1. The statement.** `LOAD` reaches `HOOK_HLOAD` at `&6422` through the hook
 table. It resets the buffer pointers, then looks at two bits of `V42E2` to
 decide which kind of load this is — one path hands off to MasterBASIC
 through `CALLMB`, which is how a compressed file gets expanded on the way in.
@@ -395,7 +395,7 @@ the third routine can be that short.
 
 ## Streams and channels
 
-`HK_HOPEN` at `&6B06` turns a stream number into a channel, and the
+`HOOK_HOPEN` at `&6B06` turns a stream number into a channel, and the
 arithmetic says exactly what a stream is:
 
 ```asm
@@ -426,7 +426,7 @@ empty.
 
 The two halves call each other across this whole stack.
 
-Going in, `HK_HSAVE` picks a compressor on `DVAR 154` and the file type —
+Going in, `HOOK_HSAVE` picks a compressor on `DVAR 154` and the file type —
 `&14`, which the format documentation gives as `SCREEN$` — and calls
 `MB_COMPRESS_SCREEN_FILE` or `MB_COMPRESS_FILE` through `CALLMB`. That is the
 manual's three `SAVE MODE`s, implemented as one branch.

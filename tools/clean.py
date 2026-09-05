@@ -134,7 +134,7 @@ CARRIED_FIXES = [
      [';;  The colour comes from the low bits of RBCC and is ANDed with E -- the sector number -- so the border changes from',
       ';;  sector to sector as the disc turns. Setting RBCC to zero turns the effect off.']),
     ([';;    ORDER                 the sort behind a sorted listing, and hook code 153'],
-     [';;    HK_PCAT               the sorted catalogue -- the sort itself is in the MasterBASIC page, through hook 153']),
+     [';;    HOOK_PCAT             the sorted catalogue -- the sort itself is in the MasterBASIC page, through hook 153']),
     ([';;    OHASR / FNMAE         the per-file confirmation the "?" option asks for'],
      [';;    OHASR                 the per-file confirmation the "?" option asks for (FNMAE, which prints it, is in E1)']),
     ([';;  REFBUF / PTSVT -- re-read the directory sector and point back at the entry the search stopped on. Needed because',

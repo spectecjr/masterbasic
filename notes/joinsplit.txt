@@ -175,12 +175,12 @@ DOC STORE_BC_AT_XVAR76
     when the hook finishes.
 
     That is how a hook redirects the interpreter, and every caller reads
-    that way: HK_MERGECOMPFLG_5 stores &4871 to send the ROM back into
-    the editor, HK_COMADENT stores a word taken from COMAD+&6C, and
+    that way: HOOK_MERGECOMPFLG_5 stores &4871 to send the ROM back into
+    the editor, HOOK_COMADENT stores a word taken from COMAD+&6C, and
     DELETE stores &0058 -- POP AF : EI : RET in ROM 0, which discards one
     more stack word and so unwinds a whole extra frame.
 
-DOC HK_SKIPNAME
+DOC HOOK_SKIPNAME
     (replacing the existing header.)
 
     DELETE, for strings and string arrays.  Token &CD is DELETE -- the
@@ -364,7 +364,7 @@ MB &7144 : Z if the array is now empty
 MB &7150 : four pages is 64K, the limit on one string
 MB &7152 : CCF turns "below four" into "four or more", so the carry means too long
 
-DOC HK_SWAPCHARS
+DOC HOOK_SWAPCHARS
     (to be added to the existing header, which works out what is swapped
     but not which command asks for it.)
 
@@ -411,14 +411,14 @@ MB &71F7 : A = 0, and JCLSBL clears the screen
 MB &71FE : XPTR, which the ROM uses to mark where an error was found
 
 
-RENAME HK_SKIPNAME CMD_DELETE
+RENAME HOOK_SKIPNAME CMD_DELETE
 RENAME CMD_JOIN_FAIL CMD_JOIN_TO
 
 # CMD_JOIN_FAIL is not an error path: it is the manual's JOIN TO a$,b$.
 # The ARRAY_ELEMENT_OFFSET_1..5 labels at &703F-&70B0 sit on its code
 # too, named after the routine that happens to precede them.
 #
-# HK_SKIPNAME is DELETE.  Token &CD is DELETETOK in the ROM's own source
+# HOOK_SKIPNAME is DELETE.  Token &CD is DELETETOK in the ROM's own source
 # (ref/samrom/miscx1.asm, RENTAB), and the routine puts CHAD back to the
 # START of the name -- not past it, as its header said -- so that the ROM
 # can re-parse the argument as a line range when it is not a string.

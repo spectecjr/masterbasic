@@ -6,7 +6,7 @@
 
 DOS &41F6 : 16384, the address a snapshot loads at -- the name is this listing's own header, which happens to sit at &4000
 
-# DVAR n and XVAR n both end here.  MasterBASIC cannot call HK_HVAR at
+# DVAR n and XVAR n both end here.  MasterBASIC cannot call HOOK_HVAR at
 # &6571, because the three instructions above this one load the DOS's own
 # base; it does those itself with PUTSWA and enters at &6579 instead, so
 # the two functions share everything from the indexing on.

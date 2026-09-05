@@ -25,7 +25,7 @@ DOC CURSOR_PATTERNS
     THE UDG AREA IS EXACTLY 328 BYTES.  CHR$ 128 begins at the system
     page's &5490 and the area runs to &55D7, because &55D8 is PALTAB, the
     sixteen CLUT entries.  41 characters, CHR$ 128-168, and no more.  That
-    is the same 328 that HK_SWAPCHARS exchanges and the same 328 the
+    is the same 328 that HOOK_SWAPCHARS exchanges and the same 328 the
     alternate set occupies at MB &7E64.  Anything reading a dump should
     beware &55D8 and &55E0: they look like glyphs and are palette entries.
 
@@ -46,7 +46,7 @@ DOC CURSOR_PATTERNS
     boot and with MasterDOS alone, and &4A52 after the combined file has
     booted, with the two cursor blocks at &4A52 and &4A5A.
 
-    HK_SWAPCHARS then exchanges KURCHAR, SVAR 1 at &5A01, which the ROM's
+    HOOK_SWAPCHARS then exchanges KURCHAR, SVAR 1 at &5A01, which the ROM's
     list calls "CURSOR CHARACTERS - LOWER CASE/UPPER CASE".  It reads
     128,129 in all three dumps.  Under BLOCKS 2 it becomes 169,170, which
     render from &4A52 through HUDG -- outside the exchanged range, so the

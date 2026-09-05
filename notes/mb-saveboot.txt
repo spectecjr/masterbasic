@@ -98,7 +98,7 @@ MB &6404 SAVE_BOOT
     "SAVEs MasterDOS with the new character set included within it".
     XVAR 87 ALTUDG is documented as the displacement of that set from
     XVAR 0, it reads &3E64 in the shipped image and in MBPOST, and
-    HK_SWAPCHARS exchanges 328 bytes -- 41 characters, CHR$ 128-168,
+    HOOK_SWAPCHARS exchanges 328 bytes -- 41 characters, CHR$ 128-168,
     exactly the range the manual gives -- between the ROM's UDG area at
     the system page's &5490 and &7E64 in this half.  So the set lives at
     MB &7E64-&7FAB.

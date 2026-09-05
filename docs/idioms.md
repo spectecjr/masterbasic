@@ -131,7 +131,7 @@ section B), `CALLDOS`
 
 ```asm
       RST ERR_HOOK                    ; 7B97  = RST &08
-      DEFB HK_HPRTOK                  ; 7B98  hook code &A9
+      DEFB HKC_HPRTOK                 ; 7B98  hook code &A9
 ```
 
 A restart is one byte and the code after it is one more, so a hook call costs two
@@ -161,7 +161,7 @@ PRTOKV_STUB:
       POP HL                          ; 7B93  no — drop the return address
       LD HL,(XPTR)                    ; 7B94
       RST ERR_HOOK                    ; 7B97  and handle it here instead
-      DEFB HK_HPRTOK                  ; 7B98
+      DEFB HKC_HPRTOK                 ; 7B98
       RET                             ; 7B99
 ```
 

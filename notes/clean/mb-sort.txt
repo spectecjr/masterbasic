@@ -12,7 +12,7 @@ DOC SORT_NAMES
 
     TWO WAYS IN.  SORT_NAMES is the DOS's: ten-byte records, compared
     over the whole ten, with HL at the first and DE holding how many
-    there are.  HK_HORDER three bytes further on is the ORDER command's,
+    there are.  HOOK_HORDER three bytes further on is the ORDER command's,
     and takes its lengths from the caller -- which is what the EXX at
     the top is for, and why the DOS's entry has to skip it.  The CP that
     does the skipping is idiom 8: &FE swallows the byte after it.

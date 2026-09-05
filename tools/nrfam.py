@@ -38,7 +38,7 @@ import re
 # only MasterBASIC has it.
 SHARED_NAMES = ('CMR', 'CMR_DONE', 'NRRD', 'NRRDD', 'NRWR', 'NRWRD',
                 'NRWRHL', 'RDA', 'RDBC', 'WRTBC', 'GTHL', 'BCRWC',
-                'PPXR', 'HK_HDUMMY')
+                'PPXR', 'HOOK_HDUMMY')
 
 
 def name_for(tag, name):

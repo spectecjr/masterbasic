@@ -8,7 +8,7 @@ DOC IS_NAME_CHAR
     Carry set if the character in A may appear in a name.
 
     It chains onto the letter-or-digit test at &454A and adds underscore,
-    &5F, which the ROM's own classifier does not accept.  HK_SKIPNAME
+    &5F, which the ROM's own classifier does not accept.  HOOK_SKIPNAME
     already described this routine from the outside -- "reads forward
     while the classifier at IS_NAME_CHAR keeps saying the character belongs to a
     name" -- so this is the classifier that description meant.
@@ -63,7 +63,7 @@ MB &454A IS_LETTER_OR_DIGIT
 
 MB &459C SET_DCT_COMPILE_BITS
     Read DCT, OR &05, and fall into WRA to put it back -- so bits 0 and 2
-    go up.  The exact complement of what HK_PROGPREP does with AND &FA
+    go up.  The exact complement of what HOOK_PROGPREP does with AND &FA
     before it rebuilds the compile pass, which is the best evidence that
     those two bits are the "needs compiling" state.
 

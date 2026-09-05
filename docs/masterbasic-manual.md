@@ -2501,7 +2501,7 @@ first character. Do not POKE this XVAR.
 > `DPEEK XVAR 85`; both are as printed. In the image disassembled in this
 > repository `DPEEK XVAR 85` is zero and `DPEEK XVAR 87` is `&3E64`, so 87 is
 > the variable and 85 a slip. `&4000 + &3E64` is MasterBASIC's `&7E64`, which is
-> the buffer `HK_SWAPCHARS` exchanges 328 bytes with — 41 characters, `CHR$
+> the buffer `HOOK_SWAPCHARS` exchanges 328 bytes with — 41 characters, `CHR$
 > 128-168`, the range this entry gives.
 >
 > The set does not appear at that address in the file, and for a while that made

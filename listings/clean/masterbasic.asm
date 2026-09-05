@@ -257,12 +257,28 @@ ERR_PUT_BLOCK:            EQU  &25
 ERR_STRING_TOO_LONG:      EQU  &2A
 ERR_PAGE_OVERLAP:         EQU  &76
 ERR_SIZE_MISMATCH:        EQU  &77
-HK_MCHWR:                 EQU  &A7
-HK_MCHRD:                 EQU  &A8
-HK_HPRTOK:                EQU  &A9
-HK_HGTTK:                 EQU  &AB
-HK_HKLEN:                 EQU  &AC
-HK_HCMDV:                 EQU  &AD
+HKC_HDUMMY:               EQU  &9A
+HKC_CSIZE:                EQU  &9B
+HKC_SWAPCHARS:            EQU  &9C
+HKC_PROGPREP:             EQU  &9D
+HKC_MCHWR:                EQU  &A7
+HKC_MCHRD:                EQU  &A8
+HKC_HPRTOK:               EQU  &A9
+HKC_HPFF:                 EQU  &AA
+HKC_HGTTK:                EQU  &AB
+HKC_HKLEN:                EQU  &AC
+HKC_HCMDV:                EQU  &AD
+HKC_RCPTCH:               EQU  &AE
+HKC_MERGECOMPFLG:         EQU  &AF
+HKC_TOKENARG:             EQU  &B1
+HKC_SKIPNAME:             EQU  &B2
+HKC_XVARNVAL:             EQU  &B3
+HKC_SERSEND:              EQU  &B4
+HKC_SERRECV:              EQU  &B5
+HKC_SUBCHAR:              EQU  &B6
+HKC_COMADENT:             EQU  &B7
+HKC_VARSPACE:             EQU  &B8
+HKC_SETUPREGS:            EQU  &B9
 
 ; The manual also describes these, which no table points at, so they have
 ; not been located in the code:
@@ -287,11 +303,11 @@ HK_HCMDV:                 EQU  &AD
 ;   the faster PUT is INSTALL_EXTENDED_PUT, which assembles 298 bytes into
 ;   the system page at &45A2 out of five runs, two of them lifted from the
 ;   ROM's own PUT
-;   the extended CSIZE is the hook 155 routine HK_CSIZE, which sizes the
+;   the extended CSIZE is the hook 155 routine HOOK_CSIZE, which sizes the
 ;   character and enters the ROM's own CSIZE past its range checks; the
 ;   printing half is PRINT_MAGNIFIED_CHAR, which has no caller in either
 ;   page because the system page reaches it through PAGER
-;   BLOCKS 2 is HK_SWAPCHARS exchanging 328 bytes with the alternate
+;   BLOCKS 2 is HOOK_SWAPCHARS exchanging 328 bytes with the alternate
 ;   character set at &7E64, the cursor kept out of the swap through HUDG
 ;   the FORMAT improvements are BUILD_TRACK_IMAGE, which lays out a whole
 ;   track for the controller and which only the DOS calls
@@ -1506,18 +1522,18 @@ CALLDOS_2:
 ;; from instead of hanging the machine.
 ;; --------------------------------------------------------------------
 
-HK_SERSEND:
+HOOK_SERSEND:
                LD E,A                          ; 4300 5F
                LD A,(SPORT)                    ; 4301 3A 0B 40
                LD C,A                          ; 4304 4F
                LD B,&01                        ; 4305 06 01
 
-; ---- HK_SERSEND_LOOP ---- from &430E when bit 3 of A clear
-HK_SERSEND_LOOP:
+; ---- HOOK_SERSEND_LOOP ---- from &430E when bit 3 of A clear
+HOOK_SERSEND_LOOP:
                CALL ESCCHK                     ; 4307 CD 75 5B
                IN A,(C)                        ; 430A ED 78
                BIT 3,A                         ; 430C CB 5F
-               JR Z,HK_SERSEND_LOOP            ; 430E 28 F7
+               JR Z,HOOK_SERSEND_LOOP          ; 430E 28 F7
                LD B,&03                        ; 4310 06 03
                OUT (C),E                       ; 4312 ED 59
                RET                             ; 4314 C9
@@ -1532,17 +1548,17 @@ HK_SERSEND_LOOP:
 ;; error is not reported; it just yields a wrong character.
 ;; --------------------------------------------------------------------
 
-HK_SERRECV:
+HOOK_SERRECV:
                LD A,(SPORT)                    ; 4315 3A 0B 40
                LD C,A                          ; 4318 4F
                LD B,&01                        ; 4319 06 01
 
-; ---- HK_SERRECV_LOOP ---- from &4321 when bit 0 was clear
-HK_SERRECV_LOOP:
+; ---- HOOK_SERRECV_LOOP ---- from &4321 when bit 0 was clear
+HOOK_SERRECV_LOOP:
                CALL ESCCHK                     ; 431B CD 75 5B
                IN A,(C)                        ; 431E ED 78
                RRA                             ; 4320 1F
-               JR NC,HK_SERRECV_LOOP           ; 4321 30 F8
+               JR NC,HOOK_SERRECV_LOOP         ; 4321 30 F8
                LD B,&03                        ; 4323 06 03
                IN A,(C)                        ; 4325 ED 78
                SCF                             ; 4327 37
@@ -2338,7 +2354,7 @@ IS_DIGIT:
 ;; Carry set if the character in A may appear in a name.
 ;;
 ;; It chains onto the letter-or-digit test at &454A and adds underscore,
-;; &5F, which the ROM's own classifier does not accept.  HK_SKIPNAME
+;; &5F, which the ROM's own classifier does not accept.  HOOK_SKIPNAME
 ;; already described this routine from the outside -- "reads forward
 ;; while the classifier at IS_NAME_CHAR keeps saying the character belongs to a
 ;; name" -- so this is the classifier that description meant.
@@ -2497,7 +2513,7 @@ MBPPXR:
 
 ;; --------------------------------------------------------------------
 ;; Read DCT, OR &05, and fall into WRA to put it back -- so bits 0 and 2
-;; go up.  The exact complement of what HK_PROGPREP does with AND &FA
+;; go up.  The exact complement of what HOOK_PROGPREP does with AND &FA
 ;; before it rebuilds the compile pass, which is the best evidence that
 ;; those two bits are the "needs compiling" state.
 ;; --------------------------------------------------------------------
@@ -3425,7 +3441,7 @@ GET_NONEMPTY_STRING:
 ;;
 ;; TWO WAYS IN.  SORT_NAMES is the DOS's: ten-byte records, compared
 ;; over the whole ten, with HL at the first and DE holding how many
-;; there are.  HK_HORDER three bytes further on is the ORDER command's,
+;; there are.  HOOK_HORDER three bytes further on is the ORDER command's,
 ;; and takes its lengths from the caller -- which is what the EXX at
 ;; the top is for, and why the DOS's entry has to skip it.  The CP that
 ;; does the skipping is idiom 8: &FE swallows the byte after it.
@@ -3461,83 +3477,83 @@ SORT_NAMES:
                LD A,C                          ; 47FE 79
                DEFB SKIP_1_VIA_CP              ; 47FF ~  skips the EXX, which belongs to the other entry
 
-HK_HORDER:
+HOOK_HORDER:
                EXX                             ; 4800 D9  the ORDER command arrives with its lengths in the other set
                DEC A                           ; 4801 3D  one fewer, because the first byte is compared on its own
                LD (SORT_TAIL+1),A              ; 4802 32 23 48  into the inner loop's own count, below
                PUSH DE                         ; 4805 D5
                PUSH HL                         ; 4806 E5
 
-; ---- HK_HORDER_LOOP ---- from &4847
-HK_HORDER_LOOP:
+; ---- HOOK_HORDER_LOOP ---- from &4847
+HOOK_HORDER_LOOP:
                PUSH DE                         ; 4807 D5
                PUSH DE                         ; 4808 D5
                EXX                             ; 4809 D9
                POP BC                          ; 480A C1  how many records are left to sort
                INC C                           ; 480B 0C  the low byte, and a wrap for it if it is not zero
                DEC C                           ; 480C 0D
-               JR Z,HK_HORDER_1                ; 480D 28 01
+               JR Z,HOOK_HORDER_1              ; 480D 28 01
                INC B                           ; 480F 04
 
-; ---- HK_HORDER_1 ---- from &480D when C reaches 0
-HK_HORDER_1:
+; ---- HOOK_HORDER_1 ---- from &480D when C reaches 0
+HOOK_HORDER_1:
                EXX                             ; 4810 D9
                PUSH HL                         ; 4811 E5  the record this pass starts from
 
-; ---- HK_HORDER_LOOP2 ---- from &481E, &4832
-HK_HORDER_LOOP2:
+; ---- HOOK_HORDER_LOOP2 ---- from &481E, &4832
+HOOK_HORDER_LOOP2:
                LD D,H                          ; 4812 54  the best so far is the one we stand on
                LD E,L                          ; 4813 5D
 
-; ---- HK_HORDER_LOOP3 ---- from &4830
-HK_HORDER_LOOP3:
+; ---- HOOK_HORDER_LOOP3 ---- from &4830
+HOOK_HORDER_LOOP3:
                LD A,(DE)                       ; 4814 1A  its first byte
 
-; ---- HK_HORDER_LOOP4 ---- from &481C when A < (HL)
-HK_HORDER_LOOP4:
+; ---- HOOK_HORDER_LOOP4 ---- from &481C when A < (HL)
+HOOK_HORDER_LOOP4:
                ADD HL,BC                       ; 4815 09  on to the next record
                EXX                             ; 4816 D9
                DEC C                           ; 4817 0D  one fewer to look at
-               JR Z,HK_HORDER_3                ; 4818 28 1A  none left, so the smallest has been found
+               JR Z,HOOK_HORDER_3              ; 4818 28 1A  none left, so the smallest has been found
 
-; ---- HK_HORDER_LOOP5 ---- from &4834 when B is not 0 yet
-HK_HORDER_LOOP5:
+; ---- HOOK_HORDER_LOOP5 ---- from &4834 when B is not 0 yet
+HOOK_HORDER_LOOP5:
                EXX                             ; 481A D9
                CP (HL)                         ; 481B BE  against the first byte of this record
-               JR C,HK_HORDER_LOOP4            ; 481C 38 F7  the best is still the best
-               JR NZ,HK_HORDER_LOOP2           ; 481E 20 F2  this one is smaller, so start again from it
+               JR C,HOOK_HORDER_LOOP4          ; 481C 38 F7  the best is still the best
+               JR NZ,HOOK_HORDER_LOOP2         ; 481E 20 F2  this one is smaller, so start again from it
                PUSH HL                         ; 4820 E5  equal, so the other nine bytes decide
                PUSH DE                         ; 4821 D5
 
 SORT_TAIL:
                LD B,&00                        ; 4822 06 00  nine, written here by the entry point above
 
-; ---- HK_HORDER_LOOP6 ---- from &482A when B is not 0 yet
-HK_HORDER_LOOP6:
+; ---- HOOK_HORDER_LOOP6 ---- from &482A when B is not 0 yet
+HOOK_HORDER_LOOP6:
                INC DE                          ; 4824 13
                INC HL                          ; 4825 23
                LD A,(DE)                       ; 4826 1A
                CP (HL)                         ; 4827 BE
-               JR NZ,HK_HORDER_2               ; 4828 20 02  a difference, and the flags from it are the answer
-               DJNZ HK_HORDER_LOOP6            ; 482A 10 F8
+               JR NZ,HOOK_HORDER_2             ; 4828 20 02  a difference, and the flags from it are the answer
+               DJNZ HOOK_HORDER_LOOP6          ; 482A 10 F8
 
-; ---- HK_HORDER_2 ---- from &4828 when A <> (HL)
-HK_HORDER_2:
+; ---- HOOK_HORDER_2 ---- from &4828 when A <> (HL)
+HOOK_HORDER_2:
                POP DE                          ; 482C D1
                POP HL                          ; 482D E1
                LD B,&00                        ; 482E 06 00  BC back to the record length, which B had borrowed
-               JR C,HK_HORDER_LOOP3            ; 4830 38 E2  the best still wins
-               JR HK_HORDER_LOOP2              ; 4832 18 DE  otherwise this record is the new best
+               JR C,HOOK_HORDER_LOOP3          ; 4830 38 E2  the best still wins
+               JR HOOK_HORDER_LOOP2            ; 4832 18 DE  otherwise this record is the new best
 
-; ---- HK_HORDER_3 ---- from &4818 when C reaches 0
-HK_HORDER_3:
-               DJNZ HK_HORDER_LOOP5            ; 4834 10 E4  the high half of the count
+; ---- HOOK_HORDER_3 ---- from &4818 when C reaches 0
+HOOK_HORDER_3:
+               DJNZ HOOK_HORDER_LOOP5          ; 4834 10 E4  the high half of the count
                EXX                             ; 4836 D9
                POP HL                          ; 4837 E1  back to the record this pass started from
                LD B,C                          ; 4838 41  ten bytes to exchange
 
-; ---- HK_HORDER_LOOP7 ---- from &4841 when B is not 0 yet
-HK_HORDER_LOOP7:
+; ---- HOOK_HORDER_LOOP7 ---- from &4841 when B is not 0 yet
+HOOK_HORDER_LOOP7:
                LD A,(DE)                       ; 4839 1A
                EX AF,AF'                       ; 483A 08  one byte each way, with AF' holding the one in the air
                LD A,(HL)                       ; 483B 7E
@@ -3546,12 +3562,12 @@ HK_HORDER_LOOP7:
                LD (HL),A                       ; 483E 77
                INC HL                          ; 483F 23
                INC DE                          ; 4840 13
-               DJNZ HK_HORDER_LOOP7            ; 4841 10 F6
+               DJNZ HOOK_HORDER_LOOP7          ; 4841 10 F6
                POP DE                          ; 4843 D1  how many records were left
                DEC DE                          ; 4844 1B  one fewer now that the smallest is in place
                LD A,D                          ; 4845 7A
                OR E                            ; 4846 B3
-               JR NZ,HK_HORDER_LOOP            ; 4847 20 BE  and round again for the rest
+               JR NZ,HOOK_HORDER_LOOP          ; 4847 20 BE  and round again for the rest
                POP HL                          ; 4849 E1
                POP DE                          ; 484A D1
                RET                             ; 484B C9
@@ -5536,7 +5552,7 @@ FN_SHIFT_S_1:
 ;; The &1A is read off the two constants, not from the ROM.
 ;; --------------------------------------------------------------------
 
-HK_XVARNVAL:
+HOOK_XVARNVAL:
                CP F_NVAL - FN_TOKEN_BIAS        ; 4E37 FE 50
                JP Z,FN_NVAL                     ; 4E39 CA C5 41
                CALL CALL_GETINT                 ; 4E3C CD 76 44  the token is XVAR. Nothing here says so: the JP above
@@ -6174,7 +6190,7 @@ V505C:
 ;; to the DOS page through PARK_WORD.  The next character
 ;; the ROM prints therefore arrives at &5896, which is nine bytes of
 ;; installed code beginning RST &08 : DEFB &AA -- hook 170, which is
-;; HK_HPFF below.
+;; HOOK_HPFF below.
 ;; --------------------------------------------------------------------
 
 ; ---- HPRTOK_1 ---- from &5010 when A = &FF
@@ -6195,11 +6211,12 @@ HPRTOK_1:
                LD E,(HL)                       ; 507A 5E
                INC HL                          ; 507B 23
                LD D,(HL)                       ; 507C 56
-               LD (OPSTORE+IN_PAGE_C),DE       ; 507D ED 53 B5 9A  the real output routine, kept so HK_HPFF can put it
+               LD (OPSTORE+IN_PAGE_C),DE       ; 507D ED 53 B5 9A  the real output routine, kept so HOOK_HPFF can put it
                                                ; back
                LD DE,SYS_GAP_BLOCK             ; 5081 11 96 58  &5896 is the block installed in the gap between the DEF
                                                ; KEY buffer and the keyboard table. Its first two bytes are RST &08 and
-                                               ; hook code &AA, so the next character printed becomes a call to HK_HPFF
+                                               ; hook code &AA, so the next character printed becomes a call to
+                                               ; HOOK_HPFF
                LD (HL),D                       ; 5084 72
                DEC HL                          ; 5085 2B
                LD (HL),E                       ; 5086 73
@@ -6235,7 +6252,7 @@ HPRTOK_1:
 ;; the space, INARRAY( at word 19 does not.
 ;; --------------------------------------------------------------------
 
-HK_HPFF:
+HOOK_HPFF:
                PUSH AF                         ; 508A F5
                CALL CALLDOS                    ; 508B CD C1 42  the word HPRTOK_1 parked, fetched back and written to
                                                ; XPTR -- two hook invocations with nothing surviving in a register
@@ -6246,23 +6263,23 @@ HK_HPFF:
                POP AF                          ; 5095 F1
                CP &68                          ; 5096 FE 68  XVAR is FF 68, outside the run that ends at FF 38, so it is
                                                ; brought to &39 to continue it
-               JR NZ,HK_HPFF_1                 ; 5098 20 02
+               JR NZ,HOOK_HPFF_1               ; 5098 20 02
                SUB &2F                         ; 509A D6 2F
 
-; ---- HK_HPFF_1 ---- from &5098 when A <> &68
-HK_HPFF_1:
+; ---- HOOK_HPFF_1 ---- from &5098 when A <> &68
+HOOK_HPFF_1:
                CP &6A                          ; 509C FE 6A  and NVAL, FF 6A, to &3A
-               JR NZ,HK_HPFF_2                 ; 509E 20 02
+               JR NZ,HOOK_HPFF_2               ; 509E 20 02
                SUB &30                         ; 50A0 D6 30
 
-; ---- HK_HPFF_2 ---- from &509E when A <> &6A
-HK_HPFF_2:
+; ---- HOOK_HPFF_2 ---- from &509E when A <> &6A
+HOOK_HPFF_2:
                CP &26                          ; 50A2 FE 26  below FF 26 is not MasterBASIC's
-               JR C,HK_HPFF_DONE               ; 50A4 38 2E
+               JR C,HOOK_HPFF_DONE             ; 50A4 38 2E
                CP &3B                          ; 50A6 FE 3B  and &3B or above is not either. CP sets carry for "less
                                                ; than", so CCF turns the test into the one wanted
                CCF                             ; 50A8 3F
-               JR C,HK_HPFF_DONE               ; 50A9 38 29
+               JR C,HOOK_HPFF_DONE             ; 50A9 38 29
                SUB &25                         ; 50AB D6 25  &25 rather than &26, because the space at &50D7 makes the
                                                ; list one-based
                LD BC,&00FB                     ; 50AD 01 FB 00
@@ -6288,8 +6305,8 @@ HK_HPFF_2:
                CALL NC,PRINT_SPACE             ; 50D0 D4 2C 50
                AND A                           ; 50D3 A7  carry clear -- printed, so the ROM should not print it again
 
-; ---- HK_HPFF_DONE ---- from &50A4 when A < &26, &50A9
-HK_HPFF_DONE:
+; ---- HOOK_HPFF_DONE ---- from &50A4 when A < &26, &50A9
+HOOK_HPFF_DONE:
                PUSH AF                         ; 50D4 F5  F into C, which is how the verdict crosses the RST &08 return;
                                                ; &5896 unpacks it with PUSH BC : POP AF
                POP BC                          ; 50D5 C1
@@ -6561,17 +6578,17 @@ OPEN_GAP_AT_LINE:
                DEFW &0162                         ; 51DA 62 01
                RET                                ; 51DC C9
 
-HK_RCPTCH:
+HOOK_RCPTCH:
                PUSH AF                         ; 51DD F5
                CALL SKIP_THEN_TEST_RUNNING     ; 51DE CD DF 44
-               JR Z,HK_RCPTCH_1                ; 51E1 28 09
+               JR Z,HOOK_RCPTCH_1              ; 51E1 28 09
                XOR A                           ; 51E3 AF
                CALL MBNRWR                     ; 51E4 CD 82 45
                DEFW SYS_RECORD_STATE           ; 51E7 F4 4A
-               CALL HK_VARSPACE                ; 51E9 CD 93 52
+               CALL HOOK_VARSPACE              ; 51E9 CD 93 52
 
-; ---- HK_RCPTCH_1 ---- from &51E1
-HK_RCPTCH_1:
+; ---- HOOK_RCPTCH_1 ---- from &51E1
+HOOK_RCPTCH_1:
                CALL MBNRRDD                    ; 51EC CD 5F 45
                DEFW COMAD                      ; 51EF DA 5B
                LD HL,&0040                     ; 51F1 21 40 00
@@ -6595,7 +6612,7 @@ HK_RCPTCH_1:
                EX DE,HL                        ; 520C EB
                SBC HL,BC                       ; 520D ED 42
                ADD HL,BC                       ; 520F 09
-               JR C,HK_RCPTCH_2                ; 5210 38 0F
+               JR C,HOOK_RCPTCH_2              ; 5210 38 0F
                LD HL,GTDT                      ; 5212 21 00 50
                PUSH HL                         ; 5215 E5
                LD HL,GTDT_1                    ; 5216 21 05 50
@@ -6603,24 +6620,24 @@ HK_RCPTCH_1:
                LD H,B                          ; 521A 60
                LD L,C                          ; 521B 69
                LD BC,&0041                     ; 521C 01 41 00
-               JR HK_RCPTCH_3                  ; 521F 18 0A
+               JR HOOK_RCPTCH_3                ; 521F 18 0A
 
-; ---- HK_RCPTCH_2 ---- from &5210
-HK_RCPTCH_2:
+; ---- HOOK_RCPTCH_2 ---- from &5210
+HOOK_RCPTCH_2:
                LD BC,&500B                     ; 5221 01 0B 50
                PUSH BC                         ; 5224 C5
                LD C,&00                        ; 5225 0E 00
                PUSH BC                         ; 5227 C5
                LD BC,&003F                     ; 5228 01 3F 00
 
-; ---- HK_RCPTCH_3 ---- from &521F
-HK_RCPTCH_3:
+; ---- HOOK_RCPTCH_3 ---- from &521F
+HOOK_RCPTCH_3:
                LD DE,DOS_V5000                 ; 522B 11 00 90
                LDIR                            ; 522E ED B0
                LD C,&02                        ; 5230 0E 02
                LD A,(V4084)                    ; 5232 3A 84 40
                AND A                           ; 5235 A7
-               JR Z,HK_RCPTCH_4                ; 5236 28 07
+               JR Z,HOOK_RCPTCH_4              ; 5236 28 07
                LD A,(HL)                       ; 5238 7E
                INC HL                          ; 5239 23
                ADD A,&03                       ; 523A C6 03
@@ -6628,8 +6645,8 @@ HK_RCPTCH_3:
                INC DE                          ; 523D 13
                DEC C                           ; 523E 0D
 
-; ---- HK_RCPTCH_4 ---- from &5236 when A = 0
-HK_RCPTCH_4:
+; ---- HOOK_RCPTCH_4 ---- from &5236 when A = 0
+HOOK_RCPTCH_4:
                LDIR                            ; 523F ED B0
                PUSH HL                         ; 5241 E5
                LD HL,V5272                     ; 5242 21 72 52
@@ -6653,12 +6670,12 @@ HK_RCPTCH_4:
                POP BC                          ; 5264 C1
                POP AF                          ; 5265 F1
                CP &B3                          ; 5266 FE B3
-               JR Z,HK_RCPTCH_5                ; 5268 28 02
+               JR Z,HOOK_RCPTCH_5              ; 5268 28 02
                LD B,D                          ; 526A 42
                LD C,E                          ; 526B 4B
 
-; ---- HK_RCPTCH_5 ---- from &5268 when A = &B3, &531B
-HK_RCPTCH_5:
+; ---- HOOK_RCPTCH_5 ---- from &5268 when A = &B3, &531B
+HOOK_RCPTCH_5:
                LD HL,(V4076)                   ; 526C 2A 76 40
                JP MBWRTBC                      ; 526F C3 B3 45
 
@@ -6712,13 +6729,13 @@ START_PROGRAM_WALK_LOOP:
 ;; is inference, not something the routine states.
 ;; --------------------------------------------------------------------
 
-; ---- HK_VARSPACE ---- from &51E9
-HK_VARSPACE:
+; ---- HOOK_VARSPACE ---- from &51E9
+HOOK_VARSPACE:
                CALL MBNRRDD                    ; 5293 CD 5F 45
                DEFW NVARS                      ; 5296 88 5A
                LD A,B                          ; 5298 78
                CP &BB                          ; 5299 FE BB
-               JR C,HK_VARSPACE_3              ; 529B 38 38
+               JR C,HOOK_VARSPACE_3            ; 529B 38 38
                PUSH BC                         ; 529D C5
                CALL MBNRRD                     ; 529E CD 6A 45
                DEFW NVARSP                     ; 52A1 87 5A
@@ -6732,20 +6749,20 @@ HK_VARSPACE:
                POP BC                          ; 52B0 C1
                POP DE                          ; 52B1 D1
                SUB B                           ; 52B2 90
-               JR Z,HK_VARSPACE_1              ; 52B3 28 05
+               JR Z,HOOK_VARSPACE_1            ; 52B3 28 05
                DEC A                           ; 52B5 3D
-               JR NZ,HK_VARSPACE_2             ; 52B6 20 08
+               JR NZ,HOOK_VARSPACE_2           ; 52B6 20 08
                SET 6,H                         ; 52B8 CB F4
 
-; ---- HK_VARSPACE_1 ---- from &52B3 when A = B
-HK_VARSPACE_1:
+; ---- HOOK_VARSPACE_1 ---- from &52B3 when A = B
+HOOK_VARSPACE_1:
                SBC HL,DE                       ; 52BA ED 52
                LD A,H                          ; 52BC 7C
                CP &07                          ; 52BD FE 07
                RET C                           ; 52BF D8
 
-; ---- HK_VARSPACE_2 ---- from &52B6 when A is not 0 yet
-HK_VARSPACE_2:
+; ---- HOOK_VARSPACE_2 ---- from &52B6 when A is not 0 yet
+HOOK_VARSPACE_2:
                CALL START_PROGRAM_WALK         ; 52C0 CD 76 52
                LD BC,&0500                     ; 52C3 01 00 05
                CALL OPEN_ROOM_AT_HL            ; 52C6 CD F2 58
@@ -6758,8 +6775,8 @@ HK_VARSPACE_2:
                LDIR                            ; 52D2 ED B0
                RET                             ; 52D4 C9
 
-; ---- HK_VARSPACE_3 ---- from &529B when A < &BB
-HK_VARSPACE_3:
+; ---- HOOK_VARSPACE_3 ---- from &529B when A < &BB
+HOOK_VARSPACE_3:
                PUSH BC                         ; 52D5 C5
                CALL START_PROGRAM_WALK         ; 52D6 CD 76 52
                EX DE,HL                        ; 52D9 EB
@@ -6773,11 +6790,11 @@ HK_VARSPACE_3:
                IN A,(HMPR)                     ; 52E5 DB FB
                XOR C                           ; 52E7 A9
                AND PAGEMASK                    ; 52E8 E6 1F
-               JR Z,HK_VARSPACE_4              ; 52EA 28 02
+               JR Z,HOOK_VARSPACE_4            ; 52EA 28 02
                SET 6,H                         ; 52EC CB F4
 
-; ---- HK_VARSPACE_4 ---- from &52EA when no bit of PAGEMASK is set
-HK_VARSPACE_4:
+; ---- HOOK_VARSPACE_4 ---- from &52EA when no bit of PAGEMASK is set
+HOOK_VARSPACE_4:
                SCF                             ; 52EE 37
                SBC HL,DE                       ; 52EF ED 52
                RET Z                           ; 52F1 C8
@@ -6799,63 +6816,63 @@ HK_VARSPACE_4:
 ;; reports "Not understood".
 ;; --------------------------------------------------------------------
 
-HK_TOKENARG:
+HOOK_TOKENARG:
                CALL CALL_NEXTCHAR              ; 52FD CD 61 44
                SUB &26                         ; 5300 D6 26
-               JR Z,HK_TOKENARG_3              ; 5302 28 22
+               JR Z,HOOK_TOKENARG_3            ; 5302 28 22
                DEC A                           ; 5304 3D
-               JR Z,HK_TOKENARG_2              ; 5305 28 17
+               JR Z,HOOK_TOKENARG_2            ; 5305 28 17
                DEC A                           ; 5307 3D
-               JR Z,HK_TOKENARG_1              ; 5308 28 0B
+               JR Z,HOOK_TOKENARG_1            ; 5308 28 0B
                CP &15                          ; 530A FE 15
                JP NZ,REP_NOT_UNDERSTOOD        ; 530C C2 B0 43
                CALL CALLDOS                    ; 530F CD C1 42
                DEFW DOS_POINTC-&4000           ; 5312 76 70
                RET                             ; 5314 C9
 
-; ---- HK_TOKENARG_1 ---- from &5308 when A reaches 0
-HK_TOKENARG_1:
+; ---- HOOK_TOKENARG_1 ---- from &5308 when A reaches 0
+HOOK_TOKENARG_1:
                CALL SKIP_THEN_END              ; 5315 CD CD 44
                LD BC,&4A6B                     ; 5318 01 6B 4A  a value, not a call -- and &4A6B is inside
                                                ; TWO_DIGITS_FROM_DE, which nothing enters mid-way
 
-; ---- HK_TOKENARG_LOOP ---- from &5324, &5350
-HK_TOKENARG_LOOP:
-               JP HK_RCPTCH_5                  ; 531B C3 6C 52
+; ---- HOOK_TOKENARG_LOOP ---- from &5324, &5350
+HOOK_TOKENARG_LOOP:
+               JP HOOK_RCPTCH_5                ; 531B C3 6C 52
 
-; ---- HK_TOKENARG_2 ---- from &5305 when A reaches 0
-HK_TOKENARG_2:
+; ---- HOOK_TOKENARG_2 ---- from &5305 when A reaches 0
+HOOK_TOKENARG_2:
                CALL SKIP_THEN_END              ; 531E CD CD 44
 
 L5321:
                LD BC,&0000                     ; 5321 01 00 00  the operand is written here at run time, from &7A5D
-               JR HK_TOKENARG_LOOP             ; 5324 18 F5
+               JR HOOK_TOKENARG_LOOP           ; 5324 18 F5
 
-; ---- HK_TOKENARG_3 ---- from &5302 when A = &26
-HK_TOKENARG_3:
+; ---- HOOK_TOKENARG_3 ---- from &5302 when A = &26
+HOOK_TOKENARG_3:
                CALL SKIP_THEN_END              ; 5326 CD CD 44
                CALL MBNRRDD                    ; 5329 CD 5F 45
                DEFW BSTKEND                    ; 532C C4 5B
                LD H,B                          ; 532E 60
                LD L,C                          ; 532F 69
 
-; ---- HK_TOKENARG_LOOP2 ---- from &5342
-HK_TOKENARG_LOOP2:
+; ---- HOOK_TOKENARG_LOOP2 ---- from &5342
+HOOK_TOKENARG_LOOP2:
                CALL MBRDA                      ; 5330 CD D1 45
                INC A                           ; 5333 3C
                JP Z,REP_MISSING_DEF_PROC       ; 5334 CA AA 43
                DEC A                           ; 5337 3D
                AND &E0                         ; 5338 E6 E0
                CP &40                          ; 533A FE 40
-               JR Z,HK_TOKENARG_4              ; 533C 28 06
+               JR Z,HOOK_TOKENARG_4            ; 533C 28 06
                INC HL                          ; 533E 23
                INC HL                          ; 533F 23
                INC HL                          ; 5340 23
                INC HL                          ; 5341 23
-               JR HK_TOKENARG_LOOP2            ; 5342 18 EC
+               JR HOOK_TOKENARG_LOOP2          ; 5342 18 EC
 
-; ---- HK_TOKENARG_4 ---- from &533C when A = &40
-HK_TOKENARG_4:
+; ---- HOOK_TOKENARG_4 ---- from &533C when A = &40
+HOOK_TOKENARG_4:
                RES 7,H                         ; 5344 CB BC
                SET 6,H                         ; 5346 CB F4
                CALL MBNRWRHL                   ; 5348 CD 75 45
@@ -6863,7 +6880,7 @@ HK_TOKENARG_4:
 
 L534D:
                LD BC,&0000                     ; 534D 01 00 00  the operand is written here at run time, from &7A51
-               JR HK_TOKENARG_LOOP             ; 5350 18 C9
+               JR HOOK_TOKENARG_LOOP           ; 5350 18 C9
 
 ;; --------------------------------------------------------------------
 ;; Lay out one whole track as the controller's write-track command wants
@@ -7090,7 +7107,7 @@ READ_KEY_LINE_LOOP:
 ;; replacement test is at &7C1C, also in the system page: if DCT is
 ;; non-zero it looks at bit 1 for line tracing and at bits 0 and 2
 ;; (AND &05) for "the program has changed", and the second of those
-;; goes to hook &9D, HK_PROGPREP.  That is the manual's speed claim
+;; goes to hook &9D, HOOK_PROGPREP.  That is the manual's speed claim
 ;; made concrete -- "This has to be updated after the program is
 ;; edited, before it can be executed... MasterBASIC does this updating
 ;; rather faster, especially with long programs."  SET_DCT_COMPILE_
@@ -7109,7 +7126,7 @@ READ_KEY_LINE_LOOP:
 ;; the second-to-last line to the last line."
 ;; --------------------------------------------------------------------
 
-HK_MERGECOMPFLG:
+HOOK_MERGECOMPFLG:
                CALL MBNRRD                     ; 53C3 CD 6A 45
                DEFW COMPFLG                    ; 53C6 40 5B
                AND &01                         ; 53C8 E6 01  bit 0 alone -- the ROM's "the compiler must run" flag
@@ -7126,7 +7143,7 @@ HK_MERGECOMPFLG:
                CALL MBNRWR                     ; 53D9 CD 82 45
                DEFW COMPFLG                    ; 53DC 40 5B
                CALL READ_KEY_LINE              ; 53DE CD B5 53
-               JP C,HK_MERGECOMPFLG_6          ; 53E1 DA 7B 54  CNTRL is not down, so this was an ordinary RETURN -- go
+               JP C,HOOK_MERGECOMPFLG_6        ; 53E1 DA 7B 54  CNTRL is not down, so this was an ordinary RETURN -- go
                                                ; and file the finished line
                PUSH AF                         ; 53E4 F5  the cursor-key bits are wanted after the flush, and RDKEY
                                                ; overwrites A
@@ -7138,18 +7155,18 @@ HK_MERGECOMPFLG:
                AND &0F                         ; 53EB E6 0F  bits 1-4 of the row, already shifted down by the RRA at the
                                                ; end of READ_KEY_LINE
                CP &0E                          ; 53ED FE 0E  1110 -- up down, the other three arrows up: CNTRL/up-arrow
-               JR Z,HK_MERGECOMPFLG_1          ; 53EF 28 05
+               JR Z,HOOK_MERGECOMPFLG_1        ; 53EF 28 05
                SUB &0D                         ; 53F1 D6 0D  1101 -- CNTRL/down-arrow. Any other combination is somebody
                                                ; else's key, so leave the line alone
-               JP NZ,HK_MERGECOMPFLG_5         ; 53F3 C2 75 54
+               JP NZ,HOOK_MERGECOMPFLG_5       ; 53F3 C2 75 54
 
-; ---- HK_MERGECOMPFLG_1 ---- from &53EF when A = &0E
-HK_MERGECOMPFLG_1:
+; ---- HOOK_MERGECOMPFLG_1 ---- from &53EF when A = &0E
+HOOK_MERGECOMPFLG_1:
                LD (V409E),A                    ; 53F6 32 9E 40  &0E for up and, because the SUB left it zero, 0 for
                                                ; down. Only "is it zero" is ever asked, at &542E
 
-; ---- HK_MERGECOMPFLG_LOOP ---- from &53FE when A is not 0
-HK_MERGECOMPFLG_LOOP:
+; ---- HOOK_MERGECOMPFLG_LOOP ---- from &53FE when A is not 0
+HOOK_MERGECOMPFLG_LOOP:
                IN A,(C)                        ; 53F9 ED 78  wait for both arrow keys to come back up before doing
                                                ; anything. Without it the ROM's auto-repeat would recall a fresh line
                                                ; every few frames. BC is still the &FFFE that READ_KEY_LINE loaded --
@@ -7158,7 +7175,7 @@ HK_MERGECOMPFLG_LOOP:
                OR &F9                          ; 53FB F6 F9  bits 1 and 2 -- up and down -- are the only ones left to
                                                ; test, and INC A gives zero only when both are set
                INC A                           ; 53FD 3C
-               JR NZ,HK_MERGECOMPFLG_LOOP      ; 53FE 20 F9
+               JR NZ,HOOK_MERGECOMPFLG_LOOP    ; 53FE 20 F9
                LD B,&C8                        ; 5400 06 C8  B = &C8 over the &FE the port left in C, so &C8FE
                                                ; iterations, about a fifth of a second at 6MHz. The count costs one byte
                                                ; because C is already what it needs to be
@@ -7178,13 +7195,13 @@ HK_MERGECOMPFLG_LOOP:
                                                ; CR brings the count to exactly zero for an empty line -- and the CALL
                                                ; NZ below then reclaims nothing
 
-; ---- HK_MERGECOMPFLG_LOOP2 ---- from &541F when A <> CH_CR
-HK_MERGECOMPFLG_LOOP2:
+; ---- HOOK_MERGECOMPFLG_LOOP2 ---- from &541F when A <> CH_CR
+HOOK_MERGECOMPFLG_LOOP2:
                LD A,(HL)                       ; 541A 7E
                INC HL                          ; 541B 23
                INC BC                          ; 541C 03
                CP CH_CR                        ; 541D FE 0D
-               JR NZ,HK_MERGECOMPFLG_LOOP2     ; 541F 20 F9
+               JR NZ,HOOK_MERGECOMPFLG_LOOP2   ; 541F 20 F9
                POP HL                          ; 5421 E1
                PUSH HL                         ; 5422 E5
                LD A,B                          ; 5423 78
@@ -7198,46 +7215,46 @@ HK_MERGECOMPFLG_LOOP2:
                LD A,(V409E)                    ; 542E 3A 9E 40  &0E was CNTRL/up, so walk the buffer backwards; zero was
                                                ; CNTRL/down, so walk forwards
                AND A                           ; 5431 A7
-               JR NZ,HK_MERGECOMPFLG_LOOP5     ; 5432 20 1A
+               JR NZ,HOOK_MERGECOMPFLG_LOOP5   ; 5432 20 1A
 
-; ---- HK_MERGECOMPFLG_LOOP3 ---- from &5438 when A <> CH_CR
-HK_MERGECOMPFLG_LOOP3:
+; ---- HOOK_MERGECOMPFLG_LOOP3 ---- from &5438 when A <> CH_CR
+HOOK_MERGECOMPFLG_LOOP3:
                INC L                           ; 5434 2C  forwards first over the rest of the entry showing now, to the
                                                ; CR that ends it
                LD A,(HL)                       ; 5435 7E
                CP CH_CR                        ; 5436 FE 0D
-               JR NZ,HK_MERGECOMPFLG_LOOP3     ; 5438 20 FA
+               JR NZ,HOOK_MERGECOMPFLG_LOOP3   ; 5438 20 FA
                PUSH HL                         ; 543A E5
                INC L                           ; 543B 2C  a zero byte after that CR is the end-of-history marker written
                                                ; at &5490. Reaching it means there is nothing newer
                LD A,(HL)                       ; 543C 7E
                AND A                           ; 543D A7
-               JR NZ,HK_MERGECOMPFLG_2         ; 543E 20 06
+               JR NZ,HOOK_MERGECOMPFLG_2       ; 543E 20 06
                POP HL                          ; 5440 E1
                POP DE                          ; 5441 D1  so DE is left as the start of the (now emptied) edit line and
                                                ; the recall simply produces a blank line -- the manual's "come back to
                                                ; where you were when you came in"
-               JR HK_MERGECOMPFLG_4            ; 5442 18 2A
+               JR HOOK_MERGECOMPFLG_4          ; 5442 18 2A
 
-; ---- HK_MERGECOMPFLG_LOOP4 ---- from &5449 when A <> CH_CR
-HK_MERGECOMPFLG_LOOP4:
+; ---- HOOK_MERGECOMPFLG_LOOP4 ---- from &5449 when A <> CH_CR
+HOOK_MERGECOMPFLG_LOOP4:
                INC L                           ; 5444 2C
                LD A,(HL)                       ; 5445 7E
 
-; ---- HK_MERGECOMPFLG_2 ---- from &543E when A <> 0
-HK_MERGECOMPFLG_2:
+; ---- HOOK_MERGECOMPFLG_2 ---- from &543E when A <> 0
+HOOK_MERGECOMPFLG_2:
                INC BC                          ; 5446 03  two entry points into one counting loop: the first character
                                                ; has already been fetched by the end-of-history test above, the rest
                                                ; come from &5444
                CP CH_CR                        ; 5447 FE 0D
-               JR NZ,HK_MERGECOMPFLG_LOOP4     ; 5449 20 F9
+               JR NZ,HOOK_MERGECOMPFLG_LOOP4   ; 5449 20 F9
                POP HL                          ; 544B E1  the pointer that gets kept is the CR *before* the entry, not
                                                ; the one after it, because the copy at &5464 does INC L before its first
                                                ; read
-               JR HK_MERGECOMPFLG_3            ; 544C 18 07
+               JR HOOK_MERGECOMPFLG_3          ; 544C 18 07
 
-; ---- HK_MERGECOMPFLG_LOOP5 ---- from &5432 when A <> 0, &5453 when A <> CH_CR
-HK_MERGECOMPFLG_LOOP5:
+; ---- HOOK_MERGECOMPFLG_LOOP5 ---- from &5432 when A <> 0, &5453 when A <> CH_CR
+HOOK_MERGECOMPFLG_LOOP5:
                DEC L                           ; 544E 2D  backwards, with no bounds check of any kind. There is nothing
                                                ; to run off: INC L and DEC L cannot leave the 256 bytes at &7C00, and
                                                ; the installer filled every one of them with &0D at &765B, so the walk
@@ -7245,44 +7262,44 @@ HK_MERGECOMPFLG_LOOP5:
                INC BC                          ; 544F 03
                LD A,(HL)                       ; 5450 7E
                CP CH_CR                        ; 5451 FE 0D
-               JR NZ,HK_MERGECOMPFLG_LOOP5     ; 5453 20 F9
+               JR NZ,HOOK_MERGECOMPFLG_LOOP5   ; 5453 20 F9
 
-; ---- HK_MERGECOMPFLG_3 ---- from &544C
-HK_MERGECOMPFLG_3:
+; ---- HOOK_MERGECOMPFLG_3 ---- from &544C
+HOOK_MERGECOMPFLG_3:
                LD (LINE_RECALL_PTR),HL         ; 5455 22 62 40  LINE_RECALL_PTR always points at the CR immediately
                                                ; before the entry now showing, which is what makes forwards and
                                                ; backwards symmetrical
                POP DE                          ; 5458 D1
                LD A,B                          ; 5459 78
                OR C                            ; 545A B1
-               JR Z,HK_MERGECOMPFLG_4          ; 545B 28 11
+               JR Z,HOOK_MERGECOMPFLG_4        ; 545B 28 11
                CALL OPEN_ROOM_AT_DE            ; 545D CD F1 58  open room for the recalled text at the front of the edit
                                                ; line, through the ROM's MKRBIG, which returns the address of the hole
                                                ; in HL
                EX DE,HL                        ; 5460 EB
                LD HL,(LINE_RECALL_PTR)         ; 5461 2A 62 40
 
-; ---- HK_MERGECOMPFLG_LOOP6 ---- from &546C
-HK_MERGECOMPFLG_LOOP6:
+; ---- HOOK_MERGECOMPFLG_LOOP6 ---- from &546C
+HOOK_MERGECOMPFLG_LOOP6:
                INC L                           ; 5464 2C  copy the entry out, one byte at a time because BC is not a
                                                ; count any more and the source may wrap
                LD A,(HL)                       ; 5465 7E
                CP CH_CR                        ; 5466 FE 0D
-               JR Z,HK_MERGECOMPFLG_4          ; 5468 28 04
+               JR Z,HOOK_MERGECOMPFLG_4        ; 5468 28 04
                LD (DE),A                       ; 546A 12
                INC DE                          ; 546B 13
-               JR HK_MERGECOMPFLG_LOOP6        ; 546C 18 F6
+               JR HOOK_MERGECOMPFLG_LOOP6      ; 546C 18 F6
 
-; ---- HK_MERGECOMPFLG_4 ---- from &5442, &545B, &5468 when A = CH_CR
-HK_MERGECOMPFLG_4:
+; ---- HOOK_MERGECOMPFLG_4 ---- from &5442, &545B, &5468 when A = CH_CR
+HOOK_MERGECOMPFLG_4:
                LD B,D                          ; 546E 42  KCUR is where the ROM will put the cursor, so it lands at the
                                                ; end of the recalled line, ready to edit or to RETURN
                LD C,E                          ; 546F 4B
                CALL MBNRWRD                    ; 5470 CD 77 45
                DEFW KCUR                       ; 5473 9A 5A
 
-; ---- HK_MERGECOMPFLG_5 ---- from &53F3 when A <> &0D
-HK_MERGECOMPFLG_5:
+; ---- HOOK_MERGECOMPFLG_5 ---- from &53F3 when A <> &0D
+HOOK_MERGECOMPFLG_5:
                LD BC,&4871                     ; 5475 01 71 48  &4871 is NOT this page -- that address here is inside
                                                ; the CALL at &4870. It is &7BC8 seen at its installed address, three
                                                ; instructions into the EDITV wrapper, just past where it saved the ROM's
@@ -7312,22 +7329,22 @@ HK_MERGECOMPFLG_5:
 ;; I have not worked it out.
 ;; --------------------------------------------------------------------
 
-; ---- HK_MERGECOMPFLG_6 ---- from &53E1
-HK_MERGECOMPFLG_6:
+; ---- HOOK_MERGECOMPFLG_6 ---- from &53E1
+HOOK_MERGECOMPFLG_6:
                CALL MBNRRDD                    ; 547B CD 5F 45  ELINE again -- the finished line, at its start
                DEFW ELINE                      ; 547E 94 5A
                PUSH BC                         ; 5480 C5  kept, because the loop below walks BC to the CR and the tail
                                                ; at &5493 wants the start again
                LD HL,(LINE_RECALL_PTR)         ; 5481 2A 62 40
 
-; ---- HK_MERGECOMPFLG_LOOP7 ---- from &548A when A <> CH_CR
-HK_MERGECOMPFLG_LOOP7:
+; ---- HOOK_MERGECOMPFLG_LOOP7 ---- from &548A when A <> CH_CR
+HOOK_MERGECOMPFLG_LOOP7:
                INC L                           ; 5484 2C
                LD A,(BC)                       ; 5485 0A
                INC BC                          ; 5486 03
                LD (HL),A                       ; 5487 77
                CP CH_CR                        ; 5488 FE 0D
-               JR NZ,HK_MERGECOMPFLG_LOOP7     ; 548A 20 F8
+               JR NZ,HOOK_MERGECOMPFLG_LOOP7   ; 548A 20 F8
                LD (LINE_RECALL_PTR),HL         ; 548C 22 62 40
                INC L                           ; 548F 2C
                LD (HL),&00                     ; 5490 36 00
@@ -9259,7 +9276,7 @@ CMD_BLITZ:
 ;; from context rather than from anything in the routine itself.
 ;; --------------------------------------------------------------------
 
-HK_FARSCAN:
+HOOK_FARSCAN:
                EXX                             ; 5AE3 D9
                EX DE,HL                        ; 5AE4 EB
                AND PAGEMASK                    ; 5AE5 E6 1F
@@ -9267,10 +9284,10 @@ HK_FARSCAN:
                IN A,(HMPR)                     ; 5AE8 DB FB
                PUSH AF                         ; 5AEA F5
                RES 0,C                         ; 5AEB CB 81
-               JR HK_FARSCAN_1                 ; 5AED 18 1B
+               JR HOOK_FARSCAN_1               ; 5AED 18 1B
 
-; ---- HK_FARSCAN_LOOP ---- from &5B17
-HK_FARSCAN_LOOP:
+; ---- HOOK_FARSCAN_LOOP ---- from &5B17
+HOOK_FARSCAN_LOOP:
                PUSH BC                         ; 5AEF C5
                LD A,(HL)                       ; 5AF0 7E
                CP &21                          ; 5AF1 FE 21
@@ -9282,7 +9299,7 @@ HK_FARSCAN_LOOP:
                PUSH HL                         ; 5AFA E5
                LD A,(V4081)                    ; 5AFB 3A 81 40
                AND A                           ; 5AFE A7
-               JR Z,HK_FARSCAN_3               ; 5AFF 28 1C
+               JR Z,HOOK_FARSCAN_3             ; 5AFF 28 1C
                OUT (HMPR),A                    ; 5B01 D3 FB
                CALL WINDOW_SOUND_POINTER       ; 5B03 CD 22 5B
                POP HL                          ; 5B06 E1
@@ -9290,27 +9307,27 @@ HK_FARSCAN_LOOP:
                DEC BC                          ; 5B08 0B
                DEC BC                          ; 5B09 0B
 
-; ---- HK_FARSCAN_1 ---- from &5AED
-HK_FARSCAN_1:
+; ---- HOOK_FARSCAN_1 ---- from &5AED
+HOOK_FARSCAN_1:
                EX AF,AF'                       ; 5B0A 08
                BIT 6,H                         ; 5B0B CB 74
-               JR Z,HK_FARSCAN_2               ; 5B0D 28 03
+               JR Z,HOOK_FARSCAN_2             ; 5B0D 28 03
                RES 6,H                         ; 5B0F CB B4
                INC A                           ; 5B11 3C
 
-; ---- HK_FARSCAN_2 ---- from &5B0D when bit 6 of H clear
-HK_FARSCAN_2:
+; ---- HOOK_FARSCAN_2 ---- from &5B0D when bit 6 of H clear
+HOOK_FARSCAN_2:
                OUT (HMPR),A                    ; 5B12 D3 FB
                EX AF,AF'                       ; 5B14 08
                LD A,B                          ; 5B15 78
                OR C                            ; 5B16 B1
-               JR NZ,HK_FARSCAN_LOOP           ; 5B17 20 D6
+               JR NZ,HOOK_FARSCAN_LOOP         ; 5B17 20 D6
                POP AF                          ; 5B19 F1
                OUT (HMPR),A                    ; 5B1A D3 FB
                RET                             ; 5B1C C9
 
-; ---- HK_FARSCAN_3 ---- from &5AFF when A = 0
-HK_FARSCAN_3:
+; ---- HOOK_FARSCAN_3 ---- from &5AFF when A = 0
+HOOK_FARSCAN_3:
                LD A,&75                        ; 5B1D 3E 75  error 117, "No Buffer"
                JP REPORT                       ; 5B1F C3 BE 43
 
@@ -9831,7 +9848,7 @@ CMD_SOUND:
 ;; the empty condition.  A size of zero comes back with A = 0 and
 ;; leaves both at page 0 -- the manual's "SOUND CLEAR 0 will delete
 ;; the buffer and free the memory for other uses", and what
-;; HK_FARSCAN reports as "No Buffer"
+;; HOOK_FARSCAN reports as "No Buffer"
 ;; --------------------------------------------------------------------
 
                LD (V407E),A                    ; 5C90 32 7E 40  read pointer and write pointer both set to the new
@@ -11043,7 +11060,7 @@ SHOW_LINE_AND_STATEMENT:
                                                 ; a direct command with no line number to show
                RET Z                            ; 5FBE C8
                LD (TRACE_SAVED_SP+IN_PAGE_C),SP ; 5FBF ED 73 71 80
-               LD SP,HK_SERSEND+IN_PAGE_C       ; 5FC3 31 00 83  &4300 in this page seen through the window; the stack
+               LD SP,HOOK_SERSEND+IN_PAGE_C     ; 5FC3 31 00 83  &4300 in this page seen through the window; the stack
                                                 ; grows down into the spare bytes from &42E2. TRACE_FONT_BYTES takes the
                                                 ; first eight of those and the stack the last twenty-two, so the two
                                                 ; uses of the gap do not meet
@@ -11480,7 +11497,7 @@ CMD_LINE_4:
 
 ;; --------------------------------------------------------------------
 ;; Compress a SCREEN$ file on its way to disk, called from the DOS's
-;; HK_HSAVE through CALLMB.  PICK_COMPRESSION_CONSTANTS sets up, the encoder fills &E500, the
+;; HOOK_HSAVE through CALLMB.  PICK_COMPRESSION_CONSTANTS sets up, the encoder fills &E500, the
 ;; length is worked out by taking &E500 off the end pointer, and
 ;; WRITE_THREE_FF closes the stream.
 ;; --------------------------------------------------------------------
@@ -11515,7 +11532,7 @@ COMPRESS_SCREEN_FILE:
 ; ---- SEND_COMPRESSED_BLOCK ---- from &6161, &6221
 SEND_COMPRESSED_BLOCK:
                EXX                             ; 6172 D9
-               LD HL,DOS_HK_HSAVE_1            ; 6173 21 00 A5
+               LD HL,DOS_HOOK_HSAVE_1          ; 6173 21 00 A5
                EXX                             ; 6176 D9
                PUSH HL                         ; 6177 E5
                PUSH DE                         ; 6178 D5
@@ -11552,7 +11569,7 @@ WRITE_THREE_FF:
 WRITE_THREE_FF_LOOP:
                LD A,&FF                        ; 6196 3E FF
                CALL CALLDOS                    ; 6198 CD C1 42
-               DEFW DOS_HK_SBYT-&4000          ; 619B 75 6F
+               DEFW DOS_HOOK_SBYT-&4000        ; 619B 75 6F
                DJNZ WRITE_THREE_FF_LOOP        ; 619D 10 F7
                RET                             ; 619F C9
 
@@ -12256,7 +12273,7 @@ CHECK_ROOM_FOR_OUTPUT:
 CHECK_ROOM_FOR_OUTPUT_1:
                POP IY                          ; 63A6 FD E1
                EXX                             ; 63A8 D9
-               LD HL,DOS_HK_HSAVE_1            ; 63A9 21 00 A5
+               LD HL,DOS_HOOK_HSAVE_1          ; 63A9 21 00 A5
                PUSH DE                         ; 63AC D5
                PUSH IY                         ; 63AD FD E5
                POP DE                          ; 63AF D1
@@ -12447,7 +12464,7 @@ WRITE_DOS_BYTE:
 ;; "SAVEs MasterDOS with the new character set included within it".
 ;; XVAR 87 ALTUDG is documented as the displacement of that set from
 ;; XVAR 0, it reads &3E64 in the shipped image and in MBPOST, and
-;; HK_SWAPCHARS exchanges 328 bytes -- 41 characters, CHR$ 128-168,
+;; HOOK_SWAPCHARS exchanges 328 bytes -- 41 characters, CHR$ 128-168,
 ;; exactly the range the manual gives -- between the ROM's UDG area at
 ;; the system page's &5490 and &7E64 in this half.  So the set lives at
 ;; MB &7E64-&7FAB.
@@ -12793,7 +12810,7 @@ PRINT_MAGNIFIED_CHAR_1:
 ;; MasterBASIC put in it.
 ;; --------------------------------------------------------------------
 
-HK_CSIZE:
+HOOK_CSIZE:
                CALL SKIP_THEN_NUMBER           ; 6534 CD 82 44
                CALL EXPECT_COMMA               ; 6537 CD 50 44
                CALL INT_ARG_THEN_END           ; 653A CD 73 44
@@ -12803,67 +12820,67 @@ HK_CSIZE:
                LD D,A                          ; 6542 57
                LD A,E                          ; 6543 7B
                CP &06                          ; 6544 FE 06
-               JR C,HK_CSIZE_5                 ; 6546 38 31
+               JR C,HOOK_CSIZE_5               ; 6546 38 31
                CP &B1                          ; 6548 FE B1
-               JR NC,HK_CSIZE_5                ; 654A 30 2D
+               JR NC,HOOK_CSIZE_5              ; 654A 30 2D
                LD B,A                          ; 654C 47
                RRCA                            ; 654D 0F
                RRCA                            ; 654E 0F
                RRCA                            ; 654F 0F
                AND &1F                         ; 6550 E6 1F
                CP &03                          ; 6552 FE 03
-               JR NC,HK_CSIZE_1                ; 6554 30 01
+               JR NC,HOOK_CSIZE_1              ; 6554 30 01
                XOR A                           ; 6556 AF
 
-; ---- HK_CSIZE_1 ---- from &6554 when A >= &03
-HK_CSIZE_1:
+; ---- HOOK_CSIZE_1 ---- from &6554 when A >= &03
+HOOK_CSIZE_1:
                PUSH AF                         ; 6557 F5
                EX DE,HL                        ; 6558 EB
                LD A,H                          ; 6559 7C
                AND &07                         ; 655A E6 07
                LD A,H                          ; 655C 7C
                PUSH AF                         ; 655D F5
-               JR NZ,HK_CSIZE_2                ; 655E 20 07
+               JR NZ,HOOK_CSIZE_2              ; 655E 20 07
                RRCA                            ; 6560 0F
                RRCA                            ; 6561 0F
                RRCA                            ; 6562 0F
                AND &1F                         ; 6563 E6 1F
-               JR HK_CSIZE_4                   ; 6565 18 0B
+               JR HOOK_CSIZE_4                 ; 6565 18 0B
 
-; ---- HK_CSIZE_2 ---- from &655E when a bit of &07 is set
-HK_CSIZE_2:
+; ---- HOOK_CSIZE_2 ---- from &655E when a bit of &07 is set
+HOOK_CSIZE_2:
                LD C,&00                        ; 6567 0E 00
                LD B,C                          ; 6569 41
 
-; ---- HK_CSIZE_LOOP ---- from &656F
-HK_CSIZE_LOOP:
+; ---- HOOK_CSIZE_LOOP ---- from &656F
+HOOK_CSIZE_LOOP:
                INC C                           ; 656A 0C
                SUB &06                         ; 656B D6 06
-               JR Z,HK_CSIZE_3                 ; 656D 28 02
-               JR NC,HK_CSIZE_LOOP             ; 656F 30 F9
+               JR Z,HOOK_CSIZE_3               ; 656D 28 02
+               JR NC,HOOK_CSIZE_LOOP           ; 656F 30 F9
 
-; ---- HK_CSIZE_3 ---- from &656D when A = &06
-HK_CSIZE_3:
+; ---- HOOK_CSIZE_3 ---- from &656D when A = &06
+HOOK_CSIZE_3:
                LD A,C                          ; 6571 79
 
-; ---- HK_CSIZE_4 ---- from &6565
-HK_CSIZE_4:
+; ---- HOOK_CSIZE_4 ---- from &6565
+HOOK_CSIZE_4:
                DEC A                           ; 6572 3D
-               JR Z,HK_CSIZE_7                 ; 6573 28 0A
+               JR Z,HOOK_CSIZE_7               ; 6573 28 0A
                CP &1F                          ; 6575 FE 1F
-               JR C,HK_CSIZE_6                 ; 6577 38 05
+               JR C,HOOK_CSIZE_6               ; 6577 38 05
 
-; ---- HK_CSIZE_5 ---- from &6546 when A < &06, &654A when A >= &B1
-HK_CSIZE_5:
+; ---- HOOK_CSIZE_5 ---- from &6546 when A < &06, &654A when A >= &B1
+HOOK_CSIZE_5:
                LD A,&1E                        ; 6579 3E 1E  error 30, "Integer out of range"
                JP REPORT                       ; 657B C3 BE 43
 
-; ---- HK_CSIZE_6 ---- from &6577 when A < &1F
-HK_CSIZE_6:
+; ---- HOOK_CSIZE_6 ---- from &6577 when A < &1F
+HOOK_CSIZE_6:
                INC A                           ; 657E 3C
 
-; ---- HK_CSIZE_7 ---- from &6573 when A reaches 0
-HK_CSIZE_7:
+; ---- HOOK_CSIZE_7 ---- from &6573 when A reaches 0
+HOOK_CSIZE_7:
                CALL MBNRWR                     ; 657F CD 82 45
                DEFW SYS_CHAR_WIDTH             ; 6582 EE 4A
                PUSH AF                         ; 6584 F5
@@ -12884,7 +12901,7 @@ L6591:
 ;; bytes on is the LD A,(MODE) that follows, at &D80E.
 ;;
 ;; ENTERING THE ROM PAST ITS OWN RANGE CHECKS is the whole point.  The
-;; ROM allows widths of 6 or 8 and heights of 6 to 32; HK_CSIZE has
+;; ROM allows widths of 6 or 8 and heights of 6 to 32; HOOK_CSIZE has
 ;; already done its own looser checks, written FL6OR8 itself, and set
 ;; HL to the width and height, so all that is wanted from the ROM is
 ;; the window arithmetic.  Everything from &6596 on undoes the parts
@@ -12910,25 +12927,25 @@ V6594:
                LD C,A                          ; 65A8 4F
                INC A                           ; 65A9 3C  ... which comes out -1 for heights 65 to 96: not even one row
                                                ; left in the upper window
-               JR NZ,HK_CSIZE_8                ; 65AA 20 06
+               JR NZ,HOOK_CSIZE_8              ; 65AA 20 06
                LD C,A                          ; 65AC 4F  keep one row anyway, so PRINT still has somewhere to go
                CALL MBNRWR                     ; 65AD CD 82 45
                DEFW UWBOT                      ; 65B0 3B 5A
 
-; ---- HK_CSIZE_8 ---- from &65AA when A is not 0
-HK_CSIZE_8:
+; ---- HOOK_CSIZE_8 ---- from &65AA when A is not 0
+HOOK_CSIZE_8:
                CALL MBNRRD                     ; 65B2 CD 6A 45  &5A6D is SPOSNU+1, the current print row in the upper
                                                ; window
                DEFW &5A6D                      ; 65B5 6D 5A
                CP C                            ; 65B7 B9
-               JR C,HK_CSIZE_9                 ; 65B8 38 06  still inside the shrunken window, so leave the print
+               JR C,HOOK_CSIZE_9               ; 65B8 38 06  still inside the shrunken window, so leave the print
                                                ; position alone
                LD A,C                          ; 65BA 79  otherwise it is pulled up to the new bottom row
                CALL MBNRWR                     ; 65BB CD 82 45
                DEFW &5A6D                      ; 65BE 6D 5A
 
-; ---- HK_CSIZE_9 ---- from &65B8 when A < C
-HK_CSIZE_9:
+; ---- HOOK_CSIZE_9 ---- from &65B8 when A < C
+HOOK_CSIZE_9:
                LD A,B                          ; 65C0 78  factor zero: the ROM prints this width itself and its window
                                                ; edges are already right
                AND A                           ; 65C1 A7
@@ -12940,11 +12957,11 @@ HK_CSIZE_9:
                LD C,&FF                        ; 65C9 0E FF  C = columns / factor by repeated subtraction: how many
                                                ; whole magnified characters fit on a line
 
-; ---- HK_CSIZE_LOOP2 ---- from &65CD when A >= B
-HK_CSIZE_LOOP2:
+; ---- HOOK_CSIZE_LOOP2 ---- from &65CD when A >= B
+HOOK_CSIZE_LOOP2:
                INC C                           ; 65CB 0C
                SUB B                           ; 65CC 90
-               JR NC,HK_CSIZE_LOOP2            ; 65CD 30 FC
+               JR NC,HOOK_CSIZE_LOOP2          ; 65CD 30 FC
                LD A,C                          ; 65CF 79
                LD HL,&5C98                     ; 65D0 21 98 5C  written into the DOS page at &5C98, which is the
                                                ; immediate of the LD A,&00 in COLUMNS_FOR_DIRECTORY. Once CSIZE has
@@ -12955,10 +12972,10 @@ HK_CSIZE_LOOP2:
                XOR A                           ; 65D7 AF  characters times factor is the last usable 8-pixel column,
                                                ; plus one
 
-; ---- HK_CSIZE_LOOP3 ---- from &65D9 when B is not 0 yet
-HK_CSIZE_LOOP3:
+; ---- HOOK_CSIZE_LOOP3 ---- from &65D9 when B is not 0 yet
+HOOK_CSIZE_LOOP3:
                ADD A,C                         ; 65D8 81
-               DJNZ HK_CSIZE_LOOP3             ; 65D9 10 FD
+               DJNZ HOOK_CSIZE_LOOP3           ; 65D9 10 FD
                DEC A                           ; 65DB 3D  ... less one is the new right edge of both windows, so a line
                                                ; can never end in a fragment of a character
                CALL MBNRWR                     ; 65DC CD 82 45
@@ -13008,7 +13025,7 @@ COMPRESS_BLOCK_SATURATE:
 ;;     CMPFG 2, type &14 SCREEN$   COMPRESS_SCREEN_FILE instead
 ;;     CMPFG 2, any other type     this routine
 ;;
-;; Type &10, a BASIC program, reaches neither: HK_HSAVE turns it away
+;; Type &10, a BASIC program, reaches neither: HOOK_HSAVE turns it away
 ;; at DOS &6504, which is the manual's "No attempt is made to compress
 ;; BASIC programs".
 ;;
@@ -13017,7 +13034,7 @@ COMPRESS_BLOCK_SATURATE:
 ;; that is why the latter works through a nibble stream at &E500 in the
 ;; window rather than filling a page of its own.
 ;;
-;; The DOS reaches it as CALL CALLMB / DEFW &65EA from HK_HSAVE.
+;; The DOS reaches it as CALL CALLMB / DEFW &65EA from HOOK_HSAVE.
 ;; --------------------------------------------------------------------
 
 ; ---- COMPRESS_FILE ---- from DOS &6522
@@ -13278,7 +13295,7 @@ COMPRESS_BLOCK_6:
                EXX                             ; 66B5 D9
                LD A,E                          ; 66B6 7B
                CALL CALLDOS                    ; 66B7 CD C1 42
-               DEFW DOS_HK_SBYT-&4000          ; 66BA 75 6F
+               DEFW DOS_HOOK_SBYT-&4000        ; 66BA 75 6F
                LD B,E                          ; 66BC 43
                LD HL,INSTALL_ROM_PATCHES       ; 66BD 21 00 7B
 
@@ -13287,7 +13304,7 @@ COMPRESS_BLOCK_LOOP7:
                LD A,(HL)                       ; 66C0 7E
                INC HL                          ; 66C1 23
                CALL CALLDOS                    ; 66C2 CD C1 42
-               DEFW DOS_HK_SBYT-&4000          ; 66C5 75 6F
+               DEFW DOS_HOOK_SBYT-&4000        ; 66C5 75 6F
                DJNZ COMPRESS_BLOCK_LOOP7       ; 66C7 10 F7
                POP DE                          ; 66C9 D1
                POP HL                          ; 66CA E1
@@ -13300,7 +13317,7 @@ COMPRESS_BLOCK_LOOP7:
 ;; The mirror of COMPRESS_FILE: one block per 16K plus the remainder,
 ;; each one read back through its own header and expanded into the
 ;; work page.  The DOS reaches it as CALL CALLMB / DEFW &66D2 from
-;; HK_HLOAD at DOS &643C, which is the only thing that calls it.
+;; HOOK_HLOAD at DOS &643C, which is the only thing that calls it.
 ;; --------------------------------------------------------------------
 
 ; ---- EXPAND_FILE ---- from DOS &643C
@@ -16002,16 +16019,16 @@ SPLIT_UNWIND_ROM_STACK_LOOP:
 ;; here.
 ;; --------------------------------------------------------------------
 
-HK_COMADENT:
+HOOK_COMADENT:
                CALL SKIP_THEN_TEST_RUNNING     ; 6F3E CD DF 44  Z while the syntax is only being checked
-               JR Z,HK_COMADENT_1              ; 6F41 28 07
+               JR Z,HOOK_COMADENT_1            ; 6F41 28 07
                LD A,&FF                        ; 6F43 3E FF  the byte at &5A60 is a ROM variable, not the code the label
                                                ; names
                CALL MBNRWR                     ; 6F45 CD 82 45
                DEFW SCREEN_BLANK_TICK_LOOP2    ; 6F48 60 5A
 
-; ---- HK_COMADENT_1 ---- from &6F41
-HK_COMADENT_1:
+; ---- HOOK_COMADENT_1 ---- from &6F41
+HOOK_COMADENT_1:
                CALL MBNRRDD                    ; 6F4A CD 5F 45
                DEFW COMAD                      ; 6F4D DA 5B
                LD HL,&006C                     ; 6F4F 21 6C 00  a fixed &6C into whatever COMAD points at -- COMAD is
@@ -16073,11 +16090,11 @@ CMD_DELETE:
                                                ; the scan starts
                PUSH HL                         ; 6F65 E5
 
-; ---- HK_SKIPNAME_LOOP ---- from &6F6C
-HK_SKIPNAME_LOOP:
+; ---- HOOK_SKIPNAME_LOOP ---- from &6F6C
+HOOK_SKIPNAME_LOOP:
                CALL CALL_NEXTCHAR              ; 6F66 CD 61 44
                CALL IS_NAME_CHAR               ; 6F69 CD 55 45
-               JR C,HK_SKIPNAME_LOOP           ; 6F6C 38 F8
+               JR C,HOOK_SKIPNAME_LOOP         ; 6F6C 38 F8
                POP BC                          ; 6F6E C1  the address the scan started at, not where it stopped
                PUSH AF                         ; 6F6F F5
                CALL MBNRWRD                    ; 6F70 CD 77 45  CHAD put back, so the ROM can re-read the argument if
@@ -16093,7 +16110,7 @@ HK_SKIPNAME_LOOP:
                CALL CALL_NEXTCHAR              ; 6F7F CD 61 44
                CALL FIND_VARIABLE_TIMES_FIVE   ; 6F82 CD 4C 48  the variable, and its element count multiplied by five
                                                ; for the numeric case
-               JR NC,HK_SKIPNAME_1             ; 6F85 30 0B
+               JR NC,HOOK_SKIPNAME_1           ; 6F85 30 0B
                EX AF,AF'                       ; 6F87 08  the variable's page, brought in from A' with the caller's HMPR
                                                ; saved on the stack
                IN A,(HMPR)                     ; 6F88 DB FB
@@ -16104,8 +16121,8 @@ HK_SKIPNAME_LOOP:
                                                ; when there is not, which is the whole-variable case
                PUSH HL                         ; 6F91 E5
 
-; ---- HK_SKIPNAME_1 ---- from &6F85
-HK_SKIPNAME_1:
+; ---- HOOK_SKIPNAME_1 ---- from &6F85
+HOOK_SKIPNAME_1:
                CALL EXPECT_END_OF_STATEMENT    ; 6F92 CD D0 44
                POP HL                          ; 6F95 E1
                POP AF                          ; 6F96 F1
@@ -16543,7 +16560,7 @@ VARIABLE_BODY_BY_KIND_DONE:
 ;; put the second one in.
 ;; --------------------------------------------------------------------
 
-HK_SWAPCHARS:
+HOOK_SWAPCHARS:
                CALL CALL_NEXTCHAR              ; 7159 CD 61 44
                CALL INT_ARG_THEN_END           ; 715C CD 73 44
                CP &03                          ; 715F FE 03  3 or more is "Integer out of range", so the argument is 0,
@@ -16551,21 +16568,21 @@ HK_SWAPCHARS:
                JP NC,REP_INTEGER_OUT_OF_RANGE  ; 7161 D2 A7 43
                DEC A                           ; 7164 3D  1 leaves zero in A, and the tail writes it to BGFLG: block
                                                ; graphics on, characters untouched
-               JR Z,HK_SWAPCHARS_DONE2         ; 7165 28 37
+               JR Z,HOOK_SWAPCHARS_DONE2       ; 7165 28 37
                LD A,(V4074)                    ; 7167 3A 74 40  which set is in place now
                SUB C                           ; 716A 91
-               JR Z,HK_SWAPCHARS_DONE          ; 716B 28 30  already the one asked for, so nothing to swap
+               JR Z,HOOK_SWAPCHARS_DONE        ; 716B 28 30  already the one asked for, so nothing to swap
                LD A,C                          ; 716D 79
                LD (V4074),A                    ; 716E 32 74 40
                XOR A                           ; 7171 AF  the system page into the window, so &9490 reaches &5490
                OUT (HMPR),A                    ; 7172 D3 FB
                LD HL,&9490                     ; 7174 21 90 94  &300 into CHARSVAL is CHR$ 128, and &148 bytes from
                                                ; there is 41 characters ending where PALTAB begins
-               LD DE,HK_SWAPCHARS_1            ; 7177 11 64 7E
+               LD DE,HOOK_SWAPCHARS_1          ; 7177 11 64 7E
                LD BC,&0148                     ; 717A 01 48 01
 
-; ---- HK_SWAPCHARS_LOOP ---- from &7188
-HK_SWAPCHARS_LOOP:
+; ---- HOOK_SWAPCHARS_LOOP ---- from &7188
+HOOK_SWAPCHARS_LOOP:
                LD A,(HL)                       ; 717D 7E  an exchange, not a copy: A' carries one byte while A carries
                                                ; the other, so the same loop swaps back next time
                EX AF,AF'                       ; 717E 08
@@ -16578,7 +16595,7 @@ HK_SWAPCHARS_LOOP:
                DEC BC                          ; 7185 0B
                LD A,B                          ; 7186 78
                OR C                            ; 7187 B1
-               JR NZ,HK_SWAPCHARS_LOOP         ; 7188 20 F3
+               JR NZ,HOOK_SWAPCHARS_LOOP       ; 7188 20 F3
                CALL MBNRRDD                    ; 718A CD 5F 45  the two cursor characters live in the swapped range, so
                                                ; they are exchanged too, with the pair kept just past the buffer
                DEFW KURCHAR                    ; 718D 01 5A
@@ -16594,12 +16611,12 @@ HK_SWAPCHARS_LOOP:
                DEFW KURCHAR                    ; 719A 01 5A
                XOR A                           ; 719C AF  &FF into BGFLG -- block graphics off, for both 0 and 2
 
-; ---- HK_SWAPCHARS_DONE ---- from &716B when A = C
-HK_SWAPCHARS_DONE:
+; ---- HOOK_SWAPCHARS_DONE ---- from &716B when A = C
+HOOK_SWAPCHARS_DONE:
                DEC A                           ; 719D 3D
 
-; ---- HK_SWAPCHARS_DONE2 ---- from &7165 when A reaches 0
-HK_SWAPCHARS_DONE2:
+; ---- HOOK_SWAPCHARS_DONE2 ---- from &7165 when A reaches 0
+HOOK_SWAPCHARS_DONE2:
                CALL MBNRWR                     ; 719E CD 82 45
                DEFW BGFLG                      ; 71A1 34 5A
                RET                             ; 71A3 C9
@@ -16682,7 +16699,7 @@ CALL_JCLSBL:
 ;; editing and INPUT path rather than to anything on the command side.
 ;; --------------------------------------------------------------------
 
-HK_SETUPREGS:
+HOOK_SETUPREGS:
                CALL MBNRWRHL                   ; 71FE CD 75 45  XPTR, which the ROM uses to mark where an error was
                                                ; found
                DEFW XPTR                       ; 7201 A3 5A
@@ -16694,8 +16711,8 @@ HK_SETUPREGS:
                XOR A                           ; 720F AF
                OUT (HMPR),A                    ; 7210 D3 FB
                LDIR                            ; 7212 ED B0
-               LD HL,HK_SETUPREGS_1            ; 7214 21 03 7E  the &61 bytes at HK_SETUPREGS_1 are appended after those
-                                               ; four
+               LD HL,HOOK_SETUPREGS_1          ; 7214 21 03 7E  the &61 bytes at HOOK_SETUPREGS_1 are appended after
+                                               ; those four
                LD C,&61                        ; 7217 0E 61
                LDIR                            ; 7219 ED B0
                LD BC,&4D50                     ; 721B 01 50 4D  &4D50, the address of what was just built, passed on to
@@ -16705,7 +16722,7 @@ HK_SETUPREGS:
 ; ---- V7221 ---- from &7203
 V7221:
                DEFB &21,&60,&5A,&7E            ; 7221 !`Z~  LD HL,&5A60 then LD A,(HL) -- code, not data, copied in
-                                               ; ahead of HK_SETUPREGS_1
+                                               ; ahead of HOOK_SETUPREGS_1
 
 ;; --------------------------------------------------------------------
 ;; USING$ -- token FF 2F.
@@ -16978,7 +16995,7 @@ FN_USING_S_DONE3:
 ;; &0118 is two instruction bytes.
 ;; --------------------------------------------------------------------
 
-HK_PROGPREP:
+HOOK_PROGPREP:
                IN A,(HMPR)                     ; 732A DB FB
                PUSH AF                         ; 732C F5
                XOR A                           ; 732D AF
@@ -16991,12 +17008,12 @@ HK_PROGPREP:
                CALL BUILD_COMPILER             ; 7338 CD 5D 73
                POP AF                          ; 733B F1
                RRA                             ; 733C 1F
-               JR C,HK_PROGPREP_1              ; 733D 38 06
+               JR C,HOOK_PROGPREP_1            ; 733D 38 06
                LD HL,&0118                     ; 733F 21 18 01
                LD (&8D11),HL                   ; 7342 22 11 8D
 
-; ---- HK_PROGPREP_1 ---- from &733D when bit 0 was set
-HK_PROGPREP_1:
+; ---- HOOK_PROGPREP_1 ---- from &733D when bit 0 was set
+HOOK_PROGPREP_1:
                CALL CALLDOS                    ; 7345 CD C1 42
                DEFW DOS_END_OF_CHANNELS-&4000  ; 7348 EA 6A
                INC HL                          ; 734A 23
@@ -17013,7 +17030,7 @@ HK_PROGPREP_1:
 
 ;; --------------------------------------------------------------------
 ;; Build the replacement compile pass at CDBUFF+&11 in the ROM's system
-;; page.  Called from &5252 and from HK_PROGPREP at &7338.
+;; page.  Called from &5252 and from HOOK_PROGPREP at &7338.
 ;;
 ;; &42 bytes are copied from the ROM address the resolver found by
 ;; signature and wrote into the LD HL at &735D -- &33DB in ROM 3.0,
@@ -19030,10 +19047,10 @@ WRITE_A_DESCENDING_2:
 ; ---- INSTALL_ROM_PATCHES_DONE ---- from &7B81
 INSTALL_ROM_PATCHES_DONE:
                RST ERR_HOOK                    ; 7B86 CF
-               DEFB HK_MCHWR                   ; 7B87 A7 hook code
+               DEFB HKC_MCHWR                  ; 7B87 A7 hook code
                RET                             ; 7B88 C9
                RST ERR_HOOK                    ; 7B89 CF
-               DEFB HK_MCHRD                   ; 7B8A A8 hook code
+               DEFB HKC_MCHRD                  ; 7B8A A8 hook code
                EXX                             ; 7B8B D9
                PUSH BC                         ; 7B8C C5
                POP AF                          ; 7B8D F1
@@ -19055,7 +19072,7 @@ PRTOKV_STUB:
                POP HL                          ; 7B93 E1
                LD HL,(XPTR)                    ; 7B94 2A A3 5A
                RST ERR_HOOK                    ; 7B97 CF
-               DEFB HK_HPRTOK                  ; 7B98 A9 hook code
+               DEFB HKC_HPRTOK                 ; 7B98 A9 hook code
                RET                             ; 7B99 C9
 
 ;; --------------------------------------------------------------------
@@ -19063,7 +19080,7 @@ PRTOKV_STUB:
 ;;
 ;; &25 passes, and so does anything below &21; the rest returns with
 ;; carry clear for the ROM to deal with.  What is left drops the return
-;; address and raises HK_HKLEN.
+;; address and raises HOOK_HKLEN.
 ;; --------------------------------------------------------------------
 
 EVALUV_STUB:
@@ -19076,7 +19093,7 @@ EVALUV_STUB:
 EVALUV_STUB_1:
                POP HL                          ; 7BA1 E1
                RST ERR_HOOK                    ; 7BA2 CF
-               DEFB HK_HKLEN                   ; 7BA3 AC hook code
+               DEFB HKC_HKLEN                  ; 7BA3 AC hook code
 
 ;; --------------------------------------------------------------------
 ;; 671 bytes assembled to run at &484D, in the same way.
@@ -19215,14 +19232,14 @@ RELOCATED_TO_484D:
                INC HL                          ; 7BDB 23
                PUSH HL                         ; 7BDC E5
                RST ERR_HOOK                    ; 7BDD CF
-               DEFB &AF                        ; 7BDE AF hook code, handled by HK_MERGECOMPFLG
+               DEFB HKC_MERGECOMPFLG           ; 7BDE AF hook code
                RET                             ; 7BDF C9
 
 ; ---- RELOCATED_TO_484D_1 ---- from &7BC2 when a bit of &20 is set
 RELOCATED_TO_484D_1:
                LD HL,(XPTR)                    ; 7BE0 2A A3 5A
                RST ERR_HOOK                    ; 7BE3 CF
-               DEFB &B9                        ; 7BE4 B9 hook code, handled by HK_SETUPREGS
+               DEFB HKC_SETUPREGS              ; 7BE4 B9 hook code
                LD HL,&7FE6                     ; 7BE5 21 E6 7F
                LD (DOSSTK),HL                  ; 7BE8 22 59 5C
                LD H,A                          ; 7BEB 67
@@ -19231,7 +19248,7 @@ RELOCATED_TO_484D_1:
                JR C,RELOCATED_TO_484D_2        ; 7BF1 38 04
                PUSH HL                         ; 7BF3 E5
                RST ERR_HOOK                    ; 7BF4 CF
-               DEFB &B8                        ; 7BF5 B8 hook code, handled by HK_VARSPACE
+               DEFB HKC_VARSPACE               ; 7BF5 B8 hook code
                POP HL                          ; 7BF6 E1
 
 ; ---- RELOCATED_TO_484D_2 ---- from &7BF1 when A < &BE
@@ -19279,7 +19296,7 @@ RELOCATED_TO_484D_3:
                LD A,(PROGP)                            ; 7C3F 3A 9F 5A
                PUSH AF                                 ; 7C42 F5
                RST ERR_HOOK                            ; 7C43 CF
-               DEFB &9D                                ; 7C44 9D hook code, handled by HK_PROGPREP
+               DEFB HKC_PROGPREP                       ; 7C44 9D hook code
                CALL SYS_CDBUFF_11                      ; 7C45 CD 11 4D  CDBUFF+&11 -- the code buffer built at &735D
                POP AF                                  ; 7C48 F1
                LD (PROGP),A                            ; 7C49 32 9F 5A
@@ -19351,7 +19368,7 @@ DISPATCH_ON_COMMAND_TOKEN:
                RET NZ                               ; 7C90 C0
                POP HL                               ; 7C91 E1
                RST ERR_HOOK                         ; 7C92 CF
-               DEFB &B1                             ; 7C93 B1 hook code, handled by HK_TOKENARG
+               DEFB HKC_TOKENARG                    ; 7C93 B1 hook code
                RET                                  ; 7C94 C9
 
 ; ---- DISPATCH_ON_COMMAND_TOKEN_1 ---- from &7C60 when A = &AE
@@ -19383,33 +19400,33 @@ DISPATCH_ON_COMMAND_TOKEN_2:
 CALLBACK_HCMDV:
                POP HL                          ; 7CA6 E1
                RST ERR_HOOK                    ; 7CA7 CF
-               DEFB HK_HCMDV                   ; 7CA8 AD hook code
+               DEFB HKC_HCMDV                  ; 7CA8 AD hook code
                RET                             ; 7CA9 C9
 
 ; ---- DISPATCH_ON_COMMAND_TOKEN_DONE ---- from &7C74 when A = &A8
 DISPATCH_ON_COMMAND_TOKEN_DONE:
                POP HL                          ; 7CAA E1
                RST ERR_HOOK                    ; 7CAB CF
-               DEFB &9B                        ; 7CAC 9B hook code, handled by HK_CSIZE
+               DEFB HKC_CSIZE                  ; 7CAC 9B hook code
                RET                             ; 7CAD C9
 
 ; ---- DISPATCH_ON_COMMAND_TOKEN_DONE2 ---- from &7C78 when A = &A9
 DISPATCH_ON_COMMAND_TOKEN_DONE2:
                POP HL                          ; 7CAE E1
                RST ERR_HOOK                    ; 7CAF CF
-               DEFB &9C                        ; 7CB0 9C hook code, handled by HK_SWAPCHARS
+               DEFB HKC_SWAPCHARS              ; 7CB0 9C hook code
                RET                             ; 7CB1 C9
 
 ; ---- DISPATCH_ON_COMMAND_TOKEN_3 ---- from &7C80 when A = &FD
 DISPATCH_ON_COMMAND_TOKEN_3:
                POP HL                          ; 7CB2 E1
                RST ERR_HOOK                    ; 7CB3 CF
-               DEFB &B7                        ; 7CB4 B7 hook code, handled by HK_COMADENT
+               DEFB HKC_COMADENT               ; 7CB4 B7 hook code
 
 ; ---- DISPATCH_ON_COMMAND_TOKEN_DONE3 ---- from &7C7C when A = &CD
 DISPATCH_ON_COMMAND_TOKEN_DONE3:
                RST ERR_HOOK                    ; 7CB5 CF
-               DEFB &B2                        ; 7CB6 B2 hook code, handled by HK_SKIPNAME
+               DEFB HKC_SKIPNAME               ; 7CB6 B2 hook code
                LD A,&CD                        ; 7CB7 3E CD
                RET                             ; 7CB9 C9
 
@@ -19417,7 +19434,7 @@ DISPATCH_ON_COMMAND_TOKEN_DONE3:
 DISPATCH_ON_COMMAND_TOKEN_4:
                POP HL                          ; 7CBA E1
                RST ERR_HOOK                    ; 7CBB CF
-               DEFB &AE                        ; 7CBC AE hook code, handled by HK_RCPTCH
+               DEFB HKC_RCPTCH                 ; 7CBC AE hook code
                BIT 0,C                         ; 7CBD CB 41
                JP NZ,ANYI                      ; 7CBF C2 49 00
                LD A,(&5C5C)                    ; 7CC2 3A 5C 5C
@@ -19613,7 +19630,7 @@ L7DA6:
 ;; THE UDG AREA IS EXACTLY 328 BYTES.  CHR$ 128 begins at the system
 ;; page's &5490 and the area runs to &55D7, because &55D8 is PALTAB, the
 ;; sixteen CLUT entries.  41 characters, CHR$ 128-168, and no more.  That
-;; is the same 328 that HK_SWAPCHARS exchanges and the same 328 the
+;; is the same 328 that HOOK_SWAPCHARS exchanges and the same 328 the
 ;; alternate set occupies at MB &7E64.  Anything reading a dump should
 ;; beware &55D8 and &55E0: they look like glyphs and are palette entries.
 ;;
@@ -19634,7 +19651,7 @@ L7DA6:
 ;; boot and with MasterDOS alone, and &4A52 after the combined file has
 ;; booted, with the two cursor blocks at &4A52 and &4A5A.
 ;;
-;; HK_SWAPCHARS then exchanges KURCHAR, SVAR 1 at &5A01, which the ROM's
+;; HOOK_SWAPCHARS then exchanges KURCHAR, SVAR 1 at &5A01, which the ROM's
 ;; list calls "CURSOR CHARACTERS - LOWER CASE/UPPER CASE".  It reads
 ;; 128,129 in all three dumps.  Under BLOCKS 2 it becomes 169,170, which
 ;; render from &4A52 through HUDG -- outside the exchanged range, so the
@@ -19700,8 +19717,8 @@ INSTALL_ROM_PATCHES_4:
                LD HL,(&4B9E)                   ; 7DFD 2A 9E 4B
                JP &0000                        ; 7E00 C3 00 00
 
-; ---- HK_SETUPREGS_1 ---- from &7214
-HK_SETUPREGS_1:
+; ---- HOOK_SETUPREGS_1 ---- from &7214
+HOOK_SETUPREGS_1:
                CP F_NVAL - FN_TOKEN_BIAS       ; 7E03 FE 50  the two codes this stub lets through are XVAR's and NVAL's,
                                                ; the only MasterBASIC functions whose argument has no bracket round it
                JR Z,TBL_7D58_DONE              ; 7E05 28 03
@@ -19712,7 +19729,7 @@ HK_SETUPREGS_1:
 TBL_7D58_DONE:
                POP HL                          ; 7E0A E1
                RST ERR_HOOK                    ; 7E0B CF
-               DEFB &B3                        ; 7E0C B3 hook code, handled by HK_XVARNVAL
+               DEFB HKC_XVARNVAL               ; 7E0C B3 hook code
                EXX                             ; 7E0D D9
                RET                             ; 7E0E C9
                PUSH AF                         ; 7E0F F5
@@ -19745,19 +19762,19 @@ TBL_7D58_DONE3:
                POP AF                          ; 7E32 F1
                RET                             ; 7E33 C9
                RST ERR_HOOK                    ; 7E34 CF
-               DEFB &B4                        ; 7E35 B4 hook code, handled by HK_SERSEND
+               DEFB HKC_SERSEND                ; 7E35 B4 hook code
                RET                             ; 7E36 C9
                RST ERR_HOOK                    ; 7E37 CF
-               DEFB &B5                        ; 7E38 B5 hook code, handled by HK_SERRECV
+               DEFB HKC_SERRECV                ; 7E38 B5 hook code
                EXX                             ; 7E39 D9
                PUSH BC                         ; 7E3A C5
                POP AF                          ; 7E3B F1
                RET                             ; 7E3C C9
                RST ERR_HOOK                    ; 7E3D CF
-               DEFB &B6                        ; 7E3E B6 hook code, handled by HK_SUBCHAR
+               DEFB HKC_SUBCHAR                ; 7E3E B6 hook code
                RET                             ; 7E3F C9
                RST ERR_HOOK                    ; 7E40 CF
-               DEFB &9A                        ; 7E41 9A hook code, handled by HK_HDUMMY
+               DEFB HKC_HDUMMY                 ; 7E41 9A hook code
                RET                             ; 7E42 C9
 
 ;; --------------------------------------------------------------------
@@ -19776,7 +19793,7 @@ TBL_7D58_DONE3:
 GAP_BLOCK:
                RST ERR_HOOK                    ; 7E43 CF  from here to &7E6A this code is written for &5896: subtract
                                                ; &25AD from any address in it
-               DEFB &AA                        ; 7E44 AA hook code, handled by HK_HPFF
+               DEFB HKC_HPFF                   ; 7E44 AA hook code
                EXX                             ; 7E45 D9
                PUSH BC                         ; 7E46 C5
                POP AF                          ; 7E47 F1
@@ -19797,11 +19814,11 @@ GAP_BLOCK:
                LD SP,HL                        ; 7E5E F9
                JP (IY)                         ; 7E5F FD E9
                RST ERR_HOOK                    ; 7E61 CF
-               DEFB HK_HGTTK                   ; 7E62 AB hook code
+               DEFB HKC_HGTTK                  ; 7E62 AB hook code
                EXX                             ; 7E63 D9
 
-; ---- HK_SWAPCHARS_1 ---- from &7177
-HK_SWAPCHARS_1:
+; ---- HOOK_SWAPCHARS_1 ---- from &7177
+HOOK_SWAPCHARS_1:
                PUSH BC                         ; 7E64 C5
                POP AF                          ; 7E65 F1
                RET Z                           ; 7E66 C8

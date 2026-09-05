@@ -110,7 +110,7 @@ DOC HPRTOK_1
     to the DOS page through PARK_WORD.  The next character
     the ROM prints therefore arrives at &5896, which is nine bytes of
     installed code beginning RST &08 : DEFB &AA -- hook 170, which is
-    HK_HPFF below.
+    HOOK_HPFF below.
 
 MB &506B : HMPR is read and zeroed in three instructions, with the old value kept in B: the system page has to be in the window to reach CURCHL and the channel behind it
 
@@ -118,11 +118,11 @@ MB &5073 : the channel record the ROM is printing through, whose first word is i
 
 MB &5076 : SET 7,H and RES 6,H turn a system-page address into the same byte seen at &8000, which is where the window has just put it
 
-MB &507D : the real output routine, kept so HK_HPFF can put it back
+MB &507D : the real output routine, kept so HOOK_HPFF can put it back
 
-MB &5081 : &5896 is the block installed in the gap between the DEF KEY buffer and the keyboard table.  Its first two bytes are RST &08 and hook code &AA, so the next character printed becomes a call to HK_HPFF
+MB &5081 : &5896 is the block installed in the gap between the DEF KEY buffer and the keyboard table.  Its first two bytes are RST &08 and hook code &AA, so the next character printed becomes a call to HOOK_HPFF
 
-DOC HK_HPFF
+DOC HOOK_HPFF
     Hook 170: the second byte of a two-byte token has arrived.  Print
     the word for it, put the channel back, and say whether it was ours.
 

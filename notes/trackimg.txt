@@ -88,7 +88,7 @@ MB &53BD : OR, so a key counts as down only if it was down in all seven reads
 
 MB &53C1 : CNTRL into carry and the cursor keys down into bits 3-0, both wanted by the caller
 
-DOC HK_MERGECOMPFLG
+DOC HOOK_MERGECOMPFLG
     Hook code 175, and the label is right only for its first
     twenty-seven bytes.  This is what runs every time the ROM's line
     editor comes back, and it is two features in one: it takes the
@@ -111,7 +111,7 @@ DOC HK_MERGECOMPFLG
     replacement test is at &7C1C, also in the system page: if DCT is
     non-zero it looks at bit 1 for line tracing and at bits 0 and 2
     (AND &05) for "the program has changed", and the second of those
-    goes to hook &9D, HK_PROGPREP.  That is the manual's speed claim
+    goes to hook &9D, HOOK_PROGPREP.  That is the manual's speed claim
     made concrete -- "This has to be updated after the program is
     edited, before it can be executed... MasterBASIC does this updating
     rather faster, especially with long programs."  SET_DCT_COMPILE_
@@ -191,7 +191,7 @@ MB &546E : KCUR is where the ROM will put the cursor, so it lands at the end of 
 
 MB &5475 : &4871 is NOT this page -- that address here is inside the CALL at &4870.  It is &7BC8 seen at its installed address, three instructions into the EDITV wrapper, just past where it saved the ROM's return address.  Writing it through the pointer in V4076 makes the hook return into the editor for another go instead of handing the line back to BASIC
 
-DOC HK_MERGECOMPFLG_6
+DOC HOOK_MERGECOMPFLG_6
     File the line just finished in the recall buffer.  Reached when
     CNTRL was not held, which is the ordinary end of an edit.
 

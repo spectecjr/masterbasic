@@ -150,7 +150,7 @@ MB &5C90 : read pointer and write pointer both set to the new buffer, which is
            the empty condition.  A size of zero comes back with A = 0 and
            leaves both at page 0 -- the manual's "SOUND CLEAR 0 will delete
            the buffer and free the memory for other uses", and what
-           HK_FARSCAN reports as "No Buffer"
+           HOOK_FARSCAN reports as "No Buffer"
 
 MB &5CA1 : wait for the frame interrupt, so the player is between bytes and
            not halfway through a register pair

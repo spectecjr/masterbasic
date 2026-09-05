@@ -19,7 +19,7 @@ DOC DITOB
     THE BUFFER IS THE SCREEN'S.  GETSCR puts the screen page in the
     window, and the names are collected at &A000 in it, so a listing of
     any length costs the DOS no memory of its own.  PTRSCR walks along
-    as FDHR fills it in, which is how HK_PCAT works out afterwards how
+    as FDHR fills it in, which is how HOOK_PCAT works out afterwards how
     many names there are.
 
 DOS &5C30 : the screen page into the window
@@ -60,7 +60,7 @@ DOS &5B4E : forces the short listing
 DOS &5B58 : the detailed listing gets a window of its own
 DOS &5B5F : one file to a line, with its number, sectors and type
 
-DOC HK_PCAT
+DOC HOOK_PCAT
     Print it.
 
     THE SHORT LISTING CANNOT PRINT AS IT GOES, because the names have to

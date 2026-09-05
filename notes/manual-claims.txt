@@ -75,7 +75,7 @@
 #     PALTAB, so CHR$ 169 and 170 lie outside it.  MasterBASIC keeps the two
 #     cursor patterns at MB &7DA9, inside the second stub, so they land in
 #     the system page at &4A52; INSTALL_ROM_PATCHES points HUDG -- the ROM's
-#     pointer for characters 169 and above -- at &4A52 ; and HK_SWAPCHARS
+#     pointer for characters 169 and above -- at &4A52 ; and HOOK_SWAPCHARS
 #     exchanges KURCHAR so the cursor uses 169 and 170.  The dumps agree:
 #     HUDG is &0000 before a boot and with MasterDOS alone, &4A52 after the
 #     combined file, and the glyphs there are the two cursor blocks.

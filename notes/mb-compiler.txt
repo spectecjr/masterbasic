@@ -16,7 +16,7 @@
 
 MB &735D BUILD_COMPILER
     Build the replacement compile pass at CDBUFF+&11 in the ROM's system
-    page.  Called from &5252 and from HK_PROGPREP at &7338.
+    page.  Called from &5252 and from HOOK_PROGPREP at &7338.
 
     &42 bytes are copied from the ROM address the resolver found by
     signature and wrote into the LD HL at &735D -- &33DB in ROM 3.0,

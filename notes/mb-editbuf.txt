@@ -38,7 +38,7 @@
 # say the two sessions had typed different numbers of characters at it.
 # See docs/evidence-wanted.md item 1.
 #
-# The labels around the code are synthesised from HK_MERGECOMPFLG above
+# The labels around the code are synthesised from HOOK_MERGECOMPFLG above
 # them, which is hook code 175 and does something else entirely -- carry
 # one bit of COMPFLG into DCT.  The name says what precedes this code,
 # not what it is.

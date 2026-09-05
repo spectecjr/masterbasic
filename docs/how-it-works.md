@@ -345,7 +345,7 @@ identified, so `LD (&45AF),A` reads as `LD (CHECK_WRITE_STATUS+1),A`.
 | the code the ROM calls | `listings/disasm/postinstall-syspage.asm`; sources at `&7460`, `&7BA4`, `&7B80`, `&7E43` |
 | command dispatch | `CTAB` `&42EA`, `SYNTAX`, `CMD_*` |
 | functions | `FNVEC` `&78EB`, `FN_*` |
-| hooks | `SAMHK` `&44A6`, `HK_*` |
+| hooks | `SAMHK` `&44A6`, `HOOK_*` handlers, `HKC_*` codes |
 | ROM lookup | `FIND_ROM_CODE`, the 27 `signature` lines |
 | parser front end | `&43A1`-`&44E2`, `EXPECT_*`, `TEST_RUNNING` |
 | line editing | `CMD_SPLIT_LINE`, `OPEN_GAP_AT_LINE`, `FIND_LINE_*` |
@@ -423,6 +423,6 @@ naming did not answer.
 
 - **Which caller the run-length encoder serves.** It is `SAVE MODE`'s, and
   it walks a display layout because the file it is compressing is a
-  `SCREEN$`. The DOS's `HK_HSAVE` picks between two compressors on DVAR
+  `SCREEN$`. The DOS's `HOOK_HSAVE` picks between two compressors on DVAR
   154 and the file type, which is the manual's three `SAVE MODE`s exactly.
   The two halves of that looked contradictory for a while and were not.
