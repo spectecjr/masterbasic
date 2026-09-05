@@ -21371,48 +21371,55 @@ GREY_LEVEL_BELOW:
 ;;
 ;;     How bright a SAM palette byte is, 0 to 49.
 ;;
-;;     THE SAM PALETTE BYTE IS TWO BITS OF EACH COLOUR PLUS A SHARED
-;;     BRIGHT, and the two bits of one colour are not adjacent.  The ROM's
-;;     own table says the layout in one line -- "MS GRB BITS, BRIGHT BIT,
-;;     LS GRB BITS", written out as GRBbGRB -- so bits 6, 5 and 4 are the
-;;     high bits of green, red and blue, bits 2, 1 and 0 the low bits of
-;;     the same three four places down, and bit 3 bright, which lifts all
-;;     three together.  No shift gathers a single colour, but each triple
-;;     can be taken whole, and that is what this does.
+;;     THE BYTE IS THREE 3-BIT CHANNELS THAT SHARE THEIR BOTTOM BIT.  The
+;;     ROM's own table spells the layout out -- "MS GRB BITS, BRIGHT BIT,
+;;     LS GRB BITS", written as GRBbGRB -- so bits 6, 5 and 4 are the high
+;;     bit of green, red and blue, bits 2, 1 and 0 the low bit of the same
+;;     three, and bit 3 is the least significant bit of all three at once.
+;;     A channel is therefore
 ;;
-;;     THE WEIGHTS COME OUT RIGHT FOR NOTHING.  AND &70 with two RRCAs is
-;;     the high triple divided by four, AND &07 doubled is the low triple
-;;     times two, and bright adds seven.  Written out, the sum is
+;;         4*high + 2*low + bright
 ;;
-;;         16*G1 + 8*R1 + 4*B1 + 8*G0 + 4*R0 + 2*B0 + 7*bright
+;;     a value from 0 to 7, and the reason plain white is &78 rather than
+;;     &70 is that it wants 5 of 7 in each channel and not 4.
 ;;
-;;     -- green worth 24 at full, red 12, blue 6, and 24 + 12 + 6 + 7 = 49.
-;;     So green counts twice red and red twice blue, which is roughly what
-;;     the eye does: the usual luminance weights are about 0.59, 0.30 and
-;;     0.11, near enough 5:3:1 against this 4:2:1.  Nothing here computes
-;;     that.  It falls out of the order the three colours sit in inside the
-;;     palette byte, because green is the high bit of each triple and blue
-;;     the low one, and the two masks preserve that order.  A proper
-;;     weighting would have cost three multiplies; this costs eight
-;;     instructions and is wrong by about a tenth.
+;;     THIS COMPUTES 4*GREEN + 2*RED + 1*BLUE, EXACTLY.  AND &70 with two
+;;     RRCAs is 16*G1 + 8*R1 + 4*B1; AND &07 doubled is 8*G0 + 4*R0 + 2*B0;
+;;     bright adds 7.  Group those by channel instead of by bit and the
+;;     whole sum is
 ;;
-;;     Within one colour the high bit is worth exactly twice the low, which
-;;     is the only part of the arithmetic that had to be arranged: it is
-;;     why the high triple is divided by four and the low doubled rather
-;;     than both being left where they lie.
+;;         4*(4*G1 + 2*G0 + b) + 2*(4*R1 + 2*R0 + b) + 1*(4*B1 + 2*B0 + b)
 ;;
-;;     Run the ROM's own starting palette through it and the ordering shows:
+;;     -- the three channel values, weighted four, two and one.  The
+;;     maximum is 7*(4+2+1) = 49, which is where the range comes from.
 ;;
-;;         black    &00   0    level  0
-;;         blue     &10   4    level  2
-;;         red      &20   8    level  4
-;;         green    &40  16    level  8
-;;         white    &78  35    level 17
-;;         bright white &7F 49 level 24
+;;     THE SEVEN IS WHAT SHOWS IT WAS MEANT.  Bright is worth 1 in each of
+;;     three channels weighted 4, 2 and 1, so it is worth 4+2+1 = 7 to the
+;;     total.  Under any other reading of that bit the constant would have
+;;     to be arbitrary, and it is not: run the ROM's sixteen starting
+;;     colours through both the channel arithmetic and these eight
+;;     instructions and they agree on all sixteen.
 ;;
-;;     -- blue, red, green in the ratio 1:2:4, and the two whites four
-;;     levels apart because bright and the three low bits are all that
-;;     separate them.
+;;     Two masks and two rotates get the weighting because the palette byte
+;;     already carries it.  Green is the top bit of each triple and blue the
+;;     bottom, so taking a triple as a number and scaling it preserves
+;;     4:2:1 without a single multiply -- and 4:2:1 is a fair approximation
+;;     to what the eye does, the usual luminance weights being about 0.59,
+;;     0.30 and 0.11, or near enough 5.4:2.7:1.  Getting those exactly right
+;;     would have cost three multiplies.  This costs eight instructions and
+;;     is out by about a tenth in the blues.
+;;
+;;     Run the ROM's own starting palette through it:
+;;
+;;         black         &00   0   level  0
+;;         blue          &10   4   level  2
+;;         red           &20   8   level  4
+;;         green         &40  16   level  8
+;;         white         &78  35   level 17
+;;         bright white  &7F  49   level 24
+;;
+;;     -- blue, red and green in the ratio 1:2:4, and the two whites seven
+;;     levels apart because bright white has all three low bits as well.
 ;;
 ;;     What was here before:
 ;;
@@ -21427,21 +21434,22 @@ GREY_LEVEL_BELOW:
 PALETTE_INTENSITY:
                LD C,A                          ; 6AC3 4F
                AND &07                         ; 6AC4 E6 07  bits 2, 1 and 0 are the low bit of green, red and blue;
-                                               ; doubling them makes those bits worth 8, 4 and 2
+                                               ; doubling them gives 8, 4 and 2 -- the 4:2:1 channel weighting, one
+                                               ; binary place down from the high bits
                ADD A,A                         ; 6AC6 87
                LD B,A                          ; 6AC7 47
                LD A,C                          ; 6AC8 79
                AND &70                         ; 6AC9 E6 70  bits 6, 5 and 4 are the high bit of the same three, four
                                                ; places up
-               RRCA                            ; 6ACB 0F  two rotates bring the high triple down to weights of 16, 8 and
-                                               ; 4 -- twice the low bits, as they should be. RRCA rather than SRL A
-                                               ; because it is one byte instead of two, and the bits rotating in from
-                                               ; the bottom are the ones the AND just cleared
+               RRCA                            ; 6ACB 0F  two rotates bring the high triple to weights of 16, 8 and 4,
+                                               ; twice the low bits, because a channel's high bit is worth twice its low
+                                               ; one. RRCA rather than SRL A for the byte it saves; the bits rotating in
+                                               ; are the ones the AND just cleared
                RRCA                            ; 6ACC 0F
                ADD A,B                         ; 6ACD 80
-               BIT 3,C                         ; 6ACE CB 59  bit 3 is bright, which the SAM applies to all three
-                                               ; components at once -- hence one addition of 7 rather than three of its
-                                               ; share
+               BIT 3,C                         ; 6ACE CB 59  bit 3 is the bottom bit of all three channels at once, so
+                                               ; it is worth 4 + 2 + 1 to a total weighted 4:2:1 -- one addition of 7
+                                               ; rather than three of its share
                RET Z                           ; 6AD0 C8
                ADD A,&07                       ; 6AD1 C6 07
                RET                             ; 6AD3 C9

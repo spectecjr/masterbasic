@@ -18,6 +18,25 @@
 #     DOSFLG    5BC2H  Zero if no DOS loaded, else page number
 #     DOSCNT    5BC3H  Bit 0 is set if DOS is in control
 #
+# THE PALETTE BYTE, confirmed against MasterBASIC's own arithmetic.
+#
+# The manual's layout is GRBbGRB: bits 6, 5 and 4 the high bit of green,
+# red and blue, bits 2, 1 and 0 the low bit of the same three, and bit 3
+# the least significant bit of ALL THREE at once.  So a channel is
+# 4*high + 2*low + bright, a value from 0 to 7, and "bright" is not a
+# flag on top of a colour -- it is the bottom bit of the colour.
+#
+# PALETTE_INTENSITY at MB &6AC3 is independent evidence for that reading.
+# It works out 4*green + 2*red + 1*blue, and the constant it adds for
+# bit 3 is 7 -- which is 4 + 2 + 1, the sum of the three weights, and is
+# the right constant only if that bit is worth one in every channel.
+# Run the ROM's sixteen starting colours through the channel arithmetic
+# and through those eight instructions and they agree on all sixteen.
+#
+# It also explains the ROM's own table: plain white is &78 and not &70
+# because it wants 5 of 7 in each channel, and bright white &7F wants 7.
+# Bit 3 is set for white and for nothing else in that table.
+
 # KNOWN TYPOS.  Online copies carry errors; these are the ones met so
 # far, all in the system variable tables.
 #
