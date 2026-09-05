@@ -92,3 +92,14 @@
 # one out.  Worth knowing before reading a token out of that appendix:
 # the ABS entry, "91 5B [ ABS", checks out, so the slip is local rather
 # than whole-table.
+
+# THE ERRATA'S ESC+TAB IS IN THE CODE.  "[ESC] + [TAB] can be used as a
+# more powerful form of [ESC] that is less drastic than pressing the
+# [BREAK] button" -- and at MB &59A3, on every interrupt:
+#
+#     LD A,&F7 / IN A,(STAT) / AND &60 / JP Z,&0066
+#
+# Bit 5 of that port is ESC, which ESCCHK tests on its own; bit 6 is
+# TAB.  Both low means both held, and &0066 is the NMI handler -- the
+# same entry the BREAK button reaches, but arrived at from the interrupt
+# rather than from the hardware.

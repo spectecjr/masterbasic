@@ -159,9 +159,15 @@ MB &4E5A NUMBER_THEN_RPAREN
 
 MB &5725 WRITE_BC_DESCENDING
     Write B then C into the ROM's system page at HL, stepping HL *down*
-    between them, so a word ends up stored high byte first at the lower
-    address.  It calls WRITE_A_DESCENDING for the first byte and falls
-    into it for the second.
+    between them.  B lands at the higher address and C below it, so the
+    word is stored the ordinary way round -- an earlier reading of this
+    had it high byte first, which is backwards.  It calls
+    WRITE_A_DESCENDING for the first byte and falls into it for the
+    second.
+
+    IT DESCENDS BECAUSE IT IS BUILDING A STACK FRAME.  The callers lay
+    words down on the ROM's own machine stack around ERRSP, and a stack
+    grows downwards, so the frame has to be written top word first.
 
 MB &572A WRITE_A_DESCENDING
     WRA, then DEC HL.

@@ -1,0 +1,438 @@
+# REF and the line-range parsers, the buffer that fills backwards,
+# and the interrupt tick.  Proposed by a fresh reader, audited
+# against the instructions.
+
+DOC L56F3
+    The tail of REF: hand the found line to the ROM's editor, then arrange
+    for RETURN to come back here and carry on searching.
+
+    THE LINE IS NOT COPIED BY THIS CODE AT ALL.  &56E2 has just put the
+    address of the match into the ROM's spare variable at &5A5E and hung
+    MasterBASIC's own routine (assembled at &7BA4, running at &484D) on
+    the channel word ten bytes into CHANS.  The CALL below is the ROM's
+    EDKY1 -- the guts of the EDIT key -- which prints the line into the
+    edit buffer through that channel.  Every character printed goes past
+    the hook, which watches the ROM's list pointer and, the moment before
+    it reaches &5A5E, records the cursor position in &5A65.  That is how
+    the manual's promise is kept:
+
+        "the line containing it will appear in the edit line with the
+        cursor just after the reference"
+
+    -- the cursor is not computed, it is caught in passing.
+
+    &5A5E, &5A62, &5A65 and &5A67 are four of the fourteen bytes the SAM
+    ROM's variable table marks "14 SPARE" between LSOFF and SPOSNU.  They
+    are used rather than MasterBASIC's own page because both the hook and
+    the code that reads them back run with the system page at &4000 and
+    MasterBASIC nowhere in sight.
+
+MB &56F3 : the operand is written at boot from &79AE, where a signature search finds the ROM's EDKY1 -- the byte pair is version-dependent, so it cannot be assembled
+
+MB &56F8 : &5A65 is what the channel hook left behind: KCUR as it stood one character before the reference was reached
+
+MB &56FD : undoes the DEC HL the hook did at &7BB8, so KCUR ends up exactly where the hook saw it
+
+MB &5703 : puts the ROM's own channel word back, from where &56ED stowed it -- EXCHANGE_CHANNEL_WORD is written so that installing and removing are the same call
+
+MB &5706 : two line entries have to go by before the search resumes.  &5493 counts it down on every line the editor accepts, and only the transition to zero starts REF again -- which is the manual's "press RETURN again, and the search will continue"
+
+MB &570C : A = 0, so STREAM reselects stream 0; the ROM's edit left the channel pointing elsewhere
+
+MB &5712 : from here to &5724 the machine stack is rewritten so that the ROM's error exit lands back in MasterBASIC.  BC is the *contents* of ERRSP, i.e. an address in the system page's stack
+
+MB &5719 : the high byte of the word at (ERRSP), because the write below runs downwards
+
+MB &571A : the address the hook at &7BCF saved, three bytes short of where it was popped from
+
+MB &571F : replaces the word at (ERRSP) with that address
+
+MB &5722 : NOT a call -- this falls into WRITE_BC_DESCENDING with HL already one word lower, laying &0004 into the word at (ERRSP)-2.  &0004 in ROM 0 is POP HL : JP (HL), so when the ROM does LD HL,(ERRSP) : DEC HL : DEC HL : LD SP,HL and returns, it lands on the trampoline, which pops the address written above it and jumps there.  Two words, one loaded register pair and no second CALL
+
+DOC WRITE_BC_DESCENDING
+    WHY BACKWARDS IS THE QUESTION, and the answer is that what is being
+    written is a stack.
+
+    A stack is built downwards, so the word that will be popped last has
+    to be laid down first.  Both callers are filling in frames on the
+    ROM's own machine stack around ERRSP -- &571F writes the address the
+    error exit will jump to, then falls straight through with BC = &0004
+    to write the trampoline word beneath it, and &54B4 writes a single
+    word at (ERRSP)-2 the same way.
+
+    Two smaller consequences.  Because HL comes out pointing at the high
+    byte of the next word down, a second word costs one LD BC and nothing
+    else.  And because the second byte is written by falling into
+    WRITE_A_DESCENDING rather than calling it, the whole thing is five
+    bytes.
+
+    Both bytes go through WRA, which pages the system page into the
+    window and back for each one, so the caller hands over the address at
+    its face value and never touches HMPR.
+
+DOC SCAN_TEXT_PAGED_4
+    ALTER's third of the search: the reference has been found, so replace
+    it with the second one.
+
+    THE TWO REFERENCES SIT IN TWO BUFFERS, at &7B00 and &7B80, each a
+    length byte followed by its text; PARSE_REFERENCE_INTO_BUFFER filled
+    the first and &5561 pointed the second parse at the other.  All this
+    routine has to do is make the hole in the program text the right
+    size and copy.
+
+    The manual's warning that ALTER is irreversible is the whole of the
+    behaviour: there is no undo buffer here, the text is edited in place
+    and the scan resumes immediately after what was written.
+
+MB &572F : the line's start address, peeked rather than popped -- CMD_REF_2 pushed it at &5697 and the scan loop still wants it
+
+MB &5731 : D and E are the two case forms of the reference's first character, which MATCH_REFERENCE handed back untouched and the resumed scan will need again
+
+MB &5736 : the length of the reference being replaced, from the first buffer
+
+MB &5737 : DE = BC, the address in the program text where the match starts; MATCH_REFERENCE left HL past the match and the caller kept the start in BC
+
+MB &573C : the length of the replacement, from the second buffer; B is cleared so BC is a byte count for the LDIR below
+
+MB &5740 : with A = old length, C = new length, DE = the text and HL = the line start, this opens or reclaims the difference and fixes the line's length field.  It comes back with DE at the gap and BC still the new length
+
+MB &5743 : the replacement text, one past its length byte
+
+MB &5746 : ALTER x TO nothing is legal, and an LDIR with BC = 0 would copy 64K
+
+MB &574C : with the LDIR skipped, HL is still the source; the EX is what makes the deletion case leave HL on the program text like the copy case does
+
+MB &574E : SCAN_TEXT_FOR_D_OR_E opens with INC HL, so this puts the resumed scan on the first byte past what was just written -- a replacement cannot match itself
+
+MB &5752 : line 1, so a REF with no range starts at the top of the program
+
+MB &5758 : &FEFF is chosen, not arbitrary.  It is above any line number a program can hold and *below* the &FF that marks the end of the program, so the same "is this line past the last one?" test at &5693 stops the walk at the terminator with no separate end check
+
+MB &575E : no comma at all and the two defaults stand, which is the bare REF a$ case
+
+MB &5764 : the DOS's EVNUMX steps over the comma itself, evaluates, and comes back with HL = the value and A = the character after it -- so the second comma is already in A below
+
+MB &576C : at syntax time EVNUMX returns before the value is fetched, so the line numbers stored are rubbish; harmless, because the search never runs then, and A is still the following character so the syntax check is right
+
+MB &5778 : &80 for ALTER, &01 for REF, &00 for PRINT REF -- one byte that &56B3 later takes apart with a single SLA A, carry for ALTER and zero for PRINT REF
+
+MB &577C : the first reference buffer.  The label is the installer's, and &7B00 has been dead code since boot; here it is 128 bytes of scratch
+
+MB &577F : the save is needed because a bracketed or quoted reference ends in GET_STRING_AND_PAGE_IT, which calls TSURPG and leaves the string's page in the window.  The caller is still walking its own memory
+
+MB &578F : the first character of the reference decides everything that follows, and it is kept because SCAN_TEXT_FOR_D_OR_E consults it on every character of the program
+
+MB &5792 : a quote and a left bracket both start something the ROM's expression evaluator can read, which is why they share the path
+
+MB &579A : EXPTEXPR at &011E -- "expect an expression at (CHAD)".  It comes back with carry set if running, minus if the value is numeric and plus if it is a string
+
+MB &579F : syntax time, so nothing is built
+
+MB &57A0 : numeric, so the reference is a number and needs its invisible five-byte form as well
+
+MB &57A3 : a string value, and zero here means "do not skip over quoted text while scanning".  That is exactly the manual's split -- REF "zebra" is found inside strings and REF zebra is not
+
+MB &57AA : GETSTRING has already returned the page in A; TSURPG puts it in the window, keeping the top three bits of HMPR, so the LDIR below can reach the string
+
+MB &57AD : the string's own address, which is only wanted for its high byte -- see &57F2
+
+MB &57B0 : CHAD, on the first character of the reference; the length is worked out at the end by subtracting this from wherever CHAD has got to
+
+MB &57B4 : not a digit, so it has to be a variable name
+
+MB &57B6 : evaluating the number steps CHAD past the digits *and* past the &0E and its five bytes, which is why the length computed below covers both.  The manual: "the search also looks for the invisible 5-byte form that follows them"
+
+MB &57BB : pushed only so that &57F2 can pop it as the buffer's terminator byte; any non-zero value does, and the high byte of an address in the program text always is
+
+MB &57C1 : neither digit nor letter, so there is nothing a reference could be
+
+MB &57CC : a trailing $ belongs to the name, so it is stepped over here rather than being left for the terminator test
+
+MB &57D1 : the start address again, now to be subtracted
+
+MB &57D2 : syntax time: the name has been checked, and there is no buffer to fill
+
+MB &57D6 : zero, and this one matters -- a zero terminator is what makes MATCH_REFERENCE insist on a word boundary at both ends, so REF count does not find "account".  Only the bare-name path pushes it
+
+MB &57DB : CHAD minus the start.  Both paths run CALL_GETCHAR immediately above so that the carry going into the SBC is the same on either
+
+DOC GET_STRING_AND_PAGE_IT_2
+    The buffer, which is the whole interface between the parsing here and
+    the matching in MATCH_REFERENCE:
+
+        +0        length of the text
+        +1..      the text
+        +len+1    a terminator byte, and its VALUE IS A FLAG:
+                  zero means "insist on a word boundary at both ends",
+                  anything else means "match anywhere"
+
+    Nothing else distinguishes REF count from REF "count".  The zero is
+    pushed by the bare-name path at &57D6; every other path pushes
+    something that happens to be non-zero and never says so.
+
+MB &57DE : B is cleared rather than kept, so a string longer than 255 is truncated by its low byte -- and a 256-byte one reads as empty
+
+MB &57E4 : 120 bytes is the cap, which is what leaves the two buffers at &7B00 and &7B80 clear of each other
+
+MB &57EA : the length byte goes in first, then the text after it
+
+MB &57ED : A is the length before capping, so this is the guard against an LDIR with BC = 0
+
+MB &57F2 : the terminator, whatever was pushed
+
+DOC PARSE_REFERENCE_3
+    REF (x) where x is a number: build the printed form and the invisible
+    form, because the manual says both are searched for --
+
+        "REF (x)  Looks for: value of x, such as 10(invisible form)"
+
+    FOUR BYTES OF CODE ARE POKED INTO THE ROM'S OWN BUFFER and called.
+    They are
+
+        EF        RST &28, the floating-point calculator
+        25        DUP
+        57        STR$
+        34        EXIT2
+
+    -- duplicate the value, turn the copy into a string, come back.  The
+    stub has to live in the system page because CMR maps that page at
+    &4000 while it runs, so MasterBASIC's own bytes are not reachable;
+    INSTBUF, which the ROM uses to page in optional command overlays, is
+    the scratch that is there.
+
+    GET_STRING_AND_PAGE_IT then takes the string into the buffer in the
+    ordinary way.  The original value is still on the calculator stack,
+    so the rest of the routine drops it by five and copies those five
+    bytes into the buffer behind an &0E marker, which is exactly how the
+    number appears in a program line.
+
+MB &57F8 : the operand is INSTBUF, &4F00 in the system page, not this page's &4F00 -- the label DKP2 is the ROM source's name for whichever overlay was loaded there last
+
+MB &5805 : run the four bytes just written
+
+MB &580D : STKEND, so the five bytes of the value are the five below it
+
+MB &5817 : written back, which is the drop; the value has been consumed
+
+MB &581E : the number marker.  DE is still on the terminator byte GET_STRING_AND_PAGE_IT left, so the marker overwrites it and the five bytes follow -- the buffer ends up holding exactly what the program text holds
+
+MB &5824 : RDA, not LD A,(HL): the calculator stack is in the system page and has to be read through the window
+
+MB &582D : H is &7B, the buffer's own high byte -- a non-zero terminator, which is the "match anywhere" flag, and the cheapest non-zero byte in reach.  Word boundaries are not needed when five bytes of binary have to match as well
+
+MB &5832 : the length byte was written for the digits alone; the marker and its five bytes are six more
+
+MB &583B : the length byte
+
+MB &583D : one less, because SCAN_TEXT_FOR_D_OR_E has already matched the first character -- that is what it was searching for
+
+MB &583E : a one-character reference is finished before the loop starts, and goes straight to the boundary tests
+
+MB &5841 : both pointers step before the compare, so the loop begins on the second character of each
+
+MB &5844 : the test is on the byte from the *buffer*, not from the program.  A digit or a $ in the reference has to match exactly; only letters are allowed to differ in case
+
+MB &5852 : DE lands on the terminator byte and HL on the character after the match
+
+MB &5855 : a non-zero terminator ends it here -- quoted text, a bracketed value and a number all match without any boundary test.  This is the branch that makes REF "count" find the middle of "account"
+
+MB &5859 : REF abc must not answer with abc$, so a following dollar is a failure even though $ is not a name character
+
+MB &585B : the carry set here is the answer for the $ case and is left alone by the CALL NZ, so one flag serves two tests
+
+MB &5861 : the match start is on the stack, and this is the cheapest way to look two bytes behind it without a spare register pair
+
+MB &5869 : INC C asks whether the byte two before the match is &FF.  A function in a SAM BASIC line is stored as &FF followed by its code, so if it is, the byte immediately before the match is the second half of a token and not text at all -- a boundary, whatever it looks like.  Without this, REF n would refuse to find the n in ABS n whenever the token's second byte happened to fall in the letter or digit range
+
+MB &586A : otherwise the ordinary rule: a letter or digit in front means this is the tail of a longer word.  The manual gives "count" and "account" as the case it is guarding
+
+MB &586F : both ways in have carry set, so SBC A,A makes A = &FF and clears Z -- the failure the shared exit below is about to return.  The ordinary failure at &584E already had NZ from its CP; this path has to manufacture it
+
+MB &5870 : THE TWO EXITS DIFFER IN ONE REGISTER.  Failure pops the saved position into HL, so the scan resumes exactly where it was; success falls in at &5872 and pops it into BC, throwing it away and leaving HL past the match for the caller to use.  The &11 between them swallows the CP A and the POP BC on the failing path, so both share the POP DE and the RET
+
+MB &5872 : CP A always sets Z, which is how the caller at &56B1 is told the reference matched
+
+MB &5878 : the ROM's NUMBER steps over &0E and the five bytes behind it in one call, so a byte of a number's binary form can never be mistaken for text
+
+MB &587D : carry set on the carriage return is the "line finished" answer the paged wrapper tests
+
+MB &5883 : zero means the reference came out of quotes or a brackets expression, and those are looked for inside strings; anything else and the quoted run below is stepped over whole
+
+MB &5887 : A is reloaded because the flag test overwrote it -- the quote character itself is what the skip loop below compares against
+
+MB &588A : run to the closing quote.  There is no end-of-line test in this loop; an unterminated string cannot occur in a line the ROM has accepted
+
+MB &5892 : &FF is a function token's prefix, so the byte after it is a token code, not text.  Skipping it is what keeps a reference from matching half of a two-byte token, and is the other side of the test at &5869
+
+MB &589B : the ROM's own channel word, put aside at &56ED before MasterBASIC's was installed
+
+MB &58A4 : ten bytes into the channel information area, which is the third channel's output routine
+
+MB &58AD : C takes the low byte of the old word and B the high one, so the pair comes back in BC while DE goes in -- exchanging rather than writing is what lets one routine both install the hook and remove it
+
+MB &58AF : WRA pages the system page in and out and does not preserve HL
+
+MB &58BC : the second byte's write is the return
+
+DOC STEP_BY_TABLE_ENTRY
+    Nothing to do with tables.  This is ALTER's edit: make the gap in the
+    program text the size of the replacement and correct the line's
+    length field to match.
+
+    Entry:  A = length being removed, C = length going in,
+            DE = the text, HL = the line's start.
+    Exit:   DE = the gap, BC = C unchanged, ready for an LDIR.
+
+    THE SIGN OF THE DIFFERENCE IS USED TWICE.  SUB C sets it, and the
+    routine keeps that one AF across the arithmetic in between so that
+    the same borrow chooses between MKRBIG and RECLAIM at the end.  In
+    between, the difference is turned into a signed 16-bit value with
+    LD L,A : RLA : SBC A,A : LD H,A -- three bytes that sign-extend an
+    eight-bit number into HL without a branch -- and added to the line
+    length.
+
+MB &58BF : same length, nothing to move and the length field is already right
+
+MB &58C1 : two bytes in is the line's length field; the line number is the two before it
+
+MB &58C4 : the borrow is wanted again at &58D9, after five instructions that all disturb it
+
+MB &58C9 : NEG turns "bytes removed minus bytes added" into the change in the line's length
+
+MB &58CC : RLA puts the sign bit into carry and SBC A,A spreads it across the whole byte, so H becomes &00 or &FF -- the eight-bit delta sign-extended into HL
+
+MB &58D3 : written high byte first with HL walking down, because HL was left on the high byte
+
+MB &58D9 : no borrow means the replacement is shorter, so bytes come out; a borrow means it is longer, so bytes go in
+
+MB &58DB : back to a positive count for the amount to open
+
+MB &58EB : the program text has changed, so the ROM's DCT flags are marked to force a recompile
+
+MB &58EE : the address the open or the reclaim left, handed back in DE for the caller's LDIR
+
+MB &58EF : the replacement's length, saved at &58C3 so the caller does not have to fetch it again
+
+MB &58F2 : A = 0, so no whole 16K pages -- MKRBIG opens A*16K + BC bytes
+
+MB &58F9 : SEARCH_FIRST_LINE is not the user's number by the time this runs -- the scan at &568B overwrites it with each line's own number as it goes, so a resumed REF starts at the line it stopped on
+
+MB &58FD : NRRDD hands its answer back in BC, so the caller's BC has to be got out of the way for both reads
+
+MB &5901 : PROG is the address and PROGP the page; neither is any use without the other
+
+MB &590B : A is the page from PROGP, or the caller's own on the entry below
+
+MB &590E : HL is about to be walked forward, and what the callers want back is where the line began
+
+MB &5911 : straight to the compare -- the first line is not stepped over
+
+MB &5913 : INCURPAGE clears bit 6 of H itself, so there is no RES 6,H here
+
+MB &591D : the length two bytes in counts the text only, so adding it to the address four bytes in lands on the next line.  The walk never looks inside a line
+
+MB &5922 : THERE IS NO END-OF-PROGRAM TEST IN THIS LOOP, and none is needed.  A line number is stored high byte first, the program ends with an &FF where a line number's high byte would be, and &FF is above any B the callers can pass -- the default &FEFF at &5758 is chosen to keep it so.  The terminator therefore stops the walk through the ordinary comparison
+
+MB &5927 : above on the high byte, so the answer is this line and the low byte need not be looked at
+
+MB &5929 : equal high bytes, so the low ones decide; HL is put back afterwards because the exit wants the line's start
+
+MB &592F : the address kept at &5918, which is the line this stopped on
+
+MB &5934 : SPORT is XVAR 11, the port the Comms Interface is jumpered to; there is no fixed address for it
+
+MB &5937 : DBITS and SBITS are XVAR 13 and 14 and adjacent, and MR1 and MR2 are written one after the other -- so one LD HL,(nn) fetches both in the order they are needed
+
+MB &593B : the OUT (C) form puts B on the top half of the address bus, which is where the SCC2691 takes its register number, so B selects the register throughout
+
+MB &593D : resetting the MR pointer is what makes the next two writes to register 0 land on MR1 and then MR2
+
+MB &5954 : one XOR A serves IMR, CTUR and CTLR: no interrupts, and the counter/timer divisors cleared rather than left as found
+
+MB &596B : no CALL -- the last pair falls into SERCMD
+
+MB &596E : H before L, so a caller can write the pair in the order it reads
+
+MB &5973 : MODCHAR1 and MODCHAR2 are adjacent XVARs, so one fetch gets both characters to test against
+
+MB &5983 : anything that is neither of the two prints as itself, through the ROM
+
+MB &5989 : the first byte of the message is its length; the four XVAR messages are all stored that way
+
+MB &598F : CHANS is re-read for every byte because the channel routine below is entitled to move it.  The operand is written pre-windowed here and plainly at &58A2 -- NRRDD's SET 7,H / RES 6,H leaves an already-windowed address alone, so the two spellings do the same thing
+
+MB &5995 : twenty-five bytes into the channel information area
+
+MB &599C : HLJPI takes the address stored at HL and jumps to it, so this reaches the printer channel's own output routine rather than printing directly
+
+MB &599E : everything is saved around the call because a channel routine may use any register
+
+DOC SEND_COUNTED_TO_CHANNEL_1
+    Not part of the routine above it, and nothing to do with channels:
+    this is the whole of MasterBASIC's per-interrupt work, reached fifty
+    times a second from the hook at &7CF9.
+
+    THE PAGING IS THE OPPOSITE WAY ROUND HERE.  The caller has just set
+    HMPR to MasterBASIC's page, so this code is executing at &99A3 and
+    its own variables are at &8xxx, while the ROM's system page is at
+    &4000 where the interrupt left it.  That is why SPSTORE and TVFLAG
+    are read as plain addresses and V4085 is read as &8085.
+
+    Three unrelated jobs in a row: a keyboard escape, a rescue for the
+    ROM's automatic listing, and the screen-blank countdown and printer
+    feed below.
+
+MB &59A3 : IN A,(n) puts A on the top half of the address bus, so &F7 is the keyboard scan line, not a value.  Bits 5 to 7 of the status port are matrix lines K6 to K8
+
+MB &59A7 : two keys of that row, and both low means both held.  On the published matrix, line &F7 gives ESC and TAB
+
+MB &59A9 : &0066 is the ROM's NMI handler, so holding the pair does what the break button does.  The manual documents no such key, which is worth being suspicious of
+
+MB &59AC : &10 exactly, not a bit test -- TVFLAG with only bit 4 set is the ROM's automatic listing in progress, and AULX clears that bit when the listing ends
+
+MB &59B3 : (SPSTORE) is the stack the interrupt came in on.  The ROM's &0038 pushes AF, BC then HL before ANYI stores SP, so from there +0 is HL, +2 is BC, +4 is AF and +6 is the interrupted PC
+
+MB &59BB : the high byte of the interrupted PC.  &06 is the page AULLP lives in, and it is written as a literal even though the low byte below is patched -- the rescue quietly assumes the ROM keeps that loop in &06xx
+
+MB &59C0 : the operand is written at boot from &79C7, from a signature search for AULLP: C is its low byte and B that plus &12.  So the pair of compares below asks whether the interrupt caught the ROM inside the first eighteen bytes of the auto-list loop, the part that hunts forward for SDTOP
+
+MB &59CA : +5 is the interrupted A, which in that loop is the page EPPC is in
+
+MB &59CC : D is the HMPR the hook read at &7CF4, so this acts only when the line wanted is in a page below the one in the window -- the case the ROM's loop walks forward for ever looking for
+
+MB &59CF : the return address and the HMPR the hook saved
+
+MB &59D1 : the return address goes back, but the interrupted A goes in place of the saved HMPR -- so the POP AF / OUT (HMPR),A at &7CFC leaves the window on the page the line is in rather than restoring what was there.  A deliberate substitution, not a save/restore
+
+MB &59D3 : plus &100, which is the distance AULLP's own comment asks for: "HL SHOULD BE ABOUT 0100 HIGHER THAN ADDR FOR SDTOP"
+
+MB &59D8 : overwriting the interrupted HL, so the loop resumes on a line address MasterBASIC chose
+
+MB &59E2 : &061E is AUL3 in the ROM the signature search found -- the instruction just past the loop.  Setting the interrupted PC to it is what breaks the ROM out.  Like the &06 above, it is a literal and does not follow the search
+
+MB &59E8 : SOFV read at &8002 is XVAR 2, this half seen through the window; SOFFCT at &5AC4 two instructions later is the ROM's, read with the system page low.  Both in four instructions, which is only possible from the interrupt
+
+MB &59FC : the printer buffer's page, biased by one so that zero means there is no buffer -- which is what LPRINT CLEAR 0 leaves behind
+
+MB &5A02 : the real page number, kept in B because the feed below pages it in and out repeatedly
+
+MB &5A04 : the paging to come back to after each dip into the buffer
+
+MB &5A07 : XVAR 8, the number of characters to feed per interrupt; it is counted down at &5A59 and is the throttle on how much of a frame printing may take
+
+MB &5A0B : the read position and the write position
+
+MB &5A15 : the addresses differ, so there is something to send
+
+MB &5A17 : same address and same page as well: the buffer is empty and there is nothing to do
+
+MB &5A1E : D+1 divisible by four picks out &3F, &7F, &BF and &FF -- the high byte of the last page of a 16K block -- in one AND, before the fuller test below
+
+MB &5A24 : the block mapped at &4000 has its link sixteen bytes lower than the others.  Why is not clear from this code
+
+MB &5A33 : the last two bytes of a block are the link: the next block's address high byte, then its page
+
+MB &5A3A : the same biased page byte read at &59FC, so the feed picks up where it left off next interrupt
+
+MB &5A42 : the printer-ready test is in the other half's own page, reached through the window
+

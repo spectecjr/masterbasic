@@ -7395,38 +7395,72 @@ SCAN_TEXT_PAGED_3:
                POP BC                          ; 56F2 C1
 
 L56F3:
-               CALL CMR                        ; 56F3 CD F0 44  the operand is written here at run time, from &79AE
+               CALL CMR                        ; 56F3 CD F0 44  the operand is written at boot from &79AE, where a
+                                               ; signature search finds the ROM's EDKY1 -- the byte pair is
+                                               ; version-dependent, so it cannot be assembled
 
 ; ---- V56F6 ---- from &79AE
 V56F6:
                DEFW &0000                      ; 56F6 00 00
-               CALL NRRDD                      ; 56F8 CD 5F 45
+               CALL NRRDD                      ; 56F8 CD 5F 45  &5A65 is what the channel hook left behind: KCUR as it
+                                               ; stood one character before the reference was reached
                DEFW &5A65                      ; 56FB 65 5A
-               INC BC                          ; 56FD 03
+               INC BC                          ; 56FD 03  undoes the DEC HL the hook did at &7BB8, so KCUR ends up
+                                               ; exactly where the hook saw it
                CALL NRWRD                      ; 56FE CD 77 45
                DEFW KCUR                       ; 5701 9A 5A
-               CALL CHANNEL_WORD_FROM_5A67     ; 5703 CD 98 58
-               LD A,&02                        ; 5706 3E 02
+               CALL CHANNEL_WORD_FROM_5A67     ; 5703 CD 98 58  puts the ROM's own channel word back, from where &56ED
+                                               ; stowed it -- EXCHANGE_CHANNEL_WORD is written so that installing and
+                                               ; removing are the same call
+               LD A,&02                        ; 5706 3E 02  two line entries have to go by before the search resumes.
+                                               ; &5493 counts it down on every line the editor accepts, and only the
+                                               ; transition to zero starts REF again -- which is the manual's "press
+                                               ; RETURN again, and the search will continue"
                LD (V407D),A                    ; 5708 32 7D 40
                XOR A                           ; 570B AF
-               CALL CMR                        ; 570C CD F0 44
+               CALL CMR                        ; 570C CD F0 44  A = 0, so STREAM reselects stream 0; the ROM's edit left
+                                               ; the channel pointing elsewhere
                DEFW STREAM                     ; 570F 12 01
                POP BC                          ; 5711 C1
-               CALL NRRDD                      ; 5712 CD 5F 45
+               CALL NRRDD                      ; 5712 CD 5F 45  from here to &5724 the machine stack is rewritten so
+                                               ; that the ROM's error exit lands back in MasterBASIC. BC is the
+                                               ; *contents* of ERRSP, i.e. an address in the system page's stack
                DEFW ERRSP                      ; 5715 3D 5C
                LD H,B                          ; 5717 60
                LD L,C                          ; 5718 69
-               INC HL                          ; 5719 23
-               CALL NRRDD                      ; 571A CD 5F 45
+               INC HL                          ; 5719 23  the high byte of the word at (ERRSP), because the write below
+                                               ; runs downwards
+               CALL NRRDD                      ; 571A CD 5F 45  the address the hook at &7BCF saved, three bytes short
+                                               ; of where it was popped from
                DEFW &5A62                      ; 571D 62 5A
-               CALL WRITE_BC_DESCENDING        ; 571F CD 25 57
-               LD BC,&0004                     ; 5722 01 04 00
+               CALL WRITE_BC_DESCENDING        ; 571F CD 25 57  replaces the word at (ERRSP) with that address
+               LD BC,&0004                     ; 5722 01 04 00  NOT a call -- this falls into WRITE_BC_DESCENDING with
+                                               ; HL already one word lower, laying &0004 into the word at (ERRSP)-2.
+                                               ; &0004 in ROM 0 is POP HL : JP (HL), so when the ROM does LD HL,(ERRSP)
+                                               ; : DEC HL : DEC HL : LD SP,HL and returns, it lands on the trampoline,
+                                               ; which pops the address written above it and jumps there. Two words, one
+                                               ; loaded register pair and no second CALL
 
 ;; --------------------------------------------------------------------
-;; Write B then C into the ROM's system page at HL, stepping HL *down*
-;; between them, so a word ends up stored high byte first at the lower
-;; address.  It calls WRITE_A_DESCENDING for the first byte and falls
-;; into it for the second.
+;; WHY BACKWARDS IS THE QUESTION, and the answer is that what is being
+;; written is a stack.
+;;
+;; A stack is built downwards, so the word that will be popped last has
+;; to be laid down first.  Both callers are filling in frames on the
+;; ROM's own machine stack around ERRSP -- &571F writes the address the
+;; error exit will jump to, then falls straight through with BC = &0004
+;; to write the trampoline word beneath it, and &54B4 writes a single
+;; word at (ERRSP)-2 the same way.
+;;
+;; Two smaller consequences.  Because HL comes out pointing at the high
+;; byte of the next word down, a second word costs one LD BC and nothing
+;; else.  And because the second byte is written by falling into
+;; WRITE_A_DESCENDING rather than calling it, the whole thing is five
+;; bytes.
+;;
+;; Both bytes go through WRA, which pages the system page into the
+;; window and back for each one, so the caller hands over the address at
+;; its face value and never touches HMPR.
 ;; --------------------------------------------------------------------
 
 ; ---- WRITE_BC_DESCENDING ---- from &54B4, &571F
@@ -7447,33 +7481,48 @@ WRITE_A_DESCENDING:
 
 ; ---- SCAN_TEXT_PAGED_4 ---- from &56B8 when bit 7 of A was set
 SCAN_TEXT_PAGED_4:
-               POP HL                          ; 572F E1
+               POP HL                          ; 572F E1  the line's start address, peeked rather than popped --
+                                               ; CMD_REF_2 pushed it at &5697 and the scan loop still wants it
                PUSH HL                         ; 5730 E5
-               PUSH DE                         ; 5731 D5
+               PUSH DE                         ; 5731 D5  D and E are the two case forms of the reference's first
+                                               ; character, which MATCH_REFERENCE handed back untouched and the resumed
+                                               ; scan will need again
                PUSH HL                         ; 5732 E5
                LD DE,INSTALL_ROM_PATCHES       ; 5733 11 00 7B
-               LD A,(DE)                       ; 5736 1A
-               LD D,B                          ; 5737 50
+               LD A,(DE)                       ; 5736 1A  the length of the reference being replaced, from the first
+                                               ; buffer
+               LD D,B                          ; 5737 50  DE = BC, the address in the program text where the match
+                                               ; starts; MATCH_REFERENCE left HL past the match and the caller kept the
+                                               ; start in BC
                LD E,C                          ; 5738 59
                LD HL,INSTALL_ROM_PATCHES_2     ; 5739 21 80 7B
-               LD C,(HL)                       ; 573C 4E
+               LD C,(HL)                       ; 573C 4E  the length of the replacement, from the second buffer; B is
+                                               ; cleared so BC is a byte count for the LDIR below
                LD B,&00                        ; 573D 06 00
                POP HL                          ; 573F E1
-               CALL STEP_BY_TABLE_ENTRY        ; 5740 CD BF 58
-               LD HL,WRITE_A_DESCENDING_2      ; 5743 21 81 7B
-               LD A,B                          ; 5746 78
+               CALL STEP_BY_TABLE_ENTRY        ; 5740 CD BF 58  with A = old length, C = new length, DE = the text and
+                                               ; HL = the line start, this opens or reclaims the difference and fixes
+                                               ; the line's length field. It comes back with DE at the gap and BC still
+                                               ; the new length
+               LD HL,WRITE_A_DESCENDING_2      ; 5743 21 81 7B  the replacement text, one past its length byte
+               LD A,B                          ; 5746 78  ALTER x TO nothing is legal, and an LDIR with BC = 0 would
+                                               ; copy 64K
                OR C                            ; 5747 B1
                JR Z,WRITE_A_DESCENDING_1       ; 5748 28 02
                LDIR                            ; 574A ED B0
 
 ; ---- WRITE_A_DESCENDING_1 ---- from &5748
 WRITE_A_DESCENDING_1:
-               EX DE,HL                        ; 574C EB
+               EX DE,HL                        ; 574C EB  with the LDIR skipped, HL is still the source; the EX is what
+                                               ; makes the deletion case leave HL on the program text like the copy case
+                                               ; does
 
 ; ---- SCAN_TEXT_PAGED_5 ---- from &56DA
 SCAN_TEXT_PAGED_5:
                POP DE                          ; 574D D1
-               DEC HL                          ; 574E 2B
+               DEC HL                          ; 574E 2B  SCAN_TEXT_FOR_D_OR_E opens with INC HL, so this puts the
+                                               ; resumed scan on the first byte past what was just written -- a
+                                               ; replacement cannot match itself
                JP SCAN_TEXT_PAGED              ; 574F C3 9B 56
 
 ;; --------------------------------------------------------------------
@@ -7490,17 +7539,27 @@ SCAN_TEXT_PAGED_5:
 
 ; ---- PARSE_LINE_RANGE ---- from &556F, &566A
 PARSE_LINE_RANGE:
-               LD HL,&0001                     ; 5752 21 01 00
+               LD HL,&0001                     ; 5752 21 01 00  line 1, so a REF with no range starts at the top of the
+                                               ; program
                LD (SEARCH_FIRST_LINE),HL       ; 5755 22 91 40
-               LD HL,&FEFF                     ; 5758 21 FF FE
+               LD HL,&FEFF                     ; 5758 21 FF FE  &FEFF is chosen, not arbitrary. It is above any line
+                                               ; number a program can hold and *below* the &FF that marks the end of the
+                                               ; program, so the same "is this line past the last one?" test at &5693
+                                               ; stops the walk at the terminator with no separate end check
                LD (SEARCH_LAST_LINE),HL        ; 575B 22 8D 40
-               CALL CALL_GETCHAR               ; 575E CD 67 44
+               CALL CALL_GETCHAR               ; 575E CD 67 44  no comma at all and the two defaults stand, which is the
+                                               ; bare REF a$ case
                CP CH_COMMA                     ; 5761 FE 2C
                RET NZ                          ; 5763 C0
-               CALL CALLDOS                    ; 5764 CD C1 42
+               CALL CALLDOS                    ; 5764 CD C1 42  the DOS's EVNUMX steps over the comma itself, evaluates,
+                                               ; and comes back with HL = the value and A = the character after it -- so
+                                               ; the second comma is already in A below
                DEFW DOS_EVNUMX-&4000           ; 5767 AF 62
                LD (SEARCH_FIRST_LINE),HL       ; 5769 22 91 40
-               CP &2C                          ; 576C FE 2C
+               CP &2C                          ; 576C FE 2C  at syntax time EVNUMX returns before the value is fetched,
+                                               ; so the line numbers stored are rubbish; harmless, because the search
+                                               ; never runs then, and A is still the following character so the syntax
+                                               ; check is right
                RET NZ                          ; 576E C0
                CALL CALLDOS                    ; 576F CD C1 42
                DEFW DOS_EVNUMX-&4000           ; 5772 AF 62
@@ -7514,9 +7573,13 @@ PARSE_LINE_RANGE:
 
 ; ---- PARSE_REFERENCE_INTO_BUFFER ---- from &5553, &5667
 PARSE_REFERENCE_INTO_BUFFER:
-               LD A,D                          ; 5778 7A
+               LD A,D                          ; 5778 7A  &80 for ALTER, &01 for REF, &00 for PRINT REF -- one byte that
+                                               ; &56B3 later takes apart with a single SLA A, carry for ALTER and zero
+                                               ; for PRINT REF
                LD (V4094),A                    ; 5779 32 94 40
-               LD HL,INSTALL_ROM_PATCHES       ; 577C 21 00 7B
+               LD HL,INSTALL_ROM_PATCHES       ; 577C 21 00 7B  the first reference buffer. The label is the
+                                               ; installer's, and &7B00 has been dead code since boot; here it is 128
+                                               ; bytes of scratch
 
 ;; --------------------------------------------------------------------
 ;; PARSE_REFERENCE with HMPR saved and put back around it, which is what
@@ -7525,7 +7588,9 @@ PARSE_REFERENCE_INTO_BUFFER:
 
 ; ---- PARSE_REFERENCE_SAVING_PAGE ---- from &5568
 PARSE_REFERENCE_SAVING_PAGE:
-               IN A,(HMPR)                     ; 577F DB FB
+               IN A,(HMPR)                     ; 577F DB FB  the save is needed because a bracketed or quoted reference
+                                               ; ends in GET_STRING_AND_PAGE_IT, which calls TSURPG and leaves the
+                                               ; string's page in the window. The caller is still walking its own memory
                PUSH AF                         ; 5781 F5
                CALL PARSE_REFERENCE            ; 5782 CD 89 57
                POP AF                          ; 5785 F1
@@ -7546,19 +7611,27 @@ PARSE_REFERENCE_SAVING_PAGE:
 PARSE_REFERENCE:
                LD (REFERENCE_PTR),HL           ; 5789 22 8F 40
                CALL CALL_GETCHAR               ; 578C CD 67 44
-               LD (REFERENCE_KIND),A           ; 578F 32 93 40
-               CP CH_QUOTE                     ; 5792 FE 22
+               LD (REFERENCE_KIND),A           ; 578F 32 93 40  the first character of the reference decides everything
+                                               ; that follows, and it is kept because SCAN_TEXT_FOR_D_OR_E consults it
+                                               ; on every character of the program
+               CP CH_QUOTE                     ; 5792 FE 22  a quote and a left bracket both start something the ROM's
+                                               ; expression evaluator can read, which is why they share the path
                JR Z,PARSE_REFERENCE_1          ; 5794 28 04
                CP CH_LPAREN                    ; 5796 FE 28
                JR NZ,PARSE_REFERENCE_2         ; 5798 20 16
 
 ; ---- PARSE_REFERENCE_1 ---- from &5794 when A = CH_QUOTE
 PARSE_REFERENCE_1:
-               CALL CMR                        ; 579A CD F0 44
+               CALL CMR                        ; 579A CD F0 44  EXPTEXPR at &011E -- "expect an expression at (CHAD)".
+                                               ; It comes back with carry set if running, minus if the value is numeric
+                                               ; and plus if it is a string
                DEFW EXPEXP                     ; 579D 1E 01
-               RET NC                          ; 579F D0
-               JP M,PARSE_REFERENCE_3          ; 57A0 FA F5 57
-               XOR A                           ; 57A3 AF
+               RET NC                          ; 579F D0  syntax time, so nothing is built
+               JP M,PARSE_REFERENCE_3          ; 57A0 FA F5 57  numeric, so the reference is a number and needs its
+                                               ; invisible five-byte form as well
+               XOR A                           ; 57A3 AF  a string value, and zero here means "do not skip over quoted
+                                               ; text while scanning". That is exactly the manual's split -- REF "zebra"
+                                               ; is found inside strings and REF zebra is not
                LD (REFERENCE_KIND),A           ; 57A4 32 93 40
 
 ;; --------------------------------------------------------------------
@@ -7569,109 +7642,141 @@ PARSE_REFERENCE_1:
 ; ---- GET_STRING_AND_PAGE_IT ---- from &580A
 GET_STRING_AND_PAGE_IT:
                CALL CALL_GETSTR                ; 57A7 CD 6D 44
-               CALL TSURPG                     ; 57AA CD DF 3F
-               PUSH DE                         ; 57AD D5
+               CALL TSURPG                     ; 57AA CD DF 3F  GETSTRING has already returned the page in A; TSURPG
+                                               ; puts it in the window, keeping the top three bits of HMPR, so the LDIR
+                                               ; below can reach the string
+               PUSH DE                         ; 57AD D5  the string's own address, which is only wanted for its high
+                                               ; byte -- see &57F2
                JR GET_STRING_AND_PAGE_IT_2     ; 57AE 18 2E
 
 ; ---- PARSE_REFERENCE_2 ---- from &5798 when A <> CH_LPAREN
 PARSE_REFERENCE_2:
-               PUSH HL                           ; 57B0 E5
+               PUSH HL                           ; 57B0 E5  CHAD, on the first character of the reference; the length is
+                                                 ; worked out at the end by subtracting this from wherever CHAD has got
+                                                 ; to
                CALL IS_DIGIT                     ; 57B1 CD 4E 45
-               JR NC,GET_STRING_AND_PAGE_IT_FAIL ; 57B4 30 08
-               CALL CALL_EXPNUM                  ; 57B6 CD 85 44
+               JR NC,GET_STRING_AND_PAGE_IT_FAIL ; 57B4 30 08  not a digit, so it has to be a variable name
+               CALL CALL_EXPNUM                  ; 57B6 CD 85 44  evaluating the number steps CHAD past the digits *and*
+                                                 ; past the &0E and its five bytes, which is why the length computed
+                                                 ; below covers both. The manual: "the search also looks for the
+                                                 ; invisible 5-byte form that follows them"
                POP DE                            ; 57B9 D1
                RET NC                            ; 57BA D0
-               PUSH DE                           ; 57BB D5
+               PUSH DE                           ; 57BB D5  pushed only so that &57F2 can pop it as the buffer's
+                                                 ; terminator byte; any non-zero value does, and the high byte of an
+                                                 ; address in the program text always is
                JR GET_STRING_AND_PAGE_IT_1       ; 57BC 18 1A
 
 ; ---- GET_STRING_AND_PAGE_IT_FAIL ---- from &57B4
 GET_STRING_AND_PAGE_IT_FAIL:
                CALL IS_LETTER                  ; 57BE CD 3C 45
-               JP NC,REP_NOT_UNDERSTOOD        ; 57C1 D2 B0 43
+               JP NC,REP_NOT_UNDERSTOOD        ; 57C1 D2 B0 43  neither digit nor letter, so there is nothing a
+                                               ; reference could be
 
 ; ---- GET_STRING_AND_PAGE_IT_LOOP ---- from &57CA
 GET_STRING_AND_PAGE_IT_LOOP:
                CALL CALL_NEXTCHAR               ; 57C4 CD 61 44
                CALL IS_NAME_CHAR                ; 57C7 CD 55 45
                JR C,GET_STRING_AND_PAGE_IT_LOOP ; 57CA 38 F8
-               CP &24                           ; 57CC FE 24
+               CP &24                           ; 57CC FE 24  a trailing $ belongs to the name, so it is stepped over
+                                                ; here rather than being left for the terminator test
                CALL Z,CALL_NEXTCHAR             ; 57CE CC 61 44
-               POP DE                           ; 57D1 D1
-               CALL TEST_RUNNING                ; 57D2 CD E2 44
+               POP DE                           ; 57D1 D1  the start address again, now to be subtracted
+               CALL TEST_RUNNING                ; 57D2 CD E2 44  syntax time: the name has been checked, and there is no
+                                                ; buffer to fill
                RET Z                            ; 57D5 C8
-               XOR A                            ; 57D6 AF
+               XOR A                            ; 57D6 AF  zero, and this one matters -- a zero terminator is what makes
+                                                ; MATCH_REFERENCE insist on a word boundary at both ends, so REF count
+                                                ; does not find "account". Only the bare-name path pushes it
                PUSH AF                          ; 57D7 F5
 
 ; ---- GET_STRING_AND_PAGE_IT_1 ---- from &57BC
 GET_STRING_AND_PAGE_IT_1:
                CALL CALL_GETCHAR               ; 57D8 CD 67 44
-               SBC HL,DE                       ; 57DB ED 52
+               SBC HL,DE                       ; 57DB ED 52  CHAD minus the start. Both paths run CALL_GETCHAR
+                                               ; immediately above so that the carry going into the SBC is the same on
+                                               ; either
                LD C,L                          ; 57DD 4D
 
 ; ---- GET_STRING_AND_PAGE_IT_2 ---- from &57AE
 GET_STRING_AND_PAGE_IT_2:
-               LD B,&00                        ; 57DE 06 00
+               LD B,&00                        ; 57DE 06 00  B is cleared rather than kept, so a string longer than 255
+                                               ; is truncated by its low byte -- and a 256-byte one reads as empty
                LD HL,(REFERENCE_PTR)           ; 57E0 2A 8F 40
                LD A,C                          ; 57E3 79
-               LD C,&78                        ; 57E4 0E 78
+               LD C,&78                        ; 57E4 0E 78  120 bytes is the cap, which is what leaves the two buffers
+                                               ; at &7B00 and &7B80 clear of each other
                CP C                            ; 57E6 B9
                JR NC,GET_STRING_AND_PAGE_IT_3  ; 57E7 30 01
                LD C,A                          ; 57E9 4F
 
 ; ---- GET_STRING_AND_PAGE_IT_3 ---- from &57E7 when A >= C
 GET_STRING_AND_PAGE_IT_3:
-               LD (HL),C                        ; 57EA 71
+               LD (HL),C                        ; 57EA 71  the length byte goes in first, then the text after it
                INC HL                           ; 57EB 23
                EX DE,HL                         ; 57EC EB
-               AND A                            ; 57ED A7
+               AND A                            ; 57ED A7  A is the length before capping, so this is the guard against
+                                                ; an LDIR with BC = 0
                JR Z,GET_STRING_AND_PAGE_IT_DONE ; 57EE 28 02
                LDIR                             ; 57F0 ED B0
 
 ; ---- GET_STRING_AND_PAGE_IT_DONE ---- from &57EE when A = 0
 GET_STRING_AND_PAGE_IT_DONE:
-               POP AF                          ; 57F2 F1
+               POP AF                          ; 57F2 F1  the terminator, whatever was pushed
                LD (DE),A                       ; 57F3 12
                RET                             ; 57F4 C9
 
 ; ---- PARSE_REFERENCE_3 ---- from &57A0
 PARSE_REFERENCE_3:
                LD BC,&25EF                     ; 57F5 01 EF 25
-               CALL NRWRD                      ; 57F8 CD 77 45
+               CALL NRWRD                      ; 57F8 CD 77 45  the operand is INSTBUF, &4F00 in the system page, not
+                                               ; this page's &4F00 -- the label DKP2 is the ROM source's name for
+                                               ; whichever overlay was loaded there last
                DEFW DKP2                       ; 57FB 00 4F
                LD BC,&3457                     ; 57FD 01 57 34
                CALL NRWRD                      ; 5800 CD 77 45
                DEFW &4F02                      ; 5803 02 4F
-               CALL CMR                        ; 5805 CD F0 44
+               CALL CMR                        ; 5805 CD F0 44  run the four bytes just written
                DEFW DKP2                       ; 5808 00 4F
                CALL GET_STRING_AND_PAGE_IT     ; 580A CD A7 57
-               CALL NRRDD                      ; 580D CD 5F 45
+               CALL NRRDD                      ; 580D CD 5F 45  STKEND, so the five bytes of the value are the five
+                                               ; below it
                DEFW STKEND                     ; 5810 65 5C
                DEC BC                          ; 5812 0B
                DEC BC                          ; 5813 0B
                DEC BC                          ; 5814 0B
                DEC BC                          ; 5815 0B
                DEC BC                          ; 5816 0B
-               CALL NRWRD                      ; 5817 CD 77 45
+               CALL NRWRD                      ; 5817 CD 77 45  written back, which is the drop; the value has been
+                                               ; consumed
                DEFW STKEND                     ; 581A 65 5C
                LD H,B                          ; 581C 60
                LD L,C                          ; 581D 69
-               LD A,&0E                        ; 581E 3E 0E
+               LD A,&0E                        ; 581E 3E 0E  the number marker. DE is still on the terminator byte
+                                               ; GET_STRING_AND_PAGE_IT left, so the marker overwrites it and the five
+                                               ; bytes follow -- the buffer ends up holding exactly what the program
+                                               ; text holds
                LD (DE),A                       ; 5820 12
                INC DE                          ; 5821 13
                LD B,&05                        ; 5822 06 05
 
 ; ---- GET_STRING_AND_PAGE_IT_LOOP2 ---- from &582A when B is not 0 yet
 GET_STRING_AND_PAGE_IT_LOOP2:
-               CALL RDA                          ; 5824 CD D1 45
+               CALL RDA                          ; 5824 CD D1 45  RDA, not LD A,(HL): the calculator stack is in the
+                                                 ; system page and has to be read through the window
                LD (DE),A                         ; 5827 12
                INC DE                            ; 5828 13
                INC HL                            ; 5829 23
                DJNZ GET_STRING_AND_PAGE_IT_LOOP2 ; 582A 10 F8
                EX DE,HL                          ; 582C EB
-               LD (HL),H                         ; 582D 74
+               LD (HL),H                         ; 582D 74  H is &7B, the buffer's own high byte -- a non-zero
+                                                 ; terminator, which is the "match anywhere" flag, and the cheapest
+                                                 ; non-zero byte in reach. Word boundaries are not needed when five
+                                                 ; bytes of binary have to match as well
                LD HL,(REFERENCE_PTR)             ; 582E 2A 8F 40
                LD A,(HL)                         ; 5831 7E
-               ADD A,&06                         ; 5832 C6 06
+               ADD A,&06                         ; 5832 C6 06  the length byte was written for the digits alone; the
+                                                 ; marker and its five bytes are six more
                LD (HL),A                         ; 5834 77
                RET                               ; 5835 C9
 
@@ -7701,18 +7806,23 @@ MATCH_REFERENCE:
                PUSH DE                         ; 5836 D5
                PUSH HL                         ; 5837 E5
                LD DE,INSTALL_ROM_PATCHES       ; 5838 11 00 7B
-               LD A,(DE)                       ; 583B 1A
+               LD A,(DE)                       ; 583B 1A  the length byte
                INC DE                          ; 583C 13
-               DEC A                           ; 583D 3D
-               JR Z,MATCH_REFERENCE_2          ; 583E 28 12
+               DEC A                           ; 583D 3D  one less, because SCAN_TEXT_FOR_D_OR_E has already matched the
+                                               ; first character -- that is what it was searching for
+               JR Z,MATCH_REFERENCE_2          ; 583E 28 12  a one-character reference is finished before the loop
+                                               ; starts, and goes straight to the boundary tests
                LD B,A                          ; 5840 47
 
 ; ---- MATCH_REFERENCE_LOOP ---- from &5850 when B is not 0 yet
 MATCH_REFERENCE_LOOP:
-               INC DE                          ; 5841 13
+               INC DE                          ; 5841 13  both pointers step before the compare, so the loop begins on
+                                               ; the second character of each
                INC HL                          ; 5842 23
                LD A,(DE)                       ; 5843 1A
-               CALL IS_LETTER                  ; 5844 CD 3C 45
+               CALL IS_LETTER                  ; 5844 CD 3C 45  the test is on the byte from the *buffer*, not from the
+                                               ; program. A digit or a $ in the reference has to match exactly; only
+                                               ; letters are allowed to differ in case
                JR NC,MATCH_REFERENCE_1         ; 5847 30 04
                XOR (HL)                        ; 5849 AE
                AND &DF                         ; 584A E6 DF
@@ -7727,17 +7837,23 @@ MATCH_REFERENCE_1:
 
 ; ---- MATCH_REFERENCE_2 ---- from &583E when A reaches 0
 MATCH_REFERENCE_2:
-               INC DE                          ; 5852 13
+               INC DE                          ; 5852 13  DE lands on the terminator byte and HL on the character after
+                                               ; the match
                INC HL                          ; 5853 23
                LD A,(DE)                       ; 5854 1A
-               AND A                           ; 5855 A7
+               AND A                           ; 5855 A7  a non-zero terminator ends it here -- quoted text, a bracketed
+                                               ; value and a number all match without any boundary test. This is the
+                                               ; branch that makes REF "count" find the middle of "account"
                JR NZ,MATCH_REFERENCE_DONE      ; 5856 20 1A
                LD A,(HL)                       ; 5858 7E
-               CP CH_DOLLAR                    ; 5859 FE 24
-               SCF                             ; 585B 37
+               CP CH_DOLLAR                    ; 5859 FE 24  REF abc must not answer with abc$, so a following dollar is
+                                               ; a failure even though $ is not a name character
+               SCF                             ; 585B 37  the carry set here is the answer for the $ case and is left
+                                               ; alone by the CALL NZ, so one flag serves two tests
                CALL NZ,IS_NAME_CHAR            ; 585C C4 55 45
                JR C,MATCH_REFERENCE_3          ; 585F 38 0E
-               EX (SP),HL                      ; 5861 E3
+               EX (SP),HL                      ; 5861 E3  the match start is on the stack, and this is the cheapest way
+                                               ; to look two bytes behind it without a spare register pair
                DEC HL                          ; 5862 2B
                DEC HL                          ; 5863 2B
                LD C,(HL)                       ; 5864 4E
@@ -7745,23 +7861,39 @@ MATCH_REFERENCE_2:
                LD A,(HL)                       ; 5866 7E
                INC HL                          ; 5867 23
                EX (SP),HL                      ; 5868 E3
-               INC C                           ; 5869 0C
-               CALL NZ,IS_LETTER_OR_DIGIT      ; 586A C4 4A 45
+               INC C                           ; 5869 0C  INC C asks whether the byte two before the match is &FF. A
+                                               ; function in a SAM BASIC line is stored as &FF followed by its code, so
+                                               ; if it is, the byte immediately before the match is the second half of a
+                                               ; token and not text at all -- a boundary, whatever it looks like.
+                                               ; Without this, REF n would refuse to find the n in ABS n whenever the
+                                               ; token's second byte happened to fall in the letter or digit range
+               CALL NZ,IS_LETTER_OR_DIGIT      ; 586A C4 4A 45  otherwise the ordinary rule: a letter or digit in front
+                                               ; means this is the tail of a longer word. The manual gives "count" and
+                                               ; "account" as the case it is guarding
                JR NC,MATCH_REFERENCE_DONE      ; 586D 30 03
 
 ; ---- MATCH_REFERENCE_3 ---- from &585F
 MATCH_REFERENCE_3:
-               SBC A,A                         ; 586F 9F
+               SBC A,A                         ; 586F 9F  both ways in have carry set, so SBC A,A makes A = &FF and
+                                               ; clears Z -- the failure the shared exit below is about to return. The
+                                               ; ordinary failure at &584E already had NZ from its CP; this path has to
+                                               ; manufacture it
 
 ; ---- MATCH_REFERENCE_4 ---- from &584E when A <> (HL)
 MATCH_REFERENCE_4:
-               POP HL                          ; 5870 E1
+               POP HL                          ; 5870 E1  THE TWO EXITS DIFFER IN ONE REGISTER. Failure pops the saved
+                                               ; position into HL, so the scan resumes exactly where it was; success
+                                               ; falls in at &5872 and pops it into BC, throwing it away and leaving HL
+                                               ; past the match for the caller to use. The &11 between them swallows the
+                                               ; CP A and the POP BC on the failing path, so both share the POP DE and
+                                               ; the RET
                DEFB SKIP_2_VIA_LD_DE           ; 5871 .  skipped: reads as LD DE,&C1BF from here, and as part of the
                                                ; instruction above it
 
 ; ---- MATCH_REFERENCE_DONE ---- from &5856 when A <> 0, &586D
 MATCH_REFERENCE_DONE:
-               CP A                            ; 5872 BF
+               CP A                            ; 5872 BF  CP A always sets Z, which is how the caller at &56B1 is told
+                                               ; the reference matched
                POP BC                          ; 5873 C1
                POP DE                          ; 5874 D1
                RET                             ; 5875 C9
@@ -7789,20 +7921,28 @@ MATCH_REFERENCE_DONE:
 SCAN_TEXT_FOR_D_OR_E:
                INC HL                          ; 5876 23
                LD A,(HL)                       ; 5877 7E
-               CALL NUMBER                     ; 5878 CD A2 00
+               CALL NUMBER                     ; 5878 CD A2 00  the ROM's NUMBER steps over &0E and the five bytes
+                                               ; behind it in one call, so a byte of a number's binary form can never be
+                                               ; mistaken for text
                CP &0D                          ; 587B FE 0D
-               SCF                             ; 587D 37
+               SCF                             ; 587D 37  carry set on the carriage return is the "line finished" answer
+                                               ; the paged wrapper tests
                RET Z                           ; 587E C8
                CP &22                          ; 587F FE 22
                JR NZ,SCAN_TEXT_FOR_D_OR_E_1    ; 5881 20 0B
-               LD A,(REFERENCE_KIND)           ; 5883 3A 93 40
+               LD A,(REFERENCE_KIND)           ; 5883 3A 93 40  zero means the reference came out of quotes or a
+                                               ; brackets expression, and those are looked for inside strings; anything
+                                               ; else and the quoted run below is stepped over whole
                AND A                           ; 5886 A7
-               LD A,(HL)                       ; 5887 7E
+               LD A,(HL)                       ; 5887 7E  A is reloaded because the flag test overwrote it -- the quote
+                                               ; character itself is what the skip loop below compares against
                JR Z,SCAN_TEXT_FOR_D_OR_E_1     ; 5888 28 04
 
 ; ---- SCAN_TEXT_FOR_D_OR_E_LOOP ---- from &588C when A <> (HL)
 SCAN_TEXT_FOR_D_OR_E_LOOP:
-               INC HL                          ; 588A 23
+               INC HL                          ; 588A 23  run to the closing quote. There is no end-of-line test in this
+                                               ; loop; an unterminated string cannot occur in a line the ROM has
+                                               ; accepted
                CP (HL)                         ; 588B BE
                JR NZ,SCAN_TEXT_FOR_D_OR_E_LOOP ; 588C 20 FC
 
@@ -7812,7 +7952,10 @@ SCAN_TEXT_FOR_D_OR_E_1:
                RET Z                           ; 588F C8
                CP E                            ; 5890 BB
                RET Z                           ; 5891 C8
-               INC A                           ; 5892 3C
+               INC A                           ; 5892 3C  &FF is a function token's prefix, so the byte after it is a
+                                               ; token code, not text. Skipping it is what keeps a reference from
+                                               ; matching half of a two-byte token, and is the other side of the test at
+                                               ; &5869
                JR NZ,SCAN_TEXT_FOR_D_OR_E      ; 5893 20 E1
                INC HL                          ; 5895 23
                JR SCAN_TEXT_FOR_D_OR_E         ; 5896 18 DE
@@ -7826,7 +7969,8 @@ SCAN_TEXT_FOR_D_OR_E_1:
 ; ---- CHANNEL_WORD_FROM_5A67 ---- from &5703
 CHANNEL_WORD_FROM_5A67:
                CALL NRRDD                      ; 5898 CD 5F 45
-               DEFW &5A67                      ; 589B 67 5A
+               DEFW &5A67                      ; 589B 67 5A  the ROM's own channel word, put aside at &56ED before
+                                               ; MasterBASIC's was installed
                LD D,B                          ; 589D 50
                LD E,C                          ; 589E 59
 
@@ -7841,13 +7985,16 @@ CHANNEL_WORD_FROM_5A67:
 EXCHANGE_CHANNEL_WORD:
                CALL NRRDD                      ; 589F CD 5F 45
                DEFW CHANS                      ; 58A2 4F 5C
-               LD HL,&000A                     ; 58A4 21 0A 00
+               LD HL,&000A                     ; 58A4 21 0A 00  ten bytes into the channel information area, which is
+                                               ; the third channel's output routine
                ADD HL,BC                       ; 58A7 09
                CALL CMR                        ; 58A8 CD F0 44
                DEFW NRREAD                     ; 58AB AC 00
-               LD C,A                          ; 58AD 4F
+               LD C,A                          ; 58AD 4F  C takes the low byte of the old word and B the high one, so
+                                               ; the pair comes back in BC while DE goes in -- exchanging rather than
+                                               ; writing is what lets one routine both install the hook and remove it
                LD A,E                          ; 58AE 7B
-               PUSH HL                         ; 58AF E5
+               PUSH HL                         ; 58AF E5  WRA pages the system page in and out and does not preserve HL
                CALL WRA                        ; 58B0 CD A4 45
                POP HL                          ; 58B3 E1
                INC HL                          ; 58B4 23
@@ -7855,36 +8002,62 @@ EXCHANGE_CHANNEL_WORD:
                DEFW NRREAD                     ; 58B8 AC 00
                LD B,A                          ; 58BA 47
                LD A,D                          ; 58BB 7A
-               JP WRA                          ; 58BC C3 A4 45
+               JP WRA                          ; 58BC C3 A4 45  the second byte's write is the return
+
+;; --------------------------------------------------------------------
+;; Nothing to do with tables.  This is ALTER's edit: make the gap in the
+;; program text the size of the replacement and correct the line's
+;; length field to match.
+;;
+;; Entry:  A = length being removed, C = length going in,
+;;         DE = the text, HL = the line's start.
+;; Exit:   DE = the gap, BC = C unchanged, ready for an LDIR.
+;;
+;; THE SIGN OF THE DIFFERENCE IS USED TWICE.  SUB C sets it, and the
+;; routine keeps that one AF across the arithmetic in between so that
+;; the same borrow chooses between MKRBIG and RECLAIM at the end.  In
+;; between, the difference is turned into a signed 16-bit value with
+;; LD L,A : RLA : SBC A,A : LD H,A -- three bytes that sign-extend an
+;; eight-bit number into HL without a branch -- and added to the line
+;; length.
+;; --------------------------------------------------------------------
 
 ; ---- STEP_BY_TABLE_ENTRY ---- from &5740
 STEP_BY_TABLE_ENTRY:
-               SUB C                           ; 58BF 91
+               SUB C                           ; 58BF 91  same length, nothing to move and the length field is already
+                                               ; right
                RET Z                           ; 58C0 C8
-               INC HL                          ; 58C1 23
+               INC HL                          ; 58C1 23  two bytes in is the line's length field; the line number is
+                                               ; the two before it
                INC HL                          ; 58C2 23
                PUSH BC                         ; 58C3 C5
-               PUSH AF                         ; 58C4 F5
+               PUSH AF                         ; 58C4 F5  the borrow is wanted again at &58D9, after five instructions
+                                               ; that all disturb it
                LD C,(HL)                       ; 58C5 4E
                INC HL                          ; 58C6 23
                LD B,(HL)                       ; 58C7 46
                PUSH HL                         ; 58C8 E5
-               NEG                             ; 58C9 ED 44
+               NEG                             ; 58C9 ED 44  NEG turns "bytes removed minus bytes added" into the change
+                                               ; in the line's length
                LD L,A                          ; 58CB 6F
-               RLA                             ; 58CC 17
+               RLA                             ; 58CC 17  RLA puts the sign bit into carry and SBC A,A spreads it across
+                                               ; the whole byte, so H becomes &00 or &FF -- the eight-bit delta
+                                               ; sign-extended into HL
                SBC A,A                         ; 58CD 9F
                LD H,A                          ; 58CE 67
                ADD HL,BC                       ; 58CF 09
                LD B,H                          ; 58D0 44
                LD C,L                          ; 58D1 4D
                POP HL                          ; 58D2 E1
-               LD (HL),B                       ; 58D3 70
+               LD (HL),B                       ; 58D3 70  written high byte first with HL walking down, because HL was
+                                               ; left on the high byte
                DEC HL                          ; 58D4 2B
                LD (HL),C                       ; 58D5 71
                POP AF                          ; 58D6 F1
                LD B,&00                        ; 58D7 06 00
-               JR NC,STEP_BY_TABLE_ENTRY_1     ; 58D9 30 08
-               NEG                             ; 58DB ED 44
+               JR NC,STEP_BY_TABLE_ENTRY_1     ; 58D9 30 08  no borrow means the replacement is shorter, so bytes come
+                                               ; out; a borrow means it is longer, so bytes go in
+               NEG                             ; 58DB ED 44  back to a positive count for the amount to open
                LD C,A                          ; 58DD 4F
                CALL OPEN_ROOM_AT_DE            ; 58DE CD F1 58
                JR STEP_BY_TABLE_ENTRY_2        ; 58E1 18 07
@@ -7899,9 +8072,12 @@ STEP_BY_TABLE_ENTRY_1:
 ; ---- STEP_BY_TABLE_ENTRY_2 ---- from &58E1
 STEP_BY_TABLE_ENTRY_2:
                PUSH HL                         ; 58EA E5
-               CALL SET_DCT_COMPILE_BITS       ; 58EB CD 9C 45
-               POP DE                          ; 58EE D1
-               POP BC                          ; 58EF C1
+               CALL SET_DCT_COMPILE_BITS       ; 58EB CD 9C 45  the program text has changed, so the ROM's DCT flags are
+                                               ; marked to force a recompile
+               POP DE                          ; 58EE D1  the address the open or the reclaim left, handed back in DE
+                                               ; for the caller's LDIR
+               POP BC                          ; 58EF C1  the replacement's length, saved at &58C3 so the caller does
+                                               ; not have to fetch it again
                RET                             ; 58F0 C9
 
 ;; --------------------------------------------------------------------
@@ -7921,7 +8097,7 @@ OPEN_ROOM_AT_DE:
 
 ; ---- OPEN_ROOM_AT_HL ---- from &52C6
 OPEN_ROOM_AT_HL:
-               XOR A                           ; 58F2 AF
+               XOR A                           ; 58F2 AF  A = 0, so no whole 16K pages -- MKRBIG opens A*16K + BC bytes
 
 ; ---- CALL_JMKRBIG ---- from &5192, &70C2
 CALL_JMKRBIG:
@@ -7936,7 +8112,9 @@ CALL_JMKRBIG:
 
 ; ---- FIND_FIRST_LINE_IN_RANGE ---- from &54B7, &5670
 FIND_FIRST_LINE_IN_RANGE:
-               LD BC,(SEARCH_FIRST_LINE)       ; 58F9 ED 4B 91 40
+               LD BC,(SEARCH_FIRST_LINE)       ; 58F9 ED 4B 91 40  SEARCH_FIRST_LINE is not the user's number by the
+                                               ; time this runs -- the scan at &568B overwrites it with each line's own
+                                               ; number as it goes, so a resumed REF starts at the line it stopped on
 
 ;; --------------------------------------------------------------------
 ;; Find the first BASIC line numbered BC or higher, from the top of the
@@ -7950,9 +8128,11 @@ FIND_FIRST_LINE_IN_RANGE:
 
 ; ---- FIND_LINE_FROM_START ---- from &5188, &6E25
 FIND_LINE_FROM_START:
-               PUSH BC                         ; 58FD C5
+               PUSH BC                         ; 58FD C5  NRRDD hands its answer back in BC, so the caller's BC has to
+                                               ; be got out of the way for both reads
                CALL NRRDD                      ; 58FE CD 5F 45
-               DEFW PROG                       ; 5901 A0 5A
+               DEFW PROG                       ; 5901 A0 5A  PROG is the address and PROGP the page; neither is any use
+                                               ; without the other
                LD H,B                          ; 5903 60
                LD L,C                          ; 5904 69
                CALL NRRD                       ; 5905 CD 6A 45
@@ -7968,9 +8148,12 @@ FIND_LINE_FROM_START:
 
 ; ---- FIND_LINE_FROM_HL ---- from &51A4, &51B3
 FIND_LINE_FROM_HL:
-               CALL TSURPG                     ; 590B CD DF 3F
-               LD (V409E),HL                   ; 590E 22 9E 40
-               JR COMPARE_LINE_NUMBER          ; 5911 18 0F
+               CALL TSURPG                     ; 590B CD DF 3F  A is the page from PROGP, or the caller's own on the
+                                               ; entry below
+               LD (V409E),HL                   ; 590E 22 9E 40  HL is about to be walked forward, and what the callers
+                                               ; want back is where the line began
+               JR COMPARE_LINE_NUMBER          ; 5911 18 0F  straight to the compare -- the first line is not stepped
+                                               ; over
 
 ;; --------------------------------------------------------------------
 ;; Step to the line after the one at HL, changing page if need be.
@@ -7983,12 +8166,15 @@ FIND_LINE_FROM_HL:
 
 ; ---- NEXT_LINE ---- from &5924 when A < B, &592D when A < C
 NEXT_LINE:
-               BIT 6,H                         ; 5913 CB 74
+               BIT 6,H                         ; 5913 CB 74  INCURPAGE clears bit 6 of H itself, so there is no RES 6,H
+                                               ; here
                CALL NZ,INCURPAGE               ; 5915 C4 F2 3F
                LD (V409E),HL                   ; 5918 22 9E 40
                INC HL                          ; 591B 23
                INC HL                          ; 591C 23
-               LD E,(HL)                       ; 591D 5E
+               LD E,(HL)                       ; 591D 5E  the length two bytes in counts the text only, so adding it to
+                                               ; the address four bytes in lands on the next line. The walk never looks
+                                               ; inside a line
                INC HL                          ; 591E 23
                LD D,(HL)                       ; 591F 56
                INC HL                          ; 5920 23
@@ -8008,11 +8194,18 @@ NEXT_LINE:
 
 ; ---- COMPARE_LINE_NUMBER ---- from &5911
 COMPARE_LINE_NUMBER:
-               LD A,(HL)                       ; 5922 7E
+               LD A,(HL)                       ; 5922 7E  THERE IS NO END-OF-PROGRAM TEST IN THIS LOOP, and none is
+                                               ; needed. A line number is stored high byte first, the program ends with
+                                               ; an &FF where a line number's high byte would be, and &FF is above any B
+                                               ; the callers can pass -- the default &FEFF at &5758 is chosen to keep it
+                                               ; so. The terminator therefore stops the walk through the ordinary
+                                               ; comparison
                CP B                            ; 5923 B8
                JP C,NEXT_LINE                  ; 5924 DA 13 59
-               JR NZ,COMPARE_LINE_NUMBER_DONE  ; 5927 20 06
-               INC HL                          ; 5929 23
+               JR NZ,COMPARE_LINE_NUMBER_DONE  ; 5927 20 06  above on the high byte, so the answer is this line and the
+                                               ; low byte need not be looked at
+               INC HL                          ; 5929 23  equal high bytes, so the low ones decide; HL is put back
+                                               ; afterwards because the exit wants the line's start
                LD A,(HL)                       ; 592A 7E
                DEC HL                          ; 592B 2B
                CP C                            ; 592C B9
@@ -8020,7 +8213,8 @@ COMPARE_LINE_NUMBER:
 
 ; ---- COMPARE_LINE_NUMBER_DONE ---- from &5927
 COMPARE_LINE_NUMBER_DONE:
-               LD DE,(V409E)                   ; 592F ED 5B 9E 40
+               LD DE,(V409E)                   ; 592F ED 5B 9E 40  the address kept at &5918, which is the line this
+                                               ; stopped on
                RET                             ; 5933 C9
 
 ;; --------------------------------------------------------------------
@@ -8063,11 +8257,17 @@ COMPARE_LINE_NUMBER_DONE:
 
 ; ---- SERINIT ---- from &559A
 SERINIT:
-               LD A,(SPORT)                    ; 5934 3A 0B 40
-               LD HL,(DBITS)                   ; 5937 2A 0D 40
+               LD A,(SPORT)                    ; 5934 3A 0B 40  SPORT is XVAR 11, the port the Comms Interface is
+                                               ; jumpered to; there is no fixed address for it
+               LD HL,(DBITS)                   ; 5937 2A 0D 40  DBITS and SBITS are XVAR 13 and 14 and adjacent, and MR1
+                                               ; and MR2 are written one after the other -- so one LD HL,(nn) fetches
+                                               ; both in the order they are needed
                LD C,A                          ; 593A 4F
-               LD B,&02                        ; 593B 06 02
-               LD A,&10                        ; 593D 3E 10
+               LD B,&02                        ; 593B 06 02  the OUT (C) form puts B on the top half of the address bus,
+                                               ; which is where the SCC2691 takes its register number, so B selects the
+                                               ; register throughout
+               LD A,&10                        ; 593D 3E 10  resetting the MR pointer is what makes the next two writes
+                                               ; to register 0 land on MR1 and then MR2
                OUT (C),A                       ; 593F ED 79
                LD B,&00                        ; 5941 06 00
                OUT (C),L                       ; 5943 ED 69
@@ -8079,7 +8279,8 @@ SERINIT:
                LD A,&38                        ; 594F 3E 38
                OUT (C),A                       ; 5951 ED 79
                INC B                           ; 5953 04
-               XOR A                           ; 5954 AF
+               XOR A                           ; 5954 AF  one XOR A serves IMR, CTUR and CTLR: no interrupts, and the
+                                               ; counter/timer divisors cleared rather than left as found
                OUT (C),A                       ; 5955 ED 79
                INC B                           ; 5957 04
                OUT (C),A                       ; 5958 ED 79
@@ -8090,7 +8291,7 @@ SERINIT:
                CALL SERCMD                     ; 5962 CD 6E 59
                LD HL,&4050                     ; 5965 21 50 40
                CALL SERCMD                     ; 5968 CD 6E 59
-               LD HL,&05A0                     ; 596B 21 A0 05
+               LD HL,&05A0                     ; 596B 21 A0 05  no CALL -- the last pair falls into SERCMD
 
 ;; --------------------------------------------------------------------
 ;; Write two bytes to whichever register B selects.
@@ -8103,7 +8304,8 @@ SERINIT:
 
 ; ---- SERCMD ---- from &5962, &5968
 SERCMD:
-               OUT (C),H                       ; 596E ED 61
+               OUT (C),H                       ; 596E ED 61  H before L, so a caller can write the pair in the order it
+                                               ; reads
                OUT (C),L                       ; 5970 ED 69
                RET                             ; 5972 C9
 
@@ -8141,7 +8343,8 @@ SERCMD:
 ;; --------------------------------------------------------------------
 
 SUBSTITUTE_PRINTER_CHAR:
-               LD DE,(MODCHAR1)                ; 5973 ED 5B 3C 40
+               LD DE,(MODCHAR1)                ; 5973 ED 5B 3C 40  MODCHAR1 and MODCHAR2 are adjacent XVARs, so one
+                                               ; fetch gets both characters to test against
                LD HL,MODMSG1                   ; 5977 21 3F 40
                CP E                            ; 597A BB
                JR Z,SEND_COUNTED_TO_CHANNEL    ; 597B 28 0C
@@ -8150,7 +8353,8 @@ SUBSTITUTE_PRINTER_CHAR:
                JR Z,SEND_COUNTED_TO_CHANNEL    ; 5981 28 06
 
 CALL_PRMAIN:
-               CALL CMR                        ; 5983 CD F0 44
+               CALL CMR                        ; 5983 CD F0 44  anything that is neither of the two prints as itself,
+                                               ; through the ROM
                DEFW PRMAIN                     ; 5986 CC 01
                RET                             ; 5988 C9
 
@@ -8166,7 +8370,8 @@ CALL_PRMAIN:
 
 ; ---- SEND_COUNTED_TO_CHANNEL ---- from &597B when A = E, &5981 when A = D
 SEND_COUNTED_TO_CHANNEL:
-               LD B,(HL)                       ; 5989 46
+               LD B,(HL)                       ; 5989 46  the first byte of the message is its length; the four XVAR
+                                               ; messages are all stored that way
 
 ; ---- SEND_COUNTED_TO_CHANNEL_LOOP ---- from &59A0 when B is not 0 yet
 SEND_COUNTED_TO_CHANNEL_LOOP:
@@ -8175,56 +8380,90 @@ SEND_COUNTED_TO_CHANNEL_LOOP:
                PUSH BC                           ; 598C C5
                PUSH HL                           ; 598D E5
                PUSH AF                           ; 598E F5
-               CALL NRRDD                        ; 598F CD 5F 45
+               CALL NRRDD                        ; 598F CD 5F 45  CHANS is re-read for every byte because the channel
+                                                 ; routine below is entitled to move it. The operand is written
+                                                 ; pre-windowed here and plainly at &58A2 -- NRRDD's SET 7,H / RES 6,H
+                                                 ; leaves an already-windowed address alone, so the two spellings do the
+                                                 ; same thing
                DEFW CHANS+IN_PAGE_C              ; 5992 4F 9C
                POP AF                            ; 5994 F1
-               LD HL,&0019                       ; 5995 21 19 00
+               LD HL,&0019                       ; 5995 21 19 00  twenty-five bytes into the channel information area
                ADD HL,BC                         ; 5998 09
                CALL CMR                          ; 5999 CD F0 44
-               DEFW HLJPI                        ; 599C C7 01
-               POP HL                            ; 599E E1
+               DEFW HLJPI                        ; 599C C7 01  HLJPI takes the address stored at HL and jumps to it, so
+                                                 ; this reaches the printer channel's own output routine rather than
+                                                 ; printing directly
+               POP HL                            ; 599E E1  everything is saved around the call because a channel
+                                                 ; routine may use any register
                POP BC                            ; 599F C1
                DJNZ SEND_COUNTED_TO_CHANNEL_LOOP ; 59A0 10 E8
                RET                               ; 59A2 C9
 
 SEND_COUNTED_TO_CHANNEL_1:
-               LD A,&F7                        ; 59A3 3E F7
+               LD A,&F7                        ; 59A3 3E F7  IN A,(n) puts A on the top half of the address bus, so &F7
+                                               ; is the keyboard scan line, not a value. Bits 5 to 7 of the status port
+                                               ; are matrix lines K6 to K8
                IN A,(STAT)                     ; 59A5 DB F9
-               AND &60                         ; 59A7 E6 60
-               JP Z,&0066                      ; 59A9 CA 66 00
-               LD A,(TVFLAG)                   ; 59AC 3A 3C 5C
+               AND &60                         ; 59A7 E6 60  two keys of that row, and both low means both held. On the
+                                               ; published matrix, line &F7 gives ESC and TAB
+               JP Z,&0066                      ; 59A9 CA 66 00  &0066 is the ROM's NMI handler, so holding the pair does
+                                               ; what the break button does. The manual documents no such key, which is
+                                               ; worth being suspicious of
+               LD A,(TVFLAG)                   ; 59AC 3A 3C 5C  &10 exactly, not a bit test -- TVFLAG with only bit 4
+                                               ; set is the ROM's automatic listing in progress, and AULX clears that
+                                               ; bit when the listing ends
                CP &10                          ; 59AF FE 10
                JR NZ,SCREEN_BLANK_TICK         ; 59B1 20 35
-               LD HL,(SPSTORE)                 ; 59B3 2A D2 5A
+               LD HL,(SPSTORE)                 ; 59B3 2A D2 5A  (SPSTORE) is the stack the interrupt came in on. The
+                                               ; ROM's &0038 pushes AF, BC then HL before ANYI stores SP, so from there
+                                               ; +0 is HL, +2 is BC, +4 is AF and +6 is the interrupted PC
                LD BC,&0007                     ; 59B6 01 07 00
                ADD HL,BC                       ; 59B9 09
                LD A,(HL)                       ; 59BA 7E
-               CP &06                          ; 59BB FE 06
+               CP &06                          ; 59BB FE 06  the high byte of the interrupted PC. &06 is the page AULLP
+                                               ; lives in, and it is written as a literal even though the low byte below
+                                               ; is patched -- the rescue quietly assumes the ROM keeps that loop in
+                                               ; &06xx
                JR NZ,SCREEN_BLANK_TICK         ; 59BD 20 29
                DEC HL                          ; 59BF 2B
-               LD BC,&0000                     ; 59C0 01 00 00
+               LD BC,&0000                     ; 59C0 01 00 00  the operand is written at boot from &79C7, from a
+                                               ; signature search for AULLP: C is its low byte and B that plus &12. So
+                                               ; the pair of compares below asks whether the interrupt caught the ROM
+                                               ; inside the first eighteen bytes of the auto-list loop, the part that
+                                               ; hunts forward for SDTOP
                LD A,(HL)                       ; 59C3 7E
                CP C                            ; 59C4 B9
                JR C,SCREEN_BLANK_TICK          ; 59C5 38 21
                CP B                            ; 59C7 B8
                JR NC,SCREEN_BLANK_TICK         ; 59C8 30 1E
-               DEC HL                          ; 59CA 2B
+               DEC HL                          ; 59CA 2B  +5 is the interrupted A, which in that loop is the page EPPC
+                                               ; is in
                LD A,(HL)                       ; 59CB 7E
-               CP D                            ; 59CC BA
+               CP D                            ; 59CC BA  D is the HMPR the hook read at &7CF4, so this acts only when
+                                               ; the line wanted is in a page below the one in the window -- the case
+                                               ; the ROM's loop walks forward for ever looking for
                JR NC,SCREEN_BLANK_TICK         ; 59CD 30 19
-               POP HL                          ; 59CF E1
+               POP HL                          ; 59CF E1  the return address and the HMPR the hook saved
                POP BC                          ; 59D0 C1
-               PUSH AF                         ; 59D1 F5
+               PUSH AF                         ; 59D1 F5  the return address goes back, but the interrupted A goes in
+                                               ; place of the saved HMPR -- so the POP AF / OUT (HMPR),A at &7CFC leaves
+                                               ; the window on the page the line is in rather than restoring what was
+                                               ; there. A deliberate substitution, not a save/restore
                PUSH HL                         ; 59D2 E5
-               LD DE,(&4BFA)                   ; 59D3 ED 5B FA 4B
+               LD DE,(&4BFA)                   ; 59D3 ED 5B FA 4B  plus &100, which is the distance AULLP's own comment
+                                               ; asks for: "HL SHOULD BE ABOUT 0100 HIGHER THAN ADDR FOR SDTOP"
                INC D                           ; 59D7 14
-               LD HL,(SPSTORE)                 ; 59D8 2A D2 5A
+               LD HL,(SPSTORE)                 ; 59D8 2A D2 5A  overwriting the interrupted HL, so the loop resumes on a
+                                               ; line address MasterBASIC chose
                LD (HL),E                       ; 59DB 73
                INC HL                          ; 59DC 23
                LD (HL),D                       ; 59DD 72
                LD BC,&0005                     ; 59DE 01 05 00
                ADD HL,BC                       ; 59E1 09
-               LD DE,&061E                     ; 59E2 11 1E 06
+               LD DE,&061E                     ; 59E2 11 1E 06  &061E is AUL3 in the ROM the signature search found --
+                                               ; the instruction just past the loop. Setting the interrupted PC to it is
+                                               ; what breaks the ROM out. Like the &06 above, it is a literal and does
+                                               ; not follow the search
                LD (HL),E                       ; 59E5 73
                INC HL                          ; 59E6 23
                LD (HL),D                       ; 59E7 72
@@ -8252,7 +8491,10 @@ SEND_COUNTED_TO_CHANNEL_1:
 ; ---- SCREEN_BLANK_TICK ---- from &59B1 when A <> &10, &59BD when A <> &06, &59C5 when A < C, &59C8 when A >= B, &59CD
 ; when A >= D
 SCREEN_BLANK_TICK:
-               LD A,(SOFV+IN_PAGE_C)           ; 59E8 3A 02 80
+               LD A,(SOFV+IN_PAGE_C)           ; 59E8 3A 02 80  SOFV read at &8002 is XVAR 2, this half seen through the
+                                               ; window; SOFFCT at &5AC4 two instructions later is the ROM's, read with
+                                               ; the system page low. Both in four instructions, which is only possible
+                                               ; from the interrupt
                AND A                           ; 59EB A7
                JR Z,SCREEN_BLANK_TICK_1        ; 59EC 28 0E
                LD HL,SOFCOUNT+IN_PAGE_C        ; 59EE 21 73 80
@@ -8266,35 +8508,43 @@ SCREEN_BLANK_TICK:
 
 ; ---- SCREEN_BLANK_TICK_1 ---- from &59EC when A = 0, &59F2, &59F9
 SCREEN_BLANK_TICK_1:
-               LD A,(V4085+IN_PAGE_C)          ; 59FC 3A 85 80
+               LD A,(V4085+IN_PAGE_C)          ; 59FC 3A 85 80  the printer buffer's page, biased by one so that zero
+                                               ; means there is no buffer -- which is what LPRINT CLEAR 0 leaves behind
                AND A                           ; 59FF A7
                JR Z,SCREEN_BLANK_TICK_7        ; 5A00 28 69
-               DEC A                           ; 5A02 3D
+               DEC A                           ; 5A02 3D  the real page number, kept in B because the feed below pages
+                                               ; it in and out repeatedly
                LD B,A                          ; 5A03 47
-               IN A,(LMPR)                     ; 5A04 DB FA
+               IN A,(LMPR)                     ; 5A04 DB FA  the paging to come back to after each dip into the buffer
                LD C,A                          ; 5A06 4F
-               LD A,(&8008)                    ; 5A07 3A 08 80
+               LD A,(&8008)                    ; 5A07 3A 08 80  XVAR 8, the number of characters to feed per interrupt;
+                                               ; it is counted down at &5A59 and is the throttle on how much of a frame
+                                               ; printing may take
                PUSH AF                         ; 5A0A F5
 
 ; ---- SCREEN_BLANK_TICK_LOOP ---- from &5A63
 SCREEN_BLANK_TICK_LOOP:
-               LD DE,(DOS_BOOT_DATA_PORT_FROM_C) ; 5A0B ED 5B 86 80
+               LD DE,(DOS_BOOT_DATA_PORT_FROM_C) ; 5A0B ED 5B 86 80  the read position and the write position
                LD HL,(DOS_BOOT_DATA_PORT_PLUS_1) ; 5A0F 2A 89 80
                AND A                             ; 5A12 A7
                SBC HL,DE                         ; 5A13 ED 52
-               JR NZ,SCREEN_BLANK_TICK_2         ; 5A15 20 07
-               LD A,(DOS_BOOT_DATA_PORT_PLUS_2)  ; 5A17 3A 88 80
+               JR NZ,SCREEN_BLANK_TICK_2         ; 5A15 20 07  the addresses differ, so there is something to send
+               LD A,(DOS_BOOT_DATA_PORT_PLUS_2)  ; 5A17 3A 88 80  same address and same page as well: the buffer is
+                                                 ; empty and there is nothing to do
                DEC A                             ; 5A1A 3D
                CP B                              ; 5A1B B8
                JR Z,SCREEN_BLANK_TICK_6          ; 5A1C 28 4C
 
 ; ---- SCREEN_BLANK_TICK_2 ---- from &5A15
 SCREEN_BLANK_TICK_2:
-               LD A,D                          ; 5A1E 7A
+               LD A,D                          ; 5A1E 7A  D+1 divisible by four picks out &3F, &7F, &BF and &FF -- the
+                                               ; high byte of the last page of a 16K block -- in one AND, before the
+                                               ; fuller test below
                INC A                           ; 5A1F 3C
                AND &03                         ; 5A20 E6 03
                JR NZ,SCREEN_BLANK_TICK_4       ; 5A22 20 1E
-               LD A,D                          ; 5A24 7A
+               LD A,D                          ; 5A24 7A  the block mapped at &4000 has its link sixteen bytes lower
+                                               ; than the others. Why is not clear from this code
                CP &7F                          ; 5A25 FE 7F
                LD A,E                          ; 5A27 7B
                JR NZ,SCREEN_BLANK_TICK_3       ; 5A28 20 02
@@ -8306,13 +8556,15 @@ SCREEN_BLANK_TICK_3:
                JR NZ,SCREEN_BLANK_TICK_4       ; 5A2E 20 12
                LD A,B                          ; 5A30 78
                OUT (LMPR),A                    ; 5A31 D3 FA
-               LD A,(DE)                       ; 5A33 1A
+               LD A,(DE)                       ; 5A33 1A  the last two bytes of a block are the link: the next block's
+                                               ; address high byte, then its page
                LD H,A                          ; 5A34 67
                INC E                           ; 5A35 1C
                LD A,(DE)                       ; 5A36 1A
                LD E,&00                        ; 5A37 1E 00
                LD D,H                          ; 5A39 54
-               LD (&8085),A                    ; 5A3A 32 85 80
+               LD (&8085),A                    ; 5A3A 32 85 80  the same biased page byte read at &59FC, so the feed
+                                               ; picks up where it left off next interrupt
                DEC A                           ; 5A3D 3D
                LD B,A                          ; 5A3E 47
                LD A,C                          ; 5A3F 79
@@ -8320,7 +8572,8 @@ SCREEN_BLANK_TICK_3:
 
 ; ---- SCREEN_BLANK_TICK_4 ---- from &5A22 when a bit of &03 is set, &5A2E when A <> &FE
 SCREEN_BLANK_TICK_4:
-               CALL CHECK_PRINTER_READY+IN_PAGE_C ; 5A42 CD 2B 83  the printer-ready test, called through the window
+               CALL CHECK_PRINTER_READY+IN_PAGE_C ; 5A42 CD 2B 83  the printer-ready test is in the other half's own
+                                                  ; page, reached through the window
 
 ; ---- SCREEN_BLANK_TICK_5 ---- from &71D4
 SCREEN_BLANK_TICK_5:
