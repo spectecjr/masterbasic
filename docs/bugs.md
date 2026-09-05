@@ -5,7 +5,7 @@ as they were sold. The listings cannot be corrected: they assemble to the
 original image byte for byte, and that is the point of them. So a defect
 gets written down here and explained where it sits.
 
-Five are confirmed and one is suspected. The three sweeps this file used to
+Six are confirmed and one is suspected. The three sweeps this file used to
 plan have now been run, and what they found is at the end.
 
 ---
@@ -343,6 +343,55 @@ of them.
 **Not observed.** This is read out of the instructions, not seen on a machine.
 Testing it needs the clock set to a year of 00 and a file saved onto a
 directory slot that already held a stamped one.
+
+---
+
+
+## 7. SORT INVERSE reverts to ascending after the first 256 elements
+
+**Where** MasterBASIC `&46FF`, the exit from the descending scan.
+
+**What** SORT picks one of three scan routines into IX and calls it once per
+pass: ascending at `&46A4`, case-folding ascending at `&46CD`, and descending at
+`&46F7`. Each is a 16-bit countdown -- `DEC C` every element, and when C wraps
+the routine drops into its own tail, which does `DJNZ` on the high half and
+carries on comparing.
+
+The descending scan jumps to the wrong tail:
+
+```asm
+      DEC C                           ; 46FE
+      JR Z,CMD_SORT_DONE              ; 46FF 28 B9   -> &46BA
+```
+
+`&46BA` is the **ascending** scan's tail. Its `DJNZ` continues at `&46AE`, which
+is the ascending comparison, so from that point the pass is scanning the wrong
+way round.
+
+**The right tail is there and nothing reaches it.** Three bytes sit at `&470F`,
+after the descending scan's last jump:
+
+```asm
+      DEFB &10,&F0,&C9                ; 470F   reads as DJNZ &4701 : RET
+```
+
+`DJNZ &4701` continues at the *descending* comparison, which is what the exit
+needed. The jump at `&46FF` would have reached it with an operand of `&0E`; the
+image has `&B9`. One byte.
+
+**Consequence** `C` is the high half of the element count plus one, so it wraps
+only once every 256 elements. An array of 256 or fewer never reaches the faulty
+exit and sorts correctly. Above that, every block after the first is scanned
+ascending, so `SORT INVERSE` on a large array returns something that is neither
+ascending nor descending but a run of alternating orders.
+
+**Scope** Only the descending scan. `SORT` and `SORT ABS` reach `&46BA`
+legitimately, because it is their own tail.
+
+**Not observed.** This is read out of the instructions, not seen on a machine.
+It wants an array of more than 256 strings and a `SORT INVERSE`. The dead three
+bytes decoding as exactly the instruction the exit should reach is what makes it
+worth writing down rather than a suspicion.
 
 ---
 

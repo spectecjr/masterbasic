@@ -33,9 +33,14 @@
 DOC NEXT_SCREEN_BYTE
     Step to the byte below the current one on screen.
 
-    The display file is laid out the way a Spectrum's is, so moving down
-    a pixel row is INC H until the row crosses into the next third, and
-    the INC L / DEC H / DEC H around it is that carry being fixed up.
+    H is the line and L the column, and bit 0 of H says which line of a
+    pair we are on: even, and the step is INC H to the other one; odd,
+    and it is INC L to the next column with H brought back down.  So the
+    walk goes two lines at a time and then one column right.
+
+    NOT THE SPECTRUM'S THIRDS, which an earlier reading of this claimed.
+    Nothing here tests the low three bits of H or masks with &F8, which
+    is what that fixup would need; there is only the one bit.
     Reading a column downwards is the order a printer wants its bit
     image in, which is why the encoder above walks the screen this way
     rather than along each line.
@@ -300,3 +305,17 @@ MB &66F2 EXPAND_INTO_WORK_PAGE
     which falls back on the display if there is none free -- read the
     counted string that heads the data, and clear the ROM's PAGCOUNT
     before the run begins.
+
+MB &610E DECIMAL_DIVISORS
+    Minus ten thousand, a thousand, a hundred and ten, for printing a
+    number as decimal digits by repeated subtraction.
+
+    Not code, whatever the trace made of it: as instructions the four
+    words read as RET P / RET C / JR to itself, an infinite loop nothing
+    could survive.  The routines above them are a character plotter and a
+    decimal printer, and their CHECK_BREAK names come from the label
+    above them rather than from anything they do.
+
+MB &610E-&6115 word
+MB &610E : -10000, -1000, -100, -10 -- the divisors, biggest first
+MB &6112 : the third of the four, and not the SBC A,H the trace made of it

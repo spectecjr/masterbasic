@@ -1,0 +1,242 @@
+# SORT, and the helper that reaches a byte two pages on.
+# Proposed by a fresh reader, audited against the instructions.
+
+MB &4620 : the character after ABS, kept because &47B1 looks here again for INVERSE
+MB &4623 : ABS INVERSE -- INVERSE only gets a NEXTCHAR, the choice it makes is taken later from this byte
+MB &4628 : &02 is the ABS comparison: a JR NZ over two bytes, straight out of COMPARE_FAR_STRINGS on the first differing byte
+
+DOC CMD_SORT_2
+    Patch the comparison, find the array, then sort it.
+
+    THE ONE BYTE AT &4745 IS THE WHOLE OF THE ABS OPTION.  It is the
+    operand of the JR NZ at &4744, the only place a key byte is ever
+    tested: &02 lands on the RET path at &4748 and quits on the first
+    difference, &05 diverts to &474B, which folds bit 5 out of both
+    bytes and tries again.  Nothing else is conditional on ABS -- and
+    because the byte stays where it was written, &47B8 can read it back
+    later instead of keeping a flag of its own.
+
+    That is also the manual's "the sort speed is also slightly better
+    using this ABS option": the folding path costs a PUSH BC, an AND, a
+    LD, a RES, a CP and a POP on every byte that matches.
+
+MB &462A : the operand of the JR at &4744 -- 2 quits on a difference, 5 goes on to fold the case out of it
+MB &462D : parses both slicers and works out where the array is; it also chooses the scan, into IX
+MB &4633 : the first element to sort, as a window address, with its page in V4099
+MB &4639 : from here on HMPR belongs to the sort, not to whoever called it
+
+DOC CMD_SORT_LOOP
+    One pass of a selection sort: find the smallest element still
+    unsorted, exchange it with the one this pass stands on.
+
+    THE STATE OF A PASS is HL the element it stands on, BC how many
+    elements are left counting that one, DE the element size -- which
+    is both the step from one element to the next and the number of
+    bytes an exchange has to move.  BC is the two-register count the
+    rest of the image uses (high byte plus one unless the low byte is
+    zero), made that way by GET_NONEMPTY_STRING at &47F6, so C counting
+    down to zero with B counting the wraps needs no test of its own.
+
+    THE SCAN AND THE EXCHANGE LOOK AT DIFFERENT ADDRESSES.  V409E, the
+    offset of the part being compared, is added to HL before the scan
+    and taken off again afterwards, so SORT a$()(2 TO ) orders on the
+    second character onwards but still moves the first with the rest --
+    exactly as the manual says.
+
+    THE TWO REGISTER BANKS SWAP OVER EVERY PASS.  There are seven EXX
+    in a pass, an odd number, so the pass that follows runs in the
+    other bank.  Nothing depends on which is which: the pass pointer
+    and the counts are always in whichever bank is live at &463B, and
+    the exchange only needs one pointer in each.
+
+    A SELECTION SORT IS QUADRATIC, and the manual's own timings say so:
+    100 strings in 0.14s, 200 in 0.46, 400 in 1.6, 800 in 6 -- close to
+    four times the work for twice the data.  The same manual note that
+    the time "will increase relatively little if you use longer
+    strings" is the other half of the same fact: only the first byte of
+    each key is normally looked at, and only one element is moved per
+    pass.
+
+MB &463B : re-read every pass, because the scan moves the window a long way from here
+MB &463D : the page HL belongs to, wanted again at &4678 when the two elements have to take turns in the window
+MB &4640 : the counts, and at &4644 the element itself, both wanted again after the scan has finished with the registers
+MB &4642 : AF' carries B past the LD BC, which is cheaper here than a second PUSH
+MB &4645 : the offset of the part being compared -- the scan starts at the key, not at the element
+MB &4649 : cannot carry: HL is at most &BFFF and the offset below &4000, which is what the CP &40 at &4770 guarantees
+MB &464D : the ROM's JP (IX); which of the three scans was settled once, at &47AA-&47C2
+MB &4650 : one BREAK check per pass, not per comparison
+MB &4654 : the element this pass stands on goes into the other bank, because the scan left its answer in the main one
+MB &4656 : the scan gives DE back untouched, so it is still the element size -- and that is the number of bytes to exchange
+MB &4657 : the two-register count again, this time over the element size: B the low byte, C' the high byte plus one
+MB &4661 : where SAVE_FAR_POINTER left the smallest key found
+MB &4664 : really LD DE,(V409E) -- the key offset, to get back from the key to the front of the element
+MB &4669 : the exchange moves whole elements, so both pointers have to be wound back off the key
+MB &466E : the subtraction can drop below &8000, and then it is the top &4000 bytes of the page before
+MB &4672 : &7FFF becomes &BFFF: bit 7 on and bit 6 off is one page back at the same offset
+MB &4676 : and the page number with it
+MB &4677 : D the smallest element's page, E the page of the element this pass stands on
+MB &467E : neither can be reached while the other is mapped, which is what the whole loop below is about
+MB &4681 : the byte is in A, which EXX does not touch, so it crosses the bank change on its own
+MB &4689 : two OUTs and one byte moved each way -- the price of an exchange across a page boundary
+MB &4690 : the high half of the count lives in the other bank because C is holding the port number here
+MB &4694 : leave the window on this element's page: that is where the next pass picks up
+MB &4697 : the exchange advanced the pointer element-size bytes and may have walked it out of the window
+MB &469E : C down to zero and then B, the same count and the same absence of a test as everywhere else
+
+DOC CMD_SORT_LOOP3
+    The ABS ascending scan: walk what is left of the array and leave
+    the smallest element in V409A/V409C.
+
+    THE FIRST BYTE DECIDES ALMOST EVERYTHING.  A holds the first key
+    byte of the best element found so far and never has to be reloaded
+    while that element stays the best, so a comparison is usually one
+    CP and one JR.  Only when the first bytes are equal does
+    COMPARE_FAR_STRINGS get called to walk the rest of the key, and
+    only that call needs the other element's page mapped.
+
+    A IS RELOADED FROM THE WRONG POINTER ON PURPOSE.  COMPARE_FAR_STRINGS
+    destroys A, and the best element is in another page by then; &46A7
+    reloads it from HL, which is the element that lost.  That is exact,
+    because the only way to reach &46A7 is through a CP that said the
+    two first bytes were equal.
+
+    AN EQUAL KEY TAKES OVER.  COMPARE_FAR_STRINGS returning Z gives NC,
+    which falls into "this one is the new best", so a run of equal keys
+    is left with the last of them chosen.  SORT is not stable, and the
+    manual does not claim it is.
+
+MB &46A4 : the element the pass stands on is the best until something beats it
+MB &46A7 : reloaded because COMPARE_FAR_STRINGS destroyed A; the byte here will do, it was equal
+MB &46A8 : DE is the element size, so this is the step to the next element
+MB &46A9 : past &FFFF, so the window has to move on two pages
+MB &46AC : the low half of the count; the high half is picked up at &46BA
+MB &46AF : the best is still the best, so A stays as it is and only HL moves
+MB &46B1 : this one is smaller -- start again from it
+MB &46B3 : equal first bytes, so the rest of the key has to be looked at, and it is in another page
+MB &46B6 : carry means the best is still smaller
+MB &46BA : the high half of the count, and falling out of it is the end of the scan
+MB &46BD : the only entry the two-page step has from this scan
+
+DOC PAGE_ON_TWO
+    HL ran past &FFFF, so the window has to move.
+
+    THE WINDOW IS THIRTY-TWO KILOBYTES, not sixteen: &8000-&BFFF is the
+    HMPR page and &C000-&FFFF the one after it, which is why a pointer
+    is only checked once per element (BIT 6,H, idiom 6) and can be read
+    anywhere up to &FFFF without touching a port.  When ADD HL,DE
+    carries out of &FFFF the byte wanted is the first byte of the page
+    two beyond the one HMPR names, and HL has already wrapped to
+    &0000-&3FFF -- so adding 2 to HMPR and setting bit 7 of H names it,
+    with no arithmetic and no reload.
+
+    A comes back untouched through AF' because every caller is holding
+    the best element's first key byte in it.
+
+MB &46C5 : two, because &8000 to the end of &FFFF is two pages, and HL has already wrapped past both
+MB &46CA : H wrapped into &00-&3F, so bit 7 alone puts it back at the same offset in the new page
+
+DOC PAGE_ON_TWO_1
+    The case-folding ascending scan -- plain SORT, the default.
+
+    THE SAME SCAN AS CMD_SORT_LOOP3 with bit 5 taken out of both bytes
+    before they are compared, which is the manual's "bit 5 of each
+    character's CODE is irrelevant to sort order, so CHR$ 96-127 are
+    seen as equal to CHR$ 64-95".
+
+    B IS BORROWED FOR THE FOLD, so the high half of the count cannot
+    stay in it and lives on the stack instead: PUSH on entry, and
+    &46E9-&46F1 pops it, decrements it and pushes it back at every
+    two-hundred-and-fifty-sixth element.  That is the only structural
+    difference from the ABS scan.
+
+    The manual's worked example agrees exactly.  "Fred Bloggs" input to
+    SORT s$ folds to 00 42 44 45 46 47 47 4C 4F 52 53, which read back
+    unfolded is " BdeFgglors" -- the space folding to &00 is what puts
+    it first.  A plain string reaches here with an element size of 1
+    (&441D), so its characters are the elements.
+
+MB &46CD : the high half of the count, because B is about to be the fold's scratch register
+MB &46D2 : bit 5 out of the best element's first byte, once, and it stays folded in A
+MB &46DB : and out of the candidate's, every time
+MB &46DE : folded, so "a" and "A" reach the tail together
+MB &46E5 : carry keeps the best; A is reloaded and refolded at &46D1, which is exact even when the raw bytes differ in case
+MB &46E9 : the high half comes back off the stack rather than out of B
+MB &46EC : already zero from the DEC C that got here -- the count wraps to 256 on the next DEC
+MB &46EE : back to the comparison, not to the step: HL was advanced before the count was tested
+
+DOC PAGE_ON_TWO_LOOP6
+    The descending scan -- SORT ABS INVERSE.
+
+    THE SAME SCAN WITH THE SENSE OF THE COMPARISON TURNED ROUND, and
+    arranged differently to get it: equal first bytes are picked off
+    first (JR Z), then NC keeps the best, so the element kept is the
+    larger one.  Unlike the two ascending scans, an all-equal key keeps
+    the element already held rather than taking the new one.
+
+    THE EXIT IS WRONG.  &46FF jumps to &46BA, which is the tail of the
+    ASCENDING scan, and its DJNZ carries on at &46AE.  Three bytes of
+    dead code at &470F -- DJNZ &4701 : RET -- are the tail this loop
+    should have had, and reaching them needs nothing but a different
+    operand on the JR at &46FF.  Below 257 elements it never shows,
+    because the first time the count wraps is also the last and the
+    DJNZ falls through to the RET; above that, the tail of every pass
+    of an INVERSE sort is scanned with ascending comparisons.
+
+MB &46FF : lands in the ascending scan's tail -- see the note on this routine, and &470F
+MB &4702 : equal first bytes go to the rest of the key; everything else is settled by carry alone
+MB &4704 : the best is larger, so it stays and HL moves on
+MB &470B : no carry -- the best is still the larger -- so A is reloaded from the equal byte at HL
+MB &470F : the tail this loop was meant to use, unreachable because of the operand at &46FF
+
+DOC SAVE_FAR_POINTER
+    Remember where the best element is, in a form that survives the
+    window moving.
+
+    A POINTER AND A PAGE ARE BOTH NEEDED because the scan will page
+    other things in before it comes back to this one.  The pointer is
+    normalised into &8000-&BFFF first (idiom 6) so that the page number
+    stored beside it is the page the pointer is actually in, not the
+    one before.
+
+    THE PAGE GOES IN V409C AND THE KEY LENGTH IN V409D on purpose:
+    COMPARE_FAR_STRINGS picks both up in one LD BC,(V409C) at &472F.
+
+MB &4717 : normalise first, or the page recorded below would be the one before the byte
+MB &4721 : V409D, the byte after this one, already holds the key length -- see &4785 and &472F
+
+DOC COMPARE_FAR_STRINGS
+    Compare the rest of two keys that are in different pages.
+
+    ONLY ONE END CAN BE MAPPED AT A TIME, so each byte costs two
+    OUT (C),r: page in the saved element, read its byte, page the other
+    back, compare.  The two pointers sit in the two register banks so
+    that neither has to be reloaded, and the byte in flight sits in A,
+    which EXX does not touch.
+
+    THE COUNT ARRIVES FREE.  LD BC,(V409C) takes the saved page into C
+    and, out of the byte above it, the number of key bytes into B --
+    two values written by two different routines and read back as one.
+    B is the whole key length and the loop is entered at its DJNZ, so
+    it makes length-1 further comparisons: the caller has already done
+    the first byte.  A key length of zero means 256, which is the cap
+    on how much of a long string SORT will look at.
+
+    THE JR AT &4744 IS THE ABS OPTION, written at &462A.  Over two
+    bytes it leaves at once on any difference; over five it drops into
+    &474B, which clears bit 5 of both bytes and lets an equal pair
+    carry on.
+
+    It returns the flags of whichever CP settled it -- carry if the
+    saved element sorts first, Z if the whole key matched -- and both
+    are read by all three callers.
+
+MB &4725 : the caller's pointer may have run into &C000-&FFFF, and it is about to be used with the other page mapped
+MB &472F : C the saved page from V409C, B the key length from V409D
+MB &4736 : the page the caller is standing in, to switch back to after every byte
+MB &4738 : straight to the DJNZ, because the caller has already compared the first byte
+MB &4741 : both pointers step, one in each bank
+MB &4744 : the operand is written at &462A: 2 for ABS, 5 to go on and fold the case out
+MB &474D : bit 5 out of both, so CHR$ 96-127 compare equal to CHR$ 64-95
+MB &4750 : B is free here only because the caller's count was pushed at &474C
+MB &4755 : equal once folded, so the key has not been settled yet -- back to the count
+

@@ -2683,41 +2683,58 @@ CMD_SORT_1:
                LD A,&05                        ; 4619 3E 05
                JR NZ,CMD_SORT_2                ; 461B 20 0D
                CALL CALL_NEXTCHAR              ; 461D CD 61 44
-               LD (V4098),A                    ; 4620 32 98 40
-               CP T_INVERSE                    ; 4623 FE A5
+               LD (V4098),A                    ; 4620 32 98 40  the character after ABS, kept because &47B1 looks here
+                                               ; again for INVERSE
+               CP T_INVERSE                    ; 4623 FE A5  ABS INVERSE -- INVERSE only gets a NEXTCHAR, the choice it
+                                               ; makes is taken later from this byte
                CALL Z,CALL_NEXTCHAR            ; 4625 CC 61 44
-               LD A,&02                        ; 4628 3E 02
+               LD A,&02                        ; 4628 3E 02  &02 is the ABS comparison: a JR NZ over two bytes, straight
+                                               ; out of COMPARE_FAR_STRINGS on the first differing byte
 
 ; ---- CMD_SORT_2 ---- from &461B
 CMD_SORT_2:
-               LD (L4744+1),A                  ; 462A 32 45 47  patches the operand of the JR at &4744
-               CALL FIND_STRING_VARIABLE       ; 462D CD 59 47
+               LD (L4744+1),A                  ; 462A 32 45 47  the operand of the JR at &4744 -- 2 quits on a
+                                               ; difference, 5 goes on to fold the case out of it
+               CALL FIND_STRING_VARIABLE       ; 462D CD 59 47  parses both slicers and works out where the array is; it
+                                               ; also chooses the scan, into IX
                CALL EXPECT_END_OF_STATEMENT    ; 4630 CD D0 44
-               LD HL,(V40A2)                   ; 4633 2A A2 40
+               LD HL,(V40A2)                   ; 4633 2A A2 40  the first element to sort, as a window address, with its
+                                               ; page in V4099
                LD A,(V4099)                    ; 4636 3A 99 40
-               OUT (HMPR),A                    ; 4639 D3 FB
+               OUT (HMPR),A                    ; 4639 D3 FB  from here on HMPR belongs to the sort, not to whoever
+                                               ; called it
 
 ; ---- CMD_SORT_LOOP ---- from &469F when C is not 0 yet, &46A1 when B is not 0 yet
 CMD_SORT_LOOP:
-               IN A,(HMPR)                     ; 463B DB FB
-               LD (V4099),A                    ; 463D 32 99 40
-               PUSH BC                         ; 4640 C5
+               IN A,(HMPR)                     ; 463B DB FB  re-read every pass, because the scan moves the window a
+                                               ; long way from here
+               LD (V4099),A                    ; 463D 32 99 40  the page HL belongs to, wanted again at &4678 when the
+                                               ; two elements have to take turns in the window
+               PUSH BC                         ; 4640 C5  the counts, and at &4644 the element itself, both wanted again
+                                               ; after the scan has finished with the registers
                LD A,B                          ; 4641 78
-               EX AF,AF'                       ; 4642 08
+               EX AF,AF'                       ; 4642 08  AF' carries B past the LD BC, which is cheaper here than a
+                                               ; second PUSH
                LD A,C                          ; 4643 79
                PUSH HL                         ; 4644 E5
-               LD BC,(V409E)                   ; 4645 ED 4B 9E 40
-               ADD HL,BC                       ; 4649 09
+               LD BC,(V409E)                   ; 4645 ED 4B 9E 40  the offset of the part being compared -- the scan
+                                               ; starts at the key, not at the element
+               ADD HL,BC                       ; 4649 09  cannot carry: HL is at most &BFFF and the offset below &4000,
+                                               ; which is what the CP &40 at &4770 guarantees
                LD C,A                          ; 464A 4F
                EX AF,AF'                       ; 464B 08
                LD B,A                          ; 464C 47
-               CALL IXJUMP                     ; 464D CD 2D 00
-               CALL ESCCHK                     ; 4650 CD 75 5B
+               CALL IXJUMP                     ; 464D CD 2D 00  the ROM's JP (IX); which of the three scans was settled
+                                               ; once, at &47AA-&47C2
+               CALL ESCCHK                     ; 4650 CD 75 5B  one BREAK check per pass, not per comparison
                EXX                             ; 4653 D9
-               POP HL                          ; 4654 E1
+               POP HL                          ; 4654 E1  the element this pass stands on goes into the other bank,
+                                               ; because the scan left its answer in the main one
                EXX                             ; 4655 D9
-               PUSH DE                         ; 4656 D5
-               LD A,E                          ; 4657 7B
+               PUSH DE                         ; 4656 D5  the scan gives DE back untouched, so it is still the element
+                                               ; size -- and that is the number of bytes to exchange
+               LD A,E                          ; 4657 7B  the two-register count again, this time over the element size:
+                                               ; B the low byte, C' the high byte plus one
                AND A                           ; 4658 A7
                JR Z,CMD_SORT_3                 ; 4659 28 01
                INC D                           ; 465B 14
@@ -2729,114 +2746,151 @@ CMD_SORT_3:
                LD C,A                          ; 465E 4F
                EXX                             ; 465F D9
                LD B,E                          ; 4660 43
-               LD HL,(V409A)                   ; 4661 2A 9A 40
-               DEFB &ED,&5B,&9E                ; 4664 m[.  skipped: reads as LD DE,(&409E) from here, and as part of the
-                                               ; instruction above it
+               LD HL,(V409A)                   ; 4661 2A 9A 40  where SAVE_FAR_POINTER left the smallest key found
+               DEFB &ED,&5B,&9E                ; 4664 m[.  really LD DE,(V409E) -- the key offset, to get back from the
+                                               ; key to the front of the element
                LD B,B                          ; 4667 40
                AND A                           ; 4668 A7
-               SBC HL,DE                       ; 4669 ED 52
+               SBC HL,DE                       ; 4669 ED 52  the exchange moves whole elements, so both pointers have to
+                                               ; be wound back off the key
                LD A,(V409C)                    ; 466B 3A 9C 40
-               BIT 7,H                         ; 466E CB 7C
+               BIT 7,H                         ; 466E CB 7C  the subtraction can drop below &8000, and then it is the
+                                               ; top &4000 bytes of the page before
                JR NZ,CMD_SORT_4                ; 4670 20 05
-               SET 7,H                         ; 4672 CB FC
+               SET 7,H                         ; 4672 CB FC  &7FFF becomes &BFFF: bit 7 on and bit 6 off is one page
+                                               ; back at the same offset
                RES 6,H                         ; 4674 CB B4
-               DEC A                           ; 4676 3D
+               DEC A                           ; 4676 3D  and the page number with it
 
 ; ---- CMD_SORT_4 ---- from &4670 when bit 7 of H set
 CMD_SORT_4:
-               LD D,A                          ; 4677 57
+               LD D,A                          ; 4677 57  D the smallest element's page, E the page of the element this
+                                               ; pass stands on
                LD A,(V4099)                    ; 4678 3A 99 40
                LD E,A                          ; 467B 5F
                LD C,HMPR                       ; 467C 0E FB
-               OUT (C),D                       ; 467E ED 51
+               OUT (C),D                       ; 467E ED 51  neither can be reached while the other is mapped, which is
+                                               ; what the whole loop below is about
 
 ; ---- CMD_SORT_LOOP2 ---- from &468D when B is not 0 yet, &4692 when C is not 0 yet
 CMD_SORT_LOOP2:
                LD A,(HL)                       ; 4680 7E
-               OUT (C),E                       ; 4681 ED 59
+               OUT (C),E                       ; 4681 ED 59  the byte is in A, which EXX does not touch, so it crosses
+                                               ; the bank change on its own
                EXX                             ; 4683 D9
                LD D,(HL)                       ; 4684 56
                LD (HL),A                       ; 4685 77
                LD A,D                          ; 4686 7A
                INC HL                          ; 4687 23
                EXX                             ; 4688 D9
-               OUT (C),D                       ; 4689 ED 51
+               OUT (C),D                       ; 4689 ED 51  two OUTs and one byte moved each way -- the price of an
+                                               ; exchange across a page boundary
                LD (HL),A                       ; 468B 77
                INC HL                          ; 468C 23
                DJNZ CMD_SORT_LOOP2             ; 468D 10 F1
                EXX                             ; 468F D9
-               DEC C                           ; 4690 0D
+               DEC C                           ; 4690 0D  the high half of the count lives in the other bank because C
+                                               ; is holding the port number here
                EXX                             ; 4691 D9
                JR NZ,CMD_SORT_LOOP2            ; 4692 20 EC
-               OUT (C),E                       ; 4694 ED 59
+               OUT (C),E                       ; 4694 ED 59  leave the window on this element's page: that is where the
+                                               ; next pass picks up
                EXX                             ; 4696 D9
-               BIT 6,H                         ; 4697 CB 74
+               BIT 6,H                         ; 4697 CB 74  the exchange advanced the pointer element-size bytes and
+                                               ; may have walked it out of the window
                CALL NZ,INCURPAGE               ; 4699 C4 F2 3F
                POP DE                          ; 469C D1
                POP BC                          ; 469D C1
-               DEC C                           ; 469E 0D
+               DEC C                           ; 469E 0D  C down to zero and then B, the same count and the same absence
+                                               ; of a test as everywhere else
                JR NZ,CMD_SORT_LOOP             ; 469F 20 9A
                DJNZ CMD_SORT_LOOP              ; 46A1 10 98
                RET                             ; 46A3 C9
 
 ; ---- CMD_SORT_LOOP3 ---- from &46B1, &46B8, &47B4
 CMD_SORT_LOOP3:
-               CALL SAVE_FAR_POINTER           ; 46A4 CD 17 47
+               CALL SAVE_FAR_POINTER           ; 46A4 CD 17 47  the element the pass stands on is the best until
+                                               ; something beats it
 
 ; ---- CMD_SORT_LOOP4 ---- from &46B6
 CMD_SORT_LOOP4:
-               LD A,(HL)                       ; 46A7 7E
+               LD A,(HL)                       ; 46A7 7E  reloaded because COMPARE_FAR_STRINGS destroyed A; the byte
+                                               ; here will do, it was equal
 
 ; ---- CMD_SORT_LOOP5 ---- from &46AF when A < (HL)
 CMD_SORT_LOOP5:
-               ADD HL,DE                       ; 46A8 19
-               JR C,CMD_SORT_5                 ; 46A9 38 12
+               ADD HL,DE                       ; 46A8 19  DE is the element size, so this is the step to the next
+                                               ; element
+               JR C,CMD_SORT_5                 ; 46A9 38 12  past &FFFF, so the window has to move on two pages
 
 ; ---- CMD_SORT_LOOP6 ---- from &46C0
 CMD_SORT_LOOP6:
                DEC C                           ; 46AB 0D
-               JR Z,CMD_SORT_DONE              ; 46AC 28 0C
+               JR Z,CMD_SORT_DONE              ; 46AC 28 0C  the low half of the count; the high half is picked up at
+                                               ; &46BA
 
 ; ---- CMD_SORT_LOOP7 ---- from &46BA when B is not 0 yet
 CMD_SORT_LOOP7:
                CP (HL)                         ; 46AE BE
-               JR C,CMD_SORT_LOOP5             ; 46AF 38 F7
-               JR NZ,CMD_SORT_LOOP3            ; 46B1 20 F1
-               CALL COMPARE_FAR_STRINGS        ; 46B3 CD 25 47
-               JR C,CMD_SORT_LOOP4             ; 46B6 38 EF
+               JR C,CMD_SORT_LOOP5             ; 46AF 38 F7  the best is still the best, so A stays as it is and only HL
+                                               ; moves
+               JR NZ,CMD_SORT_LOOP3            ; 46B1 20 F1  this one is smaller -- start again from it
+               CALL COMPARE_FAR_STRINGS        ; 46B3 CD 25 47  equal first bytes, so the rest of the key has to be
+                                               ; looked at, and it is in another page
+               JR C,CMD_SORT_LOOP4             ; 46B6 38 EF  carry means the best is still smaller
                JR CMD_SORT_LOOP3               ; 46B8 18 EA
 
 ; ---- CMD_SORT_DONE ---- from &46AC when C reaches 0, &46FF when C reaches 0
 CMD_SORT_DONE:
-               DJNZ CMD_SORT_LOOP7             ; 46BA 10 F2
+               DJNZ CMD_SORT_LOOP7             ; 46BA 10 F2  the high half of the count, and falling out of it is the
+                                               ; end of the scan
                RET                             ; 46BC C9
 
 ; ---- CMD_SORT_5 ---- from &46A9
 CMD_SORT_5:
-               CALL PAGE_ON_TWO                ; 46BD CD C2 46
+               CALL PAGE_ON_TWO                ; 46BD CD C2 46  the only entry the two-page step has from this scan
                JR CMD_SORT_LOOP6               ; 46C0 18 E9
 
 ;; --------------------------------------------------------------------
-;; Move the window on by two pages and turn HL into a window address.
+;; HL ran past &FFFF, so the window has to move.
 ;;
-;; IN A,(HMPR), add 2, OUT, then SET 7,H.  Two pages is 32K, and the
-;; address is left pointing into &8000-&BFFF at the same offset.  A is
-;; preserved through the alternate set rather than the stack.
+;; THE WINDOW IS THIRTY-TWO KILOBYTES, not sixteen: &8000-&BFFF is the
+;; HMPR page and &C000-&FFFF the one after it, which is why a pointer
+;; is only checked once per element (BIT 6,H, idiom 6) and can be read
+;; anywhere up to &FFFF without touching a port.  When ADD HL,DE
+;; carries out of &FFFF the byte wanted is the first byte of the page
+;; two beyond the one HMPR names, and HL has already wrapped to
+;; &0000-&3FFF -- so adding 2 to HMPR and setting bit 7 of H names it,
+;; with no arithmetic and no reload.
+;;
+;; A comes back untouched through AF' because every caller is holding
+;; the best element's first key byte in it.
+;;
+;; What was here before:
+;;
+;;     Move the window on by two pages and turn HL into a window address.
+;;
+;;     IN A,(HMPR), add 2, OUT, then SET 7,H.  Two pages is 32K, and the
+;;     address is left pointing into &8000-&BFFF at the same offset.  A is
+;;     preserved through the alternate set rather than the stack.
 ;; --------------------------------------------------------------------
 
 ; ---- PAGE_ON_TWO ---- from &46BD, &46F2, &4712
 PAGE_ON_TWO:
                EX AF,AF'                       ; 46C2 08
                IN A,(HMPR)                     ; 46C3 DB FB
-               ADD A,&02                       ; 46C5 C6 02
+               ADD A,&02                       ; 46C5 C6 02  two, because &8000 to the end of &FFFF is two pages, and HL
+                                               ; has already wrapped past both
                OUT (HMPR),A                    ; 46C7 D3 FB
                EX AF,AF'                       ; 46C9 08
-               SET 7,H                         ; 46CA CB FC
+               SET 7,H                         ; 46CA CB FC  H wrapped into &00-&3F, so bit 7 alone puts it back at the
+                                               ; same offset in the new page
                RET                             ; 46CC C9
 
 ; ---- PAGE_ON_TWO_1 ---- from &47BE
 PAGE_ON_TWO_1:
-               PUSH BC                         ; 46CD C5
+               PUSH BC                         ; 46CD C5  the high half of the count, because B is about to be the
+                                               ; fold's scratch register
 
 ; ---- PAGE_ON_TWO_LOOP ---- from &46E0, &46E7
 PAGE_ON_TWO_LOOP:
@@ -2845,7 +2899,8 @@ PAGE_ON_TWO_LOOP:
 ; ---- PAGE_ON_TWO_LOOP2 ---- from &46E5
 PAGE_ON_TWO_LOOP2:
                LD A,(HL)                       ; 46D1 7E
-               AND UPPER                       ; 46D2 E6 DF
+               AND UPPER                       ; 46D2 E6 DF  bit 5 out of the best element's first byte, once, and it
+                                               ; stays folded in A
 
 ; ---- PAGE_ON_TWO_LOOP3 ---- from &46DE when A < B
 PAGE_ON_TWO_LOOP3:
@@ -2860,21 +2915,24 @@ PAGE_ON_TWO_LOOP4:
 ; ---- PAGE_ON_TWO_LOOP5 ---- from &46EE when B is not 0 yet
 PAGE_ON_TWO_LOOP5:
                LD B,(HL)                       ; 46DA 46
-               RES 5,B                         ; 46DB CB A8
+               RES 5,B                         ; 46DB CB A8  and out of the candidate's, every time
                CP B                            ; 46DD B8
-               JR C,PAGE_ON_TWO_LOOP3          ; 46DE 38 F4
+               JR C,PAGE_ON_TWO_LOOP3          ; 46DE 38 F4  folded, so "a" and "A" reach the tail together
                JR NZ,PAGE_ON_TWO_LOOP          ; 46E0 20 EC
                CALL COMPARE_FAR_STRINGS        ; 46E2 CD 25 47
-               JR C,PAGE_ON_TWO_LOOP2          ; 46E5 38 EA
+               JR C,PAGE_ON_TWO_LOOP2          ; 46E5 38 EA  carry keeps the best; A is reloaded and refolded at &46D1,
+                                               ; which is exact even when the raw bytes differ in case
                JR PAGE_ON_TWO_LOOP             ; 46E7 18 E5
 
 ; ---- PAGE_ON_TWO_2 ---- from &46D8 when C reaches 0
 PAGE_ON_TWO_2:
-               POP BC                          ; 46E9 C1
+               POP BC                          ; 46E9 C1  the high half comes back off the stack rather than out of B
                DEC B                           ; 46EA 05
                PUSH BC                         ; 46EB C5
-               LD C,&00                        ; 46EC 0E 00
-               JR NZ,PAGE_ON_TWO_LOOP5         ; 46EE 20 EA
+               LD C,&00                        ; 46EC 0E 00  already zero from the DEC C that got here -- the count
+                                               ; wraps to 256 on the next DEC
+               JR NZ,PAGE_ON_TWO_LOOP5         ; 46EE 20 EA  back to the comparison, not to the step: HL was advanced
+                                               ; before the count was tested
                POP BC                          ; 46F0 C1
                RET                             ; 46F1 C9
 
@@ -2899,19 +2957,22 @@ PAGE_ON_TWO_LOOP8:
 ; ---- PAGE_ON_TWO_LOOP9 ---- from &4715
 PAGE_ON_TWO_LOOP9:
                DEC C                           ; 46FE 0D
-               JR Z,CMD_SORT_DONE              ; 46FF 28 B9
+               JR Z,CMD_SORT_DONE              ; 46FF 28 B9  lands in the ascending scan's tail -- see the note on this
+                                               ; routine, and &470F
                CP (HL)                         ; 4701 BE
-               JR Z,PAGE_ON_TWO_4              ; 4702 28 04
-               JR NC,PAGE_ON_TWO_LOOP8         ; 4704 30 F5
+               JR Z,PAGE_ON_TWO_4              ; 4702 28 04  equal first bytes go to the rest of the key; everything
+                                               ; else is settled by carry alone
+               JR NC,PAGE_ON_TWO_LOOP8         ; 4704 30 F5  the best is larger, so it stays and HL moves on
                JR PAGE_ON_TWO_LOOP6            ; 4706 18 EF
 
 ; ---- PAGE_ON_TWO_4 ---- from &4702 when A = (HL)
 PAGE_ON_TWO_4:
                CALL COMPARE_FAR_STRINGS        ; 4708 CD 25 47
-               JR NC,PAGE_ON_TWO_LOOP7         ; 470B 30 ED
+               JR NC,PAGE_ON_TWO_LOOP7         ; 470B 30 ED  no carry -- the best is still the larger -- so A is
+                                               ; reloaded from the equal byte at HL
                JR PAGE_ON_TWO_LOOP6            ; 470D 18 E8
-               DEFB &10,&F0,&C9                ; 470F .pI  reads as DJNZ &4701, and nothing the trace can follow reaches
-                                               ; it
+               DEFB &10,&F0,&C9                ; 470F .pI  the tail this loop was meant to use, unreachable because of
+                                               ; the operand at &46FF
 
 ; ---- PAGE_ON_TWO_5 ---- from &46FC
 PAGE_ON_TWO_5:
@@ -2919,41 +2980,88 @@ PAGE_ON_TWO_5:
                JR PAGE_ON_TWO_LOOP9            ; 4715 18 E7
 
 ;; --------------------------------------------------------------------
-;; Normalise HL through the rotating window -- BIT 6,H and INCURPAGE,
-;; the ROM's own step-the-page routine -- and keep the result in V409A
-;; with the page it belongs to in V409C.
+;; Remember where the best element is, in a form that survives the
+;; window moving.
+;;
+;; A POINTER AND A PAGE ARE BOTH NEEDED because the scan will page
+;; other things in before it comes back to this one.  The pointer is
+;; normalised into &8000-&BFFF first (idiom 6) so that the page number
+;; stored beside it is the page the pointer is actually in, not the
+;; one before.
+;;
+;; THE PAGE GOES IN V409C AND THE KEY LENGTH IN V409D on purpose:
+;; COMPARE_FAR_STRINGS picks both up in one LD BC,(V409C) at &472F.
+;;
+;; What was here before:
+;;
+;;     Normalise HL through the rotating window -- BIT 6,H and INCURPAGE,
+;;     the ROM's own step-the-page routine -- and keep the result in V409A
+;;     with the page it belongs to in V409C.
 ;; --------------------------------------------------------------------
 
 ; ---- SAVE_FAR_POINTER ---- from &46A4, &46CE, &46F7
 SAVE_FAR_POINTER:
-               BIT 6,H                         ; 4717 CB 74
+               BIT 6,H                         ; 4717 CB 74  normalise first, or the page recorded below would be the
+                                               ; one before the byte
                CALL NZ,INCURPAGE               ; 4719 C4 F2 3F
                LD (V409A),HL                   ; 471C 22 9A 40
                IN A,(HMPR)                     ; 471F DB FB
-               LD (V409C),A                    ; 4721 32 9C 40
+               LD (V409C),A                    ; 4721 32 9C 40  V409D, the byte after this one, already holds the key
+                                               ; length -- see &4785 and &472F
                RET                             ; 4724 C9
 
 ;; --------------------------------------------------------------------
-;; Compare against the pointer SAVE_FAR_POINTER left, byte for byte,
-;; with the two strings in different pages.  E holds the saved page and
-;; D the current one, C holds HMPR, and each byte costs two OUT (C),r:
-;; one to page in the saved string and read it, one to page the other
-;; back and compare.  The alternate registers carry the second pointer,
-;; so neither has to be reloaded round the loop.
+;; Compare the rest of two keys that are in different pages.
+;;
+;; ONLY ONE END CAN BE MAPPED AT A TIME, so each byte costs two
+;; OUT (C),r: page in the saved element, read its byte, page the other
+;; back, compare.  The two pointers sit in the two register banks so
+;; that neither has to be reloaded, and the byte in flight sits in A,
+;; which EXX does not touch.
+;;
+;; THE COUNT ARRIVES FREE.  LD BC,(V409C) takes the saved page into C
+;; and, out of the byte above it, the number of key bytes into B --
+;; two values written by two different routines and read back as one.
+;; B is the whole key length and the loop is entered at its DJNZ, so
+;; it makes length-1 further comparisons: the caller has already done
+;; the first byte.  A key length of zero means 256, which is the cap
+;; on how much of a long string SORT will look at.
+;;
+;; THE JR AT &4744 IS THE ABS OPTION, written at &462A.  Over two
+;; bytes it leaves at once on any difference; over five it drops into
+;; &474B, which clears bit 5 of both bytes and lets an equal pair
+;; carry on.
+;;
+;; It returns the flags of whichever CP settled it -- carry if the
+;; saved element sorts first, Z if the whole key matched -- and both
+;; are read by all three callers.
+;;
+;; What was here before:
+;;
+;;     Compare against the pointer SAVE_FAR_POINTER left, byte for byte,
+;;     with the two strings in different pages.  E holds the saved page and
+;;     D the current one, C holds HMPR, and each byte costs two OUT (C),r:
+;;     one to page in the saved string and read it, one to page the other
+;;     back and compare.  The alternate registers carry the second pointer,
+;;     so neither has to be reloaded round the loop.
 ;; --------------------------------------------------------------------
 
 ; ---- COMPARE_FAR_STRINGS ---- from &46B3, &46E2, &4708
 COMPARE_FAR_STRINGS:
-               BIT 6,H                         ; 4725 CB 74
+               BIT 6,H                         ; 4725 CB 74  the caller's pointer may have run into &C000-&FFFF, and it
+                                               ; is about to be used with the other page mapped
                CALL NZ,INCURPAGE               ; 4727 C4 F2 3F
                PUSH HL                         ; 472A E5
                EXX                             ; 472B D9
                LD HL,(V409A)                   ; 472C 2A 9A 40
-               LD BC,(V409C)                   ; 472F ED 4B 9C 40
+               LD BC,(V409C)                   ; 472F ED 4B 9C 40  C the saved page from V409C, B the key length from
+                                               ; V409D
                LD E,C                          ; 4733 59
                LD C,HMPR                       ; 4734 0E FB
-               IN D,(C)                        ; 4736 ED 50
-               JR COMPARE_FAR_STRINGS_LOOP2    ; 4738 18 0C
+               IN D,(C)                        ; 4736 ED 50  the page the caller is standing in, to switch back to after
+                                               ; every byte
+               JR COMPARE_FAR_STRINGS_LOOP2    ; 4738 18 0C  straight to the DJNZ, because the caller has already
+                                               ; compared the first byte
 
 ; ---- COMPARE_FAR_STRINGS_LOOP ---- from &4746 when B is not 0 yet
 COMPARE_FAR_STRINGS_LOOP:
@@ -2962,12 +3070,13 @@ COMPARE_FAR_STRINGS_LOOP:
                LD A,(HL)                       ; 473D 7E
                OUT (C),D                       ; 473E ED 51
                EXX                             ; 4740 D9
-               INC HL                          ; 4741 23
+               INC HL                          ; 4741 23  both pointers step, one in each bank
                CP (HL)                         ; 4742 BE
                EXX                             ; 4743 D9
 
 L4744:
-               JR NZ,COMPARE_FAR_STRINGS_LOOP3 ; 4744 20 02  the operand is written here at run time, from &462A
+               JR NZ,COMPARE_FAR_STRINGS_LOOP3 ; 4744 20 02  the operand is written at &462A: 2 for ABS, 5 to go on and
+                                               ; fold the case out
 
 ; ---- COMPARE_FAR_STRINGS_LOOP2 ---- from &4738, &4755 when A = B
 COMPARE_FAR_STRINGS_LOOP2:
@@ -2980,13 +3089,16 @@ COMPARE_FAR_STRINGS_LOOP3:
                RET                             ; 474A C9
                EXX                             ; 474B D9
                PUSH BC                         ; 474C C5
-               AND &DF                         ; 474D E6 DF
+               AND &DF                         ; 474D E6 DF  bit 5 out of both, so CHR$ 96-127 compare equal to CHR$
+                                               ; 64-95
                LD B,(HL)                       ; 474F 46
-               RES 5,B                         ; 4750 CB A8
+               RES 5,B                         ; 4750 CB A8  B is free here only because the caller's count was pushed
+                                               ; at &474C
                CP B                            ; 4752 B8
                POP BC                          ; 4753 C1
                EXX                             ; 4754 D9
-               JR Z,COMPARE_FAR_STRINGS_LOOP2  ; 4755 28 EF
+               JR Z,COMPARE_FAR_STRINGS_LOOP2  ; 4755 28 EF  equal once folded, so the key has not been settled yet --
+                                               ; back to the count
                JR COMPARE_FAR_STRINGS_LOOP3    ; 4757 18 EF
 
 ;; --------------------------------------------------------------------
@@ -9905,85 +10017,119 @@ FIND_SLOTS:
                                                ; the
 
 ;; --------------------------------------------------------------------
-;; Reserve a 1K slot in a utilities page, taking a new page if none of
-;; the existing ones has room.
+;; THE COUNTING PASS AND THE RESERVING PASS ARE THE SAME CODE, and B
+;; is what separates them.  B = 0 walks the tables and touches
+;; nothing; B = &20 walks them again and marks what it finds.  That
+;; works because every write the reserving pass makes is either
+;; guarded by an INC B : DEC B test, or -- at &5F2B -- writes B
+;; itself into a byte that is already 0.
 ;;
-;; The Technical Manual describes the scheme and the method, and this
-;; is that method:
+;; C counts the slots still wanted; DEC C : RET Z at &5F70 ends the
+;; routine as soon as enough have been found.  On return DE holds the
+;; head of the chain just built (page in E, slot descriptor in D), and
+;; (V409E) holds the same pair.
 ;;
-;;     A "Utilities" page is marked 20H.  It is divided into 16 1K
-;;     sections which can be used by assorted short utility programs.
-;;     The final 16 bytes in a utilities page (SLOTT) show which
-;;     "slots" are reserved -- a 0 shows the corresponding slot is
-;;     free, and FFH that it is reserved.  (The last slot is 16 bytes
-;;     short of 1K.)  The proper method of allocating space for a
-;;     short program is to look backwards through ALLOCT for 20H.  If
-;;     you find it switch in the indicated page and look backwards
-;;     through SLOTT for a spare slot.  Mark it and use that slot.  If
-;;     you do not find a 20H entry in ALLOCT, look for 00H; report an
-;;     error if none is found, else mark it 20H, clear the last 16
-;;     bytes of that page with zeros, and then reserve yourself some
-;;     space in the new SLOTT you have just created.
+;; A SLOT IS DESCRIBED BY THE BYTE &40 + 4n, not by n.  The &40 base
+;; guarantees a real slot's descriptor is never zero, which is how
+;; FREE_SLOT_CHAIN knows where a chain ends; four times n is the
+;; high-byte stride of a 1K slot, so adding &43 gives the address of
+;; the slot's last two bytes directly, and rotating right twice gives
+;; &10 + n, which OR &F0 turns into the SLOTT entry's low byte.  Every
+;; conversion in this region and in FREE_SLOT_CHAIN is one of those
+;; two.
 ;;
-;; Instruction for instruction: HMPR is zeroed so &91xx reads ALLOCT
-;; in the system page; FIND_SLOTS enters with L = &1F, the top page,
-;; and DEC L walks down, which is the manual's "look backwards"; &20
-;; jumps to the SLOTT scan and 0 claims the page first; running off the
-;; end reports error 1.  A newly claimed page has its last sixteen
-;; bytes zeroed before the scan, and is marked with B, which the caller
-;; sets to &20 -- the manual's "mark it 20H".
+;; What was here before:
 ;;
-;; The caller runs it twice.  B = 0 first, which skips every write and
-;; so asks whether the slots can be found at all, then B = &20 to
-;; reserve them.  C carries how many are wanted and DEC C : RET Z ends
-;; it, and C is worked out just above by dividing the byte count by
-;; 1024 and adding one -- "the number you supply is rounded up".
+;;     Reserve a 1K slot in a utilities page, taking a new page if none of
+;;     the existing ones has room.
 ;;
-;; The continuation path is the other DEC L: when a page turns out to
-;; be full, &5F75 restarts the ALLOCT scan from below the page it had
-;; in the window rather than from &1F again.
+;;     The Technical Manual describes the scheme and the method, and this
+;;     is that method:
 ;;
-;; One divergence from the manual worth noting: it says to look
-;; backwards through SLOTT, and this looks forwards, LD HL,&BFF0 then
-;; INC L, taking the first free slot rather than the last.
+;;         A "Utilities" page is marked 20H.  It is divided into 16 1K
+;;         sections which can be used by assorted short utility programs.
+;;         The final 16 bytes in a utilities page (SLOTT) show which
+;;         "slots" are reserved -- a 0 shows the corresponding slot is
+;;         free, and FFH that it is reserved.  (The last slot is 16 bytes
+;;         short of 1K.)  The proper method of allocating space for a
+;;         short program is to look backwards through ALLOCT for 20H.  If
+;;         you find it switch in the indicated page and look backwards
+;;         through SLOTT for a spare slot.  Mark it and use that slot.  If
+;;         you do not find a 20H entry in ALLOCT, look for 00H; report an
+;;         error if none is found, else mark it 20H, clear the last 16
+;;         bytes of that page with zeros, and then reserve yourself some
+;;         space in the new SLOTT you have just created.
 ;;
-;; Slot n is the kilobyte at &8000+n*&400 as the page sits in the
-;; window, and its last two bytes hold a link.  Slot 15 is the one the
-;; manual calls sixteen bytes short: its link goes at &BFEE, because
-;; &BFFE and &BFFF are SLOTT entries 14 and 15.
+;;     Instruction for instruction: HMPR is zeroed so &91xx reads ALLOCT
+;;     in the system page; FIND_SLOTS enters with L = &1F, the top page,
+;;     and DEC L walks down, which is the manual's "look backwards"; &20
+;;     jumps to the SLOTT scan and 0 claims the page first; running off the
+;;     end reports error 1.  A newly claimed page has its last sixteen
+;;     bytes zeroed before the scan, and is marked with B, which the caller
+;;     sets to &20 -- the manual's "mark it 20H".
+;;
+;;     The caller runs it twice.  B = 0 first, which skips every write and
+;;     so asks whether the slots can be found at all, then B = &20 to
+;;     reserve them.  C carries how many are wanted and DEC C : RET Z ends
+;;     it, and C is worked out just above by dividing the byte count by
+;;     1024 and adding one -- "the number you supply is rounded up".
+;;
+;;     The continuation path is the other DEC L: when a page turns out to
+;;     be full, &5F75 restarts the ALLOCT scan from below the page it had
+;;     in the window rather than from &1F again.
+;;
+;;     One divergence from the manual worth noting: it says to look
+;;     backwards through SLOTT, and this looks forwards, LD HL,&BFF0 then
+;;     INC L, taking the first free slot rather than the last.
+;;
+;;     Slot n is the kilobyte at &8000+n*&400 as the page sits in the
+;;     window, and its last two bytes hold a link.  Slot 15 is the one the
+;;     manual calls sixteen bytes short: its link goes at &BFEE, because
+;;     &BFFE and &BFFF are SLOTT entries 14 and 15.
 ;; --------------------------------------------------------------------
 
 ; ---- ALLOC_UTILITY_SLOT ---- from &5F79
 ALLOC_UTILITY_SLOT:
-               LD H,&91                        ; 5F16 26 91  &91xx is ALLOCT at &5100, read through the window
+               LD H,&91                        ; 5F16 26 91  ALLOCT is at &5100, and WRA reaches it by setting bit 7 and
+                                               ; clearing bit 6 of H -- so &91xx is the same table
                XOR A                           ; 5F18 AF
-               OUT (HMPR),A                    ; 5F19 D3 FB
+               OUT (HMPR),A                    ; 5F19 D3 FB  HMPR = 0 puts the system page in the window, which is what
+                                               ; makes &911F the ALLOCT entry for page &1F
 
 ; ---- ALLOC_UTILITY_SLOT_LOOP ---- from &5F24 when L is not 0 yet
 ALLOC_UTILITY_SLOT_LOOP:
                LD A,(HL)                       ; 5F1B 7E
                AND A                           ; 5F1C A7
-               JR Z,ALLOC_UTILITY_SLOT_1       ; 5F1D 28 0C
+               JR Z,ALLOC_UTILITY_SLOT_1       ; 5F1D 28 0C  0 -- a page nobody owns, to be claimed as a new utilities
+                                               ; page
                CP &20                          ; 5F1F FE 20
-               JR Z,ALLOC_UTILITY_SLOT_2       ; 5F21 28 15
+               JR Z,ALLOC_UTILITY_SLOT_2       ; 5F21 28 15  &20 -- an existing utilities page, which may still have a
+                                               ; free slot
                DEC L                           ; 5F23 2D
-               JR NZ,ALLOC_UTILITY_SLOT_LOOP   ; 5F24 20 F5
-               LD A,&01                        ; 5F26 3E 01  off the bottom of ALLOCT with no page free
+               JR NZ,ALLOC_UTILITY_SLOT_LOOP   ; 5F24 20 F5  the walk stops at L = 0 without examining page 0, which is
+                                               ; the system page and never a candidate
+               LD A,&01                        ; 5F26 3E 01  off the bottom of ALLOCT with no page marked &20 and none
+                                               ; free
                JP REPORT                       ; 5F28 C3 BE 43
 
 ; ---- ALLOC_UTILITY_SLOT_1 ---- from &5F1D when A = 0
 ALLOC_UTILITY_SLOT_1:
-               LD (HL),B                       ; 5F2B 70
+               LD (HL),B                       ; 5F2B 70  mark it with B. On the counting pass B is 0 and this writes
+                                               ; back the 0 that was already there, so the pass needs no test of its own
                LD A,L                          ; 5F2C 7D
                OUT (HMPR),A                    ; 5F2D D3 FB
-               LD HL,&BFF0                     ; 5F2F 21 F0 BF
+               LD HL,&BFF0                     ; 5F2F 21 F0 BF  SLOTT, the last sixteen bytes of the page, now in the
+                                               ; window at &BFF0-&BFFF
 
 ; ---- ALLOC_UTILITY_SLOT_LOOP2 ---- from &5F35 when L is not 0
 ALLOC_UTILITY_SLOT_LOOP2:
                LD (HL),&00                     ; 5F32 36 00
                INC L                           ; 5F34 2C
-               JR NZ,ALLOC_UTILITY_SLOT_LOOP2  ; 5F35 20 FB
-               LD L,A                          ; 5F37 6F
+               JR NZ,ALLOC_UTILITY_SLOT_LOOP2  ; 5F35 20 FB  INC L rolls &FF round to 0 at the page boundary, so the
+                                               ; sixteen-byte clear needs no counter
+               LD L,A                          ; 5F37 6F  A still holds the page number, untouched by the clearing loop;
+                                               ; putting it back in L lets the shared code below re-select a page it has
+                                               ; already selected
 
 ; ---- ALLOC_UTILITY_SLOT_2 ---- from &5F21 when A = &20
 ALLOC_UTILITY_SLOT_2:
@@ -9993,31 +10139,38 @@ ALLOC_UTILITY_SLOT_2:
 
 ; ---- ALLOC_UTILITY_SLOT_LOOP3 ---- from &5F73 when L is not 0
 ALLOC_UTILITY_SLOT_LOOP3:
-               LD A,(HL)                       ; 5F3E 7E
+               LD A,(HL)                       ; 5F3E 7E  forwards from &BFF0 -- the Technical Manual says to look
+                                               ; backwards through SLOTT, so this takes the lowest free slot where the
+                                               ; manual would take the highest
                AND A                           ; 5F3F A7
                JR NZ,ALLOC_UTILITY_SLOT_6      ; 5F40 20 30
                PUSH HL                         ; 5F42 E5
-               INC B                           ; 5F43 04
+               INC B                           ; 5F43 04  INC B : DEC B tests B for zero without disturbing A, which is
+                                               ; holding the 0 just read from SLOTT
                DEC B                           ; 5F44 05
                JR Z,ALLOC_UTILITY_SLOT_3       ; 5F45 28 02
-               LD (HL),&FF                     ; 5F47 36 FF
+               LD (HL),&FF                     ; 5F47 36 FF  &FF -- reserved, the manual's marker
 
 ; ---- ALLOC_UTILITY_SLOT_3 ---- from &5F45 when B reaches 0
 ALLOC_UTILITY_SLOT_3:
                LD A,L                          ; 5F49 7D
-               AND &2F                         ; 5F4A E6 2F
+               AND &2F                         ; 5F4A E6 2F  L is &F0..&FF, so masking with &2F rather than &0F keeps
+                                               ; bit 5 as well as the slot index; the &20 becomes the &80 of the slot
+                                               ; base under the two doublings, leaving only 3 to add
                ADD A,A                         ; 5F4C 87
                ADD A,A                         ; 5F4D 87
-               ADD A,&03                       ; 5F4E C6 03
+               ADD A,&03                       ; 5F4E C6 03  H = &83 + 4n, the high byte of the last two bytes of slot n
                LD H,A                          ; 5F50 67
                LD L,&EE                        ; 5F51 2E EE
-               CP &BF                          ; 5F53 FE BF
+               CP &BF                          ; 5F53 FE BF  slot 15's link would fall at &BFFE, on top of SLOTT entries
+                                               ; 14 and 15 -- this is the slot the manual calls sixteen bytes short
                JR Z,ALLOC_UTILITY_SLOT_4       ; 5F55 28 02
                LD L,&FE                        ; 5F57 2E FE
 
 ; ---- ALLOC_UTILITY_SLOT_4 ---- from &5F55 when A = &BF
 ALLOC_UTILITY_SLOT_4:
-               LD DE,(V409E)                   ; 5F59 ED 5B 9E 40
+               LD DE,(V409E)                   ; 5F59 ED 5B 9E 40  the chain so far, page and descriptor, to be written
+                                               ; into this slot's link -- so the chain is built from the tail forwards
                INC B                           ; 5F5D 04
                DEC B                           ; 5F5E 05
                JR Z,ALLOC_UTILITY_SLOT_5       ; 5F5F 28 03
@@ -10028,32 +10181,47 @@ ALLOC_UTILITY_SLOT_4:
 ; ---- ALLOC_UTILITY_SLOT_5 ---- from &5F5F when B reaches 0
 ALLOC_UTILITY_SLOT_5:
                LD A,H                          ; 5F64 7C
-               SUB &43                         ; 5F65 D6 43
+               SUB &43                         ; 5F65 D6 43  &83 + 4n back down to &40 + 4n, the form a link is stored
+                                               ; in
                LD H,A                          ; 5F67 67
                IN A,(HMPR)                     ; 5F68 DB FB
                LD L,A                          ; 5F6A 6F
-               LD (V409E),HL                   ; 5F6B 22 9E 40
-               EX DE,HL                        ; 5F6E EB
+               LD (V409E),HL                   ; 5F6B 22 9E 40  the new head of the chain: descriptor in H, page in L,
+                                               ; read back from HMPR because the page is whichever one the window holds
+               EX DE,HL                        ; 5F6E EB  leaves the new head in DE for the caller; HL is about to be
+                                               ; reloaded with the SLOTT pointer
                POP HL                          ; 5F6F E1
                DEC C                           ; 5F70 0D
                RET Z                           ; 5F71 C8
 
 ; ---- ALLOC_UTILITY_SLOT_6 ---- from &5F40 when A <> 0
 ALLOC_UTILITY_SLOT_6:
-               INC L                           ; 5F72 2C
+               INC L                           ; 5F72 2C  carry on scanning SLOTT. The counting pass marked nothing, so
+                                               ; the scan must step past a slot it has just counted or it would count it
+                                               ; again
                JR NZ,ALLOC_UTILITY_SLOT_LOOP3  ; 5F73 20 C9
-               IN A,(HMPR)                     ; 5F75 DB FB
+               IN A,(HMPR)                     ; 5F75 DB FB  this page is full -- resume the ALLOCT walk one page below
+                                               ; the one in the window, rather than starting again from &1F
                DEC A                           ; 5F77 3D
                LD L,A                          ; 5F78 6F
                JR ALLOC_UTILITY_SLOT           ; 5F79 18 9B
 
 ;; --------------------------------------------------------------------
-;; Walk a chain of reserved slots, clearing each SLOTT entry, and give
-;; back any page left with none reserved.
+;; Give back a chain of slots, and any page they emptied.
 ;;
-;; The link at the end of each slot gives the next slot's index and the
-;; next page; a zero index ends it.  The same &BFEE exception applies,
-;; tested here as INC A : JR NZ.
+;; THE LINK IS THE SLOT'S LAST TWO BYTES, descriptor then page, which
+;; is why the walk needs no table of its own and can cross pages.
+;; Entry is A = page, H = descriptor; a zero descriptor ends the walk,
+;; which is safe because the allocator's &40 + 4n form can never be 0.
+;;
+;; What was here before:
+;;
+;;     Walk a chain of reserved slots, clearing each SLOTT entry, and give
+;;     back any page left with none reserved.
+;;
+;;     The link at the end of each slot gives the next slot's index and the
+;;     next page; a zero index ends it.  The same &BFEE exception applies,
+;;     tested here as INC A : JR NZ.
 ;; --------------------------------------------------------------------
 
 ; ---- FREE_SLOT_CHAIN ---- from &5596, &55DE when A <> 0, &5C8A when A <> 0, &5FA4 when H is not 0 yet
@@ -10061,17 +10229,22 @@ FREE_SLOT_CHAIN:
                OUT (HMPR),A                    ; 5F7B D3 FB
                LD A,H                          ; 5F7D 7C
                PUSH AF                         ; 5F7E F5
-               ADD A,&40                       ; 5F7F C6 40
-               AND &FC                         ; 5F81 E6 FC
+               ADD A,&40                       ; 5F7F C6 40  &40 + 4n plus &40 is &80 + 4n, and plus 3 is the high byte
+                                               ; of the slot's last two bytes -- the allocator's arithmetic run forwards
+               AND &FC                         ; 5F81 E6 FC  the low two bits are already clear in anything the
+                                               ; allocator stored, so this only matters if a caller hands over a
+                                               ; descriptor of its own
                ADD A,&03                       ; 5F83 C6 03
                LD H,A                          ; 5F85 67
                LD L,&FE                        ; 5F86 2E FE
                POP AF                          ; 5F88 F1
-               RRCA                            ; 5F89 0F
+               RRCA                            ; 5F89 0F  two rotates turn &40 + 4n into &10 + n, and OR &F0 makes &F0 +
+                                               ; n, the SLOTT entry's address in the window
                RRCA                            ; 5F8A 0F
                OR &F0                          ; 5F8B F6 F0
                LD E,A                          ; 5F8D 5F
-               INC A                           ; 5F8E 3C
+               INC A                           ; 5F8E 3C  slot 15 gives exactly &FF here, so this single INC both spots
+                                               ; it and drives the same &BFEE exception the allocator makes at &5F53
                JR NZ,FREE_SLOT_CHAIN_1         ; 5F8F 20 02
                LD L,&EE                        ; 5F91 2E EE
 
@@ -10079,16 +10252,20 @@ FREE_SLOT_CHAIN:
 FREE_SLOT_CHAIN_1:
                LD D,&BF                        ; 5F93 16 BF
                XOR A                           ; 5F95 AF
-               LD (DE),A                       ; 5F96 12
+               LD (DE),A                       ; 5F96 12  0 -- the slot is free again. The XOR A above does double duty:
+                                               ; it is also the seed for the OR accumulator FREE_PAGE_IF_SLOTS_CLEAR
+                                               ; expects
                PUSH HL                         ; 5F97 E5
                CALL FREE_PAGE_IF_SLOTS_CLEAR   ; 5F98 CD A7 5F
                POP HL                          ; 5F9B E1
-               LD D,(HL)                       ; 5F9C 56
+               LD D,(HL)                       ; 5F9C 56  the link's first byte is the next slot's descriptor; read it
+                                               ; before clearing it, so the freed slot is left holding no stale chain
                LD (HL),&00                     ; 5F9D 36 00
                INC HL                          ; 5F9F 23
                LD A,(HL)                       ; 5FA0 7E
                EX DE,HL                        ; 5FA1 EB
-               INC H                           ; 5FA2 24
+               INC H                           ; 5FA2 24  a zero descriptor is the end of the chain -- no real slot has
+                                               ; one
                DEC H                           ; 5FA3 25
                JR NZ,FREE_SLOT_CHAIN           ; 5FA4 20 D5
                RET                             ; 5FA6 C9
@@ -10107,71 +10284,104 @@ FREE_PAGE_IF_SLOTS_CLEAR:
 
 ; ---- FREE_PAGE_IF_SLOTS_CLEAR_LOOP ---- from &5FAC when L is not 0
 FREE_PAGE_IF_SLOTS_CLEAR_LOOP:
-               OR (HL)                             ; 5FAA B6
+               OR (HL)                             ; 5FAA B6  A arrives as 0 from the XOR that cleared the entry, so the
+                                                   ; accumulator is already set up
                INC L                               ; 5FAB 2C
-               JR NZ,FREE_PAGE_IF_SLOTS_CLEAR_LOOP ; 5FAC 20 FC
+               JR NZ,FREE_PAGE_IF_SLOTS_CLEAR_LOOP ; 5FAC 20 FC  INC L rolls round at the page boundary again -- sixteen
+                                                   ; entries, no counter
                AND A                               ; 5FAE A7
                RET NZ                              ; 5FAF C0
                IN A,(HMPR)                         ; 5FB0 DB FB
                LD L,A                              ; 5FB2 6F
-               LD H,&51                            ; 5FB3 26 51
-               XOR A                               ; 5FB5 AF
+               LD H,&51                            ; 5FB3 26 51  ALLOCT by its own address this time, because WRA does
+                                                   ; the +&4000 and the paging itself
+               XOR A                               ; 5FB5 AF  0 -- the page goes back to the pool. The page is still in
+                                                   ; the window, so the caller can go on reading the link out of it
                JP WRA                              ; 5FB6 C3 A4 45
 
 ;; --------------------------------------------------------------------
-;; Display the line and statement number a program has reached: the
-;; LINE command, "called TRACE or TRON in some other BASICs".
+;; EVERYTHING HERE RUNS FROM THE WINDOW, which is why every call and
+;; every variable in this routine carries +IN_PAGE_C.  The character
+;; plotter below switches LMPR to the screen page, and that pulls both
+;; &0000-&3FFF and &4000-&7FBF -- this page's own home -- out from
+;; under whatever is running.  &7C2E calls this at &9FB9 for the same
+;; reason, and the stack is moved to &8300 at &5FC3 for the same
+;; reason again: the caller's stack would vanish with the paging.
 ;;
-;; PPC is the line, and B coming back as &FF means a direct command
-;; with no line to show, which is the INC B : RET Z.  Then SP is moved
-;; into the window, a value is chosen from the screen mode in VMPR --
-;; one of three, tested by bits 6 and 5 -- the number is printed, then
-;; a colon, then SUBPPC.  The manual puts the display "on the lower
-;; right-hand side of the screen, in PEN 0 on PAPER 15".
+;; It also explains why the display is plotted a byte at a time rather
+;; than printed: the ROM's print routines could not be called with the
+;; screen paged in like this, and going round them means the trace
+;; leaves the program's own print position, colours and scroll count
+;; untouched.
 ;;
-;; The system page calls it once a statement, from &48DA in the CMDV
-;; block, guarded by bit 1 of a settings byte -- which is what LINE and
-;; LINE OFF turn on and off.
+;; What was here before:
+;;
+;;     Display the line and statement number a program has reached: the
+;;     LINE command, "called TRACE or TRON in some other BASICs".
+;;
+;;     PPC is the line, and B coming back as &FF means a direct command
+;;     with no line to show, which is the INC B : RET Z.  Then SP is moved
+;;     into the window, a value is chosen from the screen mode in VMPR --
+;;     one of three, tested by bits 6 and 5 -- the number is printed, then
+;;     a colon, then SUBPPC.  The manual puts the display "on the lower
+;;     right-hand side of the screen, in PEN 0 on PAPER 15".
+;;
+;;     The system page calls it once a statement, from &48DA in the CMDV
+;;     block, guarded by bit 1 of a settings byte -- which is what LINE and
+;;     LINE OFF turn on and off.
 ;; --------------------------------------------------------------------
 
 SHOW_LINE_AND_STATEMENT:
                LD BC,(PPC)                     ; 5FB9 ED 4B 45 5C
-               INC B                           ; 5FBD 04
+               INC B                           ; 5FBD 04  LINERUN sets PPC to &FFFF for the edit line, so B = &FF means
+                                               ; a direct command with no line number to show
                RET Z                           ; 5FBE C8
                LD (V4071+&4000),SP             ; 5FBF ED 73 71 80
-               LD SP,HK_SERSEND+&4000          ; 5FC3 31 00 83
+               LD SP,HK_SERSEND+&4000          ; 5FC3 31 00 83  &4300 in this page seen through the window; the stack
+                                               ; grows down into the spare bytes from &42E2
                DEC B                           ; 5FC6 05
-               LD HL,&5860                     ; 5FC7 21 60 58
-               IN A,(VMPR)                     ; 5FCA DB FC
+               LD HL,&5860                     ; 5FC7 21 60 58  the same place on the screen in each mode -- character
+                                               ; row 22, about three-quarters across -- but each mode lays the screen
+                                               ; out differently, so the address has to be picked rather than computed
+               IN A,(VMPR)                     ; 5FCA DB FC  VMPR bits 6 and 5 are the mode: neither set is mode 1, bit
+                                               ; 5 alone mode 2, bit 6 set modes 3 and 4
                BIT 6,A                         ; 5FCC CB 77
                JR NZ,SHOW_LINE_AND_STATEMENT_1 ; 5FCE 20 0A
-               LD HL,&5617                     ; 5FD0 21 17 56
+               LD HL,&5617                     ; 5FD0 21 17 56  mode 2 is linear, 32 bytes a row, so row 176 column 23
+                                               ; is 176*32+23 = &1617, above the &4000 the screen page will be paged to
                BIT 5,A                         ; 5FD3 CB 6F
                JR NZ,SHOW_LINE_AND_STATEMENT_1 ; 5FD5 20 03
-               LD HL,&50D7                     ; 5FD7 21 D7 50
+               LD HL,&50D7                     ; 5FD7 21 D7 50  mode 1 keeps the ROM's thirds-and-lines layout, where
+                                               ; the same row 176 column 23 falls at &10D7
 
 ; ---- SHOW_LINE_AND_STATEMENT_1 ---- from &5FCE when bit 6 of A set, &5FD5 when bit 5 of A set
 SHOW_LINE_AND_STATEMENT_1:
-               LD (V406D+&4000),HL             ; 5FDA 22 6D 80
+               LD (V406D+&4000),HL             ; 5FDA 22 6D 80  the plotter's cursor -- it steps this on itself, so the
+                                               ; two numbers and the colon follow each other along
                CALL CHECK_BREAK_6+&4000        ; 5FDD CD E1 A0
-               LD A,&3A                        ; 5FE0 3E 3A
+               LD A,&3A                        ; 5FE0 3E 3A  ':' between the line number and the statement number
                CALL CHECK_BREAK_2+&4000        ; 5FE2 CD 2A A0
                LD A,(SUBPPC)                   ; 5FE5 3A 47 5C
-               LD HL,CHECK_BREAK_10+&4000      ; 5FE8 21 14 A1
+               LD HL,V6114+&4000               ; 5FE8 21 14 A1  the divisor table starting at -10, so a statement number
+                                               ; prints in two digits
                LD C,A                          ; 5FEB 4F
-               LD B,&00                        ; 5FEC 06 00
+               LD B,&00                        ; 5FEC 06 00  CHECK_BREAK_7 takes its value in BC, not HL
                CALL CHECK_BREAK_7+&4000        ; 5FEE CD E4 A0
                LD SP,(V4071+&4000)             ; 5FF1 ED 7B 71 80
-               LD A,(V406F+&4000)              ; 5FF5 3A 6F 80
+               LD A,(V406F+&4000)              ; 5FF5 3A 6F 80  what LINE stored: 0 for no pause, &FF for STEP, anything
+                                               ; else a delay
                AND A                           ; 5FF8 A7
                RET Z                           ; 5FF9 C8
                LD B,A                          ; 5FFA 47
                INC A                           ; 5FFB 3C
-               JR NZ,CHECK_BREAK_LOOP3         ; 5FFC 20 22
+               JR NZ,CHECK_BREAK_LOOP3         ; 5FFC 20 22  &FF is STEP, which waits for a key instead of counting; any
+                                               ; other value falls through to the delay loop
 
 ; ---- SHOW_LINE_AND_STATEMENT_2 ---- from &600B
 SHOW_LINE_AND_STATEMENT_2:
-               LD A,&F7                        ; 5FFE 3E F7
+               LD A,&F7                        ; 5FFE 3E F7  &F7 is the keyboard row, put in A because IN A,(STAT)
+                                               ; drives it onto the top half of the address bus. Entering CHECK_BREAK at
+                                               ; &6000 instead leaves the row to the caller
 
 ;; --------------------------------------------------------------------
 ;; Report "BREAK into program" if the key is down, otherwise return.
@@ -10193,8 +10403,10 @@ CHECK_BREAK:
 ; ---- CHECK_BREAK_1 ---- from &6004 when a bit of &20 is set
 CHECK_BREAK_1:
                CALL READ_KEY_LINE+&4000        ; 6008 CD B5 93
-               JR C,SHOW_LINE_AND_STATEMENT_2  ; 600B 38 F1
-               LD H,&15                        ; 600D 26 15
+               JR C,SHOW_LINE_AND_STATEMENT_2  ; 600B 38 F1  READ_KEY_LINE leaves CNTRL in carry, low meaning held -- so
+                                               ; carry set is "still not pressed", and STEP goes round again
+               LD H,&15                        ; 600D 26 15  H only. L is left at whatever the number printing ended
+                                               ; with, so the debounce is roughly &1500 turns and not exactly
 
 ; ---- CHECK_BREAK_LOOP ---- from &6012
 CHECK_BREAK_LOOP:
@@ -10209,14 +10421,16 @@ CHECK_BREAK_LOOP2:
                DEC HL                          ; 6016 2B
                LD A,H                          ; 6017 7C
                OR L                            ; 6018 B5
-               RET Z                           ; 6019 C8
+               RET Z                           ; 6019 C8  the release wait gives up after about &0A00 turns, so a key
+                                               ; held down does not stop the program
                CALL READ_KEY_LINE+&4000        ; 601A CD B5 93
                JR NC,CHECK_BREAK_LOOP2         ; 601D 30 F7
                RET                             ; 601F C9
 
 ; ---- CHECK_BREAK_LOOP3 ---- from &5FFC when A is not 0, &6027 when B is not 0 yet
 CHECK_BREAK_LOOP3:
-               LD H,&0E                        ; 6020 26 0E
+               LD H,&0E                        ; 6020 26 0E  the outer count is the delay LINE was given -- "1 is brief,
+                                               ; 200 very long"
 
 ; ---- CHECK_BREAK_LOOP4 ---- from &6025
 CHECK_BREAK_LOOP4:
@@ -10229,7 +10443,9 @@ CHECK_BREAK_LOOP4:
 
 CHECK_BREAK_2:
                LD DE,(CHARS)                   ; 602A ED 5B 36 5C
-               ADD A,A                         ; 602E 87
+               ADD A,A                         ; 602E 87  eight bytes a character, so the code is multiplied by eight --
+                                               ; ADD A,A first because a code of &80 or more would not fit the doubling
+                                               ; once HL is built
                LD L,A                          ; 602F 6F
                LD H,&00                        ; 6030 26 00
                ADD HL,HL                       ; 6032 29
@@ -10240,20 +10456,24 @@ CHECK_BREAK_2:
                LDIR                            ; 603B ED B0
                LD HL,DOS_V42E2                 ; 603D 21 E2 82
                IN A,(LMPR)                     ; 6040 DB FA
-               LD (&8068),A                    ; 6042 32 68 80
+               LD (&8068),A                    ; 6042 32 68 80  LMPR is about to be changed and has to come back
                IN A,(VMPR)                     ; 6045 DB FC
                BIT 6,A                         ; 6047 CB 77
                JR NZ,CHECK_BREAK_3             ; 6049 20 01
-               DEC A                           ; 604B 3D
+               DEC A                           ; 604B 3D  modes 1 and 2 want the screen page at &4000, so LMPR takes one
+                                               ; less; modes 3 and 4 want it at &0000 with its second half at &4000
 
 ; ---- CHECK_BREAK_3 ---- from &6049 when bit 6 of A set
 CHECK_BREAK_3:
-               AND PAGEMASK                    ; 604C E6 1F
+               AND PAGEMASK                    ; 604C E6 1F  clearing bits 5 and 6 re-enables ROM 0 under the screen,
+                                               ; which does not matter -- nothing here touches &0000-&3FFF
                OUT (LMPR),A                    ; 604E D3 FA
                LD B,&08                        ; 6050 06 08
-               LD DE,(DOS_BOOT_7)              ; 6052 ED 5B 6D 80
+               LD DE,(DOS_BOOT_7)              ; 6052 ED 5B 6D 80  the trace cursor, left by SHOW_LINE_AND_STATEMENT and
+                                               ; stepped on at the end of each character
                IN A,(VMPR)                     ; 6056 DB FC
-               AND &60                         ; 6058 E6 60
+               AND &60                         ; 6058 E6 60  &00 mode 1, &20 mode 2, &40 and &60 modes 3 and 4, which
+                                               ; share the last path
                JR Z,CHECK_BREAK_LOOP7          ; 605A 28 21
                CP &20                          ; 605C FE 20
                JR NZ,CHECK_BREAK_4             ; 605E 20 31
@@ -10264,21 +10484,24 @@ CHECK_BREAK_LOOP5:
                LD (DE),A                       ; 6061 12
                INC HL                          ; 6062 23
                LD A,E                          ; 6063 7B
-               ADD A,&20                       ; 6064 C6 20
+               ADD A,&20                       ; 6064 C6 20  mode 2 is 32 bytes a row; only E needs adding to because
+                                               ; eight rows cannot cross a page from a row-176 start
                LD E,A                          ; 6066 5F
                DJNZ CHECK_BREAK_LOOP5          ; 6067 10 F7
-               LD HL,&2000                     ; 6069 21 00 20
+               LD HL,&2000                     ; 6069 21 00 20  mode 2 attributes sit &2000 above the pixels, one byte
+                                               ; per cell per pixel row, so eight of them are needed
                ADD HL,DE                       ; 606C 19
                LD DE,&0020                     ; 606D 11 20 00
                LD B,&08                        ; 6070 06 08
 
 ; ---- CHECK_BREAK_LOOP6 ---- from &6075 when B is not 0 yet, &608F
 CHECK_BREAK_LOOP6:
-               LD (HL),&78                     ; 6072 36 78
+               LD (HL),&78                     ; 6072 36 78  &78 is bright, paper 7, ink 0 -- the manual's "PEN 0 on
+                                               ; PAPER 15"
                ADD HL,DE                       ; 6074 19
                DJNZ CHECK_BREAK_LOOP6          ; 6075 10 FB
                LD HL,DOS_BOOT_7                ; 6077 21 6D 80
-               INC (HL)                        ; 607A 34
+               INC (HL)                        ; 607A 34  one byte along, the next character cell in modes 1 and 2
                JR CHECK_BREAK_DONE             ; 607B 18 5E
 
 ; ---- CHECK_BREAK_LOOP7 ---- from &605A when no bit of &60 is set, &6081 when B is not 0 yet
@@ -10286,10 +10509,11 @@ CHECK_BREAK_LOOP7:
                LD A,(HL)                       ; 607D 7E
                LD (DE),A                       ; 607E 12
                INC HL                          ; 607F 23
-               INC D                           ; 6080 14
+               INC D                           ; 6080 14  mode 1 steps a pixel row by adding 256, the ROM's own layout
                DJNZ CHECK_BREAK_LOOP7          ; 6081 10 FA
                EX DE,HL                        ; 6083 EB
-               DEC H                           ; 6084 25
+               DEC H                           ; 6084 25  DEC H undoes the ninth INC D; the three rotates and OR &58 are
+                                               ; the ROM's way of turning a display address into its attribute address
                LD A,H                          ; 6085 7C
                RRA                             ; 6086 1F
                RRA                             ; 6087 1F
@@ -10297,15 +10521,19 @@ CHECK_BREAK_LOOP7:
                AND &03                         ; 6089 E6 03
                OR &58                          ; 608B F6 58
                LD H,A                          ; 608D 67
-               INC B                           ; 608E 04
+               INC B                           ; 608E 04  B is 0 after the DJNZ, so this makes it 1 -- mode 1 needs one
+                                               ; attribute byte where mode 2 needed eight, and the same loop serves both
                JR CHECK_BREAK_LOOP6            ; 608F 18 E1
 
 ; ---- CHECK_BREAK_4 ---- from &605E when A <> &20
 CHECK_BREAK_4:
-               LD A,H                          ; 6091 7C
+               LD A,H                          ; 6091 7C  &8100 is a sixteen-entry table, two bytes each, expanding a
+                                               ; font nibble into mode 4 pixels: a set bit becomes pen 0 and a clear bit
+                                               ; pen 15
                LD H,&81                        ; 6092 26 81
                EXX                             ; 6094 D9
-               LD (DOS_BOOT_6),BC              ; 6095 ED 43 6B 80
+               LD (DOS_BOOT_6),BC              ; 6095 ED 43 6B 80  the shadow set is wanted for the source pointer, so
+                                               ; what was in it is parked in two spare words
                LD (DOS_BOOT_5),DE              ; 6099 ED 53 69 80
                LD D,A                          ; 609D 57
                EXX                             ; 609E D9
@@ -10322,8 +10550,10 @@ CHECK_BREAK_LOOP8:
                LD A,(DE)                       ; 60A7 1A
                INC DE                          ; 60A8 13
                EXX                             ; 60A9 D9
-               LD C,A                          ; 60AA 4F
-               RRA                             ; 60AB 1F
+               LD C,A                          ; 60AA 4F  C is loaded with the font byte so the LDIs below can decrement
+                                               ; it, which is how &60B6 gets it back
+               RRA                             ; 60AB 1F  three rotates and AND &1E give the top nibble doubled, the
+                                               ; offset of its pair in the table
                RRA                             ; 60AC 1F
                RRA                             ; 60AD 1F
                AND &1E                         ; 60AE E6 1E
@@ -10331,14 +10561,16 @@ CHECK_BREAK_LOOP8:
                LDI                             ; 60B1 ED A0
                LDI                             ; 60B3 ED A0
                LD A,C                          ; 60B5 79
-               ADD A,&02                       ; 60B6 C6 02
+               ADD A,&02                       ; 60B6 C6 02  two LDIs took two off BC, and C was the font byte -- so
+                                               ; adding two restores it. The RLA's carry-in is masked off by the AND
                RLA                             ; 60B8 17
-               AND &1E                         ; 60B9 E6 1E
+               AND &1E                         ; 60B9 E6 1E  and now the bottom nibble doubled
                LD L,A                          ; 60BB 6F
                LDI                             ; 60BC ED A0
                LDI                             ; 60BE ED A0
                LD A,E                          ; 60C0 7B
-               ADD A,&7C                       ; 60C1 C6 7C
+               ADD A,&7C                       ; 60C1 C6 7C  four bytes went out with the LDIs, and a mode 4 row is &80
+                                               ; wide, so &7C more reaches the next row
                LD E,A                          ; 60C3 5F
                JR NC,CHECK_BREAK_5             ; 60C4 30 01
                INC D                           ; 60C6 14
@@ -10351,7 +10583,9 @@ CHECK_BREAK_5:
                LD BC,(DOS_BOOT_6)              ; 60CE ED 4B 6B 80
                EXX                             ; 60D2 D9
                LD A,(DOS_BOOT_7)               ; 60D3 3A 6D 80
-               ADD A,&04                       ; 60D6 C6 04
+               ADD A,&04                       ; 60D6 C6 04  four bytes to the next character cell -- in mode 3 that is
+                                               ; sixteen pixels rather than eight, so the trace simply comes out double
+                                               ; width there
                LD (DOS_BOOT_7),A               ; 60D8 32 6D 80
 
 ; ---- CHECK_BREAK_DONE ---- from &607B
@@ -10365,7 +10599,8 @@ CHECK_BREAK_6:
 
 CHECK_BREAK_7:
                LD E,&20                        ; 60E4 1E 20
-               PUSH BC                         ; 60E6 C5
+               PUSH BC                         ; 60E6 C5  the value is pushed and reached by EX (SP),HL, which frees HL
+                                               ; to walk the table
 
 ; ---- CHECK_BREAK_LOOP9 ---- from &610A when C is not 0 yet
 CHECK_BREAK_LOOP9:
@@ -10375,23 +10610,26 @@ CHECK_BREAK_LOOP9:
                INC HL                          ; 60EA 23
                EX (SP),HL                      ; 60EB E3
                LD A,L                          ; 60EC 7D
-               INC C                           ; 60ED 0C
+               INC C                           ; 60ED 0C  a divisor whose low byte is zero ends the table, and the units
+                                               ; digit is then just what is left in L
                DEC C                           ; 60EE 0D
                JR Z,CHECK_BREAK_8              ; 60EF 28 0A
                XOR A                           ; 60F1 AF
 
 ; ---- CHECK_BREAK_LOOP10 ---- from &60F4
 CHECK_BREAK_LOOP10:
-               INC A                           ; 60F2 3C
+               INC A                           ; 60F2 3C  add the negative power of ten until it carries -- the count of
+                                               ; times round is the digit
                ADD HL,BC                       ; 60F3 09
                JR C,CHECK_BREAK_LOOP10         ; 60F4 38 FC
-               SBC HL,BC                       ; 60F6 ED 42
+               SBC HL,BC                       ; 60F6 ED 42  one too many, so take it back off
                DEC A                           ; 60F8 3D
                JR Z,CHECK_BREAK_9              ; 60F9 28 02
 
 ; ---- CHECK_BREAK_8 ---- from &60EF when C reaches 0
 CHECK_BREAK_8:
-               LD E,&30                        ; 60FB 1E 30
+               LD E,&30                        ; 60FB 1E 30  also the target for the last digit, which forces &30 so a
+                                               ; final zero still prints
 
 ; ---- CHECK_BREAK_9 ---- from &60F9 when A reaches 0
 CHECK_BREAK_9:
@@ -10410,15 +10648,28 @@ CHECK_BREAK_9:
                POP BC                          ; 610C C1
                RET                             ; 610D C9
 
-; ---- CHECK_BREAK_LOOP11 ---- from &6110
-CHECK_BREAK_LOOP11:
-               RET P                           ; 610E F0
-               RET C                           ; 610F D8
-               JR CHECK_BREAK_LOOP11           ; 6110 18 FC
-               DEFB &9C,&FF                    ; 6112 ..  reads as SBC A,H, and nothing the trace can follow reaches it
+;; --------------------------------------------------------------------
+;; Minus ten thousand, a thousand, a hundred and ten, for printing a
+;; number as decimal digits by repeated subtraction.
+;;
+;; Not code, whatever the trace made of it: as instructions the four
+;; words read as RET P / RET C / JR to itself, an infinite loop nothing
+;; could survive.  The routines above them are a character plotter and a
+;; decimal printer, and their CHECK_BREAK names come from the label
+;; above them rather than from anything they do.
+;; --------------------------------------------------------------------
 
-CHECK_BREAK_10:
-               OR &FF                          ; 6114 F6 FF
+DECIMAL_DIVISORS:
+               DEFW &D8F0,&FC18                ; 610E F0 D8 18 FC  not code -- this is the divisor table CHECK_BREAK_6
+                                               ; points at, the words &D8F0 &FC18 &FF9C &FFF6, which are -10000, -1000,
+                                               ; -100 and -10
+               DEFW &FF9C                      ; 6112 9C FF  the third of the four, and not the SBC A,H the trace made
+                                               ; of it
+
+V6114:
+               DEFW &FFF6                      ; 6114 F6 FF  the two-digit table used for the statement number, -10 and
+                                               ; then the &00 that ends it. Only the low byte of the last entry has to
+                                               ; be zero, so the &CD of the CALL below serves as its high byte
                NOP                             ; 6116 00
 
 ;; --------------------------------------------------------------------
@@ -10438,15 +10689,17 @@ CHECK_BREAK_10:
 CMD_LINE:
                CALL CALL_NEXTCHAR              ; 6117 CD 61 44
                CP T_OFF                        ; 611A FE 89
-               PUSH AF                         ; 611C F5
+               PUSH AF                         ; 611C F5  the OFF test has to survive all the argument parsing that
+                                               ; follows, so its flags go on the stack here and come back at &613E
                JR Z,CMD_LINE_1                 ; 611D 28 11
-               LD C,&FF                        ; 611F 0E FF
+               LD C,&FF                        ; 611F 0E FF  &FF marks STEP, which takes no delay argument
                CP &8F                          ; 6121 FE 8F
                JR Z,CMD_LINE_1                 ; 6123 28 0B
-               INC C                           ; 6125 0C
+               INC C                           ; 6125 0C  and 0 is plain LINE, or LINE with a delay about to overwrite C
                CALL AT_END_OF_STATEMENT        ; 6126 CD BC 44
                JR Z,CMD_LINE_2                 ; 6129 28 08
-               CALL INT_ARG_THEN_END           ; 612B CD 73 44
+               CALL INT_ARG_THEN_END           ; 612B CD 73 44  GETINT leaves the value in BC as well as HL, which is
+                                               ; what C carries down to &6149
                JR CMD_LINE_3                   ; 612E 18 06
 
 ; ---- CMD_LINE_1 ---- from &611D when A = T_OFF, &6123 when A = &8F
@@ -10459,10 +10712,12 @@ CMD_LINE_2:
 
 ; ---- CMD_LINE_3 ---- from &612E
 CMD_LINE_3:
-               CALL NRRD                       ; 6136 CD 6A 45
+               CALL NRRD                       ; 6136 CD 6A 45  DCT, which does nothing while no transfer is running, is
+                                               ; borrowed as MasterBASIC's settings byte
                DEFW DCT                        ; 6139 B6 5B
                LD B,A                          ; 613B 47
-               SET 1,B                         ; 613C CB C8
+               SET 1,B                         ; 613C CB C8  bit 1 is what &7C1C tests before each statement -- so
+                                               ; setting it here is the whole of turning tracing on
                POP AF                          ; 613E F1
                JR NZ,CMD_LINE_4                ; 613F 20 02
                RES 1,B                         ; 6141 CB 88
@@ -10472,7 +10727,9 @@ CMD_LINE_4:
                LD A,B                          ; 6143 78
                CALL NRWR                       ; 6144 CD 82 45
                DEFW DCT                        ; 6147 B6 5B
-               LD A,C                          ; 6149 79
+               LD A,C                          ; 6149 79  after LINE OFF C was never loaded and this stores rubbish,
+                                               ; which does not matter because bit 1 is now clear and nothing will read
+                                               ; it
                LD (V406F),A                    ; 614A 32 6F 40
                RET                             ; 614D C9
 
@@ -10826,19 +11083,44 @@ BUILD_NIBBLE_TABLE_2:
                RET                             ; 627D C9
 
 ;; --------------------------------------------------------------------
-;; Step to the byte below the current one on screen.
+;; Step to the next pixel of the scan and read it.  The routine falls
+;; into READ_NIBBLE_AT_HL, which is where the reading happens.
 ;;
-;; The display file is laid out the way a Spectrum's is, so moving down
-;; a pixel row is INC H until the row crosses into the next third, and
-;; the INC L / DEC H / DEC H around it is that carry being fixed up.
-;; Reading a column downwards is the order a printer wants its bit
-;; image in, which is why the encoder above walks the screen this way
-;; rather than along each line.
+;; HL IS A PIXEL NUMBER, NOT AN ADDRESS: H is the screen line and L the
+;; pixel across it, because a MODE 4 line is 128 bytes -- 256 nibbles
+;; -- so L runs 0 to 255 and rolls into H exactly at the end of a line.
+;; READ_NIBBLE_AT_HL turns that into an address by halving it.
+;;
+;; THE SCAN GOES DOWN IN PAIRS OF LINES, not along them.  An even H
+;; steps to the line below; an odd one steps back up and one pixel
+;; right.  So the encoder sees pixel (n,x), pixel (n+1,x), pixel
+;; (n,x+1)... which pairs each pixel with the one under it and makes
+;; runs out of vertical features that a left-to-right scan would break
+;; up.  L rolling to 0 finishes a pair of lines and is the only place
+;; the limit in V407A is tested.
+;;
+;; What was here before:
+;;
+;;     Step to the byte below the current one on screen.
+;;
+;;     H is the line and L the column, and bit 0 of H says which line of a
+;;     pair we are on: even, and the step is INC H to the other one; odd,
+;;     and it is INC L to the next column with H brought back down.  So the
+;;     walk goes two lines at a time and then one column right.
+;;
+;;     NOT THE SPECTRUM'S THIRDS, which an earlier reading of this claimed.
+;;     Nothing here tests the low three bits of H or masks with &F8, which
+;;     is what that fixup would need; there is only the one bit.
+;;     Reading a column downwards is the order a printer wants its bit
+;;     image in, which is why the encoder above walks the screen this way
+;;     rather than along each line.
 ;; --------------------------------------------------------------------
 
 ; ---- NEXT_SCREEN_BYTE ---- from &61C8, &61D5
 NEXT_SCREEN_BYTE:
-               BIT 0,H                         ; 627E CB 44
+               BIT 0,H                         ; 627E CB 44  an odd line steps back up and one pixel along; an even one
+                                               ; steps down. The DEC H DEC H before the shared INC H is what makes the
+                                               ; odd case H-1
 
 ; ---- NEXT_SCREEN_BYTE_1 ---- from DOS &45FC, DOS &499B, DOS &49CC, DOS &5552, DOS &5568, DOS &55A3, DOS &55BF
 NEXT_SCREEN_BYTE_1:
@@ -10870,7 +11152,9 @@ NEXT_SCREEN_BYTE_2:
 ; ---- READ_NIBBLE_AT_HL ---- from &61B2
 READ_NIBBLE_AT_HL:
                SCF                             ; 6288 37
-               RR H                            ; 6289 CB 1C
+               RR H                            ; 6289 CB 1C  SCF before the two rotates halves the pixel number into an
+                                               ; address and forces bit 15, since the screen sits at &8000 upwards; the
+                                               ; bit that falls out of L says which half of the byte
                RR L                            ; 628B CB 1D
                LD A,(HL)                       ; 628D 7E
                JR C,READ_NIBBLE_AT_HL_DONE     ; 628E 38 08
@@ -10891,11 +11175,14 @@ READ_NIBBLE_AT_HL_DONE:
 
 ; ---- NEXT_SCREEN_BYTE_3 ---- from &6283 when L wraps to 0
 NEXT_SCREEN_BYTE_3:
-               LD A,(V407A)                    ; 629D 3A 7A 40
+               LD A,(V407A)                    ; 629D 3A 7A 40  the last odd line to scan. &33, &6D and &BD reach
+                                               ; exactly &1B00, &3800 and &6000 bytes -- a MODE 1, a MODE 2 and a MODE 3
+                                               ; or 4 screen
                CP H                            ; 62A0 BC
                JR NC,NEXT_SCREEN_BYTE_2        ; 62A1 30 E4
                DEC L                           ; 62A3 2D
-               LD H,L                          ; 62A4 65
+               LD H,L                          ; 62A4 65  H = &FF is how the walk says it has finished, which is the
+                                               ; test ENCODE_SCREEN makes
                RET                             ; 62A5 C9
                PUSH HL                         ; 62A6 E5
                CALL PICK_COMPRESSION_CONSTANTS ; 62A7 CD C5 63
@@ -11077,7 +11364,8 @@ NEXT_SCREEN_NIBBLE_2:
 
 ; ---- NEXT_SCREEN_NIBBLE_3 ---- from &6336 when L wraps to 0
 NEXT_SCREEN_NIBBLE_3:
-               INC H                           ; 6351 24
+               INC H                           ; 6351 24  the expander tests one line further on than the encoder does,
+                                               ; because it has already stepped H
                PUSH AF                         ; 6352 F5
                LD A,(V407A)                    ; 6353 3A 7A 40
                INC A                           ; 6356 3C
@@ -11194,9 +11482,12 @@ CHECK_ROOM_FOR_OUTPUT_1:
 ; ---- PICK_COMPRESSION_CONSTANTS ---- from &614E, &62A7
 PICK_COMPRESSION_CONSTANTS:
                PUSH DE                              ; 63C5 D5
-               LD H,&33                             ; 63C6 26 33
+               LD H,&33                             ; 63C6 26 33  H is not a register the caller wants -- it is on its
+                                                    ; way to V407A
                LD BC,&1B00                          ; 63C8 01 00 1B
-               LD DE,CEXTAB+&4000                   ; 63CB 11 00 9B
+               LD DE,CEXTAB+&4000                   ; 63CB 11 00 9B  &9B00 is the end of a MODE 1 screen in the window,
+                                                    ; &8000 + &1B00. It is not CEXTAB, whose &5B00 is a system page
+                                                    ; variable
                AND A                                ; 63CE A7
                JR Z,PICK_COMPRESSION_CONSTANTS_DONE ; 63CF 28 0F
                LD H,&6D                             ; 63D1 26 6D

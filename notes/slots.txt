@@ -1,0 +1,274 @@
+# The 1K utility-slot allocator, and the LINE command's trace.
+# Proposed by a fresh reader, audited against the instructions.
+
+DOC ALLOC_UTILITY_SLOT
+    THE COUNTING PASS AND THE RESERVING PASS ARE THE SAME CODE, and B
+    is what separates them.  B = 0 walks the tables and touches
+    nothing; B = &20 walks them again and marks what it finds.  That
+    works because every write the reserving pass makes is either
+    guarded by an INC B : DEC B test, or -- at &5F2B -- writes B
+    itself into a byte that is already 0.
+
+    C counts the slots still wanted; DEC C : RET Z at &5F70 ends the
+    routine as soon as enough have been found.  On return DE holds the
+    head of the chain just built (page in E, slot descriptor in D), and
+    (V409E) holds the same pair.
+
+    A SLOT IS DESCRIBED BY THE BYTE &40 + 4n, not by n.  The &40 base
+    guarantees a real slot's descriptor is never zero, which is how
+    FREE_SLOT_CHAIN knows where a chain ends; four times n is the
+    high-byte stride of a 1K slot, so adding &43 gives the address of
+    the slot's last two bytes directly, and rotating right twice gives
+    &10 + n, which OR &F0 turns into the SLOTT entry's low byte.  Every
+    conversion in this region and in FREE_SLOT_CHAIN is one of those
+    two.
+
+MB &5F16 : ALLOCT is at &5100, and WRA reaches it by setting bit 7 and clearing bit 6 of H -- so &91xx is the same table
+
+MB &5F19 : HMPR = 0 puts the system page in the window, which is what makes &911F the ALLOCT entry for page &1F
+
+MB &5F1D : 0 -- a page nobody owns, to be claimed as a new utilities page
+
+MB &5F21 : &20 -- an existing utilities page, which may still have a free slot
+
+MB &5F24 : the walk stops at L = 0 without examining page 0, which is the system page and never a candidate
+
+MB &5F26 : off the bottom of ALLOCT with no page marked &20 and none free
+
+MB &5F2B : mark it with B.  On the counting pass B is 0 and this writes back the 0 that was already there, so the pass needs no test of its own
+
+MB &5F2F : SLOTT, the last sixteen bytes of the page, now in the window at &BFF0-&BFFF
+
+MB &5F35 : INC L rolls &FF round to 0 at the page boundary, so the sixteen-byte clear needs no counter
+
+MB &5F37 : A still holds the page number, untouched by the clearing loop; putting it back in L lets the shared code below re-select a page it has already selected
+
+MB &5F3E : forwards from &BFF0 -- the Technical Manual says to look backwards through SLOTT, so this takes the lowest free slot where the manual would take the highest
+
+MB &5F43 : INC B : DEC B tests B for zero without disturbing A, which is holding the 0 just read from SLOTT
+
+MB &5F47 : &FF -- reserved, the manual's marker
+
+MB &5F4A : L is &F0..&FF, so masking with &2F rather than &0F keeps bit 5 as well as the slot index; the &20 becomes the &80 of the slot base under the two doublings, leaving only 3 to add
+
+MB &5F4E : H = &83 + 4n, the high byte of the last two bytes of slot n
+
+MB &5F53 : slot 15's link would fall at &BFFE, on top of SLOTT entries 14 and 15 -- this is the slot the manual calls sixteen bytes short
+
+MB &5F59 : the chain so far, page and descriptor, to be written into this slot's link -- so the chain is built from the tail forwards
+
+MB &5F65 : &83 + 4n back down to &40 + 4n, the form a link is stored in
+
+MB &5F6B : the new head of the chain: descriptor in H, page in L, read back from HMPR because the page is whichever one the window holds
+
+MB &5F6E : leaves the new head in DE for the caller; HL is about to be reloaded with the SLOTT pointer
+
+MB &5F72 : carry on scanning SLOTT.  The counting pass marked nothing, so the scan must step past a slot it has just counted or it would count it again
+
+MB &5F75 : this page is full -- resume the ALLOCT walk one page below the one in the window, rather than starting again from &1F
+
+DOC FREE_SLOT_CHAIN
+    Give back a chain of slots, and any page they emptied.
+
+    THE LINK IS THE SLOT'S LAST TWO BYTES, descriptor then page, which
+    is why the walk needs no table of its own and can cross pages.
+    Entry is A = page, H = descriptor; a zero descriptor ends the walk,
+    which is safe because the allocator's &40 + 4n form can never be 0.
+
+MB &5F7F : &40 + 4n plus &40 is &80 + 4n, and plus 3 is the high byte of the slot's last two bytes -- the allocator's arithmetic run forwards
+
+MB &5F81 : the low two bits are already clear in anything the allocator stored, so this only matters if a caller hands over a descriptor of its own
+
+MB &5F89 : two rotates turn &40 + 4n into &10 + n, and OR &F0 makes &F0 + n, the SLOTT entry's address in the window
+
+MB &5F8E : slot 15 gives exactly &FF here, so this single INC both spots it and drives the same &BFEE exception the allocator makes at &5F53
+
+MB &5F96 : 0 -- the slot is free again.  The XOR A above does double duty: it is also the seed for the OR accumulator FREE_PAGE_IF_SLOTS_CLEAR expects
+
+MB &5F9C : the link's first byte is the next slot's descriptor; read it before clearing it, so the freed slot is left holding no stale chain
+
+MB &5FA2 : a zero descriptor is the end of the chain -- no real slot has one
+
+MB &5FAA : A arrives as 0 from the XOR that cleared the entry, so the accumulator is already set up
+
+MB &5FAC : INC L rolls round at the page boundary again -- sixteen entries, no counter
+
+MB &5FB3 : ALLOCT by its own address this time, because WRA does the +&4000 and the paging itself
+
+MB &5FB5 : 0 -- the page goes back to the pool.  The page is still in the window, so the caller can go on reading the link out of it
+
+DOC SHOW_LINE_AND_STATEMENT
+    EVERYTHING HERE RUNS FROM THE WINDOW, which is why every call and
+    every variable in this routine carries +IN_PAGE_C.  The character
+    plotter below switches LMPR to the screen page, and that pulls both
+    &0000-&3FFF and &4000-&7FBF -- this page's own home -- out from
+    under whatever is running.  &7C2E calls this at &9FB9 for the same
+    reason, and the stack is moved to &8300 at &5FC3 for the same
+    reason again: the caller's stack would vanish with the paging.
+
+    It also explains why the display is plotted a byte at a time rather
+    than printed: the ROM's print routines could not be called with the
+    screen paged in like this, and going round them means the trace
+    leaves the program's own print position, colours and scroll count
+    untouched.
+
+MB &5FBD : LINERUN sets PPC to &FFFF for the edit line, so B = &FF means a direct command with no line number to show
+
+MB &5FC3 : &4300 in this page seen through the window; the stack grows down into the spare bytes from &42E2
+
+MB &5FC7 : the same place on the screen in each mode -- character row 22, about three-quarters across -- but each mode lays the screen out differently, so the address has to be picked rather than computed
+
+MB &5FCA : VMPR bits 6 and 5 are the mode: neither set is mode 1, bit 5 alone mode 2, bit 6 set modes 3 and 4
+
+MB &5FD0 : mode 2 is linear, 32 bytes a row, so row 176 column 23 is 176*32+23 = &1617, above the &4000 the screen page will be paged to
+
+MB &5FD7 : mode 1 keeps the ROM's thirds-and-lines layout, where the same row 176 column 23 falls at &10D7
+
+MB &5FDA : the plotter's cursor -- it steps this on itself, so the two numbers and the colon follow each other along
+
+MB &5FE0 : ':' between the line number and the statement number
+
+MB &5FE8 : the divisor table starting at -10, so a statement number prints in two digits
+
+MB &5FEC : CHECK_BREAK_7 takes its value in BC, not HL
+
+MB &5FF5 : what LINE stored: 0 for no pause, &FF for STEP, anything else a delay
+
+MB &5FFC : &FF is STEP, which waits for a key instead of counting; any other value falls through to the delay loop
+
+MB &5FFE : &F7 is the keyboard row, put in A because IN A,(STAT) drives it onto the top half of the address bus.  Entering CHECK_BREAK at &6000 instead leaves the row to the caller
+
+MB &600B : READ_KEY_LINE leaves CNTRL in carry, low meaning held -- so carry set is "still not pressed", and STEP goes round again
+
+MB &600D : H only.  L is left at whatever the number printing ended with, so the debounce is roughly &1500 turns and not exactly
+
+MB &6019 : the release wait gives up after about &0A00 turns, so a key held down does not stop the program
+
+MB &6020 : the outer count is the delay LINE was given -- "1 is brief, 200 very long"
+
+DOC CHECK_BREAK_2
+    Plot one character at the trace position, in whichever screen mode
+    is current.  The name is wrong: this has nothing to do with BREAK.
+
+    THE FONT IS COPIED OUT BEFORE THE PAGING CHANGES, into eight bytes
+    at &42E2, because CHARS points into memory that the LMPR switch
+    below is about to displace.  LMPR is saved at &4068 and put back at
+    the end.
+
+    Modes 1 and 2 have the screen page brought in one page low, so the
+    screen sits at &4000-&7FFF; modes 3 and 4 bring it in as it is, so
+    its top 16K sits there instead.  Either way the address chosen in
+    SHOW_LINE_AND_STATEMENT is a section B address and the code, running
+    in the window, is untouched.
+
+MB &602E : eight bytes a character, so the code is multiplied by eight -- ADD A,A first because a code of &80 or more would not fit the doubling once HL is built
+
+MB &6042 : LMPR is about to be changed and has to come back
+
+MB &604B : modes 1 and 2 want the screen page at &4000, so LMPR takes one less; modes 3 and 4 want it at &0000 with its second half at &4000
+
+MB &604C : clearing bits 5 and 6 re-enables ROM 0 under the screen, which does not matter -- nothing here touches &0000-&3FFF
+
+MB &6052 : the trace cursor, left by SHOW_LINE_AND_STATEMENT and stepped on at the end of each character
+
+MB &6058 : &00 mode 1, &20 mode 2, &40 and &60 modes 3 and 4, which share the last path
+
+MB &6064 : mode 2 is 32 bytes a row; only E needs adding to because eight rows cannot cross a page from a row-176 start
+
+MB &6069 : mode 2 attributes sit &2000 above the pixels, one byte per cell per pixel row, so eight of them are needed
+
+MB &6072 : &78 is bright, paper 7, ink 0 -- the manual's "PEN 0 on PAPER 15"
+
+MB &607A : one byte along, the next character cell in modes 1 and 2
+
+MB &6080 : mode 1 steps a pixel row by adding 256, the ROM's own layout
+
+MB &6084 : DEC H undoes the ninth INC D; the three rotates and OR &58 are the ROM's way of turning a display address into its attribute address
+
+MB &608E : B is 0 after the DJNZ, so this makes it 1 -- mode 1 needs one attribute byte where mode 2 needed eight, and the same loop serves both
+
+MB &6091 : &8100 is a sixteen-entry table, two bytes each, expanding a font nibble into mode 4 pixels: a set bit becomes pen 0 and a clear bit pen 15
+
+MB &6095 : the shadow set is wanted for the source pointer, so what was in it is parked in two spare words
+
+MB &60AA : C is loaded with the font byte so the LDIs below can decrement it, which is how &60B6 gets it back
+
+MB &60AB : three rotates and AND &1E give the top nibble doubled, the offset of its pair in the table
+
+MB &60B6 : two LDIs took two off BC, and C was the font byte -- so adding two restores it.  The RLA's carry-in is masked off by the AND
+
+MB &60B9 : and now the bottom nibble doubled
+
+MB &60C1 : four bytes went out with the LDIs, and a mode 4 row is &80 wide, so &7C more reaches the next row
+
+MB &60D6 : four bytes to the next character cell -- in mode 3 that is sixteen pixels rather than eight, so the trace simply comes out double width there
+
+DOC CHECK_BREAK_7
+    Print the number in BC as decimal, leading zeros shown as spaces.
+    Nothing to do with BREAK either; HL points at a table of negative
+    powers of ten and CHECK_BREAK_6 supplies the five-digit one.
+
+    E IS THE PAD CHARACTER AND ITS OWN FLAG.  It starts at &20, and the
+    fall-through at &60F9 sets it to &30 the first time a digit comes
+    out non-zero -- so leading zeros print as spaces and everything
+    after them as digits, with no separate flag and no test.
+
+MB &60E6 : the value is pushed and reached by EX (SP),HL, which frees HL to walk the table
+
+MB &60ED : a divisor whose low byte is zero ends the table, and the units digit is then just what is left in L
+
+MB &60F2 : add the negative power of ten until it carries -- the count of times round is the digit
+
+MB &60F6 : one too many, so take it back off
+
+MB &60FB : also the target for the last digit, which forces &30 so a final zero still prints
+
+MB &610E : not code -- this is the divisor table CHECK_BREAK_6 points at, the words &D8F0 &FC18 &FF9C &FFF6, which are -10000, -1000, -100 and -10
+
+MB &6114 : the two-digit table used for the statement number, -10 and then the &00 that ends it.  Only the low byte of the last entry has to be zero, so the &CD of the CALL below serves as its high byte
+
+MB &611C : the OFF test has to survive all the argument parsing that follows, so its flags go on the stack here and come back at &613E
+
+MB &611F : &FF marks STEP, which takes no delay argument
+
+MB &6125 : and 0 is plain LINE, or LINE with a delay about to overwrite C
+
+MB &612B : GETINT leaves the value in BC as well as HL, which is what C carries down to &6149
+
+MB &6136 : DCT, which does nothing while no transfer is running, is borrowed as MasterBASIC's settings byte
+
+MB &613C : bit 1 is what &7C1C tests before each statement -- so setting it here is the whole of turning tracing on
+
+MB &6149 : after LINE OFF C was never loaded and this stores rubbish, which does not matter because bit 1 is now clear and nothing will read it
+
+DOC NEXT_SCREEN_BYTE
+    Step to the next pixel of the scan and read it.  The routine falls
+    into READ_NIBBLE_AT_HL, which is where the reading happens.
+
+    HL IS A PIXEL NUMBER, NOT AN ADDRESS: H is the screen line and L the
+    pixel across it, because a MODE 4 line is 128 bytes -- 256 nibbles
+    -- so L runs 0 to 255 and rolls into H exactly at the end of a line.
+    READ_NIBBLE_AT_HL turns that into an address by halving it.
+
+    THE SCAN GOES DOWN IN PAIRS OF LINES, not along them.  An even H
+    steps to the line below; an odd one steps back up and one pixel
+    right.  So the encoder sees pixel (n,x), pixel (n+1,x), pixel
+    (n,x+1)... which pairs each pixel with the one under it and makes
+    runs out of vertical features that a left-to-right scan would break
+    up.  L rolling to 0 finishes a pair of lines and is the only place
+    the limit in V407A is tested.
+
+MB &627E : an odd line steps back up and one pixel along; an even one steps down.  The DEC H DEC H before the shared INC H is what makes the odd case H-1
+
+MB &6289 : SCF before the two rotates halves the pixel number into an address and forces bit 15, since the screen sits at &8000 upwards; the bit that falls out of L says which half of the byte
+
+MB &629D : the last odd line to scan.  &33, &6D and &BD reach exactly &1B00, &3800 and &6000 bytes -- a MODE 1, a MODE 2 and a MODE 3 or 4 screen
+
+MB &62A4 : H = &FF is how the walk says it has finished, which is the test ENCODE_SCREEN makes
+
+MB &6351 : the expander tests one line further on than the encoder does, because it has already stepped H
+
+MB &63C6 : H is not a register the caller wants -- it is on its way to V407A
+
+MB &63CB : &9B00 is the end of a MODE 1 screen in the window, &8000 + &1B00.  It is not CEXTAB, whose &5B00 is a system page variable
+
