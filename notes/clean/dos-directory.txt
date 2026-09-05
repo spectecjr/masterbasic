@@ -1,6 +1,6 @@
 # The directory: one scan, behind everything.
 #
-# Prose for clean/ only.  (IX+&04) is RFDH, the scan's mode byte, and it
+# Prose for listings/clean/ only.  (IX+&04) is RFDH, the scan's mode byte, and it
 # is tested in fifteen places -- written RFDH-DCHAN so that each of them
 # says which field it is reading.
 

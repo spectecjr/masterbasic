@@ -2,7 +2,7 @@
 ;
 ; The code the ROM calls through CMDV, EDITV, RST8V, PRTOKV, EVALUV,
 ; FRAMIV, PATOUT and INSLV runs here, at these addresses, with
-; MasterBASIC paged out.  In disasm/masterbasic.asm the same code sits at
+; MasterBASIC paged out.  In listings/disasm/masterbasic.asm the same code sits at
 ; &7460 and &7BA4 and has to be read with a bias in your head.
 ;
 ; WHERE THESE BYTES COME FROM.  If dumps/SYSPAGE_after_MBMD_boot.bin is

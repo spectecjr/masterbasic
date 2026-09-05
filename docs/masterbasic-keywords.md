@@ -9,8 +9,8 @@ The descriptions are from the MasterBASIC manual in
 [docs/original](original), whose Appendix A gives the same token for every one
 of these names as `HGTTK`'s arithmetic produces. The addresses given for the
 commands are from `CTAB` in the MasterDOS half --
-[clean/masterdos.asm](../clean/masterdos.asm) to read it, or
-[disasm/masterdos.asm](../disasm/masterdos.asm) for the working notes. The
+[listings/clean/masterdos.asm](../listings/clean/masterdos.asm) to read it, or
+[listings/disasm/masterdos.asm](../listings/disasm/masterdos.asm) for the working notes. The
 functions are dispatched through `HEVV2` and the sixteen-entry vector table at
 `&78EB`, every entry of which points into the MasterBASIC page; which slot
 belongs to which token I have not pinned down, so no address is given for them.

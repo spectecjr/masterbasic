@@ -18,7 +18,7 @@ DOC SHOW_LINE_AND_STATEMENT
     block, guarded by bit 1 of a settings byte -- which is what LINE and
     LINE OFF turn on and off.
 
-# The four entry points, read out of disasm/postinstall-syspage.asm.
+# The four entry points, read out of listings/disasm/postinstall-syspage.asm.
 #
 #   &99A3 -> &59A3  the screen blanker's tick, from the frame interrupt
 #   &9FB9 -> &5FB9  SHOW_LINE_AND_STATEMENT, once a statement

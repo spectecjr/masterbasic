@@ -1,6 +1,6 @@
 # MOVE: copying between any two of a stream, a device and a disc file.
 #
-# Prose for clean/ only.
+# Prose for listings/clean/ only.
 
 RENAME FIRST_DISC_CHANNEL RECLAIM_TEMP_CHANNELS
 

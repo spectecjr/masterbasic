@@ -1,6 +1,6 @@
 # Finding a free sector: the one allocator, and the map it walks.
 #
-# Prose for clean/ only.
+# Prose for listings/clean/ only.
 #
 # The two names first.  Stock MasterDOS 2.3 keeps FFNS's resume position
 # in the four bytes of the "BOOT" file name at &4100, on the grounds

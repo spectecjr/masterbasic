@@ -1,6 +1,6 @@
 # Talking to the WD1772: issuing a command, and waiting for it.
 #
-# Prose for clean/ only.  The MasterDOS source's own commentary for this
+# Prose for listings/clean/ only.  The MasterDOS source's own commentary for this
 # region is a running argument with itself in capitals, and the carry
 # takes only the first line of each -- so "JR IF CURRENT TRK IN D IS AN"
 # loses the words "INNER TRACK" that finish it, four lines lose their

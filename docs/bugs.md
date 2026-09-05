@@ -53,7 +53,7 @@ block. The ordinary sector read and write are not affected: they reach
 `&46C6` and get the right mask. LOST DATA is exactly what a polled
 transfer suffers when something holds the processor up too long.
 
-**Written up at** `&409D` in `clean/masterdos.asm`, with the two other
+**Written up at** `&409D` in `listings/clean/masterdos.asm`, with the two other
 sites pointing at it; and in `notes/disk.txt` for the working copy.
 
 ---
@@ -117,7 +117,7 @@ is. `CDE1_1` and `CTS1` between them are some ninety bytes that are never
 entered for the reason they were written — and on a 512K machine are
 entered for no reason at all.
 
-**Written up at** `&46DF` in `clean/masterdos.asm`.
+**Written up at** `&46DF` in `listings/clean/masterdos.asm`.
 
 ---
 
@@ -173,7 +173,7 @@ MasterDOS moved the pattern pointer from `IX` to `DE`, because `IX` now
 holds the channel record, and changed nothing else. This one was
 inherited, not introduced, which is the opposite of the two above.
 
-**Written up at** `&4CDB` in `clean/masterdos.asm`.
+**Written up at** `&4CDB` in `listings/clean/masterdos.asm`.
 
 ---
 

@@ -7,9 +7,9 @@ moving through the controller, with the addresses to look them up by.
 
 Everything here is in the MasterDOS half unless it says otherwise. Addresses
 are given rather than links, so they work in either copy:
-[clean/masterdos.asm](../clean/masterdos.asm) to read, and
-[disasm/masterdos.asm](../disasm/masterdos.asm) for the working notes behind a
-claim. Quotations are from `disasm/`, which is the copy `tools/checkdocs.py`
+[listings/clean/masterdos.asm](../listings/clean/masterdos.asm) to read, and
+[listings/disasm/masterdos.asm](../listings/disasm/masterdos.asm) for the working notes behind a
+claim. Quotations are from `listings/disasm/`, which is the copy `tools/checkdocs.py`
 checks them against.
 
 ## The four layers

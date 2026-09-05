@@ -1,6 +1,6 @@
 # The NMI button: freezing the machine, and starting it again.
 #
-# Prose for clean/ only.
+# Prose for listings/clean/ only.
 #
 # Three of the operands here point into whatever page the code has just
 # put in the window -- page 4 for the Spectrum's RAM, page 3 for its

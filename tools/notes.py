@@ -77,7 +77,7 @@ DOC = re.compile(r'^(?:DOC|DOCUMENT)\s+(\w+)\s*$')
 # is three flags is worth more than the byte they come to.
 # GROUP Flags -- everything named below it, until the next GROUP, is
 # written under that heading.  The working listings group equates by
-# where the name came from, which is what disasm/ is about; the
+# where the name came from, which is what listings/disasm/ is about; the
 # reading copy groups them by what they are for.
 GROUP = re.compile(r'^GROUP\s+(\S.*?)\s*$')
 CONST = re.compile(r'^CONST\s+(\w+)\s*=\s*([^:]+?)\s*(?::\s*(\S.*?))?\s*$')

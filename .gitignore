@@ -15,7 +15,7 @@ __pycache__/
 
 # Ghidra's lock and scratch files, should a project be opened here again.
 # The project that used to live in ghidra/ has been removed: the listings
-# in disasm/ are the analysis now, and they can be checked by assembling.
+# in listings/disasm/ are the analysis now, and they can be checked by assembling.
 ghidra/*.lock
 ghidra/*.lock~
 ghidra/**/*.ulock

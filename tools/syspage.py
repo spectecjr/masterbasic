@@ -5,7 +5,7 @@ is not at the addresses the listings show it at.  It is copied into the
 ROM's own system page at boot, and runs there with MasterBASIC paged out.
 This builds that page and disassembles it where it really runs.
 
-Unlike disasm/, nothing here can be proved by assembling it: there is no
+Unlike listings/disasm/, nothing here can be proved by assembling it: there is no
 original to compare against.  Every byte is either copied from the image
 by a rule read out of the installer, or left blank.  The blanks are as
 much a part of the result as the code.
@@ -32,7 +32,7 @@ LOOSE_VECTOR = 128
 
 # Where the installers put things.  Each is (source half, from, to, at).
 # The first three are INSTALL_ROM_PATCHES at &7B03 in
-# disasm/masterbasic.asm, which sets HMPR to zero and so writes &8xxx
+# listings/disasm/masterbasic.asm, which sets HMPR to zero and so writes &8xxx
 # meaning the system page's &4xxx.
 COPIES = (
     ('MB', 0x7460, 0x75E1, 0x46CC, 'first stub, from &7460'),
@@ -207,7 +207,7 @@ def main():
     for at, end, why in placed:
         d.headers[at] = ('; ' + '-' * 68 + '\n; %s\n; ' % why) + '-' * 68
 
-    out = os.path.join(root, 'disasm')
+    out = os.path.join(root, 'listings', 'disasm')
     os.makedirs(out, exist_ok=True)
     path = os.path.join(out, 'postinstall-syspage.asm')
     covered = sum(1 for a in range(BASE, TOP)
@@ -230,10 +230,11 @@ def main():
     print('wrote', path)
 
     # The same page, written to be read: see tools/clean.py.  The two sit
-    # beside their listings under the same names -- disasm/ carries the
-    # working notes and clean/ the conclusions -- rather than in a
+    # beside their listings under the same names -- listings/disasm/ carries the
+    # working notes and listings/clean/ the conclusions -- rather than in a
     # directory of their own.
-    cpath = os.path.join(root, 'clean', 'postinstall-syspage.asm')
+    cpath = os.path.join(root, 'listings', 'clean',
+                         'postinstall-syspage.asm')
     os.makedirs(os.path.dirname(cpath), exist_ok=True)
     clean.clean_pages((d,))
     buf = io.StringIO()
@@ -277,7 +278,7 @@ HEAD = """\
 ;
 ; The code the ROM calls through CMDV, EDITV, RST8V, PRTOKV, EVALUV,
 ; FRAMIV, PATOUT and INSLV runs here, at these addresses, with
-; MasterBASIC paged out.  In disasm/masterbasic.asm the same code sits at
+; MasterBASIC paged out.  In listings/disasm/masterbasic.asm the same code sits at
 ; &7460 and &7BA4 and has to be read with a bias in your head.
 ;
 ; WHERE THESE BYTES COME FROM.  If dumps/SYSPAGE_after_MBMD_boot.bin is
@@ -303,7 +304,7 @@ CLEAN_HEAD = """; The ROM's system page, after MasterBASIC has installed itself.
 ;
 ; That is why this page matters to a reader: the code below is what
 ; actually runs when you type a command.  The same bytes appear in
-; clean/masterbasic.asm at &7460 and &7BA4, where they are only the
+; listings/clean/masterbasic.asm at &7460 and &7BA4, where they are only the
 ; master copy waiting to be installed, and where every address in them
 ; is 16K out.  Here they are at the addresses they run at.
 ;

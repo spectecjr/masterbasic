@@ -1,6 +1,6 @@
-"""Build speculate/: the listings with a reading of every routine.
+"""Build listings/speculate/: the listings with a reading of every routine.
 
-The files in disasm/ hold what can be shown.  These hold what I think
+The files in listings/disasm/ hold what can be shown.  These hold what I think
 the code is doing, which is a different thing and is kept in a different
 folder for that reason.  Three kinds of material go in, and they are not
 equally trustworthy:

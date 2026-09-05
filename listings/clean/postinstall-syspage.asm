@@ -8,7 +8,7 @@
 ;
 ; That is why this page matters to a reader: the code below is what
 ; actually runs when you type a command.  The same bytes appear in
-; clean/masterbasic.asm at &7460 and &7BA4, where they are only the
+; listings/clean/masterbasic.asm at &7460 and &7BA4, where they are only the
 ; master copy waiting to be installed, and where every address in them
 ; is 16K out.  Here they are at the addresses they run at.
 ;

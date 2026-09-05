@@ -1,4 +1,4 @@
-"""Turn the analysis into the text that goes in speculate/.
+"""Turn the analysis into the text that goes in listings/speculate/.
 
 Two things are produced.  Per-line notes name the idioms this codebase
 uses over and over, which is the part a Z80 programmer new to it needs
@@ -162,7 +162,7 @@ def walk_body(d, s, e):
 
 
 def banner(d, s, e, name, c, existing):
-    """The block that goes above a routine in speculate/."""
+    """The block that goes above a routine in listings/speculate/."""
     lines = ['%s -- &%04X to &%04X' % (name, s, e - 1), '']
     if c['tricky']:
         lines.append('This routine moves the return address about with '
@@ -183,7 +183,7 @@ def banner(d, s, e, name, c, existing):
         lines.append(note)
     if existing:
         lines.append('')
-        lines.append('Shown for this routine in disasm/:')
+        lines.append('Shown for this routine in listings/disasm/:')
         lines.append('')
         for line in existing.split('\n'):
             body = line[3:] if line.startswith(';; ') else line.lstrip(';')

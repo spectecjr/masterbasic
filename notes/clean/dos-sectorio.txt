@@ -1,6 +1,6 @@
 # Writing a sector: the retry loop, and the transfer itself.
 #
-# Prose for clean/ only.  Two of the source's comments here run onto a
+# Prose for listings/clean/ only.  Two of the source's comments here run onto a
 # continuation line the carry does not take -- "RET IF SECTOR HAS NOT
 # BEEN" is missing the words "WRITTEN TO" -- and the remark that explains
 # the whole shape of the status loop is a standalone line between two

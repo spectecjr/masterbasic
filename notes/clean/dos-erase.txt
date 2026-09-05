@@ -1,6 +1,6 @@
 # ERASE, and the "?" option every one of these commands accepts.
 #
-# Prose for clean/ only.
+# Prose for listings/clean/ only.
 
 DOC ERAZ
     ERASE, which is a loop over SNDFX with a filter and a prompt in it.

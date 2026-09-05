@@ -18,11 +18,11 @@ http://www.samcoupe-pro-dos.co.uk/contactme.html
 
 ## Looking for the disassembly?
 
-Start at [clean/masterbasic.asm](../../clean/masterbasic.asm) and
-[clean/masterdos.asm](../../clean/masterdos.asm) — the reading copy, with every
+Start at [listings/clean/masterbasic.asm](../../listings/clean/masterbasic.asm) and
+[listings/clean/masterdos.asm](../../listings/clean/masterdos.asm) — the reading copy, with every
 routine headed by what it does and why.
 
-[disasm/](../../disasm/) has the same code with the working notes left in: where
+[listings/disasm/](../../listings/disasm/) has the same code with the working notes left in: where
 a name came from, what an earlier reading got wrong, which claims are still
 open. Read that one when you want the argument rather than the answer.
 

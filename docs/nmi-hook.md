@@ -5,7 +5,7 @@ menu's keys — **1** and **5** — call an address you supply, with a page you
 choose in the window. That is the only user-programmable entry point in the
 snapshot code, and this is what you need to know to use it.
 
-Everything here is read out of the listings in `clean/`; addresses are given so
+Everything here is read out of the listings in `listings/clean/`; addresses are given so
 you can check any of it.
 
 ---

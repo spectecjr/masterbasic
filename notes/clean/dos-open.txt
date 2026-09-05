@@ -1,6 +1,6 @@
 # OPEN, and the channel records an open file lives in.
 #
-# Prose for clean/ only.
+# Prose for listings/clean/ only.
 
 RENAME CHANNEL_ENTRY_AT_ZERO_PAGE END_OF_CHANNELS
 

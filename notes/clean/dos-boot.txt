@@ -1,7 +1,7 @@
 # BOOT: the first thing that runs, and the one place the paging has to be
 # explained before anything else makes sense.
 #
-# Prose for clean/ only.  This is the first block written in the style of
+# Prose for listings/clean/ only.  This is the first block written in the style of
 # design/exampledocs.md: narration at the margin, descriptive labels, and
 # the window bias named IN_PAGE_C rather than written &4000.
 

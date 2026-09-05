@@ -1,6 +1,6 @@
-# speculate/
+# listings/speculate/
 
-`disasm/` holds what can be shown. This folder holds what I think the code is
+`listings/disasm/` holds what can be shown. This folder holds what I think the code is
 doing. They are separate folders because those are different things, and mixing
 them is how a guess becomes a fact by attrition.
 
@@ -57,8 +57,8 @@ below it is a list of what gets touched, not of what gets destroyed.
 only on a branch that is rarely taken is reported the same as one written every
 time.
 
-Where `disasm/` already had a hand-written description, it is reproduced under
-"Shown for this routine in disasm/" — that part is not a guess, and where it
+Where `listings/disasm/` already had a hand-written description, it is reproduced under
+"Shown for this routine in listings/disasm/" — that part is not a guess, and where it
 disagrees with the derived contract above it, believe the hand-written one.
 
 ## Per-line notes
@@ -83,6 +83,6 @@ places, and nothing about `LD (&4532),A` says so until you look up what lives at
 
 ## Regenerating
 
-`tools/build.sh` writes these along with `disasm/`. The clean listings are
+`tools/build.sh` writes these along with `listings/disasm/`. The clean listings are
 written first, because the speculation is produced by adding to the same headers
 and notes.

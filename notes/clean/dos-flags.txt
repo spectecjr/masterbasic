@@ -1,6 +1,6 @@
 # FLAG3, the DOS's flag byte, and the trick that reads and writes it.
 #
-# Prose for clean/ only.
+# Prose for listings/clean/ only.
 #
 # PHLR is two instructions, POP HL and RET, reached only through the
 # return address HLFG plants; the trace is seeded with it in dis_mb.py,

@@ -5,11 +5,11 @@ MasterDOS. Most are forced by the paging hardware; a few are just the cheapest
 way to do something on a Z80. None is obvious on first reading, and several look
 like different things than they are.
 
-Everything here is quoted from `disasm/` or the reference
-sources, with the address it appears at -- `disasm/` because that is the copy
+Everything here is quoted from `listings/disasm/` or the reference
+sources, with the address it appears at -- `listings/disasm/` because that is the copy
 whose working notes say how firmly each reading is held, and the one
 `tools/checkdocs.py` verifies these quotations against. To read the same code
-without the argument, take the address to `clean/`. Where a note elsewhere covers the same
+without the argument, take the address to `listings/clean/`. Where a note elsewhere covers the same
 ground it is repeated rather than cross-referenced.
 
 ## The problem all the paging idioms solve

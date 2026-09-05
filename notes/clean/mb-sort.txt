@@ -1,6 +1,6 @@
 # The sort behind a sorted DIR, and behind the ORDER command.
 #
-# Prose for clean/ only.  This lives in MasterBASIC because the sort is
+# Prose for listings/clean/ only.  This lives in MasterBASIC because the sort is
 # MasterBASIC's; the DOS reaches it through CALLMB with the collected
 # names in the screen page.
 

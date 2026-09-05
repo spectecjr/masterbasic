@@ -1,7 +1,7 @@
 # How MasterBASIC adds keywords to SAM BASIC
 
-Every step below is in both halves -- [clean/](../clean/) to read them,
-[disasm/](../disasm/) for the working notes -- where the routines named here
+Every step below is in both halves -- [listings/clean/](../listings/clean/) to read them,
+[listings/disasm/](../listings/disasm/) for the working notes -- where the routines named here
 carry the same commentary. The scheme is MasterDOS's, described in
 [ref/masterdos/docs/functions.md](../ref/masterdos/docs/functions.md); what
 follows is what MasterBASIC does with it.

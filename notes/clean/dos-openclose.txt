@@ -1,6 +1,6 @@
 # Opening and closing a file: building a directory entry and writing it.
 #
-# Prose for clean/ only.  The entry being built lives in the channel
+# Prose for listings/clean/ only.  The entry being built lives in the channel
 # record at FSA, reached as (IX+FFSA), so every offset into a directory
 # entry is written FFSA plus that offset.
 

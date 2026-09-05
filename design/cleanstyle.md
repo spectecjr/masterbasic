@@ -1,7 +1,7 @@
-# Getting clean/ to look like design/exampledocs.md
+# Getting listings/clean/ to look like design/exampledocs.md
 
 Yes. Every construct in the example assembles, and the gap between it and
-what `clean/` prints today is six mechanisms and a long content pass. This
+what `listings/clean/` prints today is six mechanisms and a long content pass. This
 is the plan.
 
 The example was checked against `pyz80` before writing any of this:
@@ -20,7 +20,7 @@ adventurous line is not only legal, it is right.
 
 ---
 
-## 1. What the example does that clean/ does not
+## 1. What the example does that listings/clean/ does not
 
 Side by side on the same six instructions:
 
@@ -89,7 +89,7 @@ DOS &4041 expr HEADER + SECTOR_LENGTH - 1 + IN_PAGE_C
 
 Today `header()` groups by provenance — hardware ports, ROM entry
 points, peer labels, inferred, notes, and so on — which is the right
-grouping for the working copy, because provenance is what disasm/ is
+grouping for the working copy, because provenance is what listings/disasm/ is
 about. The reading copy wants Memory / Disk / Commands / Flags / Idioms.
 
 ```
@@ -271,6 +271,6 @@ subject:
 - Leave M2/M3/M4 until the narration is seen in place, since they are
   cheaper to design once there is a real page to look at.
 
-That gives one screen of `clean/masterdos.asm` that can be held next to
+That gives one screen of `listings/clean/masterdos.asm` that can be held next to
 `design/exampledocs.md` and argued about, before committing to the
 mechanisms that touch every equate in the file.

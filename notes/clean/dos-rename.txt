@@ -1,6 +1,6 @@
 # RENAME, PROTECT and HIDE: three commands over one loop.
 #
-# Prose for clean/ only.
+# Prose for listings/clean/ only.
 
 DOC RENAM
     RENAME, in two unrelated forms.

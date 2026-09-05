@@ -19,7 +19,7 @@ Understood in the report (anywhere in it; everything else is ignored):
     DOC FDHR [P]
     &4B31  [C]           a review finding, whose claim is the "says:" line
 
-The listing is clean/masterdos.asm unless a second argument says
+The listing is listings/clean/masterdos.asm unless a second argument says
 otherwise; it is read in the form the assembler listing produces, where
 each line carries its address and bytes after the semicolon.
 """
@@ -27,7 +27,7 @@ import io
 import re
 import sys
 
-DEFAULT_LISTING = 'clean/masterdos.asm'
+DEFAULT_LISTING = 'listings/clean/masterdos.asm'
 
 LINE = re.compile(r'^\s{10,}(\S.*?)\s*;\s([0-9A-F]{4}) '
                   r'((?:[0-9A-F]{2} ?)+?)(?:\s\s(.*))?$')

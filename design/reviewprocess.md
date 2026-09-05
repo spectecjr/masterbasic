@@ -48,7 +48,7 @@ Run the proposal shape only on regions that are genuinely bare.
 ## The rules that do not bend
 
 1. **The agent writes to scratch and nowhere else.** Never into `notes/`,
-   `clean/`, `disasm/`, `speculate/`, `tools/` or `docs/`. The prompt says this
+   `listings/clean/`, `listings/disasm/`, `listings/speculate/`, `tools/` or `docs/`. The prompt says this
    twice. An agent that can edit the repository turns a wrong finding into a
    wrong file, and the wrongness is then indistinguishable from the work.
 2. **The agent does not run `tools/build.sh`.** It takes minutes and proves
@@ -93,7 +93,7 @@ listing. Regions here are `PART` blocks, delimited by `;;  PART <name>` banners:
 
 ```python
 import io, re
-L = io.open('clean/masterdos.asm', encoding='utf-8').read().split('\n')
+L = io.open('listings/clean/masterdos.asm', encoding='utf-8').read().split('\n')
 out, inpart = [], False
 for l in L:
     m = re.match(r';;\s+PART (\S+)', l)
@@ -120,7 +120,7 @@ are independent. Templates below.
 ### 3. Audit
 
 ```
-python tools/review_audit.py <report.txt> [clean/masterdos.asm]
+python tools/review_audit.py <report.txt> [listings/clean/masterdos.asm]
 ```
 
 This prints, for each finding, the instruction at that address, its bytes, the

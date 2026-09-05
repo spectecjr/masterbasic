@@ -1,6 +1,6 @@
 # FORMAT, and the extra column a detailed listing prints.
 #
-# Prose for clean/ only.
+# Prose for listings/clean/ only.
 
 DOC FMT1A
     One track, then work out where the next one starts.

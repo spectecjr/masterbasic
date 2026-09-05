@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# build.sh -- regenerate the two listings in disasm/ and prove them correct.
+# build.sh -- regenerate the two listings in listings/disasm/ and prove them correct.
 #
 # Assembles the annotated MasterDOS 2.3 source to get a symbol table and
 # listing, disassembles dumps/MasterBasicMasterDos.bin against them, then
@@ -37,7 +37,7 @@ command -v pyz80 >/dev/null 2>&1 || {
 work=$(mktemp -d) || exit 2
 [ "$keep" -eq 0 ] && trap 'rm -rf "$work"' EXIT
 
-out="$root/disasm"
+out="$root/listings/disasm"
 mkdir -p "$out"
 
 # --- MasterDOS 2.3, for its symbol table and instruction boundaries --------
@@ -73,14 +73,14 @@ for half in masterdos masterbasic; do
 done
 
 for half in masterdos masterbasic; do
-    pyz80 --obj="$work/clean_$half.out" -o "$work/clean_$half.dsk"           "$root/clean/$half.asm" >"$work/clean_$half.log" 2>&1 || {
-        echo "*** clean/$half.asm reassembly failed ***"
+    pyz80 --obj="$work/clean_$half.out" -o "$work/clean_$half.dsk"           "$root/listings/clean/$half.asm" >"$work/clean_$half.log" 2>&1 || {
+        echo "*** listings/clean/$half.asm reassembly failed ***"
         tail -20 "$work/clean_$half.log"; exit 1; }
 done
 
 for half in masterdos masterbasic; do
-    pyz80 --obj="$work/spec_$half.out" -o "$work/spec_$half.dsk"           "$root/speculate/$half.asm" >"$work/spec_$half.log" 2>&1 || {
-        echo "*** speculate/$half.asm reassembly failed ***"
+    pyz80 --obj="$work/spec_$half.out" -o "$work/spec_$half.dsk"           "$root/listings/speculate/$half.asm" >"$work/spec_$half.log" 2>&1 || {
+        echo "*** listings/speculate/$half.asm reassembly failed ***"
         tail -20 "$work/spec_$half.log"; exit 1; }
 done
 
@@ -97,8 +97,11 @@ for name, part in (('masterdos', raw[:half]), ('masterbasic', raw[half:]),
                    ('spec_masterbasic', raw[half:])):
     got = open(os.path.join(work, name + '.out'), 'rb').read()
     got = got[:len(part)]
-    shown = name
-    for pre, dirname in (('spec_', 'speculate/'), ('clean_', 'clean/')):
+    # The two with no prefix are the working listings; now that the other
+    # four say where they live, so should they.
+    shown = 'listings/disasm/' + name
+    for pre, dirname in (('spec_', 'listings/speculate/'),
+                         ('clean_', 'listings/clean/')):
         if name.startswith(pre):
             shown = name.replace(pre, dirname)
     if got == part:

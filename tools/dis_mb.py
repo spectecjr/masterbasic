@@ -114,7 +114,7 @@ REPORTERS = {'DOS': set(), 'MB': {0x43BE}}   # take the error number in A
 # through, then put &8000 on to set the flag.
 PAGE_FLAG = 'NOT_IN_THIS_PAGE'
 # What &4000 is called when it is added to an address to window it.  The
-# working listings write the number, because in disasm/ the arithmetic is
+# working listings write the number, because in listings/disasm/ the arithmetic is
 # the point; the reading copy names it, because there the reason is.
 PAGE_BIAS = ['&4000']
 # Whether a jump to its own address is written as $.  Off for the working
@@ -2251,8 +2251,8 @@ def header(d):
 
 SPEC_TITLE = """; %s -- a reading, not a record.
 ;
-; This is disasm/%s with a guess attached to every routine.  The
-; listing in disasm/ holds what can be shown; this holds what the code
+; This is listings/disasm/%s with a guess attached to every routine.  The
+; listing in listings/disasm/ holds what can be shown; this holds what the code
 ; looks like it is doing, which is a different thing and lives in a
 ; different folder for that reason.
 ;
@@ -2350,13 +2350,13 @@ def prune_equates(text):
 
 
 def write_clean(pages):
-    """Write clean/, the reading copy, from a copy of the two pages.
+    """Write listings/clean/, the reading copy, from a copy of the two pages.
 
     A copy because notes/clean does not only add prose: naming a number
     rewrites the operand that holds it and declares an equate, and both
     outlive the pass that did them.  Undoing that by hand means knowing
     everything a note can touch, and the first thing it missed was
-    CMD_LATENCY_LOOPS turning up in speculate/masterdos.asm -- the same
+    CMD_LATENCY_LOOPS turning up in listings/speculate/masterdos.asm -- the same
     address named one way in one working listing and another way in the
     other, because one was written before this pass and one after.  A
     copy cannot leak.
@@ -2367,7 +2367,7 @@ def write_clean(pages):
         (dos, mb), ROOT, annotate.banner,
         folder=os.path.join('notes', 'clean'), deferred=deferred)
     if nn or nc or nm or ns:
-        print('clean/: %d names, %d line comments, %d bytes marked, '
+        print('listings/clean/: %d names, %d line comments, %d bytes marked, '
               '%d steps from notes/clean' % (nn, nc, nm, ns))
     for problem in problems:
         print('notes/clean: ' + problem)
@@ -2378,34 +2378,34 @@ def write_clean(pages):
     nr, rp = notes.rename((dos, mb), ROOT,
                           folder=os.path.join('notes', 'clean'))
     if nr:
-        print('clean/: %d names changed' % nr)
+        print('listings/clean/: %d names changed' % nr)
     for problem in rp:
         print('notes/clean: ' + problem)
     if deferred:
         nl, lp = notes.apply_deferred((dos, mb), deferred, annotate.banner)
         if nl:
-            print('clean/: %d headers placed once the names were final' % nl)
+            print('listings/clean/: %d headers placed once the names were final' % nl)
         for problem in lp:
             print('notes/clean: ' + problem)
     # After notes/clean and not before: replacing a header records the one
     # it displaced, so that the working copy can see what changed, and
     # that record is itself a working note.
-    print('clean/: %d working paragraphs taken out'
+    print('listings/clean/: %d working paragraphs taken out'
           % clean.clean_pages((dos, mb)))
-    print('clean/: %d carried paragraphs corrected'
+    print('listings/clean/: %d carried paragraphs corrected'
           % clean.fix_carried((dos, mb)))
     n = clean.strip_alignment_marks((dos, mb))
     if n:
-        print("clean/: %d of the source author's alignment marks dropped" % n)
+        print("listings/clean/: %d of the source author's alignment marks dropped" % n)
     for d in (dos, mb):
         explain_branches(d)
 
     n = clean.drop_self_loop_labels((dos, mb))
     if n:
-        print('clean/: %d labels dropped from loops that jump to themselves'
+        print('listings/clean/: %d labels dropped from loops that jump to themselves'
               % n)
 
-    out = os.path.join(ROOT, 'clean')
+    out = os.path.join(ROOT, 'listings', 'clean')
     os.makedirs(out, exist_ok=True)
     PAGE_BIAS[0] = 'IN_PAGE_C'
     SELF_LOOP[0] = True
@@ -2424,15 +2424,15 @@ def write_clean(pages):
     SELF_LOOP[0] = False
     bare = clean.bare_numbers((dos, mb))
     for tag, (mine, orig) in sorted(clean.coverage((dos, mb)).items()):
-        print('clean/: %s -- %d line comments written here, %d still the '
+        print('listings/clean/: %s -- %d line comments written here, %d still the '
               'MasterDOS author%ss own; %d instructions carry an unnamed '
               'number' % (tag, mine, orig, chr(39), bare[tag]))
 
 
 def write_speculation(dos, mb, outdir):
-    """Write speculate/*.asm beside the listings."""
+    """Write listings/speculate/*.asm beside the listings."""
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    out = os.path.join(root, 'speculate')
+    out = os.path.join(root, 'listings', 'speculate')
     if not os.path.isdir(out):
         os.makedirs(out)
     total = 0

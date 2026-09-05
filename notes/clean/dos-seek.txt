@@ -1,6 +1,6 @@
 # Getting the head onto a track, which is done by hand.
 #
-# Prose for clean/ only.
+# Prose for listings/clean/ only.
 
 DOC CTAS
     Put the head over track D and the controller's sector register on

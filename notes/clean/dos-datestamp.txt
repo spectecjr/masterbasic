@@ -1,7 +1,7 @@
 # The date stamp: five bytes of a directory entry, written by
 # MasterBASIC and printed by the DOS.
 #
-# Prose for clean/ only.  This is one feature split across both halves,
+# Prose for listings/clean/ only.  This is one feature split across both halves,
 # so the two ends are kept together here.
 
 GROUP Directory entry

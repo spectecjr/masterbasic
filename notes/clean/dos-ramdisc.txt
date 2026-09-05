@@ -1,6 +1,6 @@
 # The RAM discs: drives 3 to 7, where a sector transfer is a memory copy.
 #
-# Prose for clean/ only.
+# Prose for listings/clean/ only.
 #
 # These routines run with a RAM disc page in the window, put there by
 # SELFP, so an &8xxx operand here is an offset into that page and not an

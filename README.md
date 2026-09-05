@@ -38,12 +38,12 @@ its label under a `DOS_` or `MB_` prefix.
 
 ## Which one to read
 
-**Read `clean/`.** Two files, one per half, and they are the reading copy: every
+**Read `listings/clean/`.** Two files, one per half, and they are the reading copy: every
 routine headed with what it does and why, no number left as a bare constant
 where a name would say more, and written for someone who knows Z80 but not this
 machine. Conclusions only.
 
-**`disasm/` is the same code with the working notes left in** — where a name came
+**`listings/disasm/` is the same code with the working notes left in** — where a name came
 from, what an earlier reading got wrong, which claims are still open. Read it
 when you want the argument rather than the answer, or when you are checking
 something and need to know how firmly it is held. Both hold only what can be
@@ -51,11 +51,11 @@ shown: names carried from sources that assemble to the same bytes, tables read
 from the ROM, and descriptions from the MasterBASIC manual. Where something
 could not be established, they say so rather than guessing.
 
-**`speculate/` is a reading, not a record.** It is the same two listings with a
+**`listings/speculate/` is a reading, not a record.** It is the same two listings with a
 derived register contract on every routine and a machine-composed guess at what
 each one is for, every guess marked with a leading `?`. It is useful for finding
 your way around 2,118 routines; it is not evidence. Its
-[README](speculate/README.md) sets out where it is wrong and why.
+[README](listings/speculate/README.md) sets out where it is wrong and why.
 
 **`postinstall-syspage.asm` is a third kind again: a reconstruction.**
 MasterBASIC builds seven blocks into the ROM's own system page at boot
@@ -65,12 +65,12 @@ appears in the two listings only at the addresses it was stored at -- and
 one of the blocks is not stored here at all, being assembled partly out
 of the ROM's own `PUT`. `tools/syspage.py` builds that page and
 disassembles it where it really runs, writing it beside the listings it
-belongs with: `clean/postinstall-syspage.asm` to read, and
-`disasm/postinstall-syspage.asm` with the working notes. It cannot be
+belongs with: `listings/clean/postinstall-syspage.asm` to read, and
+`listings/disasm/postinstall-syspage.asm` with the working notes. It cannot be
 verified by assembling -- there is no original to compare it with -- and
 it says so at the top of itself.
 
-`clean/`, `disasm/` and `speculate/` all assemble to the original bytes —
+`listings/clean/`, `listings/disasm/` and `listings/speculate/` all assemble to the original bytes —
 everything added is a comment — so all six files are checked on every build.
 
 ## Rebuilding
@@ -80,13 +80,15 @@ python -m pip install pyz80
 tools/build.sh
 ```
 
-Exit status is 0 only if all four listings come back byte-identical:
+Exit status is 0 only if all six listings come back byte-identical:
 
 ```text
-masterdos.asm: BYTE-IDENTICAL
-masterbasic.asm: BYTE-IDENTICAL
-speculate/masterdos.asm: BYTE-IDENTICAL
-speculate/masterbasic.asm: BYTE-IDENTICAL
+listings/disasm/masterdos.asm: BYTE-IDENTICAL
+listings/disasm/masterbasic.asm: BYTE-IDENTICAL
+listings/clean/masterdos.asm: BYTE-IDENTICAL
+listings/clean/masterbasic.asm: BYTE-IDENTICAL
+listings/speculate/masterdos.asm: BYTE-IDENTICAL
+listings/speculate/masterbasic.asm: BYTE-IDENTICAL
 ```
 
 The build assembles the annotated MasterDOS source and the SAM ROM first, for
@@ -107,9 +109,9 @@ git submodule update --init
 | | |
 |---|---|
 | `dumps/` | the image being disassembled, and the hardware captures it is checked against |
-| `clean/` | the reading copy — **start here**; also the ROM's system page as MasterBASIC leaves it |
-| `disasm/` | the same code with the working notes left in |
-| `speculate/` | the same again, with a machine's reading of every routine |
+| `listings/clean/` | the reading copy — **start here**; also the ROM's system page as MasterBASIC leaves it |
+| `listings/disasm/` | the same code with the working notes left in |
+| `listings/speculate/` | the same again, with a machine's reading of every routine |
 | `notes/` | hand-written names and descriptions, fed into both |
 | `tools/` | the disassembler and the passes that annotate it |
 | `docs/` | how it works, the idiom guide, how it is built, the manual |

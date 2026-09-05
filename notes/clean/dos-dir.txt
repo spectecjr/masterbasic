@@ -1,6 +1,6 @@
 # DIR: parsing the several forms, and printing the two of them.
 #
-# Prose for clean/ only.
+# Prose for listings/clean/ only.
 
 GROUP Memory
 CONST DIR_NAME_BUFFER = &A000 : where a sorted listing collects its names

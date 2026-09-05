@@ -1,6 +1,6 @@
 # IX is the disk channel record, everywhere in the disk code.
 #
-# Prose for clean/ only.  The field names are already in the listing, as
+# Prose for listings/clean/ only.  The field names are already in the listing, as
 # labels on the record itself, so a displacement can be written as the
 # difference between the field and the base -- BUF-DCHAN is &0F, and says
 # which field it is instead of how far along it sits.

@@ -1,7 +1,7 @@
 ; masterdos.asm -- a reading, not a record.
 ;
-; This is disasm/masterdos.asm with a guess attached to every routine.  The
-; listing in disasm/ holds what can be shown; this holds what the code
+; This is listings/disasm/masterdos.asm with a guess attached to every routine.  The
+; listing in listings/disasm/ holds what can be shown; this holds what the code
 ; looks like it is doing, which is a different thing and lives in a
 ; different folder for that reason.
 ;
@@ -1044,7 +1044,7 @@ L41FF:
 ;;
 ;; ? calls UNWIND_HOOK_STACK, ZFSP, NRWR.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The three entry points the ROM knows about, at page offset &0200: the
 ;;     RST &08 hook handler, the unrecognised-command handler and the NMI
@@ -1273,7 +1273,7 @@ DWAI:
 ;;
 ;; ? calls CMR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      DVAR -- the DOS variables, at &4220
 ;; --------------------------------------------------------------------
@@ -1432,7 +1432,7 @@ V42BB:
 ;; Takes:     BC, DE, HL
 ;; Leaves:    BC, DE, HL, IY
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Call a routine in the other page.
 ;;
@@ -1634,7 +1634,7 @@ CTABN:
 ;; Takes:     A
 ;; Leaves:    F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The unrecognised-command entry, reached from the JP at page offset
 ;;     &0203.  The ROM calls it with the error number that made it give up --
@@ -1780,7 +1780,7 @@ V43B8:
 ;;
 ;; ? reaches the ROM through CHADD; calls NRWRD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     CHECK EXTERNAL SYNTAX VECTOR
 ;;      Not ours after all. CHADD is put back where the ROM left it and the user's vector is called, if one is
@@ -1920,7 +1920,7 @@ CKESV_3:
 ;; ? reaches the ROM through XPTR+1; calls UNWIND_HOOK_STACK, ZFSP, NRWR; falls into whatever follows rather than
 ;; returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The RST &08 hook handler, reached from the JP at page offset &0200.
 ;;
@@ -1968,7 +1968,7 @@ HOOK:
 ;;
 ;; ? reaches the ROM through DOSSTK; calls NRRDD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Take the return address into IY, read DOSSTK, and LDDR six bytes down
 ;;     from &7FFF -- the stack the DOS unwinds to when a hook gives up.
@@ -2020,7 +2020,7 @@ ZFSP:
 ;; Takes:     A
 ;; Leaves:    A, B, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Fill TSTR1 up to UIFA with &FF and set RDAT to the same, which is the
 ;;     DOS's "nothing here" for a temporary string and its data flag.  The
@@ -2132,7 +2132,7 @@ SAMHK:
 ;; Preserves: A, F (saved and restored)
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     PART C11 -- The disk driver
 ;;
@@ -2253,7 +2253,7 @@ WRITE_SELECTED_DISK_CMD:
 ;; Takes:     DE
 ;; Leaves:    A, F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     (PGES1) is a page number, and DE is an offset in the range 0000-7FFF.
 ;;
@@ -2276,7 +2276,7 @@ CKDE:
 ;; Leaves:    A, F, D
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Similar to CKDE, except it always perfoms the adjustment and doesn't check if DE
 ;;     is about to cross a page boundary first.
@@ -2300,7 +2300,7 @@ ADJUST_PAGE_DE:
 ;; Takes:     nothing in registers
 ;; Leaves:    C
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     PRECOMPENSATION CALCULATOR
 ;;      The inner tracks have the highest bit density and need their transitions shifted to compensate. Bit 1 of the
@@ -2341,7 +2341,7 @@ PRECMP:
 ;;
 ;; ? calls BUSY; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Wait for the disk controller to be ready before continuing.
 ;; --------------------------------------------------------------------
@@ -2386,7 +2386,7 @@ POST_CMD_WAIT:
 ;;
 ;; ? calls WAIT_DC_READY_BEFORE_CMD, TIRD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      DWAIT -- make sure the drive is up to speed before a write
 ;;
@@ -2411,7 +2411,7 @@ DWAIT:
 ;;
 ;; ? calls READ_SELECTED_DISK_STATUS, BRKTST.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     (OR STEP IN/OUT WILL START DRIVE,
 ;;     THEN WSAD WILL WRITE TOO SOON
@@ -2461,7 +2461,7 @@ WRIF2:
 ;;
 ;; ? calls SELECT_DRIVE; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     A sector out: wait for the drive with DWAIT, check the track through
 ;;     TIRDXDCT, then interrupts off, CTAS and PRECMX to position, and the
@@ -2493,7 +2493,7 @@ NWSAD:
 ;;
 ;; ? calls TIRDXDCT; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      WSAD -- write the sector buffer to track D, sector E
 ;;
@@ -2558,7 +2558,7 @@ WRITE_DATA_LOOP:
 ;;
 ;; ? drives IN A,(&00).
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Checks the command status to see if the write is complete, and if not, loops until the
 ;;     controller is ready to write another byte.
@@ -2585,7 +2585,7 @@ CHECK_WRITE_STATUS:
 ;;
 ;; ? calls TIRDXDCT; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The read side, and the most called routine in this half.  TIRDXDCT
 ;;     checks the track, RSSR selects the sector, RDDATA does the transfer,
@@ -2659,7 +2659,7 @@ READ_DATA_LOOP:
 ;;
 ;; ? drives IN A,(&00).
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Checks the command status to see if the read op is complete, and if not, loops until the
 ;;     controller has read another byte from the disk.
@@ -2686,7 +2686,7 @@ CHECK_READ_STATUS:
 ;;
 ;; ? calls GETSCR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Take the flags at (IX+&04) and decide how to reach the data: bit 2
 ;;     sends it through GETSCR for a screen, and what comes back is checked
@@ -2775,7 +2775,7 @@ SECTOR_FOR_CHANNEL_2:
 ;;
 ;; ? drives OUT (HMPR),A.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Store HL in PTRSCR and put PORT1 back into HMPR, which is the pair
 ;;     that ends every access to a screen the DOS has borrowed.
@@ -2808,7 +2808,7 @@ SECTOR_FOR_CHANNEL_3:
 ;;
 ;; ? calls TIRDXDCT; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      NRSAD -- read a directory sector, accumulating the free-sector map as it goes
 ;;
@@ -2972,7 +2972,7 @@ NRSA3:
 ;;
 ;; ? calls SELECT_DRIVE; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Like READ_SECTOR but with the destination given: the drive's status
 ;;     port is poked into SRSA3 and its data port, three above it, into
@@ -3089,7 +3089,7 @@ SRSA4:
 ;;
 ;; ? calls CLEAR_TRANSFER_COUNT.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     What the sector routines do with a controller status they do not
 ;;     like.  AND &0E keeps the error bits, and any of them leaves for CDE1;
@@ -3228,7 +3228,7 @@ HK_SKSAFE:
 ;; Takes:     DE
 ;; Leaves:    A, F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      CTAS / SEEKD -- select the drive and side, then seek to track D
 ;;
@@ -3371,7 +3371,7 @@ STEP_HEAD_OUT:
 ;; Takes:     nothing in registers
 ;; Leaves:    C
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     One step of the head, either way: the direction is the only
 ;;     difference and both fall into the same code, which issues the command
@@ -3424,7 +3424,7 @@ STEP:
 ;; Takes:     HL
 ;; Leaves:    A, F, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     STEP DELAY ROUTINE
 ;;      The delay comes from STPRAT or STPRT2 according to which drive is selected, so a slower drive can be given more
@@ -3536,7 +3536,7 @@ RSLP4:
 ;;
 ;; ? calls WRITE_DRIVE_CMD_AND_DELAY, SELD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      TFIHO -- wait for the index hole to be seen both present and absent, which can only happen if the disk is
 ;;      turning.
@@ -3670,7 +3670,7 @@ CKDISC:
 ;; Takes:     nothing in registers
 ;; Leaves:    A
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      CKDRV / CKDRX -- validate and select a drive
 ;;
@@ -3738,7 +3738,7 @@ CKDRX_DONE:
 ;; Takes:     IX
 ;; Leaves:    A
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Take the drive from (IX+&0B), record it in DRIVE, and pick the port
 ;;     block: DISKCTL_0_BASE for one drive and DISKCTL_1_BASE for the other,
@@ -3814,7 +3814,7 @@ SEL1_DONE:
 ;;
 ;; ? calls GRPNT.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     GRPNT, then return Z only when RPT has reached &01FE -- offset 510,
 ;;     where the two-byte link to the next sector sits.  The byte-at-a-time
@@ -3858,7 +3858,7 @@ HK_HLDBK:
 ;;
 ;; ? calls ADJUST_PAGE_DE, SETF6; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     How much of the current sector's data is still to come: &01FE less
 ;;     RPT, the offset into the sector buffer, narrowed against what the
@@ -4109,7 +4109,7 @@ LDB3_2:
 ;; Leaves:    A, F, BC, HL
 ;; Ends:      JR
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     CALCULATE COUNT
 ;;      Is there at least a whole sector still to transfer? Carry means fewer than 510 bytes remain.
@@ -4143,7 +4143,7 @@ CCNT:
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     GET SCREEN MEMORY AND POINTER
 ;;      A long save allocates all of its sectors up front and keeps the list in the screen page, which is large and not
@@ -4193,7 +4193,7 @@ HK_HKSB:
 ;;
 ;; ? calls DDEL; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      SVBLK -- save a block to the open file
 ;; --------------------------------------------------------------------
@@ -4244,7 +4244,7 @@ DSVBL:
 ;;
 ;; ? drives IN A,(&00), OUT (HMPR),A; calls PRECMX, CTAS, SBLOK.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     SAVE DATA BLOCK ON DISC
 ;;     SAVE PGES1/DE BYTES FROM HL, PADDING LAST SECTOR WITH SPACES
@@ -4369,7 +4369,7 @@ SVB2A:
 ;;
 ;; ? calls WSAD, SET_SCREEN_POINTER, GET_TRACK_AND_SECTOR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      The list is complete. Clear the tail of it so the final sector's link reads as zero, then write the data out
 ;;      against the list.
@@ -4555,7 +4555,7 @@ SVB7:
 ;;
 ;; ? drives OUT (HMPR),A; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      ENTIRE BLOCK
 ;;     ENTERED WHEN E COUNTS TO 0
@@ -4654,7 +4654,7 @@ SVBS3:
 ;;
 ;; ? calls FNS5.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      PART C12 -- Free space, the directory, and opening and closing files
 ;;
@@ -4803,7 +4803,7 @@ FNS4:
 ;;
 ;; ? calls TSTD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      FNS5 -- step to the next track, wrapping to side 2 at the end of side 1. A RAM disc's track limit is adjusted so
 ;;      that its data tracks still start at 4 however many directory tracks it has.
@@ -4868,7 +4868,7 @@ FNS56:
 ;;
 ;; ? calls ICNT.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     FOUND FREE SECT
 ;;      Mark the bit in the global map and in the file's own map, which sits at the same offset within the entry image,
@@ -4902,7 +4902,7 @@ FNS6:
 ;;
 ;; ? calls TIRD, RTSTD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     TEST TRACKS ON DISC
 ;;      Exit: A = the track count, with bit 7 set if the drive is double sided.
@@ -4964,7 +4964,7 @@ TSD1:
 ;;
 ;; ? calls GRPNTB; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      PFNME -- print a ten-character file name
 ;;
@@ -4987,7 +4987,7 @@ PFNME:
 ;; Takes:     HL
 ;; Leaves:    BC
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     PRINT FILE NAME FROM HL. USES HL,A,B
 ;;     ADVANCES HL BY 10
@@ -5066,7 +5066,7 @@ PFNM2:
 ;;
 ;; ? calls SECTOR_FOR_CHANNEL, REST, RESET_BUFFER_POINTERS, PDIRH; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      FDHR -- scan the directory
 ;;
@@ -5451,7 +5451,7 @@ FDH85:
 ;; Takes:     HL
 ;; Leaves:    A, F, BC, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     TEST FOR SPECIFIC FILE NAME
 ;;      Looking a file up rather than listing. A subdirectory's tag is noted on the way past, so MAXT ends up holding
@@ -5530,7 +5530,7 @@ FDH95:
 ;;
 ;; ? calls CKNAM, CLEAR_TRANSFER_COUNT, POINT.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     CALCULATE NEXT DIRECTORY ENTRY
 ;;      Two entries to a sector, ten sectors to a track, DTKS tracks. Sector 1 of track 4 is skipped because that is
@@ -5592,7 +5592,7 @@ FDHE2:
 ;;
 ;; ? calls CLAIM_FREE_SLOT.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     FOUND FREE DIRECTORY SPACE - SEE IF THAT IS WHAT IS WANTED
 ;;      An entry whose first byte is zero is free. If the second byte is non-zero it is a deleted file and the scan goes
@@ -5621,7 +5621,7 @@ FDHF:
 ;;
 ;; ? calls POINT; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      CKNAM -- compare the name in the entry with the one in NSTR1
 ;;
@@ -5769,7 +5769,7 @@ CLSML:
 ;;
 ;; ? calls OFSM, GRWA; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      ROFSM / OFSM -- open a file for writing
 ;;
@@ -5971,7 +5971,7 @@ DBAML:
 ;; Takes:     nothing in registers
 ;; Leaves:    B, IX
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     SHOLD NEVER BE!
 ;;
@@ -6073,7 +6073,7 @@ BEEP:
 ;;
 ;; ? calls WSAD, GET_TRACK_AND_SECTOR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      CFSM -- close the file being written
 ;;
@@ -6140,7 +6140,7 @@ CLOSX:
 ;;
 ;; ? calls CFMC, POINT; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     UPDATE DIRECTORY
 ;;     JPED TO FROM CLOSP
@@ -6243,7 +6243,7 @@ CFMC:
 ;;
 ;; ? calls NMMOV, LCNTA, FILL_DE_WITH_A, FILE_TYPE_AT_POINT.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The file type out of the header, masked to five bits and bounded: &15
 ;;     or more is "wrong file type", and &12 to &14 -- the three SAM types --
@@ -6347,7 +6347,7 @@ GTFL5A:
 ;;
 ;; ? calls NMMOV, LCNTA, FILL_DE_WITH_A, GRPNTB.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Nine bytes from HD002 into the buffer GRPNTB points at, and then on
 ;;     to V42E2.  The &D3 in B is which buffer GRPNTB is to fetch.
@@ -6468,7 +6468,7 @@ LCNTA:
 ;; Leaves:    B, DE
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     B bytes of A at DE.  Three instructions, four callers, and &4F69 is
 ;;     its own DJNZ, which the caller list reports because the loop
@@ -6490,7 +6490,7 @@ FILL_DE_WITH_A:
 ;;
 ;; ? calls POINT; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     POINT, then the type byte masked to five bits and compared with &07 --
 ;;     the DOS's own directory-entry type -- with &04 standing in for it
@@ -6542,7 +6542,7 @@ GTFS1_DONE:
 ;; Takes:     nothing in registers
 ;; Leaves:    HL, IX
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Point IX at DOSBUF and BUF at DRAM, then fall into the pair below
 ;;     that clears the two counts at (IX+&0D) and (IX+&0E).  Everything that
@@ -6562,7 +6562,7 @@ RESET_BUFFER_POINTERS:
 ;; Leaves:    registers unchanged
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Just those two bytes, for a caller whose buffer is already set up.
 ;; --------------------------------------------------------------------
@@ -6677,7 +6677,7 @@ GET_TRACK_AND_SECTOR:
 ;; Leaves:    registers unchanged
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The track and sector at (IX+&11) and (IX+&12), read into DE and
 ;;     written from it.  &4FCD is the third of the family: it reads the old
@@ -6700,7 +6700,7 @@ SET_TRACK_AND_SECTOR:
 ;;
 ;; ? calls GET_TRACK_AND_SECTOR.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Read the old track and sector out into DE and put HL in their place,
 ;;     which is the exchange the three-routine family above exists for.
@@ -6721,7 +6721,7 @@ SWAP_TRACK_AND_SECTOR:
 ;;
 ;; ? calls CALLMB; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The entry's track and sector, as the number DIR prints against it.
 ;;
@@ -6748,7 +6748,7 @@ GET_FILE_NUMBER:
 ;; Leaves:    A, F
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Take FSLOT if nothing has it -- a non-zero value returns at once --
 ;;     and record the entry beside it in FSLTE.
@@ -6772,7 +6772,7 @@ CLAIM_FREE_SLOT:
 ;;
 ;; ? calls GCHR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      PART D1 -- The ROM interface, the flag byte, errors, and the NMI snapshot
 ;;
@@ -6821,7 +6821,7 @@ CIEL:
 ;; Leaves:    F
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Carriage return or colon, returning Z for either, which is the DOS's
 ;;     own copy of the test MasterBASIC spells AT_END_OF_STATEMENT.
@@ -6842,7 +6842,7 @@ IS_END_OF_STATEMENT:
 ;;
 ;; ? reaches the ROM through FLAGS; calls NRRD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     CHECK FOR SYNTAX ONLY
 ;;      NZ when running, Z while the line's syntax is being checked. A is preserved across the call through SVA.
@@ -6871,7 +6871,7 @@ V5000:
 ;;
 ;; ? calls CIEL; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     CHECK FOR END OF SYNTAX
 ;;      On the syntax pass this does not return to its caller at all: it falls through to ENDS, which is how every
@@ -6903,7 +6903,7 @@ ABORT:
 ;; Takes:     nothing in registers
 ;; Leaves:    E
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     END OF STATEMENT
 ;;      E is what the ROM reads back: 0 means the command is complete, 1 that the ROM's own load/save machinery should
@@ -6968,7 +6968,7 @@ RENT:
 ;;
 ;; ? drives IN A,(STAT); falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     TEST FOR BREAK ROUTINE
 ;;      Reads the keyboard row selected by putting &F7 on the high address lines and tests the bit ESC occupies. Called
@@ -7106,7 +7106,7 @@ NUMERIC:
 ;;
 ;; ? calls RDBC, GTHL.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Read or write one of the ROM's system variables.
 ;;
@@ -7150,7 +7150,7 @@ NRRDD:
 ;;
 ;; ? calls RDA, GTHL.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Read one byte of a ROM system variable.
 ;;
@@ -7193,7 +7193,7 @@ NRRD:
 ;;
 ;; ? calls WRTBC, GTHL.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Write two bytes to a ROM system variable.
 ;;
@@ -7234,7 +7234,7 @@ NRWRD:
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A; calls GTHL; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Write one byte to a ROM system variable.
 ;;
@@ -7289,7 +7289,7 @@ NRWR:
 ;; Leaves:    DE, HL
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Restore the caller's registers and return past the inline word.
 ;;
@@ -7318,7 +7318,7 @@ PPXR:
 ;;
 ;; ? reaches the ROM through ERRSP; calls NRRDD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      PLNS -- make room on the ROM's stack for a return to the next statement
 ;;
@@ -7373,7 +7373,7 @@ DWRBC:
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Write BC to the word at HL in the ROM's system page.
 ;;
@@ -7407,7 +7407,7 @@ WRTBC:
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Read the word at HL from the ROM's system page.
 ;;
@@ -7440,7 +7440,7 @@ RDBC:
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Read the byte at HL from the ROM's system page.
 ;;
@@ -7475,7 +7475,7 @@ RDA:
 ;;
 ;; ? drives OUT (HMPR),A.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Put HMPR back and return.
 ;;
@@ -7506,7 +7506,7 @@ BCRWC:
 ;; Leaves:    DE, HL
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Pick up the inline address and step past it.
 ;;
@@ -7538,7 +7538,7 @@ GTHL:
 ;; Leaves:    HL
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      FLAG3 -- the DOS's flag byte
 ;;
@@ -7835,7 +7835,7 @@ BITF7:
 ;;
 ;; ? drives OUT (KEYBOARD),A.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     BORDER COLOUR CHANGE
 ;;      The colour comes from the low bits of RBCC and is ANDed with E -- the sector number -- so the border changes as
@@ -7861,7 +7861,7 @@ BCC:
 ;;
 ;; ? reaches the ROM through ROM_BORDCR; calls NRRD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Set the border to the colour BORDCOL holds.
 ;;
@@ -7901,7 +7901,7 @@ SETBORDER_BORDCOL:
 ;; Takes:     nothing in registers
 ;; Leaves:    A
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      The error stubs
 ;;
@@ -8177,7 +8177,7 @@ V51A6:
 ;;
 ;; ? reaches the ROM through MB_BYTE_TO_DECIMAL-&4000; calls CALLMB; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Three characters from a byte, through MasterBASIC's BYTE_TO_DECIMAL.
 ;;     The DOS has no such routine of its own, so it calls across for it.
@@ -8200,7 +8200,7 @@ PRINT_BYTE_AS_DECIMAL:
 ;;
 ;; ? calls SETBORDER_BORDCOL.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      DERR -- report a DOS error
 ;;
@@ -8451,7 +8451,7 @@ V5233:
 ;; Takes:     BC, DE, HL, IX, IY, I
 ;; Leaves:    A, F, BC, DE, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      NMI -- the snapshot button
 ;;
@@ -8594,7 +8594,7 @@ SNAP3A:
 ;;
 ;; ? drives IN E,(C), OUT (C),A; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      Step to the next page and wait for the key to be released, so the user can pick which page is captured. The
 ;;      border
@@ -8755,7 +8755,7 @@ SNPTAB:
 ;;
 ;; ? drives OUT (HMPR),A; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      SNAP7 -- resume the interrupted program
 ;;
@@ -8826,7 +8826,7 @@ SNAP8:
 ;;
 ;; ? calls CKDRV, SELD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      PART E1 -- Formatting, and the printing the catalogue needs
 ;;
@@ -9093,7 +9093,7 @@ FMT7:
 ;;
 ;; ? calls CKDRX, SCTRK, PMOB; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      FORMAT "x" TO "y": read a whole track of the source into the screen page, then write it to the target, switching
 ;;      drives between the two. The buffer address is stepped by 512 bytes a sector by incrementing H twice.
@@ -9238,7 +9238,7 @@ HK_HDUMMY:
 ;;
 ;; ? calls GET_DISK_PORT_BASE, PRECMP.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      FMTSR -- issue the write-track command and run the transfer, sharing WSA3 with the ordinary sector write. The
 ;;      precompensation calculation is done as late as possible, because the controller starts writing as soon as the
@@ -9270,7 +9270,7 @@ FMTSR:
 ;;
 ;; ? reaches the ROM through SPOSNL; calls NRWR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      AND WSA3 SMALL
 ;;     PRINT TRACK ON SCREEN
@@ -9339,7 +9339,7 @@ ITRK2:
 ;; Takes:     HL
 ;; Leaves:    A, F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      FESET -- stamp the first directory entry as the disk is formatted
 ;;
@@ -9374,7 +9374,7 @@ FESET:
 ;;
 ;; ? reaches the ROM through FRAMES; calls NRRD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      WITH TKS/DIR-4
 ;;     CALLED BY RENAME
@@ -9445,7 +9445,7 @@ ISECT:
 ;; Takes:     A
 ;; Leaves:    A, F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      PNTYP -- print a file's type, and for some types its address and length
 ;;
@@ -9609,7 +9609,7 @@ PNTY5_1:
 ;;
 ;; ? calls GRPNTB, PRINT_FIELDS_WITH_SEPARATORS, PRINT_FIELD, PNUM2.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Fetch the &F5 buffer through GRPNTB, and return unless the first byte
 ;;     is set -- INC A then CP &02 rejects both &FF and &00 in one test.
@@ -9639,7 +9639,7 @@ PRINT_DATE_IF_SET:
 ;;
 ;; ? calls PRINT_FIELD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Three fields and two separators: print, separator, print,
 ;;     separator, and then fall into PRINT_FIELD for the third.  The
@@ -9679,7 +9679,7 @@ PRINT_DATE_IF_SET_1:
 ;;
 ;; ? calls PNUM2.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     One field as a decimal number through the ROM's PNUM2, with HL, DE
 ;;     and BC all saved around it, so the caller's pointer survives.
@@ -9707,7 +9707,7 @@ PRINT_FIELD:
 ;; Leaves:    A, F, C, DE, HL
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     GET NUMBER FROM HEADER
 ;;      Exit: C = page, DE = address, HL advanced past the three bytes.
@@ -9736,7 +9736,7 @@ GTVAL:
 ;;
 ;; ? calls PNM1, PNM2.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      Decimal printing
 ;;
@@ -9973,7 +9973,7 @@ SPC:
 ;;
 ;; ? reaches the ROM through PRINT_A; calls CMR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Print A through the ROM and give it back unchanged.  PUSH AF round a
 ;;     CMR to PRINT_A, and it is the most-called routine of its kind in this
@@ -10000,7 +10000,7 @@ PRINT_A_KEEPING_IT:
 ;;
 ;; ? calls SKIP_B_WORDS.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     A bit-7-terminated word and then a space, the space through the ROM's
 ;;     SPC.
@@ -10017,7 +10017,7 @@ PRINT_WORD_AND_SPACE:
 ;; Takes:     B, HL
 ;; Leaves:    A, F, B, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Step HL over B words, each ending at the character with bit 7 set.
 ;;     The RLA is the test and the two jumps are the two loops -- inner over
@@ -10040,7 +10040,7 @@ SKIP_B_WORDS:
 ;; Takes:     nothing in registers
 ;; Leaves:    HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      PTM -- print the message that follows the call
 ;;
@@ -10199,7 +10199,7 @@ PMO6:
 ;;
 ;; ? calls PTM; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The tail of a confirmation prompt: a close quote, then compression
 ;;     code 4, which expands to " (y/n)".  Its one caller is PM7K, after
@@ -10403,7 +10403,7 @@ XTRA:
 ;; Takes:     nothing in registers
 ;; Leaves:    HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      PNDNM -- print the disk's name
 ;;
@@ -10507,7 +10507,7 @@ MSGUN:
 ;;
 ;; ? reaches the ROM through CURCMD; calls NRRD, WIQF, CLSL; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      OHNM -- print the name of the command that is asking for confirmation
 ;;
@@ -10576,7 +10576,7 @@ WIQF:
 ;;
 ;; ? calls PFNME, PMYNAE, CYES1.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      FNMAE -- ask about one file, offering yes, no, all or end
 ;;
@@ -10633,7 +10633,7 @@ PM7K:
 ;;
 ;; ? calls BEEP; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     COMPARE FOR Y or N
 ;;      Waits for the key to be released as well as pressed, so holding it down does not answer the next prompt too.
@@ -10686,7 +10686,7 @@ CYES2:
 ;;
 ;; ? calls BITF5, PMOD, RDKY, CLSL.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      TSPCE1 / TSPCE2 -- ask for the other disk during a single-drive copy. Flag bit 5 records that both ends are the
 ;;      same drive; if they are not, there is nothing to swap and these do nothing.
@@ -10770,7 +10770,7 @@ RDKY:
 ;;
 ;; ? drives OUT (HMPR),A, OUT (VMPR),A; calls CEOS, ISEPX, EVNUM.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      PART F11 -- COPY, DIR, ERASE, RENAME, PROTECT and HIDE
 ;;
@@ -10824,7 +10824,7 @@ CALL_Label:
 ;;
 ;; ? calls EVNAM; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     A filename, then optionally a second after a comma; without one, &8E
 ;;     stands in as the separator so the code below need not care which
@@ -10905,7 +10905,7 @@ NMQU2:
 ;;
 ;; ? calls EVFINS; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     COPY/BACKUP SR
 ;;      Both file specifiers are parsed, and if they name the same drive flag bit 5 is set so the user will be asked to
@@ -10948,7 +10948,7 @@ COBUS_1:
 ;; ? reaches the ROM through MB_CMD_COPY_SCREEN-&4000; calls CALLMB, GTNC; falls into whatever follows rather than
 ;; returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      COPY -- copy files, in as few passes as the free memory allows
 ;; --------------------------------------------------------------------
@@ -11169,7 +11169,7 @@ GCOP:
 ;;
 ;; ? drives OUT (HMPR),A; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      FFPG -- find the largest run of free pages
 ;;
@@ -11285,7 +11285,7 @@ CLSL:
 ;;
 ;; ? calls GTNC, SEPARX, EVSRM, FDFSR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      DIR -- the catalogue
 ;;
@@ -11575,7 +11575,7 @@ PCAT2:
 ;;
 ;; ? calls PNUM4, SPC, PRINT_A_KEEPING_IT, PMO3; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      The summary: free kilobytes, files in this directory, and free directory slots. PLUR adds the "s" unless the
 ;;      count
@@ -11691,7 +11691,7 @@ PDIRH_1:
 ;;
 ;; ? calls PRINT_A_KEEPING_IT.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     B characters from HL, each through PRINT_A_KEEPING_IT.
 ;; --------------------------------------------------------------------
@@ -11746,7 +11746,7 @@ DITOB:
 ;;
 ;; ? calls TSTD, TIRD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      STATS -- free sectors and free directory slots
 ;;
@@ -11867,7 +11867,7 @@ PCT2:
 ;;
 ;; ? reaches the ROM through SYS_CHAR_WIDTH; calls NRRD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     How many columns a directory listing gets.
 ;;
@@ -12000,7 +12000,7 @@ REDI2:
 ;; Takes:     A
 ;; Leaves:    A, F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     ALLOW "?" TO MEAN "ALL FILES"
 ;;      Setting CDIRT to &FF makes the directory scan accept files from every subdirectory rather than only the current
@@ -12034,7 +12034,7 @@ GTNCH:
 ;;
 ;; ? calls NMQU, OVERO, REDI2, EVFINS; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      ERAZ -- ERASE
 ;;
@@ -12160,7 +12160,7 @@ ERAZ33_1:
 ;;
 ;; ? calls OHASR.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Ask through OHASR, and if the answer is yes store A over the entry's
 ;;     type byte and leave for WSAD to write the sector.
@@ -12230,7 +12230,7 @@ CKDIR:
 ;;
 ;; ? calls READ_SECTOR, CLEAR_TRANSFER_COUNT, GRPNTB, CEOS; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      RENAM -- RENAME
 ;;
@@ -12352,7 +12352,7 @@ RENM3:
 ;;
 ;; ? calls BITF2; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      REFBUF / PTSVT -- re-read the directory sector and point back at the entry the search stopped on. Needed because
 ;;      the caller writes the entry back between finds, so the buffer cannot be trusted to still hold it.
@@ -12385,7 +12385,7 @@ RFB2:
 ;;
 ;; ? calls RFB2.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     IN CASE 2ND ONE WANTED
 ;;     PT TO SVTRS ENTRY
@@ -12568,7 +12568,7 @@ SFB4:
 ;;
 ;; ? calls BITF0, BITF3, SNDFL; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      SNDFX -- find the next matching file, or end the command
 ;;
@@ -12613,7 +12613,7 @@ REP26:
 ;;
 ;; ? calls POINT; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     GET INFO FOR ERASE/RENAME
 ;;     RET: CY IF DIR TYPE, Z IF FLAG4="DO FILES", NZ IF IT ="DO DIRS"
@@ -12636,7 +12636,7 @@ SNDTC:
 ;;
 ;; ? calls HLFG.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     HLFG, and then the CB 66 that HLFG returns into: BIT 4,(HL).
 ;;
@@ -12661,7 +12661,7 @@ BITF4:
 ;;
 ;; ? calls READ_SECTOR, REST, CKNAM, RESET_BUFFER_POINTERS.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      PART F12 -- LOAD, FORMAT, and the argument parsers
 ;;
@@ -12863,7 +12863,7 @@ REP0:
 ;; Leaves:    F
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     THE SEPARATOR SUBROUTINE
 ;;      A comma or semicolon separates arguments and is stepped over; a quote begins the next argument and is left
@@ -12903,7 +12903,7 @@ SEPA1:
 ;;
 ;; ? calls CIEL, ISEPX, SEPARX, EVDNM; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      EVPRM -- parse "AT drive,track,sector,address[,sectors]" for READ and WRITE
 ;;
@@ -12948,7 +12948,7 @@ EVPRM:
 ;;
 ;; ? calls CEOS, SCASD.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;           0001-0400H IN ORIG,
 ;;     BC= 1-1024 SECTORS
@@ -12972,7 +12972,7 @@ EVPR5:
 ;; Takes:     nothing in registers
 ;; Leaves:    B, DE, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     SAVE HEADER INFORMATION
 ;;      The nine-byte header goes both into the directory entry image and into the file itself, so a file carries its
@@ -13041,7 +13041,7 @@ SVHD1_LOOP:
 ;;
 ;; ? reaches the ROM through JRECLAIM; calls CMR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     REMOVE FLOATING POINT NUMBERS
 ;;      During the syntax pass, the five-byte number forms the ROM compiled into the statement are reclaimed, so that
@@ -13084,7 +13084,7 @@ REMP1:
 ;;
 ;; ? calls CALLMB, READ_SECTOR, REST, RESET_BUFFER_POINTERS; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      LOAD -- the LOAD command
 ;; --------------------------------------------------------------------
@@ -13312,7 +13312,7 @@ DLVM2_1:
 ;;
 ;; ? calls AHLNX.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     GET 19-BIT NUMBER
 ;;      Normalise a page and address pair so the address lies within one page and the surplus is in the page number.
@@ -13351,7 +13351,7 @@ AHLNX:
 ;;
 ;; ? calls DERR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Report "integer out of range", which is what CALL DERR with a code of
 ;;     &1E does.
@@ -13375,7 +13375,7 @@ IOOR:
 ;;
 ;; ? calls CIEL, GTNC, EVNAM, EVNUMX; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      WFOD -- FORMAT
 ;;
@@ -13644,7 +13644,7 @@ WIORH:
 ;;
 ;; ? drives OUT (HMPR),A; calls RTSTD, PTRD.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     DTKS=2, TOT TKS 3-158
 ;;     DTKS=3, TOT TKS 4-159
@@ -13665,7 +13665,7 @@ WFODB:
 ;; Takes:     A
 ;; Leaves:    A, F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Resets the sector error retry count to 0, then tests if the current disk device
 ;;     is a RAM drive.
@@ -13685,7 +13685,7 @@ TIRDXDCT:
 ;; Leaves:    A, F
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Checks if the physical disk device number corresponds to a RAM drive or
 ;;     a floppy disk.
@@ -13714,7 +13714,7 @@ TIRD:
 ;;
 ;; ? reaches the ROM through EXPEXP; calls CMR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     EVALUATE DRIVE NO. OR FILE NAME (USED BY DIR)
 ;;     EXIT: CY IF DRIVE
@@ -13760,7 +13760,7 @@ EVEXP2:
 ;;
 ;; ? calls GCHR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     EVALUATE DRIVE NUMBER - WRITE AT *,T,S,A ALLOWED
 ;;      "*" means the current default drive.
@@ -13836,7 +13836,7 @@ EVDN3:
 ;; Leaves:    A, F
 ;; Preserves: BC, HL (saved and restored)
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      CODN -- map a drive number through DRPT, the table that lets each drive pretend to be another. That is how a
 ;;      program written for drive 2 can be pointed at a RAM disc without changing it.
@@ -13878,7 +13878,7 @@ CODN2:
 ;; Leaves:    A, F, BC, DE
 ;; Ends:      JR
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      HEVNAM -- take the name from the hook registers instead of from a BASIC expression, adjusting the address from
 ;;      the
@@ -13931,7 +13931,7 @@ EVNAMX:
 ;;
 ;; ? calls EVAL_STRING_IF_RUNNING; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      EVNAM -- evaluate a file name
 ;;
@@ -14058,7 +14058,7 @@ EVNAM2X:
 ;;
 ;; ? calls EVNAM, EXDATX; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     EVALUATE SECOND FILE NAME
 ;;     EXIT: Z/NZ FOR SYNTAX/RUN. A CORUPT
@@ -14111,7 +14111,7 @@ EXDATX:
 ;;
 ;; ? calls EXDT1.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      EXDAT -- swap the two parameter blocks, so that whichever file is being worked on is always the one at DSTR1.
 ;;      The
@@ -14167,7 +14167,7 @@ BSWOP:
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      BC=0306H
 ;;     SWOP BC AT HL/DE
@@ -14212,7 +14212,7 @@ EXDT1_DONE:
 ;;
 ;; ? reaches the ROM through EXPSTR; calls CMR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     A string expression, then CFSO so that syntax time returns without
 ;;     fetching it, and GETSTR only if the program is really running.  The
@@ -14365,7 +14365,7 @@ CGTINT:
 ;;
 ;; ? reaches the ROM through EXPNUM; calls CMR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     EVALUATE ADDRESS ROUTINE
 ;;      UNSTLEN splits the value into whole pages and an offset; setting bit 15 puts the offset into the &8000 window
@@ -14416,7 +14416,7 @@ ALPHA:
 ;; Takes:     nothing in registers
 ;; Leaves:    HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     TRANSFER FILE NAMES IN COPY
 ;;     E.G. COPY "*" TO "*" (NSTR3) WITH "FROG" (NSTR1) LOADED
@@ -14542,7 +14542,7 @@ GDIFA:
 ;;
 ;; ? calls RXSS.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Read a header from IX and require the device to be a disc.
 ;;
@@ -14591,7 +14591,7 @@ RXSS:
 ;;
 ;; ? calls RXSS; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     INPUT A HEADER FROM IX, ALLOW DEVICE D/T/N.
 ;;     RETURNS NC IF D, CY IF T/N
@@ -14698,7 +14698,7 @@ EVFL8B:
 ;;
 ;; ? calls CLEAR_TSTR, EVFILE, GTLNM.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     CONVERT NEW HDR TO OLD
 ;;      The ROM's header carries the name, type, start and length; the DOS needs them spread across NSTR1, HD001, PAGE1
@@ -14756,7 +14756,7 @@ HGTHD:
 ;;
 ;; ? calls RDA; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      TXHED / TXRM / RXHSR -- copy a header to or from the ROM's buffer
 ;;
@@ -14887,7 +14887,7 @@ RXH2:
 ;;
 ;; ? calls NRWR.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      Tape or network: step the ROM's saved stack pointer past one return address, so that returning to it resumes at
 ;;      the ROM's own load-the-file code rather than where it called from.
@@ -15045,7 +15045,7 @@ DSCHD:
 ;;
 ;; ? calls READ_SAVED_SECTOR.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The hook's arguments, into the header the ROM wants.
 ;;
@@ -15076,7 +15076,7 @@ HOOK_ARGS_TO_HEADER:
 ;;
 ;; ? calls RETURN_INTO_BC.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      NETPA -- if the device is the network, hand the operation to the routine whose address is in BC, which lives in
 ;;      the block copied into the system page at boot.
@@ -15113,7 +15113,7 @@ HVEPG:
 ;;
 ;; ? calls DSCHD, NETPA; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     VERIFY FILE ALREADY OPENED BY HGTHD. HL=START,CDE=LEN,PAGED IN.
 ;;      Compares byte by byte rather than loading. The nine-byte file header is skipped first, and the address is wound
@@ -15339,7 +15339,7 @@ HSAVE2:
 ;;
 ;; ? calls TIRD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      DDEL -- wait DWAI quarter-seconds before writing, so that a drive which has just been started has come up to
 ;;      speed. RAM discs skip it.
@@ -15442,7 +15442,7 @@ HVAR1_1:
 ;; Takes:     nothing in registers
 ;; Leaves:    A
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      HEOF / HPTR / FNLN2 -- the EOF, PTR and LENGTH functions
 ;;
@@ -15577,7 +15577,7 @@ AUTNAM:
 ;;
 ;; ? calls AUINSR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     LOOK FOR AN AUTO FILE
 ;;      HAUTO reports if there is none; INIT, which is the boot hook, simply returns so that booting a disk without an
@@ -15676,7 +15676,7 @@ HK_HGFLE:
 ;;
 ;; ? calls READ_SECTOR, LBYT.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Take the track and sector out of SVDE and read it, then leave for
 ;;     &5F4D rather than returning.
@@ -15742,7 +15742,7 @@ READ:
 ;;
 ;; ? calls CALS; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      HRSAD / HWSAD / HFRSAD / HFWSAD -- raw sector access
 ;;
@@ -15880,7 +15880,7 @@ FRW2:
 ;;
 ;; ? calls PAGEFORM; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     CALCULATE ADDRESS SECTION
 ;;      Split the caller's address into a page and an offset. An address below &4000 has no page of its own and is
@@ -15959,7 +15959,7 @@ GTDEF:
 ;;
 ;; ? reaches the ROM through DEVN; calls NRRD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     GET DEFAULT NUMBER
 ;;      The ROM's DEVICE variable is shared with the tape system, where it holds a tape speed rather than a drive, so a
@@ -16018,7 +16018,7 @@ GTDD_2:
 ;;
 ;; ? calls GTDEF; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Parse the device and drive prefix of a file name.
 ;;
@@ -16274,7 +16274,7 @@ C11LP_DONE:
 ;;
 ;; ? calls EVMOV; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      PART MOVE -- the MOVE command, and BACKUP
 ;; --------------------------------------------------------------------
@@ -16352,7 +16352,7 @@ MVNRC:
 ;;
 ;; ? calls BITF1; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Take the two-byte length at (IX+&09) into BC and then look at the
 ;;     channel's flags: bit 1 through BITF1 sends it one way, and otherwise
@@ -16560,7 +16560,7 @@ MEOF:
 ;; Takes:     nothing in registers
 ;; Leaves:    DE, IX
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Point IX at the channel table plus &1E -- CHANS read through the
 ;;     window and the offset added -- and return Z at once if the first byte
@@ -16635,7 +16635,7 @@ FIRST_DISC_CHANNEL_2:
 ;; Leaves:    A, F, BC
 ;; Ends:      JR, RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Make a character safe to print, and say whether to invert it.
 ;;
@@ -16732,7 +16732,7 @@ TOSCQ:
 ;; Takes:     nothing in registers
 ;; Leaves:    HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      MOVRC / MOVWC -- read and write one byte through a channel
 ;;
@@ -16900,7 +16900,7 @@ HEVSY:
 ;;
 ;; ? reaches the ROM through STREAM; calls STRMD, CMR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      OPMOV -- open one end of a MOVE
 ;;
@@ -17019,7 +17019,7 @@ DELD:
 ;;
 ;; ? calls CKDRV, FDHR, CLSAM, GTNC; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      BACKUP -- copy a whole disk, transferring only the sectors in use
 ;;
@@ -17202,7 +17202,7 @@ BKU5:
 ;;
 ;; ? calls IS_END_OF_STATEMENT, GTNC; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     OPSR -- read the access mode at the end of an OPEN.
 ;;
@@ -17375,7 +17375,7 @@ CMD_OPEN_DONE:
 ;;
 ;; ? drives OUT (HMPR),A; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Zero HMPR so the system page is in the window, take CHANS from it and
 ;;     add &1E, then check the result with the ROM's CHKHL before reading
@@ -17544,7 +17544,7 @@ OPDST1:
 ;;
 ;; ? drives OUT (HMPR),A; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The same setup with IX instead of HL, and V4213 cleared first --
 ;;     which is what makes it the start of a scan rather than a single
@@ -17944,7 +17944,7 @@ OPND45_1:
 ;;
 ;; ? calls CHANNEL_LENGTH_FIELD.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Write the file's length into its LENGTH field: four bytes, not two.
 ;;
@@ -18050,7 +18050,7 @@ OPND8:
 ;;
 ;; ? calls COPY_MTBLS.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Create a "D" channel, which is what the call site at &6BED asks
 ;;     for.
@@ -18103,7 +18103,7 @@ CRMCH_1:
 ;; Takes:     DE
 ;; Leaves:    F, BC, DE, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Eleven bytes from MTBLS, then &0308 bytes of zero after them -- the
 ;;     table and the room it needs, laid down in one go.
@@ -18177,7 +18177,7 @@ HK_HCLOS:
 ;;
 ;; ? drives OUT (HMPR),A; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     HOOK 151 - DISC BLOCK O/P BC FROM DE. FASTER THAN REPEATED USE
 ;;     OF RST 08H FOR SINGLE CHARS
@@ -18264,7 +18264,7 @@ CLOS1:
 ;;
 ;; ? calls CEOS, ISEPX, SETF1; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     CLEAR# STREAMS COMMAND
 ;;      The difference between CLOSE and CLEAR is flag bit 1: CLOSE writes the file's directory entry back, CLEAR
@@ -18324,7 +18324,7 @@ CLRS2:
 ;;
 ;; ? calls STRMD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     CLEAR STREAM AND CLOSE CHANNEL
 ;;      Streams 0 to 3 are put back to the channels the ROM gives them by default rather than being left unattached.
@@ -18440,7 +18440,7 @@ CLRC2:
 ;;
 ;; ? calls CHANNEL_LENGTH_AND_FLAGS; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     RECLAIM THE CHANNEL
 ;;      Giving the channel back moves everything above it down, so every stream pointing past it has to be adjusted --
@@ -18527,7 +18527,7 @@ RCLM4:
 ;;
 ;; ? calls WRIF, SELECT_DRIVE, DECSAM, GLEN; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      SDCM -- write the file's directory entry back as it is closed
 ;;
@@ -18627,7 +18627,7 @@ TABLE:
 ;;
 ;; ? calls BITF2, MCHIN.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     HOOK ROUTINE TO READ BYTE FROM DISC. USED BY "D" CHANNEL
 ;;      During MOVE, end of file is reported as a condition rather than an error, so the copy can stop cleanly.
@@ -18729,7 +18729,7 @@ MCHN2_1:
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A; calls SETLEN, WRITE_LAST_PAGE, CPPTR.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     HOOK ROUTINE TO WRITE BYTE IN A TO DISC. USED BY "D" CHANNEL
 ;;      INPUT # echoes what it reads, which would write it straight back to the file, so writes are suppressed while an
@@ -18801,7 +18801,7 @@ HK_SBYT:
 ;;
 ;; ? calls WRITE_SECTOR, AT_SECTOR_LINK, FNFS, SWAP_TRACK_AND_SECTOR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The tail of a write: AT_SECTOR_LINK decides whether the sector's
 ;;     data is used up, and everything is pushed around the decision so the caller's
@@ -18886,7 +18886,7 @@ WRITE_LAST_PAGE_2:
 ;;
 ;; ? calls WRIF2, SWAP_TRACK_AND_SECTOR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Take a track and sector out of the two bytes at HL, exchange them
 ;;     with the channel's through SWAP_TRACK_AND_SECTOR, flush the buffer to
@@ -18914,7 +18914,7 @@ WRITE_AT_LINKED_SECTOR:
 ;;
 ;; ? calls ICNT; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     ICNT, then fall into the entry below.  Three entry points, one after
 ;;     another, so a caller can start at whichever step it needs: count and
@@ -18933,7 +18933,7 @@ COUNT_AND_READ_SECTOR:
 ;;
 ;; ? calls READ_SECTOR, SELECT_DRIVE; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     SELECT_DRIVE then READ_SECTOR, and fall into the clear below.
 ;; --------------------------------------------------------------------
@@ -18950,7 +18950,7 @@ SELECT_AND_READ_SECTOR:
 ;; Leaves:    IX
 ;; Ends:      JP
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Bit 3 of (IX+&0C) down, then leave for SET_TRACK_AND_SECTOR.
 ;; --------------------------------------------------------------------
@@ -18969,7 +18969,7 @@ CLEAR_SECTOR_FLAG:
 ;;
 ;; ? calls CHANNEL_LENGTH_FIELD.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     CP PTR WITH LEN. Z IF MATCH (AND HL=LEN MSB OF 4)
 ;;      Both are kept as an offset within a sector plus a sector count, so end of file is four byte comparisons.
@@ -19023,7 +19023,7 @@ LBYT:
 ;; Leaves:    IX
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Add one to the two-byte count at (IX+&0D), carrying into (IX+&0E)
 ;;     only when the low byte wraps, so the common case is one INC and a
@@ -19045,7 +19045,7 @@ BUMP_TRANSFER_COUNT:
 ;;
 ;; ? reaches the ROM through GETINT; calls CMR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     A stream number through the ROM's GETINT, refused unless it fits in a
 ;;     byte and is below &10 -- INC H with DEC H tests the high byte without
@@ -19071,7 +19071,7 @@ GET_STREAM_NUMBER:
 ;;
 ;; ? calls STRMD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     STRMD gives the displacement, zero means no channel, and one less
 ;;     than it added to CHANS is where the stream's entry lives.
@@ -19149,7 +19149,7 @@ SNOP:
 ;;
 ;; ? drives OUT (HMPR),A.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     STREAM DISPLACEMENT
 ;;     ENTRY: A=STREAM NO.
@@ -19181,7 +19181,7 @@ STRMD:
 ;; Preserves: HL (saved and restored)
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     SET IX+MFLG, IX+BUFL/H USING A AND BC
 ;;     (SET TYPE=IN (0), OUT (1) OR RND (2), SET BUFFER LOCN=IX+BC)
@@ -19211,7 +19211,7 @@ RAMST:
 ;; ? reaches the ROM through MB_EXPR_TO_32BIT-&4000; calls CALLMB, ISEPX, SEPARX, EVSRMX; falls into whatever follows
 ;; rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      POINTC -- POINT #s,x and POINT #s,OVER n
 ;;
@@ -19280,7 +19280,7 @@ Fix_L6DD1_43:
 ;; Takes:     IX
 ;; Leaves:    F, BC, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     FIND T/S OF DE'TH SECTOR IN A FILE, USING FSAM
 ;;
@@ -19387,7 +19387,7 @@ FTS3:
 ;; Takes:     E, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      Turn the bit's position in the map back into a track and sector: eight sectors to a map byte, ten sectors to a
 ;;      track, counting from track 4.
@@ -19669,7 +19669,7 @@ ICNT:
 ;; Takes:     A, BC, E, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     ENTRY: BHL=24-BIT NUMBER
 ;;     EXIT: HL=NUMBER MOD 510, HL'=NUMBER DIV 510
@@ -19806,7 +19806,7 @@ PTAD2:
 ;; Leaves:    F, BC, HL
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     IX plus LENL, in HL.  Five instructions for an offset that six places
 ;;     want, which is cheaper in bytes than writing the addition out at each
@@ -19830,7 +19830,7 @@ CHANNEL_LENGTH_FIELD:
 ;;
 ;; ? calls GOFSM, CEOS, ISEP, PLNS.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      PART SUBD -- Subdirectories
 ;;
@@ -19901,7 +19901,7 @@ OPNDIR:
 ;;
 ;; ? calls GTNC, RTCK; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      STDIR -- DIR = "path": change the current directory
 ;;
@@ -19994,7 +19994,7 @@ STDQC:
 ;;
 ;; ? calls TIRD, GCDIA, GPLA.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     ELSE SET ROOT (NO DISC ACCESS)
 ;;
@@ -20063,7 +20063,7 @@ STDR1:
 ;;
 ;; ? calls RTCK; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      Work out what the new path string starts from: a leading root symbol means the path is absolute and starts again
 ;;      at "1:", a leading "^" means it starts from whatever UPAR2 trimmed it to, and anything else appends to what is
@@ -20108,7 +20108,7 @@ SKIPF:
 ;;
 ;; ? drives OUT (HMPR),A; calls POINT, TIRD, RTCK, GPATD.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      Append the new name to the path string, with a divider in front of it, trimming the trailing spaces of the
 ;;      ten-character name and stopping if the path would exceed MPL.
@@ -20241,7 +20241,7 @@ OSRDPN:
 ;; Takes:     A, HL
 ;; Leaves:    F, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     ROOT CHECK - Z IF ROOT SYMBOL
 ;;      Both characters in RTSYM are accepted, so "\" and "/" work interchangeably on input.
@@ -20276,7 +20276,7 @@ RTCK_DONE:
 ;;
 ;; ? calls POINT, SNDFL; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     SNDFL, error 32 if it fails, bit 2 of FLAG3 down, and then POINT and
 ;;     the type byte masked -- the run-up every directory write shares.
@@ -20351,7 +20351,7 @@ GTLNM:
 ;;
 ;; ? drives OUT (HMPR),A.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     PREPARE PATH
 ;;      The full name is in the system page buffer, with the device and drive prefix EVFILE trimmed counted in TEMPW3.
@@ -20403,7 +20403,7 @@ PRPD:
 ;;
 ;; ? calls RTCK, UPARW; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      DTREE -- walk a path, selecting each directory in turn
 ;;
@@ -20463,7 +20463,7 @@ DTREL:
 ;; Takes:     nothing in registers
 ;; Leaves:    A, C, DE
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     EXTRACT FILE NAME FROM STRING
 ;;
@@ -20550,7 +20550,7 @@ IFNE:
 ;; Takes:     B, HL
 ;; Leaves:    A, F, B, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      UPARW / UPAR2 -- move up one level
 ;;
@@ -20718,7 +20718,7 @@ STDUF:
 ;;
 ;; ? calls TIRD, GPLA.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      The per-drive tables
 ;;
@@ -20873,7 +20873,7 @@ GPLA3:
 ;;
 ;; ? calls POINT, GRWA; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      SDTKS -- pick up the disk's own settings, and notice if it has been swapped
 ;;
@@ -21007,7 +21007,7 @@ SDTK4:
 ;;
 ;; ? calls GTBUF; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      PART RAMD -- RAM discs and MegaRAM
 ;;
@@ -21116,7 +21116,7 @@ RDW4:
 ;;
 ;; ? calls RDRSCT; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      RDSSAD -- the RAM disc form of the delimiter search POINT uses
 ;;
@@ -21225,7 +21225,7 @@ RDS3:
 ;;
 ;; ? calls RDRSCT; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     RAM DISC PREPARE SAM FROM DIR ENTRY READ
 ;;      The RAM disc counterpart of NRSAD: OR each in-use directory entry into the free-sector map as the sector is
@@ -21298,7 +21298,7 @@ NRDROL_DONE:
 ;;
 ;; ? calls CLEAR_TRANSFER_COUNT, GTBUF, READ_ADDRESS_CLEAR, SDCHK2.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Read a sector from a RAM disc -- the author's own name, from the part
 ;;     of the source ref/masterdos/docs/ram-discs.md calls RAMD.  Every disk
@@ -21344,7 +21344,7 @@ RDRSCT_1:
 ;;
 ;; ? drives OUT (HMPR),A; calls CLEAR_TRANSFER_COUNT, RDADR.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The copy itself, and it is an LDIR: RDADR works out where the sector
 ;;     lives in the RAM disc's pages, and &0200 bytes move from there to
@@ -21380,7 +21380,7 @@ RDRS2:
 ;;
 ;; ? drives OUT (HMPR),A; calls SELFP; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      RDADR -- turn a track and sector into a page and an address, and map that page
 ;;
@@ -21423,7 +21423,7 @@ RDADR:
 ;;
 ;; ? calls RTSTD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     SO IF DTKS=1, DISK=40 TRK, TRK 0=0
 ;;     TRKS 4-42 BECOME 1-39
@@ -21501,7 +21501,7 @@ SELFP:
 ;;
 ;; ? drives OUT (XMPRL),A; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     SELECT RAM DISC PAGE. ENTRY: A=PAGE. 00-1F=INTERNAL RAM, 20-FFL
 ;;      20-FFH=EXTERNAL. EXIT: A=ORIG URPORT VALUE
@@ -21547,7 +21547,7 @@ SRDP2:
 ;; Takes:     DE
 ;; Leaves:    A, F, BC, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      CPFTS -- track and sector to a page and an offset
 ;;
@@ -21618,7 +21618,7 @@ PTHRD_2:
 ;; Leaves:    A, F, H
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     NOW GET A=PG DISP, HL=OFFSET
 ;;
@@ -21645,7 +21645,7 @@ PAGEFORM:
 ;;
 ;; ? calls WSAD, CCNT, FFNS, SWAP_TRACK_AND_SECTOR.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      RDSB -- the RAM disc form of a block save
 ;;
@@ -21738,7 +21738,7 @@ RDSB3:
 ;;
 ;; ? drives OUT (HMPR),A; calls RTSTD, PTRD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      FORMRD -- create, resize or delete a RAM disc
 ;;
@@ -21867,7 +21867,7 @@ RDCLL:
 ;;
 ;; ? drives OUT (HMPR),A; calls SFMRP; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      Claim each page, preferring MegaRAM so that internal memory is left for programs. The pages are recorded in the
 ;;      list from the end backwards, so the first page of the disc ends up first in the table.
@@ -22063,7 +22063,7 @@ PTRD2:
 ;; Takes:     nothing in registers
 ;; Leaves:    F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      SRDPN / MRDPN -- the RAM disc's current path
 ;;
@@ -22085,7 +22085,7 @@ SRDPN:
 ;;
 ;; ? calls RTSTD, SELFP; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     MOVE RAM DISC PATH NAME
 ;;     ENTRY: (DRIVE) SET, NC IF FETCH FROM RD, CY IF STORE
@@ -22140,7 +22140,7 @@ MRDPN2:
 ;;
 ;; ? calls RDRS2, CHKHL, SDCHK2.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     RAM DISC LOAD BLOCK SR
 ;;      The fast path: when the destination will not straddle a page boundary, FRDRD2 copies straight from the RAM disc
@@ -22243,7 +22243,7 @@ READ_ADDRESS_CLEAR:
 ;;
 ;; ? calls RDADR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The same page-and-offset lookup as COPY_SECTOR_512, differing in one
 ;;     instruction: AND A leaves carry clear where SCF sets it, and both
@@ -22324,7 +22324,7 @@ SDCHK2:
 ;;
 ;; ? drives OUT (LMPR),A; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     AT 8002H
 ;;      The mover, as copied into every RAM disc page. It saves the stack pointer in the page, switches to a stack
@@ -22381,7 +22381,7 @@ RDCE:
 ;; Takes:     A
 ;; Leaves:    A, F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      The MegaRAM page map
 ;;
@@ -22426,7 +22426,7 @@ SFMRL:
 ;;
 ;; ? calls MRADDR.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     TEST MEGA RAM BIT (PAGE). RETURN Z IF PAGE "A" FREE, NZ IF IN
 ;;     USE OR NON-EXISTENT. TABLE SET UP AT BOOT TIME, ALL 0FFHS IF NO
@@ -22501,7 +22501,7 @@ SRMRC:
 ;; Takes:     A, BC
 ;; Leaves:    A, F, BC
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     GET MEGA RAM TABLE ADDR IN HL, MASK IN A (BIT SET HI)
 ;;     ENTRY: A=BIT
@@ -22548,7 +22548,7 @@ MRBL:
 ;;
 ;; ? calls CFMRP; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      CNTFP -- how many pages are free altogether: the MegaRAM ones counted from MRTAB, plus the internal ones read
 ;;      from the ROM's allocation table.
@@ -22597,7 +22597,7 @@ FRMRD4:
 ;; Takes:     nothing in registers
 ;; Leaves:    E, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     COUNT FREE MEGA RAM PAGES - RESULT IN DE. BC SAVED
 ;;      The first four bytes are skipped, so the first half of MegaRAM 0 is never used for a RAM disc.
@@ -22708,7 +22708,7 @@ CFPBL_DONE:
 ;;
 ;; ? calls GTFL3, POINT, DSCHD, EVFINS.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      PART HOOKS -- Extending BASIC, the new functions, and the ROM patches
 ;; --------------------------------------------------------------------
@@ -22764,7 +22764,7 @@ CFPBL_DONE:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    F, BC, DE, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Hook 172 -- evaluate a function.  The ROM's EVALUV vector points here,
 ;;     and this one is still MasterDOS's own, under its own name: MasterBASIC
@@ -22836,7 +22836,7 @@ HEVV2:
 ;; Leaves:    F, DE, HL
 ;; Ends:      JP (HL)
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Indexed jump through a table of addresses, with L as the index.
 ;;
@@ -22952,7 +22952,7 @@ FNVEC:
 ;;
 ;; ? drives IN A,(HMPR); calls GTNC, DITOB, FDFSR, FABORT.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      FNDIRS -- DIR$ , or DIR$("pattern")
 ;;
@@ -23031,7 +23031,7 @@ FNDI3:
 ;;
 ;; ? calls EVDNM, SIBKS, CNB, HOC0; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      DSTAT -- the state of a drive
 ;;
@@ -23290,7 +23290,7 @@ FPAGES:
 ;;
 ;; ? drives OUT (C),A; calls PRECMX, BUSY, SELD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     ENTRY: A=DRIVE
 ;;      Write protection is discovered by issuing a write to an impossible sector: the command fails at once, but the
@@ -23345,7 +23345,7 @@ SIBKS:
 ;;
 ;; ? reaches the ROM through CURCHL; calls ISEP, NRRDD, SIBKS, NNB; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Of the 26 instructions between this label and the next routine the source documents, 17 survive into this image,
 ;;     so that source's description of INPST has been left out rather than carried across. Compare
@@ -23525,7 +23525,7 @@ INPSL_3:
 ;;
 ;; ? calls EVNUM; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     EVAL NUMBER, COMMA, NUMBER, BRACKET. ABORT IF SYNTAX, ELSE
 ;;     RETURN 1ST NUM IN DE, 2ND IN BC
@@ -23565,7 +23565,7 @@ CNB:
 ;;
 ;; ? calls CFSO.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      FABORT -- on the syntax pass there is nothing to evaluate, so the caller's return is discarded and control goes
 ;;      back a level.
@@ -23587,7 +23587,7 @@ FABORT:
 ;;
 ;; ? calls FINDC, AHLNX, EVNAM, GTDEF.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     FILE STATUS FUNCTION
 ;;     FSTAT("NAME",1)=FILE NUMBER
@@ -23744,7 +23744,7 @@ FSTAT_5:
 ;;
 ;; ? reaches the ROM through MB_MULTIPLY_BY_24-&4000; calls CALLMB; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Hours times twenty-four through MasterBASIC's MULTIPLY_BY_24, then
 ;;     the byte at HL added in with A extending the top -- the DOS reaching
@@ -23890,7 +23890,7 @@ FSTAT_12:
 ;;
 ;; ? calls RTSTD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     SCRAD       * CALL GTNC
 ;;
@@ -24013,7 +24013,7 @@ HPTH2:
 ;;
 ;; ? reaches the ROM through STKSTR; calls CMR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Push a five-byte number onto the calculator stack through the ROM's
 ;;     STKSTR, with the paging handled by CMR.
@@ -24033,7 +24033,7 @@ STACK_FIVE_BYTE_NUMBER:
 ;; Leaves:    HL
 ;; Ends:      JP
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Write BC over the word at the stack pointer kept in &7FFC -- the
 ;;     ROM's stack as it stood when the DOS was entered -- so that the
@@ -24055,7 +24055,7 @@ RETURN_INTO_BC:
 ;;
 ;; ? drives IN A,(HMPR), IN A,(LMPR).
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Call the main ROM.
 ;;
@@ -24132,7 +24132,7 @@ L7BF2:
 ;; Leaves:    BC, DE, HL
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;      INIP3 -- boot-time initialisation
 ;; --------------------------------------------------------------------
@@ -24277,7 +24277,7 @@ CMR3:
 ;; Leaves:    F, BC, DE, HL
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Twenty-five bytes at the end of the DOS page, called once from the
 ;;     boot sector at &40CD and never again.  It copies the tail of the DOS

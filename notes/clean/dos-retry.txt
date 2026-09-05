@@ -1,7 +1,7 @@
 # What happens when a transfer goes wrong: counting attempts, jogging the
 # head, and finding out where the head actually is.
 #
-# Prose for clean/ only.
+# Prose for listings/clean/ only.
 
 DOC RETRY_OR_GIVE_UP
     Decide whether the transfer that has just finished was good, and if

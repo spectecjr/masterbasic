@@ -1,7 +1,7 @@
 ; masterbasic.asm -- a reading, not a record.
 ;
-; This is disasm/masterbasic.asm with a guess attached to every routine.  The
-; listing in disasm/ holds what can be shown; this holds what the code
+; This is listings/disasm/masterbasic.asm with a guess attached to every routine.  The
+; listing in listings/disasm/ holds what can be shown; this holds what the code
 ; looks like it is doing, which is a different thing and lives in a
 ; different folder for that reason.
 ;
@@ -951,7 +951,7 @@ V4135:
 ;;
 ;; ? drives OUT (C),A, OUT (C),B.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Send the byte in A to whichever printer LPRINT MODE selected.
 ;;
@@ -1012,7 +1012,7 @@ SEND_BYTE_TO_PRINTER_1:
 ;;
 ;; ? calls EXPECT_NEXT_LPAREN_AND_NUMBER, CALL_EXPNUM; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     SVAL$ -- token FF 2E.
 ;;
@@ -1337,7 +1337,7 @@ CALL_STKSTR_DONE:
 ;;
 ;; ? calls DECIMAL_DIGIT.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     A to three decimal characters, returned in B, C and A -- hundreds,
 ;;     tens and units.  DECIMAL_DIGIT is called with DE = 100 and then with
@@ -1375,7 +1375,7 @@ BYTE_TO_DECIMAL:
 ;; Takes:     A
 ;; Leaves:    A, F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     One digit by repeated subtraction: take DE from HL counting in A
 ;;     until it goes negative, add DE back, and return A + &30 -- or C
@@ -1503,7 +1503,7 @@ DECIMAL_DIGIT_3:
 ;; ? reaches the ROM through CUSCRNP; calls SKIP_THEN_TEST_RUNNING, NRRD; falls into whatever follows rather than
 ;; returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     SCRAD -- token FF 37.
 ;;
@@ -1541,7 +1541,7 @@ FN_SCRAD:
 ;;
 ;; ? drives OUT (HMPR),A; calls CALLDOS.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     HMPR := 0, so &8000-&BFFF is the ROM's system page, then save DE
 ;;     bytes from HL through the DOS's SVBLK.
@@ -1561,7 +1561,7 @@ SAVE_BLOCK_FROM_SYSPAGE:
 ;;
 ;; ? drives IN A,(LMPR), OUT (HMPR),A; calls CALLDOS.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     HMPR := LMPR+1, which is this half's own page number, so &8000-&BFFF
 ;;     is this half seen from itself.
@@ -1578,7 +1578,7 @@ SAVE_BLOCK_FROM_THIS_PAGE:
 ;; Takes:     nothing in registers
 ;; Leaves:    A
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     HMPR := the byte at &42CD plus one -- the boot sector patched that
 ;;     byte with the DOS page less one -- so &8000-&BFFF is the DOS page,
@@ -1609,7 +1609,7 @@ SAVE_BLOCK_FROM_THIS_PAGE_1:
 ;;
 ;; ? drives OUT (HMPR),A; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     WHAT MASTERBASIC'S PAGE ACTUALLY HOLDS AFTER A BOOT, which no dump
 ;;     showed until dumps/FullMemoryDump_After_MB_Load.bin.  MasterBASIC is
@@ -1685,7 +1685,7 @@ SAVE_BLOCK_FROM_DOS_PAGE_DONE:
 ;;
 ;; ? drives IN B,(C), OUT (C),H.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Call a routine in the other page.
 ;;
@@ -1774,7 +1774,7 @@ CALLDOS_2:
 ;; Takes:     A
 ;; Leaves:    A, BC, E
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Hook code 180.  Send one character over the serial line.
 ;;
@@ -1819,7 +1819,7 @@ HK_SERSEND_LOOP:
 ;; Takes:     nothing in registers
 ;; Leaves:    A, BC
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Hook code 181.  Read one character from the serial line.
 ;;
@@ -1868,7 +1868,7 @@ HK_SERRECV_LOOP:
 ;;
 ;; ? drives IN A,(C).
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Read the printer's busy line, from whichever port the current LPRINT
 ;;     mode uses, and return it in carry.
@@ -2046,7 +2046,7 @@ DRTAB:
 ;;
 ;; ? calls CALL_GETINT; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Evaluate an integer and say whether it fits in a byte.
 ;;
@@ -2168,7 +2168,7 @@ REP_ARGUMENT:
 ;;
 ;; ? reaches the ROM through DOS_REPORTA-&4000; calls CALLDOS; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Report the BASIC error whose number is in A.
 ;;
@@ -2196,7 +2196,7 @@ REPORT:
 ;; ? reaches the ROM through STRLOCN; drives IN A,(HMPR); calls NRRDD; falls into whatever follows rather than
 ;; returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The variable the ROM's LOOKVARS last found, paged in and pointed
 ;;     eleven bytes into.  STRLOCN is the ROM's own "(2) USED BY LOOKVARS",
@@ -2228,7 +2228,7 @@ POINT_INTO_VARIABLE:
 ;;
 ;; ? drives IN A,(HMPR); calls TEST_RUNNING, CALL_LOOKVARS; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Look a variable up and complain if it is not there.
 ;;
@@ -2368,7 +2368,7 @@ FIND_VARIABLE_DONE:
 ;; Leaves:    A, F, H
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Turn a long address into a page number and a windowed address.
 ;;
@@ -2403,7 +2403,7 @@ LONGADDR_TO_PAGED:
 ;; Takes:     A, HL
 ;; Leaves:    A, F, BC, HL, IY
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Multiply HL by DE into the 24-bit result A:HL, carry set if it will
 ;;     not fit.
@@ -2466,7 +2466,7 @@ MULTIPLY_HL_BY_DE_DONE:
 ;;
 ;; ? calls EXPECT_NEXT_LPAREN; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Step to the next character, require it to be "(", then evaluate a
 ;;     numeric expression, leaving its value on the calculator stack.
@@ -2484,7 +2484,7 @@ EXPECT_NEXT_LPAREN_AND_NUMBER:
 ;;
 ;; ? calls CALL_EXPNUM; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Evaluate a numeric expression through the ROM.
 ;; --------------------------------------------------------------------
@@ -2500,7 +2500,7 @@ EXPECT_NUMBER:
 ;; Leaves:    C
 ;; Ends:      JR
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Require the current character to be ",".
 ;; --------------------------------------------------------------------
@@ -2517,7 +2517,7 @@ EXPECT_COMMA:
 ;; Leaves:    C
 ;; Ends:      JR
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Require the current character to be ")".
 ;; --------------------------------------------------------------------
@@ -2533,7 +2533,7 @@ EXPECT_RPAREN:
 ;; Takes:     nothing in registers
 ;; Leaves:    C
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Step to the next character and require it to be "(".
 ;;
@@ -2557,7 +2557,7 @@ EXPECT_NEXT_LPAREN:
 ;;
 ;; ? calls CALL_NEXTCHAR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Step to the next character and require it to be the one in C.
 ;; --------------------------------------------------------------------
@@ -2572,7 +2572,7 @@ NEXT_CHAR_MUST_BE_C:
 ;; Takes:     A, C
 ;; Leaves:    F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Require the current character to be the one in C, or report
 ;;     "Not understood".  The character is not stepped past.
@@ -2641,7 +2641,7 @@ CALL_GETSTR:
 ;;
 ;; ? calls NUMBER_THEN_END; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     A numeric argument that must end the statement, wanted as an integer:
 ;;     NUMBER_THEN_END, then fall into CALL_GETINT.  Two instructions, five
@@ -2692,7 +2692,7 @@ CALL_EXPSTR:
 ;;
 ;; ? calls CALL_NEXTCHAR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Step past the keyword, then evaluate a numeric expression.
 ;; --------------------------------------------------------------------
@@ -2725,7 +2725,7 @@ CALL_EXPNUM:
 ;;
 ;; ? calls CALL_EXPNUM, TEST_RUNNING; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Evaluate a number and split it into 32 bits, for a caller in the DOS.
 ;;     CALL_EXPNUM, then TEST_RUNNING so that syntax time returns without
@@ -2747,7 +2747,7 @@ EXPR_TO_32BIT:
 ;;
 ;; ? drives IN A,(HMPR), IN A,(LMPR); calls CMR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     A number off the calculator stack as a 32-bit integer, DE:HL.
 ;;
@@ -2814,7 +2814,7 @@ GET_LONG_INTEGER:
 ;;
 ;; ? tests for CH_CR, CH_COLON; calls CALL_GETCHAR.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Z if the current character ends the statement.
 ;;
@@ -2839,7 +2839,7 @@ AT_END_OF_STATEMENT:
 ;;
 ;; ? calls CHAR_MUST_BE_C; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The character in C, then a number, then the end of the statement:
 ;;     CHAR_MUST_BE_C, then fall into NUMBER_THEN_END.  The pair of them are
@@ -2860,7 +2860,7 @@ CHAR_THEN_NUMBER_THEN_END:
 ;;
 ;; ? calls CALL_EXPNUM.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Evaluate a numeric expression and require the statement to end.
 ;; --------------------------------------------------------------------
@@ -2878,7 +2878,7 @@ NUMBER_THEN_END:
 ;;
 ;; ? calls CALL_NEXTCHAR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Step past the keyword and require the statement to end.
 ;; --------------------------------------------------------------------
@@ -2896,7 +2896,7 @@ SKIP_THEN_END:
 ;; ? reaches the ROM through DOS_ENDS-&4000; calls CALLDOS, AT_END_OF_STATEMENT, TEST_RUNNING; falls into whatever
 ;; follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Require the end of the statement, and finish the syntax pass here.
 ;;
@@ -2928,7 +2928,7 @@ EXPECT_END_OF_STATEMENT:
 ;;
 ;; ? calls CALL_NEXTCHAR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Step past the keyword, then report which pass this is.
 ;; --------------------------------------------------------------------
@@ -2945,7 +2945,7 @@ SKIP_THEN_TEST_RUNNING:
 ;;
 ;; ? reaches the ROM through FLAGS; calls NRRD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Which of the ROM's two passes is this?
 ;;
@@ -2978,7 +2978,7 @@ TEST_RUNNING:
 ;;
 ;; ? drives IN A,(HMPR), IN A,(LMPR).
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Call the main ROM.
 ;;
@@ -3072,7 +3072,7 @@ CMR_DONE:
 ;; Leaves:    F
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Carry set if A is a letter, clear if it is not.
 ;;
@@ -3103,7 +3103,7 @@ IS_LETTER:
 ;;
 ;; ? calls IS_LETTER; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Carry set if A is a letter or a digit.  IS_LETTER first, and a RET C
 ;;     if it was one; otherwise fall into IS_DIGIT and let its answer stand.
@@ -3122,7 +3122,7 @@ IS_LETTER_OR_DIGIT:
 ;; Leaves:    F
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Carry set if A is an ASCII digit, clear if it is not.
 ;;
@@ -3148,7 +3148,7 @@ IS_DIGIT:
 ;;
 ;; ? calls IS_LETTER_OR_DIGIT.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Carry set if the character in A may appear in a name.
 ;;
@@ -3183,7 +3183,7 @@ IS_NAME_CHAR:
 ;;
 ;; ? calls RDBC, GTHL.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Read or write one of the ROM's system variables.
 ;;
@@ -3227,7 +3227,7 @@ NRRDD:
 ;;
 ;; ? calls RDA, GTHL.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Read one byte of a ROM system variable.
 ;;
@@ -3262,7 +3262,7 @@ NRRD:
 ;; Takes:     HL
 ;; Leaves:    BC
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Write HL to a ROM system variable.
 ;;
@@ -3293,7 +3293,7 @@ NRWRHL:
 ;;
 ;; ? calls WRTBC, GTHL.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Write two bytes to a ROM system variable.
 ;;
@@ -3334,7 +3334,7 @@ NRWRD:
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A; calls GTHL; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Write one byte to a ROM system variable.
 ;;
@@ -3405,7 +3405,7 @@ PPXR:
 ;;
 ;; ? calls RDA; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Read DCT, OR &05, and fall into WRA to put it back -- so bits 0 and 2
 ;;     go up.  The exact complement of what HK_PROGPREP does with AND &FA
@@ -3436,7 +3436,7 @@ SET_DCT_COMPILE_BITS:
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Write A to the byte at HL in the ROM's system page.
 ;;
@@ -3473,7 +3473,7 @@ WRA:
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Write BC to the word at HL in the ROM's system page.
 ;;
@@ -3507,7 +3507,7 @@ WRTBC:
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Read the word at HL from the ROM's system page.
 ;;
@@ -3540,7 +3540,7 @@ RDBC:
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Read the byte at HL from the ROM's system page.
 ;;
@@ -3575,7 +3575,7 @@ RDA:
 ;;
 ;; ? drives OUT (HMPR),A.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Put HMPR back and return.
 ;;
@@ -3606,7 +3606,7 @@ BCRWC:
 ;; Leaves:    DE, HL
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Pick up the inline address and step past it.
 ;;
@@ -3635,7 +3635,7 @@ GTHL:
 ;;
 ;; ? calls CMR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Call the ROM's variable lookup.  Three identical six-byte thunks sit
 ;;     here in a row -- CALL CMR, a word, RET -- and each word is zero in
@@ -3705,7 +3705,7 @@ V45F6:
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     A:HL times twenty-four, with the original kept in BC: double, add BC
 ;;     back for three, then three more doublings.  The companion to
@@ -3740,7 +3740,7 @@ MULTIPLY_BY_24:
 ;;
 ;; ? calls CALL_NEXTCHAR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     SORT -- the SORT command, token 251.
 ;;
@@ -3798,7 +3798,7 @@ CMD_SORT_1:
 ;; ? drives OUT (HMPR),A; calls EXPECT_END_OF_STATEMENT, FIND_STRING_VARIABLE; falls into whatever follows rather than
 ;; returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Patch the comparison, find the array, then sort it.
 ;;
@@ -3837,7 +3837,7 @@ CMD_SORT_2:
 ;;
 ;; ? drives IN A,(HMPR); calls ESCCHK; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     One pass of a selection sort: find the smallest element still
 ;;     unsorted, exchange it with the one this pass stands on.
@@ -4033,7 +4033,7 @@ CMD_SORT_LOOP2:
 ;;
 ;; ? calls SAVE_FAR_POINTER; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The ABS ascending scan: walk what is left of the array and leave
 ;;     the smallest element in V409A/V409C.
@@ -4159,7 +4159,7 @@ CMD_SORT_5:
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     HL ran past &FFFF, so the window has to move.
 ;;
@@ -4204,7 +4204,7 @@ PAGE_ON_TWO:
 ;; Takes:     BC
 ;; Leaves:    registers unchanged
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The case-folding ascending scan -- plain SORT, the default.
 ;;
@@ -4347,7 +4347,7 @@ PAGE_ON_TWO_3:
 ;;
 ;; ? calls SAVE_FAR_POINTER; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The descending scan -- SORT ABS INVERSE.
 ;;
@@ -4465,7 +4465,7 @@ PAGE_ON_TWO_5:
 ;;
 ;; ? drives IN A,(HMPR); falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Remember where the best element is, in a form that survives the
 ;;     window moving.
@@ -4520,7 +4520,7 @@ SAVE_FAR_POINTER:
 ;;
 ;; ? drives IN D,(C).
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Compare the rest of two keys that are in different pages.
 ;;
@@ -4664,7 +4664,7 @@ COMPARE_FAR_STRINGS_LOOP3:
 ;; ? drives IN A,(HMPR), OUT (HMPR),A; calls FIND_VARIABLE, STACK_STRIDE_AND_SLICE_IT; falls into whatever follows
 ;; rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     FIND_VARIABLE, with carry clear taken as "nothing to do" and NZ as
 ;;     "Not understood", then the variable's page in and an empty string or
@@ -4772,7 +4772,7 @@ FIND_STRING_VARIABLE_1:
 ;; ? tests for CH_CR, CH_COLON, CH_LPAREN; calls CALL_STKSTR, CALL_NEXTCHAR, CALL_GETCHAR, CALL_SLICING; falls into
 ;; whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Turn a subscript like `(3 TO 9)` into an offset and a count, by
 ;;     handing it to the ROM's slicer with a string that does not exist.
@@ -4867,7 +4867,7 @@ STACK_STRIDE_AND_SLICE_IT_DONE:
 ;;
 ;; ? calls CALL_GETSTR.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Evaluate a string and hand back a paged address.  GETSTR leaves the
 ;;     page in A and an offset in DE, and if the page is not zero SET 6,D
@@ -4892,7 +4892,7 @@ GET_STRING_PAGED:
 ;;
 ;; ? calls GET_STRING_PAGED.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     GET_STRING_PAGED, then refuse a length of zero with "Subscript
 ;;     wrong".  The INC B on the way out is for the page-crossing loops that
@@ -5131,7 +5131,7 @@ HK_HORDER_LOOP7:
 ;;
 ;; ? calls FIND_VARIABLE; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     FIND_VARIABLE, and then multiply what it found by five -- ADD HL,HL
 ;;     twice and ADD HL,DE, the usual shape -- which is the size of a
@@ -5153,7 +5153,7 @@ FIND_VARIABLE_TIMES_FIVE:
 ;; Preserves: A, F, DE (saved and restored)
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Scale an element size, and swap the two pointer pairs while doing it.
 ;;
@@ -5213,7 +5213,7 @@ TIMES_FIVE:
 ;;
 ;; ? calls CALL_NEXTCHAR, WAIT_FOR_CLOCK; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     DATE, which sets the calendar rather than reading it.
 ;;
@@ -5272,7 +5272,7 @@ CMD_DATE_1:
 ;;
 ;; ? calls CALL_NEXTCHAR, WAIT_FOR_CLOCK; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     TIME, which shares all of DATE's code and adds the two fast-mode forms.
 ;;
@@ -5329,7 +5329,7 @@ CMD_TIME:
 ;; ? drives OUT (C),E; calls CALL_GETINT, SKIP_THEN_END, TWO_DIGITS_FROM_DE, TICS_SECONDS_IN_MONTH; falls into whatever
 ;; follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     TIME + and TIME -, and the correction that makes the pair honest.
 ;;
@@ -5485,7 +5485,7 @@ CMD_TIME_3:
 ;; Takes:     nothing in registers
 ;; Leaves:    A, B, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     TIME +: fill the saved copy with the value the clock is about to take.
 ;;
@@ -5535,7 +5535,7 @@ CMD_TIME_LOOP2:
 ;;
 ;; ? calls PAGE_IN_OTHER_HALF; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Exchange this page's mirror with MasterDOS's two buffers.
 ;;
@@ -5594,7 +5594,7 @@ CMD_TIME_LOOP3:
 ;; ? reaches the ROM through DOS_EVAL_STRING_IF_RUNNING-&4000; calls CALLDOS, AT_END_OF_STATEMENT; falls into whatever
 ;; follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The argument, for DATE and TIME alike: nothing at all, or a string.
 ;;
@@ -5729,7 +5729,7 @@ CMD_TIME_7:
 ;; ? reaches the ROM through STREAM; calls EXPECT_END_OF_STATEMENT, CMR; falls into whatever follows rather than
 ;; returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     DATE or TIME with no argument, which prints rather than sets.
 ;;
@@ -5778,7 +5778,7 @@ CMD_TIME_LOOP6:
 ;; Takes:     nothing in registers
 ;; Leaves:    IY
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Get the chip to hold still, then move six fields either way.
 ;;
@@ -5946,7 +5946,7 @@ WAIT_FOR_CLOCK_1:
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Put the other half of the image at &8000 and return the old HMPR.
 ;;
@@ -5990,7 +5990,7 @@ WAIT_FOR_CLOCK_2:
 ;;
 ;; ? drives IN A,(C); falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     One digit of the clock.  IN A,(C), keep the low nibble, add &30 to
 ;;     make it ASCII -- and if the result reaches ':' the nibble was ten or
@@ -6044,7 +6044,7 @@ CMD_TIME_10:
 ;;
 ;; ? tests for CH_ZERO; drives OUT (C),A; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The other direction from PORT_BCD_DIGIT: take the ASCII digit at HL,
 ;;     subtract &30, and OUT it to the port in C.  Setting the clock rather
@@ -6083,7 +6083,7 @@ PORT_BCD_DIGIT_1:
 ;; Takes:     nothing in registers
 ;; Leaves:    C
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Write A as two decimal digits *below* DE, and leave DE pointing at
 ;;     the first of them.  C counts the tens from &2F upward while A has ten
@@ -6129,7 +6129,7 @@ TWO_DIGITS_BEFORE_DE_LOOP:
 ;;
 ;; ? calls PAGE_IN_OTHER_HALF; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Three two-digit fields out of the DOS's buffer.  The other half is
 ;;     paged in, the pointer at V4096 is windowed with SET 7,D and RES 6,D,
@@ -6286,7 +6286,7 @@ READ_CLOCK_FIELDS_DONE2:
 ;; Takes:     DE
 ;; Leaves:    A
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Read two ASCII digits from (DE) and return 0 to 99 in A.
 ;;
@@ -6341,7 +6341,7 @@ TWO_DIGITS_FROM_DE_1:
 ;;
 ;; ? calls SKIP_THEN_TEST_RUNNING; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     TICS -- token FF 2C.
 ;;
@@ -6370,7 +6370,7 @@ FN_TICS:
 ;;
 ;; ? calls PAGE_IN_OTHER_HALF; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Seconds elapsed in the month, as a number on the calculator stack.
 ;;     The body of TICS; also called by TIME - at &4896 to find out how long
@@ -6539,7 +6539,7 @@ TICS_SECONDS_IN_MONTH_DONE:
 ;; Takes:     A, HL
 ;; Leaves:    A, F, BC, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     A:HL times sixty, with the multiplicand kept in BC.
 ;;
@@ -6620,7 +6620,7 @@ MULTIPLY_BY_60_2:
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A; calls EXPECT_NEXT_LPAREN_AND_NUMBER, EXPECT_NUMBER, NRRD, COPY_STRING_TO_BUFFER.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     LOCN -- token FF 29.
 ;;
@@ -6704,7 +6704,7 @@ FN_LOCN:
 ;; ? drives OUT (HMPR),A; calls FIND_VARIABLE, EXPECT_NEXT_LPAREN, TEST_RUNNING; falls into whatever follows rather than
 ;; returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     INARRAY -- token FF 38.
 ;;
@@ -6755,7 +6755,7 @@ FN_INARRAY:
 ;; Takes:     nothing in registers
 ;; Leaves:    registers unchanged
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Take an optional second value after the first: the character is
 ;;     fetched and compared with a comma and with TO, and either of them
@@ -7060,7 +7060,7 @@ PARSE_OPTIONAL_RANGE_DONE:
 ;;
 ;; ? drives OUT (HMPR),A; calls CALL_GETSTR.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Evaluate a string and copy it into the buffer at &7B00, the bytes the
 ;;     installer leaves behind.  Anything longer than 255 goes to the error
@@ -7140,7 +7140,7 @@ COPY_STRING_TO_BUFFER_LOOP:
 ;;
 ;; ? reaches the ROM through STKSTR; calls CMR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Stack a string descriptor for a block in page 0.
 ;;
@@ -7170,7 +7170,7 @@ STACK_PAGE0_STRING:
 ;;
 ;; ? calls GET_LONG_INTEGER; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     An address argument that may run past 64K.  GET_LONG_INTEGER gives 32
 ;;     bits, anything in D is "Integer out of range", and what is left is
@@ -7215,7 +7215,7 @@ GET_PAGED_ADDRESS_LOOP:
 ;; Takes:     A, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Find a pattern in a run of memory.  This is the engine under both
 ;;     LOCN and INARRAY: "This function searches a specified part of memory
@@ -7294,7 +7294,7 @@ SEARCH_MEMORY:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The exact search.  CPIR does the hunting for the pattern's first
 ;;     byte and the fall-through at &4CB3 checks the rest, so the cost of a
@@ -7397,7 +7397,7 @@ SEARCH_MEMORY_1:
 ;; Leaves:    A, F, BC, HL
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The answer, shared by both searches.  Three pops for two saved
 ;;     registers and the AF that was carrying the pattern length; the third
@@ -7453,7 +7453,7 @@ SEARCH_MEMORY_DONE:
 ;; Takes:     BC
 ;; Leaves:    registers unchanged
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The case-insensitive search.  It cannot use CPIR, because it is
 ;;     looking for either of two bytes, so the scan is written out by hand
@@ -7619,7 +7619,7 @@ SEARCH_MEMORY_6:
 ;; Leaves:    A, F, BC, HL
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Scan for either of two bytes: CPIR for the case-insensitive search,
 ;;     where D and E hold the capital and the small letter form of the
@@ -7659,7 +7659,7 @@ COMPARE_TO_TERMINATOR:
 ;;
 ;; ? calls NEXT_CHAR_MUST_BE_C, CHAR_MUST_BE_C, CALL_EXPSTR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The tail of LOCN's and INARRAY's argument lists: the string to look
 ;;     for, then the optional ABS, then the closing bracket.
@@ -7722,7 +7722,7 @@ PARSE_STRING_AND_SUBSCRIPT_DONE:
 ;;
 ;; ? calls EXPECT_NEXT_LPAREN; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     EQU -- token FF 2B.
 ;;
@@ -7785,7 +7785,7 @@ FN_EQU_1:
 ;;
 ;; ? drives IN A,(HMPR); calls CALL_GETSTR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     EQU's comparison: two strings, each in its own page, compared
 ;;     without regard to case.  "Compares two strings ignoring case, so
@@ -7870,7 +7870,7 @@ TWO_PAGED_STRINGS_1:
 ;;
 ;; ? drives OUT (HMPR),A.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     A byte-for-byte comparison of two strings in two different pages,
 ;;     ignoring case.  Nothing is written anywhere -- see the notes, the
@@ -7991,7 +7991,7 @@ COPY_BETWEEN_PAGES_2:
 ;; ? reaches the ROM through WKROOM; drives IN A,(HMPR); calls CALL_GETSTR, CALL_GETINT, CMR, ARGS_STRING_AND_NUMBER;
 ;; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     SHIFT$ -- token FF 2D.
 ;;
@@ -8123,7 +8123,7 @@ FN_SHIFT_S_LOOP:
 ;;
 ;; ? calls IS_LETTER; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Force the case of one letter at (DE), leaving anything else alone.
 ;;
@@ -8188,7 +8188,7 @@ FN_SHIFT_S_1:
 ;;
 ;; ? drives IN A,(LMPR); calls CALLDOS, CALL_GETINT; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Hook code 179.  Read the argument of a PUT.
 ;;
@@ -8224,7 +8224,7 @@ HK_PUTARG:
 ;;
 ;; ? calls EXPECT_COMMA, EXPECT_NEXT_LPAREN, CALL_EXPSTR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The argument list (string, number): left bracket, a string, a comma,
 ;;     then fall into NUMBER_THEN_RPAREN.
@@ -8246,7 +8246,7 @@ ARGS_STRING_AND_NUMBER:
 ;;
 ;; ? calls EXPECT_RPAREN, CALL_EXPNUM.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     A number and the closing bracket, with the number's page kept across
 ;;     the bracket check on the stack.  Entered on its own by FN_RESERVED,
@@ -8270,7 +8270,7 @@ NUMBER_THEN_RPAREN:
 ;; ? drives IN A,(HMPR), IN A,(LMPR); calls EXPECT_NEXT_LPAREN, CMR, NUMBER_THEN_RPAREN; falls into whatever follows
 ;; rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     RESERVED(n): "reserves space in the system heap, and returns its
 ;;     address", and a negative n gives space back.
@@ -8356,7 +8356,7 @@ FN_RESERVED:
 ;;
 ;; ? reaches the ROM through COMAD; calls NRRDD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Hook 173 -- dispatch one of MasterBASIC's commands.  The ROM's CMDV
 ;;     vector points here.
@@ -8465,7 +8465,7 @@ FN_SVAL_S_4:
 ;; Leaves:    registers unchanged
 ;; Ends:      JP
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The thirty-seven bytes that go to &4D78, immediately after the
 ;;     eighty-eight copied from the table.  Its first two instructions are
@@ -8544,7 +8544,7 @@ CMDBUF_EPILOGUE_1:
 ;; Leaves:    A, F, BC, D
 ;; Ends:      JP
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The seventy-seven bytes HCMDV copies to &4CD3 in the ROM's system
 ;;     page, forty-five bytes below CDBUFF.  It is written for that address,
@@ -8658,7 +8658,7 @@ CMDBUF_PROLOGUE_2:
 ;; ? reaches the ROM through SCPTR; calls BYTE_ARGUMENT, SKIP_THEN_NUMBER, EXPECT_END_OF_STATEMENT, NRRDD; falls into
 ;; whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     MODE, token &AA.  Reads the number, expects the end of the statement,
 ;;     and rejects anything outside 1 to 4 with error 34 -- which the ROM's
@@ -8731,7 +8731,7 @@ CMD_MODE:
 ;;
 ;; ? drives IN A,(LMPR), IN B,(C); calls CALLDOS; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Hook 171 -- match a keyword while tokenising.  The ROM's MTOKV vector
 ;;     points here, so the ROM calls it for any word its own token tables did
@@ -8830,7 +8830,7 @@ HGTTK_DONE2:
 ;; Takes:     nothing in registers
 ;; Leaves:    BC, IY
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The fourteen bytes HGTTK copies into the ROM's workspace and runs there:
 ;;
@@ -8872,7 +8872,7 @@ GTDT_1:
 ;; Takes:     A
 ;; Leaves:    A, F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Hook 169 -- print one of MasterBASIC's tokens.  The ROM's PRTOKV vector
 ;;     points here, so LIST and the error printer come through it.
@@ -8918,7 +8918,7 @@ HPRTOK:
 ;; Leaves:    A
 ;; Ends:      JP
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     LD A,&20 and a JP into CALL_PRINT_A.  Two bytes and a jump, four
 ;;     times over, against three bytes and a call each time.
@@ -8935,7 +8935,7 @@ PRINT_SPACE:
 ;; Takes:     B, HL
 ;; Leaves:    A, F, B, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Step HL past a run of characters, stopping after the one with bit 7
 ;;     set.  That is how every word list in this image is terminated.
@@ -8958,7 +8958,7 @@ SKIP_TO_END_OF_WORD:
 ;;
 ;; ? calls CALL_PRINT_A.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Print a word from one of the keyword lists: the characters with bit 7
 ;;     masked off, stopping after the one that has it set.  The companion to
@@ -9287,7 +9287,7 @@ MBKEYS:
 ;; ? reaches the ROM through DOS_EVNAM-&4000; calls CALLDOS, NEXT_CHAR_MUST_BE_C; falls into whatever follows rather
 ;; than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     MERGE -- taken over from the ROM at token &96, for MERGE *.
 ;;
@@ -9342,7 +9342,7 @@ CMD_MERGE_1:
 ;; ? reaches the ROM through DOS_ROOM_LEFT_IN_SECTOR-&4000; drives IN A,(HMPR); calls CALLDOS, CALL_JMKRBIG,
 ;; FIND_LINE_FROM_START; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Make room in the BASIC program at a given line, and measure how much
 ;;     the program moved.
@@ -9605,7 +9605,7 @@ V5272:
 ;;
 ;; ? reaches the ROM through PROG; calls NRRDD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Page in the BASIC program and point HL at its first line: PROG and
 ;;     PROGP through NRRDD and NRRD, the page straight out to HMPR, then
@@ -9658,7 +9658,7 @@ START_PROGRAM_WALK_LOOP:
 ;;
 ;; ? reaches the ROM through NVARS; calls NRRDD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Hook code 184.  Check the room above the variables area.
 ;;
@@ -9805,7 +9805,7 @@ HK_VARSPACE_4:
 ;; ? reaches the ROM through DOS_POINTC-&4000; calls CALLDOS, CALL_NEXTCHAR; falls into whatever follows rather than
 ;; returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Hook code 177.  Read the argument after one of MasterBASIC's keywords.
 ;;
@@ -9950,7 +9950,7 @@ L534D:
 ;;
 ;; ? calls FILL_WITH_C; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Lay out one whole track as the controller's write-track command wants
 ;;     it -- gaps, sync fields, address marks and all -- ready for DFMT to
@@ -10088,7 +10088,7 @@ BUILD_TRACK_IMAGE_1:
 ;; Leaves:    B, HL
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Write C into B bytes from HL upwards, leaving HL past them.
 ;;
@@ -10120,7 +10120,7 @@ FILL_WITH_C:
 ;;
 ;; ? calls FILL_WITH_C.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Twelve zero bytes, three &F5, then the byte in A, leaving HL past
 ;;     them.  That is one MFM sync field and one address mark: the &F5s are
@@ -10157,7 +10157,7 @@ WRITE_SYNC_AND_MARK:
 ;; Takes:     A
 ;; Leaves:    A, F, BC, E
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Read the one keyboard row that carries CNTRL and the four cursor
 ;;     keys, and report it to the caller in two places at once.
@@ -10233,7 +10233,7 @@ READ_KEY_LINE_LOOP:
 ;;
 ;; ? reaches the ROM through COMPFLG; calls NRRD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Hook code 175, and the label is right only for its first
 ;;     twenty-seven bytes.  This is what runs every time the ROM's line
@@ -10587,7 +10587,7 @@ HK_MERGECOMPFLG_5:
 ;;
 ;; ? reaches the ROM through ELINE; calls NRRDD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     File the line just finished in the recall buffer.  Reached when
 ;;     CNTRL was not held, which is the ordinary end of an edit.
@@ -10686,7 +10686,7 @@ HK_MERGECOMPFLG_LOOP7:
 ;;
 ;; ? tests for T_DEVICE, T_DISPLAY, T_OFF; calls CALL_NEXTCHAR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     ALTER -- the ALTER command, token 250.  Three unrelated jobs.
 ;;
@@ -10877,7 +10877,7 @@ CMD_ALTER_3:
 ;;
 ;; ? tests for T_MODE; calls CALL_NEXTCHAR, INT_ARG_THEN_END, INIT_SERIAL_FROM_TABLE, COPY_BUFFER_POINTER.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     LPRINT -- taken over from the ROM at token &BC.
 ;;
@@ -10921,7 +10921,7 @@ CMD_LPRINT:
 ;;
 ;; ? calls SERINIT; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     SERINIT with the caller's value kept across it, then the settings
 ;;     table at INIT_SERIAL_FROM_TABLE_2.
@@ -11084,7 +11084,7 @@ INIT_SERIAL_FROM_TABLE_6:
 ;; Takes:     nothing in registers
 ;; Leaves:    A, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Copy the page and address at V4085 with interrupts off, so that the
 ;;     pair cannot be caught half updated by the interrupt that consumes
@@ -11119,7 +11119,7 @@ INIT_SERIAL_FROM_TABLE_DONE:
 ;;
 ;; ? reaches the ROM through CHANS+&4000; calls NRRDD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Write BC into the word &19 bytes into the ROM's channel table, which
 ;;     is how MasterBASIC puts itself in a channel's place.
@@ -11145,7 +11145,7 @@ INSTALL_CHANNEL_HANDLER:
 ;;
 ;; ? reaches the ROM through CHANS+&4000; calls NRRDD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Read that same word back and compare it with &4AE9 -- an address
 ;;     inside the second installed stub, in the ROM's system page, not this
@@ -11177,7 +11177,7 @@ IS_CHANNEL_OURS:
 ;;
 ;; ? calls CALL_NEXTCHAR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     PRINT -- taken over from the ROM at token &BB.
 ;;
@@ -11245,7 +11245,7 @@ CMD_PRINT_1:
 ;;
 ;; ? calls CALL_NEXTCHAR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     REF -- taken over from the ROM at token &CE.
 ;;
@@ -11356,7 +11356,7 @@ CMD_REF_2:
 ;;
 ;; ? calls SCAN_TEXT_FOR_D_OR_E; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The same scan, carried across a 16K boundary.
 ;;
@@ -11554,7 +11554,7 @@ V56F6:
 ;;
 ;; ? calls WRITE_A_DESCENDING; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     WHY BACKWARDS IS THE QUESTION, and the answer is that what is being
 ;;     written is a stack.
@@ -11605,7 +11605,7 @@ WRITE_BC_DESCENDING:
 ;;
 ;; ? calls WRA.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     WRA, then DEC HL.
 ;; --------------------------------------------------------------------
@@ -11624,7 +11624,7 @@ WRITE_A_DESCENDING:
 ;;
 ;; ? calls ALTER_RESIZE_GAP; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     ALTER's third of the search: the reference has been found, so replace
 ;;     it with the second one.
@@ -11716,7 +11716,7 @@ SCAN_TEXT_PAGED_5:
 ;; ? reaches the ROM through DOS_EVNUMX-&4000; tests for CH_COMMA; calls CALLDOS, CALL_GETCHAR; falls into whatever
 ;; follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The ",first[,last]" that REF, PRINT REF and ALTER all accept.
 ;;     SEARCH_FIRST_LINE starts at 1 and SEARCH_LAST_LINE at &FEFF, which
@@ -11768,7 +11768,7 @@ PARSE_LINE_RANGE:
 ;; Takes:     D
 ;; Leaves:    A, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Keep D as the kind flag in V4094, point HL at the buffer at &7B00,
 ;;     and fall into the entry below.
@@ -11794,7 +11794,7 @@ PARSE_REFERENCE_INTO_BUFFER:
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A; calls PARSE_REFERENCE.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     PARSE_REFERENCE with HMPR saved and put back around it, which is what
 ;;     lets the parser page a string in without the caller caring.
@@ -11819,7 +11819,7 @@ PARSE_REFERENCE_SAVING_PAGE:
 ;;
 ;; ? tests for CH_QUOTE, CH_LPAREN; calls CALL_GETCHAR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Read what is being searched for.  The pointer to the buffer goes into
 ;;     REFERENCE_PTR and the character that starts it into REFERENCE_KIND,
@@ -11876,7 +11876,7 @@ PARSE_REFERENCE_1:
 ;;
 ;; ? calls CALL_GETSTR.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Evaluate a string and page it in through the ROM's TSURPG, keeping
 ;;     its address on the stack for the code that joins at &57DE.
@@ -11984,7 +11984,7 @@ GET_STRING_AND_PAGE_IT_1:
 ;; Takes:     C
 ;; Leaves:    A, F, BC, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The buffer, which is the whole interface between the parsing here and
 ;;     the matching in MATCH_REFERENCE:
@@ -12051,7 +12051,7 @@ GET_STRING_AND_PAGE_IT_DONE:
 ;;
 ;; ? reaches the ROM through DKP2; calls NRWRD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     REF (x) where x is a number: build the printed form and the invisible
 ;;     form, because the manual says both are searched for --
@@ -12155,7 +12155,7 @@ GET_STRING_AND_PAGE_IT_LOOP2:
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, B, DE
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Compare the reference against the bytes at HL, a letter at a time,
 ;;     and it is the manual's promise about case that gives this its shape:
@@ -12331,7 +12331,7 @@ MATCH_REFERENCE_DONE:
 ;; Takes:     HL
 ;; Leaves:    A, F, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Walk forward through BASIC text looking for either of two
 ;;     characters, given in D and E.
@@ -12424,7 +12424,7 @@ SCAN_TEXT_FOR_D_OR_E_1:
 ;;
 ;; ? calls NRRDD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Read the ROM variable at &5A67 into DE and fall into
 ;;     EXCHANGE_CHANNEL_WORD, so that value is what goes into the channel
@@ -12449,7 +12449,7 @@ CHANNEL_WORD_FROM_5A67:
 ;;
 ;; ? reaches the ROM through CHANS; calls NRRDD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Swap a word with the one ten bytes into the ROM's channel table: read
 ;;     it with the ROM's NRREAD, write the caller's in with WRA, and hand
@@ -12494,7 +12494,7 @@ EXCHANGE_CHANNEL_WORD:
 ;;
 ;; ? calls SET_DCT_COMPILE_BITS, OPEN_ROOM_AT_DE.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     ALTER's edit: make the gap in the program text the size of the
 ;;     replacement and correct the line's length field to match.  The
@@ -12600,7 +12600,7 @@ ALTER_RESIZE_GAP_2:
 ;; Takes:     DE, HL
 ;; Leaves:    DE, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Open BC bytes at DE, through the ROM's MKRBIG -- "open A*16K + BC
 ;;     bytes at HL" -- with A zeroed, so no whole pages.  EX DE,HL and fall
@@ -12618,7 +12618,7 @@ OPEN_ROOM_AT_DE:
 ;; Takes:     A
 ;; Leaves:    A, F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The same, for a caller whose address is already in HL.
 ;; --------------------------------------------------------------------
@@ -12650,7 +12650,7 @@ CALL_JMKRBIG:
 ;; Takes:     nothing in registers
 ;; Leaves:    BC
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Load BC from SEARCH_FIRST_LINE and fall into the search below, which
 ;;     finds the first line numbered BC or higher.
@@ -12670,7 +12670,7 @@ FIND_FIRST_LINE_IN_RANGE:
 ;;
 ;; ? reaches the ROM through PROG; calls NRRDD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Find the first BASIC line numbered BC or higher, from the top of the
 ;;     program.
@@ -12705,7 +12705,7 @@ FIND_LINE_FROM_START:
 ;; Leaves:    A, F, DE, HL
 ;; Ends:      JR, RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The same search, but starting at the line HL points at in page A.
 ;;
@@ -12728,7 +12728,7 @@ FIND_LINE_FROM_HL:
 ;; Takes:     HL
 ;; Leaves:    F, DE, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Step to the line after the one at HL, changing page if need be.
 ;;
@@ -12764,7 +12764,7 @@ NEXT_LINE:
 ;; Takes:     BC, HL
 ;; Leaves:    A, F, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Compare the line at HL with the number in BC, high byte first.
 ;;
@@ -12818,7 +12818,7 @@ COMPARE_LINE_NUMBER_DONE:
 ;;
 ;; ? drives OUT (C),A, OUT (C),H; calls SERCMD; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Set up the SCC2691 for LPRINT MODE 2.
 ;;
@@ -12904,7 +12904,7 @@ SERINIT:
 ;;
 ;; ? drives OUT (C),H, OUT (C),L.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Write two bytes to whichever register B selects.
 ;;
@@ -12927,7 +12927,7 @@ SERCMD:
 ;; Takes:     A
 ;; Leaves:    F, DE, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Replace one character with a string on its way to the printer.
 ;;
@@ -13003,7 +13003,7 @@ CALL_PRMAIN:
 ;; Takes:     HL
 ;; Leaves:    B
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Send a counted string a byte at a time through the channel routine.
 ;;
@@ -13066,7 +13066,7 @@ SEND_COUNTED_TO_CHANNEL_LOOP:
 ;;
 ;; ? drives IN A,(STAT); falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Not part of the routine above it, and nothing to do with channels:
 ;;     this is the whole of MasterBASIC's per-interrupt work, reached fifty
@@ -13158,7 +13158,7 @@ SEND_COUNTED_TO_CHANNEL_1:
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Count down towards blanking the screen, once per interrupt.
 ;;
@@ -13529,7 +13529,7 @@ SCREEN_BLANK_TICK_12:
 ;; ? calls NEXT_CHAR_MUST_BE_C, CALL_GETSTR, CALL_EXPSTR, EXPECT_END_OF_STATEMENT; falls into whatever follows rather
 ;; than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     BLITZ -- taken over from the ROM at token &9D, for BLITZ SOUND.
 ;;
@@ -13564,7 +13564,7 @@ CMD_BLITZ:
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Hook code 176.  Scan memory in another page.
 ;;
@@ -13684,7 +13684,7 @@ HK_FARSCAN_3:
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F, E, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Take the pointer at V4082, keep its high byte, and window it with the
 ;;     usual SET 7,H and RES 6,H -- then AND &03 on the byte before the
@@ -13809,7 +13809,7 @@ WINDOW_SOUND_POINTER_3:
 ;;
 ;; ? drives IN A,(STAT); calls CALLDOS.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     pair in tadjm.asm -- LD A,&F7 : IN A,(STATPORT) ";BIT 5 IS LOW IF
 ;;     ESC PRESSED"
@@ -13843,7 +13843,7 @@ ESCCHK:
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A; calls ESCCHK; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Hook code &9A -- put one byte in the interrupt-driven printer buffer,
 ;;     waiting if it is full.
@@ -13962,7 +13962,7 @@ HK_HDUMMY_2:
 ;;
 ;; ? drives IN A,(HMPR); calls ESCCHK; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     full -- unless the reader is in another page, which the compare at
 ;;     &5BCD settles
@@ -14014,7 +14014,7 @@ HK_HDUMMY_DONE:
 ;;
 ;; ? calls NEXT_CHAR_MUST_BE_C; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Reached from MasterDOS's command-intercept table, which maps the ROM's
 ;;     own RECORD token &EF to this address (&4330 in masterdos.asm).
@@ -14069,7 +14069,7 @@ CMD_RECORD:
 ;;
 ;; ? reaches the ROM through SYS_RECORD_MODE; calls NRWR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     turns that into the state byte later
 ;; --------------------------------------------------------------------
@@ -14198,7 +14198,7 @@ V5C3C:
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The twelve bytes planted at &5027, on the RECORD SOUND TO path only --
 ;;     RECORD SOUND STOP has returned from the ROM's own code long before.
@@ -14237,7 +14237,7 @@ CMD_RECORD_2:
 ;; Preserves: HL (saved and restored)
 ;; Ends:      JR
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     LD HL,<source> -- &388D is 21 6E C4 and &3867 is 21 92 C2 in ROM
 ;;     3.0 -- so the two bytes after the first are where the code really
@@ -14278,7 +14278,7 @@ PREPARE_ROM1_COPY:
 ;; Takes:     nothing in registers
 ;; Leaves:    HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The same, for a caller that already knows both the source and that
 ;;     the destination is &5000 in the system page.
@@ -14297,7 +14297,7 @@ PREPARE_COPY_AT_5000:
 ;;
 ;; ? drives IN A,(HMPR), IN A,(LMPR); falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Set bit 6 of LMPR, which pages ROM1 in, and save the old HMPR in C.
 ;;
@@ -14356,7 +14356,7 @@ PAGE_IN_ROM1_1:
 ;;
 ;; ? tests for T_CLEAR, CH_COLON, CH_CR; calls CALL_NEXTCHAR, NUMBER_THEN_END, SILENCE_SOUND_CHIP, GET_BUFFER_SIZE.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     SOUND, token &AE -- and the reason for taking it over is in the
 ;;     manual, which documents SOUND CLEAR and SOUND CLEAR size:
@@ -14444,7 +14444,7 @@ CMD_SOUND_1:
 ;; Takes:     A
 ;; Leaves:    A, F, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Write zero to all thirty-two of the sound chip's registers, from 31
 ;;     down to 0.  The listing's own equate says how: SOUND is &FF, "write:
@@ -14529,7 +14529,7 @@ SILENCE_SOUND_CHIP_LOOP:
 ;;
 ;; ? drives OUT (HMPR),A; calls PREPARE_COPY_AT_5000.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Ordinary SOUND.  Like PAUSE, it does not parse -- it assembles the ROM's
 ;;     SOUND at &5000 in the system page, with eleven bytes of its own spliced
@@ -14600,7 +14600,7 @@ CMD_SOUND_2:
 ;;
 ;; ? drives IN A,(LMPR), OUT (HMPR),A; calls PAGE_IN_ROM1.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Assemble a short routine in the ROM's code buffer whose whole job is
 ;;     to page MasterBASIC in and jump into it.
@@ -14685,7 +14685,7 @@ L5CF1:
 ;;
 ;; ? calls EXPECT_COMMA, EXPECT_RPAREN, CALL_EXPSTR, TWO_PAGED_STRINGS.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     above -- so this runs in MasterBASIC's own page while section B
 ;;     holds the system page
@@ -14720,7 +14720,7 @@ L5CF1:
 ;;
 ;; ? calls PREPARE_COPY_AT_5000; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     PAUSE keyword and MasterBASIC's has not
 ;;
@@ -14791,7 +14791,7 @@ SILENCE_SOUND_CHIP_1:
 ;;
 ;; ? drives OUT (HMPR),A.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Put HMPR back from the stack, then fall into STORE_BC_AT_XVAR76.
 ;; --------------------------------------------------------------------
@@ -14812,7 +14812,7 @@ RESTORE_HMPR_AND_STORE:
 ;;
 ;; ? drives OUT (HMPR),A; calls PREPARE_ROM1_COPY.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     DEF KEYCODE, token &C9.  &8F00 is the ROM's &4F00 seen through the
 ;;     window PAGE_IN_ROM1 is about to open; PREPARE_ROM1_COPY picks the routine's real
@@ -14863,7 +14863,7 @@ CMD_DEF_KEYCODE:
 ;;
 ;; ? drives OUT (HMPR),A; calls PREPARE_ROM1_COPY, COPY_THEN_APPEND_CALL.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     KEYIN, token &D1.  The same shape, into HDR at &4B00: three runs of
 ;;     &09, &16 and &2C bytes, each followed by a three-byte CALL that
@@ -14926,7 +14926,7 @@ CMD_KEYIN:
 ;; Preserves: HL (saved and restored)
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Do the caller's LDIR, then append three bytes that are a CALL.
 ;;
@@ -14956,7 +14956,7 @@ COPY_THEN_APPEND_CALL:
 ;;
 ;; ? calls PARSE_OPTIONAL_RANGE; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     three appended calls call it
 ;; --------------------------------------------------------------------
@@ -14972,7 +14972,7 @@ COPY_THEN_APPEND_CALL_1:
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The seventeen bytes appended to the KEYIN build, and the target of the
 ;;     three CALL &4B5B instructions interleaved with the ROM's own code.
@@ -15052,7 +15052,7 @@ COPY_THEN_APPEND_CALL_LOOP:
 ;; Takes:     nothing in registers
 ;; Leaves:    A
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     register number to find the terminator, and the LD A above it
 ;;     destroyed it
@@ -15068,7 +15068,7 @@ COPY_THEN_APPEND_CALL_2:
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Seven bytes assembled for &500D.  Subtract &0DBD from any address here --
 ;;     a different frame from CMD_PAUSE_2 sixteen bytes below, which is why the
@@ -15097,7 +15097,7 @@ CMD_PAUSE_1:
 ;; Takes:     BC
 ;; Leaves:    A, F, BC
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     &4E bytes assembled for &5024.  Subtract &0DAD from any address here.
 ;;     They replace the ROM's PAUSE from its JR Z,PAU2 onwards, and the change is
@@ -15168,7 +15168,7 @@ COPY_THEN_APPEND_CALL_4:
 ;; Takes:     HL
 ;; Leaves:    A, F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Fifty-six bytes shared by both builds, and the only piece of this image
 ;;     assembled for two addresses at once: CMD_SOUND_2 puts it at &504E and
@@ -15284,7 +15284,7 @@ COPY_THEN_APPEND_CALL_LOOP2:
 ;; Takes:     A, C, DE, HL
 ;; Leaves:    A, F, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Sixty-nine bytes assembled for &4D65 in the system page -- the block at
 ;;     &5D20 copies them there.  Subtract &10BA from any address in it.
@@ -15330,7 +15330,7 @@ COPY_THEN_APPEND_CALL_6:
 ;;
 ;; ? calls COMPARE_FAR_STRINGS_FOLDED.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     overtake
 ;; --------------------------------------------------------------------
@@ -15364,7 +15364,7 @@ COPY_THEN_APPEND_CALL_7:
 ;;
 ;; ? calls COMPARE_FAR_STRINGS_FOLDED.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     longer wants
 ;; --------------------------------------------------------------------
@@ -15389,7 +15389,7 @@ COPY_THEN_APPEND_CALL_8:
 ;; Takes:     C, DE
 ;; Leaves:    A, F, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     page in A and its address in HL.  Reached only as &4D91, from the
 ;;     two calls above
@@ -15449,7 +15449,7 @@ COPY_THEN_APPEND_CALL_9:
 ;;
 ;; ? drives IN A,(HMPR), IN A,(LMPR); falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     listing labels LENGTH
 ;; --------------------------------------------------------------------
@@ -15560,7 +15560,7 @@ COPY_THEN_APPEND_CALL_DONE:
 ;; Takes:     H
 ;; Leaves:    A, F, H
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     &5123 is MEMVAL+2 in the system page, the page byte of the pointer
 ;;     being walked
@@ -15602,7 +15602,7 @@ COPY_THEN_APPEND_CALL_11:
 ;;
 ;; ? calls GET_LONG_INTEGER; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     word first -- GET_LONG_INTEGER splits it with MOD and IDIV by
 ;;     65536
@@ -15721,7 +15721,7 @@ GET_BUFFER_SIZE_LOOP:
 ;; Takes:     nothing in registers
 ;; Leaves:    L
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Technical Manual's "look backwards through ALLOCT"
 ;; --------------------------------------------------------------------
@@ -15739,7 +15739,7 @@ FIND_SLOTS:
 ;;
 ;; ? drives OUT (HMPR),A; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     THE COUNTING PASS AND THE RESERVING PASS ARE THE SAME CODE, and B
 ;;     is what separates them.  B = 0 walks the tables and touches
@@ -16013,7 +16013,7 @@ ALLOC_UTILITY_SLOT_6:
 ;;
 ;; ? drives OUT (HMPR),A; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Give back a chain of slots, and any page they emptied.
 ;;
@@ -16094,7 +16094,7 @@ FREE_SLOT_CHAIN_1:
 ;; Takes:     nothing in registers
 ;; Leaves:    HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     OR the sixteen SLOTT entries together, and if all are clear write 0
 ;;     over the page's ALLOCT byte, giving it back.
@@ -16142,7 +16142,7 @@ FREE_PAGE_IF_SLOTS_CLEAR_LOOP:
 ;;
 ;; ? drives IN A,(VMPR); falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     EVERYTHING HERE RUNS FROM THE WINDOW, which is why every call and
 ;;     every variable in this routine carries +IN_PAGE_C.  The character
@@ -16255,7 +16255,7 @@ SHOW_LINE_AND_STATEMENT_2:
 ;;
 ;; ? drives IN A,(STAT); falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Report "BREAK into program" if the key is down, otherwise return.
 ;;
@@ -16359,7 +16359,7 @@ CHECK_BREAK_LOOP4:
 ;;
 ;; ? drives IN A,(LMPR), IN A,(VMPR); falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Plot one character at the trace position, in whichever screen mode
 ;;     is current.
@@ -16610,7 +16610,7 @@ TRACE_PLOT_CHAR_DONE:
 ;; Takes:     nothing in registers
 ;; Leaves:    HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     One instruction: point HL at the five-digit divisor table and fall
 ;;     through.  The two-digit table is passed in by the caller instead,
@@ -16627,7 +16627,7 @@ TRACE_PRINT_LINE_NUMBER:
 ;; Takes:     BC
 ;; Leaves:    E
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Print the number in BC as decimal, leading zeros shown as spaces.
 ;;     HL points at a table of negative powers of ten, and the entry point
@@ -16761,7 +16761,7 @@ TRACE_DIVISORS_2:
 ;;
 ;; ? tests for T_OFF; calls CALL_NEXTCHAR, INT_ARG_THEN_END, AT_END_OF_STATEMENT, NRRD.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     LINE -- taken over from the ROM at token &8C, for line number tracing.
 ;;
@@ -16871,7 +16871,7 @@ CMD_LINE_4:
 ;; ? calls SEND_COMPRESSED_BLOCK, WRITE_THREE_FF, ENCODE_SCREEN, PICK_COMPRESSION_CONSTANTS; falls into whatever follows
 ;; rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Compress a SCREEN$ file on its way to disk, called from the DOS's
 ;;     HK_HSAVE through CALLMB.  PICK_COMPRESSION_CONSTANTS sets up, the encoder fills &E500, the
@@ -16909,7 +16909,7 @@ COMPRESS_SCREEN_FILE:
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A; calls CALLDOS; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Hand what the encoder produced to the DOS, with the registers and the
 ;;     paging saved around it.
@@ -16955,7 +16955,7 @@ SEND_COMPRESSED_BLOCK:
 ;; Takes:     nothing in registers
 ;; Leaves:    B
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Three &FF bytes to the open file, through the DOS's save-byte hook.
 ;; --------------------------------------------------------------------
@@ -16991,7 +16991,7 @@ WRITE_THREE_FF_LOOP:
 ;;
 ;; ? calls WRITE_NEXT_NIBBLE, SCAN_NIBBLE_TABLE; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The encoder's driver.  SCAN_NIBBLE_TABLE picks a value into C, the
 ;;     alternate registers take DE = &000F and HL = &E500 for the output
@@ -17045,7 +17045,7 @@ ENCODE_SCREEN_LOOP:
 ;; Takes:     A, C
 ;; Leaves:    F, B, E
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     One nibble of the source.  If it does not match the value in C it
 ;;     goes straight to COUNT_RUN; if it does, the long-run path counts up
@@ -17086,7 +17086,7 @@ ENCODE_ONE_NIBBLE_LOOP:
 ;; Takes:     A
 ;; Leaves:    B, E
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Count how many bytes below this one are the same, up to 139.
 ;;
@@ -17138,7 +17138,7 @@ ENCODE_ONE_NIBBLE_1:
 ;;
 ;; ? calls EMIT_RUN_PAIR.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Write one run to the nibble stream.
 ;;
@@ -17176,7 +17176,7 @@ ENCODE_RUN:
 ;;
 ;; ? calls WRITE_NEXT_NIBBLE; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Write a run as two nibbles: the count in C, then the value in E.
 ;; --------------------------------------------------------------------
@@ -17197,7 +17197,7 @@ EMIT_RUN_PAIR:
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Write four bits into a packed stream.
 ;;
@@ -17294,7 +17294,7 @@ WRITE_NEXT_NIBBLE_LOOP:
 ;;
 ;; ? calls BUILD_NIBBLE_TABLE; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Walk that table back down from its end, comparing each entry against
 ;;     BC.  Named for what it does; which entry it is looking for is not
@@ -17352,7 +17352,7 @@ SCAN_NIBBLE_TABLE_1:
 ;; Takes:     nothing in registers
 ;; Leaves:    B, DE, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Clear thirty-two bytes at &E500 and then count something over the
 ;;     source into them, a nibble at a time -- AND &0F on each byte read,
@@ -17440,7 +17440,7 @@ BUILD_NIBBLE_TABLE_2:
 ;; Takes:     H
 ;; Leaves:    F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Step to the next pixel of the scan and read it.  The routine falls
 ;;     into READ_NIBBLE_AT_HL, which is where the reading happens.
@@ -17514,7 +17514,7 @@ NEXT_SCREEN_BYTE_2:
 ;; Leaves:    A, F, HL
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Read the nibble numbered HL from the window at &8000, without moving
 ;;     HL.  SCF then RR H and RR L halves HL and brings a 1 into bit 15, so
@@ -17647,7 +17647,7 @@ READ_NIBBLE_AT_HL_LOOP2:
 ;; Leaves:    A, F, HL
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The next byte, from memory or from the open file.  H below &FE means
 ;;     a pointer into memory, and the byte is read and HL stepped; &FE00 and
@@ -17689,7 +17689,7 @@ FETCH_SOURCE_BYTE_DONE:
 ;; Leaves:    A, F, H
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The inverse of LONGADDR_TO_PAGED: page in A and a windowed address
 ;;     in HL become a 64K bank and a 16-bit offset.  The AND &07 at the end
@@ -17716,7 +17716,7 @@ PAGED_TO_LONG:
 ;;
 ;; ? calls READ_NEXT_NIBBLE; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The other half of the compression, and the manual's "A compressed
 ;;     file will be automatically expanded again on reloading."  SP is
@@ -17834,7 +17834,7 @@ EXPAND_COMPRESSED_FILE_3:
 ;; Takes:     HL
 ;; Leaves:    F, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Step a nibble address down the screen the way NEXT_SCREEN_BYTE steps
 ;;     a byte one, with the halving that turns a nibble index into an
@@ -17947,7 +17947,7 @@ NEXT_SCREEN_NIBBLE_4:
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Read four bits from a packed stream: the mirror of the routine
 ;;     above, stepping the same way and masking with E'.
@@ -18016,7 +18016,7 @@ READ_NEXT_NIBBLE_1:
 ;; Leaves:    A, F, DE
 ;; Preserves: HL (saved and restored)
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Compare what is left of the work area against &1900 and take the
 ;;     short path if there is less, with the caller's registers saved around
@@ -18082,7 +18082,7 @@ CHECK_ROOM_FOR_OUTPUT_1:
 ;; Takes:     A, DE
 ;; Leaves:    A, F, BC, DE, H
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Load the three constants the compressor works to -- H, BC and DE --
 ;;     with one set or the other depending on the flag in A: &33, &1B00 and
@@ -18134,7 +18134,7 @@ PICK_COMPRESSION_CONSTANTS_DONE:
 ;; ? tests for T_BOOT; calls BYTE_ARGUMENT, CALL_NEXTCHAR, CHAR_THEN_NUMBER_THEN_END; falls into whatever follows rather
 ;; than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     SAVE -- taken over from the ROM at token &94.
 ;;
@@ -18171,7 +18171,7 @@ CMD_SAVE:
 ;; Takes:     A
 ;; Leaves:    F, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Write the SAVE MODE setting to the DOS's CMPFG.  A value of 1 to 3
 ;;     comes in less one, anything else is "Integer out of range", and the
@@ -18197,7 +18197,7 @@ SET_COMPRESSION_MODE:
 ;;
 ;; ? reaches the ROM through NRWRITE; calls CALLDOS; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Write A to the address in HL in the DOS page, through CALLDOS and the
 ;;     ROM's NRWRITE.  Three instructions, and the reason for the detour is
@@ -18222,7 +18222,7 @@ WRITE_DOS_BYTE:
 ;; ? reaches the ROM through DOS_EVNAM-&4000; calls CALLDOS, CALL_NEXTCHAR; falls into whatever follows rather than
 ;; returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     SAVE BOOT, reached from CMD_SAVE when the next token is BOOT.
 ;;
@@ -18405,7 +18405,7 @@ V647E:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Print one character at the size CSIZE set: widen it, then output it
 ;;     a cell at a time.
@@ -18494,7 +18494,7 @@ PRINT_SIZED_CHAR_LOOP:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, BC, DE, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Expand a character's eight rows horizontally by C, building the
 ;;     result at CDBUFF+&20 in the ROM's system page.
@@ -18614,7 +18614,7 @@ WIDEN_CHAR_BITMAP_2:
 ;; Leaves:    A, F
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Return C unchanged unless DEVICE is 1, in which case anything from 5
 ;;     upwards comes back as 4.  DEVICE is the ROM's own variable at &5A73,
@@ -18653,7 +18653,7 @@ CLAMP_CHAR_HEIGHT:
 ;; Leaves:    BC, DE
 ;; Preserves: HL (saved and restored)
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Print one character C cells tall, by building each cell in the ROM's
 ;;     own SCRNBUF and handing it to the ROM's character output.
@@ -18769,7 +18769,7 @@ PRINT_MAGNIFIED_CHAR_1:
 ;; ? calls BYTE_ARGUMENT, EXPECT_COMMA, INT_ARG_THEN_END, SKIP_THEN_NUMBER; falls into whatever follows rather than
 ;; returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Hook code 155.  Turn a pixel position into a character cell.
 ;;
@@ -19064,7 +19064,7 @@ HK_PIXELCELL_10:
 ;; Takes:     A, BC
 ;; Leaves:    A, F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The other compressor, and the manual describes the pair of them
 ;;     precisely:
@@ -19152,7 +19152,7 @@ COMPRESS_FILE_1:
 ;;
 ;; ? reaches the ROM through PAGCOUNT; calls NRWR, GET_WORK_PAGE; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Take the work page, work out how much room is above the start
 ;;     address -- &C000 less DE -- and put the two halves of it in the ROM's
@@ -19520,7 +19520,7 @@ SET_UP_WORK_AREA_7:
 ;; ? reaches the ROM through PAGCOUNT; drives IN A,(HMPR); calls NRWR, READ_COUNTED_STRING, GET_WORK_PAGE; falls into
 ;; whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Set up to expand a file: take a work page through GET_WORK_PAGE --
 ;;     which falls back on the display if there is none free -- read the
@@ -19570,7 +19570,7 @@ EXPAND_INTO_WORK_PAGE:
 ;;
 ;; ? reaches the ROM through DOS_LBYT-&4000; calls CALLDOS; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Read a length byte from the open file through the DOS's LBYT, then
 ;;     that many bytes after it, into the buffer at &7B00 -- the installer's
@@ -19712,7 +19712,7 @@ READ_COUNTED_STRING_1:
 ;;
 ;; ? calls COPY_EVERY_NTH_BYTE.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Plant a step and a count into four instructions further on -- &6796
 ;;     supplies &05 and &33, &679B the same pair the other way round, and
@@ -19731,7 +19731,7 @@ SET_STEP_AND_COUNT:
 ;; Takes:     nothing in registers
 ;; Leaves:    BC
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The same as SET_STEP_AND_COUNT with the two numbers exchanged: &33
 ;;     for the step and &05 for the count where the other has &05 and &33.
@@ -19790,7 +19790,7 @@ SET_STEP_AND_COUNT_SWAPPED_LOOP:
 ;; Takes:     BC, HL
 ;; Leaves:    F, BC, DE, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Copy with a stride: LDI moves the first byte, then C bytes at a time
 ;;     are taken from HL with the address stepped on by the operand
@@ -19861,7 +19861,7 @@ L67C6:
 ;; ? reaches the ROM through DOS_FFPG-&4000; drives IN A,(HMPR); calls CALLDOS; falls into whatever follows rather than
 ;; returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Find a 16K page to work in, and the manual says what happens when
 ;;     there is not one:
@@ -19924,7 +19924,7 @@ GET_WORK_PAGE_1:
 ;;
 ;; ? reaches the ROM through DOS_PLNS-&4000; calls CALLDOS; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     DUMP -- taken over from the ROM at token &BF.
 ;;
@@ -20049,7 +20049,7 @@ CMD_DUMP_3:
 ;; Takes:     A, H
 ;; Leaves:    A, F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Which way round the dump goes, and what area of the screen it covers.
 ;;
@@ -20184,7 +20184,7 @@ DUMP_ORIENT_SETUP_4:
 ;;
 ;; ? calls PRINT_COUNTED_STRING; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     One bit-image line: eight dots deep, the whole width of the dump.
 ;;
@@ -20215,7 +20215,7 @@ DUMP_LINE:
 ;; Takes:     A
 ;; Leaves:    A, F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     One pass of the print head over one line.
 ;;
@@ -20332,7 +20332,7 @@ DUMP_STRIKE_LOOP:
 ;; Takes:     nothing in registers
 ;; Leaves:    A, C, D
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     One byte of bit image: eight dots stacked up the paper.
 ;;
@@ -20367,7 +20367,7 @@ DUMP_BYTE:
 ;;
 ;; ? calls TRANSFORM_DUMP_COORDS; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     One screen pixel, worth one, two or three dots.
 ;;
@@ -20514,7 +20514,7 @@ DUMP_PIXEL_4:
 ;; Leaves:    BC
 ;; Preserves: A, F (saved and restored)
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Three dots to a pixel, which does not divide into eight.
 ;;
@@ -20607,7 +20607,7 @@ DUMP_PIXEL_5:
 ;; Takes:     D
 ;; Leaves:    A
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     A finished byte, out to the printer.
 ;;
@@ -20699,7 +20699,7 @@ DUMP_INVERT_3:
 ;; Takes:     C
 ;; Leaves:    A, F, B, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The line is printed.  Print it again, move down, or stop.
 ;;
@@ -20827,7 +20827,7 @@ CALL_STREAM:
 ;; Takes:     HL
 ;; Leaves:    B
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Print a string whose first byte is its length: LD B,(HL), then B
 ;;     characters through CALL_PRINT_A.  Four callers, each handing it a
@@ -20864,7 +20864,7 @@ PRINT_COUNTED_STRING_LOOP:
 ;;
 ;; ? reaches the ROM through PRINT_A; calls CMR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Print the character in A, through the ROM, with ROM1 paged in.
 ;;
@@ -20889,7 +20889,7 @@ CALL_PRINT_A:
 ;; Takes:     BC
 ;; Leaves:    A, F, BC
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Turn the dump's own two axes in BC into a screen row and column.
 ;;
@@ -20949,7 +20949,7 @@ TRANSFORM_DUMP_COORDS_1:
 ;;
 ;; ? calls READ_PIXEL_NIBBLE; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Read the colour of the pixel at BC, in whichever screen mode.
 ;;
@@ -21011,7 +21011,7 @@ SCREEN_PIXEL_COLOUR_1:
 ;; Takes:     BC
 ;; Leaves:    A, F, BC
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Fetch the byte holding pixel BC and shift the wanted nibble down.
 ;;
@@ -21064,7 +21064,7 @@ READ_PIXEL_NIBBLE_DONE:
 ;;
 ;; ? calls MODE2_PIXEL_AND_ATTR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The MODE 1 and MODE 2 case: one bit of a bitmap, coloured by an
 ;;     attribute byte.
@@ -21128,7 +21128,7 @@ ATTRIBUTE_PIXEL_COLOUR_LOOP:
 ;; Takes:     nothing in registers
 ;; Leaves:    B, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Turn the sixteen live palette entries into sixteen grey levels, one
 ;;     byte each, before a single dot is printed.
@@ -21224,7 +21224,7 @@ BUILD_GREY_MAP_LOOP2:
 ;;
 ;; ? calls PALETTE_INTENSITY; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Halve the intensity to get a level 0 to 24, then take that level or
 ;;     the nearest free one.
@@ -21262,7 +21262,7 @@ ASSIGN_GREY_LEVEL:
 ;;
 ;; ? calls GREY_LEVEL_ABOVE.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Look for an unclaimed level, trying the wanted one first and then up
 ;;     to three either side.
@@ -21371,7 +21371,7 @@ GREY_LEVEL_BELOW:
 ;; Leaves:    A, F, BC
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     How bright a SAM palette byte is, 0 to 49.
 ;;
@@ -21464,7 +21464,7 @@ PALETTE_INTENSITY:
 ;; Takes:     nothing in registers
 ;; Leaves:    F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     DUMP 5, the text dump.  Sets carry and falls into the installer
 ;;     below, which is what picks the &4F00 entry rather than the &4F49
@@ -21487,7 +21487,7 @@ CMD_DUMP_5:
 ;; ? reaches the ROM through INP2; drives IN A,(HMPR), OUT (HMPR),A; calls CMR; falls into whatever follows rather than
 ;; returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     DUMP 4, the unshaded graphic dump, and the common installer for both.
 ;;     Carry is clear on this path.  HMPR is zeroed, &0136 bytes are copied
@@ -21539,7 +21539,7 @@ CMD_DUMP_4_DONE:
 ;; Takes:     nothing in registers
 ;; Leaves:    A, BC, DE, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     DUMP 5's half of the block, at &4F00 once moved.  It saves PRRHS,
 ;;     sets it to &FF so nothing wraps, selects stream 3, and reads UWRHS,
@@ -21633,7 +21633,7 @@ DUMP_TEXT_1:
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F, DE, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     DUMP 4's half, at &4F49 once moved.  Selects stream &FB and works
 ;;     through the ROM's dump control strings -- &5A16 and &5A1F are GCM1
@@ -21917,7 +21917,7 @@ DUMP_UNSHADED_LOOP9:
 ;; Takes:     BC
 ;; Leaves:    A, B, DE
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Send the counted string at GCM3, once, after the last line.
 ;;
@@ -21957,7 +21957,7 @@ GCM3_TO_PRINTER_LOOP:
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     HL to the same column one pixel row down, in whichever mode.
 ;;
@@ -22051,7 +22051,7 @@ MODE1_PIXEL_AND_ATTR:
 ;; Leaves:    A, F, HL
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Row B, column C to a MODE 1 display address in the window.
 ;;
@@ -22120,7 +22120,7 @@ MODE1_SCREEN_ADDRESS:
 ;; Leaves:    A, F, H
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The attribute byte for a display address already in HL.
 ;;
@@ -22170,7 +22170,7 @@ MODE2_PIXEL_AND_ATTR:
 ;; Leaves:    A, F, B, HL
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Row B, column C to a MODE 2 display address in the window.
 ;;
@@ -22222,7 +22222,7 @@ MODE2_SCREEN_ADDRESS:
 ;;
 ;; ? calls MODE2_SCREEN_ADDRESS; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Set one pixel of a MODE 1 or MODE 2 screen from the corresponding
 ;;     bit of D.  Called by ALTER DISPLAY at &6D16.
@@ -22307,7 +22307,7 @@ PLOT_PIXEL_IN_MODE_LOOP:
 ;;
 ;; ? calls SKIP_THEN_NUMBER, CHAR_THEN_NUMBER_THEN_END, NRWR, SCREEN_PAGE_OR_BUFFER.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     COPY SCREEN n TO m -- "copies whatever is on the first screen to the
 ;;     second screen".
@@ -22363,7 +22363,7 @@ CMD_COPY_SCREEN:
 ;;
 ;; ? drives IN A,(VMPR).
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Compare the page in L with the one being displayed, taken straight
 ;;     from VMPR.  Equal returns with HL as it was set here; otherwise the
@@ -22421,7 +22421,7 @@ SCREEN_PAGE_OR_BUFFER:
 ;;
 ;; ? drives OUT (C),H, OUT (C),L; calls SCREEN_PIXEL_COLOUR, MODE1_ATTR_ADDRESS, PLOT_PIXEL_IN_MODE.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Move a page number and an address into the alternate registers with C
 ;;     set to HMPR, so the copying loop after it can page between two places
@@ -22843,7 +22843,7 @@ PAGE_PAIR_INTO_ALTERNATES_15:
 ;;
 ;; ? reaches the ROM through PAGCOUNT; calls NRWR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Copy across page boundaries: A pages and BC bytes, then the ROM's
 ;;     FARLDIR.
@@ -22891,7 +22891,7 @@ CALL_J_FARLDIR:
 ;;
 ;; ? calls BYTE_ARGUMENT, RDA.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     A screen number, 1 to 16, and its SCLIST entry.
 ;;
@@ -22952,7 +22952,7 @@ SCREEN_NUMBER_ARGUMENT_1:
 ;;
 ;; ? tests for T_TO, CH_COLON; calls CALL_NEXTCHAR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     (to be added to the existing header.)
 ;;
@@ -23126,7 +23126,7 @@ CMD_JOIN_5:
 ;;
 ;; ? calls RECLAIM_BC_AT_HL.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Close up BC bytes at HL and then set the compile bits in DCT, since
 ;;     the program has moved.
@@ -23143,7 +23143,7 @@ RECLAIM_AND_MARK:
 ;; Takes:     A
 ;; Leaves:    A, F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Close up BC bytes at HL, through the ROM -- and the way it gets there
 ;;     is worth reading.
@@ -23178,7 +23178,7 @@ RECLAIM_BC_AT_HL:
 ;;
 ;; ? calls CMR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The same with A already holding the number of whole pages.
 ;; --------------------------------------------------------------------
@@ -23205,7 +23205,7 @@ V6E5F:
 ;;
 ;; ? calls CALL_GETCHAR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     SPLIT a program line in two.  Typing a slash as the first non-space
 ;;     character after a colon cuts the line there: the part before the
@@ -23450,7 +23450,7 @@ CMD_SPLIT_LINE_1:
 ;;
 ;; ? reaches the ROM through PRPTR; calls NRWRHL; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     THE ROM'S RETURN CHAIN IS REWRITTEN, because the ROM must not now do
 ;;     what it was going to do.  SPLIT runs while the line is being checked,
@@ -23570,7 +23570,7 @@ SPLIT_UNWIND_ROM_STACK_LOOP:
 ;; ? reaches the ROM through SCREEN_BLANK_TICK_LOOP2; calls SKIP_THEN_TEST_RUNNING, NRWR; falls into whatever follows
 ;; rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Hook code 183.  Find an entry through COMAD.
 ;;
@@ -23625,7 +23625,7 @@ HK_COMADENT_1:
 ;; Leaves:    HL
 ;; Ends:      JP
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Write BC to the ROM system variable whose address is held in the
 ;;     two bytes at &4076.
@@ -23661,7 +23661,7 @@ STORE_BC_AT_XVAR76:
 ;;
 ;; ? calls CALL_GETCHAR; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     (replacing the existing header.)
 ;;
@@ -23793,7 +23793,7 @@ HK_SKIPNAME_1:
 ;;
 ;; ? calls LONGADDR_TO_PAGED, PAGED_TO_LONG.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     (replacing the existing header, which reads the three bytes as an
 ;;     address; they are a length.)
@@ -23896,7 +23896,7 @@ ENTRY_TO_LONG_ADDRESS_2:
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A; calls LONGADDR_TO_PAGED, MULTIPLY_HL_BY_DE, GET_STRING_PAGED.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     (to be added to the existing header.)
 ;;
@@ -23968,7 +23968,7 @@ ARRAY_ELEMENT_OFFSET:
 ;; ? reaches the ROM through STRLOCN; calls FIND_VARIABLE, CALL_NEXTCHAR, NRRDD; falls into whatever follows rather than
 ;; returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     JOIN TO -- the other half of JOIN, and nothing to do with failure.
 ;;
@@ -24233,7 +24233,7 @@ ARRAY_ELEMENT_OFFSET_5:
 ;; ? reaches the ROM through STRLOCN; calls POINT_INTO_VARIABLE, NRRDD, TIMES_FIVE; falls into whatever follows rather
 ;; than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     (to be added to the existing header.)
 ;;
@@ -24387,7 +24387,7 @@ VARIABLE_BODY_BY_KIND_DONE:
 ;;
 ;; ? drives OUT (HMPR),A; calls CALL_NEXTCHAR, INT_ARG_THEN_END; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     (to be added to the existing header, which works out what is swapped
 ;;     but not which command asks for it.)
@@ -24533,7 +24533,7 @@ HK_SWAPCHARS_DONE2:
 ;; ? reaches the ROM through DOS_PLNS-&4000; calls CALLDOS, CALL_NEXTCHAR; falls into whatever follows rather than
 ;; returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     CLS -- taken over from the ROM at token &9F, for CLS *.
 ;;
@@ -24615,7 +24615,7 @@ CALL_JCLSBL:
 ;;
 ;; ? reaches the ROM through XPTR; calls NRWRHL; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Hook code 185.  Build a routine in the ROM's code buffer.
 ;;
@@ -24673,7 +24673,7 @@ V7221:
 ;; ? reaches the ROM through GTDT; drives IN A,(HMPR), OUT (HMPR),A; calls CMR, ARGS_STRING_AND_NUMBER; falls into
 ;; whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     USING$ -- token FF 2F.
 ;;
@@ -25100,7 +25100,7 @@ FN_USING_S_DONE3:
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A; calls BUILD_COMPILER; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Hook code 157.  Rebuild the compile pass for a program that has changed.
 ;;
@@ -25180,7 +25180,7 @@ HK_PROGPREP_1:
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Build the replacement compile pass at CDBUFF+&11 in the ROM's system
 ;;     page.  Called from &5252 and from HK_PROGPREP at &7338.
@@ -25236,7 +25236,7 @@ BUILD_COMPILER:
 ;; Leaves:    A, F, BC, HL
 ;; Ends:      JP
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The 219 bytes that go to &4D53, immediately after the copy.  They are
 ;;     a rewrite of the ROM's own LABSD, and the correspondence is
@@ -25301,7 +25301,7 @@ COMPILE_PASS:
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     What the ROM calls ELCOMAL, at &4D7B once moved.  Six bytes: read
 ;;     REFFLG, CP &01, CCF -- so carry comes out clear only when REFFLG is
@@ -25321,7 +25321,7 @@ COMPILE_ELINE:
 ;; Takes:     A, B, DE
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     What the ROM calls COMALL, at &4D81 once moved, and entered with
 ;;     carry set: the ROM's own source comments its CALL COMALL "(CY HERE)".
@@ -25376,7 +25376,7 @@ L73BE:
 ;;
 ;; ? drives IN A,(HMPR); falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Resolve one PROC call, at &4D97 once moved.  It walks the table six
 ;;     bytes at a time from &E000, rejects an entry whose first character
@@ -25501,7 +25501,7 @@ FIND_PROC_ENTRY_1:
 ;;
 ;; ? drives OUT (HMPR),A; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Build the index, at &4DE7 once moved.  It pages in PROGP, starts at
 ;;     PROG, and uses the ROM's LKFC with BC = &21CA: &21 is the
@@ -25608,7 +25608,7 @@ BUILD_PROC_INDEX_1:
 ;; Takes:     BC
 ;; Leaves:    A, F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     385 bytes assembled to run at &46CC, not here.  This is MasterBASIC's
 ;;     string move, and it is the clearest example in the image of how the
@@ -26154,7 +26154,7 @@ RELOCATED_TO_46CC_10:
 ;; Takes:     nothing in registers
 ;; Leaves:    B, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     The installer.  The boot sector copies these 943 bytes to &BC00 --
 ;;     the DOS page, as the boot sector has it mapped -- and runs them
@@ -26380,7 +26380,7 @@ INSTALLER_2:
 ;; Takes:     DE, HL
 ;; Leaves:    HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Run after the stubs have been copied into the ROM's system page, this
 ;;     is what makes them reachable: it writes their addresses into the ROM's
@@ -26534,7 +26534,7 @@ INSTALL_ROM_VECTORS:
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Copied to &7D79 in the DOS page by the boot sector, and
 ;;     called there from 27 sites in this page as DOS_FIND_ROM_CODE.  The
@@ -26574,7 +26574,7 @@ INSTALL_ROM_VECTORS:
 ;; Takes:     nothing in registers
 ;; Leaves:    DE
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Copied to &7D93 in the DOS page by the boot sector, and
 ;;     called there from 1 site in this page as DOS_MBCOPY_7774.  The
@@ -26631,7 +26631,7 @@ INSTALL_ROM_VECTORS_LOOP2:
 ;;
 ;; ? drives OUT (C),B, OUT (LMPR),A; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Copied to &7DAA in the DOS page by the boot sector, and
 ;;     called there from 1 site in this page as DOS_MBCOPY_778B.  The
@@ -26700,7 +26700,7 @@ MSG_EXTERNAL_MEMORY:
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A; falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Walk the external memory pages, find which of them are there, and
 ;;     clear the ones that are.
@@ -26915,7 +26915,7 @@ SIZE_EXTERNAL_MEMORY_1:
 ;; Takes:     nothing in registers
 ;; Leaves:    registers unchanged
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Return unless the flags say to, and otherwise fall into the page
 ;;     filler below.  The NOP in front is where an instruction was taken out
@@ -26933,7 +26933,7 @@ CLEAR_WINDOW_IF_Z:
 ;; Takes:     nothing in registers
 ;; Leaves:    BC, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Clear the whole 16K window, by pushing.
 ;;
@@ -27021,7 +27021,7 @@ STACK_FILL_LOOP_1:
 ;; Takes:     nothing in registers
 ;; Leaves:    F, BC, DE, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Build MasterBASIC's replacement for the ROM's PUT command in the
 ;;     ROM's system page at &45A2-&46CB, out of five sources, two of which
@@ -27566,7 +27566,7 @@ BUILD_PUT_BLOCK_LOOP2:
 ;; Takes:     nothing in registers
 ;; Leaves:    registers unchanged
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Find twenty ROM entry points by signature and patch them into the
 ;;     code that calls them.
@@ -27731,7 +27731,7 @@ BUILD_PUT_BLOCK_11:
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Write MasterBASIC's own code into four places in the ROM's system
 ;;     page.  Called once, from &7651.  HMPR is zeroed first, so every &9xxx
@@ -27844,7 +27844,7 @@ L7AE1:
 ;;
 ;; ? drives IN A,(HMPR), OUT (HMPR),A.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     MasterBASIC's replacement for the ROM's paging subroutine, copied
 ;;     into PAGER at &5BE0 where the ROM reserves fourteen bytes for one.
@@ -27892,7 +27892,7 @@ MB_PAGER:
 ;;
 ;; ? drives IN A,(HMPR); falls into whatever follows rather than returning.
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Rewrite parts of the ROM's system page so that MasterBASIC's code
 ;;     runs where the ROM's used to.
@@ -28143,7 +28143,7 @@ INSTALL_ROM_PATCHES_DONE:
 ;; Takes:     A
 ;; Leaves:    F, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     What PRTOKV points at, installed at &4BB0.
 ;;
@@ -28168,7 +28168,7 @@ PRTOKV_STUB:
 ;; Takes:     A
 ;; Leaves:    F
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     What EVALUV points at, installed at &4BBA.
 ;;
@@ -28203,7 +28203,7 @@ EVALUV_STUB_1:
 ;; Leaves:    A, F, BC, HL
 ;; Ends:      RET
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     671 bytes assembled to run at &484D, in the same way.
 ;;
@@ -28466,7 +28466,7 @@ RELOCATED_TO_484D_3:
 ;; Takes:     H
 ;; Leaves:    A, F, HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Switch on a command token in H, for the commands MasterBASIC has
 ;;     something to add to.
@@ -28571,7 +28571,7 @@ DISPATCH_ON_COMMAND_TOKEN_2:
 ;; Takes:     nothing in registers
 ;; Leaves:    HL
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Drop the ROM's return address and call MasterBASIC's hook 173.
 ;;
@@ -29286,7 +29286,7 @@ TBL_7D58_DONE3:
 ;; Takes:     nothing in registers
 ;; Leaves:    registers unchanged
 ;;
-;; Shown for this routine in disasm/:
+;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Forty bytes copied into the system page at &5896, in the space the
 ;;     ROM leaves between the DEF KEY buffer and the keyboard table.  It

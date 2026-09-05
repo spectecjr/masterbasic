@@ -1,5 +1,5 @@
 # COPY, CALL MODE, and two helpers whose carried comments are a little
-# off.  Prose for clean/ only.
+# off.  Prose for listings/clean/ only.
 
 DOS &5967 : only the low byte is looked at, so CALL MODE 256 passes as 0
 DOS &5975 : page 3, the Spectrum "ROM" -- so what follows is in that page and not MasterBASIC's

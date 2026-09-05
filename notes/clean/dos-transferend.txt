@@ -1,6 +1,6 @@
 # The end-of-transfer check, which the DOS writes out three times.
 #
-# Prose for clean/ only.  BOOT's copy at &4094, LDB6's at &48DB and
+# Prose for listings/clean/ only.  BOOT's copy at &4094, LDB6's at &48DB and
 # SVB6's at &4A28 are the same seven instructions, and the account of
 # what the mask tests is kept with BOOT's; these two point at it.
 

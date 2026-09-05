@@ -21,8 +21,8 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LISTINGS = ('disasm/masterdos.asm', 'disasm/masterbasic.asm',
-            'disasm/postinstall-syspage.asm')
+LISTINGS = ('listings/disasm/masterdos.asm', 'listings/disasm/masterbasic.asm',
+            'listings/disasm/postinstall-syspage.asm')
 PROSE = ('docs', 'notes')
 
 # prose whose point is a name the listing no longer has, file by file
@@ -50,7 +50,7 @@ def read_listings():
     A listing that is not there is an error and not a skip.  This used
     to `continue`, which meant a wrong path checked nothing and still
     reported that every file checked out -- and the path did move once,
-    when postinstall/syspage.asm became disasm/postinstall-syspage.asm.
+    when postinstall/syspage.asm became listings/disasm/postinstall-syspage.asm.
     Silence is the one answer a checker must not give.
     """
     at, names = {}, set()

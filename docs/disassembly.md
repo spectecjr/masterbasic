@@ -9,14 +9,14 @@ The disassembly is two halves, written out three ways by `tools/build.sh`:
 
 | | |
 |---|---|
-| [clean/masterdos.asm](../clean/masterdos.asm) | file bytes 0–16319, the reading copy |
-| [clean/masterbasic.asm](../clean/masterbasic.asm) | file bytes 16320–32639, the reading copy |
-| [disasm/masterdos.asm](../disasm/masterdos.asm) | the same, with the working notes left in |
-| [disasm/masterbasic.asm](../disasm/masterbasic.asm) | the same, with the working notes left in |
+| [listings/clean/masterdos.asm](../listings/clean/masterdos.asm) | file bytes 0–16319, the reading copy |
+| [listings/clean/masterbasic.asm](../listings/clean/masterbasic.asm) | file bytes 16320–32639, the reading copy |
+| [listings/disasm/masterdos.asm](../listings/disasm/masterdos.asm) | the same, with the working notes left in |
+| [listings/disasm/masterbasic.asm](../listings/disasm/masterbasic.asm) | the same, with the working notes left in |
 
-`clean/` is where to start reading. `disasm/` is the same code carrying the
+`listings/clean/` is where to start reading. `listings/disasm/` is the same code carrying the
 argument as well as the conclusion -- where a name came from, what an earlier
-reading got wrong, what is still open -- and this document quotes `disasm/`
+reading got wrong, what is still open -- and this document quotes `listings/disasm/`
 because that is the copy whose claims can be traced.
 
 **Assembling either with pyz80 reproduces its half of the file byte for byte**,
@@ -717,7 +717,7 @@ displaced. A duplicate name or a bad address will not break the build.
 
 The notes are applied after every other naming pass and before `autolabel`, so
 your name beats anything worked out and no synthetic `L1234` is invented for an
-address you have named. They reach `speculate/` too.
+address you have named. They reach `listings/speculate/` too.
 
 ## Regenerating
 
@@ -727,9 +727,9 @@ tools/build.sh
 ```
 
 Exit status is 0 only if all six listings came back byte-identical -- the two
-in `clean/`, the two in `disasm/` and the two in `speculate/`.
+in `listings/clean/`, the two in `listings/disasm/` and the two in `listings/speculate/`.
 
-The run also rebuilds `disasm/postinstall-syspage.asm`, which cannot be checked that
+The run also rebuilds `listings/disasm/postinstall-syspage.asm`, which cannot be checked that
 way because there is no original to compare it with, and prints the byte census
 and description count that the tables above are set from.
 
@@ -754,8 +754,8 @@ and description count that the tables above are set from.
 | `tools/fpcalc.py` | The floating-point calculator's literal streams, which follow `RST FPCALC` instead of instructions |
 | `tools/serial.py` | The serial driver, read against the SCC2691 datasheet |
 | `tools/serial_note.py` | What the DOS's own "serial" names turn out to mean |
-| `tools/syspage.py` | Builds `disasm/postinstall-syspage.asm` and its reading copy: the ROM's system page as MasterBASIC leaves it |
+| `tools/syspage.py` | Builds `listings/disasm/postinstall-syspage.asm` and its reading copy: the ROM's system page as MasterBASIC leaves it |
 | `tools/regs.py` | What each instruction reads and writes, for deriving register contracts |
-| `tools/speculate.py` | Builds `speculate/`: a reading of every routine, marked as such |
-| `tools/specrender.py` | Turns that analysis into the text `speculate/` carries |
+| `tools/speculate.py` | Builds `listings/speculate/`: a reading of every routine, marked as such |
+| `tools/specrender.py` | Turns that analysis into the text `listings/speculate/` carries |
 | `tools/build.sh` | Regenerate and verify |
