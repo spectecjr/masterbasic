@@ -5,8 +5,12 @@ routine either half calls. What they do not do is tell the story in order.
 This does: one read and one write, from the BASIC statement down to the bytes
 moving through the controller, with the addresses to look them up by.
 
-Everything here is in [disasm/masterdos.asm](../disasm/masterdos.asm) unless
-it says otherwise.
+Everything here is in the MasterDOS half unless it says otherwise. Addresses
+are given rather than links, so they work in either copy:
+[clean/masterdos.asm](../clean/masterdos.asm) to read, and
+[disasm/masterdos.asm](../disasm/masterdos.asm) for the working notes behind a
+claim. Quotations are from `disasm/`, which is the copy `tools/checkdocs.py`
+checks them against.
 
 ## The four layers
 

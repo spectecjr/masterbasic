@@ -323,13 +323,6 @@ MB &4C90 SEARCH_MEMORY
     at about 90K a second; ABS matches exactly and runs at over 200K a
     second."
 
-MB &6C7B SCREEN_ADDRESS_FOR_MODE
-    Pick the screen-address routine the current mode wants.  A non-zero
-    mode byte calls MODE2_SCREEN_ADDRESS and then sets carry so that the
-    CALL NC below is skipped; zero leaves carry clear and the CALL NC
-    takes MODE1_SCREEN_ADDRESS instead.  One conditional call standing in
-    for a branch and a join.
-
 MB &484C FIND_VARIABLE_TIMES_FIVE
     FIND_VARIABLE, and then multiply what it found by five -- ADD HL,HL
     twice and ADD HL,DE, the usual shape -- which is the size of a

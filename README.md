@@ -38,10 +38,18 @@ its label under a `DOS_` or `MB_` prefix.
 
 ## Which one to read
 
-**Read `disasm/`.** Those two files hold what can be shown: names carried from
-sources that assemble to the same bytes, tables read from the ROM, and
-descriptions from the MasterBASIC manual. Where something could not be
-established, they say so rather than guessing.
+**Read `clean/`.** Two files, one per half, and they are the reading copy: every
+routine headed with what it does and why, no number left as a bare constant
+where a name would say more, and written for someone who knows Z80 but not this
+machine. Conclusions only.
+
+**`disasm/` is the same code with the working notes left in** — where a name came
+from, what an earlier reading got wrong, which claims are still open. Read it
+when you want the argument rather than the answer, or when you are checking
+something and need to know how firmly it is held. Both hold only what can be
+shown: names carried from sources that assemble to the same bytes, tables read
+from the ROM, and descriptions from the MasterBASIC manual. Where something
+could not be established, they say so rather than guessing.
 
 **`speculate/` is a reading, not a record.** It is the same two listings with a
 derived register contract on every routine and a machine-composed guess at what
@@ -53,15 +61,15 @@ your way around 2,118 routines; it is not evidence. Its
 builds seven blocks into the ROM's own system page at boot and points
 CMDV, EDITV, RST8V and five more vectors at them, so the code the ROM
 actually calls lives at `&45A2`, `&46CC`, `&484D` and `&4BA0` and appears
-in `disasm/` only at the addresses it was stored at -- and one of the
+in `clean/` and `disasm/` only at the addresses it was stored at -- and one of the
 blocks is not stored here at all, being assembled partly out of the ROM's
 own `PUT`. `tools/syspage.py` builds that page and
 disassembles it where it really runs. It cannot be verified by
 assembling -- there is no original to compare it with -- and it says so
 at the top of itself.
 
-Both `disasm/` and `speculate/` assemble to the original bytes — everything added is a comment — so all
-four files are checked on every build.
+`clean/`, `disasm/` and `speculate/` all assemble to the original bytes —
+everything added is a comment — so all six files are checked on every build.
 
 ## Rebuilding
 
@@ -97,8 +105,9 @@ git submodule update --init
 | | |
 |---|---|
 | `file/` | the image being disassembled |
-| `disasm/` | the two listings — **start here** |
-| `speculate/` | the same, with a reading of every routine |
+| `clean/` | the reading copy — **start here** |
+| `disasm/` | the same code with the working notes left in |
+| `speculate/` | the same again, with a machine's reading of every routine |
 | `postinstall/` | the ROM's system page as MasterBASIC leaves it |
 | `notes/` | hand-written names and descriptions, fed into both |
 | `tools/` | the disassembler and the passes that annotate it |

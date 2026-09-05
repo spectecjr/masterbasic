@@ -1178,6 +1178,12 @@ def seeds(dos, mb):
     # label.
     for at in (0x7C2E, 0x7CF9, 0x7D30, 0x7D42):
         mb.self_window.append((at, at + 3))
+    # SCREEN_PAGE_OR_BUFFER's &95D8 is PALTAB at &55D8 with page 0 in the
+    # window -- the ROM's live palette -- and not the peer's ITRCK, which
+    # happens to sit at the matching address.  The routine hands the page
+    # back in A rather than paging anything itself, so the window is the
+    # caller's business and no name in this half is right for it.
+    mb.no_peer.append((0x6CC8, 0x6CCB))
     # The string move's stack juggling is the opposite case: &755C to
     # &759C puts a small stack at one end or the other of whatever page
     # it has in the window, which is neither half and has no name.
@@ -1507,6 +1513,7 @@ def load_symbols(d, work, dos=None):
         syms.from_rom_equates(rom_sym)
     syms.from_vars_file(os.path.join(ROOT, 'ref', 'samrom', 'vars.asm'))
     syms.from_mdos_comments()
+    syms.from_reserved_for_dump()
     for value, (rst_name, _note) in infer.RESTARTS.items():
         syms.add_rom_entry(value, rst_name)
 

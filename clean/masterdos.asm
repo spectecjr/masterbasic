@@ -166,6 +166,7 @@ MB_BYTE_TO_DECIMAL:           EQU  &8240
 MB_CMD_ALTER:                 EQU  &94CA
 MB_CMD_BLITZ:                 EQU  &9AD4
 MB_CMD_CLS:                   EQU  &B1A4
+MB_CMD_COPY_SCREEN:           EQU  &AC96
 MB_CMD_DATE:                  EQU  &885B
 MB_CMD_DUMP:                  EQU  &A7F0
 MB_CMD_JOIN:                  EQU  &ADFC
@@ -6873,7 +6874,7 @@ SCTRK:
 ;; tracks, and side 2 begins at &80 rather than continuing the count.
 ;; --------------------------------------------------------------------
 
-; ---- ITRCK ---- from &5578, &559B, &66A5, MB &6CC8
+; ---- ITRCK ---- from &5578, &559B, &66A5
 ITRCK:
                INC D                           ; 55D8 14  the next track
                CALL TSTD                       ; 55D9 CD F4 4A  how many this drive has, bit 7 for two sides
@@ -7833,7 +7834,7 @@ CMD_COPY:
                CP &E7                          ; 59BE FE E7
                JR NZ,CMD_COPY_1                ; 59C0 20 06
                CALL CALLMB                     ; 59C2 CD BD 42
-               DEFW &6C96                      ; 59C5 96 6C
+               DEFW MB_CMD_COPY_SCREEN-&4000   ; 59C5 96 6C
                RET                             ; 59C7 C9
 
 ; ---- CMD_COPY_1 ---- from &59C0 when A <> &E7

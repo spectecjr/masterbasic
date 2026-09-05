@@ -135,6 +135,9 @@ FLAGS:                          EQU  &5C3B     ; bit 7 set while running, clear 
 FLAGX:                          EQU  &5C71     ; flags: bit 5 set while INPUT is in progress
 FRAMIV:                         EQU  &5AE2     ; The Frame interrupt vector - usually this reads the keyboard, and
                                                ; updates the frame counter.
+GCM1:                           EQU  &5A16
+GCM2:                           EQU  &5A1F
+GCM3:                           EQU  &5A27
 GETCHAR:                        EQU  &0018     ; ROM entry: the character at CHAD, control codes skipped
 GETINT:                         EQU  &0121     ; UNSTACK WORD FROM CALCULATOR STACK TO BC. HL=BC, A=C
 GETSTR:                         EQU  &0124     ; pop a string descriptor: A = page, DE = start, BC = length
@@ -216,6 +219,8 @@ REFFLG:                         EQU  &5A76     ; Z IF REF VAR BEING WORKED ON
 ROM_BORDCR:                     EQU  &5C4B     ; VALUE TO SEND TO BORDER PORT -- the ROM calls &5C4B BORDCOL, and BORDCR
                                                ; is a different variable at &5C48. The name here is MasterDOS's own
                                                ; source's
+ROM_DMPTL:                      EQU  &5A2D
+ROM_DPVARS:                     EQU  &5A12
 RST28V:                         EQU  &5AF0     ; vector taken by the calculator before each literal
 RST8V:                          EQU  &5AEE     ; vector taken by RST &08 before the ROM handles it
 SAVARS:                         EQU  &5A82     ; ;SAVARS/NUMEND/NVARS MUST BE IN ORDER
@@ -288,7 +293,6 @@ DOS_FNS56:                      EQU  &8AD3
 DOS_HEADER:                     EQU  &8000
 DOS_HK_HSAVE_1:                 EQU  &A500
 DOS_HK_SBYT:                    EQU  &AF75
-DOS_ITRCK:                      EQU  &95D8
 DOS_LBYT:                       EQU  &AFF6
 DOS_MBCOPY_7774:                EQU  &BD93
 DOS_MBCOPY_778B:                EQU  &BDAA
@@ -14392,12 +14396,12 @@ DUMP_TEXT_1:
 DUMP_UNSHADED:
                LD A,&FB                        ; 6B42 3E FB
                CALL STREAM                     ; 6B44 CD 12 01
-               LD DE,&5A16                     ; 6B47 11 16 5A
+               LD DE,GCM1                      ; 6B47 11 16 5A
                CALL &500B                      ; 6B4A CD 0B 50  &500B once this block is moved, not the label shown
-               LD HL,(&5A2D)                   ; 6B4D 2A 2D 5A
+               LD HL,(ROM_DMPTL)               ; 6B4D 2A 2D 5A
                LD A,(&5A15)                    ; 6B50 3A 15 5A
                DEC A                           ; 6B53 3D
-               LD A,(&5A12)                    ; 6B54 3A 12 5A
+               LD A,(ROM_DPVARS)               ; 6B54 3A 12 5A
                JR Z,DUMP_UNSHADED_1            ; 6B57 28 01
                ADD A,A                         ; 6B59 87
 
@@ -14405,7 +14409,7 @@ DUMP_UNSHADED:
 DUMP_UNSHADED_1:
                LD C,A                          ; 6B5A 4F
                PUSH HL                         ; 6B5B E5
-               LD DE,&5A1F                     ; 6B5C 11 1F 5A
+               LD DE,GCM2                      ; 6B5C 11 1F 5A
                CALL &500B                      ; 6B5F CD 0B 50  &500B once this block is moved, not the label shown
                LD A,(MODE)                     ; 6B62 3A 40 5A
                CP &02                          ; 6B65 FE 02
@@ -14530,7 +14534,9 @@ DUMP_UNSHADED_LOOP8:
 DUMP_UNSHADED_6:
                DJNZ DUMP_UNSHADED_LOOP2        ; 6BEB 10 94
                POP HL                          ; 6BED E1
-               LD A,(&5A15)                    ; 6BEE 3A 15 5A
+               LD A,(&5A15)                    ; 6BEE 3A 15 5A  the height multiplier. One means eight screen rows to a
+                                               ; bit-image line; anything else means four, each already doubled into
+                                               ; SCRNBUF at &6BB4
                LD B,&08                        ; 6BF1 06 08
                DEC A                           ; 6BF3 3D
                JR Z,DUMP_UNSHADED_LOOP9        ; 6BF4 28 02
@@ -14538,51 +14544,88 @@ DUMP_UNSHADED_6:
 
 ; ---- DUMP_UNSHADED_LOOP9 ---- from &6BF4 when A reaches 0, &6BFB when B is not 0 yet
 DUMP_UNSHADED_LOOP9:
-               CALL &5015                      ; 6BF8 CD 15 50  &5015 once this block is moved, not the label shown
-               DJNZ DUMP_UNSHADED_LOOP9        ; 6BFB 10 FB
+               CALL &5015                      ; 6BF8 CD 15 50  &5015 is &115 bytes into the moved block, which is &6C0E
+                                               ; here -- the routine that steps HL to the next pixel row
+               DJNZ DUMP_UNSHADED_LOOP9        ; 6BFB 10 FB  B rows skipped, which is how the dump gets from one
+                                               ; bit-image line to the next without recomputing an address
                DEC C                           ; 6BFD 0D
-               JP NZ,&4F62                     ; 6BFE C2 62 4F  &4F62 once this block is moved, not the label shown
-               LD DE,&5A27                     ; 6C01 11 27 5A
+               JP NZ,&4F62                     ; 6BFE C2 62 4F  &4F62 is &62 bytes in, or &6B5B here: back for the next
+                                               ; line
+
+;; --------------------------------------------------------------------
+;; Send the counted string at GCM3, once, after the last line.
+;;
+;; The manual's XVAR 52: "Applies to DUMP 4 only.  Copied to the ROM's
+;; system variables at BOOT time.  Normally 4,13,10,27,64,0" -- CR, LF,
+;; ESC "@" to reset the printer, one spare.  The first byte is the
+;; count, which is why B is loaded from (DE) before the loop rather
+;; than being a constant.
+;; --------------------------------------------------------------------
+
+GCM3_TO_PRINTER:
+               LD DE,GCM3                      ; 6C01 11 27 5A
                PUSH BC                         ; 6C04 C5
                LD A,(DE)                       ; 6C05 1A
                LD B,A                          ; 6C06 47
 
-; ---- DUMP_UNSHADED_LOOP10 ---- from &6C0A when B is not 0 yet
-DUMP_UNSHADED_LOOP10:
+; ---- GCM3_TO_PRINTER_LOOP ---- from &6C0A when B is not 0 yet
+GCM3_TO_PRINTER_LOOP:
                INC DE                          ; 6C07 13
                LD A,(DE)                       ; 6C08 1A
                RST PRINT_A                     ; 6C09 D7
-               DJNZ DUMP_UNSHADED_LOOP10       ; 6C0A 10 FB
+               DJNZ GCM3_TO_PRINTER_LOOP       ; 6C0A 10 FB
                POP BC                          ; 6C0C C1
                RET                             ; 6C0D C9
+
+;; --------------------------------------------------------------------
+;; HL to the same column one pixel row down, in whichever mode.
+;;
+;; Three answers, and only the first is hard.  MODE 2 adds &20 and
+;; MODE 3 or 4 adds &80, because both are linear -- 32 and 128 bytes to
+;; a row -- so the whole routine for them is an eight-bit add with the
+;; carry taken into H.
+;;
+;; MODE 1 IS THE SPECTRUM'S, and the three-part step at &6C20 is the
+;; classic one: INC H moves down a pixel row inside a character row,
+;; and while the bottom three bits of H are anything but zero that is
+;; all there is to do.  When they roll over, the next character row is
+;; &20 further along L; and if THAT carries, the address has moved into
+;; the next third of the screen and H is already right, so the routine
+;; returns.  Only when it does not carry does H need &F8 -- minus
+;; eight -- putting it back to the top of the new character row.
+;; --------------------------------------------------------------------
+
+STEP_TO_NEXT_PIXEL_ROW:
                LD A,(MODE)                     ; 6C0E 3A 40 5A
                AND A                           ; 6C11 A7
-               JR Z,DUMP_UNSHADED_8            ; 6C12 28 0C
+               JR Z,STEP_TO_NEXT_PIXEL_ROW_2   ; 6C12 28 0C
                DEC A                           ; 6C14 3D
-               LD A,&20                        ; 6C15 3E 20
-               JR Z,DUMP_UNSHADED_7            ; 6C17 28 02
-               LD A,&80                        ; 6C19 3E 80
+               LD A,&20                        ; 6C15 3E 20  &20 is MODE 2's row: 32 bytes across
+               JR Z,STEP_TO_NEXT_PIXEL_ROW_1   ; 6C17 28 02
+               LD A,&80                        ; 6C19 3E 80  &80 is MODE 3 and MODE 4's row: 128 bytes, four or two
+                                               ; pixels to the byte
 
-; ---- DUMP_UNSHADED_7 ---- from &6C17 when A reaches 0
-DUMP_UNSHADED_7:
+; ---- STEP_TO_NEXT_PIXEL_ROW_1 ---- from &6C17 when A reaches 0
+STEP_TO_NEXT_PIXEL_ROW_1:
                ADD A,L                         ; 6C1B 85
                LD L,A                          ; 6C1C 6F
                RET NC                          ; 6C1D D0
                INC H                           ; 6C1E 24
                RET                             ; 6C1F C9
 
-; ---- DUMP_UNSHADED_8 ---- from &6C12 when A = 0
-DUMP_UNSHADED_8:
+; ---- STEP_TO_NEXT_PIXEL_ROW_2 ---- from &6C12 when A = 0
+STEP_TO_NEXT_PIXEL_ROW_2:
                INC H                           ; 6C20 24
                LD A,H                          ; 6C21 7C
-               AND &07                         ; 6C22 E6 07
+               AND &07                         ; 6C22 E6 07  still inside a character row, so INC H was the whole step
                RET NZ                          ; 6C24 C0
                LD A,L                          ; 6C25 7D
-               ADD A,&20                       ; 6C26 C6 20
+               ADD A,&20                       ; 6C26 C6 20  a character row down, 32 bytes along
                LD L,A                          ; 6C28 6F
-               RET C                           ; 6C29 D8
+               RET C                           ; 6C29 D8  the carry means the next third, whose base H already holds
                LD A,H                          ; 6C2A 7C
-               ADD A,&F8                       ; 6C2B C6 F8
+               ADD A,&F8                       ; 6C2B C6 F8  &F8 is minus eight -- back to the first pixel row of the
+                                               ; character row just entered
                LD H,A                          ; 6C2D 67
                RET                             ; 6C2E C9
 
@@ -14597,23 +14640,40 @@ MODE1_PIXEL_AND_ATTR:
 ;; --------------------------------------------------------------------
 ;; Row B, column C to a MODE 1 display address in the window.
 ;;
-;; The OR &80 : XOR L : AND &F8 : XOR L is the Spectrum's thirds-and-
-;; rows interleave, so the display file is at &8000-&97FF as this sees
-;; it and MODE1_ATTR_ADDRESS puts the attributes above it at &9800.
+;; XOR L : AND mask : XOR L IS A BITFIELD MERGE, three bytes long and
+;; branchless: it takes the bits the mask sets from A and the rest from
+;; L.  It is used twice here, and doing the interleave any other way
+;; would have needed shifts of multi-bit fields the Z80 has no
+;; instruction for.
+;;
+;; The high byte wants &80 + third*8 + (row AND 7).  A is the row
+;; shifted right three and masked to &1F, which is the character row
+;; 0-23, and OR &80 puts it in the window; the merge with &F8 then
+;; keeps the third from that and takes the low three bits from L, which
+;; still holds the row.
+;;
+;; The low byte wants ((row>>3) AND 7)*32 + column>>3.  A is the column
+;; rotated left three, the merge with &C7 puts the row's bits 5, 4 and
+;; 3 into the middle of it, and two more rotates carry everything into
+;; place: five rotates in total move the column's top five bits down to
+;; the bottom and the row's three character-row bits up to the top.
 ;; --------------------------------------------------------------------
 
 ; ---- MODE1_SCREEN_ADDRESS ---- from &6C2F, &6C82
 MODE1_SCREEN_ADDRESS:
                LD L,B                          ; 6C38 68
                LD A,B                          ; 6C39 78
-               OR A                            ; 6C3A B7
+               OR A                            ; 6C3A B7  OR A rather than AND A -- either would do, and both are here
+                                               ; only to clear the carry the three RRAs would otherwise rotate in
                RRA                             ; 6C3B 1F
                RRA                             ; 6C3C 1F
                RRA                             ; 6C3D 1F
-               AND &1F                         ; 6C3E E6 1F
-               OR &80                          ; 6C40 F6 80
+               AND &1F                         ; 6C3E E6 1F  the character row, 0 to 23
+               OR &80                          ; 6C40 F6 80  &80 rather than &40, because the screen is being addressed
+                                               ; through the window and not at home
                XOR L                           ; 6C42 AD
-               AND &F8                         ; 6C43 E6 F8
+               AND &F8                         ; 6C43 E6 F8  &F8 from A -- the window bit and the third -- and &07 from
+                                               ; L, which is still the row: the pixel row inside the character row
                XOR L                           ; 6C45 AD
                LD H,A                          ; 6C46 67
                LD A,C                          ; 6C47 79
@@ -14621,12 +14681,27 @@ MODE1_SCREEN_ADDRESS:
                RLCA                            ; 6C49 07
                RLCA                            ; 6C4A 07
                XOR L                           ; 6C4B AD
-               AND &C7                         ; 6C4C E6 C7
+               AND &C7                         ; 6C4C E6 C7  &C7 from A and &38 from L, which puts the row's bits 5, 4
+                                               ; and 3 where two more rotates will carry them to the top of the byte
                XOR L                           ; 6C4E AD
-               RLCA                            ; 6C4F 07
+               RLCA                            ; 6C4F 07  five rotates in all, which is what turns column bits 7-3 into
+                                               ; the bottom five and row bits 5-3 into the top three
                RLCA                            ; 6C50 07
                LD L,A                          ; 6C51 6F
                RET                             ; 6C52 C9
+
+;; --------------------------------------------------------------------
+;; The attribute byte for a display address already in HL.
+;;
+;; &5800 + charrow*32 + col is the same low byte and a high byte of
+;; &58 + third, so only H changes: three rotates and AND &03 leave the
+;; third that MODE1_SCREEN_ADDRESS put in bits 4 and 3, and OR &98 is
+;; &58 seen through the window.
+;;
+;; The carry rotating into the first RRA is not cleared and does not
+;; need to be -- after three rotates it is in bit 5, and AND &03
+;; removes it.
+;; --------------------------------------------------------------------
 
 ; ---- MODE1_ATTR_ADDRESS ---- from &6C33, &6D3E
 MODE1_ATTR_ADDRESS:
@@ -14634,8 +14709,8 @@ MODE1_ATTR_ADDRESS:
                RRA                             ; 6C54 1F
                RRA                             ; 6C55 1F
                RRA                             ; 6C56 1F
-               AND &03                         ; 6C57 E6 03
-               OR &98                          ; 6C59 F6 98
+               AND &03                         ; 6C57 E6 03  the third, which was in bits 4 and 3 of H
+               OR &98                          ; 6C59 F6 98  &58 plus the window's &40
                LD H,A                          ; 6C5B 67
                RET                             ; 6C5C C9
 
@@ -14648,86 +14723,142 @@ MODE2_PIXEL_AND_ATTR:
                RET                             ; 6C64 C9
 
 ;; --------------------------------------------------------------------
-;; The same for MODE 2, where the layout is linear and the attributes
-;; sit &2000 higher -- which is the SET 5,H in the caller.
+;; Row B, column C to a MODE 2 display address in the window.
+;;
+;; MODE 2 is linear -- 32 bytes to a row -- so the address is simply
+;; (row*256 + column)/8, and putting the row in H and the column in L
+;; makes row*256 + column free.  Three shifts of HL do the divide.
+;;
+;; THE LAST SHIFT ALSO PAGES IT.  SCF before the third RR H puts a one
+;; into bit 15, so the &2000 the divide would have produced becomes
+;; &A000 -- the display seen at &8000 -- without a separate OR.
+;;
+;; A holds the column throughout, which is what the two AND A
+;; instructions between the shifts are really for: each clears the
+;; carry for the shift that follows, and neither disturbs the value
+;; &6C72 goes on to mask for the bit number.
 ;; --------------------------------------------------------------------
 
 ; ---- MODE2_SCREEN_ADDRESS ---- from &6C5D, &6C7E
 MODE2_SCREEN_ADDRESS:
                LD H,B                          ; 6C65 60
                LD L,C                          ; 6C66 69
-               LD A,L                          ; 6C67 7D
-               AND A                           ; 6C68 A7
+               LD A,L                          ; 6C67 7D  the column, kept in A across the shifts so &6C72 can take the
+                                               ; bit number out of it
+               AND A                           ; 6C68 A7  clears the carry for the shift below; A is untouched, which is
+                                               ; the point of using AND A rather than a load
                RR H                            ; 6C69 CB 1C
                RR L                            ; 6C6B CB 1D
                AND A                           ; 6C6D A7
                RR H                            ; 6C6E CB 1C
                RR L                            ; 6C70 CB 1D
-               AND &07                         ; 6C72 E6 07
+               AND &07                         ; 6C72 E6 07  the pixel's bit within the byte, 0 to 7
                LD B,A                          ; 6C74 47
-               SCF                             ; 6C75 37
+               SCF                             ; 6C75 37  SCF makes the third shift set bit 15 as it divides, so the
+                                               ; address comes out at &8000 and not &0000
                RR H                            ; 6C76 CB 1C
                RR L                            ; 6C78 CB 1D
                RET                             ; 6C7A C9
 
 ;; --------------------------------------------------------------------
-;; Pick the screen-address routine the current mode wants.  A non-zero
-;; mode byte calls MODE2_SCREEN_ADDRESS and then sets carry so that the
-;; CALL NC below is skipped; zero leaves carry clear and the CALL NC
-;; takes MODE1_SCREEN_ADDRESS instead.  One conditional call standing in
-;; for a branch and a join.
+;; Set one pixel of a MODE 1 or MODE 2 screen from the corresponding
+;; bit of D.  Called by ALTER DISPLAY at &6D16.
+;;
+;; THE NAME IT USED TO HAVE, SCREEN_ADDRESS_FOR_MODE, described the
+;; first four instructions and not the routine: they pick the address,
+;; and everything after &6C85 writes the pixel.
+;;
+;; A conditional call stands in for a branch and a join.  A non-zero
+;; mode byte takes MODE2_SCREEN_ADDRESS and then sets carry so the
+;; CALL NC below is skipped; zero leaves carry clear and falls into it,
+;; so MODE1_SCREEN_ADDRESS runs instead.  Both paths reach &6C85 with
+;; the address in HL.
+;;
+;; &FE rotated right (column AND 7) + 1 times is a mask with exactly
+;; one bit clear, and that bit is the pixel's -- once for column 0,
+;; which puts the hole in bit 7, because the leftmost pixel of a byte
+;; is its most significant.  The same XOR : AND : XOR merge as
+;; MODE1_SCREEN_ADDRESS then writes D's bit into the hole and leaves
+;; the other seven alone.
 ;; --------------------------------------------------------------------
 
-; ---- SCREEN_ADDRESS_FOR_MODE ---- from &6D16
-SCREEN_ADDRESS_FOR_MODE:
+; ---- PLOT_PIXEL_IN_MODE ---- from &6D16
+PLOT_PIXEL_IN_MODE:
                AND A                           ; 6C7B A7
-               JR Z,SCREEN_ADDRESS_FOR_MODE_1  ; 6C7C 28 04
+               JR Z,PLOT_PIXEL_IN_MODE_1       ; 6C7C 28 04
                CALL MODE2_SCREEN_ADDRESS       ; 6C7E CD 65 6C
-               SCF                             ; 6C81 37
+               SCF                             ; 6C81 37  carry set means the address is done, so the conditional call
+                                               ; below is skipped
 
-; ---- SCREEN_ADDRESS_FOR_MODE_1 ---- from &6C7C when A = 0
-SCREEN_ADDRESS_FOR_MODE_1:
+; ---- PLOT_PIXEL_IN_MODE_1 ---- from &6C7C when A = 0
+PLOT_PIXEL_IN_MODE_1:
                CALL NC,MODE1_SCREEN_ADDRESS    ; 6C82 D4 38 6C
                LD A,C                          ; 6C85 79
-               AND &07                         ; 6C86 E6 07
-               INC A                           ; 6C88 3C
+               AND &07                         ; 6C86 E6 07  the pixel's place inside the byte
+               INC A                           ; 6C88 3C  one more, because a single RRCA already moves bit 0 to bit 7
+                                               ; -- column 0 is the top bit
                LD B,A                          ; 6C89 47
-               LD A,&FE                        ; 6C8A 3E FE
+               LD A,&FE                        ; 6C8A 3E FE  one bit clear out of eight, and the rotate below moves the
+                                               ; hole to the pixel
 
-; ---- SCREEN_ADDRESS_FOR_MODE_LOOP ---- from &6C8D when B is not 0 yet
-SCREEN_ADDRESS_FOR_MODE_LOOP:
-               RRCA                              ; 6C8C 0F
-               DJNZ SCREEN_ADDRESS_FOR_MODE_LOOP ; 6C8D 10 FD
-               LD B,A                            ; 6C8F 47
-               LD A,(HL)                         ; 6C90 7E
-               XOR D                             ; 6C91 AA
-               AND B                             ; 6C92 A0
-               XOR D                             ; 6C93 AA
-               LD (HL),A                         ; 6C94 77
-               RET                               ; 6C95 C9
-               CALL SKIP_THEN_NUMBER             ; 6C96 CD 82 44
-               LD C,&8E                          ; 6C99 0E 8E
-               CALL CHAR_THEN_NUMBER_THEN_END    ; 6C9B CD C5 44
-               CALL SCREEN_NUMBER_ARGUMENT       ; 6C9E CD D8 6D
-               PUSH BC                           ; 6CA1 C5
-               CALL SCREEN_NUMBER_ARGUMENT       ; 6CA2 CD D8 6D
-               LD (DUMP_MODE),A                  ; 6CA5 32 AE 40
-               POP HL                            ; 6CA8 E1
-               PUSH HL                           ; 6CA9 E5
-               PUSH BC                           ; 6CAA C5
-               CALL PAGE_PAIR_INTO_ALTERNATES    ; 6CAB CD D1 6C
-               POP HL                            ; 6CAE E1
-               CALL SCREEN_PAGE_OR_BUFFER        ; 6CAF CD C2 6C
-               EX DE,HL                          ; 6CB2 EB
-               LD H,A                            ; 6CB3 67
-               EX (SP),HL                        ; 6CB4 E3
-               CALL SCREEN_PAGE_OR_BUFFER        ; 6CB5 CD C2 6C
-               EX DE,HL                          ; 6CB8 EB
-               LD C,A                            ; 6CB9 4F
-               PUSH BC                           ; 6CBA C5
-               XOR A                             ; 6CBB AF
-               LD BC,&0028                       ; 6CBC 01 28 00
-               JP SCREEN_ADDRESS_FOR_MODE_2      ; 6CBF C3 C6 6D
+; ---- PLOT_PIXEL_IN_MODE_LOOP ---- from &6C8D when B is not 0 yet
+PLOT_PIXEL_IN_MODE_LOOP:
+               RRCA                            ; 6C8C 0F
+               DJNZ PLOT_PIXEL_IN_MODE_LOOP    ; 6C8D 10 FD
+               LD B,A                          ; 6C8F 47
+               LD A,(HL)                       ; 6C90 7E
+               XOR D                           ; 6C91 AA  the bits B sets come from the screen and the bit it clears
+                                               ; comes from D, which is the whole of the plot
+               AND B                           ; 6C92 A0
+               XOR D                           ; 6C93 AA
+               LD (HL),A                       ; 6C94 77
+               RET                             ; 6C95 C9
+
+;; --------------------------------------------------------------------
+;; COPY SCREEN n TO m -- "copies whatever is on the first screen to the
+;; second screen".
+;;
+;; Both numbers go through SCREEN_NUMBER_ARGUMENT, which gives the
+;; screen's page in C and its mode in A and B.  The destination's mode
+;; is put in DUMP_MODE, which the pixel readers consult; the two are
+;; then compared at the head of the conversion code, and the manual
+;; says what equality buys: "The screen is copied very quickly in the
+;; example above, because both source and destination screens are in
+;; MODE 4, and no conversion work needs to be done."
+;;
+;; THE PALETTE IS COPIED FIRST, before any pixel.  Forty bytes, from
+;; wherever the source's palette lives to wherever the destination's
+;; does, which is what the two SCREEN_PAGE_OR_BUFFER calls and the
+;; stack juggling between them work out.
+;; --------------------------------------------------------------------
+
+CMD_COPY_SCREEN:
+               CALL SKIP_THEN_NUMBER           ; 6C96 CD 82 44
+               LD C,&8E                        ; 6C99 0E 8E  the TO token, which CHAR_THEN_NUMBER_THEN_END demands
+                                               ; between the two numbers
+               CALL CHAR_THEN_NUMBER_THEN_END  ; 6C9B CD C5 44
+               CALL SCREEN_NUMBER_ARGUMENT     ; 6C9E CD D8 6D
+               PUSH BC                         ; 6CA1 C5
+               CALL SCREEN_NUMBER_ARGUMENT     ; 6CA2 CD D8 6D
+               LD (DUMP_MODE),A                ; 6CA5 32 AE 40  the destination's mode, kept where the pixel readers
+                                               ; look for it
+               POP HL                          ; 6CA8 E1
+               PUSH HL                         ; 6CA9 E5
+               PUSH BC                         ; 6CAA C5
+               CALL PAGE_PAIR_INTO_ALTERNATES  ; 6CAB CD D1 6C
+               POP HL                          ; 6CAE E1
+               CALL SCREEN_PAGE_OR_BUFFER      ; 6CAF CD C2 6C
+               EX DE,HL                        ; 6CB2 EB
+               LD H,A                          ; 6CB3 67
+               EX (SP),HL                      ; 6CB4 E3
+               CALL SCREEN_PAGE_OR_BUFFER      ; 6CB5 CD C2 6C
+               EX DE,HL                        ; 6CB8 EB
+               LD C,A                          ; 6CB9 4F
+               PUSH BC                         ; 6CBA C5
+               XOR A                           ; 6CBB AF
+               LD BC,&0028                     ; 6CBC 01 28 00  forty bytes -- PALBUF is &FFD8 to &FFFF, which is the
+                                               ; palette and nothing else
+               JP SET_UP_FAR_LDIR              ; 6CBF C3 C6 6D
 
 ;; --------------------------------------------------------------------
 ;; Compare the page in L with the one being displayed, taken straight
@@ -14740,13 +14871,18 @@ SCREEN_ADDRESS_FOR_MODE_LOOP:
 SCREEN_PAGE_OR_BUFFER:
                IN A,(VMPR)                     ; 6CC2 DB FC
                AND PAGEMASK                    ; 6CC4 E6 1F
-               SUB L                           ; 6CC6 95
-               LD C,L                          ; 6CC7 4D
-               LD HL,DOS_ITRCK                 ; 6CC8 21 D8 95
+               SUB L                           ; 6CC6 95  the page being displayed, less this one -- zero means they are
+                                               ; the same screen
+               LD C,L                          ; 6CC7 4D  L is about to be overwritten by the load below, and the page
+                                               ; is wanted afterwards
+               LD HL,PALTAB+IN_PAGE_C          ; 6CC8 21 D8 95  &55D8 is PALTAB, the live palette, seen at &8000 with
+                                               ; page 0 in the window. Both paths leave L at &D8; only H and the page
+                                               ; differ
                RET Z                           ; 6CCB C8
                LD A,C                          ; 6CCC 79
-               INC A                           ; 6CCD 3C
-               LD H,&BF                        ; 6CCE 26 BF
+               INC A                           ; 6CCD 3C  the second page of the pair, which is where PALBUF really is
+               LD H,&BF                        ; 6CCE 26 BF  &BFD8 is &FFD8 addressed one page down, which is what the
+                                               ; ROM's own note says it is for
                RET                             ; 6CD0 C9
 
 ;; --------------------------------------------------------------------
@@ -14823,7 +14959,7 @@ PAGE_PAIR_INTO_ALTERNATES_5:
                EXX                                   ; 6D13 D9
                POP BC                                ; 6D14 C1
                PUSH BC                               ; 6D15 C5
-               CALL SCREEN_ADDRESS_FOR_MODE          ; 6D16 CD 7B 6C
+               CALL PLOT_PIXEL_IN_MODE               ; 6D16 CD 7B 6C
                POP BC                                ; 6D19 C1
                INC C                                 ; 6D1A 0C
                LD A,C                                ; 6D1B 79
@@ -14986,8 +15122,19 @@ PAGE_PAIR_INTO_ALTERNATES_15:
                LD D,H                          ; 6DC4 54
                LD E,L                          ; 6DC5 5D
 
-; ---- SCREEN_ADDRESS_FOR_MODE_2 ---- from &6CBF
-SCREEN_ADDRESS_FOR_MODE_2:
+;; --------------------------------------------------------------------
+;; Copy across page boundaries: A pages and BC bytes, then the ROM's
+;; FARLDIR.
+;;
+;; PAGCOUNT and MODCOUNT are the ROM's own parameters for it, written
+;; through NRWR and NRWRD because they are in the system page.  The
+;; source and destination pairs are already on the stack, and the two
+;; POPs below take them.  COPY SCREEN's palette move arrives here with
+;; A = 0 and BC = &0028: no whole pages, forty bytes.
+;; --------------------------------------------------------------------
+
+; ---- SET_UP_FAR_LDIR ---- from &6CBF
+SET_UP_FAR_LDIR:
                CALL NRWR                       ; 6DC6 CD 82 45
                DEFW PAGCOUNT                   ; 6DC9 83 5B
                CALL NRWRD                      ; 6DCB CD 77 45
@@ -18246,7 +18393,7 @@ INSTALL_SYSPAGE_CODE:
                LD BC,&000E                     ; 7AB6 01 0E 00
                LDIR                            ; 7AB9 ED B0
                LD HL,DPVARS                    ; 7ABB 21 1F 40
-               LD DE,&9A12                     ; 7ABE 11 12 9A
+               LD DE,ROM_DPVARS+IN_PAGE_C      ; 7ABE 11 12 9A
                LD C,&1D                        ; 7AC1 0E 1D
                LDIR                            ; 7AC3 ED B0
                LD HL,GAP_BLOCK                 ; 7AC5 21 43 7E

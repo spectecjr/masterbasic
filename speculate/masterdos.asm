@@ -115,6 +115,7 @@ MB_CALL_STKSTR_2:           EQU  &8200
 MB_CMD_ALTER:               EQU  &94CA
 MB_CMD_BLITZ:               EQU  &9AD4
 MB_CMD_CLS:                 EQU  &B1A4
+MB_CMD_COPY_SCREEN:         EQU  &AC96
 MB_CMD_DATE:                EQU  &885B
 MB_CMD_DUMP:                EQU  &A7F0
 MB_CMD_JOIN:                EQU  &ADFC
@@ -9300,7 +9301,7 @@ SCTRK:
 ;; ? calls TSTD, TIRD; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- ITRCK ---- from &5578, &559B, &66A5, MB &6CC8
+; ---- ITRCK ---- from &5578, &559B, &66A5
 ITRCK:
                INC D                           ; 55D8 14
                CALL TSTD                       ; 55D9 CD F4 4A
@@ -10944,7 +10945,8 @@ COBUS_1:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls CALLMB, GTNC; falls into whatever follows rather than returning.
+;; ? reaches the ROM through MB_CMD_COPY_SCREEN-&4000; calls CALLMB, GTNC; falls into whatever follows rather than
+;; returning.
 ;;
 ;; Shown for this routine in disasm/:
 ;;
@@ -10955,10 +10957,10 @@ CMD_COPY:
                CALL GTNC                       ; 59BB CD 3C 50
                CP &E7                          ; 59BE FE E7
                JR NZ,CMD_COPY_1                ; 59C0 20 06
-                                               ; call &6C96 in the other page: LMPR is switched first, so that address
-                                               ; is how the other listing numbers it
+                                               ; call MB_CMD_COPY_SCREEN-&4000 in the other page: LMPR is switched
+                                               ; first, so that address is how the other listing numbers it
                CALL CALLMB                     ; 59C2 CD BD 42
-               DEFW &6C96                      ; 59C5 96 6C
+               DEFW MB_CMD_COPY_SCREEN-&4000   ; 59C5 96 6C
                RET                             ; 59C7 C9
 
 ;; --------------------------------------------------------------------

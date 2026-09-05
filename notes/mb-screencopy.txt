@@ -1,0 +1,221 @@
+# The tail of DUMP 4, the mode-by-mode screen address arithmetic that
+# the shaded dumps and COPY SCREEN both use, and COPY SCREEN itself.
+
+# &6BEE-&6C2E is still inside the block that runs at &4F00 in the ROM's
+# system page: &6AF9 plus &0136 is &6C2F, so MODE1_PIXEL_AND_ATTR is the
+# first instruction after it and everything above runs where it lies.
+
+MB &6BEE : the height multiplier.  One means eight screen rows to a bit-image line; anything else means four, each already doubled into SCRNBUF at &6BB4
+
+MB &6BF8 : &5015 is &115 bytes into the moved block, which is &6C0E here -- the routine that steps HL to the next pixel row
+
+MB &6BFB : B rows skipped, which is how the dump gets from one bit-image line to the next without recomputing an address
+
+MB &6BFE : &4F62 is &62 bytes in, or &6B5B here: back for the next line
+
+MB &6C01 GCM3_TO_PRINTER
+    Send the counted string at GCM3, once, after the last line.
+
+    The manual's XVAR 52: "Applies to DUMP 4 only.  Copied to the ROM's
+    system variables at BOOT time.  Normally 4,13,10,27,64,0" -- CR, LF,
+    ESC "@" to reset the printer, one spare.  The first byte is the
+    count, which is why B is loaded from (DE) before the loop rather
+    than being a constant.
+
+MB &6C0E STEP_TO_NEXT_PIXEL_ROW
+    HL to the same column one pixel row down, in whichever mode.
+
+    Three answers, and only the first is hard.  MODE 2 adds &20 and
+    MODE 3 or 4 adds &80, because both are linear -- 32 and 128 bytes to
+    a row -- so the whole routine for them is an eight-bit add with the
+    carry taken into H.
+
+    MODE 1 IS THE SPECTRUM'S, and the three-part step at &6C20 is the
+    classic one: INC H moves down a pixel row inside a character row,
+    and while the bottom three bits of H are anything but zero that is
+    all there is to do.  When they roll over, the next character row is
+    &20 further along L; and if THAT carries, the address has moved into
+    the next third of the screen and H is already right, so the routine
+    returns.  Only when it does not carry does H need &F8 -- minus
+    eight -- putting it back to the top of the new character row.
+
+MB &6C15 : &20 is MODE 2's row: 32 bytes across
+
+MB &6C19 : &80 is MODE 3 and MODE 4's row: 128 bytes, four or two pixels to the byte
+
+MB &6C22 : still inside a character row, so INC H was the whole step
+
+MB &6C26 : a character row down, 32 bytes along
+
+MB &6C29 : the carry means the next third, whose base H already holds
+
+MB &6C2B : &F8 is minus eight -- back to the first pixel row of the character row just entered
+
+DOC MODE1_SCREEN_ADDRESS
+    Row B, column C to a MODE 1 display address in the window.
+
+    XOR L : AND mask : XOR L IS A BITFIELD MERGE, three bytes long and
+    branchless: it takes the bits the mask sets from A and the rest from
+    L.  It is used twice here, and doing the interleave any other way
+    would have needed shifts of multi-bit fields the Z80 has no
+    instruction for.
+
+    The high byte wants &80 + third*8 + (row AND 7).  A is the row
+    shifted right three and masked to &1F, which is the character row
+    0-23, and OR &80 puts it in the window; the merge with &F8 then
+    keeps the third from that and takes the low three bits from L, which
+    still holds the row.
+
+    The low byte wants ((row>>3) AND 7)*32 + column>>3.  A is the column
+    rotated left three, the merge with &C7 puts the row's bits 5, 4 and
+    3 into the middle of it, and two more rotates carry everything into
+    place: five rotates in total move the column's top five bits down to
+    the bottom and the row's three character-row bits up to the top.
+
+MB &6C3A : OR A rather than AND A -- either would do, and both are here only to clear the carry the three RRAs would otherwise rotate in
+
+MB &6C3E : the character row, 0 to 23
+
+MB &6C40 : &80 rather than &40, because the screen is being addressed through the window and not at home
+
+MB &6C43 : &F8 from A -- the window bit and the third -- and &07 from L, which is still the row: the pixel row inside the character row
+
+MB &6C4C : &C7 from A and &38 from L, which puts the row's bits 5, 4 and 3 where two more rotates will carry them to the top of the byte
+
+MB &6C4F : five rotates in all, which is what turns column bits 7-3 into the bottom five and row bits 5-3 into the top three
+
+DOC MODE1_ATTR_ADDRESS
+    The attribute byte for a display address already in HL.
+
+    &5800 + charrow*32 + col is the same low byte and a high byte of
+    &58 + third, so only H changes: three rotates and AND &03 leave the
+    third that MODE1_SCREEN_ADDRESS put in bits 4 and 3, and OR &98 is
+    &58 seen through the window.
+
+    The carry rotating into the first RRA is not cleared and does not
+    need to be -- after three rotates it is in bit 5, and AND &03
+    removes it.
+
+MB &6C57 : the third, which was in bits 4 and 3 of H
+
+MB &6C59 : &58 plus the window's &40
+
+DOC MODE2_SCREEN_ADDRESS
+    Row B, column C to a MODE 2 display address in the window.
+
+    MODE 2 is linear -- 32 bytes to a row -- so the address is simply
+    (row*256 + column)/8, and putting the row in H and the column in L
+    makes row*256 + column free.  Three shifts of HL do the divide.
+
+    THE LAST SHIFT ALSO PAGES IT.  SCF before the third RR H puts a one
+    into bit 15, so the &2000 the divide would have produced becomes
+    &A000 -- the display seen at &8000 -- without a separate OR.
+
+    A holds the column throughout, which is what the two AND A
+    instructions between the shifts are really for: each clears the
+    carry for the shift that follows, and neither disturbs the value
+    &6C72 goes on to mask for the bit number.
+
+MB &6C67 : the column, kept in A across the shifts so &6C72 can take the bit number out of it
+
+MB &6C68 : clears the carry for the shift below; A is untouched, which is the point of using AND A rather than a load
+
+MB &6C72 : the pixel's bit within the byte, 0 to 7
+
+MB &6C75 : SCF makes the third shift set bit 15 as it divides, so the address comes out at &8000 and not &0000
+
+MB &6C7B PLOT_PIXEL_IN_MODE
+    Set one pixel of a MODE 1 or MODE 2 screen from the corresponding
+    bit of D.  Called by ALTER DISPLAY at &6D16.
+
+    THE NAME IT USED TO HAVE, SCREEN_ADDRESS_FOR_MODE, described the
+    first four instructions and not the routine: they pick the address,
+    and everything after &6C85 writes the pixel.
+
+    A conditional call stands in for a branch and a join.  A non-zero
+    mode byte takes MODE2_SCREEN_ADDRESS and then sets carry so the
+    CALL NC below is skipped; zero leaves carry clear and falls into it,
+    so MODE1_SCREEN_ADDRESS runs instead.  Both paths reach &6C85 with
+    the address in HL.
+
+    &FE rotated right (column AND 7) + 1 times is a mask with exactly
+    one bit clear, and that bit is the pixel's -- once for column 0,
+    which puts the hole in bit 7, because the leftmost pixel of a byte
+    is its most significant.  The same XOR : AND : XOR merge as
+    MODE1_SCREEN_ADDRESS then writes D's bit into the hole and leaves
+    the other seven alone.
+
+MB &6C81 : carry set means the address is done, so the conditional call below is skipped
+
+MB &6C86 : the pixel's place inside the byte
+
+MB &6C88 : one more, because a single RRCA already moves bit 0 to bit 7 -- column 0 is the top bit
+
+MB &6C8A : one bit clear out of eight, and the rotate below moves the hole to the pixel
+
+MB &6C91 : the bits B sets come from the screen and the bit it clears comes from D, which is the whole of the plot
+
+MB &6C96 CMD_COPY_SCREEN
+    COPY SCREEN n TO m -- "copies whatever is on the first screen to the
+    second screen".
+
+    Both numbers go through SCREEN_NUMBER_ARGUMENT, which gives the
+    screen's page in C and its mode in A and B.  The destination's mode
+    is put in DUMP_MODE, which the pixel readers consult; the two are
+    then compared at the head of the conversion code, and the manual
+    says what equality buys: "The screen is copied very quickly in the
+    example above, because both source and destination screens are in
+    MODE 4, and no conversion work needs to be done."
+
+    THE PALETTE IS COPIED FIRST, before any pixel.  Forty bytes, from
+    wherever the source's palette lives to wherever the destination's
+    does, which is what the two SCREEN_PAGE_OR_BUFFER calls and the
+    stack juggling between them work out.
+
+MB &6C99 : the TO token, which CHAR_THEN_NUMBER_THEN_END demands between the two numbers
+
+MB &6CA5 : the destination's mode, kept where the pixel readers look for it
+
+MB &6CBC : forty bytes -- PALBUF is &FFD8 to &FFFF, which is the palette and nothing else
+
+MB &6CC2 SCREEN_PAGE_OR_BUFFER
+    Where this screen's palette is: the live one if it is being
+    displayed, its own saved copy if it is not.
+
+    The ROM keeps the displayed screen's palette in PALTAB at &55D8 and
+    every other screen's in PALBUF, and its own variable list explains
+    the odd address that comes back here:
+
+        PALBUF: EQU &FFD8   ;PALETTE OF NON-DISPLAYED SCREEN (ADDRESSED
+                            ;AT BFD8H FOR CONVENIENCE)
+
+    &FFD8 is the top of the second page of a screen's pair, and &BFD8
+    is that same byte reached one page lower -- which is why the page
+    returned in A is L plus one and not L.
+
+    Comparing L against VMPR masked to &1F is the whole of "is this the
+    screen being displayed".  If it is, the answer is page 0 and &95D8,
+    which is PALTAB at &55D8 with the system page in the window; the
+    listing used to write that as DOS_ITRCK, a routine in the other half
+    that happens to sit at the matching address and has nothing to do
+    with this.
+
+MB &6CC6 : the page being displayed, less this one -- zero means they are the same screen
+
+MB &6CC7 : L is about to be overwritten by the load below, and the page is wanted afterwards
+
+MB &6CC8 : &55D8 is PALTAB, the live palette, seen at &8000 with page 0 in the window.  Both paths leave L at &D8; only H and the page differ
+
+MB &6CCD : the second page of the pair, which is where PALBUF really is
+
+MB &6CCE : &BFD8 is &FFD8 addressed one page down, which is what the ROM's own note says it is for
+
+MB &6DC6 SET_UP_FAR_LDIR
+    Copy across page boundaries: A pages and BC bytes, then the ROM's
+    FARLDIR.
+
+    PAGCOUNT and MODCOUNT are the ROM's own parameters for it, written
+    through NRWR and NRWRD because they are in the system page.  The
+    source and destination pairs are already on the stack, and the two
+    POPs below take them.  COPY SCREEN's palette move arrives here with
+    A = 0 and BC = &0028: no whole pages, forty bytes.

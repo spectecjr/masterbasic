@@ -5,12 +5,19 @@
 the only file on that disk. It is MasterDOS 2.3 and MasterBASIC 1.7 built into
 one bootable DOS image.
 
-The disassembly is two files, produced by `tools/build.sh`:
+The disassembly is two halves, written out three ways by `tools/build.sh`:
 
 | | |
 |---|---|
-| [disasm/masterdos.asm](../disasm/masterdos.asm) | file bytes 0–16319 |
-| [disasm/masterbasic.asm](../disasm/masterbasic.asm) | file bytes 16320–32639 |
+| [clean/masterdos.asm](../clean/masterdos.asm) | file bytes 0–16319, the reading copy |
+| [clean/masterbasic.asm](../clean/masterbasic.asm) | file bytes 16320–32639, the reading copy |
+| [disasm/masterdos.asm](../disasm/masterdos.asm) | the same, with the working notes left in |
+| [disasm/masterbasic.asm](../disasm/masterbasic.asm) | the same, with the working notes left in |
+
+`clean/` is where to start reading. `disasm/` is the same code carrying the
+argument as well as the conclusion -- where a name came from, what an earlier
+reading got wrong, what is still open -- and this document quotes `disasm/`
+because that is the copy whose claims can be traced.
 
 **Assembling either with pyz80 reproduces its half of the file byte for byte**,
 which is what makes the listings trustworthy: a misreading shows up as a
@@ -719,8 +726,8 @@ python -m pip install pyz80
 tools/build.sh
 ```
 
-Exit status is 0 only if all four listings came back byte-identical -- the two
-in `disasm/` and the two in `speculate/`.
+Exit status is 0 only if all six listings came back byte-identical -- the two
+in `clean/`, the two in `disasm/` and the two in `speculate/`.
 
 The run also rebuilds `postinstall/syspage.asm`, which cannot be checked that
 way because there is no original to compare it with, and prints the byte census

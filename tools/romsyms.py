@@ -166,6 +166,12 @@ class Symbols:
             self._add(self.data, value, name)
             self.vars.setdefault(value, name)
 
+    def from_reserved_for_dump(self):
+        """The block vars.asm reserves for DUMP without naming."""
+        for value, (name, _note) in RESERVED_FOR_DUMP.items():
+            self._add(self.data, value, name)
+            self.vars.setdefault(value, name)
+
     def from_rom_equates(self, path):
         """ROM equates, for the variable area the DOS page hides.
 
@@ -552,6 +558,43 @@ PORT_NOTES = {
 # &5C16, which is unrelated code that happens to sit at the same address.
 FROM_MDOS_COMMENTS = {
     0x5C16: ('STRMS', 'the table of streams; stream zero first'),
+}
+
+
+# The twenty-nine bytes vars.asm leaves as "ALL reserved for DUMP",
+# between LPTPRT1 at VAR2+&10 and TABVAR at VAR2+&2F.  The ROM names
+# none of them, because the dump utility that used them was a separate
+# program; MasterBASIC puts that utility back and reads them all.
+#
+# The division is the MasterBASIC manual's, and it is forced.  Four
+# XVARs are documented as copied here at boot, with their sizes --
+# DPVARS four bytes, GCMX1 nine, GCMX2 eight, GCMX3 six, DMPTL two --
+# and 4+9+8+6+2 is 29, which is the whole block and leaves no room to
+# arrange them any other way.  DMPTL lands on &5A2D, which is the
+# manual's own "copied to SVAR 45" (&5A00+45), and that fixes the end
+# of the chain as well as the start.
+#
+# The code agrees at every point it touches them: &6BCF sends a byte
+# (&5A14) times, which is the width multiplier; &6BA8 and &6BEE take 8
+# rows a line when (&5A15) is 1 and 4 when it is not, which is the
+# height multiplier; and &6C01 sends the counted string at &5A27 once,
+# after the last line, which is what GCMX3 is documented to be -- CR,
+# LF, reset printer.
+RESERVED_FOR_DUMP = {
+    # ROM_ on the two whose XVAR keeps the same name: XVAR 31 is DPVARS
+    # at &401F and XVAR 58 is DMPTL at &403A, and these are where their
+    # bytes are copied to.  GCM1-3 need no prefix -- the XVARs they come
+    # from are GCMX1, GCMX2 and GCMX3.
+    0x5A12: ('ROM_DPVARS', 'DUMP 4: length, width, width multiplier,'
+                           ' height multiplier, from XVAR 31 at boot'),
+    0x5A16: ('GCM1', 'sent to the printer before a dump, counted; from'
+                     ' XVAR 35 GCMX1 at boot'),
+    0x5A1F: ('GCM2', 'sent before each bit-image line, counted; from'
+                     ' XVAR 44 GCMX2 at boot'),
+    0x5A27: ('GCM3', 'sent once after the dump, counted; from XVAR 52'
+                     ' GCMX3 at boot -- CR, LF, reset printer'),
+    0x5A2D: ('ROM_DMPTL', 'DUMP 4: top left address, from XVAR 58 at'
+                          " boot -- the manual's \"copied to SVAR 45\""),
 }
 
 
