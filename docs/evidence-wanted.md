@@ -4,8 +4,9 @@ What this project cannot settle by reading. Each entry says what to capture,
 why, and what it would decide — so that whoever has the hardware or the
 emulator can do it without reading the rest of the repository first. All five
 are answered, and are kept because the answers are worth more than the
-questions were. One capture is still wanted, and it is a cheap one: the
-second `SAVE BOOT` in item 1.
+questions were. Items 7 and 8 are open, and are questions rather than
+captures: 8 in particular could be settled by anyone who can save a
+compressed screen and look at the directory entry.
 
 ---
 
@@ -250,8 +251,52 @@ Failing that, two cheaper things would each narrow it:
 
 ---
 
+## 8. What writes ROM header offsets 24 to 26 when a compressed file is saved
 
+**Open.** MasterBASIC replaces MasterDOS's `HLOAD` hook outright -- the
+original is four instructions, `LD BC,&4BB0+HLDP-PVECT / NETPA / DSCHD /
+LDBLK` -- and its version at `DOS &6428` branches on bits 2 and 3 of `V42E2`,
+which `COPY_HEADER_FIELDS` fills from directory entry offsets 220 and 221.
+On the compressed path it does:
 
+    LD A,(&7F85)   ; 6449
+    LD H,A
+    LD DE,(&7F86)  ; 644D
+    CALL CALLMB : DEFW &62A6
+
+and MasterBASIC's `&62A6` takes the first as a page and the second as an
+address, folds them with `PAGED_TO_LONG` at `MB &62DC`, and expands the file
+there.
+
+**Where those two addresses come from is settled.** `COPY_HEADER_FIELDS` at
+`DOS &4EE3` copies entry offsets 210-251 to `STR-30`, which is the copy that
+puts a snapshot's registers back at `STR-20` for `SNAP7`. That lands entry
+offset 229 on `&7F85` and 230 on `&7F86`, and since entry offset 220 is the
+ROM header's offset 15, they are **header offsets 24 and 25-26** -- the
+middle of the 48-byte header, between the flags at 15 and the start address
+at 31, which the ROM does not use.
+
+**What is not settled is the other end.** Nothing in either half writes
+`DIFA+24` by name -- `DIFA+31`, `+34` and `+35` are all written explicitly a
+few instructions apart in the same routine, and `+24` is not -- so whatever
+puts a page and an address there arrives in one of the block copies that
+build the entry, or the field is written through a pointer.
+
+**What would settle it.** Save a compressed screen from MasterBASIC, then
+read the directory entry back and look at offsets 229-231:
+
+- If they hold the screen's original page and address, the field is real and
+  the writer is worth finding.
+- If they are zero or garbage, the LOAD path is reading a field nobody fills,
+  and the compressed load only works because the expander does not depend on
+  what it was handed -- which would be worth knowing on its own.
+
+A directory sector can be read with `READ AT` or lifted straight out of an
+`.mgt` image; `ref/masterdos/docs/disk-format.md` gives the entry layout, and
+its table of where the ROM header's fields land stops at 220 and resumes at
+236, so 229-231 are not documented there either.
+
+---
 
 ## Notes on capturing
 

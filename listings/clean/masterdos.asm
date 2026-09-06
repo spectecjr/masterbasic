@@ -6243,13 +6243,22 @@ SNAP3C:
 ;; operands are bare numbers where the rest of the routine's are not:
 ;; carrydoc has no source line to take them from.
 ;;
-;; WHAT PUTS A PAGE AND AN ADDRESS THERE IS NOT ESTABLISHED.  Nothing in
-;; either half writes either address by name, and the pairing does not
-;; match any register pair, so reading them as saved registers explains
-;; the addresses but not the values.  READ_SAVED_SECTOR runs immediately
-;; before, and it reads a sector to (SVDE) rather than to a fixed
-;; buffer, which could put file header bytes this far up; that is a
-;; possibility and not a reading.
+;; THEY ARE NOT REGISTERS BY THE TIME IT READS THEM.  COPY_HEADER_FIELDS
+;; copies forty-two bytes of the directory entry -- offsets 210 to 251 --
+;; to STR-30, and the whole point of the ten-byte overlap is that a
+;; snapshot's saved registers land back at STR-20 where SNAP7 expects
+;; them.  The same copy puts entry offset 229 on STR-11 and 230 on
+;; STR-10.  Entry offset 220 is the ROM header's offset 15, so those two
+;; are header offsets 24 and 25: the store and the header tail share one
+;; piece of memory on purpose, and the LOAD hook is reading the header.
+;;
+;; So the page comes from ROM header offset 24 and the address from 25
+;; and 26 -- the middle of the header, between the flags at 15 and the
+;; start address at 31, which the ROM leaves alone and MasterBASIC has
+;; taken for its own.  What writes them when the file is saved is still
+;; open: nothing in either half writes DIFA+24 by name, so they go in
+;; with one of the block copies that build the entry.
+;; docs/evidence-wanted.md item 8 has it.
 ;;
 ;; THE FREE SLOT IS FOUND BEFORE THE FILE IS OPENED, and failing to
 ;; find one goes back to the key loop rather than reporting an error --
@@ -10043,11 +10052,11 @@ HOOK_HLOAD_1:
                LD A,(HL)                       ; 6444 7E
                PUSH AF                         ; 6445 F5
                CALL HOOK_ARGS_TO_HEADER        ; 6446 CD 82 64
-               LD A,(&7F85)                    ; 6449 3A 85 7F  STR-11, the H' byte of the store the NMI fills, which
-                                               ; &62A6 wants as a page
+               LD A,(&7F85)                    ; 6449 3A 85 7F  STR-11, where COPY_HEADER_FIELDS lands ROM header offset
+                                               ; 24: the page
                LD H,A                          ; 644C 67
-               LD DE,(&7F86)                   ; 644D ED 5B 86 7F  STR-10, the AF' word, which the same call wants as an
-                                               ; address
+               LD DE,(&7F86)                   ; 644D ED 5B 86 7F  STR-10, header offsets 25 and 26: the address to
+                                               ; expand into
                POP AF                          ; 6451 F1
                CALL CALLMB                     ; 6452 CD BD 42
                DEFW &62A6                      ; 6455 A6 62
