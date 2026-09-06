@@ -540,10 +540,22 @@ BOOT_12:
 ; start of a page that is not this one, and why &75E1 below is
 ; MasterBASIC's INSTALLER rather than anything in this half.
 ;
-; These two instructions are shared.  PTHRD is a routine in its own
-; right, called from three places in the RAM disc code, and the boot
-; falls into it rather than calling it; the carried comment about a
-; path name belongs to that other use and not to this one.
+; PTHRD IS NOT A ROUTINE, and the boot does not fall into one here.
+; MasterDOS's source has PTHRD: EQU &40D2, "TEMP RAM DISC PATH NAME" --
+; a buffer, and the three places in the RAM disc code that were being
+; read as calling it are LD HL,PTHRD at &7429, LD (PTHRD),HL at &7751
+; and LD HL,SAM+195 at &6CAE.  All three are loads of an address.  The
+; same goes for PTHRD_1 at &40D4, which is LD DE,PTHRD+2 at &773D.
+;
+; ONCE THE BOOT HAS RUN, ITS OWN MEMORY BECOMES THE DOS'S TABLES, and
+; that is where those names come from.  NSAM starts at &4000, over the
+; file header; SAM is &400F to &40D1, which the source fixes at 195
+; bytes -- LD B,195, "BYTES IN SAM" -- and PTHRD follows it at &40D2.
+; So every address in this routine means two things at two different
+; times, and the listing can only show one of them.  It shows the code,
+; because that is what the bytes in the file are; the data names leak
+; in wherever one of them lands on an instruction boundary, which is
+; all PTHRD, PTHRD_1 and the number on &40D1 are.
 
 ; ---- PTHRD ---- from &6CAE, &7429, &7751
 PTHRD:
@@ -591,7 +603,7 @@ BOOT_LOAD_COMPLETE:
                IN A,(HMPR)                     ; 40EB DB FB  the page the DOS is in
                AND &1F                         ; 40ED E6 1F
                DEC A                           ; 40EF 3D  one below it, which is MasterBASIC's
-               LD (L42CC+1),A                  ; 40F0 32 CD 42  written into MasterBASIC's &42CC, not this half's: its
+               LD (&42CD),A                    ; 40F0 32 CD 42  written into MasterBASIC's &42CC, not this half's: its
                                                ; page
                XOR A                           ; 40F3 AF
                OUT (&E9),A                     ; 40F4 D3 E9
@@ -1288,9 +1300,7 @@ CALLMB:
                DEFB &E5                        ; 42C7 e
                LD C,LMPR                       ; 42C8 0E FA
                IN B,(C)                        ; 42CA ED 40
-
-L42CC:
-               LD H,&00                        ; 42CC 26 00  the operand is written here at run time, from &40F0
+               LD H,&00                        ; 42CC 26 00
                OUT (C),H                       ; 42CE ED 61
                PUSH BC                         ; 42D0 C5
                LD HL,CALLMB_1                  ; 42D1 21 DC 42
@@ -14134,9 +14144,6 @@ DIV31L:
                ADD HL,BC                       ; 75DE 09  SECT=SECT+INT(SECT/31) TO AVOID
                INC HL                          ; 75DF 23  AVOID SECT 0,32,64,96 ETC
                ADD HL,HL                       ; 75E0 29  HL=SECT NO.*2
-
-; ---- PTHRD_2 ---- from &40E0
-PTHRD_2:
                LD A,H                          ; 75E1 7C
                LD H,L                          ; 75E2 65
                LD L,B                          ; 75E3 68  AHL=20-BIT DISPLACEMENT (512*SECT)

@@ -509,7 +509,7 @@ BOOT_13:
 
 ; ---- BOOT_14 ---- from &40C7
 BOOT_14:
-               LD HL,PTHRD_2                   ; 40E0 21 E1 75
+               LD HL,&75E1                     ; 40E0 21 E1 75
                LD DE,DOSBUF+&4000              ; 40E3 11 00 BC
                LD BC,&03AF                     ; 40E6 01 AF 03
                LDIR                            ; 40E9 ED B0
@@ -517,7 +517,7 @@ BOOT_14:
                AND &1F                         ; 40ED E6 1F
                DEC A                           ; 40EF 3D
                                                ; self-modifying: patches the operand of the LD at &42CC
-               LD (L42CC+1),A                  ; 40F0 32 CD 42  patches the operand of the LD at &42CC
+               LD (&42CD),A                    ; 40F0 32 CD 42
                XOR A                           ; 40F3 AF
                OUT (&E9),A                     ; 40F4 D3 E9
                JP DOSBUF+&4000                 ; 40F6 C3 00 BC
@@ -1277,9 +1277,7 @@ CALLMB:
                DEFB &E5                        ; 42C7 e
                LD C,LMPR                       ; 42C8 0E FA
                IN B,(C)                        ; 42CA ED 40
-
-L42CC:
-               LD H,&00                        ; 42CC 26 00  the operand is written here at run time, from &40F0
+               LD H,&00                        ; 42CC 26 00
                OUT (C),H                       ; 42CE ED 61
                PUSH BC                         ; 42D0 C5
                LD HL,CALLMB_1                  ; 42D1 21 DC 42
@@ -21457,7 +21455,7 @@ CPFTS:
                DEC A                           ; 75D5 3D  A=0FFH
 
 ;; --------------------------------------------------------------------
-;; DIV31L -- &75D6 to &75E0
+;; DIV31L -- &75D6 to &75E3
 ;;
 ;; Takes:     A, BC, HL
 ;; Leaves:    A, F, C, HL
@@ -21473,16 +21471,6 @@ DIV31L:
                ADD HL,BC                       ; 75DE 09  SECT=SECT+INT(SECT/31) TO AVOID
                INC HL                          ; 75DF 23  AVOID SECT 0,32,64,96 ETC
                ADD HL,HL                       ; 75E0 29  HL=SECT NO.*2
-
-;; --------------------------------------------------------------------
-;; PTHRD_2 -- &75E1 to &75E3
-;;
-;; Takes:     B, HL
-;; Leaves:    A, HL
-;; --------------------------------------------------------------------
-
-; ---- PTHRD_2 ---- from &40E0
-PTHRD_2:
                LD A,H                          ; 75E1 7C
                LD H,L                          ; 75E2 65
                LD L,B                          ; 75E3 68  AHL=20-BIT DISPLACEMENT (512*SECT)

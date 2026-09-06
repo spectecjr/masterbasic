@@ -1063,6 +1063,27 @@ def seeds(dos, mb):
     # different page low again, so past that point &4000-&7FFF is neither
     # the system page nor a fixed thing at all.
     dos.sys_low.append((0x4009, 0x4040))
+    # And again at the other end, where it does become a fixed thing.
+    # The OUT (LMPR),A at &40D8 puts MasterBASIC's page at &4000-&7FFF --
+    # the note's "from here to the end of BOOT, &4000 is the page the
+    # second wave is being read into" -- and nothing moves it again
+    # before the JP at &40F6.  So the three low operands in between are
+    # MasterBASIC's and not this half's: &75E1 at &40E0 is MasterBASIC's
+    # INSTALLER, and &42CD at &40F0 is the operand of its LD H,&00 at
+    # &42CC, which is the page the boot patches in.  Both were being
+    # given this page's labels, and each was the only reference to what
+    # it named: &75E1 here is an unrelated sector-number divide that was
+    # coming out as PTHRD_2, and &42CC an unrelated LD H that was coming
+    # out as L42CC.  What is at &4000 is MasterBASIC rather than the ROM,
+    # so the names this finds are no use either -- but raw hex with the
+    # comment beside it says the truth, and a label from this page does
+    # not.
+    #
+    # From &40E0 and not &40DA, though the window opens at &40D8: the
+    # LD HL,&4000 in between is pinned to a literal by the notes anyway,
+    # and looking its operand up in the ROM's page only drags in HPEND,
+    # an equate nothing then refers to.
+    dos.sys_low.append((0x40E0, 0x40F9))
     # INSTALL_EXTENDED_PUT is called from inside that stretch, so it runs
     # in the same arrangement: its &5BDA is the ROM's CMDADDRT and its
     # &45A2 is in the system page, not an address in this half.
