@@ -270,6 +270,21 @@ useful. Without it the agent reads `&8000` as a second part of the DOS, and
 every finding about the window is noise. Keep it to the facts an operand cannot
 be read without.
 
+**Check the block against a reference before sending it, because it is stated
+as fact and will be believed.** One round went out with "bit 5 puts ROM 0 over
+&0000-&3FFF" in all four prompts. The Technical Manual's LMPR table calls bit 5
+RAM0 — "when bit set high, RAM replaces the first half of the ROM" — so it takes
+ROM 0 *out*, and ROM 0 is normally in. `base.asm`'s own preamble carried the
+same inversion, while `notes/clock.txt` and `notes/slots.txt` had it right, so
+the repository had been contradicting itself in the paragraph a reader meets
+first.
+
+One of the four agents caught it, checked the manual itself, and said so rather
+than filing a finding against the correct comment it had been primed to
+disbelieve. That is the behaviour the "instructions win" rule asks for, applied
+to the brief instead of to the listing — and it is worth saying in the prompt
+that the facts block is fallible too.
+
 **On the MasterDOS side, hand the agent `ref/masterdos/src/masterdos23.asm` —
 and not the annotated tree beside it.** The `src/` file is the 1991 author's own
 source, and the upper-case comments in the listing are carried from it, so a

@@ -388,9 +388,13 @@ BASE_PREAMBLE = """\
 ; The SAM Coupe is a Z80B at 6MHz with 256K or 512K of RAM, addressed
 ; 16K at a time through four pages.  Two ports do the paging:
 ;
-;   LMPR  &FA   the page at &0000, plus two switches: bit 5 puts the
-;               32K ROM 0 over &0000-&3FFF, bit 6 puts ROM 1 over
-;               &C000-&FFFF
+;   LMPR  &FA   the page at &0000, plus two switches.  The machine has
+;               32K of ROM in two halves: ROM 0 sits over &0000-&3FFF
+;               and is normally in, and setting bit 5 takes it out --
+;               the manual calls that bit RAM0, "RAM replaces the first
+;               half of the ROM".  Bit 6 is the other way round: setting
+;               it brings ROM 1 in over &C000-&FFFF, and it is normally
+;               out.
 ;   HMPR  &FB   the page at &8000
 ;
 ; So an address says nothing on its own -- &8000 is whatever page HMPR

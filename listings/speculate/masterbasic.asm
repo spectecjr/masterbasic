@@ -9661,9 +9661,11 @@ START_PROGRAM_WALK_LOOP:
 ;;
 ;;     Hook code 184.  Check the room above the variables area.
 ;;
-;;     Reads NVARS as a word and gives up unless its high byte is &BB or more,
-;;     then gathers NVARSP and RAMTOP.  Those are the ROM's pointers to the
-;;     variables area and the top of BASIC's memory.
+;;     Reads NVARS as a word and branches on its high byte.  &BB or more
+;;     gathers NVARSP and RAMTOP -- the ROM's pointers to the variables area
+;;     and the top of BASIC's memory -- and below that goes to a second path at
+;;     &52D5, which walks the program instead, measures NVARS to its end and
+;;     hands the result to the ROM's RECLAIM2.  Neither branch is a refusal.
 ;;
 ;;     The manual's RESERVED function allocates heap space "at the expense of
 ;;     BASIC's GOSUB/DO/PROC stack" and warns that over-allocating gives "Out
@@ -9800,8 +9802,13 @@ HOOK_VARSPACE_4:
 ;;     Fetches the next character and subtracts &26, then branches on the next
 ;;     three values in turn, so it dispatches on tokens &26, &27 and &28 --
 ;;     which are in the range MasterBASIC gives its own functions.  A fourth
-;;     path tests for &15 and calls POINTC in the DOS page; anything else
-;;     reports "Not understood".
+;;     path calls POINTC in the DOS page; anything else reports "Not
+;;     understood".
+;;
+;;     THE FOURTH TEST IS WRITTEN IN WHAT IS LEFT IN A, not in the token.  The
+;;     SUB &26 and the two DEC A have taken &28 off by the time CP &15 runs at
+;;     &530A, so the character it matches is &3D -- and POINT #s,x is what
+;;     POINTC is for.
 ;; --------------------------------------------------------------------
 
 HOOK_TOKENARG:
@@ -10333,9 +10340,9 @@ HOOK_MERGECOMPFLG_1:
 HOOK_MERGECOMPFLG_LOOP:
                IN A,(C)                        ; 53F9 ED 78  wait for both arrow keys to come back up before doing
                                                ; anything. Without it the ROM's auto-repeat would recall a fresh line
-                                               ; every few frames. BC is still the &FFFE that READ_KEY_LINE loaded --
-                                               ; CMR's EXX pair, closed by the EXX in the gap block at &589F, hands the
-                                               ; caller's registers back untouched
+                                               ; every few frames. BC is still the &FFFE that READ_KEY_LINE loaded, but
+                                               ; not because MBCMR preserves it: &51D4 and &52F2 both load BC and HL and
+                                               ; then call through MBCMR precisely so the ROM routine receives them
                OR &F9                          ; 53FB F6 F9  bits 1 and 2 -- up and down -- are the only ones left to
                                                ; test, and INC A gives zero only when both are set
                INC A                           ; 53FD 3C

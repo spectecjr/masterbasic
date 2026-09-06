@@ -149,7 +149,7 @@ MB &53F1 : 1101 -- CNTRL/down-arrow.  Any other combination is somebody else's k
 
 MB &53F6 : &0E for up and, because the SUB left it zero, 0 for down.  Only "is it zero" is ever asked, at &542E
 
-MB &53F9 : wait for both arrow keys to come back up before doing anything.  Without it the ROM's auto-repeat would recall a fresh line every few frames.  BC is still the &FFFE that READ_KEY_LINE loaded -- CMR's EXX pair, closed by the EXX in the gap block at &589F, hands the caller's registers back untouched
+MB &53F9 : wait for both arrow keys to come back up before doing anything.  Without it the ROM's auto-repeat would recall a fresh line every few frames.  BC is still the &FFFE that READ_KEY_LINE loaded, but not because MBCMR preserves it: &51D4 and &52F2 both load BC and HL and then call through MBCMR precisely so the ROM routine receives them
 
 MB &53FB : bits 1 and 2 -- up and down -- are the only ones left to test, and INC A gives zero only when both are set
 

@@ -163,8 +163,13 @@ Hook code 177.  Read the argument after one of MasterBASIC's keywords.
 Fetches the next character and subtracts &26, then branches on the next
 three values in turn, so it dispatches on tokens &26, &27 and &28 --
 which are in the range MasterBASIC gives its own functions.  A fourth
-path tests for &15 and calls POINTC in the DOS page; anything else
-reports "Not understood".""",
+path calls POINTC in the DOS page; anything else reports "Not
+understood".
+
+THE FOURTH TEST IS WRITTEN IN WHAT IS LEFT IN A, not in the token.  The
+SUB &26 and the two DEC A have taken &28 off by the time CP &15 runs at
+&530A, so the character it matches is &3D -- and POINT #s,x is what
+POINTC is for.""",
 
 0x6F62: """\
 Hook code 178.  Step over a name and say whether it is a string.
@@ -237,9 +242,11 @@ here.""",
 0x5293: """\
 Hook code 184.  Check the room above the variables area.
 
-Reads NVARS as a word and gives up unless its high byte is &BB or more,
-then gathers NVARSP and RAMTOP.  Those are the ROM's pointers to the
-variables area and the top of BASIC's memory.
+Reads NVARS as a word and branches on its high byte.  &BB or more
+gathers NVARSP and RAMTOP -- the ROM's pointers to the variables area
+and the top of BASIC's memory -- and below that goes to a second path at
+&52D5, which walks the program instead, measures NVARS to its end and
+hands the result to the ROM's RECLAIM2.  Neither branch is a refusal.
 
 The manual's RESERVED function allocates heap space "at the expense of
 BASIC's GOSUB/DO/PROC stack" and warns that over-allocating gives "Out
