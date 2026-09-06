@@ -566,3 +566,39 @@ MasterBASIC and later MasterDOS builds changed things, so they are also
 where a change could have gone wrong. Reading them as a list, rather than
 one at a time when a routine happens to be worked, is the systematic
 version of how the `&0D` was found.
+
+## The skip note claims an overlap it never tests for
+
+Not a bug in the software: a bug in this repository's generator, left
+open because the obvious fix is wrong.
+
+A run of bytes the trace could not reach gets one of two notes, and
+`skipped_runs` in `tools/dis_mb.py` chooses between them by whether the
+decode from the run's start overruns the run's end:
+
+```
+d.comments.setdefault(
+    s, ('skipped: reads as %s from here, and as part of the '
+        'instruction above it' % first.text) if p > e else
+       ('reads as %s, and nothing the trace can follow '
+        'reaches it' % first.text))
+```
+
+"As part of the instruction above it" is a claim about what comes
+BEFORE the run. `p > e` is a fact about the other side of it. The two
+coincide often enough that the note is usually right, and at `&5DBD` it
+is: `&5DBC` is `CB F6`, `SET 6,(HL)`, and `&5DBD` is its second byte, so
+entering there really does give `OR &C9` instead.
+
+At `&5DBF` it is false. `&5DBE` is `C9`, a whole `RET`, and nothing
+above reaches past it; `&5DBF` is the head of an eleven-byte fragment
+that `&5CCC` copies to `&5031`, and it overran its end for that reason.
+
+**The obvious fix does not work.** Replacing the test with a scan back
+through `d.insns` for an instruction that ends after `s` suppresses the
+note *everywhere* — the count goes from six to nought, and `&7409`, a
+genuine `&21` skip that `docs/idioms.md` documents, loses its
+`SKIP_2_VIA_LD_HL` name with it. So `d.insns` does not hold what that
+scan assumes at the point `skipped_runs` runs, and the real fix starts
+by finding out what it does hold. `checkdocs` caught the regression,
+which is the check working: `docs/idioms.md` quotes the line.

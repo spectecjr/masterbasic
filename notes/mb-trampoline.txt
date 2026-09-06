@@ -6,16 +6,27 @@ DOC BUILD_PAGE_IN_TRAMPOLINE
     Assemble a short routine in the ROM's code buffer whose whole job is
     to page MasterBASIC in and jump into it.
 
-    It first copies nine bytes from &4D50 in the system page -- which is
-    CDBUFF+&50, where hook 185 builds -- and then writes the rest a byte
-    at a time, opcode by opcode:
+    It plants an RST &20 at &4D50 in the system page -- CDBUFF+&50,
+    where hook 185 also builds -- copies nine bytes after it from the
+    ROM routine the command table named, and then writes the rest a byte
+    at a time, opcode by opcode, from &4D5A:
 
         C2 00 00      JP NZ,&0000     the operand is filled in later
         D0            RET NC
         3E nn         LD A,page       LMPR+1, this half's own page
         D3 FB         OUT (HMPR),A
-        21 nn nn      LD HL,DE        the caller's DE
+        21 nn nn      LD HL,src+9     the ROM source past the nine bytes
         C3 20 9D      JP &9D20
+
+    THE NINE BYTES ARE THE HEAD OF THE ROM ROUTINE BEING INTERCEPTED.
+    HCMDV reads the command-table entry into DE at &4EB2 and this runs
+    for token &E1, POKE, which ROM 3.0's table at &FD65 gives as &1205.
+    The nine bytes there are CD E4 3A CD 85 3A CD 08 3B -- POKE's three
+    opening CALLs, stopping one byte before its own JR NZ,POKE2, which
+    the JP NZ above replaces with the absolute form.  The LD HL operand
+    is the source plus nine for the same reason: the block at &5D20
+    copies &15 more bytes on from there, so the JP &4D53 lands exactly
+    on the ROM's CALL &1D01.
 
     &9D20 is in the window, so it is this half's &5D20 seen from a page
     where this half sits at &8000.  The trampoline therefore pages

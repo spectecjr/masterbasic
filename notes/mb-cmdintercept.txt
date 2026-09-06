@@ -103,7 +103,7 @@ MB &5D78 CMD_KEYIN
         ORG HDR
         KEYP2:  CALL SYNTAXA
 
-    so KEYIN is assembled to run in the fifty-byte header buffer, which
+    so KEYIN is assembled to run in the eighty-byte header buffer, which
     is free because KEYIN cannot be loading a file at the same time.
     MasterBASIC copies it there in three pieces and interposes a call
     after each, where DEF KEYCODE needed one patched operand.

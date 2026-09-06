@@ -14550,16 +14550,27 @@ CMD_SOUND_2:
 ;;     Assemble a short routine in the ROM's code buffer whose whole job is
 ;;     to page MasterBASIC in and jump into it.
 ;;
-;;     It first copies nine bytes from &4D50 in the system page -- which is
-;;     CDBUFF+&50, where hook 185 builds -- and then writes the rest a byte
-;;     at a time, opcode by opcode:
+;;     It plants an RST &20 at &4D50 in the system page -- CDBUFF+&50,
+;;     where hook 185 also builds -- copies nine bytes after it from the
+;;     ROM routine the command table named, and then writes the rest a byte
+;;     at a time, opcode by opcode, from &4D5A:
 ;;
 ;;         C2 00 00      JP NZ,&0000     the operand is filled in later
 ;;         D0            RET NC
 ;;         3E nn         LD A,page       LMPR+1, this half's own page
 ;;         D3 FB         OUT (HMPR),A
-;;         21 nn nn      LD HL,DE        the caller's DE
+;;         21 nn nn      LD HL,src+9     the ROM source past the nine bytes
 ;;         C3 20 9D      JP &9D20
+;;
+;;     THE NINE BYTES ARE THE HEAD OF THE ROM ROUTINE BEING INTERCEPTED.
+;;     HCMDV reads the command-table entry into DE at &4EB2 and this runs
+;;     for token &E1, POKE, which ROM 3.0's table at &FD65 gives as &1205.
+;;     The nine bytes there are CD E4 3A CD 85 3A CD 08 3B -- POKE's three
+;;     opening CALLs, stopping one byte before its own JR NZ,POKE2, which
+;;     the JP NZ above replaces with the absolute form.  The LD HL operand
+;;     is the source plus nine for the same reason: the block at &5D20
+;;     copies &15 more bytes on from there, so the JP &4D53 lands exactly
+;;     on the ROM's CALL &1D01.
 ;;
 ;;     &9D20 is in the window, so it is this half's &5D20 seen from a page
 ;;     where this half sits at &8000.  The trampoline therefore pages
@@ -14820,7 +14831,7 @@ CMD_DEF_KEYCODE:
 ;;         ORG HDR
 ;;         KEYP2:  CALL SYNTAXA
 ;;
-;;     so KEYIN is assembled to run in the fifty-byte header buffer, which
+;;     so KEYIN is assembled to run in the eighty-byte header buffer, which
 ;;     is free because KEYIN cannot be loading a file at the same time.
 ;;     MasterBASIC copies it there in three pieces and interposes a call
 ;;     after each, where DEF KEYCODE needed one patched operand.
@@ -14985,7 +14996,8 @@ COPY_THEN_APPEND_CALL_LOOP:
                JR Z,COPY_THEN_APPEND_CALL_2    ; 5DC4 28 02
 
 ;; --------------------------------------------------------------------
-;; to &01E2/&00E2, which nothing on a standard SAM answers
+;; to &01E2/&00E2, the disc controller's sector register, which is
+;; inert with no disc command in progress
 ;; --------------------------------------------------------------------
 
                LD C,&E2                        ; 5DC6 0E E2  RECORD SOUND OFF -- the loop below still runs and still
@@ -15121,7 +15133,7 @@ COPY_THEN_APPEND_CALL_4:
 ;;
 ;;     THAT IS WHY THERE IS NO PLAIN CALL IN IT.  Everything inside is either
 ;;     relative or a fixed system-page address; the one forward call it needs is
-;;     made with CALL &0004 -- three bytes in ROM 0 that read POP HL : JP (HL),
+;;     made with CALL &0004 -- two bytes in ROM 0, E1 E9, that read POP HL : JP (HL),
 ;;     so the CALL leaves HL holding the address of the instruction after it and
 ;;     carries straight on.  Add &17, CALL (HL), and the block has called a point
 ;;     twenty-three bytes ahead of itself without knowing where it is.

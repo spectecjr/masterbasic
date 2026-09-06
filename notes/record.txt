@@ -243,7 +243,8 @@ DOC V5DBF
     sound chip's port when they are entered.
 
 MB &5DC6 : RECORD SOUND OFF -- the loop below still runs and still OUTs, but
-           to &01E2/&00E2, which nothing on a standard SAM answers
+           to &01E2/&00E2, the disc controller's sector register, which is
+           inert with no disc command in progress
 MB &5DC8 : A must go back to &FF: the ROM's loop compares it with each
            register number to find the terminator, and the LD A above it
            destroyed it
@@ -294,7 +295,7 @@ DOC SILENCE_SOUND_CHIP_2
 
     THAT IS WHY THERE IS NO PLAIN CALL IN IT.  Everything inside is either
     relative or a fixed system-page address; the one forward call it needs is
-    made with CALL &0004 -- three bytes in ROM 0 that read POP HL : JP (HL),
+    made with CALL &0004 -- two bytes in ROM 0, E1 E9, that read POP HL : JP (HL),
     so the CALL leaves HL holding the address of the instruction after it and
     carries straight on.  Add &17, CALL (HL), and the block has called a point
     twenty-three bytes ahead of itself without knowing where it is.
