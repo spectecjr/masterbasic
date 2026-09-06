@@ -525,10 +525,7 @@ BOOT_SECTOR_LOADED:
                PUSH DE                                  ; 40CC D5
                CALL INSTALL_TAIL_INTO_SYSPAGE+IN_PAGE_C ; 40CD CD 60 BD
                POP DE                                   ; 40D0 D1
-
-; ---- BOOT_12 ---- from &69EB
-BOOT_12:
-               POP BC                          ; 40D1 C1
+               POP BC                                   ; 40D1 C1
 
 ; The end of a wave.  The page number found earlier comes back off the
 ; stack, and LMPR is set to one below it -- which puts that page itself
@@ -555,7 +552,15 @@ BOOT_12:
 ; times, and the listing can only show one of them.  It shows the code,
 ; because that is what the bytes in the file are; the data names leak
 ; in wherever one of them lands on an instruction boundary, which is
-; all PTHRD, PTHRD_1 and the number on &40D1 are.
+; all PTHRD and PTHRD_1 are.  They stay because they are the names the
+; reference itself uses, and taking them away would leave &7429, &7751
+; and &773D pointing at raw hex.
+;
+; &40D1 was a third and is not there any more.  It is the last byte of
+; SAM, and the only thing naming it is LD HL,SAM+194 at &69EB, which
+; says so in the source's own words -- so the label the tools hung on
+; the POP BC beneath it was carrying nothing.  dis_mb.py keeps a label
+; off that one byte for exactly this reason, and says so where it does.
 
 ; ---- PTHRD ---- from &6CAE, &7429, &7751
 PTHRD:

@@ -100,6 +100,8 @@ def name_skip(d, a):
     d.user_equs[got[0]] = d.byte(a)
     return 1
 MBTEXT = (0x7E6B, 0x7FC0)       # tokenised BASIC at the end of the extension
+# autolabel's skip is exclusive at both ends, so this covers &40D1 alone.
+BOOT_TAIL_SAM = (0x40D0, 0x40D2)
 MBKEYS = (0x50D8, 0x5169)       # the extension's keyword names
 MBVARS = (0x4000, 0x405A)       # the XVARs the manual documents
 MBVARS2 = (0x405A, 0x41BA)      # the rest of the variable block, undocumented
@@ -3046,7 +3048,20 @@ def main():
     render_tables(dos, args.work)
     render_drtab(mb)
 
-    n = sum(autolabel(d, skip=(MBTEXT,)) for d in (dos, mb))
+    # BOOT_TAIL_SAM is added for the DOS only, and MBTEXT goes on being
+    # asked of both halves as it always has -- it suppresses a handful of
+    # labels in the DOS's own &7E6B-&7FC0 as a side effect, which is not
+    # this change's to decide.  BOOT_TAIL_SAM is the one byte of the
+    # sector map that lands on an instruction boundary: SAM
+    # runs &400F to &40D1 in the memory the boot loader leaves behind --
+    # 195 bytes, as MasterDOS's own LD B,195 "BYTES IN SAM" has it -- and
+    # every other reference into it lands mid-instruction and is skipped
+    # already.  &40D1 does not, so LD HL,SAM+194 at &69EB was putting a
+    # label on the POP BC in the middle of BOOT.  The reference is real
+    # and the name it uses is the source's own; only the label is noise.
+    n = sum(autolabel(d, skip=(MBTEXT,) if d.tag == 'MB'
+                      else (MBTEXT, BOOT_TAIL_SAM))
+            for d in (dos, mb))
     n += sum(label_peer_targets(d) for d in (dos, mb))
     print('named %d further addresses' % n)
     for d in (dos, mb):

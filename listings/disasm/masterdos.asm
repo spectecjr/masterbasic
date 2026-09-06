@@ -285,16 +285,13 @@ BOOT_11:
                LD D,(HL)                            ; 40C4 56
                LD A,D                               ; 40C5 7A
                OR E                                 ; 40C6 B3
-               JR Z,BOOT_14                         ; 40C7 28 17
-               DJNZ BOOT_13                         ; 40C9 10 12
+               JR Z,BOOT_13                         ; 40C7 28 17
+               DJNZ BOOT_12                         ; 40C9 10 12
                PUSH BC                              ; 40CB C5
                PUSH DE                              ; 40CC D5
                CALL INSTALL_TAIL_INTO_SYSPAGE+&4000 ; 40CD CD 60 BD
                POP DE                               ; 40D0 D1
-
-; ---- BOOT_12 ---- from &69EB
-BOOT_12:
-               POP BC                          ; 40D1 C1
+               POP BC                               ; 40D1 C1
 
 ; ---- PTHRD ---- from &6CAE, &7429, &7751
 PTHRD:
@@ -309,12 +306,12 @@ PTHRD_1:
                OUT (LMPR),A                    ; 40D8 D3 FA
                LD HL,HEADER                    ; 40DA 21 00 40
 
-; ---- BOOT_13 ---- from &40C9 when B is not 0 yet
-BOOT_13:
+; ---- BOOT_12 ---- from &40C9 when B is not 0 yet
+BOOT_12:
                JP BOOT_3+&4000                 ; 40DD C3 49 80
 
-; ---- BOOT_14 ---- from &40C7
-BOOT_14:
+; ---- BOOT_13 ---- from &40C7
+BOOT_13:
                LD HL,&75E1                     ; 40E0 21 E1 75
                LD DE,DOSBUF+&4000              ; 40E3 11 00 BC
                LD BC,&03AF                     ; 40E6 01 AF 03
