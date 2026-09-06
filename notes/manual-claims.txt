@@ -116,3 +116,14 @@
 # 173 may be the largest height that is USEFUL -- the factor is
 # INT(height/8) and the remainder spaces the rows out -- but it is not
 # what the code enforces.
+
+# THE TECHNICAL MANUAL PUTS GCM1 ONE BYTE TOO HIGH.  It gives GCM1 as
+# &5A17, but its own account of the variable settles it the other way:
+# GCM1 holds nine bytes and GCM2 follows at &5A1F, so GCM1 begins at
+# &5A16.  &5A16 is what MasterBASIC's dump code reads, and
+# ref/samrom/vars.asm agrees with the code.
+#
+# Worth recording because the technical manual is the reference these
+# listings reach for first when a system variable has to be named, and
+# this is the first place it has been caught out on an address rather
+# than on a behaviour.

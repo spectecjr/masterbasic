@@ -15034,13 +15034,13 @@ CMD_DUMP_4:
                LDIR                            ; 6AE6 ED B0
                POP AF                          ; 6AE8 F1
                OUT (HMPR),A                    ; 6AE9 D3 FB
-               JR C,CMD_DUMP_4_DONE            ; 6AEB 38 06
+               JR C,CMD_DUMP_5_DISPATCH        ; 6AEB 38 06
                CALL MBCMR                      ; 6AED CD F0 44
                DEFW INP2                       ; 6AF0 49 4F
                RET                             ; 6AF2 C9
 
-; ---- CMD_DUMP_4_DONE ---- from &6AEB
-CMD_DUMP_4_DONE:
+; ---- CMD_DUMP_5_DISPATCH ---- from &6AEB
+CMD_DUMP_5_DISPATCH:
                CALL MBCMR                      ; 6AF3 CD F0 44
                DEFW DKP2                       ; 6AF6 00 4F
                RET                             ; 6AF8 C9
@@ -15267,8 +15267,8 @@ DUMP_UNSHADED_6:
                DJNZ DUMP_UNSHADED_LOOP2        ; 6BEB 10 94
                POP HL                          ; 6BED E1
                LD A,(&5A15)                    ; 6BEE 3A 15 5A  the height multiplier. One means eight screen rows to a
-                                               ; bit-image line; anything else means four, each already doubled into
-                                               ; SCRNBUF at &6BB4
+                                               ; bit-image line; anything else means four, each doubled out of SCRNBUF
+                                               ; into &5036 by the loop at &6BB4
                LD B,&08                        ; 6BF1 06 08
                DEC A                           ; 6BF3 3D
                JR Z,DUMP_UNSHADED_LOOP9        ; 6BF4 28 02

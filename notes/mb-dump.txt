@@ -601,3 +601,10 @@ MB &621D : &1900 bytes, the whole buffer, handed to the DOS
 MB &6225 : and the buffer starts again from the bottom
 
 MB &622E : the value itself, written as many times as the run is long -- no escape, because there is nothing to mark
+
+# &6AF3 is DUMP 5's dispatch, not DUMP 4's.  &6AD4 SCF is DUMP 5's
+# entry and &6AD6 AND A is DUMP 4's, so the JR C at &6AEB takes the
+# carry-set path, which calls DKP2 (&4F00); DUMP 4 falls through to
+# INP2 (&4F49).  The auto-suffixed name had it the other way round and
+# contradicted the banner two lines above it.
+MB &6AF3 CMD_DUMP_5_DISPATCH
