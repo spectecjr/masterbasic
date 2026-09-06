@@ -292,6 +292,10 @@ The differences from the review prompt:
 | MB &6C01–&6DF6 (COPY SCREEN) | review | 11 findings | 11 |
 | MB &6594–&66AE (CSIZE, compressor) | proposal | 61 comments, 4 headers | — |
 | MB &41C5–&42B1 (NVAL) | proposal | 53 comments, 7 headers | — |
+| MB &4500–&4700 (classifiers, NR, SORT) | review | 15 findings | 14 |
+| MB &6400–&6594 (SAVE BOOT, CSIZE head) | review | 9 findings | 9 |
+| MB &5C00–&5E00 (RECORD, ROM-1 builders) | review | 10 findings | 10 |
+| MB &7700–&7900 (installer, external memory) | review | 14 findings | 14 |
 
 The first five ran on one model; the rest on another, after the first hit a
 session limit mid-run. The prompts were byte-identical across the change,
@@ -317,8 +321,24 @@ prose one: two auto-generated "from" lines describe flags for a value a later
 `LD A,H` has replaced. Fixing it properly touches every listing, so it is
 written down rather than done.
 
-That is 157 of 160 across the review rows, and the first two rounds were a
+That is 204 of 208 across the review rows, and the first two rounds were a
 clean 71 of 71.
+
+The four MasterBASIC regions in the last batch cost one row: region H's
+account of `MULTIPLY_BY_100` was right that the routine multiplies by a
+hundred and wrong about the range it is exact over. It put the bound at
+`HL <= 2621`, reasoning from the `ADD HL,BC` that makes 25x; the carries
+that are actually dropped are the four before it, so the bound is
+`12*HL` under `&10000`, or `HL <= 5461`. Both callers are inside either
+figure, so the finding stood — but the number was going into a banner,
+and a banner is where a wrong number stops being checkable.
+
+**That is the case the audit exists for, and it is not the one the rules
+describe.** The finding was true, the confidence marker was honest, the
+evidence was quoted correctly, and a subsidiary number in it was wrong.
+Auditing for fabrication would have passed it. What caught it was
+re-deriving the claim rather than reading it, which is a different and
+more expensive habit — and the only one that would have caught this.
 
 **The obvious thing it shows:** the annotations had a real error rate, and
 forward reading by the author was not finding them. One of the C11 findings
@@ -340,7 +360,7 @@ score measures.
 **And the three that did not survive are the ones worth reading.** Two were
 stale rather than wrong, from a region cut before a rebuild. The third proposed
 a better explanation for a subtraction and was refuted by a sibling case that
-would need the same explanation and does not do it. None of the three was a
+would need the same explanation and does not do it. None of them was a
 fabrication, which is the failure the brief is actually written against — so the
 number to watch is not the rate but whether a miss is ever an invention. So far
 it has not been.
