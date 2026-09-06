@@ -18,7 +18,7 @@
 DOS &4018 ALLOCT_SCAN_LOOP
 DOS &4023 NOT_A_RAM_DISC_PAGE
 DOS &4033 FIND_FREE_PAGE_LOOP
-DOS &4040 FOUND_PAGE_FOR_DOS
+DOS &4040 FOUND_PAGE_FOR_MB
 DOS &4049 READ_NEXT_SECTOR
 DOS &405B BOOT_SET_SECTOR
 DOS &4061 BOOT_WAIT_READY
@@ -134,7 +134,7 @@ DOS &402C step
 DOS &402C : saved where this half can find it again
 
 DOS &4033 step
-    Look for a page to put the DOS in: a free one for preference, a
+    Look for a page to put MasterBASIC in: a free one for preference, a
     screen page if there is nothing else, working down to the system
     page.  H has not been touched since &4015, so HL is still an entry
     in the allocation table.
@@ -146,7 +146,7 @@ DOS &403E : nothing free and no screen to take
 
 DOS &4040 step
     A page has been found.  Now read the file, following the chain of
-    sector addresses each sector carries in its last four bytes.  The
+    sector addresses each sector carries in its last two bytes.  The
     first wave is the DOS itself.
 
 DOS &4041 : the last two bytes of the boot sector, in this half
@@ -282,7 +282,7 @@ DOS &40B8 : try the sector again
 DOS &40BA : the ROM needs to be low again to report anything
 
 DOS &40C0 step
-    The sector is in.  Its last four bytes are the track and sector of
+    The sector is in.  Its last two bytes are the track and sector of
     the next one; zero for both ends the file.
 
 DOS &40C7 : the end of the chain

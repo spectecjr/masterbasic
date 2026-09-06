@@ -265,7 +265,7 @@ NOT_A_RAM_DISC_PAGE:
                LD (STACK_ON_ENTRY+IN_PAGE_C),SP ; 402C ED 73 F9 80  saved where this half can find it again
                LD SP,BOOT_STACK_TOP             ; 4030 31 00 C0
 
-; Look for a page to put the DOS in: a free one for preference, a
+; Look for a page to put MasterBASIC in: a free one for preference, a
 ; screen page if there is nothing else, working down to the system
 ; page.  H has not been touched since &4015, so HL is still an entry
 ; in the allocation table.
@@ -274,20 +274,20 @@ NOT_A_RAM_DISC_PAGE:
 FIND_FREE_PAGE_LOOP:
                LD A,(HL)                       ; 4033 7E
                AND A                           ; 4034 A7  zero means the page is free
-               JR Z,FOUND_PAGE_FOR_DOS         ; 4035 28 09
+               JR Z,FOUND_PAGE_FOR_MB          ; 4035 28 09
                CP SCREEN_PAGE_TYPE             ; 4037 FE 30  a screen will do -- it can be taken back
-               JR Z,FOUND_PAGE_FOR_DOS         ; 4039 28 05
+               JR Z,FOUND_PAGE_FOR_MB          ; 4039 28 05
                DEC L                           ; 403B 2D
                JR NZ,FIND_FREE_PAGE_LOOP       ; 403C 20 F5  keep going down; zero is the system page and stops the scan
                RST ERR_HOOK                    ; 403E CF  nothing free and no screen to take
                DEFB ERR_OUT_OF_MEMORY          ; 403F 01 error 1, "Out of memory"
 
 ; A page has been found.  Now read the file, following the chain of
-; sector addresses each sector carries in its last four bytes.  The
+; sector addresses each sector carries in its last two bytes.  The
 ; first wave is the DOS itself.
 
-; ---- FOUND_PAGE_FOR_DOS ---- from &4035 when A = 0, &4039 when A = SCREEN_PAGE_TYPE
-FOUND_PAGE_FOR_DOS:
+; ---- FOUND_PAGE_FOR_MB ---- from &4035 when A = 0, &4039 when A = SCREEN_PAGE_TYPE
+FOUND_PAGE_FOR_MB:
                PUSH HL                         ; 4040 E5
                LD HL,L41FF+IN_PAGE_C           ; 4041 21 FF 81  the last two bytes of the boot sector, in this half
                LD E,(HL)                       ; 4044 5E
@@ -480,7 +480,7 @@ BOOT_RETRY_OR_GIVE_UP:
                RST ERR_HOOK                    ; 40BE CF
                DEFB ERR_LOADING_ERROR          ; 40BF 13 error 19, "Loading error"
 
-; The sector is in.  Its last four bytes are the track and sector of
+; The sector is in.  Its last two bytes are the track and sector of
 ; the next one; zero for both ends the file.
 
 ; ---- BOOT_SECTOR_LOADED ---- from &409F when no bit of BLOCK_ERROR_FLAGS is set
@@ -990,12 +990,18 @@ NEXTST:
 ;; date and time templates, the clock port, the beep, and the addresses
 ;; of the hooks.
 ;;
-;; None of it is code, although a good deal of it decodes as plausible
-;; instructions.  The date template at &4280 is the six characters of
-;; "00/00/00", which reads as JR NC and LD A,(&3030); the clock port at
-;; &42B6 holds &EF, which reads as RST &28 and was being followed as a
-;; call into the floating-point calculator.  The block is marked as data
-;; from its documented start to CALLMB, which is where code begins.
+;; Almost none of it is code, although a good deal of it decodes as
+;; plausible instructions.  The date template at &4280 is the six
+;; characters of "00/00/00", which reads as JR NC and LD A,(&3030); the
+;; clock port at &42B6 holds &EF, which reads as RST &28 and was being
+;; followed as a call into the floating-point calculator.  The block is
+;; marked as data from its documented start to CALLMB, which is where code
+;; begins.
+;;
+;; The exception is &423E-&4243, which really is code -- CALL CMR : DEFW
+;; ONERR : RET, the source's EXTADD -- and is jumped to from &43D6.  It
+;; sits inside the block because the block is defined by its documented
+;; extent, not by what each byte turns out to be.
 ;; --------------------------------------------------------------------
 
 ; ---- DVAR ---- from &5146, &6574

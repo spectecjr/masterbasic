@@ -283,12 +283,18 @@ has is a byte in here -- step rates, the directory column layout, the
 date and time templates, the clock port, the beep, and the addresses
 of the hooks.
 
-None of it is code, although a good deal of it decodes as plausible
-instructions.  The date template at &4280 is the six characters of
-"00/00/00", which reads as JR NC and LD A,(&3030); the clock port at
-&42B6 holds &EF, which reads as RST &28 and was being followed as a
-call into the floating-point calculator.  The block is marked as data
-from its documented start to CALLMB, which is where code begins."""
+Almost none of it is code, although a good deal of it decodes as
+plausible instructions.  The date template at &4280 is the six
+characters of "00/00/00", which reads as JR NC and LD A,(&3030); the
+clock port at &42B6 holds &EF, which reads as RST &28 and was being
+followed as a call into the floating-point calculator.  The block is
+marked as data from its documented start to CALLMB, which is where code
+begins.
+
+The exception is &423E-&4243, which really is code -- CALL CMR : DEFW
+ONERR : RET, the source's EXTADD -- and is jumped to from &43D6.  It
+sits inside the block because the block is defined by its documented
+extent, not by what each byte turns out to be."""
 
 
 DOS = {

@@ -3230,9 +3230,10 @@ STACK_STRIDE_AND_SLICE_IT:
                                                    ; rewrites the descriptor as offset and count, which is the whole
                                                    ; point of the call
                CALL CALL_NEXTCHAR                  ; 47DA CD 61 44
-               CP CH_LPAREN                        ; 47DD FE 28  SLICING leaves CHAD on the closing bracket, so this
-                                                   ; steps past it -- CALL Z so a missing bracket is left for the ROM to
-                                                   ; complain about
+               CP CH_LPAREN                        ; 47DD FE 28  the NEXTCHAR above has stepped past the bracket SLICING
+                                                   ; stopped on, so this is asking whether a second slicer follows --
+                                                   ; CALL Z steps over its opening bracket and the caller runs SLICING
+                                                   ; again
                CALL Z,CALL_NEXTCHAR                ; 47DF CC 61 44
 
 ; ---- STACK_STRIDE_AND_SLICE_IT_DONE ---- from &47D1 when A = CH_CR, &47D5 when A = CH_COLON
@@ -3318,7 +3319,8 @@ SORT_NAMES:
                DEFB SKIP_1_VIA_CP              ; 47FF ~  skips the EXX, which belongs to the other entry
 
 HOOK_HORDER:
-               EXX                             ; 4800 D9  the ORDER command arrives with its lengths in the other set
+               EXX                             ; 4800 D9  the hook entry starts here, and the EXX is its own: SORT_NAMES
+                                               ; skips it, having just loaded BC itself
                DEC A                           ; 4801 3D  one fewer, because the first byte is compared on its own
                LD (SORT_TAIL+1),A              ; 4802 32 23 48  into the inner loop's own count, below
                PUSH DE                         ; 4805 D5
@@ -10732,11 +10734,17 @@ FIND_SLOTS:
 
 ;; --------------------------------------------------------------------
 ;; THE COUNTING PASS AND THE RESERVING PASS ARE THE SAME CODE, and B
-;; is what separates them.  B = 0 walks the tables and touches
-;; nothing; B = &20 walks them again and marks what it finds.  That
-;; works because every write the reserving pass makes is either
-;; guarded by an INC B : DEC B test, or -- at &5F2B -- writes B
-;; itself into a byte that is already 0.
+;; is what separates them.  B = 0 counts what is available and
+;; B = &20 walks them again and claims it, and the mark each pass
+;; leaves in ALLOCT is B itself -- so at &5F2B the counting pass
+;; writes a zero into a byte that was already zero.
+;;
+;; IT IS NOT A READ-ONLY PASS, THOUGH.  Two writes happen whichever
+;; value B holds: &5F2F-&5F35 clears the sixteen SLOTT bytes at the
+;; top of every candidate page, and &5F6B stores the new chain head
+;; in V409E.  Neither is guarded.  So a counting pass leaves SLOTT
+;; cleared in each page it looked at and V409E pointing at the chain
+;; it would have built.
 ;;
 ;; C counts the slots still wanted; DEC C : RET Z at &5F70 ends the
 ;; routine as soon as enough have been found.  On return DE holds the
@@ -11029,12 +11037,6 @@ SHOW_LINE_AND_STATEMENT_2:
 
 ;; --------------------------------------------------------------------
 ;; Report "BREAK into program" if the key is down, otherwise return.
-;;
-;; IN A,(STAT), bit 5, and the sense is active low: set means not
-;; pressed.  Called from four places in the DOS, which is where the long
-;; operations are -- the DOS does the same test itself at &502A, with
-;; LD A,&F7 to select the key row first and DERR &54 instead of the
-;; error restart.
 ;; --------------------------------------------------------------------
 
 CHECK_BREAK:
@@ -11173,8 +11175,9 @@ TRACE_PLOT_CHAR_LOOP3:
                INC D                           ; 6080 14  mode 1 steps a pixel row by adding 256, the ROM's own layout
                DJNZ TRACE_PLOT_CHAR_LOOP3      ; 6081 10 FA
                EX DE,HL                        ; 6083 EB
-               DEC H                           ; 6084 25  DEC H undoes the ninth INC D; the three rotates and OR &58 are
-                                               ; the ROM's way of turning a display address into its attribute address
+               DEC H                           ; 6084 25  DEC H undoes the eighth INC D -- B is &08 at &6070; the three
+                                               ; rotates and OR &58 are the ROM's way of turning a display address into
+                                               ; its attribute address
                LD A,H                          ; 6085 7C
                RRA                             ; 6086 1F
                RRA                             ; 6087 1F
@@ -11297,8 +11300,9 @@ TRACE_PRINT_DECIMAL_LOOP:
 
 ; ---- TRACE_PRINT_DECIMAL_LOOP2 ---- from &60F4
 TRACE_PRINT_DECIMAL_LOOP2:
-               INC A                           ; 60F2 3C  add the negative power of ten until it carries -- the count of
-                                               ; times round is the digit
+               INC A                           ; 60F2 3C  add the negative power of ten while it still carries -- the JR
+                                               ; C goes round again, and it falls out when the addition stops carrying,
+                                               ; which is one too many
                ADD HL,BC                       ; 60F3 09
                JR C,TRACE_PRINT_DECIMAL_LOOP2  ; 60F4 38 FC
                SBC HL,BC                       ; 60F6 ED 42  one too many, so take it back off

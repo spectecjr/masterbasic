@@ -51,7 +51,7 @@ MB &47CF : end of statement, so there is no subscript and the descriptor stands 
 
 MB &47D7 : the ROM's slicer, doing arithmetic on a string that is not there.  It checks the subscript against the length and rewrites the descriptor as offset and count, which is the whole point of the call
 
-MB &47DD : SLICING leaves CHAD on the closing bracket, so this steps past it -- CALL Z so a missing bracket is left for the ROM to complain about
+MB &47DD : the NEXTCHAR above has stepped past the bracket SLICING stopped on, so this is asking whether a second slicer follows -- CALL Z steps over its opening bracket and the caller runs SLICING again
 
 MB &476A : the second dimension, passed as the length for the second slice.  BC came back from the first call unchanged, which is why this can be written as a move rather than a reload
 

@@ -639,3 +639,35 @@ candidates for that "something" are the passes that run after
 each of which resolves operands again. None of them was eliminated, so
 the next attempt should start by finding which one it is rather than by
 trying the removal a third time.
+
+## DVAR 22, "ADDR OF HOOKS", points into the middle of a routine
+
+A MasterDOS bug, and a user-facing one: `DVAR 22` is documented as the
+address of the hook table, and a program that reads it to find the
+table is sent to the wrong place.
+
+In this image `&4236` holds `&43F3`:
+
+```
+DEFW &43F3    ; 4236 F3 43  22 (2) ADDR OF HOOKS
+```
+
+The hook table, `SAMHK`, is at `&44A6` — 179 bytes further on. `&43F3`
+is `LD L,C`, in the middle of a routine.
+
+The 1991 source writes this entry as `DEFW SAMHK`, a symbolic reference
+that cannot go stale, so the fault is not in the source. It is in this
+build: `autoMBM` relocates MasterDOS to make room for MasterBASIC, and
+this word was not moved with the table it names. Nothing patches it
+afterwards — the boot loader and `INSTALLER` between them write several
+operands into this half, and `&4236` is not among them.
+
+The consequence is narrow, because nothing inside either half reads
+`DVAR 22`: every internal reference to the hook table reaches it by
+label. It is only a program outside the DOS, following the documented
+DVAR, that would be misled.
+
+The standalone `res/MDOS23.bin` could not be checked against this: it is
+a different build (15750 bytes against this half's 16320), and the eight
+bytes at this image's `&44A6` do not occur in it at any offset, so
+neither the table nor the pointer can be aligned between the two.

@@ -31,8 +31,10 @@ DOC CHECK_BREAK
     Report "BREAK into program" if the key is down, otherwise return.
 
     IN A,(STAT), bit 5, and the sense is active low: set means not
-    pressed.  Called from four places in the DOS, which is where the long
-    operations are -- the DOS does the same test itself at &502A, with
+    pressed.  Nothing calls it.  The DOS half names it nowhere, and no
+    peer equate for it was ever needed, so the "four places in the DOS"
+    this note used to claim are not there.  The DOS does the same test
+    itself at &502A, with
     LD A,&F7 to select the key row first and DERR &54 instead of the
     error restart.
 

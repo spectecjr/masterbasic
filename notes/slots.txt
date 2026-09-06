@@ -3,11 +3,17 @@
 
 DOC ALLOC_UTILITY_SLOT
     THE COUNTING PASS AND THE RESERVING PASS ARE THE SAME CODE, and B
-    is what separates them.  B = 0 walks the tables and touches
-    nothing; B = &20 walks them again and marks what it finds.  That
-    works because every write the reserving pass makes is either
-    guarded by an INC B : DEC B test, or -- at &5F2B -- writes B
-    itself into a byte that is already 0.
+    is what separates them.  B = 0 counts what is available and
+    B = &20 walks them again and claims it, and the mark each pass
+    leaves in ALLOCT is B itself -- so at &5F2B the counting pass
+    writes a zero into a byte that was already zero.
+
+    IT IS NOT A READ-ONLY PASS, THOUGH.  Two writes happen whichever
+    value B holds: &5F2F-&5F35 clears the sixteen SLOTT bytes at the
+    top of every candidate page, and &5F6B stores the new chain head
+    in V409E.  Neither is guarded.  So a counting pass leaves SLOTT
+    cleared in each page it looked at and V409E pointing at the chain
+    it would have built.
 
     C counts the slots still wanted; DEC C : RET Z at &5F70 ends the
     routine as soon as enough have been found.  On return DE holds the
@@ -206,7 +212,7 @@ MB &607A : one byte along, the next character cell in modes 1 and 2
 
 MB &6080 : mode 1 steps a pixel row by adding 256, the ROM's own layout
 
-MB &6084 : DEC H undoes the ninth INC D; the three rotates and OR &58 are the ROM's way of turning a display address into its attribute address
+MB &6084 : DEC H undoes the eighth INC D -- B is &08 at &6070; the three rotates and OR &58 are the ROM's way of turning a display address into its attribute address
 
 MB &608E : B is 0 after the DJNZ, so this makes it 1 -- mode 1 needs one attribute byte where mode 2 needed eight, and the same loop serves both
 
@@ -240,7 +246,7 @@ MB &60E6 : the value is pushed and reached by EX (SP),HL, which frees HL to walk
 
 MB &60ED : a divisor whose low byte is zero ends the table, and the units digit is then just what is left in L
 
-MB &60F2 : add the negative power of ten until it carries -- the count of times round is the digit
+MB &60F2 : add the negative power of ten while it still carries -- the JR C goes round again, and it falls out when the addition stops carrying, which is one too many
 
 MB &60F6 : one too many, so take it back off
 

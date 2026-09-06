@@ -44,7 +44,7 @@ DOC SORT_NAMES
 MB &47FB : ten bytes to a record, and ten of them compared
 MB &47FF value SKIP_1_VIA_CP
 MB &47FF : skips the EXX, which belongs to the other entry
-MB &4800 : the ORDER command arrives with its lengths in the other set
+MB &4800 : the hook entry starts here, and the EXX is its own: SORT_NAMES skips it, having just loaded BC itself
 MB &4801 : one fewer, because the first byte is compared on its own
 MB &4802 : into the inner loop's own count, below
 MB &480A : how many records are left to sort
