@@ -103,3 +103,16 @@
 # TAB.  Both low means both held, and &0066 is the NMI handler -- the
 # same entry the BREAK button reaches, but arrived at from the interrupt
 # rather than from the hardware.
+
+# THE MAXIMUM CSIZE HEIGHT IS 176, NOT 173.  "The height can be 6-173 ...
+# The maximum width is 248 and the maximum height is 173 pixels."  The
+# hook's own range check is two instructions:
+#
+#     6544  CP &06 / JR C,reject      below 6 is rejected
+#     6548  CP &B1 / JR NC,reject     177 and above is rejected
+#
+# so 176 is admitted and 174, 175 and 176 all get through.  Nothing
+# between there and the write to SYS_CHAR_HEIGHT narrows it further.
+# 173 may be the largest height that is USEFUL -- the factor is
+# INT(height/8) and the remainder spaces the rows out -- but it is not
+# what the code enforces.

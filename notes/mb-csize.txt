@@ -1,6 +1,6 @@
 # Magnified characters, and the trampoline the ROM uses to reach them.
 
-RENAME CLAMP_STREAM_FOR_DEVICE CLAMP_CHAR_HEIGHT
+RENAME CLAMP_STREAM_FOR_DEVICE CLAMP_CELLS_FOR_DEVICE
 RENAME NMISTK SCRNBUF
 
 MB &64F3 PRINT_MAGNIFIED_CHAR
@@ -22,12 +22,16 @@ DOC PRINT_MAGNIFIED_CHAR
     what MasterBASIC is doing here is the ROM's double-height mechanism
     driven further than the ROM drives it.  Zeroed again on the way out.
 
-    CLAMP_CHAR_HEIGHT is why the name changed.  It clamps C to 4 when
-    DEVICE is 1, and the Technical Manual gives DEVICE at &5A73 as
-    "0=upper window, 1=lower window, 2=printer, 3=other" -- the lower
-    window being four lines deep, so a character cannot be taller than
-    the window it goes in.  Read as a stream number that made no sense;
-    read as a height it is the only sensible limit there is.
+    CLAMP_CELLS_FOR_DEVICE is why the name changed.  It clamps C to 4
+    when DEVICE is 1, and the Technical Manual gives DEVICE at &5A73 as
+    "0=upper window, 1=lower window, 2=printer, 3=other".  Read as a
+    stream number that made no sense; read as a count of cells it is a
+    limit on how large a magnified character may be in the lower window.
+
+    NOT A HEIGHT, THOUGH, WHICH IS WHAT THE NAME SAID BEFORE.  The other
+    caller is the system page's own path, and it passes a width: &49D2
+    is LD A,(&4AEE), which is SYS_CHAR_WIDTH, and &49EE is LD C,A.  The
+    routine clamps whichever count the caller put in C.
 
 # How the ROM reaches it, which is the general answer for this half.
 #
@@ -57,7 +61,7 @@ DOC PRINT_SIZED_CHAR
     Print one character at the size CSIZE set: widen it, then output it
     a cell at a time.
 
-    CLAMP_CHAR_HEIGHT gives the factor, WIDEN_CHAR_BITMAP builds the
+    CLAMP_CELLS_FOR_DEVICE gives the factor, WIDEN_CHAR_BITMAP builds the
     widened bitmap, and then the loop calls &49E4 once per cell, walking
     HL down the built bitmap eight bytes at a time and stepping E.
 

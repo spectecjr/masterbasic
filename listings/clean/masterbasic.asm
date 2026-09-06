@@ -12288,14 +12288,17 @@ WRITE_DOS_BYTE:
 ;;
 ;; THREE THINGS THIS SETTLES.
 ;;
-;; The three system-page blocks are read back out of the system page,
-;; not kept here.  &4BA0, &484D and &5896 are exactly where
-;; INSTALL_ROM_PATCHES and INSTALL_SYSPAGE_CODE put the blocks from
-;; &7B80, &7BA4 and &7E43, and the lengths match to the byte for the
-;; first two.  So the file's copy of an installed block is whatever the
-;; system page held when SAVE BOOT ran, which is why a KEY assignment
-;; or a DUMP setting survives into the new file without anything having
-;; to copy it back here first.
+;; The system-page blocks are read back out of the system page, not
+;; kept here.  Four of the eight are: &4C14 in the DOS half, and &4BA0,
+;; &484D and &5896 in this one.  The three in this half are exactly
+;; where INSTALL_ROM_PATCHES and INSTALL_SYSPAGE_CODE put the blocks
+;; from &7B80, &7BA4 and &7E43, and the lengths match to the byte for
+;; the first two.  So the file's copy of an installed block is whatever
+;; the system page held when SAVE BOOT ran, which is why a KEY
+;; assignment survives into the new file without anything having to
+;; copy it back here first.  A DUMP setting survives too, but by the
+;; ordinary route: DPVARS is XVAR 31, at this half's &401F, inside the
+;; &3B80 block.
 ;;
 ;; The two copies that go the wrong way at boot are for this.
 ;; notes/mb-install.txt had to leave them as "the likeliest reading of
@@ -12321,7 +12324,7 @@ WRITE_DOS_BYTE:
 ;;
 ;;     block 4   DOS &7F1E, &00A2  vs syspage &4C14   162 of 162
 ;;     block 6   MB  &7B80, &0024  vs syspage &4BA0    36 of 36
-;;     block 7   MB  &7BA4, &029F  vs syspage &484D   671 of 671
+;;     block 7   MB  &7BA4, &029F  vs syspage &484D   670 of 671
 ;;     block 8   MB  &7E43, &017D  vs syspage &5896   381 of 381
 ;;
 ;; The addresses, the lengths and the page each block comes from were
@@ -12365,8 +12368,9 @@ WRITE_DOS_BYTE:
 ;; So the file holds the set once, in the DOS half's tail, and the MB
 ;; half's own copy of that memory is overwritten by the eighth block.
 ;; Anything looking for a character set at the file's MB &7E64 finds
-;; the system page's &58B7 instead, which is zero, and this is what
-;; made XVAR 87 look like it pointed at nothing.  It points correctly;
+;; the system page's &58B7 instead -- C5 F1 C8 D0 C3 00 4F 00, the tail
+;; of the block that lands there, not glyphs -- and this is what made
+;; XVAR 87 look like it pointed at nothing.  It points correctly;
 ;; the file just does not store that memory where its address says.
 ;; --------------------------------------------------------------------
 
@@ -12443,13 +12447,18 @@ SAVE_BOOT:
 ;; and gave a byte inside PTH2's buffer a label and a peer reference it
 ;; never had.
 ;;
-;; TWO OF THE SEVEN ARE NOT EXPLAINED.  The pages count agrees with the
-;; file's own header, which declares one whole page and &3F77 beyond it,
-;; but the two length bytes here are &BF77 -- that same &3F77 with bit
-;; 15 set -- and the start's page byte is &03 where the file was saved
-;; from &8000.  SNPTAB has the same shape of oddity in its own first
-;; byte, which the listing already notes as too large for a five-bit
-;; page number and read by nothing in this build.
+;; ALL SEVEN ARE IN THE ROM'S PAGE FORM, and none of them is odd.
+;; ref/samrom/tapemn.asm documents the 48-byte header's offsets 31-33
+;; as "REL PAGE FORM START ADDR IF CODE" and 34-36 as "DATA LENGTH
+;; (PAGEFORM)"; PAGEFORM itself ends SCF / RR H, under its author's own
+;; comment "ADDR NOW OK IN 8000-BFFF FORM".  Bit 15 set is what that
+;; form is, not an anomaly on top of it.  So &03,&00,&80 is page 3 at
+;; offset zero, and &01,&77,&BF is one page plus &3F77 -- 32631 bytes,
+;; which is the 32640-byte file less its nine-byte header.
+;;
+;; SNPTAB is the counterpart of this table, but its first byte is a
+;; different matter: &6E cannot be a five-bit page number, where &03
+;; can and is.
 ;; --------------------------------------------------------------------
 
 ; ---- BOOT_HEADER_FIELDS ---- from &6425
@@ -12461,7 +12470,7 @@ BOOT_HEADER_FIELDS:
 ;; Print one character at the size CSIZE set: widen it, then output it
 ;; a cell at a time.
 ;;
-;; CLAMP_CHAR_HEIGHT gives the factor, WIDEN_CHAR_BITMAP builds the
+;; CLAMP_CELLS_FOR_DEVICE gives the factor, WIDEN_CHAR_BITMAP builds the
 ;; widened bitmap, and then the loop calls &49E4 once per cell, walking
 ;; HL down the built bitmap eight bytes at a time and stepping E.
 ;;
@@ -12487,16 +12496,16 @@ BOOT_HEADER_FIELDS:
 ;; --------------------------------------------------------------------
 
 PRINT_SIZED_CHAR:
-               CALL CLAMP_CHAR_HEIGHT+IN_PAGE_C ; 6485 CD E7 A4
-               EXX                              ; 6488 D9
-               PUSH AF                          ; 6489 F5
-               CALL WIDEN_CHAR_BITMAP+IN_PAGE_C ; 648A CD AC A4
-               POP AF                           ; 648D F1
-               PUSH AF                          ; 648E F5
-               CP &03                           ; 648F FE 03
-               JR C,PRINT_SIZED_CHAR_1          ; 6491 38 04
-               XOR A                            ; 6493 AF
-               LD (INDOPFG),A                   ; 6494 32 BD 5A
+               CALL CLAMP_CELLS_FOR_DEVICE+IN_PAGE_C ; 6485 CD E7 A4
+               EXX                                   ; 6488 D9
+               PUSH AF                               ; 6489 F5
+               CALL WIDEN_CHAR_BITMAP+IN_PAGE_C      ; 648A CD AC A4
+               POP AF                                ; 648D F1
+               PUSH AF                               ; 648E F5
+               CP &03                                ; 648F FE 03
+               JR C,PRINT_SIZED_CHAR_1               ; 6491 38 04
+               XOR A                                 ; 6493 AF
+               LD (INDOPFG),A                        ; 6494 32 BD 5A
 
 ; ---- PRINT_SIZED_CHAR_1 ---- from &6491 when A < &03
 PRINT_SIZED_CHAR_1:
@@ -12603,7 +12612,7 @@ WIDEN_CHAR_BITMAP_2:
 ;; at &8000.
 ;; --------------------------------------------------------------------
 
-CLAMP_CHAR_HEIGHT:
+CLAMP_CELLS_FOR_DEVICE:
                LD A,(DEVICE)                   ; 64E7 3A 73 5A
                DEC A                           ; 64EA 3D
                LD A,C                          ; 64EB 79
@@ -12630,23 +12639,27 @@ CLAMP_CHAR_HEIGHT:
 ;; what MasterBASIC is doing here is the ROM's double-height mechanism
 ;; driven further than the ROM drives it.  Zeroed again on the way out.
 ;;
-;; CLAMP_CHAR_HEIGHT is why the name changed.  It clamps C to 4 when
-;; DEVICE is 1, and the Technical Manual gives DEVICE at &5A73 as
-;; "0=upper window, 1=lower window, 2=printer, 3=other" -- the lower
-;; window being four lines deep, so a character cannot be taller than
-;; the window it goes in.  Read as a stream number that made no sense;
-;; read as a height it is the only sensible limit there is.
+;; CLAMP_CELLS_FOR_DEVICE is why the name changed.  It clamps C to 4
+;; when DEVICE is 1, and the Technical Manual gives DEVICE at &5A73 as
+;; "0=upper window, 1=lower window, 2=printer, 3=other".  Read as a
+;; stream number that made no sense; read as a count of cells it is a
+;; limit on how large a magnified character may be in the lower window.
+;;
+;; NOT A HEIGHT, THOUGH, WHICH IS WHAT THE NAME SAID BEFORE.  The other
+;; caller is the system page's own path, and it passes a width: &49D2
+;; is LD A,(&4AEE), which is SYS_CHAR_WIDTH, and &49EE is LD C,A.  The
+;; routine clamps whichever count the caller put in C.
 ;; --------------------------------------------------------------------
 
 PRINT_MAGNIFIED_CHAR:
-               CALL CLAMP_CHAR_HEIGHT+IN_PAGE_C ; 64F3 CD E7 A4
-               LD C,A                           ; 64F6 4F
-               EXX                              ; 64F7 D9
-               PUSH HL                          ; 64F8 E5
-               EXX                              ; 64F9 D9
-               POP HL                           ; 64FA E1
-               LD DE,SCRNBUF                    ; 64FB 11 88 51
-               LD B,&08                         ; 64FE 06 08
+               CALL CLAMP_CELLS_FOR_DEVICE+IN_PAGE_C ; 64F3 CD E7 A4
+               LD C,A                                ; 64F6 4F
+               EXX                                   ; 64F7 D9
+               PUSH HL                               ; 64F8 E5
+               EXX                                   ; 64F9 D9
+               POP HL                                ; 64FA E1
+               LD DE,SCRNBUF                         ; 64FB 11 88 51
+               LD B,&08                              ; 64FE 06 08
 
 ; ---- PRINT_MAGNIFIED_CHAR_LOOP ---- from &652D when B is not 0 yet
 PRINT_MAGNIFIED_CHAR_LOOP:

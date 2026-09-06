@@ -18,9 +18,9 @@ DOC CHECK_PRINTER_READY
     &8006 and &800B.  That is what being called from the printer output
     path means.
 
-MB &64E7 CLAMP_CHAR_HEIGHT
+MB &64E7 CLAMP_CELLS_FOR_DEVICE
 
-DOC CLAMP_CHAR_HEIGHT
+DOC CLAMP_CELLS_FOR_DEVICE
     Return C unchanged unless DEVICE is 1, in which case anything from 5
     upwards comes back as 4.  DEVICE is the ROM's own variable at &5A73,
     read here with no window offset.

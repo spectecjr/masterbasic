@@ -135,7 +135,7 @@
 # the code alone:
 #
 #   DEVICE 5A73H "0=upper window, 1=lower window, 2=printer, 3=other",
-#   which is what makes CLAMP_CHAR_HEIGHT clamping to 4 when DEVICE is 1
+#   which is what makes CLAMP_CELLS_FOR_DEVICE clamping to 4 when DEVICE is 1
 #   a height limit for a four-line window rather than anything to do
 #   with streams.
 #
