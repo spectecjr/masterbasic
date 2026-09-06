@@ -94,6 +94,37 @@ DOC SNAP4
     SHIFT MEANS DRIVE 2.  There is nowhere to ask, so the only choice
     offered is a key that is already down.
 
+    THE TWENTY BYTES, IN ORDER.  The push list above fixes where each
+    register lands, and SNAP7 pops them back in the same order, so the
+    store has an address for every one of them:
+
+        STR-20  IY       STR-10  AF'
+        STR-18  IX       STR-8   DE
+        STR-16  DE'      STR-6   BC
+        STR-14  BC'      STR-4   HL
+        STR-12  HL'      STR-2   AF, with I in A
+                         STR     the interrupted SP
+
+    I rides in A because there is no way to push it: LD A,I on the way
+    in and LD I,A on the way out, which is also why SNAP8 has to work out
+    the interrupt mode from its value rather than being told.
+
+    SOMETHING ELSE READS TWO OF THOSE BYTES.  MasterBASIC's replacement
+    for the LOAD hook takes a page from STR-11 and an address from
+    STR-10 -- the H' byte and the AF' word -- and hands them to its
+    compressed-file expander at &62A6.  MasterDOS's own HLOAD is four
+    instructions and none of this is in it, which is why those two
+    operands are bare numbers where the rest of the routine's are not:
+    carrydoc has no source line to take them from.
+
+    WHAT PUTS A PAGE AND AN ADDRESS THERE IS NOT ESTABLISHED.  Nothing in
+    either half writes either address by name, and the pairing does not
+    match any register pair, so reading them as saved registers explains
+    the addresses but not the values.  READ_SAVED_SECTOR runs immediately
+    before, and it reads a sector to (SVDE) rather than to a fixed
+    buffer, which could put file header bytes this far up; that is a
+    possibility and not a reading.
+
     THE FREE SLOT IS FOUND BEFORE THE FILE IS OPENED, and failing to
     find one goes back to the key loop rather than reporting an error --
     there is no BASIC to report it to.
@@ -105,6 +136,9 @@ DOC SNAP4
     entry where a header would be, which is where SNAP7 reads them back
     from.  A SCREEN$ gets a header built the ordinary way, with the
     start and length taken from a table.
+
+DOS &6449 : STR-11, the H' byte of the store the NMI fills, which &62A6 wants as a page
+DOS &644D : STR-10, the AF' word, which the same call wants as an address
 
 DOS &53CF : the type, into the name template
 DOS &53D2 : the Spectrum's RAM, as this page sees it
