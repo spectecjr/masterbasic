@@ -181,5 +181,4 @@ DOS_V7EA6:                      EQU  V7EA6 + &4000
 DOS_V7EFC:                      EQU  V7EFC + &4000
 DOS_V7F0D:                      EQU  V7F0D + &4000
 DOS_V7F6B:                      EQU  V7F6B + &4000
-DOS_V7F77:                      EQU  V7F77 + &4000
 DOS_V7FA5:                      EQU  V7FA5 + &4000

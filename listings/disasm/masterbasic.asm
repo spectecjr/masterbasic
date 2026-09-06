@@ -12639,7 +12639,8 @@ WRITE_DOS_BYTE:
 ;; SAVE BOOT, reached from CMD_SAVE when the next token is BOOT.
 ;;
 ;; EVNAM and EVFINS in the DOS page take the filename, &4D24 opens the
-;; file, and seven bytes from V647E are put at the DOS's &7CFF.  Then
+;; file, and BOOT_HEADER_FIELDS is put at the DOS's &7CFF -- FSA+236,
+;; where the entry keeps the ROM header's start, length and exec.  Then
 ;; eight blocks are handed to the DOS's SVBLK -- "save a block to the
 ;; open file" -- through the three routines below, which differ only in
 ;; which page they put in the window first:
@@ -12764,7 +12765,7 @@ SAVE_BOOT:
                LD A,(&42CD)                      ; 641F 3A CD 42
                INC A                             ; 6422 3C
                OUT (HMPR),A                      ; 6423 D3 FB
-               LD HL,V647E                       ; 6425 21 7E 64
+               LD HL,BOOT_HEADER_FIELDS          ; 6425 21 7E 64
                LD DE,DOS_V7CFF                   ; 6428 11 FF BC
                LD BC,&0007                       ; 642B 01 07 00
                LDIR                              ; 642E ED B0
@@ -12796,12 +12797,44 @@ SAVE_BOOT:
                DEFW DOS_SCFSM-&4000              ; 647B F8 4D
                RET                               ; 647D C9
 
-; ---- V647E ---- from &6425
-V647E:
-               DEFB &03,&00                    ; 647E ..  reads as INC BC, and nothing the trace can follow reaches it
-               ADD A,B                         ; 6480 80
-               LD BC,DOS_V7F77                 ; 6481 01 77 BF
-               DEFB &FF                        ; 6484 .
+;; --------------------------------------------------------------------
+;; The start, length and execution fields SAVE BOOT puts in the file's
+;; directory entry.  Seven bytes, LDIRed to the DOS page's &7CFF at
+;; &6425, which is FSA+236 -- the directory entry image, at the offsets
+;; the disc format gives to the ROM header's 31 to 37:
+;;
+;;     &03           the start's page
+;;     &00 &80       and its address, &8000
+;;     &01           the length in whole 16K pages
+;;     &77 &BF       and the rest of it
+;;     &FF           no execution address
+;;
+;; IT IS THE COUNTERPART OF SNPTAB IN THE DOS PAGE, which the snapshot
+;; code copies to the same seven bytes from &543B with the same LD
+;; BC,&0007.  A SCREEN$ has no ROM header on the disc either, so both
+;; paths build one; SNPTAB describes a &1B00 screen and this describes
+;; the boot file.
+;;
+;; THE READING THAT WAS HERE BEFORE HAD IT AS CODE.  Nothing reaches
+;; &647E as an instruction -- the only reference to it is the LD HL two
+;; lines above the LDIR -- and read as code the middle three bytes
+;; decode as LD BC,&BF77, which took the DOS page's &7F77 as an address
+;; and gave a byte inside PTH2's buffer a label and a peer reference it
+;; never had.
+;;
+;; TWO OF THE SEVEN ARE NOT EXPLAINED.  The pages count agrees with the
+;; file's own header, which declares one whole page and &3F77 beyond it,
+;; but the two length bytes here are &BF77 -- that same &3F77 with bit
+;; 15 set -- and the start's page byte is &03 where the file was saved
+;; from &8000.  SNPTAB has the same shape of oddity in its own first
+;; byte, which the listing already notes as too large for a five-bit
+;; page number and read by nothing in this build.
+;; --------------------------------------------------------------------
+
+; ---- BOOT_HEADER_FIELDS ---- from &6425
+BOOT_HEADER_FIELDS:
+               DEFB &03,&00,&80,&01,&77,&BF,&FF ; 647E ....w?.  seven bytes of header, not an instruction; the LDIR at
+                                                ; &642E is all that reads them
 
 ;; --------------------------------------------------------------------
 ;; Print one character at the size CSIZE set: widen it, then output it

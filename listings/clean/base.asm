@@ -248,5 +248,4 @@ DOS_V7EA6:                      EQU  V7EA6 + IN_PAGE_C
 DOS_V7EFC:                      EQU  V7EFC + IN_PAGE_C
 DOS_V7F0D:                      EQU  V7F0D + IN_PAGE_C
 DOS_V7F6B:                      EQU  V7F6B + IN_PAGE_C
-DOS_V7F77:                      EQU  V7F77 + IN_PAGE_C
 DOS_V7FA5:                      EQU  V7FA5 + IN_PAGE_C
