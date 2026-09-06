@@ -152,10 +152,12 @@ Saves HMPR, masks the page number to five bits and pages it in before
 walking the bytes, so it reads memory outside the extension's own page.
 The surrounding routines compare bytes against a length-prefixed string.
 
-This is very likely the engine behind INSTRING, which the manual says
-searches "over 200K/second" and can be pointed at any part of memory
-including the program and variables areas -- but that identification is
-from context rather than from anything in the routine itself.""",
+WHAT IT IS FOR IS NOT SETTLED.  It was read here as the engine behind
+an INSTRING function, on the strength of the manual's "over
+200K/second" -- but there is no INSTRING keyword in MasterBASIC, that
+figure is the manual's for LOCN's ABS form, and LOCN's engine is at
+&4C98.  So the identification is withdrawn rather than replaced: what
+the routine does is above, and which command reaches it is open.""",
 
 0x52FD: """\
 Hook code 177.  Read the argument after one of MasterBASIC's keywords.

@@ -41,3 +41,20 @@ DOC RESOLVE_ROM_ENTRIES
 MB &7993 : the first of twenty searches
 MB &799D : two of these results fill the JP &0000 operands in the stub
 MB &7AA8 : &18 is JR -- patching the system page directly
+
+# THE SIXTEENTH RESOLVE, which the trace mis-aligned by one byte.
+#
+# &75F2 is CD 79 BD -- CALL FIND_ROM_CODE -- and the trace took the
+# first two of those as a DEFW, so the whole entry came out as garbage:
+# CP L / PUSH AF / RST GET_CHAR / POP HL / LD L,&00 / JP M,&F022 /
+# LD B,L.  Read at the right offset it is the same shape as the fifteen
+# below it:
+#
+#     CD 79 BD           CALL FIND_ROM_CODE
+#     F5 DF E1 2E 00 FA  signature F5 DF E1 from &2E00, -6
+#     22 F0 45           LD (&45F0),HL
+#
+# and that store is the one notes/mb-romthunks.txt reported missing:
+# &45F0 is the SLICING thunk's operand, the only one of the three whose
+# patch could not be found.  It was here all along, one byte out.
+MB &75F2-&75FD code

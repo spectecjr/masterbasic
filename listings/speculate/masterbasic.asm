@@ -13525,10 +13525,12 @@ CMD_BLITZ:
 ;;     walking the bytes, so it reads memory outside the extension's own page.
 ;;     The surrounding routines compare bytes against a length-prefixed string.
 ;;
-;;     This is very likely the engine behind INSTRING, which the manual says
-;;     searches "over 200K/second" and can be pointed at any part of memory
-;;     including the program and variables areas -- but that identification is
-;;     from context rather than from anything in the routine itself.
+;;     WHAT IT IS FOR IS NOT SETTLED.  It was read here as the engine behind
+;;     an INSTRING function, on the strength of the manual's "over
+;;     200K/second" -- but there is no INSTRING keyword in MasterBASIC, that
+;;     figure is the manual's for LOCN's ABS form, and LOCN's engine is at
+;;     &4C98.  So the identification is withdrawn rather than replaced: what
+;;     the routine does is above, and which command reaches it is open.
 ;; --------------------------------------------------------------------
 
 HOOK_FARSCAN:
@@ -26359,7 +26361,7 @@ INSTALLER_LOOP:
                LD A,(SORP)                     ; 75E9 3A 06 40
                CALL INIT_SERIAL_FROM_TABLE     ; 75EC CD 99 55
                CALL RESOLVE_ROM_ENTRIES        ; 75EF CD 90 79
-               DEFW &79CD                      ; 75F2 CD 79
+               DEFB &CD,&79                    ; 75F2 My
                CP L                            ; 75F4 BD
                PUSH AF                         ; 75F5 F5
                RST GET_CHAR                    ; 75F6 DF
@@ -28156,8 +28158,8 @@ MB_PAGER:
 ;;     installer has by then already copied out, and over nothing else,
 ;;     because neither caller wants a second buffer.  REF and ALTER do want
 ;;     one, and cap at 120 at &57E4 for exactly that reason -- 120 bytes
-;;     plus the length byte and the terminator ends at &7B7A, five short of
-;;     &7B80.  So the same buffer is 255 bytes long or 122, depending on
+;;     plus the length byte and the terminator is 122 bytes, which from
+;;     &7B00 ends at &7B79, six short of &7B80.  So the same buffer is 255 bytes long or 122, depending on
 ;;     which command filled it.
 ;; --------------------------------------------------------------------
 

@@ -92,8 +92,8 @@ MB &7B00 INSTALL_ROM_PATCHES
     installer has by then already copied out, and over nothing else,
     because neither caller wants a second buffer.  REF and ALTER do want
     one, and cap at 120 at &57E4 for exactly that reason -- 120 bytes
-    plus the length byte and the terminator ends at &7B7A, five short of
-    &7B80.  So the same buffer is 255 bytes long or 122, depending on
+    plus the length byte and the terminator is 122 bytes, which from
+    &7B00 ends at &7B79, six short of &7B80.  So the same buffer is 255 bytes long or 122, depending on
     which command filled it.
 
 MB &7B11 : &4000 here is the window offset -- CHANS is a system variable in the page now at &8000 -- and not the XVAR that shares the address
