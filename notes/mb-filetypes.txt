@@ -9,7 +9,7 @@ MB &4349-&43A0 text DRTAB
     with bit 7 of its last character in the usual way.
 
     IT IS MASTERDOS'S OWN TABLE, all 88 bytes of it, byte for byte the
-    DRTAB at &55A8 in ref/masterdos/res/MDOS23.bin.  MasterBASIC carries
+    DRTAB at &55BA in ref/masterdos/res/MDOS23.bin -- the file ORGs at &4009, and LD HL,&55BA sits in PNTYP at &5533.  MasterBASIC carries
     a verbatim copy, as it does with the DOS hook stubs at &7B80.
 
     THE BYTES BELOW 13 ARE COMPRESSION CODES, which is what makes most

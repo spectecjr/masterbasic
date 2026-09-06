@@ -65,6 +65,7 @@ ALTER -- the ALTER command, token 250.  Three unrelated jobs.
     ALTER DEVICE logical TO physical       point a logical drive number
                                            at a different real drive
     ALTER DISPLAY s TO s LINE y            show the top of one screen
+    ALTER DISPLAY OFF                      and stop doing it
                                            and the bottom of another
 
 The search-and-replace form follows REF's rules: a bare name matches

@@ -118,7 +118,7 @@ MB &6F07 SPLIT_UNWIND_ROM_STACK
     is where this stops.
 
     MAINER really is &0EED.  ROM30 has CD D1 3F there -- CALL R1OCHP --
-    and the fifteen bytes before it are the LD HL,FLAGS / SET 7,(HL) /
+    and the eighteen bytes before it are the LD HL,FLAGS / SET 7,(HL) /
     DEC HL / XOR A / LD (HL),A / INC A / LD (NSPPC),A / CALL COMPILE /
     CALL LINERUN of the main loop, so &0EED-12 is exactly that XOR A:
     the tail that clears the error number, sets NSPPC to statement 1 and

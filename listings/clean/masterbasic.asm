@@ -1237,6 +1237,13 @@ SAVE_BLOCK_FROM_THIS_PAGE_1:
 ;;
 ;; The installer's copy is NOT here: MB &7C00 matches the stored MB
 ;; &75E1 in 12 bytes of 943, against 943 of 943 in the DOS page.
+;;
+;; THE 943 OF 943 IS AGAINST dumps/LiveDuringMRINIT.bin, the page
+;; caught while the copy was running, and it is exact -- no byte
+;; differs.  It is not against MBPOST: that is a post-boot snapshot,
+;; and by then &7C00 is DOSBUF again, so the same comparison there
+;; gives 26 of 943 and means nothing.  A review has already made that
+;; substitution once and reported the copy as imperfect.
 ;; --------------------------------------------------------------------
 
 ; ---- SAVE_BLOCK_FROM_SYSPAGE_DONE ---- from &42A7
@@ -1415,7 +1422,8 @@ CHECK_PRINTER_READY_1:
 ;; with bit 7 of its last character in the usual way.
 ;;
 ;; IT IS MASTERDOS'S OWN TABLE, all 88 bytes of it, byte for byte the
-;; DRTAB at &55A8 in ref/masterdos/res/MDOS23.bin.  MasterBASIC carries
+;; DRTAB at &55BA in ref/masterdos/res/MDOS23.bin -- the file ORGs at &4009, and LD HL,&55BA sits in PNTYP at &5533.
+;; MasterBASIC carries
 ;; a verbatim copy, as it does with the DOS hook stubs at &7B80.
 ;;
 ;; THE BYTES BELOW 13 ARE COMPRESSION CODES, which is what makes most
@@ -7235,6 +7243,7 @@ HOOK_MERGECOMPFLG_LOOP7:
 ;;     ALTER DEVICE logical TO physical       point a logical drive number
 ;;                                            at a different real drive
 ;;     ALTER DISPLAY s TO s LINE y            show the top of one screen
+;;     ALTER DISPLAY OFF                      and stop doing it
 ;;                                            and the bottom of another
 ;;
 ;; The search-and-replace form follows REF's rules: a bare name matches
@@ -15894,7 +15903,7 @@ CMD_SPLIT_LINE_1:
 ;; is where this stops.
 ;;
 ;; MAINER really is &0EED.  ROM30 has CD D1 3F there -- CALL R1OCHP --
-;; and the fifteen bytes before it are the LD HL,FLAGS / SET 7,(HL) /
+;; and the eighteen bytes before it are the LD HL,FLAGS / SET 7,(HL) /
 ;; DEC HL / XOR A / LD (HL),A / INC A / LD (NSPPC),A / CALL COMPILE /
 ;; CALL LINERUN of the main loop, so &0EED-12 is exactly that XOR A:
 ;; the tail that clears the error number, sets NSPPC to statement 1 and

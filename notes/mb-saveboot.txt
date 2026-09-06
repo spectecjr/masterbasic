@@ -186,6 +186,13 @@ MB &42B3 : and here they meet: page set, A zeroed, and SVBLK called through CALL
     The installer's copy is NOT here: MB &7C00 matches the stored MB
     &75E1 in 12 bytes of 943, against 943 of 943 in the DOS page.
 
+    THE 943 OF 943 IS AGAINST dumps/LiveDuringMRINIT.bin, the page
+    caught while the copy was running, and it is exact -- no byte
+    differs.  It is not against MBPOST: that is a post-boot snapshot,
+    and by then &7C00 is DOSBUF again, so the same comparison there
+    gives 26 of 943 and means nothing.  A review has already made that
+    substitution once and reported the copy as imperfect.
+
 MB &647E-&6484 data BOOT_HEADER_FIELDS
 MB &647E : seven bytes of header, not an instruction; the LDIR at &642E is all that reads them
 

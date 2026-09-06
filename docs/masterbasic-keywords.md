@@ -289,6 +289,7 @@ without changing it.
 
 ```
 ALTER DISPLAY screen TO screen LINE y
+ALTER DISPLAY OFF
 ```
 
 Shows the top of one screen and the bottom of another, switching at line `y`.
