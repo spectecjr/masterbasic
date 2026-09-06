@@ -18493,11 +18493,14 @@ MSG_EXTERNAL_MEMORY:
 ;; passes goes through the fill instead; both then come back to &781B
 ;; to try the next page.
 ;;
-;; Where the count ends up is not shown here -- neither path visibly
-;; increments anything -- but this is the routine the message above
-;; belongs to, and it is the only thing in either half that walks XMPRL.
+;; Where the count ends up is six instructions from the end, once the
+;; operands are read in the right page: LD HL,&4296 is MRTAB, LD E,&20
+;; is the 32 bytes of it, and the JP at &7826 goes to the DOS's CFMI,
+;; which counts the free pages into DE.  MasterDOS's own source ends
+;; MRINIT with exactly that, comment and all -- "LD HL,MRTAB / LD E,32
+;; / JP CFMI ;COUNT FREE PAGES".
 ;;
-;; Two things about it do not close, and are worth writing down rather
+;; One thing about it does not close, and is worth writing down rather
 ;; than smoothing over.
 ;;
 ;; Nothing calls it.  &77DB has no reference anywhere in either half,
@@ -18559,7 +18562,7 @@ MSG_EXTERNAL_MEMORY:
 ;; there -- INSTALLER, which this listing has named all along.  &77DB
 ;; is inside that block, &1FA bytes in, so the code runs at &7C00+&1FA:
 ;;
-;;     stored MB &77CB  MSG_EXTERNAL_MEMORY  ->  &7DEA   (&77C9 -> &BDE8)
+;;     stored MB &77C9  MSG_EXTERNAL_MEMORY  ->  &7DE8   (seen at &BDE8)
 ;;     stored MB &77DB  SIZE_EXTERNAL_MEMORY ->  &7DFA
 ;;     stored MB &77E5  the OUT (XMPRL),A    ->  &7E04
 ;;     stored MB &7800  FILL_PAGE_WITH_ZERO  ->  &7E1F
@@ -18576,18 +18579,17 @@ MSG_EXTERNAL_MEMORY:
 ;; it holds &7DFA -- the address the routine runs at.  Searching for
 ;; &77DB was searching for something that was never going to be there.
 ;;
-;; dumps/LiveDuringMRINIT.bin IS SIXTEEN KILOBYTES OF ZERO.  Every one
-;; of its 16384 bytes is &00.  It was taken to catch the page this
-;; routine runs in and caught page &10, which is empty; the intended
-;; page was &1D.  It is evidence of nothing and should not be used.
+;; THE FILE UNDER THAT NAME WAS REPLACED, and anything written about
+;; the first one does not describe the second.  The first capture was
+;; 16384 bytes of &00: it was meant to catch the page this routine runs
+;; in and caught page &10, which is empty, where the intended page was
+;; &1D.  It briefly looked like evidence because it agreed with the
+;; dumps of page 0 in 89.8% of bytes -- every agreeing byte zero in
+;; both, and nought bytes of non-zero agreement.  A percentage match
+;; between two sparse buffers says only that both are mostly empty.
 ;;
-;; It is worth recording how it briefly looked like evidence, because
-;; the mistake is an easy one.  Compared against the dumps of page 0 it
-;; agreed in 89.8% of bytes, which reads like a strong match and is not
-;; one: every single agreeing byte was zero in both.  The non-zero
-;; agreement was nought bytes.  A percentage match between two sparse
-;; buffers says only that both are mostly empty.  Check what the
-;; agreement is made of before believing it.
+;; The file in dumps/ now is the intended capture, 15650 of its 16384
+;; bytes non-zero, and it is used below.
 ;;
 ;; WHICH PAGE THE COPY RUNS IN: THE DOS'S.  dumps/LiveDuringMRINIT.bin
 ;; is that page, dumped while the routine was running, and it settles
@@ -18604,15 +18606,17 @@ MSG_EXTERNAL_MEMORY:
 ;; is copied; the relative jumps relocate themselves and the absolute
 ;; ones were written for where it lands.
 ;;
-;; AND THE TWO OPERANDS THAT LOOKED WRONG ARE CALLS INTO THE DOS.  The
-;; listing resolved &7806 and &77FE against MasterBASIC's own half,
-;; where they happen to be STACK_FILL_LOOP and CLEAR_WINDOW_IF_Z, and
-;; that is an accident of two pages having code at the same offsets.
-;; Read in the DOS page, which is where this code runs, they are the
-;; DOS's own and the DOS listing already names them:
+;; AND THE THREE OPERANDS THAT LOOKED WRONG ARE CALLS INTO THE DOS.
+;; The listing resolved them against MasterBASIC's own half, which is
+;; an accident of two pages having code at the same offsets, and one
+;; of the three is not even an instruction here: &77FE is the operand
+;; bytes of the LD SP,&C000 at &77FD.  Read in the DOS page, which is
+;; where this code runs, all three are the DOS's own and the DOS
+;; listing already names them:
 ;;
 ;;     &7806   RMRBIT      reset a MegaRAM bit
 ;;     &77FE   SMRBIT      set a MegaRAM bit
+;;     &7841   CFMI        count the free MegaRAM pages into DE
 ;;     &7811   MRADDR      the byte and bit in MRTAB for the page in A
 ;;
 ;; So the flow closes.  A page that passes both tests reaches
@@ -18630,22 +18634,17 @@ MSG_EXTERNAL_MEMORY:
 ;; code.  The arithmetic was the same either way and the dump decides
 ;; it: the page is the DOS's.
 ;;
-;; THE OPERANDS THAT LOOK WRONG, for the record.  &77F5 calls &7806
-;; and &7819 jumps to &77FE, both of which are stored addresses rather
-;; than relocated ones, so within the running copy they point outside
-;; it.  Either those two are reached with MasterBASIC's own page at
-;; &4000 -- the installer runs from the window at &BC00, which leaves
-;; section B free, and that is the SYSPAGE_IN_B arrangement used
-;; everywhere else -- or the block is entered more than one way.  A
-;; disassembly of the running copy answered it: MasterBASIC's page is at
-;; &4000, so both are its own stored addresses.  Nothing is outstanding.
+;; AND THE FLOW CLOSES, once the two calls are read in the DOS page.
+;; CALL RMRBIT at &77F5 returns, so &77F8 is reached in the ordinary
+;; way: it stores SP in the alternate HL, LD SP,&C000 at &77FD points
+;; the stack at the top of the window, and the fill below walks it
+;; down.  &7813 brings the saved SP back and &7815 rejoins the scan at
+;; &781B.  &7819's CALL SMRBIT returns to the same place.
 ;;
-;; And the flow through the fill does not join up.  CALL &7806 at &77F5
-;; cannot return -- STACK_FILL_LOOP ends by putting SP back and jumping
-;; to &781B -- so &77F8-&77FD is not reached that way.  Yet &7814 takes
-;; the restored SP out of the alternate HL, and &77F8-&77FC is the only
-;; place that puts it there.  Either the caller sets it up, or one of
-;; the two entries is reached some way this listing does not show.
+;; A third of the operand table also aligns: MB &7780-&782F is
+;; MasterDOS's MRINIT, and against MDOS23.bin the three operands
+;; &7806, &77FE and &7841 sit exactly &187 above its own &767F, &7677
+;; and &76BA -- RMRBIT, SMRBIT and CFMI.
 ;; --------------------------------------------------------------------
 
 SIZE_EXTERNAL_MEMORY:
@@ -18663,11 +18662,11 @@ SIZE_EXTERNAL_MEMORY_1:
                XOR A                           ; 77EA AF
                LD (HL),A                       ; 77EB 77
                CP (HL)                         ; 77EC BE
-               JR NZ,SIZE_EXTERNAL_MEMORY_2    ; 77ED 20 28
+               JR NZ,SIZE_EXTERNAL_MEMORY_3    ; 77ED 20 28
                INC A                           ; 77EF 3C
                LD (HL),A                       ; 77F0 77
                CP (HL)                         ; 77F1 BE
-               JR NZ,SIZE_EXTERNAL_MEMORY_2    ; 77F2 20 23
+               JR NZ,SIZE_EXTERNAL_MEMORY_3    ; 77F2 20 23
                LD A,C                          ; 77F4 79
                CALL STACK_FILL_LOOP            ; 77F5 CD 06 78  RMRBIT in the DOS page, not this half's &7806 -- the
                                                ; block runs at &7C00 in the DOS page, so a page that passes has its
@@ -18678,14 +18677,8 @@ SIZE_EXTERNAL_MEMORY_1:
                DEFB SKIP_2_VIA_LD_SP           ; 77FD 1  skipped: reads as LD SP,&C000 from here, and as part of the
                                                ; instruction above it
 
-;; --------------------------------------------------------------------
-;; Return unless the flags say to, and otherwise fall into the page
-;; filler below.  The NOP in front is where an instruction was taken out
-;; rather than the code being moved.
-;; --------------------------------------------------------------------
-
-; ---- CLEAR_WINDOW_IF_Z ---- from &7818
-CLEAR_WINDOW_IF_Z:
+; ---- SIZE_EXTERNAL_MEMORY_2 ---- from &7818
+SIZE_EXTERNAL_MEMORY_2:
                NOP                             ; 77FE 00
                RET NZ                          ; 77FF C0
 
@@ -18721,10 +18714,10 @@ STACK_FILL_LOOP:
                LD SP,HL                        ; 7814 F9
                JR STACK_FILL_LOOP_1            ; 7815 18 04
 
-; ---- SIZE_EXTERNAL_MEMORY_2 ---- from &77ED when A <> (HL), &77F2 when A <> (HL)
-SIZE_EXTERNAL_MEMORY_2:
+; ---- SIZE_EXTERNAL_MEMORY_3 ---- from &77ED when A <> (HL), &77F2 when A <> (HL)
+SIZE_EXTERNAL_MEMORY_3:
                LD A,C                          ; 7817 79
-               CALL CLEAR_WINDOW_IF_Z          ; 7818 CD FE 77  SMRBIT in the DOS page, not this half's &77FE -- a page
+               CALL SIZE_EXTERNAL_MEMORY_2     ; 7818 CD FE 77  SMRBIT in the DOS page, not this half's &77FE -- a page
                                                ; that fails has its MRTAB bit set
 
 ; ---- STACK_FILL_LOOP_1 ---- from &7815
@@ -18733,12 +18726,12 @@ STACK_FILL_LOOP_1:
                JR NZ,SIZE_EXTERNAL_MEMORY_1    ; 781C 20 C6
                POP AF                          ; 781E F1
                OUT (HMPR),A                    ; 781F D3 FB
-               DEFB SKIP_2_VIA_LD_HL           ; 7821 !  skipped: reads as LD HL,&4296 from here, and as part of the
-                                               ; instruction above it
+               DEFB SKIP_2_VIA_LD_HL           ; 7821 !  MRTAB, the MegaRAM bitmap, at the DOS's &4296
                SUB (HL)                        ; 7822 96
                LD B,D                          ; 7823 42
                LD E,&20                        ; 7824 1E 20
-               JP BUILD_PUT_BLOCK              ; 7826 C3 41 78
+               JP BUILD_PUT_BLOCK              ; 7826 C3 41 78  CFMI in the DOS page, not this half's &7841 -- MRINIT's
+                                               ; own last instruction, which counts the free pages into DE
 
 ;; --------------------------------------------------------------------
 ;; Build MasterBASIC's replacement for the ROM's PUT command in the
@@ -18751,8 +18744,10 @@ STACK_FILL_LOOP_1:
 ;; the way they do.  &5BDA low is the ROM's CMDADDRT, not this half's
 ;; &5BDA; &45A2 low is in the system page; and &BFA5, &BE98 and &BEAD in
 ;; the window are the DOS page, where the boot sector has already put a
-;; copy of this half's &75E1-&798F.  Subtract &61F from a window address
-;; and you have the address in this listing that the bytes came from.
+;; copy of this half's &75E1-&798F.  Subtract &461F from a window
+;; address -- or &61F from the DOS-page form the DOS_V7xxx names are
+;; written in -- and you have the address in this listing that the
+;; bytes came from.
 ;;
 ;; First it finds the ROM's PUT.  CMDADDRT holds the address of the
 ;; ROM's command address table -- &FD65 on a 3.0 machine, in ROM 1 --

@@ -162,3 +162,5 @@ DOS &7D60 INSTALL_TAIL_INTO_SYSPAGE
 
 MB &77F5 : RMRBIT in the DOS page, not this half's &7806 -- the block runs at &7C00 in the DOS page, so a page that passes has its MRTAB bit reset
 MB &7818 : SMRBIT in the DOS page, not this half's &77FE -- a page that fails has its MRTAB bit set
+MB &7821 : MRTAB, the MegaRAM bitmap, at the DOS's &4296
+MB &7826 : CFMI in the DOS page, not this half's &7841 -- MRINIT's own last instruction, which counts the free pages into DE

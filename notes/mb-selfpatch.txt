@@ -14,8 +14,10 @@ DOC INSTALL_EXTENDED_PUT
     the way they do.  &5BDA low is the ROM's CMDADDRT, not this half's
     &5BDA; &45A2 low is in the system page; and &BFA5, &BE98 and &BEAD in
     the window are the DOS page, where the boot sector has already put a
-    copy of this half's &75E1-&798F.  Subtract &61F from a window address
-    and you have the address in this listing that the bytes came from.
+    copy of this half's &75E1-&798F.  Subtract &461F from a window
+    address -- or &61F from the DOS-page form the DOS_V7xxx names are
+    written in -- and you have the address in this listing that the
+    bytes came from.
 
     First it finds the ROM's PUT.  CMDADDRT holds the address of the
     ROM's command address table -- &FD65 on a 3.0 machine, in ROM 1 --
