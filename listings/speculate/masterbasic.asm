@@ -19721,15 +19721,6 @@ EXPAND_FILE_1:
 ;;     which falls back on the display if there is none free -- read the
 ;;     counted string that heads the data, and clear the ROM's PAGCOUNT
 ;;     before the run begins.
-;;
-;;     Minus ten thousand, a thousand, a hundred and ten, for printing a
-;;     number as decimal digits by repeated subtraction.
-;;
-;;     Not code, whatever the trace made of it: as instructions the four
-;;     words read as RET P / RET C / JR to itself, an infinite loop nothing
-;;     could survive.  The routines above them are a character plotter and a
-;;     decimal printer, and their CHECK_BREAK names come from the label
-;;     above them rather than from anything they do.
 ;; --------------------------------------------------------------------
 
 ; ---- EXPAND_INTO_WORK_PAGE ---- from &66E2
@@ -20453,7 +20444,8 @@ DUMP_STRIKE:
 
 ; ---- DUMP_STRIKE_1 ---- from &68C4 when A <> 0
 DUMP_STRIKE_1:
-               DEC A                           ; 68C8 3D  magnified: the phase counts down
+               DEC A                           ; 68C8 3D  unmagnified -- the DEC A above set Z on a factor of 1, so this
+                                               ; is the plain path, and the phase counts down
                JR DUMP_STRIKE_3                ; 68C9 18 06
 
 ;; --------------------------------------------------------------------
@@ -20465,7 +20457,7 @@ DUMP_STRIKE_1:
 
 ; ---- DUMP_STRIKE_2 ---- from &68C1 when A is not 0 yet
 DUMP_STRIKE_2:
-               INC A                           ; 68CB 3C  not magnified: it counts up
+               INC A                           ; 68CB 3C  magnified: it counts up instead, and wraps at three
                CP &03                          ; 68CC FE 03
                JR C,DUMP_STRIKE_3              ; 68CE 38 01
                XOR A                           ; 68D0 AF

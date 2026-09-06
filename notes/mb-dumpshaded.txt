@@ -155,8 +155,8 @@ DOC DUMP_STRIKE
     magnifications and the two axis limits all come together.
 
 MB &68BA : is the byte axis magnified?  the value itself is not wanted
-MB &68C8 : magnified: the phase counts down
-MB &68CB : not magnified: it counts up
+MB &68C8 : unmagnified -- the DEC A above set Z on a factor of 1, so this is the plain path, and the phase counts down
+MB &68CB : magnified: it counts up instead, and wraps at three
 MB &68D5 : three bits to a pixel, carried across lines by the widest dump
 MB &68D8 : GCMX2 -- carriage return, then ESC "*" and the density
 MB &68E1 : the magnification, counted down once per byte

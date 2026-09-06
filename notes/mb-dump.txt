@@ -544,17 +544,8 @@ MB &66F2 EXPAND_INTO_WORK_PAGE
     counted string that heads the data, and clear the ROM's PAGCOUNT
     before the run begins.
 
-    Minus ten thousand, a thousand, a hundred and ten, for printing a
-    number as decimal digits by repeated subtraction.
-
-    Not code, whatever the trace made of it: as instructions the four
-    words read as RET P / RET C / JR to itself, an infinite loop nothing
-    could survive.  The routines above them are a character plotter and a
-    decimal printer, and their CHECK_BREAK names come from the label
-    above them rather than from anything they do.
 
 MB &610E-&6115 word
-MB &610E : -10000, -1000, -100, -10 -- the divisors, biggest first
 MB &6112 : the third of the four, and not the SBC A,H the trace made of it
 
 MB &6253 : E is zero because DE has just been pointed at the source, so the clearing loop needs no separate zero
