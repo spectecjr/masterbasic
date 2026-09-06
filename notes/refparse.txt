@@ -388,7 +388,7 @@ MB &59A3 : IN A,(n) puts A on the top half of the address bus, so &F7 is the key
 
 MB &59A7 : two keys of that row, and both low means both held.  On the published matrix, line &F7 gives ESC and TAB
 
-MB &59A9 : &0066 is the ROM's NMI handler, so holding the pair does what the break button does.  The manual documents no such key, which is worth being suspicious of
+MB &59A9 : &0066 is the ROM's NMI handler, so holding the pair does what the break button does -- which is the manual's errata exactly: "[ESC] + [TAB] can be used as a more powerful form of [ESC] that is less drastic than pressing the [BREAK] button"
 
 MB &59AC : &10 exactly, not a bit test -- TVFLAG with only bit 4 set is the ROM's automatic listing in progress, and AULX clears that bit when the listing ends
 
@@ -436,5 +436,5 @@ MB &5A33 : the last two bytes of a block are the link: the next block's address 
 
 MB &5A3A : the same biased page byte read at &59FC, so the feed picks up where it left off next interrupt
 
-MB &5A42 : the printer-ready test is in the other half's own page, reached through the window
+MB &5A42 : CHECK_PRINTER_READY is this half's own, at &432B -- &832B is this half seen through the window, because this code runs where MasterBASIC is at &8000
 

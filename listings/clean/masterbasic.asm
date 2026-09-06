@@ -8807,8 +8807,9 @@ SEND_COUNTED_TO_CHANNEL_1:
                AND &60                         ; 59A7 E6 60  two keys of that row, and both low means both held. On the
                                                ; published matrix, line &F7 gives ESC and TAB
                JP Z,&0066                      ; 59A9 CA 66 00  &0066 is the ROM's NMI handler, so holding the pair does
-                                               ; what the break button does. The manual documents no such key, which is
-                                               ; worth being suspicious of
+                                               ; what the break button does -- which is the manual's errata exactly:
+                                               ; "[ESC] + [TAB] can be used as a more powerful form of [ESC] that is
+                                               ; less drastic than pressing the [BREAK] button"
                LD A,(TVFLAG)                   ; 59AC 3A 3C 5C  &10 exactly, not a bit test -- TVFLAG with only bit 4
                                                ; set is the ROM's automatic listing in progress, and AULX clears that
                                                ; bit when the listing ends
@@ -9006,8 +9007,9 @@ PRINTER_FEED_TICK_2:
 
 ; ---- PRINTER_FEED_TICK_3 ---- from &5A22 when a bit of &03 is set, &5A2E when A <> &FE
 PRINTER_FEED_TICK_3:
-               CALL CHECK_PRINTER_READY+IN_PAGE_C  ; 5A42 CD 2B 83  the printer-ready test is in the other half's own
-                                                   ; page, reached through the window
+               CALL CHECK_PRINTER_READY+IN_PAGE_C  ; 5A42 CD 2B 83  CHECK_PRINTER_READY is this half's own, at &432B --
+                                                   ; &832B is this half seen through the window, because this code runs
+                                                   ; where MasterBASIC is at &8000
                JR C,PRINTER_FEED_TICK_4            ; 5A45 38 23
                LD A,B                              ; 5A47 78
                OUT (LMPR),A                        ; 5A48 D3 FA
@@ -17203,8 +17205,13 @@ FIND_PROC_ENTRY_1:
 ;;
 ;;     +0  the character after the token, AND &DF -- upper-cased
 ;;     +1  the page the program is in
-;;     +2  BC from LKFC
-;;     +4  DE from LKFC
+;;     +2  HL as LKFC left it, moved into BC at &742D and stored at
+;;         &7447 -- not BC, which still holds the &21CA loaded before
+;;         the call
+;;     +4  DE, stored at &744B, after the three exchanges at
+;;         &742F-&7434 and the RST NEXT_CHAR between them.  What it
+;;         holds by then has not been pinned down; do not read it as
+;;         LKFC's DE
 ;;
 ;; and a zero byte ends the table.  Where it puts it is the neat part:
 ;; &E000 with HMPR set to FISCRNP, the page of screen 1.  Section D is

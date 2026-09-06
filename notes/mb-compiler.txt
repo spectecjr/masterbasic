@@ -93,8 +93,13 @@ MB &7419 BUILD_PROC_INDEX
 
         +0  the character after the token, AND &DF -- upper-cased
         +1  the page the program is in
-        +2  BC from LKFC
-        +4  DE from LKFC
+        +2  HL as LKFC left it, moved into BC at &742D and stored at
+            &7447 -- not BC, which still holds the &21CA loaded before
+            the call
+        +4  DE, stored at &744B, after the three exchanges at
+            &742F-&7434 and the RST NEXT_CHAR between them.  What it
+            holds by then has not been pinned down; do not read it as
+            LKFC's DE
 
     and a zero byte ends the table.  Where it puts it is the neat part:
     &E000 with HMPR set to FISCRNP, the page of screen 1.  Section D is
