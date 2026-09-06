@@ -106,9 +106,20 @@ io.open(SCRATCH + 'c11-region.asm', 'w', encoding='utf-8',
 ```
 
 Count the lines of *your own* prose in it while you are there (a listing comment
-containing a lower-case letter is yours; the 1991 author's are upper case). It
-tells you whether the region is worth a review, and gives the denominator for
-the hit rate afterwards.
+containing a lower-case letter is yours; the 1991 author's are upper case). That
+is the denominator for the hit rate afterwards.
+
+**It is not the number that chooses the shape, and using it that way has already
+gone wrong.** PART SUBD came out at 16% by this count and was billed as the
+thinnest region in either half, fit only for a proposal. It is nothing of the
+kind: 150 lines of this project's prose, 145 of the 1991 author's, and 165
+banner lines. The measure ignores upper-case comments *by design* — that is what
+makes it a fair denominator — so on the MasterDOS side, where every routine
+carries the source's own header, it understates total annotation by about half.
+The MasterBASIC side has no carried comments and is unaffected.
+
+To choose the shape, count every commented line regardless of case. To score the
+round afterwards, count only your own.
 
 Aim for 500–1500 lines. Larger and the agent skims the far end.
 
@@ -242,6 +253,11 @@ to check than a missing one costs to leave. If a section is sound, say so and
 move on: ending with "I checked X, Y, Z and found nothing wrong" is a GOOD
 outcome. Do not pad. Do not report style, wording, or things merely incomplete.
 
+Where you quote a number as evidence -- an offset, a length, a count, a bound --
+derive it rather than repeating it from the commentary. A finding that is right
+in substance and carries a wrong subsidiary number is the failure mode this
+review process has actually suffered from.
+
 # Facts about this machine
 
 <the half-dozen facts without which an operand cannot be read: the paging
@@ -253,6 +269,19 @@ The "facts about this machine" block is the part that decides whether the run is
 useful. Without it the agent reads `&8000` as a second part of the DOS, and
 every finding about the window is noise. Keep it to the facts an operand cannot
 be read without.
+
+**On the MasterDOS side, hand the agent the annotated source.** `ref/masterdos/
+annotated-src/masterdos23.asm` is the 1991 author's own text, and the build
+proves the listing assembles to the same bytes, so a claim can be checked
+against what the author said rather than only against the instructions. That is
+a reference the MasterBASIC half does not have at all, and it changes what the
+review can reach. Two warnings go with it, and both belong in the prompt:
+
+- Where the source and the instructions disagree, **the instructions win** — the
+  author is occasionally wrong, and the agent should say when that happens
+  rather than deferring.
+- **An upper-case comment carried onto the wrong instruction is a finding**, and
+  a likely one, because the carry-across is automated rather than read.
 
 ---
 
