@@ -302,16 +302,15 @@ ACRSU:
 ;; The rest of MasterBASIC's variable block, which the manual does not
 ;; document -- the XVARs it lists stop at ACRSU, XVAR 89.
 ;;
-;; Every address below that the code actually reads or writes has a label
-;; and a line of its own, with the cross-reference list naming the routines
-;; that use it; the runs in between are the bytes nothing refers to.  The
-;; names are addresses because nothing here says what these variables are
-;; for, but which are live and who touches them is worth having.
+;; Most addresses below that the code reads or writes have a label and a
+;; line of their own; the runs in between are the bytes nothing refers to.
+;; The names are addresses because nothing here says what these variables
+;; are for, but which are live and who touches them is worth having.
 ;;
-;; References reach them three ways, all of which resolve to the same
-;; label: straight from this page as &40xx or &41xx, from the DOS page as
-;; &80xx or &81xx -- the window the other half sees this one through -- and
-;; as an inline DEFW parameter.  Nothing reaches them at &C0xx.
+;; AND ONE LABEL HERE IS NOT A VARIABLE AT ALL.  V40F5 exists because
+;; &4A46 loads DIR_DATE+&4000, a directory offset that happens to come to
+;; &40F5; the address is inside the dot-pattern table, and the label
+;; splits that table's own DEFB run in two.  See docs/bugs.md.
 ;; --------------------------------------------------------------------
 
                DEFB &00,&00                    ; 405A ..

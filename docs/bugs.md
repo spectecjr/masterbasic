@@ -699,6 +699,31 @@ live, where nothing could contradict it because nothing could see it.
 duplicates *should* win; that is a judgement, and the point is to make
 the choice visible.
 
+**AND THE STALE CROSS-REFERENCES CREATE PHANTOM LABELS IN DATA.** The
+eighteen were recorded above as callers that do not exist, which sounds
+cosmetic. It is not. `V40F5` is one of them, and it is a label sitting
+inside the dot-pattern table at `&40B1`, splitting that table's own
+`DEFB` run in two:
+
+```
+    DEFB &12,&00,&2D,&00,&12,&24,&00,&00     ; 40ED ..-..$..
+
+; ---- V40F5 ---- from &4A46
+V40F5:
+    DEFB &24,&12,&00,&12,&00,&00,&00,&00,&00,&00,&00,&FF,&FF,&FF,&F0
+```
+
+Its one reference is `&4A46 LD BC,DIR_DATE+&4000` — a directory offset
+that happens to come to `&40F5`. There is no variable there. Two more of
+the eighteen, `DOS &7726` and `DOS &773A`, are `LD HL,RAMDISC_PAGE+n`
+after `CALL SELFP`, and are credited to labels in a page they do not
+reach — one of them across halves, as `MB &773A`.
+
+So the count is worth more attention than "eighteen labels list a caller
+they should not". Some of these references were never references, and
+where the coincidental address lands in data, the phantom gets a label
+and cuts a table in half.
+
 **This is related to the stale cross-references above.** A few of those
 eighteen are not merely un-retracted references: they are operands that
 were never references at all. `&55EA` had an `expr` note pointing it at
