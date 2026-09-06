@@ -4196,7 +4196,8 @@ NUMERIC:
 ;;     DEFW <ROM variable>
 ;;
 ;; Three of the four differ only in the primitive they call: NRRDD reads a
-;; word into BC, NRRD a byte into A, NRWRD writes BC and NRWR writes A.
+;; word into BC, NRRD a byte into A and NRWRD writes BC.  The fourth, NRWR,
+;; calls no primitive: its write is spelled out inline.
 ;; Each reads the address out of the word after the call and steps the
 ;; return address past it.
 ;;
@@ -4430,7 +4431,7 @@ RDA:
 ;; --------------------------------------------------------------------
 ;; Put HMPR back and return.
 ;;
-;; The tail of the three primitives that read or write through the
+;; The tail of the four primitives that read or write through the
 ;; window.  The value is in A and the saved HMPR in A', so it swaps
 ;; them, writes the port, and swaps back -- leaving the value in A and
 ;; HMPR as it was found.  RDA reaches it by falling through; WRTBC and
@@ -13813,16 +13814,19 @@ FSTAT_5:
                JR FSTAT_12                     ; 7B33 18 2F
 
 ;; --------------------------------------------------------------------
-;; Hours times twenty-four through MasterBASIC's MULTIPLY_BY_24, then
-;; the byte at HL added in with A extending the top -- the DOS reaching
-;; across for arithmetic it does not have of its own, as it does for
-;; BYTE_TO_DECIMAL.
+;; A hundred times the running total through MasterBASIC's
+;; MULTIPLY_BY_100, then the byte at HL added in with A extending the
+;; top -- the DOS reaching across for arithmetic it does not have of
+;; its own, as it does for BYTE_TO_DECIMAL.  A hundred, and the pointer
+;; step the multiply does on the way out, is what lets two calls in a
+;; row pack three fields into one number two decimal digits at a
+;; time.
 ;; --------------------------------------------------------------------
 
 ; ---- TIME_TO_MINUTES ---- from &7B2D, &7B30
 TIME_TO_MINUTES:
                CALL CALLMB                     ; 7B35 CD BD 42
-               DEFW MB_MULTIPLY_BY_24-&4000    ; 7B38 F9 45
+               DEFW MB_MULTIPLY_BY_100-&4000   ; 7B38 F9 45
                LD C,(HL)                       ; 7B3A 4E
                EX DE,HL                        ; 7B3B EB
                LD B,&00                        ; 7B3C 06 00

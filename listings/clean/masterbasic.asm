@@ -2184,7 +2184,8 @@ IS_NAME_CHAR:
 ;;     DEFW <ROM variable>
 ;;
 ;; Three of the four differ only in the primitive they call: NRRDD reads a
-;; word into BC, NRRD a byte into A, NRWRD writes BC and NRWR writes A.
+;; word into BC, NRRD a byte into A and NRWRD writes BC.  The fourth, NRWR,
+;; calls no primitive: its write is spelled out inline.
 ;; Each reads the address out of the word after the call and steps the
 ;; return address past it.
 ;;
@@ -2422,7 +2423,7 @@ MBRDA:
 ;; --------------------------------------------------------------------
 ;; Put HMPR back and return.
 ;;
-;; The tail of the three primitives that read or write through the
+;; The tail of the four primitives that read or write through the
 ;; window.  The value is in A and the saved HMPR in A', so it swaps
 ;; them, writes the port, and swaps back -- leaving the value in A and
 ;; HMPR as it was found.  MBRDA reaches it by falling through; MBWRTBC and
@@ -2474,7 +2475,12 @@ MBGTHL:
 ;; somewhere else and the searches would find them there.
 ;;
 ;; None of the three could have been hard-coded: all are inside ROM 0,
-;; which nothing in this half ever addresses directly.
+;; which nothing in this half can find a fixed address for.  It hard-codes
+;; ROM 0 addresses constantly -- forty-three DEFWs, from STKSTR at &0127
+;; to NRREAD at &00AC -- but every one of those is below &0200, inside
+;; the ROM's jump table, which is fixed.  LOOKVARS, SLICING and INSERTLN
+;; are ROM routines with no jump-table entry, and an internal ROM address
+;; is exactly what a signature search is for.
 ;; --------------------------------------------------------------------
 
 ; ---- CALL_LOOKVARS ---- from &43DD
@@ -2502,14 +2508,22 @@ V45F6:
                RET                             ; 45F8 C9
 
 ;; --------------------------------------------------------------------
-;; A:HL times twenty-four, with the original kept in BC: double, add BC
-;; back for three, then three more doublings.  The companion to
-;; MULTIPLY_BY_60 -- hours in a day where that one has seconds in a
-;; minute -- and like it, reached from the DOS.
+;; HL times a hundred, left in DE, with the pointer in DE stepped on by
+;; one and handed back in HL so a caller can chain it.  The original is
+;; kept in BC and the answer built by shifting and adding: double and
+;; add BC back for three, three more doublings for twenty-four, add BC
+;; once more for twenty-five, and two doublings for a hundred.  The
+;; companion to MULTIPLY_BY_60, and like it reached from the DOS.
+;;
+;; A IS THE TOP OF A 24-BIT ANSWER, but only from the sixth step on:
+;; the carries out of the first four adds are dropped, so the result is
+;; right while twelve times HL still fits in sixteen bits -- HL up to
+;; 5461 -- with A entered as zero.  Both of TIME_TO_MINUTES's calls are
+;; inside that.
 ;; --------------------------------------------------------------------
 
-; ---- MULTIPLY_BY_24 ---- from DOS &7B35
-MULTIPLY_BY_24:
+; ---- MULTIPLY_BY_100 ---- from DOS &7B35
+MULTIPLY_BY_100:
                LD B,H                          ; 45F9 44
                LD C,L                          ; 45FA 4D
                ADD HL,HL                       ; 45FB 29
@@ -2531,7 +2545,7 @@ MULTIPLY_BY_24:
 ;; --------------------------------------------------------------------
 ;; SORT -- the SORT command, token 251.
 ;;
-;;     SORT [ABS] [INVERSE] a$
+;;     SORT [ABS [INVERSE]] a$
 ;;
 ;; Sorts the strings of a string array, or the characters of a plain
 ;; string, in place.  Plain SORT ignores case: bit 5 of each character's
@@ -2571,16 +2585,22 @@ CMD_SORT_1:
 ;; Patch the comparison, find the array, then sort it.
 ;;
 ;; THE ONE BYTE AT &4745 IS THE WHOLE OF THE ABS OPTION.  It is the
-;; operand of the JR NZ at &4744, the only place a key byte is ever
-;; tested: &02 lands on the RET path at &4748 and quits on the first
-;; difference, &05 diverts to &474B, which folds bit 5 out of both
-;; bytes and tries again.  Nothing else is conditional on ABS -- and
-;; because the byte stays where it was written, &47B8 can read it back
-;; later instead of keeping a flag of its own.
+;; operand of the JR NZ at &4744, the only place a key byte after the
+;; first is tested: &02 lands on the RET path at &4748 and quits on the
+;; first difference, &05 diverts to &474B, which folds bit 5 out of
+;; both bytes and tries again.
+;;
+;; It decides one other thing, and only one.  Because the byte stays
+;; where it was written, &47B8 can read it back later instead of
+;; keeping a flag: &02 leaves IX on the non-folding ascending scan and
+;; anything else points it at the folding one.  Those are two separate
+;; routines, not two operands of one.
 ;;
 ;; That is also the manual's "the sort speed is also slightly better
-;; using this ABS option": the folding path costs a PUSH BC, an AND, a
-;; LD, a RES, a CP and a POP on every byte that matches.
+;; using this ABS option": the folding path costs two EXX, a PUSH BC,
+;; an AND, a LD, a RES, a CP and a POP on every byte that does not
+;; match as it stands.  Bytes that are already equal fall through to
+;; the count and cost nothing either way.
 ;; --------------------------------------------------------------------
 
 ; ---- CMD_SORT_2 ---- from &461B
@@ -2614,9 +2634,11 @@ CMD_SORT_2:
 ;; second character onwards but still moves the first with the rest --
 ;; exactly as the manual says.
 ;;
-;; THE TWO REGISTER BANKS SWAP OVER EVERY PASS.  There are seven EXX
-;; in a pass, an odd number, so the pass that follows runs in the
-;; other bank.  Nothing depends on which is which: the pass pointer
+;; THE TWO REGISTER BANKS SWAP OVER EVERY PASS.  Nine EXX stand in a
+;; pass, but four of them are inside loops and go in pairs -- &4683
+;; with &4688 once a byte, &468F with &4691 once every 256 -- so five
+;; execute: &4653, &4655, &465D, &465F and &4696.  An odd number, so
+;; the pass that follows runs in the other bank.  Nothing depends on which is which: the pass pointer
 ;; and the counts are always in whichever bank is live at &463B, and
 ;; the exchange only needs one pointer in each.
 ;;
@@ -2890,8 +2912,8 @@ PAGE_ON_TWO_2:
                POP BC                          ; 46E9 C1  the high half comes back off the stack rather than out of B
                DEC B                           ; 46EA 05
                PUSH BC                         ; 46EB C5
-               LD C,&00                        ; 46EC 0E 00  already zero from the DEC C that got here -- the count
-                                               ; wraps to 256 on the next DEC
+               LD C,&00                        ; 46EC 0E 00  the POP two instructions back has just put the pushed low
+                                               ; count into C, so it is zeroed again here; the next DEC wraps it to 256
                JR NZ,PAGE_ON_TWO_LOOP5         ; 46EE 20 EA  back to the comparison, not to the step: HL was advanced
                                                ; before the count was tested
                POP BC                          ; 46F0 C1
@@ -6254,7 +6276,7 @@ MBKEYS:
                DEFM "ALTE"                     ; 5158
                DEFB "R"+&80
 ;
-; 26  251      SORT      SORT [ABS] [INVERSE] a$ -- sort a string or string array
+; 26  251      SORT      SORT [ABS [INVERSE]] a$ -- sort a string or string array
                DEFM "SOR"                      ; 515D
                DEFB "T"+&80
 ;

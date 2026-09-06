@@ -20,7 +20,12 @@ DOC CALL_LOOKVARS
     somewhere else and the searches would find them there.
 
     None of the three could have been hard-coded: all are inside ROM 0,
-    which nothing in this half ever addresses directly.
+    which nothing in this half can find a fixed address for.  It hard-codes
+    ROM 0 addresses constantly -- forty-three DEFWs, from STKSTR at &0127
+    to NRREAD at &00AC -- but every one of those is below &0200, inside
+    the ROM's jump table, which is fixed.  LOOKVARS, SLICING and INSERTLN
+    are ROM routines with no jump-table entry, and an internal ROM address
+    is exactly what a signature search is for.
 
 DOC CHECK_BREAK
     Report "BREAK into program" if the key is down, otherwise return.

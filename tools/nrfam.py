@@ -178,7 +178,7 @@ give the written byte back in A.""",
 'BCRWC': """\
 Put HMPR back and return.
 
-The tail of the three primitives that read or write through the
+The tail of the four primitives that read or write through the
 window.  The value is in A and the saved HMPR in A', so it swaps
 them, writes the port, and swaps back -- leaving the value in A and
 HMPR as it was found.  RDA reaches it by falling through; WRTBC and

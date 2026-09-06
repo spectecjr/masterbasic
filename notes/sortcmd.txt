@@ -9,16 +9,22 @@ DOC CMD_SORT_2
     Patch the comparison, find the array, then sort it.
 
     THE ONE BYTE AT &4745 IS THE WHOLE OF THE ABS OPTION.  It is the
-    operand of the JR NZ at &4744, the only place a key byte is ever
-    tested: &02 lands on the RET path at &4748 and quits on the first
-    difference, &05 diverts to &474B, which folds bit 5 out of both
-    bytes and tries again.  Nothing else is conditional on ABS -- and
-    because the byte stays where it was written, &47B8 can read it back
-    later instead of keeping a flag of its own.
+    operand of the JR NZ at &4744, the only place a key byte after the
+    first is tested: &02 lands on the RET path at &4748 and quits on the
+    first difference, &05 diverts to &474B, which folds bit 5 out of
+    both bytes and tries again.
+
+    It decides one other thing, and only one.  Because the byte stays
+    where it was written, &47B8 can read it back later instead of
+    keeping a flag: &02 leaves IX on the non-folding ascending scan and
+    anything else points it at the folding one.  Those are two separate
+    routines, not two operands of one.
 
     That is also the manual's "the sort speed is also slightly better
-    using this ABS option": the folding path costs a PUSH BC, an AND, a
-    LD, a RES, a CP and a POP on every byte that matches.
+    using this ABS option": the folding path costs two EXX, a PUSH BC,
+    an AND, a LD, a RES, a CP and a POP on every byte that does not
+    match as it stands.  Bytes that are already equal fall through to
+    the count and cost nothing either way.
 
 MB &462A : the operand of the JR at &4744 -- 2 quits on a difference, 5 goes on to fold the case out of it
 MB &462D : parses both slicers and works out where the array is; it also chooses the scan, into IX
@@ -43,9 +49,11 @@ DOC CMD_SORT_LOOP
     second character onwards but still moves the first with the rest --
     exactly as the manual says.
 
-    THE TWO REGISTER BANKS SWAP OVER EVERY PASS.  There are seven EXX
-    in a pass, an odd number, so the pass that follows runs in the
-    other bank.  Nothing depends on which is which: the pass pointer
+    THE TWO REGISTER BANKS SWAP OVER EVERY PASS.  Nine EXX stand in a
+    pass, but four of them are inside loops and go in pairs -- &4683
+    with &4688 once a byte, &468F with &4691 once every 256 -- so five
+    execute: &4653, &4655, &465D, &465F and &4696.  An odd number, so
+    the pass that follows runs in the other bank.  Nothing depends on which is which: the pass pointer
     and the counts are always in whichever bank is live at &463B, and
     the exchange only needs one pointer in each.
 
@@ -161,7 +169,7 @@ MB &46DB : and out of the candidate's, every time
 MB &46DE : folded, so "a" and "A" reach the tail together
 MB &46E5 : carry keeps the best; A is reloaded and refolded at &46D1, which is exact even when the raw bytes differ in case
 MB &46E9 : the high half comes back off the stack rather than out of B
-MB &46EC : already zero from the DEC C that got here -- the count wraps to 256 on the next DEC
+MB &46EC : the POP two instructions back has just put the pushed low count into C, so it is zeroed again here; the next DEC wraps it to 256
 MB &46EE : back to the comparison, not to the step: HL was advanced before the count was tested
 
 DOC PAGE_ON_TWO_LOOP6

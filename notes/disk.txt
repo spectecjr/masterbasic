@@ -391,10 +391,13 @@ DOS &7799 READ_ADDRESS_SET
     alternate accumulator.
 
 DOS &7B35 TIME_TO_MINUTES
-    Hours times twenty-four through MasterBASIC's MULTIPLY_BY_24, then
-    the byte at HL added in with A extending the top -- the DOS reaching
-    across for arithmetic it does not have of its own, as it does for
-    BYTE_TO_DECIMAL.
+    A hundred times the running total through MasterBASIC's
+    MULTIPLY_BY_100, then the byte at HL added in with A extending the
+    top -- the DOS reaching across for arithmetic it does not have of
+    its own, as it does for BYTE_TO_DECIMAL.  A hundred, and the pointer
+    step the multiply does on the way out, is what lets two calls in a
+    row pack three fields into one number two decimal digits at a
+    time.
 
 DOS &7BA6 STACK_FIVE_BYTE_NUMBER
     Push a five-byte number onto the calculator stack through the ROM's

@@ -16,7 +16,7 @@ FEATURES = {
 'CMD_SORT': """\
 SORT -- the SORT command, token 251.
 
-    SORT [ABS] [INVERSE] a$
+    SORT [ABS [INVERSE]] a$
 
 Sorts the strings of a string array, or the characters of a plain
 string, in place.  Plain SORT ignores case: bit 5 of each character's

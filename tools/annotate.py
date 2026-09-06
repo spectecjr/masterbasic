@@ -58,7 +58,8 @@ Read or write one of the ROM's system variables.
     DEFW <ROM variable>
 
 Three of the four differ only in the primitive they call: NRRDD reads a
-word into BC, NRRD a byte into A, NRWRD writes BC and NRWR writes A.
+word into BC, NRRD a byte into A and NRWRD writes BC.  The fourth, NRWR,
+calls no primitive: its write is spelled out inline.
 Each reads the address out of the word after the call and steps the
 return address past it.
 
@@ -479,7 +480,7 @@ KEYWORDS = [
     ('TIME', 0xF8, 'TIME + / TIME - switch the clock to and from fast test mode'),
     ('DATE', 0xF9, "MasterDOS's DATE, for setting the calendar"),
     ('ALTER', 0xFA, 'ALTER ref TO ref, ALTER DEVICE d TO d, ALTER DISPLAY n TO n LINE y'),
-    ('SORT', 0xFB, 'SORT [ABS] [INVERSE] a$ -- sort a string or string array'),
+    ('SORT', 0xFB, 'SORT [ABS [INVERSE]] a$ -- sort a string or string array'),
     ('JOIN', 0xFC, 'JOIN [line] joins program lines; JOIN TO a$,b$ appends strings'),
     ('EDIT', 0xFD, 'EDIT var -- INPUT with the present value offered for editing'),
 ]

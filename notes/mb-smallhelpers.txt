@@ -268,11 +268,19 @@ MB &448B EXPR_TO_32BIT
     comment on the call site says what comes back: "BC=X MOD 64K, DE=X
     DIV 64K".
 
-MB &45F9 MULTIPLY_BY_24
-    A:HL times twenty-four, with the original kept in BC: double, add BC
-    back for three, then three more doublings.  The companion to
-    MULTIPLY_BY_60 -- hours in a day where that one has seconds in a
-    minute -- and like it, reached from the DOS.
+MB &45F9 MULTIPLY_BY_100
+    HL times a hundred, left in DE, with the pointer in DE stepped on by
+    one and handed back in HL so a caller can chain it.  The original is
+    kept in BC and the answer built by shifting and adding: double and
+    add BC back for three, three more doublings for twenty-four, add BC
+    once more for twenty-five, and two doublings for a hundred.  The
+    companion to MULTIPLY_BY_60, and like it reached from the DOS.
+
+    A IS THE TOP OF A 24-BIT ANSWER, but only from the sixth step on:
+    the carries out of the first four adds are dropped, so the result is
+    right while twelve times HL still fits in sixteen bits -- HL up to
+    5461 -- with A entered as zero.  Both of TIME_TO_MINUTES's calls are
+    inside that.
 
 MB &6E52 RECLAIM_BC_AT_HL
     Close up BC bytes at HL, through the ROM -- and the way it gets there
