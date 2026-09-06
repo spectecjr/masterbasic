@@ -22,7 +22,18 @@ Sorts the strings of a string array, or the characters of a plain
 string, in place.  Plain SORT ignores case: bit 5 of each character's
 code is not considered.  ABS sorts strictly by character code, which is
 what SVAL$-packed numbers need, and is slightly faster.  INVERSE
-reverses the order.
+reverses the order, and is only offered after ABS: the manual's syntax
+box gives three forms and SORT INVERSE is not one of them, its prose
+says "SORT ABS can also do an INVERSE sort", and the parser agrees --
+&4623 is the only CP T_INVERSE and it is on the &FF/ABS path.  Anything
+that is not &FF after SORT goes straight to &4619 and on to the variable
+lookup with CHAD still sitting where it was.
+
+The store at &460E looks like provision for a bare SORT INVERSE that was
+never finished.  &47AE reads that byte back and compares it with the
+INVERSE token, and on the plain path the byte is the first character of
+the variable's name, which cannot be a token.  So it decides nothing
+there: only the ABS path's own store at &4620 ever makes that test true.
 
 Two slicers are allowed: the first selects which strings to sort, the
 second which part of each string to compare on, so SORT a$()(2 TO )

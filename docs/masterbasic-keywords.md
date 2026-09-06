@@ -298,7 +298,7 @@ The two need not be in the same `MODE`, so `MODE 4` graphics can sit above
 ### `SORT` — 251 → MasterBASIC `&460B`
 
 ```
-SORT [ABS] [INVERSE] a$
+SORT [ABS [INVERSE]] a$
 ```
 
 Sorts the strings of a string array, or the characters of a plain string, in
