@@ -19,81 +19,58 @@
 ; make the word it stores.  Not bit 15 itself, which is
 ; &8000: it is &4000 off to undo the window this page sees
 ; the other one through, then &8000 on to set the flag.
-NOT_IN_THIS_PAGE:         EQU  &4000
+NOT_IN_THIS_PAGE:    EQU  &4000
 
 
 ; Numbers named in notes/, each for one instruction
 ; where the same value means something else elsewhere.
-DISKCTL_0_BASE:           EQU  &E0
-DISKCTL_1_BASE:           EQU  &F0
-DISKCTL_DATA_OFS:         EQU  &03
-FILE:                     EQU  &17             ; a compressed substring in ERRTBL, printed as "file"
-FORCE_INTERRUPT_CMD:      EQU  &D0
-INVALID:                  EQU  &00             ; a compressed substring in ERRTBL, printed as "Invalid "
-NO:                       EQU  &0B             ; a compressed substring in ERRTBL, printed as "No "
-SNAME:                    EQU  &12             ; a compressed substring in ERRTBL, printed as " name"
-SNOTS:                    EQU  &11             ; a compressed substring in ERRTBL, printed as " not "
-SYS_MNIP_MAIN_INPUT:      EQU  &4C14
-TREAM:                    EQU  &08             ; a compressed substring in ERRTBL, printed as "tream"
+DISKCTL_0_BASE:      EQU  &E0
+DISKCTL_1_BASE:      EQU  &F0
+DISKCTL_DATA_OFS:    EQU  &03
+FILE:                EQU  &17                  ; a compressed substring in ERRTBL, printed as "file"
+FORCE_INTERRUPT_CMD: EQU  &D0
+INVALID:             EQU  &00                  ; a compressed substring in ERRTBL, printed as "Invalid "
+NO:                  EQU  &0B                  ; a compressed substring in ERRTBL, printed as "No "
+SNAME:               EQU  &12                  ; a compressed substring in ERRTBL, printed as " name"
+SNOTS:               EQU  &11                  ; a compressed substring in ERRTBL, printed as " not "
+SYS_MNIP_MAIN_INPUT: EQU  &4C14
+TREAM:               EQU  &08                  ; a compressed substring in ERRTBL, printed as "tream"
 
 ; Constants under MasterDOS's own names, from the annotated
 ; source.  Each one is written where the listing would have
 ; printed the same number, and means the same thing here.
-ALLOCT:                   EQU  &5100           ; The memory page allocation table.
-BORDER:                   EQU  &FE             ; border colour
-BUFL:                     EQU  &0F             ; sector buffer address, low
-DCHAN:                    EQU  &7C00           ; the disk channel record
-DFT:                      EQU  &15             ; DIRECTORY FILE TYPE
-DIRT:                     EQU  &FA             ; DISP TO TAG VALUE IN DIR FILE DIR ENTRY
-FFSA:                     EQU  &13             ; first byte of the directory entry image
-FOWIA:                    EQU  &04             ; POP HL / JP (HL): used as a null vector, since CALL HLJUMP with HL
-FS:                       EQU  &4000           ; base of the DOS page; the image itself starts nine bytes higher
-FSAM:                     EQU  &22             ; start of the file's own sector address map
-FTADD:                    EQU  &A280           ; (SCR in section C)
-LENL:                     EQU  &E9             ; file length, low
-MIN:                      EQU  &BF             ; serial input port
-MOUT:                     EQU  &DF             ; serial output port
-MPL:                      EQU  &26             ; MAX PATH LEN
-MRND:                     EQU  &A5             ; RND token, used when a command has to plant one in a line
-NAME:                     EQU  &14             ; the file name within that image
-NTRK:                     EQU  &0311           ; number of tracks, for a RAM disc
-RBCC:                     EQU  &4220
-RDLIM:                    EQU  &08             ; ALLOW RAM DISCS 3-7
-READ_ADDRESS_CMD:         EQU  &C0             ; read address
-READ_SECTOR_CMD:          EQU  &80             ; read sector
-RPTH:                     EQU  &0E             ; and high -- 0 or 1, selecting one of the two entries in a directory
+ALLOCT:              EQU  &5100                ; The memory page allocation table.
+BORDER:              EQU  &FE                  ; border colour
+BUFL:                EQU  &0F                  ; sector buffer address, low
+DCHAN:               EQU  &7C00                ; the disk channel record
+DFT:                 EQU  &15                  ; DIRECTORY FILE TYPE
+DIRT:                EQU  &FA                  ; DISP TO TAG VALUE IN DIR FILE DIR ENTRY
+FFSA:                EQU  &13                  ; first byte of the directory entry image
+FOWIA:               EQU  &04                  ; POP HL / JP (HL): used as a null vector, since CALL HLJUMP with HL
+FS:                  EQU  &4000                ; base of the DOS page; the image itself starts nine bytes higher
+FSAM:                EQU  &22                  ; start of the file's own sector address map
+FTADD:               EQU  &A280                ; (SCR in section C)
+LENL:                EQU  &E9                  ; file length, low
+MIN:                 EQU  &BF                  ; serial input port
+MOUT:                EQU  &DF                  ; serial output port
+MPL:                 EQU  &26                  ; MAX PATH LEN
+MRND:                EQU  &A5                  ; RND token, used when a command has to plant one in a line
+NAME:                EQU  &14                  ; the file name within that image
+NTRK:                EQU  &0311                ; number of tracks, for a RAM disc
+RBCC:                EQU  &4220
+RDLIM:               EQU  &08                  ; ALLOW RAM DISCS 3-7
+READ_ADDRESS_CMD:    EQU  &C0                  ; read address
+READ_SECTOR_CMD:     EQU  &80                  ; read sector
+RPTH:                EQU  &0E                  ; and high -- 0 or 1, selecting one of the two entries in a directory
                                                ; sector
-SAM:                      EQU  &400F           ; the map proper
-SELURPG:                  EQU  &3FDF           ; ! ;4* page A in at &8000 and adjust HL to suit
-STEP_IN_CMD:              EQU  &5B             ; step in one track, updating the track register
-STEP_OUT_CMD:             EQU  &7B             ; step out one track
-WRITE_SECTOR_CMD:         EQU  &A2             ; write sector
-WRITE_TRACK_CMD:          EQU  &F2             ; * write track, with the settling delay bit set
-WRRAM:                    EQU  &0113           ; and write address
+SAM:                 EQU  &400F                ; the map proper
+SELURPG:             EQU  &3FDF                ; ! ;4* page A in at &8000 and adjust HL to suit
+STEP_IN_CMD:         EQU  &5B                  ; step in one track, updating the track register
+STEP_OUT_CMD:        EQU  &7B                  ; step out one track
+WRITE_SECTOR_CMD:    EQU  &A2                  ; write sector
+WRITE_TRACK_CMD:     EQU  &F2                  ; * write track, with the settling delay bit set
+WRRAM:               EQU  &0113                ; and write address
 
-; The byte after RST &08: a DOS error, or a hook code, which is
-; 128 plus the index of an entry in the DOS hook table at &44A6.
-; A hook code says which routine to run and the routine says
-; what it does, so each line points at the one that answers it.
-ERR_LOADING_ERROR:        EQU  &13
-ERR_END_OF_FILE:          EQU  &16
-ERR_TRK_NNN_SCT_NN_ERROR: EQU  &55
-ERR_FORMAT_TRK_NNN_LOST:  EQU  &56
-ERR_CHECK_DISK_IN_DRIVE:  EQU  &57
-ERR_VERIFY_FAILED:        EQU  &5D
-ERR_WRONG_FILE_TYPE:      EQU  &5E
-ERR_READING_A_WRITE_FILE: EQU  &63
-ERR_WRITING_A_READ_FILE:  EQU  &64
-ERR_NO_AUTO_FILE:         EQU  &65
-ERR_NO_SUCH_DRIVE:        EQU  &67
-ERR_DISK_IS_WRITE_PROTEC: EQU  &68
-ERR_DISK_FULL:            EQU  &69
-ERR_DIRECTORY_FULL:       EQU  &6A
-ERR_FILE_NAME_USED:       EQU  &6D
-ERR_STREAM_USED:          EQU  &6F
-ERR_CHANNEL_USED:         EQU  &70
-ERR_DIRECTORY_NOT_FOUND:  EQU  &71
-ERR_DIRECTORY_NOT_EMPTY:  EQU  &72
 
                ORG  &4000
 

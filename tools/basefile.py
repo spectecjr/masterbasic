@@ -11,6 +11,10 @@ Two things follow from the halves meeting in one assembly.
 
 The equates they share can be said once.  Fifty-eight names were
 declared twice, identically, because neither file could see the other.
+Four families join them whichever half declares them -- see
+SHARED_FAMILIES in dis_mb.py -- because a hook code, an error code, a
+BASIC token and a skip idiom are facts about the machine rather than
+about the half that happens to use one.
 
 And the equates that bridge between them stop being numbers.
 `DOS_BOOT: EQU &8009` is a literal that nothing checks; written as
@@ -154,6 +158,48 @@ def own_heading(heading):
             break
         out.append(line)
     return list(reversed(out))
+
+
+def equ_lines(head):
+    """name -> the line declaring it."""
+    out = {}
+    for line in head:
+        m = EQU.match(line)
+        if m:
+            out[m.group(1)] = line
+    return out
+
+
+def take_homed(pairs, names):
+    """Those equates, under one copy of each heading, in one order.
+
+    `pairs` is (header lines, that half's equ_home) for each half, in
+    the order the groups should come out.  header() records where it
+    wrote each equate, so a family scattered over both halves -- the
+    error codes are half in one and half in the other -- comes back as
+    one list under one heading, sorted by the key its own group used:
+    the codes by value, everything else by name.
+
+    The first half to declare a name is the one whose spelling is kept,
+    which is what shared() promises.
+    """
+    groups, order = {}, []
+    for head, homes in pairs:
+        found = [(homes[n][0], homes[n][1], homes[n][2], line)
+                 for n, line in equ_lines(head).items()
+                 if n in names and n in homes]
+        for _seq, heading, key, line in sorted(found, key=lambda t: t[0]):
+            if heading not in groups:
+                groups[heading] = {}
+                order.append(heading)
+            groups[heading].setdefault(key, line)
+    out = []
+    for heading in order:
+        if out:
+            out.append('')
+        out.extend(heading)
+        out.extend(line for _k, line in sorted(groups[heading].items()))
+    return out
 
 
 def take(head, names):

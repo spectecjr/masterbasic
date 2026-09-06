@@ -31,108 +31,48 @@
 ; given here so it can be judged.  Each is written only where
 ; the byte already had that value, so the file still assembles
 ; to the original either way.
-CH_COLON:                 EQU  &3A             ; the statement separator
-CH_COMMA:                 EQU  &2C             ; the argument separator
-CH_CR:                    EQU  &0D             ; carriage return, the end of a BASIC line
-CH_DOLLAR:                EQU  &24             ; the string-variable suffix
-CH_DOT:                   EQU  &2E             ; the decimal point
-CH_HASH:                  EQU  &23             ; the stream marker, as in PRINT #
-CH_LPAREN:                EQU  &28             ; open bracket
-CH_QUOTE:                 EQU  &22             ; the string delimiter
-CH_SPACE:                 EQU  &20             ; space
-CH_ZERO:                  EQU  &30             ; ASCII "0", for digit conversion
-PAGEMASK:                 EQU  &1F             ; the page number in LMPR and HMPR, bits 0 to 4
-T_BOOT:                   EQU  &E9             ; the BASIC keyword BOOT
-T_CLEAR:                  EQU  &B3             ; the BASIC keyword CLEAR
-T_DEVICE:                 EQU  &F0             ; the BASIC keyword DEVICE
-T_DISPLAY:                EQU  &E8             ; the BASIC keyword DISPLAY
-T_INVERSE:                EQU  &A5             ; the BASIC keyword INVERSE
-T_MODE:                   EQU  &AA             ; the BASIC keyword MODE
-T_OFF:                    EQU  &89             ; the BASIC keyword OFF
-T_REF:                    EQU  &CE             ; the BASIC keyword REF
-T_TO:                     EQU  &8E             ; the BASIC keyword TO
-UPPER:                    EQU  &DF             ; clearing bit 5 folds a letter to upper case
+CH_COLON:               EQU  &3A               ; the statement separator
+CH_COMMA:               EQU  &2C               ; the argument separator
+CH_CR:                  EQU  &0D               ; carriage return, the end of a BASIC line
+CH_DOLLAR:              EQU  &24               ; the string-variable suffix
+CH_DOT:                 EQU  &2E               ; the decimal point
+CH_HASH:                EQU  &23               ; the stream marker, as in PRINT #
+CH_LPAREN:              EQU  &28               ; open bracket
+CH_QUOTE:               EQU  &22               ; the string delimiter
+CH_SPACE:               EQU  &20               ; space
+CH_ZERO:                EQU  &30               ; ASCII "0", for digit conversion
+PAGEMASK:               EQU  &1F               ; the page number in LMPR and HMPR, bits 0 to 4
+UPPER:                  EQU  &DF               ; clearing bit 5 folds a letter to upper case
 
 ; Numbers named in notes/, each for one instruction
 ; where the same value means something else elsewhere.
-DVAR_CMPFG:               EQU  &42BA           ; DVAR 154 in the DOS page: SAVE MODE 1, 2 or 3 less one
-GREY_MAP:                 EQU  &7B80
-GREY_TAKEN:               EQU  &7B90
-REF_BUFFER:               EQU  &7B00
-REF_BUFFER_2:             EQU  &7B80
-REF_BUFFER_2_TEXT:        EQU  &7B81
-SKIP_1_VIA_LD_C:          EQU  &0E             ; LD C,n, skipping one byte and clobbering C
-SKIP_1_VIA_LD_D:          EQU  &16             ; LD D,n, skipping one byte and clobbering D
-SKIP_1_VIA_OR:            EQU  &F6             ; OR n, skipping one byte and clobbering A and the flags
-SKIP_2_VIA_LD_DE:         EQU  &11             ; LD DE,nn, skipping two bytes and clobbering DE
-SKIP_2_VIA_LD_SP:         EQU  &31             ; LD SP,nn, skipping two bytes and clobbering SP
-SYS_CDBUFF_11:            EQU  &4D11
-SYS_CDBUFF_50:            EQU  &4D50
-SYS_CHAR_HEIGHT:          EQU  &4AEF
-SYS_CHAR_OUT:             EQU  &49E4
-SYS_CMDBUF:               EQU  &4CD3
-SYS_CMDV_COMMAND:         EQU  &488E
-SYS_DH_STATE:             EQU  &4AED
-SYS_EDITV_EDITOR:         EQU  &4866
-SYS_EVALUV_EVAL_FN:       EQU  &4BBA
-SYS_FN_INDEX:             EQU  &4AF0
-SYS_FRAMIV_FRAME_INT:     EQU  &4986
-SYS_GAP_BLOCK:            EQU  &5896
-SYS_INSLV_STRING_MOVE:    EQU  &46CC
-SYS_PATOUT_CHAR_OUT:      EQU  &49A9
-SYS_PRTOKV_PRINT_TOKEN:   EQU  &4BB0
-SYS_RECORD_MODE:          EQU  &4AF3
-SYS_RECORD_STATE:         EQU  &4AF4
-SYS_RST8V_ERROR:          EQU  &4AB8
-SYS_STRM16_SAVE:          EQU  &4AF5
-SYS_TOKEN_TO_FN_INDEX:    EQU  &45A2
+DVAR_CMPFG:             EQU  &42BA             ; DVAR 154 in the DOS page: SAVE MODE 1, 2 or 3 less one
+GREY_MAP:               EQU  &7B80
+GREY_TAKEN:             EQU  &7B90
+REF_BUFFER:             EQU  &7B00
+REF_BUFFER_2:           EQU  &7B80
+REF_BUFFER_2_TEXT:      EQU  &7B81
+SYS_CDBUFF_11:          EQU  &4D11
+SYS_CDBUFF_50:          EQU  &4D50
+SYS_CHAR_HEIGHT:        EQU  &4AEF
+SYS_CHAR_OUT:           EQU  &49E4
+SYS_CMDBUF:             EQU  &4CD3
+SYS_CMDV_COMMAND:       EQU  &488E
+SYS_DH_STATE:           EQU  &4AED
+SYS_EDITV_EDITOR:       EQU  &4866
+SYS_EVALUV_EVAL_FN:     EQU  &4BBA
+SYS_FN_INDEX:           EQU  &4AF0
+SYS_FRAMIV_FRAME_INT:   EQU  &4986
+SYS_GAP_BLOCK:          EQU  &5896
+SYS_INSLV_STRING_MOVE:  EQU  &46CC
+SYS_PATOUT_CHAR_OUT:    EQU  &49A9
+SYS_PRTOKV_PRINT_TOKEN: EQU  &4BB0
+SYS_RECORD_MODE:        EQU  &4AF3
+SYS_RECORD_STATE:       EQU  &4AF4
+SYS_RST8V_ERROR:        EQU  &4AB8
+SYS_STRM16_SAVE:        EQU  &4AF5
+SYS_TOKEN_TO_FN_INDEX:  EQU  &45A2
 
-; The byte after RST &08: a DOS error, or a hook code, which is
-; 128 plus the index of an entry in the DOS hook table at &44A6.
-; A hook code says which routine to run and the routine says
-; what it does, so each line points at the one that answers it.
-ERR_NOT_FOUND:            EQU  &02
-ERR_SUBSCRIPT_WRONG:      EQU  &04
-ERR_NEXT_WITHOUT_FOR:     EQU  &05
-ERR_MISSING_DEF_PROC:     EQU  &0C
-ERR_BREAK_INTO_PROGRAM:   EQU  &0F
-ERR_ARGUMENT:             EQU  &1B
-ERR_NOT_UNDERSTOOD:       EQU  &1D
-ERR_INTEGER_OUT_OF_RANGE: EQU  &1E
-ERR_PUT_BLOCK:            EQU  &25
-ERR_STRING_TOO_LONG:      EQU  &2A
-ERR_PAGE_OVERLAP:         EQU  &76
-ERR_SIZE_MISMATCH:        EQU  &77
-HKC_LPRINT_BYTE:          EQU  &9A             ; Put one byte in the interrupt-driven printer buffer, waiting if it is
-                                               ; full. (see HOOK_LPRINT_BYTE)
-HKC_CSIZE:                EQU  &9B             ; CSIZE, the manual's "Improved CSIZE command". (see HOOK_CSIZE)
-HKC_SWAPCHARS:            EQU  &9C             ; BLOCKS -- and the argument 0, 1 or 2 is the manual's: (see
-                                               ; HOOK_SWAPCHARS)
-HKC_PROGPREP:             EQU  &9D             ; Rebuild the compile pass for a program that has changed. (see
-                                               ; HOOK_PROGPREP)
-HKC_MCHWR:                EQU  &A7             ; HOOK ROUTINE TO WRITE BYTE IN A TO DISC. (see MCHWR)
-HKC_MCHRD:                EQU  &A8             ; HOOK ROUTINE TO READ BYTE FROM DISC. (see MCHRD)
-HKC_HPRTOK:               EQU  &A9             ; Hook 169, and the ROM's PRTOKV points here, so LIST and the error
-                                               ; printer both come through it. (see HPRTOK)
-HKC_HPFF:                 EQU  &AA             ; Hook 170: the second byte of a two-byte token has arrived. (see
-                                               ; HOOK_HPFF)
-HKC_HGTTK:                EQU  &AB             ; Hook 171 -- match a keyword while tokenising. (see HGTTK)
-HKC_HKLEN:                EQU  &AC             ; Hook 172 -- evaluate a function. (see HKLEN)
-HKC_HCMDV:                EQU  &AD             ; Hook 173 -- dispatch one of MasterBASIC's commands. (see HCMDV)
-HKC_RCPTCH:               EQU  &AE             ; see HOOK_RCPTCH
-HKC_MERGECOMPFLG:         EQU  &AF             ; Hook code 175, and the label is right only for its first twenty-seven
-                                               ; bytes. (see HOOK_MERGECOMPFLG)
-HKC_TOKENARG:             EQU  &B1             ; Read the argument after one of MasterBASIC's keywords. (see
-                                               ; HOOK_TOKENARG)
-HKC_SKIPNAME:             EQU  &B2             ; DELETE, for strings and string arrays. (see CMD_DELETE)
-HKC_XVARNVAL:             EQU  &B3             ; The XVAR and NVAL functions. (see HOOK_XVARNVAL)
-HKC_SERSEND:              EQU  &B4             ; Send one character over the serial line. (see HOOK_SERSEND)
-HKC_SERRECV:              EQU  &B5             ; Read one character from the serial line. (see HOOK_SERRECV)
-HKC_SUBCHAR:              EQU  &B6             ; Replace one character with a string on its way to the printer. (see
-                                               ; SUBSTITUTE_PRINTER_CHAR)
-HKC_COMADENT:             EQU  &B7             ; Find an entry through COMAD. (see HOOK_COMADENT)
-HKC_VARSPACE:             EQU  &B8             ; Check the room above the variables area. (see HOOK_VARSPACE)
-HKC_SETUPREGS:            EQU  &B9             ; Build a routine in the ROM's code buffer. (see HOOK_SETUPREGS)
 
 ; The manual also describes these, which no table points at, so they have
 ; not been located in the code:
@@ -172,41 +112,39 @@ HKC_SETUPREGS:            EQU  &B9             ; Build a routine in the ROM's co
 ;
 ; notes/ has each of them, and docs/how-it-works.md puts them in order.
 
-; SAM BASIC tokens, from the ROM tables -- see MBTEXT --
-; plus MasterBASIC's own two, in slots the ROM left blank,
-; and the adjustment the ROM makes before dispatching one.
-C_PAPER:                  EQU  &11
-FN_PFX:                   EQU  &FF
-FN_TOKEN_BIAS:            EQU  &1A
-FPC_ADDN:                 EQU  &01
-FPC_CONST2:               EQU  &E2
-FPC_DIVN:                 EQU  &05
-FPC_DUP:                  EQU  &25
-FPC_EXIT:                 EQU  &33
-FPC_EXIT2:                EQU  &34
-FPC_FIVELIT:              EQU  &27
-FPC_GRTE0:                EQU  &2F
-FPC_IDIV:                 EQU  &09
-FPC_JPTRUE:               EQU  &1E
-FPC_LKADDRW:              EQU  &2A
-FPC_MOD:                  EQU  &08
-FPC_RCL5:                 EQU  &DD
-FPC_STO5:                 EQU  &D5
-FPC_SWOP:                 EQU  &06
-FPC_SWOP13:               EQU  &1C
-F_BAND:                   EQU  &7E
-F_CODE:                   EQU  &6C
-F_NVAL:                   EQU  &6A
-F_XVAR:                   EQU  &68
-TK_CR:                    EQU  &0D
-TK_NUM:                   EQU  &0E
-T_AT:                     EQU  &87
-T_DEF_PROC:               EQU  &CA
-T_END_PROC:               EQU  &CB
-T_LET:                    EQU  &9C
-T_OVER:                   EQU  &A6
-T_PRINT:                  EQU  &BB
-T_STEP:                   EQU  &8F
+
+; The rest of the numbers BASIC is written in: function
+; tokens -- among them MasterBASIC's own XVAR and NVAL, in
+; two slots the ROM's function list leaves blank -- the &FF
+; prefix that marks one and the adjustment made to it before
+; dispatching, the floating-point calculator's operation
+; codes, and the control and marker bytes that appear in a
+; tokenised line.
+C_PAPER:                EQU  &11
+FN_PFX:                 EQU  &FF
+FN_TOKEN_BIAS:          EQU  &1A
+FPC_ADDN:               EQU  &01
+FPC_CONST2:             EQU  &E2
+FPC_DIVN:               EQU  &05
+FPC_DUP:                EQU  &25
+FPC_EXIT:               EQU  &33
+FPC_EXIT2:              EQU  &34
+FPC_FIVELIT:            EQU  &27
+FPC_GRTE0:              EQU  &2F
+FPC_IDIV:               EQU  &09
+FPC_JPTRUE:             EQU  &1E
+FPC_LKADDRW:            EQU  &2A
+FPC_MOD:                EQU  &08
+FPC_RCL5:               EQU  &DD
+FPC_STO5:               EQU  &D5
+FPC_SWOP:               EQU  &06
+FPC_SWOP13:             EQU  &1C
+F_BAND:                 EQU  &7E
+F_CODE:                 EQU  &6C
+F_NVAL:                 EQU  &6A
+F_XVAR:                 EQU  &68
+TK_CR:                  EQU  &0D
+TK_NUM:                 EQU  &0E
 
                ORG  &4000
 
@@ -1877,10 +1815,10 @@ CHECK_PRINTER_READY_1:
 ;; is what a false decode looks like from the outside.
 ;; --------------------------------------------------------------------
 
-WHAT:                     EQU  8               ; "WHAT?"
-ARRAY:                    EQU  9               ; ".ARRAY"
-ZXS:                      EQU  10              ; "ZX"
-SCREENS:                  EQU  11              ; "SCREEN$"
+WHAT:                   EQU  8                 ; "WHAT?"
+ARRAY:                  EQU  9                 ; ".ARRAY"
+ZXS:                    EQU  10                ; "ZX"
+SCREENS:                EQU  11                ; "SCREEN$"
 
 DRTAB:
                DEFB " "+&80                    ; 4349 A0

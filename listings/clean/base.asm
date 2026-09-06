@@ -12,9 +12,14 @@
 ; compared with its half of the image on every build, so a fault still
 ; says which half it is in.
 ;
-; THE EQUATES BELOW ARE THE ONES BOTH HALVES NEED.  They used to be
-; declared twice, once in each file, because neither file could see the
-; other.  Here they are said once.
+; THE EQUATES BELOW ARE THE ONES NEITHER HALF OWNS.  Most are names both
+; halves declared, once in each file, because neither file could see the
+; other; here they are said once.  The rest are four families that
+; belong here whether one half uses them or both -- the hook codes, the
+; DOS error codes, SAM BASIC's keyword tokens, and the
+; skip-the-next-n-bytes idioms.  Every hook code is used only by MasterBASIC and every one of
+; them is MasterDOS's; which half names a fact about the machine is an
+; accident of what that half does.
 ;
 ; THE PEER EQUATES AT THE FOOT OF THE FILE ARE WHY THIS EXISTS.  DOS_BOOT
 ; used to read EQU &8009 -- a number nothing checked, which would go on
@@ -98,9 +103,19 @@ SKIP_1_VIA_CP:                  EQU  &FE                                     ; C
                                                                              ; the flags
 SKIP_1_VIA_LD_A:                EQU  &3E                                     ; LD A,n, standing here only to swallow the
                                                                              ; byte after it
+SKIP_1_VIA_LD_C:                EQU  &0E                                     ; LD C,n, skipping one byte and clobbering
+                                                                             ; C
+SKIP_1_VIA_LD_D:                EQU  &16                                     ; LD D,n, skipping one byte and clobbering
+                                                                             ; D
+SKIP_1_VIA_OR:                  EQU  &F6                                     ; OR n, skipping one byte and clobbering A
+                                                                             ; and the flags
+SKIP_2_VIA_LD_DE:               EQU  &11                                     ; LD DE,nn, skipping two bytes and
+                                                                             ; clobbering DE
 SKIP_2_VIA_LD_HL:               EQU  &21                                     ; LD HL,nn, standing here only to swallow
                                                                              ; the two bytes after it -- see
                                                                              ; docs/idioms.md
+SKIP_2_VIA_LD_SP:               EQU  &31                                     ; LD SP,nn, skipping two bytes and
+                                                                             ; clobbering SP
 SYSPAGE_IN_B:                   EQU  &1F                                     ; LMPR &1F: page 31 at &0000, so section B
                                                                              ; gets page 32, which wraps to the system
                                                                              ; page. The ROM source calls it PAGE1F
@@ -111,6 +126,111 @@ SYS_CHAR_WIDTH:                 EQU  &4AEE
 ; A hook code says which routine to run and the routine says
 ; what it does, so each line points at the one that answers it.
 ERR_OUT_OF_MEMORY:              EQU  &01
+ERR_NOT_FOUND:                  EQU  &02
+ERR_SUBSCRIPT_WRONG:            EQU  &04
+ERR_NEXT_WITHOUT_FOR:           EQU  &05
+ERR_MISSING_DEF_PROC:           EQU  &0C
+ERR_BREAK_INTO_PROGRAM:         EQU  &0F
+ERR_LOADING_ERROR:              EQU  &13
+ERR_END_OF_FILE:                EQU  &16
+ERR_ARGUMENT:                   EQU  &1B
+ERR_NOT_UNDERSTOOD:             EQU  &1D
+ERR_INTEGER_OUT_OF_RANGE:       EQU  &1E
+ERR_PUT_BLOCK:                  EQU  &25
+ERR_STRING_TOO_LONG:            EQU  &2A
+ERR_TRK_NNN_SCT_NN_ERROR:       EQU  &55
+ERR_FORMAT_TRK_NNN_LOST:        EQU  &56
+ERR_CHECK_DISK_IN_DRIVE:        EQU  &57
+ERR_VERIFY_FAILED:              EQU  &5D
+ERR_WRONG_FILE_TYPE:            EQU  &5E
+ERR_READING_A_WRITE_FILE:       EQU  &63
+ERR_WRITING_A_READ_FILE:        EQU  &64
+ERR_NO_AUTO_FILE:               EQU  &65
+ERR_NO_SUCH_DRIVE:              EQU  &67
+ERR_DISK_IS_WRITE_PROTEC:       EQU  &68
+ERR_DISK_FULL:                  EQU  &69
+ERR_DIRECTORY_FULL:             EQU  &6A
+ERR_FILE_NAME_USED:             EQU  &6D
+ERR_STREAM_USED:                EQU  &6F
+ERR_CHANNEL_USED:               EQU  &70
+ERR_DIRECTORY_NOT_FOUND:        EQU  &71
+ERR_DIRECTORY_NOT_EMPTY:        EQU  &72
+ERR_PAGE_OVERLAP:               EQU  &76
+ERR_SIZE_MISMATCH:              EQU  &77
+HKC_LPRINT_BYTE:                EQU  &9A                                     ; Put one byte in the interrupt-driven
+                                                                             ; printer buffer, waiting if it is full.
+                                                                             ; (see HOOK_LPRINT_BYTE)
+HKC_CSIZE:                      EQU  &9B                                     ; CSIZE, the manual's "Improved CSIZE
+                                                                             ; command". (see HOOK_CSIZE)
+HKC_SWAPCHARS:                  EQU  &9C                                     ; BLOCKS -- and the argument 0, 1 or 2 is
+                                                                             ; the manual's: (see HOOK_SWAPCHARS)
+HKC_PROGPREP:                   EQU  &9D                                     ; Rebuild the compile pass for a program
+                                                                             ; that has changed. (see HOOK_PROGPREP)
+HKC_MCHWR:                      EQU  &A7                                     ; HOOK ROUTINE TO WRITE BYTE IN A TO DISC.
+                                                                             ; (see MCHWR)
+HKC_MCHRD:                      EQU  &A8                                     ; HOOK ROUTINE TO READ BYTE FROM DISC. (see
+                                                                             ; MCHRD)
+HKC_HPRTOK:                     EQU  &A9                                     ; Hook 169, and the ROM's PRTOKV points
+                                                                             ; here, so LIST and the error printer both
+                                                                             ; come through it. (see HPRTOK)
+HKC_HPFF:                       EQU  &AA                                     ; Hook 170: the second byte of a two-byte
+                                                                             ; token has arrived. (see HOOK_HPFF)
+HKC_HGTTK:                      EQU  &AB                                     ; Hook 171 -- match a keyword while
+                                                                             ; tokenising. (see HGTTK)
+HKC_HKLEN:                      EQU  &AC                                     ; Hook 172 -- evaluate a function. (see
+                                                                             ; HKLEN)
+HKC_HCMDV:                      EQU  &AD                                     ; Hook 173 -- dispatch one of MasterBASIC's
+                                                                             ; commands. (see HCMDV)
+HKC_RCPTCH:                     EQU  &AE                                     ; see HOOK_RCPTCH
+HKC_MERGECOMPFLG:               EQU  &AF                                     ; Hook code 175, and the label is right
+                                                                             ; only for its first twenty-seven bytes.
+                                                                             ; (see HOOK_MERGECOMPFLG)
+HKC_TOKENARG:                   EQU  &B1                                     ; Read the argument after one of
+                                                                             ; MasterBASIC's keywords. (see
+                                                                             ; HOOK_TOKENARG)
+HKC_SKIPNAME:                   EQU  &B2                                     ; DELETE, for strings and string arrays.
+                                                                             ; (see CMD_DELETE)
+HKC_XVARNVAL:                   EQU  &B3                                     ; The XVAR and NVAL functions. (see
+                                                                             ; HOOK_XVARNVAL)
+HKC_SERSEND:                    EQU  &B4                                     ; Send one character over the serial line.
+                                                                             ; (see HOOK_SERSEND)
+HKC_SERRECV:                    EQU  &B5                                     ; Read one character from the serial line.
+                                                                             ; (see HOOK_SERRECV)
+HKC_SUBCHAR:                    EQU  &B6                                     ; Replace one character with a string on
+                                                                             ; its way to the printer. (see
+                                                                             ; SUBSTITUTE_PRINTER_CHAR)
+HKC_COMADENT:                   EQU  &B7                                     ; Find an entry through COMAD. (see
+                                                                             ; HOOK_COMADENT)
+HKC_VARSPACE:                   EQU  &B8                                     ; Check the room above the variables area.
+                                                                             ; (see HOOK_VARSPACE)
+HKC_SETUPREGS:                  EQU  &B9                                     ; Build a routine in the ROM's code buffer.
+                                                                             ; (see HOOK_SETUPREGS)
+
+; Read from the code, not carried from a source.  MasterBASIC
+; has no published source, so unlike the names above these are
+; an interpretation of what the surrounding instructions do,
+; given here so it can be judged.  Each is written only where
+; the byte already had that value, so the file still assembles
+; to the original either way.
+T_BOOT:                         EQU  &E9                                     ; the BASIC keyword BOOT
+T_CLEAR:                        EQU  &B3                                     ; the BASIC keyword CLEAR
+T_DEVICE:                       EQU  &F0                                     ; the BASIC keyword DEVICE
+T_DISPLAY:                      EQU  &E8                                     ; the BASIC keyword DISPLAY
+T_INVERSE:                      EQU  &A5                                     ; the BASIC keyword INVERSE
+T_MODE:                         EQU  &AA                                     ; the BASIC keyword MODE
+T_OFF:                          EQU  &89                                     ; the BASIC keyword OFF
+T_REF:                          EQU  &CE                                     ; the BASIC keyword REF
+T_TO:                           EQU  &8E                                     ; the BASIC keyword TO
+
+; SAM BASIC's keyword tokens, read out of the ROM's own
+; token tables -- see MBTEXT.
+T_AT:                           EQU  &87
+T_DEF_PROC:                     EQU  &CA
+T_END_PROC:                     EQU  &CB
+T_LET:                          EQU  &9C
+T_OVER:                         EQU  &A6
+T_PRINT:                        EQU  &BB
+T_STEP:                         EQU  &8F
 
 ; The machine both halves sit on, included before either of
 ; them so the names exist by the time anything uses one.

@@ -2335,39 +2335,44 @@ def header(d):
     # Used by several groups below, and bound here rather than inside one
     # of them: the group that used to define it now lives in samrom.asm.
     described = _describer(d)
-    # The ports, the ROM's entry points and its restarts are the
-    # machine rather than either half, and are in samhw.asm and
-    # samrom.asm, which base.asm includes before both.
-    eq = {}
-    # A restart's name is emitted once, with the RST equates below.
-    # &0010 reached as a CMR parameter is the same address under the same
-    # name, so it must not bring a second EQU with it.
-    eq = {n: v for n, v in eq.items() if n not in d.rst_equs}
-    if eq:
-        head.append('')
-        head.append('; SAM ROM entry points and system variables.  A page cannot')
-        head.append('; address the variables directly -- it occupies the same')
-        head.append('; &4000-&7FFF they live in -- so it either calls NRRD/NRWR, which')
-        head.append('; page them in, or does the same windowing inline, which is what a')
-        head.append('; name written here as NAME+&4000 means.')
-        head.append("; The notes are mostly the ROM source's own words.")
-        shared = {}
+    # The ports, the ROM's entry points and its restarts are the machine
+    # rather than either half: samhw.asm and samrom.asm carry them, and
+    # base.asm includes both before either half.
+    #
+    # Each group below declares its equates through homed(), which
+    # records them in d.equ_home as (which group, the group's heading,
+    # where the name sorts within it).  base.asm lifts families out of
+    # several groups and puts each back under one copy of its heading,
+    # and that is the record it works from -- rather than re-reading the
+    # finished text, where a comment long enough to wrap is
+    # indistinguishable from the start of the next heading.
+    d.equ_home = homes = {}
+    seq = [0]
 
-        for name in eq:
-            got = described(name)
-            if got:
-                shared.setdefault(eq[name], got)
-        for name in sorted(eq):
-            note = described(name) or shared.get(eq[name], '')
-            head.append(('%-14s EQU  %-6s %s'
-                         % (name + ':', hexn(eq[name], 4),
-                            '; ' + note if note else '')).rstrip())
+    def homed(names, key=None):
+        """These equates are about to be written under the heading above.
+
+        Called before the group's own lines are appended, so the run of
+        ';' lines at the end of `head` is exactly its heading.
+        """
+        heading = []
+        for line in reversed(head):
+            if not line.lstrip().startswith(';'):
+                break
+            heading.append(line)
+        heading = tuple(reversed(heading))
+        for name in names:
+            homes[name] = (seq[0], heading, key(name) if key else name)
+        seq[0] += 1
+        return names
+
     if d.used_page_flag:
         head.append('')
         head.append('; What a dispatch table adds to one of the names below to')
         head.append('; make the word it stores.  Not bit 15 itself, which is')
         head.append('; &8000: it is &4000 off to undo the window this page sees')
         head.append('; the other one through, then &8000 on to set the flag.')
+        homed([PAGE_FLAG])
         head.append('%-14s EQU  %s' % (PAGE_FLAG + ':', hexn(0x4000, 4)))
     if getattr(d, 'used_bias', False) and not PAGE_BIAS[0].startswith('&'):
         head.append('')
@@ -2378,6 +2383,7 @@ def header(d):
         head.append("; other way round.  Its own labels are what the assembler")
         head.append('; put them at, so reaching one from code that is running')
         head.append('; high means adding the 16K between the two views.')
+        homed([PAGE_BIAS[0]])
         head.append('%-14s EQU  %-6s ; the window, less where this is assembled'
                     % (PAGE_BIAS[0] + ':', hexn(0x4000, 4)))
     if d.used_peer:
@@ -2386,7 +2392,7 @@ def header(d):
         head.append('; this one is at &4000.  The names are its own labels.  A stored')
         head.append('; pointer written as NAME+&4000 has bit 15 set, the flag INDJP')
         head.append('; and CTAB use to mean "not in this page".')
-        for name in sorted(d.used_peer):
+        for name in homed(sorted(d.used_peer)):
             head.append('%-14s EQU  %s' % (name + ':', hexn(d.used_peer[name], 4)))
     if d.inferred:
         head.append('')
@@ -2396,7 +2402,7 @@ def header(d):
         head.append('; given here so it can be judged.  Each is written only where')
         head.append('; the byte already had that value, so the file still assembles')
         head.append('; to the original either way.')
-        for name in sorted(d.inferred):
+        for name in homed(sorted(d.inferred)):
             v, why = d.inferred[name]
             head.append('%-14s EQU  %-6s ; %s' % (name + ':', hexn(v, 2), why))
     if d.user_equs:
@@ -2417,21 +2423,21 @@ def header(d):
                 continue
             head.append('')
             head.append('; ' + group)
-            for name in members:
+            for name in homed(members):
                 one_equate(name)
         rest = sorted(n for n in d.user_equs if n not in d.equ_group)
         if rest:
             head.append('')
             head.append('; Numbers named in notes/, each for one instruction')
             head.append('; where the same value means something else elsewhere.')
-            for name in rest:
+            for name in homed(rest):
                 one_equate(name)
     if d.mdos_equs:
         head.append('')
         head.append("; Constants under MasterDOS's own names, from the annotated")
         head.append('; source.  Each one is written where the listing would have')
         head.append('; printed the same number, and means the same thing here.')
-        for name in sorted(d.mdos_equs):
+        for name in homed(sorted(d.mdos_equs)):
             v = d.mdos_equs[name]
             note = described(name)
             head.append(('%-14s EQU  %-6s %s'
@@ -2449,7 +2455,8 @@ def header(d):
             pair = (d, other) if d.tag == 'DOS' else (other, d)
             d._hook_notes = hook_notes(*pair) if pair[0] is not None else {}
         notes = d._hook_notes
-        for name in sorted(codes, key=lambda n: codes[n]):
+        for name in homed(sorted(codes, key=lambda n: codes[n]),
+                          key=lambda n: codes[n]):
             code = codes[name]
             handler, sentence = notes.get(code, ('', ''))
             note = ''
@@ -2463,18 +2470,34 @@ def header(d):
         head.append('')
         head.extend('; ' + line if line else ';'
                     for line in annotate.UNPLACED.rstrip().split('\n'))
-    if d.basic_equs:
+    # Keyword tokens and everything else, under headings of their own:
+    # base.asm holds the tokens and this half keeps the rest, and a
+    # single heading covering both would over-claim in each file.
+    tokens = sorted(n for n in d.basic_equs if n.startswith('T_'))
+    others = sorted(n for n in d.basic_equs if not n.startswith('T_'))
+    if tokens:
         head.append('')
-        head.append('; SAM BASIC tokens, from the ROM tables -- see MBTEXT --')
-        head.append("; plus MasterBASIC's own two, in slots the ROM left blank,")
-        head.append('; and the adjustment the ROM makes before dispatching one.')
-        for name in sorted(d.basic_equs):
+        head.append("; SAM BASIC's keyword tokens, read out of the ROM's own")
+        head.append('; token tables -- see MBTEXT.')
+        for name in homed(tokens):
+            head.append('%-14s EQU  %s' % (name + ':', hexn(d.basic_equs[name], 2)))
+    if others:
+        head.append('')
+        head.append('; The rest of the numbers BASIC is written in: function')
+        head.append("; tokens -- among them MasterBASIC's own XVAR and NVAL, in")
+        head.append("; two slots the ROM's function list leaves blank -- the &FF")
+        head.append('; prefix that marks one and the adjustment made to it before')
+        head.append("; dispatching, the floating-point calculator's operation")
+        head.append('; codes, and the control and marker bytes that appear in a')
+        head.append('; tokenised line.')
+        for name in homed(others):
             head.append('%-14s EQU  %s' % (name + ':', hexn(d.basic_equs[name], 2)))
     bad = d.unplaced()
     if bad:
         head.append('')
         head.append('; These labels fall inside an instruction, so the trace has')
         head.append('; mis-aligned somewhere near each of them.')
+        homed([bad[a] for a in sorted(bad)])
         for a in sorted(bad):
             head.append('%-14s EQU  %s' % (bad[a] + ':', hexn(a, 4)))
     print('%-4s %d labels land inside an instruction' % (d.tag, len(bad)))
@@ -2605,6 +2628,20 @@ SAMROM_TITLE = """; samrom.asm -- the SAM ROM's entry points, variables and rest
 """
 
 
+# Names base.asm declares no matter which half uses them.  A hook code,
+# a DOS error code, a BASIC keyword token and a skip idiom are facts
+# about the machine, the ROM and the traffic between the halves; which
+# half happens to name one is an accident of what that half does.  Every
+# HKC_ code is used only by MasterBASIC and every one of them is the
+# DOS's, which is the case the rule exists for.
+SHARED_FAMILIES = tuple(re.compile(p) for p in (
+    r'HKC_',            # hook codes: the byte after RST &08
+    r'ERR_',            # error codes, likewise
+    r'T_',              # SAM BASIC keyword tokens
+    r'SKIP_\d+_VIA_',   # the skip-over-the-next-n-bytes idioms
+))
+
+
 BASE_TITLE = """; base.asm -- both halves of the image, in one assembly.
 ;
 ; masterdos.asm and masterbasic.asm are the two halves, and each is
@@ -2619,9 +2656,14 @@ BASE_TITLE = """; base.asm -- both halves of the image, in one assembly.
 ; compared with its half of the image on every build, so a fault still
 ; says which half it is in.
 ;
-; THE EQUATES BELOW ARE THE ONES BOTH HALVES NEED.  They used to be
-; declared twice, once in each file, because neither file could see the
-; other.  Here they are said once.
+; THE EQUATES BELOW ARE THE ONES NEITHER HALF OWNS.  Most are names both
+; halves declared, once in each file, because neither file could see the
+; other; here they are said once.  The rest are four families that
+; belong here whether one half uses them or both -- the hook codes, the
+; DOS error codes, SAM BASIC's keyword tokens, and the
+; skip-the-next-n-bytes idioms.  Every hook code is used only by MasterBASIC and every one of
+; them is MasterDOS's; which half names a fact about the machine is an
+; accident of what that half does.
 ;
 ; THE PEER EQUATES AT THE FOOT OF THE FILE ARE WHY THIS EXISTS.  DOS_BOOT
 ; used to read EQU &8009 -- a number nothing checked, which would go on
@@ -2644,7 +2686,14 @@ def write_trio(outdir, dos, mb, texts, bias, preamble=None):
         heads[name], rests[name] = basefile.split_at_org(text)
     dh, mh = heads['masterdos.asm'], heads['masterbasic.asm']
 
+    # Four families live here whichever half declares them -- see
+    # SHARED_FAMILIES -- alongside the names both halves declare.
     same, spelling, clash = basefile.shared(dh, mh)
+    family = set()
+    for head in (dh, mh):
+        for name in basefile.equ_lines(head):
+            if any(p.match(name) for p in SHARED_FAMILIES):
+                family.add(name)
     for note in spelling:
         print('base.asm: one value, two spellings -- %s' % note)
     if clash:
@@ -2653,7 +2702,8 @@ def write_trio(outdir, dos, mb, texts, bias, preamble=None):
         raise SystemExit('dis_mb: %d equate(s) declared twice with different '
                          'values; base.asm cannot hoist them' % len(clash))
 
-    block = basefile.take(dh, same)
+    block = basefile.take_homed(
+        [(dh, dos.equ_home), (mh, mb.equ_home)], same | family)
 
     # The peer blocks come out of both halves and go back as references.
     peer_lines, unresolved = [], []
@@ -2669,7 +2719,7 @@ def write_trio(outdir, dos, mb, texts, bias, preamble=None):
         print('base.asm: %s names no label in the other half, left a number'
               % name)
 
-    drop = set(same) | set(dos.used_peer) | set(mb.used_peer)
+    drop = set(same) | family | set(dos.used_peer) | set(mb.used_peer)
     for name in texts:
         head = basefile.strip(heads[name], drop)
         texts[name] = chr(10).join(head + rests[name])

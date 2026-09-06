@@ -20,6 +20,12 @@ ghidra/*.lock
 ghidra/*.lock~
 ghidra/**/*.ulock
 
+# build.sh's output, when it is redirected here rather than into the
+# temporary directory.  It records one run and says nothing the next run
+# will not say again.
+/build.log
+/.build.log
+
 # Editors and operating systems
 .DS_Store
 Thumbs.db
