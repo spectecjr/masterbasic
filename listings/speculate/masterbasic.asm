@@ -17641,7 +17641,7 @@ NEXT_SCREEN_BYTE_3:
 ;; Leaves:    A, F, BC, HL
 ;; Preserves: DE (saved and restored)
 ;;
-;; ? calls PAGED_TO_LONG, EXPAND_COMPRESSED_FILE, CHECK_ROOM_FOR_OUTPUT, PICK_COMPRESSION_CONSTANTS; falls into whatever
+;; ? calls PAGED_TO_LONG, EXPAND_COMPRESSED_FILE, LOAD_NEXT_INPUT_BLOCK, PICK_COMPRESSION_CONSTANTS; falls into whatever
 ;; follows rather than returning.
 ;; --------------------------------------------------------------------
 
@@ -17651,7 +17651,7 @@ NEXT_SCREEN_BYTE_3:
                PUSH DE                         ; 62AB D5
                CALL PAGED_TO_LONG              ; 62AC CD DC 62
                LD (V407B),HL                   ; 62AF 22 7B 40
-               CALL CHECK_ROOM_FOR_OUTPUT      ; 62B2 CD 90 63
+               CALL LOAD_NEXT_INPUT_BLOCK      ; 62B2 CD 90 63
                CALL EXPAND_COMPRESSED_FILE     ; 62B5 CD E9 62
                POP DE                          ; 62B8 D1
 
@@ -18030,7 +18030,7 @@ READ_NEXT_NIBBLE:
 ;; Preserves: A, F (saved and restored)
 ;; Ends:      RET
 ;;
-;; ? calls CHECK_ROOM_FOR_OUTPUT.
+;; ? calls LOAD_NEXT_INPUT_BLOCK.
 ;; --------------------------------------------------------------------
 
 ; ---- READ_NEXT_NIBBLE_1 ---- from &636C when bit 0 of D clear
@@ -18051,7 +18051,7 @@ READ_NEXT_NIBBLE_1:
                EXX                             ; 6380 D9
                RET NZ                          ; 6381 C0
                PUSH AF                         ; 6382 F5
-               CALL CHECK_ROOM_FOR_OUTPUT      ; 6383 CD 90 63
+               CALL LOAD_NEXT_INPUT_BLOCK      ; 6383 CD 90 63
                POP AF                          ; 6386 F1
                                                ; to the alternate register set and back again
                EXX                             ; 6387 D9
@@ -18062,21 +18062,15 @@ READ_NEXT_NIBBLE_1:
                RET                             ; 638F C9
 
 ;; --------------------------------------------------------------------
-;; CHECK_ROOM_FOR_OUTPUT -- &6390 to &63A5
+;; LOAD_NEXT_INPUT_BLOCK -- &6390 to &63A5
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, DE
 ;; Preserves: HL (saved and restored)
-;;
-;; Shown for this routine in listings/disasm/:
-;;
-;;     Compare what is left of the work area against &1900 and take the
-;;     short path if there is less, with the caller's registers saved around
-;;     it.  V407B is where the running total lives.
 ;; --------------------------------------------------------------------
 
-; ---- CHECK_ROOM_FOR_OUTPUT ---- from &62B2, &6383
-CHECK_ROOM_FOR_OUTPUT:
+; ---- LOAD_NEXT_INPUT_BLOCK ---- from &62B2, &6383
+LOAD_NEXT_INPUT_BLOCK:
                PUSH HL                         ; 6390 E5
                PUSH DE                         ; 6391 D5
                PUSH BC                         ; 6392 C5
@@ -18085,14 +18079,14 @@ CHECK_ROOM_FOR_OUTPUT:
                LD DE,&1900                     ; 6397 11 00 19
                AND A                           ; 639A A7
                SBC HL,DE                       ; 639B ED 52
-               JR C,CHECK_ROOM_FOR_OUTPUT_1    ; 639D 38 07
+               JR C,LOAD_NEXT_INPUT_BLOCK_1    ; 639D 38 07
                LD (V407B),HL                   ; 639F 22 7B 40
-               JR Z,CHECK_ROOM_FOR_OUTPUT_1    ; 63A2 28 02
+               JR Z,LOAD_NEXT_INPUT_BLOCK_1    ; 63A2 28 02
                POP HL                          ; 63A4 E1
                PUSH DE                         ; 63A5 D5
 
 ;; --------------------------------------------------------------------
-;; CHECK_ROOM_FOR_OUTPUT_1 -- &63A6 to &63C4
+;; LOAD_NEXT_INPUT_BLOCK_1 -- &63A6 to &63C4
 ;;
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
@@ -18100,12 +18094,16 @@ CHECK_ROOM_FOR_OUTPUT:
 ;; ? drives IN A,(HMPR), OUT (HMPR),A; calls CALLDOS; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- CHECK_ROOM_FOR_OUTPUT_1 ---- from &639D, &63A2
-CHECK_ROOM_FOR_OUTPUT_1:
+; ---- LOAD_NEXT_INPUT_BLOCK_1 ---- from &639D, &63A2
+LOAD_NEXT_INPUT_BLOCK_1:
                POP IY                          ; 63A6 FD E1
                                                ; to the alternate register set and back again
                EXX                             ; 63A8 D9
-               LD HL,DOS_HOOK_HSAVE_1          ; 63A9 21 00 A5
+               LD HL,DOS_HOOK_HSAVE_1          ; 63A9 21 00 A5  &A500 is not a DOS routine. HMPR is bumped by one at
+                                               ; &63B3, three instructions on, and this address is used through that
+                                               ; moved window -- so resolving it against the DOS page gives
+                                               ; HOOK_HSAVE_1, which nothing here calls, and puts a caller in that
+                                               ; routine's list in the other listing
                PUSH DE                         ; 63AC D5
                PUSH IY                         ; 63AD FD E5
                POP DE                          ; 63AF D1
@@ -18114,9 +18112,17 @@ CHECK_ROOM_FOR_OUTPUT_1:
                INC A                           ; 63B3 3C
                OUT (HMPR),A                    ; 63B4 D3 FB
                XOR A                           ; 63B6 AF
+
+;; --------------------------------------------------------------------
+;; Compare what is left of the work area against &1900 and take the
+;; short path if there is less, with the caller's registers saved around
+;; it.  V407B is where the running total lives.
+;; --------------------------------------------------------------------
+
                                                ; call &4853 in the other page: LMPR is switched first, so that address
                                                ; is how the other listing numbers it
-               CALL CALLDOS                    ; 63B7 CD C1 42
+               CALL CALLDOS                    ; 63B7 CD C1 42  LDBLK, "load a block from the open file" -- this refills
+                                               ; the input, which is what the routine is for
                DEFW &4853                      ; 63BA 53 48
                POP AF                          ; 63BC F1
                OUT (HMPR),A                    ; 63BD D3 FB

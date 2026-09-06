@@ -11921,7 +11921,7 @@ NEXT_SCREEN_BYTE_3:
                PUSH DE                         ; 62AB D5
                CALL PAGED_TO_LONG              ; 62AC CD DC 62
                LD (V407B),HL                   ; 62AF 22 7B 40
-               CALL CHECK_ROOM_FOR_OUTPUT      ; 62B2 CD 90 63
+               CALL LOAD_NEXT_INPUT_BLOCK      ; 62B2 CD 90 63
                CALL EXPAND_COMPRESSED_FILE     ; 62B5 CD E9 62
                POP DE                          ; 62B8 D1
 
@@ -12149,7 +12149,7 @@ READ_NEXT_NIBBLE_1:
                EXX                             ; 6380 D9
                RET NZ                          ; 6381 C0
                PUSH AF                         ; 6382 F5
-               CALL CHECK_ROOM_FOR_OUTPUT      ; 6383 CD 90 63
+               CALL LOAD_NEXT_INPUT_BLOCK      ; 6383 CD 90 63
                POP AF                          ; 6386 F1
                EXX                             ; 6387 D9
                LD HL,&E500                     ; 6388 21 00 E5
@@ -12157,14 +12157,8 @@ READ_NEXT_NIBBLE_1:
                EXX                             ; 638E D9
                RET                             ; 638F C9
 
-;; --------------------------------------------------------------------
-;; Compare what is left of the work area against &1900 and take the
-;; short path if there is less, with the caller's registers saved around
-;; it.  V407B is where the running total lives.
-;; --------------------------------------------------------------------
-
-; ---- CHECK_ROOM_FOR_OUTPUT ---- from &62B2, &6383
-CHECK_ROOM_FOR_OUTPUT:
+; ---- LOAD_NEXT_INPUT_BLOCK ---- from &62B2, &6383
+LOAD_NEXT_INPUT_BLOCK:
                PUSH HL                         ; 6390 E5
                PUSH DE                         ; 6391 D5
                PUSH BC                         ; 6392 C5
@@ -12173,17 +12167,21 @@ CHECK_ROOM_FOR_OUTPUT:
                LD DE,&1900                     ; 6397 11 00 19
                AND A                           ; 639A A7
                SBC HL,DE                       ; 639B ED 52
-               JR C,CHECK_ROOM_FOR_OUTPUT_1    ; 639D 38 07
+               JR C,LOAD_NEXT_INPUT_BLOCK_1    ; 639D 38 07
                LD (V407B),HL                   ; 639F 22 7B 40
-               JR Z,CHECK_ROOM_FOR_OUTPUT_1    ; 63A2 28 02
+               JR Z,LOAD_NEXT_INPUT_BLOCK_1    ; 63A2 28 02
                POP HL                          ; 63A4 E1
                PUSH DE                         ; 63A5 D5
 
-; ---- CHECK_ROOM_FOR_OUTPUT_1 ---- from &639D, &63A2
-CHECK_ROOM_FOR_OUTPUT_1:
+; ---- LOAD_NEXT_INPUT_BLOCK_1 ---- from &639D, &63A2
+LOAD_NEXT_INPUT_BLOCK_1:
                POP IY                          ; 63A6 FD E1
                EXX                             ; 63A8 D9
-               LD HL,DOS_HOOK_HSAVE_1          ; 63A9 21 00 A5
+               LD HL,DOS_HOOK_HSAVE_1          ; 63A9 21 00 A5  &A500 is not a DOS routine. HMPR is bumped by one at
+                                               ; &63B3, three instructions on, and this address is used through that
+                                               ; moved window -- so resolving it against the DOS page gives
+                                               ; HOOK_HSAVE_1, which nothing here calls, and puts a caller in that
+                                               ; routine's list in the other listing
                PUSH DE                         ; 63AC D5
                PUSH IY                         ; 63AD FD E5
                POP DE                          ; 63AF D1
@@ -12192,7 +12190,15 @@ CHECK_ROOM_FOR_OUTPUT_1:
                INC A                           ; 63B3 3C
                OUT (HMPR),A                    ; 63B4 D3 FB
                XOR A                           ; 63B6 AF
-               CALL CALLDOS                    ; 63B7 CD C1 42
+
+;; --------------------------------------------------------------------
+;; Compare what is left of the work area against &1900 and take the
+;; short path if there is less, with the caller's registers saved around
+;; it.  V407B is where the running total lives.
+;; --------------------------------------------------------------------
+
+               CALL CALLDOS                    ; 63B7 CD C1 42  LDBLK, "load a block from the open file" -- this refills
+                                               ; the input, which is what the routine is for
                DEFW &4853                      ; 63BA 53 48
                POP AF                          ; 63BC F1
                OUT (HMPR),A                    ; 63BD D3 FB

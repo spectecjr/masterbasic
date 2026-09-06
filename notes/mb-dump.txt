@@ -533,7 +533,9 @@ MB &63C5 PICK_COMPRESSION_CONSTANTS
     CEXTAB windowed for the first, &6D, &38 and &B8 for the second.  One
     routine so the two paths through the encoder share their setup.
 
-MB &6390 CHECK_ROOM_FOR_OUTPUT
+MB &6390 LOAD_NEXT_INPUT_BLOCK
+MB &63A9 : &A500 is not a DOS routine.  HMPR is bumped by one at &63B3, three instructions on, and this address is used through that moved window -- so resolving it against the DOS page gives HOOK_HSAVE_1, which nothing here calls, and puts a caller in that routine's list in the other listing
+MB &63B7 : LDBLK, "load a block from the open file" -- this refills the input, which is what the routine is for
     Compare what is left of the work area against &1900 and take the
     short path if there is less, with the caller's registers saved around
     it.  V407B is where the running total lives.

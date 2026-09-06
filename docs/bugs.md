@@ -719,6 +719,19 @@ the eighteen, `DOS &7726` and `DOS &773A`, are `LD HL,RAMDISC_PAGE+n`
 after `CALL SELFP`, and are credited to labels in a page they do not
 reach — one of them across halves, as `MB &773A`.
 
+**And one of them crosses into the other half.** `masterdos.asm` carries
+
+```
+; ---- HOOK_HSAVE_1 ---- from MB &6173, MB &63A9
+```
+
+Neither address is a call. Both are `LD HL,&A500`, and HMPR is bumped by
+one at `&63B3` — three instructions after the second of them — so the
+address is used through a moved window and reaches a buffer, not a DOS
+routine. The DOS listing is therefore claiming a caller in the other
+half that does not exist, which is the same fault as `V40F5` with a page
+boundary crossed.
+
 So the count is worth more attention than "eighteen labels list a caller
 they should not". Some of these references were never references, and
 where the coincidental address lands in data, the phantom gets a label
