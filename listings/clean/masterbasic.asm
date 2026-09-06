@@ -5131,8 +5131,8 @@ TWO_PAGED_STRINGS_1:
 
 ;; --------------------------------------------------------------------
 ;; A byte-for-byte comparison of two strings in two different pages,
-;; ignoring case.  Nothing is written anywhere -- see the notes, the
-;; name is wrong.
+;; ignoring case.  Nothing is written anywhere: both pointers are read
+;; from, and the paging is what makes it look like a copy.
 ;;
 ;; ONE BYTE COSTS TWO OUTS: the alternate set holds the HMPR port in C,
 ;; the two page numbers in L and H, and the first string's pointer in
@@ -16056,8 +16056,8 @@ HOOK_SKIPNAME_1:
 ;; leaves Z set when the variable has shrunk to nothing.
 ;; --------------------------------------------------------------------
 
-; ---- ENTRY_TO_LONG_ADDRESS ---- from &7124, &714B
-ENTRY_TO_LONG_ADDRESS:
+; ---- ADJUST_VARIABLE_SIZE ---- from &7124, &714B
+ADJUST_VARIABLE_SIZE:
                PUSH AF                         ; 6FB3 F5  the high byte of the count, parked in AF so BC is free for the
                                                ; low sixteen bits
                LD A,(HL)                       ; 6FB4 7E  pages, then the count mod 16K
@@ -16070,22 +16070,22 @@ ENTRY_TO_LONG_ADDRESS:
                PUSH AF                         ; 6FBD F5
                LD A,(V409E)                    ; 6FBE 3A 9E 40  the direction flag VARIABLE_BODY_BY_KIND set
                AND A                           ; 6FC1 A7  and it clears the carry for the SBC below
-               JR Z,ENTRY_TO_LONG_ADDRESS_1    ; 6FC2 28 07
+               JR Z,ADJUST_VARIABLE_SIZE_1     ; 6FC2 28 07
                SBC HL,BC                       ; 6FC4 ED 42
                POP AF                          ; 6FC6 F1
                POP BC                          ; 6FC7 C1  the count's high byte, arriving in B
                SBC A,B                         ; 6FC8 98
-               JR ENTRY_TO_LONG_ADDRESS_2      ; 6FC9 18 04
+               JR ADJUST_VARIABLE_SIZE_2       ; 6FC9 18 04
 
-; ---- ENTRY_TO_LONG_ADDRESS_1 ---- from &6FC2 when A = 0
-ENTRY_TO_LONG_ADDRESS_1:
+; ---- ADJUST_VARIABLE_SIZE_1 ---- from &6FC2 when A = 0
+ADJUST_VARIABLE_SIZE_1:
                POP AF                          ; 6FCB F1
                ADD HL,BC                       ; 6FCC 09
                POP BC                          ; 6FCD C1
                ADC A,B                         ; 6FCE 88
 
-; ---- ENTRY_TO_LONG_ADDRESS_2 ---- from &6FC9
-ENTRY_TO_LONG_ADDRESS_2:
+; ---- ADJUST_VARIABLE_SIZE_2 ---- from &6FC9
+ADJUST_VARIABLE_SIZE_2:
                CALL LONGADDR_TO_PAGED          ; 6FCF CD 27 44
                EX DE,HL                        ; 6FD2 EB
                RES 7,D                         ; 6FD3 CB BA  stored as a count again, not as a windowed address
@@ -16343,7 +16343,7 @@ ARRAY_ELEMENT_OFFSET_5:
 
 ; ---- VARIABLE_BODY_BY_KIND ---- from &6FA7
 VARIABLE_BODY_BY_KIND:
-               LD (V409E),A                    ; 7100 32 9E 40  the direction flag ENTRY_TO_LONG_ADDRESS reads
+               LD (V409E),A                    ; 7100 32 9E 40  the direction flag ADJUST_VARIABLE_SIZE reads
                CALL POINT_INTO_VARIABLE        ; 7103 CD C3 43
                CALL TIMES_FIVE                 ; 7106 CD 4F 48  five bytes to a number, one to a character; DE comes out
                                                ; as the size of one element
@@ -16365,7 +16365,7 @@ VARIABLE_BODY_BY_KIND:
                LD B,H                          ; 7121 44
                LD C,L                          ; 7122 4D
                POP HL                          ; 7123 E1
-               CALL ENTRY_TO_LONG_ADDRESS      ; 7124 CD B3 6F  the 24-bit size at record+11, adjusted
+               CALL ADJUST_VARIABLE_SIZE       ; 7124 CD B3 6F  the 24-bit size at record+11, adjusted
                PUSH IX                         ; 7127 DD E5
                POP BC                          ; 7129 C1
                INC HL                          ; 712A 23  record+15, the first dimension -- how many strings the array
@@ -16406,7 +16406,7 @@ VARIABLE_BODY_BY_KIND_1:
 VARIABLE_BODY_BY_KIND_2:
                PUSH IX                         ; 7148 DD E5
                POP BC                          ; 714A C1
-               CALL ENTRY_TO_LONG_ADDRESS      ; 714B CD B3 6F
+               CALL ADJUST_VARIABLE_SIZE       ; 714B CD B3 6F
                PUSH AF                         ; 714E F5
                LD A,(HL)                       ; 714F 7E
                CP &04                          ; 7150 FE 04  four pages is 64K, the limit on one string

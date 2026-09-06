@@ -216,7 +216,7 @@ MB &6F9E : close up A pages plus BC bytes -- the entry that keeps the caller's p
 MB &6FA6 : non-zero: VARIABLE_BODY_BY_KIND subtracts
 MB &6FB0 : and a second reclaim for what the first one left
 
-DOC ENTRY_TO_LONG_ADDRESS
+DOC ADJUST_VARIABLE_SIZE
     ADD OR SUBTRACT A:BC FROM A VARIABLE'S RECORDED SIZE.  The ROM's own
     lookvar.asm says what the three bytes at STRLOCN+11 are: "FOR
     STRINGS, LEN IN PAGES, FOLLOWED BY LEN MOD 16K AND TEXT".  So they
@@ -338,7 +338,7 @@ DOC VARIABLE_BODY_BY_KIND
     string needing four pages has passed 64K, which is "String too
     long".
 
-MB &7100 : the direction flag ENTRY_TO_LONG_ADDRESS reads
+MB &7100 : the direction flag ADJUST_VARIABLE_SIZE reads
 MB &7106 : five bytes to a number, one to a character; DE comes out as the size of one element
 MB &7116 : bits 5 and 6 of the type byte are what tell an array from a simple variable
 MB &711E : elements times element size gives bytes

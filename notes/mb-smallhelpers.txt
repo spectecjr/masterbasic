@@ -376,11 +376,13 @@ MB &4D6D TWO_PAGED_STRINGS
     around the second evaluation so that the first survives it.
 
 MB &4D91 COMPARE_FAR_STRINGS_FOLDED
-    Copy with a different page at each end.  C holds HMPR in the
+    Compare with a different page at each end.  C holds HMPR in the
     alternate set and L and H the two page numbers, so each byte costs
-    OUT (C),L to page the source in, a read, OUT (C),H to page the
-    destination in, and a write -- the same two-OUTs-per-byte shape as
-    COMPARE_FAR_STRINGS, for moving instead of matching.
+    OUT (C),L to page the first string in and read it, then OUT (C),H to
+    page the second in and read that -- the same two-OUTs-per-byte shape
+    as COMPARE_FAR_STRINGS, with bit 5 forced on in both bytes so that
+    case does not count.  It is written up under LOCN, which is where it
+    is used -- see notes/locn.txt.
 
 MB &53B5 READ_KEY_LINE
     Read port &FE seven times over with B held at &FF, OR the results
@@ -515,10 +517,11 @@ MB &6CD1 COPY_SCREEN_CONVERT
     The equal-modes test comes first, at &6CD1, so the fast path leaves
     before any of that is loaded.
 
-MB &6FB3 ENTRY_TO_LONG_ADDRESS
-    Read a page byte and an address from the three bytes at HL, turn them
-    into a long address through PAGED_TO_LONG, and check it against
-    V409E.
+MB &6FB3 ADJUST_VARIABLE_SIZE
+    Add or subtract A:BC from the 24-bit length in the three bytes at HL,
+    converting through PAGED_TO_LONG and back so the arithmetic is done
+    on a flat count.  V409E picks the direction.  The routine is written
+    up where DELETE and JOIN TO use it -- see notes/joinsplit.txt.
 
 MB &6FDD ARRAY_ELEMENT_OFFSET
     Two multiplies to find an element: the string's length is taken, then

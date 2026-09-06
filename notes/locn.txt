@@ -219,8 +219,8 @@ MB &4D90 : the count, and under it the second string's start from &4D76: the two
 
 DOC COMPARE_FAR_STRINGS_FOLDED
     A byte-for-byte comparison of two strings in two different pages,
-    ignoring case.  Nothing is written anywhere -- see the notes, the
-    name is wrong.
+    ignoring case.  Nothing is written anywhere: both pointers are read
+    from, and the paging is what makes it look like a copy.
 
     ONE BYTE COSTS TWO OUTS: the alternate set holds the HMPR port in C,
     the two page numbers in L and H, and the first string's pointer in
