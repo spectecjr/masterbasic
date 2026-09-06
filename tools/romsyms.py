@@ -540,7 +540,7 @@ PORT_NOTES = {
     0xF8: 'base of the colour look-up table: sixteen write-only 7-bit '
           'registers',
     0xF9: 'read: STATUS, key rows and interrupt flags; write: line interrupt',
-    0xFA: 'the page at &0000, and the two ROM switches',
+    0xFA: 'the page at &0000, and the two ROM switches: bit 5 set takes ROM 0 out from under &0000-&3FFF, where it normally sits, and bit 6 set brings ROM 1 in over &C000-&FFFF, where it normally is not',
     0xFB: 'the page at &8000',
     0xFC: 'the page the screen is displayed from',
     0xFD: 'MIDI in and out',

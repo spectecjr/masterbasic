@@ -17,7 +17,9 @@ SECT:          EQU  &E2                        ; Disk 0 Side 0 Sector Register
 PPORT:         EQU  &E8                        ; printer data
 CLUT:          EQU  &F8                        ; base of the colour look-up table: sixteen write-only 7-bit registers
 STAT:          EQU  &F9                        ; read: STATUS, key rows and interrupt flags; write: line interrupt
-LMPR:          EQU  &FA                        ; the page at &0000, and the two ROM switches
+LMPR:          EQU  &FA                        ; the page at &0000, and the two ROM switches: bit 5 set takes ROM 0 out
+                                               ; from under &0000-&3FFF, where it normally sits, and bit 6 set brings
+                                               ; ROM 1 in over &C000-&FFFF, where it normally is not
 HMPR:          EQU  &FB                        ; the page at &8000
 VMPR:          EQU  &FC                        ; the page the screen is displayed from
 MIDI:          EQU  &FD                        ; MIDI in and out
