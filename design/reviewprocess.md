@@ -270,12 +270,32 @@ useful. Without it the agent reads `&8000` as a second part of the DOS, and
 every finding about the window is noise. Keep it to the facts an operand cannot
 be read without.
 
-**On the MasterDOS side, hand the agent the annotated source.** `ref/masterdos/
-annotated-src/masterdos23.asm` is the 1991 author's own text, and the build
-proves the listing assembles to the same bytes, so a claim can be checked
-against what the author said rather than only against the instructions. That is
-a reference the MasterBASIC half does not have at all, and it changes what the
-review can reach. Two warnings go with it, and both belong in the prompt:
+**On the MasterDOS side, hand the agent `ref/masterdos/src/masterdos23.asm` —
+and not the annotated tree beside it.** The `src/` file is the 1991 author's own
+source, and the upper-case comments in the listing are carried from it, so a
+claim about one of those can be checked against what he actually wrote. That is
+a reference the MasterBASIC half does not have at all.
+
+**`annotated-src/` is not that, and pointing an agent at it wastes the run.** It
+is a parallel copy of `src/` documented as a modern codebase — by this same
+effort, with AI assistance, and its own README says in as many words: "Treat the
+commentary as a well-evidenced reading of the code, not as the author's own
+documentation." Its `PART SUBD` header is word for word the header in this
+project's listing. Checking our prose against it is checking a claim against
+itself.
+
+This guidance was in this file for exactly one round, saying the opposite, and
+the reviewer it was written for caught it and switched to `src/` unprompted.
+
+**Nor does either source settle a byte.** `annotated-src` assembles to
+`ref/masterdos/res/MDOS23.bin`, 15750 bytes; this project's listings assemble to
+the halves of `dumps/MasterBasicMasterDos.bin`, of which the DOS half is 16320.
+Two proofs, two artifacts, and the image is a substantially different build —
+`tools/carrydoc.py` exists to track where the two disagree, and reports the
+count. So the source is evidence about what a routine *does*, never about what
+byte is at an address here.
+
+Two warnings go with `src/`, and both belong in the prompt:
 
 - Where the source and the instructions disagree, **the instructions win** — the
   author is occasionally wrong, and the agent should say when that happens
