@@ -359,9 +359,12 @@ DOS &71F3 CHANNEL_LENGTH_FIELD
     want, which is cheaper in bytes than writing the addition out at each
     of them.
 
-DOS &730B PREPARE_DIRECTORY_WRITE
-    SNDFL, error 32 if it fails, bit 2 of FLAG3 down, and then POINT and
-    the type byte masked -- the run-up every directory write shares.
+DOS &730B FIND_DIRECTORY_ENTRY
+    SNDFL, error 113 if it fails, bit 2 of FLAG3 down, and then POINT and
+    the type byte masked -- the run-up every directory lookup shares.
+    Nothing here writes: each of the three callers goes on to read a tag
+    out of the entry this located.  The 1991 source calls it FNDIR and
+    heads it "FIND DIRECTORY. EXIT WITH HL=POINT".
 
 DOS &7533 RDRSCT
     Read a sector from a RAM disc -- the author's own name, from the part
@@ -466,3 +469,19 @@ DOS &6091 IOOR
     A stub of its own with nine callers, not a continuation of AHLNX --
     it only sits below it.  The 1991 source calls it IOOR and so does
     this now.
+
+# RTSTD indexes the RAM-disc track table, and &4244 is RDDT less the
+# three drives it does not cover.  It is also exactly EAPG's address, so
+# the label won and the listing said LD HL,EAPG -- which put a read of
+# EAPG in the cross-reference line for an instruction that never touches
+# it.  The five other accessors beside it are all written the same way:
+# FIPT-3, CRWT-2, CDIT-1, PLT-1, DRPT-1.
+DOS &742F expr RDDT-3
+
+# The 1991 source prints the warning with CALL CLSL / CALL PMOOF, and
+# PMOOF is "OPEN Fil","e"+&80.  This build replaced PMOOF with a call
+# across to MasterBASIC, and the source's comment came across onto the
+# instruction that followed it -- PLUR, which prints a plural "s" and
+# nothing else.
+DOS &74AB : the text, which lives in the other half at MB &505C
+DOS &74B0 : and the plural s, if more than one file is open

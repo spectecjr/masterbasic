@@ -19878,7 +19878,7 @@ STDR0:
 ;; Leaves:    A, F, DE, HL, IX
 ;; Preserves: BC (saved and restored)
 ;;
-;; ? drives IN A,(HMPR); calls PREPARE_DIRECTORY_WRITE, PRPTH, DTREE, GPLA; falls into whatever follows rather than
+;; ? drives IN A,(HMPR); calls FIND_DIRECTORY_ENTRY, PRPTH, DTREE, GPLA; falls into whatever follows rather than
 ;; returning.
 ;; --------------------------------------------------------------------
 
@@ -19890,7 +19890,7 @@ STDR1:
                PUSH BC                         ; 7290 C5  LEN IN B
                PUSH HL                         ; 7291 E5
                CALL DTREE                      ; 7292 CD 5A 73  DESCEND PATH TILL LAST FILE IN STRING
-               CALL PREPARE_DIRECTORY_WRITE    ; 7295 CD 0B 73  FIND DIRECTORY
+               CALL FIND_DIRECTORY_ENTRY       ; 7295 CD 0B 73  FIND DIRECTORY
                CALL GPLA                       ; 7298 CD 4A 74
                POP DE                          ; 729B D1
                POP BC                          ; 729C C1  B=LEN
@@ -20109,7 +20109,7 @@ RTCK_DONE:
                RET                             ; 730A C9
 
 ;; --------------------------------------------------------------------
-;; PREPARE_DIRECTORY_WRITE -- &730B to &731D
+;; FIND_DIRECTORY_ENTRY -- &730B to &731D
 ;;
 ;; Takes:     A, HL
 ;; Leaves:    A, F, BC, DE, HL, IX
@@ -20118,12 +20118,15 @@ RTCK_DONE:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     SNDFL, error 32 if it fails, bit 2 of FLAG3 down, and then POINT and
-;;     the type byte masked -- the run-up every directory write shares.
+;;     SNDFL, error 113 if it fails, bit 2 of FLAG3 down, and then POINT and
+;;     the type byte masked -- the run-up every directory lookup shares.
+;;     Nothing here writes: each of the three callers goes on to read a tag
+;;     out of the entry this located.  The 1991 source calls it FNDIR and
+;;     heads it "FIND DIRECTORY. EXIT WITH HL=POINT".
 ;; --------------------------------------------------------------------
 
-; ---- PREPARE_DIRECTORY_WRITE ---- from &7295, &7370, &73EE
-PREPARE_DIRECTORY_WRITE:
+; ---- FIND_DIRECTORY_ENTRY ---- from &7295, &7370, &73EE
+FIND_DIRECTORY_ENTRY:
                CALL SNDFL                      ; 730B CD 76 5E
                JR NC,REP32H                    ; 730E 30 0E  ERROR IF DIRECTORY NOT FOUND
                LD HL,FLAG3                     ; 7310 21 0C 7C
@@ -20279,7 +20282,7 @@ DTREE:
 ;; Preserves: BC, HL (saved and restored)
 ;; Ends:      JR
 ;;
-;; ? calls PREPARE_DIRECTORY_WRITE, EFLNM.
+;; ? calls FIND_DIRECTORY_ENTRY, EFLNM.
 ;; --------------------------------------------------------------------
 
 ; ---- DTREL ---- from &7360, &737D
@@ -20288,7 +20291,7 @@ DTREL:
                RET C                           ; 736D D8  RET IF LAST NAME
                PUSH HL                         ; 736E E5
                PUSH BC                         ; 736F C5
-               CALL PREPARE_DIRECTORY_WRITE    ; 7370 CD 0B 73  FIND DIRECTORY FILE
+               CALL FIND_DIRECTORY_ENTRY       ; 7370 CD 0B 73  FIND DIRECTORY FILE
                LD BC,DIRT                      ; 7373 01 FA 00  DISP TO TAG VALUE FOR FILES IN
                ADD HL,BC                       ; 7376 09  THIS DIR
                LD A,(HL)                       ; 7377 7E
@@ -20513,13 +20516,13 @@ STDPP:
 ;; Takes:     A, HL
 ;; Leaves:    A, F, BC, DE, HL, IX
 ;;
-;; ? calls SETF2, OSRDPN, PREPARE_DIRECTORY_WRITE; falls into whatever follows rather than returning.
+;; ? calls SETF2, OSRDPN, FIND_DIRECTORY_ENTRY; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- STFPL ---- from &73FA when A <> (HL)
 STFPL:
                PUSH AF                         ; 73ED F5
-               CALL PREPARE_DIRECTORY_WRITE    ; 73EE CD 0B 73  FIND PARENT DIRECTORY
+               CALL FIND_DIRECTORY_ENTRY       ; 73EE CD 0B 73  FIND PARENT DIRECTORY
                CALL SETF2                      ; 73F1 CD F8 50  "RESTART FROM CURRENT T/S"
                LD BC,DIRT                      ; 73F4 01 FA 00
                ADD HL,BC                       ; 73F7 09
@@ -20621,7 +20624,7 @@ GPATD2:
 
 ; ---- RTSTD ---- from &4AFD, &757E, &764F, &770C, &7730, &7B6E
 RTSTD:
-               LD HL,EAPG                      ; 742F 21 44 42  DRIVE 3 IS FIRST ENTRY
+               LD HL,RDDT-3                    ; 742F 21 44 42  DRIVE 3 IS FIRST ENTRY
                CALL GPLA2                      ; 7432 CD 4D 74  GET ADDR
                LD A,(HL)                       ; 7435 7E  T/DISK
                RET                             ; 7436 C9
@@ -20816,9 +20819,9 @@ SDTKS_2:
                JR Z,SDTK4                          ; 74A9 28 13  JR IF SAME DISC AS WHEN
                                                    ; call MB_PRINT_OPEN_FILE_COUNT-&4000 in the other page: LMPR is
                                                    ; switched first, so that address is how the other listing numbers it
-               CALL CALLMB                         ; 74AB CD BD 42
+               CALL CALLMB                         ; 74AB CD BD 42  the text, which lives in the other half at MB &505C
                DEFW MB_PRINT_OPEN_FILE_COUNT-&4000 ; 74AE 44 50
-               CALL PLUR                           ; 74B0 CD 01 5C  "OPEN file"
+               CALL PLUR                           ; 74B0 CD 01 5C  and the plural s, if more than one file is open
                CALL BEEP                           ; 74B3 CD E1 4D
                LD A,(SSTR1)                        ; 74B6 3A 38 41
                                                    ; call the ROM at STREAM with the system page at &4000, and page back

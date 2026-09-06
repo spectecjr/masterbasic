@@ -602,3 +602,40 @@ genuine `&21` skip that `docs/idioms.md` documents, loses its
 scan assumes at the point `skipped_runs` runs, and the real fix starts
 by finding out what it does hold. `checkdocs` caught the regression,
 which is the check working: `docs/idioms.md` quotes the line.
+
+## Eighteen labels credit a caller that does not exist
+
+Another generator bug rather than a MasterDOS one, and this entry exists
+because the size of it was not known until it was counted.
+
+A `notes/` entry of the form `DOS &742F expr RDDT-3` rewrites an
+operand so it reads as an expression rather than as whatever label
+happens to sit at that address. The rewrite works, and the build proves
+it still assembles to the same byte. What does not happen is the
+retraction: the address was already recorded in `d.xrefs` when the
+operand first resolved, so the label it used to name goes on listing
+that instruction as a caller.
+
+`&742F` is the example that turned it up. It reads `LD HL,RDDT-3`, which
+is `&4244`, and `&4244` is also exactly `EAPG`'s address — so `EAPG`'s
+header still says `; ---- EAPG ---- from &43DC, &742F`, crediting a read
+that the instruction does not perform. The 1991 source writes the same
+operand as `RDDT-3`, and `GFPA` three instructions later already renders
+`FIPT-3` correctly, so the operand text was never in doubt.
+
+**There are 108 `expr` notes and 18 of them leave a stale cross-reference
+behind.** They can be listed by walking `notes/` for `expr` entries and
+grepping each listing for a `; ---- ` line that still names the address.
+Two are worse than the rest: `PTH2` is credited `MB &773A`, which is the
+wrong page as well as the wrong instruction, and `V7C0E` collects three
+of them.
+
+`notes.py` carries a comment saying this was attempted and abandoned —
+removal from `d.xrefs` in the `expr` branch, against both the raw
+`&hhhh` operand and the resolved label name, on the deep copy
+`write_clean` makes, and something afterwards puts it back. The
+candidates for that "something" are the passes that run after
+`notes.apply`: `decode_marked_code`, `render_tables` and `render_drtab`,
+each of which resolves operands again. None of them was eliminated, so
+the next attempt should start by finding which one it is rather than by
+trying the removal a third time.
