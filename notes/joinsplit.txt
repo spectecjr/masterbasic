@@ -8,8 +8,6 @@
 # DOC below names a label that already has a header, the text is meant to be
 # added to it rather than to replace it, and says so.
 
-MB &6DF7 : error 43 is "screen number", so &2B is the report code minus one, the ROM's convention
-
 DOC CMD_JOIN
     THE LINE NUMBER IS OPTIONAL, and the ROM already keeps the one the
     user wants.  "JOIN 100" joins line 100 to the line below it; plain

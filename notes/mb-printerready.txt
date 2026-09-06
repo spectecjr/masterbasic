@@ -82,3 +82,17 @@ DOC SEND_BYTE_TO_PRINTER
     one-byte variable holding a file number.  Following the window
     instead makes it thirty-four bytes of obvious code, and gives the
     printer loop above the routine it was plainly missing.
+
+# The two serial channel tables, which were being read as code.
+#
+# &559E loads one into DE and &55A4 the other; &55B4 exchanges so HL is
+# the table, and the LDIR at &55B8 copies four bytes into (CHANS)+&19.
+# So neither address is an entry point, and the words in them are the
+# system page's, not this half's: &0181 is the ROM's SENDA, and &4ADD
+# and &4AE0 are the SERSEND and SERRECV stubs in the block installed at
+# &484D.
+MB &55BE SERIAL_CHANNEL_TABLE
+MB &55C2 SERIAL_CHANNEL_TABLE_RECV
+MB &55BE-&55C5 word
+MB &55BE : SENDA and the SERSEND stub -- four bytes, copied over the channel's output routine
+MB &55C2 : and the pair for the other direction

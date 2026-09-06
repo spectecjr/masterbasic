@@ -162,10 +162,6 @@ MB &4BA1 : B is the high byte of the span, so anything from &3F00 bytes up falls
 
 MB &5318 expr &4A6B
 MB &5318 : a value, not a call -- and &4A6B is inside TWO_DIGITS_FROM_DE, which nothing enters mid-way
-MB &55BF expr &4AE0
-MB &55BF : likewise; &4AE0 is the middle of MULTIPLY_BY_60's shift chain
-MB &55EA expr &4AE9
-MB &55EA : and &4AE9 begins SBC A,&00, which consumes a borrow set two bytes above it
 MB &5DAB expr &4B5B
 MB &5DAB : three bytes built into the ROM's header buffer, whose base LD BC,HDR loaded above
 MB &4F3E expr &4A84

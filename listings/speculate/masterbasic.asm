@@ -5990,8 +5990,10 @@ TWO_DIGITS_BEFORE_DE_LOOP:
 ;;
 ;;     Three two-digit fields out of the DOS's buffer.  The other half is
 ;;     paged in, the pointer at V4096 is windowed with SET 7,D and RES 6,D,
-;;     nine bytes in is where the fields start, and TWO_DIGITS_FROM_DE reads
-;;     each one and steps over the separator between them.
+;;     and TWO_DIGITS_FROM_DE reads each field from DE, stepping over the
+;;     separator between them.  Nine bytes on -- past eight characters and
+;;     the CR -- is the table of limits, which the loop reads through HL to
+;;     check each field against.
 ;; --------------------------------------------------------------------
 
 ; ---- READ_CLOCK_FIELDS ---- from &494F
@@ -6389,7 +6391,7 @@ TICS_SECONDS_IN_MONTH_DONE:
                DEFB FPC_EXIT2                       ; 4ADB EXIT2
 
 ;; --------------------------------------------------------------------
-;; MULTIPLY_BY_60 -- &4ADC to &4ADF
+;; MULTIPLY_BY_60 -- &4ADC to &4AE8
 ;;
 ;; Takes:     A, HL
 ;; Leaves:    A, F, BC, HL
@@ -6411,14 +6413,22 @@ TICS_SECONDS_IN_MONTH_DONE:
 ;;
 ;;     What was here before:
 ;;
-;;         A:HL times sixty, with the original kept in BC.  Four doublings make
-;;         sixteen, subtracting BC once makes fifteen, and two more doublings
-;;         make sixty -- five shifts and a subtract against a multiply routine
-;;         and a constant.  The 24-bit form is what TICS needs: seconds in a
-;;         month reach 2678399.
+;;         HL times sixty, in A:HL, with the original kept in BC.  Four
+;;         doublings make sixteen, subtracting BC once makes fifteen, and two
+;;         more doublings make sixty -- six shifts and a subtract against a
+;;         multiply routine and a constant.  The 24-bit answer is what TICS
+;;         needs: seconds in a month reach 2678399.
 ;;
-;;         MULTIPLY_BY_60_1 and MULTIPLY_BY_60_2 are entries part of the way down it, for callers that
-;;         have their own idea of what BC holds.
+;;         IT MULTIPLIES HL, NOT A:HL.  Only HL is copied into BC at &4ADC, so
+;;         the SBC takes off the low sixteen bits alone and the result is
+;;         64*(A:HL) - 4*HL.  Those agree only when A is zero on entry, which
+;;         is why the note at &4AA0 has to call the first call's top byte
+;;         rubbish.
+;;
+;;         MULTIPLY_BY_60_1 is an entry part of the way down it, for a caller
+;;         that has its own idea of what BC holds.  There used to be a second
+;;         such entry here, made only by a reference from &55EA -- which is a
+;;         word inside a data table, not a call, so the entry was never real.
 ;; --------------------------------------------------------------------
 
 ; ---- MULTIPLY_BY_60 ---- from &4AA0, &4AAB
@@ -6428,16 +6438,6 @@ MULTIPLY_BY_60:
                LD C,L                          ; 4ADD 4D
                ADD HL,HL                       ; 4ADE 29
                ADC A,A                         ; 4ADF 8F
-
-;; --------------------------------------------------------------------
-;; MULTIPLY_BY_60_1 -- &4AE0 to &4AE8
-;;
-;; Takes:     A, BC, HL
-;; Leaves:    A, F, HL
-;; --------------------------------------------------------------------
-
-; ---- MULTIPLY_BY_60_1 ---- from &55BF
-MULTIPLY_BY_60_1:
                ADD HL,HL                       ; 4AE0 29
                ADC A,A                         ; 4AE1 8F
                ADD HL,HL                       ; 4AE2 29
@@ -6449,15 +6449,15 @@ MULTIPLY_BY_60_1:
                SBC HL,BC                       ; 4AE7 ED 42  16x - x = 15x
 
 ;; --------------------------------------------------------------------
-;; MULTIPLY_BY_60_2 -- &4AE9 to &4AEF
+;; MULTIPLY_BY_60_1 -- &4AE9 to &4AEF
 ;;
 ;; Takes:     A, HL
 ;; Leaves:    A, F, HL
 ;; Ends:      RET
 ;; --------------------------------------------------------------------
 
-; ---- MULTIPLY_BY_60_2 ---- from &55EA
-MULTIPLY_BY_60_2:
+; ---- MULTIPLY_BY_60_1 ---- from &55EA
+MULTIPLY_BY_60_1:
                SBC A,&00                       ; 4AE9 DE 00  the borrow out of HL, into the top byte
                ADD HL,HL                       ; 4AEB 29  and 15x times four is 60x
                ADC A,A                         ; 4AEC 8F
@@ -10893,8 +10893,9 @@ CMD_LPRINT:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     SERINIT with the caller's value kept across it, then the settings
-;;     table at INIT_SERIAL_FROM_TABLE_2.
+;;     SERINIT with the caller's value kept across it, then one of the two
+;;     four-byte channel tables below, chosen by the caller's A and copied
+;;     over the channel's own vectors.
 ;; --------------------------------------------------------------------
 
 ; ---- INIT_SERIAL_FROM_TABLE ---- from &558E, &75EC
@@ -10902,13 +10903,13 @@ INIT_SERIAL_FROM_TABLE:
                PUSH AF                         ; 5599 F5
                CALL SERINIT                    ; 559A CD 34 59
                POP AF                          ; 559D F1
-               LD DE,INIT_SERIAL_FROM_TABLE_2  ; 559E 11 BE 55
+               LD DE,SERIAL_CHANNEL_TABLE      ; 559E 11 BE 55
                AND A                           ; 55A1 A7
                JR Z,INIT_SERIAL_FROM_TABLE_1   ; 55A2 28 03
-               LD DE,INIT_SERIAL_FROM_TABLE_3  ; 55A4 11 C2 55
+               LD DE,SERIAL_CHANNEL_TABLE_RECV ; 55A4 11 C2 55
 
 ;; --------------------------------------------------------------------
-;; INIT_SERIAL_FROM_TABLE_1 -- &55A7 to &55BD
+;; INIT_SERIAL_FROM_TABLE_1 -- &55A7 to &55C5
 ;;
 ;; Takes:     DE
 ;; Leaves:    A, F, BC, DE, HL
@@ -10935,32 +10936,14 @@ INIT_SERIAL_FROM_TABLE_1:
                OUT (HMPR),A                    ; 55BB D3 FB
                RET                             ; 55BD C9
 
-;; --------------------------------------------------------------------
-;; INIT_SERIAL_FROM_TABLE_2 -- &55BE to &55C1
-;;
-;; Takes:     A, C
-;; Leaves:    A, F, BC
-;; --------------------------------------------------------------------
+; ---- SERIAL_CHANNEL_TABLE ---- from &559E
+SERIAL_CHANNEL_TABLE:
+               DEFW &0181,&4AE0                ; 55BE 81 01 E0 4A  SENDA and the SERSEND stub -- four bytes, copied over
+                                               ; the channel's output routine
 
-; ---- INIT_SERIAL_FROM_TABLE_2 ---- from &559E
-INIT_SERIAL_FROM_TABLE_2:
-               ADD A,C                         ; 55BE 81
-               LD BC,&4AE0                     ; 55BF 01 E0 4A  likewise; &4AE0 is the middle of MULTIPLY_BY_60's shift
-                                               ; chain
-
-;; --------------------------------------------------------------------
-;; INIT_SERIAL_FROM_TABLE_3 -- &55C2 to &55C5
-;;
-;; Takes:     D
-;; Leaves:    C
-;; --------------------------------------------------------------------
-
-; ---- INIT_SERIAL_FROM_TABLE_3 ---- from &55A4
-INIT_SERIAL_FROM_TABLE_3:
-               DEFB &DD                        ; 55C2 DEFB &DD
-               LD C,D                          ; 55C3 4A
-               RET PO                          ; 55C4 E0
-               LD C,D                          ; 55C5 4A
+; ---- SERIAL_CHANNEL_TABLE_RECV ---- from &55A4
+SERIAL_CHANNEL_TABLE_RECV:
+               DEFW &4ADD,&4AE0                ; 55C2 DD 4A E0 4A  and the pair for the other direction
 
 ;; --------------------------------------------------------------------
 ;; CMD_LPRINT_1 -- &55C6 to &55EC
@@ -10979,9 +10962,9 @@ CMD_LPRINT_1:
                JR NZ,INIT_SERIAL_FROM_TABLE_FAIL ; 55CA 20 7A
                CALL CALL_NEXTCHAR                ; 55CC CD 61 44
                CP CH_COLON                       ; 55CF FE 3A
-               JR Z,INIT_SERIAL_FROM_TABLE_6     ; 55D1 28 37
+               JR Z,INIT_SERIAL_FROM_TABLE_4     ; 55D1 28 37
                CP CH_CR                          ; 55D3 FE 0D
-               JR Z,INIT_SERIAL_FROM_TABLE_6     ; 55D5 28 33
+               JR Z,INIT_SERIAL_FROM_TABLE_4     ; 55D5 28 33
                CALL NUMBER_THEN_END              ; 55D7 CD C8 44
                CALL COPY_BUFFER_POINTER          ; 55DA CD 0D 56
                AND A                             ; 55DD A7
@@ -10989,12 +10972,11 @@ CMD_LPRINT_1:
                CALL GET_BUFFER_SIZE              ; 55E1 CD DD 5E
                EX DE,HL                          ; 55E4 EB
                LD HL,(V4066)                     ; 55E5 2A 66 40
-               JR Z,INIT_SERIAL_FROM_TABLE_4     ; 55E8 28 03
-               LD HL,&4AE9                       ; 55EA 21 E9 4A  and &4AE9 begins SBC A,&00, which consumes a borrow
-                                                 ; set two bytes above it
+               JR Z,INIT_SERIAL_FROM_TABLE_2     ; 55E8 28 03
+               LD HL,MULTIPLY_BY_60_1            ; 55EA 21 E9 4A
 
 ;; --------------------------------------------------------------------
-;; INIT_SERIAL_FROM_TABLE_4 -- &55ED to &55F9
+;; INIT_SERIAL_FROM_TABLE_2 -- &55ED to &55F9
 ;;
 ;; Takes:     A, DE, HL
 ;; Leaves:    A, F, BC, HL
@@ -11002,19 +10984,19 @@ CMD_LPRINT_1:
 ;; ? calls IS_CHANNEL_OURS; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- INIT_SERIAL_FROM_TABLE_4 ---- from &55E8
-INIT_SERIAL_FROM_TABLE_4:
+; ---- INIT_SERIAL_FROM_TABLE_2 ---- from &55E8
+INIT_SERIAL_FROM_TABLE_2:
                PUSH AF                         ; 55ED F5
                PUSH DE                         ; 55EE D5
                PUSH HL                         ; 55EF E5
                CALL IS_CHANNEL_OURS            ; 55F0 CD 29 56
-               JR Z,INIT_SERIAL_FROM_TABLE_5   ; 55F3 28 05
+               JR Z,INIT_SERIAL_FROM_TABLE_3   ; 55F3 28 05
                LD A,B                          ; 55F5 78
                DEC A                           ; 55F6 3D
                LD (SORP),A                     ; 55F7 32 06 40
 
 ;; --------------------------------------------------------------------
-;; INIT_SERIAL_FROM_TABLE_5 -- &55FA to &5609
+;; INIT_SERIAL_FROM_TABLE_3 -- &55FA to &5609
 ;;
 ;; Takes:     DE
 ;; Leaves:    A, F, BC, HL
@@ -11023,8 +11005,8 @@ INIT_SERIAL_FROM_TABLE_4:
 ;; ? calls INSTALL_CHANNEL_HANDLER.
 ;; --------------------------------------------------------------------
 
-; ---- INIT_SERIAL_FROM_TABLE_5 ---- from &55F3
-INIT_SERIAL_FROM_TABLE_5:
+; ---- INIT_SERIAL_FROM_TABLE_3 ---- from &55F3
+INIT_SERIAL_FROM_TABLE_3:
                POP HL                          ; 55FA E1
                CALL INSTALL_CHANNEL_HANDLER    ; 55FB CD 1B 56
                POP HL                          ; 55FE E1
@@ -11036,7 +11018,7 @@ INIT_SERIAL_FROM_TABLE_5:
                JR INIT_SERIAL_FROM_TABLE_DONE  ; 5608 18 0A
 
 ;; --------------------------------------------------------------------
-;; INIT_SERIAL_FROM_TABLE_6 -- &560A to &560C
+;; INIT_SERIAL_FROM_TABLE_4 -- &560A to &560C
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
@@ -11044,8 +11026,8 @@ INIT_SERIAL_FROM_TABLE_5:
 ;; ? calls EXPECT_END_OF_STATEMENT; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- INIT_SERIAL_FROM_TABLE_6 ---- from &55D1 when A = CH_COLON, &55D5 when A = CH_CR
-INIT_SERIAL_FROM_TABLE_6:
+; ---- INIT_SERIAL_FROM_TABLE_4 ---- from &55D1 when A = CH_COLON, &55D5 when A = CH_CR
+INIT_SERIAL_FROM_TABLE_4:
                CALL EXPECT_END_OF_STATEMENT    ; 560A CD D0 44
 
 ;; --------------------------------------------------------------------
@@ -23211,8 +23193,7 @@ SCREEN_NUMBER_ARGUMENT:
 
 ; ---- SCREEN_NUMBER_ARGUMENT_1 ---- from &6DDE when A >= &10, &6DE8 when A wraps to 0
 SCREEN_NUMBER_ARGUMENT_1:
-               LD A,&2B                        ; 6DF7 3E 2B  error 43 is "screen number", so &2B is the report code
-                                               ; minus one, the ROM's convention
+               LD A,&2B                        ; 6DF7 3E 2B  error 43, "screen number"
                JP REPORT                       ; 6DF9 C3 BE 43
 
 ;; --------------------------------------------------------------------

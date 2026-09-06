@@ -671,3 +671,39 @@ The standalone `res/MDOS23.bin` could not be checked against this: it is
 a different build (15750 bytes against this half's 16320), and the eight
 bytes at this image's `&44A6` do not occur in it at any offset, so
 neither the table nor the pointer can be aligned between the two.
+
+## Seventeen addresses carry two line notes, and one of each pair is thrown away
+
+A `notes/` line of the form `MB &addr : text` sets the comment on one
+instruction. Two things stop it arriving, and neither says so.
+
+**Two notes for one address.** One wins; the other is discarded in
+silence. The loser is often the better of the two. `&4ACD` carries a
+one-line note and a four-line one explaining why the address has to be
+read through the window twice over — CMR restores the caller's HMPR
+before jumping, so the address must be meaningful under it, and CMR also
+puts the system page into section B, which would page the target out —
+and it is the four-line one that is lost. Someone editing it sees no
+change and gets no error.
+
+**A carried comment already holds the slot.** The 1991 author's
+upper-case comments are applied after these, so a note on the same
+instruction never appears. `notes/joinsplit.txt` carried one for `&6DF7`
+claiming `&2B` was "the report code minus one, the ROM's convention".
+There is no such convention — `&2B` is 43, the code itself, as the
+sibling stubs at `&43A7` (30) and `&43B6` (4) are written — and the note
+had been sitting in a file that reads as though every line in it is
+live, where nothing could contradict it because nothing could see it.
+
+`tools/deadnotes.py` reports both classes. It cannot say which of two
+duplicates *should* win; that is a judgement, and the point is to make
+the choice visible.
+
+**This is related to the stale cross-references above.** A few of those
+eighteen are not merely un-retracted references: they are operands that
+were never references at all. `&55EA` had an `expr` note pointing it at
+`&4AE9`, which put a label and a caller inside `MULTIPLY_BY_60` —
+and `&55EA` turns out to be a word inside a data table, mis-decoded as
+an instruction. Deleting the note removed the phantom label with it. So
+when the retraction is fixed, some of the eighteen will want re-reading
+rather than re-pointing.

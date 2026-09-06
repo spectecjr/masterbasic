@@ -98,14 +98,22 @@ MB &44C5 CHAR_THEN_NUMBER_THEN_END
     each.
 
 MB &4ADC MULTIPLY_BY_60
-    A:HL times sixty, with the original kept in BC.  Four doublings make
-    sixteen, subtracting BC once makes fifteen, and two more doublings
-    make sixty -- five shifts and a subtract against a multiply routine
-    and a constant.  The 24-bit form is what TICS needs: seconds in a
-    month reach 2678399.
+    HL times sixty, in A:HL, with the original kept in BC.  Four
+    doublings make sixteen, subtracting BC once makes fifteen, and two
+    more doublings make sixty -- six shifts and a subtract against a
+    multiply routine and a constant.  The 24-bit answer is what TICS
+    needs: seconds in a month reach 2678399.
 
-    MULTIPLY_BY_60_1 and MULTIPLY_BY_60_2 are entries part of the way down it, for callers that
-    have their own idea of what BC holds.
+    IT MULTIPLIES HL, NOT A:HL.  Only HL is copied into BC at &4ADC, so
+    the SBC takes off the low sixteen bits alone and the result is
+    64*(A:HL) - 4*HL.  Those agree only when A is zero on entry, which
+    is why the note at &4AA0 has to call the first call's top byte
+    rubbish.
+
+    MULTIPLY_BY_60_1 is an entry part of the way down it, for a caller
+    that has its own idea of what BC holds.  There used to be a second
+    such entry here, made only by a reference from &55EA -- which is a
+    word inside a data table, not a call, so the entry was never real.
 
 MB &58F1 OPEN_ROOM_AT_DE
     Open BC bytes at DE, through the ROM's MKRBIG -- "open A*16K + BC
@@ -330,8 +338,9 @@ MB &560D COPY_BUFFER_POINTER
     them.  Called on the serial setup path, after SERINIT.
 
 MB &5599 INIT_SERIAL_FROM_TABLE
-    SERINIT with the caller's value kept across it, then the settings
-    table at INIT_SERIAL_FROM_TABLE_2.
+    SERINIT with the caller's value kept across it, then one of the two
+    four-byte channel tables below, chosen by the caller's A and copied
+    over the channel's own vectors.
 
 MB &4C90 SEARCH_MEMORY
     LOCN's search proper.  The length of what is being searched has the
@@ -456,8 +465,10 @@ MB &5629 IS_CHANNEL_OURS
 MB &4A0D READ_CLOCK_FIELDS
     Three two-digit fields out of the DOS's buffer.  The other half is
     paged in, the pointer at V4096 is windowed with SET 7,D and RES 6,D,
-    nine bytes in is where the fields start, and TWO_DIGITS_FROM_DE reads
-    each one and steps over the separator between them.
+    and TWO_DIGITS_FROM_DE reads each field from DE, stepping over the
+    separator between them.  Nine bytes on -- past eight characters and
+    the CR -- is the table of limits, which the loop reads through HL to
+    check each field against.
 
 MB &4D2A COMPARE_TO_TERMINATOR
     Walk BC bytes from HL -- B in the inner loop, C in the outer, so a
