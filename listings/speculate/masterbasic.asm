@@ -17377,11 +17377,18 @@ SCAN_NIBBLE_TABLE_1:
 ;;     values occurs in it, as sixteen counters of two bytes at &E500, with
 ;;     both nibbles of every source byte counted into them.
 ;;
-;;     THE SOURCE IS EXACTLY A MODE 4 SCREEN.  B is left at zero by the
-;;     clearing loop above, so the inner DJNZ runs 256 times, and C is &60 --
-;;     96 times 256 is &6000, the 24K a MODE 4 screen occupies.  Neither
-;;     number is written down as a screen size anywhere here; the loop
-;;     simply covers one.
+;;     THE LOOP ALWAYS COVERS 24K, whatever is being saved.  B is left at
+;;     zero by the clearing loop above, so the inner DJNZ runs 256 times,
+;;     and C is &60 -- 96 times 256 is &6000, the space a MODE 4 screen
+;;     occupies.  Neither number is written down as a screen size anywhere
+;;     here, and nothing in this routine reads V407A or the mode.
+;;
+;;     So for a smaller screen it histograms past the end of it:
+;;     PICK_COMPRESSION_CONSTANTS has sets for &1B00 and &3800 screens as
+;;     well, and those leave &4500 and &2800 bytes of whatever follows
+;;     counted into the totals.  It costs nothing -- the histogram only
+;;     chooses an escape nibble -- but the source is not a MODE 4 screen,
+;;     it is 24K starting where the screen does.
 ;;
 ;;     Two bytes to a counter because 24576 bytes is 49152 nibbles, which
 ;;     one byte could not hold a share of.  The carry is taken by hand:
@@ -17609,9 +17616,11 @@ READ_NIBBLE_AT_HL_DONE:
 
 ; ---- NEXT_SCREEN_BYTE_3 ---- from &6283 when L wraps to 0
 NEXT_SCREEN_BYTE_3:
-               LD A,(V407A)                    ; 629D 3A 7A 40  the last odd line to scan. &33, &6D and &BD reach
-                                               ; exactly &1B00, &3800 and &6000 bytes -- a MODE 1, a MODE 2 and a MODE 3
-                                               ; or 4 screen
+               LD A,(V407A)                    ; 629D 3A 7A 40  three short of the last line, because CP H : JR NC lets
+                                               ; H equal it and &6287 starts one more pair, so the walk ends at V407A+2.
+                                               ; That is V407A+3 lines, which is what the totals need: &33, &6D and &BD
+                                               ; reach exactly &1B00, &3800 and &6000 bytes -- a MODE 1, a MODE 2 and a
+                                               ; MODE 3 or 4 screen
                CP H                            ; 62A0 BC
                JR NC,NEXT_SCREEN_BYTE_2        ; 62A1 30 E4
                DEC L                           ; 62A3 2D

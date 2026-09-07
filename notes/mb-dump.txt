@@ -471,11 +471,18 @@ MB &6253 BUILD_NIBBLE_TABLE
     values occurs in it, as sixteen counters of two bytes at &E500, with
     both nibbles of every source byte counted into them.
 
-    THE SOURCE IS EXACTLY A MODE 4 SCREEN.  B is left at zero by the
-    clearing loop above, so the inner DJNZ runs 256 times, and C is &60 --
-    96 times 256 is &6000, the 24K a MODE 4 screen occupies.  Neither
-    number is written down as a screen size anywhere here; the loop
-    simply covers one.
+    THE LOOP ALWAYS COVERS 24K, whatever is being saved.  B is left at
+    zero by the clearing loop above, so the inner DJNZ runs 256 times,
+    and C is &60 -- 96 times 256 is &6000, the space a MODE 4 screen
+    occupies.  Neither number is written down as a screen size anywhere
+    here, and nothing in this routine reads V407A or the mode.
+
+    So for a smaller screen it histograms past the end of it:
+    PICK_COMPRESSION_CONSTANTS has sets for &1B00 and &3800 screens as
+    well, and those leave &4500 and &2800 bytes of whatever follows
+    counted into the totals.  It costs nothing -- the histogram only
+    chooses an escape nibble -- but the source is not a MODE 4 screen,
+    it is 24K starting where the screen does.
 
     Two bytes to a counter because 24576 bytes is 49152 nibbles, which
     one byte could not hold a share of.  The carry is taken by hand:

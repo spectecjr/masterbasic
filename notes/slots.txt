@@ -291,7 +291,7 @@ MB &627E : an odd line steps back up and one pixel along; an even one steps down
 
 MB &6289 : SCF before the two rotates halves the pixel number into an address and forces bit 15, since the screen sits at &8000 upwards; the bit that falls out of L says which half of the byte
 
-MB &629D : the last odd line to scan.  &33, &6D and &BD reach exactly &1B00, &3800 and &6000 bytes -- a MODE 1, a MODE 2 and a MODE 3 or 4 screen
+MB &629D : three short of the last line, because CP H : JR NC lets H equal it and &6287 starts one more pair, so the walk ends at V407A+2.  That is V407A+3 lines, which is what the totals need: &33, &6D and &BD reach exactly &1B00, &3800 and &6000 bytes -- a MODE 1, a MODE 2 and a MODE 3 or 4 screen
 
 MB &62A4 : H = &FF is how the walk says it has finished, which is the test ENCODE_SCREEN makes
 
