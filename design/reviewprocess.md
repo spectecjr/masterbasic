@@ -543,10 +543,20 @@ that *were* true, beside a tree that has moved.
   cross-half write, and three real callers. A phantom and a coincidence look
   alike from a distance, which is the argument for counting rather than
   estimating.
-- **The same wrong number is usually in more than one place.** "27 signature
+- **The same wrong number is usually in more than one place, and the way to
+  find the copies is to search for the value you just removed.** "27 signature
   sites" was in two notes files, two generators and both listings, which
   contradicted each other. Fixing the document alone would have left the
   listing to re-teach it.
+
+  This is a step to run *after* every correction, not a thing to be alert to.
+  I wrote the sentence above in the commit that fixed "five runs" in the two
+  places an audit happened to quote, and left it standing in four others —
+  including the prose forty lines below the table I had just edited, and a
+  second line in the same file the audit had named. Checking the places you
+  changed proves nothing; a corrected figure tells you nothing about its
+  copies. Grep the old value across `docs/`, `notes/`, `design/`, `tools/`
+  and `listings/`, and keep grepping it until it is gone.
 
 ---
 
