@@ -28445,10 +28445,11 @@ EVALUV_STUB_1:
 ;;     progress.
 ;;
 ;;     One reference is still unexplained.  &7C57 does JP Z,&45A2 out of the
-;;     dispatcher at &7C51, which switches on H against &94, &98, &A8, &A9,
-;;     &AA, &AC, &AE, &B0, &B3, &C2, &C9, &CD, &D1, &E1 and &FF, with
-;;     anything below &94 returning at once.  The low run matches command
-;;     tokens -- &94 SAVE, &98 OPEN, &B3 CLEAR -- but the high run is past
+;;     dispatcher at &7C51, which switches on H against &A8, &A9, &AA, &AC,
+;;     &AE, &B0, &B3, &C2, &C9, &CD, &D1, &E1 and &FF, and takes &94-&97 as
+;;     a range through the CP &98 : JR C at &7C8A.  The low run matches
+;;     command tokens -- &94 SAVE through &97 VERIFY, &B3 CLEAR -- but the
+;;     high run is past
 ;;     the token range and past the hook codes, so what H holds is not
 ;;     settled; a captured return address, whose high byte says which
 ;;     caller, would fit the spread better than a token does.
@@ -28464,10 +28465,10 @@ EVALUV_STUB_1:
 ;;     index -- and the dispatcher reaches it when H is &AC, which is &AB+1,
 ;;     index one.  H is a token after all.
 ;;
-;;     Every value the dispatcher tests is one: &94 SAVE, &98 OPEN, &A8
-;;     CSIZE, &A9 BLOCKS, &AA MODE, &AC PUT, &AE SOUND, &B0 RUN, &B3 CLEAR,
-;;     &C2 PAUSE, &C9 DEF KEYCODE, &CD DELETE, &D1 KEYIN, &E1 POKE, and two
-;;     the ROM does not name.  The doubt recorded here came from taking &B9
+;;     Every value the dispatcher tests is one: &94-&97 SAVE, LOAD, MERGE
+;;     and VERIFY, &A8 CSIZE, &A9 BLOCKS, &AA MODE, &AC PUT, &AE SOUND,
+;;     &B0 RUN, &B3 CLEAR, &C2 PAUSE, &C9 DEF KEYCODE, &CD DELETE, &D1
+;;     KEYIN, &E1 POKE, and two the ROM does not name.  The doubt recorded here came from taking &B9
 ;;     as the end of the token range, which is where the hook codes stop
 ;;     rather than the tokens.
 ;;
@@ -28640,10 +28641,17 @@ RELOCATED_TO_484D_3:
 ;;     Running at &48FA in the system page, not here.  Anything below &94 is
 ;;     let through untouched, and the rest are ordinary ROM command tokens:
 ;;
-;;         &94 SAVE    &A9 BLOCKS   &B0 RUN         &CD DELETE
-;;         &98 OPEN    &AA MODE     &B3 CLEAR       &D1 KEYIN
-;;         &A8 CSIZE   &AC PUT      &C2 PAUSE       &E1 POKE
+;;         &94-&97     &A9 BLOCKS   &B0 RUN         &CD DELETE
+;;         &A8 CSIZE   &AA MODE     &B3 CLEAR       &D1 KEYIN
+;;                     &AC PUT      &C2 PAUSE       &E1 POKE
 ;;                     &AE SOUND    &C9 DEF KEYCODE
+;;
+;;     &94-&97 are SAVE, LOAD, MERGE and VERIFY, taken as a range by the
+;;     CP &98 : JR C at &7C8A rather than one at a time -- the ROM's own
+;;     table gives all four the same routine, SLMVC.  &98 OPEN is NOT among
+;;     them, which the JR C makes plain: it is taken only for A below &98,
+;;     so &98 itself falls through to the CP &FF at &7C8E and returns
+;;     untouched.
 ;;
 ;;     with &FD and &FF, which the ROM's table does not name, handled last.
 ;;
