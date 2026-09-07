@@ -4098,7 +4098,10 @@ READ_CLOCK_FIELDS_DONE:
 ;;
 ;; MasterDOS calls this as it closes a file, through the hook at
 ;; &4E53, and it is MasterBASIC's rather than the DOS's because the
-;; clock is MasterBASIC's: the DOS has no idea what the time is.
+;; code that reads the clock chip is MasterBASIC's.  The date and time
+;; themselves are the DOS's: this routine takes them out of DATDT and
+;; TIMDT, at &4271 and &4280 in the DOS's page, which WAIT_FOR_CLOCK
+;; fills.
 ;;
 ;; FIVE BYTES GO IN, at offset &F5 of the entry -- day, month and year,
 ;; then hour and minute, each as a number from 0 to 99 rather than as
@@ -19148,15 +19151,14 @@ EVALUV_STUB_1:
 ;; AND &05 -- so it is being borrowed as flags while no transfer is in
 ;; progress.
 ;;
-;; One reference is still unexplained.  &7C57 does JP Z,&45A2 out of the
-;; dispatcher at &7C51, which switches on H against &A8, &A9, &AA, &AC,
-;; &AE, &B0, &B3, &C2, &C9, &CD, &D1, &E1 and &FF, and takes &94-&97 as
-;; a range through the CP &98 : JR C at &7C8A.  The low run matches
-;; command tokens -- &94 SAVE through &97 VERIFY, &B3 CLEAR -- but the
-;; high run is past
-;; the token range and past the hook codes, so what H holds is not
-;; settled; a captured return address, whose high byte says which
-;; caller, would fit the spread better than a token does.
+;; One reference looked unexplained for a while, and the answer is below.
+;; &7C57 does JP Z,&45A2 out of the dispatcher at &7C51, which switches
+;; on H against &A8, &A9, &AA, &AC, &AE, &B0, &B3, &C2, &C9, &CD, &D1,
+;; &E1 and &FF, and takes &94-&97 as a range through the CP &98 : JR C
+;; at &7C8A.  The low run matches command tokens -- &94 SAVE through
+;; &97 VERIFY, &B3 CLEAR -- and the high run seemed to be past both the
+;; token range and the hook codes, which made a captured return address
+;; look likelier than a token.
 ;;
 ;; &45A2 is settled, by a dump of a running machine.  dumps/SYSPAGE_after_MBMD_boot.bin
 ;; holds &4000-&4BFF of the ROM's system page after boot, and at &45A2
