@@ -7073,9 +7073,13 @@ WRITE_SYNC_AND_MARK:
 ;;     unchanging port is a settling loop rather than a scan.
 ;;
 ;;     Its caller branches on the carry and then reads a key through the
-;;     ROM's RDKEY, so the answer gates a key read -- but what bit 0 of &FE
-;;     means with no row selected is not established here, and the name says
-;;     only what the routine does.
+;;     ROM's RDKEY, so the answer gates a key read.  The Technical Manual's
+;;     table for the port names the bit: bit 0 is K1, "keyboard matrix line
+;;     1, Mouse Control".  With B held at &FF no row is driven, so a matrix
+;;     line alone would read high and the carry would always come back set;
+;;     that it is tested at all points at the mouse-control half of the
+;;     line.  Which of the two the seven-read settling loop is waiting on is
+;;     not established here, and the name says only what the routine does.
 ;; --------------------------------------------------------------------
 
 ; ---- READ_KEY_LINE ---- from &53DE
