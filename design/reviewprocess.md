@@ -285,6 +285,21 @@ disbelieve. That is the behaviour the "instructions win" rule asks for, applied
 to the brief instead of to the listing — and it is worth saying in the prompt
 that the facts block is fallible too.
 
+**Then the correction itself produced a false finding, which is the part worth
+remembering.** The fixed brief says "bit 5 SET takes ROM 0 out". A later review
+read `LMPR := &5F` and filed it `[C]` as "both ROMs on" being wrong — without
+checking that `&5F` is `0101 1111`, in which bit 5 is *clear*. The comment was
+right, the ROM's own source comments that very value `;BOTH ROMS ON, PAGE ZERO
+IN SECTION B`, and the finding was a true general rule applied to a value it
+does not cover.
+
+So a corrected fact in the brief is not safe either: it invites the agent to go
+looking for the error it describes. Both failures — the wrong fact and the
+over-applied right one — are cases of the brief being believed instead of
+checked, and the guard against both is the same. Say in the prompt that the
+facts block is a starting point, and that a finding turning on one of its
+statements must derive the specific case, not cite the general rule.
+
 **On the MasterDOS side, hand the agent `ref/masterdos/src/masterdos23.asm` —
 and not the annotated tree beside it.** The `src/` file is the 1991 author's own
 source, and the upper-case comments in the listing are carried from it, so a

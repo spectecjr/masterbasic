@@ -226,7 +226,10 @@ DOC COMPARE_FAR_STRINGS_FOLDED
     the two page numbers in L and H, and the first string's pointer in
     DE, so each turn pages the first string in, reads a byte, pages the
     second string in, and reads through HL in the main set.  The same
-    shape as COMPARE_FAR_STRINGS at &4725, which does it case-sensitively.
+    shape as COMPARE_FAR_STRINGS at &4725 -- which is not the
+    case-sensitive one: its comparison is the self-modified byte at
+    &4745, and plain SORT writes &05 there, the folding form.  Only ABS
+    writes the &02 that compares raw.
 
     Bit 5 is forced on in both bytes before comparing, the same
     case-folding as the search loop's AND &DF from the other end.

@@ -5246,7 +5246,10 @@ TWO_PAGED_STRINGS_1:
 ;; the two page numbers in L and H, and the first string's pointer in
 ;; DE, so each turn pages the first string in, reads a byte, pages the
 ;; second string in, and reads through HL in the main set.  The same
-;; shape as COMPARE_FAR_STRINGS at &4725, which does it case-sensitively.
+;; shape as COMPARE_FAR_STRINGS at &4725 -- which is not the
+;; case-sensitive one: its comparison is the self-modified byte at
+;; &4745, and plain SORT writes &05 there, the folding form.  Only ABS
+;; writes the &02 that compares raw.
 ;;
 ;; Bit 5 is forced on in both bytes before comparing, the same
 ;; case-folding as the search loop's AND &DF from the other end.
@@ -5821,7 +5824,8 @@ CMDBUF_PROLOGUE_2:
 ;; back with WRA.
 ;;
 ;; Only then does it call the ROM's own JMODE, through CMR.  The last
-;; thing it does is write zero to SYS_CHAR_WIDTH, the byte in the system
+;; thing it does is write a zero WORD through MBNRWRD, which clears both
+;; SYS_CHAR_WIDTH and SYS_CHAR_HEIGHT -- &4AEE and &4AEF, adjacent in the system
 ;; page that CSIZE keeps its character width in, so a MODE puts the
 ;; character size back to the default.
 ;;

@@ -36,7 +36,8 @@ MB &4F7E CMD_MODE
     back with WRA.
 
     Only then does it call the ROM's own JMODE, through CMR.  The last
-    thing it does is write zero to SYS_CHAR_WIDTH, the byte in the system
+    thing it does is write a zero WORD through MBNRWRD, which clears both
+    SYS_CHAR_WIDTH and SYS_CHAR_HEIGHT -- &4AEE and &4AEF, adjacent in the system
     page that CSIZE keeps its character width in, so a MODE puts the
     character size back to the default.
 
