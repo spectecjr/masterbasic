@@ -7467,10 +7467,19 @@ SEARCH_MEMORY_6:
 ;;     character wanted.
 ;;
 ;;     IT IS ENTERED IN THE MIDDLE OF ITS OWN LOOP, at the read rather than
-;;     at the test, so that the count is taken before the comparison and
-;;     the last turn round falls out instead of comparing.  That is what
-;;     the caller's INC BC at &4CE3 pays for.  B is the inner count and C
-;;     the outer, so a run longer than 255 costs nothing extra.
+;;     at the test, so the count is taken before the comparison.  With N
+;;     start positions the caller's INC BC at &4CE3 buys N+1 reads, of
+;;     which N get the full test against both case forms.
+;;
+;;     The last one is not skipped, though: it drops through to the CP E at
+;;     &4D31 and returns those flags, so the byte one past the last legal
+;;     start is still compared -- against E alone, as the comment there
+;;     says.  A Z from this routine can therefore mean a match at a
+;;     position the caller did not ask about, which is worth knowing before
+;;     reading Z as "found".
+;;
+;;     B is the inner count and C the outer, so a run longer than 255 costs
+;;     nothing extra.
 ;;
 ;;     Returns Z when one of the two was found, HL just past it.
 ;;
