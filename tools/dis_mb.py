@@ -570,6 +570,16 @@ class Page(Disassembler):
             if i is None:
                 break
             seq.append(i.text)
+            # Stop at a call.  What follows one may be its OWN inline
+            # data, and decoding into that finds instructions that are
+            # not there: RESOLVE_ROM_ENTRIES opens CALL FIND_ROM_CODE
+            # followed by a six-byte signature, whose first two bytes
+            # C9 E3 read as RET : EX (SP),HL -- so the test below saw
+            # the swap it looks for and gave the routine a two-byte
+            # parameter it does not take.  Both idioms recognised here
+            # sit at the head of a routine, before it calls anything.
+            if i.text.startswith(('CALL', 'RST')):
+                break
             a = i.end
         if not seq:
             return 0

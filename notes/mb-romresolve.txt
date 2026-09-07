@@ -42,13 +42,17 @@ MB &7993 : the first of twenty searches
 MB &799D : two of these results fill the JP &0000 operands in the stub
 MB &7AA8 : &18 is JR -- patching the system page directly
 
-# THE SIXTEENTH RESOLVE, which the trace mis-aligned by one byte.
+# THE SIXTEENTH RESOLVE, which the trace used to mis-align by one byte.
 #
-# &75F2 is CD 79 BD -- CALL FIND_ROM_CODE -- and the trace took the
-# first two of those as a DEFW, so the whole entry came out as garbage:
-# CP L / PUSH AF / RST GET_CHAR / POP HL / LD L,&00 / JP M,&F022 /
-# LD B,L.  Read at the right offset it is the same shape as the fifteen
-# below it:
+# &75F2 is CD 79 BD, a call to FIND_ROM_CODE, and the trace took the
+# first two of those as an inline DEFW, so the whole entry came out as
+# instructions that are not there.  The cause was in the sniffer that
+# decides how many inline bytes a routine takes: it read straight
+# through RESOLVE_ROM_ENTRIES's opening call into that call's own
+# signature, whose first bytes C9 E3 decode as RET : EX (SP),HL -- the
+# return-address swap it looks for.  It stops at a call now.
+#
+# Read at the right offset it is the same shape as the fifteen below:
 #
 #     CD 79 BD           CALL FIND_ROM_CODE
 #     F5 DF E1 2E 00 FA  signature F5 DF E1 from &2E00, -6
@@ -57,4 +61,7 @@ MB &7AA8 : &18 is JR -- patching the system page directly
 # and that store is the one notes/mb-romthunks.txt reported missing:
 # &45F0 is the SLICING thunk's operand, the only one of the three whose
 # patch could not be found.  It was here all along, one byte out.
-MB &75F2-&75FD code
+# The six bytes after the call are its signature block, as they are at
+# the fifteen below.  Marked data because the trace had already decoded
+# them as instructions and only a non-code mark clears those.
+MB &75F5-&75FA data

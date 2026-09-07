@@ -14,7 +14,6 @@
 ERR_HOOK:      EQU  &08                        ; report an error, or call a DOS hook: the byte after is
                                                ; an error number, or a hook code from 128 up
 PRINT_A:       EQU  &10                        ; print the character in A
-GET_CHAR:      EQU  &18                        ; the character at CHAD, control codes skipped
 NEXT_CHAR:     EQU  &20                        ; step CHAD and get the character there
 FPCALC:        EQU  &28                        ; the floating-point calculator; the bytes after it are
                                                ; its literals, not instructions

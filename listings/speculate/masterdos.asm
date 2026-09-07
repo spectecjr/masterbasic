@@ -24222,7 +24222,7 @@ INSTALL_TAIL_INTO_SYSPAGE:
 ;; fixed target at all, and goes wherever the signature was found.
 ;; --------------------------------------------------------------------
 
-; ---- FIND_ROM_CODE ---- from MB &75FE, MB &760A, MB &7616, MB &7622, MB &762E, MB &763A, MB &76FF, MB &7990 ...
+; ---- FIND_ROM_CODE ---- from MB &75F2, MB &75FE, MB &760A, MB &7616, MB &7622, MB &762E, MB &763A, MB &76FF ...
 FIND_ROM_CODE:
                DEFB &5C,&1F,&D8,&3A,&A5,&5A,&CD,&DF,&3F,&2A,&A6,&5A,&ED,&4B,&72 ; 7D79 \.X:%ZM_?*&ZmKr
                DEFB &5C,&3A,&3B,&5C,&CB,&77,&28,&11,&ED,&5B,&65                 ; 7D88 \:;\Kw(.m[e

@@ -783,45 +783,31 @@ an instruction. Deleting the note removed the phantom label with it. So
 when the retraction is fixed, some of the eighteen will want re-reading
 rather than re-pointing.
 
-## The sixteenth ROM resolve is mis-aligned by one byte, and marking it code does not help
+## FIXED: the sixteenth ROM resolve was mis-aligned by one byte
 
-`RESOLVE_ROM_ENTRIES` finds ROM entry points by signature and patches
-each into the operand that calls it. Fifteen of them read cleanly. The
-first does not:
+*Fixed. Kept for the cause, which was not where it looked.*
 
-```
-75F2  DEFB &CD,&79
-75F4  CP L
-75F5  PUSH AF
-75F6  RST GET_CHAR
-75F7  POP HL
-75F8  LD L,&00
-75FA  JP M,&F022
-75FD  LD B,L
-```
+`RESOLVE_ROM_ENTRIES` patches ROM entry points into the operands that
+call them. Fifteen read cleanly; the first did not, coming out as
+instructions that are not there and hiding a `LD (&45F0),HL` — the
+`SLICING` thunk's patch, which a review had reported missing because
+only two of the three thunks could be accounted for.
 
-Read one byte later it is the same shape as every entry below it:
+**The cause was in `_sniff`**, which decides how many inline bytes a
+routine takes by decoding its first few instructions and looking for the
+return-address swap. It read straight through `RESOLVE_ROM_ENTRIES`'s
+opening `CALL FIND_ROM_CODE` into that call's own six-byte signature,
+whose first two bytes `C9 E3` decode as `RET : EX (SP),HL` — exactly the
+swap it looks for. So the routine was given a two-byte parameter it does
+not take, and everything after it shifted by one.
 
-```
-CD 79 BD           CALL FIND_ROM_CODE
-F5 DF E1 2E 00 FA  signature F5 DF E1, from &2E00, -6
-22 F0 45           LD (&45F0),HL
-```
+`_sniff` now stops at a call. Both idioms it recognises sit at a
+routine's head, before it calls anything, so nothing legitimate is lost:
+the change moved nine lines across both halves.
 
-**And that store is the one `notes/mb-romthunks.txt` reported missing.**
-Three ROM routines are reached through thunks whose operands are filled
-in at boot — LOOKVARS, SLICING and INSERTLN — and a review found patches
-for only two, leaving `&45F0`, SLICING's, unaccounted for. It is here,
-one byte out of alignment.
-
-**A `code` note does not fix it.** `MB &75F2-&75FD code` makes the pass
-decode the range — the build reports the instructions decoded — but the
-rendering stays `DEFB`, because `notes.py` ranks the region kinds
-`data: 3, text: 5, word: 4, code: 1` and something claims these bytes at
-a higher rank than `code` can override. Raising `code`'s rank is not
-obviously right either: it would let a `code` note win over a `data`
-note anywhere the two disagree, and the whole point of the ranking is
-that the more specific marking wins.
-
-So the bytes are recorded here and the alignment is left alone. What is
-wanted is to find what marks the range and why, not to outrank it.
+**Marking the range `code` did not work, and that was informative.**
+`decode_marked_code` skips any address already in `d.insns`, and the
+mis-aligned instructions were there; the `code` kind deliberately does
+not clear them, because saying "this is code" should not destroy a
+correct decode. The six signature bytes needed a `data` note, which does
+clear them, before the renderer could show them as a signature block.

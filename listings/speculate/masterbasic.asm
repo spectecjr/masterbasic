@@ -3501,6 +3501,9 @@ V45EA:
 ; ---- CALL_SLICING ---- from &47D7
 CALL_SLICING:
                CALL MBCMR                      ; 45ED CD F0 44
+
+; ---- V45F0 ---- from &75FB
+V45F0:
                DEFW &0000                      ; 45F0 00 00
                RET                             ; 45F2 C9
 
@@ -26351,14 +26354,9 @@ INSTALLER_LOOP:
                LD A,(SORP)                     ; 75E9 3A 06 40
                CALL INIT_SERIAL_FROM_TABLE     ; 75EC CD 99 55
                CALL RESOLVE_ROM_ENTRIES        ; 75EF CD 90 79
-               DEFB &CD,&79                    ; 75F2 My
-               CP L                            ; 75F4 BD
-               PUSH AF                         ; 75F5 F5
-               RST GET_CHAR                    ; 75F6 DF
-               POP HL                          ; 75F7 E1
-               LD L,&00                        ; 75F8 2E 00
-               JP M,&F022                      ; 75FA FA 22 F0
-               LD B,L                          ; 75FD 45
+               CALL DOS_FIND_ROM_CODE          ; 75F2 CD 79 BD
+               DEFB &F5,&DF,&E1,&2E,&00,&FA    ; 75F5 signature F5 DF E1 from &2E00, -6  -> &2E69 SLICING
+               LD (V45F0),HL                   ; 75FB 22 F0 45
                CALL DOS_FIND_ROM_CODE          ; 75FE CD 79 BD
                DEFB &0A,&FE,&20,&10,&00,&F5    ; 7601 signature 0A FE 20 from &1000, -11  -> &10A0 INSERTLN
                LD (V45F6),HL                   ; 7607 22 F6 45  patches the operand of the CALL at &45F3
@@ -26705,7 +26703,7 @@ INSTALL_ROM_VECTORS:
 ;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Copied to &7D79 in the DOS page by the boot sector, and
-;;     called there from 27 sites in this page as DOS_FIND_ROM_CODE.  The
+;;     called there from 28 sites in this page as DOS_FIND_ROM_CODE.  The
 ;;     bytes the file holds at &7D79 in the DOS page are not
 ;;     these: they are whatever was in its buffers when the image
 ;;     was saved, and the copy overwrites them at boot.
