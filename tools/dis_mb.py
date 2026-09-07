@@ -2874,9 +2874,18 @@ def write_clean(pages):
     PAGE_BIAS[0] = 'IN_PAGE_C'
     SELF_LOOP[0] = True
     texts = {}
+    # relabel() clears d.xrefs and rebuilds it, but peer_xrefs lives on
+    # the OTHER page -- peer_name writes into self.peer.peer_xrefs -- so
+    # no single relabel can clear it without losing what the other half
+    # is about to put back.  Clear both, rebuild both, then drop: that
+    # way a cross-page reference an `expr` note has withdrawn goes too,
+    # which four RAM-disc addresses in the DOS half needed.
     gone = 0
     for d in (dos, mb):
-        d.relabel()                 # rebuilds the references from scratch
+        d.peer_xrefs = {}
+    for d in (dos, mb):
+        d.relabel()
+    for d in (dos, mb):
         gone += drop_unreferenced_labels(d)
     if gone:
         print('listings/clean/: %d synthetic labels dropped, nothing refers '

@@ -632,11 +632,7 @@ DUMP_BITS_CARRY:
 
 ; ---- V4120 ---- from &48DD, &48E9, &4901
 V4120:
-               DEFB &30,&30,&2F,&30,&30        ; 4120 00/00
-
-; ---- V4125 ---- from DOS &7726
-V4125:
-               DEFB &2F,&30,&30,&0D,&1F,&01,&0C,&01,&63,&00 ; 4125 /00.....c.
+               DEFB &30,&30,&2F,&30,&30,&2F,&30,&30,&0D,&1F,&01,&0C,&01,&63,&00 ; 4120 00/00/00.....c.
 
 ; ---- V412F ---- from &48CA, &48F2
 V412F:
@@ -714,7 +710,6 @@ FN_SVAL_S:
                CALL CALL_EXPNUM                   ; 415C CD 85 44
                PUSH AF                            ; 415F F5
 
-; ---- FN_SVAL_S_1 ---- from DOS &773A
 FN_SVAL_S_1:
                CALL EXPECT_RPAREN              ; 4160 CD 54 44
                POP AF                          ; 4163 F1
@@ -906,7 +901,6 @@ FN_NVAL_FLOAT:
                                                ; the complement to come turns that 1 into the clear sign bit a positive
                                                ; mantissa needs
 
-; ---- FN_NVAL_POSITIVE ---- from DOS &77CD
 FN_NVAL_POSITIVE:
                SET 7,(HL)                      ; 4200 CB FE
                DEC HL                          ; 4202 2B
@@ -1307,7 +1301,6 @@ TRACE_FONT_BYTES:
                DEFB &00,&00,&00                ; 42E2 ...  zero fill
                DEFS 26                         ; 42E5 26 NOPs
 
-; ---- CALLDOS_2 ---- from DOS &756D
 CALLDOS_2:
                NOP                             ; 42FF 00
 

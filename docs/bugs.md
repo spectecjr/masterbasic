@@ -704,10 +704,11 @@ The consequence is narrow, because nothing inside either half reads
 label. It is only a program outside the DOS, following the documented
 DVAR, that would be misled.
 
-The standalone `res/MDOS23.bin` could not be checked against this: it is
-a different build (15750 bytes against this half's 16320), and the eight
-bytes at this image's `&44A6` do not occur in it at any offset, so
-neither the table nor the pointer can be aligned between the two.
+**The standalone build settles it.** `res/MDOS23.bin` has the same
+`&43F3` in its DVAR 22 — and in *that* build `SAMHK` really is at
+`&43F3`. So the word was right where it was written and was left behind
+when this image relocated the DOS around it. The relocation is proved,
+not inferred.
 
 ## Seventeen addresses carry two line notes, and one of each pair is thrown away
 
@@ -855,8 +856,19 @@ reloading BC**. BC is 0, so `DJNZ` wraps B to `&FF` and `DEC C` wraps C,
 and the scan runs on for up to 65536 bytes beyond the region until some
 byte matches D or E.
 
-Reachable whenever the byte after the searched region equals the
-lower-case form of the pattern's first character — roughly one search in
-256, with the boundary byte being ordinary program text, variables or
-buffer. Reads only, never writes.
+**Where the extra byte falls, corrected.** It is at offset
+`N = length - patlen + 1` from the region's start. For a one-character
+pattern that is one past the end; **for any longer pattern it is inside
+the region**, `patlen-1` bytes short of the end. So the trigger is not a
+boundary byte outside the user's data — for all but the shortest
+patterns it is an ordinary byte of the data being searched, which makes
+it commoner than a boundary case, not rarer.
+
+What is one past the end either way is the *match*: a pattern accepted
+from offset N ends at offset `N + patlen - 1 = length`, exactly one byte
+beyond the region. That is what the bound at `&4C96` exists to prevent.
+
+Reachable whenever the byte at offset N equals the lower-case form of
+the pattern's first character — roughly one search in 256. Reads only,
+never writes.
 
