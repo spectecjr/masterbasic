@@ -13871,11 +13871,16 @@ SET_STEP_AND_COUNT_SWAPPED_LOOP:
                RET                                   ; 67B6 C9
 
 ;; --------------------------------------------------------------------
-;; Copy with a stride: LDI moves the first byte, then C bytes at a time
-;; are taken from HL with the address stepped on by the operand
-;; SET_STEP_AND_COUNT wrote at &67C6.  The count at &67BE and the inner
-;; count at &67C1 come from the same place, which is why the two entry
-;; points differ only in the numbers they poke.
+;; Copy with a stride: LDI moves the first byte, then B bytes at a time
+;; are taken from HL, C times over, with the address stepped on by the
+;; operand SET_STEP_AND_COUNT wrote at &67C6.  On the compressor's
+;; entry that is 51 bytes five times, which with the LDI's one byte is
+;; the 256 the LDIR at &67D4 puts back.
+;;
+;; THE TWO COUNTS COME FROM DIFFERENT REGISTERS.  &67A1 LD A,B feeds
+;; both &67BE, the pass count, and &67C6, the stride; &67A8 LD A,C
+;; feeds &67C1, the bytes per pass, and nothing else.  So it is the
+;; pass count and the stride that share a source, not the two counts.
 ;; --------------------------------------------------------------------
 
 ; ---- COPY_EVERY_NTH_BYTE ---- from &67AF
@@ -14047,8 +14052,11 @@ CMD_DUMP_3:
 ;; --------------------------------------------------------------------
 ;; Which way round the dump goes, and what area of the screen it covers.
 ;;
-;; ORIENTATION IS SDORI'S IF THE USER SET IT, and otherwise 1 for MODE 3
-;; or DUMP 3 and 3 for everything else.  The two tests share their JR Z:
+;; MODE 3 IS ALWAYS SIDEWAYS, whatever the user asked for: &6844 CP &02
+;; and &6846 JR Z jump clear of the LD A,(SDORI) at &6848, so the
+;; setting is never read in that mode.  Everywhere else it wins if it
+;; is set, and otherwise the orientation is 1 for DUMP 3 and 3 for the
+;; rest.  The two tests share their JR Z:
 ;; CP &02 against the screen mode and CP &03 against the DUMP number
 ;; both fall on the same LD A,&01, and only the second needs the
 ;; fall-through to LD A,&03.

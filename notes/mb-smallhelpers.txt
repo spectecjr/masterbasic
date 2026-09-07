@@ -506,11 +506,16 @@ MB &6796 SET_STEP_AND_COUNT
     return Z at the end of the run before doing any of the work.
 
 MB &67B7 COPY_EVERY_NTH_BYTE
-    Copy with a stride: LDI moves the first byte, then C bytes at a time
-    are taken from HL with the address stepped on by the operand
-    SET_STEP_AND_COUNT wrote at &67C6.  The count at &67BE and the inner
-    count at &67C1 come from the same place, which is why the two entry
-    points differ only in the numbers they poke.
+    Copy with a stride: LDI moves the first byte, then B bytes at a time
+    are taken from HL, C times over, with the address stepped on by the
+    operand SET_STEP_AND_COUNT wrote at &67C6.  On the compressor's
+    entry that is 51 bytes five times, which with the LDI's one byte is
+    the 256 the LDIR at &67D4 puts back.
+
+    THE TWO COUNTS COME FROM DIFFERENT REGISTERS.  &67A1 LD A,B feeds
+    both &67BE, the pass count, and &67C6, the stride; &67A8 LD A,C
+    feeds &67C1, the bytes per pass, and nothing else.  So it is the
+    pass count and the stride that share a source, not the two counts.
 
 MB &6CC2 SCREEN_PAGE_OR_BUFFER
     Compare the page in L with the one being displayed, taken straight

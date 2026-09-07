@@ -73,8 +73,11 @@ MB &6836 : and the first is 1 to 3 as well
 DOC DUMP_ORIENT_SETUP
     Which way round the dump goes, and what area of the screen it covers.
 
-    ORIENTATION IS SDORI'S IF THE USER SET IT, and otherwise 1 for MODE 3
-    or DUMP 3 and 3 for everything else.  The two tests share their JR Z:
+    MODE 3 IS ALWAYS SIDEWAYS, whatever the user asked for: &6844 CP &02
+    and &6846 JR Z jump clear of the LD A,(SDORI) at &6848, so the
+    setting is never read in that mode.  Everywhere else it wins if it
+    is set, and otherwise the orientation is 1 for DUMP 3 and 3 for the
+    rest.  The two tests share their JR Z:
     CP &02 against the screen mode and CP &03 against the DUMP number
     both fall on the same LD A,&01, and only the second needs the
     fall-through to LD A,&03.
