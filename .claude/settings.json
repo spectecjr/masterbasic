@@ -1,0 +1,61 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "python \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/guard.py\" git-add",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "python \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/guard.py\" heredoc-patch",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "python \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/guard.py\" patch-build",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "python \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/guard.py\" commit",
+            "timeout": 20,
+            "statusMessage": "checking build.log against the sources"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "python \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/guard.py\" listings",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "python \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/guard.py\" checkdocs",
+            "timeout": 120,
+            "statusMessage": "checkdocs"
+          }
+        ]
+      }
+    ]
+  }
+}

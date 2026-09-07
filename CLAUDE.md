@@ -93,6 +93,15 @@ you changed proves nothing.
 A total that comes back *exactly* unchanged after a change that should
 move it is a failure signal, not a result.
 
+Five of these rules are enforced by hooks in `.claude/settings.json`,
+implemented in `.claude/hooks/guard.py`: `git add -A`, edits under
+`listings/`, a patch through a heredoc, and a patch and the build in one
+command are **denied**; an edit under `docs/`, `notes/` or `design/` runs
+`checkdocs` and hands back anything stale; and `git commit` reports
+`build.log`'s last line and whether the sources have changed since it
+was written.  A denial is the rule working, not a fault -- `/hooks` lists
+them.  `guard.py` is pipe-testable: feed it the hook JSON on stdin.
+
 ## Git
 
 Another Claude session shares this clone.  Stage by explicit path, never
