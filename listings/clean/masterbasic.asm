@@ -13258,7 +13258,8 @@ COMPRESS_BLOCK_6:
                                                ; is how the expander knows where in its work page the block goes
                SBC HL,DE                       ; 66AE ED 52  end less start is the compressed length, header bytes 1 and
                                                ; 2; carry is clear from the AND A at &6674
-               LD (INSTALL_ROM_PATCHES+1),HL   ; 66B0 22 01 7B  patches the port of the IN at &7B00
+               LD (INSTALL_ROM_PATCHES+1),HL   ; 66B0 22 01 7B  the compressed length into the buffer's header, bytes 1
+                                               ; and 2, which &673B reads back
                PUSH DE                         ; 66B3 D5
                PUSH HL                         ; 66B4 E5
                EXX                             ; 66B5 D9
@@ -18929,7 +18930,8 @@ MB_PAGER:
 
 ; ---- INSTALL_ROM_PATCHES ---- from &4C3D, &4C9F, &4CC3, &4D08, &4D1F, &5674, &5733, &577C ...
 INSTALL_ROM_PATCHES:
-               IN A,(HMPR)                     ; 7B00 DB FB  the port is written here at run time, from &66B0
+               IN A,(HMPR)                     ; 7B00 DB FB  the IN this routine opens with, later overwritten by the
+                                               ; header the compressor builds here
                LD C,A                          ; 7B02 4F
 
 ; ---- INSTALL_ROM_PATCHES_1 ---- from &66AA, &6756

@@ -172,3 +172,12 @@ MB &7826 : CFMI in the DOS page, not this half's &7841 -- MRINIT's own last inst
 # a caller there that does not exist.  Written as a number instead.
 MB &417F expr &4F00
 MB &417F : INSTBUF in the system page, written out by the MBWRTBC below -- not this page's &4F00
+
+# The self-patch detector reads &66B0's write into &7B01 as patching the
+# operand of the IN at &7B00, and annotates both ends that way.  It is
+# not a patch: by then this routine has run and its space is the
+# search-string buffer, as the paragraph above says, and what &66B0
+# writes is the compressed length -- header bytes 1 and 2, read straight
+# back by the LD DE,(&7B01) at &673B.
+MB &66B0 : the compressed length into the buffer's header, bytes 1 and 2, which &673B reads back
+MB &7B00 : the IN this routine opens with, later overwritten by the header the compressor builds here
