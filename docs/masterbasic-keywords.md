@@ -12,8 +12,20 @@ commands are from `CTAB` in the MasterDOS half --
 [listings/clean/masterdos.asm](../listings/clean/masterdos.asm) to read it, or
 [listings/disasm/masterdos.asm](../listings/disasm/masterdos.asm) for the working notes. The
 functions are dispatched through `HEVV2` and the sixteen-entry vector table at
-`&78EB`, every entry of which points into the MasterBASIC page; which slot
-belongs to which token I have not pinned down, so no address is given for them.
+`&78EB` **in the DOS half**, whose entries the listing names one by one. Nine
+carry `NOT_IN_THIS_PAGE` and are MasterBASIC's; the other seven are the DOS's
+own routines, reached by `INDJP`'s plain `JP (HL)` because bit 7 of the entry is
+clear.
+
+Which slot belongs to which token is fixed and needs no guessing. The ROM hands
+the hook the token less `&1A` and `HEVV2` takes a further `&0F` off, so entry
+*i* is token `&29 + i` — slot 0 is `&29` `LOCN` and slot 15 is `&38` `INARRAY`.
+The mapping checks itself: the values `HKLEN` routes to `STRCONT` rather than
+`NUMCONT` land on entries 4 to 10, which are exactly the seven `$`-suffixed
+functions.
+
+`XVAR` and `NVAL` are not in this table at all. They arrive through hook 179,
+`HOOK_XVARNVAL`, which the installer's stub lets only `&4E` and `&50` reach.
 
 Seven of the names are not MasterBASIC's own work. `TIME$`, `DATE$`, `INP$`,
 `DIR$`, `FSTAT`, `DSTAT` and `FPAGES` are MasterDOS's, documented in
