@@ -51,6 +51,15 @@ Say which of these is *someone else's text* and which was generated:
 an AI-annotated copy of a source is not the author's words and must not
 be quoted as such.
 
+Where a reference lives in git, add it as a submodule under `ref/`
+rather than copying files in.  Then its provenance is a URL and a
+commit, a later reader can see exactly which revision a claim was
+checked against, and a fix upstream is a `git submodule update` rather
+than a hunt.  Record the branch if it is not the default one: a
+reference checked out on a fix branch is a fact about the project that
+a fresh clone will silently lose.  The machine-specific skills carry
+these URLs for the machines they cover.
+
 ## 4. Dumps
 
 Readings become proof only against memory.  The set that closed

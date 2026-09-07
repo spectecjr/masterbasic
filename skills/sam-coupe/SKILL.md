@@ -142,15 +142,40 @@ outside a DOS image.
 
 ## Reference sources
 
-- `ref/samrom/` -- the ROM source (a git submodule); `vars.asm` for the
-  variable block, `main.asm` for the low entries, `fpcmain.asm` for the
-  calculator opcode table, `grabput.asm`, `text.asm` for tokens.
-- `ref/sam-coupe-technical-manual/techmanual.md` -- port bits, the
-  vector roles, the rotating-window idiom, the ALLOCT table.
-- `ref/masterdos/src/masterdos23.asm` -- the DOS author's own text.
-  An `annotated-src/` beside it is a later AI annotation, not his.
-- `ref/masterdos/res/MDOS23.bin` (15750 bytes) -- stock MasterDOS 2.3,
-  useful for telling inherited from introduced.
+All five live in git.  Set them up under `ref/` as submodules so that
+every claim can be traced to a URL and a commit:
+
+```
+git submodule add https://github.com/simonowen/samrom                        ref/samrom
+git submodule add https://github.com/stefandrissen/samdos.git                ref/samdos
+git submodule add https://github.com/dandoore/masterdos                      ref/masterdos
+git submodule add https://github.com/sam-users/sam-coupe-datasheets.git      ref/sam-coupe-datasheets
+git submodule add -b fix-sysvar-addresses \
+    https://github.com/spectecjr/sam-coupe-technical-manual.git             ref/sam-coupe-technical-manual
+```
+
+**The manual needs the branch.**  Upstream is
+`stefandrissen/sam-coupe-technical-manual`, and its `main` has four
+system-variable addresses wrong.  The fix -- one commit, "Fix four
+addresses in the system variable tables" -- is on the fork's
+`fix-sysvar-addresses` branch and had not been merged at the time of
+writing.  A plain `submodule add` of upstream silently gets the wrong
+addresses.  Check `git -C ref/sam-coupe-technical-manual log --oneline
+-1` shows that commit.
+
+What each holds, and the commits the facts above were read at:
+
+| submodule | at | what it is for |
+|---|---|---|
+| `samrom` | `c3eab12` | the ROM source.  `vars.asm` for the variable block, `main.asm` for the low entries and `&005C`, `fpcmain.asm` for the calculator opcode table, `text.asm` for the token table, `grabput.asm`, `misc31.asm` for the NMI handler |
+| `sam-coupe-technical-manual` | `4004be3` (fork branch) | `techmanual.md`: port bits, the vector roles and calling conventions, the rotating-window idiom, the `ALLOCT` table, the snapshot-button note |
+| `masterdos` | `e9df97f` | `src/masterdos23.asm`, the DOS author's own text; `res/MDOS23.bin` (15750 bytes), stock 2.3, for telling inherited from introduced; `docs/hook-interface.md`, `docs/errors.md`, `docs/disk-format.md`.  An `annotated-src/` beside `src/` is a later AI annotation, not his -- quote `src/` |
+| `samdos` | `d0f9978` | SAMDOS source, the DOS MasterDOS descends from; where a routine is the same in both, a fault can be shown inherited |
+| `sam-coupe-datasheets` | `7f3d14a` | PDFs: the Technical Manual v3.0, the Z80 user manual and *The Undocumented Z80 Documented*, the WD1772 disc controller (with corrections), the SCC2691 comms chip, the SAA1099 sound chip, four RTC chips, the bus extension |
+
+`git submodule update --init` after cloning a project that uses these;
+the commits above are what the addresses in this skill were checked
+against, and a later revision may move them.
 
 ## Idioms specific to this machine
 
