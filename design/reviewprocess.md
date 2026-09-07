@@ -493,6 +493,48 @@ In rough order of return:
 - **Refutations are worth writing down**, or the next review raises the same
   claim and it gets audited twice.
 
+### Auditing prose rather than code
+
+The four document audits found a different class of fault. A code review asks
+whether a claim about the machine is true; a document audit mostly finds claims
+that *were* true, beside a tree that has moved.
+
+- **A number with no stated counting rule cannot be audited.** Section 7 of
+  `how-it-works.md` had five figures and none reproduced, because the rule had
+  never been written down — so a stale number and a wrong one looked exactly
+  alike, and both were present. Either state the rule in the sentence, or make
+  the build print the number. Where the generator is the only thing that knows,
+  it is the only honest source: `name_synthetic_labels` assigns the label
+  suffixes, so it now returns the tally rather than leaving a table to be
+  remembered.
+- **Check the sentences that name their own evidence first.** They are the
+  most confident and therefore the least examined. `how-it-works.md` said "a
+  dump proves every byte of it" and named a dump holding `ED A0` filler at that
+  address; `disassembly.md` said "`tools/build.sh` prints this table on every
+  run, so it can be checked rather than remembered" directly above five rows
+  that disagreed with the run beside them.
+- **Mechanisms get scrutiny; consequences do not.** All nine defects in
+  `bugs.md` survived audit and four of their *what it costs* paragraphs did
+  not. The interesting half of a finding is the half that gets checked.
+- **A sentence that asserts a thing and then gives a reason for it can
+  contradict itself.** "The page number's low five bits cannot carry into the
+  flag bits above them — every structure ends in a terminator first" claims a
+  hardware property in its first clause and gives the real, contingent reason in
+  its second. Watch for `because` and `—` joining an absolute to an argument.
+- **An entry can be overtaken by its own fix.** Two `bugs.md` entries spent
+  their second halves on faults the entries above them record as fixed, quoting
+  labels that no longer exist. When a fix lands, grep the prose for the symptom,
+  not just for the label.
+- **Some of what an audit reports as a fault was never one.** Of the phantom
+  cross-references collected under one entry, two were genuine — a real
+  cross-half write, and three real callers. A phantom and a coincidence look
+  alike from a distance, which is the argument for counting rather than
+  estimating.
+- **The same wrong number is usually in more than one place.** "27 signature
+  sites" was in two notes files, two generators and both listings, which
+  contradicted each other. Fixing the document alone would have left the
+  listing to re-teach it.
+
 ---
 
 ## Beyond this project
