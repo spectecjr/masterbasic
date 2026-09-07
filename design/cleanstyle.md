@@ -194,21 +194,21 @@ numbers in a forty-instruction routine is a different thing from eight in four
 hundred.
 
 ```
-DOS   817 numbers, 504 unexplained, over 288 routines
-      worst FSTAT 12/79, RESET_CHANNEL_SCAN 10/32, CMR 8/42
-MB   1101 numbers, 732 unexplained, over 178 routines
-      worst RELOCATED_TO_46CC 33/196, BUILD_PUT_BLOCK 27/200,
-            COPY_SCREEN_CONVERT 25/166
+DOS   817 numbers, 414 unexplained, over 252 routines
+      worst FSTAT 8/79, RESET_CHANNEL_SCAN 8/32, CMR 7/42
+MB   1094 numbers, 604 unexplained, over 163 routines
+      worst RELOCATED_TO_46CC 29/196, FN_USING_S 18/157,
+            DUMP_UNSHADED 17/107
 ```
 
-So a third of the numbers already carry an explanation, and the work left is
-1236 rather than 1918.
+So nearly half the numbers already carry an explanation or stand beside a name,
+and the work left is 1018 rather than 1911.
 
 The two halves want different treatment. The DOS's are a long tail — 288
-routines, the worst of them twelve, the top twelve only 80 sites between them,
+routines, the worst of them eight, the top twelve only 65 sites between them,
 so there is no leverage and it is genuinely a few hundred small jobs.
-MasterBASIC's are concentrated: 178 routines, and the top twelve are 234 sites,
-just under a third of that half's total. MasterBASIC first, worst first.
+MasterBASIC's are concentrated: 163 routines, and the top twelve are 201 sites,
+a third of that half's total. MasterBASIC first, worst first.
 
 The reason is structural rather than anything about the code. `notes/clean/`
 holds twenty-three DOS files and two MasterBASIC ones, so the reading-copy
@@ -234,6 +234,15 @@ addresses in `&46CC`-`&484C` where a label from this half would name the wrong
 page's byte. They can never be named, only explained. Left as it was, the
 queue could never empty and the deliberate exceptions would inflate exactly the
 routines most worth working.
+
+The same rule has to allow that a number standing beside a name is explained by
+it: `LD IY,PUT_TRAMPOLINE + &1D` says what `&1D` is. **Test that on real lines
+before believing the total it produces.** Written as a search for
+`[A-Za-z_][A-Za-z0-9_]{2,}` it excluded 327 sites, of which 232 had no symbol
+in them at all — because `A` to `F` are letters, so `&C000` reads as an
+identifier and so does the `FFC` inside `&7FFC`. Strip the hex literals first
+and the honest figure is 196. An `(IX+&05)` field offset still counts, which is
+right: that is the kind of number this project names.
 
 The two-byte side is easier: 763 operands and 367 distinct values under the
 same rule, and most are addresses that already resolve to labels.

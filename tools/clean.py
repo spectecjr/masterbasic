@@ -353,10 +353,28 @@ def bare_numbers(pages):
             text = d.overrides.get(a, ins.text)
             if re.search(r'&[0-9A-F]{2}([0-9A-F]{2})?\b', text):
                 n += 1
-                if not d.comments.get(a):
+                if not d.comments.get(a) and not _has_name(text):
                     bare += 1
         out[d.tag] = (n, bare)
     return out
+
+
+# A symbol in the operand explains the number beside it.
+# Registers and condition codes are one or two characters, so
+# three is enough to mean a name.  (IX+&05) still counts: a
+# field offset is exactly the kind of number worth naming.
+HEXLIT = re.compile(r'&[0-9A-F]+')
+NAMED = re.compile(r'[A-Za-z_][A-Za-z0-9_]{2,}')
+
+
+def _has_name(text):
+    """Is there a symbol in this operand, once the hex is removed?
+
+    The hex has to go first: A-F are letters, so &C000 and the FFC
+    inside &7FFC both look like identifiers otherwise, and the test
+    then passes almost every four-digit address in the file.
+    """
+    return bool(NAMED.search(HEXLIT.sub('', text)))
 
 
 SYNTHETIC = re.compile(r'^(TBL_|[LV])[0-9A-F]{4}$')
@@ -407,7 +425,7 @@ def bare_by_routine(d):
         totals[head] = totals.get(head, 0) + 1
         text = d.overrides.get(a, ins.text)
         if (re.search(r'&[0-9A-F]{2}([0-9A-F]{2})?\b', text)
-                and not d.comments.get(a)):
+                and not d.comments.get(a) and not _has_name(text)):
             counts[head] = counts.get(head, 0) + 1
     return sorted(((nm, n, totals.get(nm, 0)) for nm, n in counts.items()),
                   key=lambda r: (-r[1], r[0]))

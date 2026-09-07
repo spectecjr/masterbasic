@@ -60,6 +60,8 @@ DIR_DATE:               EQU  &F5               ; the date stamp: day, month, yea
 DVAR_CMPFG:             EQU  &42BA             ; DVAR 154 in the DOS page: SAVE MODE 1, 2 or 3 less one
 GREY_MAP:               EQU  &7B80
 GREY_TAKEN:             EQU  &7B90
+PUT_TRAMPOLINE:         EQU  &F000             ; section D, where a fragment of the finished block is copied and run
+                                               ; with the extension paged out
 REF_BUFFER:             EQU  &7B00
 REF_BUFFER_2:           EQU  &7B80
 REF_BUFFER_2_TEXT:      EQU  &7B81
@@ -87,6 +89,8 @@ SYS_RECORD_STATE:       EQU  &4AF4
 SYS_RST8V_ERROR:        EQU  &4AB8
 SYS_STRM16_SAVE:        EQU  &4AF5
 SYS_TOKEN_TO_FN_INDEX:  EQU  &45A2
+TOKEN_GRAB:             EQU  &AB               ; the lower of the two command tokens this block serves; PUT is the next
+                                               ; one up, &AC
 
 
 ; The manual also describes these, which no table points at, so they have
@@ -18353,20 +18357,21 @@ BUILD_PUT_BLOCK:
                PUSH DE                         ; 7841 D5
                LD HL,DOS_V7FA5                 ; 7842 21 A5 BF  ten bytes of this half's own code, from &7986
                LD DE,SYS_TOKEN_TO_FN_INDEX     ; 7845 11 A2 45
-               LD BC,&000A                     ; 7848 01 0A 00
+               LD BC,&000A                     ; 7848 01 0A 00  ten -- the token-to-index stub named on the line above
                LDIR                            ; 784B ED B0
                POP HL                          ; 784D E1  the ROM's PUT itself, 13 bytes
-               LD C,&0D                        ; 784E 0E 0D
+               LD C,&0D                        ; 784E 0E 0D  thirteen, the ROM's PUT from its first byte
                LDIR                            ; 7850 ED B0
                LD (DOS_V7F6B),HL               ; 7852 22 6B BF  patch PUT+&0D into the block
-               LD C,&0D                        ; 7855 0E 0D
+               LD C,&0D                        ; 7855 0E 0D  thirteen more, PUT+&0D onwards
                LDIR                            ; 7857 ED B0
                LD (DOS_V7EA6),HL               ; 7859 22 A6 BE  patch PUT+&1A into the block
-               LD C,&08                        ; 785C 0E 08
+               LD C,&08                        ; 785C 0E 08  eight, added to HL rather than copied -- PUT+&1A to PUT+&22
+                                               ; is skipped
                ADD HL,BC                       ; 785E 09
                PUSH HL                         ; 785F E5
                LD HL,DOS_V7E98                 ; 7860 21 98 BE  this half's &7879, 21 bytes
-               LD C,&15                        ; 7863 0E 15
+               LD C,&15                        ; 7863 0E 15  twenty-one, this half's &7879
                LDIR                            ; 7865 ED B0
                EX (SP),HL                      ; 7867 E3
                LD C,&03                        ; 7868 0E 03  the ROM's PUT again, 3 bytes from PUT+34
@@ -18376,7 +18381,8 @@ BUILD_PUT_BLOCK:
                LDIR                            ; 786F ED B0
                LD DE,&45B9                     ; 7871 11 B9 45  and ten bytes over &45B9, replacing the ROM's second
                                                ; fragment
-               LD C,&0A                        ; 7874 0E 0A
+               LD C,&0A                        ; 7874 0E 0A  ten, written back over &45B9 -- the last run overwrites
+                                               ; part of the third
                LDIR                            ; 7876 ED B0
                RET                             ; 7878 C9
                CALL GETSTR                     ; 7879 CD 24 01  from here to &788D this code is written for &45C6:
@@ -18387,7 +18393,8 @@ BUILD_PUT_BLOCK:
                BIT 6,H                         ; 787F CB 74
                JR Z,BUILD_PUT_BLOCK_1          ; 7881 28 06
                CALL STKSTR                     ; 7883 CD 27 01
-               JP &0000                        ; 7886 C3 00 00
+               JP &0000                        ; 7886 C3 00 00  the operand is written at run time, an address inside
+                                               ; the ROM's PUT
 
 ; ---- BUILD_PUT_BLOCK_1 ---- from &7881 when bit 6 of H clear
 BUILD_PUT_BLOCK_1:
@@ -18400,20 +18407,20 @@ BUILD_PUT_BLOCK_1:
                LD A,(CUSCRNP)                  ; 788F 3A 78 5A
                AND PAGEMASK                    ; 7892 E6 1F
                OUT (HMPR),A                    ; 7894 D3 FB
-               LD HL,&469E                     ; 7896 21 9E 46
-               LD DE,&F000                     ; 7899 11 00 F0
-               LD BC,&002E                     ; 789C 01 2E 00
+               LD HL,&469E                     ; 7896 21 9E 46  from inside the block just assembled, at &469E
+               LD DE,PUT_TRAMPOLINE            ; 7899 11 00 F0
+               LD BC,&002E                     ; 789C 01 2E 00  forty-six bytes for PUT
                LD A,(SYS_FN_INDEX)             ; 789F 3A F0 4A
                AND A                           ; 78A2 A7
                JR Z,BUILD_PUT_BLOCK_2          ; 78A3 28 02
-               LD C,&1D                        ; 78A5 0E 1D
+               LD C,&1D                        ; 78A5 0E 1D  twenty-nine for GRAB, which needs less of it
 
 ; ---- BUILD_PUT_BLOCK_2 ---- from &78A3 when A = 0
 BUILD_PUT_BLOCK_2:
                LDIR                            ; 78A7 ED B0
                POP BC                          ; 78A9 C1
                POP AF                          ; 78AA F1
-               AND &1F                         ; 78AB E6 1F
+               AND PAGE_VALUE_MASK             ; 78AB E6 1F
                POP HL                          ; 78AD E1
                EXX                             ; 78AE D9
                POP HL                          ; 78AF E1
@@ -18427,7 +18434,7 @@ BUILD_PUT_BLOCK_2:
                AND A                           ; 78BB A7
                LD E,&32                        ; 78BC 1E 32
                JR NZ,BUILD_PUT_BLOCK_5         ; 78BE 20 19
-               LD IY,&F01D                     ; 78C0 FD 21 1D F0
+               LD IY,PUT_TRAMPOLINE + &1D      ; 78C0 FD 21 1D F0
                JR BUILD_PUT_BLOCK_6            ; 78C4 18 1B
 
 ; ---- BUILD_PUT_BLOCK_3 ---- from &78B6 when H reaches 0
@@ -18435,10 +18442,10 @@ BUILD_PUT_BLOCK_3:
                LD DE,(INVERT)                  ; 78C6 ED 5B 54 5A
                LD A,E                          ; 78CA 7B
                OR D                            ; 78CB B2
-               LD A,&04                        ; 78CC 3E 04
+               LD A,&04                        ; 78CC 3E 04  four when INVERT is not set
                JR Z,BUILD_PUT_BLOCK_4          ; 78CE 28 03
                LD A,D                          ; 78D0 7A
-               AND &03                         ; 78D1 E6 03
+               AND &03                         ; 78D1 E6 03  otherwise the low two bits of it
 
 ; ---- BUILD_PUT_BLOCK_4 ---- from &78CE
 BUILD_PUT_BLOCK_4:
@@ -18452,7 +18459,7 @@ BUILD_PUT_BLOCK_4:
 ; ---- BUILD_PUT_BLOCK_5 ---- from &78BE when A <> 0
 BUILD_PUT_BLOCK_5:
                LD D,&00                        ; 78D9 16 00
-               LD IY,&0000                     ; 78DB FD 21 00 00
+               LD IY,&0000                     ; 78DB FD 21 00 00  the same
                ADD IY,DE                       ; 78DF FD 19
 
 ; ---- BUILD_PUT_BLOCK_6 ---- from &78C4
@@ -18471,13 +18478,13 @@ BUILD_PUT_BLOCK_7:
                LD D,(HL)                       ; 78EA 56
                INC HL                          ; 78EB 23
                PUSH HL                         ; 78EC E5
-               CALL &0000                      ; 78ED CD 00 00
+               CALL &0000                      ; 78ED CD 00 00  the same
                LD A,C                          ; 78F0 79
                SUB E                           ; 78F1 93
                POP DE                          ; 78F2 D1
                RES 7,D                         ; 78F3 CB BA
                SET 6,D                         ; 78F5 CB F2
-               LD IX,&F009                     ; 78F7 DD 21 09 F0
+               LD IX,PUT_TRAMPOLINE + &09      ; 78F7 DD 21 09 F0
                EXX                             ; 78FB D9
                LD E,A                          ; 78FC 5F
                LD A,(INVERT)                   ; 78FD 3A 54 5A
@@ -18489,9 +18496,9 @@ BUILD_PUT_BLOCK_7:
                POP AF                          ; 7909 F1
                DEC A                           ; 790A 3D
                AND PAGEMASK                    ; 790B E6 1F
-               LD (&EFFE),SP                   ; 790D ED 73 FE EF
-               LD SP,&EFFE                     ; 7911 31 FE EF
-               JP &F000                        ; 7914 C3 00 F0
+               LD (PUT_TRAMPOLINE - 2),SP      ; 790D ED 73 FE EF
+               LD SP,PUT_TRAMPOLINE - 2        ; 7911 31 FE EF
+               JP PUT_TRAMPOLINE               ; 7914 C3 00 F0
                LD HL,(STKEND)                  ; 7917 2A 65 5C
                PUSH HL                         ; 791A E5
                CALL GETSTR                     ; 791B CD 24 01
@@ -18535,7 +18542,7 @@ BUILD_PUT_BLOCK_9:
 
 ; ---- BUILD_PUT_BLOCK_10 ---- from &7947 when A <> 0
 BUILD_PUT_BLOCK_10:
-               JP &0000                        ; 794B C3 00 00
+               JP &0000                        ; 794B C3 00 00  the same
                OUT (LMPR),A                    ; 794E D3 FA
                LD A,C                          ; 7950 79
 
@@ -18558,7 +18565,7 @@ BUILD_PUT_BLOCK_LOOP:
                DJNZ BUILD_PUT_BLOCK_LOOP       ; 7960 10 EF
                LD A,SYSPAGE_IN_B               ; 7962 3E 1F
                OUT (LMPR),A                    ; 7964 D3 FA
-               LD SP,(&EFFE)                   ; 7966 ED 7B FE EF
+               LD SP,(PUT_TRAMPOLINE - 2)      ; 7966 ED 7B FE EF
                RET                             ; 796A C9
 
 ; ---- BUILD_PUT_BLOCK_LOOP2 ---- from &7978 when B is not 0 yet
@@ -18589,7 +18596,7 @@ BUILD_PUT_BLOCK_LOOP2:
                POP HL                          ; 7986 E1  from here to &798F this code is written for &45A2: subtract
                                                ; &33E4 from any address in it
                RST NEXT_CHAR                   ; 7987 E7
-               SUB &AB                         ; 7988 D6 AB
+               SUB TOKEN_GRAB                  ; 7988 D6 AB
                LD (SYS_FN_INDEX),A             ; 798A 32 F0 4A
                JR NZ,RESOLVE_ROM_ENTRIES       ; 798D 20 01
                RST NEXT_CHAR                   ; 798F E7
@@ -18631,7 +18638,7 @@ BUILD_PUT_BLOCK_LOOP2:
 ;; given the codes for word-left and word-right.
 ;; --------------------------------------------------------------------
 
-; ---- RESOLVE_ROM_ENTRIES ---- from &75EF, &798D when A <> &AB
+; ---- RESOLVE_ROM_ENTRIES ---- from &75EF, &798D when A <> TOKEN_GRAB
 RESOLVE_ROM_ENTRIES:
                CALL DOS_FIND_ROM_CODE          ; 7990 CD 79 BD
                DEFB &C9,&E3,&CD,&10,&30,&03    ; 7993 signature C9 E3 CD from &1030, +3  -> &1066

@@ -1,0 +1,55 @@
+# INSTALL_EXTENDED_PUT and the block it builds: MasterBASIC's GRAB and PUT.
+#
+# Prose for listings/clean/ only.
+#
+# The block is assembled from seven LDIRs into &45A2-&46CB in the system
+# page -- four runs of this half's own code and three lifted out of the
+# ROM's own PUT, wherever the signature search found it.  So the copy
+# lengths are the structure of the thing, and each one is worth saying at
+# the LDIR that uses it rather than only in the banner above.
+
+CONST TOKEN_GRAB = &AB : the lower of the two command tokens this block serves; PUT is the next one up, &AC
+CONST PUT_TRAMPOLINE = &F000 : section D, where a fragment of the finished block is copied and run with the extension paged out
+
+# The seven runs, by the count each LDIR is given.
+MB &7848 : ten -- the token-to-index stub named on the line above
+MB &784E : thirteen, the ROM's PUT from its first byte
+MB &7855 : thirteen more, PUT+&0D onwards
+MB &785C : eight, added to HL rather than copied -- PUT+&1A to PUT+&22 is skipped
+MB &7863 : twenty-one, this half's &7879
+MB &7874 : ten, written back over &45B9 -- the last run overwrites part of the third
+
+# The token arithmetic the stub does once installed.
+MB &7988 value TOKEN_GRAB
+
+# The trampoline.  &469E is inside the block just built, so this copies a
+# fragment of the finished code into section D and runs it there.
+MB &7896 : from inside the block just assembled, at &469E
+MB &789C : forty-six bytes for PUT
+MB &78A5 : twenty-nine for GRAB, which needs less of it
+MB &7899 value PUT_TRAMPOLINE
+MB &7914 value PUT_TRAMPOLINE
+MB &78C0 expr PUT_TRAMPOLINE + &1D
+MB &78F7 expr PUT_TRAMPOLINE + &09
+MB &790D expr PUT_TRAMPOLINE - 2
+MB &7911 expr PUT_TRAMPOLINE - 2
+MB &7966 expr PUT_TRAMPOLINE - 2
+
+MB &78AB value PAGE_VALUE_MASK
+
+# The four operands INSTALL_EXTENDED_PUT patches once the signature search
+# has found the ROM's PUT: each is an address inside it, so none can be
+# written down here.
+MB &7886 : the operand is written at run time, an address inside the ROM's PUT
+MB &78DB : the same
+MB &78ED : the same
+MB &794B : the same
+
+# The PUT operation, from INVERT.
+MB &78CC : four when INVERT is not set
+MB &78D1 : otherwise the low two bits of it
+
+# Left as numbers on purpose: &7889 LD H,&00 and &78D9 LD D,&00 are
+# clearing a register half, and &78BC LD E,&32 is set before the GRAB/PUT
+# branch and used on both sides of it -- what fifty counts is not legible
+# from here, and a wrong name would be worse than the number.
