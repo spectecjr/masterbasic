@@ -10586,10 +10586,18 @@ HOOK_MERGECOMPFLG_5:
 ;;     history is a ring -- exactly the manual's "you go right 'round' the
 ;;     line-storage buffer and come back to where you were".
 ;;
-;;     From &5493 on it does something further, counting down the byte at
-;;     V407D that SCAN_TEXT_PAGED set to 2, and only when that reaches
-;;     zero and the edit line is empty; that tail is past this region and
-;;     I have not worked it out.
+;;     From &5493 on it does something further, and it is the two-gate test
+;;     that lets REF resume.  The byte at V407D, which SCAN_TEXT_PAGED set
+;;     to 2, is counted down by the DEC (HL) at &5499 -- so the first line
+;;     entry leaves 1 and the second reaches 0 -- and reaching zero is
+;;     necessary but not enough.  &549B then does LD A,(BC) : CP CH_CR :
+;;     RET NZ, with BC the ELINE the POP at &5492 restored, so the search
+;;     goes on only if the edit line came back empty.
+;;
+;;     That second gate is the manual's rule: "If you enter a command,
+;;     rather than pressing RETURN, REF assumes that you are finished, and
+;;     you will have to re-enter the REF command to look for more
+;;     instances."
 ;; --------------------------------------------------------------------
 
 ; ---- HOOK_MERGECOMPFLG_6 ---- from &53E1
