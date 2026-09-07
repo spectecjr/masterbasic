@@ -38,7 +38,6 @@ DIR_NAME_BUFFER:         EQU  &A000            ; where a sorted listing collects
 DRAM_PAGE_HIGH:          EQU  &7D
 MAX_INTERNAL_PAGE:       EQU  &1F              ; the highest page number a 512K machine has
 MIN_RAMDISC_PAGE_TYPE:   EQU  &D0              ; lowest allocation code that means a RAM disc
-PAGE_VALUE_MASK:         EQU  &1F              ; a page number is five bits; the rest of the port is not
 PAST_RAMDISC_PAGE_TYPE:  EQU  &D8              ; one above the highest, so the test is a range
 PAST_WINDOW_TOP:         EQU  &C0
 RAMDISC_PAGE_HIGH:       EQU  &80

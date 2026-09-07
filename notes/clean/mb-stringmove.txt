@@ -1,0 +1,29 @@
+# The string move MasterBASIC installs over the ROM's INSLV vector.
+#
+# Prose for listings/clean/ only.  The block is assembled at &7460 and runs
+# at &46CC in the system page, so every address inside it is &2D94 higher
+# than the label the listing can show -- which is why so many of its
+# operands are bare numbers and have to stay that way.  What follows names
+# the ones that are values rather than addresses.
+
+CONST SHORT_MOVE_LIMIT = &15 : below this many bytes the ROM's own mover is quicker than the paging this one has to do
+CONST SECTION_D = &C000 : where section D begins; a move that reaches it has to change the paging rather than walk on
+
+MB &7465 value SHORT_MOVE_LIMIT
+MB &749F : the high byte alone, so this is "has the move reached section D"
+MB &74A6 expr SECTION_D + 1
+MB &74D8 value SECTION_D
+MB &7533 : the high byte again, taking the address back down to an offset within the section
+MB &7570 value PAGE_VALUE_MASK
+MB &7587 value PAGE_VALUE_MASK
+
+# The two symmetric tails at &756D and &7587 are the same move done at the
+# two ends of section C: one sets a stack at &8008 and a return at &800A,
+# the other at &BF88 and &BF8A.  Both are window addresses -- the other
+# page seen through section C -- and both are followed by a JP whose
+# operand a signature search writes at run time, from &79E2 and &79E5.
+# They are left as numbers because a label from this page would name the
+# wrong thing entirely.
+
+MB &7574 : &47ED once this block is moved -- where the jump below comes back to
+MB &758B : &4804 once this block is moved -- the same, for the other end

@@ -183,12 +183,21 @@ def take_homed(pairs, names):
     The first half to declare a name is the one whose spelling is kept,
     which is what shared() promises.
     """
-    groups, order = {}, []
+    groups, order, placed = {}, [], set()
     for head, homes in pairs:
-        found = [(homes[n][0], homes[n][1], homes[n][2], line)
+        found = [(homes[n][0], homes[n][1], homes[n][2], n, line)
                  for n, line in equ_lines(head).items()
                  if n in names and n in homes]
-        for _seq, heading, key, line in sorted(found, key=lambda t: t[0]):
+        for _seq, heading, key, name, line in sorted(found, key=lambda t: t[0]):
+            # Once, under the first heading that claims it.  A name the
+            # two halves group differently -- PAGE_VALUE_MASK is under
+            # "Memory" in the DOS, where a notes/clean GROUP put it, and
+            # ungrouped in MasterBASIC, which only uses it -- would
+            # otherwise be declared twice in the one file.  pyz80 accepts
+            # that while the values agree, so the build cannot see it.
+            if name in placed:
+                continue
+            placed.add(name)
             if heading not in groups:
                 groups[heading] = {}
                 order.append(heading)

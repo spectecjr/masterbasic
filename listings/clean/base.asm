@@ -93,6 +93,10 @@
 ; high means adding the 16K between the two views.
 IN_PAGE_C:                      EQU  &4000                                   ; the window, less where this is assembled
 
+; Memory
+PAGE_VALUE_MASK:                EQU  &1F                                     ; a page number is five bits; the rest of
+                                                                             ; the port is not
+
 ; Disk controller status
 DISK_STATUS_CRC_ERROR:          EQU  &08                                     ; what was read did not check out
 DISK_STATUS_DRQ:                EQU  &02                                     ; a byte is waiting to be taken, or wanted

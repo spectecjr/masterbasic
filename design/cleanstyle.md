@@ -189,25 +189,51 @@ which should keep a name where it belongs, with the person doing the work.
 
 **The report is per routine, on every build.** `bare_by_routine()` groups each
 site under the routine that owns it, ranked worst first, as
-`NAME sites/instructions` — the denominator matters, because eight bare numbers
-in a forty-instruction routine is a different thing from eight in four hundred.
-It changes what the remaining work looks like:
+`NAME unexplained/instructions` — the denominator matters, because eight bare
+numbers in a forty-instruction routine is a different thing from eight in four
+hundred.
 
 ```
-DOS  817 sites over 407 routines   worst FSTAT 12/79, CHECK_FILE_TYPE 11/30
-MB  1106 sites over 244 routines   worst L7467 39/144, BUILD_PUT_BLOCK 31/200
+DOS   817 numbers, 504 unexplained, over 288 routines
+      worst FSTAT 12/79, RESET_CHANNEL_SCAN 10/32, CMR 8/42
+MB   1101 numbers, 732 unexplained, over 178 routines
+      worst RELOCATED_TO_46CC 33/196, BUILD_PUT_BLOCK 27/200,
+            COPY_SCREEN_CONVERT 25/166
 ```
 
-The two halves want different treatment. The DOS's 817 are a long tail — 407
-routines, the worst of them twelve, and the top twelve accounting for only 105
-sites. MasterBASIC's 1106 are concentrated: 244 routines, and the top twelve
-alone are 285 sites, a quarter of the total. So MasterBASIC first, worst first.
+So a third of the numbers already carry an explanation, and the work left is
+1236 rather than 1918.
 
-And the top of that list says something on its own. `L7467` and `V5DBF`, the
-two worst routines in the half, still carry synthetic names — nobody has worked
-them at all. The worst offenders are not routines that were written up and left
-numbers behind; they are the regions still untouched, where naming the routine
-and naming its numbers are the same job.
+The two halves want different treatment. The DOS's are a long tail — 288
+routines, the worst of them twelve, the top twelve only 80 sites between them,
+so there is no leverage and it is genuinely a few hundred small jobs.
+MasterBASIC's are concentrated: 178 routines, and the top twelve are 234 sites,
+just under a third of that half's total. MasterBASIC first, worst first.
+
+The reason is structural rather than anything about the code. `notes/clean/`
+holds twenty-three DOS files and two MasterBASIC ones, so the reading-copy
+treatment has been almost entirely DOS-side. MasterBASIC does not carry more
+numbers because its code is denser; it carries them because nobody has worked
+it in this style yet.
+
+**Two things the report got wrong at first**, both found only by doing a
+routine against it rather than by reading the code that produced it.
+
+It treated synthetic labels as routine heads. `L7467` is a name for an address
+seven bytes into `RELOCATED_TO_46CC` and it was taking the other 143
+instructions of that block with it, which put a label that is not a routine at
+the top of the worst list. A `L####`, `V####` or `TBL_####` is never a head:
+`autolabel` makes one for any referenced address and `name_synthetic_labels`
+has already tried to give it a parent and failed.
+
+And it counted numbers without *names* when the target is numbers without
+*explanations*. Naming five sites in `RELOCATED_TO_46CC` moved it from 53 to
+48; giving four more an explanation instead moved it not at all — yet those
+four are the correct treatment, because twenty of that block's operands are
+addresses in `&46CC`-`&484C` where a label from this half would name the wrong
+page's byte. They can never be named, only explained. Left as it was, the
+queue could never empty and the deliberate exceptions would inflate exactly the
+routines most worth working.
 
 The two-byte side is easier: 763 operands and 367 distinct values under the
 same rule, and most are addresses that already resolve to labels.

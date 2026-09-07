@@ -63,6 +63,10 @@ GREY_TAKEN:             EQU  &7B90
 REF_BUFFER:             EQU  &7B00
 REF_BUFFER_2:           EQU  &7B80
 REF_BUFFER_2_TEXT:      EQU  &7B81
+SECTION_D:              EQU  &C000             ; where section D begins; a move that reaches it has to change the paging
+                                               ; rather than walk on
+SHORT_MOVE_LIMIT:       EQU  &15               ; below this many bytes the ROM's own mover is quicker than the paging
+                                               ; this one has to do
 SYS_CDBUFF_11:          EQU  &4D11
 SYS_CDBUFF_50:          EQU  &4D50
 SYS_CHAR_HEIGHT:        EQU  &4AEF
@@ -17367,7 +17371,7 @@ RELOCATED_TO_46CC:
                AND A                           ; 7461 A7
                JR NZ,RELOCATED_TO_46CC_1       ; 7462 20 06
                LD A,C                          ; 7464 79
-               CP &15                          ; 7465 FE 15
+               CP SHORT_MOVE_LIMIT             ; 7465 FE 15
 
 L7467:
                JP C,&0000                      ; 7467 DA 00 00  the operand is written here at run time, from &79F1
@@ -17412,12 +17416,13 @@ RELOCATED_TO_46CC_3:
                EX AF,AF'                       ; 749C 08
                INC HL                          ; 749D 23
                LD A,H                          ; 749E 7C
-               CP &C0                          ; 749F FE C0
+               CP &C0                          ; 749F FE C0  the high byte alone, so this is "has the move reached
+                                               ; section D"
                JR NC,RELOCATED_TO_46CC_4       ; 74A1 30 15
                PUSH BC                         ; 74A3 C5
                LD B,H                          ; 74A4 44
                LD C,L                          ; 74A5 4D
-               LD HL,&C001                     ; 74A6 21 01 C0
+               LD HL,SECTION_D + 1             ; 74A6 21 01 C0
                SBC HL,BC                       ; 74A9 ED 42
                EX (SP),HL                      ; 74AB E3
                POP BC                          ; 74AC C1
@@ -17445,7 +17450,7 @@ RELOCATED_TO_46CC_4:
                LD BC,&0016                     ; 74D1 01 16 00
                CP &FF                          ; 74D4 FE FF
                JR C,RELOCATED_TO_46CC_5        ; 74D6 38 03
-               LD HL,&C000                     ; 74D8 21 00 C0
+               LD HL,SECTION_D                 ; 74D8 21 00 C0
 
 ; ---- RELOCATED_TO_46CC_5 ---- from &74D6 when A < &FF
 RELOCATED_TO_46CC_5:
@@ -17500,7 +17505,8 @@ RELOCATED_TO_46CC_6:
                ADD HL,BC                       ; 7530 09
                DEC HL                          ; 7531 2B
                LD A,H                          ; 7532 7C
-               SUB &C0                         ; 7533 D6 C0
+               SUB &C0                         ; 7533 D6 C0  the high byte again, taking the address back down to an
+                                               ; offset within the section
                JR C,RELOCATED_TO_46CC_7        ; 7535 38 12
                LD H,A                          ; 7537 67
                INC HL                          ; 7538 23
@@ -17535,9 +17541,10 @@ RELOCATED_TO_46CC_7:
                DEC A                           ; 756A 3D
                JR C,RELOCATED_TO_46CC_8        ; 756B 38 1A
                LD HL,&8000                     ; 756D 21 00 80
-               AND &1F                         ; 7570 E6 1F
+               AND PAGE_VALUE_MASK             ; 7570 E6 1F
                LDIR                            ; 7572 ED B0
-               LD HL,&47ED                     ; 7574 21 ED 47
+               LD HL,&47ED                     ; 7574 21 ED 47  &47ED once this block is moved -- where the jump below
+                                               ; comes back to
                LD (&800A),HL                   ; 7577 22 0A 80
                EXX                             ; 757A D9
                LD SP,&8008                     ; 757B 31 08 80
@@ -17550,9 +17557,10 @@ L757E:
 
 ; ---- RELOCATED_TO_46CC_8 ---- from &756B
 RELOCATED_TO_46CC_8:
-               AND &1F                         ; 7587 E6 1F
+               AND PAGE_VALUE_MASK             ; 7587 E6 1F
                LDIR                            ; 7589 ED B0
-               LD HL,&4804                     ; 758B 21 04 48
+               LD HL,&4804                     ; 758B 21 04 48  &4804 once this block is moved -- the same, for the
+                                               ; other end
                LD (&BF8A),HL                   ; 758E 22 8A BF
                EXX                             ; 7591 D9
                LD SP,&BF88                     ; 7592 31 88 BF

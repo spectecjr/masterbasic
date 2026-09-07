@@ -2908,9 +2908,11 @@ def write_clean(pages):
     cover = clean.coverage((dos, mb))
     for d in (dos, mb):
         mine, orig = cover[d.tag]
+        nums, unexplained = bare[d.tag]
         print('listings/clean/: %s -- %d line comments written here, %d still the '
-              'MasterDOS author%ss own; %d instructions carry an unnamed '
-              'number' % (d.tag, mine, orig, chr(39), bare[d.tag]))
+              'MasterDOS author%ss own; %d instructions carry a number, %d of '
+              'them unexplained'
+              % (d.tag, mine, orig, chr(39), nums, unexplained))
         # Per routine, so that what is left is a queue rather than a
         # wall.  Not a target of zero: the count is of sites, and which
         # of them should keep a name is a judgement the report does not

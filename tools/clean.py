@@ -328,25 +328,38 @@ def coverage(pages):
 
 
 def bare_numbers(pages):
-    """How many instructions still carry a number nobody has named.
+    """(numbers, of those the ones with no explanation either), per half.
 
     A count, not a judgement: plenty of them should stay numbers, and a
     loop counter of 8 is just 8.  It is here because it is the one thing
     the byte check cannot see.  Taking a name away leaves the listing
     assembling perfectly and reading worse -- which is what happened when
     the boot's constants were regrouped and two were dropped on the way.
+
+    The second figure is the one to work down.  The target is no
+    UNEXPLAINED number in a routine that has been worked, and some
+    numbers cannot be named at all: an operand inside a block written for
+    another address takes a label from the wrong page, so the honest
+    treatment is a comment saying what it will be once the block moves.
+    A site with a comment on its line is done; only the silent ones are
+    outstanding.
     """
     out = {}
     for d in pages:
-        n = 0
+        n = bare = 0
         for a, ins in d.insns.items():
             if not d.inside(a) or not ins.asm:
                 continue
             text = d.overrides.get(a, ins.text)
             if re.search(r'&[0-9A-F]{2}([0-9A-F]{2})?\b', text):
                 n += 1
-        out[d.tag] = n
+                if not d.comments.get(a):
+                    bare += 1
+        out[d.tag] = (n, bare)
     return out
+
+
+SYNTHETIC = re.compile(r'^(TBL_|[LV])[0-9A-F]{4}$')
 
 
 def bare_by_routine(d):
@@ -359,17 +372,26 @@ def bare_by_routine(d):
     name_synthetic_labels applies when it makes those names, read
     backwards.
 
-    Returns [(head_name, sites, total_instructions)], worst first.  The
-    total is there because eight bare numbers in a forty-instruction
+    Returns [(head_name, unexplained, total_instructions)], worst first.
+    The total is there because eight bare numbers in a forty-instruction
     routine is a different thing from eight in four hundred.
     """
     names = set(d.labels.values())
 
     def internal(name):
+        # PARENT_LOOP, PARENT_3: a label another label owns.
         for i in range(len(name) - 1, 0, -1):
             if name[i] == '_' and name[:i] in names:
                 return True
-        return False
+        # L7467, V5DBF, TBL_4A20: this project's own name for an address
+        # that was referred to.  Never a routine head -- autolabel makes
+        # one for any referenced address, and name_synthetic_labels has
+        # already tried to give it a parent and failed, so what is left
+        # is mostly a branch target inside a block it could not
+        # attribute.  L7467 is seven bytes into RELOCATED_TO_46CC and was
+        # taking the other 143 instructions of it with it, which put a
+        # label that is not a routine at the top of the worst list.
+        return bool(SYNTHETIC.match(name))
 
     heads = sorted(a for a, nm in d.labels.items() if not internal(nm))
     if not heads:
@@ -384,7 +406,8 @@ def bare_by_routine(d):
         head = d.labels[heads[i]]
         totals[head] = totals.get(head, 0) + 1
         text = d.overrides.get(a, ins.text)
-        if re.search(r'&[0-9A-F]{2}([0-9A-F]{2})?\b', text):
+        if (re.search(r'&[0-9A-F]{2}([0-9A-F]{2})?\b', text)
+                and not d.comments.get(a)):
             counts[head] = counts.get(head, 0) + 1
     return sorted(((nm, n, totals.get(nm, 0)) for nm, n in counts.items()),
                   key=lambda r: (-r[1], r[0]))
