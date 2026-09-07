@@ -35,6 +35,7 @@ counts what is left, and build.sh prints it, so the gap is visible
 instead of implied.
 """
 
+import bisect
 import re
 
 NL = chr(10)
@@ -346,6 +347,47 @@ def bare_numbers(pages):
                 n += 1
         out[d.tag] = n
     return out
+
+
+def bare_by_routine(d):
+    """The same count, split by the routine each site belongs to.
+
+    A routine head is a label no other label owns.  An internal label is
+    written PARENT_suffix -- PARENT_LOOP, PARENT_3 -- so a label is
+    internal exactly when some other label is a prefix of it up to an
+    underscore, and everything else is a head.  That is the same rule
+    name_synthetic_labels applies when it makes those names, read
+    backwards.
+
+    Returns [(head_name, sites, total_instructions)], worst first.  The
+    total is there because eight bare numbers in a forty-instruction
+    routine is a different thing from eight in four hundred.
+    """
+    names = set(d.labels.values())
+
+    def internal(name):
+        for i in range(len(name) - 1, 0, -1):
+            if name[i] == '_' and name[:i] in names:
+                return True
+        return False
+
+    heads = sorted(a for a, nm in d.labels.items() if not internal(nm))
+    if not heads:
+        return []
+    counts, totals = {}, {}
+    for a, ins in sorted(d.insns.items()):
+        if not d.inside(a) or not ins.asm:
+            continue
+        i = bisect.bisect_right(heads, a) - 1
+        if i < 0:
+            continue
+        head = d.labels[heads[i]]
+        totals[head] = totals.get(head, 0) + 1
+        text = d.overrides.get(a, ins.text)
+        if re.search(r'&[0-9A-F]{2}([0-9A-F]{2})?\b', text):
+            counts[head] = counts.get(head, 0) + 1
+    return sorted(((nm, n, totals.get(nm, 0)) for nm, n in counts.items()),
+                  key=lambda r: (-r[1], r[0]))
 
 
 # The half's own preamble: what it is, where it runs, and a pointer to

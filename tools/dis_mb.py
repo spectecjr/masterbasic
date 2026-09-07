@@ -2905,10 +2905,22 @@ def write_clean(pages):
     PAGE_BIAS[0] = '&4000'
     SELF_LOOP[0] = False
     bare = clean.bare_numbers((dos, mb))
-    for tag, (mine, orig) in sorted(clean.coverage((dos, mb)).items()):
+    cover = clean.coverage((dos, mb))
+    for d in (dos, mb):
+        mine, orig = cover[d.tag]
         print('listings/clean/: %s -- %d line comments written here, %d still the '
               'MasterDOS author%ss own; %d instructions carry an unnamed '
-              'number' % (tag, mine, orig, chr(39), bare[tag]))
+              'number' % (d.tag, mine, orig, chr(39), bare[d.tag]))
+        # Per routine, so that what is left is a queue rather than a
+        # wall.  Not a target of zero: the count is of sites, and which
+        # of them should keep a name is a judgement the report does not
+        # make -- see design/cleanstyle.md section 3.
+        rows = clean.bare_by_routine(d)
+        if not rows:
+            continue
+        heavy = ', '.join('%s %d/%d' % r for r in rows[:12])
+        print('listings/clean/:   spread over %d routines; worst: %s'
+              % (len(rows), heavy))
 
 
 def write_speculation(dos, mb, outdir):

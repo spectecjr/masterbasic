@@ -183,11 +183,31 @@ what the existing `value` entry already does, and it belongs inside the
 per-routine pass rather than in a sweep of its own.
 
 The workable target is therefore: **no unexplained number in a routine
-that has been worked**, with a report saying how many bare immediates are
-left. Some will stay bare on purpose — a loop counter of 8 that is just 8 —
-and the report should let a routine be marked done with them still there.
-*As built:* `bare_numbers()` gives the count per half on every build, not per
-routine.
+that has been worked**. Some will stay bare on purpose — a loop counter of 8
+that is just 8 — so the report counts sites and leaves the judgement about
+which should keep a name where it belongs, with the person doing the work.
+
+**The report is per routine, on every build.** `bare_by_routine()` groups each
+site under the routine that owns it, ranked worst first, as
+`NAME sites/instructions` — the denominator matters, because eight bare numbers
+in a forty-instruction routine is a different thing from eight in four hundred.
+It changes what the remaining work looks like:
+
+```
+DOS  817 sites over 407 routines   worst FSTAT 12/79, CHECK_FILE_TYPE 11/30
+MB  1106 sites over 244 routines   worst L7467 39/144, BUILD_PUT_BLOCK 31/200
+```
+
+The two halves want different treatment. The DOS's 817 are a long tail — 407
+routines, the worst of them twelve, and the top twelve accounting for only 105
+sites. MasterBASIC's 1106 are concentrated: 244 routines, and the top twelve
+alone are 285 sites, a quarter of the total. So MasterBASIC first, worst first.
+
+And the top of that list says something on its own. `L7467` and `V5DBF`, the
+two worst routines in the half, still carry synthetic names — nobody has worked
+them at all. The worst offenders are not routines that were written up and left
+numbers behind; they are the regions still untouched, where naming the routine
+and naming its numbers are the same job.
 
 The two-byte side is easier: 763 operands and 367 distinct values under the
 same rule, and most are addresses that already resolve to labels.
@@ -238,8 +258,8 @@ What makes many iterations safe rather than a slow drift:
   what the listings say. `design/` was added after an audit found names in it
   that the listings had not used for months.
 - **A scoreboard** in the build output: comments written here against the
-  author's, and bare immediates left. *As built:* per half, two lines, not
-  per routine.
+  author's, and bare immediates left per half and then per routine, worst
+  first, so that what remains is a queue rather than a wall.
 
 That last one matters most. The example, written by hand, has
 `SCREEN_PAGE_TYPE: EQU &C0` used on an instruction whose byte is `&30`;
