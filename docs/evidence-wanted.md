@@ -306,6 +306,33 @@ its table of where the ROM header's fields land stops at 220 and resumes at
 
 ---
 
+## 9. What reaches the DOS's `&4206`, given that `NMIV` does not
+
+`&4206` is the third entry of MasterDOS's jump table and is `JP NMI`, so the
+NMI menu is plainly meant to be entered there. Nothing found so far enters it.
+
+- `NMIV` (`&5AE0`) holds `&1C9E` in `SYSPAGE_before_boot.bin`,
+  `SYSPAGE_after_MasterDOS_loaded.bin` and `SYSPAGE_after_MBMD_boot.bin`
+  alike, and `&1C9E` is the ROM's own `NMISTOP`. `DOSFLG` goes `&00` to `&1D`
+  across those dumps, so the later two are genuinely post-boot and the value
+  is not a leftover.
+- Neither half of the image writes `&5AE0`, and nothing in the 512K
+  `FullMemoryDump` does either.
+- ROM 3.0 calls the DOS at `&4200`, `&4203` and `&8009`, and nowhere else.
+
+The likeliest answer is that it is the Spectrum emulator's, which the Technical
+Manual points at — the snapshot button works "when the Disk Operating System
+Spectrum Emulator is loaded" — and which lives in page 3, in neither half of
+this image nor in the ROM. `SNAP7`'s resume path already goes through a stub at
+`&B900` in that page, so there is precedent for the emulator carrying DOS-aware
+code.
+
+**What would settle it.** A dump of page 3 with the emulator loaded, or a dump
+of the system page taken while Spectrum mode is active — if `NMIV` reads
+`&4206` there rather than `&1C9E`, that is the whole answer.
+
+---
+
 ## Notes on capturing
 
 - Anything saved as a CODE file on an `.mgt` or `.dsk` image can be dropped
