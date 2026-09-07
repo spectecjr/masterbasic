@@ -90,8 +90,9 @@ MB &41E4 FN_NVAL_FLOAT
     SVAL$(0,3) comes back as exactly 0.  For a negative number the &FF
     stays put and the magnitude rounds up instead.
 
-    Which direction the ordering actually runs is not settled here: see
-    the note at the foot of this file.
+    The ordering runs descending, and the note at the foot of this file
+    says how that was settled: SVAL$'s calculator program is RESTACK
+    then EXIT2, so it never touches the sign.
 
 MB &41E4 : SUB 3 then CP 3 -- lengths 3, 4 and 5 become 0, 1 and 2, while 0 and 1 wrap to &FD and &FE, so one unsigned compare throws out too short and too long together
 
@@ -178,15 +179,20 @@ MB &426F FILE_NUMBER_TO_TRACK_SECTOR
     this routine, and nothing in DECIMAL_DIGIT reaches past its RET at
     &426E.  Naming the routine gives them the right prefix.
 
-# Not worked out.
+# SETTLED, from the ROM's own calculator table.
 #
 # Which way SVAL$'s ordering runs.  As decoded at &41E4, a positive
 # number gets a first byte below &80 with larger positives giving
 # smaller bytes, and a negative one a first byte at or above &80 with
 # larger magnitudes giving larger bytes -- descending numeric order
-# under SORT.  Whether SVAL$'s own calculator program at INSTBUF (RST 28
-# with literals 00, 31, 34, written at &4182-&418A) negates the number
-# first, which would make it ascending, is not settled: those two
-# calculator opcodes are not among this listing's FPC_ equates.  NVAL
-# does not negate, so if SVAL$ did, NVAL would be its inverse only up to
-# sign -- which argues that it does not.
+# under SORT.  The question was whether SVAL$'s own calculator program
+# negates the number first, which would make it ascending.
+#
+# It does not.  &4182-&418A writes &EF -- RST &28, the calculator -- and
+# then the two opcodes &31 and &34, and ref/samrom/fpcmain.asm:98,101
+# names them: 31 is RESTACK (FPFORM) and 34 is EXIT2 (FPEXIT2).  Restack
+# converts an integer-form value to full floating point; exit leaves the
+# calculator.  Neither touches the sign.  So the program does nothing but
+# put the number in a known form, the ordering is descending as decoded,
+# and NVAL is SVAL$'s exact inverse rather than its inverse up to sign --
+# which is what the argument from NVAL not negating had already suggested.

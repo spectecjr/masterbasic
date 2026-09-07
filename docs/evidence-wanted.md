@@ -215,6 +215,24 @@ result worth anything.
 
 ---
 
+## What is still wanted, at a glance
+
+Three captures and a page of BASIC would close everything below.
+
+| | Closes | Cost |
+|---|---|---|
+| **A dump of page 3 with the Spectrum emulator loaded**, and of the system page while Spectrum mode is active | 9, and test 10d under it | needs Spectrum mode entered |
+| **The word at `&4EFE` in the system page while `SPLIT` runs** | 7 | needs a break in the right place |
+| **A directory entry read back after saving a compressed screen** | 8 | easy |
+| **Seven short BASIC tests**, 10a to 10g | seven of the nine defects that have never been run | easy — a machine and a few lines each |
+| *(10h, 10i and 10j want damaged discs or an unreachable stack, and are listed so nobody spends an afternoon on them)* | — | hard to impossible |
+
+The Spectrum capture is the valuable one: it is the only thing that would
+settle where the NMI menu is entered from, and one of the defects below sits on
+the same path and cannot be exercised without it.
+
+---
+
 ## 7. What the ROM's outermost error handler is while `SPLIT` runs
 
 **Open.** `SPLIT`'s last fifty-five bytes, `MB &6F07-&6F3D`, rewrite the
@@ -330,6 +348,102 @@ code.
 **What would settle it.** A dump of page 3 with the emulator loaded, or a dump
 of the system page taken while Spectrum mode is active — if `NMIV` reads
 `&4206` there rather than `&1C9E`, that is the whole answer.
+
+---
+
+## 10. Defects read out of the instructions and never seen run
+
+Every one of these is written up in [bugs.md](bugs.md) and derived from the
+code alone. None has been observed on a machine, and that is the gap: a defect
+proved from the instructions and never executed is still a reading. They are in
+roughly the order of how cheap they are to try.
+
+**10a. `DVAR 22` points into the middle of a routine.** One line:
+
+```
+PRINT DVAR 22
+```
+
+Expect **17395** (`&43F3`). The hook table `SAMHK` is at **17574** (`&44A6`),
+179 bytes further on, and `&43F3` is an `LD L,C` inside another routine. Any
+program that reads `DVAR 22` to find the table is sent to the wrong place. If
+it prints 17574, this image is not the one the defect was read out of and that
+is worth knowing too.
+
+**10b. Six pairs of file names cannot be told apart.** `CKNAM` folds bit 5 out
+of every character, which was meant to make the compare case-blind and also
+merges six printable pairs:
+
+```
+@ `     [ {     \ |     ] }     ^ ~     _ DEL
+```
+
+Save a file called `X^`, then `DIR "X~"`. If it lists, the fold is doing what
+the code says. Then save a second file as `X~` and see which of the two a
+`LOAD "X^"` fetches — that is the destructive half, and it is worth knowing
+whether the DOS offers to overwrite or silently picks one.
+
+**10c. `SORT INVERSE` reverts to ascending after 256 elements.** Fill a string
+array with more than 256 elements in random order, `SORT INVERSE`, and print
+it. Expect the first block descending and every block after it ascending —
+neither sorted nor reversed, but alternating runs. Under 256 elements it should
+be correct, which is the control.
+
+**10d. The NMI menu's exit restores `HMPR` from the saved `LMPR`.** Enter
+Spectrum mode, press NMI, press `X` to exit, then `PEEK` through the `&8000`
+window and see which page answers. `SNPRT0` ships `&1F` and stays `&1F`, so the
+window should come back holding page 31 rather than whatever was there.
+*Needs the Spectrum capture above, or at least Spectrum mode.*
+
+**10e. `COPY SCREEN`'s MODE 2 fast path.** `COPY SCREEN` in MODE 2 and compare
+against the same picture in MODE 3. The fast path tests for a mode number it
+never receives, so MODE 2 should take the slow path — visible as time rather
+than as a wrong picture, which is why this one wants a stopwatch more than an
+eye.
+
+**10f. `LOCN` reads one byte past its own bound.** Put a search pattern at the
+very end of a region and `LOCN` for it, with the byte immediately after the
+region set to something that would change the answer. The scan bounds itself at
+`N = length - patlen + 1` and then compares without a bound of its own, so for
+any pattern longer than one character the extra byte is *inside* the region and
+its flags are what comes back.
+
+**10g. A year of `00` stops the date stamp half-written.** Set the clock to a
+year of `00`, save a file onto a directory slot that already held a stamped
+one, and `DIR` it. Expect today's day and month against a garbage year and
+time — most often `&FF`, since the entry image comes from `UIFA` and the ROM
+leaves that area uninitialised. One year in a hundred, so this is the one that
+needs a deliberate clock rather than patience.
+
+**10h. `LOST DATA` on a block transfer.** The block loops mask the controller
+status with a value that cannot see `LOST DATA`. Inducing one needs the
+processor held up mid-transfer, which is hard to arrange deliberately; a
+heavily interrupt-loaded machine doing a large `LOAD` is the best chance.
+Listed for completeness rather than as a realistic test.
+
+**10i. `RECORD NOT FOUND` recovery is never chosen by the bit it tests.** Same
+difficulty: it wants a disc with a deliberately damaged ID field.
+
+**10j. `NVAL` writes `STKEND` back 256 too low.** Essentially unreachable — it
+needs `STKEND` at exactly `&4DFF` when `NVAL` runs, which means about fifty
+five-byte values already on the calculator stack. An expression with that many
+pending operands would be an achievement in itself. Recorded so that nobody
+spends an afternoon on it.
+
+---
+
+## Settled without new evidence
+
+Worth separating from the above, because the answer was already in the
+repository and only wanted reading:
+
+- **Which way `SVAL$`'s ordering runs.** Its calculator program at
+  `MB &4182`-`&418A` writes `&EF` — `RST &28` — and then opcodes `&31` and
+  `&34`. `ref/samrom/fpcmain.asm` names them `RESTACK` and `EXIT2`: one puts
+  the value in full floating-point form, the other leaves the calculator, and
+  neither touches the sign. So `SVAL$` does not negate, the ordering is
+  descending as decoded, and `NVAL` is its exact inverse. See
+  `notes/mb-nval.txt`.
 
 ---
 

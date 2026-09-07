@@ -964,8 +964,9 @@ FN_NVAL:
 ;;     SVAL$(0,3) comes back as exactly 0.  For a negative number the &FF
 ;;     stays put and the magnitude rounds up instead.
 ;;
-;;     Which direction the ordering actually runs is not settled here: see
-;;     the note at the foot of this file.
+;;     The ordering runs descending, and the note at the foot of this file
+;;     says how that was settled: SVAL$'s calculator program is RESTACK
+;;     then EXIT2, so it never touches the sign.
 ;; --------------------------------------------------------------------
 
 ; ---- FN_NVAL_FLOAT ---- from &41D6 when A <> &02
