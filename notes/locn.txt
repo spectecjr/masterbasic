@@ -34,7 +34,7 @@ DOC SEARCH_MEMORY
     chunks by the pattern length less one, so a match lying across the
     join is still found and no position is offered twice.
 
-MB &4CA2 : which of the two searches to run.  PARSE_STRING_AND_SUBSCRIPT leaves this zero only when the argument list ended ",ABS"
+MB &4CA2 : which of the two searches to run.  PARSE_STRING_AND_OPTIONAL_ABS leaves this zero only when the argument list ended ",ABS"
 
 MB &4CA8 : the number of start positions, kept to the end so the answer can be worked out by subtraction
 
@@ -102,7 +102,7 @@ MB &4CE0 : carry set is the "not found" answer
 DOC SEARCH_MEMORY_3
     The case-insensitive search.  It cannot use CPIR, because it is
     looking for either of two bytes, so the scan is written out by hand
-    at COMPARE_TO_TERMINATOR and the two bytes -- the capital and the
+    at SCAN_FOR_EITHER_CASE and the two bytes -- the capital and the
     small letter form of the pattern's first character -- are worked out
     once here and parked in V40A6.
 
@@ -111,7 +111,7 @@ DOC SEARCH_MEMORY_3
     exactly; the remaining characters are compared with the cheap
     XOR-then-AND-&DF at &4D1A instead.
 
-MB &4CE3 : one extra, because COMPARE_TO_TERMINATOR spends its last turn falling out of the loop rather than comparing; &4CD1 takes it off again
+MB &4CE3 : one extra, because SCAN_FOR_EITHER_CASE spends its last turn falling out of the loop rather than comparing; &4CD1 takes it off again
 
 MB &4CE6 : only a real letter gets both forms, so a search for "@" does not also match "`"
 
@@ -139,7 +139,7 @@ MB &4D1B : equal but for bit 5, which is the case bit.  Cheaper than calling IS_
 
 MB &4D1F : the pattern again from the start, and &4D22 gives HL back so the scan resumes where it stopped
 
-DOC COMPARE_TO_TERMINATOR
+DOC SCAN_FOR_EITHER_CASE
     Scan for either of two bytes: CPIR for the case-insensitive search,
     where D and E hold the capital and the small letter form of the
     character wanted.
@@ -158,7 +158,7 @@ MB &4D28 : ...or the small letter; either one will do
 
 MB &4D31 : the run is over.  The byte this compares is the one after the last legal starting place and it is only tested against E, not D
 
-DOC PARSE_STRING_AND_SUBSCRIPT
+DOC PARSE_STRING_AND_OPTIONAL_ABS
     The tail of LOCN's and INARRAY's argument lists: the string to look
     for, then the optional ABS, then the closing bracket.
 

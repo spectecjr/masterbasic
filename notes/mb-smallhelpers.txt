@@ -447,7 +447,7 @@ MB &4A7F TICS_SECONDS_IN_MONTH
     entry at &4A84 skips the CALL the &CD at &4A83 hides, for a caller
     that has already paged the DOS in.
 
-MB &4D33 PARSE_STRING_AND_SUBSCRIPT
+MB &4D33 PARSE_STRING_AND_OPTIONAL_ABS
     A string expression, then a subscript: what the page came back as
     decides the path, and the second one wants &FF -- the two-byte
     function prefix -- followed by a left bracket.
@@ -470,7 +470,7 @@ MB &4A0D READ_CLOCK_FIELDS
     the CR -- is the table of limits, which the loop reads through HL to
     check each field against.
 
-MB &4D2A COMPARE_TO_TERMINATOR
+MB &4D2A SCAN_FOR_EITHER_CASE
     Walk BC bytes from HL -- B in the inner loop, C in the outer, so a
     count over 255 costs nothing extra -- and return with the flags from
     comparing the last byte read against E.

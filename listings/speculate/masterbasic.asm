@@ -6479,9 +6479,10 @@ MULTIPLY_BY_60_1:
 FN_LOCN:
                CALL EXPECT_NEXT_LPAREN_AND_NUMBER ; 4AF0 CD 4A 44
                CALL EXPECT_NUMBER                 ; 4AF3 CD 4D 44
-               CALL PARSE_STRING_AND_SUBSCRIPT    ; 4AF6 CD 33 4D
-               RET NC                             ; 4AF9 D0  PARSE_STRING_AND_SUBSCRIPT returns NC on the syntax pass,
-                                                  ; when the arguments have been checked and there is nothing to search
+               CALL PARSE_STRING_AND_OPTIONAL_ABS ; 4AF6 CD 33 4D
+               RET NC                             ; 4AF9 D0  PARSE_STRING_AND_OPTIONAL_ABS returns NC on the syntax
+                                                  ; pass, when the arguments have been checked and there is nothing to
+                                                  ; search
                LD HL,FN_LOCN_2                    ; 4AFA 21 43 4C  the driver both LOCN and INARRAY share ends in a
                                                   ; plain RET at &4C29, so where that RET goes is pushed here
                PUSH HL                            ; 4AFD E5  and the paging under it, for the POP AF at &4C26 -- the two
@@ -6673,16 +6674,18 @@ PARSE_OPTIONAL_RANGE_1:
 
 ; ---- FN_INARRAY_2 ---- from &4B42
 FN_INARRAY_2:
-               CALL CALL_EXPSTR                ; 4B85 CD 7C 44
-               CALL EXPECT_COMMA               ; 4B88 CD 50 44
-               CALL PARSE_STRING_AND_SUBSCRIPT ; 4B8B CD 33 4D
-               RET NC                          ; 4B8E D0
-               LD HL,&0000                     ; 4B8F 21 00 00  LOCN puts a length in V40A4 at &4B09; INARRAY has no
-                                               ; such limit, so it stores zero and the test at &4BC3 falls the other way
-               LD (V40A4),HL                   ; 4B92 22 A4 40
-               CALL COPY_STRING_TO_BUFFER      ; 4B95 CD 2A 4C  the target string, into the same &7B00 buffer LOCN used
-               CALL CALL_GETSTR                ; 4B98 CD 6D 44
-               EX DE,HL                        ; 4B9B EB
+               CALL CALL_EXPSTR                   ; 4B85 CD 7C 44
+               CALL EXPECT_COMMA                  ; 4B88 CD 50 44
+               CALL PARSE_STRING_AND_OPTIONAL_ABS ; 4B8B CD 33 4D
+               RET NC                             ; 4B8E D0
+               LD HL,&0000                        ; 4B8F 21 00 00  LOCN puts a length in V40A4 at &4B09; INARRAY has no
+                                                  ; such limit, so it stores zero and the test at &4BC3 falls the other
+                                                  ; way
+               LD (V40A4),HL                      ; 4B92 22 A4 40
+               CALL COPY_STRING_TO_BUFFER         ; 4B95 CD 2A 4C  the target string, into the same &7B00 buffer LOCN
+                                                  ; used
+               CALL CALL_GETSTR                   ; 4B98 CD 6D 44
+               EX DE,HL                           ; 4B9B EB
 
 ;; --------------------------------------------------------------------
 ;; FN_LOCN_1 -- &4B9C to &4BA2
@@ -7116,8 +7119,8 @@ SEARCH_MEMORY:
                LD C,E                          ; 4C9E 4B
                LD DE,REF_BUFFER                ; 4C9F 11 00 7B  the same buffer, searched against
                LD A,(V4061)                    ; 4CA2 3A 61 40  which of the two searches to run.
-                                               ; PARSE_STRING_AND_SUBSCRIPT leaves this zero only when the argument list
-                                               ; ended ",ABS"
+                                               ; PARSE_STRING_AND_OPTIONAL_ABS leaves this zero only when the argument
+                                               ; list ended ",ABS"
                AND A                           ; 4CA5 A7
                JR NZ,SEARCH_MEMORY_3           ; 4CA6 20 3A
                PUSH BC                         ; 4CA8 C5  the number of start positions, kept to the end so the answer
@@ -7295,7 +7298,7 @@ SEARCH_MEMORY_DONE:
 ;;
 ;;     The case-insensitive search.  It cannot use CPIR, because it is
 ;;     looking for either of two bytes, so the scan is written out by hand
-;;     at COMPARE_TO_TERMINATOR and the two bytes -- the capital and the
+;;     at SCAN_FOR_EITHER_CASE and the two bytes -- the capital and the
 ;;     small letter form of the pattern's first character -- are worked out
 ;;     once here and parked in V40A6.
 ;;
@@ -7318,7 +7321,7 @@ SEARCH_MEMORY_3:
 ;; ? calls IS_LETTER; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-               INC BC                          ; 4CE3 03  one extra, because COMPARE_TO_TERMINATOR spends its last turn
+               INC BC                          ; 4CE3 03  one extra, because SCAN_FOR_EITHER_CASE spends its last turn
                                                ; falling out of the loop rather than comparing; &4CD1 takes it off again
                LD A,(DE)                       ; 4CE4 1A
                LD D,A                          ; 4CE5 57
@@ -7369,7 +7372,7 @@ SEARCH_MEMORY_5:
 ;; Takes:     A, BC, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;;
-;; ? calls COMPARE_TO_TERMINATOR; falls into whatever follows rather than returning.
+;; ? calls SCAN_FOR_EITHER_CASE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- SEARCH_MEMORY_LOOP4 ---- from &4D24
@@ -7379,7 +7382,7 @@ SEARCH_MEMORY_LOOP4:
                EX AF,AF'                       ; 4CFE 08
                LD DE,(V40A6)                   ; 4CFF ED 5B A6 40  the two forms of the first character, wanted again
                                                ; for every scan
-               CALL COMPARE_TO_TERMINATOR      ; 4D03 CD 2A 4D  the stand-in for CPIR: it stops on either form
+               CALL SCAN_FOR_EITHER_CASE       ; 4D03 CD 2A 4D  the stand-in for CPIR: it stops on either form
                JR NZ,SEARCH_MEMORY_LOOP3       ; 4D06 20 D3
                LD DE,REF_BUFFER                ; 4D08 11 00 7B  the scan has just had DE for the two letter forms, so
                                                ; the pattern pointer has to be put back
@@ -7410,7 +7413,7 @@ SEARCH_MEMORY_LOOP5:
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JR
 ;;
-;; ? calls COMPARE_TO_TERMINATOR.
+;; ? calls SCAN_FOR_EITHER_CASE.
 ;; --------------------------------------------------------------------
 
                CP B                            ; 4D11 B8
@@ -7451,7 +7454,7 @@ SEARCH_MEMORY_6:
                RET Z                           ; 4D29 C8
 
 ;; --------------------------------------------------------------------
-;; COMPARE_TO_TERMINATOR -- &4D2A to &4D32
+;; SCAN_FOR_EITHER_CASE -- &4D2A to &4D32
 ;;
 ;; Takes:     BC, E, HL
 ;; Leaves:    A, F, BC, HL
@@ -7478,8 +7481,8 @@ SEARCH_MEMORY_6:
 ;;         comparing the last byte read against E.
 ;; --------------------------------------------------------------------
 
-; ---- COMPARE_TO_TERMINATOR ---- from &4D03
-COMPARE_TO_TERMINATOR:
+; ---- SCAN_FOR_EITHER_CASE ---- from &4D03
+SCAN_FOR_EITHER_CASE:
                LD A,(HL)                       ; 4D2A 7E
                INC HL                          ; 4D2B 23
                DJNZ SEARCH_MEMORY_6            ; 4D2C 10 F8
@@ -7490,7 +7493,7 @@ COMPARE_TO_TERMINATOR:
                RET                             ; 4D32 C9
 
 ;; --------------------------------------------------------------------
-;; PARSE_STRING_AND_SUBSCRIPT -- &4D33 to &4D49
+;; PARSE_STRING_AND_OPTIONAL_ABS -- &4D33 to &4D49
 ;;
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
@@ -7518,25 +7521,26 @@ COMPARE_TO_TERMINATOR:
 ;;         function prefix -- followed by a left bracket.
 ;; --------------------------------------------------------------------
 
-; ---- PARSE_STRING_AND_SUBSCRIPT ---- from &4AF6, &4B8B
-PARSE_STRING_AND_SUBSCRIPT:
-               CALL CALL_EXPSTR                      ; 4D33 CD 7C 44  the ROM's EXPTSTR -- A comes back as the character
-                                                     ; the expression stopped on, carry set if this is run time
-               PUSH AF                               ; 4D36 F5
-               LD C,A                                ; 4D37 4F
-               SUB &2C                               ; 4D38 D6 2C
-               LD (V4061),A                          ; 4D3A 32 61 40  zero only if that character was a comma, i.e. only
-                                                     ; for the ",ABS" form
-               LD A,C                                ; 4D3D 79
-               JR NZ,PARSE_STRING_AND_SUBSCRIPT_DONE ; 4D3E 20 0A
-               LD C,&FF                              ; 4D40 0E FF  &FF then &5B is ABS. &5B is not a bracket here; it is
-                                                     ; the second byte of a function token
-               CALL NEXT_CHAR_MUST_BE_C              ; 4D42 CD 5A 44
-               LD C,&5B                              ; 4D45 0E 5B
-               CALL CHAR_MUST_BE_C                   ; 4D47 CD 5D 44
+; ---- PARSE_STRING_AND_OPTIONAL_ABS ---- from &4AF6, &4B8B
+PARSE_STRING_AND_OPTIONAL_ABS:
+               CALL CALL_EXPSTR                         ; 4D33 CD 7C 44  the ROM's EXPTSTR -- A comes back as the
+                                                        ; character the expression stopped on, carry set if this is run
+                                                        ; time
+               PUSH AF                                  ; 4D36 F5
+               LD C,A                                   ; 4D37 4F
+               SUB &2C                                  ; 4D38 D6 2C
+               LD (V4061),A                             ; 4D3A 32 61 40  zero only if that character was a comma, i.e.
+                                                        ; only for the ",ABS" form
+               LD A,C                                   ; 4D3D 79
+               JR NZ,PARSE_STRING_AND_OPTIONAL_ABS_DONE ; 4D3E 20 0A
+               LD C,&FF                                 ; 4D40 0E FF  &FF then &5B is ABS. &5B is not a bracket here; it
+                                                        ; is the second byte of a function token
+               CALL NEXT_CHAR_MUST_BE_C                 ; 4D42 CD 5A 44
+               LD C,&5B                                 ; 4D45 0E 5B
+               CALL CHAR_MUST_BE_C                      ; 4D47 CD 5D 44
 
 ;; --------------------------------------------------------------------
-;; PARSE_STRING_AND_SUBSCRIPT_DONE -- &4D4A to &4D4E
+;; PARSE_STRING_AND_OPTIONAL_ABS_DONE -- &4D4A to &4D4E
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F, C
@@ -7545,8 +7549,8 @@ PARSE_STRING_AND_SUBSCRIPT:
 ;; ? calls EXPECT_RPAREN.
 ;; --------------------------------------------------------------------
 
-; ---- PARSE_STRING_AND_SUBSCRIPT_DONE ---- from &4D3E when A <> &2C
-PARSE_STRING_AND_SUBSCRIPT_DONE:
+; ---- PARSE_STRING_AND_OPTIONAL_ABS_DONE ---- from &4D3E when A <> &2C
+PARSE_STRING_AND_OPTIONAL_ABS_DONE:
                CALL EXPECT_RPAREN              ; 4D4A CD 54 44
                POP AF                          ; 4D4D F1  the run flag from the string, handed back to the caller's RET
                                                ; NC

@@ -119,7 +119,7 @@ MB &4AE9 : the borrow out of HL, into the top byte
 
 MB &4AEB : and 15x times four is 60x
 
-MB &4AF9 : PARSE_STRING_AND_SUBSCRIPT returns NC on the syntax pass, when the arguments have been checked and there is nothing to search
+MB &4AF9 : PARSE_STRING_AND_OPTIONAL_ABS returns NC on the syntax pass, when the arguments have been checked and there is nothing to search
 
 MB &4AFA : the driver both LOCN and INARRAY share ends in a plain RET at &4C29, so where that RET goes is pushed here
 
