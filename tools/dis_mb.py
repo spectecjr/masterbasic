@@ -134,7 +134,8 @@ def _syspage_names():
     names.update({
         # The two bytes MasterBASIC keeps for itself in the system page,
         # in the space it freed by moving BASIC's stack down to &45A1:
-        # the ROM's table put BSTACK at &4AFF, inside the second stub.
+        # the ROM's table put BSTACK at &4AFF, in the workspace cleared
+        # at &7686 -- just past the second stub, which ends at &4AEB.
         0x4AED: 'SYS_DH_STATE',      # &40 while a double-height pair is open
         0x4AEE: 'SYS_CHAR_WIDTH',    # CSIZE's width factor, written beside FL6OR8
         0x4AEF: 'SYS_CHAR_HEIGHT',   # CSIZE's height factor; 0 = leave it to the ROM

@@ -128,7 +128,7 @@ DOC GAP_BLOCK
 # Two more key assignments, done in the installer rather than in
 # INSTALL_SYSPAGE_CODE.
 
-MB &76A2 : KTAB entry 255 gets &0D -- the map is 276 entries from &58E0
-MB &76A5 : and entry 264 the same
+MB &76A2 : KTAB entry 264 gets &0D -- &59E8 less the &58E0 base -- and the map is 276 entries, which the Technical Manual gives as "69 keys and 4 shift states"
+MB &76A5 : and entry 255 the same, &59DF less the same base
 MB &767F : &60 in ALLOCT marks this page as DOS's -- the table is at &5100
 MB &7686 : clear &4AED-&4AFF, nineteen bytes of workspace in the system page

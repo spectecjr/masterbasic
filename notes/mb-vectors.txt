@@ -77,8 +77,10 @@ DOC INSTALL_ROM_VECTORS
 
     BSTKEND and BASSTK are both set to &45A1 and &FF is written there, so
     MasterBASIC moves BASIC's stack down to just below its own installed
-    code -- the ROM's table puts BSTACK at &4AFF, which is inside the
-    second stub.  It had to move.
+    code.  The ROM's table puts BSTACK at &4AFF, which is not inside the
+    second stub -- that ends at &4AEB, from the LD BC,&029F at &7B57 --
+    but is in the nineteen bytes &4AED-&4AFF that &7686 clears and
+    MasterBASIC then keeps for itself.  Either way it had to move.
 
     &5C59 is set to &7FE6, the same value the stub at &7BE5 writes.
     It was written here as PAGE_IN_ROM1, which is this half's own

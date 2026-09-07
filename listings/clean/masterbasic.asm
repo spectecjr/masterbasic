@@ -17679,9 +17679,10 @@ INSTALLER_LOOP4:
                LD HL,&0144                     ; 769A 21 44 01
                LD (PSLD),HL                    ; 769D 22 06 5A
                LD A,&0D                        ; 76A0 3E 0D
-               LD (&59E8),A                    ; 76A2 32 E8 59  KTAB entry 255 gets &0D -- the map is 276 entries from
-                                               ; &58E0
-               LD (&59DF),A                    ; 76A5 32 DF 59  and entry 264 the same
+               LD (&59E8),A                    ; 76A2 32 E8 59  KTAB entry 264 gets &0D -- &59E8 less the &58E0 base --
+                                               ; and the map is 276 entries, which the Technical Manual gives as "69
+                                               ; keys and 4 shift states"
+               LD (&59DF),A                    ; 76A5 32 DF 59  and entry 255 the same, &59DF less the same base
                XOR A                           ; 76A8 AF
                LD (DOS_SAMCNT),A               ; 76A9 32 34 82
                LD (DOSCNT),A                   ; 76AC 32 C3 5B
@@ -17792,8 +17793,10 @@ INSTALLER_2:
 ;;
 ;; BSTKEND and BASSTK are both set to &45A1 and &FF is written there, so
 ;; MasterBASIC moves BASIC's stack down to just below its own installed
-;; code -- the ROM's table puts BSTACK at &4AFF, which is inside the
-;; second stub.  It had to move.
+;; code.  The ROM's table puts BSTACK at &4AFF, which is not inside the
+;; second stub -- that ends at &4AEB, from the LD BC,&029F at &7B57 --
+;; but is in the nineteen bytes &4AED-&4AFF that &7686 clears and
+;; MasterBASIC then keeps for itself.  Either way it had to move.
 ;;
 ;; &5C59 is set to &7FE6, the same value the stub at &7BE5 writes.
 ;; It was written here as PAGE_IN_ROM1, which is this half's own
