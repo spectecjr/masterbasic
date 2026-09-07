@@ -166,6 +166,14 @@ machine.
 pair: the 28 keywords MasterBASIC adds, and the mechanism by which a DOS gets
 a word into a tokeniser that lives in ROM.
 
+[docs/tokens.md](docs/tokens.md) widens that to every token the machine
+knows -- the ROM's, MasterDOS's and MasterBASIC's in one table, generated
+from `KEYWTAB` and `MBKEYS` by `tools/tokentab.py` rather than typed.
+[docs/sam-basic-grammar.txt](docs/sam-basic-grammar.txt) is the same list in
+machine-readable form with the syntax of each keyword beside it, enough to
+write a tokeniser, a lister, a syntax highlighter or a completion list
+against.
+
 ## Adding your own knowledge
 
 `notes/*.txt` is the way in for anything you work out yourself. Adding a name

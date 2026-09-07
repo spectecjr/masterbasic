@@ -42,7 +42,12 @@ index `SAMHK`, the hook table at `&44A6`. MasterBASIC's routines live in the
 other page](#reaching-the-other-page) below.
 
 Each stub filters before it fires, so the ROM keeps its own work: the one above
-passes only tokens from `&F7` up, and the `EVALUV` stub only `&21`–`&25`.
+passes only tokens from `&F7` up. The `EVALUV` stub passes anything *below*
+`&21`, and `&25` as well — `CP &25 / JR Z / CP &21 / RET NC` at `&7B9A`. The
+ROM has already taken `&1A` off the token by then, so below `&21` is every
+token below `&3B`, which is exactly the range MasterDOS and MasterBASIC put
+their functions in; `&25` is the ROM's own `LENGTH`, `&3F`, which MasterDOS
+handles because the ROM's version has a bug across a page boundary.
 `EVALUV` still lands on MasterDOS's own evaluator, `HEVV`: MasterBASIC did not
 need to replace it.
 
@@ -223,10 +228,17 @@ reached through `CMDV` rather than through the DOS.
 
 Fifteen entries are MasterDOS's, unchanged: `WRITE`, `DIR`, `FORMAT`, `ERASE`,
 `MOVE`, `LOAD`, `OPEN`, `CLOSE`, `CLEAR`, `READ`, `COPY`, `RENAME`, `CALL`,
-`PROTECT` and `HIDE`. One more is odd: the first entry in the table carries
-token `&2F`, which is `USING$` — a *function* token — and points into the
-MasterBASIC page at `&6E62`. I have not worked out how `SYNTAX` comes to be
-handed it.
+`PROTECT` and `HIDE`. The first entry in the table looks odd and is not:
+it carries `&2F`, which is also MasterBASIC's token for `USING$`, and points
+into the MasterBASIC page at `&6E62`. It is not that function, or any token.
+`SYNTAX` searches `CTAB` with the byte `GCHR` returns at the start of the
+statement, so an entry is a command token only when a statement begins with
+one — and `&2F` is ASCII `/`. The entry is the line-splitting editor feature:
+a `/` as the first non-space character after a `:` cuts the line there. That
+is also why it comes first, the table being in ascending order and a
+character sorting below every command token. `CMD_SPLIT_LINE` in
+[listings/clean/masterbasic.asm](../listings/clean/masterbasic.asm) carries
+the working.
 
 ## Reaching the other page
 

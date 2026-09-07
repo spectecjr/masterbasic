@@ -1,0 +1,1614 @@
+SAM BASIC / MasterDOS / MasterBASIC -- machine-readable grammar
+==============================================================
+FORMAT 1
+COVERS  SAM Coupe ROM 3.0, MasterDOS 2.3, MasterBASIC 1.7
+
+A translator between tokenised BASIC and text needs four things: the byte
+layout of a program, the token table, the spacing LIST puts round a token,
+and the syntax of each keyword.  All four are here.
+
+Everything in [TOKENS], [SPACING] and [PRECEDENCE] is read out of the
+sources rather than typed: KEYWTAB in ref/samrom/text.asm, OPPRIORT and
+FNPRIORT in ref/samrom/eval.asm, and MBKEYS in the MasterBASIC page.
+`python tools/tokentab.py --grammar` reproduces the [TOKENS] block exactly.
+
+[STATEMENTS] and [FUNCTIONS] are not mechanical.  SAM BASIC has no
+parameter table -- unlike the Spectrum, whose class bytes drive a generic
+parser -- so each keyword's routine checks its own arguments, and the rules
+there were read off those routines one at a time.  Every rule carries a `:`
+line naming what it was read from.  A rule marked `?` is one the source did
+not settle; treat it as the manual's claim and not as proven.  No rule in
+this file carries one at present.
+
+Companion documents:
+  docs/tokens.md               the same tokens as prose, with the traps
+  docs/masterbasic-tokens.md   how MasterBASIC gets a token at all
+  docs/masterbasic-keywords.md what each MasterBASIC keyword does
+  ref/masterdos/docs/          the same for MasterDOS
+
+
+[NOTATION]
+'X'          a literal: a keyword token, or a character
+name         a rule defined in [RULES], [STATEMENTS] or [FUNCTIONS]
+[ x ]        optional
+{ x }        zero or more
+( x | y )    grouping and alternation
+x , y        in sequence
+#8E          a token by code, where the name alone is ambiguous
+--           to end of line, a comment
+
+Line prefixes inside [STATEMENTS] and [FUNCTIONS]:
+@ tok name   begins an entry; tok is the hex token, 2 or 4 digits
+=            a production; several `=` lines are alternatives
+> type       result type of a function: num or str
+: text       provenance -- the file and routine the rule was read from
++ text       a note a parser writer needs
+? text       something not established; the rule above it is unproven
+
+
+[FILE]
+A tokenised BASIC program is a run of lines, ended by a byte of &FF where
+the next line number would start.
+
+  line     := lineno-hi , lineno-lo , len-lo , len-hi , statements , &0D
+  lineno   := 1 to 65279 (&FEFF), stored high byte first
+  len      := bytes from the first byte of `statements` to the &0D
+              inclusive, stored low byte first
+
+Note the two byte orders: the line number is big-endian and the length
+little-endian.  Line numbers ascend and do not repeat.
+
+  statements := statement { ':' statement }
+
+A numeric literal is stored twice.  The digits appear as typed, and are
+followed by &0E and five bytes of the ROM's floating-point form:
+
+  number   := digits , &0E , exponent , b1 , b2 , b3 , b4
+
+exponent 0 marks the small-integer form: b1 is the sign (0 positive, &FF
+negative), b2 and b3 the value low byte first, b4 zero.  Otherwise it is
+sign-and-mantissa floating point, exponent biased by 128.  It is the five
+bytes that get evaluated; the digits are only listed.  A translator that
+rewrites a number must rewrite both.
+
+Inside a string literal, and inside an INPUT LINE, bytes &80 and up are
+graphics characters and not tokens -- "QUOTES FORCES UDGS", text.asm.
+Outside quotes, &80 to &84 are still graphics characters, because no
+token uses them.
+: ref/samrom/tprint.asm PRGR80; ref/samrom/eval.asm INSERT5B
+
+
+[LEXICAL]
+How text becomes tokens, from TOKPT2 in ref/samrom/miscx2.asm.
+
+- Matching is case-insensitive (XOR then AND &DF).
+- A match is only tried where a letter, '<' or '>' starts a word.
+- At most 15 characters are considered for one keyword.
+- A keyword may contain a space: 'GO TO', 'DEF PROC', 'END IF', 'ON ERROR',
+  'EXIT IF', 'LOOP IF', 'DEF KEYCODE', 'DEF FN', 'END PROC', 'GO SUB',
+  'EXIT PROC', 'EXIT DO', 'EXIT FOR'.  One space in the stored name matches
+  one space in the input.
+- A match must not be followed by a letter, digit or underscore -- so
+  PRINTER is a variable and not PRINT + ER.  The exception is a keyword
+  ending in '=', '>' or '$': CHR$a is CHR$ followed by a.
+- If a word starting with a letter matches nothing, the whole identifier
+  (letters and underscores) is skipped before matching resumes.
+- One space either side of the matched word is absorbed into the token.
+- After REM the rest of the line is left alone.
+- Inside double quotes nothing is tokenised; the scan resumes after the
+  closing quote or at end of line.
+- Keyword lists are searched in table order and the first match wins.  This
+  is why IF is always stored as #D7 and ELSE as #D9 -- see [REWRITES].
+- 'INK' matches the &FF entry and is stored as 'PEN' (&A1).  INK is an
+  input spelling only and never appears in a file.
+: ref/samrom/miscx2.asm TOKPT2, TOKMLP, POSFIRST, GTTOK, TOK42, LOOKNA
+
+One editor feature reaches a line through the route a statement takes and
+leaves no token behind.  Under MasterBASIC a '/' as the first non-space
+character after a ':' splits the line there when RETURN is pressed: the
+colon is overwritten with &0D, so the ROM enters everything before it as
+the line, and the remainder stays in the edit area under a copy of the
+original line number.  The '/' never appears in a stored program, so a
+detokeniser never meets it, but a tokeniser handed such text must
+reproduce the split rather than store the slash.  It arrives as CTAB's
+first entry, token &2F -- ASCII '/', not the USING$ token that shares
+the number.
+: listings/clean/masterbasic.asm CMD_SPLIT_LINE
+
+
+[REWRITES]
+Two tokens are changed in the stored program after tokenising, by the
+syntax-check pass rather than by the tokeniser.  A translator producing
+tokens from text must apply both, or its output will differ from the
+machine's for the same source text.
+
+D7 -> D8   IF becomes short IF when a THEN follows the condition
+D9 -> DA   ELSE becomes short ELSE when the IF it belongs to was short
+
+Both pairs list identically, so the rewrite is invisible in a listing and
+matters only byte for byte.
+: ref/samrom/do.asm SIF (LD (HL),&D8), LELSE, IFTYPE
+
+
+[SPACING]
+What LIST puts round a token, from the `list-spacing` field in [TOKENS].
+
+both    a space before and after
+lead    a space before only
+trail   a space after only
+none    neither
+
+Two further rules apply on top of the field:
+
+- A leading space is printed only if the last character already printed was
+  not a space (FLAGS bit 0).  So THEN GO TO gets one space between them and
+  not two.
+- A trailing space is printed only if the word's last character is a letter
+  or '$'.  This never changes the outcome for the words in this table --
+  the only names ending otherwise are '<>', '<=' and '>=', which are `none`
+  anyway -- but a translator adding a keyword should know the rule.
+: ref/samrom/tprint.asm POGEN2, POMSG4, POBTL, POMSP2, POTRNL
+
+
+[PRECEDENCE]
+Binary operators, from OPPRIORT in ref/samrom/eval.asm.  Higher binds
+tighter.  All are left-associative; the ROM stacks an operator and only
+executes it when the next one has priority less than or equal to it.
+
+prec  operators
+  2   'OR' 'BOR' <BXOR, &FF7D, no keyword>
+  3   'AND' 'BAND'
+  4   'NOT'                      -- unary, FNPRIORT
+  5   '=' '<' '>' '<=' '>=' '<>'
+  6   '+' '-'
+  8   '*' '/'
+  9   unary '-'                  -- NEGATE, FNPRIORT
+ 14   'MOD' 'DIV'
+ 15   '^'
+ 15   every other function       -- FNPRIORT default, "PRI. 16,N,N"
+
+Two of these are worth stating plainly, because they differ from most
+BASICs: MOD and DIV bind *tighter* than '*' and '/', and '^' binds tighter
+still.  `a + b MOD c` is `a + (b MOD c)`; `2 * 3 MOD 2` is `2 * (3 MOD 2)`.
+
+String operands take a different code for every comparison and for AND, so
+`a$ AND b$` and `a$ + b$` are legal and yield strings, and the rest compare.
+: ref/samrom/eval.asm OPPRIORT, FNPRIORT, PRIGRTR, SLOOP
+
+
+[RULES]
+Shared rules, referred to throughout [STATEMENTS] and [FUNCTIONS].
+
+= letter      := 'A'..'Z' | 'a'..'z'
+= digit       := '0'..'9'
+= name        := letter , { letter | digit | '_' }
+                 -- spaces inside a name are ignored by the ROM's matcher
+= numvar      := name
+= strvar      := name , '$'
+= var         := numvar | strvar
+= array       := ( numvar | strvar ) , '(' , subscripts , ')'
+= subscripts  := numexpr , { ',' , numexpr } , [ ',' , slicer ]
+= slicer      := [ numexpr ] , 'TO' , [ numexpr ]
+               | numexpr
+               | ''                 -- '()' is the whole string
+= sliced      := strvar , '(' , slicer , ')'
+= numexpr     := an expression yielding a number, per [PRECEDENCE]
+= strexpr     := an expression yielding a string, per [PRECEDENCE]
+= expr        := numexpr | strexpr
+= lineno      := numexpr           -- evaluated, so GO TO n*10 is legal
+= stream      := '#' , numexpr
+: ref/samrom/lookvar.asm LOOKVARS; ref/samrom/assign.asm SLICING
+
+Colour items.  Any of the six colour statements may appear as a modifier
+inside PRINT, PLOT, DRAW, CIRCLE, FILL, PUT and INPUT.  Each takes one
+number and each is followed by ',' or ';'.
+
+= colour-item := ( 'PEN' | 'PAPER' | 'FLASH' | 'BRIGHT' | 'INVERSE'
+                   | 'OVER' ) , numexpr
+= colour-list := { colour-item , ( ',' | ';' ) }
+: ref/samrom/misc1.asm CITEM, CITEMSR, INSISCSC
+
+Print items and separators, shared by PRINT, LPRINT and INPUT.
+
+= print-item  := 'TAB' , numexpr
+               | 'AT' , numexpr , ',' , numexpr
+               | colour-item
+               | stream
+               | expr
+= print-sep   := ';' | ',' | '\''
+                 -- ',' prints CHR$ 6, '\'' prints a carriage return
+= print-end   := ')' | ':' | end-of-line
+: ref/samrom/list.asm PRITEM, PRSEPR, PRTERM
+
+The two-number and four-number forms named in the routines below.
+
+= n2          := numexpr , ',' , numexpr
+= n4          := numexpr , ',' , numexpr , ',' , numexpr , ',' , numexpr
+= n-or-none   := [ numexpr ]       -- SYNTAX3: absent means 0
+: ref/samrom/misc2.asm EXPT2NUMS, EXPT4NUMS, SYNTAX3
+
+The block of program lines LIST and RENUM take, from BRKLSSL.
+
+= line-range  := [ lineno ] , [ 'TO' , [ lineno ] ]
+                 -- an absent first line is 1 and an absent last &FEFF, so
+                 -- every part may be left out; a first line with no 'TO'
+                 -- after it selects that one line, BRL1 copying FIRST to
+                 -- LAST.  'LIST 10 TO' is legal and means 10 onwards.
+: ref/samrom/misc2.asm BRKLSSL, BRL1, BRL2, BRL3
+
+File names and drives, as MasterDOS parses them.
+
+= filename    := strexpr
+                 -- "d1:name", "d1:dir/name", "name"; drive 1-2 floppy,
+                 -- 3-7 RAM disc, and every number goes through the alias
+                 -- table at DVAR 111-117 before use
+= pattern     := strexpr           -- '*' and '?' wildcards
+: ref/masterdos/docs/commands.md; annotated-src CODN, TRX0
+
+
+[TOKENS]
+# token | role | name | origin | list-spacing
+85|qualifier|USING|ROM|both
+86|statement|WRITE|ROM|both
+87|qualifier|AT|ROM|both
+88|qualifier|TAB|ROM|both
+89|qualifier|OFF|ROM|both
+8A|qualifier|WHILE|ROM|both
+8B|qualifier|UNTIL|ROM|both
+8C|statement|LINE|ROM|both
+8D|qualifier|THEN|ROM|both
+8E|qualifier|TO|ROM|both
+8F|qualifier|STEP|ROM|both
+90|statement|DIR|ROM|both
+91|statement|FORMAT|ROM|both
+92|statement|ERASE|ROM|both
+93|statement|MOVE|ROM|both
+94|statement|SAVE|ROM|both
+95|statement|LOAD|ROM|both
+96|statement|MERGE|ROM|both
+97|statement|VERIFY|ROM|both
+98|statement|OPEN|ROM|both
+99|statement|CLOSE|ROM|both
+9A|statement|CIRCLE|ROM|both
+9B|statement|PLOT|ROM|both
+9C|statement|LET|ROM|both
+9D|statement|BLITZ|ROM|both
+9E|statement|BORDER|ROM|both
+9F|statement|CLS|ROM|both
+A0|statement|PALETTE|ROM|both
+A1|statement|PEN|ROM|both
+A2|statement|PAPER|ROM|both
+A3|statement|FLASH|ROM|both
+A4|statement|BRIGHT|ROM|both
+A5|statement|INVERSE|ROM|both
+A6|statement|OVER|ROM|both
+A7|statement|FATPIX|ROM|both
+A8|statement|CSIZE|ROM|both
+A9|statement|BLOCKS|ROM|both
+AA|statement|MODE|ROM|both
+AB|statement|GRAB|ROM|both
+AC|statement|PUT|ROM|both
+AD|statement|BEEP|ROM|both
+AE|statement|SOUND|ROM|both
+AF|statement|NEW|ROM|both
+B0|statement|RUN|ROM|both
+B1|statement|STOP|ROM|both
+B2|statement|CONTINUE|ROM|both
+B3|statement|CLEAR|ROM|both
+B4|statement|GO TO|ROM|both
+B5|statement|GO SUB|ROM|both
+B6|statement|RETURN|ROM|both
+B7|statement|REM|ROM|both
+B8|statement|READ|ROM|both
+B9|statement|DATA|ROM|both
+BA|statement|RESTORE|ROM|both
+BB|statement|PRINT|ROM|both
+BC|statement|LPRINT|ROM|both
+BD|statement|LIST|ROM|both
+BE|statement|LLIST|ROM|both
+BF|statement|DUMP|ROM|both
+C0|statement|FOR|ROM|both
+C1|statement|NEXT|ROM|both
+C2|statement|PAUSE|ROM|both
+C3|statement|DRAW|ROM|both
+C4|statement|DEFAULT|ROM|both
+C5|statement|DIM|ROM|both
+C6|statement|INPUT|ROM|both
+C7|statement|RANDOMIZE|ROM|both
+C8|statement|DEF FN|ROM|both
+C9|statement|DEF KEYCODE|ROM|both
+CA|statement|DEF PROC|ROM|both
+CB|statement|END PROC|ROM|both
+CC|statement|RENUM|ROM|both
+CD|statement|DELETE|ROM|both
+CE|statement|REF|ROM|both
+CF|statement|COPY|ROM|both
+D1|statement|KEYIN|ROM|both
+D2|statement|LOCAL|ROM|both
+D3|statement|LOOP IF|ROM|both
+D4|statement|DO|ROM|both
+D5|statement|LOOP|ROM|both
+D6|statement|EXIT IF|ROM|both
+D7|statement|IF|ROM|both
+D8|statement|IF|ROM|both
+D9|statement|ELSE|ROM|both
+DA|statement|ELSE|ROM|both
+DB|statement|END IF|ROM|both
+DC|statement|KEY|ROM|both
+DD|statement|ON ERROR|ROM|both
+DE|statement|ON|ROM|both
+DF|statement|GET|ROM|both
+E0|statement|OUT|ROM|both
+E1|statement|POKE|ROM|both
+E2|statement|DPOKE|ROM|both
+E3|statement|RENAME|ROM|both
+E4|statement|CALL|ROM|both
+E5|statement|ROLL|ROM|both
+E6|statement|SCROLL|ROM|both
+E7|statement|SCREEN|ROM|both
+E8|statement|DISPLAY|ROM|both
+E9|statement|BOOT|ROM|both
+EA|statement|LABEL|ROM|both
+EB|statement|FILL|ROM|both
+EC|statement|WINDOW|ROM|both
+ED|statement|AUTO|ROM|both
+EE|statement|POP|ROM|both
+EF|statement|RECORD|ROM|both
+F0|statement|DEVICE|ROM|both
+F1|statement|PROTECT|ROM|both
+F2|statement|HIDE|ROM|both
+F3|statement|ZAP|ROM|both
+F4|statement|POW|ROM|both
+F5|statement|BOOM|ROM|both
+F6|statement|ZOOM|ROM|both
+F7|statement|BACKUP|MasterDOS|both
+F8|statement|TIME|MasterDOS|both
+F9|statement|DATE|MasterDOS|both
+FA|statement|ALTER|MasterBASIC|both
+FB|statement|SORT|MasterBASIC|both
+FC|statement|JOIN|MasterBASIC|both
+FD|statement|EDIT|MasterBASIC|both
+FF26|statement|EXIT PROC|MasterBASIC|lead
+FF27|statement|EXIT DO|MasterBASIC|lead
+FF28|statement|EXIT FOR|MasterBASIC|lead
+FF29|function|LOCN|MasterBASIC|lead
+FF2A|function|RESERVED|MasterBASIC|lead
+FF2B|function|EQU|MasterBASIC|lead
+FF2C|function|TICS|MasterBASIC|lead
+FF2D|function|SHIFT$|MasterBASIC|lead
+FF2E|function|SVAL$|MasterBASIC|lead
+FF2F|function|USING$|MasterBASIC|lead
+FF30|function|TIME$|MasterDOS|lead
+FF31|function|DATE$|MasterDOS|lead
+FF32|function|INP$|MasterDOS|lead
+FF33|function|DIR$|MasterDOS|lead
+FF34|function|FSTAT|MasterDOS|lead
+FF35|function|DSTAT|MasterDOS|lead
+FF36|function|FPAGES|MasterDOS|lead
+FF37|function|SCRAD|MasterBASIC|lead
+FF38|function|INARRAY|MasterBASIC|lead
+FF3B|function|PI|ROM|none
+FF3C|function|RND|ROM|none
+FF3D|function|POINT|ROM|none
+FF3E|function|FREE|ROM|none
+FF3F|function|LENGTH|ROM|none
+FF40|function|ITEM|ROM|none
+FF41|function|ATTR|ROM|none
+FF42|function|FN|ROM|trail
+FF43|function|BIN|ROM|trail
+FF44|function|XMOUSE|ROM|none
+FF45|function|YMOUSE|ROM|none
+FF46|function|XPEN|ROM|none
+FF47|function|YPEN|ROM|none
+FF48|function|RAMTOP|ROM|none
+FF4A|function|INSTR|ROM|none
+FF4B|function|INKEY$|ROM|none
+FF4C|function|SCREEN$|ROM|none
+FF4D|function|MEM$|ROM|none
+FF4F|function|PATH$|ROM|none
+FF50|function|STRING$|ROM|none
+FF53|function|SIN|ROM|trail
+FF54|function|COS|ROM|trail
+FF55|function|TAN|ROM|trail
+FF56|function|ASN|ROM|trail
+FF57|function|ACS|ROM|trail
+FF58|function|ATN|ROM|trail
+FF59|function|LN|ROM|trail
+FF5A|function|EXP|ROM|trail
+FF5B|function|ABS|ROM|trail
+FF5C|function|SGN|ROM|trail
+FF5D|function|SQR|ROM|trail
+FF5E|function|INT|ROM|trail
+FF5F|function|USR|ROM|trail
+FF60|function|IN|ROM|trail
+FF61|function|PEEK|ROM|trail
+FF62|function|DPEEK|ROM|trail
+FF63|function|DVAR|ROM|trail
+FF64|function|SVAR|ROM|trail
+FF65|function|BUTTON|ROM|trail
+FF66|function|EOF|ROM|trail
+FF67|function|PTR|ROM|trail
+FF68|function|XVAR|MasterBASIC|lead
+FF69|function|UDG|ROM|trail
+FF6A|function|NVAL|MasterBASIC|lead
+FF6B|function|LEN|ROM|trail
+FF6C|function|CODE|ROM|trail
+FF6D|function|VAL$|ROM|trail
+FF6E|function|VAL|ROM|trail
+FF6F|function|TRUNC$|ROM|trail
+FF70|function|CHR$|ROM|trail
+FF71|function|STR$|ROM|trail
+FF72|function|BIN$|ROM|trail
+FF73|function|HEX$|ROM|trail
+FF74|function|USR$|ROM|trail
+FF76|operator|NOT|ROM|trail
+FF7A|operator|MOD|ROM|both
+FF7B|operator|DIV|ROM|both
+FF7C|operator|BOR|ROM|both
+FF7E|operator|BAND|ROM|both
+FF7F|operator|OR|ROM|both
+FF80|operator|AND|ROM|both
+FF81|operator|<>|ROM|none
+FF82|operator|<=|ROM|none
+FF83|operator|>=|ROM|none
+
+
+[STATEMENTS]
+Every token that can begin a statement, in token order.  A statement that
+begins with none of these is a procedure call:
+
+= proc-call   := name , [ proc-args ]
+= proc-args   := expr , { ',' , expr }
++ mainlp.asm reaches PROCS for any token below &90, which includes every
++ letter, so an unrecognised word at the start of a statement is a PROC
++ name and not an error until the PROC is looked for.
++ The separator is a comma and only a comma: PCSYL ends each argument
++ with INSISCOMA, which is the comma-only helper, not the INSISCSC that
++ takes either.  A semicolon between PROC arguments is a syntax error.
+: ref/samrom/mainlp.asm ON4ENT (SUB &90 / JP C,PROCS); ref/samrom/fn.asm
+: PCSYL; ref/samrom/misc2.asm INSISCOMA
+
+@ 86 WRITE
+= 'WRITE' , 'AT' , n2 , ',' , numexpr , ',' , numexpr , [ ',' , numexpr ]
++ drive, track, sector, address, and MasterDOS's fifth argument, a sector
++ count.  Raw sector access; needs a DOS.  No ROM meaning.
+: ref/masterdos/docs/commands.md READ and WRITE; annotated-src EVPRM
+
+@ 8C LINE
+= 'LINE'
+= 'LINE' , numexpr                 -- trace with a delay
+= 'LINE' , 'STEP'
+= 'LINE' , 'OFF'
++ MasterBASIC only, handler at &6117.  Under the ROM alone &8C is a
++ qualifier and never starts a statement -- see SAVE, READ and INPUT.
+: docs/masterbasic-manual.md "Line number tracing"
+
+@ 90 DIR
+= 'DIR' , [ stream ] , [ numexpr ] , [ pattern ] , [ 'DATE' ] , [ '!' ] , [ '?' ]
+= 'DIR' , '=' , strexpr            -- change directory
++ MasterDOS.  '!' is the wide listing, '?' recurses into subdirectories.
+: ref/masterdos/docs/commands.md DIR
+
+@ 91 FORMAT
+= 'FORMAT' , filename , [ ',' , numexpr , [ ',' , numexpr ] ]
+= 'FORMAT' , filename , 'TO' , filename
+= 'FORMAT' , 'TO' , filename
++ The two numbers are directory tracks and total tracks.  FORMAT "d3:",0
++ erases a RAM disc.
+: ref/masterdos/docs/commands.md FORMAT
+
+@ 92 ERASE
+= 'ERASE' , [ 'OVER' ] , pattern
+= 'ERASE' , 'DIR' , strexpr
+: ref/masterdos/docs/commands.md ERASE
+
+@ 93 MOVE
+= 'MOVE' , move-end , 'TO' , move-end
+= 'MOVE' , move-end , ',' , move-end        -- MasterBASIC's comma form
+= move-end := stream | filename
+: ref/masterdos/docs/commands.md MOVE; docs/masterbasic-manual.md
+
+@ 94 SAVE
+= 'SAVE' , [ 'OVER' ] , filename , [ save-tail ]
+= 'SAVE' , 'MODE' , numexpr                 -- MasterBASIC: 1, 2 or 3
+= 'SAVE' , 'BOOT' , filename                -- MasterBASIC
+= save-tail := 'CODE' , numexpr , ',' , numexpr , [ ',' , numexpr ]
+             | 'SCREEN$'
+             | 'DATA' , ( numvar | strvar ) , '(' , ')'
+             | 'LINE' , numexpr
++ SAVE needs a length as well as a start: HDR4 counts the numbers in B
++ and sends SAVE back to HDNSHP for both none and one, its comment
++ reading "SAVE CANNOT HAVE JUST SAVE 'NAME' START".  Three is the most
++ any of these commands takes.  SCREEN$ takes no arguments at all.
++ OVER is spotted by SUB &A6 before the name is evaluated.  MasterBASIC
++ takes the handler over at &63E6 and adds the two forms above; a
++ CHR$ 2 prefix on the name protects a CODE file.
+: ref/samrom/tapemn.asm SLMVC, HDR2, HDR3; docs/masterbasic-manual.md
+
+@ 95 LOAD
+= 'LOAD' , [ 'OVER' ] , filename , [ load-tail ]
+= 'LOAD' , numexpr                          -- MasterDOS: by catalogue number
+= load-tail := 'CODE' , [ numexpr , [ ',' , numexpr , [ ',' , numexpr ] ] ]
+             | 'SCREEN$'
+             | 'DATA' , ( numvar | strvar ) , '(' , ')'
++ The DOS only sees LOAD after the ROM's own syntax has failed, which is
++ how the by-number form arrives.
++ There is no UDG form.  The manual's LOAD "newset" CODE UDG CHR$ 128 is
++ an ordinary CODE address whose expression happens to be UDG CHR$ 128 --
++ HDR4 reads plain numbers after CODE and knows nothing of UDG.
++ LOAD and VERIFY accept one, two or three numbers, or none at all;
++ SAVE is the stricter case and needs at least two.
+: ref/samrom/tapemn.asm SLMVC, HDR4, HDRNMS, HDRN1, HDRNOK;
+: ref/masterdos/docs/commands.md LOAD
+
+@ 96 MERGE
+= 'MERGE' , [ '*' ] , filename
++ MasterBASIC's '*' is the fast merge; handler at &5169.
+: docs/masterbasic-manual.md "Faster MERGE"
+
+@ 97 VERIFY
+= 'VERIFY' , filename , [ load-tail ]
++ VERIFY takes LOAD's looser CODE tail, not SAVE's -- the count check at
++ HDRNOK tests for SAVETOK -- and VERIFY "name" LINE n is rejected by
++ name at HDR3.
+: ref/samrom/tapemn.asm SLMVC, HDR3, HDRNOK
+
+@ 98 OPEN
+= 'OPEN' , stream , ( ',' | ';' ) , strexpr  -- channel, or MasterDOS file
+= 'OPEN' , stream , ( ',' | ';' ) , filename , [ 'IN' | 'OUT' | 'RND' ]
+= 'OPEN' , 'SCREEN' , numexpr , [ ',' , numexpr ]
+= 'OPEN' , numexpr                           -- open n pages
+= 'OPEN' , 'TO' , numexpr                    -- open up to page n
+= 'OPEN' , 'DIR' , strexpr                   -- MasterDOS: make a directory
+= 'OPEN' , 'BLOCKS' , numexpr                -- MasterBASIC: reserve buffers
++ The mode words are not new tokens: IN is the function &FF60 and OUT
++ the statement &E0, borrowed.  RND borrows &FF3C.
+: ref/samrom/scrsel1.asm OPSCRN, OPNCH; ref/masterdos/docs/commands.md OPEN
+
+@ 99 CLOSE
+= 'CLOSE' , stream
+= 'CLOSE' , '*' , [ numexpr ]                -- MasterDOS: one stream, or all
+= 'CLOSE' , 'SCREEN' , numexpr
+= 'CLOSE' , numexpr                          -- close n pages
++ Note the asymmetry MasterDOS's own documentation calls out: CLOSE takes
++ '*', CLEAR takes '#'.
+: ref/samrom/scrsel1.asm CLSCRN, CLNCH; ref/masterdos/docs/commands.md
+
+@ 9A CIRCLE
+= 'CIRCLE' , colour-list , n2 , ',' , numexpr
+: ref/samrom/graph0.asm CIRCLE (SYNTAX9, INSISCOMA, SYNTAX6)
+
+@ 9B PLOT
+= 'PLOT' , colour-list , n2
+: ref/samrom/graph1.asm PLOT (SYNTAX9)
+
+@ 9C LET
+= 'LET' , assign , { ',' , assign }
+= assign := ( var | array | sliced ) , '=' , expr
+: ref/samrom/misc2.asm LET, LETLP
+
+@ 9D BLITZ
+= 'BLITZ' , strexpr
+: ref/samrom/graph2.asm BLITZ (SYNTAXA)
+
+@ 9E BORDER
+= 'BORDER' , numexpr
+: ref/samrom/misc32.asm BORDER (SYNTAX6)
+
+@ 9F CLS
+= 'CLS'
+= 'CLS' , '#'
+= 'CLS' , numexpr
+= 'CLS' , '*'                                -- MasterBASIC
++ CLS * is PEN 0: PAPER 15: BORDER 15: CLS.  Handler at &71A4.
+: ref/samrom/list.asm CLS, CLSHS; docs/masterbasic-manual.md "CLS *"
+
+@ A0 PALETTE
+= 'PALETTE'                                  -- reset both palettes
+= 'PALETTE' , numexpr , 'LINE' , numexpr     -- cancel a per-line change
+= 'PALETTE' , entry , ',' , colour , [ 'LINE' , line ]
+= 'PALETTE' , entry , ',' , colour , ',' , colour , [ 'LINE' , line ]
+= entry  := numexpr                          -- 0 to 15, a logical ink
+= colour := numexpr                          -- 0 to 127
+= line   := numexpr                          -- 174 down to -16
++ The third number is the second of two colours to alternate between, so
++ giving it is what makes that ink flash.  There are two palette tables
++ twenty bytes apart; the frame interrupt sets the hardware palette from
++ them fifty times a second, and alternates tables every SPEEDINK
++ interrupts.  Matching entries in the two tables therefore do not flash,
++ which is why COLOUR10 stacks a lone colour twice -- "STACK IT AS THE
++ 'SECOND' COLOUR TOO".  This is palette flashing and has nothing to do
++ with the FLASH attribute; it works in every screen mode.
++ 'LINE l' confines the change to the scan lines from l on, as an entry in
++ the LINICOLS list the interrupt walks, and 'PALETTE i LINE l' with no
++ colour deletes that entry again.  Up to 127 changes per screen.
+: ref/samrom/misc31.asm, the comment block above COLOUR, which lists all
+: five forms; and COLOUR1, COLOUR5, COLOURFL, COLOUR10, JPALET, COLRLINE
+
+@ A1 PEN
+@ A2 PAPER
+@ A3 FLASH
+@ A4 BRIGHT
+@ A5 INVERSE
+@ A6 OVER
+= <one of the six> , numexpr
++ The same six words are colour-item modifiers inside PRINT, PLOT, DRAW,
++ CIRCLE, FILL, PUT and INPUT -- see colour-item in [RULES].  As a
++ statement each sets the permanent value; inside another statement it
++ sets the temporary one.  INK is an input spelling of PEN.
+: ref/samrom/misc1.asm PERMS, COTEMP4, CITEMSR
+
+@ A7 FATPIX
+= 'FATPIX' , numexpr                         -- 0 or 1
+: ref/samrom/scrsel2.asm FATPIX (SYNTAX6, LIMBYTE &0200)
+
+@ A8 CSIZE
+= 'CSIZE' , n2                               -- width, height
++ The ROM insists the width be 6 or 8; MasterBASIC's version allows more.
+: ref/samrom/scrsel2.asm WIDTH (SYNTAX8); docs/masterbasic-manual.md
+
+@ A9 BLOCKS
+= 'BLOCKS' , numexpr                         -- 0 or 1; 2 under MasterBASIC
+: ref/samrom/misc32.asm BGRAPHICS (SYNTAX6); docs/masterbasic-manual.md
+
+@ AA MODE
+= 'MODE' , numexpr                           -- 1 to 4
++ MasterBASIC intercepts this one in HCMDV rather than through CTAB.
+: ref/samrom/main.asm MODECMD; listings/clean/masterbasic.asm HCMDV
+
+@ AB GRAB
+= 'GRAB' , strvar , ',' , n4                 -- x, y, width, height
++ The variable must be a string; MODE 2 or 3 only.
+: ref/samrom/grabput.asm GRAB (SYNTAX1, SEXPT4NUMS)
+
+@ AC PUT
+= 'PUT' , colour-list , n2 , ',' , strexpr , [ ',' , strexpr ]
+= 'PUT' , 'GRAB' , colour-list , n2 , ',' , strexpr , ',' , strexpr
++ The second string is a mask.  MasterBASIC replaces the routine with a
++ faster one; POKE DPEEK XVAR 0,0 puts the ROM's back.
++ PUT GRAB swaps the string with what is already on the screen, so doing
++ it twice restores the display.  The mask is not optional in this form
++ -- "PUT GRAB has to use a mask, so we need one even if we want to use
++ all of bl$" -- and a 1 bit in the mask lets the matching bit swap.
++ GRAB is the ordinary &AB token doing qualifier duty here.  MasterBASIC's
++ PUT is entered through a stub at &45A2 which reads the character after
++ the token, does SUB &AB, keeps the result as a flag and skips a further
++ character when it came out zero -- which is the test for GRAB and the
++ step over it.  The ROM's own thirteen bytes of argument parsing follow,
++ so everything after GRAB is the ROM's syntax unchanged.
+? The listing's note on that stub reads the byte as the command token
+? rather than the character after it, making PUT arrive as 1.  The two
+? readings disagree about what the flag holds; the production above rests
+? on the SUB &AB and the manual's worked example, which agree either way.
+: docs/masterbasic-manual.md "Improved PUT command";
+: listings/clean/masterbasic.asm &7986 (the &45A2 stub);
+: ref/samrom/grabput.asm PUT, PUTL1
+
+@ AD BEEP
+= 'BEEP' , n2                                -- length, pitch
+: ref/samrom/misc32.asm BEEP (SYNTAX8)
+
+@ AE SOUND
+= 'SOUND' , n2 , { ',' , numexpr }
+= 'SOUND' , 'CLEAR' , [ numexpr ]            -- MasterBASIC
++ The ROM's form is register, value pairs.  MasterBASIC intercepts SOUND
++ in HCMDV at &5C6A.
+: ref/samrom/scrsel2.asm SOUND, SNDLP; docs/masterbasic-manual.md
+
+@ AF NEW
+= 'NEW'
+: ref/samrom/misc31.asm NEW (CHKEND)
+
+@ B0 RUN
+= 'RUN' , n-or-none
++ RUN is GO TO n then CLEAR 0 then RESTORE 0.  No argument means line 0.
+: ref/samrom/misc2.asm RUN (SYNTAX3)
+
+@ B1 STOP
+= 'STOP'
+: ref/samrom/misc32.asm STOP (CHKEND)
+
+@ B2 CONTINUE
+= 'CONTINUE'
+: ref/samrom/do.asm CONTINUE (CHKEND)
+
+@ B3 CLEAR
+= 'CLEAR' , n-or-none                        -- set RAMTOP
+= 'CLEAR' , '#'                              -- MasterDOS: drop every stream
+: ref/samrom/misc2.asm CLEAR (SYNTAX3); ref/masterdos/docs/commands.md
+
+@ B4 GO TO
+= 'GO TO' , lineno
+= 'GO TO' , 'ON' , numexpr , ';' , lineno , { ',' , lineno }
++ The ';' after the selector is required -- GOTON raises Nonsense for
++ anything else -- and the line numbers after it are comma-separated.
++ The selector is one-based and is not range-checked.  GOTON2 clamps
++ anything above 255 to 255 and then counts down the list, so a selector
++ of 0, one over 255, or one past the end simply drops through to the
++ next statement -- GOTONRL runs out of commas and discards the return
++ address rather than reporting anything.  Each line number is a full
++ expression, evaluated only as far as the selected one.
+: ref/samrom/scrsel2.asm GOTO, GSUBTOC, GOTON, GOTONSL, GOTON2, GOTONRL
+
+@ B5 GO SUB
+= 'GO SUB' , lineno
+= 'GO SUB' , 'ON' , numexpr , ';' , lineno , { ',' , lineno }
++ The same routine as GO TO ON; the two differ only in the address
++ GSUBTOC stacks before reaching it.
+: ref/samrom/scrsel2.asm GOSUB, GSUBTOC, GOTON
+
+@ B6 RETURN
+= 'RETURN'
+: ref/samrom/do.asm RETURN (CHKEND)
+
+@ B7 REM
+= 'REM' , <the rest of the line, untokenised>
++ The tokeniser stops at REM, so no keyword after it is a token and the
++ text is stored as typed.  A ':' inside a REM does not end it.
+: ref/samrom/miscx2.asm TOK6; ref/samrom/mainlp.asm REMARK
+
+@ B8 READ
+= 'READ' , read-item , { ',' , read-item }
+= read-item := [ 'LINE' ] , ( var | array | sliced )
++ READ LINE is string-only; the ROM rejects it for a numeric variable.
+: ref/samrom/misc1.asm READ, READ2, RJUNKFLG
+
+@ B9 DATA
+= 'DATA' , expr , { ',' , expr }
++ Skipped whole when running.  Also the marker that ends a DEF PROC
++ parameter list.
+: ref/samrom/mainlp.asm DATA, DATA1; ref/samrom/fn.asm DPROC2
+
+@ BA RESTORE
+= 'RESTORE' , n-or-none
+: ref/samrom/nparpro.asm RESTORE (SYNTAX3)
+
+@ BB PRINT
+= 'PRINT' , { print-sep } , [ print-item , { { print-sep } , print-item } ] , { print-sep }
+= 'PRINT' , 'REF' , reference , [ ',' , lineno , [ ',' , lineno ] ]
++ Separators and items alternate freely and either may lead or trail; a
++ trailing ';' suppresses the newline.  A '#' item sets the stream and may
++ appear anywhere an item may.  MasterBASIC takes the handler at &5641 and
++ adds PRINT REF.
+: ref/samrom/list.asm PRINT, PRINT2, MPRSEPLP, PRITEM, PRSEPR
+
+@ BC LPRINT
+= 'LPRINT' , <as PRINT>
+= 'LPRINT' , 'CLEAR' , [ numexpr ]           -- MasterBASIC: printer buffer
+= 'LPRINT' , 'MODE' , numexpr                -- MasterBASIC: 1 parallel, 2 serial
++ LPRINT is PRINT with stream 3 preselected -- one instruction apart in
++ the ROM.  Handler taken over at &5578.
+: ref/samrom/list.asm LPRINT; docs/masterbasic-manual.md
+
+@ BD LIST
+= 'LIST'
+= 'LIST' , 'FORMAT' , numexpr                -- 0 turns indenting off
+= 'LIST' , [ stream ] , line-range
+: ref/samrom/list.asm LIST, LIST1; ref/samrom/misc2.asm BRKLSSL
+
+@ BE LLIST
+= 'LLIST' , <as LIST>
+: ref/samrom/list.asm LIST (LLIST shares it with C=3)
+
+@ BF DUMP
+= 'DUMP' , [ 'INVERSE' ] , [ numexpr , [ ',' , numexpr ] ]
++ 1 to 3 are the shaded dumps, 4 unshaded, 5 text.  The first number is
++ the width magnification and the second the height, defaulting to the
++ width.  MasterBASIC's handler is at &67F0.  Under the ROM alone &BF is
++ pointed at COPY's routine, so it takes COPY's arguments -- nothing, or
++ 'CHR$' -- and none of the numbers above.
+: ref/samrom/text.asm CMDADT (DUMP -> COPY); docs/masterbasic-manual.md
+
+@ C0 FOR
+= 'FOR' , numvar , '=' , numexpr , 'TO' , numexpr , [ 'STEP' , numexpr ]
++ The control variable must be numeric and not an array element.
+: ref/samrom/do.asm FOR, FORSTEP (SYNTAX4)
+
+@ C1 NEXT
+= 'NEXT' , numvar
+: ref/samrom/do.asm NEXT (SYNTAX4, CHKEND)
+
+@ C2 PAUSE
+= 'PAUSE' , n-or-none
++ MasterBASIC intercepts PAUSE in HCMDV at &5D32.
+: ref/samrom/misc32.asm PAUSE (SYNTAX3)
+
+@ C3 DRAW
+= 'DRAW' , colour-list , n2 , [ ',' , numexpr ]
+= 'DRAW' , 'TO' , colour-list , n2 , [ ',' , numexpr ]
++ The third number is curvature.  DRAW TO gives absolute coordinates.
+: ref/samrom/graph0.asm DRAW, PASTTO, DRNOCU
+
+@ C4 DEFAULT
+= 'DEFAULT' , assign , { ',' , assign }
++ Exactly LET, except that an existing variable keeps its value: DEFAULT
++ and LET share the routine, differing only in the LTDFF flag.
+: ref/samrom/misc2.asm DEFAULT, LET
+
+@ C5 DIM
+= 'DIM' , dim-item , { ',' , dim-item }
+= dim-item := ( numvar | strvar ) , '(' , numexpr , { ',' , numexpr } , ')'
++ The brackets are required: DIM without them is a syntax error.
+: ref/samrom/assign.asm DIM, DIM2, SVDSK
+
+@ C6 INPUT
+= 'INPUT' , { print-sep } , [ input-item , { { print-sep } , input-item } ]
+= input-item := 'LINE' , ( strvar | array | sliced )
+              | var | array | sliced
+              | '(' , <PRINT items> , ')'
+              | print-item
++ Anything that is not a variable is printed as a prompt.  A bracketed
++ group is a run of PRINT items, which is how a prompt containing a
++ variable is written.  INPUT LINE is string-only.
+: ref/samrom/miscx1.asm INPP2, INPSL, IPITEM, INP2, INP4
+
+@ C7 RANDOMIZE
+= 'RANDOMIZE' , n-or-none
++ No argument, or 0, seeds from FRAMES.
+: ref/samrom/misc32.asm RANDOMIZE (SYNTAX3)
+
+@ C8 DEF FN
+= 'DEF FN' , fn-name , [ '(' , [ fn-params ] , ')' ] , '=' , expr
+= fn-name   := letter , [ '$' ]
+= fn-params := fn-param , { ',' , fn-param }
+= fn-param  := letter , [ '$' ]
++ The function name is a single letter, optionally with '$'.  A string
++ name must be given a string expression.
+: ref/samrom/miscx2.asm DFNP2, DFNPL, DFN5, DFN6
+
+@ C9 DEF KEYCODE
+= 'DEF KEYCODE' , numexpr , ( ',' | ';' ) , strexpr
+= 'DEF KEYCODE' , numexpr , ':' , <the rest of the line, verbatim>
++ Only key codes 192 to 254 may be defined.  In the second form the rest
++ of the line after the ':' becomes the definition and is not executed.
++ MasterBASIC intercepts this in HCMDV at &5D62.
+: ref/samrom/miscx2.asm DKP2, DFK4, DFK5
+
+@ CA DEF PROC
+= 'DEF PROC' , name , [ 'DATA' | proc-params ]
+= proc-params := proc-param , { ',' , proc-param }
+= proc-param  := [ 'REF' ] , ( numvar | strvar | array-name )
+= array-name  := ( numvar | strvar ) , '(' , ')'
++ DEF PROC name DATA takes a variable-length list, read with READ.
++ REF passes by reference.
++ Comma only, as in the call: DPSY3 ends each parameter with INSISCOMA.
++ The matching of call arguments to parameters at PPD3 and PPD4 also
++ steps over commas alone.
+: ref/samrom/fn.asm DEFPROC, DPROC2, DPNMLP, DPSY1, DPSY3;
+: ref/samrom/nparpro.asm PPD3, PPD4
+
+@ CB END PROC
+= 'END PROC'
+: ref/samrom/do.asm ENDPROC (CHKEND)
+
+@ CC RENUM
+= 'RENUM' , line-range , [ 'LINE' , lineno ] , [ 'STEP' , numexpr ]
++ The order is fixed: the block of lines to renumber comes first, through
++ the same BRKLSSL that serves LIST, then 'LINE' and then 'STEP'.  So the
++ 'TO' in RENUM 100 TO 200 LINE 1000 STEP 5 belongs to the block being
++ renumbered and not to the new numbering.  Both default to 10, and REVAL
++ rejects zero for either with "Integer out of range".  'No room for
++ line' if renumbering would carry a line past &FEFF.
+: ref/samrom/miscx1.asm RNMP2, REVAL, NRFLERR; ref/samrom/misc2.asm
+: BRKLSSL
+
+@ CD DELETE
+= 'DELETE' , [ lineno ] , 'TO' , [ lineno ]
+= 'DELETE' , ( strvar | array | sliced )     -- MasterBASIC: delete a string
++ The 'TO' is required, unlike LIST and RENUM: DELPT2 raises Nonsense if
++ it is missing, so DELETE 100 on its own is a syntax error and
++ DELETE 100 TO 100 is how one line goes.  Omitting the first line means
++ 1 and omitting the last means &FEFF.  DELETE does not use BRKLSSL.
++ MasterBASIC's string form is dispatched through its own route.
+: ref/samrom/miscx1.asm DELPT2, DL2, DELSR; docs/masterbasic-manual.md
+
+@ CE REF
+= 'REF' , reference , [ ',' , lineno , [ ',' , lineno ] ]
+= reference := name | numexpr | strexpr | '(' , var , ')'
++ MasterBASIC only, handler at &5662.  A bare name matches whole words
++ outside strings; a quoted string matches anywhere; brackets round a
++ variable name mean "use its value".  &CE is also the REF qualifier in a
++ DEF PROC parameter list, which is not this statement.
+: docs/masterbasic-manual.md "Searching the program"
+
+@ CF COPY
+= 'COPY'                                     -- text screen to printer
+= 'COPY' , 'CHR$'                            -- text dump
+= 'COPY' , [ 'OVER' ] , filename , 'TO' , filename        -- MasterDOS
+= 'COPY' , [ 'OVER' ] , filename , ',' , filename         -- MasterBASIC
+= 'COPY' , 'SCREEN' , numexpr , 'TO' , numexpr            -- MasterBASIC
+: ref/samrom/scrfn.asm COPY, GRCOPY; ref/masterdos/docs/commands.md COPY
+
+@ D1 KEYIN
+= 'KEYIN' , strexpr
++ The string is tokenised, syntax-checked and then run or inserted as a
++ program line, depending on whether it starts with a line number.
+: ref/samrom/miscx1.asm KEYP2
+
+@ D2 LOCAL
+= 'LOCAL' , local-item , { ',' , local-item }
+= local-item := numvar | strvar | array-name
++ LOCAL REF x is rejected: LOCAL enters the shared parameter checker with
++ D set to a space rather than to the REF token.
+: ref/samrom/fn.asm LOCAL, DPSY2
+
+@ D3 LOOP IF
+= 'LOOP IF' , numexpr
+: ref/samrom/do.asm LOOPIF (SYNTAX6, TRUETST)
+
+@ D4 DO
+= 'DO'
+= 'DO' , 'WHILE' , numexpr
+= 'DO' , 'UNTIL' , numexpr
+: ref/samrom/do.asm DO, WHUNT
+
+@ D5 LOOP
+= 'LOOP'
+= 'LOOP' , 'WHILE' , numexpr
+= 'LOOP' , 'UNTIL' , numexpr
+: ref/samrom/do.asm LOOP, WHUNT
+
+@ D6 EXIT IF
+= 'EXIT IF' , numexpr
+: ref/samrom/do.asm EXITIF (SYNTAX6, TRUETST)
+
+@ D7 IF
+= 'IF' , numexpr , ':' , statements
++ Long IF: the block runs to the matching ELSE or END IF, which may be on
++ later lines.  This is the token the tokeniser always writes; see
++ [REWRITES].
+: ref/samrom/do.asm LIF, EIFLP
+
+@ D8 IF
+= 'IF' , numexpr , 'THEN' , statements
++ Short IF: everything to the end of the line, or to an ELSE on it.  The
++ tokeniser never writes &D8; the syntax pass rewrites &D7 to it when a
++ THEN follows.
+: ref/samrom/do.asm SIF (LD (HL),&D8), SHORTIF
+
+@ D9 ELSE
+= 'ELSE' , [ 'IF' , numexpr ]
++ Long ELSE, belonging to a long IF.  ELSE IF is a chained condition and
++ needs no extra END IF.  Tokenised from the word ELSE; see [REWRITES].
+: ref/samrom/do.asm LELSE, RLELSE, EIFLP
+
+@ DA ELSE
+= 'ELSE' , statements
++ Short ELSE, belonging to a short IF; runs to the end of the line.  The
++ syntax pass rewrites &D9 to this when IFTYPE says the IF was short.
+: ref/samrom/do.asm ELSE, NLELS
+
+@ DB END IF
+= 'END IF'
++ A marker only: the routine is a bare RET.
+: ref/samrom/do.asm ENDIF
+
+@ DC KEY
+= 'KEY' , n2                                 -- key position, key code
++ Position 1 to 280.
+: ref/samrom/misc32.asm KEY (SYNTAX8)
+
+@ DD ON ERROR
+= 'ON ERROR' , statements
+= 'ON ERROR' , 'STOP'
++ Without STOP the rest of the statement is the handler.
+: ref/samrom/do.asm ONERROR, ONERR2
+
+@ DE ON
+= 'ON' , numexpr , ':' , statements
++ Selects the nth statement after the colon, counting from 1, and runs
++ from there to the end of the line.
+: ref/samrom/do.asm ON, SKIPS0
+
+@ DF GET
+= 'GET' , var
++ Waits for a key.  A numeric variable gets the digit or letter value,
++ a string variable gets CHR$ of the key.
+: ref/samrom/miscx1.asm GETP2, GT2, GT3
+
+@ E0 OUT
+= 'OUT' , n2                                 -- port, value
+: ref/samrom/misc32.asm OUT (SYNTAX8)
+
+@ E1 POKE
+= 'POKE' , numexpr , ',' , expr , { ',' , numexpr }
++ A string second operand pokes the whole string, and then no further
++ values may follow.  Otherwise up to 31 more numbers may -- POKE4 counts
++ them and raises Nonsense at 32.  MasterBASIC intercepts POKE in HCMDV
++ at &5CDF.
+: ref/samrom/misc1.asm POKE, POKE2, POKENL, POKE4
+
+@ E2 DPOKE
+= 'DPOKE' , n2
+: ref/samrom/misc1.asm DPOKE (SYNTAX8)
+
+@ E3 RENAME
+= 'RENAME' , filename , 'TO' , filename
+= 'RENAME' , filename , ',' , filename       -- MasterBASIC
+= 'RENAME' , 'DIR' , strexpr , 'TO' , strexpr
+= 'RENAME' , 'TO' , strexpr                  -- rename the disk itself
+: ref/masterdos/docs/commands.md RENAME
+
+@ E4 CALL
+= 'CALL' , numexpr , { ',' , expr }
+= 'CALL' , 'MODE' , numexpr                  -- MasterDOS: 0 or 1
++ The parameters are pushed for the machine code being called.
+: ref/samrom/misc31.asm CALLER, FCALERLP; ref/masterdos/docs/commands.md
+
+@ E5 ROLL
+= 'ROLL' , numexpr , [ ',' , numexpr , [ ',' , n4 ] ]
++ direction, pixels, then x, y, width, length.  Defaults are one pixel
++ and the whole screen.
+: ref/samrom/roll.asm ROLL, RSCOMM, ROLL4, ROLL6
+
+@ E6 SCROLL
+= 'SCROLL' , <as ROLL>
+= 'SCROLL' , 'CLEAR'                         -- prompt off
+= 'SCROLL' , 'RESTORE'                       -- prompt on
+: ref/samrom/roll.asm SCROLL, SETPROMPT, RSCOMM
+
+@ E7 SCREEN
+= 'SCREEN' , numexpr
+: ref/samrom/scrsel1.asm SCREEN (SYNTAX6)
+
+@ E8 DISPLAY
+= 'DISPLAY' , n-or-none                      -- 0 means the current screen
+: ref/samrom/misc2.asm DISPLAY (SYNTAX3)
+
+@ E9 BOOT
+= 'BOOT' , n-or-none                         -- non-zero forces a re-boot
+: ref/samrom/scrsel2.asm BOOT (SYNTAX3)
+
+@ EA LABEL
+= 'LABEL' , numvar
++ Skipped entirely when running; it exists for RENUM and REF to see.
+: ref/samrom/misc2.asm LABEL, SVNUMV, VNUMV
+
+@ EB FILL
+= 'FILL' , [ 'USING' , strexpr , ( ',' | ';' ) ] , colour-list , n2
+: ref/samrom/graph2.asm FILL, PASTUSNG (SYNTAX9)
+
+@ EC WINDOW
+= 'WINDOW'                                   -- the whole screen
+= 'WINDOW' , n4                              -- left, right, top, bottom
+: ref/samrom/misc32.asm WINDOW, ALLWIND (EXPT4NUMS)
+
+@ ED AUTO
+= 'AUTO' , [ lineno , [ ',' , numexpr ] ]
++ Step defaults to 10.  A step larger than the line number turns AUTO off.
+: ref/samrom/scrsel2.asm AUTO, AO1, AO2
+
+@ EE POP
+= 'POP' , [ numvar ]
++ Unstacks a GO SUB, DO or PROC return address; the variable receives the
++ line number.
+: ref/samrom/miscx1.asm POPP2, POP1
+
+@ EF RECORD
+= 'RECORD' , 'TO' , strvar
+= 'RECORD' , 'STOP'
+= 'RECORD' , 'SOUND' , [ 'OFF' ] , 'TO' , strvar     -- MasterBASIC
+= 'RECORD' , 'SOUND' , 'STOP'                        -- MasterBASIC
++ The ROM's RECORD TO captures graphics commands into a BLITZ string.
++ MasterBASIC's handler at &5BD8 adds the SOUND forms.
+: ref/samrom/assign.asm RECORD, RECORD2, RECORD3; docs/masterbasic-manual.md
+
+@ F0 DEVICE
+= 'DEVICE' , letter , [ numexpr ]
++ The letter is forced upper case.  Sets the default device for SAVE and
++ LOAD; the number is a drive, tape speed or net station.
+: ref/samrom/misc32.asm SLDEVICE (GETALPH, FETCHNUM)
+
+@ F1 PROTECT
+= 'PROTECT' , [ 'OFF' ] , pattern
+: ref/masterdos/docs/commands.md PROTECT and HIDE
+
+@ F2 HIDE
+= 'HIDE' , [ 'OFF' ] , pattern               -- MasterDOS
+= 'HIDE' , 'TO' , lineno                     -- MasterBASIC
++ Two unrelated commands under one token.  MasterDOS's sets the file
++ flags; MasterBASIC's hides program lines from LIST, NEW and LOAD.
+: ref/masterdos/docs/commands.md; docs/masterbasic-manual.md "HIDE TO"
+
+@ F3 ZAP
+@ F4 POW
+@ F5 BOOM
+@ F6 ZOOM
+= <one of the four>
++ Sound effects; each takes no arguments (CHKEND immediately).
+: ref/samrom/misc32.asm ZAP, POW, BOOM, ZOOM
+
+@ F7 BACKUP
+= 'BACKUP' , filename , 'TO' , filename
+= 'BACKUP' , filename , ',' , filename       -- MasterBASIC
++ MasterDOS's own, and the one command of the seven MasterBASIC leaves
++ pointing into the DOS page.
+: ref/masterdos/docs/commands.md BACKUP
+
+@ F8 TIME
+= 'TIME'                                     -- print the clock
+= 'TIME' , strexpr                           -- set it
+= 'TIME' , '+'                               -- MasterBASIC: fast test mode
+= 'TIME' , '-'                               -- MasterBASIC: back to normal
++ Setting takes six digits from the string and ignores everything that is
++ not one, so 12:30:00, 12.30.00 and 123000 are the same time; a string
++ that runs out is padded with '0', so TIME "1" is one o'clock.  Range
++ checked against the limit bytes MasterDOS keeps after TIMDT -- 0-23,
++ 0-59, 0-59 -- and refused with "Integer out of range".  The clock is
++ read before the argument is looked at, so setting the time rewrites the
++ date from the copy just taken, and vice versa.
+: listings/clean/masterbasic.asm CMD_TIME, CMD_DATE_2, CMD_TIME_LOOP4;
+: ref/masterdos/annotated-src/masterdos23.asm TIME, TIMDC, TIML
+
+@ F9 DATE
+= 'DATE'                                     -- print the date
+= 'DATE' , strexpr                           -- set it
++ The same routine as TIME with DATDT in place of TIMDT: 23/12/91,
++ 23.12.91 and 231291 all set the same date, and the limits are 1-31,
++ 1-12, 0-99.  MasterDOS and MasterBASIC implement this identically;
++ MasterBASIC took it over only to keep it consistent with TIME across
++ the fast-mode switch.
+: listings/clean/masterbasic.asm CMD_DATE, CMD_DATE_2;
+: ref/masterdos/annotated-src/masterdos23.asm DATE, TIMDC
+
+@ FA ALTER
+= 'ALTER' , reference , 'TO' , reference , [ ',' , lineno , [ ',' , lineno ] ]
+= 'ALTER' , 'DEVICE' , numexpr , 'TO' , numexpr
+= 'ALTER' , 'DISPLAY' , numexpr , 'TO' , numexpr , 'LINE' , numexpr
++ Three unrelated jobs under one keyword.  Handler at &54CA.
+: docs/masterbasic-keywords.md ALTER
+
+@ FB SORT
+= 'SORT' , [ 'ABS' ] , [ 'INVERSE' ] , sort-target
+= sort-target := strvar
+              | strvar , '(' , slicer , ')' , [ '(' , slicer , ')' ]
++ The second slicer names the part of each string to compare.  Handler
++ at &460B.  Numeric arrays are not supported.
+: docs/masterbasic-keywords.md SORT
+
+@ FC JOIN
+= 'JOIN' , [ lineno ]                        -- join two program lines
+= 'JOIN' , 'TO' , strvar , ',' , strexpr     -- append a string or array
++ Handler at &6DFC.
+: docs/masterbasic-keywords.md JOIN
+
+@ FD EDIT
+= 'EDIT' , [ stream , ';' ] , [ 'AT' , n2 , ';' ] , [ strexpr , ';' ] , var
++ INPUT with the variable's current value offered for editing.  Only the
++ first variable is edited; any others behave as plain INPUT.  The one
++ MBKEYS word with no CTAB entry -- it arrives through CMDV.
+: docs/masterbasic-keywords.md EDIT
+
+@ FF26 EXIT PROC
+= 'EXIT PROC'
++ A statement wearing a two-byte function token, because that is where
++ HGTTK's numbering put it.  Reached through CMDV, not through the
++ function evaluator.
+: docs/masterbasic-keywords.md EXIT PROC
+
+@ FF27 EXIT DO
+= 'EXIT DO'
++ Leaves the innermost DO loop, skipping any nested ones.
+: docs/masterbasic-keywords.md EXIT DO
+
+@ FF28 EXIT FOR
+= 'EXIT FOR'
++ The control variable keeps its value.
+: docs/masterbasic-keywords.md EXIT FOR
+
+
+[FUNCTIONS]
+Every two-byte token that appears inside an expression, in token order.
+`> num` or `> str` is the result type.  Argument types come from FNPRIORT
+where the ROM records them and from the routine otherwise; a function not
+listed in FNPRIORT takes one number and returns one, at priority 15.
+
+The ROM divides these into three groups, and the group decides how the
+argument is written:
+
+  &FF3B-&FF52  immediate   no argument, a bracketed argument list, or #n
+  &FF53-&FF79  fp calc     one argument, brackets optional
+  &FF7A-&FF83  binary      an operator, not a function -- see [PRECEDENCE]
+
+MasterDOS's and MasterBASIC's own functions, &FF26-&FF38, sit below all
+three and each states its own form.
+: ref/samrom/eval.asm IMFNATAB, FNPRIORT; ref/samrom/tprint.asm PSTFF2
+
+@ FF29 LOCN
+= 'LOCN' , '(' , numexpr , ',' , numexpr , ',' , strexpr , [ ',' , 'ABS' ] , ')'
+> num
++ start, length, target.  '#' in the target matches any character; ABS
++ makes the search case-sensitive and faster.
+: docs/masterbasic-keywords.md LOCN
+
+@ FF2A RESERVED
+= 'RESERVED' , '(' , numexpr , ')'
+> num
++ Claims bytes from the system heap and returns the address; a negative
++ argument gives them back.
+: docs/masterbasic-keywords.md RESERVED
+
+@ FF2B EQU
+= 'EQU' , '(' , strexpr , ',' , strexpr , ')'
+> num
++ Case-insensitive string comparison.
+: docs/masterbasic-keywords.md EQU
+
+@ FF2C TICS
+= 'TICS'
+> num
++ Seconds elapsed in the month.  Under TIME + it returns a floating-point
++ value, MasterBASIC having done the division by the fast-mode factor.
+: docs/masterbasic-keywords.md TICS
+
+@ FF2D SHIFT$
+= 'SHIFT$' , '(' , strexpr , ',' , numexpr , ')'
+> str
++ 1 upper case, 2 lower, 3 reversed, 4 printable.  16383 characters max.
+: docs/masterbasic-keywords.md SHIFT$
+
+@ FF2E SVAL$
+= 'SVAL$' , '(' , numexpr , ',' , numexpr , ')'
+> str
++ Packs a number into 2 to 5 characters.  NVAL is the inverse.
+: docs/masterbasic-keywords.md SVAL$
+
+@ FF2F USING$
+= 'USING$' , '(' , strexpr , ',' , numexpr , ')'
+> str
++ '#' is a leading space in the format, '0' a leading zero.
++ CTAB's first entry carries &2F and is *not* this function.  SYNTAX
++ searches that table with the raw byte at the start of the statement, so
++ an entry is a token only when a statement begins with one; &2F is
++ ASCII '/', and the entry is the line-splitting editor feature described
++ in [LEXICAL].  It sorts first because a character is below every
++ command token.
+: docs/masterbasic-keywords.md USING$; listings/clean/masterbasic.asm
+: CMD_SPLIT_LINE
+
+@ FF30 TIME$
+= 'TIME$'
+> str
+: ref/masterdos/docs/functions.md
+
+@ FF31 DATE$
+= 'DATE$'
+> str
+: ref/masterdos/docs/functions.md
+
+@ FF32 INP$
+= 'INP$' , '(' , stream , ',' , numexpr , ')'
+> str
++ MasterBASIC allows a count of zero, meaning "read to a carriage return".
+: ref/masterdos/docs/functions.md; docs/masterbasic-keywords.md
+
+@ FF33 DIR$
+= 'DIR$'
+= 'DIR$' , '(' , pattern , [ '?' ] , ')'
+> str
++ The '?' is MasterBASIC's, and lists subdirectories too.
+: ref/masterdos/docs/functions.md; listings/clean/masterdos.asm FNDIRS
+
+@ FF34 FSTAT
+= 'FSTAT' , '(' , pattern , ',' , numexpr , ')'
+> num
++ MasterDOS offers options 1 to 4; MasterBASIC extends them to 8.
+: ref/masterdos/docs/functions.md; docs/masterbasic-keywords.md
+
+@ FF35 DSTAT
+= 'DSTAT' , '(' , numexpr , ',' , numexpr , ')'
+> num
++ Drive first, then the option.  The brackets are required (SIBKS) and so
++ is the comma (CNB).  Option 8 returns the current drive; a drive that
++ does not exist, or holds no disk, returns -1.
+: ref/masterdos/annotated-src/masterdos23.asm DSTAT, EVDNM, CNB
+
+@ FF36 FPAGES
+= 'FPAGES'
+> num
+: ref/masterdos/docs/functions.md
+
+@ FF37 SCRAD
+= 'SCRAD'
+> num
++ The address of the start of the current screen, which is not the same
++ on a 256K and a 512K machine.
+: docs/masterbasic-keywords.md SCRAD
+
+@ FF38 INARRAY
+= 'INARRAY' , '(' , strvar , '(' , numexpr , [ ',' , slicer ] , ')' , ',' , strexpr , [ ',' , 'ABS' ] , ')'
+> num
++ Returns the number of the first string containing the target, or 0.
++ DPEEK XVAR 3 then gives the position within that string.
+: docs/masterbasic-keywords.md INARRAY
+
+@ FF3B PI
+= 'PI'
+> num
+: ref/samrom/eval.asm IMPI
+
+@ FF3C RND
+= 'RND'
+> num
++ MasterDOS also borrows this token as the RND mode word of OPEN.
+: ref/samrom/rom1fns.asm IMRND
+
+@ FF3D POINT
+= 'POINT' , '(' , n2 , ')'
+> num
++ Under MasterDOS the same token is also the POINT statement, recognised
++ in CNF after the command table search has failed:
++   'POINT' , stream , ',' , numexpr
++   'POINT' , stream , ',' , 'OVER' , numexpr
+: ref/samrom/rom1fns.asm IMPOINT; ref/masterdos/docs/commands.md POINT
+
+@ FF3E FREE
+= 'FREE'
+> num
+: ref/samrom/eval.asm IMMEM (GETROOM)
+
+@ FF3F LENGTH
+= 'LENGTH' , '(' , numexpr , ',' , ( name | array-name ) , ')'
+= 'LENGTH' , stream                          -- MasterDOS: an open file
+> num
++ The first number selects what is wanted about the variable named second.
++ MasterDOS handles both this and a ROM bug in the original; hook code
++ &25 reaching HKLEN is this token.
+: ref/samrom/using.asm IMLENGTH; ref/masterdos/docs/functions.md LENGTH
+
+@ FF40 ITEM
+= 'ITEM'
+> num
+: ref/samrom/eval.asm IMITEM
+
+@ FF41 ATTR
+= 'ATTR' , '(' , n2 , ')'
+> num
+: ref/samrom/rom1fns.asm IMATTR
+
+@ FF42 FN
+= 'FN' , fn-name , [ '(' , [ expr , { ',' , expr } ] , ')' ]
+> num or str, following the '$' on the name
+: ref/samrom/fn.asm IMFN
+
+@ FF43 BIN
+= 'BIN' , <binary digits>
+> num
++ A literal, not an expression: the digits are read where they stand and
++ the five-byte form is inserted after them like any other number.
+: ref/samrom/eval.asm IMBIN, SDECIMAL, INSERT5B
+
+@ FF44 XMOUSE
+@ FF45 YMOUSE
+@ FF46 XPEN
+@ FF47 YPEN
+@ FF48 RAMTOP
+= <one of the five>
+> num
+: ref/samrom/eval.asm IMFNATAB
+
+@ FF4A INSTR
+= 'INSTR' , '(' , [ numexpr , ',' ] , strexpr , ',' , strexpr , ')'
+> num
++ The optional first number is the position to start from, default 1.
+: ref/samrom/using.asm IMINSTR, INSTR2, INSTR3
+
+@ FF4B INKEY$
+= 'INKEY$'
+= 'INKEY$' , stream
+> str
+: ref/samrom/eval.asm IMINKEYS
+
+@ FF4C SCREEN$
+= 'SCREEN$' , '(' , n2 , ')'
+> str
+: ref/samrom/scrfn.asm IMSCREENS
+
+@ FF4D MEM$
+= 'MEM$' , '(' , numexpr , 'TO' , numexpr , ')'
+> str
++ The 'TO' is required; MEM$(n) is a syntax error.
+: ref/samrom/eval.asm IMMEMRYS
+
+@ FF4F PATH$
+= 'PATH$'
+> str
++ A ROM function reached by a single hook call, not one of MasterDOS's.
++ Under MasterDOS it also has the side effect of setting the default
++ drive -- see ref/masterdos/docs/functions.md.
+: ref/samrom/rom1fns.asm IMPATHS
+
+@ FF50 STRING$
+= 'STRING$' , '(' , numexpr , ',' , strexpr , ')'
+> str
+: ref/samrom/using.asm IMSTRINGS (EXBNCSB)
+
+@ FF53 SIN
+@ FF54 COS
+@ FF55 TAN
+@ FF56 ASN
+@ FF57 ACS
+@ FF58 ATN
+@ FF59 LN
+@ FF5A EXP
+@ FF5B ABS
+@ FF5C SGN
+@ FF5D SQR
+@ FF5E INT
+@ FF5F USR
+@ FF60 IN
+@ FF61 PEEK
+@ FF62 DPEEK
+@ FF63 DVAR
+@ FF64 SVAR
+@ FF65 BUTTON
+= <one of the nineteen> , numexpr
+> num
++ Brackets are optional: these are the floating-point calculator's own
++ functions and bind at priority 15, so SIN a*2 is (SIN a)*2.
++ DVAR n and SVAR n return the *address* of a variable, not its value.
++ MasterDOS also borrows 'IN' as the read-only mode word of OPEN.
+: ref/samrom/eval.asm FNPRIORT (absent, so the "PRI. 16,N,N" default)
+
+@ FF66 EOF
+= 'EOF' , stream
+> num
+: ref/masterdos/docs/functions.md EOF and PTR
+
+@ FF67 PTR
+= 'PTR' , stream
+> num
+: ref/masterdos/docs/functions.md EOF and PTR
+
+@ FF68 XVAR
+= 'XVAR' , numexpr
+> num
++ MasterBASIC's counterpart of SVAR and DVAR: the address of one of its
++ own variables.  0 to 89 are defined; XVAR 0 is the start of MasterBASIC.
++ The slot is one of the ROM's two spare FPC entries -- calculator code
++ &4E, which fpcmain.asm's dispatch table marks UNUSED and eval.asm's
++ range comment calls POS.  It falls below UDGA, so it takes the default
++ &CF rather than an FNPRIORT entry: priority 15, numeric argument,
++ numeric result, which is what XVAR n is.
+: docs/masterbasic-keywords.md XVAR; ref/samrom/fpcmain.asm (;4E UNUSED);
+: ref/samrom/eval.asm SCANUMEN
+
+@ FF69 UDG
+= 'UDG' , strexpr
+> num
++ FNPRIORT &8F: string argument, numeric result.
+: ref/samrom/eval.asm FNPRIORT
+
+@ FF6A NVAL
+= 'NVAL' , strexpr
+> num
++ The inverse of SVAL$: a 2 to 5 character packed string back to a number.
++ Like XVAR this is one of the ROM's spare slots, calculator code &50 --
++ and this one the ROM had already named and typed.  fpcmain.asm lists it
++ as NUMBER under the heading "PRIORITY 15, STRING ARG, NUMERIC RESULT",
++ and FNPRIORT's entry is &8F, whose bit 6 is clear for a string argument
++ and bit 7 set for a numeric result.  That is exactly NVAL's signature,
++ so MasterBASIC did not merely find an empty slot here, it found the
++ right one.
+: docs/masterbasic-keywords.md NVAL; ref/samrom/fpcmain.asm (;50 NUMBER);
+: ref/samrom/eval.asm FNPRIORT
+
+@ FF6B LEN
+= 'LEN' , strexpr
+> num
+: ref/samrom/eval.asm FNPRIORT &8F
+
+@ FF6C CODE
+= 'CODE' , strexpr
+> num
++ 'CODE' is also a qualifier in SAVE, LOAD and VERIFY, where it is the
++ same token used for a different job.
+: ref/samrom/eval.asm FNPRIORT &8F
+
+@ FF6D VAL$
+= 'VAL$' , strexpr
+> str
+: ref/samrom/eval.asm FNPRIORT &0F
+
+@ FF6E VAL
+= 'VAL' , strexpr
+> num
+: ref/samrom/eval.asm FNPRIORT &8F
+
+@ FF6F TRUNC$
+= 'TRUNC$' , strexpr
+> str
+: ref/samrom/eval.asm FNPRIORT &0F
+
+@ FF70 CHR$
+@ FF71 STR$
+@ FF72 BIN$
+@ FF73 HEX$
+@ FF74 USR$
+= <one of the five> , numexpr
+> str
+: ref/samrom/eval.asm FNPRIORT &4F
+
+@ FF76 NOT
+= 'NOT' , numexpr
+> num
++ Priority 4, so NOT a = b is NOT (a = b).
+: ref/samrom/eval.asm FNPRIORT &C4
+
+@ FF7A MOD
+@ FF7B DIV
+@ FF7C BOR
+@ FF7E BAND
+@ FF7F OR
+@ FF80 AND
+@ FF81 <>
+@ FF82 <=
+@ FF83 >=
+= numexpr , <the operator> , numexpr
+> num
++ Binary operators, not functions.  Priorities are in [PRECEDENCE].
++ 'AND' and '+' also take strings, and every comparison does.
++ &FF7D is a tenth binary operator, BXOR, with a priority but no keyword:
++ it cannot be typed and will not be listed.
+: ref/samrom/eval.asm OPERAT2, OPERAT3, OPPRIORT
+
+
+[UNUSED]
+Tokens with no keyword.  A translator meeting one in a file has met a
+corrupt file or a fourth extension; the ROM lists nothing for them.
+
+D0    reserved, 'DRIVER' in CMDADT, points at NONSENSE
+FE    never used
+FF49  reserved, marked 'UNUSED INARRAY' in text.asm
+FF4E  reserved, marked 'UNUSED CHAR$'
+FF51  reserved, marked 'UNUSED USING$'
+FF52  reserved, marked 'UNUSED SHIFT$'
+FF75  reserved, 'CORRESPONDS TO INKEY$ FPC CODE'
+FF77  reserved
+FF78  reserved
+FF79  reserved
+FF7D  BXOR -- an operator that works and has no name
+FF84  reserved
+: ref/samrom/text.asm KEYWTAB, CMDADT; ref/samrom/eval.asm OPPRIORT
+
+
+[AUTOCOMPLETE]
+What a completion list should offer, and where it should not.
+
+- Offer statements only at the start of a statement: after a line number,
+  after ':', after 'THEN', after 'ELSE', and after 'ON n:'.
+- Offer functions and operators only inside an expression.
+- Offer the qualifiers only where their statement allows them; they are
+  never valid alone.  'TO' belongs to FOR, SAVE, DELETE, LIST, RENAME,
+  COPY, MOVE, BACKUP, FORMAT, RECORD, JOIN, HIDE, ALTER and the ON forms
+  of GO TO and GO SUB; 'STEP' to FOR, RENUM and LINE; 'THEN' to IF;
+  'WHILE' and 'UNTIL' to DO and LOOP; 'AT' to PRINT, INPUT, EDIT, READ
+  and WRITE; 'TAB' to PRINT and INPUT; 'USING' to FILL; 'OFF' to LINE,
+  PROTECT, HIDE and RECORD SOUND; 'LINE' to SAVE, READ, INPUT, PALETTE,
+  ALTER DISPLAY and RENUM; 'WRITE' is a statement, not a qualifier.
+- Do not offer anything inside a string literal or after REM.
+- Filter the list by what is loaded: the From column of [TOKENS] says
+  whether a word needs MasterDOS or MasterBASIC.
+- A name that is not a keyword at the start of a statement is a procedure
+  call, so DEF PROC names belong in the statement completion list too.
+
+
+[LIMITS]
+Numbers a translator has to respect.
+
+line number      1 to 65279 (&FEFF)
+line length      the two-byte field allows 65535, but a line is built in
+                 the edit buffer and is limited by free memory
+statement depth  no limit in the format; ':' separates statements
+keyword length   15 characters -- the tokeniser's LD BC,15
+stream           0 to 16; 16 is output to a string
+variable name    letters, digits and underscore; spaces inside a name are
+                 ignored, so `my var` and `myvar` are the same variable
+string length    16383 for SHIFT$; strings generally may exceed this
+palette entry    0 to 15; colour 0 to 127
+PALETTE LINE     174 down to -16, which is scan lines 1 to 191
+palette changes  127 per screen; the LINICOLS list may not exceed &01FF
+POKE values      31 numbers after the address
+DEF KEYCODE      key codes 192 to 254 only
+: ref/samrom/miscx2.asm POSFIRST; ref/samrom/misc1.asm STRMINF2;
+: ref/samrom/misc31.asm COLOUR comment block, COLFULERR; misc1.asm POKENL
