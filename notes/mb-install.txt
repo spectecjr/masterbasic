@@ -164,3 +164,11 @@ MB &77F5 : RMRBIT in the DOS page, not this half's &7806 -- the block runs at &7
 MB &7818 : SMRBIT in the DOS page, not this half's &77FE -- a page that fails has its MRTAB bit set
 MB &7821 : MRTAB, the MegaRAM bitmap, at the DOS's &4296
 MB &7826 : CFMI in the DOS page, not this half's &7841 -- MRINIT's own last instruction, which counts the free pages into DE
+
+# &417F loads &4F00 as a value, not as a target: MBWRTBC writes it out
+# two instructions later.  It is INSTBUF in the system page, which the
+# twin load at &41D0 already says.  This page has code of its own at
+# &4F00 -- the tail of HCMDV -- and resolving the operand against it put
+# a caller there that does not exist.  Written as a number instead.
+MB &417F expr &4F00
+MB &417F : INSTBUF in the system page, written out by the MBWRTBC below -- not this page's &4F00

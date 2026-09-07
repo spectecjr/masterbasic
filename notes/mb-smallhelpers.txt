@@ -174,7 +174,7 @@ MB &4E51 ARGS_STRING_AND_NUMBER
     then fall into NUMBER_THEN_RPAREN.
 
 MB &4E5A NUMBER_THEN_RPAREN
-    A number and the closing bracket, with the number's page kept across
+    A number and the closing bracket, with the run flag kept across
     the bracket check on the stack.  Entered on its own by FN_RESERVED,
     whose argument list is just (number).
 

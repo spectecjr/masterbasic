@@ -58,7 +58,7 @@ MB &41C5 : the argument is already on the calculator stack; SBUFFET pops it into
 
 MB &41CD : page 0 into the window, which puts INSTBUF at &8F00 and STKEND at &9C65
 
-MB &41D0 : INSTBUF, &4F00 in the system page, seen through the window.  FN_SVAL_S_4 is a code label of this page that happens to share the address
+MB &41D0 : INSTBUF, &4F00 in the system page, seen through the window.  This page has code of its own at &4F00 -- the tail of HCMDV -- which is a coincidence and not what is meant
 
 MB &41D4 : the length, not a type code: two characters is SVAL$'s integer form
 

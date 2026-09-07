@@ -783,7 +783,8 @@ FN_SVAL_S_FAIL:
                CP &04                          ; 4179 FE 04
                JP NC,REP_ARGUMENT              ; 417B D2 BC 43
                PUSH BC                         ; 417E C5
-               LD HL,FN_SVAL_S_4               ; 417F 21 00 4F
+               LD HL,&4F00                     ; 417F 21 00 4F  INSTBUF in the system page, written out by the MBWRTBC
+                                               ; below -- not this page's &4F00
                LD C,&EF                        ; 4182 0E EF
                CALL MBWRTBC                    ; 4184 CD B3 45
                LD BC,&3431                     ; 4187 01 31 34
@@ -915,9 +916,9 @@ FN_NVAL:
                XOR A                           ; 41CD AF  page 0 into the window, which puts INSTBUF at &8F00 and STKEND
                                                ; at &9C65
                OUT (HMPR),A                    ; 41CE D3 FB
-               LD HL,FN_SVAL_S_4+&4000         ; 41D0 21 00 8F  INSTBUF, &4F00 in the system page, seen through the
-                                               ; window. FN_SVAL_S_4 is a code label of this page that happens to share
-                                               ; the address
+               LD HL,HCMDV_1+&4000             ; 41D0 21 00 8F  INSTBUF, &4F00 in the system page, seen through the
+                                               ; window. This page has code of its own at &4F00 -- the tail of HCMDV --
+                                               ; which is a coincidence and not what is meant
                LD A,C                          ; 41D3 79
                CP &02                          ; 41D4 FE 02  the length, not a type code: two characters is SVAL$'s
                                                ; integer form
@@ -8099,7 +8100,7 @@ ARGS_STRING_AND_NUMBER:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     A number and the closing bracket, with the number's page kept across
+;;     A number and the closing bracket, with the run flag kept across
 ;;     the bracket check on the stack.  Entered on its own by FN_RESERVED,
 ;;     whose argument list is just (number).
 ;; --------------------------------------------------------------------
@@ -8288,7 +8289,7 @@ HCMDV:
                LD HL,&4D7B                     ; 4EFD 21 7B 4D
 
 ;; --------------------------------------------------------------------
-;; FN_SVAL_S_4 -- &4F00 to &4F0B
+;; HCMDV_1 -- &4F00 to &4F0B
 ;;
 ;; Takes:     HL
 ;; Leaves:    A, F, BC
@@ -8297,8 +8298,7 @@ HCMDV:
 ;; ? drives OUT (HMPR),A.
 ;; --------------------------------------------------------------------
 
-; ---- FN_SVAL_S_4 ---- from &417F
-FN_SVAL_S_4:
+HCMDV_1:
                LD (&8D45),HL                   ; 4F00 22 45 8D
                POP AF                          ; 4F03 F1
                OUT (HMPR),A                    ; 4F04 D3 FB
