@@ -35,14 +35,33 @@ LISTINGS = tuple(
     for part in ('masterdos', 'masterbasic', 'base', 'samhw', 'samrom')
 ) + ('listings/disasm/postinstall-syspage.asm',)
 
-PROSE = ('docs', 'notes')
+PROSE = ('docs', 'notes', 'design')
 
 # The manual is a transcript of someone else's document, so its wording
 # is not a claim about the listing and its capitals are not label names.
-NOT_PROSE = ('masterbasic-manual.md',)
+# exampledocs.md is exempt for the opposite reason: it opens "If I was
+# going to document part of the masterdos.asm file, I might do it like
+# this", so every name in it is a hypothetical and none was ever meant to
+# be the listing's.
+NOT_PROSE = ('masterbasic-manual.md', 'exampledocs.md')
 
 # prose whose point is a name the listing no longer has, file by file
 HISTORICAL = {
+    # design/cleanstyle.md argues from names on purpose.  Its opening
+    # table has a "before" column of what the working copy calls things;
+    # its M2-M4 sections are the original proposals, in a syntax that did
+    # not ship and using constants invented to illustrate it; and its
+    # section 5 names four things the hand-written sketch got wrong, in
+    # order to make the point that only a generator can hold a style
+    # together.  None of these is a claim about the listing.
+    ('design/cleanstyle.md', 'MAX_RAMDRIVE_PAGE_TYPE'),
+    ('design/cleanstyle.md', 'DISK_STATUS_BUSY'),
+    ('design/cleanstyle.md', 'DISK_SECTOR_READ_ERROR_FLAGS'),
+    ('design/cleanstyle.md', 'V511F'),
+    ('design/cleanstyle.md', 'DISK_READ_SECTOR_CMD'),
+    ('design/cleanstyle.md', 'MAX_RETRY_COUNT'),
+    ('design/cleanstyle.md', 'MAX_SECTOR_RETRY_COUNT'),
+    ('design/cleanstyle.md', 'BOOT_FOUND_PAGE'),
     ('docs/disassembly.md', 'L1234'),     # an invented name, in an example
     ('docs/disassembly.md', 'L4461'),     # what CALL_NEXTCHAR was called
     ('docs/disassembly.md', 'L45D9'),     # what the address column reads

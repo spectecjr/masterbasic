@@ -202,7 +202,7 @@ do.
 
 Your input:
 - The region, already extracted: <scratch>/<name>-region.asm
-- The full listing for context: c:\repo\masterbasic\clean\masterdos.asm
+- The full listing for context: c:\repo\masterbasic\listings\clean\masterdos.asm
 - References, which may themselves be wrong: <the docs/ files that make claims
   about this region>
 
@@ -358,14 +358,14 @@ The differences from the review prompt:
 | Region | Shape | Entries | Confirmed on audit |
 |---|---|---|---|
 | PART RAMD (&74C1–&7861) | proposal | 87 comments, 6 headers | — (used as raw material) |
-| PART C12 (&4A78–&5010) | review | 12 findings | 12 |
-| PART C11 (&4549–&4A76) | review | 12 findings | 12 |
+| PART C12 (&4A78–&4FEF) | review | 12 findings | 12 |
+| PART C11 (&451A–&4A77) | review | 12 findings | 12 |
 | PART F11 (&595B–&5E75) | review | 13 findings | 13 |
 | PART D1 (&4FF0–&549B) | review | 17 findings | 17 |
 | PART E1 (&549E–&595A) | review | 17 findings | 17 |
 | PART MOVE A/B, HOOKS, RAMD | review | 55 findings | 55 |
 | PART F12 + two sweeps | review | — | — |
-| PART G1 (&5E78–&61FF) | review | 8 findings | 6 |
+| &5E78–&61FF, inside what is now PART F12 | review | 8 findings | 6 |
 | MB &500C–&51D6 (tokens) | review | 8 findings | 8 |
 | MB &69E7–&6AD4 (grey DUMP) | review | 7 findings | 6 |
 | MB &6C01–&6DF6 (COPY SCREEN) | review | 11 findings | 11 |
@@ -401,7 +401,9 @@ prose one: two auto-generated "from" lines describe flags for a value a later
 written down rather than done.
 
 That is 204 of 208 across the review rows, and the first two rounds were a
-clean 71 of 71.
+clean 71 of 71. A finding that is right in substance and carries a wrong
+subsidiary number counts here as *not* confirmed, which is why the four below
+include one whose conclusion stood.
 
 The four MasterBASIC regions in the last batch cost one row: region H's
 account of `MULTIPLY_BY_100` was right that the routine multiplies by a
@@ -436,7 +438,7 @@ is also where the finding gets reworded into the repository's voice, and where
 the *partly right* case gets separated from the right one — neither of which the
 score measures.
 
-**And the three that did not survive are the ones worth reading.** Two were
+**And the four that did not survive are the ones worth reading.** Two were
 stale rather than wrong, from a region cut before a rebuild. The third proposed
 a better explanation for a subtraction and was refuted by a sibling case that
 would need the same explanation and does not do it. None of them was a

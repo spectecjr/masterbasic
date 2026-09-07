@@ -27,13 +27,13 @@ Side by side on the same six instructions:
 | | today | wanted |
 |---|---|---|
 | narration | none | `; Scan the ALLOCT table and clean up RAM disk pages...` between instruction groups |
-| operands | `CP &D0` | `CP MIN_RAMDRIVE_PAGE_TYPE` |
+| operands | `CP &D8` | `CP PAST_RAMDISC_PAGE_TYPE` |
 | expressions | `LD HL,V511F` | `LD HL,ALLOCT + MAX_INTERNAL_PAGE` |
-| windowing | `LD (V40F9+&4000),SP` | `LD (STACK_POINTER_ON_BOOT + IN_PAGE_C),SP` |
+| windowing | `LD (V40F9+&4000),SP` | `LD (STACK_ON_ENTRY+IN_PAGE_C),SP` |
 | equates | grouped by where the name came from | grouped by subject: Memory, Disk, Commands, Flags, Idioms |
-| flags | `AND &0D` | `AND DISK_SECTOR_READ_ERROR_FLAGS`, itself `EQU A \| B \| C` |
-| bit tests | `BIT 1,A` | `BIT DISK_STATUS_DATA_RQ_BX,A` |
-| labels | `BOOT_13`, `V40F9` | `BOOT_READ_SECTOR_DATA_LOOP`, `STACK_POINTER_ON_BOOT` |
+| flags | `AND &0E` | `AND TRANSFER_ERROR_FLAGS`, itself `EQU (A \| B \| C) >> 1` |
+| bit tests | `BIT 1,A` | `BIT DISK_STATUS_DRQ_BIT,A` |
+| labels | `BOOT_13`, `V40F9` | `BOOT_READ_SECTOR_BYTE`, `STACK_ON_ENTRY` |
 | data | `V40F9: DEFW 0` | named, with a line saying what it holds |
 
 The narration is the big one. It is most of what makes the example
@@ -85,6 +85,13 @@ DOS &4041 expr HEADER + SECTOR_LENGTH - 1 + IN_PAGE_C
 
 **Risk:** low, and self-policing. The evaluator is perhaps sixty lines.
 
+> **The syntax in M2, M3 and M4 below is what was proposed, not what
+> shipped.** `notes.py` takes `EQU NAME : description` with two fields and
+> has no `EQU=` form at all; the grouping and composed-value mechanisms
+> arrived as `GROUP` and `CONST`. Section 6 records what was built. The
+> examples are left as written because the reasoning is the point of the
+> section, but do not copy them into a notes file.
+
 ### M3 — Equates grouped by subject
 
 Today `header()` groups by provenance — hardware ports, ROM entry
@@ -100,7 +107,10 @@ EQU DISK_STATUS_BUSY : Flags : bit 0 of the WD1772 status register
 - `header()` in clean mode emits grouped blocks in a declared order,
   with headings, before the provenance blocks; anything ungrouped stays
   where it is now.
-- Groups are declared in one place in `clean.py` so the order is stable.
+- Groups are declared in one place so the order is stable. *As built:* the
+  order is the order in which the first `GROUP` for each heading is read from
+  `notes/clean/`, which is filename order — `notes.py` appends to
+  `d.equ_order` as it goes.
 
 ### M4 — Bit numbers, masks, and composed flags
 
@@ -128,9 +138,10 @@ newcomer. One change in the operand renderer.
 ### M6 — Descriptive labels and named data
 
 No new mechanism: `RENAME` in `notes/clean/` already does it, and it is
-already isolated from the working copy. Covers `BOOT_13` →
-`BOOT_READ_SECTOR_DATA_LOOP` and `V40F9` → `STACK_POINTER_ON_BOOT`, plus
-a `step` line over each data cell saying what it holds.
+already isolated from the working copy. Covers the boot loader's numbered
+labels — `&408C` became `BOOT_READ_SECTOR_BYTE` and `V40F9` became
+`STACK_ON_ENTRY` — plus a `step` line over each data cell saying what it
+holds.
 
 **Done.** A jump to its own address is written `DJNZ $` in the reading
 copy. There are five in the DOS and none in MasterBASIC, and all five are
@@ -143,35 +154,43 @@ settle delays, which is where it reads best:
 ```
 
 The label goes with it — but only where the instruction is the one thing
-that refers to it. Four of the five lose theirs; `BOOT_READ_CMD_SETTLE`
-keeps its name because MasterBASIC jumps into the middle of that delay
-from `MB &5A8E`, which is worth seeing.
+that refers to it, and all five turn out to be. One looked as though it
+were not: something in MasterBASIC appeared to jump into the middle of the
+delay at `&4081`. It does not. `MB &5A8E` is `LD A,(V4081+IN_PAGE_C)`, a
+*load* inside `SOUND_FEED_TICK` reading its own buffer pointer through the
+window, resolved against this half instead of that one. Nothing was ever
+entered at any of them, which `notes/clean/dos-boot.txt` records at
+length.
 
 ---
 
 ## 3. What "zero magic numbers" can actually mean
 
-Measured over both clean listings: **3887 one-byte immediate sites, 248
-distinct values.** The distribution kills the obvious approach —
+Counting two-digit hex literals in the operand text of both clean listings —
+which is the rule, and it needs stating, because a figure whose rule is not
+written down cannot later be told apart from a stale one — there are **3498
+one-byte immediate sites and 240 distinct values.** The distribution kills the
+obvious approach —
 
 ```
-&00 x867   &80 x144   &20 x107   &01 x97   &04 x89   &02 x84 ...
+&00 x791   &80 x116   &20 x104   &01 x95   &02 x81   &22 x76 ...
 the 10 commonest values cover 44% of all sites
 ```
 
-`&00` is 867 sites and means a different thing at nearly every one. So
+`&00` is 791 sites and means a different thing at nearly every one. So
 there is no global value table to write; naming is **per site**, which is
 what the existing `value` entry already does, and it belongs inside the
 per-routine pass rather than in a sweep of its own.
 
 The workable target is therefore: **no unexplained number in a routine
-that has been worked**, with `clean.coverage()` extended to say, per
-routine, how many bare immediates are left. Some will stay bare on
-purpose — a loop counter of 8 that is just 8 — and the report should let
-a routine be marked done with them still there.
+that has been worked**, with a report saying how many bare immediates are
+left. Some will stay bare on purpose — a loop counter of 8 that is just 8 —
+and the report should let a routine be marked done with them still there.
+*As built:* `bare_numbers()` gives the count per half on every build, not per
+routine.
 
-The two-byte side is easier: 1160 operands, 676 distinct, and most are
-addresses that already resolve to labels.
+The two-byte side is easier: 763 operands and 367 distinct values under the
+same rule, and most are addresses that already resolve to labels.
 
 ---
 
@@ -196,9 +215,11 @@ on names already established:
 4. Files and the directory.
 5. MasterBASIC's command intercepts.
 
-**Scale, honestly.** 545 routines carry the original author's commentary;
-1612 of his line comments are still in place; the realistic target is the
-557 routines something calls by name. This is many sessions of work, and
+**Scale, honestly.** 1358 of the original author's line comments are still in
+place — the build prints it, 1355 in the DOS half and 3 in MasterBASIC, out of
+1703 carried in the first place — against 2342 written here. The realistic
+target is the routines something calls by name, of which there are 367 in the
+DOS and 182 in MasterBASIC. This is many sessions of work, and
 the value arrives incrementally — every routine done is done, and the
 build reports the remainder rather than implying it.
 
@@ -210,12 +231,15 @@ What makes many iterations safe rather than a slow drift:
 
 - **Byte-identical ×6 stays the gate.** Every mechanism above changes
   only how bytes are *written*, never which bytes.
-- **`expr` and `EQU=` are checked against the image**, so a named
-  constant cannot quietly stop matching the byte it names.
-- **`checkdocs.py`** already holds the prose in `docs/` and `notes/` to
-  what the listings say.
-- **A per-routine scoreboard** in the build output: worked / not, bare
-  immediates left, capitals left.
+- **`expr` is checked against the image**, so a named constant cannot
+  quietly stop matching the byte it names. (`EQU=` was never built; `CONST`
+  took its place and is checked the same way.)
+- **`checkdocs.py`** holds the prose in `docs/`, `notes/` and `design/` to
+  what the listings say. `design/` was added after an audit found names in it
+  that the listings had not used for months.
+- **A scoreboard** in the build output: comments written here against the
+  author's, and bare immediates left. *As built:* per half, two lines, not
+  per routine.
 
 That last one matters most. The example, written by hand, has
 `SCREEN_PAGE_TYPE: EQU &C0` used on an instruction whose byte is `&30`;
@@ -231,8 +255,9 @@ assembles and compares can hold a style like this together.
 ## 6. First iteration — done
 
 M1 and M5 are built, and `BOOT` (`&4009`–`&40FF`) is written in the new
-style: 23 steps, 29 renames, 10 named constants, all six listings still
-byte-identical.
+style: 23 `step` lines, 18 names — 15 given by address and 3 by `RENAME` —
+and 17 named values, being 2 `CONST` and 15 `value` lines. All six listings
+still byte-identical.
 
 Two things learned in the doing:
 

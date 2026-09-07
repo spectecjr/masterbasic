@@ -688,12 +688,17 @@ DOS &4220-&42BC data DVAR
 MB &7E6B-&7FBF text
 ```
 
-Nine kinds of line. A page (`MB` or `DOS`) and an address name that address, and
-any indented lines below become its header, blank lines included. A `:` after the
-address is a comment on that one instruction. A range with `data`, `text` or
-`code` marks it as such, and may name its start as well. Addresses are written as
-the listings write them, `&4000`–`&7FBF` in either page, and a range includes both
+A page (`MB` or `DOS`) and an address name that address, and any indented lines
+below become its header, blank lines included. A `:` after the address is a
+comment on that one instruction. A range with `data`, `word`, `text` or `code`
+marks it as such, and may name its start as well. Addresses are written as the
+listings write them, `&4000`–`&7FBF` in either page, and a range includes both
 ends.
+
+Two more attach to a single address. `step` puts a line of its own above the
+instruction rather than beside it, for a data cell that needs a sentence; `expr`
+rewrites an operand as an expression over the listing's own symbols, and the
+build evaluates it against the bytes in the image, so it cannot drift.
 
 Two more work by the name of a label rather than its address, so that you never
 have to look one up. `DOC` heads a routine:
