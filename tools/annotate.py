@@ -832,7 +832,7 @@ MBVARS2_BANNER = banner(MBVARS2_DOC)
 # The boot sector copies 943 bytes from &75E1 in the MasterBASIC page to
 # &BC00 -- the DOS page, as the boot sector has it mapped, which is &7C00
 # in these listings.  The block is not only an installer: MasterBASIC goes
-# on calling into the copy afterwards, &7D79 alone from 27 sites.  So an
+# on calling into the copy afterwards, &7D79 alone from 28 sites.  So an
 # address in the copy is named for the MasterBASIC address it came from.
 NL = chr(10)
 COPY_DST, COPY_SRC, COPY_LEN = 0x7C00, 0x75E1, 0x3AF
@@ -893,7 +893,7 @@ jumps into any of it, so as far as this listing goes it is not code.
 That is only half the story.  The LDIR at the end of BOOT copies 943
 bytes from &75E1 in the MasterBASIC page to &BC00 -- this address, as
 the boot sector has the pages mapped -- and jumps to it.  MasterBASIC
-then goes on calling into the copy: &7D79 from twenty-seven sites, and
+then goes on calling into the copy: &7D79 from twenty-eight sites, and
 four more addresses once each.  Those are marked MBCOPY_xxxx, named for
 the MasterBASIC address they were copied from, which is where the code
 that actually runs there can be read.

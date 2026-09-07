@@ -104,8 +104,10 @@ other at `&8000`–`&BFBF`. Which is which depends on the paging at the time: wi
 the DOS in at `&4000` the extension is at `&8000`, and when the extension takes
 over the two swap.
 
-That is why the DOS's message pointer at `&4210` holds `&9200` while the
-extension calls `&BD79` — each is reaching into the other page. The two halves
+That is why the extension calls `&BD79` rather than `&7D79` — it is reaching
+into the other page. (The DOS's `&9200` at `&4210` looks like the same thing and
+is not: that is the DOS's own `ERRTBL` at `&5200` seen through the window,
+because the ROM reads it with the DOS paged in at `&8000`.) The two halves
 are therefore two address spaces, not one, and get a file each; a reference to
 `&8000`–`&BFBF` is resolved against the other half and written with its label
 under a `DOS_` or `MB_` prefix:
@@ -123,12 +125,14 @@ normally.
 
 That block is more than an installer. It is copied to `&7C00` in the DOS page
 and MasterBASIC goes on calling into the copy for the rest of the session:
-`&7D79` from twenty-seven separate sites, and four further addresses once each.
+`&7D79` from twenty-eight separate sites, three further addresses once each,
+and `&7C00` itself, which the boot sector jumps to.
 The bytes the file itself holds at `&7C00` are not that code — they are whatever
 was in the DOS's buffers when the image was saved, and the copy overwrites them
-at boot — so the five entry points are named `MBCOPY_xxxx` after the address in
-the extension page they were copied from, which is where the code that actually
-runs there can be read.
+at boot — so three of the five entry points are named `MBCOPY_xxxx` after the
+address in the extension page they were copied from, which is where the code
+that actually runs there can be read. The busiest keeps the name
+`FIND_ROM_CODE`, and `&7C00` stays `DOSBUF`.
 
 The three entry points the ROM knows about are where MasterDOS always puts them,
 at page offset `&0200`:
@@ -194,7 +198,7 @@ in the middle still contributes both ends. An instruction matches only up to its
 operands, since an absolute address here is nearly always different and a
 relative jump's displacement changes whenever anything was inserted between.
 
-That places **1703 line comments, 164 routine headers and 10 section banners**.
+That places **1703 line comments, 170 routine headers and 10 section banners**.
 
 It also puts the source's **names where the listing printed bare hex**. The
 disassembly can only name an address that something in the image refers to, so a
@@ -208,15 +212,14 @@ LD C,DRSEC      LD A,(DSC)          LD (LDB6+1),A
 A name is used only where it evaluates to the number already there, which is the
 whole safety argument: the bytes cannot change, and a symbol whose value moved
 with the splice simply fails the test. That names the operands of **448
-instructions**. Of the names it needs, 65 turn out to be addresses in this page,
+instructions**. Of the names it needs, 64 turn out to be addresses in this page,
 and become labels — so the DOS variables the byte-pattern match could not place
 read as `DSC` and `DCT` rather than `V4110` and `V4111`. The 30 left over are
 genuine constants, controller commands and directory field offsets among them,
 and are written as equates at the top of the file.
-Where the two streams diverge, nothing is carried: eight routines — `MRTAB`,
-`GETSCR`, `FDHF`, `GTVAL`, `AUTNAM`, `MCHWR`, `INPST` and `CMR` — keep too few
-of stock MasterDOS's instructions to be described by it, and each is headed by a
-note saying so and by how much. The source also says which addresses it reserves
+Where the two streams diverge, nothing is carried: one routine, `INPST`, keeps
+too few of stock MasterDOS's instructions to be described by it — 17 of 26 — and
+is headed by a note saying so and by how much. The source also says which addresses it reserves
 rather than assembles, which is how the DOS's variable block at `&40F9` stopped
 being read as a page of `NOP`s.
 
@@ -251,8 +254,10 @@ MasterBASIC 1.7 has none, and it is not MasterDOS code in disguise — running t
 same matcher over the second half finds 63 labels and drops 78 as out of order,
 which is coincidence, not shared code.
 
-What it does have is a dozen routines of the form `CALL CMR / DEFW <rom> / RET`,
-which page the ROM in, call one address and come back. Those are not inference
+What it does have is thirteen routines of the form `CALL CMR / DEFW <rom> /
+RET`, which page the ROM in, call one address and come back, and three more of
+the same shape whose `DEFW` reads `&0000` in the file because a signature search
+writes it at boot. Those are not inference
 at all: `L4461` **is** the ROM's `NEXTCHAR`, and is now called `CALL_NEXTCHAR`.
 Thirteen of them are named this way, and they are among the busiest labels in the
 file.
@@ -284,7 +289,8 @@ them — is left as hex on purpose.
 
 ## Calling the other page
 
-The busiest routine in the extension is at `&42C1`, and forty-five sites call it:
+One of the busiest routines in the extension is at `&42C1`, and forty-five
+sites call it — only `MBCMR`, with 58, is called more often:
 
 ```
                CALL CALLDOS
@@ -292,8 +298,9 @@ The busiest routine in the extension is at `&42C1`, and forty-five sites call it
 ```
 
 It picks up the word after the call, saves LMPR, writes the page number the boot
-sector patched into its `LD H,&00`, and calls through — so the address is read
-*after* the paging has changed. That makes its parameter unlike every other
+sector patched into its `LD H,&00`, and calls through — so the address is
+fetched *before* the paging changes but jumped to *after*, which is what makes a
+value of `&4000` or more an address in the other page. That makes its parameter unlike every other
 inline `DEFW` in the file: `&4000` and up is the other page, not the ROM
 variables that share those addresses, and only below `&4000` is it really ROM,
 which the switch leaves in place. Those parameters are now written as the other
@@ -317,22 +324,24 @@ label.
 
 ## Routines the two halves share
 
-Eight routines appear in both pages — `NRRDD`, `NRRD`, `NRWRD`, `NRWR` and the
-byte and word primitives under them, which reach the ROM's system variables.
+Eleven routines appear in both pages — `CMR`, `NRRDD`, `NRRD`, `NRWRD`, `NRWR`
+and the byte and word primitives under them (`PPXR`, `WRTBC`, `RDBC`, `RDA`,
+`BCRWC`, `GTHL`), which reach the ROM's system variables. The extension's copies
+are prefixed `MB` so that both halves can be assembled together; `NRWRHL` and
+`WRA` exist only in the extension.
 The global alignment cannot find them, because the extension is not MasterDOS and
 matching it wholesale yields more out-of-order matches than good ones. Anchoring
 on the name settles it: where a label here has a MasterDOS routine's name *and*
 the two bodies agree instruction for instruction down to the first return, it is
-that routine. Each now says so, and points at the DOS listing where the same code
-carries its cross-references.
+that routine. Each now says so.
 
 ## The calculator's literal lists
 
 `RST FPCALC` is followed by a list of one-byte operations, not by instructions —
 the ROM's entry at `&0028` does `EX (SP),IX` so that IX points at the byte after
 the restart, and walks it from there. Decoding those bytes as Z80 is how `&25 &27`
-came out as `DEC H` / `DAA`. All eight lists are now read properly, and their
-numbers translated:
+came out as `DEC H` / `DAA`. Eight `RST` sites were tried; six of them are
+lists, and all six are now read properly and their numbers translated:
 
 ```
                RST FPCALC                      ; 44AE EF
@@ -381,12 +390,14 @@ none is invented. `tools/romsyms.py` collects them.
 
 | | |
 |---|---|
-| **Hardware ports** | The symbols the two trees write into an `IN` or `OUT`, or load into `C` for the `OUT (C)` form. So `LRPORT` and `URPORT` rather than anything made up. A name written straight into an `IN`/`OUT` beats one merely loaded into `C`, which is how `&80` comes out as the MegaRAM port `MRPRT` and not the controller's read-sector command `DRSEC`. |
+| **Hardware ports** | The symbols the two trees write into an `IN` or `OUT`, or load into `C` for the `OUT (C)` form. So `LMPR` and `HMPR` rather than anything made up — those two by way of a
+`RENAME` in `notes/rom.txt`, since the ROM source's own `LRPORT` and `URPORT`
+say less. A name written straight into an `IN`/`OUT` beats one merely loaded into `C`, which is how `&80` comes out as the MegaRAM port `MRPRT` and not the controller's read-sector command `DRSEC`. |
 | **ROM routines and variables** | Mostly from MasterDOS's own inline parameters: `CALL NRRDD / DEFW CHADD` names a system variable and `CALL CMR / DEFW BEEPR` a routine, so its listing gives an authoritative value-to-name map under the names its author used. The SAM ROM's map file fills in the rest for code addresses, and its export file for the `&4000`–`&5FFF` variable area. The ROM's jump table at `&0100` is mostly unlabelled, so each entry is named after the routine it leads to (`J_GRCOMP`, `JNCHAR`). |
 | **`RST &08` codes** | A DOS error name from [errors.md](../ref/masterdos/docs/errors.md), or a hook code — 128 plus an index into the image's own hook table at `&44A6`, so the code is named after the routine it dispatches to: the handler is `HPRTOK` or `HOOK_CSIZE` and the code that raises it `HKC_HPRTOK` or `HKC_CSIZE`. Two prefixes, because a hook's routine and the byte that reaches it both wanted the same name. |
 | **The other page** | Its own label with a `DOS_`/`MB_` prefix. |
 | **Error numbers** | From the ROM's own `ERRMVAL` table, expanded through the substring dictionary it is compressed against, and from [errors.md](../ref/masterdos/docs/errors.md) for the DOS's own. `RST &08 / DEFB ERR_LOADING_ERROR` rather than `DEFB &13`. |
-| **The dispatch tables** | Whatever a table points at is named for the entry that points at it: `CMD_SORT`, `FN_INARRAY`, `HOOK_HCLOS`, and a number for the eleven hooks MasterBASIC adds beyond the ones MasterDOS names. A name carried from MasterDOS wins where there is one, so the DOS's own `FSTAT` and `HGTHD` keep their names. This is the only source of names for the MasterBASIC page, which has no reference source of its own. |
+| **The dispatch tables** | Whatever a table points at is named for the entry that points at it: `CMD_SORT`, `FN_INARRAY`, `HOOK_HCLOS` — including the fifteen hooks MasterBASIC adds beyond the ones MasterDOS names, which are named from their routines like the rest. A name carried from MasterDOS wins where there is one, so the DOS's own `FSTAT` and `HGTHD` keep their names. This is the only source of names for the MasterBASIC page, which has no reference source of its own. |
 | **Everything else** | Every address either listing refers to gets a label: `L` where it starts an instruction, `V` where it is data. |
 
 ### Addresses hidden behind an offset
@@ -397,11 +408,13 @@ itself, and the listings undo all three.
 `NAME+&4000` on a **system variable** is the windowing the `NR` routines do
 — `SET 7,H` then `RES 6,H`, which for `&4000`–`&7FFF` comes to adding `&4000`.
 Code that does it inline rather than calling `NRRD` leaves the windowed form in
-the operand, so `LD DE,(&9C65)` is `LD DE,(STKEND+&4000)`. It is also how
-MasterDOS's own source writes such an address, as `NAME+FS`.
+the operand, so `LD DE,(&9C65)` is `LD DE,(STKEND+&4000)` in
+`listings/disasm/` and `LD DE,(STKEND+IN_PAGE_C)` in the reading copy. It is
+also how MasterDOS's own source writes such an address, as `NAME+FS`.
 
 `NAME+&4000` on a **stored pointer** is bit 15 set, the flag `INDJP` and `CTAB`
-use for "not in this page". The name is the other page's label.
+use for "not in this page" — which is what the reading copy calls it, writing
+`NAME+NOT_IN_THIS_PAGE`. The name is the other page's label.
 
 `LABEL+&4000` in the **boot sector** is that fragment running `&4000` above
 where it is assembled.
@@ -438,7 +451,11 @@ The last row is the awkward one: those are not addresses at all. A count, a
 table base and a bit mask can each equal some label's address by arithmetic
 accident, and nothing distinguishes them from a reference.
 
-**The peer page has a mechanism and this does not.** An `&8xxx` operand that
+**The peer page has a mechanism and this does not.** Most of the examples below
+have since been fixed — `MCHRD`'s caller is now a real `CALL`, and the
+coincidental table entries are written as bare hex with a note. `LD BC,HEADER`
+at `&6F46` is the one that survives: `01 00 40` is a count of 16384 that happens
+to equal the address of `HEADER`. An `&8xxx` operand that
 resolves into the other half goes through `no_peer`, which exists precisely
 because that resolution is often a coincidence — and the habit of suspecting it
 is well established. An own-page collision has no equivalent, so it passes
@@ -453,8 +470,8 @@ like one: it is `CALL CALLDOS` followed by a `DEFW` holding the target, and that
 `DEFW` is data. `relabel` sets the current address only for instructions, so
 `peer_name` found nothing to credit the reference to and dropped it.
 
-The result was exactly backwards. **Sixty-eight real call edges** — 46 `CALLDOS`
-in MasterBASIC, 22 `CALLMB` in MasterDOS — produced no `from` line at all, while
+The result was exactly backwards. **Sixty-six real call edges** — 45 `CALLDOS`
+in MasterBASIC, 21 `CALLMB` in MasterDOS — produced no `from` line at all, while
 the cross-page `from` lines that did appear came from `&8xxx` operands that
 resolve into the other half *by arithmetic accident*. `EXPAND_FILE`, which only
 MasterDOS calls, looked like dead code; `FN_NVAL_POSITIVE` was credited to a
@@ -491,10 +508,13 @@ what they are with certainty:
 
 | suffix | when | count |
 |---|---|---|
-| `_LOOP` | a branch comes back to it | 276 |
-| `_DONE` | it returns within a few instructions | 60 |
-| `_FAIL` | it reports an error | 8 |
-| `_1`, `_2`, … | none of the above is certain | 527 |
+| `_LOOP` | a branch comes back to it | 217 |
+| `_DONE` | it returns within a few instructions | 61 |
+| `_FAIL` | it reports an error | 7 |
+| `_1`, `_2`, … | none of the above is certain | 505 |
+
+`tools/build.sh` prints these four counts too, for the same reason the byte
+census is printed: a number in a document cannot check itself.
 
 So `CHECK_BREAK_LOOP2` says more than `L6016` did, and `FSTAT_10` at least says
 whose it is. Nothing here is a reading of what the code means: the three
@@ -571,20 +591,20 @@ character:
 
 | | bytes |
 |---|---|
-| Code | 28376 (86.9%) |
-| Variables and other data | 2636 |
-| Inline call parameters | 893 |
-| Message and keyword text | 696 |
+| Code | 28402 (87.0%) |
+| Variables and other data | 2614 |
+| Inline call parameters | 859 |
+| Message and keyword text | 608 |
 | `RST &08` codes | 29 |
-| Pointer tables | 10 |
+| Pointer tables | 128 |
 | Unclassified | 0 |
 
 `tools/build.sh` prints this table on every run, so it can be checked
 rather than remembered.
 
-15413 instructions and 2421 labels. **Every byte is accounted for.** What was
+15413 instructions and 2376 labels. **Every byte is accounted for.** What was
 left at the end was not a third kind of thing: 29 bytes of zero fill, 17 of
-message text, and 103 bytes that are the *other* reading of bytes an overlapping
+message text, and 84 bytes that are the *other* reading of bytes an overlapping
 instruction has already claimed — the skipped `&21` of an entry chain, the opcode
 a caller steps over by entering a byte later. Both readings are real and only one
 can be written down, so the byte left behind carries a comment saying what it
@@ -610,9 +630,9 @@ The names at the top of each listing are the ROM's and the DOS's own, and they
 are terse — `AFTERCR`, `BSTKEND`, `CHADP`. Each now carries a note:
 
 ```asm
-LRPORT:        EQU  &FA    ; LMPR: the page at &0000, and the ROM switches
-URPORT:        EQU  &FB    ; HMPR: the page at &8000
-STATPORT:      EQU  &F9    ; read: STATUS, key rows and interrupt flags; write: line interrupt
+LMPR:          EQU  &FA    ; the page at &0000, and the two ROM switches
+HMPR:          EQU  &FB    ; the page at &8000
+STAT:          EQU  &F9    ; read: STATUS, key rows and interrupt flags; write: line interrupt
 COMM:          EQU  &E0    ; DISC PORTS
 CHADD:         EQU  &5A97  ; address of the character being interpreted
 PROG:          EQU  &5AA0  ; address of the BASIC program
@@ -639,10 +659,11 @@ PROG:          EQU  &5AA0          ; (2) address of it
 line above. Where two names share an address, as `CHAD` and `CHADD` do, the note
 is shared with them.
 
-That describes 146 of 147 equates in the extension listing and 50 of 51 in the
-DOS. One in each is left bare — `INP2` in the extension listing, `BEEPR` in the
-DOS — because they are not described anywhere I have, and inventing a gloss for
-them would be worse than the silence. A table of 54 entries in
+That describes 168 of the 175 ROM equates, which are one shared block in
+`listings/clean/samrom.asm` rather than one per listing. Seven are left bare —
+`BEEPR`, `GCM1`, `GCM2`, `GCM3`, `INP2`, `ROM_DMPTL` and `ROM_DPVARS` — because
+they are not described anywhere I have, and inventing a gloss for them would be
+worse than the silence. A table of 54 entries in
 `tools/romsyms.py` fills in well-known variables the sources never bothered to
 comment — `STKEND`, `RAMTOP`, `FLAGX` — and those are my words rather than the
 ROM author's, which is why the heading says *mostly*.

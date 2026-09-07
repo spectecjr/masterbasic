@@ -62,8 +62,10 @@ without needing a spare register and without disturbing the carry flag the way
 `ADD HL,DE` would. The pair is worth recognising on sight: **`SET 7,H` /
 `RES 6,H` means "the same byte, seen in the window".**
 
-In the listings such an address is written `NAME+&4000`, so `CURCHL+&4000` is
-`&9C51` in the bytes and `OPSTORE+&4000` is `&9AB5`.
+In `listings/disasm/` such an address is written `NAME+&4000`, so
+`CURCHL+&4000` is `&9C51` in the bytes and `OPSTORE+&4000` is `&9AB5`. The
+reading copy writes the same thing as `NAME+IN_PAGE_C`, and a stored pointer
+into the other page as `NAME+NOT_IN_THIS_PAGE`; both equate to `&4000`.
 
 Two smaller things in the same block. `LD BC,&00FB` with `IN E,(C)` and
 `OUT (C),B` keeps the port in one register pair and both paging values in the
@@ -113,7 +115,7 @@ not in a register:
 The trick that makes it work is one instruction:
 
 ```asm
-NRRD:
+MBNRRD:
       EX (SP),HL                      ; 456A
 ```
 
@@ -121,7 +123,10 @@ NRRD:
 afterwards `HL` points at the `DEFW`, and the stack holds the old `HL` — which
 gets exchanged back on the way out, leaving the return address stepped past the
 parameter. **`EX (SP),HL` as the first instruction of a routine always means
-"what follows my caller's `CALL` is data, not code."**
+"what follows my caller's `CALL` belongs to me, not to the instruction
+stream."** Usually that means data; `HLFG` in the DOS is the exception that
+shows the rule is about ownership, since it RETs into its parameter and the
+two bytes are executed.
 
 The same convention carries `CMR` (call the ROM with the system page in
 section B), `CALLDOS`
@@ -141,7 +146,7 @@ the return address exactly as in idiom 3.
 
 An entry in that table can hold an address `&8000` higher than the page it lives
 in, meaning "the handler is in the other page, seen through the window" —
-twenty-four of them do, because MasterBASIC has taken those hooks over.
+twenty-one of them do, because MasterBASIC has taken those hooks over.
 
 ## 5. Taking over a ROM vector
 
@@ -187,9 +192,10 @@ LAB1:
 it stands.
 
 The ROM keeps C and D as "a rotating window onto memory", so a pointer only ever
-needs checking once per iteration. It is safe because the page number's low five
-bits cannot carry into the flag bits above them — every structure walked this way
-ends in a terminator first.
+needs checking once per iteration. It is safe only because every structure
+walked this way ends in a terminator first: nothing stops the carry in hardware,
+and `INC A` on page `&1F` would set `HMPR` bit 5, which is a mode bit and not
+part of the page number at all.
 
 `BIT 6,H` appears twenty-one times across the two halves. It is easily confused
 with idiom 1: **`SET 7,H`/`RES 6,H` moves an address into the window; `BIT 6,H`
@@ -225,7 +231,10 @@ MODE1_SCREEN_ADDRESS:
 - `XOR L` flips `L` at those positions — turning it into `A` there, and leaving
   it alone everywhere else.
 
-Three bytes, no spare register, and it does not touch the carry. The alternative
+Four bytes — three if the mask is already in a register — and no spare
+register needed. It does clear the carry, as `AND` and `XOR` always do, which
+is why `OR A` two instructions earlier can be trusted to have done the same.
+The alternative
 — `AND mask` on one, `AND` the complement on the other, `OR` them — needs a
 fourth instruction and somewhere to keep the intermediate.
 
@@ -255,16 +264,20 @@ swallows the `LD B,&FF`, so `B` keeps the page number just computed. Jumping to
 `FIND_PROC_ENTRY_1` from `&73E3` executes the `LD B,&FF` instead, and `B` is `&FF`. One byte
 instead of a `JR`, and `HL` is scratch on that path.
 
-`&3E` (`LD A,n`) does the same for one swallowed byte, and `&36` (`LD (HL),n`),
-`&0E` (`LD C,n`) and `&FE` (`CP n`) appear too. `&FE` is the cheapest of them
+`&3E` (`LD A,n`) does the same for one swallowed byte, and `&0E` (`LD C,n`),
+`&16` (`LD D,n`), `&F6` (`OR n`) and `&FE` (`CP n`) appear too; the two-byte
+skips are `&21`, `&11` (`LD DE,nn`) and `&31` (`LD SP,nn`). `base.asm` declares
+all eight. `&FE` is the cheapest of them
 when the flags are about to be set anyway: `SORT_NAMES` uses it to skip the `EXX`
-that belongs to the other of its two entry points. `MATCH_REFERENCE` uses the last of those to put
-two comparisons back to back — `XOR (HL) : AND &DF` for a letter, `CP (HL)` for
-anything else — so that falling through gets the case-insensitive one and
-jumping past gets the exact one, with one byte between them. In the listings the swallowed opcode is written as a `DEFB` with a
+that belongs to the other of its two entry points. `MATCH_REFERENCE` puts two comparisons back to
+back — `XOR (HL) : AND &DF` for a letter, `CP (HL)` for anything else — so that
+falling through gets the case-insensitive one and
+jumping past gets the exact one, with one byte between them. That one has to
+be `&0E` and not `&FE`: the branch below tests the flags the `AND &DF` set, and
+a `CP` would destroy them, where `LD C,n` clobbers only `C`. In the listings the swallowed opcode is written as a `DEFB` with a
 note saying what it also reads as, because only one of the two readings can be
-written down — here, *skipped: reads as LD HL,&FF06 from here, and as part of
-the instruction above it*.
+written down — here, *skipped: reads as LD HL,&FF06 from here, swallowing the
+bytes below it*.
 
 ## 9. Self-modifying operands
 
@@ -305,7 +318,8 @@ MB_PAGER:
 ```
 
 `&005C` is three bytes in ROM 0, unlabelled in the ROM source and identical in
-every image in `ref/samrom/roms/` from 1.8 on:
+every image in `ref/samrom/roms/` from 1.0 on — only the two pre-production
+dumps, `ROM01` and `ROM04`, hold something else:
 
 ```asm
       OUT (&FB),A                     ; 005C  D3 FB
@@ -331,8 +345,9 @@ S49EE:
 
 `&A485` is `&6485` in MasterBASIC's own page and `&1C` is the page it lives in;
 neither means anything without the other. `S49EE` exists because two callers
-want the same page and different addresses — `&A485` here, `&A4F3` three
-instructions later — so only the `LD HL` differs.
+want the same page and different addresses — `&A485` here, `&A4F3` eighteen
+bytes later — so only the `LD HL` differs. The second does not call it: it
+falls straight into it.
 
 Four `EX AF,AF'` looks wasteful and is not: `A` is both the page number going in
 and the saved `HMPR` coming back, and the alternate accumulator is the only free
@@ -353,9 +368,12 @@ MasterBASIC calls almost no fixed address inside ROM 0. Instead:
 
 Six inline bytes in the convention of idiom 3: a three-byte instruction
 signature to match, a start address to scan from, and a signed step from the
-match to the address actually wanted. Every call site is followed by
-`LD (nn),HL`, storing the answer into the operand of the instruction that will
-use it — idiom 9. The listing resolves each search against the ROM images in
+match to the address actually wanted. Almost every call site is followed by
+`LD (nn),HL` — three of the twenty-eight rebuild or dereference the answer
+first — and the store is usually into the operand of the instruction that will
+use it, idiom 9. Two of them patch the inline `DEFW` of a `CALL MBCMR`
+instead, which is idiom 3's data after a call rather than a write inside an
+instruction. The listing resolves each search against the ROM images in
 `ref/samrom/roms/` and names what it found, which is where `INSERTLN` and
 `CCRESTOP` in those comments come from. This is what lets one binary work across
 ROM versions.
@@ -383,8 +401,10 @@ STACK_FILL_LOOP:
       JR NZ,STACK_FILL_LOOP           ; 7811  four times = 16384, one page
 ```
 
-8 × 256 × 4 is exactly 16K. `SP` has to be saved and restored around it and
-interrupts disabled, which is the price; eleven T-states per byte is the return.
+8 × 256 × 4 is 8192 `PUSH`es of two bytes each, which is exactly 16K. `SP` has
+to be saved and restored around it and interrupts disabled, which is the price;
+eleven T-states per *two* bytes — about six a byte once the `DJNZ` is counted —
+is the return.
 
 ## 13. `LMPR := &1F`, and paging out from under yourself
 
@@ -474,7 +494,7 @@ address are worth looking at.
 ### Telling a relocated block, properly
 
 The reliable evidence is not the paging instruction but the copy itself. `USING$`
-runs at `&5000` because sixteen bytes earlier it says so:
+runs at `&5000` because twenty-six bytes earlier it says so:
 
 ```asm
       LD HL,FN_USING_S_1                     ; 7229  the block
@@ -514,7 +534,7 @@ Four bytes and no branch, and it appears three times in the file-type code:
 `&FF` **with** a borrow, and the `ADC A,&00` adds that borrow back, giving zero
 again. Every other value survives both steps non-zero. So the zero flag after
 the pair says **`A` is `n` or `n-1`**, which is two compares and two branches
-done in four bytes and eight T-states.
+done in four bytes and fourteen T-states.
 
 The three uses in MasterDOS all ask about file types, which are numbered so that
 the pairs it cares about are adjacent:
@@ -528,8 +548,9 @@ the pairs it cares about are adjacent:
 Read it the other way and it is a range test for a range of two, which is why
 `CP` twice never appears here.
 
-Do not confuse it with `ADD HL,BC` / `ADC A,&00` at `&6C72` and `&71E8`, which is
-the ordinary 24-bit carry into a third byte. The idiom is the `SUB` before it.
+Do not confuse it with `ADD HL,BC` or `ADD HL,DE` then `ADC A,&00` — at `&6C72`
+and `&71E8` in the DOS, and four more times in MasterBASIC — which is the
+ordinary 24-bit carry into a third byte. The idiom is the `SUB` before it.
 
 ## Reading the listings with this in mind
 

@@ -24000,7 +24000,7 @@ CMR_DONE:
 ;; That is only half the story.  The LDIR at the end of BOOT copies 943
 ;; bytes from &75E1 in the MasterBASIC page to &BC00 -- this address, as
 ;; the boot sector has the pages mapped -- and jumps to it.  MasterBASIC
-;; then goes on calling into the copy: &7D79 from twenty-seven sites, and
+;; then goes on calling into the copy: &7D79 from twenty-eight sites, and
 ;; four more addresses once each.  Those are marked MBCOPY_xxxx, named for
 ;; the MasterBASIC address they were copied from, which is where the code
 ;; that actually runs there can be read.
@@ -24168,7 +24168,7 @@ INSTALL_TAIL_INTO_SYSPAGE:
 ;; MasterBASIC does not hard-code the ROM addresses it needs to call and
 ;; patch.  It searches for them, by the opcodes that are there.  This
 ;; half keeps the routine at &775A, the boot copies it into the DOS page
-;; at &7D79, and 27 sites call it there through the window at &BD79.
+;; at &7D79, and 28 sites call it there through the window at &BD79.
 ;;
 ;; Six inline bytes follow every one of those calls:
 ;;

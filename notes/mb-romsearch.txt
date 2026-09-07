@@ -9,7 +9,7 @@ DOC FIND_ROM_CODE
     MasterBASIC does not hard-code the ROM addresses it needs to call and
     patch.  It searches for them, by the opcodes that are there.  This
     half keeps the routine at &775A, the boot copies it into the DOS page
-    at &7D79, and 27 sites call it there through the window at &BD79.
+    at &7D79, and 28 sites call it there through the window at &BD79.
 
     Six inline bytes follow every one of those calls:
 

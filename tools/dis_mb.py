@@ -36,6 +36,7 @@ assembling ref/masterdos/annotated-src and ref/samrom with pyz80.
 """
 
 import argparse
+import collections
 import glob
 import re
 import copy
@@ -918,7 +919,7 @@ def seeds(dos, mb):
         dos.dead_calls.add(rev['DERR'])
 
     # The search helper this half keeps at &775A is copied into the DOS
-    # page and called there, at &BD79 through the window, by 27 sites.  It
+    # page and called there, at &BD79 through the window, by 28 sites.  It
     # pops its return address and reads three bytes, an address and a
     # signed offset -- six in all -- so six bytes after every one of those
     # calls are parameters, not code.  Every site is followed by an
@@ -1934,7 +1935,7 @@ def name_synthetic_labels(d):
                 return None
         return None
 
-    renamed = 0
+    tally = collections.Counter()
     for head, members in groups.items():
         base = d.labels[head]
         counter = 0
@@ -1956,8 +1957,8 @@ def name_synthetic_labels(d):
             taken.discard(d.labels[a])
             taken.add(name)
             d.labels[a] = name
-            renamed += 1
-    return renamed
+            tally[kind or 'numbered'] += 1
+    return tally
 
 
 def decode_marked_code(d):
@@ -3160,8 +3161,13 @@ def main():
         d.relabel()
     print('dropped %d labels nothing refers to'
           % sum(drop_unused_labels(d) for d in (dos, mb)))
-    print('%d internal labels named after the routine they belong to'
-          % sum(name_synthetic_labels(d) for d in (dos, mb)))
+    tally = collections.Counter()
+    for d in (dos, mb):
+        tally += name_synthetic_labels(d)
+    print('%d internal labels named after the routine they belong to: '
+          '%d _LOOP, %d _DONE, %d _FAIL, %d numbered'
+          % (sum(tally.values()), tally['LOOP'], tally['DONE'],
+             tally['FAIL'], tally['numbered']))
     print('%d branches say what the test behind them was'
           % sum(explain_branches(d) for d in (dos, mb)))
     print('%d error stubs name their code' % sum(name_error_codes(d)

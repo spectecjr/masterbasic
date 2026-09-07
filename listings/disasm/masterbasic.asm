@@ -18940,7 +18940,7 @@ STACK_FILL_LOOP_1:
 ;; &7C00 is DOSBUF, and post-boot the DOS page holds a directory buffer
 ;; there again -- 347 of its 944 bytes differ from the file, and the
 ;; copied block is not present at any offset in either page.  So
-;; everything reached through it, the twenty-seven DOS_FIND_ROM_CODE
+;; everything reached through it, the twenty-eight DOS_FIND_ROM_CODE
 ;; calls included, runs at install time and never again.
 ;; --------------------------------------------------------------------
 

@@ -300,9 +300,10 @@ The ROM keeps sections C and D as "a rotating window onto memory" with the
 system variables and stack in section B. Once HL walks out of C into D, the
 page goes up by one and `RES 6,H` brings HL back `&4000` lower onto the same
 byte, so nothing else in the loop has to check. The manual's own note on why
-this is safe applies here too: the low five bits of the page cannot be
-carried into the flag bits above them, because every structure walked this
-way ends in a terminator before that could happen.
+this is safe applies here too, and it is a note about the data rather than
+about the hardware: nothing stops the page number carrying out of its low five
+bits into the mode bits above them, but every structure walked this way ends in
+a terminator before it can get that far.
 
 ## 5. Code written at run time
 
