@@ -20,8 +20,16 @@ you can check any of it.
    > The ROM's own source comments the first step: *"REGS SAVED IN ORIG PAGE —
    > MAY CORRUPT 4 BYTES IF EG SP BEING USED TO CLS"*. Pressing the button is
    > never entirely free.
-3. **MasterDOS owns `NMIV`**, and reaches its own page's offset `&0206`, which
-   is `JP NMI` (`&5355`).
+3. **Something reaches the DOS's `&4206`**, the third entry of its jump table,
+   which is `JP NMI` (`&5355`). What, is not settled, and it is not `NMIV`:
+   that variable holds `&1C9E` — the ROM's own `NMISTOP` — in all three
+   system-page dumps, *including the one taken before any boot*, and nothing in
+   either half of this image writes `&5AE0`. ROM 3.0 calls the DOS at `&4200`,
+   `&4203` and `&8009` and nowhere else. The Technical Manual says the button
+   works "when the Disk Operating System Spectrum Emulator is loaded", and the
+   emulator lives in page 3, which is in neither half of this image — see
+   *What the snapshot code assumes* below, which reaches the same conclusion
+   from the other end.
 4. **`NMI`** saves `SP` into `STR`, switches to a stack of its own inside the
    DOS page, and pushes the whole processor state: `I`, the main set, the
    alternate set, `IX`, `IY`. Then it pushes `SNAP7`'s address and records `SP`
@@ -91,9 +99,10 @@ it, and the bits are active low:
 ```
 
 The interrupted program's registers are not yours to read from the CPU — they
-are on the DOS's stack, twenty bytes at `STR-20` (`&7F7C`), pushed in this
-order and therefore stored in the reverse: `IY`, `IX`, `DE'`, `BC'`, `HL'`,
-`AF'`, `DE`, `BC`, `HL`, `AF` (whose `A` half is `I`). The interrupted `SP` is
+are on the DOS's stack, twenty bytes at `STR-20` (`&7F7C`). Reading *upward*
+from there gives `IY`, `IX`, `DE'`, `BC'`, `HL'`, `AF'`, `DE`, `BC`, `HL`, `AF`
+(whose `A` half is `I`) — the pushes ran the other way, `AF` first at `&535E`
+and `IY` last at `&536A`. The interrupted `SP` is
 in `STR` itself, and the interrupted `PC` is on *that* stack, under the `AF` and
 `HL` the ROM pushed.
 
@@ -107,11 +116,14 @@ it are not spare. `PTH2` is at `&7F39` and `PTH1` at `&7F13`: the current
 directory paths for the two drives.
 
 Immediately below is not the path buffer itself. The original comment bounds
-`PTH2` "to about `&7F60`", and the listing shows two more items between that
-and `STR` — at `&7F6B` and `&7F77`, both reached from MasterBASIC. What `NMI`
-pushed is sitting on those. But sixty-odd bytes is still sixty-odd bytes, and
-`PTH1` and `PTH2` are what a stack any deeper than that reaches next. Nothing
-warns you.
+`PTH2` "to about `&7F60`", and the listing shows one more item between that and
+`STR`, at `&7F6B`, reached from MasterBASIC. What `NMI` pushed is sitting on it.
+
+And the headroom is smaller than it looks. Your routine is entered with `SP` at
+`&7F78` — `STR` less ten pushed pairs, `SNAP7`'s address, and `SNAP31`'s own
+`CALL` — so what stands between you and the top of `PTH2` is **24 bytes**, not
+the sixty-odd you get by measuring to `PTH2`'s base. A stack grows down and
+meets the top first. Nothing warns you.
 
 Switch to your own stack as the first thing you do, and put it back before you
 return:
@@ -257,7 +269,7 @@ the other always gets you out.
             ORG  &8000
 
 NMIENT:     LD   (SPSAVE),SP
-            LD   SP,MYSTACK           ; the DOS's stack has ~60 bytes left
+            LD   SP,MYSTACK           ; the DOS's stack has 24 bytes left
 
             BIT  4,E                  ; E still holds the 1-to-5 row
             JR   Z,KEY5               ; bit clear = "5" was down

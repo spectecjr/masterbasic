@@ -22,7 +22,9 @@ That closes the "381-byte copy with no copier" this file used to ask about,
 and the two write breakpoints that found nothing were both correct: block 8
 never was in MasterBASIC's page. It also confirms the block layout from the
 outside — every block whose source can be checked against the system page
-dumps matches byte for byte, 162, 36, 671 and 381 bytes respectively.
+dumps matches byte for byte over 162, 36, 381 and 670 of the 671 bytes. The
+odd one is `&4A97`, which is the operand of an `LD (HL),&00` written after the
+copy was made, so the copy rightly still holds the file's `&00`.
 
 **The second capture is in, as `dumps/MDMB2.bin`.** Four `DUMP` settings were
 poked and the machine re-saved. The predictions were written down first, in
@@ -58,10 +60,13 @@ map. It differs between the two files because it is live session state: the
 two sessions had typed different amounts at it. See `notes/mb-editbuf.txt`.
 
 *Block 2, the DOS page — twenty-four bytes.* The file's own name in two places,
-`&413C` and `&7C15` in the channel record, `MBPOST` against `MDMB2`; the sector
-map at `&7C22`–`&7C2F` moving as the bits shift for a different allocation; and
-four counters at `&41FC`, `&41FE`, `&42E6` and `&42E9`. All of it is the record
-of the file being written, not settings.
+`&413C` and `&7C15` in the channel record, `MBPOST` against `MDMB2`; eight bytes
+of the sector map, at `&7C22`–`&7C25` and `&7C2C`–`&7C2F`, moving as the bits
+shift for a different allocation; four counters at `&41FC`, `&41FE`, `&42E6` and
+`&42E9`; and two more inside the channel record, `DCHAN`+`&12` and `DCHAN`+`&20`,
+each exactly eight higher in the larger of the two files. That is all
+twenty-four, and all of it is the record of the file being written, not
+settings.
 
 **The `KEY` question is answered too, by a third capture.** `dumps/MDMB3.bin` is
 a clean boot with no `XVAR` pokes and one `KEY 104,200`. Exactly one byte moved
@@ -112,19 +117,21 @@ with MasterDOS 2.3 booted alone; and `dumps/SYSPAGE_after_MBMD_boot.bin`,
 after the combined DOS/MasterBASIC file. Each is the whole of page 0,
 `&4000`–`&7FFF`.
 
-The copy rules now predict the entire page to within 33 bytes, every one of
-them a two-byte pair at an address the machine resolves for itself. The
+The copy rules now predict the entire page to within 33 bytes: fifteen
+two-byte pairs at addresses the machine resolves for itself, and three single
+bytes holding MasterBASIC's own page number. The
 before-dump made the check a much stronger one — a byte the model gets right
 because the ROM already had that value no longer counts as a success — and
 the MasterDOS-only dump separated the DOS's 319 bytes from MasterBASIC's.
 
 Two things came out of it that reading alone had not. The boot's last act is
-`INSTALL_TAIL_INTO_SYSPAGE`, twenty-five bytes at the DOS's `&7D60` that the
+`INSTALL_TAIL_INTO_SYSPAGE`, nineteen bytes at the DOS's `&7D60` that the
 listings had as data; it copies the DOS page's tail into the system page and
 closes the round trip that `notes/mb-install.txt` had had to leave as "the
 likeliest reading of two copies that go the wrong way". And the 36 bytes at
-`&4BA0` turn out to be MasterDOS's, not MasterBASIC's — they are already
-there with the DOS booted alone.
+`&4BA0` are already there with the DOS booted alone — though so are the 40 at
+`&5896`, and both installers write both, so the dumps cannot say whose work
+either block is.
 
 ---
 
@@ -139,8 +146,9 @@ there.
 
 `dumps/LiveDuringMRINIT.bin` is the DOS page dumped while it ran, and it shows
 the copy at `&7C00`–`&7FAE` matching the stored bytes over all 943. The two
-operands that never agreed with any relocation — `CALL &7806` and `JP &77FE` —
-are calls into the DOS's own `RMRBIT` and `SMRBIT`, which clear and set a
+operands that never agreed with any relocation — `CALL &7806`, `CALL &77FE`
+and `JP &7841` — are calls into the DOS's own `RMRBIT` and `SMRBIT`, which
+clear and set a
 page's bit in `MRTAB` through `MRADDR`. The listing had been resolving them
 against MasterBASIC's half, where those addresses happen to hold other code.
 
@@ -209,14 +217,14 @@ result worth anything.
 
 ## 7. What the ROM's outermost error handler is while `SPLIT` runs
 
-**Open.** `SPLIT`'s last thirty-nine bytes, `MB &6F07-&6F3D`, rewrite the
+**Open.** `SPLIT`'s last fifty-five bytes, `MB &6F07-&6F3D`, rewrite the
 bottom of the ROM's machine stack. They read the word at `&4EFE` -- the slot
 `LD SP,ISPVAL : PUSH HL : LD (ERRSP),SP` fills -- call whatever routine's
 address is stored seventeen bytes below it, then put the handler back twelve
 bytes earlier than it was and write `&0004` into the five stack words beneath.
 
 The twelve makes sense against `MAINER` and the seventeen does not.
-`MAINER` is `&0EED` in ROM 3.0 -- `CD D1 3F` is there and the fifteen bytes
+`MAINER` is `&0EED` in ROM 3.0 -- `CD D1 3F` is there and the eighteen bytes
 before it are the main loop's tail -- so `&0EED-12` is the `XOR A` that clears
 the error number and re-runs the edit line, which is exactly what `SPLIT`
 wants to happen next. But `&0EED-17` is `&0EDC`, the middle of `LD HL,FLAGS`,
@@ -255,7 +263,7 @@ Failing that, two cheaper things would each narrow it:
 
 **Open.** MasterBASIC replaces MasterDOS's `HLOAD` hook outright -- the
 original is four instructions, `LD BC,&4BB0+HLDP-PVECT / NETPA / DSCHD /
-LDBLK` -- and its version at `DOS &6428` branches on bits 2 and 3 of `V42E2`,
+LDBLK` -- and its version at `DOS &6422` branches on bits 2 and 3 of `V42E2`,
 which `COPY_HEADER_FIELDS` fills from directory entry offsets 220 and 221.
 On the compressed path it does:
 
