@@ -160,9 +160,16 @@ machines, where the screen is not in the same place.
 
 ```
 INARRAY(a$(start),target$)
+INARRAY(a$(start),target$,ABS)
 INARRAY(a$(start,slicer),target$)
 INARRAY(a$(start,slicer),target$,ABS)
 ```
+
+`ABS` does not depend on the slicer. `&4B8B` calls
+`PARSE_STRING_AND_OPTIONAL_ABS` whatever came before it, and that decides
+on `ABS` from the `SUB &2C` at `&4D38` alone — nothing records whether a
+slicer was seen. The manual's syntax box shows `ABS` only on the sliced
+form, but its own worked example is `INARRAY(a$(l),"test",ABS)`.
 
 The array version of `INSTR`: searches a string array from the given element for
 a target string and returns the number of the first string containing it, or 0.
@@ -350,8 +357,15 @@ errata correct it to `JOIN TO a$,b$`.)*
 ### `EDIT` — 253
 
 ```
-EDIT [#stream;] [AT y,x;] [prompt;] variable
+EDIT <anything INPUT accepts>
 ```
+
+`EDIT` has no parser of its own. `HOOK_COMADENT` fetches `COMAD+&6C`,
+which is entry `&36` of the ROM's command table and so token `&C6` --
+`DW INPUT ;INPUT C6` in the ROM's own source -- and hands the rest of the
+line to it. So every `INPUT` form is accepted, `LINE` and `TAB` and
+several items included, and a narrower syntax line would promise less
+than the code does.
 
 `INPUT` with the variable's present value offered for editing rather than a
 blank line — the fix for mistyping a long string. The syntax follows `INPUT`,
