@@ -4681,14 +4681,14 @@ REP12:
 ; ---- REP13 ---- from &4E7C when A >= &15, &4E83, &4EDD when A <> (HL), &5FFE
 REP13:
                LD A,ERR_WRONG_FILE_TYPE        ; 5171 3E 5E
-               DEFB SKIP_2_VIA_LD_HL           ; 5173 !  skipped: reads as LD HL,&633E from here, and as part of the
-                                               ; instruction above it
+               DEFB SKIP_2_VIA_LD_HL           ; 5173 !  skipped: reads as LD HL,&633E from here, swallowing the bytes
+                                               ; below it
 
 ; ---- REP18 ---- from &6F21 when bit 0 of (IX+&0C) set
 REP18:
                LD A,ERR_READING_A_WRITE_FILE   ; 5174 3E 63
-               DEFB SKIP_2_VIA_LD_HL           ; 5176 !  skipped: reads as LD HL,&643E from here, and as part of the
-                                               ; instruction above it
+               DEFB SKIP_2_VIA_LD_HL           ; 5176 !  skipped: reads as LD HL,&643E from here, swallowing the bytes
+                                               ; below it
 
 ; ---- REP19 ---- from &6BFF when A = MOUT, &6F50 when no bit of &03 is set
 REP19:
@@ -4698,15 +4698,15 @@ REP19:
 ; ---- REP20 ---- from &65F4
 REP20:
                LD A,ERR_NO_AUTO_FILE           ; 517A 3E 65
-               DEFB SKIP_2_VIA_LD_HL           ; 517C !  skipped: reads as LD HL,&673E from here, and as part of the
-                                               ; instruction above it
+               DEFB SKIP_2_VIA_LD_HL           ; 517C !  skipped: reads as LD HL,&673E from here, swallowing the bytes
+                                               ; below it
 
 ; ---- REP22 ---- from &4815 when A >= RDLIM-1, &4820 when A = &00, &7582 when A = 0, &7645 when A >= RDLIM, &7734 when
 ; A = 0
 REP22:
                LD A,ERR_NO_SUCH_DRIVE          ; 517D 3E 67
-               DEFB SKIP_2_VIA_LD_HL           ; 517F !  skipped: reads as LD HL,&683E from here, and as part of the
-                                               ; instruction above it
+               DEFB SKIP_2_VIA_LD_HL           ; 517F !  skipped: reads as LD HL,&683E from here, swallowing the bytes
+                                               ; below it
 
 ; ---- REP23 ---- from &45A4 when bit 5 of A set, &5513 when bit 5 of A set
 REP23:
@@ -4721,8 +4721,8 @@ REP24:
 ; ---- REP25 ---- from &4E18, &721A when A = &FF
 REP25:
                LD A,ERR_DIRECTORY_FULL         ; 5186 3E 6A
-               DEFB SKIP_2_VIA_LD_HL           ; 5188 !  skipped: reads as LD HL,&163E from here, and as part of the
-                                               ; instruction above it
+               DEFB SKIP_2_VIA_LD_HL           ; 5188 !  skipped: reads as LD HL,&163E from here, swallowing the bytes
+                                               ; below it
 
 ; ---- REP27 ---- from &473A, &6F01, &70BF, &71A5, &75CD when A >= &0A, &7A5A
 REP27:
@@ -4742,8 +4742,8 @@ REP30:
 ; ---- REP31 ---- from &6BCA
 REP31:
                LD A,ERR_CHANNEL_USED           ; 5192 3E 70
-               DEFB SKIP_2_VIA_LD_HL           ; 5194 !  skipped: reads as LD HL,PTRSL from here, and as part of the
-                                               ; instruction above it
+               DEFB SKIP_2_VIA_LD_HL           ; 5194 !  skipped: reads as LD HL,PTRSL from here, swallowing the bytes
+                                               ; below it
 
 ; ---- REP32 ---- from &731E
 REP32:
@@ -4758,8 +4758,8 @@ REP33:
 ; ---- REP33_1 ---- from &5A33 when B reaches 0, &6A11 when A = 0
 REP33_1:
                LD A,&73                        ; 519B 3E 73
-               DEFB SKIP_2_VIA_LD_HL           ; 519D !  skipped: reads as LD HL,&743E from here, and as part of the
-                                               ; instruction above it
+               DEFB SKIP_2_VIA_LD_HL           ; 519D !  skipped: reads as LD HL,&743E from here, swallowing the bytes
+                                               ; below it
 
 ; ---- REP33_2 ---- from &4D5B when bit 6 of (HL) set, &5E5F
 REP33_2:
@@ -5924,8 +5924,8 @@ SKIP_B_WORDS:
                RLA                             ; 5776 17
                JR NC,SKIP_B_WORDS              ; 5777 30 FB
                DJNZ SKIP_B_WORDS               ; 5779 10 F9
-               DEFB SKIP_1_VIA_LD_A            ; 577B >  skipped: reads as LD A,&E1 from here, and as part of the
-                                               ; instruction above it
+               DEFB SKIP_1_VIA_LD_A            ; 577B >  skipped: reads as LD A,&E1 from here, swallowing the bytes
+                                               ; below it
 
 ;; --------------------------------------------------------------------
 ;;  PTM -- print the message that follows the call
@@ -6871,7 +6871,7 @@ STATS:
                JR Z,TRK0                       ; 5C4C 28 06  JR IF SINGLE SIDED
                JR C,TRKM1                      ; 5C4E 38 03  JR IF NORMAL DISK
                SUB &30                         ; 5C50 D6 30  E.G 130->82, 168->120
-               DEFB SKIP_1_VIA_CP              ; 5C52 ~  "JR+1"
+               DEFB &FE                        ; 5C52 ~  "JR+1"
 
 ; ---- TRKM1 ---- from &5C4E
 TRKM1:
@@ -8959,7 +8959,7 @@ FNLN2:
 
 HPTR:
                LD A,&01                        ; 659A 3E 01
-               DEFB SKIP_1_VIA_CP              ; 659C ~  "JR+1"
+               DEFB &FE                        ; 659C ~  "JR+1"
 
 HEOF:
                XOR A                           ; 659D AF
@@ -9039,8 +9039,8 @@ AUINSR:
                LD A,&95                        ; 65FD 3E 95  LOAD TOK
                CALL NRWR                       ; 65FF CD 74 50
                DEFW CURCMD                     ; 6602 74 5B
-               DEFB SKIP_2_VIA_LD_HL           ; 6604 !  skipped: reads as LD HL,AUTNAM from here, and as part of the
-                                               ; instruction above it
+               DEFB SKIP_2_VIA_LD_HL           ; 6604 !  skipped: reads as LD HL,AUTNAM from here, swallowing the bytes
+                                               ; below it
                PUSH DE                         ; 6605 D5
                LD H,L                          ; 6606 65
                LD DE,DSTR1                     ; 6607 11 36 41

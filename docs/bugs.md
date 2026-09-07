@@ -567,41 +567,41 @@ where a change could have gone wrong. Reading them as a list, rather than
 one at a time when a routine happens to be worked, is the systematic
 version of how the `&0D` was found.
 
-## The skip note claims an overlap it never tests for
+## FIXED: the skip note described two opposite idioms with one sentence
 
-Not a bug in the software: a bug in this repository's generator, left
-open because the obvious fix is wrong.
+*Fixed. Kept because the first two attempts both failed, and for
+different reasons.*
 
-A run of bytes the trace could not reach gets one of two notes, and
-`skipped_runs` in `tools/dis_mb.py` chooses between them by whether the
-decode from the run's start overruns the run's end:
+A run of bytes the trace could not reach used to get one of two notes,
+chosen by whether the decode from its start overran the run's end. "As
+part of the instruction above it" is a claim about what comes BEFORE the
+run; that test measures the other side of it.
 
-```
-d.comments.setdefault(
-    s, ('skipped: reads as %s from here, and as part of the '
-        'instruction above it' % first.text) if p > e else
-       ('reads as %s, and nothing the trace can follow '
-        'reaches it' % first.text))
-```
+**There are three cases, not two, and two of them are opposite
+geometries:**
 
-"As part of the instruction above it" is a claim about what comes
-BEFORE the run. `p > e` is a fact about the other side of it. The two
-coincide often enough that the note is usually right, and at `&5DBD` it
-is: `&5DBC` is `CB F6`, `SET 6,(HL)`, and `&5DBD` is its second byte, so
-entering there really does give `OR &C9` instead.
+| run | what is above | reading |
+|---|---|---|
+| `&5DBD` | `CB F6` at `&5DBC` = `SET 6,(HL)` | the run is its **tail** |
+| `&7409` | `LD B,A`, ending exactly at `&7409` | the `&21` **swallows** the `LD B,&FF` below |
+| `&5DBF` | `C9`, a whole `RET` | neither; the head of a fragment copied elsewhere |
 
-At `&5DBF` it is false. `&5DBE` is `C9`, a whole `RET`, and nothing
-above reaches past it; `&5DBF` is the head of an eleven-byte fragment
-that `&5CCC` copies to `&5031`, and it overran its end for that reason.
+The `SKIP_n_VIA_*` names belong to the swallowing kind, where the opcode
+is there for the bytes it eats and the value it would load means
+nothing.
 
-**The obvious fix does not work.** Replacing the test with a scan back
-through `d.insns` for an instruction that ends after `s` suppresses the
-note *everywhere* — the count goes from six to nought, and `&7409`, a
-genuine `&21` skip that `docs/idioms.md` documents, loses its
-`SKIP_2_VIA_LD_HL` name with it. So `d.insns` does not hold what that
-scan assumes at the point `skipped_runs` runs, and the real fix starts
-by finding out what it does hold. `checkdocs` caught the regression,
-which is the check working: `docs/idioms.md` quotes the line.
+**Attempt one** scanned `d.insns` for an instruction above that reaches
+into the run. That found nothing anywhere, because `d.insns` holds the
+decode the listing *chose* and by definition nothing in it covers a byte
+left unclaimed — `&5DBC` renders as `DEFB &CB`. The note is about the
+hidden reading, so the question goes to the decoder: `d.decode(s-k)` for
+small `k`, which finds `SET 6,(HL)` at `&5DBC` whatever the listing did
+with it.
+
+**Attempt two** then gated the `SKIP_n_VIA_*` naming on that same test,
+and `&7409` lost its name — it is the swallowing kind, where nothing
+above reaches in at all. `checkdocs` caught it against `docs/idioms.md`,
+which quotes the line.
 
 ## FIXED: labels crediting callers that do not exist
 

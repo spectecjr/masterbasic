@@ -3398,16 +3398,49 @@ def classify_leftovers(d):
             # PHLR at &50EA is the example -- POP HL and RET, planted as
             # a return address by HLFG, and nothing above it to be part
             # of.
-            d.comments.setdefault(
-                s, ('skipped: reads as %s from here, and as part of the '
-                    'instruction above it' % first.text) if p > e else
-                   ('reads as %s, and nothing the trace can follow '
-                    'reaches it' % first.text))
+            # Whether anything above reaches into the run.  The claim
+            # is about the HIDDEN reading, not the one the listing
+            # chose: at &5DBD the bytes CB F6 above read as SET 6,(HL),
+            # which covers it, even though the listing renders &5DBC as
+            # a DEFB.  So ask the decoder, not d.insns -- d.insns holds
+            # what was chosen, and by definition nothing it holds
+            # covers a byte left unclaimed.
+            #
+            # &5DBF is the case this separates: &5DBE is a whole RET and
+            # no decode from above reaches past it, so the run is the
+            # head of a fragment copied elsewhere rather than the second
+            # reading of an overlap.  It used to be told otherwise.
+            over = False
+            for k in (1, 2, 3):
+                if s - k < d.base:
+                    break
+                above = d.decode(s - k)
+                if above is not None and above.end > s:
+                    over = True
+                    break
+            # There are two skip geometries and this used to give them
+            # one sentence.  &5DBD is the tail of SET 6,(HL) above it;
+            # &7409 is the &21 that swallows the LD B,&FF below, and
+            # nothing above it reaches in at all -- &7408 is a whole
+            # LD B,A.  Both are real and they point opposite ways.
+            if over:
+                note = ('skipped: reads as %s from here, and as part of '
+                        'the instruction above it' % first.text)
+            elif p > e:
+                note = ('skipped: reads as %s from here, swallowing the '
+                        'bytes below it' % first.text)
+            else:
+                note = ('reads as %s, and nothing the trace can follow '
+                        'reaches it' % first.text)
+            d.comments.setdefault(s, note)
             # The commonest of these is LD HL,nn standing there for
             # nothing but the two bytes it swallows -- docs/idioms.md
             # calls it the &21 skip.  Write the opcode under a name that
             # says what it is for; the value itself means nothing here.
-            if e - s == 1 and p > e:
+            # The SKIP_n_VIA_ names belong to the swallowing kind: the
+            # opcode is there for the bytes it eats, and the value it
+            # would load means nothing.
+            if e - s == 1 and p > e and not over:
                 name_skip(d, s)
             other += e - s
     return zeros, other, text

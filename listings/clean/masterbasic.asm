@@ -4838,7 +4838,7 @@ SEARCH_MEMORY_LOOP:
                                                ; nothing to find
                PUSH HL                         ; 4CB1 E5  where CPIR stopped, to go back to if the rest of the pattern
                                                ; does not match
-               DEFB SKIP_1_VIA_LD_A            ; 4CB2 >  CPIR has already stepped HL past the byte it matched, so the
+               DEFB &3E                        ; 4CB2 >  CPIR has already stepped HL past the byte it matched, so the
                                                ; loop's own INC HL is skipped on the way in
 
 ; ---- SEARCH_MEMORY_LOOP2 ---- from &4CBC when A = (HL), &4CC1 when A = C
@@ -6522,8 +6522,8 @@ HOOK_RCPTCH_5:
 
 ; ---- V5272 ---- from &5242
 V5272:
-               DEFB &CD,&14,&4D,&C3            ; 5272 M.MC  skipped: reads as CALL &4D14 from here, and as part of the
-                                               ; instruction above it
+               DEFB &CD,&14,&4D,&C3            ; 5272 M.MC  skipped: reads as CALL &4D14 from here, swallowing the bytes
+                                               ; below it
 
 ;; --------------------------------------------------------------------
 ;; Page in the BASIC program and point HL at its first line: PROG and
@@ -8199,8 +8199,8 @@ MATCH_REFERENCE_LOOP:
                JR NC,MATCH_REFERENCE_1         ; 5847 30 04
                XOR (HL)                        ; 5849 AE
                AND &DF                         ; 584A E6 DF
-               DEFB SKIP_1_VIA_LD_C            ; 584C .  skipped: reads as LD C,&BE from here, and as part of the
-                                               ; instruction above it
+               DEFB SKIP_1_VIA_LD_C            ; 584C .  skipped: reads as LD C,&BE from here, swallowing the bytes
+                                               ; below it
 
 ; ---- MATCH_REFERENCE_1 ---- from &5847
 MATCH_REFERENCE_1:
@@ -8260,8 +8260,8 @@ MATCH_REFERENCE_4:
                                                ; past the match for the caller to use. The &11 between them swallows the
                                                ; CP A and the POP BC on the failing path, so both share the POP DE and
                                                ; the RET
-               DEFB SKIP_2_VIA_LD_DE           ; 5871 .  skipped: reads as LD DE,&C1BF from here, and as part of the
-                                               ; instruction above it
+               DEFB SKIP_2_VIA_LD_DE           ; 5871 .  skipped: reads as LD DE,&C1BF from here, swallowing the bytes
+                                               ; below it
 
 ; ---- MATCH_REFERENCE_DONE ---- from &5856 when A <> 0, &586D
 MATCH_REFERENCE_DONE:
@@ -10197,7 +10197,7 @@ CMD_KEYIN_1:
 
 ; ---- V5DBD ---- from &5DEE when B is not 0 yet
 V5DBD:
-               DEFB SKIP_1_VIA_OR              ; 5DBD v  skipped: reads as OR &C9 from here, and as part of the
+               DEFB &F6                        ; 5DBD v  skipped: reads as OR &C9 from here, and as part of the
                                                ; instruction above it
                RET                             ; 5DBE C9
 
@@ -10217,8 +10217,8 @@ V5DBD:
 
 ; ---- V5DBF ---- from &5CCC
 V5DBF:
-               DEFB &3A,&F4                    ; 5DBF :t  skipped: reads as LD A,(&4AF4) from here, and as part of the
-                                               ; instruction above it
+               DEFB &3A,&F4                    ; 5DBF :t  skipped: reads as LD A,(&4AF4) from here, swallowing the bytes
+                                               ; below it
 
 ; ---- COPY_THEN_APPEND_CALL_LOOP ---- from &5DDA when bit 5 of (HL) clear
 COPY_THEN_APPEND_CALL_LOOP:
@@ -15442,8 +15442,8 @@ COPY_SCREEN_CONVERT_12:
                RL B                            ; 6D92 CB 10
                JR C,COPY_SCREEN_CONVERT_13     ; 6D94 38 02
                OR C                            ; 6D96 B1
-               DEFB SKIP_1_VIA_CP              ; 6D97 ~  skipped: reads as CP &B3 from here, and as part of the
-                                               ; instruction above it
+               DEFB SKIP_1_VIA_CP              ; 6D97 ~  skipped: reads as CP &B3 from here, swallowing the bytes below
+                                               ; it
 
 ; ---- COPY_SCREEN_CONVERT_13 ---- from &6D94 when bit 7 of B was set
 COPY_SCREEN_CONVERT_13:
@@ -16824,7 +16824,7 @@ FN_USING_S_LOOP3:
                CP &3A                          ; 72CB FE 3A
                JR NC,FN_USING_S_10             ; 72CD 30 04
                LD C,&30                        ; 72CF 0E 30
-               DEFB SKIP_1_VIA_LD_D            ; 72D1 .  skipped: reads as LD D,&71 from here, and as part of the
+               DEFB &16                        ; 72D1 .  skipped: reads as LD D,&71 from here, and as part of the
                                                ; instruction above it
 
 ; ---- FN_USING_S_9 ---- from &72C5 when A = CH_HASH
@@ -17175,8 +17175,8 @@ L73F7:
                AND PAGEMASK                    ; 7404 E6 1F
                OR &80                          ; 7406 F6 80
                LD B,A                          ; 7408 47
-               DEFB SKIP_2_VIA_LD_HL           ; 7409 !  skipped: reads as LD HL,&FF06 from here, and as part of the
-                                               ; instruction above it
+               DEFB SKIP_2_VIA_LD_HL           ; 7409 !  skipped: reads as LD HL,&FF06 from here, swallowing the bytes
+                                               ; below it
 
 ; ---- FIND_PROC_ENTRY_1 ---- from &73E3 when A = 0
 FIND_PROC_ENTRY_1:
@@ -18133,8 +18133,8 @@ SIZE_EXTERNAL_MEMORY_1:
                LD HL,&0000                     ; 77F8 21 00 00
                ADD HL,SP                       ; 77FB 39
                EXX                             ; 77FC D9
-               DEFB SKIP_2_VIA_LD_SP           ; 77FD 1  skipped: reads as LD SP,&C000 from here, and as part of the
-                                               ; instruction above it
+               DEFB SKIP_2_VIA_LD_SP           ; 77FD 1  skipped: reads as LD SP,&C000 from here, swallowing the bytes
+                                               ; below it
 
 ; ---- SIZE_EXTERNAL_MEMORY_2 ---- from &7818
 SIZE_EXTERNAL_MEMORY_2:
@@ -19495,8 +19495,8 @@ V7D57:
                DEFW &512A,&5E5C,&5623,&53ED,OPSTORE ; 7D5A 2A 51 5C 5E 23 56 ED 53 B5 5A
                LD DE,&4A12                          ; 7D64 11 12 4A
                JR TBL_7D58_1                        ; 7D67 18 06
-               DEFB &32,&BF,&5B,&11,&1F,&4A         ; 7D69 2?[..J  reads as LD (&5BBF),A, and nothing the trace can
-                                                    ; follow reaches it
+               DEFB &32,&BF,&5B,&11,&1F,&4A         ; 7D69 2?[..J  skipped: reads as LD (&5BBF),A from here, and as part
+                                                    ; of the instruction above it
 
 ; ---- TBL_7D58_1 ---- from &7D67
 TBL_7D58_1:
