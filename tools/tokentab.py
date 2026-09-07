@@ -14,11 +14,18 @@ through `MTOKV`, and prints one line per token:
 
     python tools/tokentab.py            # the flat list
     python tools/tokentab.py --md       # the same as markdown tables
+    python tools/tokentab.py --check    # from tools/build.sh
 
 docs/tokens.md is written from this, and docs/sam-basic-grammar.txt
-carries the same list in its TOKENS section.
+carries the same list in its TOKENS section.  Both hold a copy, so both
+can drift away from the ROM the moment anything under ref/ moves --
+which is exactly the kind of number that cannot be audited by eye,
+because a stale one and a wrong one look the same.  --check regenerates
+the tables and compares them with what those two files hold, so the
+build says so instead.
 """
 
+import difflib
 import os
 import re
 import sys
@@ -155,7 +162,57 @@ def spell(tok):
     return '&%02X' % tok if tok < 0x100 else '&FF %02X' % (tok & 0xFF)
 
 
+def check():
+    """Compare both documents with freshly generated tables.
+
+    Returns the number of faults, and prints one line per file either
+    way, so a clean run says what it checked rather than nothing.
+    """
+    rows, _ = tokens()
+    bad = 0
+
+    want = ['# token | role | name | origin | list-spacing']
+    want += ['%s|%s|%s|%s|%s'
+             % ('%02X' % t if t < 0x100 else '%04X' % t,
+                role(t), name, origin, spacing(t, origin))
+             for t, _kind, name, origin in rows]
+    path = os.path.join(ROOT, 'docs', 'sam-basic-grammar.txt')
+    lines = open(path, encoding='utf-8').read().split('\n')
+    at = lines.index('[TOKENS]')
+    got = []
+    for line in lines[at + 1:]:
+        if line.startswith('['):
+            break
+        if line.strip():
+            got.append(line)
+    bad += report('docs/sam-basic-grammar.txt [TOKENS]', want, got)
+
+    # The generated rows in docs/tokens.md are the only five-field ones;
+    # the range, reserved-slot and spacing tables all have three.
+    want = ['| `%s` | %d | `%s` | %s | %s |'
+            % (spell(t), t & 0xFF, name, role(t), origin)
+            for t, _kind, name, origin in rows]
+    path = os.path.join(ROOT, 'docs', 'tokens.md')
+    got = [l for l in open(path, encoding='utf-8').read().split('\n')
+           if l.startswith('| `&') and l.count('|') == 6]
+    bad += report('docs/tokens.md', want, got)
+    return bad
+
+
+def report(what, want, got):
+    if want == got:
+        print('%s: %d rows, all from the sources' % (what, len(want)))
+        return 0
+    print('*** %s DIFFERS from tools/tokentab.py ***' % what)
+    for line in difflib.unified_diff(want, got, 'generated', what,
+                                     lineterm='', n=1):
+        print('    ' + line)
+    return 1
+
+
 def main():
+    if '--check' in sys.argv:
+        sys.exit(1 if check() else 0)
     rows, _ = tokens()
     if '--md' in sys.argv:
         for kind in ('command', 'function'):

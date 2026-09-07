@@ -108,6 +108,11 @@ for tree in ('disasm', 'clean', 'speculate'):
 sys.exit(0 if ok else 1)
 EOF
 
+# The token tables in docs/ are copies of what the SAM ROM holds, so they
+# can go stale the moment anything under ref/ moves -- and a stale table
+# and a wrong one look identical on the page.  Regenerate and compare.
+python "$here/tokentab.py" --check || exit 1
+
 # The listings are their own proof; the prose around them is not, so check
 # that what it quotes and the names it uses are still what the listings say.
 python "$here/checkdocs.py"
