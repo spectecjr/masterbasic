@@ -6,15 +6,16 @@ the [README](../README.md).
 
 Claims are marked where the evidence is unusual. **Confirmed on hardware**
 means checked against a dump of a machine that had booted
-(`dumps/MBPOST.bin`, `dumps/SYSPAGE_after_MBMD_boot.bin`). **Open** means unsettled, and the
+(`dumps/MBPOST.bin`, `dumps/SYSPAGE_after_MBMD_boot.bin`,
+`dumps/SYS2.bin`). **Open** means unsettled, and the
 listing says so too.
 
 ---
 
 ## 1. One file, two pages, three address spaces
 
-`dumps/MasterBasicMasterDos.bin` is 32640 bytes: a nine-byte header and two
-halves of 16320. Both halves are assembled to run at `&4000`-`&7FBF`, and
+`dumps/MasterBasicMasterDos.bin` is 32640 bytes: two halves of 16320, the
+first of which opens with the nine-byte header at `&4000`-`&4008`. Both halves are assembled to run at `&4000`-`&7FBF`, and
 each expects to see the other at `&8000`-`&BFBF`.
 
 | | |
@@ -41,6 +42,11 @@ from the instruction. Setting `HMPR` to zero puts the system page at
 `BOOT` begins at `&4009`. The header at `&4000`-`&4008` is part of the
 loaded image, not something stripped off.
 
+**The DOS installs first.** Before MasterBASIC's half is loaded at all, the
+boot sector calls the DOS's `INSTALL_TAIL_INTO_SYSPAGE` at `&7D60`, which
+copies 446 bytes of the DOS page's tail to `&4F00` and 161 more to `&4C14`.
+Everything in the table below is what MasterBASIC then adds on top.
+
 **Find the ROM.** `RESOLVE_ROM_ENTRIES` at `&7990` runs twenty searches for
 ROM entry points and patches each answer into the code that calls it.
 MasterBASIC holds almost no hard-coded ROM addresses — see section 4.
@@ -49,7 +55,9 @@ MasterBASIC holds almost no hard-coded ROM addresses — see section 4.
 first, so the copies carry the resolved addresses with them. *Confirmed on
 hardware:* the source at `&7460` differs from the file in six bytes and the
 source at `&7BA4` in twenty, and the installed copies at `&46CC` and
-`&484D` differ in the same six and twenty, at the same offsets.
+`&484D` differ in the same six, and in nineteen of the twenty, at the same
+offsets. The twentieth is `&7DEE`, the operand of an `LD (HL),&00` that
+runs *after* the copy is made, so `&4A97` rightly keeps the file's `&00`.
 
 **Install into the system page.** Three routines do this between them, and
 what they leave behind is one nearly continuous region from `&45A2` to
@@ -57,22 +65,23 @@ what they leave behind is one nearly continuous region from `&45A2` to
 
 | from | to | bytes | by |
 |---|---|---|---|
-| five runs, two of them the ROM's own `PUT` | `&45A2` | 298 | `INSTALL_EXTENDED_PUT` `&7829` |
-| `&7460` | `&46CC` | 385 | `INSTALL_ROM_PATCHES` `&7B03` |
+| seven runs, three of them the ROM's own `PUT` | `&45A2` | 298 | `INSTALL_EXTENDED_PUT` `&7829` |
+| `&7460` | `&46CC` | 385 | `INSTALL_ROM_PATCHES` `&7B00` |
 | `&7BA4` | `&484D` | 671 | `INSTALL_ROM_PATCHES` |
 | `&7B80` | `&4BA0` | 36 | `INSTALL_ROM_PATCHES` |
 | `&7E43` | `&5896` | 40 | `INSTALL_SYSPAGE_CODE` `&7A9F` |
 | `DPVARS` and the XVARs after it | `&5A12` | 29 | `INSTALL_SYSPAGE_CODE` |
 | `&7AF2` | `PAGER` `&5BE0` | 14 | `INSTALL_SYSPAGE_CODE` |
-| `&18` and `&19` | `KTAB`+97, +106 | 2 | `INSTALL_SYSPAGE_CODE` |
+| `&18` and `&19` | `KTAB`+106, +97 | 2 | `INSTALL_SYSPAGE_CODE` |
 
 `INSTALL_ROM_PATCHES` sets `HMPR` to zero first, so every `&8xxx` in it
 means the system page's `&4xxx`; `INSTALL_SYSPAGE_CODE` does the same and
 its `&9xxx` mean `&5xxx`.
 
-Three of those are worth a word. `&5896` is in the 128 bytes the ROM leaves
-unused between the `DEF KEY` buffer at `&5800` and the keyboard table at
-`&58E0` — the only place MasterBASIC installs code outside `&45A2`-`&4BC3`.
+Three of those are worth a word. `&5896` is in the 96 bytes the ROM leaves
+unused between the end of the `DEF KEY` buffer at `&5880` and the keyboard
+table at `&58E0` — the only place besides `PAGER` that MasterBASIC installs
+code outside `&45A2`-`&4BC3`.
 `PAGER` is the fourteen bytes the ROM's variable table reserves "for paging
 S.R.", which MasterBASIC fills with its own. And the two poked bytes are
 `KEY` assignments done by writing the table directly, which is where the
@@ -92,6 +101,11 @@ installed addresses into the ROM vector variables:
 | `EDITV` | `&4866` line editor | `RST8V` | `&4AB8` error handling |
 | `CMDV` | `&488E` command dispatch | `PRTOKV` | `&4BB0` token printing |
 | `FRAMIV` | `&4986` frame interrupt | `EVALUV` | `&4BBA` function evaluation |
+
+A ninth goes with them and explains the block in the keyboard-table gap:
+`MTOKV` is set to `&58B4`, which is `&5896`+`&1E`, so the spelled-out-keyword
+lookup lands inside those 40 bytes. `BSTKEND` and `BASSTK` are written here
+too, and `INSTALL_ROM_PATCHES` writes `HUDG` and `RST28V`.
 
 Those roles were read out of the ROM source — `STRMOV1`, `EDITOR`,
 `STMTLP3`, `FRAMINT`, `ERROR2`, `PRGR802`, `ABOVLETS` and the `LD IX,
@@ -119,7 +133,9 @@ visible in `PRTOKV_STUB`, which does `CP &F7 : RET C` for the ROM's own
 tokens and `POP HL` for its own.
 
 It also moves the BASIC stack down to `&45A1`, because the ROM `BSTACK` at
-`&4AFF` sits inside the second installed block and had to move.
+`&4AFF` is inside the nineteen bytes `&4AED`-`&4AFF` that MasterBASIC clears
+and keeps for itself, just past the end of the second installed block at
+`&4AEB`.
 
 ## 3. How the ROM ends up calling MasterBASIC
 
@@ -139,7 +155,7 @@ an address in `HL`, page it in, call it, and put the paging back.
 | from | to | what |
 |---|---|---|
 | `&48DA` | `&5FB9` | `SHOW_LINE_AND_STATEMENT` — the `LINE` command, once a statement |
-| `&49A2` | `&59A3` | the screen blanker's tick, from the frame interrupt |
+| `&49A2` | `&59A3` | the frame interrupt's work: ESC+TAB, the auto-listing rescue, then the screen-blank countdown |
 | `&49D9` | `&6485` | the character output path |
 | `&49EB` | `&64F3` | `PRINT_MAGNIFIED_CHAR`, when the height is not 1 |
 
@@ -148,8 +164,10 @@ window while the system page is at `&4000`. Three go through `PAGER` with `A`
 holding `&1C`; the frame interrupt does the same by hand, since it is already
 saving the paging.
 
-That is the whole list — the system page reaches into MasterBASIC at four points
-and nowhere else. It also means the inverted paging is not a property of
+That is the whole list of *direct* calls. The system page also reaches
+MasterBASIC through the hooks described below, which is the commoner route:
+the installed code issues a dozen `RST &08` codes that `SAMHK` sends across
+through `CALLMB`. It also means the inverted paging is not a property of
 particular routines but of being called this way, which is what the
 `self_window` ranges in `tools/dis_mb.py` record.
 
@@ -185,22 +203,22 @@ byte 5      a signed offset from what is found to what is wanted
 ```
 
 It scans with a three-byte sliding window and returns a pointer, which the
-caller always stores with an `LD (nn),HL` immediately after. 27 sites do
-this. The signatures are ordinary instructions — `LD A,(BC) : CP " "`,
+caller almost always stores with an `LD (nn),HL` immediately after; two
+adjust or dereference the pointer first. 28 sites do this. The signatures are ordinary instructions — `LD A,(BC) : CP " "`,
 `LD A,D : CPIR`, `LD HL,&5140` — and the start address says which ROM to
 search: below `&4000` is ROM 0, `&C000` and up is ROM 1.
 
 *Confirmed on hardware:* running these searches against the ROM this
 project assembles gives, for the fifteen whose result is stored plainly,
-exactly the values the dumped machine holds. Seventeen of the 27 land on a
-named entry point — `INSERTLN`, `PRMAIN`, `LOOKVARS`, `MATCHER`, `POKE2`,
-`EDPRT`, `ENDOUTP`, `DOCOMP`, `COMDF`, `COMLEN`, `LKCALL`, `LKFC`, `EPSUB`,
-`CCRESTOP`, `POSTFF`, `EDKY1`, `AULLP` — which reads as a summary of what
-MasterBASIC takes over. The other ten land inside a routine, which is what
+exactly the values the dumped machine holds. Eighteen of the 28 land on a
+named entry point — `INSERTLN`, `PRMAIN`, `LOOKVARS`, `SLICING`, `MATCHER`,
+`POKE2`, `EDPRT`, `ENDOUTP`, `DOCOMP`, `COMDF`, `COMLEN`, `LKCALL`, `LKFC`,
+`EPSUB`, `CCRESTOP`, `POSTFF`, `EDKY1`, `AULLP` — which reads as a summary of
+what MasterBASIC takes over. The other ten land inside a routine, which is what
 intercepting one looks like.
 
 This is why MasterBASIC survives a ROM it was not built against, and the
-rule is followed without exception. Of the 69 places in the MasterBASIC
+rule is followed without exception. Of the 67 places in the MasterBASIC
 half that call or jump into the ROM at a fixed address:
 
 | | |
@@ -209,7 +227,6 @@ half that call or jump into the ROM at a fixed address:
 | `&0040`-`&00FF` low routines | 7 |
 | `&0100`-`&018F` the jump table | 27 |
 | `&3F00`-`&3FFF` top-of-ROM vectors | 19 |
-| ROM 1 | 2 |
 | anywhere else | **0** |
 
 `PRMAIN` shows how tight the rule is. It sits at `&01CC`, which looks like
@@ -227,8 +244,9 @@ front doors of ROM routines, which are already known — they are looking
 for the exact point *inside* one at which MasterBASIC wants to rejoin it.
 
 **Through fixed entry points.** `CMR` followed by `DEFW <ROM address>`.
-One of these, at `CALL_INSERTLN`, has no fixed target at all: its `DEFW` is written
-by a signature search, so the call goes wherever the search found.
+Three of these — `CALL_LOOKVARS`, `CALL_SLICING` and `CALL_INSERTLN` — have no
+fixed target at all: each `DEFW` is written by a signature search, so the call
+goes wherever the search found.
 
 **The `NR` family.** `NRRD`, `NRRDD`, `NRWR`, `NRWRD` and `NRWRHL`, each
 followed by `DEFW <ROM variable>`, read and write ROM variables from a page
@@ -299,8 +317,11 @@ own; hook 185 and `BUILD_PAGE_IN_TRAMPOLINE` both build at `+&50`; and
 buffer, out of a prologue, 88 bytes taken from ROM 1, and an epilogue.
 
 That last one is the clearest example of the whole mechanism, because a
-dump proves every byte of it. Both fixed pieces are in `dumps/SYSPAGE_after_MBMD_boot.bin`
-exactly as the listing holds them, the middle 88 are ROM 1's `&E019` in
+dump proves nearly every byte of it. Both fixed pieces are in
+`dumps/SYS2.bin` — 4K of `&4C00`-`&5BFF`, and the only dump that catches the
+buffer with this routine still in it — as the listing holds them, bar twenty
+bytes of the prologue that something later zeroed. The middle 88 are ROM 1's
+`&E019` in
 ROM 3.0 — the same code sits at `&E02F` in 2.1 and `&E041` in 1.4, which
 is why the address is taken from the ROM's own table rather than searched
 for — and the two operands it patches read `JP &E071` and `CALL &3EEA`,
@@ -309,11 +330,14 @@ calling what the copy used to call. MasterBASIC splices itself into the
 middle of a ROM routine.
 
 The buffer is the ROM's, not MasterBASIC's, and the ROM uses it the same
-way: `POSFIRST` copies the tokeniser into it with `LD DE,TOKFIN+3 ; END OF
-THIS ROUTINE, IN CDBUFF` before running it. A dump of a booted machine
-finds a mixture — `&4D50` holding ROM 1's `NLTP`, `&4D80` holding this
-half's `&4F14`, and `&4D18` holding a byte from neither. So nothing about
-the buffer's contents can be inferred from reading any one builder.
+way: `TOKDE` copies the tokeniser out of ROM 1 into `CDBUFF`+`&80` with `LD
+DE,CDBUFF+&80 ; (4D80-4E24)`, and `POSFIRST` then copies fifteen characters of
+the line to be tokenised in after it, with `LD DE,TOKFIN+3 ; END OF THIS
+ROUTINE, IN CDBUFF`. That the two collide is plain from the address: `&4D80`
+is where the ROM puts its tokeniser and also where MasterBASIC's epilogue
+lands. So nothing about the buffer's contents can be inferred from reading
+any one builder — a dump shows whichever ran last, which is why the one taken
+after boot holds neither of these and the ROM's `MULTI-LDI` instead.
 
 **A command rebuilt from the ROM's own code.** `INSTALL_EXTENDED_PUT` at
 `&7829` is the clearest case, because every byte of the result can be
@@ -341,12 +365,12 @@ identified, so `LD (&45AF),A` reads as `LD (CHECK_WRITE_STATUS+1),A`.
 
 | what | where |
 |---|---|
-| boot and installation | `INSTALL_ROM_PATCHES` `&7B03`, `INSTALL_ROM_VECTORS` `&76DA`, `RESOLVE_ROM_ENTRIES` `&7990`, `INSTALL_SYSPAGE_CODE` `&7A9F`, `INSTALL_EXTENDED_PUT` `&7829` |
+| boot and installation | `INSTALL_ROM_PATCHES` `&7B00`, `INSTALL_ROM_VECTORS` `&76DA`, `RESOLVE_ROM_ENTRIES` `&7990`, `INSTALL_SYSPAGE_CODE` `&7A9F`, `INSTALL_EXTENDED_PUT` `&7829` |
 | the code the ROM calls | `listings/disasm/postinstall-syspage.asm`; sources at `&7460`, `&7BA4`, `&7B80`, `&7E43` |
 | command dispatch | `CTAB` `&42EA`, `SYNTAX`, `CMD_*` |
 | functions | `FNVEC` `&78EB`, `FN_*` |
 | hooks | `SAMHK` `&44A6`, `HOOK_*` handlers, `HKC_*` codes |
-| ROM lookup | `FIND_ROM_CODE`, the 27 `signature` lines |
+| ROM lookup | `FIND_ROM_CODE`, the 28 `signature` lines |
 | parser front end | `&43A1`-`&44E2`, `EXPECT_*`, `TEST_RUNNING` |
 | line editing | `CMD_SPLIT_LINE`, `OPEN_GAP_AT_LINE`, `FIND_LINE_*` |
 | disc | `notes/disk.txt`, `notes/diskcmd.txt`, the DOS half |
@@ -361,34 +385,38 @@ identified, so `LD (&45AF),A` reads as `LD (CHECK_WRITE_STATUS+1),A`.
 
 ## 7. What is not settled
 
-Every byte is classified, and 557 of the 594 addresses a `CALL` names have
-a name. The 37 that stay numbers are deliberate and each says why on the
-line: an operand written at run time, where `&0000` is a placeholder; a
+Every byte is classified. Counting distinct `CALL` operands as written across
+both listings, 594 of the 620 are a name and 26 stay numbers. Those 26 are
+deliberate: an operand written at run time, where `&0000` is a placeholder; a
 block written for somewhere else, where the label shown would be the wrong
-page's; and calls through the window or into the ROM. What follows is what
-naming did not answer.
+page's; and calls through the window or into the ROM. Eighteen say which of
+those they are on the line itself; the other eight are explained by the banner
+above them. What follows is what naming did not answer.
 
 - **The system page is now checked across all 16K**, so this is no longer
   open. Three dumps settle it — the page before any boot, after MasterDOS 2.3
   alone, and after the combined file — and the copy rules predict the whole
-  of `&4000`–`&7FFF` to within 33 bytes. Every one of the 33 is a two-byte
-  pair at an address the machine resolves for itself, which is the pattern
-  `RESOLVE_ROM_ENTRIES` leaves everywhere else.
+  of `&4000`–`&7FFF` to within 33 bytes: fifteen two-byte pairs at addresses
+  the machine resolves for itself, which is the pattern `RESOLVE_ROM_ENTRIES`
+  leaves everywhere else, and three single bytes holding MasterBASIC's own
+  page number.
 
   The before-dump turns "is the model right" into the harder "did the boot
   actually write this": of the 2207 bytes the boot changes, the rules claim
   1639, and only 114 of the bytes they claim were already right. The
-  MasterDOS-only dump then splits the rest — the DOS alone accounts for 319
-  of those 2207, and it is what puts the 36 bytes at `&4BA0` there, so that
-  block is the DOS's work rather than MasterBASIC's.
+  MasterDOS-only dump changes 319 bytes of the page on its own, and it already
+  carries both the 36 bytes at `&4BA0` and the 40 at `&5896`. Both installers
+  write both blocks, so the dumps cannot say whose work either is:
+  MasterBASIC's copy writes what is already there.
 
 - **`SIZE_EXTERNAL_MEMORY` is settled** and no longer open. It is
   MasterDOS's `MRINIT`, carried inside `INSTALLER` — the 943 bytes the boot
   sector copies from MB `&75E1` to `&BC00` — so it runs at DOS `&7DFA` and
   never at `&77DB`, which is why nothing appeared to call it. A dump of the
   DOS page taken while it ran shows the copy at `&7C00`–`&7FAE` byte for
-  byte, and its two unrelocatable operands are calls into the DOS's `RMRBIT`
-  and `SMRBIT`, which clear and set a page's bit in `MRTAB`.
+  byte, and its three unrelocatable operands are calls into the DOS's `RMRBIT`
+  and `SMRBIT`, which clear and set a page's bit in `MRTAB`, and a jump into
+  its `CFMI`.
 
 - **The DOS half** is still read mainly where MasterBASIC reaches into it.
   Every routine either half calls has a name, and [disc.md](disc.md) now
@@ -402,11 +430,11 @@ naming did not answer.
   `RDRSCT` turns the transfer into an `LDIR`.
 
   What is left is prose rather than names. Every routine either half calls
-  has a name; of the addresses each half CALLs by name -- 367 in the DOS and
-  190 in MasterBASIC -- 212 and 170 also carry a banner, or a comment on
-  their first instruction, saying what they do. The rest are mostly short
-  things whose names already say it -- `STEP_HEAD_OUT`, `REST`,
-  `CALL_NEXTCHAR`.
+  has a name; of those names that are labels in the half itself -- 367 in the
+  DOS and 182 in MasterBASIC -- 343 and 176 also carry a banner, or a comment
+  on their first instruction, saying what they do. The remaining 24 and 6 are
+  mostly short things whose names already say it -- `WRITE_DRIVE_CMD_AND_DELAY`,
+  `READ_SELECTED_DISK_STATUS`, `GREY_LEVEL_ABOVE`.
 
 ### Settled since this section was written
 

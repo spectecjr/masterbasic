@@ -59,6 +59,7 @@ the hook was called with:
       LD HL,(HKHL)                    ; 6485
       LD (HD0D1),HL                   ; 6488  START
       LD A,(HKBC)                     ; 648B
+      LD C,A                          ; 648E
       LD (PGES1),A                    ; 648F
       LD DE,(HKDE)                    ; 6492
       RES 7,D                         ; 6496
@@ -82,8 +83,9 @@ on:
       JP Z,REP13                      ; 4E83
 ```
 
-`SUB &12` then `ADC A,&00` separates the three SAM file types with one
-subtract and one add where two comparisons would be the obvious way.
+`SUB &12` then `ADC A,&00` comes out zero for exactly the two array types,
+`&11` and `&12`, so one subtract and one add do the work of the two
+comparisons that would be the obvious way.
 
 **4. A sector.** `READ_SECTOR` at `&45B7`:
 
@@ -108,11 +110,14 @@ is branch between the two kinds of device, and the listing's own comment on
 `READ_SECTOR_CMD`, which the listing's own equate gives as `&80`.
 
 `RETRY_OR_GIVE_UP` at `&46C6` is the loop's other half: `AND &0E` keeps the
-controller's error bits, any of them leaves for the error path, and otherwise
-the buffer is re-fetched and the read runs again — with the failure counted
-into `DCT` on the way.
+controller's error bits. Any of them set counts a failure into `DCT` and
+returns normally, so the caller's `JR` runs the read again — the tenth failure
+is a disc fault instead. A clean transfer is the path that *ends* the loop: it
+clears the count, throws the caller's return address away with a bare `POP HL`
+and leaves through `GTBUF`, returning the buffer address to the caller's
+caller.
 
-**5. The bytes.** The transfer is six instructions, and both ports are
+**5. The bytes.** The transfer is nine instructions, and both ports are
 written into their own operands before it starts:
 
 ```asm
@@ -180,7 +185,7 @@ WRITE_DATA_LOOP:
       JR CHECK_WRITE_STATUS           ; 45B5
 ```
 
-Five instructions against the read's six, because `OUTI` does the fetch, the
+Seven instructions against the read's nine, because `OUTI` does the fetch, the
 store and the increment in one. The asymmetry is the Z80's: there is no
 instruction that reads a port into `(HL)` *and* leaves the value where the
 status test can reach it.
@@ -215,9 +220,10 @@ the same way: "**nothing above that level knows the difference**. A RAM disc
 has a directory, a sector map, subdirectories, a name and a path exactly as a
 floppy does."
 
-One instruction in the shipped code is not in the reference source. There
-`RDRSCT` runs `CALL GTBUF` straight into `LD BC,&0200`; here `SDCHK2` goes
-between them, and its own comments give the test — "RET IF HL IN DRAM" and
+Five instructions in the shipped code are not in the reference source. There
+`RDRSCT` runs `CALL GTBUF` straight into `LD BC,&0200`; here a call to
+`SDCHK2` and the whole direct-copy branch it chooses between go in between,
+and `SDCHK2`'s own comments give the test — "RET IF HL IN DRAM" and
 "CY IF HL WILL CROSS PAGE BOUNDARY". A destination that would run off the end
 of a page is bounced through `DRAM`; one that will not is read into the
 caller's buffer directly, saving the copy. That difference is worth knowing
@@ -237,7 +243,7 @@ the two halves split the job.
 restore below it has somewhere to come back from, reads track 0 sector 1 so
 the confirmation prompt can name the disk about to be destroyed — a read
 error there is taken as "blank or unreadable" and the prompt skipped — and
-then, for every track, does this:
+then sets up, once, before the first track:
 
 ```asm
       CALL GETSCR                     ; 54F0  borrow the screen
@@ -246,6 +252,11 @@ then, for every track, does this:
       CALL CALLMB                     ; 54F9  PREPARE TRACK DATA
       DEFW &5352
 ```
+
+Every track after the first re-enters at `&5506`, three instructions in, with
+just the `CALL CALLMB` / `DEFW &5352`. So the screen is borrowed once, the
+message is printed once with the track number overwritten in place, and `D`
+and `E` are recomputed at the bottom of the loop rather than reloaded.
 
 **The image is built in the other page.** `&5352` is `BUILD_TRACK_IMAGE` in
 MasterBASIC, and nothing in MasterBASIC calls it — the only two callers are
@@ -299,7 +310,7 @@ and input routine addresses — and the DOS's own mode byte `MFLG` is at
 
 | bit | |
 |---|---|
-| 0 | match the file number |
+| 0 | stock MasterDOS's "match the file number", for `LOAD n` — nothing in this build sets it and nothing tests it |
 | 1 | collect names for a sorted listing rather than printing them |
 | 2 | print a full listing, with a heading |
 | 3 | match the name, honouring `*` and `?` |
@@ -369,8 +380,8 @@ of `(IX+&0C)` says it was altered. The length goes down **twice**: in the old
 sixteen-bit form so that G+DOS can still read the file, and in the page form
 MasterDOS uses. For the types that carry a nine-byte header the header is
 subtracted first, which is the `AHL = AHL - 9` at `&6EA7`. A file that
-already existed replaces its entry; a new one goes into the slot `FSLOT`
-remembered.
+already existed replaces its entry; a new one gets a fresh whole-directory
+scan for a free slot, which is why `SDCM` clears `FSLOT` before it starts.
 
 ## Following a file
 
@@ -401,7 +412,7 @@ arithmetic says exactly what a stream is:
 ```asm
       LD HL,(HKHL)                    ; 6B0F
       DEC HL                          ; 6B12
-      LD BC,PDIRH_1                   ; 6B13  &5C16 -- the ROM's STRMS, not this label
+      LD BC,PDIRH_1                   ; 6B13  the stream-zero entry of the ROM's STREAMS table
       AND A                           ; 6B16
       SBC HL,BC                       ; 6B17
       LD A,L                          ; 6B19
@@ -409,18 +420,21 @@ arithmetic says exactly what a stream is:
       LD (SSTR1),A                    ; 6B1C
 ```
 
-The operand is one to be careful with: `&5C16` is the ROM's `STRMS` in the
-system page, and the DOS happens to have `PDIRH_1` at the same address, so the
-listing labels it with the wrong one. The line carries a comment saying so.
+The operand is one to be careful with: `&5C16` is the ROM's stream table in
+the system page — strictly the entry for stream 0, since the table runs from
+`&5C0C` and carries five negative streams first — and the DOS happens to have
+`PDIRH_1` at the same address, so the listing labels it with the wrong one. The line carries a comment saying so.
 
 The caller hands over a pointer *into the ROM's stream table*; subtracting
-the table's base and halving gives the stream number. `CHANNEL_FOR_STREAM` at
+the stream-zero entry and halving gives the stream number directly, which is
+why it is that entry and not the base that the code loads. `CHANNEL_FOR_STREAM` at
 `&7018` goes the other way, taking the displacement `STRMD` returns, treating
 zero as "no channel", and adding one less than it to `CHANS`.
 
-`FIRST_DISC_CHANNEL` at `&68AB` shows the channel record's shape: `CHANS`
-plus `&1E`, with a carriage return in the first byte meaning the slot is
-empty.
+`RECLAIM_TEMP_CHANNELS` at `&68AB` shows the channel record's shape: `CHANS`
+plus `&1E` steps past the ROM's fixed channels, each record after that is
+stepped over by its own length, and a carriage return in the first byte is the
+end of the channel area.
 
 ## Where MasterBASIC reaches in, and back out
 
@@ -434,8 +448,8 @@ manual's three `SAVE MODE`s, implemented as one branch.
 Coming out, the DOS borrows arithmetic it does not have: `PRINT_BYTE_AS_DECIMAL`
 calls `MB_BYTE_TO_DECIMAL`, `GET_FILE_NUMBER` calls the routine twenty-eight bytes
 before it for a file's number, and `TIME_TO_MINUTES`
-calls `MB_MULTIPLY_BY_100` twice over, packing three two-digit fields into
-one number. `COLUMNS_FOR_DIRECTORY` at `&5C8B` reaches further
+is itself called twice over, so `MB_MULTIPLY_BY_100` runs twice, packing three
+two-digit fields into one number. `COLUMNS_FOR_DIRECTORY` at `&5C8B` reaches further
 still — it takes `DCOLS` if it is set and otherwise asks MasterBASIC's
 `SYS_CHAR_WIDTH`, in the ROM's system page, whether `CSIZE` has changed the
 character width. Only whether, not what: a changed width gives up and prints one

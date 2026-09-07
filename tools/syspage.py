@@ -31,7 +31,7 @@ BLANK = 0xFF
 LOOSE_VECTOR = 128
 
 # Where the installers put things.  Each is (source half, from, to, at).
-# The first three are INSTALL_ROM_PATCHES at &7B03 in
+# The first three are INSTALL_ROM_PATCHES at &7B00 in
 # listings/disasm/masterbasic.asm, which sets HMPR to zero and so writes &8xxx
 # meaning the system page's &4xxx.
 COPIES = (
@@ -55,7 +55,7 @@ COPIES = (
 )
 
 # INSTALL_EXTENDED_PUT at &7829 fills &45A2-&46CB and is deliberately not
-# in COPIES: two of its five runs are lifted out of the ROM's own PUT,
+# in COPIES: three of its seven runs are lifted out of the ROM's own PUT,
 # wherever the signature search found it, so the block cannot be
 # assembled from this image alone.  A dump has it; the model does not.
 
