@@ -8152,7 +8152,7 @@ STATS:
                JR Z,TRK0                       ; 5C4C 28 06  JR IF SINGLE SIDED
                JR C,TRKM1                      ; 5C4E 38 03  JR IF NORMAL DISK
                SUB &30                         ; 5C50 D6 30  E.G 130->82, 168->120
-               DEFB &FE                        ; 5C52 ~  "JR+1"
+               DEFB SKIP_1_VIA_CP              ; 5C52 ~  "JR+1"
 
 ; ---- TRKM1 ---- from &5C4E
 TRKM1:
@@ -10327,7 +10327,7 @@ FNLN2:
 
 HPTR:
                LD A,&01                        ; 659A 3E 01
-               DEFB &FE                        ; 659C ~  "JR+1"
+               DEFB SKIP_1_VIA_CP              ; 659C ~  "JR+1"
 
 HEOF:
                XOR A                           ; 659D AF

@@ -4842,7 +4842,7 @@ SEARCH_MEMORY_LOOP:
                                                ; nothing to find
                PUSH HL                         ; 4CB1 E5  where CPIR stopped, to go back to if the rest of the pattern
                                                ; does not match
-               DEFB &3E                        ; 4CB2 >  CPIR has already stepped HL past the byte it matched, so the
+               DEFB SKIP_1_VIA_LD_A            ; 4CB2 >  CPIR has already stepped HL past the byte it matched, so the
                                                ; loop's own INC HL is skipped on the way in
 
 ; ---- SEARCH_MEMORY_LOOP2 ---- from &4CBC when A = (HL), &4CC1 when A = C
@@ -10206,7 +10206,7 @@ CMD_KEYIN_1:
 
 ; ---- V5DBD ---- from &5DEE when B is not 0 yet
 V5DBD:
-               DEFB &F6                        ; 5DBD v  skipped: reads as OR &C9 from here, and as part of the
+               DEFB SKIP_1_VIA_OR              ; 5DBD v  skipped: reads as OR &C9 from here, and as part of the
                                                ; instruction above it
                RET                             ; 5DBE C9
 
@@ -16833,7 +16833,7 @@ FN_USING_S_LOOP3:
                CP &3A                          ; 72CB FE 3A
                JR NC,FN_USING_S_10             ; 72CD 30 04
                LD C,&30                        ; 72CF 0E 30
-               DEFB &16                        ; 72D1 .  skipped: reads as LD D,&71 from here, and as part of the
+               DEFB SKIP_1_VIA_LD_D            ; 72D1 .  skipped: reads as LD D,&71 from here, and as part of the
                                                ; instruction above it
 
 ; ---- FN_USING_S_9 ---- from &72C5 when A = CH_HASH

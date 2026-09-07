@@ -3437,10 +3437,14 @@ def classify_leftovers(d):
             # nothing but the two bytes it swallows -- docs/idioms.md
             # calls it the &21 skip.  Write the opcode under a name that
             # says what it is for; the value itself means nothing here.
-            # The SKIP_n_VIA_ names belong to the swallowing kind: the
-            # opcode is there for the bytes it eats, and the value it
-            # would load means nothing.
-            if e - s == 1 and p > e and not over:
+            # The SKIP_n_VIA_ names belong to the swallowing geometry:
+            # the opcode is there for the bytes it eats, and the value
+            # it would load means nothing.  NOT gated on `over`, because
+            # the two are not exclusive -- &5DBD is the second byte of
+            # SET 6,(HL) above it AND the &F6 that swallows the RET
+            # below, and the name is right about the second of those
+            # whatever the note says about the first.
+            if e - s == 1 and p > e:
                 name_skip(d, s)
             other += e - s
     return zeros, other, text
