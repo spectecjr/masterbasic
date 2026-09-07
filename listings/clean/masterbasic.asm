@@ -8256,10 +8256,11 @@ MATCH_REFERENCE_3:
 MATCH_REFERENCE_4:
                POP HL                          ; 5870 E1  THE TWO EXITS DIFFER IN ONE REGISTER. Failure pops the saved
                                                ; position into HL, so the scan resumes exactly where it was; success
-                                               ; falls in at &5872 and pops it into BC, throwing it away and leaving HL
-                                               ; past the match for the caller to use. The &11 between them swallows the
-                                               ; CP A and the POP BC on the failing path, so both share the POP DE and
-                                               ; the RET
+                                               ; falls in at &5872 and pops it into BC, where ALTER reads it as the
+                                               ; address of the match -- &5737 is LD D,B : LD E,C -- and leaves HL past
+                                               ; the match for callers that want that instead. The &11 between them
+                                               ; swallows the CP A and the POP BC on the failing path, so both share the
+                                               ; POP DE and the RET
                DEFB SKIP_2_VIA_LD_DE           ; 5871 .  skipped: reads as LD DE,&C1BF from here, swallowing the bytes
                                                ; below it
 
@@ -8488,9 +8489,10 @@ CALL_JMKRBIG:
 
 ; ---- FIND_FIRST_LINE_IN_RANGE ---- from &54B7, &5670
 FIND_FIRST_LINE_IN_RANGE:
-               LD BC,(SEARCH_FIRST_LINE)       ; 58F9 ED 4B 91 40  SEARCH_FIRST_LINE is not the user's number by the
-                                               ; time this runs -- the scan at &568B overwrites it with each line's own
-                                               ; number as it goes, so a resumed REF starts at the line it stopped on
+               LD BC,(SEARCH_FIRST_LINE)       ; 58F9 ED 4B 91 40  SEARCH_FIRST_LINE holds the user's number on the
+                                               ; first pass -- PARSE_LINE_RANGE sets it at &5755 or &5769 -- and each
+                                               ; line's own number after that, because the scan at &568B writes it as it
+                                               ; goes. So a resumed REF starts at the line it stopped on
 
 ;; --------------------------------------------------------------------
 ;; Find the first BASIC line numbered BC or higher, from the top of the
@@ -8573,9 +8575,11 @@ COMPARE_LINE_NUMBER:
                LD A,(HL)                       ; 5922 7E  THERE IS NO END-OF-PROGRAM TEST IN THIS LOOP, and none is
                                                ; needed. A line number is stored high byte first, the program ends with
                                                ; an &FF where a line number's high byte would be, and &FF is above any B
-                                               ; the callers can pass -- the default &FEFF at &5758 is chosen to keep it
-                                               ; so. The terminator therefore stops the walk through the ordinary
-                                               ; comparison
+                                               ; the callers can pass, since B comes from SEARCH_FIRST_LINE and a line
+                                               ; number's high byte cannot be &FF. (&FEFF at &5758 is the other
+                                               ; variable, SEARCH_LAST_LINE, the range end, and is chosen for the same
+                                               ; reason at the other end of the walk.) The terminator therefore stops
+                                               ; the walk through the ordinary comparison
                CP B                            ; 5923 B8
                JP C,NEXT_LINE                  ; 5924 DA 13 59
                JR NZ,COMPARE_LINE_NUMBER_DONE  ; 5927 20 06  above on the high byte, so the answer is this line and the
@@ -8885,9 +8889,9 @@ SEND_COUNTED_TO_CHANNEL_1:
 ; when A >= D
 SCREEN_BLANK_TICK:
                LD A,(SOFV+IN_PAGE_C)           ; 59E8 3A 02 80  SOFV read at &8002 is XVAR 2, this half seen through the
-                                               ; window; SOFFCT at &5AC4 two instructions later is the ROM's, read with
-                                               ; the system page low. Both in four instructions, which is only possible
-                                               ; from the interrupt
+                                               ; window; SOFFCT at &5AC4, seven instructions on at &59F5, is the ROM's,
+                                               ; read with the system page low. Two pages in one short run, which is
+                                               ; only possible from the interrupt
                AND A                           ; 59EB A7
                JR Z,PRINTER_FEED_TICK          ; 59EC 28 0E
                LD HL,SOFCOUNT+IN_PAGE_C        ; 59EE 21 73 80
@@ -8964,9 +8968,10 @@ PRINTER_FEED_TICK_LOOP:
 
 ; ---- PRINTER_FEED_TICK_1 ---- from &5A15
 PRINTER_FEED_TICK_1:
-               LD A,D                          ; 5A1E 7A  D+1 divisible by four picks out &3F, &7F, &BF and &FF -- the
-                                               ; high byte of the last page of a 16K block -- in one AND, before the
-                                               ; fuller test below
+               LD A,D                          ; 5A1E 7A  D+1 divisible by four passes for any D ending in three --
+                                               ; sixty-four values, the last 256 bytes of every 1K -- which is a cheap
+                                               ; first sieve before the fuller test below. &3F, &7F, &BF and &FF are
+                                               ; among them, not the whole of them
                INC A                           ; 5A1F 3C
                AND &03                         ; 5A20 E6 03
                JR NZ,PRINTER_FEED_TICK_3       ; 5A22 20 1E
