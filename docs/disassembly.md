@@ -224,7 +224,14 @@ rather than assembles, which is how the DOS's variable block at `&40F9` stopped
 being read as a page of `NOP`s.
 
 **5. Prove it.** Each listing is assembled and compared with its half of the
-original file.
+original file. Then two checks on the prose around them: `tools/tokentab.py
+--check` regenerates the token tables from the SAM ROM and compares them with
+the copies in `docs/`, and `tools/checkdocs.py` checks that what the prose
+quotes, and the names it uses, are still what the listings say.
+
+The run ends with a verdict line — `BUILD OK`, or `BUILD FAILED` and why — and
+exits non-zero on failure. It is the last line because the six BYTE-IDENTICAL
+lines come before the checks, so their presence does not mean the run passed.
 
 ## Documented routines
 

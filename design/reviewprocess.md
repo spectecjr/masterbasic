@@ -10,6 +10,11 @@ The build gate is strong and narrow. `tools/build.sh` assembles all six listings
 and compares them byte for byte against the original image; six BYTE-IDENTICAL
 lines mean every instruction, operand and constant is right.
 
+Those six lines are printed *before* the checks that follow them, so a log can
+hold all six and still end in a failure. The last line of the run is the
+verdict — `BUILD OK`, or `BUILD FAILED` and why — and that is the line to grep
+for. Six BYTE-IDENTICAL lines are necessary and no longer sufficient.
+
 **It says nothing at all about the commentary.** A comment that describes the
 opposite of what an instruction does assembles perfectly. So does a routine
 header that explains a mechanism the code does not have, a label named for a job
@@ -163,8 +168,14 @@ who cannot check it against the instructions in front of them.
 
 Edits go into `notes/clean/*.txt`, never directly into the generated listings.
 Then `bash tools/build.sh > build.log 2>&1` in the background — it takes 4–7
-minutes — and grep the log rather than watching it. Six BYTE-IDENTICAL lines,
-and only then commit.
+minutes — and grep the log rather than watching it. **`BUILD OK` on the last
+line, and only then commit.**
+
+Grepping for six BYTE-IDENTICAL lines is not enough and never was: they are
+printed before the prose checks run, so a run that ends `BUILD FAILED` still
+has all six above it. The verdict is one line whatever the build learns to
+check next, which is the point of it — a check added later is covered without
+anyone remembering to update this paragraph.
 
 The commit message names what was found and what was refuted. The refutations
 are the part that stops the work going round in circles.

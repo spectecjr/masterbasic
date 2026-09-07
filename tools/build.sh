@@ -9,6 +9,11 @@
 # Needs pyz80:  python -m pip install pyz80
 #
 #   tools/build.sh [--keep]
+#
+# The last line of the output is the verdict: BUILD OK, or BUILD FAILED and
+# why.  Grep for that and nothing else.  Six BYTE-IDENTICAL lines are
+# necessary but not sufficient -- they are printed before the checks that
+# follow them run, so a log can hold all six and still end in a failure.
 
 set -u
 
@@ -17,6 +22,23 @@ keep=0
 
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/.." && pwd)
+
+# THE VERDICT IS FAILURE UNTIL THE LAST LINE OF THIS SCRIPT SAYS OTHERWISE,
+# and an EXIT trap prints it however the script leaves.  Written this way
+# round because the failure that matters is the one nobody looks for: a run
+# that stopped early, or a check that reported a fault after the six
+# BYTE-IDENTICAL lines had already gone into the log.  Installed before
+# anything that can exit, so no path escapes it.
+verdict='BUILD FAILED -- stopped before the end; the *** line above says where'
+faults=0
+work=''
+
+cleanup() {
+    [ -n "$work" ] && [ "$keep" -eq 0 ] && rm -rf "$work"
+    echo
+    echo "$verdict"
+}
+trap cleanup EXIT
 
 # pyz80's console script lands in the per-user scripts directory on Windows,
 # which is often not on PATH.
@@ -35,7 +57,6 @@ command -v pyz80 >/dev/null 2>&1 || {
 }
 
 work=$(mktemp -d) || exit 2
-[ "$keep" -eq 0 ] && trap 'rm -rf "$work"' EXIT
 
 out="$root/listings/disasm"
 mkdir -p "$out"
@@ -111,11 +132,18 @@ EOF
 # The token tables in docs/ are copies of what the SAM ROM holds, so they
 # can go stale the moment anything under ref/ moves -- and a stale table
 # and a wrong one look identical on the page.  Regenerate and compare.
-python "$here/tokentab.py" --check || exit 1
+python "$here/tokentab.py" --check || faults=$((faults + 1))
 
 # The listings are their own proof; the prose around them is not, so check
 # that what it quotes and the names it uses are still what the listings say.
-python "$here/checkdocs.py"
+python "$here/checkdocs.py" || faults=$((faults + 1))
+
+if [ "$faults" -eq 0 ]; then
+    verdict='BUILD OK'
+else
+    verdict="BUILD FAILED -- $faults check(s) reported faults above"
+fi
 
 [ "$keep" -eq 1 ] && echo "build directory kept at $work"
+[ "$faults" -eq 0 ] || exit 1
 exit 0
