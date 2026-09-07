@@ -223,9 +223,14 @@ back.
 **What it costs** Both ports take a page number in their low five bits,
 so the effect is the wrong page at `&8000` rather than anything wilder,
 and it lasts only until the next thing that sets `HMPR` -- which the ROM
-does whenever it uses the window. If Spectrum mode was never entered
-`SNPRT0` is zero and the window ends up holding the system page, which
-is harmless. The bug is real; its consequences are mostly invisible.
+does whenever it uses the window.
+
+There is no reassurance to be had from the value: `SNPRT0` ships as `&1F`
+at `&4106` and is still `&1F` in `dumps/MBPOST.bin`, so it is not zero
+even on a machine that has never entered Spectrum mode — and `&1F` in
+`HMPR` is page 31, not the system page. The other port on the same path
+may be worse: MasterBASIC writes `SNPRT2` itself, at `&7675`, so it no
+longer holds only what the NMI saved.
 
 **Not certain enough to call settled.** The pairing is plainly
 inconsistent with the only other place all three are restored, which is
@@ -327,13 +332,16 @@ a **year** of zero is legal — it is 2000.
 **Consequence** In that year the loop writes the day and the month, then reads
 `00` for the year and jumps out. `READ_CLOCK_FIELDS_DONE2` is past the time
 loop as well, so the hour and minute are never written either. The entry keeps
-whatever was in those three bytes before — on a re-used slot, the previous
-file's year and time.
+whatever the entry image held at those three bytes — not the previous file's
+stamp, which does not survive: `NCF25` copies the whole image over the sector
+before the stamp runs, and offset `&F5` is inside what it copies. The image's
+bytes 220-252 come from `UIFA`, a copy of the ROM's header, whose comment area
+the ROM leaves uninitialised and `CHECK_FILE_TYPE` fills with `&FF`.
 
 Nothing downstream notices. `PRINT_DATE_IF_SET` tests only the day byte at
 `&F5` (`INC A` / `CP &02`, so `&00` and `&FF` both mean "no stamp"), and the
 day is non-zero, so a full catalogue prints all five bytes: today's day and
-month against a stale year and a stale time.
+month against a garbage year and time, most often `&FF`.
 
 **Scope** One year in a hundred. The time loop at `&4A5E` has no such test and
 writes unconditionally, so midnight and the top of the hour are safe. The fault
@@ -379,14 +387,15 @@ after the descending scan's last jump:
 needed. The jump at `&46FF` would have reached it with an operand of `&0E`; the
 image has `&B9`. One byte.
 
-**Consequence** `C` is the high half of the element count plus one, so it wraps
-only once every 256 elements. An array of 256 or fewer never reaches the faulty
-exit and sorts correctly. Above that, every block after the first is scanned
+**Consequence** `B` is the high half of the element count plus one and `C` the
+low half, so the outer count falls only once every 256 elements. An array small
+enough that `B` never reaches the tail sorts correctly. Above that, every block after the first is scanned
 ascending, so `SORT INVERSE` on a large array returns something that is neither
 ascending nor descending but a run of alternating orders.
 
-**Scope** Only the descending scan. `SORT` and `SORT ABS` reach `&46BA`
-legitimately, because it is their own tail.
+**Scope** Only the descending scan. `SORT ABS` reaches `&46BA` legitimately,
+because it is its own tail; plain `SORT` goes through the case-folding scan at
+`&46CD`, which ends at `&46E9` instead.
 
 **Not observed.** This is read out of the instructions, not seen on a machine.
 It wants an array of more than 256 strings and a `SORT INVERSE`. The dead three
@@ -461,11 +470,19 @@ bytes, and the calculator stack is left inconsistent for whatever comes next.
 `RES 7,D : SET 6,D` in place of `LD D,A` would undo the windowing on the
 *post-`LDIR`* high byte and be correct, at a cost of three bytes.
 
-**Five alignments in 256.** `STKEND` where `NVAL` runs depends on the
-expression around it, so this shows up as `NVAL` of a 3-, 4- or 5-character
-string going wrong in some contexts and not others — which is the shape of
-fault that survives testing. The two-character integer path is not affected: it
-goes through the ROM's own stacking routine, which maintains `STKEND` itself.
+**One reachable alignment, and it is nearly unreachable.** `STKEND` where
+`NVAL` runs depends on the expression around it, but the calculator stack moves
+in fives, and the only value that puts the copy across the boundary is
+`STKEND` = `&4DFF` — which needs some fifty five-byte values already stacked
+when `NVAL` pushes its own, meaning an expression of about that many pending
+operands. So this is not a fault that shows up intermittently in ordinary use;
+it is one that essentially never fires. The two-character integer path is not
+affected at all: it goes through the ROM's own stacking routine, which maintains
+`STKEND` itself.
+
+The multiple-of-five invariant that makes it this narrow rests on enumerating
+the ROM's writers of `STKEND`. A single move of a size that is not a multiple
+of five, anywhere, would widen the window again.
 
 **Not observed.** Read out of the instructions. The windowing either side of
 the `LDIR` is what makes the intent legible: the author knew `D` had to be
@@ -710,7 +727,7 @@ DVAR, that would be misled.
 when this image relocated the DOS around it. The relocation is proved,
 not inferred.
 
-## Seventeen addresses carry two line notes, and one of each pair is thrown away
+## Sixteen addresses carry two line notes, and one of each pair is thrown away
 
 A `notes/` line of the form `MB &addr : text` sets the comment on one
 instruction. Two things stop it arriving, and neither says so.
@@ -737,70 +754,48 @@ live, where nothing could contradict it because nothing could see it.
 duplicates *should* win; that is a judgement, and the point is to make
 the choice visible.
 
-**AND THE STALE CROSS-REFERENCES CREATE PHANTOM LABELS IN DATA.** The
-eighteen were recorded above as callers that do not exist, which sounds
-cosmetic. It is not. `V40F5` is one of them, and it is a label sitting
-inside the dot-pattern table at `&40B1`, splitting that table's own
-`DEFB` run in two:
+**What this used to say about phantom labels has been fixed**, and is
+recorded under *labels crediting callers that do not exist* above. The
+worst of it was `V40F5`, a label sitting inside the dot-pattern table at
+`&40B1` and splitting its `DEFB` run in two on the strength of one
+`LD BC,DIR_DATE+&4000` whose operand happens to come to `&40F5`. It is
+gone from `listings/clean/`. It still appears in `listings/disasm/` and
+`listings/speculate/`, which is correct rather than a leftover: those
+trees do not apply `notes/clean`, so nothing there has retracted the
+reference.
 
-```
-    DEFB &12,&00,&2D,&00,&12,&24,&00,&00     ; 40ED ..-..$..
+Two of the examples that entry collected were never faults at all.
+`PTH2`'s credit from `MB &773A` is a real cross-half write — `&773A` is
+`22 39 BF`, `LD (&BF39),HL`, and `&BF39` windows to DOS `&7F39`, which is
+`PTH2`. `V7C0E`'s three callers are two `LD A,(&7C0E)` and one
+`LD (&7C0E),A`, and none of them carries an `expr` note. A phantom and a
+coincidence look alike from a distance, which is the reason for counting
+them rather than estimating.
 
-; ---- V40F5 ---- from &4A46
-V40F5:
-    DEFB &24,&12,&00,&12,&00,&00,&00,&00,&00,&00,&00,&FF,&FF,&FF,&F0
-```
+## FIXED: a ROM resolve was mis-aligned by one byte
 
-Its one reference is `&4A46 LD BC,DIR_DATE+&4000` — a directory offset
-that happens to come to `&40F5`. There is no variable there. Two more of
-the eighteen, `DOS &7726` and `DOS &773A`, are `LD HL,RAMDISC_PAGE+n`
-after `CALL SELFP`, and are credited to labels in a page they do not
-reach — one of them across halves, as `MB &773A`.
+*Fixed. Kept for the cause, which was not where it looked — including
+which routine it was in.*
 
-**And one of them crosses into the other half.** `masterdos.asm` carries
-
-```
-; ---- HOOK_HSAVE_1 ---- from MB &6173, MB &63A9
-```
-
-Neither address is a call. Both are `LD HL,&A500`, and HMPR is bumped by
-one at `&63B3` — three instructions after the second of them — so the
-address is used through a moved window and reaches a buffer, not a DOS
-routine. The DOS listing is therefore claiming a caller in the other
-half that does not exist, which is the same fault as `V40F5` with a page
-boundary crossed.
-
-So the count is worth more attention than "eighteen labels list a caller
-they should not". Some of these references were never references, and
-where the coincidental address lands in data, the phantom gets a label
-and cuts a table in half.
-
-**This is related to the stale cross-references above.** A few of those
-eighteen are not merely un-retracted references: they are operands that
-were never references at all. `&55EA` had an `expr` note pointing it at
-`&4AE9`, which put a label and a caller inside `MULTIPLY_BY_60` —
-and `&55EA` turns out to be a word inside a data table, mis-decoded as
-an instruction. Deleting the note removed the phantom label with it. So
-when the retraction is fixed, some of the eighteen will want re-reading
-rather than re-pointing.
-
-## FIXED: the sixteenth ROM resolve was mis-aligned by one byte
-
-*Fixed. Kept for the cause, which was not where it looked.*
-
-`RESOLVE_ROM_ENTRIES` patches ROM entry points into the operands that
-call them. Fifteen read cleanly; the first did not, coming out as
-instructions that are not there and hiding a `LD (&45F0),HL` — the
-`SLICING` thunk's patch, which a review had reported missing because
-only two of the three thunks could be accounted for.
+Twenty-eight sites in the MasterBASIC half call `FIND_ROM_CODE` with six
+inline bytes after the call. Twenty of them are `RESOLVE_ROM_ENTRIES`'s,
+seven are `INSTALLER`'s own at `&75F2`-`&763A`, and one is at `&76FF`.
+`INSTALLER`'s first came out as instructions that are not there, hiding a
+`LD (&45F0),HL` — the `SLICING` thunk's patch, which a review had
+reported missing because only two of the three thunks could be accounted
+for. `RESOLVE_ROM_ENTRIES`'s own twenty all read cleanly, which is why
+the fault took so long to place: the routine that misled the decoder and
+the routine that came out wrong were not the same one.
 
 **The cause was in `_sniff`**, which decides how many inline bytes a
 routine takes by decoding its first few instructions and looking for the
 return-address swap. It read straight through `RESOLVE_ROM_ENTRIES`'s
 opening `CALL FIND_ROM_CODE` into that call's own six-byte signature,
 whose first two bytes `C9 E3` decode as `RET : EX (SP),HL` — exactly the
-swap it looks for. So the routine was given a two-byte parameter it does
-not take, and everything after it shifted by one.
+swap it looks for. So `RESOLVE_ROM_ENTRIES` was given a two-byte
+parameter it does not take, and its caller at `&75EF` — which is
+`INSTALLER` — had the two bytes after the call swallowed, shifting
+everything from `&75F2` on by one.
 
 `_sniff` now stops at a call. Both idioms it recognises sit at a
 routine's head, before it calls anything, so nothing legitimate is lost:

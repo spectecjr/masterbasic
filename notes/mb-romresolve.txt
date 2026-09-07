@@ -38,11 +38,12 @@ DOC RESOLVE_ROM_ENTRIES
     routine: they are entries 106 and 97 of the ROM's key table, being
     given the codes for word-left and word-right.
 
-MB &7993 : the first of twenty searches
 MB &799D : two of these results fill the JP &0000 operands in the stub
 MB &7AA8 : &18 is JR -- patching the system page directly
 
-# THE SIXTEENTH RESOLVE, which the trace used to mis-align by one byte.
+# INSTALLER'S FIRST RESOLVE, which the trace used to mis-align by one
+# byte.  Not one of RESOLVE_ROM_ENTRIES's twenty -- those all read
+# cleanly.  This is the first of INSTALLER's own seven, at &75F2-&763A.
 #
 # &75F2 is CD 79 BD, a call to FIND_ROM_CODE, and the trace took the
 # first two of those as an inline DEFW, so the whole entry came out as
@@ -52,7 +53,7 @@ MB &7AA8 : &18 is JR -- patching the system page directly
 # signature, whose first bytes C9 E3 decode as RET : EX (SP),HL -- the
 # return-address swap it looks for.  It stops at a call now.
 #
-# Read at the right offset it is the same shape as the fifteen below:
+# Read at the right offset it is the same shape as the twenty below:
 #
 #     CD 79 BD           CALL FIND_ROM_CODE
 #     F5 DF E1 2E 00 FA  signature F5 DF E1 from &2E00, -6
@@ -62,6 +63,6 @@ MB &7AA8 : &18 is JR -- patching the system page directly
 # &45F0 is the SLICING thunk's operand, the only one of the three whose
 # patch could not be found.  It was here all along, one byte out.
 # The six bytes after the call are its signature block, as they are at
-# the fifteen below.  Marked data because the trace had already decoded
+# the twenty below and at the six that follow this one.  Marked data because the trace had already decoded
 # them as instructions and only a non-code mark clears those.
 MB &75F5-&75FA data
