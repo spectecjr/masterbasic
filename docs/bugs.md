@@ -812,37 +812,51 @@ not clear them, because saying "this is code" should not destroy a
 correct decode. The six signature bytes needed a `data` note, which does
 clear them, before the renderer could show them as a signature block.
 
-## SUSPECTED: the case-insensitive LOCN scan tests one byte too many
-
-Not established as a user-visible fault, and recorded so that the trace
-does not have to be done again.
+## The case-insensitive LOCN scan tests one byte past its own bound
 
 `SEARCH_MEMORY` bounds itself by taking the pattern length off the
-region length first: `&4C96 SBC HL,BC` then `&4C9B INC DE` leaves
-`N = length - patlen + 1`, the number of positions at which the whole
-pattern still fits. That is what stops a match running past the end.
+region length first — `&4C96 SBC HL,BC` then `&4C9B INC DE` leaves
+`N = length - patlen + 1`, the positions at which the whole pattern
+still fits. That bound is what stops a match running past the end, and
+the pattern comparison at `&4D08`-`&4D24` has none of its own: it walks
+to completion on the `A'` countdown at `&4D0F`, comparing against `(HL)`
+with nothing checking HL against the region end.
 
-The case-insensitive scan then reads **N+1** bytes. The caller's
-`INC BC` at `&4CE3` is deliberate and the banner explains why — the
-routine is entered mid-loop, so the count is taken before the comparison
-— but the last turn is not skipped. It falls through to `&4D31 CP E`
-and returns those flags, which the comment there states plainly:
+**The scan reads N+1 bytes and returns the flags of the extra one.**
 
-> The byte this compares is the one after the last legal starting place
-> and it is only tested against E, not D
+```
+SEARCH_MEMORY_6:
+  4D26  CP D / RET Z        the capital
+  4D28  CP E / RET Z        or the small letter
+SCAN_FOR_EITHER_CASE:
+  4D2A  LD A,(HL) / INC HL
+  4D2C  DJNZ SEARCH_MEMORY_6
+  4D2E  DEC C / JR NZ
+  4D31  CP E                the (N+1)th byte, against E alone
+  4D32  RET
+```
 
-And `&4D06 JR NZ` treats anything but Z as "keep scanning", so a Z there
-falls through to the pattern comparison at `&4D08`.
+Entering at the read is deliberate and the `INC BC` at `&4CE3` pays for
+it, so N positions get the full `CP D`/`CP E`. But the exhaustion return
+falls through `&4D31` and carries that comparison's flags — and `&4D06
+JR NZ` treats only non-Z as "keep scanning". **So when the byte
+following the region happens to equal E, the routine reports a find.**
 
-**What follows if that comparison succeeds.** At `&4CCA` the count is
-B=0, C=0 on that turn; the swap and `AND A` skip the `DEC B`, and the
-`DEC BC` at `&4CD1` — which exists to undo the `INC BC` — takes BC to
-`&FFFF`. The answer is `positions - BC`, so it comes out `N+1`: a match
-reported at a position the bound was written to exclude, whose last byte
-is one past the region.
+Two things follow, and the second is worse.
 
-**What is not established.** Whether the pattern comparison at
-`&4D08`-`&4D2A` has a bound of its own that rejects such a match before
-it can be reported, and whether any real pattern and buffer reach it.
-Both need tracing that comparison, which this note does not do. The
-half-test itself is certain; the consequence is not.
+**The pattern matches from there.** `&4CCA` sees B=0, C=0; the `DEC BC`
+at `&4CD1`, which exists to undo the `INC BC`, takes BC to `&FFFF`, and
+the answer `positions - BC` comes out `N+1`. LOCN reports a match one
+past the last legal start, whose last byte is outside the region.
+
+**The pattern does not match.** `&4D1F`-`&4D24` restores DE, HL and AF
+and jumps to `SEARCH_MEMORY_LOOP4`, which re-enters the scan **without
+reloading BC**. BC is 0, so `DJNZ` wraps B to `&FF` and `DEC C` wraps C,
+and the scan runs on for up to 65536 bytes beyond the region until some
+byte matches D or E.
+
+Reachable whenever the byte after the searched region equals the
+lower-case form of the pattern's first character — roughly one search in
+256, with the boundary byte being ordinary program text, variables or
+buffer. Reads only, never writes.
+
