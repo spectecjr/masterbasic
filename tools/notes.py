@@ -462,17 +462,18 @@ def apply(pages, root, banner, folder='notes', deferred=None):
                     d.overrides[a] = text.replace(found[0], e['name'], 1)
                     # An operand written as an expression is not a
                     # reference to whatever happens to live at that
-                    # address, so it ought not to appear in that
-                    # label's caller list: &6E04 loads TABLE+8, and
-                    # TABLE+8 is where MCHRD begins, which puts a caller
-                    # in MCHRD's cross-reference header that does not
-                    # exist.  Removing it from d.xrefs here does not
-                    # work -- tried against both the raw &hhhh operand
-                    # and the resolved label name, on the deep copy
-                    # write_clean makes -- so something after this pass
-                    # is putting it back.  Left alone rather than left
-                    # half-done; the note beside the instruction says
-                    # what the number is.
+                    # address, so it must not appear in that label's
+                    # caller list: &6E04 loads TABLE+8, and TABLE+8 is
+                    # where MCHRD begins, which used to put a caller in
+                    # MCHRD's header that does not exist.
+                    #
+                    # Removing it from d.xrefs here was tried and could
+                    # not work: emit() runs after this pass and resolves
+                    # every operand again, so it re-records what this
+                    # deleted.  Marking the instruction instead is what
+                    # holds, because _name() reads the mark at the one
+                    # line where an xref is made.
+                    d.expr_operands.add(a)
                     named += 1
             continue
 

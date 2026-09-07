@@ -828,7 +828,7 @@ ONERR:
                DEFW &0000                      ; 4241 00 00  33 (2)
                DEFB &C9                        ; 4243 I
 
-; ---- EAPG ---- from &43DC, &742F
+; ---- EAPG ---- from &43DC
 EAPG:
                DEFB &00                        ; 4244 .  36 PAGE USED IF ONERR IS ABOVE 8000H
 
@@ -8794,14 +8794,11 @@ HOOK_HSAVE:
                LD DE,(HD0B1)                   ; 64F6 ED 5B 4A 41
                LD A,(V42BA)                    ; 64FA 3A BA 42
                AND A                           ; 64FD A7
-               JR Z,HOOK_HSAVE_5               ; 64FE 28 4E
-
-; ---- HOOK_HSAVE_1 ---- from MB &6173, MB &63A9
-HOOK_HSAVE_1:
+               JR Z,HOOK_HSAVE_4               ; 64FE 28 4E
                LD C,A                          ; 6500 4F
                LD A,(IX+&13)                   ; 6501 DD 7E 13
                CP &10                          ; 6504 FE 10
-               JR Z,HOOK_HSAVE_5               ; 6506 28 46
+               JR Z,HOOK_HSAVE_4               ; 6506 28 46
                PUSH IX                         ; 6508 DD E5
                POP HL                          ; 650A E1
                LD BC,&00EF                     ; 650B 01 EF 00
@@ -8809,21 +8806,21 @@ HOOK_HSAVE_1:
                SET 2,(HL)                      ; 650F CB D6
                LD C,A                          ; 6511 4F
                CP &14                          ; 6512 FE 14
-               JR NZ,HOOK_HSAVE_2              ; 6514 20 06
+               JR NZ,HOOK_HSAVE_1              ; 6514 20 06
                LD A,(V42BA)                    ; 6516 3A BA 42
                DEC A                           ; 6519 3D
-               JR NZ,HOOK_HSAVE_3              ; 651A 20 0D
+               JR NZ,HOOK_HSAVE_2              ; 651A 20 0D
 
-; ---- HOOK_HSAVE_2 ---- from &6514 when A <> &14
-HOOK_HSAVE_2:
+; ---- HOOK_HSAVE_1 ---- from &6514 when A <> &14
+HOOK_HSAVE_1:
                LD HL,(HD0D1)                   ; 651C 2A 4C 41
                LD A,(PGES1)                    ; 651F 3A 50 41
                CALL CALLMB                     ; 6522 CD BD 42
                DEFW MB_COMPRESS_FILE-&4000     ; 6525 EA 65
-               JR HOOK_HSAVE_4                 ; 6527 18 20
+               JR HOOK_HSAVE_3                 ; 6527 18 20
 
-; ---- HOOK_HSAVE_3 ---- from &651A when A is not 0 yet
-HOOK_HSAVE_3:
+; ---- HOOK_HSAVE_2 ---- from &651A when A is not 0 yet
+HOOK_HSAVE_2:
                SET 3,(HL)                         ; 6529 CB DE
                INC HL                             ; 652B 23
                LD A,(HL)                          ; 652C 7E
@@ -8844,13 +8841,13 @@ HOOK_HSAVE_3:
                INC HL                             ; 6547 23
                LD (HL),D                          ; 6548 72
 
-; ---- HOOK_HSAVE_4 ---- from &6527
-HOOK_HSAVE_4:
+; ---- HOOK_HSAVE_3 ---- from &6527
+HOOK_HSAVE_3:
                CALL SCFSM                      ; 6549 CD F8 4D
                JR HSAVE1                       ; 654C 18 06
 
-; ---- HOOK_HSAVE_5 ---- from &64FE when A = 0, &6506 when A = &10
-HOOK_HSAVE_5:
+; ---- HOOK_HSAVE_4 ---- from &64FE when A = 0, &6506 when A = &10
+HOOK_HSAVE_4:
                CALL DSVBL                      ; 654E CD 59 49
                CALL CFSM                       ; 6551 CD FE 4D
 

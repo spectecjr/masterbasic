@@ -625,13 +625,10 @@ DUMP_BITS_CARRY:
                DEFB &2D,&36,&1B,&36,&2D,&12,&1B,&36,&1B,&24,&2D,&12,&2D,&24,&09 ; 40C0 -6.6-..6.$-.-$.
                DEFB &3F,&36,&1B,&09,&12,&12,&2D,&2D,&09,&12,&09,&1B,&12,&24,&09 ; 40CF ?6....--.....$.
                DEFB &09,&24,&2D,&00,&09,&12,&09,&2D,&12,&00,&12,&2D,&00,&00,&12 ; 40DE .$-....-...-...
-               DEFB &12,&00,&2D,&00,&12,&24,&00,&00                             ; 40ED ..-..$..
-
-; ---- V40F5 ---- from &4A46
-V40F5:
-               DEFB &24,&12,&00,&12,&00,&00,&00,&00,&00,&00,&00,&FF,&FF,&FF,&F0 ; 40F5 $.............p
-               DEFB &FF,&0F,&FF,&00,&F0,&FF,&F0,&F0,&F0,&0F,&F0,&00,&0F,&FF,&0F ; 4104 ....p.ppp.p....
-               DEFB &F0,&0F,&0F,&0F,&00,&00,&FF,&00,&F0,&00,&0F,&00,&00         ; 4113 p.......p....
+               DEFB &12,&00,&2D,&00,&12,&24,&00,&00,&24,&12,&00,&12,&00,&00,&00 ; 40ED ..-..$..$......
+               DEFB &00,&00,&00,&00,&FF,&FF,&FF,&F0,&FF,&0F,&FF,&00,&F0,&FF,&F0 ; 40FC .......p....p.p
+               DEFB &F0,&F0,&0F,&F0,&00,&0F,&FF,&0F,&F0,&0F,&0F,&0F,&00,&00,&FF ; 410B pp.p....p......
+               DEFB &00,&F0,&00,&0F,&00,&00                                     ; 411A .p....
 
 ; ---- V4120 ---- from &48DD, &48E9, &4901
 V4120:
@@ -1122,10 +1119,7 @@ FILE_NUMBER_TO_TRACK_SECTOR_1:
 
 ; ---- FILE_NUMBER_TO_TRACK_SECTOR_LOOP ---- from &4282
 FILE_NUMBER_TO_TRACK_SECTOR_LOOP:
-               INC A                           ; 427F 3C
-
-; ---- FILE_NUMBER_TO_TRACK_SECTOR_2 ---- from &486A
-FILE_NUMBER_TO_TRACK_SECTOR_2:
+               INC A                                  ; 427F 3C
                SBC HL,BC                              ; 4280 ED 42
                JR NC,FILE_NUMBER_TO_TRACK_SECTOR_LOOP ; 4282 30 FB
                LD D,A                                 ; 4284 57
@@ -1250,9 +1244,6 @@ SAVE_BLOCK_FROM_SYSPAGE_DONE:
                OUT (HMPR),A                    ; 42B3 D3 FB  and here they meet: page set, A zeroed, and SVBLK called
                                                ; through CALLDOS
                XOR A                           ; 42B5 AF
-
-; ---- SAVE_BLOCK_FROM_DOS_PAGE_DONE ---- from &497D
-SAVE_BLOCK_FROM_DOS_PAGE_DONE:
                CALL CALLDOS                    ; 42B6 CD C1 42
                DEFW &493A                      ; 42B9 3A 49
                RET                             ; 42BB C9
@@ -4182,9 +4173,6 @@ READ_CLOCK_FIELDS_DONE2:
 ; ---- TWO_DIGITS_FROM_DE ---- from &48A2, &48BA, &48CD, &48E0, &4A1F, &4A4F, &4A5E, &4A89 ...
 TWO_DIGITS_FROM_DE:
                LD A,(DE)                       ; 4A6A 1A
-
-; ---- TWO_DIGITS_FROM_DE_1 ---- from &5318
-TWO_DIGITS_FROM_DE_1:
                INC DE                          ; 4A6B 13
                SUB CH_ZERO                     ; 4A6C D6 30  '0' off the tens digit. No check that it was a digit: the
                                                ; buffer is the DOS's own DATDT/TIMDT, which PORT_BCD_DIGIT only ever
@@ -4508,7 +4496,6 @@ FN_INARRAY:
 ;; falls back on V40AD.
 ;; --------------------------------------------------------------------
 
-; ---- PARSE_OPTIONAL_RANGE ---- from &5DAB
 PARSE_OPTIONAL_RANGE:
                NOP                             ; 4B5B 00
 
@@ -5195,7 +5182,6 @@ TWO_PAGED_STRINGS_1:
 ;; only the Z.
 ;; --------------------------------------------------------------------
 
-; ---- COMPARE_FAR_STRINGS_FOLDED ---- from &5E30, &5E41
 COMPARE_FAR_STRINGS_FOLDED:
                LD C,&FB                        ; 4D91 0E FB  C is the HMPR port for the rest of the routine, and after
                                                ; the EXX the alternate set holds it, both page numbers, and the first
@@ -9599,7 +9585,6 @@ CMD_RECORD:
 ;; assembled
 ;; --------------------------------------------------------------------
 
-V5C3C:
                DEFW GTDT                       ; 5C3C 00 50  the inline parameter of the CALL above -- &5000, the
                                                ; routine just
                RET                             ; 5C3E C9
@@ -11446,7 +11431,7 @@ COMPRESS_SCREEN_FILE:
 ; ---- SEND_COMPRESSED_BLOCK ---- from &6161, &6221
 SEND_COMPRESSED_BLOCK:
                EXX                             ; 6172 D9
-               LD HL,DOS_HOOK_HSAVE_1          ; 6173 21 00 A5
+               LD HL,&A500                     ; 6173 21 00 A5
                EXX                             ; 6176 D9
                PUSH HL                         ; 6177 E5
                PUSH DE                         ; 6178 D5
@@ -12181,7 +12166,7 @@ LOAD_NEXT_INPUT_BLOCK:
 LOAD_NEXT_INPUT_BLOCK_1:
                POP IY                          ; 63A6 FD E1
                EXX                             ; 63A8 D9
-               LD HL,DOS_HOOK_HSAVE_1          ; 63A9 21 00 A5  &A500 is not a DOS routine. HMPR is bumped by one at
+               LD HL,&A500                     ; 63A9 21 00 A5  &A500 is not a DOS routine. HMPR is bumped by one at
                                                ; &63B3, three instructions on, and this address is used through that
                                                ; moved window -- so resolving it against the DOS page gives
                                                ; HOOK_HSAVE_1, which nothing here calls, and puts a caller in that
@@ -19506,9 +19491,7 @@ L7D54:
 
 ; ---- V7D57 ---- from &7D50 when A = &16
 V7D57:
-               DEFB &32                        ; 7D57 2
-
-TBL_7D58:
+               DEFB &32                             ; 7D57 2
                CP (HL)                              ; 7D58 BE
                LD E,E                               ; 7D59 5B
                DEFW &512A,&5E5C,&5623,&53ED,OPSTORE ; 7D5A 2A 51 5C 5E 23 56 ED 53 B5 5A

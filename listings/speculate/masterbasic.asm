@@ -1311,26 +1311,16 @@ FILE_NUMBER_TO_TRACK_SECTOR_1:
                DEC A                           ; 427E 3D
 
 ;; --------------------------------------------------------------------
-;; FILE_NUMBER_TO_TRACK_SECTOR_LOOP -- &427F to &427F
-;;
-;; Takes:     A
-;; Leaves:    A, F
-;; --------------------------------------------------------------------
-
-; ---- FILE_NUMBER_TO_TRACK_SECTOR_LOOP ---- from &4282
-FILE_NUMBER_TO_TRACK_SECTOR_LOOP:
-               INC A                           ; 427F 3C
-
-;; --------------------------------------------------------------------
-;; FILE_NUMBER_TO_TRACK_SECTOR_2 -- &4280 to &428D
+;; FILE_NUMBER_TO_TRACK_SECTOR_LOOP -- &427F to &428D
 ;;
 ;; Takes:     A, BC, HL
 ;; Leaves:    A, F, DE, HL
 ;; Ends:      RET
 ;; --------------------------------------------------------------------
 
-; ---- FILE_NUMBER_TO_TRACK_SECTOR_2 ---- from &486A
-FILE_NUMBER_TO_TRACK_SECTOR_2:
+; ---- FILE_NUMBER_TO_TRACK_SECTOR_LOOP ---- from &4282
+FILE_NUMBER_TO_TRACK_SECTOR_LOOP:
+               INC A                                  ; 427F 3C
                SBC HL,BC                              ; 4280 ED 42
                JR NC,FILE_NUMBER_TO_TRACK_SECTOR_LOOP ; 4282 30 FB
                LD D,A                                 ; 4284 57
@@ -1448,12 +1438,12 @@ SAVE_BLOCK_FROM_THIS_PAGE_1:
                AND PAGEMASK                    ; 42B1 E6 1F
 
 ;; --------------------------------------------------------------------
-;; SAVE_BLOCK_FROM_SYSPAGE_DONE -- &42B3 to &42B5
+;; SAVE_BLOCK_FROM_SYSPAGE_DONE -- &42B3 to &42C0
 ;;
-;; Takes:     A
-;; Leaves:    A, F
+;; Takes:     A, BC, DE, HL, IY
+;; Leaves:    A, F, BC, DE, HL
 ;;
-;; ? drives OUT (HMPR),A; falls into whatever follows rather than returning.
+;; ? drives OUT (HMPR),A; calls CALLDOS; falls into whatever follows rather than returning.
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
@@ -1510,18 +1500,6 @@ SAVE_BLOCK_FROM_SYSPAGE_DONE:
                OUT (HMPR),A                    ; 42B3 D3 FB  and here they meet: page set, A zeroed, and SVBLK called
                                                ; through CALLDOS
                XOR A                           ; 42B5 AF
-
-;; --------------------------------------------------------------------
-;; SAVE_BLOCK_FROM_DOS_PAGE_DONE -- &42B6 to &42C0
-;;
-;; Takes:     BC, DE, HL, IY
-;; Leaves:    F, BC, DE, HL
-;;
-;; ? calls CALLDOS; falls into whatever follows rather than returning.
-;; --------------------------------------------------------------------
-
-; ---- SAVE_BLOCK_FROM_DOS_PAGE_DONE ---- from &497D
-SAVE_BLOCK_FROM_DOS_PAGE_DONE:
                                                ; call &493A in the other page: LMPR is switched first, so that address
                                                ; is how the other listing numbers it
                CALL CALLDOS                    ; 42B6 CD C1 42
@@ -6028,7 +6006,7 @@ READ_CLOCK_FIELDS:
 ;; READ_CLOCK_FIELDS_LOOP -- &4A1F to &4A33
 ;;
 ;; Takes:     B, DE, HL
-;; Leaves:    A, F, BC, HL
+;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      RET
 ;;
 ;; ? drives OUT (HMPR),A; calls TWO_DIGITS_FROM_DE.
@@ -6100,7 +6078,7 @@ READ_CLOCK_FIELDS_DONE:
 ;; READ_CLOCK_FIELDS_LOOP2 -- &4A4F to &4A5D
 ;;
 ;; Takes:     B, DE, HL
-;; Leaves:    A, F, B, DE, HL
+;; Leaves:    A, F, BC, DE, HL
 ;;
 ;; ? calls TWO_DIGITS_FROM_DE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
@@ -6121,7 +6099,7 @@ READ_CLOCK_FIELDS_LOOP2:
 ;; READ_CLOCK_FIELDS_LOOP3 -- &4A5E to &4A64
 ;;
 ;; Takes:     B, DE, HL
-;; Leaves:    A, B, HL
+;; Leaves:    A, F, BC, DE, HL
 ;;
 ;; ? calls TWO_DIGITS_FROM_DE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
@@ -6155,10 +6133,13 @@ READ_CLOCK_FIELDS_DONE2:
                RET                             ; 4A69 C9
 
 ;; --------------------------------------------------------------------
-;; TWO_DIGITS_FROM_DE -- &4A6A to &4A6A
+;; TWO_DIGITS_FROM_DE -- &4A6A to &4A7A
 ;;
 ;; Takes:     DE
-;; Leaves:    A
+;; Leaves:    A, F, C, DE
+;; Ends:      RET
+;;
+;; ? tests for CH_ZERO.
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
@@ -6174,19 +6155,6 @@ READ_CLOCK_FIELDS_DONE2:
 ; ---- TWO_DIGITS_FROM_DE ---- from &48A2, &48BA, &48CD, &48E0, &4A1F, &4A4F, &4A5E, &4A89 ...
 TWO_DIGITS_FROM_DE:
                LD A,(DE)                       ; 4A6A 1A
-
-;; --------------------------------------------------------------------
-;; TWO_DIGITS_FROM_DE_1 -- &4A6B to &4A7A
-;;
-;; Takes:     A, DE
-;; Leaves:    A, F, C, DE
-;; Ends:      RET
-;;
-;; ? tests for CH_ZERO.
-;; --------------------------------------------------------------------
-
-; ---- TWO_DIGITS_FROM_DE_1 ---- from &5318
-TWO_DIGITS_FROM_DE_1:
                INC DE                          ; 4A6B 13
                SUB CH_ZERO                     ; 4A6C D6 30  '0' off the tens digit. No check that it was a digit: the
                                                ; buffer is the DOS's own DATDT/TIMDT, which PORT_BCD_DIGIT only ever
@@ -6634,7 +6602,6 @@ FN_INARRAY:
 ;;     falls back on V40AD.
 ;; --------------------------------------------------------------------
 
-; ---- PARSE_OPTIONAL_RANGE ---- from &5DAB
 PARSE_OPTIONAL_RANGE:
                NOP                             ; 4B5B 00
 
@@ -7773,7 +7740,6 @@ TWO_PAGED_STRINGS_1:
 ;;         is used -- see notes/locn.txt.
 ;; --------------------------------------------------------------------
 
-; ---- COMPARE_FAR_STRINGS_FOLDED ---- from &5E30, &5E41
 COMPARE_FAR_STRINGS_FOLDED:
                LD C,&FB                        ; 4D91 0E FB  C is the HMPR port for the rest of the routine, and after
                                                ; the EXX the alternate set holds it, both page numbers, and the first
@@ -16896,7 +16862,7 @@ COMPRESS_SCREEN_FILE:
 SEND_COMPRESSED_BLOCK:
                                                ; to the alternate register set and back again
                EXX                             ; 6172 D9
-               LD HL,DOS_HOOK_HSAVE_1          ; 6173 21 00 A5
+               LD HL,&A500                     ; 6173 21 00 A5
                                                ; to the alternate register set and back again
                EXX                             ; 6176 D9
                PUSH HL                         ; 6177 E5
@@ -18103,7 +18069,7 @@ LOAD_NEXT_INPUT_BLOCK_1:
                POP IY                          ; 63A6 FD E1
                                                ; to the alternate register set and back again
                EXX                             ; 63A8 D9
-               LD HL,DOS_HOOK_HSAVE_1          ; 63A9 21 00 A5  &A500 is not a DOS routine. HMPR is bumped by one at
+               LD HL,&A500                     ; 63A9 21 00 A5  &A500 is not a DOS routine. HMPR is bumped by one at
                                                ; &63B3, three instructions on, and this address is used through that
                                                ; moved window -- so resolving it against the DOS page gives
                                                ; HOOK_HSAVE_1, which nothing here calls, and puts a caller in that

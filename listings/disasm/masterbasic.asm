@@ -1106,10 +1106,7 @@ FILE_NUMBER_TO_TRACK_SECTOR_1:
 
 ; ---- FILE_NUMBER_TO_TRACK_SECTOR_LOOP ---- from &4282
 FILE_NUMBER_TO_TRACK_SECTOR_LOOP:
-               INC A                           ; 427F 3C
-
-; ---- FILE_NUMBER_TO_TRACK_SECTOR_2 ---- from &486A
-FILE_NUMBER_TO_TRACK_SECTOR_2:
+               INC A                                  ; 427F 3C
                SBC HL,BC                              ; 4280 ED 42
                JR NC,FILE_NUMBER_TO_TRACK_SECTOR_LOOP ; 4282 30 FB
                LD D,A                                 ; 4284 57
@@ -1234,9 +1231,6 @@ SAVE_BLOCK_FROM_SYSPAGE_DONE:
                OUT (HMPR),A                    ; 42B3 D3 FB  and here they meet: page set, A zeroed, and SVBLK called
                                                ; through CALLDOS
                XOR A                           ; 42B5 AF
-
-; ---- SAVE_BLOCK_FROM_DOS_PAGE_DONE ---- from &497D
-SAVE_BLOCK_FROM_DOS_PAGE_DONE:
                CALL CALLDOS                    ; 42B6 CD C1 42
                DEFW &493A                      ; 42B9 3A 49
                RET                             ; 42BB C9
@@ -4192,9 +4186,6 @@ READ_CLOCK_FIELDS_DONE2:
 ; ---- TWO_DIGITS_FROM_DE ---- from &48A2, &48BA, &48CD, &48E0, &4A1F, &4A4F, &4A5E, &4A89 ...
 TWO_DIGITS_FROM_DE:
                LD A,(DE)                       ; 4A6A 1A
-
-; ---- TWO_DIGITS_FROM_DE_1 ---- from &5318
-TWO_DIGITS_FROM_DE_1:
                INC DE                          ; 4A6B 13
                SUB CH_ZERO                     ; 4A6C D6 30  '0' off the tens digit. No check that it was a digit: the
                                                ; buffer is the DOS's own DATDT/TIMDT, which PORT_BCD_DIGIT only ever
@@ -4545,7 +4536,6 @@ FN_INARRAY:
 ;; falls back on V40AD.
 ;; --------------------------------------------------------------------
 
-; ---- PARSE_OPTIONAL_RANGE ---- from &5DAB
 PARSE_OPTIONAL_RANGE:
                NOP                             ; 4B5B 00
 
@@ -5272,7 +5262,6 @@ TWO_PAGED_STRINGS_1:
 ;;     is used -- see notes/locn.txt.
 ;; --------------------------------------------------------------------
 
-; ---- COMPARE_FAR_STRINGS_FOLDED ---- from &5E30, &5E41
 COMPARE_FAR_STRINGS_FOLDED:
                LD C,&FB                        ; 4D91 0E FB  C is the HMPR port for the rest of the routine, and after
                                                ; the EXX the alternate set holds it, both page numbers, and the first
@@ -11789,7 +11778,7 @@ COMPRESS_SCREEN_FILE:
 ; ---- SEND_COMPRESSED_BLOCK ---- from &6161, &6221
 SEND_COMPRESSED_BLOCK:
                EXX                             ; 6172 D9
-               LD HL,DOS_HOOK_HSAVE_1          ; 6173 21 00 A5
+               LD HL,&A500                     ; 6173 21 00 A5
                EXX                             ; 6176 D9
                PUSH HL                         ; 6177 E5
                PUSH DE                         ; 6178 D5
@@ -12545,7 +12534,7 @@ LOAD_NEXT_INPUT_BLOCK:
 LOAD_NEXT_INPUT_BLOCK_1:
                POP IY                          ; 63A6 FD E1
                EXX                             ; 63A8 D9
-               LD HL,DOS_HOOK_HSAVE_1          ; 63A9 21 00 A5  &A500 is not a DOS routine. HMPR is bumped by one at
+               LD HL,&A500                     ; 63A9 21 00 A5  &A500 is not a DOS routine. HMPR is bumped by one at
                                                ; &63B3, three instructions on, and this address is used through that
                                                ; moved window -- so resolving it against the DOS page gives
                                                ; HOOK_HSAVE_1, which nothing here calls, and puts a caller in that

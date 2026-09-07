@@ -603,7 +603,12 @@ scan assumes at the point `skipped_runs` runs, and the real fix starts
 by finding out what it does hold. `checkdocs` caught the regression,
 which is the check working: `docs/idioms.md` quotes the line.
 
-## Eighteen labels credit a caller that does not exist
+## FIXED: labels crediting callers that do not exist
+
+*Fixed. Kept because the diagnosis took three attempts and the last one
+is worth not repeating.*
+
+### What it was
 
 Another generator bug rather than a MasterDOS one, and this entry exists
 because the size of it was not known until it was counted.
@@ -630,15 +635,47 @@ Two are worse than the rest: `PTH2` is credited `MB &773A`, which is the
 wrong page as well as the wrong instruction, and `V7C0E` collects three
 of them.
 
-`notes.py` carries a comment saying this was attempted and abandoned —
-removal from `d.xrefs` in the `expr` branch, against both the raw
-`&hhhh` operand and the resolved label name, on the deep copy
-`write_clean` makes, and something afterwards puts it back. The
-candidates for that "something" are the passes that run after
-`notes.apply`: `decode_marked_code`, `render_tables` and `render_drtab`,
-each of which resolves operands again. None of them was eliminated, so
-the next attempt should start by finding which one it is rather than by
-trying the removal a third time.
+### Why removing the reference could not work
+
+`notes.py` carried a comment saying removal from `d.xrefs` had been
+tried and that "something after this pass is putting it back". The
+something is **the rendering**. `write_clean` calls `notes.apply` and
+then `d.emit` twice — once into a `StringIO` that is discarded, to
+populate what `header()` needs, and once for real — and every `emit`
+resolves each operand through `_name()`, which is the one line where an
+xref is recorded. Anything deleted beforehand is simply re-created.
+
+### The fix
+
+Do not record it. `notes.py`'s `expr` branch marks the instruction in
+`d.expr_operands`, and both record sites — `_name()` for this page and
+`peer_name()` for the other — skip a marked instruction. The mark is its
+own set rather than `d.overrides`, which also holds unrelated rewrites
+that *are* references.
+
+That was not sufficient on its own. `autolabel()` names every address in
+`d.xrefs` and runs in the main pipeline, where a `notes/clean` entry has
+not been applied yet, so the name was already made. `relabel()` rebuilds
+`d.xrefs` from scratch and `write_clean` calls it after the notes, so a
+synthetic name with none left is referred to by nothing:
+`drop_unreferenced_labels()` drops those.
+
+**Only `V####` and `TBL_####`, never `L####`.** The first attempt
+dropped `L` names too and the assembly failed on `LD (L7BF2+1),A` —
+self-modifying code writing to an instruction's operand byte, where the
+reference lands on `&7BF3` and `&7BF2` has no xref at all while being
+very much in use. Any `NAME+n` form does this, and `autolabel` gives
+`L` to instruction starts and `V` to data, so excluding `L` excludes the
+case exactly.
+
+### And a correction to the count
+
+The eighteen above was measured by looking for the note's address in any
+`; ---- ` line of its listing, which also matches an entry like
+`MB &4C65` — the *other* page's `&4C65`, nothing to do with the note. So
+the true figure was lower than eighteen. Measured properly, counting
+only unprefixed same-page entries, it is now **nought of 106**, and the
+one cross-half case is gone too.
 
 ## DVAR 22, "ADDR OF HOOKS", points into the middle of a routine
 

@@ -198,6 +198,11 @@ class Page(Disassembler):
         self.used_codes = set()
         self.used_peer = {}               # peer name -> address in this space
         self.peer_xrefs = {}              # addr -> where the other page uses it
+        # Instructions whose operand a notes/ `expr` entry has rewritten
+        # as an expression.  What such an operand holds is a number, so
+        # the address it comes to is not a reference and must not put a
+        # caller in that address's list -- see _name().
+        self.expr_operands = set()
         self.basic_equs = {}
         self.peer_params = set()
         self.fetchers = set()
@@ -245,7 +250,11 @@ class Page(Disassembler):
         # after it, which is data -- so that path passes `site` instead
         # and the call is recorded like any other caller.
         where = self._cur if self._cur is not None else site
-        if where is not None:
+        # As in _name(): an operand a notes/ `expr` entry has rewritten
+        # is a number, so it gives the other page's label no caller --
+        # and a false one there is worse than a false one here, because
+        # it puts a caller from this half into the other half's listing.
+        if where is not None and where not in self.expr_operands:
             self.peer.peer_xrefs.setdefault(p, set()).add((self.tag, where))
         return full
 
@@ -483,7 +492,13 @@ class Page(Disassembler):
                 # Otherwise raw hex, which says less than this page's own
                 # label would and is not wrong the way it would be.
                 return hexn(v, 4)
-            if self._cur is not None:
+            # An operand a notes/ `expr` entry has rewritten is a
+            # number, not an address in this page, so whatever happens
+            # to live at that address gains no caller from it.  This is
+            # the only place xrefs are recorded, and it has to be here:
+            # emit() runs after notes.apply and re-resolves every
+            # operand, so removing the entry later cannot hold.
+            if self._cur is not None and self._cur not in self.expr_operands:
                 self.xrefs.setdefault(v, set()).add(self._cur)
             n = self.labels.get(v)
             if n:
@@ -2848,6 +2863,13 @@ def write_clean(pages):
     PAGE_BIAS[0] = 'IN_PAGE_C'
     SELF_LOOP[0] = True
     texts = {}
+    gone = 0
+    for d in (dos, mb):
+        d.relabel()                 # rebuilds the references from scratch
+        gone += drop_unreferenced_labels(d)
+    if gone:
+        print('listings/clean/: %d synthetic labels dropped, nothing refers '
+              'to them' % gone)
     for d, name in ((dos, 'masterdos.asm'), (mb, 'masterbasic.asm')):
         d.relabel()
         d.title = clean.preamble(d)
@@ -3699,6 +3721,37 @@ def drop_fake_rst38(d):
             d.insns.pop(a)
             d.setm(a, DATA)
             n += 1
+    return n
+
+
+def drop_unreferenced_labels(d):
+    """Drop synthetic labels that nothing refers to any more.
+
+    autolabel() names every address in d.xrefs, and it runs before
+    notes/clean is applied -- so an operand that a `expr` entry later
+    declares to be a number has already had a name made for the address
+    it came to.  relabel() rebuilds d.xrefs from scratch and
+    write_clean calls it after that entry has been applied, so a
+    synthetic name with no references left is referred to by nothing.
+
+    Only this project's own inventions are dropped.  A name from
+    notes/ or from the 1991 source stays whether or not anything calls
+    it: it was written down because it means something, not because
+    something reached it.
+    """
+    n = 0
+    for a, name in sorted(d.labels.items()):
+        # V names only, never L.  autolabel gives L to an address that
+        # starts an instruction, and an instruction's label can be used
+        # without any reference landing on it: self-modifying code
+        # writes LD (L7BF2+1),A, where the reference is to &7BF3 and
+        # &7BF2 has no xref at all while being very much in use.
+        if not re.match(r'^(TBL_|V)[0-9A-F]{4}$', name):
+            continue
+        if d.xrefs.get(a) or d.peer_xrefs.get(a):
+            continue
+        del d.labels[a]
+        n += 1
     return n
 
 
