@@ -11881,8 +11881,10 @@ ENCODE_SCREEN_LOOP:
 ENCODE_ONE_NIBBLE:
                CP C                            ; 61C2 B9
                JR NZ,COUNT_RUN                 ; 61C3 20 0D
-               LD B,&88                        ; 61C5 06 88  three more than the other path, which is what stops a lone
-                                               ; escape nibble ever being written literally
+               LD B,&88                        ; 61C5 06 88  three less than the other path, and the length is &8C minus
+                                               ; B, so every run of the escape comes out three longer -- four at the
+                                               ; shortest, which is what stops a lone escape nibble ever being written
+                                               ; literally
                LD E,A                          ; 61C7 5F
 
 ; ---- ENCODE_ONE_NIBBLE_LOOP ---- from &61CE when B is not 0 yet
@@ -11900,10 +11902,11 @@ ENCODE_ONE_NIBBLE_LOOP:
 ;; value held in E, so &8C minus B is the run's length: no match at all
 ;; leaves B at &8B and gives 1, which is the nibble by itself.
 ;;
-;; THE ESCAPE VALUE ARRIVES WITH B THREE HIGHER, from &61C5, and that
-;; is the whole difference between the two paths.  Starting at &88
-;; makes every length come out four larger, so a run of the escape can
-;; never be shorter than four and never takes the literal path below --
+;; THE ESCAPE VALUE ARRIVES WITH B THREE LOWER, from &61C5, and that
+;; is the whole difference between the two paths.  The length is &8C
+;; minus B, so starting at &88 rather than &8B makes every length come
+;; out three larger, and the shortest possible is four rather than one.
+;; A run of the escape therefore never takes the literal path below --
 ;; which it must not, because a literal escape nibble is what tells the
 ;; decoder a run is starting.
 ;; --------------------------------------------------------------------
@@ -12356,10 +12359,13 @@ PAGED_TO_LONG:
 ;; --------------------------------------------------------------------
 ;; The other half of the compression, and the manual's "A compressed
 ;; file will be automatically expanded again on reloading."  SP is
-;; parked in V4078 first, so the stack pointer is free for the copying;
-;; the alternate registers take DE = &000F and HL = &E500, the same
-;; stream the encoder filled; and then pairs of nibbles come back out
-;; through READ_NEXT_NIBBLE, a count and then the value it repeats.
+;; parked in V4078 first, and nothing borrows it: the one LD SP in the
+;; whole expander is the &635D that puts it back, which is how the
+;; nibble reader gets out of a nested call in one step when the stream
+;; ends.  The alternate registers take DE = &000F and HL = &E500, the
+;; same stream the encoder filled, and then pairs of nibbles come back
+;; out through READ_NEXT_NIBBLE -- the value first, into D at &630A,
+;; and the count after it.
 ;; --------------------------------------------------------------------
 
 ; ---- EXPAND_COMPRESSED_FILE ---- from &62B5
