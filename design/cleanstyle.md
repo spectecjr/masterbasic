@@ -194,21 +194,23 @@ numbers in a forty-instruction routine is a different thing from eight in four
 hundred.
 
 ```
-DOS   817 numbers, 414 unexplained, over 252 routines
-      worst FSTAT 8/79, RESET_CHANNEL_SCAN 8/32, CMR 7/42
-MB   1094 numbers, 604 unexplained, over 163 routines
-      worst RELOCATED_TO_46CC 29/196, FN_USING_S 18/157,
-            DUMP_UNSHADED 17/107
+DOS   817 numbers, 493 unexplained, over 282 routines
+      worst FSTAT 12/79, RESET_CHANNEL_SCAN 10/32, CMR 8/42
+MB   1094 numbers, 703 unexplained, over 177 routines
+      worst RELOCATED_TO_46CC 33/196, COPY_SCREEN_CONVERT 25/166,
+            DUMP_UNSHADED 20/107
 ```
 
-So nearly half the numbers already carry an explanation or stand beside a name,
-and the work left is 1018 rather than 1911.
+So over a third of the numbers already carry an explanation or stand beside a
+name, and the work left is 1196 rather than 1911. `tools/sites.py` counts by
+the same rule from the listing text, and its totals must agree with the build's
+— they do, to the routine.
 
 The two halves want different treatment. The DOS's are a long tail — 288
-routines, the worst of them eight, the top twelve only 65 sites between them,
+routines, the worst of them twelve, the top twelve only 80 sites between them,
 so there is no leverage and it is genuinely a few hundred small jobs.
-MasterBASIC's are concentrated: 163 routines, and the top twelve are 201 sites,
-a third of that half's total. MasterBASIC first, worst first.
+MasterBASIC's are concentrated: 177 routines, and the top twelve are 220 sites,
+just under a third of that half's total. MasterBASIC first, worst first.
 
 The reason is structural rather than anything about the code. `notes/clean/`
 holds twenty-three DOS files and two MasterBASIC ones, so the reading-copy
@@ -243,6 +245,17 @@ in them at all — because `A` to `F` are letters, so `&C000` reads as an
 identifier and so does the `FFC` inside `&7FFC`. Strip the hex literals first
 and the honest figure is 196. An `(IX+&05)` field offset still counts, which is
 right: that is the kind of number this project names.
+
+And the test has to see the *operand*. Applied to the whole instruction text,
+`SUB &1F` strips to `SUB ` and the mnemonic itself passes as a three-letter
+symbol — so every `SUB`, `AND`, `CALL`, `ADD`, `XOR` and `INC` carrying a bare
+number was being excused, while `LD`, `CP` and `JP` were not, which made the
+shortfall look random. That one was not found by reading the code that
+produced it. It was found by writing `tools/sites.py` as a second
+implementation of the same rule over the listing text, and refusing to accept
+that the two disagreed by 99 in one half and 79 in the other. Four faults in
+this counter; three of them flattered the number, and none was visible to a
+green build.
 
 The two-byte side is easier: 763 operands and 367 distinct values under the
 same rule, and most are addresses that already resolve to labels.

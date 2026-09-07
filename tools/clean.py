@@ -36,6 +36,7 @@ instead of implied.
 """
 
 import bisect
+import os
 import re
 
 NL = chr(10)
@@ -351,9 +352,9 @@ def bare_numbers(pages):
             if not d.inside(a) or not ins.asm:
                 continue
             text = d.overrides.get(a, ins.text)
-            if re.search(r'&[0-9A-F]{2}([0-9A-F]{2})?\b', text):
+            if BARE.search(text):
                 n += 1
-                if not d.comments.get(a) and not _has_name(text):
+                if not d.comments.get(a) and not _has_name(_operand(text)):
                     bare += 1
         out[d.tag] = (n, bare)
     return out
@@ -363,8 +364,18 @@ def bare_numbers(pages):
 # Registers and condition codes are one or two characters, so
 # three is enough to mean a name.  (IX+&05) still counts: a
 # field offset is exactly the kind of number worth naming.
+# A hex number in an operand.  Named here rather than written twice so
+# that tools/sites.py counts by the same rule this file does.
+BARE = re.compile(r'&[0-9A-F]{2}([0-9A-F]{2})?\b')
 HEXLIT = re.compile(r'&[0-9A-F]+')
 NAMED = re.compile(r'[A-Za-z_][A-Za-z0-9_]{2,}')
+
+
+def _operand(text):
+    """Everything after the mnemonic.  A mnemonic of three or more
+    letters -- SUB, AND, CALL -- would otherwise pass as a symbol."""
+    parts = text.split(None, 1)
+    return parts[1] if len(parts) > 1 else ''
 
 
 def _has_name(text):
@@ -424,9 +435,13 @@ def bare_by_routine(d):
         head = d.labels[heads[i]]
         totals[head] = totals.get(head, 0) + 1
         text = d.overrides.get(a, ins.text)
-        if (re.search(r'&[0-9A-F]{2}([0-9A-F]{2})?\b', text)
-                and not d.comments.get(a) and not _has_name(text)):
+        if (BARE.search(text)
+                and not d.comments.get(a) and not _has_name(_operand(text))):
             counts[head] = counts.get(head, 0) + 1
+            # SITES_DEBUG=NAME prints the addresses counted for one
+            # routine, to reconcile against tools/sites.py.
+            if os.environ.get('SITES_DEBUG') == head:
+                print('SITES_DEBUG %s &%04X %s' % (head, a, text))
     return sorted(((nm, n, totals.get(nm, 0)) for nm, n in counts.items()),
                   key=lambda r: (-r[1], r[0]))
 
