@@ -19280,17 +19280,25 @@ BUILD_PUT_BLOCK_11:
                RET                             ; 7A9E C9
 
 ;; --------------------------------------------------------------------
-;; Write MasterBASIC's own code into four places in the ROM's system
-;; page.  Called once, from &7651.  HMPR is zeroed first, so every &9xxx
-;; below means the system page's &5xxx.
+;; Write MasterBASIC's own code and settings into ten places in the
+;; ROM's system page.  Called once, from &7651.  HMPR is zeroed first,
+;; so every &9xxx or &8xxx below means the system page's &5xxx or
+;; &4xxx.
 ;;
 ;;     &994A, &9941   two bytes poked with &18 and &19
 ;;     PAGER          14 bytes from &7AF2
 ;;     &9A12          29 bytes of DPVARS
 ;;     &9896          40 bytes from &7E43
 ;;     MNIP           set to &4C14
+;;     &8C1A          a word, patched in at &7A83
+;;     &8C5F          a word, patched in at &7A8F
+;;     &8C31          a word, patched in at &7A9B
+;;     AFTERCR        one byte, taken from ACRSU at &4059
 ;;
-;; All four are identifiable.
+;; All ten are identifiable.  The last four come after the MNIP write
+;; and used to be left out of this list; the three patched words are
+;; the ones described under "A fourth installed block" below, whose
+;; operands are zero in the file and filled in at boot.
 ;;
 ;; The two poked bytes are keyboard assignments.  KTAB, the ROM's key
 ;; table, starts at &58E0, so &5941 is entry 97 and &594A is entry 106 --
