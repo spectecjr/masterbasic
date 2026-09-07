@@ -14246,11 +14246,11 @@ INSTALL_TAIL_INTO_SYSPAGE:
 ;; the choice of ROM 0 or ROM 1 from the start address, and the signed
 ;; step all have to be right for that to happen.
 ;;
-;; Seventeen of the 27 land exactly on a named entry point --
+;; Eighteen of the 28 land exactly on a named entry point --
 ;;
-;;     INSERTLN  PRMAIN    LOOKVARS  MATCHER   POKE2    EDPRT
-;;     ENDOUTP   DOCOMP    COMDF     COMLEN    LKCALL   LKFC
-;;     EPSUB     CCRESTOP  POSTFF    EDKY1     AULLP
+;;     INSERTLN  PRMAIN    LOOKVARS  SLICING   MATCHER  POKE2
+;;     EDPRT     ENDOUTP   DOCOMP    COMDF     COMLEN   LKCALL
+;;     LKFC      EPSUB     CCRESTOP  POSTFF    EDKY1    AULLP
 ;;
 ;; -- which is a fair description of what MasterBASIC replaces: line
 ;; insertion, printing, variable lookup, comparison and editing.  The

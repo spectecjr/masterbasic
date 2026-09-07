@@ -817,7 +817,7 @@ and description count that the tables above are set from.
 | `tools/features.py` | What the manual says each named routine does |
 | `tools/dis_mb.py` | This image: the two pages, the calling conventions, the seeding passes |
 | `tools/nrfam.py` | The `NR` family, which is how a page reaches the ROM's system variables |
-| `tools/hooks.py` | The fourteen hook codes MasterBASIC adds and the DOS's source does not name |
+| `tools/hooks.py` | The fifteen hook codes MasterBASIC adds and the DOS's source does not name |
 | `tools/fpcalc.py` | The floating-point calculator's literal streams, which follow `RST FPCALC` instead of instructions |
 | `tools/serial.py` | The serial driver, read against the SCC2691 datasheet |
 | `tools/serial_note.py` | What the DOS's own "serial" names turn out to mean |

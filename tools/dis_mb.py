@@ -3590,7 +3590,7 @@ def split_entries(d, rounds=8):
 # (source start, source end, where it ends up).  Code in these runs at
 # the destination with the system page at &4000, so an address in one
 # means something different from what the listing shows.
-RELOCATED = ((0x7986, 0x7990, 0x45A2),   # INSTALL_EXTENDED_PUT, five runs
+RELOCATED = ((0x7986, 0x7990, 0x45A2),   # INSTALL_EXTENDED_PUT, seven runs
              (0x797C, 0x7986, 0x45B9),
              (0x7879, 0x788E, 0x45C6),
              (0x788E, 0x797C, 0x45DE),

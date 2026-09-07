@@ -416,7 +416,7 @@ looked like:
   CTAB does point at -- its first entry, because &2F is ASCII "/" and
   sorts below every command token
   the faster PUT is INSTALL_EXTENDED_PUT, which assembles 298 bytes into
-  the system page at &45A2 out of five runs, two of them lifted from the
+  the system page at &45A2 out of seven runs, three of them lifted from the
   ROM's own PUT
   the extended CSIZE is the hook 155 routine HOOK_CSIZE, which sizes the
   character and enters the ROM's own CSIZE past its range checks; the

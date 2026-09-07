@@ -347,8 +347,8 @@ checked. It reads `CMDADDRT` to find the ROM's command address table
 token `&AC` — and finds the ROM's `PUT` at `&295B`. It then patches four
 calls back into the middle of `PUT` as offsets from wherever `PUT` turned
 out to be, and assembles 298 bytes at `&45A2`-`&46CB` in the system page
-out of five runs: three of its own code, and two lifted straight out of the
-ROM's `PUT`. So MasterBASIC's `PUT` is not a replacement but a rebuild,
+out of seven runs: four of its own code, and three lifted straight out of the
+ROM's `PUT` — one of which the last run partly writes over again. So MasterBASIC's `PUT` is not a replacement but a rebuild,
 keeping fragments of the original and splicing its own around them — which
 is why it survives a ROM whose `PUT` is at a different address.
 

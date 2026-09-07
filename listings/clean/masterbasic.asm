@@ -106,7 +106,7 @@ SYS_TOKEN_TO_FN_INDEX:  EQU  &45A2
 ;   CTAB does point at -- its first entry, because &2F is ASCII "/" and
 ;   sorts below every command token
 ;   the faster PUT is INSTALL_EXTENDED_PUT, which assembles 298 bytes into
-;   the system page at &45A2 out of five runs, two of them lifted from the
+;   the system page at &45A2 out of seven runs, three of them lifted from the
 ;   ROM's own PUT
 ;   the extended CSIZE is the hook 155 routine HOOK_CSIZE, which sizes the
 ;   character and enters the ROM's own CSIZE past its range checks; the
@@ -19184,7 +19184,7 @@ EVALUV_STUB_1:
 ;; L7CF5+1 and L7D46+1, which are the operands the installer patches.
 ;;
 ;; What copies those ten bytes to &45A2 is INSTALL_EXTENDED_PUT, which
-;; assembles &45A2-&46CB out of five runs; these are the first of them,
+;; assembles &45A2-&46CB out of seven runs; these are the first of them,
 ;; copied at &7842.  That is why the correspondence with &7986 runs for
 ;; ten bytes and stops: the next run is taken from somewhere else.
 ;; --------------------------------------------------------------------
