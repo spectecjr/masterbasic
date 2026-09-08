@@ -238,6 +238,58 @@ MB &6CCD : the second page of the pair, which is where PALBUF really is
 
 MB &6CCE : &BFD8 is &FFD8 addressed one page down, which is what the ROM's own note says it is for
 
+MB &6CD4 : &02 is MODE 3.  Below it the source keeps its colour in an attribute byte and at it or above in the pixel itself, and that is the only distinction either loop makes
+
+MB &6CDD expr HMPR
+
+MB &6CE3 : the destination, tested the same way.  A MODE 1 or MODE 2 destination takes the loop at &6CF1 and a MODE 3 or MODE 4 one the loop at &6D58
+
+MB &6CE9 : the same test for a MODE 3 or MODE 4 source.  Packed to packed converts nothing at all -- &6DAD copies the bytes as they lie, and MODE 3 to MODE 4 is a change of layout it does not make
+
+MB &6CEE : row 0 in B and column 0 in C
+
+MB &6D09 : this pixel is not the colour the cell started with, so it is ink; &FF sets whichever bit PLOT_PIXEL_IN_MODE goes on to take out of D
+
+MB &6D0D : the colour the cell started with, so it is paper and the bit is clear
+
+MB &6D1C : eight columns to a cell -- until C rolls over one, the same attribute is still being settled
+
+MB &6D29 : &78 is paper and bright.  Those four bits come from the cell's first colour shifted up three and the other four from B, the ink: bits 0 to 2 are the ink's own, and its bit 3 falls inside the mask and is dropped, because an attribute has one bright bit for both colours.  B is never above 15, so flash comes out clear
+
+MB &6D2F : back eight columns, to the first column of the cell just finished
+
+MB &6D34 : eight rows to a character cell.  Zero means a MODE 1 attribute is settled and &6D3E can write it; a MODE 2 attribute is written every row instead, which is what the two paths below are for
+
+MB &6D4B : 192 rows, the height of every SAM screen
+
+MB &6D4F : back to the top row for the next eight columns
+
+MB &6D52 : on by a cell's width, and C wrapping to zero past column 255 is what ends the loop
+
+MB &6D58 : row 0 and column 0 again; the packed loop walks the screen the same way
+
+MB &6D71 : the attribute's paper and its bright bit, brought down to a four-bit colour
+
+MB &6D75 : the attribute's three ink bits
+
+MB &6D78 : everything but bit 3 from the ink, and bit 3 from the paper value just made, whose bit 3 is the attribute's single bright.  Ink and paper come out as the same kind of four-bit colour, which is what the nibbles below want
+
+MB &6D86 : four bytes to eight pixels -- two pixels a byte, which is MODE 4's layout and not MODE 3's four.  A MODE 3 destination is written with these bytes too; the row is 128 bytes wide in either mode, so the picture lands where it should and is read back as four two-bit pixels a byte
+
+MB &6DA8 : 192 rows again
+
+MB &6DAD : both halves of BC become the source page, so that the POP AF at the end of SET_UP_FAR_LDIR takes it in A; the PUSH HL at &6DC0 hands it the destination page in C the same way
+
+MB &6DAF : &1B00 is a MODE 1 screen -- 6144 bytes of bitmap and 768 of attributes
+
+MB &6DB5 : &3800 is what a MODE 2 screen spans, 6144 bytes of bitmap and as many attributes &2000 further on, but the SUB below never leaves zero and this is never the count that is used
+
+MB &6DB7 : THE MODE IS 0 TO 3 HERE, not &00, &20, &40 and &60: SCREEN_NUMBER_ARGUMENT shifted it down out of the SCLIST byte before returning it.  So nothing subtracts to zero, and MODE 2 to MODE 2 falls past its own &3800 and leaves with the MODE 3 and MODE 4 count below.  That is slow rather than wrong -- a screen is a pair of pages, and &6000 bytes of one stop well short of the palette at the top
+
+MB &6DBB : one whole page, with the &2000 below on top of it
+
+MB &6DBD : &6000 in all, 24576 bytes, which is a MODE 3 or a MODE 4 screen
+
 MB &6DC6 SET_UP_FAR_LDIR
     Copy across page boundaries: A pages and BC bytes, then the ROM's
     FARLDIR.

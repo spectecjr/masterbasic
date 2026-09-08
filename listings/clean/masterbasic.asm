@@ -15266,10 +15266,26 @@ CMD_COPY_SCREEN:
                JP SET_UP_FAR_LDIR              ; 6CBF C3 C6 6D
 
 ;; --------------------------------------------------------------------
-;; Compare the page in L with the one being displayed, taken straight
-;; from VMPR.  Equal returns with HL as it was set here; otherwise the
-;; page is stepped on and H becomes &BF, which is the top of the window
-;; rather than the display.
+;; Where this screen's palette is: the live one if it is being
+;; displayed, its own saved copy if it is not.
+;;
+;; The ROM keeps the displayed screen's palette in PALTAB at &55D8 and
+;; every other screen's in PALBUF, and its own variable list explains
+;; the odd address that comes back here:
+;;
+;;     PALBUF: EQU &FFD8   ;PALETTE OF NON-DISPLAYED SCREEN (ADDRESSED
+;;                         ;AT BFD8H FOR CONVENIENCE)
+;;
+;; &FFD8 is the top of the second page of a screen's pair, and &BFD8
+;; is that same byte reached one page lower -- which is why the page
+;; returned in A is L plus one and not L.
+;;
+;; Comparing L against VMPR masked to &1F is the whole of "is this the
+;; screen being displayed".  If it is, the answer is page 0 and &95D8,
+;; which is PALTAB at &55D8 with the system page in the window; the
+;; listing used to write that as DOS_ITRCK, a routine in the other half
+;; that happens to sit at the matching address and has nothing to do
+;; with this.
 ;; --------------------------------------------------------------------
 
 ; ---- SCREEN_PAGE_OR_BUFFER ---- from &6CAF, &6CB5
@@ -15294,26 +15310,36 @@ SCREEN_PAGE_OR_BUFFER:
 ;; COPY SCREEN's whole engine: the two conversion loops and, when no
 ;; conversion is needed, the fast copy.  &6CF1 to &6D57 writes a MODE 1
 ;; or MODE 2 destination a pixel at a time; &6D58 to &6DAC writes a
-;; MODE 3 or MODE 4 one; &6DAD falls into SET_UP_FAR_LDIR for the
-;; same-layout case.  Nothing runs after it -- the loops are inside.
+;; MODE 3 or MODE 4 one; &6DAD falls into SET_UP_FAR_LDIR when no
+;; conversion is done.  Nothing runs after it -- the loops are inside.
 ;;
 ;; FOUR NUMBERS GO INTO THE ALTERNATES, NOT A PAGE AND AN ADDRESS.
 ;; H' is the source page and L' the destination page; B' is the source
-;; mode and E' the destination mode; C' holds &FB, the HMPR port, so
-;; the loops can page between the two screens with OUT (C),H and
+;; mode and E' the destination mode; C' holds HMPR, so that the
+;; loops can page between the two screens with OUT (C),H and
 ;; OUT (C),L and never reload anything.  E' is what &6D12 and &6D37
 ;; read to pick the destination's layout, B' what &6D60 tests to pick
 ;; the source's reader.
 ;;
 ;; The equal-modes test comes first, at &6CD1, so the fast path leaves
 ;; before any of that is loaded.
+;;
+;; THREE OUTCOMES, NOT FOUR.  Both of the tests that follow are
+;; against 2 and both are on the destination -- &6CE3 for a MODE 1 or
+;; MODE 2 source and &6CE9 for a MODE 3 or MODE 4 one.  A bitmap
+;; destination gets the first loop and a packed one the second, and a
+;; packed source with a packed destination gets neither: MODE 3 to
+;; MODE 4 and MODE 4 to MODE 3 join the equal modes at &6DAD and have
+;; their 24576 bytes copied across as they lie.
 ;; --------------------------------------------------------------------
 
 ; ---- COPY_SCREEN_CONVERT ---- from &6CAB
 COPY_SCREEN_CONVERT:
                CP H                            ; 6CD1 BC
                JR Z,COPY_SCREEN_CONVERT_2      ; 6CD2 28 17
-               CP &02                          ; 6CD4 FE 02
+               CP &02                          ; 6CD4 FE 02  &02 is MODE 3. Below it the source keeps its colour in an
+                                               ; attribute byte and at it or above in the pixel itself, and that is the
+                                               ; only distinction either loop makes
                LD A,H                          ; 6CD6 7C
                PUSH HL                         ; 6CD7 E5
                PUSH BC                         ; 6CD8 C5
@@ -15321,17 +15347,21 @@ COPY_SCREEN_CONVERT:
                POP BC                          ; 6CDA C1
                POP HL                          ; 6CDB E1
                LD H,C                          ; 6CDC 61
-               LD C,&FB                        ; 6CDD 0E FB
+               LD C,HMPR                       ; 6CDD 0E FB
                LD E,A                          ; 6CDF 5F
                EXX                             ; 6CE0 D9
                JR NC,COPY_SCREEN_CONVERT_1     ; 6CE1 30 06
-               CP &02                          ; 6CE3 FE 02
+               CP &02                          ; 6CE3 FE 02  the destination, tested the same way. A MODE 1 or MODE 2
+                                               ; destination takes the loop at &6CF1 and a MODE 3 or MODE 4 one the loop
+                                               ; at &6D58
                JR NC,COPY_SCREEN_CONVERT_9     ; 6CE5 30 71
                JR COPY_SCREEN_CONVERT_3        ; 6CE7 18 05
 
 ; ---- COPY_SCREEN_CONVERT_1 ---- from &6CE1 when A >= &02
 COPY_SCREEN_CONVERT_1:
-               CP &02                          ; 6CE9 FE 02
+               CP &02                          ; 6CE9 FE 02  the same test for a MODE 3 or MODE 4 source. Packed to
+                                               ; packed converts nothing at all -- &6DAD copies the bytes as they lie,
+                                               ; and MODE 3 to MODE 4 is a change of layout it does not make
 
 ; ---- COPY_SCREEN_CONVERT_2 ---- from &6CD2 when A = H
 COPY_SCREEN_CONVERT_2:
@@ -15339,7 +15369,7 @@ COPY_SCREEN_CONVERT_2:
 
 ; ---- COPY_SCREEN_CONVERT_3 ---- from &6CE7
 COPY_SCREEN_CONVERT_3:
-               LD BC,&0000                     ; 6CEE 01 00 00
+               LD BC,&0000                     ; 6CEE 01 00 00  row 0 in B and column 0 in C
 
 ; ---- COPY_SCREEN_CONVERT_LOOP ---- from &6D4D when A < &C0, &6D55
 COPY_SCREEN_CONVERT_LOOP:
@@ -15362,12 +15392,15 @@ COPY_SCREEN_CONVERT_LOOP2:
                CP E                            ; 6D05 BB
                JR Z,COPY_SCREEN_CONVERT_4      ; 6D06 28 05
                EX AF,AF'                       ; 6D08 08
-               LD D,&FF                        ; 6D09 16 FF
+               LD D,&FF                        ; 6D09 16 FF  this pixel is not the colour the cell started with, so it
+                                               ; is ink; &FF sets whichever bit PLOT_PIXEL_IN_MODE goes on to take out
+                                               ; of D
                JR COPY_SCREEN_CONVERT_5        ; 6D0B 18 02
 
 ; ---- COPY_SCREEN_CONVERT_4 ---- from &6CFB, &6D06 when A = E
 COPY_SCREEN_CONVERT_4:
-               LD D,&00                        ; 6D0D 16 00
+               LD D,&00                        ; 6D0D 16 00  the colour the cell started with, so it is paper and the
+                                               ; bit is clear
 
 ; ---- COPY_SCREEN_CONVERT_5 ---- from &6D0B
 COPY_SCREEN_CONVERT_5:
@@ -15381,7 +15414,8 @@ COPY_SCREEN_CONVERT_5:
                POP BC                          ; 6D19 C1
                INC C                           ; 6D1A 0C
                LD A,C                          ; 6D1B 79
-               AND &07                         ; 6D1C E6 07
+               AND &07                         ; 6D1C E6 07  eight columns to a cell -- until C rolls over one, the same
+                                               ; attribute is still being settled
                JR NZ,COPY_SCREEN_CONVERT_LOOP2 ; 6D1E 20 DD
                PUSH BC                         ; 6D20 C5
                EX AF,AF'                       ; 6D21 08
@@ -15392,16 +15426,23 @@ COPY_SCREEN_CONVERT_5:
                RLCA                            ; 6D26 07
                RLCA                            ; 6D27 07
                XOR B                           ; 6D28 A8
-               AND &78                         ; 6D29 E6 78
+               AND &78                         ; 6D29 E6 78  &78 is paper and bright. Those four bits come from the
+                                               ; cell's first colour shifted up three and the other four from B, the
+                                               ; ink: bits 0 to 2 are the ink's own, and its bit 3 falls inside the mask
+                                               ; and is dropped, because an attribute has one bright bit for both
+                                               ; colours. B is never above 15, so flash comes out clear
                XOR B                           ; 6D2B A8
                LD D,A                          ; 6D2C 57
                POP BC                          ; 6D2D C1
                LD A,C                          ; 6D2E 79
-               SUB &08                         ; 6D2F D6 08
+               SUB &08                         ; 6D2F D6 08  back eight columns, to the first column of the cell just
+                                               ; finished
                LD C,A                          ; 6D31 4F
                INC B                           ; 6D32 04
                LD A,B                          ; 6D33 78
-               AND &07                         ; 6D34 E6 07
+               AND &07                         ; 6D34 E6 07  eight rows to a character cell. Zero means a MODE 1
+                                               ; attribute is settled and &6D3E can write it; a MODE 2 attribute is
+                                               ; written every row instead, which is what the two paths below are for
                EXX                             ; 6D36 D9
                LD A,E                          ; 6D37 7B
                EXX                             ; 6D38 D9
@@ -15425,18 +15466,20 @@ COPY_SCREEN_CONVERT_7:
 ; ---- COPY_SCREEN_CONVERT_8 ---- from &6D42
 COPY_SCREEN_CONVERT_8:
                LD A,B                          ; 6D4A 78
-               CP &C0                          ; 6D4B FE C0
+               CP &C0                          ; 6D4B FE C0  192 rows, the height of every SAM screen
                JR C,COPY_SCREEN_CONVERT_LOOP   ; 6D4D 38 A2
-               LD B,&00                        ; 6D4F 06 00
+               LD B,&00                        ; 6D4F 06 00  back to the top row for the next eight columns
                LD A,C                          ; 6D51 79
-               ADD A,&08                       ; 6D52 C6 08
+               ADD A,&08                       ; 6D52 C6 08  on by a cell's width, and C wrapping to zero past column
+                                               ; 255 is what ends the loop
                LD C,A                          ; 6D54 4F
                JR NZ,COPY_SCREEN_CONVERT_LOOP  ; 6D55 20 9A
                RET                             ; 6D57 C9
 
 ; ---- COPY_SCREEN_CONVERT_9 ---- from &6CE5 when A >= &02
 COPY_SCREEN_CONVERT_9:
-               LD BC,&0000                     ; 6D58 01 00 00
+               LD BC,&0000                     ; 6D58 01 00 00  row 0 and column 0 again; the packed loop walks the
+                                               ; screen the same way
 
 ; ---- COPY_SCREEN_CONVERT_LOOP3 ---- from &6DAA when A < &C0
 COPY_SCREEN_CONVERT_LOOP3:
@@ -15464,12 +15507,16 @@ COPY_SCREEN_CONVERT_11:
                RRCA                            ; 6D6E 0F
                RRCA                            ; 6D6F 0F
                RRCA                            ; 6D70 0F
-               AND &0F                         ; 6D71 E6 0F
+               AND &0F                         ; 6D71 E6 0F  the attribute's paper and its bright bit, brought down to a
+                                               ; four-bit colour
                LD C,A                          ; 6D73 4F
                LD A,L                          ; 6D74 7D
-               AND &07                         ; 6D75 E6 07
+               AND &07                         ; 6D75 E6 07  the attribute's three ink bits
                XOR C                           ; 6D77 A9
-               AND &F7                         ; 6D78 E6 F7
+               AND &F7                         ; 6D78 E6 F7  everything but bit 3 from the ink, and bit 3 from the paper
+                                               ; value just made, whose bit 3 is the attribute's single bright. Ink and
+                                               ; paper come out as the same kind of four-bit colour, which is what the
+                                               ; nibbles below want
                XOR C                           ; 6D7A A9
                LD E,A                          ; 6D7B 5F
                EXX                             ; 6D7C D9
@@ -15479,7 +15526,11 @@ COPY_SCREEN_CONVERT_11:
                SCF                             ; 6D81 37
                RR H                            ; 6D82 CB 1C
                RR L                            ; 6D84 CB 1D
-               LD D,&04                        ; 6D86 16 04
+               LD D,&04                        ; 6D86 16 04  four bytes to eight pixels -- two pixels a byte, which is
+                                               ; MODE 4's layout and not MODE 3's four. A MODE 3 destination is written
+                                               ; with these bytes too; the row is 128 bytes wide in either mode, so the
+                                               ; picture lands where it should and is read back as four two-bit pixels a
+                                               ; byte
 
 ; ---- COPY_SCREEN_CONVERT_LOOP5 ---- from &6D9C when D is not 0 yet
 COPY_SCREEN_CONVERT_LOOP5:
@@ -15516,22 +15567,33 @@ COPY_SCREEN_CONVERT_13:
                POP BC                          ; 6DA5 C1
                INC B                           ; 6DA6 04
                LD A,B                          ; 6DA7 78
-               CP &C0                          ; 6DA8 FE C0
+               CP &C0                          ; 6DA8 FE C0  192 rows again
                JR C,COPY_SCREEN_CONVERT_LOOP3  ; 6DAA 38 AF
                RET                             ; 6DAC C9
 
 ; ---- COPY_SCREEN_CONVERT_14 ---- from &6CEB when A >= &02
 COPY_SCREEN_CONVERT_14:
-               LD B,C                          ; 6DAD 41
+               LD B,C                          ; 6DAD 41  both halves of BC become the source page, so that the POP AF
+                                               ; at the end of SET_UP_FAR_LDIR takes it in A; the PUSH HL at &6DC0 hands
+                                               ; it the destination page in C the same way
                PUSH BC                         ; 6DAE C5
-               LD BC,&1B00                     ; 6DAF 01 00 1B
+               LD BC,&1B00                     ; 6DAF 01 00 1B  &1B00 is a MODE 1 screen -- 6144 bytes of bitmap and 768
+                                               ; of attributes
                AND A                           ; 6DB2 A7
                JR Z,COPY_SCREEN_CONVERT_15     ; 6DB3 28 0B
-               LD B,&38                        ; 6DB5 06 38
-               SUB &20                         ; 6DB7 D6 20
+               LD B,&38                        ; 6DB5 06 38  &3800 is what a MODE 2 screen spans, 6144 bytes of bitmap
+                                               ; and as many attributes &2000 further on, but the SUB below never leaves
+                                               ; zero and this is never the count that is used
+               SUB &20                         ; 6DB7 D6 20  THE MODE IS 0 TO 3 HERE, not &00, &20, &40 and &60:
+                                               ; SCREEN_NUMBER_ARGUMENT shifted it down out of the SCLIST byte before
+                                               ; returning it. So nothing subtracts to zero, and MODE 2 to MODE 2 falls
+                                               ; past its own &3800 and leaves with the MODE 3 and MODE 4 count below.
+                                               ; That is slow rather than wrong -- a screen is a pair of pages, and
+                                               ; &6000 bytes of one stop well short of the palette at the top
                JR Z,COPY_SCREEN_CONVERT_15     ; 6DB9 28 05
-               LD A,&01                        ; 6DBB 3E 01
-               LD BC,&2000                     ; 6DBD 01 00 20
+               LD A,&01                        ; 6DBB 3E 01  one whole page, with the &2000 below on top of it
+               LD BC,&2000                     ; 6DBD 01 00 20  &6000 in all, 24576 bytes, which is a MODE 3 or a MODE 4
+                                               ; screen
 
 ; ---- COPY_SCREEN_CONVERT_15 ---- from &6DB3 when A = 0, &6DB9 when A = &20
 COPY_SCREEN_CONVERT_15:

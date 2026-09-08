@@ -521,29 +521,31 @@ MB &67B7 COPY_EVERY_NTH_BYTE
     feeds &67C1, the bytes per pass, and nothing else.  So it is the
     pass count and the stride that share a source, not the two counts.
 
-MB &6CC2 SCREEN_PAGE_OR_BUFFER
-    Compare the page in L with the one being displayed, taken straight
-    from VMPR.  Equal returns with HL as it was set here; otherwise the
-    page is stepped on and H becomes &BF, which is the top of the window
-    rather than the display.
-
 MB &6CD1 COPY_SCREEN_CONVERT
     COPY SCREEN's whole engine: the two conversion loops and, when no
     conversion is needed, the fast copy.  &6CF1 to &6D57 writes a MODE 1
     or MODE 2 destination a pixel at a time; &6D58 to &6DAC writes a
-    MODE 3 or MODE 4 one; &6DAD falls into SET_UP_FAR_LDIR for the
-    same-layout case.  Nothing runs after it -- the loops are inside.
+    MODE 3 or MODE 4 one; &6DAD falls into SET_UP_FAR_LDIR when no
+    conversion is done.  Nothing runs after it -- the loops are inside.
 
     FOUR NUMBERS GO INTO THE ALTERNATES, NOT A PAGE AND AN ADDRESS.
     H' is the source page and L' the destination page; B' is the source
-    mode and E' the destination mode; C' holds &FB, the HMPR port, so
-    the loops can page between the two screens with OUT (C),H and
+    mode and E' the destination mode; C' holds HMPR, so that the
+    loops can page between the two screens with OUT (C),H and
     OUT (C),L and never reload anything.  E' is what &6D12 and &6D37
     read to pick the destination's layout, B' what &6D60 tests to pick
     the source's reader.
 
     The equal-modes test comes first, at &6CD1, so the fast path leaves
     before any of that is loaded.
+
+    THREE OUTCOMES, NOT FOUR.  Both of the tests that follow are
+    against 2 and both are on the destination -- &6CE3 for a MODE 1 or
+    MODE 2 source and &6CE9 for a MODE 3 or MODE 4 one.  A bitmap
+    destination gets the first loop and a packed one the second, and a
+    packed source with a packed destination gets neither: MODE 3 to
+    MODE 4 and MODE 4 to MODE 3 join the equal modes at &6DAD and have
+    their 24576 bytes copied across as they lie.
 
 MB &6FB3 ADJUST_VARIABLE_SIZE
     Add or subtract A:BC from the 24-bit length in the three bytes at HL,
