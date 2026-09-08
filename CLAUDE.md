@@ -123,6 +123,24 @@ not about this one.
 The dumps are listed, with what each holds, in `docs/evidence-wanted.md`.
 A dump named in prose may not be the one that holds the bytes.  Check.
 
+## skills/, which nothing loads
+
+Nine skills extracted from this work, each a `SKILL.md` with its own
+frontmatter: the gate and the three trees, the magic-number target and
+the four faults its counter had, the review process, the evidence
+register, Z80 idioms, the SAM itself.  `skills/README.md` is the index.
+
+**They are an export.**  They are written to be moved into another
+project's `.claude/skills/` and nothing in this repository loads them --
+there is no `.claude/skills/` here, `settings.json` configures only
+hooks, and Claude Code will not offer them by name.  Read them by path
+or you will not find them at all.
+
+What governs work here is this file and the hooks.  So a lesson worth
+keeping goes to `skills/` when it is true of any such project and stays
+here when it is this image's -- and one that lands in both is one that
+will drift, which is the fault this project exists to catch.
+
 ## How to make a change
 
 Use `tools/patch.py` for every edit to prose or a generator:
