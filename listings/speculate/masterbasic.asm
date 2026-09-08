@@ -18443,43 +18443,66 @@ SAVE_BOOT:
                                                  ; that address is how the other listing numbers it
                CALL CALLDOS                      ; 640F CD C1 42
                DEFW DOS_EVFINS-&4000             ; 6412 21 73
-               LD HL,&413A                       ; 6414 21 3A 41
-               LD A,&13                          ; 6417 3E 13
+               LD HL,&413A                       ; 6414 21 3A 41  DOS &413A is the file-type byte in the DOS's own name
+                                                 ; block -- its listing has it as "file type, followed by the name" --
+                                                 ; and &4D24 is an LD (HL),A that falls through CKDRV into GOFSM, so the
+                                                 ; type is planted and the file opened for writing in the one call
+               LD A,&13                          ; 6417 3E 13  type 19, which is CODE. notes/disks.txt has samdos2, MBMC
+                                                 ; and MBASC all saved as type 19
                                                  ; call &4D24 in the other page: LMPR is switched first, so that address
                                                  ; is how the other listing numbers it
                CALL CALLDOS                      ; 6419 CD C1 42
                DEFW &4D24                        ; 641C 24 4D
                RET C                             ; 641E D8
-               LD A,(&42CD)                      ; 641F 3A CD 42
+               LD A,(&42CD)                      ; 641F 3A CD 42  the DOS page, less one. The boot sector patched this
+                                                 ; byte with it, so the INC A below makes it the page itself -- the same
+                                                 ; byte SAVE_BLOCK_FROM_DOS_PAGE reads at &42AD
                INC A                             ; 6422 3C
                OUT (HMPR),A                      ; 6423 D3 FB
                LD HL,BOOT_HEADER_FIELDS          ; 6425 21 7E 64
                LD DE,DOS_V7CFF                   ; 6428 11 FF BC
-               LD BC,&0007                       ; 642B 01 07 00
+               LD BC,&0007                       ; 642B 01 07 00  the seven bytes of BOOT_HEADER_FIELDS below, which is
+                                                 ; the same LD BC,&0007 the snapshot code uses to place SNPTAB
                LDIR                              ; 642E ED B0
                LD HL,CALLBACK_RCPTCH_2+&4000     ; 6430 21 F7 BC
-               LD DE,&0100                       ; 6433 11 00 01
+               LD DE,&0100                       ; 6433 11 00 01  block 1 of eight, &0100 bytes from &7CF7, which fills
+                                                 ; the file's DOS &4000-&40FF -- and after a boot those first nine bytes
+                                                 ; read &0D, which is why a SAVE BOOT file has filler where the shipped
+                                                 ; image has a header
                CALL SAVE_BLOCK_FROM_THIS_PAGE    ; 6436 CD A9 42
                LD HL,DOS_FFHL                    ; 6439 21 00 81
-               LD DE,&3C60                       ; 643C 11 60 3C
+               LD DE,&3C60                       ; 643C 11 60 3C  block 2, &3C60 from the DOS page's &4100, filling DOS
+                                                 ; &4100-&7D5F
                CALL SAVE_BLOCK_FROM_DOS_PAGE     ; 643F CD AD 42
                LD HL,INSTALL_ROM_PATCHES_3+&4000 ; 6442 21 F0 BD
-               LD DE,&01BE                       ; 6445 11 BE 01
+               LD DE,&01BE                       ; 6445 11 BE 01  block 3, &01BE from &7DF0 -- INSTBUF, which the
+                                                 ; installer saved back into this page -- filling DOS &7D60-&7F1D
                CALL SAVE_BLOCK_FROM_THIS_PAGE    ; 6448 CD A9 42
-               LD HL,&8C14                       ; 644B 21 14 8C
-               LD DE,&00A2                       ; 644E 11 A2 00
+               LD HL,&8C14                       ; 644B 21 14 8C  block 4's source, system page &4C14 seen through the
+                                                 ; window
+               LD DE,&00A2                       ; 644E 11 A2 00  block 4, &00A2, filling DOS &7F1E-&7FBF. &0100 + &3C60
+                                                 ; + &01BE + &00A2 is &3FC0, so that half is complete
                CALL SAVE_BLOCK_FROM_SYSPAGE      ; 6451 CD A6 42
                LD HL,PUTSWA+&4000                ; 6454 21 00 80
-               LD DE,&3B80                       ; 6457 11 80 3B
+               LD DE,&3B80                       ; 6457 11 80 3B  block 5, &3B80 from &4000, this half's own first &3B80
+                                                 ; bytes
                CALL SAVE_BLOCK_FROM_THIS_PAGE    ; 645A CD A9 42
-               LD HL,&8BA0                       ; 645D 21 A0 8B
-               LD DE,&0024                       ; 6460 11 24 00
+               LD HL,&8BA0                       ; 645D 21 A0 8B  block 6's source, system page &4BA0, where
+                                                 ; INSTALL_ROM_PATCHES put the 36 bytes it took from &7B80
+               LD DE,&0024                       ; 6460 11 24 00  block 6, &0024, filling MB &7B80-&7BA3
                CALL SAVE_BLOCK_FROM_SYSPAGE      ; 6463 CD A6 42
-               LD HL,&884D                       ; 6466 21 4D 88
-               LD DE,&029F                       ; 6469 11 9F 02
+               LD HL,&884D                       ; 6466 21 4D 88  block 7's source, system page &484D, where the &029F
+                                                 ; bytes from &7BA4 were installed -- the block PATOUT_CHAR_OUT and the
+                                                 ; dispatcher are both inside
+               LD DE,&029F                       ; 6469 11 9F 02  block 7, &029F, filling MB &7BA4-&7E42
                CALL SAVE_BLOCK_FROM_SYSPAGE      ; 646C CD A6 42
-               LD HL,&9896                       ; 646F 21 96 98
-               LD DE,&017D                       ; 6472 11 7D 01
+               LD HL,&9896                       ; 646F 21 96 98  block 8's source, system page &5896. It is read from
+                                                 ; there and not from &7E43 because &7E43 is inside INSTBUF's range and
+                                                 ; the boot has already overwritten it, so the original no longer exists
+                                                 ; to be saved
+               LD DE,&017D                       ; 6472 11 7D 01  block 8, &017D, filling MB &7E43-&7FBF. &3B80 + &0024
+                                                 ; + &029F + &017D is &3FC0 again, and the two halves are the 32640-byte
+                                                 ; file
                CALL SAVE_BLOCK_FROM_SYSPAGE      ; 6475 CD A6 42
                                                  ; call DOS_SCFSM-&4000 in the other page: LMPR is switched first, so
                                                  ; that address is how the other listing numbers it
