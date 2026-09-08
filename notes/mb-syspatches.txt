@@ -131,4 +131,36 @@ DOC GAP_BLOCK
 MB &76A2 : KTAB entry 264 gets &0D -- &59E8 less the &58E0 base -- and the map is 276 entries, which the Technical Manual gives as "69 keys and 4 shift states"
 MB &76A5 : and entry 255 the same, &59DF less the same base
 MB &767F : &60 in ALLOCT marks this page as DOS's -- the table is at &5100
+
+MB &7682 : &60 is "used by DOS" in the manual's list of ALLOCT values, and the entry is this page's own
+
+MB &7684 : nineteen bytes, &4AED to &4AFF
+
+MB &76A0 : &0D, the code the two KTAB entries below are given
+
+MB &75E4 : &4A bytes from TRACE_SAVED_LMPR, so &4068 to &40B1 is zeroed before anything runs
+
+MB &764E : MasterBASIC's own page number, planted in the LD A at &7C2C.  That instruction is inside the &7BA4 block and runs at &48D5 once installed, where it has to page this half back in and cannot know the number by assembling it
+
+MB &7657 : &7C00, and LD B,L below takes the count from the low byte -- zero, so the DJNZ runs the full 256 and the fill covers &7C00-&7CFF
+
+MB &765B : &0D is what a post-boot dump finds through that whole page, and it is why SAVE BOOT's first block opens with nine of them where the shipped image has its header
+
+MB &7667 : &DA bytes zeroed from DOS_SVHDR, the DOS page's own &410A upward
+
+MB &7689 : the nineteen bytes of workspace above
+
+MB &7693 : &30 into the byte HL addresses.  The boot sector builds that pointer as ALLOCT plus a page number -- LD HL,ALLOCT + MAX_INTERNAL_PAGE at DOS &4015, then LD L,A from HMPR at &402A -- so this is a page's allocation entry.  The manual's list of values gives &20 for a utilities page, &40 for the first BASIC program and &60 for DOS, and does not name &30
+
+MB &7697 : L less one, into the DOS page's &42CD.  SAVE_BLOCK_FROM_DOS_PAGE reads that byte back and adds the one again, so whichever page L holds here is the page it puts in the window
+
+MB &769A : &44 and &01 -- PSLD is two bytes, DEVL then DEVN, so this sets the default device to D1
+
+MB &76AF : port &F3, with B zero so the loop below runs 256 times.  The port is not named in ref/samrom or anywhere else in this project
+
+MB &76B4 : a delay of twenty, counted down to nothing, between writing the port and reading it back
+
+MB &76BC : zero is the answer if any read differs from what was written, and &76CA stores it
+
+MB &76C8 : &D0 if all 256 matched and DOS_V4222 was clear.  What the value means is not settled; the loop above is a write-and-read-back test and this is what it records on success
 MB &7686 : clear &4AED-&4AFF, nineteen bytes of workspace in the system page

@@ -17826,7 +17826,8 @@ RELOCATED_TO_46CC_10:
 
 INSTALLER:
                LD HL,TRACE_SAVED_LMPR          ; 75E1 21 68 40
-               LD B,&4A                        ; 75E4 06 4A
+               LD B,&4A                        ; 75E4 06 4A  &4A bytes from TRACE_SAVED_LMPR, so &4068 to &40B1 is
+                                               ; zeroed before anything runs
 
 ; ---- INSTALLER_LOOP ---- from &75E7 when B is not 0 yet
 INSTALLER_LOOP:
@@ -17860,21 +17861,29 @@ INSTALLER_LOOP:
                INC A                           ; 7648 3C
                AND PAGEMASK                    ; 7649 E6 1F
                LD (V4064),A                    ; 764B 32 64 40
-               LD (&7C2D),A                    ; 764E 32 2D 7C
+               LD (&7C2D),A                    ; 764E 32 2D 7C  MasterBASIC's own page number, planted in the LD A at
+                                               ; &7C2C. That instruction is inside the &7BA4 block and runs at &48D5
+                                               ; once installed, where it has to page this half back in and cannot know
+                                               ; the number by assembling it
                CALL INSTALL_SYSPAGE_CODE       ; 7651 CD 9F 7A
                CALL INSTALL_ROM_PATCHES        ; 7654 CD 00 7B
-               LD HL,&7C00                     ; 7657 21 00 7C
+               LD HL,&7C00                     ; 7657 21 00 7C  &7C00, and LD B,L below takes the count from the low
+                                               ; byte -- zero, so the DJNZ runs the full 256 and the fill covers
+                                               ; &7C00-&7CFF
                LD B,L                          ; 765A 45
 
 ; ---- INSTALLER_LOOP2 ---- from &765E when B is not 0 yet
 INSTALLER_LOOP2:
-               LD (HL),&0D                     ; 765B 36 0D
+               LD (HL),&0D                     ; 765B 36 0D  &0D is what a post-boot dump finds through that whole page,
+                                               ; and it is why SAVE BOOT's first block opens with nine of them where the
+                                               ; shipped image has its header
                INC HL                          ; 765D 23
                DJNZ INSTALLER_LOOP2            ; 765E 10 FB
                LD A,SYSPAGE_IN_B               ; 7660 3E 1F
                OUT (LMPR),A                    ; 7662 D3 FA
                LD HL,DOS_SVHDR                 ; 7664 21 0A 81
-               LD B,&DA                        ; 7667 06 DA
+               LD B,&DA                        ; 7667 06 DA  &DA bytes zeroed from DOS_SVHDR, the DOS page's own &410A
+                                               ; upward
                XOR A                           ; 7669 AF
 
 ; ---- INSTALLER_LOOP3 ---- from &766C when B is not 0 yet
@@ -17892,25 +17901,34 @@ INSTALLER_LOOP3:
                LD H,&51                        ; 767F 26 51  &60 in ALLOCT marks this page as DOS's -- the table is at
                                                ; &5100
                LD L,A                          ; 7681 6F
-               LD (HL),&60                     ; 7682 36 60
-               LD B,&13                        ; 7684 06 13
+               LD (HL),&60                     ; 7682 36 60  &60 is "used by DOS" in the manual's list of ALLOCT values,
+                                               ; and the entry is this page's own
+               LD B,&13                        ; 7684 06 13  nineteen bytes, &4AED to &4AFF
                LD HL,SYS_DH_STATE              ; 7686 21 ED 4A  clear &4AED-&4AFF, nineteen bytes of workspace in the
                                                ; system page
 
 ; ---- INSTALLER_LOOP4 ---- from &768C when B is not 0 yet
 INSTALLER_LOOP4:
-               LD (HL),&00                     ; 7689 36 00
+               LD (HL),&00                     ; 7689 36 00  the nineteen bytes of workspace above
                INC HL                          ; 768B 23
                DJNZ INSTALLER_LOOP4            ; 768C 10 FB
                POP HL                          ; 768E E1
                LD SP,(DOS_STACK_ON_ENTRY)      ; 768F ED 7B F9 80
-               LD (HL),&30                     ; 7693 36 30
+               LD (HL),&30                     ; 7693 36 30  &30 into the byte HL addresses. The boot sector builds that
+                                               ; pointer as ALLOCT plus a page number -- LD HL,ALLOCT +
+                                               ; MAX_INTERNAL_PAGE at DOS &4015, then LD L,A from HMPR at &402A -- so
+                                               ; this is a page's allocation entry. The manual's list of values gives
+                                               ; &20 for a utilities page, &40 for the first BASIC program and &60 for
+                                               ; DOS, and does not name &30
                LD A,L                          ; 7695 7D
                DEC A                           ; 7696 3D
-               LD (&82CD),A                    ; 7697 32 CD 82
-               LD HL,&0144                     ; 769A 21 44 01
+               LD (&82CD),A                    ; 7697 32 CD 82  L less one, into the DOS page's &42CD.
+                                               ; SAVE_BLOCK_FROM_DOS_PAGE reads that byte back and adds the one again,
+                                               ; so whichever page L holds here is the page it puts in the window
+               LD HL,&0144                     ; 769A 21 44 01  &44 and &01 -- PSLD is two bytes, DEVL then DEVN, so
+                                               ; this sets the default device to D1
                LD (PSLD),HL                    ; 769D 22 06 5A
-               LD A,&0D                        ; 76A0 3E 0D
+               LD A,&0D                        ; 76A0 3E 0D  &0D, the code the two KTAB entries below are given
                LD (&59E8),A                    ; 76A2 32 E8 59  KTAB entry 264 gets &0D -- &59E8 less the &58E0 base --
                                                ; and the map is 276 entries, which the Technical Manual gives as "69
                                                ; keys and 4 shift states"
@@ -17918,12 +17936,14 @@ INSTALLER_LOOP4:
                XOR A                           ; 76A8 AF
                LD (DOS_SAMCNT),A               ; 76A9 32 34 82
                LD (DOSCNT),A                   ; 76AC 32 C3 5B
-               LD BC,&00F3                     ; 76AF 01 F3 00
+               LD BC,&00F3                     ; 76AF 01 F3 00  port &F3, with B zero so the loop below runs 256 times.
+                                               ; The port is not named in ref/samrom or anywhere else in this project
 
 ; ---- INSTALLER_LOOP5 ---- from &76C0 when B is not 0 yet
 INSTALLER_LOOP5:
                OUT (C),B                       ; 76B2 ED 41
-               LD A,&14                        ; 76B4 3E 14
+               LD A,&14                        ; 76B4 3E 14  a delay of twenty, counted down to nothing, between writing
+                                               ; the port and reading it back
 
 ; ---- INSTALLER_LOOP6 ---- from &76B7 when A is not 0 yet
 INSTALLER_LOOP6:
@@ -17931,13 +17951,16 @@ INSTALLER_LOOP6:
                JR NZ,INSTALLER_LOOP6           ; 76B7 20 FD
                IN A,(C)                        ; 76B9 ED 78
                CP B                            ; 76BB B8
-               LD A,&00                        ; 76BC 3E 00
+               LD A,&00                        ; 76BC 3E 00  zero is the answer if any read differs from what was
+                                               ; written, and &76CA stores it
                JR NZ,INSTALLER_1               ; 76BE 20 0A
                DJNZ INSTALLER_LOOP5            ; 76C0 10 F0
                LD A,(DOS_V4222)                ; 76C2 3A 22 82
                AND A                           ; 76C5 A7
                JR NZ,INSTALLER_2               ; 76C6 20 05
-               LD A,&D0                        ; 76C8 3E D0
+               LD A,&D0                        ; 76C8 3E D0  &D0 if all 256 matched and DOS_V4222 was clear. What the
+                                               ; value means is not settled; the loop above is a write-and-read-back
+                                               ; test and this is what it records on success
 
 ; ---- INSTALLER_1 ---- from &76BE when A <> B
 INSTALLER_1:
