@@ -2,6 +2,28 @@
 
 MB &7C51 DISPATCH_ON_COMMAND_TOKEN
 
+MB &7C52 value T_SAVE
+MB &7C55 value T_PUT
+MB &7C5A value T_MODE
+MB &7C5E value T_SOUND
+MB &7C62 value T_PAUSE
+MB &7C66 value T_DEF_KEYCODE
+MB &7C6A value T_KEYIN
+MB &7C6E value T_POKE
+MB &7C72 value T_CSIZE
+MB &7C76 value T_BLOCKS
+MB &7C7A value T_DELETE
+MB &7C7E value T_EDIT
+MB &7C82 value T_CLEAR
+MB &7C86 value T_RUN
+MB &7C8A value T_OPEN
+MB &7C8E value FN_PFX
+
+MB &7C8E : not a statement token at all -- the statement range stops at &FD -- but the prefix a function token follows.  HOOK_TOKENARG, which the RST below reaches, takes the next character and subtracts &26, and &26 to &83 is exactly the function range
+
+MB &7C9B value T_CLEAR
+MB &7C9B : SOUND CLEAR is the form MasterBASIC wants; a plain SOUND is the ROM's and is let through.  CMD_SOUND makes the same test again once the command runs
+
 DOC DISPATCH_ON_COMMAND_TOKEN
     Switch on a command token in H, for the commands MasterBASIC has
     something to add to.

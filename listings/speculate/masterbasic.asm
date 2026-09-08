@@ -28798,6 +28798,8 @@ RELOCATED_TO_484D_3:
 ;; Takes:     H
 ;; Leaves:    A, F, HL
 ;;
+;; ? tests for T_SAVE, T_PUT, T_MODE, T_SOUND, T_PAUSE; falls into whatever follows rather than returning.
+;;
 ;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Switch on a command token in H, for the commands MasterBASIC has
@@ -28834,39 +28836,43 @@ RELOCATED_TO_484D_3:
 ; ---- DISPATCH_ON_COMMAND_TOKEN ---- from &7C20 when A = 0, &7C27 when bit 7 was clear, &7C38 when no bit of &05 is set
 DISPATCH_ON_COMMAND_TOKEN:
                LD A,H                               ; 7C51 7C  dispatch on the command token in H
-               CP &94                               ; 7C52 FE 94
+               CP T_SAVE                            ; 7C52 FE 94
                RET C                                ; 7C54 D8
-               CP &AC                               ; 7C55 FE AC  the operand below is PUTSWA's target: &AC for our PUT,
+               CP T_PUT                             ; 7C55 FE AC  the operand below is PUTSWA's target: &AC for our PUT,
                                                     ; 0 for the ROM's
                JP Z,SYS_TOKEN_TO_FN_INDEX           ; 7C57 CA A2 45  PUT goes to the extended PUT this half installed at
                                                     ; &45A2
-               CP &AA                               ; 7C5A FE AA
+               CP T_MODE                            ; 7C5A FE AA
                JR Z,CALLBACK_HCMDV                  ; 7C5C 28 48
-               CP &AE                               ; 7C5E FE AE
+               CP T_SOUND                           ; 7C5E FE AE
                JR Z,DISPATCH_ON_COMMAND_TOKEN_1     ; 7C60 28 33
-               CP &C2                               ; 7C62 FE C2
+               CP T_PAUSE                           ; 7C62 FE C2
                JR Z,DISPATCH_ON_COMMAND_TOKEN_2     ; 7C64 28 3A
-               CP &C9                               ; 7C66 FE C9
+               CP T_DEF_KEYCODE                     ; 7C66 FE C9
                JR Z,CALLBACK_HCMDV                  ; 7C68 28 3C
-               CP &D1                               ; 7C6A FE D1
+               CP T_KEYIN                           ; 7C6A FE D1
                JR Z,CALLBACK_HCMDV                  ; 7C6C 28 38
-               CP &E1                               ; 7C6E FE E1
+               CP T_POKE                            ; 7C6E FE E1
                JR Z,CALLBACK_HCMDV                  ; 7C70 28 34
-               CP &A8                               ; 7C72 FE A8
+               CP T_CSIZE                           ; 7C72 FE A8
                JR Z,DISPATCH_ON_COMMAND_TOKEN_DONE  ; 7C74 28 34
-               CP &A9                               ; 7C76 FE A9
+               CP T_BLOCKS                          ; 7C76 FE A9
                JR Z,DISPATCH_ON_COMMAND_TOKEN_DONE2 ; 7C78 28 34
-               CP &CD                               ; 7C7A FE CD
+               CP T_DELETE                          ; 7C7A FE CD
                JR Z,DISPATCH_ON_COMMAND_TOKEN_DONE3 ; 7C7C 28 37
-               CP &FD                               ; 7C7E FE FD
+               CP T_EDIT                            ; 7C7E FE FD
                JR Z,DISPATCH_ON_COMMAND_TOKEN_3     ; 7C80 28 30
-               CP &B3                               ; 7C82 FE B3
+               CP T_CLEAR                           ; 7C82 FE B3
                JR Z,DISPATCH_ON_COMMAND_TOKEN_4     ; 7C84 28 34
-               CP &B0                               ; 7C86 FE B0
+               CP T_RUN                             ; 7C86 FE B0
                JR Z,DISPATCH_ON_COMMAND_TOKEN_4     ; 7C88 28 30
-               CP &98                               ; 7C8A FE 98
+               CP T_OPEN                            ; 7C8A FE 98
                JR C,CALLBACK_HCMDV                  ; 7C8C 38 18
-               CP &FF                               ; 7C8E FE FF
+               CP FN_PFX                            ; 7C8E FE FF  not a statement token at all -- the statement range
+                                                    ; stops at &FD -- but the prefix a function token follows.
+                                                    ; HOOK_TOKENARG, which the RST below reaches, takes the next
+                                                    ; character and subtracts &26, and &26 to &83 is exactly the
+                                                    ; function range
                RET NZ                               ; 7C90 C0
                POP HL                               ; 7C91 E1
                RST ERR_HOOK                         ; 7C92 CF
@@ -28878,15 +28884,19 @@ DISPATCH_ON_COMMAND_TOKEN:
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F, C, HL
+;;
+;; ? tests for T_CLEAR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- DISPATCH_ON_COMMAND_TOKEN_1 ---- from &7C60 when A = &AE
+; ---- DISPATCH_ON_COMMAND_TOKEN_1 ---- from &7C60 when A = T_SOUND
 DISPATCH_ON_COMMAND_TOKEN_1:
                LD HL,(CHAD)                    ; 7C95 2A 97 5A
                INC HL                          ; 7C98 23
                LD C,A                          ; 7C99 4F
                LD A,(HL)                       ; 7C9A 7E
-               CP &B3                          ; 7C9B FE B3
+               CP T_CLEAR                      ; 7C9B FE B3  SOUND CLEAR is the form MasterBASIC wants; a plain SOUND is
+                                               ; the ROM's and is let through. CMD_SOUND makes the same test again once
+                                               ; the command runs
                LD A,C                          ; 7C9D 79
                JR Z,CALLBACK_HCMDV             ; 7C9E 28 06
 
@@ -28897,7 +28907,7 @@ DISPATCH_ON_COMMAND_TOKEN_1:
 ;; Leaves:    F, HL
 ;; --------------------------------------------------------------------
 
-; ---- DISPATCH_ON_COMMAND_TOKEN_2 ---- from &7C64 when A = &C2
+; ---- DISPATCH_ON_COMMAND_TOKEN_2 ---- from &7C64 when A = T_PAUSE
 DISPATCH_ON_COMMAND_TOKEN_2:
                LD HL,(SYS_RECORD_STATE)        ; 7CA0 2A F4 4A
                INC L                           ; 7CA3 2C
@@ -28918,8 +28928,8 @@ DISPATCH_ON_COMMAND_TOKEN_2:
 ;;     cannot be called directly, so RST &08 is the only way home.
 ;; --------------------------------------------------------------------
 
-; ---- CALLBACK_HCMDV ---- from &7C5C when A = &AA, &7C68 when A = &C9, &7C6C when A = &D1, &7C70 when A = &E1, &7C8C
-; when A < &98, &7C9E when A = &B3
+; ---- CALLBACK_HCMDV ---- from &7C5C when A = T_MODE, &7C68 when A = T_DEF_KEYCODE, &7C6C when A = T_KEYIN, &7C70 when
+; A = T_POKE, &7C8C when A < T_OPEN, &7C9E when A = T_CLEAR
 CALLBACK_HCMDV:
                POP HL                          ; 7CA6 E1
                RST ERR_HOOK                    ; 7CA7 CF
@@ -28933,7 +28943,7 @@ CALLBACK_HCMDV:
 ;; Leaves:    HL
 ;; --------------------------------------------------------------------
 
-; ---- DISPATCH_ON_COMMAND_TOKEN_DONE ---- from &7C74 when A = &A8
+; ---- DISPATCH_ON_COMMAND_TOKEN_DONE ---- from &7C74 when A = T_CSIZE
 DISPATCH_ON_COMMAND_TOKEN_DONE:
                POP HL                          ; 7CAA E1
                RST ERR_HOOK                    ; 7CAB CF
@@ -28947,7 +28957,7 @@ DISPATCH_ON_COMMAND_TOKEN_DONE:
 ;; Leaves:    HL
 ;; --------------------------------------------------------------------
 
-; ---- DISPATCH_ON_COMMAND_TOKEN_DONE2 ---- from &7C78 when A = &A9
+; ---- DISPATCH_ON_COMMAND_TOKEN_DONE2 ---- from &7C78 when A = T_BLOCKS
 DISPATCH_ON_COMMAND_TOKEN_DONE2:
                POP HL                          ; 7CAE E1
                RST ERR_HOOK                    ; 7CAF CF
@@ -28961,7 +28971,7 @@ DISPATCH_ON_COMMAND_TOKEN_DONE2:
 ;; Leaves:    HL
 ;; --------------------------------------------------------------------
 
-; ---- DISPATCH_ON_COMMAND_TOKEN_3 ---- from &7C80 when A = &FD
+; ---- DISPATCH_ON_COMMAND_TOKEN_3 ---- from &7C80 when A = T_EDIT
 DISPATCH_ON_COMMAND_TOKEN_3:
                POP HL                          ; 7CB2 E1
                RST ERR_HOOK                    ; 7CB3 CF
@@ -28974,7 +28984,7 @@ DISPATCH_ON_COMMAND_TOKEN_3:
 ;; Leaves:    registers unchanged
 ;; --------------------------------------------------------------------
 
-; ---- DISPATCH_ON_COMMAND_TOKEN_DONE3 ---- from &7C7C when A = &CD
+; ---- DISPATCH_ON_COMMAND_TOKEN_DONE3 ---- from &7C7C when A = T_DELETE
 DISPATCH_ON_COMMAND_TOKEN_DONE3:
                RST ERR_HOOK                    ; 7CB5 CF
                DEFB HKC_SKIPNAME               ; 7CB6 B2 hook code
@@ -28988,7 +28998,7 @@ DISPATCH_ON_COMMAND_TOKEN_DONE3:
 ;; Leaves:    HL
 ;; --------------------------------------------------------------------
 
-; ---- DISPATCH_ON_COMMAND_TOKEN_4 ---- from &7C84 when A = &B3, &7C88 when A = &B0
+; ---- DISPATCH_ON_COMMAND_TOKEN_4 ---- from &7C84 when A = T_CLEAR, &7C88 when A = T_RUN
 DISPATCH_ON_COMMAND_TOKEN_4:
                POP HL                          ; 7CBA E1
                RST ERR_HOOK                    ; 7CBB CF
