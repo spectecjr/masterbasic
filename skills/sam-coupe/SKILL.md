@@ -40,9 +40,55 @@ bare number.
 
 Other ports: `&F9` STAT (read: status, key rows, interrupt flags;
 write: line interrupt), `&F8` CLUT base (16 write-only registers),
-`&FE` keyboard / border, `&FF` sound, `&FD` MIDI, `&E8` printer,
-`&E0`-`&E7` the disc controller (command, track, sector, data; two
-drives, two sides), `&80` external memory low.
+`&FE` keyboard / border, `&FF` sound, `&FD` MIDI, `&80` external memory
+low.
+
+**The disc controller is two ranges, not one.**  Drive 1 is `&E0`-`&E7`
+and **drive 2 is `&F0`-`&F7`** -- base plus an offset of 0 to 7, where
+0-3 are side 1 and 4-7 side 2:
+
+| offset | read | write |
+|---|---|---|
+| 0 / 4 | status | command |
+| 1 / 5 | track | track |
+| 2 / 6 | sector | sector |
+| 3 / 7 | data | data |
+
+So `&F3` is drive 2's data register, and writing every value to it and
+reading each back is a presence test for the second controller -- a
+1772 that is fitted latches the byte and absent hardware does not
+round-trip.
+
+## Expansion hardware, and the port it addresses through the high byte
+
+Two add-ons put themselves in the gap between the disc ranges, at
+`&E8`-`&EF`, and both are worth knowing because code that drives them
+looks like nothing else on the machine.
+
+**The Comms Interface** (`Comms Interface Manual.pdf`).  Serial is an
+SCC2691, jumpered by CON 4 to one of four addresses -- `&EC` COM1
+(default), `&ED` COM2, `&EE` COM3, `&EF` COM4 -- or disabled.  Parallel
+is CON 5: `&E8`,`&E9` for LPT1, `&EA`,`&EB` for LPT2.  **There is no
+fixed address**, so a driver reads the one it was told; MasterBASIC
+keeps it in an XVAR and defaults to `&EC`.
+
+**The SAMBUS real-time clock** (`SAM Bus Extension (with RTC).pdf`), an
+OKI M6242B, at `&EF`.  Thirteen registers, 0 to 12: units and tens of
+second, minute, hour (tens carries AM/PM), day, month and year, then the
+day of the week.  Each returns a BCD digit in the **low nibble** and the
+manual says to "mask off the upper four bits", which is why a reader of
+it ends in `AND &0F`.
+
+**Both take the register number in the *upper* byte of the port
+address**, which is what `OUT (C),r` and `IN A,(C)` put on the top half
+of the address bus.  So `LD BC,&50EF : IN A,(C)` is "read the clock's
+tens-of-hour", and a loop that walks B while C stays put is walking a
+register file, not writing one port repeatedly.  Recognising that idiom
+is what tells this hardware apart from the machine's own ports, which
+decode the low byte alone.
+
+`&EF` is claimed twice over -- COM4 and the clock -- so a machine with
+both wants the serial port jumpered elsewhere.
 
 ## ROM
 

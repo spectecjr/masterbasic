@@ -24,8 +24,14 @@ from memory of what I intended rather than from the file, twice.  Three
 of the four faults in the magic-number counter flattered its own
 figure, and not one was visible to a green build -- the byte-identity
 gate proves everything about the bytes and nothing about whether a
-measurement means what it claims.  Expect to make these mistakes rather
-than expecting to be above them.
+measurement means what it claims.  I have twice written a confident
+negative about what this repository contains without listing the
+directory first -- "the port is named nowhere this project can reach"
+while `ref/sam-coupe-technical-manual/` held the port map that named it,
+and a whole `skills/` tree I did not know was there.  **Before recording
+that something is absent, look.**  A negative is a claim like any other
+and costs one `ls`.  Expect to make these mistakes rather than expecting
+to be above them.
 
 **Who you are working with.**  Simon Cooke owns this project and reads
 the output closely.  They challenge specific claims with a reason
