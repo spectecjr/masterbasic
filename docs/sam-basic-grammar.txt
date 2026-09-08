@@ -791,13 +791,19 @@ begins with none of these is a procedure call:
 : ref/samrom/list.asm LIST (LLIST shares it with C=3)
 
 @ BF DUMP
-= 'DUMP' , [ 'INVERSE' ] , [ numexpr , [ ',' , numexpr ] ]
+= 'DUMP' , [ 'INVERSE' ] , [ numexpr , [ ',' , numexpr ] ]  -- MasterBASIC
+= 'DUMP'                                     -- ROM alone: graphics dump
+= 'DUMP' , 'CHR$'                            -- ROM alone: text dump
 + 1 to 3 are the shaded dumps, 4 unshaded, 5 text.  The first number is
 + the width magnification and the second the height, defaulting to the
-+ width.  MasterBASIC's handler is at &67F0.  Under the ROM alone &BF is
-+ pointed at COPY's routine, so it takes COPY's arguments -- nothing, or
-+ 'CHR$' -- and none of the numbers above.
-: ref/samrom/text.asm CMDADT (DUMP -> COPY); docs/masterbasic-manual.md
++ width.  MasterBASIC's handler is at &67F0.
++ THE LAST TWO FORMS ARE DUMP'S AND NOT COPY'S.  CMDADT points &BF at
++ the routine the ROM's own source calls COPY -- the Spectrum's name for
++ a screen dump -- so the keyword that reaches it is DUMP.  &CF, spelt
++ COPY, is NONSENSE under the ROM alone.  The manual agrees: DUMP 4 and
++ DUMP 5 are "essentially the same as DUMP and DUMP CHR$".
+: ref/samrom/text.asm CMDADT (DW COPY ;DUMP BF, DW NONSENSE ;COPY CF)
+: ref/samrom/scrfn.asm COPY, GRCOPY; docs/masterbasic-manual.md
 
 @ C0 FOR
 = 'FOR' , numvar , '=' , numexpr , 'TO' , numexpr , [ 'STEP' , numexpr ]
@@ -912,12 +918,14 @@ begins with none of these is a procedure call:
 : docs/masterbasic-manual.md "Searching the program"
 
 @ CF COPY
-= 'COPY'                                     -- text screen to printer
-= 'COPY' , 'CHR$'                            -- text dump
 = 'COPY' , [ 'OVER' ] , filename , 'TO' , filename        -- MasterDOS
 = 'COPY' , [ 'OVER' ] , filename , ',' , filename         -- MasterBASIC
 = 'COPY' , 'SCREEN' , numexpr , 'TO' , numexpr            -- MasterBASIC
-: ref/samrom/scrfn.asm COPY, GRCOPY; ref/masterdos/docs/commands.md COPY
++ Every form here comes from MasterDOS or MasterBASIC: CMDADT gives &CF
++ NONSENSE, so bare COPY is an error under the ROM alone.  The ROM's
++ screen dump is DUMP, &BF, and the two forms that used to be listed
++ here belong to it.
+: ref/masterdos/docs/commands.md COPY; MB &6C96 CMD_COPY_SCREEN
 
 @ D1 KEYIN
 = 'KEYIN' , strexpr
