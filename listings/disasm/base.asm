@@ -55,6 +55,7 @@ T_DEF_KEYCODE:                  EQU  &C9
 T_DELETE:                       EQU  &CD
 T_EDIT:                         EQU  &FD
 T_KEYIN:                        EQU  &D1
+T_LINE:                         EQU  &8C
 T_OPEN:                         EQU  &98
 T_PAUSE:                        EQU  &C2
 T_POKE:                         EQU  &E1
@@ -122,7 +123,8 @@ HKC_HGTTK:                      EQU  &AB                                 ; Hook 
 HKC_HKLEN:                      EQU  &AC                                 ; Hook 172 -- evaluate a function. (see HKLEN)
 HKC_HCMDV:                      EQU  &AD                                 ; Hook 173 -- dispatch one of MasterBASIC's
                                                                          ; commands. (see HCMDV)
-HKC_RCPTCH:                     EQU  &AE                                 ; see HOOK_RCPTCH
+HKC_RCPTCH:                     EQU  &AE                                 ; Hook 174, the slot MasterDOS calls RCPTCH.
+                                                                         ; (see HOOK_RCPTCH)
 HKC_MERGECOMPFLG:               EQU  &AF                                 ; Hook code 175, and the label is right only
                                                                          ; for its first twenty-seven bytes. (see
                                                                          ; HOOK_MERGECOMPFLG)
