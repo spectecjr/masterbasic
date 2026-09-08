@@ -165,6 +165,75 @@ MB &6B42 DUMP_UNSHADED
     current PAPER colour comes out white, and anything else comes out
     black", and points at the User's Guide for the SVARs that size it.
 
+    THE FOUR SVARS ARE DPVARS, which INSTALL_SYSPAGE_CODE copies to
+    &5A12 at BOOT and the manual gives as "Length, Width, Width
+    multiplier, Height multiplier for DUMP 4".  So &5A13, &5A14 and
+    &5A15 are ROM_DPVARS+1, +2 and +3, and the 29 bytes that go to
+    &5A12 put GCM1 at &5A16, GCM2 at &5A1F, GCM3 at &5A27 and DMPTL at
+    &5A2D -- 4 + 9 + 8 + 6 + 2, which is where those four equates come
+    from.
+
+    THE TWO BYTES SENT AT &6B7C AND &6B80 FINISH GCM2.  It ends
+    ESC "*" 4, the Epson bit-image command, whose next two bytes are
+    the dot count low byte first -- which is why nothing separates the
+    string from these two RSTs.  The count is the column count times
+    eight, and &6B75 does that in eight bits by rotating rather than
+    shifting, so the bits that overflow come round into the bottom
+    three: AND &F8 is then the low byte and AND &07 the high one.
+
+    THE WIDTH MULTIPLIER IS COUNTED TWO DIFFERENT WAYS.  &6B71 adds two
+    to it and rotates that many times, which multiplies the column
+    count by 2^(n+2); &6BCF loads the same byte as a repeat count,
+    which multiplies it by 8n.  Those agree at 1 and at 2 and nowhere
+    else, so a wider setting would declare more dots in the header than
+    the loop then sends.  The height multiplier is never read as a
+    number at all -- &6B53, &6BAB and &6BF3 only ask whether it is 1.
+
+    EIGHT SCREEN BYTES BECOME EIGHT PRINTER BYTES.  RRC (HL) : RLA at
+    &6BC2, over eight rows and eight times over, transposes the 8x8
+    square into the vertical columns of dots a bit-image printer wants.
+    The results are pushed and come back off in &6BCF's loop.
+
+MB &6B42 : stream &FB is -5, which the ROM's fixed table gives as channel "B" -- SENDA, "SEND BYTE IN A TO PRINTER", and no translation of any kind.  DUMP 5 asks for stream 3 at &6B02 and gets channel P instead; a bit image must not have its bytes touched
+
+MB &6B50 expr ROM_DPVARS+3
+MB &6B50 : the height multiplier.  One means eight screen rows to a bit-image line and the length stands as it is; anything else means four, so twice as many lines are needed to cover the same screen
+
+MB &6B65 : &02 is MODE 3, the one mode with 512 pixel columns, so the width doubles for it and for nothing else
+
+MB &6B67 expr ROM_DPVARS+1
+MB &6B67 : the width, counted in groups of eight pixels -- the usual 32 of them is the 256 columns the other three modes have
+
+MB &6B6E expr ROM_DPVARS+2
+
+MB &6B71 : two more than the multiplier, which is three rotates at the usual setting of one and turns the column count into the dot count
+
+MB &6B7A : the low byte of the dot count.  Its bottom three bits are zero because the count is a multiple of eight, and that is what lets one rotate stand in for a sixteen-bit shift
+
+MB &6B7E : the high byte -- the three bits the rotate carried round into the bottom
+
+MB &6B86 : &02 again, telling a bitmap source from a packed one.  MODE 1 and MODE 2 are read a byte at a time by the loop below; MODE 3 and MODE 4 go through the ROM's GRCOMP, which is what compares them against M23PAPP and so decides what counts as paper
+
+MB &6B99 : eight pixel rows, one screen byte apiece, which is the height of a printer's bit-image column
+
+MB &6BA8 expr ROM_DPVARS+3
+
+MB &6BAE expr INSTBUF+&136
+MB &6BAE : the first byte past the block, and still inside INSTBUF -- CMD_DUMP_4 copies &0136 bytes to &4F00, and the buffer is &200 long, so &5036 is room the copy did not reach.  Sixteen bytes are written here and only the first eight read back, which is four screen rows doubled
+
+MB &6BB2 : eight bytes in and sixteen out
+
+MB &6BBD : eight printer bytes to build
+
+MB &6BBF : eight screen bytes to take one bit from apiece
+
+MB &6BCD : the eight results, popped back off in the order the stack returns them
+
+MB &6BCF expr ROM_DPVARS+2
+MB &6BCF : the width multiplier, now as a repeat count -- each byte goes to the printer this many times, which is the whole of the horizontal stretch
+
+MB &6BE2 : &02 once more, this time for how far eight pixels reach: one byte in MODE 1 and MODE 2, two in MODE 3's four pixels to a byte, four in MODE 4's two
+
 MB &6DD8 SCREEN_NUMBER_ARGUMENT
     A screen number, 1 to 16, and its SCLIST entry.
 

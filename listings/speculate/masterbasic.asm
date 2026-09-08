@@ -21892,15 +21892,49 @@ DUMP_TEXT_1:
 ;;     The manual calls it "an unshaded dump in which anything which is the
 ;;     current PAPER colour comes out white, and anything else comes out
 ;;     black", and points at the User's Guide for the SVARs that size it.
+;;
+;;     THE FOUR SVARS ARE DPVARS, which INSTALL_SYSPAGE_CODE copies to
+;;     &5A12 at BOOT and the manual gives as "Length, Width, Width
+;;     multiplier, Height multiplier for DUMP 4".  So &5A13, &5A14 and
+;;     &5A15 are ROM_DPVARS+1, +2 and +3, and the 29 bytes that go to
+;;     &5A12 put GCM1 at &5A16, GCM2 at &5A1F, GCM3 at &5A27 and DMPTL at
+;;     &5A2D -- 4 + 9 + 8 + 6 + 2, which is where those four equates come
+;;     from.
+;;
+;;     THE TWO BYTES SENT AT &6B7C AND &6B80 FINISH GCM2.  It ends
+;;     ESC "*" 4, the Epson bit-image command, whose next two bytes are
+;;     the dot count low byte first -- which is why nothing separates the
+;;     string from these two RSTs.  The count is the column count times
+;;     eight, and &6B75 does that in eight bits by rotating rather than
+;;     shifting, so the bits that overflow come round into the bottom
+;;     three: AND &F8 is then the low byte and AND &07 the high one.
+;;
+;;     THE WIDTH MULTIPLIER IS COUNTED TWO DIFFERENT WAYS.  &6B71 adds two
+;;     to it and rotates that many times, which multiplies the column
+;;     count by 2^(n+2); &6BCF loads the same byte as a repeat count,
+;;     which multiplies it by 8n.  Those agree at 1 and at 2 and nowhere
+;;     else, so a wider setting would declare more dots in the header than
+;;     the loop then sends.  The height multiplier is never read as a
+;;     number at all -- &6B53, &6BAB and &6BF3 only ask whether it is 1.
+;;
+;;     EIGHT SCREEN BYTES BECOME EIGHT PRINTER BYTES.  RRC (HL) : RLA at
+;;     &6BC2, over eight rows and eight times over, transposes the 8x8
+;;     square into the vertical columns of dots a bit-image printer wants.
+;;     The results are pushed and come back off in &6BCF's loop.
 ;; --------------------------------------------------------------------
 
 DUMP_UNSHADED:
-               LD A,&FB                        ; 6B42 3E FB
+               LD A,&FB                        ; 6B42 3E FB  stream &FB is -5, which the ROM's fixed table gives as
+                                               ; channel "B" -- SENDA, "SEND BYTE IN A TO PRINTER", and no translation
+                                               ; of any kind. DUMP 5 asks for stream 3 at &6B02 and gets channel P
+                                               ; instead; a bit image must not have its bytes touched
                CALL STREAM                     ; 6B44 CD 12 01
                LD DE,GCM1                      ; 6B47 11 16 5A
                CALL &500B                      ; 6B4A CD 0B 50  &500B once this block is moved, not the label shown
                LD HL,(ROM_DMPTL)               ; 6B4D 2A 2D 5A
-               LD A,(&5A15)                    ; 6B50 3A 15 5A
+               LD A,(ROM_DPVARS+3)             ; 6B50 3A 15 5A  the height multiplier. One means eight screen rows to a
+                                               ; bit-image line and the length stands as it is; anything else means
+                                               ; four, so twice as many lines are needed to cover the same screen
                DEC A                           ; 6B53 3D
                LD A,(ROM_DPVARS)               ; 6B54 3A 12 5A
                JR Z,DUMP_UNSHADED_1            ; 6B57 28 01
@@ -21920,8 +21954,10 @@ DUMP_UNSHADED_1:
                LD DE,GCM2                      ; 6B5C 11 1F 5A
                CALL &500B                      ; 6B5F CD 0B 50  &500B once this block is moved, not the label shown
                LD A,(MODE)                     ; 6B62 3A 40 5A
-               CP &02                          ; 6B65 FE 02
-               LD A,(&5A13)                    ; 6B67 3A 13 5A
+               CP &02                          ; 6B65 FE 02  &02 is MODE 3, the one mode with 512 pixel columns, so the
+                                               ; width doubles for it and for nothing else
+               LD A,(ROM_DPVARS+1)             ; 6B67 3A 13 5A  the width, counted in groups of eight pixels -- the
+                                               ; usual 32 of them is the 256 columns the other three modes have
                JR NZ,DUMP_UNSHADED_2           ; 6B6A 20 01
                ADD A,A                         ; 6B6C 87
 
@@ -21935,8 +21971,9 @@ DUMP_UNSHADED_1:
 ; ---- DUMP_UNSHADED_2 ---- from &6B6A when A <> &02
 DUMP_UNSHADED_2:
                LD B,A                          ; 6B6D 47
-               LD A,(&5A14)                    ; 6B6E 3A 14 5A
-               ADD A,&02                       ; 6B71 C6 02
+               LD A,(ROM_DPVARS+2)             ; 6B6E 3A 14 5A
+               ADD A,&02                       ; 6B71 C6 02  two more than the multiplier, which is three rotates at the
+                                               ; usual setting of one and turns the column count into the dot count
                LD D,A                          ; 6B73 57
                LD A,B                          ; 6B74 78
 
@@ -21953,10 +21990,13 @@ DUMP_UNSHADED_LOOP:
                DEC D                           ; 6B76 15
                JR NZ,DUMP_UNSHADED_LOOP        ; 6B77 20 FC
                PUSH AF                         ; 6B79 F5
-               AND &F8                         ; 6B7A E6 F8
+               AND &F8                         ; 6B7A E6 F8  the low byte of the dot count. Its bottom three bits are
+                                               ; zero because the count is a multiple of eight, and that is what lets
+                                               ; one rotate stand in for a sixteen-bit shift
                RST PRINT_A                     ; 6B7C D7
                POP AF                          ; 6B7D F1
-               AND &07                         ; 6B7E E6 07
+               AND &07                         ; 6B7E E6 07  the high byte -- the three bits the rotate carried round
+                                               ; into the bottom
                RST PRINT_A                     ; 6B80 D7
 
 ;; --------------------------------------------------------------------
@@ -21973,7 +22013,10 @@ DUMP_UNSHADED_LOOP2:
                PUSH BC                         ; 6B81 C5
                PUSH HL                         ; 6B82 E5
                LD A,(MODE)                     ; 6B83 3A 40 5A
-               CP &02                          ; 6B86 FE 02
+               CP &02                          ; 6B86 FE 02  &02 again, telling a bitmap source from a packed one. MODE
+                                               ; 1 and MODE 2 are read a byte at a time by the loop below; MODE 3 and
+                                               ; MODE 4 go through the ROM's GRCOMP, which is what compares them against
+                                               ; M23PAPP and so decides what counts as paper
                JR C,DUMP_UNSHADED_3            ; 6B88 38 0C
                                                ; to the alternate register set and back again
                EXX                             ; 6B8A D9
@@ -21992,7 +22035,8 @@ DUMP_UNSHADED_LOOP2:
 ; ---- DUMP_UNSHADED_3 ---- from &6B88 when A < &02
 DUMP_UNSHADED_3:
                LD DE,SCRNBUF                   ; 6B96 11 88 51
-               LD B,&08                        ; 6B99 06 08
+               LD B,&08                        ; 6B99 06 08  eight pixel rows, one screen byte apiece, which is the
+                                               ; height of a printer's bit-image column
 
 ;; --------------------------------------------------------------------
 ;; DUMP_UNSHADED_LOOP3 -- &6B9B to &6BA4
@@ -22019,12 +22063,15 @@ DUMP_UNSHADED_LOOP3:
 ; ---- DUMP_UNSHADED_4 ---- from &6B94
 DUMP_UNSHADED_4:
                LD HL,SCRNBUF                   ; 6BA5 21 88 51
-               LD A,(&5A15)                    ; 6BA8 3A 15 5A
+               LD A,(ROM_DPVARS+3)             ; 6BA8 3A 15 5A
                DEC A                           ; 6BAB 3D
                JR Z,DUMP_UNSHADED_5            ; 6BAC 28 0F
-               LD DE,&5036                     ; 6BAE 11 36 50
+               LD DE,INSTBUF+&136              ; 6BAE 11 36 50  the first byte past the block, and still inside INSTBUF
+                                               ; -- CMD_DUMP_4 copies &0136 bytes to &4F00, and the buffer is &200 long,
+                                               ; so &5036 is room the copy did not reach. Sixteen bytes are written here
+                                               ; and only the first eight read back, which is four screen rows doubled
                PUSH DE                         ; 6BB1 D5
-               LD B,&08                        ; 6BB2 06 08
+               LD B,&08                        ; 6BB2 06 08  eight bytes in and sixteen out
 
 ;; --------------------------------------------------------------------
 ;; DUMP_UNSHADED_LOOP4 -- &6BB4 to &6BBC
@@ -22053,7 +22100,7 @@ DUMP_UNSHADED_LOOP4:
 
 ; ---- DUMP_UNSHADED_5 ---- from &6BAC when A reaches 0
 DUMP_UNSHADED_5:
-               LD C,&08                        ; 6BBD 0E 08
+               LD C,&08                        ; 6BBD 0E 08  eight printer bytes to build
 
 ;; --------------------------------------------------------------------
 ;; DUMP_UNSHADED_LOOP5 -- &6BBF to &6BC1
@@ -22064,7 +22111,7 @@ DUMP_UNSHADED_5:
 
 ; ---- DUMP_UNSHADED_LOOP5 ---- from &6BCB when C is not 0 yet
 DUMP_UNSHADED_LOOP5:
-               LD B,&08                        ; 6BBF 06 08
+               LD B,&08                        ; 6BBF 06 08  eight screen bytes to take one bit from apiece
                PUSH HL                         ; 6BC1 E5
 
 ;; --------------------------------------------------------------------
@@ -22084,7 +22131,8 @@ DUMP_UNSHADED_LOOP6:
                PUSH AF                         ; 6BC9 F5
                DEC C                           ; 6BCA 0D
                JR NZ,DUMP_UNSHADED_LOOP5       ; 6BCB 20 F2
-               LD B,&08                        ; 6BCD 06 08
+               LD B,&08                        ; 6BCD 06 08  the eight results, popped back off in the order the stack
+                                               ; returns them
 
 ;; --------------------------------------------------------------------
 ;; DUMP_UNSHADED_LOOP7 -- &6BCF to &6BD4
@@ -22095,7 +22143,9 @@ DUMP_UNSHADED_LOOP6:
 
 ; ---- DUMP_UNSHADED_LOOP7 ---- from &6BDA when B is not 0 yet
 DUMP_UNSHADED_LOOP7:
-               LD A,(&5A14)                    ; 6BCF 3A 14 5A
+               LD A,(ROM_DPVARS+2)             ; 6BCF 3A 14 5A  the width multiplier, now as a repeat count -- each byte
+                                               ; goes to the printer this many times, which is the whole of the
+                                               ; horizontal stretch
                LD H,A                          ; 6BD2 67
                POP AF                          ; 6BD3 F1
                LD L,A                          ; 6BD4 6F
@@ -22118,7 +22168,9 @@ DUMP_UNSHADED_LOOP8:
                POP BC                          ; 6BDD C1
                INC HL                          ; 6BDE 23
                LD A,(MODE)                     ; 6BDF 3A 40 5A
-               CP &02                          ; 6BE2 FE 02
+               CP &02                          ; 6BE2 FE 02  &02 once more, this time for how far eight pixels reach:
+                                               ; one byte in MODE 1 and MODE 2, two in MODE 3's four pixels to a byte,
+                                               ; four in MODE 4's two
                JR C,DUMP_UNSHADED_6            ; 6BE4 38 05
                INC HL                          ; 6BE6 23
                JR Z,DUMP_UNSHADED_6            ; 6BE7 28 02
@@ -22136,13 +22188,14 @@ DUMP_UNSHADED_LOOP8:
 DUMP_UNSHADED_6:
                DJNZ DUMP_UNSHADED_LOOP2        ; 6BEB 10 94
                POP HL                          ; 6BED E1
-               LD A,(&5A15)                    ; 6BEE 3A 15 5A  the height multiplier. One means eight screen rows to a
+               LD A,(ROM_DPVARS+3)             ; 6BEE 3A 15 5A  the height multiplier. One means eight screen rows to a
                                                ; bit-image line; anything else means four, each doubled out of SCRNBUF
                                                ; into &5036 by the loop at &6BB4
-               LD B,&08                        ; 6BF1 06 08
+               LD B,&08                        ; 6BF1 06 08  eight pixel rows down to the next bit-image line
                DEC A                           ; 6BF3 3D
                JR Z,DUMP_UNSHADED_LOOP9        ; 6BF4 28 02
-               LD B,&04                        ; 6BF6 06 04
+               LD B,&04                        ; 6BF6 06 04  four instead, because the multiplier has doubled each of
+                                               ; them on the way out
 
 ;; --------------------------------------------------------------------
 ;; DUMP_UNSHADED_LOOP9 -- &6BF8 to &6C00

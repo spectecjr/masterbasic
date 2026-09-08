@@ -5,7 +5,12 @@
 # system page: &6AF9 plus &0136 is &6C2F, so MODE1_PIXEL_AND_ATTR is the
 # first instruction after it and everything above runs where it lies.
 
+MB &6BEE expr ROM_DPVARS+3
 MB &6BEE : the height multiplier.  One means eight screen rows to a bit-image line; anything else means four, each doubled out of SCRNBUF into &5036 by the loop at &6BB4
+
+MB &6BF1 : eight pixel rows down to the next bit-image line
+
+MB &6BF6 : four instead, because the multiplier has doubled each of them on the way out
 
 MB &6BF8 : &5015 is &115 bytes into the moved block, which is &6C0E here -- the routine that steps HL to the next pixel row
 
