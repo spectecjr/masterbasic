@@ -17566,7 +17566,9 @@ BUILD_PROC_INDEX_1:
 RELOCATED_TO_46CC:
                LD A,B                          ; 7460 78  from here to &75E0 this code is written for &46CC: subtract
                                                ; &2D94 from any address in it
-               AND A                           ; 7461 A7
+               AND A                           ; 7461 A7  is B zero? It is the length's high byte, so anything else
+                                               ; means 256 bytes or more and the JR NZ takes it -- only a shorter move
+                                               ; falls through to the SHORT_MOVE_LIMIT test below
                JR NZ,RELOCATED_TO_46CC_1       ; 7462 20 06
                LD A,C                          ; 7464 79
                CP SHORT_MOVE_LIMIT             ; 7465 FE 15

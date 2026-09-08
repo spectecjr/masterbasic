@@ -9,6 +9,8 @@
 CONST SHORT_MOVE_LIMIT = &15 : below this many bytes the ROM's own mover is quicker than the paging this one has to do
 CONST SECTION_D = &C000 : where section D begins; a move that reaches it has to change the paging rather than walk on
 
+MB &7461 : is B zero?  It is the length's high byte, so anything else means 256 bytes or more and the JR NZ takes it -- only a shorter move falls through to the SHORT_MOVE_LIMIT test below
+
 MB &7465 value SHORT_MOVE_LIMIT
 MB &749F : the high byte alone, so this is "has the move reached section D"
 MB &74A6 expr SECTION_D + 1
