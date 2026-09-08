@@ -19544,7 +19544,10 @@ DISPATCH_ON_COMMAND_TOKEN:
                                                ; &26 to &83 is exactly the function range
                RET NZ                          ; 7C90 C0
                POP HL                          ; 7C91 E1
-               RST ERR_HOOK                    ; 7C92 CF
+               RST ERR_HOOK                    ; 7C92 CF  hook 177, HOOK_TOKENARG at &52FD: it takes the character after
+                                               ; the function prefix and dispatches on it, which is how the argument of
+                                               ; one of MasterBASIC's own functions gets read. Anything it does not know
+                                               ; reports "Not understood"
                DEFB HKC_TOKENARG               ; 7C93 B1 hook code
                RET                             ; 7C94 C9
 
@@ -19601,33 +19604,42 @@ INTERCEPT_IF_RECORDING:
 ; A = T_POKE, &7C8C when A < T_OPEN, &7C9E when A = T_CLEAR
 CALLBACK_HCMDV:
                POP HL                          ; 7CA6 E1
-               RST ERR_HOOK                    ; 7CA7 CF
+               RST ERR_HOOK                    ; 7CA7 CF  hook 173, HCMDV at &4E96 -- the same dispatcher the ROM's CMDV
+                                               ; points at, reached here for the commands that need no test beyond their
+                                               ; token
                DEFB HKC_HCMDV                  ; 7CA8 AD hook code
                RET                             ; 7CA9 C9
 
 ; ---- CALLBACK_CSIZE ---- from &7C74 when A = T_CSIZE
 CALLBACK_CSIZE:
                POP HL                          ; 7CAA E1
-               RST ERR_HOOK                    ; 7CAB CF
+               RST ERR_HOOK                    ; 7CAB CF  hook 155, HOOK_CSIZE at &6534: the manual's "Improved CSIZE",
+                                               ; which reads the arguments itself and then enters the ROM's own WIDTH
+                                               ; past the range checks it would otherwise fail
                DEFB HKC_CSIZE                  ; 7CAC 9B hook code
                RET                             ; 7CAD C9
 
 ; ---- CALLBACK_SWAPCHARS ---- from &7C78 when A = T_BLOCKS
 CALLBACK_SWAPCHARS:
                POP HL                          ; 7CAE E1
-               RST ERR_HOOK                    ; 7CAF CF
+               RST ERR_HOOK                    ; 7CAF CF  hook 156, HOOK_SWAPCHARS at &7159: BLOCKS 0, 1 or 2, which
+                                               ; picks the character set to swap in -- 1 being the one that changes
+                                               ; nothing
                DEFB HKC_SWAPCHARS              ; 7CB0 9C hook code
                RET                             ; 7CB1 C9
 
 ; ---- CALLBACK_COMADENT ---- from &7C80 when A = T_EDIT
 CALLBACK_COMADENT:
                POP HL                          ; 7CB2 E1
-               RST ERR_HOOK                    ; 7CB3 CF
+               RST ERR_HOOK                    ; 7CB3 CF  hook 183, HOOK_COMADENT at &6F3E: finds an entry through
+                                               ; COMAD. There is no RET after it -- EDIT raises this hook and then falls
+                                               ; into the one below
                DEFB HKC_COMADENT               ; 7CB4 B7 hook code
 
 ; ---- CALLBACK_SKIPNAME ---- from &7C7C when A = T_DELETE
 CALLBACK_SKIPNAME:
-               RST ERR_HOOK                    ; 7CB5 CF
+               RST ERR_HOOK                    ; 7CB5 CF  hook 178, DELETE for strings and string arrays. The LD A below
+                                               ; leaves &CD in A, which is DELETE's own token
                DEFB HKC_SKIPNAME               ; 7CB6 B2 hook code
                LD A,&CD                        ; 7CB7 3E CD
                RET                             ; 7CB9 C9
@@ -19635,7 +19647,9 @@ CALLBACK_SKIPNAME:
 ; ---- CALLBACK_RCPTCH ---- from &7C84 when A = T_CLEAR, &7C88 when A = T_RUN
 CALLBACK_RCPTCH:
                POP HL                          ; 7CBA E1
-               RST ERR_HOOK                    ; 7CBB CF
+               RST ERR_HOOK                    ; 7CBB CF  hook 174, HOOK_RCPTCH at &51DD -- the slot MasterDOS calls
+                                               ; RCPTCH and MasterBASIC replaces. RUN and CLEAR both come here, and what
+                                               ; follows waits for the raster before switching screens
                DEFB HKC_RCPTCH                 ; 7CBC AE hook code
                BIT 0,C                         ; 7CBD CB 41
                JP NZ,ANYI                      ; 7CBF C2 49 00

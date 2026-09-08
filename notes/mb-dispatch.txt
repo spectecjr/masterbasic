@@ -21,6 +21,24 @@ MB &7CB2 CALLBACK_COMADENT
 MB &7CB5 CALLBACK_SKIPNAME
 MB &7CBA CALLBACK_RCPTCH
 
+# One line on each stub, saying what the hook it raises goes on to do.
+# Every one of them pops the ROM's return address first, so the hook
+# returns to the ROM's caller and not into the stub.
+
+MB &7C92 : hook 177, HOOK_TOKENARG at &52FD: it takes the character after the function prefix and dispatches on it, which is how the argument of one of MasterBASIC's own functions gets read.  Anything it does not know reports "Not understood"
+
+MB &7CA7 : hook 173, HCMDV at &4E96 -- the same dispatcher the ROM's CMDV points at, reached here for the commands that need no test beyond their token
+
+MB &7CAB : hook 155, HOOK_CSIZE at &6534: the manual's "Improved CSIZE", which reads the arguments itself and then enters the ROM's own WIDTH past the range checks it would otherwise fail
+
+MB &7CAF : hook 156, HOOK_SWAPCHARS at &7159: BLOCKS 0, 1 or 2, which picks the character set to swap in -- 1 being the one that changes nothing
+
+MB &7CB3 : hook 183, HOOK_COMADENT at &6F3E: finds an entry through COMAD.  There is no RET after it -- EDIT raises this hook and then falls into the one below
+
+MB &7CB5 : hook 178, DELETE for strings and string arrays.  The LD A below leaves &CD in A, which is DELETE's own token
+
+MB &7CBB : hook 174, HOOK_RCPTCH at &51DD -- the slot MasterDOS calls RCPTCH and MasterBASIC replaces.  RUN and CLEAR both come here, and what follows waits for the raster before switching screens
+
 MB &7C95 INTERCEPT_SOUND_CLEAR
     SOUND is worth intercepting only when CLEAR follows it, which is the
     buffer command the manual documents; a plain SOUND is the ROM's.
