@@ -166,6 +166,31 @@ DOC DISPATCH_ON_COMMAND_TOKEN
 # is why the manual says PALETTE will act unpredictably while ALTER
 # DISPLAY is running.
 
+MB &54E1 : &0049 is ANYI, the ROM's own frame-interrupt entry, so ALTER DISPLAY OFF hands the interrupt straight back to it
+
+MB &54E4 : zero into ALTDISP_TOP and ALTDISP_BOTTOM, which go out as one word
+
+MB &54E7 : &FF into LINICOLS, no split line
+
+MB &54FA : and &FF into &5604, which ends the palette list after its first entry
+
+MB &5505 value T_TO
+MB &550D value T_LINE
+
+MB &551A : screen numbers run 1 to 16, so the DEC A above brings them to 0 to 15 and this refuses anything past the end -- the same bound SCREEN_NUMBER_ARGUMENT applies
+
+MB &5523 : and the second screen number the same way
+
+MB &552A : &4966 is the split-display interrupt handler as it sits in the system page, which is &7CBD here.  Writing it into ANYIV is the whole of turning the split on
+
+MB &5532 value T_TO
+
+MB &553C : the logical drive, 1 to 7
+
+MB &5544 : and the real drive it is to mean
+
+MB &5551 : &80 is how PARSE_REFERENCE_INTO_BUFFER is told this is ALTER's call rather than REF's or PRINT REF's -- see the comment at &5778
+
 MB &7CBD : C is the STATUS byte the ROM read at &003A on its way here, and bit 0 is the line interrupt, active low
 
 MB &7CBF : not the line interrupt, so none of this applies -- give the whole interrupt back to the ROM

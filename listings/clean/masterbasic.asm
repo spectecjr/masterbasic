@@ -7305,9 +7305,11 @@ CMD_ALTER:
                JR NZ,CMD_ALTER_1               ; 54DB 20 25
                CALL CALL_NEXTCHAR              ; 54DD CD 61 44
                DI                              ; 54E0 F3
-               LD BC,&0049                     ; 54E1 01 49 00
-               LD HL,&0000                     ; 54E4 21 00 00
-               LD A,&FF                        ; 54E7 3E FF
+               LD BC,&0049                     ; 54E1 01 49 00  &0049 is ANYI, the ROM's own frame-interrupt entry, so
+                                               ; ALTER DISPLAY OFF hands the interrupt straight back to it
+               LD HL,&0000                     ; 54E4 21 00 00  zero into ALTDISP_TOP and ALTDISP_BOTTOM, which go out
+                                               ; as one word
+               LD A,&FF                        ; 54E7 3E FF  &FF into LINICOLS, no split line
                PUSH AF                         ; 54E9 F5
 
 ; ---- CMD_ALTER_LOOP ---- from &552D
@@ -7319,7 +7321,8 @@ CMD_ALTER_LOOP:
                POP AF                          ; 54F4 F1
                CALL MBNRWR                     ; 54F5 CD 82 45
                DEFW LINICOLS                   ; 54F8 00 56
-               LD A,&FF                        ; 54FA 3E FF
+               LD A,&FF                        ; 54FA 3E FF  and &FF into &5604, which ends the palette list after its
+                                               ; first entry
                CALL MBNRWR                     ; 54FC CD 82 45
                DEFW &5604                      ; 54FF 04 56
                RET                             ; 5501 C9
@@ -7327,43 +7330,47 @@ CMD_ALTER_LOOP:
 ; ---- CMD_ALTER_1 ---- from &54DB when A <> T_OFF
 CMD_ALTER_1:
                CALL CALL_EXPNUM                ; 5502 CD 85 44
-               LD C,&8E                        ; 5505 0E 8E
+               LD C,T_TO                       ; 5505 0E 8E
                CALL CHAR_MUST_BE_C             ; 5507 CD 5D 44
                CALL CALL_EXPNUM                ; 550A CD 85 44
-               LD C,&8C                        ; 550D 0E 8C
+               LD C,T_LINE                     ; 550D 0E 8C
                CALL CHAR_THEN_NUMBER_THEN_END  ; 550F CD C5 44
                CALL BYTE_ARGUMENT              ; 5512 CD A1 43
                PUSH AF                         ; 5515 F5
                CALL BYTE_ARGUMENT              ; 5516 CD A1 43
                DEC A                           ; 5519 3D
-               CP &10                          ; 551A FE 10
+               CP &10                          ; 551A FE 10  screen numbers run 1 to 16, so the DEC A above brings them
+                                               ; to 0 to 15 and this refuses anything past the end -- the same bound
+                                               ; SCREEN_NUMBER_ARGUMENT applies
                JR NC,CMD_ALTER_FAIL            ; 551C 30 07
                PUSH BC                         ; 551E C5
                CALL BYTE_ARGUMENT              ; 551F CD A1 43
                DEC A                           ; 5522 3D
-               CP &10                          ; 5523 FE 10
+               CP &10                          ; 5523 FE 10  and the second screen number the same way
 
 ; ---- CMD_ALTER_FAIL ---- from &551C when A >= &10
 CMD_ALTER_FAIL:
                JP NC,REP_INTEGER_OUT_OF_RANGE  ; 5525 D2 A7 43
                POP BC                          ; 5528 C1
                LD H,C                          ; 5529 61
-               LD BC,&4966                     ; 552A 01 66 49
+               LD BC,&4966                     ; 552A 01 66 49  &4966 is the split-display interrupt handler as it sits
+                                               ; in the system page, which is &7CBD here. Writing it into ANYIV is the
+                                               ; whole of turning the split on
                JR CMD_ALTER_LOOP               ; 552D 18 BB
 
 ; ---- CMD_ALTER_2 ---- from &54CF when A = T_DEVICE
 CMD_ALTER_2:
                CALL SKIP_THEN_NUMBER           ; 552F CD 82 44
-               LD C,&8E                        ; 5532 0E 8E
+               LD C,T_TO                       ; 5532 0E 8E
                CALL CHAR_THEN_NUMBER_THEN_END  ; 5534 CD C5 44
                CALL BYTE_ARGUMENT              ; 5537 CD A1 43
                PUSH AF                         ; 553A F5
                DEC A                           ; 553B 3D
-               CP &07                          ; 553C FE 07
+               CP &07                          ; 553C FE 07  the logical drive, 1 to 7
                JR NC,CMD_ALTER_FAIL2           ; 553E 30 06
                CALL BYTE_ARGUMENT              ; 5540 CD A1 43
                DEC A                           ; 5543 3D
-               CP &07                          ; 5544 FE 07
+               CP &07                          ; 5544 FE 07  and the real drive it is to mean
 
 ; ---- CMD_ALTER_FAIL2 ---- from &553E when A >= &07
 CMD_ALTER_FAIL2:
@@ -7375,7 +7382,9 @@ CMD_ALTER_FAIL2:
 
 ; ---- CMD_ALTER_3 ---- from &54D3 when A <> T_DISPLAY
 CMD_ALTER_3:
-               LD D,&80                         ; 5551 16 80
+               LD D,&80                         ; 5551 16 80  &80 is how PARSE_REFERENCE_INTO_BUFFER is told this is
+                                                ; ALTER's call rather than REF's or PRINT REF's -- see the comment at
+                                                ; &5778
                CALL PARSE_REFERENCE_INTO_BUFFER ; 5553 CD 78 57
                CALL CALL_GETCHAR                ; 5556 CD 67 44
                CP T_TO                          ; 5559 FE 8E
