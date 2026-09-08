@@ -20196,12 +20196,16 @@ INSTALL_ROM_PATCHES_3:
                CALL &4A84                      ; 7DF0 CD 84 4A  the installer saves the ROM's transfer buffer here, and
                                                ; SAVE BOOT reads it back out as its third block -- which also carries
                                                ; the alternate character set at &7E64, see notes/mb-saveboot.txt
-               JP &0000                        ; 7DF3 C3 00 00
+               JP &0000                        ; 7DF3 C3 00 00  an operand in the block the boot overwrites -- see
+                                               ; above; nothing fills it and nothing runs it
                DEFB &22,&9E,&4B,&E1            ; 7DF6 ".Ka  reads as LD (&4B9E),HL, and nothing the trace can follow
                                                ; reaches it
-               CALL &0000                      ; 7DFA CD 00 00
-               LD HL,(&4B9E)                   ; 7DFD 2A 9E 4B
-               JP &0000                        ; 7E00 C3 00 00
+               CALL &0000                      ; 7DFA CD 00 00  the same, and not the DOS &7DFA that evidence item 3
+                                               ; answers
+               LD HL,(&4B9E)                   ; 7DFD 2A 9E 4B  &4B9E is a system-page address, two below the &4BA0 that
+                                               ; &7B3F fills with the 36 bytes from &7B80 -- but this copy of the
+                                               ; instruction is overwritten before it could use it
+               JP &0000                        ; 7E00 C3 00 00  the last of the three, on the same footing
 
 ; ---- HOOK_SETUPREGS_1 ---- from &7214
 HOOK_SETUPREGS_1:

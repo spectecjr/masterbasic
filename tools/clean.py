@@ -35,7 +35,6 @@ counts what is left, and build.sh prints it, so the gap is visible
 instead of implied.
 """
 
-import bisect
 import os
 import re
 
@@ -407,6 +406,13 @@ def bare_by_routine(d):
     """
     names = set(d.labels.values())
 
+    def parent(name):
+        """The routine a PARENT_suffix label belongs to, or None."""
+        for i in range(len(name) - 1, 0, -1):
+            if name[i] == '_' and name[:i] in names:
+                return name[:i]
+        return None
+
     def internal(name):
         # PARENT_LOOP, PARENT_3: a label another label owns.
         for i in range(len(name) - 1, 0, -1):
@@ -422,17 +428,26 @@ def bare_by_routine(d):
         # label that is not a routine at the top of the worst list.
         return bool(SYNTHETIC.match(name))
 
-    heads = sorted(a for a, nm in d.labels.items() if not internal(nm))
-    if not heads:
-        return []
+    # Walk in address order and follow each label to the routine that owns
+    # it, rather than to the nearest head below.  THIS CODE INTERLEAVES:
+    # forty-six routines have another routine's internal label inside them
+    # -- CMD_PAUSE and SILENCE_SOUND_CHIP alternate, the three
+    # SAVE_BLOCK_FROM_* entries share one body, CMD_TIME's tail sits inside
+    # WAIT_FOR_CLOCK -- because routines here share tails and fall into one
+    # another.  Attributing by position gave that shared code to whichever
+    # head happened to lie above it, which credited 60 sites to the wrong
+    # routine and put COPY_THEN_APPEND_CALL second in the queue on fifteen
+    # of them.  Following the label's own parent conserves the total and
+    # only moves it to where it belongs.
+    owner = None
     counts, totals = {}, {}
     for a, ins in sorted(d.insns.items()):
-        if not d.inside(a) or not ins.asm:
+        nm = d.labels.get(a)
+        if nm is not None and not SYNTHETIC.match(nm):
+            owner = parent(nm) or nm
+        if not d.inside(a) or not ins.asm or owner is None:
             continue
-        i = bisect.bisect_right(heads, a) - 1
-        if i < 0:
-            continue
-        head = d.labels[heads[i]]
+        head = owner
         totals[head] = totals.get(head, 0) + 1
         text = d.overrides.get(a, ins.text)
         if (BARE.search(text)

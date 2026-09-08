@@ -61,23 +61,47 @@ def outstanding(arg, comment, mnemonic=''):
     return bool(BARE.search(arg)) and not comment and not _has_name(arg)
 
 
-def routine(lines, name):
-    """(start, end) line indices of the routine called `name`."""
-    start = next((i for i, l in enumerate(lines) if l.startswith(name + ':')), None)
-    if start is None:
+def owned(lines, name):
+    """Line indices belonging to `name`, in address order.
+
+    NOT A RANGE.  This code interleaves -- CMD_PAUSE and
+    SILENCE_SOUND_CHIP alternate, the three SAVE_BLOCK_FROM_* entries
+    share one body, CMD_TIME's tail sits inside WAIT_FOR_CLOCK -- so a
+    routine is the lines its own labels govern and not a run between two
+    addresses.  Taking a run was what made this view disagree with the
+    build, by fifteen sites on COPY_THEN_APPEND_CALL alone.
+    """
+    labs = {m.group(1) for l in lines for m in [LABEL.match(l)] if m}
+    if name not in labs:
         raise SystemExit('no label %s in this listing' % name)
-    for i in range(start + 1, len(lines)):
-        m = LABEL.match(lines[i])
-        if m and not m.group(1).startswith(name + '_') and not SYNTHETIC.match(m.group(1)):
-            return start, i
-    return start, len(lines)
+
+    def parent(n):
+        for i in range(len(n) - 1, 0, -1):
+            if n[i] == '_' and n[:i] in labs:
+                return n[:i]
+        return None
+
+    out, owner = [], None
+    for i, l in enumerate(lines):
+        m = LABEL.match(l)
+        if m:
+            n = m.group(1)
+            if not SYNTHETIC.match(n):
+                owner = parent(n) or n
+        if owner == name:
+            out.append(i)
+    return out
 
 
 def show(half, name):
     lines = listing(half)
-    start, end = routine(lines, name)
-    count = 0
-    for l in lines[start:end]:
+    idx = owned(lines, name)
+    count, prev = 0, None
+    for i in idx:
+        if prev is not None and i != prev + 1:
+            print('      ... %d lines belonging to another routine' % (i - prev - 1))
+        prev = i
+        l = lines[i]
         m = INSN.match(l)
         if not m:
             print('      ' + l[:110])
@@ -88,7 +112,7 @@ def show(half, name):
             flag = '>>'
             count += 1
         print('%s    %s' % (flag, l[:110]))
-    print('\n%s %s: %d outstanding, %d lines' % (half, name, count, end - start))
+    print('\n%s %s: %d outstanding, %d lines' % (half, name, count, len(idx)))
 
 
 def queue(half):
@@ -98,17 +122,25 @@ def queue(half):
              for m in [LABEL.match(l)] if m]
     names = {n for _, n in heads}
 
-    def internal(n):
-        if SYNTHETIC.match(n):
-            return True
-        return any(n[i] == '_' and n[:i] in names
-                   for i in range(len(n) - 1, 0, -1))
+    def parent(n):
+        for i in range(len(n) - 1, 0, -1):
+            if n[i] == '_' and n[:i] in names:
+                return n[:i]
+        return None
 
+    # The same rule as clean.py's bare_by_routine: follow the label to the
+    # routine that owns it.  This code interleaves -- CMD_PAUSE and
+    # SILENCE_SOUND_CHIP alternate, the SAVE_BLOCK_FROM_* entries share a
+    # body -- so the nearest head above an instruction is often not its
+    # routine at all.  The two must agree; that they once did not is how
+    # the interleaving was noticed.
     owner, counts, totals = None, {}, {}
     for i, l in enumerate(lines):
         m = LABEL.match(l)
-        if m and not internal(m.group(1)):
-            owner = m.group(1)
+        if m:
+            n = m.group(1)
+            if not SYNTHETIC.match(n):
+                owner = parent(n) or n
             continue
         m = INSN.match(l)
         if not m or owner is None:

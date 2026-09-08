@@ -110,6 +110,23 @@ MB &7B11 : &4000 here is the window offset -- CHANS is a system variable in the 
 # The middle two can be checked against listings/*/postinstall-syspage.asm,
 # which has the same bytes at the same addresses.
 
+# &7DF3 to &7E00 are inside the 446 bytes the LDIR at &7B5C overwrites.
+# INSTALL_ROM_PATCHES copies the ROM's own INSTBUF from &8F00 down over
+# &7DF0-&7FAD, so whatever the image holds at these four addresses is
+# replaced before anything can execute it, and nothing in the image
+# patches the &0000 operands either.  They are not resolvable and are
+# not meant to be.  (The &7DFA in evidence item 3 is a different address
+# in the same digits: that one is DOS &7DFA, where INSTALLER's copy runs
+# at &7C00 plus &1FA.)
+
+MB &7DF3 : an operand in the block the boot overwrites -- see above; nothing fills it and nothing runs it
+
+MB &7DFA : the same, and not the DOS &7DFA that evidence item 3 answers
+
+MB &7DFD : &4B9E is a system-page address, two below the &4BA0 that &7B3F fills with the 36 bytes from &7B80 -- but this copy of the instruction is overwritten before it could use it
+
+MB &7E00 : the last of the three, on the same footing
+
 MB &7B15 : &49F7 is where &7D4E lands once the &7BA4 block reaches &484D -- the stub that tests a character for &16 and &17, AT and TAB.  The two channel words below and MNOP all get it
 
 MB &7B26 : nine bytes on, from the S channel's output word to the P channel's, over the rest of S's five-byte record and the whole of R's
