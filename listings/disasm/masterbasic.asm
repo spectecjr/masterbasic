@@ -18537,12 +18537,13 @@ INSTALLER_LOOP4:
                DJNZ INSTALLER_LOOP4            ; 768C 10 FB
                POP HL                          ; 768E E1
                LD SP,(DOS_V40F9)               ; 768F ED 7B F9 80
-               LD (HL),&30                     ; 7693 36 30  &30 into the byte HL addresses. The boot sector builds that
-                                               ; pointer as ALLOCT plus a page number -- LD HL,ALLOCT +
-                                               ; MAX_INTERNAL_PAGE at DOS &4015, then LD L,A from HMPR at &402A -- so
-                                               ; this is a page's allocation entry. The manual's list of values gives
-                                               ; &20 for a utilities page, &40 for the first BASIC program and &60 for
-                                               ; DOS, and does not name &30
+               LD (HL),&30                     ; 7693 36 30  &30 into MasterBASIC's own allocation entry. The boot
+                                               ; sector builds the pointer as ALLOCT plus a page number -- LD HL,ALLOCT
+                                               ; + MAX_INTERNAL_PAGE at DOS &4015, then LD L,A from HMPR at &402A -- and
+                                               ; dumps/SYSPAGE_after_MBMD_boot.bin shows where it lands: page 28 holds
+                                               ; &30 and page 29 &60, which are MasterBASIC's page and the DOS's. So
+                                               ; &7682 above marks the DOS page and this marks this half's. &30 is not
+                                               ; in the manual's list of values, which names &20, &40, &60, &C0 and &FF
                LD A,L                          ; 7695 7D
                DEC A                           ; 7696 3D
                LD (&82CD),A                    ; 7697 32 CD 82  L less one, into the DOS page's &42CD.

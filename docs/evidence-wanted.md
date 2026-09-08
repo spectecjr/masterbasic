@@ -4,9 +4,9 @@ What this project cannot settle by reading. Each entry says what to capture,
 why, and what it would decide — so that whoever has the hardware or the
 emulator can do it without reading the rest of the repository first. All five
 are answered, and are kept because the answers are worth more than the
-questions were. Items 7 and 8 are open, and are questions rather than
-captures: 8 in particular could be settled by anyone who can save a
-compressed screen and look at the directory entry.
+questions were. Items 7, 8, 11 and 12 are open: 8 could be settled by
+anyone who can save a compressed screen and look at the directory entry,
+and 12 by anyone who can capture a printer stream.
 
 ---
 
@@ -226,6 +226,8 @@ Three captures and a page of BASIC would close everything below.
 | **A directory entry read back after saving a compressed screen** | 8 | easy |
 | **Seven short BASIC tests**, 10a to 10g | seven of the nine defects that have never been run | easy — a machine and a few lines each |
 | *(10h, 10i and 10j want damaged discs or an unreachable stack, and are listed so nobody spends an afternoon on them)* | — | hard to impossible |
+| **A SAM port map covering `&F3`**, or a machine read back at `DOS &4222` | 11 | a reference, or easy |
+| **A printer stream from `POKE XVAR 33,3 : DUMP 4`** | 12 | easy — the same method as 6 |
 
 The Spectrum capture is the valuable one: it is the only thing that would
 settle where the NMI menu is entered from, and one of the defects below sits on
@@ -432,10 +434,72 @@ spends an afternoon on it.
 
 ---
 
+## 11. What port `&F3` is, and what the `&D0` records about it
+
+`INSTALLER` at `&76AF` writes all 256 values to port `&F3` one at a time,
+counts a `DEC A` loop down from twenty after each, reads the port back and
+compares. One mismatch leaves `&00`; all 256 matching leaves `&D0`. Either
+way the answer goes to `DOS_V4222`, and `&76C2` reads that first, so a value
+already there is not overwritten.
+
+The port is named nowhere this project can reach: not in `ref/samrom`, not in
+`listings/*/samhw.asm`, not in `skills/sam-coupe/`. Sweeping every value
+through a port and reading it back is how you test that something latches, so
+the shape of it says "is this present" without saying what.
+
+**What would settle it.** Any SAM port map covering `&F3` — the Technical
+Manual, or SimCoupe's port decoding. Failing that, boot a machine with and
+without whatever `&F3` belongs to and read `DOS &4222` back: `&D0` means the
+sweep round-tripped.
+
+**Why it is worth knowing.** `&D0` is the only value MasterBASIC ever records
+for it, so something later branches on a fact about the hardware that nothing
+in the image names.
+
+---
+
+## 12. Whether DUMP 4's width multiplier is meant to go above 2
+
+`DUMP_UNSHADED` reads the width multiplier — `DPVARS+2`, which is `XVAR 33` —
+twice, and treats it as two different kinds of number. `&6B71` adds two to it
+and rotates the column count that many times, multiplying by 2^(n+2); `&6BCF`
+loads the same byte as a repeat count and sends each byte that many times,
+multiplying by 8n. Those agree at 1 and at 2 and nowhere else.
+
+At 3, the `ESC "*"` header would declare 1024 dot columns while the loop sends
+768 of them. The manual defers to *The Coupé User's Guide* page 176 for what
+the four `DPVARS` bytes may be set to, and that page is not in `ref/`.
+
+**What would settle it, either way.**
+
+- That page of the User's Guide. If it gives the multiplier as 1 or 2, this is
+  a documented limit and not a defect.
+- Or a capture, by the method item 6 established: `POKE XVAR 33,3`, then
+  `DUMP 4` with the printer stream captured. **The prediction, written before
+  the capture:** on a 256-pixel-wide screen every bit-image line will open
+  `ESC "*" CHR$ 4` with a count of 1024, and carry 768 bytes of image data
+  after it. A stream where the two agree refutes the reading.
+
+Item 6 settled the `DUMP 1-3` magnification out of those same two count bytes
+with no printer and no photograph. Both of its captures used multipliers of 1
+and 2 — the one range where this disagreement cannot show.
+
+---
+
 ## Settled without new evidence
 
 Worth separating from the above, because the answer was already in the
 repository and only wanted reading:
+
+- **What `&30` means in `ALLOCT`.** `INSTALLER` writes `&60` into one page's
+  allocation entry at `&7682` and `&30` into another's at `&7693`, and the
+  manual's list of values — `00` unused, `20` utilities, `40` the first BASIC
+  program, `60` DOS, `C0` a screen, `FF` non-existent — does not name `&30`.
+  `dumps/SYSPAGE_after_MBMD_boot.bin` carries the table: pages 0 to 3 hold
+  `&40`, page 28 `&30`, page 29 `&60`, pages 30 and 31 `&C0`, and page 32
+  terminates it with `&FF`. Page 28 is MasterBASIC's and 29 the DOS's, so the
+  `&60` goes to the DOS page and `&30` is what MasterBASIC gives its own — a
+  value the manual does not document. See `notes/mb-syspatches.txt`.
 
 - **Which way `SVAL$`'s ordering runs.** Its calculator program at
   `MB &4182`-`&418A` writes `&EF` — `RST &28` — and then opcodes `&31` and
