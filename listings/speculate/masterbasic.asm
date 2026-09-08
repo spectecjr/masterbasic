@@ -9476,6 +9476,26 @@ OPEN_GAP_AT_LINE:
 ;;
 ;; ? reaches the ROM through SYS_RECORD_STATE; calls SKIP_THEN_TEST_RUNNING, MBNRWR; falls into whatever follows rather
 ;; than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Hook 174, the slot MasterDOS calls RCPTCH.  MasterDOS's own name for
+;;     it says which commands it serves and the table settles it: &51F1
+;;     takes COMAD plus &40, which is entry 32 and so token &B0, RUN; five
+;;     bytes further on is COMAD+&46, entry 35, token &B3, CLEAR.  Both
+;;     routines' addresses are read out of the ROM's own table with ROM 1
+;;     paged in, so neither has to be known when this is assembled.
+;;
+;;     IT COPIES WHICHEVER OF THE TWO LIES LOWER.  The SBC HL,BC at &520D
+;;     compares them and only the branch is different afterwards: RUN below
+;;     CLEAR copies &3F bytes from RUN, and otherwise &41 from CLEAR.  Two
+;;     return addresses are pushed either way, and they differ too -- &5000
+;;     under &500B on the first path, &5005 under &5000 on the second.  The
+;;     span has to reach both routines, so which one it starts from decides
+;;     how far it runs.
+;;
+;;     What comes back is an address, and the CP at &5266 picks it: CLEAR
+;;     keeps what was built and RUN takes DE instead.
 ;; --------------------------------------------------------------------
 
 HOOK_RCPTCH:
@@ -9500,7 +9520,8 @@ HOOK_RCPTCH:
 HOOK_RCPTCH_1:
                CALL MBNRRDD                    ; 51EC CD 5F 45
                DEFW COMAD                      ; 51EF DA 5B
-               LD HL,&0040                     ; 51F1 21 40 00
+               LD HL,&0040                     ; 51F1 21 40 00  COMAD plus &40 -- entry 32 of the ROM's command table,
+                                               ; which is token &B0, RUN
                ADD HL,BC                       ; 51F4 09
                IN A,(LMPR)                     ; 51F5 DB FA
                PUSH AF                         ; 51F7 F5
@@ -9509,7 +9530,9 @@ HOOK_RCPTCH_1:
                LD E,(HL)                       ; 51FC 5E
                INC HL                          ; 51FD 23
                LD D,(HL)                       ; 51FE 56
-               LD BC,&0005                     ; 51FF 01 05 00
+               LD BC,&0005                     ; 51FF 01 05 00  five on from RUN's high byte to CLEAR's low. &B3 is
+                                               ; three entries past &B0 and each entry is two bytes, so the step is six
+                                               ; less the one INC HL has already made
                ADD HL,BC                       ; 5202 09
                LD C,(HL)                       ; 5203 4E
                INC HL                          ; 5204 23
@@ -9528,7 +9551,8 @@ HOOK_RCPTCH_1:
                PUSH HL                         ; 5219 E5
                LD H,B                          ; 521A 60
                LD L,C                          ; 521B 69
-               LD BC,&0041                     ; 521C 01 41 00
+               LD BC,&0041                     ; 521C 01 41 00  &41 bytes, the span from CLEAR when CLEAR is the lower
+                                               ; of the two
                JR HOOK_RCPTCH_3                ; 521F 18 0A
 
 ;; --------------------------------------------------------------------
@@ -9540,11 +9564,13 @@ HOOK_RCPTCH_1:
 
 ; ---- HOOK_RCPTCH_2 ---- from &5210
 HOOK_RCPTCH_2:
-               LD BC,&500B                     ; 5221 01 0B 50
+               LD BC,&500B                     ; 5221 01 0B 50  &500B, pushed under the &5000 below it as the second
+                                               ; return address
                PUSH BC                         ; 5224 C5
-               LD C,&00                        ; 5225 0E 00
+               LD C,&00                        ; 5225 0E 00  and &5000, which is where the copy lands and so where
+                                               ; control goes first
                PUSH BC                         ; 5227 C5
-               LD BC,&003F                     ; 5228 01 3F 00
+               LD BC,&003F                     ; 5228 01 3F 00  &3F bytes, the span from RUN when RUN is the lower
 
 ;; --------------------------------------------------------------------
 ;; HOOK_RCPTCH_3 -- &522B to &523E
@@ -9557,13 +9583,15 @@ HOOK_RCPTCH_2:
 HOOK_RCPTCH_3:
                LD DE,DOS_V5000                 ; 522B 11 00 90
                LDIR                            ; 522E ED B0
-               LD C,&02                        ; 5230 0E 02
+               LD C,&02                        ; 5230 0E 02  two bytes more, unless the byte below is taken as well and
+                                               ; the DEC C makes it one
                LD A,(V4084)                    ; 5232 3A 84 40
                AND A                           ; 5235 A7
                JR Z,HOOK_RCPTCH_4              ; 5236 28 07
                LD A,(HL)                       ; 5238 7E
                INC HL                          ; 5239 23
-               ADD A,&03                       ; 523A C6 03
+               ADD A,&03                       ; 523A C6 03  three added to the byte just read, which is the operand
+                                               ; being fixed up rather than copied
                LD (DE),A                       ; 523C 12
                INC DE                          ; 523D 13
                DEC C                           ; 523E 0D
@@ -9574,7 +9602,7 @@ HOOK_RCPTCH_3:
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;;
-;; ? drives OUT (HMPR),A; calls BUILD_COMPILER; falls into whatever follows rather than returning.
+;; ? tests for T_CLEAR; drives OUT (HMPR),A; calls BUILD_COMPILER; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- HOOK_RCPTCH_4 ---- from &5236 when A = 0
@@ -9582,10 +9610,11 @@ HOOK_RCPTCH_4:
                LDIR                            ; 523F ED B0
                PUSH HL                         ; 5241 E5
                LD HL,V5272                     ; 5242 21 72 52
-               LD BC,&0004                     ; 5245 01 04 00
+               LD BC,&0004                     ; 5245 01 04 00  the four bytes at V5272, a CALL and a JP with the JP's
+                                               ; operand still to come
                LDIR                            ; 5248 ED B0
                POP HL                          ; 524A E1
-               LD C,&03                        ; 524B 0E 03
+               LD C,&03                        ; 524B 0E 03  three on, to the operand of that JP
                ADD HL,BC                       ; 524D 09
                EX DE,HL                        ; 524E EB
                LD (HL),E                       ; 524F 73
@@ -9594,14 +9623,16 @@ HOOK_RCPTCH_4:
                CALL BUILD_COMPILER             ; 5252 CD 5D 73
                XOR A                           ; 5255 AF
                LD (DOS_OFSM_1),A               ; 5256 32 2D 8D
-               LD A,&24                        ; 5259 3E 24
-               LD (&8D38),A                    ; 525B 32 38 8D
+               LD A,&24                        ; 5259 3E 24  &24 into the code buffer at &4D38, patching what
+                                               ; BUILD_COMPILER laid down two instructions earlier
+               LD (&8D38),A                    ; 525B 32 38 8D  &4D38 seen through the window
                LD A,(CHADP+&4000)              ; 525E 3A 96 9A
                OUT (HMPR),A                    ; 5261 D3 FB
                POP DE                          ; 5263 D1
                POP BC                          ; 5264 C1
                POP AF                          ; 5265 F1
-               CP &B3                          ; 5266 FE B3
+               CP T_CLEAR                      ; 5266 FE B3  the token that came in, so CLEAR leaves with what was built
+                                               ; and RUN with DE
                JR Z,HOOK_RCPTCH_5              ; 5268 28 02
                LD B,D                          ; 526A 42
                LD C,E                          ; 526B 4B
@@ -9614,7 +9645,7 @@ HOOK_RCPTCH_4:
 ;; Ends:      JP
 ;; --------------------------------------------------------------------
 
-; ---- HOOK_RCPTCH_5 ---- from &5268 when A = &B3, &531B
+; ---- HOOK_RCPTCH_5 ---- from &5268 when A = T_CLEAR, &531B
 HOOK_RCPTCH_5:
                LD HL,(V4076)                   ; 526C 2A 76 40
                JP MBWRTBC                      ; 526F C3 B3 45

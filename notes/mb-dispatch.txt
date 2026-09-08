@@ -166,6 +166,52 @@ DOC DISPATCH_ON_COMMAND_TOKEN
 # is why the manual says PALETTE will act unpredictably while ALTER
 # DISPLAY is running.
 
+MB &51DD HOOK_RCPTCH
+    Hook 174, the slot MasterDOS calls RCPTCH.  MasterDOS's own name for
+    it says which commands it serves and the table settles it: &51F1
+    takes COMAD plus &40, which is entry 32 and so token &B0, RUN; five
+    bytes further on is COMAD+&46, entry 35, token &B3, CLEAR.  Both
+    routines' addresses are read out of the ROM's own table with ROM 1
+    paged in, so neither has to be known when this is assembled.
+
+    IT COPIES WHICHEVER OF THE TWO LIES LOWER.  The SBC HL,BC at &520D
+    compares them and only the branch is different afterwards: RUN below
+    CLEAR copies &3F bytes from RUN, and otherwise &41 from CLEAR.  Two
+    return addresses are pushed either way, and they differ too -- &5000
+    under &500B on the first path, &5005 under &5000 on the second.  The
+    span has to reach both routines, so which one it starts from decides
+    how far it runs.
+
+    What comes back is an address, and the CP at &5266 picks it: CLEAR
+    keeps what was built and RUN takes DE instead.
+
+MB &51F1 : COMAD plus &40 -- entry 32 of the ROM's command table, which is token &B0, RUN
+
+MB &51FF : five on from RUN's high byte to CLEAR's low.  &B3 is three entries past &B0 and each entry is two bytes, so the step is six less the one INC HL has already made
+
+MB &521C : &41 bytes, the span from CLEAR when CLEAR is the lower of the two
+
+MB &5221 : &500B, pushed under the &5000 below it as the second return address
+
+MB &5225 : and &5000, which is where the copy lands and so where control goes first
+
+MB &5228 : &3F bytes, the span from RUN when RUN is the lower
+
+MB &5230 : two bytes more, unless the byte below is taken as well and the DEC C makes it one
+
+MB &523A : three added to the byte just read, which is the operand being fixed up rather than copied
+
+MB &5245 : the four bytes at V5272, a CALL and a JP with the JP's operand still to come
+
+MB &524B : three on, to the operand of that JP
+
+MB &5259 : &24 into the code buffer at &4D38, patching what BUILD_COMPILER laid down two instructions earlier
+
+MB &525B : &4D38 seen through the window
+
+MB &5266 value T_CLEAR
+MB &5266 : the token that came in, so CLEAR leaves with what was built and RUN with DE
+
 MB &54E1 : &0049 is ANYI, the ROM's own frame-interrupt entry, so ALTER DISPLAY OFF hands the interrupt straight back to it
 
 MB &54E4 : zero into ALTDISP_TOP and ALTDISP_BOTTOM, which go out as one word
