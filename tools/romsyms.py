@@ -172,6 +172,12 @@ class Symbols:
             self._add(self.data, value, name)
             self.vars.setdefault(value, name)
 
+    def from_spare_taken_by_mb(self):
+        """The ROM's spare bytes MasterBASIC claims for ALTER DISPLAY."""
+        for value, (name, _note) in SPARE_TAKEN_BY_MB.items():
+            self._add(self.data, value, name)
+            self.vars.setdefault(value, name)
+
     def from_rom_equates(self, path):
         """ROM equates, for the variable area the DOS page hides.
 
@@ -601,6 +607,23 @@ RESERVED_FOR_DUMP = {
 }
 
 
+# Two of the eight bytes vars.asm leaves as ";8 SPARE" between NLASTH at
+# &5C56 and ZIPLIB at &5C61.  The ROM never touches them, so its source
+# has no name to give; MasterBASIC takes them for ALTER DISPLAY and uses
+# them nowhere else.  Three references in the image and no more:
+# CMD_ALTER writes the pair as one word at &54F2, and the interrupt
+# handler reads one of them at each interrupt -- &7CC2 the bottom screen
+# when the raster reaches the split line, &7CE3 the top screen at the
+# start of a frame.  Both hold a screen number, indexing SCLIST as
+# &5C9F + screen; zero in ALTDISP_TOP is what ALTER DISPLAY OFF leaves.
+SPARE_TAKEN_BY_MB = {
+    0x5C5B: ('ALTDISP_TOP', 'ALTER DISPLAY: the screen shown from the top'
+                            ' of the frame, and zero when there is no split'),
+    0x5C5C: ('ALTDISP_BOTTOM', 'ALTER DISPLAY: the screen switched to at'
+                               ' the split line LINICOLS holds'),
+}
+
+
 EXTRA_NOTES = {
     'ROM_BORDCR': 'VALUE TO SEND TO BORDER PORT -- the ROM calls &5C4B'
                   ' BORDCOL, and BORDCR is a different variable at &5C48.'
@@ -651,6 +674,8 @@ EXTRA_NOTES = {
     'DELBC': 'ROM entry: a delay of BC iterations',
     'PRINT_A': 'ROM entry: print the character in A',
     'STRMS': FROM_MDOS_COMMENTS[0x5C16][1],
+    'ALTDISP_TOP': SPARE_TAKEN_BY_MB[0x5C5B][1],
+    'ALTDISP_BOTTOM': SPARE_TAKEN_BY_MB[0x5C5C][1],
     'RST8V': 'vector taken by RST &08 before the ROM handles it',
     'RST28V': 'vector taken by the calculator before each literal',
     'PRTOKV': 'vector for printing a keyword token',

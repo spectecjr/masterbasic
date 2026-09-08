@@ -44,8 +44,15 @@ CH_ZERO:                EQU  &30               ; ASCII "0", for digit conversion
 PAGEMASK:               EQU  &1F               ; the page number in LMPR and HMPR, bits 0 to 4
 UPPER:                  EQU  &DF               ; clearing bit 5 folds a letter to upper case
 
+; Ports
+LPEN:                   EQU  &F8               ; port &F8 on the way in, where the CLUT is on the way out. With 1 in A
+                                               ; the read is &01F8 instead, which is HPEN, the raster line
+
 ; Numbers named in notes/, each for one instruction
 ; where the same value means something else elsewhere.
+ANYI_EXIT:              EQU  &54               ; The tail of ANYI, eleven bytes past it: restore LMPR from A, unwind HL,
+                                               ; BC and AF, enable interrupts and return. A handler that has finished
+                                               ; the interrupt itself jumps here instead of running INTS
 DVAR_CMPFG:             EQU  &42BA             ; DVAR 154 in the DOS page: SAVE MODE 1, 2 or 3 less one
 GREY_MAP:               EQU  &7B80
 GREY_TAKEN:             EQU  &7B90
@@ -10738,7 +10745,7 @@ CMD_ALTER_LOOP:
                CALL MBNRWRD                    ; 54EA CD 77 45
                DEFW ANYIV                      ; 54ED 70 5B
                CALL MBNRWRHL                   ; 54EF CD 75 45
-               DEFW &5C5B                      ; 54F2 5B 5C
+               DEFW ALTDISP_TOP                ; 54F2 5B 5C
                POP AF                          ; 54F4 F1
                CALL MBNRWR                     ; 54F5 CD 82 45
                DEFW LINICOLS                   ; 54F8 00 56
@@ -18464,7 +18471,7 @@ SAVE_BOOT:
                LD BC,&0007                       ; 642B 01 07 00  the seven bytes of BOOT_HEADER_FIELDS below, which is
                                                  ; the same LD BC,&0007 the snapshot code uses to place SNPTAB
                LDIR                              ; 642E ED B0
-               LD HL,CALLBACK_RCPTCH_2+&4000     ; 6430 21 F7 BC
+               LD HL,SAVE_BOOT_BLOCK_1+&4000     ; 6430 21 F7 BC
                LD DE,&0100                       ; 6433 11 00 01  block 1 of eight, &0100 bytes from &7CF7, which fills
                                                  ; the file's DOS &4000-&40FF -- and after a boot those first nine bytes
                                                  ; read &0D, which is why a SAVE BOOT file has filler where the shipped
@@ -29138,37 +29145,65 @@ CALLBACK_RCPTCH:
                                                ; RCPTCH and MasterBASIC replaces. RUN and CLEAR both come here, and what
                                                ; follows waits for the raster before switching screens
                DEFB HKC_RCPTCH                 ; 7CBC AE hook code
-               BIT 0,C                         ; 7CBD CB 41
-               JP NZ,ANYI                      ; 7CBF C2 49 00
-               LD A,(&5C5C)                    ; 7CC2 3A 5C 5C
+               BIT 0,C                         ; 7CBD CB 41  C is the STATUS byte the ROM read at &003A on its way here,
+                                               ; and bit 0 is the line interrupt, active low
+               JP NZ,ANYI                      ; 7CBF C2 49 00  not the line interrupt, so none of this applies -- give
+                                               ; the whole interrupt back to the ROM
+
+; At the split line, show the bottom screen.  &5C9F + screen indexes
+; SCLIST, whose entry is a ready-made VMPR value: the mode in bits 6
+; and 5, the page in bits 4 to 0.
+               LD A,(ALTDISP_BOTTOM)           ; 7CC2 3A 5C 5C
                LD HL,FISCRNP                   ; 7CC5 21 9F 5C
                ADD A,L                         ; 7CC8 85
                LD L,A                          ; 7CC9 6F
                LD L,(HL)                       ; 7CCA 6E
-               LD A,(LINICOLS)                 ; 7CCB 3A 00 56
+               LD A,(LINICOLS)                 ; 7CCB 3A 00 56  the split line, which CMD_ALTER wrote into the first
+                                               ; entry of the palette list
                LD H,A                          ; 7CCE 67
-               XOR A                           ; 7CCF AF
+               XOR A                           ; 7CCF AF  zero, which is what the INC A below counts on
 
 ;; --------------------------------------------------------------------
-;; CALLBACK_RCPTCH_LOOP -- &7CD0 to &7CDC
+;; WAIT_NEXT_SCANLINE -- &7CD0 to &7CDC
 ;;
 ;; Takes:     A, B, HL
 ;; Leaves:    A, F
 ;; Ends:      JP
 ;;
 ;; ? drives IN A,(CLUT), OUT (VMPR),A.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Holds until the raster leaves the split line, so that the write to
+;;     VMPR below happens in the next line's border and cannot be seen.  The
+;;     ROM does the same thing at the same port in LNWAITLP, and comments it
+;;     "WAIT FOR NEXT SCAN'S BORDER" -- see ref/samrom/scrsel1.asm.
+;;
+;;     THE LOOP WAITS FOR THE LINE TO END, NOT FOR IT TO ARRIVE.  The SUB H
+;;     is followed by a jump taken on zero, so this goes round while the
+;;     raster is still on line H and leaves as soon as it is not.
+;;
+;;     A is zero at the label whichever way it is reached: XOR A above on
+;;     the way in, and SUB H having left zero on the way round.  So the
+;;     INC A counts nothing.  It is there to put 1 on the top half of the
+;;     address bus, because the port wanted is &01F8 and not &00F8, and the
+;;     loop depends on A being reset to zero every time.
 ;; --------------------------------------------------------------------
 
-; ---- CALLBACK_RCPTCH_LOOP ---- from &7CD4 when A = H
-CALLBACK_RCPTCH_LOOP:
+; ---- WAIT_NEXT_SCANLINE ---- from &7CD4 when A = H
+WAIT_NEXT_SCANLINE:
                INC A                           ; 7CD0 3C
-               IN A,(CLUT)                     ; 7CD1 DB F8
+               IN A,(LPEN)                     ; 7CD1 DB F8  uses HPEN; A is 1 when read, so the port is &01F8 -- the
+                                               ; raster line, and not the light pen the byte alone would give
                SUB H                           ; 7CD3 94
-               JR Z,CALLBACK_RCPTCH_LOOP       ; 7CD4 28 FA
+               JR Z,WAIT_NEXT_SCANLINE         ; 7CD4 28 FA  goes round while the raster is still on line H
                LD A,L                          ; 7CD6 7D
                OUT (VMPR),A                    ; 7CD7 D3 FC
-               LD A,B                          ; 7CD9 78
-               JP &0054                        ; 7CDA C3 54 00
+               LD A,B                          ; 7CD9 78  B is the LMPR the ROM read at &003D before it took the vector
+                                               ; here
+               JP ANYI_EXIT                    ; 7CDA C3 54 00  a line interrupt is finished here, so INTS never runs --
+                                               ; no keyboard scan and no FRAMES tick, neither of which would fit inside
+                                               ; a scanline
 
 ;; --------------------------------------------------------------------
 ;; L7CDD -- &7CDD to &7CF0
@@ -29179,12 +29214,17 @@ CALLBACK_RCPTCH_LOOP:
 ;; ? drives OUT (VMPR),A; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
+; From here down is the frame interrupt, not the line interrupt: this
+; is what &7B51 lands at &4986, which is the address INSTALL_ROM_VECTORS
+; writes into FRAMIV.  It puts the top screen back at the start of
+; every frame, so a split that the line interrupt made is undone and
+; remade fifty times a second.
                LD A,(LINICOLS)                 ; 7CDD 3A 00 56
                INC A                           ; 7CE0 3C
-               JR Z,CALLBACK_RCPTCH_1          ; 7CE1 28 0E
-               LD A,(&5C5B)                    ; 7CE3 3A 5B 5C
+               JR Z,FRAME_INT_CALL_INTO_MB     ; 7CE1 28 0E
+               LD A,(ALTDISP_TOP)              ; 7CE3 3A 5B 5C  zero when there is no split
                AND A                           ; 7CE6 A7
-               JR Z,CALLBACK_RCPTCH_1          ; 7CE7 28 08
+               JR Z,FRAME_INT_CALL_INTO_MB     ; 7CE7 28 08
                LD HL,FISCRNP                   ; 7CE9 21 9F 5C
                ADD A,L                         ; 7CEC 85
                LD L,A                          ; 7CED 6F
@@ -29192,36 +29232,69 @@ CALLBACK_RCPTCH_LOOP:
                OUT (VMPR),A                    ; 7CEF D3 FC
 
 ;; --------------------------------------------------------------------
-;; CALLBACK_RCPTCH_1 -- &7CF1 to &7CF6
+;; FRAME_INT_CALL_INTO_MB -- &7CF1 to &7CF6
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F, D
 ;;
 ;; ? drives IN A,(HMPR); falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     NAMED HERE BECAUSE OF WHAT RENAMING THE LOOP ABOVE DID TO IT.  It had
+;;     no name of its own, so it took the nearest underived label above and
+;;     a number on the end, and renaming that label carried this block --
+;;     which waits for nothing and is not on the line interrupt's path at
+;;     all -- along with it, under a name about the raster.  The warning at
+;;     &7D00 below is about the same thing, three lines further on.
+;;
+;;     Both tests above arrive here, and so does the screen switch falling
+;;     through: it is the frame interrupt's tail whatever was done with the
+;;     display.  HMPR is saved and put back around the call, and D carries
+;;     the old value in as well.
 ;; --------------------------------------------------------------------
 
-; ---- CALLBACK_RCPTCH_1 ---- from &7CE1 when A wraps to 0, &7CE7 when A = 0
-CALLBACK_RCPTCH_1:
+; ---- FRAME_INT_CALL_INTO_MB ---- from &7CE1 when A wraps to 0, &7CE7 when A = 0
+FRAME_INT_CALL_INTO_MB:
                IN A,(HMPR)                     ; 7CF1 DB FB
                PUSH AF                         ; 7CF3 F5
                LD D,A                          ; 7CF4 57
+
+; MasterBASIC's own page number, which is not known until it is
+; installed.
 
 L7CF5:
                LD A,&00                        ; 7CF5 3E 00  the operand is written here at run time, from &7B0B
 
 ;; --------------------------------------------------------------------
-;; CALLBACK_RCPTCH_2 -- &7CF7 to &7CFF
+;; SAVE_BOOT_BLOCK_1 -- &7CF7 to &7CFF
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F
 ;; Ends:      RET
 ;;
 ;; ? drives OUT (HMPR),A.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     IT IS NOT A ROUTINE HEAD.  Nothing jumps or calls here; the address
+;;     is inside FRAME_INT_CALL_INTO_MB and the instruction at it belongs to
+;;     that routine.  The one reference in the image is the LD HL at &6433
+;;     above, which takes it as the start of the first of the eight blocks
+;;     SAVE BOOT writes, so the name says what the address is for rather
+;;     than what the instruction does.
+;;
+;;     &7D00 has the same shape of problem and notes/mb-dispatch.txt sets
+;;     out what it cost there.  Without a name of its own this block took
+;;     the nearest underived label above and a number, which put a label
+;;     about the raster on the source address of a disc write.
 ;; --------------------------------------------------------------------
 
-CALLBACK_RCPTCH_2:
+SAVE_BOOT_BLOCK_1:
                OUT (HMPR),A                         ; 7CF7 D3 FB
-               CALL SEND_COUNTED_TO_CHANNEL_1+&4000 ; 7CF9 CD A3 99
+               CALL SEND_COUNTED_TO_CHANNEL_1+&4000 ; 7CF9 CD A3 99  with MasterBASIC at &8000 the routine called runs
+                                                    ; at &99A3, which is why its header says the paging is the opposite
+                                                    ; way round there
                POP AF                               ; 7CFC F1
                OUT (HMPR),A                         ; 7CFD D3 FB
                RET                                  ; 7CFF C9

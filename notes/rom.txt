@@ -2,6 +2,7 @@
 # docs/disassembly.md, "What the equates mean".
 
 EQU ANYI : The ROM's default maskable interrupt handler, reached through ANYIV
+EQU ANYI_EXIT : The tail of ANYI, eleven bytes past it: restore LMPR from A, unwind HL, BC and AF, enable interrupts and return.  A handler that has finished the interrupt itself jumps here instead of running INTS
 EQU FRAMIV : The Frame interrupt vector - usually this reads the keyboard, and updates the frame counter.
 EQU ALLOCT: The memory page allocation table.
 EQU INCURPDE: Increments the upper RAM page, adjusting DE to make sure it's not in the range C000-FFFF. Uses A, alters D.

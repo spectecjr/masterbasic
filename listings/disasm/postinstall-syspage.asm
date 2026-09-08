@@ -171,7 +171,7 @@ S45D8:
                PUSH AF                         ; 45DA F5
                CALL &2789                      ; 45DB CD 89 27
                PUSH BC                         ; 45DE C5
-               LD A,(&5A78)                    ; 45DF 3A 78 5A
+               LD A,(CUSCRNP)                  ; 45DF 3A 78 5A
                AND &1F                         ; 45E2 E6 1F
                OUT (&FB),A                     ; 45E4 D3 FB
                LD HL,&469E                     ; 45E6 21 9E 46
@@ -206,7 +206,7 @@ S45F7:
 
 ; ---- S4616 ---- from &4606
 S4616:
-               LD DE,(&5A54)                   ; 4616 ED 5B 54 5A
+               LD DE,(INVERT)                  ; 4616 ED 5B 54 5A
                LD A,E                          ; 461A 7B
                OR D                            ; 461B B2
                LD A,&04                        ; 461C 3E 04
@@ -233,45 +233,47 @@ S4616:
 INSLV_STRING_MOVE:
                LD A,B                          ; 46CC 78
                AND A                           ; 46CD A7
-               JR NZ,S46D6                     ; 46CE 20 06
+               JR NZ,RELOCATED_TO_46CC_1       ; 46CE 20 06
                LD A,C                          ; 46D0 79
                CP &15                          ; 46D1 FE 15
+
+L7467:
                JP C,&2A96                      ; 46D3 DA 96 2A
 
-; ---- S46D6 ---- from &46CE
-S46D6:
+; ---- RELOCATED_TO_46CC_1 ---- from &46CE
+RELOCATED_TO_46CC_1:
                EX AF,AF'                       ; 46D6 08
-               JR NC,S46E2                     ; 46D7 30 09
+               JR NC,RELOCATED_TO_46CC_2       ; 46D7 30 09
                EX AF,AF'                       ; 46D9 08
-               LD HL,(&5AC8)                   ; 46DA 2A C8 5A
+               LD HL,(TEMPW1)                  ; 46DA 2A C8 5A
                EX DE,HL                        ; 46DD EB
                CALL S483A                      ; 46DE CD 3A 48
                EX AF,AF'                       ; 46E1 08
 
-; ---- S46E2 ---- from &46D7
-S46E2:
+; ---- RELOCATED_TO_46CC_2 ---- from &46D7
+RELOCATED_TO_46CC_2:
                EX AF,AF'                       ; 46E2 08
 
-; ---- S46E3 ---- from &4700, &4722, &47B2
-S46E3:
-               LD A,(&5ACF)                    ; 46E3 3A CF 5A
+; ---- RELOCATED_TO_46CC_LOOP ---- from &4700, &4722, &47B2
+RELOCATED_TO_46CC_LOOP:
+               LD A,(TEMPB2)                   ; 46E3 3A CF 5A
                LD H,A                          ; 46E6 67
                IN A,(&FB)                      ; 46E7 DB FB
                XOR H                           ; 46E9 AC
                AND &1F                         ; 46EA E6 1F
-               LD HL,(&5AC8)                   ; 46EC 2A C8 5A
+               LD HL,(TEMPW1)                  ; 46EC 2A C8 5A
                JP Z,S482D                      ; 46EF CA 2D 48
                LD A,B                          ; 46F2 78
                CP &20                          ; 46F3 FE 20
-               JR C,S4702                      ; 46F5 38 0B
+               JR C,RELOCATED_TO_46CC_3        ; 46F5 38 0B
                SUB &1F                         ; 46F7 D6 1F
                LD B,A                          ; 46F9 47
-               CALL S4702                      ; 46FA CD 02 47
+               CALL RELOCATED_TO_46CC_3        ; 46FA CD 02 47
                LD BC,&1F00                     ; 46FD 01 00 1F
-               JR S46E3                        ; 4700 18 E1
+               JR RELOCATED_TO_46CC_LOOP       ; 4700 18 E1
 
-; ---- S4702 ---- from &46F5, &46FA
-S4702:
+; ---- RELOCATED_TO_46CC_3 ---- from &46F5, &46FA
+RELOCATED_TO_46CC_3:
                EX AF,AF'                       ; 4702 08
                JP C,S478B                      ; 4703 DA 8B 47
                SBC HL,BC                       ; 4706 ED 42
@@ -279,7 +281,7 @@ S4702:
                INC HL                          ; 4709 23
                LD A,H                          ; 470A 7C
                CP &C0                          ; 470B FE C0
-               JR NC,S4724                     ; 470D 30 15
+               JR NC,RELOCATED_TO_46CC_4       ; 470D 30 15
                PUSH BC                         ; 470F C5
                LD B,H                          ; 4710 44
                LD C,L                          ; 4711 4D
@@ -291,13 +293,13 @@ S4702:
                SBC HL,BC                       ; 471A ED 42
                LD B,H                          ; 471C 44
                LD C,L                          ; 471D 4D
-               CALL S4724                      ; 471E CD 24 47
+               CALL RELOCATED_TO_46CC_4        ; 471E CD 24 47
                POP BC                          ; 4721 C1
-               JR S46E3                        ; 4722 18 BF
+               JR RELOCATED_TO_46CC_LOOP       ; 4722 18 BF
 
-; ---- S4724 ---- from &470D, &471E
-S4724:
-               LD HL,(&5AC8)                   ; 4724 2A C8 5A
+; ---- RELOCATED_TO_46CC_4 ---- from &470D, &471E
+RELOCATED_TO_46CC_4:
+               LD HL,(TEMPW1)                  ; 4724 2A C8 5A
                RES 7,H                         ; 4727 CB BC
                SET 6,H                         ; 4729 CB F4
                EX DE,HL                        ; 472B EB
@@ -310,14 +312,14 @@ S4724:
                LD DE,&4CEA                     ; 473A 11 EA 4C
                LD BC,&0016                     ; 473D 01 16 00
                CP &FF                          ; 4740 FE FF
-               JR C,S4747                      ; 4742 38 03
+               JR C,RELOCATED_TO_46CC_5        ; 4742 38 03
                LD HL,&C000                     ; 4744 21 00 C0
 
-; ---- S4747 ---- from &4742
-S4747:
+; ---- RELOCATED_TO_46CC_5 ---- from &4742
+RELOCATED_TO_46CC_5:
                PUSH HL                         ; 4747 E5
                LD (&4763),HL                   ; 4748 22 63 47
-               LD A,(&5ACF)                    ; 474B 3A CF 5A
+               LD A,(TEMPB2)                   ; 474B 3A CF 5A
                AND &1F                         ; 474E E6 1F
                LDIR                            ; 4750 ED B0
                POP DE                          ; 4752 D1
@@ -344,36 +346,36 @@ S4772:
                CALL Z,&3FF9                    ; 4774 CC F9 3F
                EX DE,HL                        ; 4777 EB
                BIT 6,H                         ; 4778 CB 74
-               JR NZ,S4785                     ; 477A 20 09
-               LD A,(&5ACF)                    ; 477C 3A CF 5A
+               JR NZ,RELOCATED_TO_46CC_DONE    ; 477A 20 09
+               LD A,(TEMPB2)                   ; 477C 3A CF 5A
                DEC A                           ; 477F 3D
-               LD (&5ACF),A                    ; 4780 32 CF 5A
+               LD (TEMPB2),A                   ; 4780 32 CF 5A
                SET 6,H                         ; 4783 CB F4
 
-; ---- S4785 ---- from &477A
-S4785:
+; ---- RELOCATED_TO_46CC_DONE ---- from &477A
+RELOCATED_TO_46CC_DONE:
                SET 7,H                         ; 4785 CB FC
-               LD (&5AC8),HL                   ; 4787 22 C8 5A
+               LD (TEMPW1),HL                  ; 4787 22 C8 5A
                RET                             ; 478A C9
 
 ; ---- S478B ---- from &4703
 S478B:
                EX AF,AF'                       ; 478B 08
                BIT 6,H                         ; 478C CB 74
-               JR Z,S479C                      ; 478E 28 0C
+               JR Z,RELOCATED_TO_46CC_6        ; 478E 28 0C
                RES 6,H                         ; 4790 CB B4
-               LD A,(&5ACF)                    ; 4792 3A CF 5A
+               LD A,(TEMPB2)                   ; 4792 3A CF 5A
                INC A                           ; 4795 3C
-               LD (&5ACF),A                    ; 4796 32 CF 5A
-               LD (&5AC8),HL                   ; 4799 22 C8 5A
+               LD (TEMPB2),A                   ; 4796 32 CF 5A
+               LD (TEMPW1),HL                  ; 4799 22 C8 5A
 
-; ---- S479C ---- from &478E
-S479C:
+; ---- RELOCATED_TO_46CC_6 ---- from &478E
+RELOCATED_TO_46CC_6:
                ADD HL,BC                       ; 479C 09
                DEC HL                          ; 479D 2B
                LD A,H                          ; 479E 7C
                SUB &C0                         ; 479F D6 C0
-               JR C,S47B5                      ; 47A1 38 12
+               JR C,RELOCATED_TO_46CC_7        ; 47A1 38 12
                LD H,A                          ; 47A3 67
                INC HL                          ; 47A4 23
                PUSH HL                         ; 47A5 E5
@@ -384,13 +386,13 @@ S479C:
                SBC HL,BC                       ; 47AA ED 42
                LD B,H                          ; 47AC 44
                LD C,L                          ; 47AD 4D
-               CALL S47B5                      ; 47AE CD B5 47
+               CALL RELOCATED_TO_46CC_7        ; 47AE CD B5 47
                POP BC                          ; 47B1 C1
-               JP S46E3                        ; 47B2 C3 E3 46
+               JP RELOCATED_TO_46CC_LOOP       ; 47B2 C3 E3 46
 
-; ---- S47B5 ---- from &47A1, &47AE
-S47B5:
-               LD HL,(&5AC8)                   ; 47B5 2A C8 5A
+; ---- RELOCATED_TO_46CC_7 ---- from &47A1, &47AE
+RELOCATED_TO_46CC_7:
+               LD HL,(TEMPW1)                  ; 47B5 2A C8 5A
                RES 7,H                         ; 47B8 CB BC
                SET 6,H                         ; 47BA CB F4
                LD A,D                          ; 47BC 7A
@@ -403,9 +405,9 @@ S47B5:
                LD DE,&4CEA                     ; 47CB 11 EA 4C
                LD BC,&000C                     ; 47CE 01 0C 00
                CP &9E                          ; 47D1 FE 9E
-               LD A,(&5ACF)                    ; 47D3 3A CF 5A
+               LD A,(TEMPB2)                   ; 47D3 3A CF 5A
                DEC A                           ; 47D6 3D
-               JR C,S47F3                      ; 47D7 38 1A
+               JR C,RELOCATED_TO_46CC_8        ; 47D7 38 1A
                LD HL,&8000                     ; 47D9 21 00 80
                AND &1F                         ; 47DC E6 1F
                LDIR                            ; 47DE ED B0
@@ -413,47 +415,54 @@ S47B5:
                LD (&800A),HL                   ; 47E3 22 0A 80
                EXX                             ; 47E6 D9
                LD SP,&8008                     ; 47E7 31 08 80
+
+L757E:
                JP &389E                        ; 47EA C3 9E 38
                DEFB &D9,&11,&00,&80,&18,&15                                     ; 47ED Y.....
 
-; ---- S47F3 ---- from &47D7
-S47F3:
+; ---- RELOCATED_TO_46CC_8 ---- from &47D7
+RELOCATED_TO_46CC_8:
                AND &1F                         ; 47F3 E6 1F
                LDIR                            ; 47F5 ED B0
                LD HL,&4804                     ; 47F7 21 04 48
                LD (&BF8A),HL                   ; 47FA 22 8A BF
                EXX                             ; 47FD D9
                LD SP,&BF88                     ; 47FE 31 88 BF
+
+L7595:
                JP &389E                        ; 4801 C3 9E 38
-               DEFB &D9,&11,&80,&BF,&ED,&7B,&E8,&4C,&21,&EA,&4C,&0E,&0C,&ED,&B0 ; 4804 Y..?m{hL!jL..m0
-               DEFB &D9,&CB,&74,&C4,&F2,&3F,&CB,&7A                             ; 4813 YKtDr?Kz
+               DEFB &D9,&11,&80,&BF                                             ; 4804 Y..?
 
-; ---- S481B ---- from &4841
-S481B:
+RELOCATED_TO_46CC_9:
+               DEFB &ED,&7B,&E8,&4C,&21,&EA,&4C,&0E,&0C,&ED,&B0,&D9,&CB,&74,&C4 ; 4808 m{hL!jL..m0YKtD
+               DEFB &F2,&3F,&CB,&7A                                             ; 4817 r?Kz
+
+; ---- RELOCATED_TO_46CC_LOOP2 ---- from &4841
+RELOCATED_TO_46CC_LOOP2:
                EX DE,HL                        ; 481B EB
-               JR Z,S4825                      ; 481C 28 07
-               LD A,(&5ACF)                    ; 481E 3A CF 5A
+               JR Z,RELOCATED_TO_46CC_DONE2    ; 481C 28 07
+               LD A,(TEMPB2)                   ; 481E 3A CF 5A
                INC A                           ; 4821 3C
-               LD (&5ACF),A                    ; 4822 32 CF 5A
+               LD (TEMPB2),A                   ; 4822 32 CF 5A
 
-; ---- S4825 ---- from &481C
-S4825:
+; ---- RELOCATED_TO_46CC_DONE2 ---- from &481C
+RELOCATED_TO_46CC_DONE2:
                SET 7,H                         ; 4825 CB FC
                RES 6,H                         ; 4827 CB B4
-               LD (&5AC8),HL                   ; 4829 22 C8 5A
+               LD (TEMPW1),HL                  ; 4829 22 C8 5A
                RET                             ; 482C C9
 
 ; ---- S482D ---- from &46EF
 S482D:
                EX DE,HL                        ; 482D EB
                EX AF,AF'                       ; 482E 08
-               JR C,S4837                      ; 482F 38 06
+               JR C,RELOCATED_TO_46CC_10       ; 482F 38 06
                EX AF,AF'                       ; 4831 08
                LDDR                            ; 4832 ED B8
                JP S4772                        ; 4834 C3 72 47
 
-; ---- S4837 ---- from &482F
-S4837:
+; ---- RELOCATED_TO_46CC_10 ---- from &482F
+RELOCATED_TO_46CC_10:
                EX AF,AF'                       ; 4837 08
                LDIR                            ; 4838 ED B0
 
@@ -462,19 +471,21 @@ S483A:
                BIT 6,H                         ; 483A CB 74
                CALL NZ,&3FF2                   ; 483C C4 F2 3F
                BIT 6,D                         ; 483F CB 72
-               JR S481B                        ; 4841 18 D8
+               JR RELOCATED_TO_46CC_LOOP2      ; 4841 18 D8
                DEFB &D3,&FA,&CD,&92,&00,&3E,&1F,&D3,&FA,&C9                     ; 4843 SzM..>.SzI
 
 ; --------------------------------------------------------------------
 ; second stub, from &7BA4
 ; --------------------------------------------------------------------
+
+RELOCATED_TO_484D:
                DEFB &2A,&67,&5A,&CD,&05,&00,&2A,&8B,&5B,&ED,&4B,&5E,&5A,&A7,&ED ; 484D *gZM..*.[mK^Z'm
                DEFB &42,&D0,&2A,&9A,&5A,&2B,&22,&65,&5A,&C9                     ; 485C BP*.Z+"eZI
 
 EDITV_EDITOR:
-               LD A,(&5C71)                    ; 4866 3A 71 5C
+               LD A,(FLAGX)                    ; 4866 3A 71 5C
                AND &20                         ; 4869 E6 20
-               JR NZ,S4889                     ; 486B 20 1C
+               JR NZ,RELOCATED_TO_484D_1       ; 486B 20 1C
                POP HL                          ; 486D E1
                LD (&4AF1),HL                   ; 486E 22 F1 4A
                LD HL,(&4AF1)                   ; 4871 2A F1 4A
@@ -493,9 +504,9 @@ EDITV_EDITOR:
                DEFB &AF                                                         ; 4887 /
                RET                             ; 4888 C9
 
-; ---- S4889 ---- from &486B
-S4889:
-               LD HL,(&5AA3)                   ; 4889 2A A3 5A
+; ---- RELOCATED_TO_484D_1 ---- from &486B
+RELOCATED_TO_484D_1:
+               LD HL,(XPTR)                    ; 4889 2A A3 5A
                RST &08                         ; 488C CF
                DEFB &B9                                                         ; 488D 9
 
@@ -505,97 +516,97 @@ CMDV_COMMAND:
                LD H,A                          ; 4894 67
                LD A,(&5A89)                    ; 4895 3A 89 5A
                CP &BE                          ; 4898 FE BE
-               JR C,S48A0                      ; 489A 38 04
+               JR C,RELOCATED_TO_484D_2        ; 489A 38 04
                PUSH HL                         ; 489C E5
                RST &08                         ; 489D CF
                DEFB &B8                                                         ; 489E 8
                POP HL                          ; 489F E1
 
-; ---- S48A0 ---- from &489A
-S48A0:
+; ---- RELOCATED_TO_484D_2 ---- from &489A
+RELOCATED_TO_484D_2:
                LD A,(&5A92)                    ; 48A0 3A 92 5A
                AND &40                         ; 48A3 E6 40
-               JR Z,S48C5                      ; 48A5 28 1E
+               JR Z,RELOCATED_TO_484D_3        ; 48A5 28 1E
                PUSH HL                         ; 48A7 E5
                LD HL,&C000                     ; 48A8 21 00 C0
-               LD BC,(&5A94)                   ; 48AB ED 4B 94 5A
+               LD BC,(ELINE)                   ; 48AB ED 4B 94 5A
                SBC HL,BC                       ; 48AF ED 42
                LD B,H                          ; 48B1 44
                LD C,L                          ; 48B2 4D
-               LD HL,(&5A85)                   ; 48B3 2A 85 5A
-               LD A,(&5A84)                    ; 48B6 3A 84 5A
+               LD HL,(NUMEND)                  ; 48B3 2A 85 5A
+               LD A,(NUMENDP)                  ; 48B6 3A 84 5A
                OUT (&FB),A                     ; 48B9 D3 FB
                XOR A                           ; 48BB AF
                CALL &010C                      ; 48BC CD 0C 01
-               LD A,(&5A96)                    ; 48BF 3A 96 5A
+               LD A,(CHADP)                    ; 48BF 3A 96 5A
                OUT (&FB),A                     ; 48C2 D3 FB
                POP HL                          ; 48C4 E1
 
-; ---- S48C5 ---- from &48A5
-S48C5:
-               LD A,(&5BB6)                    ; 48C5 3A B6 5B
+; ---- RELOCATED_TO_484D_3 ---- from &48A5
+RELOCATED_TO_484D_3:
+               LD A,(DCT)                      ; 48C5 3A B6 5B
                AND A                           ; 48C8 A7
-               JR Z,S48FA                      ; 48C9 28 2F
+               JR Z,DISPATCH_ON_COMMAND_TOKEN  ; 48C9 28 2F
                LD L,A                          ; 48CB 6F
-               LD A,(&5C3B)                    ; 48CC 3A 3B 5C
+               LD A,(FLAGS)                    ; 48CC 3A 3B 5C
                RLA                             ; 48CF 17
-               JR NC,S48FA                     ; 48D0 30 28
+               JR NC,DISPATCH_ON_COMMAND_TOKEN ; 48D0 30 28
                PUSH HL                         ; 48D2 E5
                BIT 1,L                         ; 48D3 CB 4D
                LD A,&1C                        ; 48D5 3E 1C
                LD HL,&9FB9                     ; 48D7 21 B9 9F
-               CALL NZ,S5BE0                   ; 48DA C4 E0 5B
+               CALL NZ,MB_PAGER                ; 48DA C4 E0 5B
                POP HL                          ; 48DD E1
                LD A,L                          ; 48DE 7D
                AND &05                         ; 48DF E6 05
-               JR Z,S48FA                      ; 48E1 28 17
+               JR Z,DISPATCH_ON_COMMAND_TOKEN  ; 48E1 28 17
                PUSH HL                         ; 48E3 E5
-               LD HL,(&5AA0)                   ; 48E4 2A A0 5A
+               LD HL,(PROG)                    ; 48E4 2A A0 5A
                PUSH HL                         ; 48E7 E5
-               LD A,(&5A9F)                    ; 48E8 3A 9F 5A
+               LD A,(PROGP)                    ; 48E8 3A 9F 5A
                PUSH AF                         ; 48EB F5
                RST &08                         ; 48EC CF
                DEFB &9D                                                         ; 48ED .
                CALL CDBUFF_11                  ; 48EE CD 11 4D
                POP AF                          ; 48F1 F1
-               LD (&5A9F),A                    ; 48F2 32 9F 5A
+               LD (PROGP),A                    ; 48F2 32 9F 5A
                POP HL                          ; 48F5 E1
-               LD (&5AA0),HL                   ; 48F6 22 A0 5A
+               LD (PROG),HL                    ; 48F6 22 A0 5A
                POP HL                          ; 48F9 E1
 
-; ---- S48FA ---- from &48C9, &48D0, &48E1
-S48FA:
+; ---- DISPATCH_ON_COMMAND_TOKEN ---- from &48C9, &48D0, &48E1
+DISPATCH_ON_COMMAND_TOKEN:
                LD A,H                          ; 48FA 7C
                CP &94                          ; 48FB FE 94
                RET C                           ; 48FD D8
                CP &AC                          ; 48FE FE AC
                JP Z,TOKEN_TO_FN_INDEX          ; 4900 CA A2 45
                CP &AA                          ; 4903 FE AA
-               JR Z,S494F                      ; 4905 28 48
+               JR Z,CALLBACK_HCMDV             ; 4905 28 48
                CP &AE                          ; 4907 FE AE
-               JR Z,S493E                      ; 4909 28 33
+               JR Z,INTERCEPT_SOUND_CLEAR      ; 4909 28 33
                CP &C2                          ; 490B FE C2
-               JR Z,S4949                      ; 490D 28 3A
+               JR Z,INTERCEPT_IF_RECORDING     ; 490D 28 3A
                CP &C9                          ; 490F FE C9
-               JR Z,S494F                      ; 4911 28 3C
+               JR Z,CALLBACK_HCMDV             ; 4911 28 3C
                CP &D1                          ; 4913 FE D1
-               JR Z,S494F                      ; 4915 28 38
+               JR Z,CALLBACK_HCMDV             ; 4915 28 38
                CP &E1                          ; 4917 FE E1
-               JR Z,S494F                      ; 4919 28 34
+               JR Z,CALLBACK_HCMDV             ; 4919 28 34
                CP &A8                          ; 491B FE A8
-               JR Z,S4953                      ; 491D 28 34
+               JR Z,CALLBACK_CSIZE             ; 491D 28 34
                CP &A9                          ; 491F FE A9
-               JR Z,S4957                      ; 4921 28 34
+               JR Z,CALLBACK_SWAPCHARS         ; 4921 28 34
                CP &CD                          ; 4923 FE CD
-               JR Z,S495E                      ; 4925 28 37
+               JR Z,CALLBACK_SKIPNAME          ; 4925 28 37
                CP &FD                          ; 4927 FE FD
-               JR Z,S495B                      ; 4929 28 30
+               JR Z,CALLBACK_COMADENT          ; 4929 28 30
                CP &B3                          ; 492B FE B3
-               JR Z,S4963                      ; 492D 28 34
+               JR Z,CALLBACK_RCPTCH            ; 492D 28 34
                CP &B0                          ; 492F FE B0
-               JR Z,S4963                      ; 4931 28 30
+               JR Z,CALLBACK_RCPTCH            ; 4931 28 30
                CP &98                          ; 4933 FE 98
-               JR C,S494F                      ; 4935 38 18
+               JR C,CALLBACK_HCMDV             ; 4935 38 18
                CP &FF                          ; 4937 FE FF
                RET NZ                          ; 4939 C0
                POP HL                          ; 493A E1
@@ -603,103 +614,107 @@ S48FA:
                DEFB &B1                                                         ; 493C 1
                RET                             ; 493D C9
 
-; ---- S493E ---- from &4909
-S493E:
-               LD HL,(&5A97)                   ; 493E 2A 97 5A
+; ---- INTERCEPT_SOUND_CLEAR ---- from &4909
+INTERCEPT_SOUND_CLEAR:
+               LD HL,(CHAD)                    ; 493E 2A 97 5A
                INC HL                          ; 4941 23
                LD C,A                          ; 4942 4F
                LD A,(HL)                       ; 4943 7E
                CP &B3                          ; 4944 FE B3
                LD A,C                          ; 4946 79
-               JR Z,S494F                      ; 4947 28 06
+               JR Z,CALLBACK_HCMDV             ; 4947 28 06
 
-; ---- S4949 ---- from &490D
-S4949:
+; ---- INTERCEPT_IF_RECORDING ---- from &490D
+INTERCEPT_IF_RECORDING:
                LD HL,(&4AF4)                   ; 4949 2A F4 4A
                INC L                           ; 494C 2C
                DEC L                           ; 494D 2D
                RET Z                           ; 494E C8
 
-; ---- S494F ---- from &4905, &4911, &4915, &4919, &4935, &4947
-S494F:
+; ---- CALLBACK_HCMDV ---- from &4905, &4911, &4915, &4919, &4935, &4947
+CALLBACK_HCMDV:
                POP HL                          ; 494F E1
                RST &08                         ; 4950 CF
                DEFB &AD                                                         ; 4951 -
                RET                             ; 4952 C9
 
-; ---- S4953 ---- from &491D
-S4953:
+; ---- CALLBACK_CSIZE ---- from &491D
+CALLBACK_CSIZE:
                POP HL                          ; 4953 E1
                RST &08                         ; 4954 CF
                DEFB &9B                                                         ; 4955 .
                RET                             ; 4956 C9
 
-; ---- S4957 ---- from &4921
-S4957:
+; ---- CALLBACK_SWAPCHARS ---- from &4921
+CALLBACK_SWAPCHARS:
                POP HL                          ; 4957 E1
                RST &08                         ; 4958 CF
                DEFB &9C                                                         ; 4959 .
                RET                             ; 495A C9
 
-; ---- S495B ---- from &4929
-S495B:
+; ---- CALLBACK_COMADENT ---- from &4929
+CALLBACK_COMADENT:
                POP HL                          ; 495B E1
                RST &08                         ; 495C CF
                DEFB &B7                                                         ; 495D 7
 
-; ---- S495E ---- from &4925
-S495E:
+; ---- CALLBACK_SKIPNAME ---- from &4925
+CALLBACK_SKIPNAME:
                RST &08                         ; 495E CF
                DEFB &B2                                                         ; 495F 2
                LD A,&CD                        ; 4960 3E CD
                RET                             ; 4962 C9
 
-; ---- S4963 ---- from &492D, &4931
-S4963:
+; ---- CALLBACK_RCPTCH ---- from &492D, &4931
+CALLBACK_RCPTCH:
                POP HL                          ; 4963 E1
                RST &08                         ; 4964 CF
                DEFB &AE                                                         ; 4965 .
                BIT 0,C                         ; 4966 CB 41
                JP NZ,&0049                     ; 4968 C2 49 00
-               LD A,(&5C5C)                    ; 496B 3A 5C 5C
-               LD HL,&5C9F                     ; 496E 21 9F 5C
+               LD A,(ALTDISP_BOTTOM)           ; 496B 3A 5C 5C
+               LD HL,FISCRNP                   ; 496E 21 9F 5C
                ADD A,L                         ; 4971 85
                LD L,A                          ; 4972 6F
                LD L,(HL)                       ; 4973 6E
-               LD A,(&5600)                    ; 4974 3A 00 56
+               LD A,(LINICOLS)                 ; 4974 3A 00 56
                LD H,A                          ; 4977 67
                XOR A                           ; 4978 AF
 
-; ---- S4979 ---- from &497D
-S4979:
+; ---- WAIT_NEXT_SCANLINE ---- from &497D
+WAIT_NEXT_SCANLINE:
                INC A                           ; 4979 3C
                IN A,(&F8)                      ; 497A DB F8
                SUB H                           ; 497C 94
-               JR Z,S4979                      ; 497D 28 FA
+               JR Z,WAIT_NEXT_SCANLINE         ; 497D 28 FA
                LD A,L                          ; 497F 7D
                OUT (&FC),A                     ; 4980 D3 FC
                LD A,B                          ; 4982 78
                JP &0054                        ; 4983 C3 54 00
 
 FRAMIV_FRAME_INT:
-               LD A,(&5600)                    ; 4986 3A 00 56
+               LD A,(LINICOLS)                 ; 4986 3A 00 56
                INC A                           ; 4989 3C
-               JR Z,S499A                      ; 498A 28 0E
-               LD A,(&5C5B)                    ; 498C 3A 5B 5C
+               JR Z,FRAME_INT_CALL_INTO_MB     ; 498A 28 0E
+               LD A,(ALTDISP_TOP)              ; 498C 3A 5B 5C
                AND A                           ; 498F A7
-               JR Z,S499A                      ; 4990 28 08
-               LD HL,&5C9F                     ; 4992 21 9F 5C
+               JR Z,FRAME_INT_CALL_INTO_MB     ; 4990 28 08
+               LD HL,FISCRNP                   ; 4992 21 9F 5C
                ADD A,L                         ; 4995 85
                LD L,A                          ; 4996 6F
                LD A,(HL)                       ; 4997 7E
                OUT (&FC),A                     ; 4998 D3 FC
 
-; ---- S499A ---- from &498A, &4990
-S499A:
+; ---- FRAME_INT_CALL_INTO_MB ---- from &498A, &4990
+FRAME_INT_CALL_INTO_MB:
                IN A,(&FB)                      ; 499A DB FB
                PUSH AF                         ; 499C F5
                LD D,A                          ; 499D 57
+
+L7CF5:
                LD A,&1C                        ; 499E 3E 1C
+
+SAVE_BOOT_BLOCK_1:
                OUT (&FB),A                     ; 49A0 D3 FB
                CALL &99A3                      ; 49A2 CD A3 99
                POP AF                          ; 49A5 F1
@@ -707,40 +722,40 @@ S499A:
                RET                             ; 49A8 C9
 
 PATOUT_CHAR_OUT:
-               LD A,(&5AB7)                    ; 49A9 3A B7 5A
+               LD A,(DMPFG)                    ; 49A9 3A B7 5A
                AND A                           ; 49AC A7
-               JR Z,S49CB                      ; 49AD 28 1C
+               JR Z,PATOUT_CHAR_OUT_3          ; 49AD 28 1C
                POP HL                          ; 49AF E1
                POP DE                          ; 49B0 D1
                LD A,D                          ; 49B1 7A
                CP &40                          ; 49B2 FE 40
-               JR NZ,S49BA                     ; 49B4 20 04
+               JR NZ,PATOUT_CHAR_OUT_1         ; 49B4 20 04
                INC D                           ; 49B6 14
                LD (&4AED),A                    ; 49B7 32 ED 4A
 
-; ---- S49BA ---- from &49B4
-S49BA:
+; ---- PATOUT_CHAR_OUT_1 ---- from &49B4
+PATOUT_CHAR_OUT_1:
                CP &42                          ; 49BA FE 42
-               JR NZ,S49C9                     ; 49BC 20 0B
+               JR NZ,PATOUT_CHAR_OUT_2         ; 49BC 20 0B
                LD A,(&4AED)                    ; 49BE 3A ED 4A
                SUB &40                         ; 49C1 D6 40
-               JR NZ,S49C9                     ; 49C3 20 04
+               JR NZ,PATOUT_CHAR_OUT_2         ; 49C3 20 04
                LD (&4AED),A                    ; 49C5 32 ED 4A
                DEC D                           ; 49C8 15
 
-; ---- S49C9 ---- from &49BC, &49C3
-S49C9:
+; ---- PATOUT_CHAR_OUT_2 ---- from &49BC, &49C3
+PATOUT_CHAR_OUT_2:
                PUSH DE                         ; 49C9 D5
                PUSH HL                         ; 49CA E5
 
-; ---- S49CB ---- from &49AD
-S49CB:
-               LD A,(&5A73)                    ; 49CB 3A 73 5A
+; ---- PATOUT_CHAR_OUT_3 ---- from &49AD
+PATOUT_CHAR_OUT_3:
+               LD A,(DEVICE)                   ; 49CB 3A 73 5A
                CP &02                          ; 49CE FE 02
-               JR Z,S49F4                      ; 49D0 28 22
+               JR Z,PATOUT_CHAR_OUT_5          ; 49D0 28 22
                LD A,(&4AEE)                    ; 49D2 3A EE 4A
                AND A                           ; 49D5 A7
-               JR Z,S49E4                      ; 49D6 28 0C
+               JR Z,PATOUT_CHAR_OUT_4          ; 49D6 28 0C
                EXX                             ; 49D8 D9
                LD HL,&A485                     ; 49D9 21 85 A4
                CALL S49EE                      ; 49DC CD EE 49
@@ -750,65 +765,116 @@ S49CB:
                PUSH DE                         ; 49E2 D5
                JP (HL)                         ; 49E3 E9
 
-; ---- S49E4 ---- from &49D6
-S49E4:
+; ---- PATOUT_CHAR_OUT_4 ---- from &49D6
+PATOUT_CHAR_OUT_4:
                LD A,(&4AEF)                    ; 49E4 3A EF 4A
                AND A                           ; 49E7 A7
-               JR Z,S49F4                      ; 49E8 28 0A
+               JR Z,PATOUT_CHAR_OUT_5          ; 49E8 28 0A
                EXX                             ; 49EA D9
                LD HL,&A4F3                     ; 49EB 21 F3 A4
 
 ; ---- S49EE ---- from &49DC
 S49EE:
                LD C,A                          ; 49EE 4F
-               LD A,&1C                        ; 49EF 3E 1C
-               JP S5BE0                        ; 49F1 C3 E0 5B
 
-; ---- S49F4 ---- from &49D0, &49E8
-S49F4:
+L7D46:
+               LD A,&1C                        ; 49EF 3E 1C
+               JP MB_PAGER                     ; 49F1 C3 E0 5B
+
+; ---- PATOUT_CHAR_OUT_5 ---- from &49D0, &49E8
+PATOUT_CHAR_OUT_5:
                JP &DC77                        ; 49F4 C3 77 DC
-               DEFB &FE,&16,&28,&05,&FE,&17,&C2,&CC,&01,&32,&BE,&5B,&2A,&51,&5C ; 49F7 ~.(.~.BL.2>[*Q\
-               DEFB &5E,&23,&56,&ED,&53,&B5,&5A,&11,&12,&4A,&18,&06,&32,&BF,&5B ; 4A06 ^#VmS5Z..J..2?[
-               DEFB &11,&1F,&4A,&2A,&51,&5C,&73,&23,&72,&C9,&57,&3A,&EE,&4A,&A7 ; 4A15 ..J*Q\s#rIW:nJ'
-               DEFB &28,&06,&47,&AF,&82,&10,&FD,&57,&3A,&73,&5A,&3D,&20,&1C,&3A ; 4A24 (.G/..}W:sZ= .:
-               DEFB &BE,&5B,&D6,&17,&B2,&20,&14,&3A,&3C,&5C,&17,&30,&0E,&ED,&5B ; 4A33 >[V.2 .:<\.0.m[
-               DEFB &B5,&5A,&CD,&18,&4A,&3E,&20,&D7,&3E,&0D,&D7,&C9,&7A,&C3,&A7 ; 4A42 5ZM.J> W>.WIzC'
-               DEFB &3D,&00,&00,&00,&00,&3C,&3C,&3C,&00,&00,&3C,&3C,&3C,&00,&00 ; 4A51 =....<<<..<<<..
-               DEFB &00,&00,&A7,&3E,&37,&D9,&3E,&FF,&C3,&BA,&E2,&11,&C1,&C0,&CD ; 4A60 ..'>7Y>.C:b.A@M
-               DEFB &9E,&1D,&C1,&38,&02,&CF,&05,&57,&E7,&FE,&0D,&28,&04,&FE,&3A ; 4A6F ..A8.O.Wg~.(.~:
-               DEFB &20,&F7,&7A,&C3,&4E,&0D,&21,&B6,&5B,&CB,&C6,&3E,&FF,&32,&40 ; 4A7E  wzCN.!6[KF>.2@
-               DEFB &5B,&2A,&A0,&5A,&3A,&9F,&5A,&D3,&FB,&36,&00,&C9,&CD,&84,&4A ; 4A8D [* Z:.ZS{6.IM.J
-               DEFB &C3,&00,&00,&22,&9E,&4B,&E1,&CD,&01,&0E,&2A,&9E,&4B,&C3,&69 ; 4A9C C..".KaM..*.KCi
-               DEFB &10,&FE,&50,&28,&03,&FE,&4E,&C0,&E1,&CF,&B3,&D9,&C9         ; 4AAB .~P(.~N@aO3YI
+               DEFB &FE,&16,&28,&05,&FE,&17                                     ; 49F7 ~.(.~.
+
+L7D54:
+               DEFB &C2,&CC,&01                                                 ; 49FD BL.
+
+V7D57:
+               DEFB &32                                                         ; 4A00 2
+
+TBL_7D58:
+               DEFB &BE,&5B,&2A,&51,&5C,&5E,&23,&56,&ED,&53,&B5,&5A,&11,&12,&4A ; 4A01 >[*Q\^#VmS5Z..J
+               DEFB &18,&06,&32,&BF,&5B,&11,&1F,&4A                             ; 4A10 ..2?[..J
+
+TBL_7D58_1:
+               DEFB &2A,&51,&5C,&73,&23,&72,&C9,&57,&3A,&EE,&4A,&A7,&28,&06,&47 ; 4A18 *Q\s#rIW:nJ'(.G
+               DEFB &AF                                                         ; 4A27 /
+
+TBL_7D58_LOOP:
+               DEFB &82,&10,&FD,&57                                             ; 4A28 ..}W
+
+TBL_7D58_2:
+               DEFB &3A,&73,&5A,&3D,&20,&1C,&3A,&BE,&5B,&D6,&17,&B2,&20,&14,&3A ; 4A2C :sZ= .:>[V.2 .:
+               DEFB &3C,&5C,&17,&30,&0E,&ED,&5B,&B5,&5A,&CD,&18,&4A,&3E,&20,&D7 ; 4A3B <\.0.m[5ZM.J> W
+               DEFB &3E,&0D,&D7,&C9                                             ; 4A4A >.WI
+
+TBL_7D58_3:
+               DEFB &7A                                                         ; 4A4E z
+
+L7DA6:
+               DEFB &C3,&A7,&3D                                                 ; 4A4F C'=
+
+CURSOR_PATTERNS:
+               DEFB &00,&00,&00,&00,&3C,&3C,&3C,&00,&00,&3C,&3C,&3C,&00,&00,&00 ; 4A52 ....<<<..<<<...
+               DEFB &00,&A7,&3E,&37,&D9,&3E,&FF                                 ; 4A61 .'>7Y>.
+
+L7DBF:
+               DEFB &C3,&BA,&E2,&11,&C1,&C0                                     ; 4A68 C:b.A@
+
+L7DC5:
+               DEFB &CD,&9E,&1D,&C1,&38,&02,&CF,&05                             ; 4A6E M..A8.O.
+
+TBL_7D58_4:
+               DEFB &57                                                         ; 4A76 W
+
+TBL_7D58_LOOP2:
+               DEFB &E7,&FE,&0D,&28,&04,&FE,&3A,&20,&F7                         ; 4A77 g~.(.~: w
+
+TBL_7D58_5:
+               DEFB &7A                                                         ; 4A80 z
+
+L7DD8:
+               DEFB &C3,&4E,&0D,&21,&B6,&5B,&CB,&C6,&3E,&FF,&32,&40,&5B,&2A,&A0 ; 4A81 CN.!6[KF>.2@[* 
+               DEFB &5A,&3A,&9F,&5A,&D3,&FB,&36,&00,&C9                         ; 4A90 Z:.ZS{6.I
+
+INSTALL_ROM_PATCHES_3:
+               DEFB &CD,&84,&4A,&C3,&00,&00,&22,&9E,&4B,&E1,&CD,&01,&0E,&2A,&9E ; 4A99 M.JC..".KaM..*.
+               DEFB &4B,&C3,&69,&10                                             ; 4AA8 KCi.
+
+HOOK_SETUPREGS_1:
+               DEFB &FE,&50,&28,&03,&FE,&4E,&C0                                 ; 4AAC ~P(.~N@
+
+TBL_7D58_DONE:
+               DEFB &E1,&CF,&B3,&D9,&C9                                         ; 4AB3 aO3YI
 
 RST8V_ERROR:
                PUSH AF                         ; 4AB8 F5
                CP &1D                          ; 4AB9 FE 1D
-               JR Z,S4ADB                      ; 4ABB 28 1E
+               JR Z,TBL_7D58_DONE3             ; 4ABB 28 1E
                RLA                             ; 4ABD 17
-               JR C,S4ADB                      ; 4ABE 38 1B
+               JR C,TBL_7D58_DONE3             ; 4ABE 38 1B
                PUSH DE                         ; 4AC0 D5
                LD HL,(&4AEE)                   ; 4AC1 2A EE 4A
                LD A,H                          ; 4AC4 7C
                CP &05                          ; 4AC5 FE 05
-               JR NC,S4ACE                     ; 4AC7 30 05
+               JR NC,TBL_7D58_6                ; 4AC7 30 05
                LD A,L                          ; 4AC9 7D
                CP &05                          ; 4ACA FE 05
-               JR C,S4ADA                      ; 4ACC 38 0C
+               JR C,TBL_7D58_DONE2             ; 4ACC 38 0C
 
-; ---- S4ACE ---- from &4AC7
-S4ACE:
+; ---- TBL_7D58_6 ---- from &4AC7
+TBL_7D58_6:
                LD HL,&0000                     ; 4ACE 21 00 00
                LD (&4AEE),HL                   ; 4AD1 22 EE 4A
-               LD A,(&5A40)                    ; 4AD4 3A 40 5A
+               LD A,(MODE)                     ; 4AD4 3A 40 5A
                CALL &015A                      ; 4AD7 CD 5A 01
 
-; ---- S4ADA ---- from &4ACC
-S4ADA:
+; ---- TBL_7D58_DONE2 ---- from &4ACC
+TBL_7D58_DONE2:
                POP DE                          ; 4ADA D1
 
-; ---- S4ADB ---- from &4ABB, &4ABE
-S4ADB:
+; ---- TBL_7D58_DONE3 ---- from &4ABB, &4ABE
+TBL_7D58_DONE3:
                POP AF                          ; 4ADB F1
                RET                             ; 4ADC C9
                DEFB &CF,&B4,&C9,&CF,&B5,&D9,&C5,&F1,&C9,&CF,&B6,&C9,&CF,&9A,&C9 ; 4ADD O4IO5YEqIO6IO.I
@@ -828,26 +894,33 @@ S4ADB:
 ; --------------------------------------------------------------------
 ; the 36 bytes from &7B80
 ; --------------------------------------------------------------------
-               DEFB &40,&18,&03,&CF,&97,&C9,&CF,&A7,&C9,&CF,&A8,&D9,&C5,&F1,&C9 ; 4BA0 @..O.IO'IO(YEqI
-               DEFB &00                                                         ; 4BAF .
+
+INSTALL_ROM_PATCHES_2:
+               DEFB &40                                                         ; 4BA0 @
+
+WRITE_A_DESCENDING_2:
+               DEFB &18,&03,&CF,&97,&C9                                         ; 4BA1 ..O.I
+
+INSTALL_ROM_PATCHES_DONE:
+               DEFB &CF,&A7,&C9,&CF,&A8,&D9,&C5,&F1,&C9,&00                     ; 4BA6 O'IO(YEqI.
 
 PRTOKV_PRINT_TOKEN:
                CP &F7                          ; 4BB0 FE F7
                RET C                           ; 4BB2 D8
                POP HL                          ; 4BB3 E1
-               LD HL,(&5AA3)                   ; 4BB4 2A A3 5A
+               LD HL,(XPTR)                    ; 4BB4 2A A3 5A
                RST &08                         ; 4BB7 CF
                DEFB &A9                                                         ; 4BB8 )
                RET                             ; 4BB9 C9
 
 EVALUV_EVAL_FN:
                CP &25                          ; 4BBA FE 25
-               JR Z,S4BC1                      ; 4BBC 28 03
+               JR Z,EVALUV_STUB_1              ; 4BBC 28 03
                CP &21                          ; 4BBE FE 21
                RET NC                          ; 4BC0 D0
 
-; ---- S4BC1 ---- from &4BBC
-S4BC1:
+; ---- EVALUV_STUB_1 ---- from &4BBC
+EVALUV_STUB_1:
                POP HL                          ; 4BC1 E1
                RST &08                         ; 4BC2 CF
                DEFB &AC,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 4BC3 ,..............
@@ -862,25 +935,27 @@ S4BC1:
 ; --------------------------------------------------------------------
 
 MNIP_MAIN_INPUT:
-               LD A,(&5C3C)                    ; 4C14 3A 3C 5C
+               LD A,(TVFLAG)                   ; 4C14 3A 3C 5C
                AND &08                         ; 4C17 E6 08
                CALL NZ,&0576                   ; 4C19 C4 76 05
-               LD HL,&5C3B                     ; 4C1C 21 3B 5C
+               LD HL,FLAGS                     ; 4C1C 21 3B 5C
                AND A                           ; 4C1F A7
                BIT 5,(HL)                      ; 4C20 CB 6E
                RET Z                           ; 4C22 C8
-               LD A,(&5C08)                    ; 4C23 3A 08 5C
+               LD A,(LASTK)                    ; 4C23 3A 08 5C
                RES 5,(HL)                      ; 4C26 CB AE
                PUSH HL                         ; 4C28 E5
                LD HL,&000A                     ; 4C29 21 0A 00
                ADD HL,SP                       ; 4C2C 39
                LD E,(HL)                       ; 4C2D 5E
                INC HL                          ; 4C2E 23
+
+PTH2:
                LD D,(HL)                       ; 4C2F 56
                LD HL,&02CB                     ; 4C30 21 CB 02
                AND A                           ; 4C33 A7
                SBC HL,DE                       ; 4C34 ED 52
-               LD HL,&5C3C                     ; 4C36 21 3C 5C
+               LD HL,TVFLAG                    ; 4C36 21 3C 5C
                RES 7,(HL)                      ; 4C39 CB BE
                JR NZ,S4C88                     ; 4C3B 20 4B
                CP &22                          ; 4C3D FE 22
@@ -907,16 +982,18 @@ S4C57:
 ; ---- S4C5E ---- from &4C8B
 S4C5E:
                JP NZ,&0516                     ; 4C5E C2 16 05
-               LD HL,(&5A94)                   ; 4C61 2A 94 5A
-               LD A,(&5C71)                    ; 4C64 3A 71 5C
+
+V7F6B:
+               LD HL,(ELINE)                   ; 4C61 2A 94 5A
+               LD A,(FLAGX)                    ; 4C64 3A 71 5C
                AND &20                         ; 4C67 E6 20
                JR Z,S4C6E                      ; 4C69 28 03
-               LD HL,(&5A91)                   ; 4C6B 2A 91 5A
+               LD HL,(WORKSP)                  ; 4C6B 2A 91 5A
 
 ; ---- S4C6E ---- from &4C69
 S4C6E:
                EX DE,HL                        ; 4C6E EB
-               LD HL,(&5A9A)                   ; 4C6F 2A 9A 5A
+               LD HL,(KCUR)                    ; 4C6F 2A 9A 5A
 
 ; ---- S4C72 ---- from &4C7D
 S4C72:
@@ -936,6 +1013,8 @@ S4C7F:
                CP &20                          ; 4C81 FE 20
                JR Z,S4C7F                      ; 4C83 28 FA
                INC HL                          ; 4C85 23
+
+STR:
                JR S4CAB                        ; 4C86 18 23
 
 ; ---- S4C88 ---- from &4C3B
@@ -943,7 +1022,7 @@ S4C88:
                POP HL                          ; 4C88 E1
                CP &06                          ; 4C89 FE 06
                JR NZ,S4C5E                     ; 4C8B 20 D1
-               LD HL,&5C6A                     ; 4C8D 21 6A 5C
+               LD HL,FLAGS2                    ; 4C8D 21 6A 5C
                LD A,(HL)                       ; 4C90 7E
                XOR &08                         ; 4C91 EE 08
                LD (HL),A                       ; 4C93 77
@@ -952,12 +1031,14 @@ S4C88:
 
 ; ---- S4C96 ---- from &4C5A
 S4C96:
-               LD HL,(&5A9A)                   ; 4C96 2A 9A 5A
+               LD HL,(KCUR)                    ; 4C96 2A 9A 5A
 
 ; ---- S4C99 ---- from &4C9D
 S4C99:
                LD A,(HL)                       ; 4C99 7E
                INC HL                          ; 4C9A 23
+
+V7FA5:
                CP &20                          ; 4C9B FE 20
                JR Z,S4C99                      ; 4C9D 28 FA
                DEC HL                          ; 4C9F 2B
@@ -974,11 +1055,11 @@ S4CA1:
 
 ; ---- S4CAB ---- from &4C78, &4C86, &4CA5
 S4CAB:
-               LD (&5A9A),HL                   ; 4CAB 22 9A 5A
+               LD (KCUR),HL                    ; 4CAB 22 9A 5A
 
 ; ---- S4CAE ---- from &4C76
 S4CAE:
-               LD HL,&5C3C                     ; 4CAE 21 3C 5C
+               LD HL,TVFLAG                    ; 4CAE 21 3C 5C
                SET 3,(HL)                      ; 4CB1 CB DE
                CP A                            ; 4CB3 BF
                RET                             ; 4CB4 C9
@@ -1088,35 +1169,64 @@ CDBUFF_50:
 ; --------------------------------------------------------------------
 ; the DOS page's tail, 446 bytes, which carries the alternate character set at &4F74
 ; --------------------------------------------------------------------
+
+INSTALL_TAIL_INTO_SYSPAGE:
                DEFB &21,&60,&BD,&11,&00,&4F,&01,&BE,&01,&ED,&B0,&11,&14,&4C,&0E ; 4F00 !`=..O.>.m0..L.
-               DEFB &A1,&ED,&B0,&C9,&36,&00,&A7,&C8,&3A,&71,&5C,&1F,&D8,&3A,&A5 ; 4F0F !m0I6.'H:q\.X:%
-               DEFB &5A,&CD,&DF,&3F,&2A,&A6,&5A,&ED,&4B,&72,&5C,&3A,&3B,&5C,&CB ; 4F1E ZM_?*&ZmKr\:;\K
-               DEFB &77,&28,&11,&ED,&5B,&65,&5C,&01,&05,&00,&ED,&B0,&ED,&53,&65 ; 4F2D w(.m[e\...m0mSe
-               DEFB &5C,&CD,&7E,&01,&EB,&78,&B1,&C8,&DB,&FB,&F5,&E5,&C5,&3A,&99 ; 4F3C \M~.kx1H[{ueE:.
-               DEFB &5A,&F5,&CD,&DF,&3F,&2A,&9A,&5A,&23,&22,&9A,&5A,&2B,&AF,&CD ; 4F4B ZuM_?*.Z#".Z+/M
-               DEFB &0C,&01,&AF,&32,&83,&5B,&F1,&C1,&ED,&43,&84,&5B,&EB,&2A,&9A ; 4F5A ../2.[qAmC.[k*.
-               DEFB &5A,&2B,&22,&9A,&5A,&E1,&4F,&F1,&C3,&2D,&01,&1C,&22,&20,&20 ; 4F69 Z+".ZaOqC-.."  
-               DEFB &22,&1C,&04,&18,&00,&14,&00,&22,&22,&22,&1E,&00,&0C,&10,&1C ; 4F78 "......""".....
-               DEFB &22,&3E,&20,&1E,&00,&08,&14,&00,&1A,&26,&26,&1A,&00,&00,&14 ; 4F87 "> ......&&....
-               DEFB &00,&1A,&26,&26,&1A,&00,&18,&04,&00,&1A,&26,&26,&1A,&00,&00 ; 4F96 ..&&......&&...
-               DEFB &18,&14,&1A,&26,&26,&1A,&00,&00,&00,&1E,&20,&20,&1E,&04,&1C ; 4FA5 ...&&.....  ...
-               DEFB &08,&14,&1C,&22,&3E,&20,&1E,&00,&14,&00,&1C,&22,&3E,&20,&1E ; 4FB4 ..."> ....."> .
-               DEFB &00,&18,&04,&1C,&22,&3E,&20,&1E,&00,&14,&00,&08,&08,&08,&08 ; 4FC3 ...."> ........
-               DEFB &04,&00,&08,&14,&00,&08,&08,&08,&04,&00,&18,&04,&00,&08,&08 ; 4FD2 ...............
-               DEFB &08,&04,&00,&14,&00,&1C,&22,&3E,&22,&22,&00,&08,&14,&00,&1C ; 4FE1 ......">"".....
-               DEFB &22,&3E,&22,&00,&0C,&10,&3E,&20,&3C,&20,&3E,&00,&00,&00,&04 ; 4FF0 ">"...> < >....
-               DEFB &1A,&2E,&38,&2E,&00,&1E,&28,&28,&3C,&28,&28,&2E,&00,&08,&14 ; 4FFF ..8...((<((....
-               DEFB &00,&1C,&22,&22,&1C,&00,&00,&14,&00,&1C,&22,&22,&1C,&00,&18 ; 500E ..""......""...
-               DEFB &04,&00,&1C,&22,&22,&1C,&00,&08,&14,&00,&22,&22,&22,&1E,&00 ; 501D ...""....."""..
-               DEFB &18,&04,&00,&22,&22,&22,&1E,&00,&14,&00,&22,&22,&22,&1E,&02 ; 502C ..."""...."""..
-               DEFB &00,&14,&00,&1C,&22,&22,&22,&1C,&00,&14,&00,&22,&22,&22,&22 ; 503B ...."""....""""
-               DEFB &1E,&00,&08,&1E,&20,&20,&20,&1E,&08,&00,&0C,&12,&10,&38,&10 ; 504A ....   ......8.
-               DEFB &10,&3E,&00,&22,&22,&14,&3E,&08,&3E,&08,&00,&3C,&22,&3C,&20 ; 5059 .>."".>.>..<"< 
-               DEFB &28,&2C,&28,&06,&04,&0A,&08,&1C,&08,&28,&10,&00,&0C,&10,&00 ; 5068 (,(......(.....
-               DEFB &1A,&26,&26,&1A,&00,&0C,&10,&00,&08,&08,&08,&04,&00,&0C,&10 ; 5077 .&&............
-               DEFB &00,&1C,&22,&22,&1C,&00,&0C,&10,&00,&22,&22,&22,&1E,&00,&0A ; 5086 ..""....."""...
-               DEFB &14,&00,&3C,&22,&22,&22,&00,&0A,&14,&00,&22,&32,&2A,&26,&00 ; 5095 ..<"""...."2*&.
-               DEFB &00,&00,&1A,&26,&26,&1A,&00,&1C,&00,&00,&1C,&22,&22,&1C,&00 ; 50A4 ...&&......""..
+               DEFB &A1,&ED,&B0,&C9,&36,&00,&A7,&C8,&3A,&71                     ; 4F0F !m0I6.'H:q
+
+FIND_ROM_CODE:
+               DEFB &5C,&1F,&D8,&3A,&A5,&5A,&CD,&DF,&3F,&2A,&A6,&5A,&ED,&4B,&72 ; 4F19 \.X:%ZM_?*&ZmKr
+               DEFB &5C,&3A,&3B,&5C,&CB,&77,&28,&11,&ED,&5B,&65                 ; 4F28 \:;\Kw(.m[e
+
+MBCOPY_7774:
+               DEFB &5C,&01,&05,&00,&ED,&B0,&ED,&53,&65,&5C,&CD,&7E,&01,&EB,&78 ; 4F33 \...m0mSe\M~.kx
+               DEFB &B1,&C8,&DB,&FB,&F5,&E5,&C5,&3A                             ; 4F42 1H[{ueE:
+
+MBCOPY_778B:
+               DEFB &99,&5A,&F5,&CD,&DF,&3F,&2A,&9A,&5A,&23,&22,&9A,&5A,&2B,&AF ; 4F4A .ZuM_?*.Z#".Z+/
+               DEFB &CD,&0C,&01,&AF,&32,&83,&5B,&F1,&C1,&ED,&43,&84,&5B,&EB,&2A ; 4F59 M../2.[qAmC.[k*
+               DEFB &9A,&5A,&2B,&22,&9A,&5A,&E1,&4F,&F1,&C3,&2D,&01,&1C,&22,&20 ; 4F68 .Z+".ZaOqC-.." 
+               DEFB &20,&22,&1C,&04,&18,&00,&14,&00,&22,&22,&22,&1E,&00,&0C     ; 4F77  "......"""...
+
+V7DE5:
+               DEFB &10,&1C,&22                                                 ; 4F85 .."
+
+V7DE8:
+               DEFB &3E,&20,&1E,&00,&08,&14,&00,&1A,&26,&26,&1A,&00,&00,&14,&00 ; 4F88 > ......&&.....
+               DEFB &1A,&26,&26,&1A,&00,&18,&04,&00,&1A,&26,&26,&1A,&00,&00,&18 ; 4F97 .&&......&&....
+               DEFB &14,&1A,&26,&26,&1A,&00,&00,&00,&1E,&20,&20,&1E,&04,&1C,&08 ; 4FA6 ..&&.....  ....
+               DEFB &14,&1C,&22,&3E,&20,&1E,&00,&14,&00,&1C,&22,&3E,&20,&1E,&00 ; 4FB5 .."> ....."> ..
+               DEFB &18,&04,&1C,&22,&3E,&20,&1E,&00,&14,&00,&08,&08,&08,&08,&04 ; 4FC4 ..."> .........
+               DEFB &00,&08,&14,&00,&08,&08,&08,&04,&00,&18,&04,&00,&08,&08,&08 ; 4FD3 ...............
+               DEFB &04,&00,&14,&00,&1C,&22                                     ; 4FE2 ....."
+
+MBCOPY_7829:
+               DEFB &3E,&22,&22,&00,&08,&14,&00,&1C,&22,&3E,&22,&00,&0C,&10,&3E ; 4FE8 >"".....">"...>
+               DEFB &20,&3C,&20,&3E,&00,&00,&00,&04,&1A,&2E,&38,&2E,&00,&1E,&28 ; 4FF7  < >......8...(
+               DEFB &28,&3C,&28,&28,&2E,&00,&08,&14,&00,&1C,&22,&22,&1C,&00,&00 ; 5006 (<((......""...
+               DEFB &14,&00,&1C,&22,&22,&1C,&00,&18,&04,&00,&1C,&22,&22,&1C,&00 ; 5015 ...""......""..
+               DEFB &08,&14,&00,&22,&22,&22,&1E,&00,&18,&04,&00,&22,&22,&22,&1E ; 5024 ...""".....""".
+               DEFB &00,&14,&00,&22,&22                                         ; 5033 ...""
+
+V7E98:
+               DEFB &22,&1E,&02,&00,&14,&00,&1C,&22,&22,&22,&1C,&00,&14,&00     ; 5038 "......"""....
+
+V7EA6:
+               DEFB &22,&22,&22,&22,&1E,&00,&08,&1E,&20,&20,&20,&1E,&08,&00,&0C ; 5046 """"....   ....
+               DEFB &12,&10,&38,&10,&10,&3E,&00,&22,&22,&14,&3E,&08,&3E,&08,&00 ; 5055 ..8..>."".>.>..
+               DEFB &3C,&22,&3C,&20,&28,&2C,&28,&06,&04,&0A,&08,&1C,&08,&28,&10 ; 5064 <"< (,(......(.
+               DEFB &00,&0C,&10,&00,&1A,&26,&26,&1A,&00,&0C,&10,&00,&08,&08,&08 ; 5073 .....&&........
+               DEFB &04,&00,&0C,&10,&00,&1C,&22,&22,&1C,&00,&0C,&10,&00,&22,&22 ; 5082 ......"".....""
+               DEFB &22,&1E,&00,&0A,&14,&00,&3C,&22,&22,&22,&00                 ; 5091 ".....<""".
+
+V7EFC:
+               DEFB &0A,&14,&00,&22,&32,&2A,&26,&00,&00,&00,&1A,&26,&26,&1A,&00 ; 509C ..."2*&....&&..
+               DEFB &1C,&00                                                     ; 50AB ..
+
+V7F0D:
+               DEFB &00,&1C,&22,&22,&1C,&00                                     ; 50AD ..""..
+
+PTH1:
                DEFB &1C,&08,&00,&08,&10,&20,&22,&1C,&00,&A9,&AA,&00,&00,&4F,&4B ; 50B3 ..... "..)*..OK
                DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&20,&20,&20,&4D,&49,&4C ; 50C2 .........   MIL
                DEFB &45,&53,&20,&47,&4F,&52,&44,&4F,&4E,&20,&54,&45,&43,&48,&4E ; 50D1 ES GORDON TECHN
@@ -1256,70 +1366,74 @@ CDBUFF_50:
 ; --------------------------------------------------------------------
 ; the 40 bytes from &7E43, in the gap the ROM leaves between the DEF KEY buffer and the keyboard table
 ; --------------------------------------------------------------------
+
+GAP_BLOCK:
                DEFB &CF,&AA,&D9,&C5,&F1,&DA,&AD,&3D,&C9,&D3,&FB,&79,&D9,&C9,&08 ; 5896 O*YEqZ-=IS{yYI.
                DEFB &D9,&E1,&22,&59,&5C,&F1,&E1,&FD,&21,&86,&02,&F3,&F9,&FD,&E9 ; 58A5 Ya"Y\qa}!..sy}i
-               DEFB &CF,&AB,&D9,&C5,&F1,&C8,&D0,&C3,&00,&4F,&00,&00,&00,&00,&00 ; 58B4 O+YEqHPC.O.....
-               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 58C3 ...............
-               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 58D2 ...............
-               DEFB &FD,&07,&C0,&0C,&06,&C9,&C6,&C3,&58,&2E,&3A,&22,&2B,&FC,&C8 ; 58E1 }.@..IFCX.:"+|H
-               DEFB &C5,&C2,&58,&2C,&3B,&3D,&2D,&20,&C7,&C4,&C1,&09,&62,&68,&79 ; 58F0 EBX,;=- GDA.bhy
-               DEFB &36,&35,&74,&67,&76,&08,&6E,&6A,&75,&37,&34,&72,&66,&63,&0A ; 58FF 65tgv.nju74rfc.
-               DEFB &6D,&6B,&69,&38,&33,&65,&64,&78,&0B,&58,&6C,&6F,&39,&32,&77 ; 590E mki83edx.Xlo92w
-               DEFB &73,&7A,&58,&20,&0D,&70,&30,&31,&71,&61,&5C,&07,&CA,&0E,&06 ; 591D szX .p01qa\.J..
-               DEFB &D3,&D0,&CD,&58,&2E,&3A,&7F,&2A,&FC,&D2,&CF,&CC,&58,&2C,&3B ; 592C SPMX.:.*|ROLX,;
-               DEFB &5F,&2F,&20,&D1,&CE,&CB,&19,&42,&48,&59,&26,&25,&54,&47,&56 ; 593B _/ QNK.BHY&%TGV
-               DEFB &18,&4E,&4A,&55,&27,&24,&52,&46,&43,&0A,&4D,&4B,&49,&28,&23 ; 594A .NJU'$RFC.MKI(#
-               DEFB &45,&44,&58,&0B,&58,&4C,&4F,&29,&40,&57,&53,&5A,&58,&20,&0D ; 5959 EDX.XLO)@WSZX .
-               DEFB &50,&7E,&21,&51,&41,&FE,&0F,&30,&0E,&06,&39,&36,&33,&58,&3E ; 5968 P~!QA~.0..963X>
-               DEFB &2A,&CF,&2A,&FC,&38,&35,&32,&58,&3C,&2B,&5F,&2F,&20,&37,&34 ; 5977 *O*|852X<+_/ 74
-               DEFB &31,&09,&9E,&5E,&9D,&86,&85,&5D,&7D,&97,&08,&A4,&2D,&81,&87 ; 5986 1..^...]}..$-..
-               DEFB &84,&5B,&7B,&A8,&0A,&A5,&2B,&A5,&80,&83,&82,&9C,&3F,&0B,&58 ; 5995 .[{(.%+%....?.X
-               DEFB &60,&94,&7C,&82,&3E,&94,&3F,&58,&20,&0D,&BB,&7E,&81,&3C,&B1 ; 59A4 `.|.>.?X .;~.<1
-               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 59B3 ...............
-               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&13,&00,&00 ; 59C2 ...............
-               DEFB &89,&8A,&00,&00,&00,&00,&00,&00,&00,&88,&8B,&00,&00,&00,&0D ; 59D1 ...............
-               DEFB &00,&00,&10,&8F,&8C,&00,&00,&00,&0D,&00,&00,&00,&00,&8D,&00 ; 59E0 ...............
-               DEFB &00,&00,&00,&00,&00,&11,&00,&8E,&00,&00,&00,&00,&00,&00,&00 ; 59EF ...............
-               DEFB &00,&00,&3E,&80,&81,&31,&30,&23,&44,&01,&11,&00,&56,&FF,&00 ; 59FE ..>..10#D...V..
-               DEFB &00,&4F,&0A,&E9,&01,&16,&20,&01,&01,&06,&1B,&6C,&08,&1B,&33 ; 5A0D .O.i.. ....l..3
-               DEFB &18,&00,&00,&05,&0D,&0A,&1B,&2A,&04,&00,&00,&04,&0D,&0A,&1B ; 5A1C .......*.......
-               DEFB &40,&00,&00,&80,&00,&00,&FF,&00,&00,&00,&00,&09,&08,&1F,&00 ; 5A2B @..............
-               DEFB &00,&12,&1F,&00,&13,&14,&03,&AD,&00,&00,&00,&07,&00,&00,&00 ; 5A3A .......-.......
-               DEFB &77,&00,&00,&00,&01,&07,&00,&00,&00,&FF,&00,&00,&00,&1F,&00 ; 5A49 w..............
-               DEFB &13,&14,&12,&1F,&12,&03,&00,&00,&00,&00,&8D,&0E,&00,&00,&00 ; 5A58 ...............
-               DEFB &00,&00,&ED,&0E,&00,&FE,&00,&09,&14,&00,&00,&31,&01,&4B,&00 ; 5A67 ..m..~.....1.K.
-               DEFB &00,&00,&7E,&00,&1F,&33,&9F,&00,&00,&00,&00,&00,&32,&9F,&00 ; 5A76 ..~..3......2..
-               DEFB &32,&9D,&00,&D6,&9C,&00,&D4,&9C,&00,&35,&9F,&00,&35,&9F,&00 ; 5A85 2..V..T..5..5..
-               DEFB &33,&9F,&00,&3B,&9F,&00,&33,&9F,&00,&3C,&9F,&00,&D5,&9C,&00 ; 5A94 3..;..3..<..U..
-               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 5AA3 ...............
-               DEFB &00,&00,&00,&CC,&01,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 5AB2 ...L...........
-               DEFB &00,&06,&14,&00,&00,&09,&10,&3A,&DF,&00,&00,&00,&00,&AD,&1F ; 5AC1 .......:_....-.
-               DEFB &00,&F7,&E6,&4E,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&B0 ; 5AD0 .wfN..........0
-               DEFB &4B,&9E,&1C,&86,&49,&00,&00,&00,&00,&00,&00,&00,&00,&66,&48 ; 5ADF K...I........fH
-               DEFB &B8,&4A,&AC,&4A,&00,&00,&8E,&48,&BA,&4B,&00,&00,&B4,&58,&00 ; 5AEE 8J,J...H:K..4X.
-               DEFB &00,&00,&00,&00,&00,&00,&0F,&00,&F0,&00,&FF,&0F,&00,&0F,&0F ; 5AFD ........p......
-               DEFB &0F,&F0,&0F,&FF,&F0,&00,&F0,&0F,&F0,&F0,&F0,&FF,&FF,&00,&FF ; 5B0C .p..p.p.ppp....
-               DEFB &0F,&FF,&F0,&FF,&FF,&00,&00,&00,&0F,&00,&F0,&00,&FF,&0F,&00 ; 5B1B ..p.......p....
-               DEFB &0F,&0F,&0F,&F0,&0F,&FF,&F0,&00,&F0,&0F,&F0,&F0,&F0,&FF,&FF ; 5B2A ...p..p.p.ppp..
-               DEFB &00,&FF,&0F,&FF,&F0,&FF,&FF,&00,&00,&00,&00,&00,&00,&00,&00 ; 5B39 ....p..........
-               DEFB &00,&00,&00,&00,&00,&00,&0E,&06,&00,&00,&00,&00,&00,&00,&00 ; 5B48 ...............
-               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 5B57 ...............
-               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&49,&00,&00,&00,&E9 ; 5B66 ..........I...i
-               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 5B75 ...............
-               DEFB &03,&00,&77,&00,&00,&00,&00,&39,&9F,&FE,&5F,&5F,&40,&40,&40 ; 5B84 ..w....9.~__@@@
-               DEFB &40,&40,&40,&00,&00,&00,&00,&06,&A4,&5B,&05,&00,&00,&31,&30 ; 5B93 @@@.....$[...10
-               DEFB &32,&34,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&11 ; 5BA2 24.............
-               DEFB &11,&11,&10,&24,&00,&00,&00,&00,&00,&CC,&46,&00,&00,&10,&00 ; 5BB1 ...$.....LF....
-               DEFB &00,&00,&1D,&00,&A1,&45,&A1,&45,&00,&40,&00,&40,&00,&4D,&00 ; 5BC0 ....!E!E.@.@.M.
-               DEFB &58,&80,&58,&A9,&49,&51,&F6,&DD,&F5,&E0,&58,&65,&FD,&F7,&49 ; 5BCF X.X)IQv]u`Xe}wI
-               DEFB &14,&4C                                                     ; 5BDE .L
+               DEFB &CF,&AB,&D9                                                 ; 58B4 O+Y
+
+HOOK_SWAPCHARS_1:
+               DEFB &C5,&F1,&C8,&D0,&C3,&00,&4F,&00,&00,&00,&00,&00,&00,&00,&00 ; 58B7 EqHPC.O........
+               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 58C6 ...............
+               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&FD,&07,&C0 ; 58D5 ............}.@
+               DEFB &0C,&06,&C9,&C6,&C3,&58,&2E,&3A,&22,&2B,&FC,&C8,&C5,&C2,&58 ; 58E4 ..IFCX.:"+|HEBX
+               DEFB &2C,&3B,&3D,&2D,&20,&C7,&C4,&C1,&09,&62,&68,&79,&36,&35,&74 ; 58F3 ,;=- GDA.bhy65t
+               DEFB &67,&76,&08,&6E,&6A,&75,&37,&34,&72,&66,&63,&0A,&6D,&6B,&69 ; 5902 gv.nju74rfc.mki
+               DEFB &38,&33,&65,&64,&78,&0B,&58,&6C,&6F,&39,&32,&77,&73,&7A,&58 ; 5911 83edx.Xlo92wszX
+               DEFB &20,&0D,&70,&30,&31,&71,&61,&5C,&07,&CA,&0E,&06,&D3,&D0,&CD ; 5920  .p01qa\.J..SPM
+               DEFB &58,&2E,&3A,&7F,&2A,&FC,&D2,&CF,&CC,&58,&2C,&3B,&5F,&2F,&20 ; 592F X.:.*|ROLX,;_/ 
+               DEFB &D1,&CE,&CB,&19,&42,&48,&59,&26,&25,&54,&47,&56,&18,&4E,&4A ; 593E QNK.BHY&%TGV.NJ
+               DEFB &55,&27,&24,&52,&46,&43,&0A,&4D,&4B,&49,&28,&23,&45,&44,&58 ; 594D U'$RFC.MKI(#EDX
+               DEFB &0B,&58,&4C,&4F,&29,&40,&57,&53,&5A,&58,&20,&0D,&50,&7E,&21 ; 595C .XLO)@WSZX .P~!
+               DEFB &51,&41,&FE,&0F,&30,&0E,&06,&39,&36,&33,&58,&3E,&2A,&CF,&2A ; 596B QA~.0..963X>*O*
+               DEFB &FC,&38,&35,&32,&58,&3C,&2B,&5F,&2F,&20,&37,&34,&31,&09,&9E ; 597A |852X<+_/ 741..
+               DEFB &5E,&9D,&86,&85,&5D,&7D,&97,&08,&A4,&2D,&81,&87,&84,&5B,&7B ; 5989 ^...]}..$-...[{
+               DEFB &A8,&0A,&A5,&2B,&A5,&80,&83,&82,&9C,&3F,&0B,&58,&60,&94,&7C ; 5998 (.%+%....?.X`.|
+               DEFB &82,&3E,&94,&3F,&58,&20,&0D,&BB,&7E,&81,&3C,&B1,&00,&00,&00 ; 59A7 .>.?X .;~.<1...
+               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 59B6 ...............
+               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&13,&00,&00,&89,&8A,&00 ; 59C5 ...............
+               DEFB &00,&00,&00,&00,&00,&00,&88,&8B,&00,&00,&00,&0D,&00,&00,&10 ; 59D4 ...............
+               DEFB &8F,&8C,&00,&00,&00,&0D,&00,&00,&00,&00,&8D,&00,&00,&00,&00 ; 59E3 ...............
+               DEFB &00,&00,&11,&00,&8E,&00,&00,&00,&00,&00,&00,&00,&00,&00,&3E ; 59F2 ..............>
+               DEFB &80,&81,&31,&30,&23,&44,&01,&11,&00,&56,&FF,&00,&00,&4F,&0A ; 5A01 ..10#D...V...O.
+               DEFB &E9,&01,&16,&20,&01,&01,&06,&1B,&6C,&08,&1B,&33,&18,&00,&00 ; 5A10 i.. ....l..3...
+               DEFB &05,&0D,&0A,&1B,&2A,&04,&00,&00,&04,&0D,&0A,&1B,&40,&00,&00 ; 5A1F ....*.......@..
+               DEFB &80,&00,&00,&FF,&00,&00,&00,&00,&09,&08,&1F,&00,&00,&12,&1F ; 5A2E ...............
+               DEFB &00,&13,&14,&03,&AD,&00,&00,&00,&07,&00,&00,&00,&77,&00,&00 ; 5A3D ....-.......w..
+               DEFB &00,&01,&07,&00,&00,&00,&FF,&00,&00,&00,&1F,&00,&13,&14,&12 ; 5A4C ...............
+               DEFB &1F,&12,&03,&00,&00,&00,&00,&8D,&0E,&00,&00,&00,&00,&00,&ED ; 5A5B ..............m
+               DEFB &0E,&00,&FE,&00,&09,&14,&00,&00,&31,&01,&4B,&00,&00,&00,&7E ; 5A6A ..~.....1.K...~
+               DEFB &00,&1F,&33,&9F,&00,&00,&00,&00,&00,&32,&9F,&00,&32,&9D,&00 ; 5A79 ..3......2..2..
+               DEFB &D6,&9C,&00,&D4,&9C,&00,&35,&9F,&00,&35,&9F,&00,&33,&9F,&00 ; 5A88 V..T..5..5..3..
+               DEFB &3B,&9F,&00,&33,&9F,&00,&3C,&9F,&00,&D5,&9C,&00,&00,&00,&00 ; 5A97 ;..3..<..U.....
+               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 5AA6 ...............
+               DEFB &CC,&01,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&06,&14 ; 5AB5 L..............
+               DEFB &00,&00,&09,&10,&3A,&DF,&00,&00,&00,&00,&AD,&1F,&00,&F7,&E6 ; 5AC4 ....:_....-..wf
+               DEFB &4E,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&B0,&4B,&9E,&1C ; 5AD3 N..........0K..
+               DEFB &86,&49,&00,&00,&00,&00,&00,&00,&00,&00,&66,&48,&B8,&4A,&AC ; 5AE2 .I........fH8J,
+               DEFB &4A,&00,&00,&8E,&48,&BA,&4B,&00,&00,&B4,&58,&00,&00,&00,&00 ; 5AF1 J...H:K..4X....
+               DEFB &00,&00,&00,&0F,&00,&F0,&00,&FF,&0F,&00,&0F,&0F,&0F,&F0,&0F ; 5B00 .....p.......p.
+               DEFB &FF,&F0,&00,&F0,&0F,&F0,&F0,&F0,&FF,&FF,&00,&FF,&0F,&FF,&F0 ; 5B0F .p.p.ppp......p
+               DEFB &FF,&FF,&00,&00,&00,&0F,&00,&F0,&00,&FF,&0F,&00,&0F,&0F,&0F ; 5B1E .......p.......
+               DEFB &F0,&0F,&FF,&F0,&00,&F0,&0F,&F0,&F0,&F0,&FF,&FF,&00,&FF,&0F ; 5B2D p..p.p.ppp.....
+               DEFB &FF,&F0,&FF,&FF,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 5B3C .p.............
+               DEFB &00,&00,&00,&0E,&06,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 5B4B ...............
+               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 5B5A ...............
+               DEFB &00,&00,&00,&00,&00,&00,&00,&49,&00,&00,&00,&E9,&00,&00,&00 ; 5B69 .......I...i...
+               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&03,&00,&77 ; 5B78 ..............w
+               DEFB &00,&00,&00,&00,&39,&9F,&FE,&5F,&5F,&40,&40,&40,&40,&40,&40 ; 5B87 ....9.~__@@@@@@
+               DEFB &00,&00,&00,&00,&06,&A4,&5B,&05,&00,&00,&31,&30,&32,&34,&00 ; 5B96 .....$[...1024.
+               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&11,&11,&11,&10 ; 5BA5 ...............
+               DEFB &24,&00,&00,&00,&00,&00,&CC,&46,&00,&00,&10,&00,&00,&00,&1D ; 5BB4 $.....LF.......
+               DEFB &00,&A1,&45,&A1,&45,&00,&40,&00,&40,&00,&4D,&00,&58,&80,&58 ; 5BC3 .!E!E.@.@.M.X.X
+               DEFB &A9,&49,&51,&F6,&DD,&F5,&E0,&58,&65,&FD,&F7,&49,&14,&4C     ; 5BD2 )IQv]u`Xe}wI.L
 
 ; --------------------------------------------------------------------
 ; MasterBASIC's own paging routine, in the fourteen bytes the ROM reserves at PAGER
 ; --------------------------------------------------------------------
 
-; ---- S5BE0 ---- from &48DA, &49F1
-S5BE0:
+; ---- MB_PAGER ---- from &48DA, &49F1
+MB_PAGER:
                EX AF,AF'                       ; 5BE0 08
                IN A,(&FB)                      ; 5BE1 DB FB
                PUSH AF                         ; 5BE3 F5

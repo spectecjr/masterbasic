@@ -13,10 +13,12 @@ much a part of the result as the code.
 
 import io
 import os
+import re
 import sys
 import textwrap
 import asmfmt
 import clean
+import romsyms
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -88,13 +90,75 @@ VECTORS = (
 )
 
 
+# A label on its own line, and the address of the first line under it
+# that carries one.  This is the listing's own format, read back: the
+# alternative is a sidecar file that can go stale against the thing it
+# describes.
+LABEL_LINE = re.compile(r'^([A-Za-z_]\w*):\s*$')
+ADDR_LINE = re.compile(r';\s*([0-9A-Fa-f]{4}) ')
+
+
 class SysPage(Disassembler):
     def __init__(self, mem):
         Disassembler.__init__(self, mem, BASE)
         self.title = ''
+        # The ROM's variables, for operands only.  Not labels: a label at
+        # &5C5C would print in the middle of the DEFB run that covers the
+        # variable area, and nothing here defines that byte.
+        self.romvars = {}
 
     def ext_target(self, v):
         return None
+
+    def ext_datum(self, v):
+        return self.romvars.get(v)
+
+    def mem16(self, v, at=None):
+        n = Disassembler.mem16(self, v, at)
+        got = self.romvars.get(v)
+        return got if got and n == hexn(v, 4) else n
+
+
+def source_labels(root):
+    """Label -> address for each half, read out of listings/disasm."""
+    out = {}
+    for tag, name in (('DOS', 'masterdos'), ('MB', 'masterbasic')):
+        got = {}
+        path = os.path.join(root, 'listings', 'disasm', name + '.asm')
+        if os.path.exists(path):
+            pending = []
+            with open(path) as f:
+                for line in f:
+                    m = LABEL_LINE.match(line)
+                    if m:
+                        pending.append(m.group(1))
+                        continue
+                    m = ADDR_LINE.search(line)
+                    if m and pending:
+                        for label in pending:
+                            got[label] = int(m.group(1), 16)
+                        pending = []
+        out[tag] = got
+    return out
+
+
+def carried_labels(root):
+    """Those labels again, at the addresses the copy rules put them.
+
+    The bytes here are the same bytes, so the code is the same code and
+    wants the same name.  Without this everything no vector points at was
+    called S%04X, which is not merely terse: a block that happened to
+    follow a renamed label took that label's name and a number, so
+    SAVE_BOOT_BLOCK_1 -- whose one reference in the image is a disc write
+    -- was for a while named after a raster wait three lines above it.
+    """
+    src = source_labels(root)
+    out = {}
+    for tag, lo, hi, at, why in COPIES:
+        for label, a in src.get(tag, {}).items():
+            if lo <= a < hi:
+                out.setdefault(at + (a - lo), label)
+    return out
 
 
 def build(image, dump=None):
@@ -197,12 +261,50 @@ def main():
             d.seed(at, name)
     d.run()
     d.relabel()
+
+    # The names the copies already have where they are assembled.  A
+    # carried label that lands inside an instruction is worth knowing
+    # about rather than dropping quietly: it would mean this page and the
+    # listing it came from disagree about where an instruction starts,
+    # and the two are the same bytes.
+    got, used, split = carried_labels(root), set(d.labels.values()), []
+    carried = 0
+    for a in sorted(got):
+        if d.m(a) == CONT:
+            split.append(a)
+            continue
+        if a in d.labels or got[a] in used:
+            continue
+        d.labels[a] = got[a]
+        used.add(got[a])
+        carried += 1
+    d.relabel()
+    print('carried %d labels from the listings the copies come from; '
+          '%d landed inside an instruction' % (carried, len(split)))
+    for a in split[:8]:
+        print('  &%04X %s' % (a, got[a]))
+
     # Name every target something reaches, so the internal jumps can be
     # checked: in a correctly placed block they all land inside it.
     for a in sorted(d.xrefs):
         if d.m(a) == CODE and a not in d.labels:
             d.labels[a] = 'S%04X' % a
     d.relabel()
+
+    # The ROM's own variables.  This page IS the ROM's variable page, so
+    # an operand in &4000-&5FFF here is that variable and not a guess --
+    # which is why dis_mb has to be careful with the same numbers and
+    # this does not.  Only the tables that need no build directory: the
+    # ROM's vars.asm, and the three hand-written sets in romsyms.
+    syms = romsyms.Symbols()
+    syms.from_vars_file(os.path.join(root, 'ref', 'samrom', 'vars.asm'))
+    syms.from_mdos_comments()
+    syms.from_reserved_for_dump()
+    syms.from_spare_taken_by_mb()
+    syms.finalise(set(d.labels.values()))
+    d.romvars = {a: n for a, n in syms.vars.items() if BASE <= a < TOP}
+    d.relabel()
+    print('%d of the ROM\'s variables are in range for this page' % len(d.romvars))
 
     for at, end, why in placed:
         d.headers[at] = ('; ' + '-' * 68 + '\n; %s\n; ' % why) + '-' * 68

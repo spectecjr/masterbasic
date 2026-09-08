@@ -32,6 +32,7 @@ NOT_IN_THIS_PAGE:        EQU  &4000
 
 
 
+
 ; Memory
 BOOT_STACK_TOP:          EQU  &C000            ; one past the window; the stack grows down into this page
 DIR_NAME_BUFFER:         EQU  &A000            ; where a sorted listing collects its names

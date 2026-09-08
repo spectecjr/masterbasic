@@ -1618,6 +1618,7 @@ def load_symbols(d, work, dos=None, peer=None):
     syms.from_vars_file(os.path.join(ROOT, 'ref', 'samrom', 'vars.asm'))
     syms.from_mdos_comments()
     syms.from_reserved_for_dump()
+    syms.from_spare_taken_by_mb()
     for value, (rst_name, _note) in infer.RESTARTS.items():
         syms.add_rom_entry(value, rst_name)
 

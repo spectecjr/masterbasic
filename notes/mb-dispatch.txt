@@ -145,3 +145,95 @@ DOC DISPATCH_ON_COMMAND_TOKEN
     grounds that &C2, &C9, &CD, &D1, &E1 and &FF were past the end of the
     range.  That was wrong: &B9 is where the hook codes stop, not the
     tokens, and every value in the list above is a command.
+
+
+# ALTER DISPLAY: what CALLBACK_RCPTCH falls into, and the one piece of
+# MasterBASIC that has to finish inside a scanline.
+#
+# THE BLOCK FROM &7CBD ON IS NOT WHERE IT RUNS.  It is byte-identical to
+# &4966 in listings/*/postinstall-syspage.asm, because INSTALL_ROM_PATCHES
+# copies &7BA4-&7E43 to &484D and so lands &7CBA at &4963.  &4966 is the
+# address CMD_ALTER writes into ANYIV, so this is the maskable interrupt
+# handler and the copy in the system page is the one that runs.  ALTER
+# DISPLAY OFF writes &0049 into ANYIV instead, which is the ROM's own
+# ANYI, and that is what proves what these bytes are.
+#
+# CMD_ALTER at &54EA sets the whole thing up from ALTER DISPLAY n TO m
+# LINE y: ANYIV, then ALTDISP_TOP and ALTDISP_BOTTOM as one word, then
+# LINICOLS, then &5604.  The last two put y in the scan-line field of the
+# first entry of the ROM's line-interrupt palette list and terminate the
+# list after that one four-byte entry -- the two share the table, which
+# is why the manual says PALETTE will act unpredictably while ALTER
+# DISPLAY is running.
+
+MB &7CBD : C is the STATUS byte the ROM read at &003A on its way here, and bit 0 is the line interrupt, active low
+
+MB &7CBF : not the line interrupt, so none of this applies -- give the whole interrupt back to the ROM
+
+MB &7CC2 step
+    At the split line, show the bottom screen.  &5C9F + screen indexes
+    SCLIST, whose entry is a ready-made VMPR value: the mode in bits 6
+    and 5, the page in bits 4 to 0.
+
+MB &7CCB : the split line, which CMD_ALTER wrote into the first entry of the palette list
+
+MB &7CCF : zero, which is what the INC A below counts on
+
+MB &7CD0 WAIT_NEXT_SCANLINE
+    Holds until the raster leaves the split line, so that the write to
+    VMPR below happens in the next line's border and cannot be seen.  The
+    ROM does the same thing at the same port in LNWAITLP, and comments it
+    "WAIT FOR NEXT SCAN'S BORDER" -- see ref/samrom/scrsel1.asm.
+
+    THE LOOP WAITS FOR THE LINE TO END, NOT FOR IT TO ARRIVE.  The SUB H
+    is followed by a jump taken on zero, so this goes round while the
+    raster is still on line H and leaves as soon as it is not.
+
+    A is zero at the label whichever way it is reached: XOR A above on
+    the way in, and SUB H having left zero on the way round.  So the
+    INC A counts nothing.  It is there to put 1 on the top half of the
+    address bus, because the port wanted is &01F8 and not &00F8, and the
+    loop depends on A being reset to zero every time.
+
+MB &7CD1 expr LPEN
+
+MB &7CD1 : uses HPEN; A is 1 when read, so the port is &01F8 -- the raster line, and not the light pen the byte alone would give
+
+MB &7CD4 : goes round while the raster is still on line H
+
+MB &7CD9 : B is the LMPR the ROM read at &003D before it took the vector here
+
+MB &7CDA value ANYI_EXIT
+
+MB &7CDA : a line interrupt is finished here, so INTS never runs -- no keyboard scan and no FRAMES tick, neither of which would fit inside a scanline
+
+MB &7CDD step
+    From here down is the frame interrupt, not the line interrupt: this
+    is what &7B51 lands at &4986, which is the address INSTALL_ROM_VECTORS
+    writes into FRAMIV.  It puts the top screen back at the start of
+    every frame, so a split that the line interrupt made is undone and
+    remade fifty times a second.
+
+MB &7CE3 : zero when there is no split
+
+MB &7CF1 FRAME_INT_CALL_INTO_MB
+    NAMED HERE BECAUSE OF WHAT RENAMING THE LOOP ABOVE DID TO IT.  It had
+    no name of its own, so it took the nearest underived label above and
+    a number on the end, and renaming that label carried this block --
+    which waits for nothing and is not on the line interrupt's path at
+    all -- along with it, under a name about the raster.  The warning at
+    &7D00 below is about the same thing, three lines further on.
+
+    Both tests above arrive here, and so does the screen switch falling
+    through: it is the frame interrupt's tail whatever was done with the
+    display.  HMPR is saved and put back around the call, and D carries
+    the old value in as well.
+
+MB &7CF5 step
+    MasterBASIC's own page number, which is not known until it is
+    installed.
+
+MB &7CF9 : with MasterBASIC at &8000 the routine called runs at &99A3, which is why its header says the paging is the opposite way round there
+
+GROUP Ports
+CONST LPEN = &F8 : port &F8 on the way in, where the CLUT is on the way out.  With 1 in A the read is &01F8 instead, which is HPEN, the raster line

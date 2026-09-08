@@ -38,14 +38,15 @@ DOC PRINT_MAGNIFIED_CHAR
 # &64F3 has no caller in either page.  It has one in the ROM's system
 # page, and listings/disasm/postinstall-syspage.asm shows it:
 #
-#     S49E4: LD A,(&4AEF) : AND A : JR Z,+
-#            EXX : LD HL,&A4F3
-#     S49EE: LD C,A : LD A,&1C : JP PAGER
+#     PATOUT_CHAR_OUT_4: LD A,(&4AEF) : AND A : JR Z,+
+#                        EXX : LD HL,&A4F3
+#     S49EE:             LD C,A : LD A,&1C : JP MB_PAGER
 #
 # &4AEF holds the character height, zero for ordinary output.  HL is the
-# routine as seen through the window, A is MasterBASIC's page, and PAGER
-# at &5BE0 is the fourteen bytes INSTALL_SYSPAGE_CODE puts in the space
-# the ROM reserves "for paging S.R.".  It saves HMPR, calls &005C to page
+# routine as seen through the window, A is MasterBASIC's page, and
+# MB_PAGER at &5BE0 is the fourteen bytes INSTALL_SYSPAGE_CODE puts in
+# the space the ROM reserves "for paging S.R." and calls PAGER.  It
+# saves HMPR, calls &005C to page
 # A in and jump to HL, and puts HMPR back.
 #
 # That is the trampoline, and it explains the whole inverted arrangement

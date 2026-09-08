@@ -141,6 +141,19 @@ MB &642B : the seven bytes of BOOT_HEADER_FIELDS below, which is the same LD BC,
 
 MB &6433 : block 1 of eight, &0100 bytes from &7CF7, which fills the file's DOS &4000-&40FF -- and after a boot those first nine bytes read &0D, which is why a SAVE BOOT file has filler where the shipped image has a header
 
+MB &7CF7 SAVE_BOOT_BLOCK_1
+    IT IS NOT A ROUTINE HEAD.  Nothing jumps or calls here; the address
+    is inside FRAME_INT_CALL_INTO_MB and the instruction at it belongs to
+    that routine.  The one reference in the image is the LD HL at &6433
+    above, which takes it as the start of the first of the eight blocks
+    SAVE BOOT writes, so the name says what the address is for rather
+    than what the instruction does.
+
+    &7D00 has the same shape of problem and notes/mb-dispatch.txt sets
+    out what it cost there.  Without a name of its own this block took
+    the nearest underived label above and a number, which put a label
+    about the raster on the source address of a disc write.
+
 MB &643C : block 2, &3C60 from the DOS page's &4100, filling DOS &4100-&7D5F
 
 MB &6445 : block 3, &01BE from &7DF0 -- INSTBUF, which the installer saved back into this page -- filling DOS &7D60-&7F1D

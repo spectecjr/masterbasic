@@ -340,7 +340,7 @@ The call side, from the code that ends up in the system page:
 S49EE:
       LD C,A                          ; 49EE
       LD A,&1C                        ; 49EF  MasterBASIC's page number
-      JP S5BE0                        ; 49F1  = PAGER
+      JP MB_PAGER                     ; 49F1  the ROM's PAGER, taken over
 ```
 
 `&A485` is `&6485` in MasterBASIC's own page and `&1C` is the page it lives in;
