@@ -349,6 +349,17 @@ File names and drives, as MasterDOS parses them.
 = pattern     := strexpr           -- '*' and '?' wildcards
 : ref/masterdos/docs/commands.md; annotated-src CODN, TRX0
 
+Raw sector access, which READ and WRITE share.  Both commands are two
+instructions -- CALL EVPRM and a jump to the transfer -- so one rule is
+both of them, and anything true of the arguments of one is true of the
+other's.
+
+= at-sector   := 'AT' , n2 , ',' , numexpr , ',' , numexpr ,
+                 [ ',' , numexpr ]
+                 -- drive, track, sector, address, and MasterDOS's fifth
+                 argument, a sector count
+: listings/clean/masterdos.asm EVPRM, READ, WRITE
+
 
 [TOKENS]
 # token | role | name | origin | list-spacing
@@ -588,10 +599,22 @@ two and raises 29 on the third.
 : PCSYL; ref/samrom/misc2.asm INSISCOMA
 
 @ 86 WRITE
-= 'WRITE' , 'AT' , n2 , ',' , numexpr , ',' , numexpr , [ ',' , numexpr ]
-+ drive, track, sector, address, and MasterDOS's fifth argument, a sector
-+ count.  Raw sector access; needs a DOS.  No ROM meaning.
-: ref/masterdos/docs/commands.md READ and WRITE; annotated-src EVPRM
+= 'WRITE' , at-sector
++ Raw sector access; needs a DOS.  No ROM meaning.  The rule is shared
++ with READ AT, so every argument rule here is that form's as well.
++ The 'AT' is required, ISEPX raising 29 without it, and so is each of
++ the first four arguments: SEPARX and the evaluator are called
++ unconditionally for track, sector and address, and SEPARX that finds no
++ separator raises 29 too.  Only the sector count is optional, defaulting
++ to 1 and limited to 1024 by the DEC HL : LD A,H : CP &04 after it.
++ MasterDOS's own commands.md says "everything after the drive is
++ optional and keeps its previous value if omitted", which EVPRM does not
++ do; the code is what is written above.
++ ';' SERVES FOR ANY OF THE COMMAS.  SEPAR takes &2C or &3B and steps
++ over it, and takes a quote as ending an argument without stepping over
++ it, so the next argument reads the string that follows.
+: listings/clean/masterdos.asm EVPRM, WRITE, READ, SEPAR, SEPARX, ISEPX;
+: ref/masterdos/docs/commands.md READ and WRITE
 
 @ 8C LINE
 = 'LINE'
@@ -868,9 +891,19 @@ two and raises 29 on the third.
 
 @ B8 READ
 = 'READ' , read-item , { ',' , read-item }
+= 'READ' , at-sector               -- MasterDOS: raw sector access
 = read-item := [ 'LINE' ] , ( var | array | sliced )
 + READ LINE is string-only; the ROM rejects it for a numeric variable.
-: ref/samrom/misc1.asm READ, READ2, RJUNKFLG
++ The AT form is the exact counterpart of WRITE AT and the same parser:
++ the DOS's READ is CALL EVPRM : JR HFRSAD and its WRITE is CALL EVPRM :
++ JR HFWSAD.  The argument rules are under @ 86 WRITE.
++ It reaches the DOS the way the head of [STATEMENTS] describes.  The
++ ROM's own READ wants a variable, so READ AT is 29 to it, and 29 is one
++ of the two errors that bring CTAB in.  Reading the first production
++ alone makes the AT a variable being read into, and the line becomes
++ nonsense that still parses.
+: ref/samrom/misc1.asm READ, READ2, RJUNKFLG;
+: listings/clean/masterdos.asm READ, EVPRM
 
 @ B9 DATA
 = 'DATA' , expr , { ',' , expr }
