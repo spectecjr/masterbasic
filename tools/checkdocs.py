@@ -174,6 +174,133 @@ def prose_files():
                 yield os.path.relpath(full, ROOT).replace(os.sep, '/'), full
 
 
+GRAMMAR = 'docs/sam-basic-grammar.txt'
+ROM_TEXT = 'ref/samrom/text.asm'
+# DW ROUTINE ;KEYWORD tok -- CMDADT's own layout, with the "** ALTERED"
+# that some rows carry after the code.
+CMDADT_ROW = re.compile(
+    r'^(?:CMDADT:)?\s*DW\s+(\w+)\s*;\s*(?:.*?)\s*([0-9A-F]{2})\s*(?:\*\*.*)?$')
+# `: ref/samrom/file.asm ROUTINE, ROUTINE (why)` -- a provenance line.
+CITES = re.compile(r'ref/samrom/\w+\.asm\s+([^;]+)')
+ROUTINE = re.compile(r'\b([A-Z][A-Z0-9]{2,})\b')
+
+
+def command_table():
+    """token -> the routine CMDADT dispatches it to, from the ROM source.
+
+    Read rather than typed, like the grammar's generated blocks.  A
+    commented-out DW is not an entry: the table stops at &F6 and the
+    rows past it are `;  DW NONSENSE`.
+    """
+    out, started = {}, False
+    for line in open(os.path.join(ROOT, ROM_TEXT), encoding='utf-8',
+                     errors='replace'):
+        if line.startswith('CMDADT:'):
+            started = True
+        if not started or re.match(r'^\s*;', line):
+            continue
+        m = CMDADT_ROW.match(line.rstrip())
+        if m:
+            out[int(m.group(2), 16)] = m.group(1).upper()
+        elif out and re.match(r'^\w+:', line):
+            break
+    return out
+
+
+def grammar_entries():
+    """[STATEMENTS] as [{token, name, line, provenance}].
+
+    Several `@` lines may stack above one shared body -- ZAP, POW, BOOM
+    and ZOOM are four headings over one entry -- so a run of them all
+    take the `:` lines that follow.
+    """
+    entries, run, section, prev_at = [], [], None, False
+    for n, line in enumerate(open(os.path.join(ROOT, GRAMMAR),
+                                  encoding='utf-8', errors='replace'), 1):
+        line = line.rstrip('\n')
+        if re.match(r'^\[\w+\]', line):
+            section, run, prev_at = line.strip(), [], False
+            continue
+        if section != '[STATEMENTS]':
+            continue
+        m = re.match(r'^@ ([0-9A-F]{2,4}) (.+)$', line)
+        if m:
+            e = {'tok': int(m.group(1), 16), 'name': m.group(2).strip(),
+                 'line': n, 'prov': []}
+            entries.append(e)
+            run = (run + [e]) if prev_at else [e]
+            prev_at = True
+            continue
+        if line.startswith(': '):
+            for e in run:
+                e['prov'].append(line[2:])
+        prev_at = False
+    return entries
+
+
+def token_names():
+    """The [TOKENS] block's own name for each code."""
+    out, section = {}, None
+    for line in open(os.path.join(ROOT, GRAMMAR), encoding='utf-8',
+                     errors='replace'):
+        if re.match(r'^\[\w+\]', line):
+            section = line.strip()
+        elif section == '[TOKENS]' and '|' in line:
+            f = line.rstrip('\n').split('|')
+            if re.fullmatch(r'[0-9A-F]{2,4}', f[0]):
+                out[int(f[0], 16)] = f[2]
+    return out
+
+
+def check_grammar():
+    """(problems, statements checked) for docs/sam-basic-grammar.txt.
+
+    [TOKENS] is generated and [STATEMENTS] is not, so the two can drift;
+    and a `:` line naming a ROM routine can name the wrong one.  Both are
+    checked against the sources rather than by eye.
+
+    THE SECOND CHECK IS THE ONE THAT EARNED ITS PLACE.  @ CF COPY listed
+    'COPY' and 'COPY' , 'CHR$' and cited ref/samrom/scrfn.asm COPY,
+    GRCOPY -- but CMDADT points &BF at COPY and gives &CF NONSENSE, so
+    those two were DUMP's forms, filed under the wrong keyword.  A
+    provenance that names another token's routine and never its own is
+    the shape of that mistake.
+
+    A routine several tokens share is fine: SLMVC serves &94 to &97, and
+    LIST serves LLIST as well as itself.  So the test is whether this
+    entry's token is among those that reach a cited routine, not whether
+    it is the only one.
+    """
+    try:
+        cmdadt = command_table()
+        entries = grammar_entries()
+        names = token_names()
+    except (IOError, OSError):
+        return [], 0                    # no ref/ checkout: nothing to say
+    reach = {}
+    for tok, routine in cmdadt.items():
+        reach.setdefault(routine, set()).add(tok)
+    bad = []
+    for e in entries:
+        want = names.get(e['tok'])
+        if want != e['name']:
+            bad.append('%s:%d @ %02X %s but [TOKENS] says %s'
+                       % (GRAMMAR, e['line'], e['tok'], e['name'], want))
+        cited = set()
+        for text in e['prov']:
+            for m in CITES.finditer(text):
+                cited |= {r for r in ROUTINE.findall(m.group(1)) if r in reach}
+        if cited and not any(e['tok'] in reach[r] for r in cited):
+            bad.append('%s:%d @ %02X %s cites %s, which CMDADT reaches from '
+                       '%s -- &%02X goes to %s'
+                       % (GRAMMAR, e['line'], e['tok'], e['name'],
+                          ', '.join(sorted(cited)),
+                          ', '.join('&%02X' % t for r in sorted(cited)
+                                    for t in sorted(reach[r])),
+                          e['tok'], cmdadt.get(e['tok'], 'nothing')))
+    return bad, len(entries)
+
+
 def main():
     at, names = read_listings()
     bad = []
@@ -199,7 +326,14 @@ def main():
     print('%d prose files check out against the listings%s'
           % (sum(1 for _ in prose_files()),
              '' if not bad else ' -- except the %d above' % len(bad)))
-    return 1 if bad else 0
+    grammar, checked = check_grammar()
+    for line in grammar:
+        print('  grammar: ' + line)
+    if checked:
+        print('%s: %d statements agree with [TOKENS] and CMDADT%s'
+              % (GRAMMAR, checked, '' if not grammar
+                 else ' -- except the %d above' % len(grammar)))
+    return 1 if bad or grammar else 0
 
 
 if __name__ == '__main__':
