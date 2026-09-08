@@ -128,6 +128,11 @@ SYSPAGE_IN_B:                   EQU  &1F                                     ; L
                                                                              ; gets page 32, which wraps to the system
                                                                              ; page. The ROM source calls it PAGE1F
 SYS_CHAR_WIDTH:                 EQU  &4AEE
+T_DEF_KEYCODE:                  EQU  &C9
+T_KEYIN:                        EQU  &D1
+T_PAUSE:                        EQU  &C2
+T_POKE:                         EQU  &E1
+T_SOUND:                        EQU  &AE
 
 ; The byte after RST &08: a DOS error, or a hook code, which is
 ; 128 plus the index of an entry in the DOS hook table at &44A6.

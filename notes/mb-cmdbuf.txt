@@ -68,6 +68,25 @@ MB &4F0C CMDBUF_EPILOGUE
 MB &4F79 : &5F to LMPR: both ROMs on, the system page in section B
 MB &4EDB : the three LDIRs below assemble a routine at &4CD3, in the ROM's system page
 
+MB &4EDE expr SYS_CMDBUF+&4000
+MB &4EDE : SYS_CMDBUF seen through the window, which is where the copy has to be written from here
+
+MB &4EE1 : &4D bytes, the whole of CMDBUF_PROLOGUE
+
+MB &4EE7 : &58 from wherever the table entry points -- the eighty-eight bytes that are &E019 in ROM 3.0.  Only C is loaded because an LDIR leaves B at zero
+
+MB &4EEF : &25, the whole of CMDBUF_EPILOGUE, landing at &4D78
+
+MB &4EF4 : &4D79 is the epilogue's JP operand, and HL is where the second LDIR stopped -- so that JP resumes the ROM 1 routine one byte past the last one copied
+
+MB &4EF7 : &4D45 is the operand of the CALL at &4D44, which is offset &25 into the block just copied
+
+MB &4EFA : that operand goes to &4D7C, the epilogue's own CALL, so the epilogue ends up calling whatever the copy called
+
+MB &4EFD : &4D7B is that CALL itself, three bytes into the epilogue
+
+MB &4F00 : and it is written where the copy's own operand was, so the CALL at &4D44 now reaches the epilogue instead.  The routine is spliced into, not replaced
+
 # Why a table entry and not a fixed address.  The eighty-eight bytes are
 # at &E019 in ROM 3.0, &E02F in 2.1, &E027 in 1.8 and &E041 in 1.4, and
 # are absent from 1.0.  MasterBASIC never has to know which: it takes the

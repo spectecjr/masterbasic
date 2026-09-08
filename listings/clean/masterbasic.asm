@@ -5537,10 +5537,13 @@ HCMDV:
                PUSH AF                         ; 4E9D F5
                CALL MBNRWR                     ; 4E9E CD 82 45
                DEFW CURCMD                     ; 4EA1 74 5B
-               SUB &90                         ; 4EA3 D6 90
+               SUB &90                         ; 4EA3 D6 90  &90 is DIR, the lowest statement token, so the token less
+                                               ; it is the entry number in the ROM's COMAD table -- doubled below
+                                               ; because the entries are addresses
                ADD A,A                         ; 4EA5 87
                LD L,A                          ; 4EA6 6F
-               LD H,&00                        ; 4EA7 26 00
+               LD H,&00                        ; 4EA7 26 00  the index came out of an eight-bit register, so H is
+                                               ; cleared before the table's base is added
                ADD HL,BC                       ; 4EA9 09
                LD C,LMPR                       ; 4EAA 0E FA
                IN B,(C)                        ; 4EAC ED 40
@@ -5551,17 +5554,17 @@ HCMDV:
                INC HL                          ; 4EB3 23
                LD D,(HL)                       ; 4EB4 56
                POP AF                          ; 4EB5 F1
-               CP &E1                          ; 4EB6 FE E1
+               CP T_POKE                       ; 4EB6 FE E1
                JP Z,BUILD_PAGE_IN_TRAMPOLINE   ; 4EB8 CA DF 5C
-               CP &C2                          ; 4EBB FE C2
+               CP T_PAUSE                      ; 4EBB FE C2
                JP Z,CMD_PAUSE                  ; 4EBD CA 32 5D
-               CP &C9                          ; 4EC0 FE C9
+               CP T_DEF_KEYCODE                ; 4EC0 FE C9
                JP Z,CMD_DEF_KEYCODE            ; 4EC2 CA 62 5D
-               CP &D1                          ; 4EC5 FE D1
+               CP T_KEYIN                      ; 4EC5 FE D1
                JP Z,CMD_KEYIN                  ; 4EC7 CA 78 5D
-               CP &AE                          ; 4ECA FE AE
+               CP T_SOUND                      ; 4ECA FE AE
                JP Z,CMD_SOUND                  ; 4ECC CA 6A 5C
-               CP &AA                          ; 4ECF FE AA
+               CP T_MODE                       ; 4ECF FE AA
                JP Z,CMD_MODE                   ; 4ED1 CA 7E 4F
                IN A,(HMPR)                     ; 4ED4 DB FB
                PUSH AF                         ; 4ED6 F5
@@ -5570,24 +5573,33 @@ HCMDV:
                PUSH DE                         ; 4EDA D5
                LD HL,CMDBUF_PROLOGUE           ; 4EDB 21 31 4F  the three LDIRs below assemble a routine at &4CD3, in
                                                ; the ROM's system page
-               LD DE,&8CD3                     ; 4EDE 11 D3 8C
-               LD BC,&004D                     ; 4EE1 01 4D 00
+               LD DE,SYS_CMDBUF+&4000          ; 4EDE 11 D3 8C  SYS_CMDBUF seen through the window, which is where the
+                                               ; copy has to be written from here
+               LD BC,&004D                     ; 4EE1 01 4D 00  &4D bytes, the whole of CMDBUF_PROLOGUE
                LDIR                            ; 4EE4 ED B0
                POP HL                          ; 4EE6 E1
-               LD C,&58                        ; 4EE7 0E 58
+               LD C,&58                        ; 4EE7 0E 58  &58 from wherever the table entry points -- the
+                                               ; eighty-eight bytes that are &E019 in ROM 3.0. Only C is loaded because
+                                               ; an LDIR leaves B at zero
                LDIR                            ; 4EE9 ED B0
                PUSH HL                         ; 4EEB E5
                LD HL,CMDBUF_EPILOGUE           ; 4EEC 21 0C 4F
-               LD C,&25                        ; 4EEF 0E 25
+               LD C,&25                        ; 4EEF 0E 25  &25, the whole of CMDBUF_EPILOGUE, landing at &4D78
                LDIR                            ; 4EF1 ED B0
                POP HL                          ; 4EF3 E1
-               LD (&8D79),HL                   ; 4EF4 22 79 8D
-               LD HL,(&8D45)                   ; 4EF7 2A 45 8D
-               LD (&8D7C),HL                   ; 4EFA 22 7C 8D
-               LD HL,&4D7B                     ; 4EFD 21 7B 4D
+               LD (&8D79),HL                   ; 4EF4 22 79 8D  &4D79 is the epilogue's JP operand, and HL is where the
+                                               ; second LDIR stopped -- so that JP resumes the ROM 1 routine one byte
+                                               ; past the last one copied
+               LD HL,(&8D45)                   ; 4EF7 2A 45 8D  &4D45 is the operand of the CALL at &4D44, which is
+                                               ; offset &25 into the block just copied
+               LD (&8D7C),HL                   ; 4EFA 22 7C 8D  that operand goes to &4D7C, the epilogue's own CALL, so
+                                               ; the epilogue ends up calling whatever the copy called
+               LD HL,&4D7B                     ; 4EFD 21 7B 4D  &4D7B is that CALL itself, three bytes into the epilogue
 
 HCMDV_1:
-               LD (&8D45),HL                   ; 4F00 22 45 8D
+               LD (&8D45),HL                   ; 4F00 22 45 8D  and it is written where the copy's own operand was, so
+                                               ; the CALL at &4D44 now reaches the epilogue instead. The routine is
+                                               ; spliced into, not replaced
                POP AF                          ; 4F03 F1
                OUT (HMPR),A                    ; 4F04 D3 FB
                LD BC,SYS_CMDBUF                ; 4F06 01 D3 4C
@@ -5751,7 +5763,7 @@ CMDBUF_PROLOGUE_2:
 ;; That is a reading of why, not something the code states.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_MODE ---- from &4ED1 when A = &AA
+; ---- CMD_MODE ---- from &4ED1 when A = T_MODE
 CMD_MODE:
                CALL SKIP_THEN_NUMBER           ; 4F7E CD 82 44
                CALL EXPECT_END_OF_STATEMENT    ; 4F81 CD D0 44
@@ -9737,7 +9749,7 @@ PAGE_IN_ROM1_1:
 ;; one, and the new page and address are written to four XVARs.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_SOUND ---- from &4ECC when A = &AE
+; ---- CMD_SOUND ---- from &4ECC when A = T_SOUND
 CMD_SOUND:
                CALL CALL_NEXTCHAR              ; 5C6A CD 61 44
                CP T_CLEAR                      ; 5C6D FE B3  SOUND CLEAR is the only form MasterBASIC handles for itself
@@ -9951,7 +9963,7 @@ CMD_SOUND_2:
 ;; alternative users of the same space rather than both being live.
 ;; --------------------------------------------------------------------
 
-; ---- BUILD_PAGE_IN_TRAMPOLINE ---- from &4EB8 when A = &E1
+; ---- BUILD_PAGE_IN_TRAMPOLINE ---- from &4EB8 when A = T_POKE
 BUILD_PAGE_IN_TRAMPOLINE:
                LD B,&E7                        ; 5CDF 06 E7
                LD HL,&8D50                     ; 5CE1 21 50 8D
@@ -10027,7 +10039,7 @@ L5CF1:
 ;; PAUSE keyword and MasterBASIC's has not
 ;; --------------------------------------------------------------------
 
-; ---- CMD_PAUSE ---- from &4EBD when A = &C2
+; ---- CMD_PAUSE ---- from &4EBD when A = T_PAUSE
 CMD_PAUSE:
                LD B,&E7                        ; 5D32 06 E7  RST &20, because the ROM's dispatcher would have stepped
                                                ; past the
@@ -10094,7 +10106,7 @@ RESTORE_HMPR_AND_STORE:
 ;; own copy for it, prefixes an RST &20 and changes one operand.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_DEF_KEYCODE ---- from &4EC2 when A = &C9
+; ---- CMD_DEF_KEYCODE ---- from &4EC2 when A = T_DEF_KEYCODE
 CMD_DEF_KEYCODE:
                LD HL,&8F00                     ; 5D62 21 00 8F
                CALL PREPARE_ROM1_COPY          ; 5D65 CD 4B 5C
@@ -10131,7 +10143,7 @@ CMD_DEF_KEYCODE:
 ;; after each, where DEF KEYCODE needed one patched operand.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_KEYIN ---- from &4EC7 when A = &D1
+; ---- CMD_KEYIN ---- from &4EC7 when A = T_KEYIN
 CMD_KEYIN:
                LD HL,&8B00                     ; 5D78 21 00 8B
                CALL PREPARE_ROM1_COPY          ; 5D7B CD 4B 5C

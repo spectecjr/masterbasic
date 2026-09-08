@@ -20,6 +20,17 @@
 # routine out of ROM 1 into a buffer in the system page, alter it, and
 # return into the copy.  Only MODE and SOUND parse anything themselves.
 
+MB &4EA3 : &90 is DIR, the lowest statement token, so the token less it is the entry number in the ROM's COMAD table -- doubled below because the entries are addresses
+
+MB &4EA7 : the index came out of an eight-bit register, so H is cleared before the table's base is added
+
+MB &4EB6 value T_POKE
+MB &4EBB value T_PAUSE
+MB &4EC0 value T_DEF_KEYCODE
+MB &4EC5 value T_KEYIN
+MB &4ECA value T_SOUND
+MB &4ECF value T_MODE
+
 MB &4F7E CMD_MODE
     MODE, token &AA.  Reads the number, expects the end of the statement,
     and rejects anything outside 1 to 4 with error 34 -- which the ROM's

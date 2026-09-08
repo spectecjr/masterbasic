@@ -84,6 +84,22 @@ CONST = re.compile(r'^CONST\s+(\w+)\s*=\s*([^:]+?)\s*(?::\s*(\S.*?))?\s*$')
 # RENAME ULA BORDER -- change a name everywhere it is written.
 RENAME = re.compile(r'^RENAME\s+(\w+)\s+(\w+)\s*$')
 KINDS = ('data', 'text', 'word', 'code', 'value', 'step', 'expr')
+
+
+def _numbers(table):
+    """name -> number, for a table that may hold (number, why) pairs.
+
+    d.inferred keeps the reason beside the value, because the listing
+    prints it as the equate's comment; every other table is a plain
+    name -> number.  Both are read here as names an `expr` may refer to
+    and as names a `value` must not redefine, and the pair form broke
+    both: an expression got a tuple, and the duplicate check compared a
+    tuple with an int, never matched, and fell into a message that
+    formatted it as %02X.  So T_MODE and every other inferred name was
+    unreachable from notes/ and said so by crashing.
+    """
+    return {k: (v[0] if isinstance(v, tuple) else v)
+            for k, v in table.items()}
 # Register and condition names, so that the operand of an
 # instruction can be told from the rest of it.
 REGS = set('A B C D E H L F I R AF BC DE HL IX IY SP AF2 NZ Z NC PO PE P M IXH IXL IYH IYL'.split())
@@ -539,7 +555,7 @@ def apply(pages, root, banner, folder='notes', deferred=None):
         env = {}
         for table in (d.mdos_equs, d.inferred, d.rst_equs, d.basic_equs,
                       d.user_equs):
-            env.update(table)
+            env.update(_numbers(table))
         try:
             # &1A is how this repository writes a number; Python reads &
             # as bitwise-and, so the literals are converted before eval.
@@ -744,7 +760,7 @@ def rename(pages, root, folder='notes'):
     for d in pages:
         others = {}
         for table in (d.mdos_equs, d.inferred, d.rst_equs, d.basic_equs):
-            others.update(table)
+            others.update(_numbers(table))
         for name, value in list(d.user_equs.items()):
             if name not in others:
                 continue
