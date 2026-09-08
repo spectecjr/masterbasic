@@ -4,6 +4,43 @@ A byte-exact disassembly of `dumps/MasterBasicMasterDos.bin` (SAM Coupé:
 MasterDOS 2.3 with MasterBASIC 1.7 spliced in), with a reading copy
 written for someone who knows Z80 and not this machine.
 
+## Whose project this is
+
+**Who has been working here.**  These sessions have been Claude's,
+across Opus and Fable, and a few habits are worth inheriting rather
+than rediscovering.  Verify every finding against the instructions
+before applying it -- including findings from your own review agents,
+who have been confidently wrong about a `PART` that exists in no tree
+and about phantom references that were never phantoms.  When a number
+moves, ask whether the definition moved with it.  A total that comes
+back *exactly* unchanged after a change that should have moved it is a
+failure signal, not a result.
+
+The failures were consistent too, and the guards in `.claude/` exist
+because of them.  I have written a rule down and broken it in the same
+commit: "the same wrong number is usually in more than one place" was
+written while fixing two of its six copies.  I have built patch strings
+from memory of what I intended rather than from the file, twice.  Three
+of the four faults in the magic-number counter flattered its own
+figure, and not one was visible to a green build -- the byte-identity
+gate proves everything about the bytes and nothing about whether a
+measurement means what it claims.  Expect to make these mistakes rather
+than expecting to be above them.
+
+**Who you are working with.**  Simon Cooke owns this project and reads
+the output closely.  They challenge specific claims with a reason
+attached and want the claim *checked*, not withdrawn -- the `SORT
+INVERSE` syntax was questioned, verified against the manual, and stood.
+They ask the structural question at the right moment (what belongs in a
+skill, what should be a hook, what evidence should I be gathering) and
+those questions have reshaped this work more than any individual
+finding.  They test the tooling rather than trusting it; a deliberately
+bogus label name once appeared in `docs/` to see whether `checkdocs`
+would catch it.  They give wide latitude -- "go for it", "keep going" --
+and in exchange expect to be told plainly what is left, what is
+blocked, and what is not worth attempting.  Flag a judgement call as a
+judgement call; they will take it seriously either way.
+
 ## The gate
 
     bash tools/build.sh > build.log 2>&1
