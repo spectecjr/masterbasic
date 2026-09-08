@@ -1,5 +1,47 @@
 # The dispatcher in the installed block.
 
+# The seven blocks it branches to carried the dispatcher's own name with
+# a number or a DONE on the end, which said where they sat and nothing
+# else -- the auto-namer's answer when nothing better is known.  Five
+# are stubs that pop the ROM's return address and fire one hook, so they
+# take that hook's name the way CALLBACK_HCMDV already does -- and the
+# HOOK_ prefix stays with the handlers in MasterBASIC's own page, which
+# is what these call.  The other two are tests, and are named for the
+# test.
+
+# Named by address rather than by RENAME.  A RENAME has to say what a
+# label is called now, and the synthetic numbering is not stable while
+# this file is renaming things: naming &7C95 and &7CA0 below took _1 and
+# _2 out of the run, the namer renumbered what was left, and the RENAMEs
+# for _3 and _4 then matched nothing.  An address cannot shift.
+
+MB &7CAA CALLBACK_CSIZE
+MB &7CAE CALLBACK_SWAPCHARS
+MB &7CB2 CALLBACK_COMADENT
+MB &7CB5 CALLBACK_SKIPNAME
+MB &7CBA CALLBACK_RCPTCH
+
+MB &7C95 INTERCEPT_SOUND_CLEAR
+    SOUND is worth intercepting only when CLEAR follows it, which is the
+    buffer command the manual documents; a plain SOUND is the ROM's.
+
+    IT DOES NOT RETURN WHEN THE ANSWER IS NO.  The JR Z leaves for
+    CALLBACK_HCMDV and everything else falls into INTERCEPT_IF_RECORDING
+    below, so a plain SOUND still gets the recording test.  That is not
+    an accident of layout: the manual has RECORD SOUND capturing "the
+    SOUNDs and the PAUSEs that determine their length", so both commands
+    have to add codes to the string being recorded, and both reach the
+    hook by this one fall-through.
+
+MB &7CA0 INTERCEPT_IF_RECORDING
+    Reached by PAUSE directly and by a plain SOUND falling through from
+    above.  RET Z when SYS_RECORD_STATE is zero: with no RECORD running
+    neither command needs MasterBASIC at all, and the ROM's own routine
+    is left to it.
+
+    Naming this after PAUSE alone would be wrong -- half its callers are
+    SOUNDs.
+
 MB &7C51 DISPATCH_ON_COMMAND_TOKEN
 
 MB &7C52 value T_SAVE

@@ -18457,7 +18457,7 @@ SAVE_BOOT:
                LD DE,DOS_V7CFF                   ; 6428 11 FF BC
                LD BC,&0007                       ; 642B 01 07 00
                LDIR                              ; 642E ED B0
-               LD HL,CALLBACK_HCMDV_2+&4000      ; 6430 21 F7 BC
+               LD HL,CALLBACK_RCPTCH_2+&4000     ; 6430 21 F7 BC
                LD DE,&0100                       ; 6433 11 00 01
                CALL SAVE_BLOCK_FROM_THIS_PAGE    ; 6436 CD A9 42
                LD HL,DOS_FFHL                    ; 6439 21 00 81
@@ -26584,7 +26584,7 @@ INSTALLER_LOOP:
                CALL DOS_FIND_ROM_CODE          ; 7622 CD 79 BD
                DEFB &3A,&B7,&5A,&DB,&00,&00    ; 7625 signature 3A B7 5A from &DB00  -> &DC77 ENDOUTP
                                                ; self-modifying: patches the operand of the JP at &7D4B
-               LD (CALLBACK_HCMDV_7+1),HL      ; 762B 22 4C 7D  patches the operand of the JP at &7D4B
+               LD (CALLBACK_RCPTCH_7+1),HL     ; 762B 22 4C 7D  patches the operand of the JP at &7D4B
                CALL DOS_FIND_ROM_CODE          ; 762E CD 79 BD
                DEFB &00,&37,&C9,&3C,&00,&03    ; 7631 signature 00 37 C9 from &3C00, +3  -> &3C39 EPSUB
                                                ; self-modifying: patches the operand of the CALL at &6516
@@ -28890,61 +28890,73 @@ RELOCATED_TO_484D_3:
 
 ; ---- DISPATCH_ON_COMMAND_TOKEN ---- from &7C20 when A = 0, &7C27 when bit 7 was clear, &7C38 when no bit of &05 is set
 DISPATCH_ON_COMMAND_TOKEN:
-               LD A,H                               ; 7C51 7C  dispatch on the command token in H
-               CP T_SAVE                            ; 7C52 FE 94
-               RET C                                ; 7C54 D8
-               CP T_PUT                             ; 7C55 FE AC  the operand below is PUTSWA's target: &AC for our PUT,
-                                                    ; 0 for the ROM's
-               JP Z,SYS_TOKEN_TO_FN_INDEX           ; 7C57 CA A2 45  PUT goes to the extended PUT this half installed at
-                                                    ; &45A2
-               CP T_MODE                            ; 7C5A FE AA
-               JR Z,CALLBACK_HCMDV                  ; 7C5C 28 48
-               CP T_SOUND                           ; 7C5E FE AE
-               JR Z,DISPATCH_ON_COMMAND_TOKEN_1     ; 7C60 28 33
-               CP T_PAUSE                           ; 7C62 FE C2
-               JR Z,DISPATCH_ON_COMMAND_TOKEN_2     ; 7C64 28 3A
-               CP T_DEF_KEYCODE                     ; 7C66 FE C9
-               JR Z,CALLBACK_HCMDV                  ; 7C68 28 3C
-               CP T_KEYIN                           ; 7C6A FE D1
-               JR Z,CALLBACK_HCMDV                  ; 7C6C 28 38
-               CP T_POKE                            ; 7C6E FE E1
-               JR Z,CALLBACK_HCMDV                  ; 7C70 28 34
-               CP T_CSIZE                           ; 7C72 FE A8
-               JR Z,DISPATCH_ON_COMMAND_TOKEN_DONE  ; 7C74 28 34
-               CP T_BLOCKS                          ; 7C76 FE A9
-               JR Z,DISPATCH_ON_COMMAND_TOKEN_DONE2 ; 7C78 28 34
-               CP T_DELETE                          ; 7C7A FE CD
-               JR Z,DISPATCH_ON_COMMAND_TOKEN_DONE3 ; 7C7C 28 37
-               CP T_EDIT                            ; 7C7E FE FD
-               JR Z,DISPATCH_ON_COMMAND_TOKEN_3     ; 7C80 28 30
-               CP T_CLEAR                           ; 7C82 FE B3
-               JR Z,DISPATCH_ON_COMMAND_TOKEN_4     ; 7C84 28 34
-               CP T_RUN                             ; 7C86 FE B0
-               JR Z,DISPATCH_ON_COMMAND_TOKEN_4     ; 7C88 28 30
-               CP T_OPEN                            ; 7C8A FE 98
-               JR C,CALLBACK_HCMDV                  ; 7C8C 38 18
-               CP FN_PFX                            ; 7C8E FE FF  not a statement token at all -- the statement range
-                                                    ; stops at &FD -- but the prefix a function token follows.
-                                                    ; HOOK_TOKENARG, which the RST below reaches, takes the next
-                                                    ; character and subtracts &26, and &26 to &83 is exactly the
-                                                    ; function range
-               RET NZ                               ; 7C90 C0
-               POP HL                               ; 7C91 E1
-               RST ERR_HOOK                         ; 7C92 CF
-               DEFB HKC_TOKENARG                    ; 7C93 B1 hook code
-               RET                                  ; 7C94 C9
+               LD A,H                          ; 7C51 7C  dispatch on the command token in H
+               CP T_SAVE                       ; 7C52 FE 94
+               RET C                           ; 7C54 D8
+               CP T_PUT                        ; 7C55 FE AC  the operand below is PUTSWA's target: &AC for our PUT, 0
+                                               ; for the ROM's
+               JP Z,SYS_TOKEN_TO_FN_INDEX      ; 7C57 CA A2 45  PUT goes to the extended PUT this half installed at
+                                               ; &45A2
+               CP T_MODE                       ; 7C5A FE AA
+               JR Z,CALLBACK_HCMDV             ; 7C5C 28 48
+               CP T_SOUND                      ; 7C5E FE AE
+               JR Z,INTERCEPT_SOUND_CLEAR      ; 7C60 28 33
+               CP T_PAUSE                      ; 7C62 FE C2
+               JR Z,INTERCEPT_IF_RECORDING     ; 7C64 28 3A
+               CP T_DEF_KEYCODE                ; 7C66 FE C9
+               JR Z,CALLBACK_HCMDV             ; 7C68 28 3C
+               CP T_KEYIN                      ; 7C6A FE D1
+               JR Z,CALLBACK_HCMDV             ; 7C6C 28 38
+               CP T_POKE                       ; 7C6E FE E1
+               JR Z,CALLBACK_HCMDV             ; 7C70 28 34
+               CP T_CSIZE                      ; 7C72 FE A8
+               JR Z,CALLBACK_CSIZE             ; 7C74 28 34
+               CP T_BLOCKS                     ; 7C76 FE A9
+               JR Z,CALLBACK_SWAPCHARS         ; 7C78 28 34
+               CP T_DELETE                     ; 7C7A FE CD
+               JR Z,CALLBACK_SKIPNAME          ; 7C7C 28 37
+               CP T_EDIT                       ; 7C7E FE FD
+               JR Z,CALLBACK_COMADENT          ; 7C80 28 30
+               CP T_CLEAR                      ; 7C82 FE B3
+               JR Z,CALLBACK_RCPTCH            ; 7C84 28 34
+               CP T_RUN                        ; 7C86 FE B0
+               JR Z,CALLBACK_RCPTCH            ; 7C88 28 30
+               CP T_OPEN                       ; 7C8A FE 98
+               JR C,CALLBACK_HCMDV             ; 7C8C 38 18
+               CP FN_PFX                       ; 7C8E FE FF  not a statement token at all -- the statement range stops
+                                               ; at &FD -- but the prefix a function token follows. HOOK_TOKENARG, which
+                                               ; the RST below reaches, takes the next character and subtracts &26, and
+                                               ; &26 to &83 is exactly the function range
+               RET NZ                          ; 7C90 C0
+               POP HL                          ; 7C91 E1
+               RST ERR_HOOK                    ; 7C92 CF
+               DEFB HKC_TOKENARG               ; 7C93 B1 hook code
+               RET                             ; 7C94 C9
 
 ;; --------------------------------------------------------------------
-;; DISPATCH_ON_COMMAND_TOKEN_1 -- &7C95 to &7C9F
+;; INTERCEPT_SOUND_CLEAR -- &7C95 to &7C9F
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F, C, HL
 ;;
 ;; ? tests for T_CLEAR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     SOUND is worth intercepting only when CLEAR follows it, which is the
+;;     buffer command the manual documents; a plain SOUND is the ROM's.
+;;
+;;     IT DOES NOT RETURN WHEN THE ANSWER IS NO.  The JR Z leaves for
+;;     CALLBACK_HCMDV and everything else falls into INTERCEPT_IF_RECORDING
+;;     below, so a plain SOUND still gets the recording test.  That is not
+;;     an accident of layout: the manual has RECORD SOUND capturing "the
+;;     SOUNDs and the PAUSEs that determine their length", so both commands
+;;     have to add codes to the string being recorded, and both reach the
+;;     hook by this one fall-through.
 ;; --------------------------------------------------------------------
 
-; ---- DISPATCH_ON_COMMAND_TOKEN_1 ---- from &7C60 when A = T_SOUND
-DISPATCH_ON_COMMAND_TOKEN_1:
+; ---- INTERCEPT_SOUND_CLEAR ---- from &7C60 when A = T_SOUND
+INTERCEPT_SOUND_CLEAR:
                LD HL,(CHAD)                    ; 7C95 2A 97 5A
                INC HL                          ; 7C98 23
                LD C,A                          ; 7C99 4F
@@ -28956,14 +28968,24 @@ DISPATCH_ON_COMMAND_TOKEN_1:
                JR Z,CALLBACK_HCMDV             ; 7C9E 28 06
 
 ;; --------------------------------------------------------------------
-;; DISPATCH_ON_COMMAND_TOKEN_2 -- &7CA0 to &7CA5
+;; INTERCEPT_IF_RECORDING -- &7CA0 to &7CA5
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    F, HL
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Reached by PAUSE directly and by a plain SOUND falling through from
+;;     above.  RET Z when SYS_RECORD_STATE is zero: with no RECORD running
+;;     neither command needs MasterBASIC at all, and the ROM's own routine
+;;     is left to it.
+;;
+;;     Naming this after PAUSE alone would be wrong -- half its callers are
+;;     SOUNDs.
 ;; --------------------------------------------------------------------
 
-; ---- DISPATCH_ON_COMMAND_TOKEN_2 ---- from &7C64 when A = T_PAUSE
-DISPATCH_ON_COMMAND_TOKEN_2:
+; ---- INTERCEPT_IF_RECORDING ---- from &7C64 when A = T_PAUSE
+INTERCEPT_IF_RECORDING:
                LD HL,(SYS_RECORD_STATE)        ; 7CA0 2A F4 4A
                INC L                           ; 7CA3 2C
                DEC L                           ; 7CA4 2D
@@ -28992,69 +29014,69 @@ CALLBACK_HCMDV:
                RET                             ; 7CA9 C9
 
 ;; --------------------------------------------------------------------
-;; DISPATCH_ON_COMMAND_TOKEN_DONE -- &7CAA to &7CAD
+;; CALLBACK_CSIZE -- &7CAA to &7CAD
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    HL
 ;; --------------------------------------------------------------------
 
-; ---- DISPATCH_ON_COMMAND_TOKEN_DONE ---- from &7C74 when A = T_CSIZE
-DISPATCH_ON_COMMAND_TOKEN_DONE:
+; ---- CALLBACK_CSIZE ---- from &7C74 when A = T_CSIZE
+CALLBACK_CSIZE:
                POP HL                          ; 7CAA E1
                RST ERR_HOOK                    ; 7CAB CF
                DEFB HKC_CSIZE                  ; 7CAC 9B hook code
                RET                             ; 7CAD C9
 
 ;; --------------------------------------------------------------------
-;; DISPATCH_ON_COMMAND_TOKEN_DONE2 -- &7CAE to &7CB1
+;; CALLBACK_SWAPCHARS -- &7CAE to &7CB1
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    HL
 ;; --------------------------------------------------------------------
 
-; ---- DISPATCH_ON_COMMAND_TOKEN_DONE2 ---- from &7C78 when A = T_BLOCKS
-DISPATCH_ON_COMMAND_TOKEN_DONE2:
+; ---- CALLBACK_SWAPCHARS ---- from &7C78 when A = T_BLOCKS
+CALLBACK_SWAPCHARS:
                POP HL                          ; 7CAE E1
                RST ERR_HOOK                    ; 7CAF CF
                DEFB HKC_SWAPCHARS              ; 7CB0 9C hook code
                RET                             ; 7CB1 C9
 
 ;; --------------------------------------------------------------------
-;; DISPATCH_ON_COMMAND_TOKEN_3 -- &7CB2 to &7CB4
+;; CALLBACK_COMADENT -- &7CB2 to &7CB4
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    HL
 ;; --------------------------------------------------------------------
 
-; ---- DISPATCH_ON_COMMAND_TOKEN_3 ---- from &7C80 when A = T_EDIT
-DISPATCH_ON_COMMAND_TOKEN_3:
+; ---- CALLBACK_COMADENT ---- from &7C80 when A = T_EDIT
+CALLBACK_COMADENT:
                POP HL                          ; 7CB2 E1
                RST ERR_HOOK                    ; 7CB3 CF
                DEFB HKC_COMADENT               ; 7CB4 B7 hook code
 
 ;; --------------------------------------------------------------------
-;; DISPATCH_ON_COMMAND_TOKEN_DONE3 -- &7CB5 to &7CB9
+;; CALLBACK_SKIPNAME -- &7CB5 to &7CB9
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    registers unchanged
 ;; --------------------------------------------------------------------
 
-; ---- DISPATCH_ON_COMMAND_TOKEN_DONE3 ---- from &7C7C when A = T_DELETE
-DISPATCH_ON_COMMAND_TOKEN_DONE3:
+; ---- CALLBACK_SKIPNAME ---- from &7C7C when A = T_DELETE
+CALLBACK_SKIPNAME:
                RST ERR_HOOK                    ; 7CB5 CF
                DEFB HKC_SKIPNAME               ; 7CB6 B2 hook code
                LD A,&CD                        ; 7CB7 3E CD
                RET                             ; 7CB9 C9
 
 ;; --------------------------------------------------------------------
-;; DISPATCH_ON_COMMAND_TOKEN_4 -- &7CBA to &7CCF
+;; CALLBACK_RCPTCH -- &7CBA to &7CCF
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    HL
 ;; --------------------------------------------------------------------
 
-; ---- DISPATCH_ON_COMMAND_TOKEN_4 ---- from &7C84 when A = T_CLEAR, &7C88 when A = T_RUN
-DISPATCH_ON_COMMAND_TOKEN_4:
+; ---- CALLBACK_RCPTCH ---- from &7C84 when A = T_CLEAR, &7C88 when A = T_RUN
+CALLBACK_RCPTCH:
                POP HL                          ; 7CBA E1
                RST ERR_HOOK                    ; 7CBB CF
                DEFB HKC_RCPTCH                 ; 7CBC AE hook code
@@ -29070,7 +29092,7 @@ DISPATCH_ON_COMMAND_TOKEN_4:
                XOR A                           ; 7CCF AF
 
 ;; --------------------------------------------------------------------
-;; CALLBACK_HCMDV_LOOP -- &7CD0 to &7CDC
+;; CALLBACK_RCPTCH_LOOP -- &7CD0 to &7CDC
 ;;
 ;; Takes:     A, B, HL
 ;; Leaves:    A, F
@@ -29079,12 +29101,12 @@ DISPATCH_ON_COMMAND_TOKEN_4:
 ;; ? drives IN A,(CLUT), OUT (VMPR),A.
 ;; --------------------------------------------------------------------
 
-; ---- CALLBACK_HCMDV_LOOP ---- from &7CD4 when A = H
-CALLBACK_HCMDV_LOOP:
+; ---- CALLBACK_RCPTCH_LOOP ---- from &7CD4 when A = H
+CALLBACK_RCPTCH_LOOP:
                INC A                           ; 7CD0 3C
                IN A,(CLUT)                     ; 7CD1 DB F8
                SUB H                           ; 7CD3 94
-               JR Z,CALLBACK_HCMDV_LOOP        ; 7CD4 28 FA
+               JR Z,CALLBACK_RCPTCH_LOOP       ; 7CD4 28 FA
                LD A,L                          ; 7CD6 7D
                OUT (VMPR),A                    ; 7CD7 D3 FC
                LD A,B                          ; 7CD9 78
@@ -29101,10 +29123,10 @@ CALLBACK_HCMDV_LOOP:
 
                LD A,(LINICOLS)                 ; 7CDD 3A 00 56
                INC A                           ; 7CE0 3C
-               JR Z,CALLBACK_HCMDV_1           ; 7CE1 28 0E
+               JR Z,CALLBACK_RCPTCH_1          ; 7CE1 28 0E
                LD A,(&5C5B)                    ; 7CE3 3A 5B 5C
                AND A                           ; 7CE6 A7
-               JR Z,CALLBACK_HCMDV_1           ; 7CE7 28 08
+               JR Z,CALLBACK_RCPTCH_1          ; 7CE7 28 08
                LD HL,FISCRNP                   ; 7CE9 21 9F 5C
                ADD A,L                         ; 7CEC 85
                LD L,A                          ; 7CED 6F
@@ -29112,7 +29134,7 @@ CALLBACK_HCMDV_LOOP:
                OUT (VMPR),A                    ; 7CEF D3 FC
 
 ;; --------------------------------------------------------------------
-;; CALLBACK_HCMDV_1 -- &7CF1 to &7CF6
+;; CALLBACK_RCPTCH_1 -- &7CF1 to &7CF6
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F, D
@@ -29120,8 +29142,8 @@ CALLBACK_HCMDV_LOOP:
 ;; ? drives IN A,(HMPR); falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- CALLBACK_HCMDV_1 ---- from &7CE1 when A wraps to 0, &7CE7 when A = 0
-CALLBACK_HCMDV_1:
+; ---- CALLBACK_RCPTCH_1 ---- from &7CE1 when A wraps to 0, &7CE7 when A = 0
+CALLBACK_RCPTCH_1:
                IN A,(HMPR)                     ; 7CF1 DB FB
                PUSH AF                         ; 7CF3 F5
                LD D,A                          ; 7CF4 57
@@ -29130,7 +29152,7 @@ L7CF5:
                LD A,&00                        ; 7CF5 3E 00  the operand is written here at run time, from &7B0B
 
 ;; --------------------------------------------------------------------
-;; CALLBACK_HCMDV_2 -- &7CF7 to &7CFF
+;; CALLBACK_RCPTCH_2 -- &7CF7 to &7CFF
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F
@@ -29139,7 +29161,7 @@ L7CF5:
 ;; ? drives OUT (HMPR),A.
 ;; --------------------------------------------------------------------
 
-CALLBACK_HCMDV_2:
+CALLBACK_RCPTCH_2:
                OUT (HMPR),A                         ; 7CF7 D3 FB
                CALL SEND_COUNTED_TO_CHANNEL_1+&4000 ; 7CF9 CD A3 99
                POP AF                               ; 7CFC F1
@@ -29157,60 +29179,60 @@ CALLBACK_HCMDV_2:
 INSTALL_ROM_PATCHES_3:
                LD A,(DMPFG)                    ; 7D00 3A B7 5A  and the DOS's boot sector here, which is the first block
                AND A                           ; 7D03 A7
-               JR Z,CALLBACK_HCMDV_5           ; 7D04 28 1C
+               JR Z,CALLBACK_RCPTCH_5          ; 7D04 28 1C
                POP HL                          ; 7D06 E1
                POP DE                          ; 7D07 D1
                LD A,D                          ; 7D08 7A
                CP &40                          ; 7D09 FE 40
-               JR NZ,CALLBACK_HCMDV_3          ; 7D0B 20 04
+               JR NZ,CALLBACK_RCPTCH_3         ; 7D0B 20 04
                INC D                           ; 7D0D 14
                LD (SYS_DH_STATE),A             ; 7D0E 32 ED 4A
 
 ;; --------------------------------------------------------------------
-;; CALLBACK_HCMDV_3 -- &7D11 to &7D1F
+;; CALLBACK_RCPTCH_3 -- &7D11 to &7D1F
 ;;
 ;; Takes:     A, D
 ;; Leaves:    A, F, D
 ;; --------------------------------------------------------------------
 
-; ---- CALLBACK_HCMDV_3 ---- from &7D0B when A <> &40
-CALLBACK_HCMDV_3:
+; ---- CALLBACK_RCPTCH_3 ---- from &7D0B when A <> &40
+CALLBACK_RCPTCH_3:
                CP &42                          ; 7D11 FE 42
-               JR NZ,CALLBACK_HCMDV_4          ; 7D13 20 0B
+               JR NZ,CALLBACK_RCPTCH_4         ; 7D13 20 0B
                LD A,(SYS_DH_STATE)             ; 7D15 3A ED 4A
                SUB &40                         ; 7D18 D6 40
-               JR NZ,CALLBACK_HCMDV_4          ; 7D1A 20 04
+               JR NZ,CALLBACK_RCPTCH_4         ; 7D1A 20 04
                LD (SYS_DH_STATE),A             ; 7D1C 32 ED 4A
                DEC D                           ; 7D1F 15
 
 ;; --------------------------------------------------------------------
-;; CALLBACK_HCMDV_4 -- &7D20 to &7D21
+;; CALLBACK_RCPTCH_4 -- &7D20 to &7D21
 ;;
 ;; Takes:     DE, HL
 ;; Leaves:    registers unchanged
 ;; --------------------------------------------------------------------
 
-; ---- CALLBACK_HCMDV_4 ---- from &7D13 when A <> &42, &7D1A when A <> &40
-CALLBACK_HCMDV_4:
+; ---- CALLBACK_RCPTCH_4 ---- from &7D13 when A <> &42, &7D1A when A <> &40
+CALLBACK_RCPTCH_4:
                PUSH DE                         ; 7D20 D5
                PUSH HL                         ; 7D21 E5
 
 ;; --------------------------------------------------------------------
-;; CALLBACK_HCMDV_5 -- &7D22 to &7D3A
+;; CALLBACK_RCPTCH_5 -- &7D22 to &7D3A
 ;;
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JP (HL)
 ;; --------------------------------------------------------------------
 
-; ---- CALLBACK_HCMDV_5 ---- from &7D04 when A = 0
-CALLBACK_HCMDV_5:
+; ---- CALLBACK_RCPTCH_5 ---- from &7D04 when A = 0
+CALLBACK_RCPTCH_5:
                LD A,(DEVICE)                   ; 7D22 3A 73 5A
                CP &02                          ; 7D25 FE 02
-               JR Z,CALLBACK_HCMDV_7           ; 7D27 28 22
+               JR Z,CALLBACK_RCPTCH_7          ; 7D27 28 22
                LD A,(SYS_CHAR_WIDTH)           ; 7D29 3A EE 4A
                AND A                           ; 7D2C A7
-               JR Z,CALLBACK_HCMDV_6           ; 7D2D 28 0C
+               JR Z,CALLBACK_RCPTCH_6          ; 7D2D 28 0C
                                                ; to the alternate register set and back again
                EXX                             ; 7D2F D9
                LD HL,PRINT_SIZED_CHAR+&4000    ; 7D30 21 85 A4
@@ -29223,18 +29245,18 @@ CALLBACK_HCMDV_5:
                JP (HL)                         ; 7D3A E9
 
 ;; --------------------------------------------------------------------
-;; CALLBACK_HCMDV_6 -- &7D3B to &7D4A
+;; CALLBACK_RCPTCH_6 -- &7D3B to &7D4A
 ;;
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JP
 ;; --------------------------------------------------------------------
 
-; ---- CALLBACK_HCMDV_6 ---- from &7D2D when A = 0
-CALLBACK_HCMDV_6:
+; ---- CALLBACK_RCPTCH_6 ---- from &7D2D when A = 0
+CALLBACK_RCPTCH_6:
                LD A,(SYS_CHAR_HEIGHT)           ; 7D3B 3A EF 4A
                AND A                            ; 7D3E A7
-               JR Z,CALLBACK_HCMDV_7            ; 7D3F 28 0A
+               JR Z,CALLBACK_RCPTCH_7           ; 7D3F 28 0A
                                                 ; to the alternate register set and back again
                EXX                              ; 7D41 D9
                LD HL,PRINT_MAGNIFIED_CHAR+&4000 ; 7D42 21 F3 A4
@@ -29245,15 +29267,15 @@ L7D46:
                JP PAGER                        ; 7D48 C3 E0 5B  PAGER again
 
 ;; --------------------------------------------------------------------
-;; CALLBACK_HCMDV_7 -- &7D4B to &7D4D
+;; CALLBACK_RCPTCH_7 -- &7D4B to &7D4D
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    registers unchanged
 ;; Ends:      JP
 ;; --------------------------------------------------------------------
 
-; ---- CALLBACK_HCMDV_7 ---- from &7D27 when A = &02, &7D3F when A = 0
-CALLBACK_HCMDV_7:
+; ---- CALLBACK_RCPTCH_7 ---- from &7D27 when A = &02, &7D3F when A = 0
+CALLBACK_RCPTCH_7:
                JP &0000                        ; 7D4B C3 00 00  the operand is written here at run time, from &762B
 
 ;; --------------------------------------------------------------------
