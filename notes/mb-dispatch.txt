@@ -21,6 +21,37 @@ MB &7CB2 CALLBACK_COMADENT
 MB &7CB5 CALLBACK_SKIPNAME
 MB &7CBA CALLBACK_RCPTCH
 
+MB &7D00 PATOUT_CHAR_OUT
+    MasterBASIC's character output, which runs at &49A9 -- the address
+    the listing already had an equate for, SYS_PATOUT_CHAR_OUT, because
+    PATOUT is one of the ROM vectors the first stub redirects.  It reads
+    DMPFG, then DEVICE, then SYS_CHAR_WIDTH and SYS_CHAR_HEIGHT, and
+    hands a character to PRINT_SIZED_CHAR or PRINT_MAGNIFIED_CHAR
+    accordingly.
+
+    IT IS NOT A ROUTINE HEAD AND THE LABEL HERE ONCE SAID IT WAS.  The
+    only reference to &7D00 in the image is LD DE,&7D00 at &7B78, which
+    is a destination and not a call, so the label read
+    INSTALL_ROM_PATCHES_3 and the blocks after it were parented to
+    whatever underived label came before -- CALLBACK_HCMDV once, and
+    CALLBACK_RCPTCH after the stubs were renamed.  Both were wrong.
+
+    THE ADDRESS HAS TWO LIVES AND INSTALL_ROM_PATCHES GIVES IT BOTH,
+    sixteen instructions apart.  &7B51 copies &7BA4 to &884D, &029F
+    bytes -- so &7BA4-&7E42 goes to system page &484D-&4AEB, and &7D00
+    is inside it, landing at &49A9.  Then &7B75 copies &8009, the DOS
+    page's own &4009 past its nine header bytes, back to &7D00 for &F0
+    bytes.  The code is installed first and the space it occupied is
+    then refilled with the boot sector, which is what SAVE BOOT writes
+    out later.
+
+    So notes/mb-saveboot.txt's "&7D00-&7DEF the DOS's boot sector" and
+    this listing's code at the same address are both right, of the same
+    bytes at different moments: that map is headed "WHAT MASTERBASIC'S
+    PAGE ACTUALLY HOLDS AFTER A BOOT" and was read from a memory dump.
+    Neither is an offset into a file on disc.
+
+
 # One line on each stub, saying what the hook it raises goes on to do.
 # Every one of them pops the ROM's return address first, so the hook
 # returns to the ROM's caller and not into the stub.

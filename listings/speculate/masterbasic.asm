@@ -18463,7 +18463,7 @@ SAVE_BOOT:
                LD HL,DOS_FFHL                    ; 6439 21 00 81
                LD DE,&3C60                       ; 643C 11 60 3C
                CALL SAVE_BLOCK_FROM_DOS_PAGE     ; 643F CD AD 42
-               LD HL,INSTALL_ROM_PATCHES_4+&4000 ; 6442 21 F0 BD
+               LD HL,INSTALL_ROM_PATCHES_3+&4000 ; 6442 21 F0 BD
                LD DE,&01BE                       ; 6445 11 BE 01
                CALL SAVE_BLOCK_FROM_THIS_PAGE    ; 6448 CD A9 42
                LD HL,&8C14                       ; 644B 21 14 8C
@@ -26584,7 +26584,7 @@ INSTALLER_LOOP:
                CALL DOS_FIND_ROM_CODE          ; 7622 CD 79 BD
                DEFB &3A,&B7,&5A,&DB,&00,&00    ; 7625 signature 3A B7 5A from &DB00  -> &DC77 ENDOUTP
                                                ; self-modifying: patches the operand of the JP at &7D4B
-               LD (CALLBACK_RCPTCH_7+1),HL     ; 762B 22 4C 7D  patches the operand of the JP at &7D4B
+               LD (PATOUT_CHAR_OUT_5+1),HL     ; 762B 22 4C 7D  patches the operand of the JP at &7D4B
                CALL DOS_FIND_ROM_CODE          ; 762E CD 79 BD
                DEFB &00,&37,&C9,&3C,&00,&03    ; 7631 signature 00 37 C9 from &3C00, +3  -> &3C39 EPSUB
                                                ; self-modifying: patches the operand of the CALL at &6516
@@ -28447,7 +28447,7 @@ INSTALL_ROM_PATCHES_1:
                LD BC,&029F                     ; 7B57 01 9F 02
                LDIR                            ; 7B5A ED B0
                LD HL,&8F00                     ; 7B5C 21 00 8F
-               LD DE,INSTALL_ROM_PATCHES_4     ; 7B5F 11 F0 7D
+               LD DE,INSTALL_ROM_PATCHES_3     ; 7B5F 11 F0 7D
                LD BC,&01BE                     ; 7B62 01 BE 01
                LDIR                            ; 7B65 ED B0
                LD HL,&4A52                     ; 7B67 21 52 4A
@@ -28457,7 +28457,7 @@ INSTALL_ROM_PATCHES_1:
                LD (RST28V+&4000),HL            ; 7B70 22 F0 9A
                OUT (HMPR),A                    ; 7B73 D3 FB
                LD HL,DOS_BOOT                  ; 7B75 21 09 80
-               LD DE,INSTALL_ROM_PATCHES_3     ; 7B78 11 00 7D
+               LD DE,PATOUT_CHAR_OUT           ; 7B78 11 00 7D
                LD C,&F0                        ; 7B7B 0E F0
                LDIR                            ; 7B7D ED B0
                RET                             ; 7B7F C9
@@ -29183,70 +29183,101 @@ CALLBACK_RCPTCH_2:
                RET                                  ; 7CFF C9
 
 ;; --------------------------------------------------------------------
-;; INSTALL_ROM_PATCHES_3 -- &7D00 to &7D10
+;; PATOUT_CHAR_OUT -- &7D00 to &7D10
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F, DE, HL
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     MasterBASIC's character output, which runs at &49A9 -- the address
+;;     the listing already had an equate for, SYS_PATOUT_CHAR_OUT, because
+;;     PATOUT is one of the ROM vectors the first stub redirects.  It reads
+;;     DMPFG, then DEVICE, then SYS_CHAR_WIDTH and SYS_CHAR_HEIGHT, and
+;;     hands a character to PRINT_SIZED_CHAR or PRINT_MAGNIFIED_CHAR
+;;     accordingly.
+;;
+;;     IT IS NOT A ROUTINE HEAD AND THE LABEL HERE ONCE SAID IT WAS.  The
+;;     only reference to &7D00 in the image is LD DE,&7D00 at &7B78, which
+;;     is a destination and not a call, so the label read
+;;     INSTALL_ROM_PATCHES_3 and the blocks after it were parented to
+;;     whatever underived label came before -- CALLBACK_HCMDV once, and
+;;     CALLBACK_RCPTCH after the stubs were renamed.  Both were wrong.
+;;
+;;     THE ADDRESS HAS TWO LIVES AND INSTALL_ROM_PATCHES GIVES IT BOTH,
+;;     sixteen instructions apart.  &7B51 copies &7BA4 to &884D, &029F
+;;     bytes -- so &7BA4-&7E42 goes to system page &484D-&4AEB, and &7D00
+;;     is inside it, landing at &49A9.  Then &7B75 copies &8009, the DOS
+;;     page's own &4009 past its nine header bytes, back to &7D00 for &F0
+;;     bytes.  The code is installed first and the space it occupied is
+;;     then refilled with the boot sector, which is what SAVE BOOT writes
+;;     out later.
+;;
+;;     So notes/mb-saveboot.txt's "&7D00-&7DEF the DOS's boot sector" and
+;;     this listing's code at the same address are both right, of the same
+;;     bytes at different moments: that map is headed "WHAT MASTERBASIC'S
+;;     PAGE ACTUALLY HOLDS AFTER A BOOT" and was read from a memory dump.
+;;     Neither is an offset into a file on disc.
 ;; --------------------------------------------------------------------
 
-; ---- INSTALL_ROM_PATCHES_3 ---- from &7B78
-INSTALL_ROM_PATCHES_3:
+; ---- PATOUT_CHAR_OUT ---- from &7B78
+PATOUT_CHAR_OUT:
                LD A,(DMPFG)                    ; 7D00 3A B7 5A  and the DOS's boot sector here, which is the first block
                AND A                           ; 7D03 A7
-               JR Z,CALLBACK_RCPTCH_5          ; 7D04 28 1C
+               JR Z,PATOUT_CHAR_OUT_3          ; 7D04 28 1C
                POP HL                          ; 7D06 E1
                POP DE                          ; 7D07 D1
                LD A,D                          ; 7D08 7A
                CP &40                          ; 7D09 FE 40
-               JR NZ,CALLBACK_RCPTCH_3         ; 7D0B 20 04
+               JR NZ,PATOUT_CHAR_OUT_1         ; 7D0B 20 04
                INC D                           ; 7D0D 14
                LD (SYS_DH_STATE),A             ; 7D0E 32 ED 4A
 
 ;; --------------------------------------------------------------------
-;; CALLBACK_RCPTCH_3 -- &7D11 to &7D1F
+;; PATOUT_CHAR_OUT_1 -- &7D11 to &7D1F
 ;;
 ;; Takes:     A, D
 ;; Leaves:    A, F, D
 ;; --------------------------------------------------------------------
 
-; ---- CALLBACK_RCPTCH_3 ---- from &7D0B when A <> &40
-CALLBACK_RCPTCH_3:
+; ---- PATOUT_CHAR_OUT_1 ---- from &7D0B when A <> &40
+PATOUT_CHAR_OUT_1:
                CP &42                          ; 7D11 FE 42
-               JR NZ,CALLBACK_RCPTCH_4         ; 7D13 20 0B
+               JR NZ,PATOUT_CHAR_OUT_2         ; 7D13 20 0B
                LD A,(SYS_DH_STATE)             ; 7D15 3A ED 4A
                SUB &40                         ; 7D18 D6 40
-               JR NZ,CALLBACK_RCPTCH_4         ; 7D1A 20 04
+               JR NZ,PATOUT_CHAR_OUT_2         ; 7D1A 20 04
                LD (SYS_DH_STATE),A             ; 7D1C 32 ED 4A
                DEC D                           ; 7D1F 15
 
 ;; --------------------------------------------------------------------
-;; CALLBACK_RCPTCH_4 -- &7D20 to &7D21
+;; PATOUT_CHAR_OUT_2 -- &7D20 to &7D21
 ;;
 ;; Takes:     DE, HL
 ;; Leaves:    registers unchanged
 ;; --------------------------------------------------------------------
 
-; ---- CALLBACK_RCPTCH_4 ---- from &7D13 when A <> &42, &7D1A when A <> &40
-CALLBACK_RCPTCH_4:
+; ---- PATOUT_CHAR_OUT_2 ---- from &7D13 when A <> &42, &7D1A when A <> &40
+PATOUT_CHAR_OUT_2:
                PUSH DE                         ; 7D20 D5
                PUSH HL                         ; 7D21 E5
 
 ;; --------------------------------------------------------------------
-;; CALLBACK_RCPTCH_5 -- &7D22 to &7D3A
+;; PATOUT_CHAR_OUT_3 -- &7D22 to &7D3A
 ;;
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JP (HL)
 ;; --------------------------------------------------------------------
 
-; ---- CALLBACK_RCPTCH_5 ---- from &7D04 when A = 0
-CALLBACK_RCPTCH_5:
+; ---- PATOUT_CHAR_OUT_3 ---- from &7D04 when A = 0
+PATOUT_CHAR_OUT_3:
                LD A,(DEVICE)                   ; 7D22 3A 73 5A
                CP &02                          ; 7D25 FE 02
-               JR Z,CALLBACK_RCPTCH_7          ; 7D27 28 22
+               JR Z,PATOUT_CHAR_OUT_5          ; 7D27 28 22
                LD A,(SYS_CHAR_WIDTH)           ; 7D29 3A EE 4A
                AND A                           ; 7D2C A7
-               JR Z,CALLBACK_RCPTCH_6          ; 7D2D 28 0C
+               JR Z,PATOUT_CHAR_OUT_4          ; 7D2D 28 0C
                                                ; to the alternate register set and back again
                EXX                             ; 7D2F D9
                LD HL,PRINT_SIZED_CHAR+&4000    ; 7D30 21 85 A4
@@ -29259,18 +29290,18 @@ CALLBACK_RCPTCH_5:
                JP (HL)                         ; 7D3A E9
 
 ;; --------------------------------------------------------------------
-;; CALLBACK_RCPTCH_6 -- &7D3B to &7D4A
+;; PATOUT_CHAR_OUT_4 -- &7D3B to &7D4A
 ;;
 ;; Takes:     BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JP
 ;; --------------------------------------------------------------------
 
-; ---- CALLBACK_RCPTCH_6 ---- from &7D2D when A = 0
-CALLBACK_RCPTCH_6:
+; ---- PATOUT_CHAR_OUT_4 ---- from &7D2D when A = 0
+PATOUT_CHAR_OUT_4:
                LD A,(SYS_CHAR_HEIGHT)           ; 7D3B 3A EF 4A
                AND A                            ; 7D3E A7
-               JR Z,CALLBACK_RCPTCH_7           ; 7D3F 28 0A
+               JR Z,PATOUT_CHAR_OUT_5           ; 7D3F 28 0A
                                                 ; to the alternate register set and back again
                EXX                              ; 7D41 D9
                LD HL,PRINT_MAGNIFIED_CHAR+&4000 ; 7D42 21 F3 A4
@@ -29281,15 +29312,15 @@ L7D46:
                JP PAGER                        ; 7D48 C3 E0 5B  PAGER again
 
 ;; --------------------------------------------------------------------
-;; CALLBACK_RCPTCH_7 -- &7D4B to &7D4D
+;; PATOUT_CHAR_OUT_5 -- &7D4B to &7D4D
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    registers unchanged
 ;; Ends:      JP
 ;; --------------------------------------------------------------------
 
-; ---- CALLBACK_RCPTCH_7 ---- from &7D27 when A = &02, &7D3F when A = 0
-CALLBACK_RCPTCH_7:
+; ---- PATOUT_CHAR_OUT_5 ---- from &7D27 when A = &02, &7D3F when A = 0
+PATOUT_CHAR_OUT_5:
                JP &0000                        ; 7D4B C3 00 00  the operand is written here at run time, from &762B
 
 ;; --------------------------------------------------------------------
@@ -29555,15 +29586,15 @@ L7DD8:
                RET                             ; 7DEF C9
 
 ;; --------------------------------------------------------------------
-;; INSTALL_ROM_PATCHES_4 -- &7DF0 to &7DF9
+;; INSTALL_ROM_PATCHES_3 -- &7DF0 to &7DF9
 ;;
 ;; Takes:     A, BC, IY
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      JP
 ;; --------------------------------------------------------------------
 
-; ---- INSTALL_ROM_PATCHES_4 ---- from &7B5F
-INSTALL_ROM_PATCHES_4:
+; ---- INSTALL_ROM_PATCHES_3 ---- from &7B5F
+INSTALL_ROM_PATCHES_3:
                CALL &4A84                      ; 7DF0 CD 84 4A  the installer saves the ROM's transfer buffer here, and
                                                ; SAVE BOOT reads it back out as its third block -- which also carries
                                                ; the alternate character set at &7E64, see notes/mb-saveboot.txt
