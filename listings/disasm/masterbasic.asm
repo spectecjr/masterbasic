@@ -18560,14 +18560,16 @@ INSTALLER_LOOP4:
                XOR A                           ; 76A8 AF
                LD (DOS_SAMCNT),A               ; 76A9 32 34 82
                LD (DOSCNT),A                   ; 76AC 32 C3 5B
-               LD BC,&00F3                     ; 76AF 01 F3 00  port &F3, with B zero so the loop below runs 256 times.
-                                               ; The port is not named in ref/samrom or anywhere else in this project
+               LD BC,&00F3                     ; 76AF 01 F3 00  &F3 is Disk2base plus three -- drive 2's WD1772 data
+                                               ; register, by the port map in
+                                               ; ref/sam-coupe-technical-manual/techmanual.md. B is zero, so the loop
+                                               ; below writes all 256 values through it
 
 ; ---- INSTALLER_LOOP5 ---- from &76C0 when B is not 0 yet
 INSTALLER_LOOP5:
                OUT (C),B                       ; 76B2 ED 41
-               LD A,&14                        ; 76B4 3E 14  a delay of twenty, counted down to nothing, between writing
-                                               ; the port and reading it back
+               LD A,&14                        ; 76B4 3E 14  twenty, counted down to nothing, to let the data register
+                                               ; settle between the write and the read
 
 ; ---- INSTALLER_LOOP6 ---- from &76B7 when A is not 0 yet
 INSTALLER_LOOP6:
@@ -18575,16 +18577,19 @@ INSTALLER_LOOP6:
                JR NZ,INSTALLER_LOOP6           ; 76B7 20 FD
                IN A,(C)                        ; 76B9 ED 78
                CP B                            ; 76BB B8
-               LD A,&00                        ; 76BC 3E 00  zero is the answer if any read differs from what was
-                                               ; written, and &76CA stores it
+               LD A,&00                        ; 76BC 3E 00  zero if any read differs from what was written -- TRAKS2's
+                                               ; own value for "no second drive"
                JR NZ,INSTALLER_1               ; 76BE 20 0A
                DJNZ INSTALLER_LOOP5            ; 76C0 10 F0
                LD A,(DOS_V4222)                ; 76C2 3A 22 82
                AND A                           ; 76C5 A7
                JR NZ,INSTALLER_2               ; 76C6 20 05
-               LD A,&D0                        ; 76C8 3E D0  &D0 if all 256 matched and DOS_V4222 was clear. What the
-                                               ; value means is not settled; the loop above is a write-and-read-back
-                                               ; test and this is what it records on success
+               LD A,&D0                        ; 76C8 3E D0  &D0 is 128 + 80, which is what MasterDOS's own
+                                               ; documentation tells a user to POKE into DVAR 2 to "enable a second
+                                               ; floppy drive" -- fitted, eighty tracks. So all 256 matching means the
+                                               ; controller answered, and MasterBASIC writes the setting the user would
+                                               ; otherwise have written by hand. &76C2 looked first, so an answer
+                                               ; already there is left alone
 
 ; ---- INSTALLER_1 ---- from &76BE when A <> B
 INSTALLER_1:

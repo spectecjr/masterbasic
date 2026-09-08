@@ -156,11 +156,11 @@ MB &7697 : L less one, into the DOS page's &42CD.  SAVE_BLOCK_FROM_DOS_PAGE read
 
 MB &769A : &44 and &01 -- PSLD is two bytes, DEVL then DEVN, so this sets the default device to D1
 
-MB &76AF : port &F3, with B zero so the loop below runs 256 times.  The port is not named in ref/samrom or anywhere else in this project
+MB &76AF : &F3 is Disk2base plus three -- drive 2's WD1772 data register, by the port map in ref/sam-coupe-technical-manual/techmanual.md.  B is zero, so the loop below writes all 256 values through it
 
-MB &76B4 : a delay of twenty, counted down to nothing, between writing the port and reading it back
+MB &76B4 : twenty, counted down to nothing, to let the data register settle between the write and the read
 
-MB &76BC : zero is the answer if any read differs from what was written, and &76CA stores it
+MB &76BC : zero if any read differs from what was written -- TRAKS2's own value for "no second drive" 
 
-MB &76C8 : &D0 if all 256 matched and DOS_V4222 was clear.  What the value means is not settled; the loop above is a write-and-read-back test and this is what it records on success
+MB &76C8 : &D0 is 128 + 80, which is what MasterDOS's own documentation tells a user to POKE into DVAR 2 to "enable a second floppy drive" -- fitted, eighty tracks.  So all 256 matching means the controller answered, and MasterBASIC writes the setting the user would otherwise have written by hand.  &76C2 looked first, so an answer already there is left alone
 MB &7686 : clear &4AED-&4AFF, nineteen bytes of workspace in the system page

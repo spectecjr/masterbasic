@@ -4,9 +4,9 @@ What this project cannot settle by reading. Each entry says what to capture,
 why, and what it would decide — so that whoever has the hardware or the
 emulator can do it without reading the rest of the repository first. All five
 are answered, and are kept because the answers are worth more than the
-questions were. Items 7, 8, 11 and 12 are open: 8 could be settled by
-anyone who can save a compressed screen and look at the directory entry,
-and 12 by anyone who can capture a printer stream.
+questions were. Items 7, 8 and 12 are open: 8 could be settled by anyone
+who can save a compressed screen and look at the directory entry, and 12
+by anyone who can capture a printer stream.
 
 ---
 
@@ -226,7 +226,6 @@ Three captures and a page of BASIC would close everything below.
 | **A directory entry read back after saving a compressed screen** | 8 | easy |
 | **Seven short BASIC tests**, 10a to 10g | seven of the nine defects that have never been run | easy — a machine and a few lines each |
 | *(10h, 10i and 10j want damaged discs or an unreachable stack, and are listed so nobody spends an afternoon on them)* | — | hard to impossible |
-| **A SAM port map covering `&F3`**, or a machine read back at `DOS &4222` | 11 | a reference, or easy |
 | **A printer stream from `POKE XVAR 33,3 : DUMP 4`** | 12 | easy — the same method as 6 |
 
 The Spectrum capture is the valuable one: it is the only thing that would
@@ -434,27 +433,35 @@ spends an afternoon on it.
 
 ---
 
-## 11. What port `&F3` is, and what the `&D0` records about it
+## 11. Answered — `&F3` is drive 2's data register, and `&D0` says a second drive is fitted
 
-`INSTALLER` at `&76AF` writes all 256 values to port `&F3` one at a time,
-counts a `DEC A` loop down from twenty after each, reads the port back and
-compares. One mismatch leaves `&00`; all 256 matching leaves `&D0`. Either
-way the answer goes to `DOS_V4222`, and `&76C2` reads that first, so a value
-already there is not overwritten.
+**Settled from `ref/sam-coupe-technical-manual/techmanual.md`**, which the
+question was written without knowing was in the repository. The manual gives
+the disk ports as `Disk1base (224)` and `Disk2base (240)`, each plus an offset
+of 0 to 7, and offset 3 as the WD1772's **Data** register. `&F3` is 240 + 3:
+drive 2's data register.
 
-The port is named nowhere this project can reach: not in `ref/samrom`, not in
-`listings/*/samhw.asm`, not in `skills/sam-coupe/`. Sweeping every value
-through a port and reading it back is how you test that something latches, so
-the shape of it says "is this present" without saying what.
+That makes the loop at `&76AF` a controller-presence test. It writes all 256
+values to the data register, counts a twenty-iteration `DEC A` loop down after
+each, and reads the byte back; a 1772 that is fitted latches it and absent
+hardware does not round-trip, and one mismatch abandons the sweep.
 
-**What would settle it.** Any SAM port map covering `&F3` — the Technical
-Manual, or SimCoupe's port decoding. Failing that, boot a machine with and
-without whatever `&F3` belongs to and read `DOS &4222` back: `&D0` means the
-sweep round-tripped.
+`&D0` is what it records on success, and MasterDOS's own documentation names
+that byte. `DOS &4222` is `DVAR 2`, `TRAKS2` -- "Drive 2, same encoding. **Zero
+means no second drive**" -- and `ref/masterdos/docs/dos-variables.md` tells a
+user to set it by hand: **`POKE DVAR 2, 128+80`** to "enable a second floppy
+drive". 128 + 80 is `&D0`, so the value means fitted, eighty tracks.
+MasterBASIC probes for the drive at boot and saves the user the poke, and
+`&76C2` reads `TRAKS2` first so a setting already there -- the user's own, or
+one carried in by a `SAVE BOOT` file -- is left alone.
 
-**Why it is worth knowing.** `&D0` is the only value MasterBASIC ever records
-for it, so something later branches on a fact about the hardware that nothing
-in the image names.
+**What made it findable.** Two ports in the same unnamed stretch had already
+been identified here and neither is this one: `CKPT` at DOS `&42B6` is `&EF`,
+the clock, and `SPORT` at `&400B` is `&EC`, the Comms Interface. Both take a
+register number in the *upper* byte of the port address, which is the
+`OUT (C),B` form `SERINIT` documents -- and recognising that idiom is what
+made `&F3` look like a third device addressed the same way rather than a
+stray number.
 
 ---
 
