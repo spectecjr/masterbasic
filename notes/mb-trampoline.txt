@@ -1,5 +1,37 @@
 # Getting back into MasterBASIC from somewhere it is not paged in.
 
+MB &5CDF : &E7 is RST &20, which PAGE_IN_ROM1 plants at &4D50 before anything else goes in
+
+MB &5CE1 expr SYS_CDBUFF_50+&4000
+MB &5CE1 : CDBUFF+&50 seen through the window.  PAGE_IN_ROM1 exchanges it with the ROM address in DE, so this is where the copy lands and not where it comes from
+
+MB &5CE8 : the nine bytes of the intercepted routine's head -- for POKE, its three opening CALLs, stopping one byte short of the JR NZ the JP NZ below replaces
+
+MB &5CEE : &C2 is JP NZ, and the two bytes after it are filled in at run time
+
+MB &5CF8 : &D0 is RET NC
+
+MB &5CFB : &3E is LD A, whose operand the three instructions below work out -- LMPR plus one, this half's own page
+
+MB &5D05 : &D3 is OUT (n),A
+
+MB &5D08 value HMPR
+MB &5D08 : the port that OUT is given, so the pair reads OUT (HMPR),A
+
+MB &5D0B : &21 is LD HL, and DE goes in as its operand
+
+MB &5D12 : &C3 is JP
+
+MB &5D15 : its operand -- this half's own &5D20, seen from a page where this half is at &8000
+
+MB &5D1B expr SYS_CDBUFF_50
+MB &5D1B : the address of what has just been built, which RESTORE_HMPR_AND_STORE writes through V4076 so that whoever needs the trampoline can find it
+
+MB &5D2B : &45 is the sixty-nine bytes of the far-move helper
+
+MB &5D2F expr SYS_CDBUFF_50+3
+MB &5D2F : three bytes past the RST &20 and the nine copied, which is where the ROM's own CALL &1D01 now sits
+
 MB &5CDF BUILD_PAGE_IN_TRAMPOLINE
 
 DOC BUILD_PAGE_IN_TRAMPOLINE

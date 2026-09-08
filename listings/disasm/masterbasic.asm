@@ -43,6 +43,7 @@ ANYI_EXIT:              EQU  &54               ; The tail of ANYI, eleven bytes 
 DVAR_CMPFG:             EQU  &42BA             ; DVAR 154 in the DOS page: SAVE MODE 1, 2 or 3 less one
 GREY_MAP:               EQU  &7B80
 GREY_TAKEN:             EQU  &7B90
+HMPR:                   EQU  &FB
 REF_BUFFER:             EQU  &7B00
 REF_BUFFER_2:           EQU  &7B80
 REF_BUFFER_2_TEXT:      EQU  &7B81
@@ -10218,14 +10219,20 @@ CMD_SOUND_2:
 
 ; ---- BUILD_PAGE_IN_TRAMPOLINE ---- from &4EB8 when A = T_POKE
 BUILD_PAGE_IN_TRAMPOLINE:
-               LD B,&E7                        ; 5CDF 06 E7
-               LD HL,&8D50                     ; 5CE1 21 50 8D
+               LD B,&E7                        ; 5CDF 06 E7  &E7 is RST &20, which PAGE_IN_ROM1 plants at &4D50 before
+                                               ; anything else goes in
+               LD HL,SYS_CDBUFF_50+&4000       ; 5CE1 21 50 8D  CDBUFF+&50 seen through the window. PAGE_IN_ROM1
+                                               ; exchanges it with the ROM address in DE, so this is where the copy
+                                               ; lands and not where it comes from
                CALL PAGE_IN_ROM1               ; 5CE4 CD 59 5C
                PUSH AF                         ; 5CE7 F5
-               LD BC,&0009                     ; 5CE8 01 09 00
+               LD BC,&0009                     ; 5CE8 01 09 00  the nine bytes of the intercepted routine's head -- for
+                                               ; POKE, its three opening CALLs, stopping one byte short of the JR NZ the
+                                               ; JP NZ below replaces
                LDIR                            ; 5CEB ED B0
                EX DE,HL                        ; 5CED EB
-               LD (HL),&C2                     ; 5CEE 36 C2
+               LD (HL),&C2                     ; 5CEE 36 C2  &C2 is JP NZ, and the two bytes after it are filled in at
+                                               ; run time
                INC HL                          ; 5CF0 23
 
 L5CF1:
@@ -10234,32 +10241,36 @@ L5CF1:
                INC HL                          ; 5CF5 23
                LD (HL),B                       ; 5CF6 70
                INC HL                          ; 5CF7 23
-               LD (HL),&D0                     ; 5CF8 36 D0
+               LD (HL),&D0                     ; 5CF8 36 D0  &D0 is RET NC
                INC HL                          ; 5CFA 23
-               LD (HL),&3E                     ; 5CFB 36 3E
+               LD (HL),&3E                     ; 5CFB 36 3E  &3E is LD A, whose operand the three instructions below
+                                               ; work out -- LMPR plus one, this half's own page
                INC HL                          ; 5CFD 23
                IN A,(LMPR)                     ; 5CFE DB FA
                INC A                           ; 5D00 3C
                AND PAGEMASK                    ; 5D01 E6 1F
                LD (HL),A                       ; 5D03 77
                INC HL                          ; 5D04 23
-               LD (HL),&D3                     ; 5D05 36 D3
+               LD (HL),&D3                     ; 5D05 36 D3  &D3 is OUT (n),A
                INC HL                          ; 5D07 23
-               LD (HL),&FB                     ; 5D08 36 FB
+               LD (HL),HMPR                    ; 5D08 36 FB  the port that OUT is given, so the pair reads OUT (HMPR),A
                INC HL                          ; 5D0A 23
-               LD (HL),&21                     ; 5D0B 36 21
+               LD (HL),&21                     ; 5D0B 36 21  &21 is LD HL, and DE goes in as its operand
                INC HL                          ; 5D0D 23
                LD (HL),E                       ; 5D0E 73
                INC HL                          ; 5D0F 23
                LD (HL),D                       ; 5D10 72
                INC HL                          ; 5D11 23
-               LD (HL),&C3                     ; 5D12 36 C3
+               LD (HL),&C3                     ; 5D12 36 C3  &C3 is JP
                INC HL                          ; 5D14 23
-               LD BC,&9D20                     ; 5D15 01 20 9D
+               LD BC,&9D20                     ; 5D15 01 20 9D  its operand -- this half's own &5D20, seen from a page
+                                               ; where this half is at &8000
                LD (HL),C                       ; 5D18 71
                INC HL                          ; 5D19 23
                LD (HL),B                       ; 5D1A 70
-               LD BC,&4D50                     ; 5D1B 01 50 4D
+               LD BC,SYS_CDBUFF_50             ; 5D1B 01 50 4D  the address of what has just been built, which
+                                               ; RESTORE_HMPR_AND_STORE writes through V4076 so that whoever needs the
+                                               ; trampoline can find it
                JR RESTORE_HMPR_AND_STORE       ; 5D1E 18 3C
 
 ;; --------------------------------------------------------------------
@@ -10284,9 +10295,10 @@ L5CF1:
 
                LD HL,COPY_THEN_APPEND_CALL_6+&4000 ; 5D28 21 1F 9E  and the sixty-nine byte far-move helper at &5E1F,
                                                    ; which lands at
-               LD C,&45                            ; 5D2B 0E 45
+               LD C,&45                            ; 5D2B 0E 45  &45 is the sixty-nine bytes of the far-move helper
                LDIR                                ; 5D2D ED B0
-               JP &4D53                            ; 5D2F C3 53 4D
+               JP SYS_CDBUFF_50+3                  ; 5D2F C3 53 4D  three bytes past the RST &20 and the nine copied,
+                                                   ; which is where the ROM's own CALL &1D01 now sits
 
 ;; --------------------------------------------------------------------
 ;; PAUSE keyword and MasterBASIC's has not
