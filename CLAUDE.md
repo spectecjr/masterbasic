@@ -127,6 +127,18 @@ After correcting any figure, **grep the old value** across `docs/`,
 wrong number is usually in more than one place, and checking the places
 you changed proves nothing.
 
+**A generated name needs the same grep, and a rename you did not intend
+is the reason.**  Synthetic labels -- `S%04X`, and anything ending `_1`
+or `_2` -- are derived from the nearest underived label above them, so
+naming one routine renames its neighbours, and the build stays green
+either way.  `checkdocs` catches only prose that quotes an instruction;
+prose that merely names a routine survives, as above.  So read the label
+diff after any rename, and grep the old *name* across `docs/`, `notes/`
+and `design/` exactly as you would an old number.  `WAIT_NEXT_SCANLINE`
+carried two labels off with it, one onto &7CF7 -- not an entry point at
+all, but the address SAVE BOOT reads its first block from, so a name
+about the raster landed on the source of a disc write.
+
 A total that comes back *exactly* unchanged after a change that should
 move it is a failure signal, not a result.
 
