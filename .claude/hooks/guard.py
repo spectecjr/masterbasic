@@ -20,7 +20,10 @@ broken, by hand at least once.  Which event runs which is in
                  tools/checkdocs.py and hand back anything stale
   commit         before git commit, report build.log's last line and
                  whether anything under listings/ notes/ tools/ has
-                 changed since it was written.  Advisory only.
+                 changed since it was written, and whether base.asm is
+                 modified but not named -- a `value` note that makes a
+                 new equate declares it there, and staging the halves by
+                 name drops it.  Advisory only.
 
 A deny prints the reason; the tool call does not run.  Anything
 unexpected -- no stdin, odd JSON -- exits 0 with no output, so a broken
@@ -151,9 +154,46 @@ def newest_under(dirs):
     return best
 
 
+BASE_ASM = ("listings/clean/base.asm", "listings/disasm/base.asm",
+            "listings/speculate/base.asm")
+
+
+def base_left_out(cmd):
+    """base.asm files modified in the tree but not named in this commit.
+
+    A `value` note that makes a NEW equate declares it in base.asm and
+    not in either half, and base.asm is three files.  Staging
+    listings/*/masterbasic.asm by name is right until a note adds a
+    symbol and then silently wrong: the listings go out referring to a
+    name nothing declares.  The build cannot see it -- the build reads
+    the working tree and the commit reads the index.
+    """
+    if re.search(r"commit\b[^|;]*\s-a\b", cmd):
+        return []                       # -a stages every tracked change
+    try:
+        p = subprocess.run(["git", "status", "--porcelain", "--"] +
+                           list(BASE_ASM), cwd=ROOT,
+                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        text = p.stdout.decode("utf-8", "replace")
+    except Exception:  # noqa: BLE001
+        return []
+    # Each path is tested on its own: naming one tree's base.asm says
+    # nothing about the other two, and all three move together.
+    return [f for f in (l[3:].strip() for l in text.splitlines() if l.strip())
+            if f not in cmd]
+
+
 def commit(cmd, path):
     if not re.search(r"\bgit\s+commit\b", without_heredocs(cmd)):
         return
+    stray = base_left_out(without_heredocs(cmd))
+    if stray:
+        advise("PreToolUse",
+               "base.asm is modified and not in this commit: %s. A `value` "
+               "note that makes a new equate declares it there, so the "
+               "listings would go out referring to a name nothing defines. "
+               "Check `git diff --stat -- listings/*/base.asm`."
+               % ", ".join(stray), "base.asm left out")
     log = os.path.join(ROOT, "build.log")
     if not os.path.exists(log):
         advise("PreToolUse", "build.log does not exist: nothing has been "

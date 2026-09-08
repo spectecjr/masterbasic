@@ -68,6 +68,16 @@ table) are a different job and are out; and a routine is the run from
 a label to the next label that is neither one of its own internal
 labels nor a synthetic name for a referenced address.
 
+**The comment has to be on the line the number is on**, which reads as
+pedantry and is not.  Explaining `LD B,&13` in a note attached to the
+`LD HL` beneath it leaves the site outstanding, and three sites in one
+routine were written twice before that sank in.  Worse, where the
+generator already puts text on a line -- the second byte of a two-byte
+idiom, say -- a note aimed there can be dropped without complaint, so
+the prose vanishes and the count does not move.  When a site will not
+clear, look at which line the comment landed on before you look at the
+rule.
+
 ## Four faults this counter had
 
 All found by doing a routine against it and watching what the number

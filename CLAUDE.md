@@ -93,9 +93,23 @@ only.  `DOS` substitutes for `MB`.
     RENAME OLD NEW
     DOC NAME                        banner; indented lines below are the text
 
+`RENAME` says what a label is called *now*, and synthetic numbering is
+not stable while the same file is renaming: naming two addresses took
+`_1` and `_2` out of a run, the namer renumbered what was left, and the
+`RENAME`s for `_3` and `_4` matched nothing -- silently, since three of
+five had landed.  Name by address instead; `MB &7CB2 NAME` cannot drift.
+`IN_PAGE_C` is declared only in the clean tree, so a shared note writes
+`+&4000` and only `notes/clean/` may use the name.
+
 `tools/checkdocs.py` holds `docs/`, `notes/` and `design/` to the listings
-for names and quoted instructions.  Prose that merely *names* a routine
-is not checked, so a stale name in prose survives the build.
+for names and quoted instructions, and `docs/sam-basic-grammar.txt` to
+the ROM's `CMDADT`: every `@ tok name` against the generated `[TOKENS]`
+block, and every `ref/samrom` routine a `:` line cites against the token
+that actually reaches it.  That second check exists because `COPY` and
+`COPY CHR$` sat under `@ CF COPY` for a while and are DUMP's -- `CMDADT`
+points `&BF` at the routine the ROM's source calls COPY and gives `&CF`
+NONSENSE.  Prose that merely *names* a routine is not checked, so a
+stale name in prose survives the build.
 
 ## References, and one trap
 
@@ -156,6 +170,21 @@ them.  `guard.py` is pipe-testable: feed it the hook JSON on stdin.
 Another Claude session shares this clone.  Stage by explicit path, never
 `git add -A`; look at `git status` first and leave what you did not
 touch.  Re-check `HEAD` before committing.
+
+**A `value` note that makes a *new* equate writes it into `base.asm`,
+and `base.asm` is three files.**  Staging `listings/*/masterbasic.asm`
+by name is right until a note adds a symbol and then silently wrong:
+two commits went out referring to `T_LINE` with nothing declaring it --
+byte-identical here, an assembly failure on checkout.  The build cannot
+catch it, because the build reads the working tree and the commit reads
+the index.  A hook now advises; `git diff --stat -- listings/*/base.asm`
+is the check.
+
+Because the other session's staged work sits in the same index, prefer
+`git commit <paths>` -- the pathspec form -- over `git add` then `git
+commit`, which commits everything staged, theirs included.  A `git
+status` caught mid-operation can show their files as staged and clear a
+moment later; `git diff --cached` settles it.
 
 ## Standing work
 
