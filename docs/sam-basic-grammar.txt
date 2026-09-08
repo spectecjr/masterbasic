@@ -17,9 +17,8 @@ parameter table -- unlike the Spectrum, whose class bytes drive a generic
 parser -- so each keyword's routine checks its own arguments, and the rules
 there were read off those routines one at a time.  Every rule carries a `:`
 line naming what it was read from.  A rule marked `?` is one the source did
-not settle; treat it as the manual's claim and not as proven.  Two carry
-one: the flag PUT GRAB tests, under @ AC PUT, and whether DUMP's number
-is required when it runs, under @ BF DUMP.
+not settle; treat it as the manual's claim and not as proven.  One rule
+carries one: the flag PUT GRAB tests, under @ AC PUT.
 
 Companion documents:
   docs/tokens.md               the same tokens as prose, with the traps
@@ -562,6 +561,21 @@ FF83|operator|>=|ROM|none
 Every token that can begin a statement, in token order.  A statement that
 begins with none of these is a procedure call:
 
+WHICH HANDLER ANSWERS.  Where a token has both a ROM form and a MasterDOS
+or MasterBASIC one, they are not alternatives offered by one parser.  The
+ROM's own routine runs first, and the DOS is reached only through the
+entry at page offset &0203 -- SYNTAX, "the unrecognised-command entry",
+which the ROM calls with the error that made it give up and which accepts
+just two, `CP &1D` for 29 "Nonsense in BASIC" and `CP &35` for 53 "No
+DOS".  Only then is the token looked up in CTAB.
+
+So a line the ROM's routine accepts never reaches MasterBASIC's, and the
+forms below marked MasterDOS or MasterBASIC are the ones the ROM refused.
+That is not a nicety: DUMP and DUMP CHR$ run the ROM's routine on this
+image, and DUMP 1 runs MasterBASIC's, because the ROM's accepts the first
+two and raises 29 on the third.
+: listings/clean/masterdos.asm SYNTAX, CTAB, Pad_4200
+
 = proc-call   := name , [ proc-args ]
 = proc-args   := expr , { ',' , expr }
 + mainlp.asm reaches PROCS for any token below &90, which includes every
@@ -896,36 +910,40 @@ begins with none of these is a procedure call:
 : ref/samrom/list.asm LIST (LLIST shares it with C=3)
 
 @ BF DUMP
-= 'DUMP' , [ 'INVERSE' ] , [ numexpr , [ ',' , numexpr ] ]  -- MasterBASIC
-= 'DUMP'                                     -- ROM alone: graphics dump
-= 'DUMP' , 'CHR$'                            -- ROM alone: text dump
+= 'DUMP'                                     -- the ROM's, and it runs
+= 'DUMP' , 'CHR$'                            -- the ROM's, and it runs
+= 'DUMP' , [ 'INVERSE' ] , numexpr , [ ',' , numexpr ]     -- MasterBASIC
++ All three are valid on this image, and they are not one grammar.  The
++ first two are the only forms the ROM's own routine accepts -- CP &FF
++ for the function prefix, CP CHRSTOK, then CHKEND -- so they never reach
++ MasterBASIC and never raise the 29 that would fetch it.  Anything else
++ fails CHKEND, and the third form is what MasterBASIC then makes of it:
++ CMD_DUMP tests for INVERSE and calls the ROM's "expect a numeric
++ expression" with no end-of-statement test in front of it, so a number
++ is required by the time that handler is running.  Both statements are
++ true at once because the two handlers never see the same line.
 + 1 to 3 are the shaded dumps, 4 unshaded, 5 text.  The first number is
 + the width magnification and the second the height, defaulting to the
-+ width.  MasterBASIC's handler is at &67F0.
-+ A DOS command is not syntax-checked on entry the way a ROM statement
-+ is, so DUMP, DUMP CHR$ and DUMP 6 are all accepted as program text and
-+ DUMP 6 fails only when it runs.  The productions here are what runs.
-+ The separator before the second number is not checked -- one character
-+ is skipped, whatever it is -- so the comma is the documented form and
-+ not the only one taken.
-? CMD_DUMP tests for INVERSE and then calls the ROM's "expect a numeric
-? expression" with no end-of-statement test in front of it, which reads
-? as making the number required at run time, and would make DUMP CHR$ a
-? type error rather than a form.  The manual's five variants all carry a
-? number.  Neither has been run, so the brackets above stay.
-+ THE LAST TWO FORMS ARE DUMP'S AND NOT COPY'S.  CMDADT points &BF at
++ width.  MasterBASIC's handler is at &67F0.  The separator before the
++ second number is not checked -- one character is skipped, whatever it
++ is -- so the comma is the documented form and not the only one taken.
++ The range check is the running program's: DUMP 6 enters and lists, and
++ raises "Integer out of range" when it runs.
++ DUMP AND DUMP CHR$ DO NOTHING HERE, which is not the same as being
++ rejected.  The ROM's routine ends LD HL,(DMPV) : INC H : DEC H : RET Z,
++ and the two bytes DA 5A -- &5ADA, DMPV -- appear nowhere in either half
++ of this image, so nothing has installed a dump routine for it to call.
++ Both forms return with no error and no output.  The dump code itself
++ was, in the manual's words, "discarded because of lack of room"; what
++ supplied it was the utility on the SAMDOS disc.
++ THE FIRST TWO FORMS ARE DUMP'S AND NOT COPY'S.  CMDADT points &BF at
 + the routine the ROM's own source calls COPY -- the Spectrum's name for
 + a screen dump -- so the keyword that reaches it is DUMP.  &CF, spelt
-+ COPY, is NONSENSE under the ROM alone.
-+ Those two forms are syntax and a vector, and nothing else: the routine
-+ ends LD HL,(DMPV) and returns if it is zero, the dump code itself
-+ having been, in the manual's words, "discarded because of lack of
-+ room".  Its remark
-+ that DUMP 4 and DUMP 5 are "essentially the same as DUMP and DUMP CHR$"
-+ finishes "supported by the utility program supplied with SAMDOS", so it
-+ says what those two did and not which token spells them; CMDADT settles
-+ that on its own.  Under MasterBASIC &BF is taken over, and DUMP CHR$ is
-+ a type error there rather than a form: the text dump is DUMP 5.
++ COPY, is NONSENSE under the ROM alone.  The manual's remark that DUMP 4
++ and DUMP 5 are "essentially the same as DUMP and DUMP CHR$" finishes
++ "supported by the utility program supplied with SAMDOS", so it says
++ what those two did and not which token spells them; CMDADT settles that
++ on its own.
 + The ROM cannot ask for its own text dump in any case.  A is the
 + selector DMPV is handed, 0 for text and &AF for graphics, and the CHR$
 + branch falls through into GRCOPY, where DB &3E swallows the XOR A that

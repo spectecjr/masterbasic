@@ -201,6 +201,15 @@ three bytes per entry, a token and an address. `SYNTAX` walks it with the token
 in A; the last entry's token is zero, which nothing matches, so an unrecognised
 statement always ends on `CNF`.
 
+`SYNTAX` is not a first chance, it is a second one. It is the entry at page
+offset `&0203`, which the ROM calls with the error number that made it give up,
+and it accepts exactly two — `CP &1D` for 29 *Nonsense in BASIC* and `CP &35`
+for 53 *No DOS*. So the ROM's own routine for a shared token always runs first,
+and a line it accepts never reaches the table at all. `DUMP` and `DUMP CHR$`
+are the clearest case: the ROM's routine takes both, so MasterBASIC's `&67F0`
+never sees them, and it is `DUMP 1` — which fails the ROM's `CHKEND` — that
+reaches it.
+
 MasterBASIC has both taken commands over and added its own here:
 
 | Token | Command | Runs in |
