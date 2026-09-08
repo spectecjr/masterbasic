@@ -8233,7 +8233,8 @@ FN_RESERVED:
 ;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Hook 173 -- dispatch one of MasterBASIC's commands.  The ROM's CMDV
-;;     vector points here.
+;;     vector points here, and like SYNTAX it is reached only for a statement
+;;     the ROM could not run itself.
 ;;
 ;;     It reads the ROM's COMAD, records the token in CURCMD, and indexes a
 ;;     table by token minus &90 to find the routine.  Six of the ROM's own
@@ -20270,7 +20271,13 @@ GET_WORK_PAGE_1:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     DUMP -- taken over from the ROM at token &BF.
+;;     DUMP -- token &BF, which the ROM has too, and this routine gets only
+;;     what the ROM's own has already refused.  CTAB is reached through
+;;     SYNTAX, the unrecognised-command entry, so DUMP and DUMP CHR$ -- the
+;;     two forms the ROM's routine accepts -- never arrive here at all.  They
+;;     run the ROM's, which ends by calling through DMPV and returns silently
+;;     because nothing in this image ever sets it.  What does arrive is
+;;     everything the ROM's CHKEND rejected, which is every form below.
 ;;
 ;;         DUMP 1 | 2 | 3   small, medium and large shaded dumps; 3 is
 ;;                          sideways.  A second number magnifies one axis

@@ -1333,9 +1333,18 @@ CALLMB_3:
 ;;
 ;; As with SAMHK, an address with bit 15 set belongs to the MasterBASIC
 ;; page: the bit is cleared and the routine is called through CALLMB.  That
-;; is how MasterBASIC takes over PRINT, LPRINT, SAVE, MERGE, DUMP, REF,
-;; RECORD, BLITZ, CLS and LINE, and how its own commands at tokens &F7-&FC
-;; are reached.
+;; is how PRINT, LPRINT, SAVE, MERGE, DUMP, REF, RECORD, BLITZ, CLS and
+;; LINE reach MasterBASIC, and how its own commands at tokens &F7-&FC are
+;; reached.
+;;
+;; "TAKES OVER" IS THE WRONG WORD FOR THOSE TEN.  The table is only ever
+;; read from SYNTAX, the unrecognised-command entry, so the ROM's own
+;; routine has already had the line and given up on it.  What arrives here
+;; is the remainder: for DUMP the forms that failed the ROM's CHKEND, for
+;; SAVE the ones the ROM understood and could not do without a disc.  A
+;; line the ROM's routine accepts is never offered to this table at all,
+;; which is why DUMP and DUMP CHR$ run the ROM's screen dump and not
+;; MasterBASIC's.
 ;; --------------------------------------------------------------------
 
 CTABN:
@@ -1422,6 +1431,26 @@ CTABN:
 ;;
 ;;     It moves to the DOS's own stack, pushes ENDS as the return address so
 ;;     that every command routine ends there, and looks the token up in CTAB.
+;;
+;;     THIS IS A SECOND CHANCE, NOT A FIRST, and every entry in CTAB has to be
+;;     read that way.  Where a token has both a ROM routine and one here, the
+;;     ROM's runs first and this is reached only if it gave up: the two tests
+;;     above are `CP &1D` for 29 and `CP &35` for 53, and no other error brings
+;;     the DOS in at all.  So a line the ROM's routine accepts never reaches
+;;     the table, and what CTAB dispatches is the remainder -- the arguments
+;;     the ROM refused.
+;;
+;;     The two codes are the two ways of refusing.  29 is "these arguments mean
+;;     nothing to me", which is what DUMP 1 gets from the ROM's CHKEND.  53 is
+;;     "I know what you mean and I cannot do it without a disc", which is what
+;;     SAVE "name" gets, and is why the file commands reach the DOS at all.
+;;
+;;     DUMP shows the whole of it.  &BF is in CTAB, pointing at MasterBASIC's
+;;     CMD_DUMP, and yet DUMP and DUMP CHR$ never arrive there: the ROM's own
+;;     routine takes both, raises nothing, and returns.  DUMP 1 fails the ROM's
+;;     CHKEND, raises 29, and that is the line CMD_DUMP sees.  Reading the
+;;     table as "MasterBASIC has taken this token over" gets that backwards
+;;     and was believed here for a while; the emulator settled it.
 ;; --------------------------------------------------------------------
 
 ; ---- SYNTAX ---- from &4203

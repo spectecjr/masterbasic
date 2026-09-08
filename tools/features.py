@@ -132,7 +132,13 @@ selected.
 Manual: "Interrupt-driven printing" and "Serial input and output".""",
 
 'CMD_DUMP': """\
-DUMP -- taken over from the ROM at token &BF.
+DUMP -- token &BF, which the ROM has too, and this routine gets only
+what the ROM's own has already refused.  CTAB is reached through
+SYNTAX, the unrecognised-command entry, so DUMP and DUMP CHR$ -- the
+two forms the ROM's routine accepts -- never arrive here at all.  They
+run the ROM's, which ends by calling through DMPV and returns silently
+because nothing in this image ever sets it.  What does arrive is
+everything the ROM's CHKEND rejected, which is every form below.
 
     DUMP 1 | 2 | 3   small, medium and large shaded dumps; 3 is
                      sideways.  A second number magnifies one axis
