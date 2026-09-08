@@ -122,7 +122,14 @@ has been worked*, not zero numbers.  Some can never be named — an operand
 inside a block written to run at another address, or a `&0000` a
 signature search fills at boot — and take a comment saying so instead.
 `python tools/sites.py NAME [half]` shows a routine with its outstanding
-sites marked; `--list` gives the queue worst-first.  Its totals must equal
+sites marked; `--list` gives the queue worst-first.
+
+**Read the top entry before starting it.** `RELOCATED_TO_46CC` heads the
+MasterBASIC queue and is a poor first target: most of its remaining sites
+are operands inside a block that runs at `&46CC`, which can never be
+named, only explained. `COPY_SCREEN_CONVERT` and `DUMP_UNSHADED` are
+ordinary code and better places to begin. The count ranks sites, not
+work; only reading the routine tells you which it is.  Its totals must equal
 the build's; if they do not, `SITES_DEBUG=NAME bash tools/build.sh` prints
 the addresses `clean.py` counted for that routine, to diff against.  A
 second implementation of the same rule is what caught the build excusing
