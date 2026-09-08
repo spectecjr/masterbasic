@@ -100,17 +100,22 @@ did.  None was visible to a green build.
    which made the shortfall look random.  Test the operand only.
 
 5. **"A routine is a contiguous run" was not true of the code.**  Two
-   implementations disagreed about one routine by fifteen sites.  The
-   cause was a third routine's internal label sitting inside the first,
-   which one rule treated as ending it and the other did not.  Widening
-   the check from that one case to all of them found forty-six routines
-   with another's internal label inside them: entry points sharing a
-   body, routines alternating, tails falling from one into the next.
-   Assembly packed this tightly interleaves, and attributing an
-   instruction to the nearest label *above* it credited sixty sites to
-   routines that did not contain them -- putting one routine second in
-   the queue on fifteen instructions it did not own.  Follow each label
-   to the routine that owns it instead, and take no ranges anywhere.
+   implementations disagreed about one routine by fifteen sites, because
+   a third routine's internal label sat inside the first: one rule
+   treated it as ending the routine and the other did not.  Widening the
+   check from that one case to all of them found forty-six routines with
+   another's internal label inside them -- entry points sharing a body,
+   routines alternating, tails falling from one into the next.  Assembly
+   packed this tightly interleaves.
+
+   **Both rules were wrong, in opposite directions.**  Ending a routine
+   at the first foreign label loses everything after it, which is what
+   made that fifteen: the routine's own later blocks were being dropped,
+   not borrowed.  Attributing to the nearest label *above* an
+   instruction sweeps foreign code in.  Following each label to the
+   routine that owns it, and taking no ranges anywhere, fixes both --
+   here it moved 26 sites between 23 routines, and four of them landed
+   on a routine that had been called finished.
 
 Three of the first four flattered the number.  The fourth was found only
 by writing the rule a second time over the listing *text* and refusing

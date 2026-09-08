@@ -175,6 +175,10 @@ MB &5743 value REF_BUFFER_2_TEXT
 
 MB &4C3D : &7B00 is the installer's own code, dead since boot: this is the search-string buffer
 MB &4C9F : the same buffer, searched against
+MB &5681 : bit 5 is the case bit, so OR &20 makes the letter lower case and the LD D,A below keeps it
+
+MB &5684 : and clearing the same bit makes it upper case, so both forms are held at once -- D the lower and A the upper -- and the search can match either without folding what it reads
+
 MB &5674 : reads the first two bytes of the buffer at &7B00
 MB &67B7 : the buffer again, not a call into the installer
 

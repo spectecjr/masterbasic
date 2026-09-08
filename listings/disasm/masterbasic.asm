@@ -7865,9 +7865,12 @@ CMD_ALTER_4:
                LD D,A                          ; 567B 57
                CALL IS_LETTER                  ; 567C CD 3C 45
                JR NC,CMD_REF_1                 ; 567F 30 05
-               OR &20                          ; 5681 F6 20
+               OR &20                          ; 5681 F6 20  bit 5 is the case bit, so OR &20 makes the letter lower
+                                               ; case and the LD D,A below keeps it
                LD D,A                          ; 5683 57
-               AND &DF                         ; 5684 E6 DF
+               AND &DF                         ; 5684 E6 DF  and clearing the same bit makes it upper case, so both
+                                               ; forms are held at once -- D the lower and A the upper -- and the search
+                                               ; can match either without folding what it reads
 
 ; ---- CMD_REF_1 ---- from &567F
 CMD_REF_1:
