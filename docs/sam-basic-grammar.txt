@@ -20,6 +20,15 @@ line naming what it was read from.  A rule marked `?` is one the source did
 not settle; treat it as the manual's claim and not as proven.  One rule
 carries one: the flag PUT GRAB tests, under @ AC PUT.
 
+A rule marked `!` has been run on a machine, which is a different thing
+from being read and a stronger one.  Three rules in this file were read
+off the disassembly, written down confidently, and wrong -- the trailing
+space MasterBASIC's commands list with, whether DUMP's number is
+required, and which handler answers a shared token -- and the build was
+green through every one of them, because none was a claim about bytes.
+Where a rule is about behaviour rather than about layout, only running
+it settles it, and `!` says that has happened.
+
 Companion documents:
   docs/tokens.md               the same tokens as prose, with the traps
   docs/masterbasic-tokens.md   how MasterBASIC gets a token at all
@@ -44,6 +53,8 @@ Line prefixes inside [STATEMENTS] and [FUNCTIONS]:
 : text       provenance -- the file and routine the rule was read from
 + text       a note a parser writer needs
 ? text       something not established; the rule above it is unproven
+! text       run on a machine: what was observed.  Used anywhere in the
+             file, not only in these two sections
 
 
 [FILE]
@@ -182,6 +193,9 @@ so 1 2 ends the number at the 1.  Everything else uses RST &20, which
 steps over spaces and control codes -- the digits after a decimal point,
 the character after the 'E', and every hex and binary digit.  So 1.2 3 is
 1.23, & F F is &FF, and BIN 1 0 1 is BIN 101.
+
+! PRINT & prints 0 on an emulator, so '&' with no hex digit after it is
+! a literal zero and not an error.
 : ref/samrom/eval.asm CALC5BY, BELOWNUM, INSERT5B, NXBINDIG, DECIMAL,
 : DECINT, INTTOFP, CONVFRALP, EFORMAT; ref/samrom/rom1fns.asm AMPERSAND,
 : AMPFP; ref/samrom/main.asm NEXTCHAR, GTCH3, NXCHAR;
@@ -236,6 +250,11 @@ HPRTOK, and the two kinds part company there:
   one only where the word index is &14 or more.  That is words 20 and 21,
   XVAR and NVAL, the two that take an argument with no bracket in front
   of it.  Every other MasterBASIC and MasterDOS function is `none`.
+
+! SORT A$() entered on an emulator lists as SORT A$(), and the listing
+! re-enters unchanged.  That is what settled the fall-through: the seven
+! commands had been read as `lead` from HPRTOK's last CALL, on the view
+! that the routine ended there.
 
 So no keyword lists in a form that will not tokenise back.  XVAR and NVAL
 are the two that would -- NVALtwo$ reads as one variable name -- and the
@@ -613,6 +632,7 @@ two and raises 29 on the third.
 + ';' SERVES FOR ANY OF THE COMMAS.  SEPAR takes &2C or &3B and steps
 + over it, and takes a quote as ending an argument without stepping over
 + it, so the next argument reads the string that follows.
+! The ';' separator has been run on an emulator and is accepted.
 : listings/clean/masterdos.asm EVPRM, WRITE, READ, SEPAR, SEPARX, ISEPX;
 : ref/masterdos/docs/commands.md READ and WRITE
 
@@ -962,6 +982,11 @@ two and raises 29 on the third.
 + is -- so the comma is the documented form and not the only one taken.
 + The range check is the running program's: DUMP 6 enters and lists, and
 + raises "Integer out of range" when it runs.
+! DUMP and DUMP CHR$ both return OK on an emulator and produce no print
+! job, and DUMP 6 is accepted as program text and raises "Integer out of
+! range" only when it runs.  Those three results together are what showed
+! that the ROM's routine answers first and MasterBASIC's gets what it
+! refused; before them this entry said bare DUMP was an error.
 + DUMP AND DUMP CHR$ DO NOTHING HERE, which is not the same as being
 + rejected.  The ROM's routine ends LD HL,(DMPV) : INC H : DEC H : RET Z,
 + and the two bytes DA 5A -- &5ADA, DMPV -- appear nowhere in either half
