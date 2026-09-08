@@ -28436,7 +28436,9 @@ INSTALL_ROM_PATCHES_1:
                                                ; variable in the page now at &8000 -- and not the XVAR that shares the
                                                ; address
                ADD HL,DE                       ; 7B14 19
-               LD DE,&49F7                     ; 7B15 11 F7 49
+               LD DE,&49F7                     ; 7B15 11 F7 49  &49F7 is where &7D4E lands once the &7BA4 block reaches
+                                               ; &484D -- the stub that tests a character for &16 and &17, AT and TAB.
+                                               ; The two channel words below and MNOP all get it
                LD (HL),E                       ; 7B18 73
                INC HL                          ; 7B19 23
                LD (HL),D                       ; 7B1A 72
@@ -28448,20 +28450,23 @@ INSTALL_ROM_PATCHES_1:
                INC HL                          ; 7B20 23
                LD (HL),D                       ; 7B21 72
                LD (MNOP+&4000),DE              ; 7B22 ED 53 DC 9B
-               LD DE,&0009                     ; 7B26 11 09 00
+               LD DE,&0009                     ; 7B26 11 09 00  nine bytes on, from the S channel's output word to the P
+                                               ; channel's, over the rest of S's five-byte record and the whole of R's
                ADD HL,DE                       ; 7B29 19
-               LD DE,&4AE6                     ; 7B2A 11 E6 4A
+               LD DE,&4AE6                     ; 7B2A 11 E6 4A  &4AE6 is &7E3D once installed, and the printer channel
+                                               ; gets that where the other two got &49F7
                LD (HL),E                       ; 7B2D 73
                INC HL                          ; 7B2E 23
                LD (HL),D                       ; 7B2F 72
                LD A,C                          ; 7B30 79
                LD HL,RELOCATED_TO_46CC         ; 7B31 21 60 74
-               LD DE,&86CC                     ; 7B34 11 CC 86
-               LD BC,&0181                     ; 7B37 01 81 01
+               LD DE,&86CC                     ; 7B34 11 CC 86  &46CC seen through the window
+               LD BC,&0181                     ; 7B37 01 81 01  &0181 is &7460 to &75E0, the whole of the block written
+                                               ; to run at &46CC
                LDIR                            ; 7B3A ED B0
                LD HL,INSTALL_ROM_PATCHES_2     ; 7B3C 21 80 7B
-               LD DE,&8BA0                     ; 7B3F 11 A0 8B
-               LD BC,&0024                     ; 7B42 01 24 00
+               LD DE,&8BA0                     ; 7B3F 11 A0 8B  &4BA0 seen through the window
+               LD BC,&0024                     ; 7B42 01 24 00  &0024 is &7B80 to &7BA3
                LDIR                            ; 7B45 ED B0
                                                ; to the alternate register set and back again
                EX AF,AF'                       ; 7B47 08
@@ -28473,22 +28478,31 @@ INSTALL_ROM_PATCHES_1:
                                                ; to the alternate register set and back again
                EX AF,AF'                       ; 7B50 08
                LD HL,RELOCATED_TO_484D         ; 7B51 21 A4 7B
-               LD DE,&884D                     ; 7B54 11 4D 88
-               LD BC,&029F                     ; 7B57 01 9F 02
+               LD DE,&884D                     ; 7B54 11 4D 88  &484D seen through the window
+               LD BC,&029F                     ; 7B57 01 9F 02  &029F is &7BA4 to &7E42 -- the block
+                                               ; DISPATCH_ON_COMMAND_TOKEN, PATOUT_CHAR_OUT and all four of the
+                                               ; addresses above are inside
                LDIR                            ; 7B5A ED B0
-               LD HL,&8F00                     ; 7B5C 21 00 8F
+               LD HL,&8F00                     ; 7B5C 21 00 8F  INSTBUF at &4F00, seen through the window. This is the
+                                               ; copy that runs the other way, the ROM's own buffer being saved into
+                                               ; this page
                LD DE,INSTALL_ROM_PATCHES_3     ; 7B5F 11 F0 7D
-               LD BC,&01BE                     ; 7B62 01 BE 01
+               LD BC,&01BE                     ; 7B62 01 BE 01  &01BE, the 446 bytes SAVE BOOT's third block reads back
+                                               ; out of &7DF0 and returns to the file at DOS &7D60
                LDIR                            ; 7B65 ED B0
-               LD HL,&4A52                     ; 7B67 21 52 4A
+               LD HL,&4A52                     ; 7B67 21 52 4A  &4A52 is &7DA9 once installed -- the cursor patterns,
+                                               ; which the post-install dump carries at that address byte for byte
                LD (HUDG+&4000),HL              ; 7B6A 22 7D 9C  HUDG, so CHR$ 169 and 170 render from CURSOR_PATTERNS at
                                                ; &4A52 -- see notes/mb-blocks.txt
-               LD HL,&4AAC                     ; 7B6D 21 AC 4A
+               LD HL,&4AAC                     ; 7B6D 21 AC 4A  &4AAC is &7E03 once installed, the stub that lets XVAR's
+                                               ; and NVAL's codes through
                LD (RST28V+&4000),HL            ; 7B70 22 F0 9A
                OUT (HMPR),A                    ; 7B73 D3 FB
                LD HL,DOS_BOOT                  ; 7B75 21 09 80
                LD DE,PATOUT_CHAR_OUT           ; 7B78 11 00 7D
-               LD C,&F0                        ; 7B7B 0E F0
+               LD C,&F0                        ; 7B7B 0E F0  &F0, 240 bytes of the DOS's boot sector, landing on the
+                                               ; &7D00-&7DEF that the &029F copy above has already carried out of harm's
+                                               ; way
                LDIR                            ; 7B7D ED B0
                RET                             ; 7B7F C9
 
