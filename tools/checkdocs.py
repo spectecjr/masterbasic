@@ -301,6 +301,195 @@ def check_grammar():
     return bad, len(entries)
 
 
+# ---------------------------------------------------------------------
+# Keywords that list in a form which will not tokenise back
+#
+# A keyword is a keyword only while a letter, '_' or '$' does not follow
+# it -- ALDU, ref/samrom/misc2.asm -- and one whose own last character is
+# '=', '>' or '$' is exempt, GTTOK6 not calling ALDU for those at all.
+# So a word that ends in a letter, that LIST prints with no trailing
+# space, and that something starting with a letter can follow, lists as
+# text the tokeniser reads back as one name.
+#
+# NVAL was exactly that until the spacing of MasterBASIC's words was read
+# properly: it listed as NVALtwo$ and the two bytes of the token vanished
+# into the variable.  It was found from three programs on a disk, by
+# byte-counting, which is a slow way to learn it -- so the rule is
+# checked here from the other end, against the productions.
+#
+# The seven single-byte MasterBASIC commands really do behave this way on
+# the machine and no wording can change it, so they are named.  Anything
+# else appearing is a new fault: a production edited, or a spacing field
+# that has moved.
+
+UNLISTABLE = {
+    'F7 BACKUP', 'F8 TIME', 'F9 DATE', 'FA ALTER',
+    'FB SORT', 'FC JOIN', 'FD EDIT',
+}
+
+# A production opens with the keyword itself: its own spelling, or a
+# "<one of the six>" standing for a group that shares one entry.  What
+# may follow it is the rest of the line.  A production matching neither
+# is not a prefix form -- the binary operators are written round their
+# operands -- and says nothing about what follows a keyword.
+HEAD = re.compile(r"^\s*(?:'[^']*'|<one of the [a-z]+>)\s*(?:,\s*(.*))?$")
+
+
+def split_top(text, sep):
+    """Split on `sep` outside brackets and quotes."""
+    out, depth, quoted, cur = [], 0, False, ''
+    for ch in text:
+        if quoted:
+            cur += ch
+            quoted = ch != "'"
+            continue
+        if ch == "'":
+            quoted = True
+        elif ch in '[{(<':
+            depth += 1
+        elif ch in ']})>':
+            depth -= 1
+        elif ch == sep and depth == 0:
+            out.append(cur)
+            cur = ''
+            continue
+        cur += ch
+    out.append(cur)
+    return [s.strip() for s in out]
+
+
+def resolve(atom, rules, seen):
+    """An atom as itself, or as the atoms its rule can begin with."""
+    if not atom or atom == "''":
+        return []
+    if atom.startswith("'"):
+        return [atom]
+    if atom in seen or atom not in rules:
+        return [atom]           # a leaf, or prose: judged by the caller
+    out = []
+    for alt in rules[atom]:
+        out += first_set(alt, rules, seen + (atom,))
+    return out
+
+
+def first_set(expr, rules, seen=()):
+    """Every atom that can stand first in `expr`.
+
+    An optional element does not end the walk, because what follows it
+    can be first as well: `[ 'ABS' ] , [ 'INVERSE' ] , sort-target` can
+    begin with any of the three.
+    """
+    out = []
+    for item in split_top(expr, ','):
+        if not item:
+            continue
+        optional = item[0] in '[{'
+        inner = item
+        if item[0] in '[{(' and item[-1] in ']})':
+            inner = item[1:-1].strip()
+        alts = split_top(inner, '|')
+        if len(alts) > 1:
+            for alt in alts:
+                out += first_set(alt, rules, seen)
+        elif inner != item or len(split_top(inner, ',')) > 1:
+            out += first_set(inner, rules, seen)
+        else:
+            out += resolve(inner, rules, seen)
+        if not optional:
+            break
+    return out
+
+
+def begins_with_letter(atom):
+    """Can this atom start with a letter or '_', the characters ALDU
+    refuses to let a keyword be followed by?  Anything not a literal --
+    a rule left as prose, a name defined nowhere -- is assumed to."""
+    if atom.startswith("'"):
+        return atom[1:2].isalpha() or atom[1:2] == '_'
+    return True
+
+
+def grammar_syntax():
+    """({'TOK NAME': [productions]}, {rule: [alternatives]}).
+
+    Rules come from [RULES] and from the `:=` lines an entry defines for
+    itself.  An indented '|' line is another alternative of whatever the
+    line above it was, and a trailing `--` comment is not part of either.
+    """
+    prods, rules = {}, {}
+    section, run, prev_at, last = None, [], False, None
+    for line in open(os.path.join(ROOT, GRAMMAR), encoding='utf-8',
+                     errors='replace'):
+        line = re.sub(r'\s+--(\s|$).*$', '', line.rstrip('\n'))
+        if re.match(r'^\[\w+\]', line):
+            section, run, prev_at, last = line.strip(), [], False, None
+            continue
+        m = re.match(r'^@ ([0-9A-F]{2,4}) (.+)$', line)
+        if m:
+            key = '%s %s' % (m.group(1), m.group(2).strip())
+            run = (run + [key]) if prev_at else [key]
+            prods.setdefault(key, [])
+            prev_at, last = True, None
+            continue
+        if line.startswith('= '):
+            body = line[2:].strip()
+            d = re.match(r'^([A-Za-z][\w-]*)\s*:=\s*(.*)$', body)
+            if d:
+                rules.setdefault(d.group(1), []).append(d.group(2))
+                last = ('rule', d.group(1))
+            elif section in ('[STATEMENTS]', '[FUNCTIONS]'):
+                for key in run:
+                    prods[key].append(body)
+                last = ('prod', tuple(run))
+            else:
+                last = None
+            prev_at = False
+            continue
+        if re.match(r'^\s+\|', line) and last:
+            alt = line.strip()[1:].strip()
+            if last[0] == 'rule':
+                rules[last[1]].append(alt)
+            else:
+                for key in last[1]:
+                    prods[key].append(alt)
+            continue
+        prev_at = False
+    return prods, rules
+
+
+def check_roundtrip():
+    """(problems, keywords that list unusably) for the grammar file."""
+    try:
+        prods, rules = grammar_syntax()
+    except (IOError, OSError):
+        return [], 0
+    spacing, section = {}, None
+    for line in open(os.path.join(ROOT, GRAMMAR), encoding='utf-8',
+                     errors='replace'):
+        if re.match(r'^\[\w+\]', line):
+            section = line.strip()
+        elif section == '[TOKENS]' and '|' in line:
+            f = line.rstrip('\n').split('|')
+            if re.fullmatch(r'[0-9A-F]{2,4}', f[0]):
+                spacing['%s %s' % (f[0], f[2])] = f[4]
+    found = set()
+    for key, sp in spacing.items():
+        if sp in ('both', 'trail') or not key[-1].isalpha():
+            continue
+        for p in prods.get(key, []):
+            m = HEAD.match(p)
+            if m and any(begins_with_letter(a) for a in
+                         first_set((m.group(1) or '').strip(), rules)):
+                found.add(key)
+    bad = ['%s lists with no trailing space and a letter can follow it, so '
+           'the listing will not tokenise back' % k
+           for k in sorted(found - UNLISTABLE)]
+    bad += ['%s is named in UNLISTABLE and no longer lists that way' % k
+            for k in sorted(UNLISTABLE - found)]
+    return bad, len(found)
+
+
+
 def main():
     at, names = read_listings()
     bad = []
@@ -333,7 +522,13 @@ def main():
         print('%s: %d statements agree with [TOKENS] and CMDADT%s'
               % (GRAMMAR, checked, '' if not grammar
                  else ' -- except the %d above' % len(grammar)))
-    return 1 if bad or grammar else 0
+    roundtrip, unlistable = check_roundtrip()
+    for line in roundtrip:
+        print('  roundtrip: ' + line)
+    print('%s: %d keywords list unusably, all of them known%s'
+          % (GRAMMAR, unlistable, '' if not roundtrip
+             else ' -- except the %d above' % len(roundtrip)))
+    return 1 if bad or grammar or roundtrip else 0
 
 
 if __name__ == '__main__':

@@ -225,11 +225,20 @@ through POGEN2 at all.  PRTOKV_STUB hands every token from &F7 up to
 HPRTOK, which keeps the first rule and has no second one:
 
 - The seven single-byte commands, &F7 to &FD, get a leading space and no
-  trailing one, so they are `lead`.  Whichever of their forms has a letter
-  next therefore lists unusably: SORT a$() comes back as SORTa$() and
-  EDIT a$ as EDITa$, one variable name each, because the keyword is only
-  a keyword while a letter does not follow it.  JOIN 100, TIME + and
-  DATE "23/12/91" survive, a digit or a symbol not extending a name.
+  trailing one, so they are `lead`.  Every form of theirs with a letter
+  next therefore lists unusably, a keyword being one only while a letter
+  does not follow it: SORT a$() comes back as SORTa$() and EDIT a$ as
+  EDITa$, one variable name each.  ALTER and SORT have no safe form at
+  all -- every production of both begins with a letter, ALTER's with a
+  reference or DEVICE or DISPLAY, SORT's with ABS, INVERSE or the array.
+  BACKUP, TIME, DATE, JOIN and EDIT are safe only where the argument
+  happens not to start with one: JOIN 100, TIME + and DATE "23/12/91"
+  survive, a digit or a symbol not extending a name.
+- The exposure stops there.  Every one of the two-byte words either takes
+  nothing or opens with '(', so no other one needs a trailing space --
+  which is why the CP &14 guards XVAR and NVAL and nothing else.  SVAL$
+  is safe twice over: it opens with '(' and, ending in '$', is a keyword
+  whose boundary GTTOK6 never checks at all.
 - A two-byte token never reaches that code.  The &FF goes to HPRTOK_1,
   which points the channel at MasterBASIC, and the second byte arrives at
   HOOK_HPFF, which prints the word with no leading space and a trailing
