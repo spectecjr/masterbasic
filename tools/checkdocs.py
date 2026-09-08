@@ -317,15 +317,20 @@ def check_grammar():
 # byte-counting, which is a slow way to learn it -- so the rule is
 # checked here from the other end, against the productions.
 #
-# The seven single-byte MasterBASIC commands really do behave this way on
-# the machine and no wording can change it, so they are named.  Anything
-# else appearing is a new fault: a production edited, or a spacing field
-# that has moved.
+# Nothing in the file should now meet all three, so the set below is
+# empty and anything appearing is a fault: a production edited, or a
+# spacing field that has moved.
+#
+# IT WAS NOT EMPTY WHEN IT WAS WRITTEN, and that is the point of it.  The
+# seven single-byte MasterBASIC commands were named here, because HPRTOK
+# looked as though it printed no trailing space -- its last CALL prints
+# the word and the routine appeared to end there.  It does not end there:
+# PRINT_SPACE is the next byte and there is no RET, so the space is a
+# fall-through.  SORT a$() listed on a machine came back with its space
+# and settled it.  A check whose expected set is empty is the one that
+# cannot hide a mistake of that kind inside itself.
 
-UNLISTABLE = {
-    'F7 BACKUP', 'F8 TIME', 'F9 DATE', 'FA ALTER',
-    'FB SORT', 'FC JOIN', 'FD EDIT',
-}
+UNLISTABLE = set()
 
 # A production opens with the keyword itself: its own spelling, or a
 # "<one of the six>" standing for a group that shares one entry.  What
@@ -525,9 +530,9 @@ def main():
     roundtrip, unlistable = check_roundtrip()
     for line in roundtrip:
         print('  roundtrip: ' + line)
-    print('%s: %d keywords list unusably, all of them known%s'
+    print('%s: %d keywords list in a form that will not tokenise back%s'
           % (GRAMMAR, unlistable, '' if not roundtrip
-             else ' -- except the %d above' % len(roundtrip)))
+             else ' -- %d unaccounted for, above' % len(roundtrip)))
     return 1 if bad or grammar or roundtrip else 0
 
 

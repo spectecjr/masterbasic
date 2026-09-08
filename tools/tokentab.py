@@ -149,21 +149,27 @@ def spacing(tok, origin):
 
     THE MASTERBASIC WORDS DO NOT ALL GO THE SAME WAY, and reading them as
     if they did is what put `lead` against NVAL.  PRTOKV_STUB hands every
-    token from &F7 up to HPRTOK, which prints a leading space under the
-    same FLAGS bit 0 rule and no trailing one -- so the seven single-byte
-    commands are 'lead'.  A two-byte token never gets that far: the &FF
-    goes to HPRTOK_1, which redirects the channel, and the second byte
-    arrives at HOOK_HPFF, which prints the word with no leading space and
-    a trailing one only where the word index is &14 or more.  That is
-    words 20 and 21, XVAR and NVAL, the only two that take an argument
-    with no bracket in front of it.  Everything else in the FF range is
-    'none'.
+    token from &F7 up to HPRTOK, and the two kinds part company there.
+    A single-byte one gets the leading space under the same FLAGS bit 0
+    rule and then a trailing one unconditionally -- the CALL at &5029
+    has no RET after it and PRINT_SPACE is the next byte -- so those
+    seven are 'both', like the ROM's own commands.  A two-byte token
+    never reaches that code: the &FF goes to HPRTOK_1, which redirects
+    the channel, and the second byte arrives at HOOK_HPFF, which prints
+    the word with no leading space and a trailing one only where the
+    word index is &14 or more.  That is words 20 and 21, XVAR and NVAL,
+    the only two that take an argument with no bracket in front of it.
+    Everything else in the FF range is 'none'.
+
+    The fall-through is easy to miss and was missed here: 'lead' stood
+    against the seven commands for one commit, until SORT a$() was
+    listed on a machine and came back with its space.
     """
     if origin != 'ROM':
-        # HPRTOK at MasterBASIC &500E, and HOOK_HPFF at &508A for the
-        # two-byte forms: CP &14 : CALL NC,PRINT_SPACE at &50CE.
+        # HPRTOK at MasterBASIC &500E falls into PRINT_SPACE; HOOK_HPFF
+        # at &508A does its own, CP &14 : CALL NC,PRINT_SPACE at &50CE.
         if tok < 0x100:
-            return 'lead'
+            return 'both'
         return 'trail' if tok in (0xFF68, 0xFF6A) else 'none'
     if tok < 0x100:
         return 'both'

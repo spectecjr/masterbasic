@@ -5922,6 +5922,15 @@ GTDT_1:
 ;; the ROM's + &3B in TOK42 (miscx2.asm, "CONVERT LIST ENTRY TO TOKEN
 ;; CODE"), which come to the same &E1 going the other way.
 ;;
+;; THE TRAILING SPACE IS A FALL-THROUGH, NOT AN INSTRUCTION.  &5029
+;; calls SKIP_TO_END_OF_WORD, which prints the word, and the byte after
+;; that CALL is PRINT_SPACE with no RET between them -- so every
+;; single-byte keyword gets a space after it, unconditionally.  With
+;; the conditional one in front, the seven list exactly as the ROM's
+;; own commands do.  The two-byte forms never come through here at all;
+;; HOOK_HPFF decides their spacing for itself and gives a trailing
+;; space to XVAR and NVAL alone.
+;;
 ;; FLAGS BIT 0 DECIDES THE LEADING SPACE.  The bit is the ROM's "the
 ;; last character printed was a space" -- tprint.asm sets it with
 ;; SET 0,(HL) ;'SPACE WAS LAST CHAR' and clears it for anything else --
@@ -5960,11 +5969,20 @@ HPRTOK:
                LD HL,V50D7                     ; 5026 21 D7 50  the one-character word at &50D7, which makes MBKEYS
                                                ; one-based
                CALL SKIP_TO_END_OF_WORD        ; 5029 CD 31 50  one call skips B words and prints the next, because
-                                               ; SKIP_TO_END_OF_WORD falls into PRINT_WORD
+                                               ; SKIP_TO_END_OF_WORD falls into PRINT_WORD -- and no RET follows this
+                                               ; CALL, so PRINT_SPACE runs next and the word gets its trailing space
 
 ;; --------------------------------------------------------------------
-;; LD A,&20 and a JP into CALL_PRINT_A, called from &501C and &50D0
-;; and nowhere else.
+;; LD A,&20 and a JP into CALL_PRINT_A, called from &501C and &50D0 --
+;; and reached a third way that no list of callers shows, by falling
+;; out of the bottom of HPRTOK.  &5029 is a CALL with no RET after it,
+;; so a single-byte keyword prints its word and then lands here.  That
+;; is the trailing space, and it is why SORT a$() lists as SORT a$()
+;; and not as SORTa$().
+;;
+;; Reading the callers as the whole story is what once put `lead`
+;; against those seven in docs/sam-basic-grammar.txt, and no assembly
+;; of this image could have caught it: the bytes were never in doubt.
 ;; --------------------------------------------------------------------
 
 ; ---- PRINT_SPACE ---- from &501C when bit 0 was clear, &50D0 when A >= &14

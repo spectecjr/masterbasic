@@ -17,8 +17,9 @@ parameter table -- unlike the Spectrum, whose class bytes drive a generic
 parser -- so each keyword's routine checks its own arguments, and the rules
 there were read off those routines one at a time.  Every rule carries a `:`
 line naming what it was read from.  A rule marked `?` is one the source did
-not settle; treat it as the manual's claim and not as proven.  One rule
-carries one: the flag PUT GRAB tests, under @ AC PUT.
+not settle; treat it as the manual's claim and not as proven.  Two carry
+one: the flag PUT GRAB tests, under @ AC PUT, and whether DUMP's number
+is required when it runs, under @ BF DUMP.
 
 Companion documents:
   docs/tokens.md               the same tokens as prose, with the traps
@@ -222,29 +223,26 @@ Two further rules apply on top of the field:
 
 Both qualifications are POGEN2's, and MasterBASIC's own words do not go
 through POGEN2 at all.  PRTOKV_STUB hands every token from &F7 up to
-HPRTOK, which keeps the first rule and has no second one:
+HPRTOK, and the two kinds part company there:
 
-- The seven single-byte commands, &F7 to &FD, get a leading space and no
-  trailing one, so they are `lead`.  Every form of theirs with a letter
-  next therefore lists unusably, a keyword being one only while a letter
-  does not follow it: SORT a$() comes back as SORTa$() and EDIT a$ as
-  EDITa$, one variable name each.  ALTER and SORT have no safe form at
-  all -- every production of both begins with a letter, ALTER's with a
-  reference or DEVICE or DISPLAY, SORT's with ABS, INVERSE or the array.
-  BACKUP, TIME, DATE, JOIN and EDIT are safe only where the argument
-  happens not to start with one: JOIN 100, TIME + and DATE "23/12/91"
-  survive, a digit or a symbol not extending a name.
-- The exposure stops there.  Every one of the two-byte words either takes
-  nothing or opens with '(', so no other one needs a trailing space --
-  which is why the CP &14 guards XVAR and NVAL and nothing else.  SVAL$
-  is safe twice over: it opens with '(' and, ending in '$', is a keyword
-  whose boundary GTTOK6 never checks at all.
+- The seven single-byte commands, &F7 to &FD, get the leading space under
+  the same FLAGS bit 0 rule and then a trailing one unconditionally, so
+  they are `both`, exactly like the ROM's own commands.  The trailing
+  space is a fall-through rather than an instruction: HPRTOK's last CALL
+  prints the word, and the byte after that CALL is PRINT_SPACE with no
+  RET between them.  SORT a$() lists as SORT a$().
 - A two-byte token never reaches that code.  The &FF goes to HPRTOK_1,
   which points the channel at MasterBASIC, and the second byte arrives at
   HOOK_HPFF, which prints the word with no leading space and a trailing
   one only where the word index is &14 or more.  That is words 20 and 21,
   XVAR and NVAL, the two that take an argument with no bracket in front
   of it.  Every other MasterBASIC and MasterDOS function is `none`.
+
+So no keyword lists in a form that will not tokenise back.  XVAR and NVAL
+are the two that would -- NVALtwo$ reads as one variable name -- and the
+CP &14 exists to stop it.  SVAL$, which is the question this usually
+raises next, needs nothing: it opens with '(' and it ends in '$', which
+GTTOK6 exempts from the boundary check altogether.
 : ref/samrom/tprint.asm POGEN2, POMSG4, POBTL, POMSP2, POTRNL;
 : listings/clean/masterbasic.asm HPRTOK, HPRTOK_1, HOOK_HPFF, PRTOKV_STUB
 
@@ -468,13 +466,13 @@ F3|statement|ZAP|ROM|both
 F4|statement|POW|ROM|both
 F5|statement|BOOM|ROM|both
 F6|statement|ZOOM|ROM|both
-F7|statement|BACKUP|MasterDOS|lead
-F8|statement|TIME|MasterDOS|lead
-F9|statement|DATE|MasterDOS|lead
-FA|statement|ALTER|MasterBASIC|lead
-FB|statement|SORT|MasterBASIC|lead
-FC|statement|JOIN|MasterBASIC|lead
-FD|statement|EDIT|MasterBASIC|lead
+F7|statement|BACKUP|MasterDOS|both
+F8|statement|TIME|MasterDOS|both
+F9|statement|DATE|MasterDOS|both
+FA|statement|ALTER|MasterBASIC|both
+FB|statement|SORT|MasterBASIC|both
+FC|statement|JOIN|MasterBASIC|both
+FD|statement|EDIT|MasterBASIC|both
 FF26|statement|EXIT PROC|MasterBASIC|none
 FF27|statement|EXIT DO|MasterBASIC|none
 FF28|statement|EXIT FOR|MasterBASIC|none
@@ -898,19 +896,23 @@ begins with none of these is a procedure call:
 : ref/samrom/list.asm LIST (LLIST shares it with C=3)
 
 @ BF DUMP
-= 'DUMP' , [ 'INVERSE' ] , numexpr , [ ',' , numexpr ]     -- MasterBASIC
+= 'DUMP' , [ 'INVERSE' ] , [ numexpr , [ ',' , numexpr ] ]  -- MasterBASIC
 = 'DUMP'                                     -- ROM alone: graphics dump
 = 'DUMP' , 'CHR$'                            -- ROM alone: text dump
 + 1 to 3 are the shaded dumps, 4 unshaded, 5 text.  The first number is
 + the width magnification and the second the height, defaulting to the
 + width.  MasterBASIC's handler is at &67F0.
-+ The number is not optional under MasterBASIC.  CMD_DUMP tests for
-+ INVERSE and then calls the ROM's "expect a numeric expression" with no
-+ end-of-statement test in front of it, so bare DUMP and DUMP INVERSE are
-+ errors there; the manual's five variants all carry one.  Nor is the
-+ separator before the second number checked -- one character is skipped,
-+ whatever it is -- so the comma is the documented form and not the only
-+ one accepted.
++ A DOS command is not syntax-checked on entry the way a ROM statement
++ is, so DUMP, DUMP CHR$ and DUMP 6 are all accepted as program text and
++ DUMP 6 fails only when it runs.  The productions here are what runs.
++ The separator before the second number is not checked -- one character
++ is skipped, whatever it is -- so the comma is the documented form and
++ not the only one taken.
+? CMD_DUMP tests for INVERSE and then calls the ROM's "expect a numeric
+? expression" with no end-of-statement test in front of it, which reads
+? as making the number required at run time, and would make DUMP CHR$ a
+? type error rather than a form.  The manual's five variants all carry a
+? number.  Neither has been run, so the brackets above stay.
 + THE LAST TWO FORMS ARE DUMP'S AND NOT COPY'S.  CMDADT points &BF at
 + the routine the ROM's own source calls COPY -- the Spectrum's name for
 + a screen dump -- so the keyword that reaches it is DUMP.  &CF, spelt
