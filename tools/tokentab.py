@@ -144,10 +144,27 @@ def spacing(tok, origin):
     suppressed when the last character printed was already one (FLAGS bit
     0), and a trailing one when the word does not end in a letter or `$`
     -- which only ever excludes `<>`, `<=` and `>=`, and those are 'none'
-    anyway.
+    anyway.  Both qualifications are POGEN2's; MasterBASIC's own printer
+    keeps the first and drops the second.
+
+    THE MASTERBASIC WORDS DO NOT ALL GO THE SAME WAY, and reading them as
+    if they did is what put `lead` against NVAL.  PRTOKV_STUB hands every
+    token from &F7 up to HPRTOK, which prints a leading space under the
+    same FLAGS bit 0 rule and no trailing one -- so the seven single-byte
+    commands are 'lead'.  A two-byte token never gets that far: the &FF
+    goes to HPRTOK_1, which redirects the channel, and the second byte
+    arrives at HOOK_HPFF, which prints the word with no leading space and
+    a trailing one only where the word index is &14 or more.  That is
+    words 20 and 21, XVAR and NVAL, the only two that take an argument
+    with no bracket in front of it.  Everything else in the FF range is
+    'none'.
     """
     if origin != 'ROM':
-        return 'both' if tok < 0x100 else 'lead'   # HPRTOK, MasterBASIC &500E
+        # HPRTOK at MasterBASIC &500E, and HOOK_HPFF at &508A for the
+        # two-byte forms: CP &14 : CALL NC,PRINT_SPACE at &50CE.
+        if tok < 0x100:
+            return 'lead'
+        return 'trail' if tok in (0xFF68, 0xFF6A) else 'none'
     if tok < 0x100:
         return 'both'
     low = tok & 0xFF

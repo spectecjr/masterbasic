@@ -353,6 +353,26 @@ gets one space and not two. A trailing space is printed only when the word's
 last character is a letter or `$`: `POMSG4` compares against `"A"` and then
 `"$"`, which is why `VAL$` is followed by a space and `>=` would not have been.
 
-MasterBASIC's own words go through `HPRTOK` instead, at MasterBASIC `&500E`,
-which prints a leading space under the same `FLAGS` bit 0 rule and no trailing
-one.
+MasterBASIC's own words do not come through `POGEN2` at all. `PRTOKV_STUB`
+sends every token from `&F7` up to `HPRTOK` at MasterBASIC `&500E`, which
+keeps the `FLAGS` bit 0 rule for the leading space and has no trailing-space
+rule of its own:
+
+| Token range | Leading space | Trailing space |
+|---|---|---|
+| `&F7`–`&FD`, MasterBASIC's commands | yes | no |
+| `&FF 26`–`&FF 38`, its functions | no | no |
+| `&FF 68` and `&FF 6A`, `XVAR` and `NVAL` | no | yes |
+
+A two-byte token never reaches the code that prints the leading space: the
+`&FF` goes to `HPRTOK_1`, which points the channel at MasterBASIC, and the
+second byte arrives at `HOOK_HPFF`, which prints the word and then `CP &14 :
+CALL NC,PRINT_SPACE`. Words 20 and 21 are `XVAR` and `NVAL`, the only two
+whose argument follows with no bracket in front of it; without that space
+`NVAL two$` would list as `NVALtwo$` and read back as one variable name.
+
+The seven single-byte commands have no such guard, so whichever of their
+forms has a letter next lists unusably: `SORT a$()` comes back as `SORTa$()`
+and `EDIT a$` as `EDITa$`, one variable name each. `JOIN 100`, `TIME +` and
+`DATE "23/12/91"` are unharmed, because a digit or a symbol does not extend a
+name.

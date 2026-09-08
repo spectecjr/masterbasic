@@ -17,8 +17,8 @@ parameter table -- unlike the Spectrum, whose class bytes drive a generic
 parser -- so each keyword's routine checks its own arguments, and the rules
 there were read off those routines one at a time.  Every rule carries a `:`
 line naming what it was read from.  A rule marked `?` is one the source did
-not settle; treat it as the manual's claim and not as proven.  No rule in
-this file carries one at present.
+not settle; treat it as the manual's claim and not as proven.  One rule
+carries one: the flag PUT GRAB tests, under @ AC PUT.
 
 Companion documents:
   docs/tokens.md               the same tokens as prose, with the traps
@@ -71,6 +71,9 @@ sign-and-mantissa floating point, exponent biased by 128.  It is the five
 bytes that get evaluated; the digits are only listed.  A translator that
 rewrites a number must rewrite both.
 
+`digits` above is the number as typed, and may be decimal, hexadecimal or
+binary -- see [NUMBERS].
+
 Inside a string literal, and inside an INPUT LINE, bytes &80 and up are
 graphics characters and not tokens -- "QUOTES FORCES UDGS", text.asm.
 Outside quotes, &80 to &84 are still graphics characters, because no
@@ -86,22 +89,44 @@ How text becomes tokens, from TOKPT2 in ref/samrom/miscx2.asm.
 - At most 15 characters are considered for one keyword.
 - A keyword may contain a space: 'GO TO', 'DEF PROC', 'END IF', 'ON ERROR',
   'EXIT IF', 'LOOP IF', 'DEF KEYCODE', 'DEF FN', 'END PROC', 'GO SUB',
-  'EXIT PROC', 'EXIT DO', 'EXIT FOR'.  One space in the stored name matches
-  one space in the input.
-- A match must not be followed by a letter, digit or underscore -- so
-  PRINTER is a variable and not PRINT + ER.  The exception is a keyword
-  ending in '=', '>' or '$': CHR$a is CHR$ followed by a.
+  'EXIT PROC', 'EXIT DO', 'EXIT FOR'.  That space is optional in the input.
+  GTTOK3 accepts one where the stored name has one and then declines to
+  require it -- "BUT DON'T INSIST - SKIP LIST PTR IF NO SP IN INPUT" -- so
+  GOTO, GOSUB, DEFPROC, ENDPROC, ENDIF, DEFFN, DEFKEYCODE, ONERROR,
+  EXITIF, LOOPIF, EXITPROC, EXITDO and EXITFOR are all correct SAM BASIC
+  and tokenise to the same bytes as their spaced forms.  Two spaces are
+  not accepted: the loop takes at most one.
+- A match must not be followed by a letter, an underscore or '$' -- so
+  PRINTER, print_out and print$ are variables and not PRINT plus a tail.
+  A digit does not end a keyword: print1 is PRINT followed by 1, which is
+  also why 10PRINT "x" needs no space after the line number.  The check is
+  ALDU, whose own comment is the rule: "CY IF LETTER OR UNDERLINE OR '$'
+  (SO E.G. printer, print_out, print$ ARE NOT TOKENISED, BUT print1,
+  print: ARE)".  The exception is a keyword whose own last character is
+  '=', '>' or '$', where nothing is checked at all: CHR$a is CHR$ followed
+  by a.
+- The '$' half of that rule is what keeps DIR$ whole.  The ROM's own table
+  is searched before MasterDOS's and MasterBASIC's and the ROM has DIR at
+  &90, so without the '$' test DIR$ would tokenise as DIR and a stray '$'.
 - If a word starting with a letter matches nothing, the whole identifier
   (letters and underscores) is skipped before matching resumes.
 - One space either side of the matched word is absorbed into the token.
 - After REM the rest of the line is left alone.
 - Inside double quotes nothing is tokenised; the scan resumes after the
   closing quote or at end of line.
+- A doubled quote inside a string is an embedded quote and does not close
+  the string: "he said ""hi""" is one string and not three tokens.  SQUOTE
+  looks at the character after a closing quote, and when it is a second
+  quote copies the string to a buffer passing one of each pair through.  A
+  string with no doubled quote is left where it stands in the line, which
+  is the difference a translator sees.
 - Keyword lists are searched in table order and the first match wins.  This
   is why IF is always stored as #D7 and ELSE as #D9 -- see [REWRITES].
 - 'INK' matches the &FF entry and is stored as 'PEN' (&A1).  INK is an
   input spelling only and never appears in a file.
-: ref/samrom/miscx2.asm TOKPT2, TOKMLP, POSFIRST, GTTOK, TOK42, LOOKNA
+: ref/samrom/miscx2.asm TOKPT2, TOKMLP, POSFIRST, GTTOK, TOK42, LOOKNA;
+: ref/samrom/scrsel2.asm GETTOKEN, GTTOK3, GTTOK6; ref/samrom/misc2.asm
+: ALDU, ALPHA, CKUND; ref/samrom/eval.asm SQUOTE, SQUOTE2
 
 One editor feature reaches a line through the route a statement takes and
 leaves no token behind.  Under MasterBASIC a '/' as the first non-space
@@ -114,6 +139,53 @@ reproduce the split rather than store the slash.  It arrives as CTAB's
 first entry, token &2F -- ASCII '/', not the USING$ token that shares
 the number.
 : listings/clean/masterbasic.asm CMD_SPLIT_LINE
+
+
+[NUMBERS]
+The `digits` of [FILE] may be written in three bases, and all three are
+stored the same way: the characters as typed, then &0E and the five-byte
+form.  CALC5BY dispatches on the first character, and BELOWNUM lists '&'
+beside the quote, the open bracket and the decimal point as characters
+that may begin a value.  So the manual's `PEEK(&55d8+c)` is an ordinary
+numeric literal, and a tokeniser that has never heard of '&' loses the
+rest of the line.
+
+= digits    := decimal | hex | 'BIN' , binary
+= decimal   := digit , { digit } , [ '.' , { digit } ] , [ exponent ]
+             | '.' , digit , { digit } , [ exponent ]
+= hex       := '&' , { hexdigit }
+= binary    := ( '0' | '1' ) , { '0' | '1' }
+= exponent  := ( 'E' | 'e' ) , [ '+' | '-' ] , digit , { digit }
+= hexdigit  := digit | 'A'..'F' | 'a'..'f'
+
+Hexadecimal is AMPERSAND's, which ORs &20 before comparing and so takes
+either case, and which stops at the first character that is not a hex
+digit -- without an error.  The value is not limited to 16 bits: a result
+above &FFFF is stacked as floating point by AMPFP.  Shifting a digit out
+of the 24 bits the accumulator holds is what raises error 28, "Number too
+large".  Zero digits is not an error either: '&' alone reads as 0, since
+the loop initialises the result before looking at anything.
+
+BIN's digits stop at the first character that is neither '0' nor '1',
+also without an error, so BIN 10102 is BIN 1010 followed by 2.  They
+accumulate into a register pair, and overflowing 16 bits raises error 28.
+
+DECIMAL's own comment gives its cases -- 0.123, .123, 1.234, 1E4,
+1.23E+4, 7.89E-32, 1.E5 -- so a point may have no digits after it, a
+leading point must have some, and the exponent's letter is matched with
+AND &DF and may be either case.  An exponent above 127 is error 28.
+
+Where a space may fall inside a literal is not the same in the three
+bases, and the ROM chose it deliberately in one place: the integer digits
+of a decimal are fetched with NXCHAR, "NEXT CHAR, DON'T SKIP ANYTHING",
+so 1 2 ends the number at the 1.  Everything else uses RST &20, which
+steps over spaces and control codes -- the digits after a decimal point,
+the character after the 'E', and every hex and binary digit.  So 1.2 3 is
+1.23, & F F is &FF, and BIN 1 0 1 is BIN 101.
+: ref/samrom/eval.asm CALC5BY, BELOWNUM, INSERT5B, NXBINDIG, DECIMAL,
+: DECINT, INTTOFP, CONVFRALP, EFORMAT; ref/samrom/rom1fns.asm AMPERSAND,
+: AMPFP; ref/samrom/main.asm NEXTCHAR, GTCH3, NXCHAR;
+: docs/masterbasic-manual.md (the PALETTE example)
 
 
 [REWRITES]
@@ -147,7 +219,25 @@ Two further rules apply on top of the field:
   or '$'.  This never changes the outcome for the words in this table --
   the only names ending otherwise are '<>', '<=' and '>=', which are `none`
   anyway -- but a translator adding a keyword should know the rule.
-: ref/samrom/tprint.asm POGEN2, POMSG4, POBTL, POMSP2, POTRNL
+
+Both qualifications are POGEN2's, and MasterBASIC's own words do not go
+through POGEN2 at all.  PRTOKV_STUB hands every token from &F7 up to
+HPRTOK, which keeps the first rule and has no second one:
+
+- The seven single-byte commands, &F7 to &FD, get a leading space and no
+  trailing one, so they are `lead`.  Whichever of their forms has a letter
+  next therefore lists unusably: SORT a$() comes back as SORTa$() and
+  EDIT a$ as EDITa$, one variable name each, because the keyword is only
+  a keyword while a letter does not follow it.  JOIN 100, TIME + and
+  DATE "23/12/91" survive, a digit or a symbol not extending a name.
+- A two-byte token never reaches that code.  The &FF goes to HPRTOK_1,
+  which points the channel at MasterBASIC, and the second byte arrives at
+  HOOK_HPFF, which prints the word with no leading space and a trailing
+  one only where the word index is &14 or more.  That is words 20 and 21,
+  XVAR and NVAL, the two that take an argument with no bracket in front
+  of it.  Every other MasterBASIC and MasterDOS function is `none`.
+: ref/samrom/tprint.asm POGEN2, POMSG4, POBTL, POMSP2, POTRNL;
+: listings/clean/masterbasic.asm HPRTOK, HPRTOK_1, HOOK_HPFF, PRTOKV_STUB
 
 
 [PRECEDENCE]
@@ -182,7 +272,14 @@ Shared rules, referred to throughout [STATEMENTS] and [FUNCTIONS].
 = letter      := 'A'..'Z' | 'a'..'z'
 = digit       := '0'..'9'
 = name        := letter , { letter | digit | '_' }
-                 -- spaces inside a name are ignored by the ROM's matcher
+                 -- at most 32 characters, and spaces inside it are
+                 ignored: `my var` and `myvar` are the same variable.
+                 That is NAMTOBUF's behaviour and holds wherever a
+                 variable is looked up.  DEF PROC has its own scanner,
+                 DPNMLP, which does not skip spaces, so a space ends a
+                 procedure name and `DEF PROC greet name$` declares greet
+                 with a parameter rather than a procedure greetname$.
+                 Only a literal space is skipped, CP &20, not a tab.
 = numvar      := name
 = strvar      := name , '$'
 = var         := numvar | strvar
@@ -197,7 +294,8 @@ Shared rules, referred to throughout [STATEMENTS] and [FUNCTIONS].
 = expr        := numexpr | strexpr
 = lineno      := numexpr           -- evaluated, so GO TO n*10 is legal
 = stream      := '#' , numexpr
-: ref/samrom/lookvar.asm LOOKVARS; ref/samrom/assign.asm SLICING
+: ref/samrom/lookvar.asm LOOKVARS, NAMTOBUF, NMTBL, NAMEND;
+: ref/samrom/fn.asm DPNMLP; ref/samrom/assign.asm SLICING
 
 Colour items.  Any of the six colour statements may appear as a modifier
 inside PRINT, PLOT, DRAW, CIRCLE, FILL, PUT and INPUT.  Each takes one
@@ -361,32 +459,32 @@ F3|statement|ZAP|ROM|both
 F4|statement|POW|ROM|both
 F5|statement|BOOM|ROM|both
 F6|statement|ZOOM|ROM|both
-F7|statement|BACKUP|MasterDOS|both
-F8|statement|TIME|MasterDOS|both
-F9|statement|DATE|MasterDOS|both
-FA|statement|ALTER|MasterBASIC|both
-FB|statement|SORT|MasterBASIC|both
-FC|statement|JOIN|MasterBASIC|both
-FD|statement|EDIT|MasterBASIC|both
-FF26|statement|EXIT PROC|MasterBASIC|lead
-FF27|statement|EXIT DO|MasterBASIC|lead
-FF28|statement|EXIT FOR|MasterBASIC|lead
-FF29|function|LOCN|MasterBASIC|lead
-FF2A|function|RESERVED|MasterBASIC|lead
-FF2B|function|EQU|MasterBASIC|lead
-FF2C|function|TICS|MasterBASIC|lead
-FF2D|function|SHIFT$|MasterBASIC|lead
-FF2E|function|SVAL$|MasterBASIC|lead
-FF2F|function|USING$|MasterBASIC|lead
-FF30|function|TIME$|MasterDOS|lead
-FF31|function|DATE$|MasterDOS|lead
-FF32|function|INP$|MasterDOS|lead
-FF33|function|DIR$|MasterDOS|lead
-FF34|function|FSTAT|MasterDOS|lead
-FF35|function|DSTAT|MasterDOS|lead
-FF36|function|FPAGES|MasterDOS|lead
-FF37|function|SCRAD|MasterBASIC|lead
-FF38|function|INARRAY|MasterBASIC|lead
+F7|statement|BACKUP|MasterDOS|lead
+F8|statement|TIME|MasterDOS|lead
+F9|statement|DATE|MasterDOS|lead
+FA|statement|ALTER|MasterBASIC|lead
+FB|statement|SORT|MasterBASIC|lead
+FC|statement|JOIN|MasterBASIC|lead
+FD|statement|EDIT|MasterBASIC|lead
+FF26|statement|EXIT PROC|MasterBASIC|none
+FF27|statement|EXIT DO|MasterBASIC|none
+FF28|statement|EXIT FOR|MasterBASIC|none
+FF29|function|LOCN|MasterBASIC|none
+FF2A|function|RESERVED|MasterBASIC|none
+FF2B|function|EQU|MasterBASIC|none
+FF2C|function|TICS|MasterBASIC|none
+FF2D|function|SHIFT$|MasterBASIC|none
+FF2E|function|SVAL$|MasterBASIC|none
+FF2F|function|USING$|MasterBASIC|none
+FF30|function|TIME$|MasterDOS|none
+FF31|function|DATE$|MasterDOS|none
+FF32|function|INP$|MasterDOS|none
+FF33|function|DIR$|MasterDOS|none
+FF34|function|FSTAT|MasterDOS|none
+FF35|function|DSTAT|MasterDOS|none
+FF36|function|FPAGES|MasterDOS|none
+FF37|function|SCRAD|MasterBASIC|none
+FF38|function|INARRAY|MasterBASIC|none
 FF3B|function|PI|ROM|none
 FF3C|function|RND|ROM|none
 FF3D|function|POINT|ROM|none
@@ -428,9 +526,9 @@ FF64|function|SVAR|ROM|trail
 FF65|function|BUTTON|ROM|trail
 FF66|function|EOF|ROM|trail
 FF67|function|PTR|ROM|trail
-FF68|function|XVAR|MasterBASIC|lead
+FF68|function|XVAR|MasterBASIC|trail
 FF69|function|UDG|ROM|trail
-FF6A|function|NVAL|MasterBASIC|lead
+FF6A|function|NVAL|MasterBASIC|trail
 FF6B|function|LEN|ROM|trail
 FF6C|function|CODE|ROM|trail
 FF6D|function|VAL$|ROM|trail
@@ -791,19 +889,41 @@ begins with none of these is a procedure call:
 : ref/samrom/list.asm LIST (LLIST shares it with C=3)
 
 @ BF DUMP
-= 'DUMP' , [ 'INVERSE' ] , [ numexpr , [ ',' , numexpr ] ]  -- MasterBASIC
+= 'DUMP' , [ 'INVERSE' ] , numexpr , [ ',' , numexpr ]     -- MasterBASIC
 = 'DUMP'                                     -- ROM alone: graphics dump
 = 'DUMP' , 'CHR$'                            -- ROM alone: text dump
 + 1 to 3 are the shaded dumps, 4 unshaded, 5 text.  The first number is
 + the width magnification and the second the height, defaulting to the
 + width.  MasterBASIC's handler is at &67F0.
++ The number is not optional under MasterBASIC.  CMD_DUMP tests for
++ INVERSE and then calls the ROM's "expect a numeric expression" with no
++ end-of-statement test in front of it, so bare DUMP and DUMP INVERSE are
++ errors there; the manual's five variants all carry one.  Nor is the
++ separator before the second number checked -- one character is skipped,
++ whatever it is -- so the comma is the documented form and not the only
++ one accepted.
 + THE LAST TWO FORMS ARE DUMP'S AND NOT COPY'S.  CMDADT points &BF at
 + the routine the ROM's own source calls COPY -- the Spectrum's name for
 + a screen dump -- so the keyword that reaches it is DUMP.  &CF, spelt
-+ COPY, is NONSENSE under the ROM alone.  The manual agrees: DUMP 4 and
-+ DUMP 5 are "essentially the same as DUMP and DUMP CHR$".
++ COPY, is NONSENSE under the ROM alone.
++ Those two forms are syntax and a vector, and nothing else: the routine
++ ends LD HL,(DMPV) and returns if it is zero, the dump code itself
++ having been, in the manual's words, "discarded because of lack of
++ room".  Its remark
++ that DUMP 4 and DUMP 5 are "essentially the same as DUMP and DUMP CHR$"
++ finishes "supported by the utility program supplied with SAMDOS", so it
++ says what those two did and not which token spells them; CMDADT settles
++ that on its own.  Under MasterBASIC &BF is taken over, and DUMP CHR$ is
++ a type error there rather than a form: the text dump is DUMP 5.
++ The ROM cannot ask for its own text dump in any case.  A is the
++ selector DMPV is handed, 0 for text and &AF for graphics, and the CHR$
++ branch falls through into GRCOPY, where DB &3E swallows the XOR A that
++ would have cleared it -- so both forms arrive with &AF.  Only the jump
++ table reaches the two separately, at &015D and &0160.
 : ref/samrom/text.asm CMDADT (DW COPY ;DUMP BF, DW NONSENSE ;COPY CF)
-: ref/samrom/scrfn.asm COPY, GRCOPY; docs/masterbasic-manual.md
+: ref/samrom/scrfn.asm COPY, GRCOPY, JGCOPY, JTCOPY; ref/samrom/main.asm
+: JTCOPY and JGCOPY in the jump table; listings/clean/masterbasic.asm
+: CMD_DUMP; docs/masterbasic-manual.md (Screen dumps)
 
 @ C0 FOR
 = 'FOR' , numvar , '=' , numexpr , 'TO' , numexpr , [ 'STEP' , numexpr ]
@@ -855,12 +975,21 @@ begins with none of these is a procedure call:
 
 @ C8 DEF FN
 = 'DEF FN' , fn-name , [ '(' , [ fn-params ] , ')' ] , '=' , expr
-= fn-name   := letter , [ '$' ]
+= fn-name   := letter , { letter | digit | '_' } , [ '$' ]
 = fn-params := fn-param , { ',' , fn-param }
 = fn-param  := letter , [ '$' ]
-+ The function name is a single letter, optionally with '$'.  A string
-+ name must be given a string expression.
-: ref/samrom/miscx2.asm DFNP2, DFNPL, DFN5, DFN6
++ The name is a full identifier and the parameters are not.  FNNAME
++ insists on a letter and then loops -- "NAME MAY CONTINUE WITH LETTERS,
++ NUMBERS OR '_'" -- so DEF FN cube(x) and DEF FN pad$(s$) are legal.
++ DFNPL calls GETALPH once for each parameter and does not loop, so a
++ parameter really is one letter.  DFNP2 reaches FNNAME for the name
++ before it ever reaches DFNPL, which is how citing DFNPL alone made this
++ read as a one-letter rule for both.  FNSYN takes the name the same way
++ at the call, "E.G. FN TEST".  Unlike a variable name, this one is not
++ space-blind: FNNAME does not skip spaces.  A string name must be given
++ a string expression.
+: ref/samrom/fn.asm FNNAME, DFNLP, FNSYN; ref/samrom/miscx2.asm DFNP2,
+: DFNPL, DFN5, DFN6
 
 @ C9 DEF KEYCODE
 = 'DEF KEYCODE' , numexpr , ( ',' | ';' ) , strexpr
@@ -880,6 +1009,9 @@ begins with none of these is a procedure call:
 + Comma only, as in the call: DPSY3 ends each parameter with INSISCOMA.
 + The matching of call arguments to parameters at PPD3 and PPD4 also
 + steps over commas alone.
++ A space ends the name.  DPNMLP loops on letters, digits and '_' without
++ skipping spaces the way NAMTOBUF does, so DEF PROC greet name$ declares
++ greet with a parameter and not a procedure called greetname$.
 : ref/samrom/fn.asm DEFPROC, DPROC2, DPNMLP, DPSY1, DPSY3;
 : ref/samrom/nparpro.asm PPD3, PPD4
 
@@ -1384,7 +1516,10 @@ three and each states its own form.
 > num
 + A literal, not an expression: the digits are read where they stand and
 + the five-byte form is inserted after them like any other number.
-: ref/samrom/eval.asm IMBIN, SDECIMAL, INSERT5B
++ The digits stop at the first character that is neither '0' nor '1', and
++ without an error, so BIN 10102 is BIN 1010 followed by 2.  They go into
++ a register pair and overflowing 16 bits raises error 28.  See [NUMBERS].
+: ref/samrom/eval.asm IMBIN, SDECIMAL, INSERT5B, NXBINDIG
 
 @ FF44 XMOUSE
 @ FF45 YMOUSE
@@ -1478,6 +1613,9 @@ three and each states its own form.
 + range comment calls POS.  It falls below UDGA, so it takes the default
 + &CF rather than an FNPRIORT entry: priority 15, numeric argument,
 + numeric result, which is what XVAR n is.
++ This and NVAL are the only two MasterBASIC functions LIST puts a space
++ after, because they are the only two whose argument follows with no
++ bracket in front of it -- see [SPACING].
 : docs/masterbasic-keywords.md XVAR; ref/samrom/fpcmain.asm (;4E UNUSED);
 : ref/samrom/eval.asm SCANUMEN
 
@@ -1498,6 +1636,9 @@ three and each states its own form.
 + and bit 7 set for a numeric result.  That is exactly NVAL's signature,
 + so MasterBASIC did not merely find an empty slot here, it found the
 + right one.
++ This and XVAR are the only two MasterBASIC functions LIST puts a space
++ after; without it NVALtwo$ would list back as one variable name -- see
++ [SPACING].
 : docs/masterbasic-keywords.md NVAL; ref/samrom/fpcmain.asm (;50 NUMBER);
 : ref/samrom/eval.asm FNPRIORT
 
@@ -1610,13 +1751,18 @@ line length      the two-byte field allows 65535, but a line is built in
 statement depth  no limit in the format; ':' separates statements
 keyword length   15 characters -- the tokeniser's LD BC,15
 stream           0 to 16; 16 is output to a string
-variable name    letters, digits and underscore; spaces inside a name are
-                 ignored, so `my var` and `myvar` are the same variable
+variable name    letters, digits and underscore, at most 32 characters:
+                 NAMTOBUF opens LD B,32, "MAX LEN+1 FOR A NAME (EXCLUDING
+                 1ST CHAR)", and an overrun is error 40 "Invalid variable
+                 name".  Spaces inside a name are ignored there, so
+                 `my var` and `myvar` are the same variable -- but not in
+                 DPNMLP, where a space ends a DEF PROC name
 string length    16383 for SHIFT$; strings generally may exceed this
 palette entry    0 to 15; colour 0 to 127
 PALETTE LINE     174 down to -16, which is scan lines 1 to 191
 palette changes  127 per screen; the LINICOLS list may not exceed &01FF
 POKE values      31 numbers after the address
 DEF KEYCODE      key codes 192 to 254 only
-: ref/samrom/miscx2.asm POSFIRST; ref/samrom/misc1.asm STRMINF2;
+: ref/samrom/miscx2.asm POSFIRST; ref/samrom/lookvar.asm NAMTOBUF,
+: NAMEND; ref/samrom/fn.asm DPNMLP; ref/samrom/misc1.asm STRMINF2;
 : ref/samrom/misc31.asm COLOUR comment block, COLFULERR; misc1.asm POKENL
