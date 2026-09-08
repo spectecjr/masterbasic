@@ -64,9 +64,8 @@ A site is outstanding when:
 3. no symbol stands beside the literal in the operand.
 
 Two more decisions the rule needs: data directives (`DEFW &C000` in a
-table) are a different job and are out; and a routine is the run from
-a label to the next label that is neither one of its own internal
-labels nor a synthetic name for a referenced address.
+table) are a different job and are out; and **a routine is the lines its
+own labels govern, not a run between two addresses** -- see fault 5.
 
 **The comment has to be on the line the number is on**, which reads as
 pedantry and is not.  Explaining `LD B,&13` in a note attached to the
@@ -78,7 +77,7 @@ the prose vanishes and the count does not move.  When a site will not
 clear, look at which line the comment landed on before you look at the
 rule.
 
-## Four faults this counter had
+## Five faults this counter had
 
 All found by doing a routine against it and watching what the number
 did.  None was visible to a green build.
@@ -100,12 +99,31 @@ did.  None was visible to a green build.
    three-letter symbol.  `LD`, `CP`, `JP` are two letters and did not,
    which made the shortfall look random.  Test the operand only.
 
-Three of the four flattered the number.  The fourth was found only by
-writing the rule a second time over the listing *text* and refusing to
-accept that the two implementations disagreed.  **Keep two
-implementations and reconcile them**; a debug hook that prints the
-addresses one of them counted for a named routine makes the diff a
-one-liner.
+5. **"A routine is a contiguous run" was not true of the code.**  Two
+   implementations disagreed about one routine by fifteen sites.  The
+   cause was a third routine's internal label sitting inside the first,
+   which one rule treated as ending it and the other did not.  Widening
+   the check from that one case to all of them found forty-six routines
+   with another's internal label inside them: entry points sharing a
+   body, routines alternating, tails falling from one into the next.
+   Assembly packed this tightly interleaves, and attributing an
+   instruction to the nearest label *above* it credited sixty sites to
+   routines that did not contain them -- putting one routine second in
+   the queue on fifteen instructions it did not own.  Follow each label
+   to the routine that owns it instead, and take no ranges anywhere.
+
+Three of the first four flattered the number.  The fourth was found only
+by writing the rule a second time over the listing *text* and refusing
+to accept that the two implementations disagreed; the fifth was found
+the same way, years of habit later.  **Keep two implementations and
+reconcile them**; a debug hook that prints the addresses one of them
+counted for a named routine makes the diff a one-liner.
+
+**When you change the attribution, the total is the check.**  Moving
+sites between routines must conserve it exactly -- 503 before and 503
+after, redistributed over more routines.  A total that moves means
+something was orphaned or double-counted, and a total that does not move
+when the *rule* changed means the change did not take.
 
 ## Where to start
 
