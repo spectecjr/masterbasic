@@ -183,3 +183,81 @@ MB &7721 : &4866 likewise, inside the second stub
 # outside callers rather than for MasterBASIC's own use.
 
 MB &7240 : &5000 in the system page -- what the LDIR above has just put there, not the GTDT that usually lives at that address
+
+MB &7225 FN_USING_S
+    USING$(format$,number), the fixed-point formatter, and the manual is
+    the reference for every character it tests: hash signs "stand for
+    leading spaces, zeros stand for leading zeros, and either can be
+    used for showing the number of digits after the decimal point", a
+    "%" sign "indicates overflow of the specified format", and trailing
+    spaces in the format are ignored -- which is the backward scan over
+    CH_SPACE at &7264.
+
+    IT REACHES A ROM 1 ROUTINE WITHOUT KNOWING ITS ADDRESS.  &017E is
+    one of the ROM's RST &30 entries and the word after it is
+    PFSTRS-&8000, so LD HL,(&017F) : ADD HL,DE with DE = &8002 gives
+    PFSTRS+2 -- the &8000 undoing the table's bias and the 2 skipping
+    the routine's own first instruction.  ref/samrom/printfp.asm has
+
+        PFSTRS:    LD A,6
+        PFSTRSC:   LD (FRACLIM),A    ;UP TO 4 LEADING ZEROS IN FRACTIONS
+                   CALL PRFPBUF      ;BEFORE EFORM IS USED
+
+    -- exactly two bytes -- so this enters at PFSTRSC and supplies its
+    own FRACLIM.  &C8 is 200 where the ROM passes 6, which is why the
+    manual can say that "very small numbers like 1E-8 are handled by
+    conversion to their non-exponent forms automatically": with a limit
+    that high no fraction is ever short enough to go exponential.
+
+    THE FORMAT IS OVERWRITTEN IN PLACE, in two passes.  &72A0 walks the
+    template against the digits and copies a digit wherever it finds a
+    "#" or a "0"; &72C2 then walks the result and turns each "#" that is
+    still there into the pad in C, which starts as a space and becomes a
+    zero the moment a real digit has been passed.  That one register is
+    the whole of leading-zero suppression.
+
+MB &722C expr GTDT+&4000
+MB &722C : the same &5000, seen through the window with HMPR zeroed -- the copy goes where the CMR below calls
+
+MB &722F : &E7 bytes, &7243 to &7329, which is the whole of the block that runs at &5000
+
+MB &7246 : &8000 undoes the bias in the RST &30 table, whose word is PFSTRS-&8000, and the 2 steps over PFSTRS's own LD A,6 to reach PFSTRSC
+
+MB &724E : 200 into FRACLIM where the ROM's own entry passes 6 -- no fraction has that many leading zeros, so the E-form the ROM would otherwise choose is never reached
+
+MB &7285 value USING_OVERFLOW
+MB &7285 : the number needs more digits before the point than the format has room for, so the format is abandoned and the overflow mark written at the front
+
+MB &72A9 value CH_ZERO
+MB &72A9 : a "0" in the format is a digit position too, and the JR NZ below takes anything that is neither this nor a hash
+
+MB &72AB value USING_OVERFLOW
+MB &72AB : a character in the digit field with no digit to take gets the overflow mark
+
+MB &72C0 value CH_SPACE
+MB &72C0 : the pad before the first digit, which is what a hash asks for
+
+MB &72CB : one past ASCII "9" -- with the CP CH_ZERO above it, the pair is the digit test
+
+MB &72CF value CH_ZERO
+MB &72CF : a digit has been passed, so every hash after it pads with zeros instead of spaces
+
+MB &72F5 : round half up on the first digit dropped.  The ROM's own PFSTRS does the same test and writes it CP "5"
+
+MB &7302 value CH_ZERO
+MB &7302 : a hash still in the buffer counts as a zero for the carry
+
+MB &7304 value CH_ZERO
+
+MB &7308 : one past ASCII "9" again, bounding the digit test
+
+MB &730D : and again after the INC A -- a digit that has gone past "9" carries into the place to its left
+
+MB &7311 value CH_ZERO
+MB &7311 : the carried digit wraps to zero and the loop moves left
+
+MB &7316 value USING_OVERFLOW
+MB &7316 : the carry ran off the front of the format, which is the same overflow
+
+MB &7320 value CH_DOT
+MB &7320 : CPIR looks for the decimal point, and what C has left is how many characters follow it

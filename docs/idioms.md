@@ -498,7 +498,7 @@ runs at `&5000` because twenty-six bytes earlier it says so:
 
 ```asm
       LD HL,FN_USING_S_1                     ; 7229  the block
-      LD DE,&9000                     ; 722C  &5000 in the system page
+      LD DE,GTDT+&4000                ; 722C  &5000 in the system page
       LD BC,&00E7                     ; 722F  231 bytes
       ...
       LDIR                            ; 7238

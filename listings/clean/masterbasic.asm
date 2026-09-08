@@ -91,6 +91,7 @@ SYS_STRM16_SAVE:        EQU  &4AF5
 SYS_TOKEN_TO_FN_INDEX:  EQU  &45A2
 TOKEN_GRAB:             EQU  &AB               ; the lower of the two command tokens this block serves; PUT is the next
                                                ; one up, &AC
+USING_OVERFLOW:         EQU  &25
 
 
 ; The manual also describes these, which no table points at, so they have
@@ -16847,26 +16848,46 @@ V7221:
                                                ; ahead of HOOK_SETUPREGS_1
 
 ;; --------------------------------------------------------------------
-;; USING$ -- token FF 2F.
+;; USING$(format$,number), the fixed-point formatter, and the manual is
+;; the reference for every character it tests: hash signs "stand for
+;; leading spaces, zeros stand for leading zeros, and either can be
+;; used for showing the number of digits after the decimal point", a
+;; "%" sign "indicates overflow of the specified format", and trailing
+;; spaces in the format are ignored -- which is the backward scan over
+;; CH_SPACE at &7264.
 ;;
-;;     USING$(format$,number)
+;; IT REACHES A ROM 1 ROUTINE WITHOUT KNOWING ITS ADDRESS.  &017E is
+;; one of the ROM's RST &30 entries and the word after it is
+;; PFSTRS-&8000, so LD HL,(&017F) : ADD HL,DE with DE = &8002 gives
+;; PFSTRS+2 -- the &8000 undoing the table's bias and the 2 skipping
+;; the routine's own first instruction.  ref/samrom/printfp.asm has
 ;;
-;; Formats a number to a fixed number of digits either side of the point.
-;; A # in the format string means a leading space and a 0 a leading zero;
-;; other leading characters are copied through.  Rounds to the last
-;; printed digit, and marks overflow with %.  Unlike the PRINT USING other
-;; BASICs offer the result is a string, so it can be LET into a field of a
-;; record and sorted on.
+;;     PFSTRS:    LD A,6
+;;     PFSTRSC:   LD (FRACLIM),A    ;UP TO 4 LEADING ZEROS IN FRACTIONS
+;;                CALL PRFPBUF      ;BEFORE EFORM IS USED
 ;;
-;; Manual: "Formatting numbers with USING$".
+;; -- exactly two bytes -- so this enters at PFSTRSC and supplies its
+;; own FRACLIM.  &C8 is 200 where the ROM passes 6, which is why the
+;; manual can say that "very small numbers like 1E-8 are handled by
+;; conversion to their non-exponent forms automatically": with a limit
+;; that high no fraction is ever short enough to go exponential.
+;;
+;; THE FORMAT IS OVERWRITTEN IN PLACE, in two passes.  &72A0 walks the
+;; template against the digits and copies a digit wherever it finds a
+;; "#" or a "0"; &72C2 then walks the result and turns each "#" that is
+;; still there into the pad in C, which starts as a space and becomes a
+;; zero the moment a real digit has been passed.  That one register is
+;; the whole of leading-zero suppression.
 ;; --------------------------------------------------------------------
 
 FN_USING_S:
                CALL ARGS_STRING_AND_NUMBER     ; 7225 CD 51 4E
                RET NC                          ; 7228 D0
                LD HL,FN_USING_S_1              ; 7229 21 43 72
-               LD DE,&9000                     ; 722C 11 00 90
-               LD BC,&00E7                     ; 722F 01 E7 00
+               LD DE,GTDT+&4000                ; 722C 11 00 90  the same &5000, seen through the window with HMPR zeroed
+                                               ; -- the copy goes where the CMR below calls
+               LD BC,&00E7                     ; 722F 01 E7 00  &E7 bytes, &7243 to &7329, which is the whole of the
+                                               ; block that runs at &5000
                IN A,(HMPR)                     ; 7232 DB FB
                PUSH AF                         ; 7234 F5
                XOR A                           ; 7235 AF
@@ -16883,11 +16904,15 @@ FN_USING_S:
 FN_USING_S_1:
                LD HL,(&017F)                   ; 7243 2A 7F 01  from here to &7329 this code is written for &5000:
                                                ; subtract &2243 from any address in it
-               LD DE,&8002                     ; 7246 11 02 80
+               LD DE,&8002                     ; 7246 11 02 80  &8000 undoes the bias in the RST &30 table, whose word
+                                               ; is PFSTRS-&8000, and the 2 steps over PFSTRS's own LD A,6 to reach
+                                               ; PFSTRSC
                ADD HL,DE                       ; 7249 19
                LD A,SYSPAGE_IN_B | ENABLE_ROM1 ; 724A 3E 5F
                OUT (LMPR),A                    ; 724C D3 FA
-               LD A,&C8                        ; 724E 3E C8
+               LD A,&C8                        ; 724E 3E C8  200 into FRACLIM where the ROM's own entry passes 6 -- no
+                                               ; fraction has that many leading zeros, so the E-form the ROM would
+                                               ; otherwise choose is never reached
                CALL HLJUMP                     ; 7250 CD 05 00
                LD A,SYSPAGE_IN_B               ; 7253 3E 1F
                OUT (LMPR),A                    ; 7255 D3 FA
@@ -16929,7 +16954,9 @@ FN_USING_S_2:
                CALL GETSTR                     ; 727F CD 24 01
                EX AF,AF'                       ; 7282 08
                JR NC,FN_USING_S_3              ; 7283 30 04
-               LD A,&25                        ; 7285 3E 25
+               LD A,USING_OVERFLOW             ; 7285 3E 25  the number needs more digits before the point than the
+                                               ; format has room for, so the format is abandoned and the overflow mark
+                                               ; written at the front
                LD (DE),A                       ; 7287 12
                XOR A                           ; 7288 AF
 
@@ -16968,11 +16995,13 @@ FN_USING_S_LOOP2:
                JR Z,FN_USING_S_8               ; 72A3 28 0C
                CP CH_HASH                      ; 72A5 FE 23
                JR Z,FN_USING_S_6               ; 72A7 28 02
-               CP &30                          ; 72A9 FE 30
+               CP CH_ZERO                      ; 72A9 FE 30  a "0" in the format is a digit position too, and the JR NZ
+                                               ; below takes anything that is neither this nor a hash
 
 ; ---- FN_USING_S_6 ---- from &72A7 when A = CH_HASH
 FN_USING_S_6:
-               LD A,&25                        ; 72AB 3E 25
+               LD A,USING_OVERFLOW             ; 72AB 3E 25  a character in the digit field with no digit to take gets
+                                               ; the overflow mark
                JR NZ,FN_USING_S_7              ; 72AD 20 01
                LD A,(DE)                       ; 72AF 1A
 
@@ -16994,7 +17023,8 @@ FN_USING_S_8:
                PUSH HL                         ; 72BD E5
                PUSH BC                         ; 72BE C5
                LD B,C                          ; 72BF 41
-               LD C,&20                        ; 72C0 0E 20
+               LD C,CH_SPACE                   ; 72C0 0E 20  the pad before the first digit, which is what a hash asks
+                                               ; for
 
 ; ---- FN_USING_S_LOOP3 ---- from &72D4 when B is not 0 yet
 FN_USING_S_LOOP3:
@@ -17003,9 +17033,11 @@ FN_USING_S_LOOP3:
                JR Z,FN_USING_S_9               ; 72C5 28 0B
                CP CH_ZERO                      ; 72C7 FE 30
                JR C,FN_USING_S_10              ; 72C9 38 08
-               CP &3A                          ; 72CB FE 3A
+               CP &3A                          ; 72CB FE 3A  one past ASCII "9" -- with the CP CH_ZERO above it, the
+                                               ; pair is the digit test
                JR NC,FN_USING_S_10             ; 72CD 30 04
-               LD C,&30                        ; 72CF 0E 30
+               LD C,CH_ZERO                    ; 72CF 0E 30  a digit has been passed, so every hash after it pads with
+                                               ; zeros instead of spaces
                DEFB SKIP_1_VIA_LD_D            ; 72D1 .  skipped: reads as LD D,&71 from here, and as part of the
                                                ; instruction above it
 
@@ -17041,7 +17073,8 @@ FN_USING_S_LOOP4:
                INC DE                          ; 72F0 13
                CP CH_DOT                       ; 72F1 FE 2E
                JR Z,FN_USING_S_LOOP4           ; 72F3 28 FA
-               CP &35                          ; 72F5 FE 35
+               CP &35                          ; 72F5 FE 35  round half up on the first digit dropped. The ROM's own
+                                               ; PFSTRS does the same test and writes it CP "5"
                RET C                           ; 72F7 D8
 
 ; ---- FN_USING_S_LOOP5 ---- from &7314 when C is not 0 yet
@@ -17052,27 +17085,29 @@ FN_USING_S_LOOP5:
                JR Z,FN_USING_S_12              ; 72FC 28 15
                CP CH_HASH                      ; 72FE FE 23
                JR NZ,FN_USING_S_11             ; 7300 20 02
-               LD A,&30                        ; 7302 3E 30
+               LD A,CH_ZERO                    ; 7302 3E 30  a hash still in the buffer counts as a zero for the carry
 
 ; ---- FN_USING_S_11 ---- from &7300 when A <> CH_HASH
 FN_USING_S_11:
-               CP &30                          ; 7304 FE 30
+               CP CH_ZERO                      ; 7304 FE 30
                JR C,FN_USING_S_DONE            ; 7306 38 0E
-               CP &3A                          ; 7308 FE 3A
+               CP &3A                          ; 7308 FE 3A  one past ASCII "9" again, bounding the digit test
                JR NC,FN_USING_S_DONE           ; 730A 30 0A
                INC A                           ; 730C 3C
-               CP &3A                          ; 730D FE 3A
+               CP &3A                          ; 730D FE 3A  and again after the INC A -- a digit that has gone past "9"
+                                               ; carries into the place to its left
                JR C,FN_USING_S_DONE2           ; 730F 38 07
-               LD (HL),&30                     ; 7311 36 30
+               LD (HL),CH_ZERO                 ; 7311 36 30  the carried digit wraps to zero and the loop moves left
 
 ; ---- FN_USING_S_12 ---- from &72FC when A = CH_DOT
 FN_USING_S_12:
                DEC C                           ; 7313 0D
                JR NZ,FN_USING_S_LOOP5          ; 7314 20 E2
 
-; ---- FN_USING_S_DONE ---- from &7306 when A < &30, &730A when A >= &3A
+; ---- FN_USING_S_DONE ---- from &7306 when A < CH_ZERO, &730A when A >= &3A
 FN_USING_S_DONE:
-               LD A,&25                        ; 7316 3E 25
+               LD A,USING_OVERFLOW             ; 7316 3E 25  the carry ran off the front of the format, which is the
+                                               ; same overflow
 
 ; ---- FN_USING_S_DONE2 ---- from &730F when A < &3A
 FN_USING_S_DONE2:
@@ -17082,7 +17117,8 @@ FN_USING_S_DONE2:
                LD H,C                          ; 731D 61
                PUSH HL                         ; 731E E5
                EX DE,HL                        ; 731F EB
-               LD A,&2E                        ; 7320 3E 2E
+               LD A,CH_DOT                     ; 7320 3E 2E  CPIR looks for the decimal point, and what C has left is
+                                               ; how many characters follow it
                CPIR                            ; 7322 ED B1
                JR Z,FN_USING_S_DONE3           ; 7324 28 01
                DEC C                           ; 7326 0D
