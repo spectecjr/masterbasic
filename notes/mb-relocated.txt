@@ -144,7 +144,39 @@ DOC RELOCATED_TO_484D
 MB &7460 RELOCATED_TO_46CC
 MB &7BA4 RELOCATED_TO_484D
 
+MB &7BAD : &5A5E is where REF left the address of the match.  It is one of the fourteen bytes the ROM's variable table marks "14 SPARE" between LSOFF and SPOSNU, used rather than MasterBASIC's own page because this hook runs with the system page at &4000 and MasterBASIC nowhere in sight
+
+MB &7BB9 : &5A65 takes the cursor, caught in passing rather than worked out: the moment LSPTR reaches the match, KCUR less one is what the manual's "cursor just after the reference" means
+
+MB &7BC0 : bit 5 of FLAGX, which the ROM sets while an INPUT is in progress
+
+MB &7BC5 : the store is the point.  The load below puts the same value straight back, so HL is unchanged either way and what matters is that it has been left at &4AF1 in the system page
+
+MB &7BC8 : and this reads it back, which for HL alone changes nothing
+
+MB &7BCF : &5A62 is another of the fourteen spare bytes, holding the return address across the CALL below.  The three DECs above and the three INCs at &7BD9 undo one another, so what is parked is the address less three
+
+MB &7BD6 : back off the spare byte, and the INCs below restore the three
+
+MB &7BE5 : the stack MasterBASIC hands the DOS -- the same &7FE6 the boot writes into &5C59
+
+MB &7BEC expr NVARS+1
+MB &7BEC : the high byte of NVARS.  The ROM's table marks it "(2)", so the numeric-variables pointer is two bytes and this is its top half
+
+MB &7BEF : &BE00 is within &200 bytes of &BFBF, the top of the window, so the numeric variables have nearly run out of room -- which is what the hook below is raised to fix
+
+MB &7BF7 expr WORKSP+1
+MB &7BF7 : the high byte of WORKSP, a two-byte pointer in the same way
+
+MB &7BFA : bit 6 of that high byte, which is what separates an address in &4000-&7FFF from one at &8000-&BFFF
+
+MB &7BFF : the top of the window, so the subtraction below is everything from the edit line up to it
+
+MB &7C2C : the operand is written here at run time, from &764E
+
 MB &7C31 : PAGER in the system page, not this page's &5BE0
+
+MB &7C36 : bits 0 and 2 of the byte read from DCT at &7C1C
 MB &7D48 : PAGER again
 MB &7C45 : CDBUFF+&11 -- the code buffer built at &735D
 MB &7C3B : PROG in the system page

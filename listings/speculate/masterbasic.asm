@@ -28737,13 +28737,19 @@ RELOCATED_TO_484D:
                                                ; subtract &3357 from any address in it
                CALL HLJUMP                     ; 7BA7 CD 05 00
                LD HL,(LSPTR)                   ; 7BAA 2A 8B 5B
-               LD BC,(&5A5E)                   ; 7BAD ED 4B 5E 5A
+               LD BC,(&5A5E)                   ; 7BAD ED 4B 5E 5A  &5A5E is where REF left the address of the match. It
+                                               ; is one of the fourteen bytes the ROM's variable table marks "14 SPARE"
+                                               ; between LSOFF and SPOSNU, used rather than MasterBASIC's own page
+                                               ; because this hook runs with the system page at &4000 and MasterBASIC
+                                               ; nowhere in sight
                AND A                           ; 7BB1 A7
                SBC HL,BC                       ; 7BB2 ED 42
                RET NC                          ; 7BB4 D0
                LD HL,(KCUR)                    ; 7BB5 2A 9A 5A
                DEC HL                          ; 7BB8 2B
-               LD (&5A65),HL                   ; 7BB9 22 65 5A
+               LD (&5A65),HL                   ; 7BB9 22 65 5A  &5A65 takes the cursor, caught in passing rather than
+                                               ; worked out: the moment LSPTR reaches the match, KCUR less one is what
+                                               ; the manual's "cursor just after the reference" means
                RET                             ; 7BBC C9
 
 ;; --------------------------------------------------------------------
@@ -28754,20 +28760,28 @@ RELOCATED_TO_484D:
 ;; --------------------------------------------------------------------
 
                LD A,(FLAGX)                    ; 7BBD 3A 71 5C
-               AND &20                         ; 7BC0 E6 20
+               AND &20                         ; 7BC0 E6 20  bit 5 of FLAGX, which the ROM sets while an INPUT is in
+                                               ; progress
                JR NZ,RELOCATED_TO_484D_1       ; 7BC2 20 1C
                POP HL                          ; 7BC4 E1
                                                ; self-modifying: patches the operand of the CALL at &4AF0
-               LD (&4AF1),HL                   ; 7BC5 22 F1 4A
-               LD HL,(&4AF1)                   ; 7BC8 2A F1 4A
+               LD (&4AF1),HL                   ; 7BC5 22 F1 4A  the store is the point. The load below puts the same
+                                               ; value straight back, so HL is unchanged either way and what matters is
+                                               ; that it has been left at &4AF1 in the system page
+               LD HL,(&4AF1)                   ; 7BC8 2A F1 4A  and this reads it back, which for HL alone changes
+                                               ; nothing
                POP DE                          ; 7BCB D1
                DEC DE                          ; 7BCC 1B
                DEC DE                          ; 7BCD 1B
                DEC DE                          ; 7BCE 1B
                                                ; self-modifying: patches the operand of the CALL at &5A60
-               LD (&5A62),DE                   ; 7BCF ED 53 62 5A
+               LD (&5A62),DE                   ; 7BCF ED 53 62 5A  &5A62 is another of the fourteen spare bytes, holding
+                                               ; the return address across the CALL below. The three DECs above and the
+                                               ; three INCs at &7BD9 undo one another, so what is parked is the address
+                                               ; less three
                CALL HLJUMP                     ; 7BD3 CD 05 00
-               LD HL,(&5A62)                   ; 7BD6 2A 62 5A
+               LD HL,(&5A62)                   ; 7BD6 2A 62 5A  back off the spare byte, and the INCs below restore the
+                                               ; three
                INC HL                          ; 7BD9 23
                INC HL                          ; 7BDA 23
                INC HL                          ; 7BDB 23
@@ -28788,11 +28802,15 @@ RELOCATED_TO_484D_1:
                LD HL,(XPTR)                    ; 7BE0 2A A3 5A
                RST ERR_HOOK                    ; 7BE3 CF
                DEFB HKC_SETUPREGS              ; 7BE4 B9 hook code
-               LD HL,&7FE6                     ; 7BE5 21 E6 7F
+               LD HL,&7FE6                     ; 7BE5 21 E6 7F  the stack MasterBASIC hands the DOS -- the same &7FE6
+                                               ; the boot writes into &5C59
                LD (DOSSTK),HL                  ; 7BE8 22 59 5C
                LD H,A                          ; 7BEB 67
-               LD A,(&5A89)                    ; 7BEC 3A 89 5A
-               CP &BE                          ; 7BEF FE BE
+               LD A,(NVARS+1)                  ; 7BEC 3A 89 5A  the high byte of NVARS. The ROM's table marks it "(2)",
+                                               ; so the numeric-variables pointer is two bytes and this is its top half
+               CP &BE                          ; 7BEF FE BE  &BE00 is within &200 bytes of &BFBF, the top of the window,
+                                               ; so the numeric variables have nearly run out of room -- which is what
+                                               ; the hook below is raised to fix
                JR C,RELOCATED_TO_484D_2        ; 7BF1 38 04
                PUSH HL                         ; 7BF3 E5
                RST ERR_HOOK                    ; 7BF4 CF
@@ -28811,11 +28829,14 @@ RELOCATED_TO_484D_1:
 
 ; ---- RELOCATED_TO_484D_2 ---- from &7BF1 when A < &BE
 RELOCATED_TO_484D_2:
-               LD A,(&5A92)                    ; 7BF7 3A 92 5A
-               AND &40                         ; 7BFA E6 40
+               LD A,(WORKSP+1)                 ; 7BF7 3A 92 5A  the high byte of WORKSP, a two-byte pointer in the same
+                                               ; way
+               AND &40                         ; 7BFA E6 40  bit 6 of that high byte, which is what separates an address
+                                               ; in &4000-&7FFF from one at &8000-&BFFF
                JR Z,RELOCATED_TO_484D_3        ; 7BFC 28 1E
                PUSH HL                         ; 7BFE E5
-               LD HL,&C000                     ; 7BFF 21 00 C0
+               LD HL,&C000                     ; 7BFF 21 00 C0  the top of the window, so the subtraction below is
+                                               ; everything from the edit line up to it
                LD BC,(ELINE)                   ; 7C02 ED 4B 94 5A
                SBC HL,BC                       ; 7C06 ED 42
                LD B,H                          ; 7C08 44
@@ -28848,12 +28869,12 @@ RELOCATED_TO_484D_3:
                JR NC,DISPATCH_ON_COMMAND_TOKEN     ; 7C27 30 28
                PUSH HL                             ; 7C29 E5
                BIT 1,L                             ; 7C2A CB 4D
-               LD A,&00                            ; 7C2C 3E 00
+               LD A,&00                            ; 7C2C 3E 00  the operand is written here at run time, from &764E
                LD HL,SHOW_LINE_AND_STATEMENT+&4000 ; 7C2E 21 B9 9F
                CALL NZ,PAGER                       ; 7C31 C4 E0 5B  PAGER in the system page, not this page's &5BE0
                POP HL                              ; 7C34 E1
                LD A,L                              ; 7C35 7D
-               AND &05                             ; 7C36 E6 05
+               AND &05                             ; 7C36 E6 05  bits 0 and 2 of the byte read from DCT at &7C1C
                JR Z,DISPATCH_ON_COMMAND_TOKEN      ; 7C38 28 17
                PUSH HL                             ; 7C3A E5
                LD HL,(PROG)                        ; 7C3B 2A A0 5A  PROG in the system page
