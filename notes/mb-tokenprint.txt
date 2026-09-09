@@ -68,6 +68,26 @@ DOC HPRTOK
     Hook 169, and the ROM's PRTOKV points here, so LIST and the error
     printer both come through it.
 
+MB &4FC2 : INSTBUF at &4F00 in the system page, which is where the fourteen bytes go and where they run
+
+MB &4FC5 : the fourteen bytes of GTDT
+
+MB &4FD6 : one below MBKEYS, because JGTTOK is documented as matching "A-1 words from list at HL+1" -- &50D6 holds a RET and the list starts at &50D7
+
+MB &4FD9 : 29, so A-1 is 28, which is the length of MBKEYS
+
+MB &4FE5 : word 22 and up are the single-byte tokens; below that a two-byte FF form
+
+MB &4FED : the second byte of a two-byte token is the word's number plus &25, so word 1 comes out &26
+
+MB &4FEF : &39 is word 20's value, and anything below it is finished
+
+MB &4FF3 : word 20 or 21, the two that do not follow the run
+
+MB &4FF6 : CP &3A then CCF then ADC is a two-way skip.  Word 20 leaves carry set, CCF clears it and &39 + &2F is &68; word 21 leaves it clear, CCF sets it and &3A + &2F + 1 is &6A.  So the pair lands on &FF68 and &FF6A, stepping over &69 -- the ROM's two spare FPC slots
+
+MB &4FFB : word 22 comes out &BC here, and the ROM's own TOK42 adds &3B, so 22 to 28 become 247 to 253.  tools/tokentab.py works the same sum in the same order
+
     SUB &E1 IS THE WHOLE OF THE LOOKUP.  MBKEYS is one list holding both
     kinds of MasterBASIC keyword: words 1 to 21 are the two-byte FF nn
     forms and words 22 to 28 the single-byte tokens 247 to 253.  Taking

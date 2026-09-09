@@ -5931,8 +5931,9 @@ HGTTK:
                XOR A                           ; 4FBC AF
                OUT (HMPR),A                    ; 4FBD D3 FB
                LD HL,GTDT                      ; 4FBF 21 00 50
-               LD DE,&8F00                     ; 4FC2 11 00 8F
-               LD BC,&000E                     ; 4FC5 01 0E 00
+               LD DE,&8F00                     ; 4FC2 11 00 8F  INSTBUF at &4F00 in the system page, which is where the
+                                               ; fourteen bytes go and where they run
+               LD BC,&000E                     ; 4FC5 01 0E 00  the fourteen bytes of GTDT
                LDIR                            ; 4FC8 ED B0
                IN A,(LMPR)                     ; 4FCA DB FA
                INC A                           ; 4FCC 3C
@@ -5940,67 +5941,35 @@ HGTTK:
                OUT (HMPR),A                    ; 4FCF D3 FB
                CALL CALLDOS                    ; 4FD1 CD C1 42
                DEFW &788E                      ; 4FD4 8E 78
-               LD HL,&90D6                     ; 4FD6 21 D6 90
-               LD A,&1D                        ; 4FD9 3E 1D
+               LD HL,&90D6                     ; 4FD6 21 D6 90  one below MBKEYS, because JGTTOK is documented as
+                                               ; matching "A-1 words from list at HL+1" -- &50D6 holds a RET and the
+                                               ; list starts at &50D7
+               LD A,&1D                        ; 4FD9 3E 1D  29, so A-1 is 28, which is the length of MBKEYS
                CALL MBCMR                      ; 4FDB CD F0 44
                DEFW JGTTOK                     ; 4FDE 8A 01
                POP BC                          ; 4FE0 C1
                OUT (C),B                       ; 4FE1 ED 41
                JR Z,HGTTK_DONE2                ; 4FE3 28 18
-               CP &16                          ; 4FE5 FE 16
+               CP &16                          ; 4FE5 FE 16  word 22 and up are the single-byte tokens; below that a
+                                               ; two-byte FF form
                JR NC,HGTTK_DONE                ; 4FE7 30 12
                EX DE,HL                        ; 4FE9 EB
                AND A                           ; 4FEA A7
                SBC HL,DE                       ; 4FEB ED 52
-               ADD A,&25                       ; 4FED C6 25
-               CP &39                          ; 4FEF FE 39
+               ADD A,&25                       ; 4FED C6 25  the second byte of a two-byte token is the word's number
+                                               ; plus &25, so word 1 comes out &26
+               CP &39                          ; 4FEF FE 39  &39 is word 20's value, and anything below it is finished
                JR C,HGTTK_DONE2                ; 4FF1 38 0A
-               CP &3A                          ; 4FF3 FE 3A
+               CP &3A                          ; 4FF3 FE 3A  word 20 or 21, the two that do not follow the run
                CCF                             ; 4FF5 3F
-               ADC A,&2F                       ; 4FF6 CE 2F
+               ADC A,&2F                       ; 4FF6 CE 2F  CP &3A then CCF then ADC is a two-way skip. Word 20 leaves
+                                               ; carry set, CCF clears it and &39 + &2F is &68; word 21 leaves it clear,
+                                               ; CCF sets it and &3A + &2F + 1 is &6A. So the pair lands on &FF68 and
+                                               ; &FF6A, stepping over &69 -- the ROM's two spare FPC slots
                SCF                             ; 4FF8 37
                JR HGTTK_DONE2                  ; 4FF9 18 02
 
-; ---- HGTTK_DONE ---- from &4FE7 when A >= &16
-HGTTK_DONE:
-               ADD A,&A6                       ; 4FFB C6 A6
-
-; ---- HGTTK_DONE2 ---- from &4FE3, &4FF1 when A < &39, &4FF9
-HGTTK_DONE2:
-               PUSH AF                         ; 4FFD F5
-               POP BC                          ; 4FFE C1
-               RET                             ; 4FFF C9
-
 ;; --------------------------------------------------------------------
-;; The fourteen bytes HGTTK copies into the ROM's workspace and runs there:
-;;
-;;     POP IY / LD BC,17 / ADD IY,BC     point 17 bytes into the tokeniser
-;;     POP DE / ADD HL,DE / EX DE,HL     work out where the line is
-;;     LD (HL),&FF                       write the function prefix
-;;     JP (IY)                           and rejoin the ROM
-;;
-;; This is the same trick MasterDOS plays in its own GTDT, and the reason
-;; MasterBASIC's functions can be two-byte tokens at all.
-;; --------------------------------------------------------------------
-
-; ---- GTDT ---- from &4FBF, &5212, &5D59
-GTDT:
-               POP IY                          ; 5000 FD E1
-               LD BC,&0011                     ; 5002 01 11 00
-
-; ---- GTDT_1 ---- from &5216
-GTDT_1:
-               ADD IY,BC                       ; 5005 FD 09  PT TO 17 BYTES FURTHER ON
-               POP DE                          ; 5007 D1  IN TOKENISE SR
-               ADD HL,DE                       ; 5008 19
-               EX DE,HL                        ; 5009 EB
-               LD (HL),&FF                     ; 500A 36 FF  FN LEADER PLACED IN BASIC LINE
-               JP (IY)                         ; 500C FD E9
-
-;; --------------------------------------------------------------------
-;; Hook 169, and the ROM's PRTOKV points here, so LIST and the error
-;; printer both come through it.
-;;
 ;; SUB &E1 IS THE WHOLE OF THE LOOKUP.  MBKEYS is one list holding both
 ;; kinds of MasterBASIC keyword: words 1 to 21 are the two-byte FF nn
 ;; forms and words 22 to 28 the single-byte tokens 247 to 253.  Taking
@@ -6037,6 +6006,49 @@ GTDT_1:
 ;; the high byte -- and &5020 writes it back, after the leading space
 ;; has already gone out at &501C, so LIST and the error printer find it
 ;; as it was.
+;; --------------------------------------------------------------------
+
+; ---- HGTTK_DONE ---- from &4FE7 when A >= &16
+HGTTK_DONE:
+               ADD A,&A6                       ; 4FFB C6 A6  word 22 comes out &BC here, and the ROM's own TOK42 adds
+                                               ; &3B, so 22 to 28 become 247 to 253. tools/tokentab.py works the same
+                                               ; sum in the same order
+
+; ---- HGTTK_DONE2 ---- from &4FE3, &4FF1 when A < &39, &4FF9
+HGTTK_DONE2:
+               PUSH AF                         ; 4FFD F5
+               POP BC                          ; 4FFE C1
+               RET                             ; 4FFF C9
+
+;; --------------------------------------------------------------------
+;; The fourteen bytes HGTTK copies into the ROM's workspace and runs there:
+;;
+;;     POP IY / LD BC,17 / ADD IY,BC     point 17 bytes into the tokeniser
+;;     POP DE / ADD HL,DE / EX DE,HL     work out where the line is
+;;     LD (HL),&FF                       write the function prefix
+;;     JP (IY)                           and rejoin the ROM
+;;
+;; This is the same trick MasterDOS plays in its own GTDT, and the reason
+;; MasterBASIC's functions can be two-byte tokens at all.
+;; --------------------------------------------------------------------
+
+; ---- GTDT ---- from &4FBF, &5212, &5D59
+GTDT:
+               POP IY                          ; 5000 FD E1
+               LD BC,&0011                     ; 5002 01 11 00
+
+; ---- GTDT_1 ---- from &5216
+GTDT_1:
+               ADD IY,BC                       ; 5005 FD 09  PT TO 17 BYTES FURTHER ON
+               POP DE                          ; 5007 D1  IN TOKENISE SR
+               ADD HL,DE                       ; 5008 19
+               EX DE,HL                        ; 5009 EB
+               LD (HL),&FF                     ; 500A 36 FF  FN LEADER PLACED IN BASIC LINE
+               JP (IY)                         ; 500C FD E9
+
+;; --------------------------------------------------------------------
+;; Hook 169, and the ROM's PRTOKV points here, so LIST and the error
+;; printer both come through it.
 ;;
 ;; What was here before:
 ;;

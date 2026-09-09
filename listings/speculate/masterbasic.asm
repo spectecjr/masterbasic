@@ -8646,8 +8646,9 @@ HGTTK:
                XOR A                           ; 4FBC AF
                OUT (HMPR),A                    ; 4FBD D3 FB
                LD HL,GTDT                      ; 4FBF 21 00 50
-               LD DE,&8F00                     ; 4FC2 11 00 8F
-               LD BC,&000E                     ; 4FC5 01 0E 00
+               LD DE,&8F00                     ; 4FC2 11 00 8F  INSTBUF at &4F00 in the system page, which is where the
+                                               ; fourteen bytes go and where they run
+               LD BC,&000E                     ; 4FC5 01 0E 00  the fourteen bytes of GTDT
                LDIR                            ; 4FC8 ED B0
                IN A,(LMPR)                     ; 4FCA DB FA
                INC A                           ; 4FCC 3C
@@ -8657,24 +8658,31 @@ HGTTK:
                                                ; is how the other listing numbers it
                CALL CALLDOS                    ; 4FD1 CD C1 42
                DEFW &788E                      ; 4FD4 8E 78
-               LD HL,&90D6                     ; 4FD6 21 D6 90
-               LD A,&1D                        ; 4FD9 3E 1D
+               LD HL,&90D6                     ; 4FD6 21 D6 90  one below MBKEYS, because JGTTOK is documented as
+                                               ; matching "A-1 words from list at HL+1" -- &50D6 holds a RET and the
+                                               ; list starts at &50D7
+               LD A,&1D                        ; 4FD9 3E 1D  29, so A-1 is 28, which is the length of MBKEYS
                CALL MBCMR                      ; 4FDB CD F0 44
                DEFW JGTTOK                     ; 4FDE 8A 01
                POP BC                          ; 4FE0 C1
                OUT (C),B                       ; 4FE1 ED 41
                JR Z,HGTTK_DONE2                ; 4FE3 28 18
-               CP &16                          ; 4FE5 FE 16
+               CP &16                          ; 4FE5 FE 16  word 22 and up are the single-byte tokens; below that a
+                                               ; two-byte FF form
                JR NC,HGTTK_DONE                ; 4FE7 30 12
                EX DE,HL                        ; 4FE9 EB
                AND A                           ; 4FEA A7
                SBC HL,DE                       ; 4FEB ED 52
-               ADD A,&25                       ; 4FED C6 25
-               CP &39                          ; 4FEF FE 39
+               ADD A,&25                       ; 4FED C6 25  the second byte of a two-byte token is the word's number
+                                               ; plus &25, so word 1 comes out &26
+               CP &39                          ; 4FEF FE 39  &39 is word 20's value, and anything below it is finished
                JR C,HGTTK_DONE2                ; 4FF1 38 0A
-               CP &3A                          ; 4FF3 FE 3A
+               CP &3A                          ; 4FF3 FE 3A  word 20 or 21, the two that do not follow the run
                CCF                             ; 4FF5 3F
-               ADC A,&2F                       ; 4FF6 CE 2F
+               ADC A,&2F                       ; 4FF6 CE 2F  CP &3A then CCF then ADC is a two-way skip. Word 20 leaves
+                                               ; carry set, CCF clears it and &39 + &2F is &68; word 21 leaves it clear,
+                                               ; CCF sets it and &3A + &2F + 1 is &6A. So the pair lands on &FF68 and
+                                               ; &FF6A, stepping over &69 -- the ROM's two spare FPC slots
                SCF                             ; 4FF8 37
                JR HGTTK_DONE2                  ; 4FF9 18 02
 
@@ -8683,11 +8691,52 @@ HGTTK:
 ;;
 ;; Takes:     A
 ;; Leaves:    A, F
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     SUB &E1 IS THE WHOLE OF THE LOOKUP.  MBKEYS is one list holding both
+;;     kinds of MasterBASIC keyword: words 1 to 21 are the two-byte FF nn
+;;     forms and words 22 to 28 the single-byte tokens 247 to 253.  Taking
+;;     &E1 off a single-byte token lands on its word -- 247 - &E1 is 22,
+;;     which is BACKUP, and 253 - &E1 is 28, which is EDIT.  &E1 is not a
+;;     chosen constant: it is 247 less 22, the offset that makes the
+;;     single-byte tokens continue the numbering the FF forms started.
+;;
+;;     It is also the inverse of the + &A6 in MasterBASIC's own HGTTK and
+;;     the ROM's + &3B in TOK42 (miscx2.asm, "CONVERT LIST ENTRY TO TOKEN
+;;     CODE"), which come to the same &E1 going the other way.
+;;
+;;     THE TRAILING SPACE IS A FALL-THROUGH, NOT AN INSTRUCTION.  &5029
+;;     calls SKIP_TO_END_OF_WORD, which prints the word, and the byte after
+;;     that CALL is PRINT_SPACE with no RET between them -- so every
+;;     single-byte keyword gets a space after it, unconditionally.  With
+;;     the conditional one in front, the seven list exactly as the ROM's
+;;     own commands do.  The two-byte forms never come through here at all;
+;;     HOOK_HPFF decides their spacing for itself and gives a trailing
+;;     space to XVAR and NVAL alone.
+;;
+;;     FLAGS BIT 0 DECIDES THE LEADING SPACE.  The bit is the ROM's "the
+;;     last character printed was a space" -- tprint.asm sets it with
+;;     SET 0,(HL) ;'SPACE WAS LAST CHAR' and clears it for anything else --
+;;     and a space goes in front of
+;;     this one only when it is clear, so two keywords in a row are
+;;     separated once and not twice.
+;;
+;;     &5020 RESTORES XPTR RATHER THAN PARKING ANYTHING.  There is no
+;;     caller's HL: PRTOKV_STUB at &7B90 drops the ROM's return address and
+;;     does LD HL,(XPTR) before raising the hook, so what arrives is XPTR's
+;;     own previous value.  The hook route then destroys it -- the ROM's
+;;     RST &08 handler stores CHAD there, and the DOS's hook entry zeroes
+;;     the high byte -- and &5020 writes it back, after the leading space
+;;     has already gone out at &501C, so LIST and the error printer find it
+;;     as it was.
 ;; --------------------------------------------------------------------
 
 ; ---- HGTTK_DONE ---- from &4FE7 when A >= &16
 HGTTK_DONE:
-               ADD A,&A6                       ; 4FFB C6 A6
+               ADD A,&A6                       ; 4FFB C6 A6  word 22 comes out &BC here, and the ROM's own TOK42 adds
+                                               ; &3B, so 22 to 28 become 247 to 253. tools/tokentab.py works the same
+                                               ; sum in the same order
 
 ;; --------------------------------------------------------------------
 ;; HGTTK_DONE2 -- &4FFD to &4FFF
@@ -8755,43 +8804,6 @@ GTDT_1:
 ;;
 ;;     Hook 169, and the ROM's PRTOKV points here, so LIST and the error
 ;;     printer both come through it.
-;;
-;;     SUB &E1 IS THE WHOLE OF THE LOOKUP.  MBKEYS is one list holding both
-;;     kinds of MasterBASIC keyword: words 1 to 21 are the two-byte FF nn
-;;     forms and words 22 to 28 the single-byte tokens 247 to 253.  Taking
-;;     &E1 off a single-byte token lands on its word -- 247 - &E1 is 22,
-;;     which is BACKUP, and 253 - &E1 is 28, which is EDIT.  &E1 is not a
-;;     chosen constant: it is 247 less 22, the offset that makes the
-;;     single-byte tokens continue the numbering the FF forms started.
-;;
-;;     It is also the inverse of the + &A6 in MasterBASIC's own HGTTK and
-;;     the ROM's + &3B in TOK42 (miscx2.asm, "CONVERT LIST ENTRY TO TOKEN
-;;     CODE"), which come to the same &E1 going the other way.
-;;
-;;     THE TRAILING SPACE IS A FALL-THROUGH, NOT AN INSTRUCTION.  &5029
-;;     calls SKIP_TO_END_OF_WORD, which prints the word, and the byte after
-;;     that CALL is PRINT_SPACE with no RET between them -- so every
-;;     single-byte keyword gets a space after it, unconditionally.  With
-;;     the conditional one in front, the seven list exactly as the ROM's
-;;     own commands do.  The two-byte forms never come through here at all;
-;;     HOOK_HPFF decides their spacing for itself and gives a trailing
-;;     space to XVAR and NVAL alone.
-;;
-;;     FLAGS BIT 0 DECIDES THE LEADING SPACE.  The bit is the ROM's "the
-;;     last character printed was a space" -- tprint.asm sets it with
-;;     SET 0,(HL) ;'SPACE WAS LAST CHAR' and clears it for anything else --
-;;     and a space goes in front of
-;;     this one only when it is clear, so two keywords in a row are
-;;     separated once and not twice.
-;;
-;;     &5020 RESTORES XPTR RATHER THAN PARKING ANYTHING.  There is no
-;;     caller's HL: PRTOKV_STUB at &7B90 drops the ROM's return address and
-;;     does LD HL,(XPTR) before raising the hook, so what arrives is XPTR's
-;;     own previous value.  The hook route then destroys it -- the ROM's
-;;     RST &08 handler stores CHAD there, and the DOS's hook entry zeroes
-;;     the high byte -- and &5020 writes it back, after the leading space
-;;     has already gone out at &501C, so LIST and the error printer find it
-;;     as it was.
 ;;
 ;;     What was here before:
 ;;
