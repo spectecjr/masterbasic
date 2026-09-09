@@ -12741,20 +12741,26 @@ PICK_COMPRESSION_CONSTANTS:
                PUSH DE                              ; 63C5 D5
                LD H,&33                             ; 63C6 26 33  H is not a register the caller wants -- it is on its
                                                     ; way to V407A
-               LD BC,&1B00                          ; 63C8 01 00 1B
+               LD BC,&1B00                          ; 63C8 01 00 1B  &1B00 is a MODE 1 screen entire, which is under 16K
+                                                    ; so BC holds all of it
                LD DE,CEXTAB+&4000                   ; 63CB 11 00 9B  &9B00 is the end of a MODE 1 screen in the window,
                                                     ; &8000 + &1B00. It is not CEXTAB, whose &5B00 is a system page
                                                     ; variable
                AND A                                ; 63CE A7
                JR Z,PICK_COMPRESSION_CONSTANTS_DONE ; 63CF 28 0F
-               LD H,&6D                             ; 63D1 26 6D
-               LD B,&38                             ; 63D3 06 38
-               LD D,&B8                             ; 63D5 16 B8
+               LD H,&6D                             ; 63D1 26 6D  &6D is 109, and three more is 112 lines of 128 bytes
+                                                    ; -- &3800, a MODE 2 screen
+               LD B,&38                             ; 63D3 06 38  BC to match it
+               LD D,&B8                             ; 63D5 16 B8  &B800, where that screen ends: &8000 plus &3800
                DEC A                                ; 63D7 3D
                JR Z,PICK_COMPRESSION_CONSTANTS_DONE ; 63D8 28 06
-               LD H,&BD                             ; 63DA 26 BD
-               LD B,&20                             ; 63DC 06 20
-               LD D,&E0                             ; 63DE 16 E0
+               LD H,&BD                             ; 63DA 26 BD  &BD is 189, so 192 lines -- and unlike the two above
+                                                    ; this is a real row count, a MODE 3 or MODE 4 screen being 192 rows
+                                                    ; of 128 bytes
+               LD B,&20                             ; 63DC 06 20  &2000 is &6000 less one whole 16K page, which is what
+                                                    ; BC is for
+               LD D,&E0                             ; 63DE 16 E0  &E000, the end of it with two pages mapped -- &8000
+                                                    ; plus &6000, which is why this one reaches past &C000
 
 ; ---- PICK_COMPRESSION_CONSTANTS_DONE ---- from &63CF when A = 0, &63D8 when A reaches 0
 PICK_COMPRESSION_CONSTANTS_DONE:

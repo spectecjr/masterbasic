@@ -301,3 +301,30 @@ MB &63C6 : H is not a register the caller wants -- it is on its way to V407A
 
 MB &63CB : &9B00 is the end of a MODE 1 screen in the window, &8000 + &1B00.  It is not CEXTAB, whose &5B00 is a system page variable
 
+# Three sets of the same three numbers, one per screen size, and each
+# set says the size three ways.  H is the line limit &629D reads back --
+# three short of the last, so H+3 lines of 128 bytes; BC is the size
+# less whole 16K pages, the MODCOUNT convention SET_UP_FAR_LDIR uses;
+# and DE is where the screen ends in the window.
+#
+#     H=&33   54 lines   &1B00   ends &9B00    MODE 1
+#     H=&6D  112 lines   &3800   ends &B800    MODE 2
+#     H=&BD  192 lines   &6000   ends &E000    MODE 3 or 4
+#
+# Only the last needs the page: &6000 carries &2000 in BC and one page
+# implied, and its end is past &C000 because two pages are mapped.
+
+MB &63C8 : &1B00 is a MODE 1 screen entire, which is under 16K so BC holds all of it
+
+MB &63D1 : &6D is 109, and three more is 112 lines of 128 bytes -- &3800, a MODE 2 screen
+
+MB &63D3 : BC to match it
+
+MB &63D5 : &B800, where that screen ends: &8000 plus &3800
+
+MB &63DA : &BD is 189, so 192 lines -- and unlike the two above this is a real row count, a MODE 3 or MODE 4 screen being 192 rows of 128 bytes
+
+MB &63DC : &2000 is &6000 less one whole 16K page, which is what BC is for
+
+MB &63DE : &E000, the end of it with two pages mapped -- &8000 plus &6000, which is why this one reaches past &C000
+
