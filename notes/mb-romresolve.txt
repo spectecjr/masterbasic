@@ -39,7 +39,27 @@ DOC RESOLVE_ROM_ENTRIES
     given the codes for word-left and word-right.
 
 MB &799D : two of these results fill the JP &0000 operands in the stub
-MB &7AA8 : &18 is JR -- patching the system page directly
+MB &7AA6 : 24, which the manual gives as the code in "KEY 36+70,24" -- and the INC A below makes the 25 of "KEY 27+70,25"
+
+MB &7AA8 : &594A is KTAB entry 106, the 36+70 of that pair.  IT IS A KEY ASSIGNMENT AND NOT AN OPCODE: this line used to read &18 as JR, which is what the byte would be if it were being executed, and the doc block above the routine says otherwise -- MasterBASIC is doing two KEY statements by writing into the table
+
+MB &7AAC : &5941 is entry 97, the 27+70, and takes the 25
+
+MB &7AB6 : fourteen bytes, which is exactly what the ROM's variable table reserves at PAGER "for paging S.R."
+
+MB &7AC1 : &1D is 29 -- DPVARS and the four XVARs after it, 4 + 9 + 8 + 6 + 2, which is what puts GCM1 at &5A16 and DMPTL at &5A2D
+
+MB &7AC8 : &5896, in the gap between the DEF KEY buffer and KTAB -- &5880 to &58DF is unused, and this takes forty bytes of it
+
+MB &7ACB : &28, the forty bytes of GAP_BLOCK
+
+MB &7ACF : MNIP is the ROM's "ADDR OF MAIN I/P ROUTINE", so this points it at &4C14 -- and SAVE BOOT's fourth block is the &00A2 bytes from there, which is that routine being carried into the file
+
+MB &7AD8 : &4C1A takes EDPRT, &0576, which the signature search at &7A7A found and &7A83 planted in the LD above
+
+MB &7ADE : &4C5F takes the &0516 from the search at &7A86
+
+MB &7AE4 : &4C31 takes the &02CB from the search at &7A92, and with those three the routine at &4C14 can reach the ROM entries it needs
 
 # INSTALLER'S FIRST RESOLVE, which the trace used to mis-align by one
 # byte.  Not one of RESOLVE_ROM_ENTRIES's twenty -- those all read

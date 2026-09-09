@@ -28322,37 +28322,49 @@ INSTALL_SYSPAGE_CODE:
                LD C,A                          ; 7AA2 4F
                XOR A                           ; 7AA3 AF
                OUT (HMPR),A                    ; 7AA4 D3 FB
-               LD A,&18                        ; 7AA6 3E 18
-               LD (&994A),A                    ; 7AA8 32 4A 99  &18 is JR -- patching the system page directly
+               LD A,&18                        ; 7AA6 3E 18  24, which the manual gives as the code in "KEY 36+70,24" --
+                                               ; and the INC A below makes the 25 of "KEY 27+70,25"
+               LD (&994A),A                    ; 7AA8 32 4A 99  &594A is KTAB entry 106, the 36+70 of that pair. IT IS A
+                                               ; KEY ASSIGNMENT AND NOT AN OPCODE: this line used to read &18 as JR,
+                                               ; which is what the byte would be if it were being executed, and the doc
+                                               ; block above the routine says otherwise -- MasterBASIC is doing two KEY
+                                               ; statements by writing into the table
                INC A                           ; 7AAB 3C
-               LD (&9941),A                    ; 7AAC 32 41 99
+               LD (&9941),A                    ; 7AAC 32 41 99  &5941 is entry 97, the 27+70, and takes the 25
                LD A,C                          ; 7AAF 79
                LD HL,MB_PAGER                  ; 7AB0 21 F2 7A
                LD DE,PAGER+&4000               ; 7AB3 11 E0 9B
-               LD BC,&000E                     ; 7AB6 01 0E 00
+               LD BC,&000E                     ; 7AB6 01 0E 00  fourteen bytes, which is exactly what the ROM's variable
+                                               ; table reserves at PAGER "for paging S.R."
                LDIR                            ; 7AB9 ED B0
                LD HL,DPVARS                    ; 7ABB 21 1F 40
                LD DE,ROM_DPVARS+&4000          ; 7ABE 11 12 9A
-               LD C,&1D                        ; 7AC1 0E 1D
+               LD C,&1D                        ; 7AC1 0E 1D  &1D is 29 -- DPVARS and the four XVARs after it, 4 + 9 + 8
+                                               ; + 6 + 2, which is what puts GCM1 at &5A16 and DMPTL at &5A2D
                LDIR                            ; 7AC3 ED B0
                LD HL,GAP_BLOCK                 ; 7AC5 21 43 7E
-               LD DE,&9896                     ; 7AC8 11 96 98
-               LD C,&28                        ; 7ACB 0E 28
+               LD DE,&9896                     ; 7AC8 11 96 98  &5896, in the gap between the DEF KEY buffer and KTAB --
+                                               ; &5880 to &58DF is unused, and this takes forty bytes of it
+               LD C,&28                        ; 7ACB 0E 28  &28, the forty bytes of GAP_BLOCK
                LDIR                            ; 7ACD ED B0
-               LD HL,&4C14                     ; 7ACF 21 14 4C
+               LD HL,&4C14                     ; 7ACF 21 14 4C  MNIP is the ROM's "ADDR OF MAIN I/P ROUTINE", so this
+                                               ; points it at &4C14 -- and SAVE BOOT's fourth block is the &00A2 bytes
+                                               ; from there, which is that routine being carried into the file
                LD (MNIP+&4000),HL              ; 7AD2 22 DE 9B
 
 L7AD5:
                LD HL,&0000                     ; 7AD5 21 00 00  the operand is written here at run time, from &7A83
-               LD (&8C1A),HL                   ; 7AD8 22 1A 8C
+               LD (&8C1A),HL                   ; 7AD8 22 1A 8C  &4C1A takes EDPRT, &0576, which the signature search at
+                                               ; &7A7A found and &7A83 planted in the LD above
 
 L7ADB:
                LD HL,&0000                     ; 7ADB 21 00 00  the operand is written here at run time, from &7A8F
-               LD (&8C5F),HL                   ; 7ADE 22 5F 8C
+               LD (&8C5F),HL                   ; 7ADE 22 5F 8C  &4C5F takes the &0516 from the search at &7A86
 
 L7AE1:
                LD HL,&0000                     ; 7AE1 21 00 00  the operand is written here at run time, from &7A9B
-               LD (&8C31),HL                   ; 7AE4 22 31 8C
+               LD (&8C31),HL                   ; 7AE4 22 31 8C  &4C31 takes the &02CB from the search at &7A92, and with
+                                               ; those three the routine at &4C14 can reach the ROM entries it needs
                LD C,A                          ; 7AE7 4F
                LD A,(ACRSU)                    ; 7AE8 3A 59 40
                LD (AFTERCR+&4000),A            ; 7AEB 32 0F 9A
