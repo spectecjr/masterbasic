@@ -5735,12 +5735,18 @@ HCMDV_1:
 CMDBUF_EPILOGUE:
                JP &0000                        ; 4F0C C3 00 00  from here to &4F30 this code is written for &4D78:
                                                ; subtract &0194 from any address in it
-               CALL &0000                      ; 4F0F CD 00 00
+               CALL &0000                      ; 4F0F CD 00 00  the CALL whose operand HCMDV fills at &4D7C with the
+                                               ; word it took from &4D45, so this reaches whatever the copied block used
+                                               ; to call
                LD A,(DE)                       ; 4F12 1A
-               CP &04                          ; 4F13 FE 04
+               CP &04                          ; 4F13 FE 04  the byte at (DE) against four, which is the whole of the
+                                               ; choice below -- under four takes the INC HL : INC BC : DEC A and
+                                               ; everything after it moves by one
                LD A,C                          ; 4F15 79
-               LD HL,&4F4F                     ; 4F16 21 4F 4F
-               LD BC,&0050                     ; 4F19 01 50 00
+               LD HL,&4F4F                     ; 4F16 21 4F 4F  &4F4F is the system page's, not this half's. The block
+                                               ; runs at &4D78 and every address in it belongs to the page it was
+                                               ; written for
+               LD BC,&0050                     ; 4F19 01 50 00  &50 bytes, or &51 when the INC BC is taken
                JR NC,CMDBUF_EPILOGUE_1         ; 4F1C 30 03
                INC HL                          ; 4F1E 23
                INC BC                          ; 4F1F 03
@@ -5748,16 +5754,18 @@ CMDBUF_EPILOGUE:
 
 ; ---- CMDBUF_EPILOGUE_1 ---- from &4F1C when A >= &04
 CMDBUF_EPILOGUE_1:
-               LD DE,&4F60                     ; 4F21 11 60 4F
+               LD DE,&4F60                     ; 4F21 11 60 4F  &4F60, the system page's again. A goes there, just above
+                                               ; what is about to move, and the DEC DE below starts the copy at &4F5F
                LD (DE),A                       ; 4F24 12
                DEC DE                          ; 4F25 1B
                LDDR                            ; 4F26 ED B8
                ADC A,B                         ; 4F28 88
                INC DE                          ; 4F29 13
                LD C,A                          ; 4F2A 4F
-               CP &0F                          ; 4F2B FE 0F
+               CP &0F                          ; 4F2B FE 0F  fifteen
                RET C                           ; 4F2D D8
-               LD C,&0E                        ; 4F2E 0E 0E
+               LD C,&0E                        ; 4F2E 0E 0E  and fifteen or more comes out as fourteen. It is a cap on
+                                               ; C, not a count
                RET                             ; 4F30 C9
 
 ;; --------------------------------------------------------------------

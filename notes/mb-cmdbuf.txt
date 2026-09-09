@@ -65,6 +65,26 @@ MB &4F0C CMDBUF_EPILOGUE
     half's own addresses and read as local labels until the block is
     known to be relocated.
 
+MB &4F0F : the CALL whose operand HCMDV fills at &4D7C with the word it took from &4D45, so this reaches whatever the copied block used to call
+
+MB &4F13 : the byte at (DE) against four, which is the whole of the choice below -- under four takes the INC HL : INC BC : DEC A and everything after it moves by one
+
+MB &4F16 : &4F4F is the system page's, not this half's.  The block runs at &4D78 and every address in it belongs to the page it was written for
+
+MB &4F19 : &50 bytes, or &51 when the INC BC is taken
+
+MB &4F21 : &4F60, the system page's again.  A goes there, just above what is about to move, and the DEC DE below starts the copy at &4F5F
+
+# The two paths come out at the same place from different directions:
+# 80 bytes &4F00-&4F4F up to &4F10-&4F5F, or 81 bytes &4F00-&4F50 up to
+# &4F0F-&4F5F.  Either way the top ends at &4F5F and the source starts at
+# &4F00, so what changes is the size of the gap opened at the bottom of
+# INSTBUF -- sixteen bytes or fifteen.
+
+MB &4F2B : fifteen
+
+MB &4F2E : and fifteen or more comes out as fourteen.  It is a cap on C, not a count
+
 MB &4F79 : &5F to LMPR: both ROMs on, the system page in section B
 MB &4EDB : the three LDIRs below assemble a routine at &4CD3, in the ROM's system page
 
