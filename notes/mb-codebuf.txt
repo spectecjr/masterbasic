@@ -9,6 +9,24 @@
 # MasterBASIC assembles routines into it at run time from two places, and
 # the stub it installs in the system page then calls what it finds there.
 
+MB &7363 : &42 bytes of the ROM's own routine, whose address the signature search above found and wrote into the LD at &735D
+
+MB &736B : &DB is the 219 bytes of COMPILE_PASS, and &4D11 plus &42 is &4D53, which is where they land
+
+MB &736F : &A8 is the low byte of PRPTRP.  ONLY THE LOW BYTE IS WRITTEN, and it works because the pair being replaced and the pair replacing it are in the same page: KCURP and KCUR are &5A99 and &5A9A, PRPTRP and PRPTR are &5AA8 and &5AA9
+
+MB &7371 : &4D18 is an operand inside the ROM bytes just copied, so the ROM's own code now reads MasterBASIC's variable instead of its own
+
+MB &7375 : &4D1E takes the &A9 the INC A made -- PRPTR where the ROM had KCUR.  The doc block under COMPILE_PASS shows the same two swapped at the other end, which is what makes both readings certain
+
+MB &7378 : &4D4E holds the operand of a CALL in the copied ROM code, read out before it is overwritten
+
+MB &737B : and stored at &4D75, inside COMPILE_PASS, so that what the ROM called is still called
+
+MB &737E : &4D71 is the CALL in COMPILE_PASS that will stand in its place
+
+MB &7381 : written where the operand was, so the copy now calls COMPILE_PASS and COMPILE_PASS calls what the copy used to.  It is the splice HCMDV makes at &4EF4, in fewer instructions
+
 MB &7206 : CDBUFF+&50 in the system page -- HMPR is zeroed at &720F
 MB &7221 : LD HL,&5A60 then LD A,(HL) -- code, not data, copied in ahead of HOOK_SETUPREGS_1
 MB &7214 : the &61 bytes at HOOK_SETUPREGS_1 are appended after those four

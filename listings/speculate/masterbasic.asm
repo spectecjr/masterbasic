@@ -25704,19 +25704,32 @@ HOOK_PROGPREP_1:
 BUILD_COMPILER:
                LD HL,&0000                     ; 735D 21 00 00  the operand is written here at run time, from &79D6
                LD DE,&8D11                     ; 7360 11 11 8D  CDBUFF+&11: 66 bytes from ROM &0000, then 219 from &7385
-               LD BC,&0042                     ; 7363 01 42 00
+               LD BC,&0042                     ; 7363 01 42 00  &42 bytes of the ROM's own routine, whose address the
+                                               ; signature search above found and wrote into the LD at &735D
                LDIR                            ; 7366 ED B0
                LD HL,COMPILE_PASS              ; 7368 21 85 73
-               LD C,&DB                        ; 736B 0E DB
+               LD C,&DB                        ; 736B 0E DB  &DB is the 219 bytes of COMPILE_PASS, and &4D11 plus &42 is
+                                               ; &4D53, which is where they land
                LDIR                            ; 736D ED B0
-               LD A,&A8                        ; 736F 3E A8
-               LD (&8D18),A                    ; 7371 32 18 8D
+               LD A,&A8                        ; 736F 3E A8  &A8 is the low byte of PRPTRP. ONLY THE LOW BYTE IS
+                                               ; WRITTEN, and it works because the pair being replaced and the pair
+                                               ; replacing it are in the same page: KCURP and KCUR are &5A99 and &5A9A,
+                                               ; PRPTRP and PRPTR are &5AA8 and &5AA9
+               LD (&8D18),A                    ; 7371 32 18 8D  &4D18 is an operand inside the ROM bytes just copied, so
+                                               ; the ROM's own code now reads MasterBASIC's variable instead of its own
                INC A                           ; 7374 3C
-               LD (&8D1E),A                    ; 7375 32 1E 8D
-               LD HL,(&8D4E)                   ; 7378 2A 4E 8D
-               LD (&8D75),HL                   ; 737B 22 75 8D
-               LD HL,&4D71                     ; 737E 21 71 4D
-               LD (&8D4E),HL                   ; 7381 22 4E 8D
+               LD (&8D1E),A                    ; 7375 32 1E 8D  &4D1E takes the &A9 the INC A made -- PRPTR where the
+                                               ; ROM had KCUR. The doc block under COMPILE_PASS shows the same two
+                                               ; swapped at the other end, which is what makes both readings certain
+               LD HL,(&8D4E)                   ; 7378 2A 4E 8D  &4D4E holds the operand of a CALL in the copied ROM
+                                               ; code, read out before it is overwritten
+               LD (&8D75),HL                   ; 737B 22 75 8D  and stored at &4D75, inside COMPILE_PASS, so that what
+                                               ; the ROM called is still called
+               LD HL,&4D71                     ; 737E 21 71 4D  &4D71 is the CALL in COMPILE_PASS that will stand in its
+                                               ; place
+               LD (&8D4E),HL                   ; 7381 22 4E 8D  written where the operand was, so the copy now calls
+                                               ; COMPILE_PASS and COMPILE_PASS calls what the copy used to. It is the
+                                               ; splice HCMDV makes at &4EF4, in fewer instructions
                RET                             ; 7384 C9
 
 ;; --------------------------------------------------------------------
