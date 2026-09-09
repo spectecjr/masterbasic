@@ -224,6 +224,20 @@ MB &49E0 PORT_BCD_DIGIT
     there already stands.  A clock that is not there reads &FF and leaves
     the buffer alone rather than filling it with rubbish.
 
+MB &5299 : &BB on NVARS's high byte is which of the two paths to take, not a verdict -- at or above it the routine gathers NVARSP and RAMTOP, below it the program walk at &52D5 does the measuring.  RELOCATED_TO_484D raises this hook at &BE, three pages further up
+
+MB &52BD : the gap's high byte against seven, and under &0700 returns.  That is what makes the &0500 below safe: 1280 bytes are only opened when at least 1792 are there to open them in
+
+MB &52C3 : &0500, the room made
+
+MB &52CA : &04FE, one short of what the LD (HL),&00 and the LDIR below zero between them -- write one byte, then copy it forward, so &04FF bytes come out zeroed
+
+MB &52CD : the zero that gets propagated
+
+MB &52E2 : the same &BB as &5299, now on the high byte the walk itself returned
+
+MB &52FA : &FF is above any real line number's high byte, so planting it makes a walk treat this point as the end of the program.  It is the marker OPEN_GAP_AT_LINE uses for the same purpose
+
 MB &5276 START_PROGRAM_WALK
     Page in the BASIC program and point HL at its first line: PROG and
     PROGP through NRRDD and NRRD, the page straight out to HMPR, then

@@ -6686,7 +6686,10 @@ HOOK_VARSPACE:
                CALL MBNRRDD                    ; 5293 CD 5F 45
                DEFW NVARS                      ; 5296 88 5A
                LD A,B                          ; 5298 78
-               CP &BB                          ; 5299 FE BB
+               CP &BB                          ; 5299 FE BB  &BB on NVARS's high byte is which of the two paths to take,
+                                               ; not a verdict -- at or above it the routine gathers NVARSP and RAMTOP,
+                                               ; below it the program walk at &52D5 does the measuring.
+                                               ; RELOCATED_TO_484D raises this hook at &BE, three pages further up
                JR C,HOOK_VARSPACE_3            ; 529B 38 38
                PUSH BC                         ; 529D C5
                CALL MBNRRD                     ; 529E CD 6A 45
@@ -6710,17 +6713,21 @@ HOOK_VARSPACE:
 HOOK_VARSPACE_1:
                SBC HL,DE                       ; 52BA ED 52
                LD A,H                          ; 52BC 7C
-               CP &07                          ; 52BD FE 07
+               CP &07                          ; 52BD FE 07  the gap's high byte against seven, and under &0700 returns.
+                                               ; That is what makes the &0500 below safe: 1280 bytes are only opened
+                                               ; when at least 1792 are there to open them in
                RET C                           ; 52BF D8
 
 ; ---- HOOK_VARSPACE_2 ---- from &52B6 when A is not 0 yet
 HOOK_VARSPACE_2:
                CALL START_PROGRAM_WALK         ; 52C0 CD 76 52
-               LD BC,&0500                     ; 52C3 01 00 05
+               LD BC,&0500                     ; 52C3 01 00 05  &0500, the room made
                CALL OPEN_ROOM_AT_HL            ; 52C6 CD F2 58
                INC HL                          ; 52C9 23
-               LD BC,&04FE                     ; 52CA 01 FE 04
-               LD (HL),&00                     ; 52CD 36 00
+               LD BC,&04FE                     ; 52CA 01 FE 04  &04FE, one short of what the LD (HL),&00 and the LDIR
+                                               ; below zero between them -- write one byte, then copy it forward, so
+                                               ; &04FF bytes come out zeroed
+               LD (HL),&00                     ; 52CD 36 00  the zero that gets propagated
                LD D,H                          ; 52CF 54
                LD E,L                          ; 52D0 5D
                INC DE                          ; 52D1 13
@@ -6737,7 +6744,8 @@ HOOK_VARSPACE_3:
                POP HL                          ; 52DF E1
                LD C,A                          ; 52E0 4F
                LD A,D                          ; 52E1 7A
-               CP &BB                          ; 52E2 FE BB
+               CP &BB                          ; 52E2 FE BB  the same &BB as &5299, now on the high byte the walk itself
+                                               ; returned
                RET NC                          ; 52E4 D0
                IN A,(HMPR)                     ; 52E5 DB FB
                XOR C                           ; 52E7 A9
@@ -6755,7 +6763,9 @@ HOOK_VARSPACE_4:
                EX DE,HL                        ; 52F4 EB
                CALL MBCMR                      ; 52F5 CD F0 44
                DEFW JRECLAIM                   ; 52F8 63 01
-               LD (HL),&FF                     ; 52FA 36 FF
+               LD (HL),&FF                     ; 52FA 36 FF  &FF is above any real line number's high byte, so planting
+                                               ; it makes a walk treat this point as the end of the program. It is the
+                                               ; marker OPEN_GAP_AT_LINE uses for the same purpose
                RET                             ; 52FC C9
 
 ;; --------------------------------------------------------------------
