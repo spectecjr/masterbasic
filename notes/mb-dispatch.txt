@@ -21,6 +21,20 @@ MB &7CB2 CALLBACK_COMADENT
 MB &7CB5 CALLBACK_SKIPNAME
 MB &7CBA CALLBACK_RCPTCH
 
+MB &7D09 : the high byte of the word under the return address, against &40.  INC D below moves it to &41, and SYS_DH_STATE is given the &40 to remember that it did
+
+MB &7D11 : and against &42, which DEC D brings down to &41 as well -- but only when SYS_DH_STATE says the &40 case came first, so the two are a pair and not two tests
+
+MB &7D18 : the same &40, read back out of SYS_DH_STATE.  SUB does both halves of the job: it tests for the marker and leaves the zero that clears it
+
+MB &7D25 : DEVICE 2 is the printer, which the ROM's own variable list gives as "0=US, 1=LS, 2=PRINTER"
+
+MB &7D4E : &16 is AT.  ref/samrom/tprint.asm's control-code table has "22 AT" against it
+
+MB &7D52 : &17 is TAB, 23 in the same table, and the pair is what this stub exists to catch
+
+MB &7D64 : &4A12 is this block's own &7D69 once it is running at &484D, and TBL_7D58_1 below writes it through CURCHL -- so AT points the channel at that handler.  The overlapping stream entered at &7D69 loads &4A1F instead, which is the next one along
+
 MB &7D00 PATOUT_CHAR_OUT
     MasterBASIC's character output, which runs at &49A9 -- the address
     the listing already had an equate for, SYS_PATOUT_CHAR_OUT, because

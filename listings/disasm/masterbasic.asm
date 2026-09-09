@@ -20638,17 +20638,23 @@ PATOUT_CHAR_OUT:
                POP HL                          ; 7D06 E1
                POP DE                          ; 7D07 D1
                LD A,D                          ; 7D08 7A
-               CP &40                          ; 7D09 FE 40
+               CP &40                          ; 7D09 FE 40  the high byte of the word under the return address, against
+                                               ; &40. INC D below moves it to &41, and SYS_DH_STATE is given the &40 to
+                                               ; remember that it did
                JR NZ,PATOUT_CHAR_OUT_1         ; 7D0B 20 04
                INC D                           ; 7D0D 14
                LD (SYS_DH_STATE),A             ; 7D0E 32 ED 4A
 
 ; ---- PATOUT_CHAR_OUT_1 ---- from &7D0B when A <> &40
 PATOUT_CHAR_OUT_1:
-               CP &42                          ; 7D11 FE 42
+               CP &42                          ; 7D11 FE 42  and against &42, which DEC D brings down to &41 as well --
+                                               ; but only when SYS_DH_STATE says the &40 case came first, so the two are
+                                               ; a pair and not two tests
                JR NZ,PATOUT_CHAR_OUT_2         ; 7D13 20 0B
                LD A,(SYS_DH_STATE)             ; 7D15 3A ED 4A
-               SUB &40                         ; 7D18 D6 40
+               SUB &40                         ; 7D18 D6 40  the same &40, read back out of SYS_DH_STATE. SUB does both
+                                               ; halves of the job: it tests for the marker and leaves the zero that
+                                               ; clears it
                JR NZ,PATOUT_CHAR_OUT_2         ; 7D1A 20 04
                LD (SYS_DH_STATE),A             ; 7D1C 32 ED 4A
                DEC D                           ; 7D1F 15
@@ -20661,7 +20667,8 @@ PATOUT_CHAR_OUT_2:
 ; ---- PATOUT_CHAR_OUT_3 ---- from &7D04 when A = 0
 PATOUT_CHAR_OUT_3:
                LD A,(DEVICE)                   ; 7D22 3A 73 5A
-               CP &02                          ; 7D25 FE 02
+               CP &02                          ; 7D25 FE 02  DEVICE 2 is the printer, which the ROM's own variable list
+                                               ; gives as "0=US, 1=LS, 2=PRINTER"
                JR Z,PATOUT_CHAR_OUT_5          ; 7D27 28 22
                LD A,(SYS_CHAR_WIDTH)           ; 7D29 3A EE 4A
                AND A                           ; 7D2C A7
@@ -20691,9 +20698,11 @@ L7D46:
 ; ---- PATOUT_CHAR_OUT_5 ---- from &7D27 when A = &02, &7D3F when A = 0
 PATOUT_CHAR_OUT_5:
                JP &0000                        ; 7D4B C3 00 00  the operand is written here at run time, from &762B
-               CP &16                          ; 7D4E FE 16
+               CP &16                          ; 7D4E FE 16  &16 is AT. ref/samrom/tprint.asm's control-code table has
+                                               ; "22 AT" against it
                JR Z,V7D57                      ; 7D50 28 05
-               CP &17                          ; 7D52 FE 17
+               CP &17                          ; 7D52 FE 17  &17 is TAB, 23 in the same table, and the pair is what this
+                                               ; stub exists to catch
 
 L7D54:
                JP NZ,&0000                     ; 7D54 C2 00 00  the operand is written here at run time, from &7643
@@ -20706,7 +20715,10 @@ TBL_7D58:
                CP (HL)                              ; 7D58 BE
                LD E,E                               ; 7D59 5B
                DEFW &512A,&5E5C,&5623,&53ED,OPSTORE ; 7D5A 2A 51 5C 5E 23 56 ED 53 B5 5A
-               LD DE,&4A12                          ; 7D64 11 12 4A
+               LD DE,&4A12                          ; 7D64 11 12 4A  &4A12 is this block's own &7D69 once it is running
+                                                    ; at &484D, and TBL_7D58_1 below writes it through CURCHL -- so AT
+                                                    ; points the channel at that handler. The overlapping stream entered
+                                                    ; at &7D69 loads &4A1F instead, which is the next one along
                JR TBL_7D58_1                        ; 7D67 18 06
                DEFB &32,&BF,&5B,&11,&1F,&4A         ; 7D69 2?[..J  skipped: reads as LD (&5BBF),A from here, and as part
                                                     ; of the instruction above it
