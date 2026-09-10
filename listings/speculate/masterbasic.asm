@@ -19211,16 +19211,44 @@ HOOK_CSIZE:
                POP DE                          ; 6541 D1
                LD D,A                          ; 6542 57
                LD A,E                          ; 6543 7B
-               CP &06                          ; 6544 FE 06
+
+;; --------------------------------------------------------------------
+;; -- scrsel2.asm comments the same CP 6 "HEIGHTS OF 0-5 ARE CRAZY
+;; - BUT 6-7 MIGHT BE OK WITH THE RIGHT CHARACTER SET"
+;; --------------------------------------------------------------------
+
+               CP &06                          ; 6544 FE 06  heights below six are refused, and this is the ROM's own
+                                               ; floor
                JR C,HOOK_CSIZE_5               ; 6546 38 31
-               CP &B1                          ; 6548 FE B1
+
+;; --------------------------------------------------------------------
+;; admits heights 6 to 176.  The manual says 6 to 173 twice over
+;; and the code does not bear it out; notes/manual-claims.txt
+;; records the disagreement
+;; --------------------------------------------------------------------
+
+               CP &B1                          ; 6548 FE B1  and 177 is the ceiling where the ROM's is 33, so this hook
                JR NC,HOOK_CSIZE_5              ; 654A 30 2D
                LD B,A                          ; 654C 47
                RRCA                            ; 654D 0F
                RRCA                            ; 654E 0F
                RRCA                            ; 654F 0F
-               AND &1F                         ; 6550 E6 1F
-               CP &03                          ; 6552 FE 03
+
+;; --------------------------------------------------------------------
+;; multiplication factor, the manual's INT(height/8).  176 gives
+;; 22, the largest this can produce
+;; --------------------------------------------------------------------
+
+               AND &1F                         ; 6550 E6 1F  three RRCAs and five bits is a divide by eight -- the
+                                               ; height
+
+;; --------------------------------------------------------------------
+;; the ROM as a factor of zero and keep its own handling; &659D
+;; reads a zero back as exactly that
+;; --------------------------------------------------------------------
+
+               CP &03                          ; 6552 FE 03  a factor under three is thrown away, so heights below 24
+                                               ; reach
                JR NC,HOOK_CSIZE_1              ; 6554 30 01
                XOR A                           ; 6556 AF
 
@@ -19239,14 +19267,21 @@ HOOK_CSIZE_1:
                PUSH AF                         ; 6557 F5
                EX DE,HL                        ; 6558 EB
                LD A,H                          ; 6559 7C
-               AND &07                         ; 655A E6 07
+
+;; --------------------------------------------------------------------
+;; eight -- the manual's "the width should be divisible by 8
+;; unless you are working in MODE 3"
+;; --------------------------------------------------------------------
+
+               AND &07                         ; 655A E6 07  the low three bits of the width, so zero means it divides
+                                               ; by
                LD A,H                          ; 655C 7C
                PUSH AF                         ; 655D F5
                JR NZ,HOOK_CSIZE_2              ; 655E 20 07
                RRCA                            ; 6560 0F
                RRCA                            ; 6561 0F
                RRCA                            ; 6562 0F
-               AND &1F                         ; 6563 E6 1F
+               AND &1F                         ; 6563 E6 1F  the same divide by eight, this time of the width
                JR HOOK_CSIZE_4                 ; 6565 18 0B
 
 ;; --------------------------------------------------------------------
@@ -19254,11 +19289,15 @@ HOOK_CSIZE_1:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    BC
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     branch of that rule
 ;; --------------------------------------------------------------------
 
 ; ---- HOOK_CSIZE_2 ---- from &655E when a bit of &07 is set
 HOOK_CSIZE_2:
-               LD C,&00                        ; 6567 0E 00
+               LD C,&00                        ; 6567 0E 00  the counter for the divide by six below, which is the other
                LD B,C                          ; 6569 41
 
 ;; --------------------------------------------------------------------
@@ -19271,7 +19310,13 @@ HOOK_CSIZE_2:
 ; ---- HOOK_CSIZE_LOOP ---- from &656F
 HOOK_CSIZE_LOOP:
                INC C                           ; 656A 0C
-               SUB &06                         ; 656B D6 06
+
+;; --------------------------------------------------------------------
+;; divisible by 8 it is divided by 6 instead to give a
+;; multiplication factor for 6-pixel wide characters"
+;; --------------------------------------------------------------------
+
+               SUB &06                         ; 656B D6 06  six, the ROM's narrow character -- "if the width is not
                JR Z,HOOK_CSIZE_3               ; 656D 28 02
                JR NC,HOOK_CSIZE_LOOP           ; 656F 30 F9
 
@@ -19297,7 +19342,15 @@ HOOK_CSIZE_3:
 HOOK_CSIZE_4:
                DEC A                           ; 6572 3D
                JR Z,HOOK_CSIZE_7               ; 6573 28 0A
-               CP &1F                          ; 6575 FE 1F
+
+;; --------------------------------------------------------------------
+;; 1 to 31 and refuses 32 and above.  Thirty-one eights is 248,
+;; which is the manual's "the maximum width is 248" -- here the
+;; manual and the code agree exactly
+;; --------------------------------------------------------------------
+
+               CP &1F                          ; 6575 FE 1F  the factor was decremented two instructions up, so this
+                                               ; passes
                JR C,HOOK_CSIZE_6               ; 6577 38 05
 
 ;; --------------------------------------------------------------------

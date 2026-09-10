@@ -346,6 +346,60 @@ MB &67D7 GET_WORK_PAGE
     Two instructions for "use the screen if you have to", and the
     display corruption the manual warns about is that IN A,(VMPR).
 
+# HOOK_CSIZE's argument handling is the ROM's, widened.  scrsel2.asm's
+# CSIZE reads
+#
+#     CALL GETBYTE      ;H
+#     PUSH BC
+#     CALL GETBYTE      ;W
+#     ...
+#     CSZ2: POP DE      ;E=H
+#           LD D,A      ;D=W
+#           LD A,E
+#           CP 6  / JR C,PXIOOR
+#           CP 33 / JR NC,PXIOOR
+#           EX DE,HL
+#
+# and &653D-&6558 is that sequence instruction for instruction with one
+# constant changed, which is what makes the register assignment here
+# certain rather than inferred: E is the height and D the width, both
+# ways round.
+
+MB &6544 : heights below six are refused, and this is the ROM's own floor
+           -- scrsel2.asm comments the same CP 6 "HEIGHTS OF 0-5 ARE CRAZY
+           - BUT 6-7 MIGHT BE OK WITH THE RIGHT CHARACTER SET"
+
+MB &6548 : and 177 is the ceiling where the ROM's is 33, so this hook
+           admits heights 6 to 176.  The manual says 6 to 173 twice over
+           and the code does not bear it out; notes/manual-claims.txt
+           records the disagreement
+
+MB &6550 : three RRCAs and five bits is a divide by eight -- the height
+           multiplication factor, the manual's INT(height/8).  176 gives
+           22, the largest this can produce
+
+MB &6552 : a factor under three is thrown away, so heights below 24 reach
+           the ROM as a factor of zero and keep its own handling; &659D
+           reads a zero back as exactly that
+
+MB &655A : the low three bits of the width, so zero means it divides by
+           eight -- the manual's "the width should be divisible by 8
+           unless you are working in MODE 3"
+
+MB &6563 : the same divide by eight, this time of the width
+
+MB &6567 : the counter for the divide by six below, which is the other
+           branch of that rule
+
+MB &656B : six, the ROM's narrow character -- "if the width is not
+           divisible by 8 it is divided by 6 instead to give a
+           multiplication factor for 6-pixel wide characters"
+
+MB &6575 : the factor was decremented two instructions up, so this passes
+           1 to 31 and refuses 32 and above.  Thirty-one eights is 248,
+           which is the manual's "the maximum width is 248" -- here the
+           manual and the code agree exactly
+
 MB &6594 V6594
     The operand of the CALL MBCMR at &6591, filled in by the installer
     at &761F.  The signature it searches for is D6 06 32 -- the ROM's
