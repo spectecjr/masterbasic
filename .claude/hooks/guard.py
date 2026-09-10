@@ -13,9 +13,11 @@ broken, by hand at least once.  Which event runs which is in
                  and the next build silently overwrites the edit
   heredoc-patch  deny a shell heredoc that imports patch -- escapes get
                  mangled; write the edits to a .py file
-  patch-build    deny a scratchpad .py and build.sh in one command -- a
+  patch-build    deny a .py that patches and build.sh in one command -- a
                  failed patch scrolls past and the build runs green on
-                 unmodified code
+                 unmodified code.  Any .py the command runs is read to
+                 see whether it patches, and one that cannot be read
+                 counts as one that does
   checkdocs      after an edit under docs/ notes/ design/, run
                  tools/checkdocs.py and hand back anything stale
   commit         before git commit, report build.log's last line and
@@ -101,15 +103,44 @@ def heredoc_patch(cmd, path):
              "Write tool and run that.")
 
 
+PY_RUN = re.compile(r"python3?(?:\s+-[A-Za-z]\w*)*\s+(\S+\.py)")
+BUILD_SH = re.compile(r"(^|[\s;&|(])(?:bash\s+|sh\s+)?\S*tools/build\.sh")
+IMPORTS_PATCH = re.compile(r"\b(?:from|import)\s+patch\b")
+
+
+def patches(script):
+    """Whether a .py the command runs is a patch script.
+
+    Read it if it is there.  A script that cannot be read counts as one
+    that patches: an unreadable name and the build in a single command is
+    exactly the shape the rule is about, and guessing `harmless' is the
+    guess that lets the failure through.  The first version of this rule
+    matched only paths with `scratchpad' in them, and a script written to
+    $TEMP walked straight past it -- the patch landed, but only because
+    it was checked by hand afterwards.
+    """
+    name = script.strip("\"'")
+    if "$" in name or "%" in name:      # an unexpanded variable: unreadable
+        return True
+    for cand in (name, os.path.join(ROOT, name)):
+        try:
+            with io.open(cand, encoding="utf-8", errors="replace") as f:
+                return bool(IMPORTS_PATCH.search(f.read()))
+        except (OSError, IOError):
+            continue
+    return True
+
+
 def patch_build(cmd, path):
     # The .py has to be RUN and the build INVOKED -- a command that merely
     # mentions both, in a commit message say, is not the thing.
     c = without_heredocs(cmd)
-    if (re.search(r"python3?\s+\S*scratchpad\S*\.py", c)
-            and re.search(r"(^|[\s;&|])(bash\s+)?tools/build\.sh", c)):
-        deny("A scratchpad patch and tools/build.sh in one command: if the "
-             "patch fails its assertion scrolls past and the build runs on "
-             "unmodified code. Run the patch, read its output, then build.")
+    if not BUILD_SH.search(c):
+        return
+    if IMPORTS_PATCH.search(c) or any(patches(s) for s in PY_RUN.findall(c)):
+        deny("A patch and tools/build.sh in one command: if the patch fails "
+             "its assertion scrolls past and the build runs on unmodified "
+             "code. Run the patch, read its output, then build.")
 
 
 PROSE = re.compile(r"(^|/)(docs|notes|design)/")

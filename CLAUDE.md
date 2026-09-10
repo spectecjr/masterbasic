@@ -156,9 +156,21 @@ Use `tools/patch.py` for every edit to prose or a generator:
     patch('docs/x.md', [('old, exactly, from the file', 'new')])
 
 Write the edits into a `.py` file and run it in the foreground; never
-through a heredoc (escapes get mangled) and never in the same command as
-the build (the assertion scrolls past and the build runs green on
-unmodified code).  Build the `old` string from the file, not from memory.
+through a heredoc and never in the same command as the build (the
+assertion scrolls past and the build runs green on unmodified code).
+Build the `old` string from the file, not from memory.
+
+**The heredoc rule holds with a quoted delimiter too**, which is not what
+the shell promises.  `cat > x.py <<'EOF'` collapses doubled backslashes
+here exactly as an unquoted one does, so a `\\b` written into a regex
+arrives in the file as `\b`, and Python -- reading a string that is not
+raw -- turns that into a backspace.  That is how `re.compile(r"\b...")`
+reached `.claude/hooks/guard.py` as a control character, in a file that
+still parsed and still ran.  A doubled backslash is the tell; so is a
+`SyntaxWarning: invalid escape sequence` naming a line you wrote with two.
+Write the `.py` with the Write tool, or build it with `python -c` in
+single shell quotes and no backslashes at all -- `chr(92)` for one you
+cannot avoid -- and read back what landed before trusting it.
 
 After correcting any figure, **grep the old value** across `docs/`,
 `notes/`, `design/`, `tools/` and `listings/` until it is gone.  The same
@@ -183,7 +195,10 @@ move it is a failure signal, not a result.
 Five of these rules are enforced by hooks in `.claude/settings.json`,
 implemented in `.claude/hooks/guard.py`: `git add -A`, edits under
 `listings/`, a patch through a heredoc, and a patch and the build in one
-command are **denied**; an edit under `docs/`, `notes/` or `design/` runs
+command are **denied** -- the last of those reads any `.py` the command
+runs to see whether it patches, and counts one it cannot read as one that
+does, because its first version matched only paths with `scratchpad` in
+them and a script written to `$TEMP` walked straight past it; an edit under `docs/`, `notes/` or `design/` runs
 `checkdocs` and hands back anything stale; and `git commit` reports
 `build.log`'s last line and whether the sources have changed since it
 was written.  A denial is the rule working, not a fault -- `/hooks` lists
