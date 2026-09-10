@@ -192,19 +192,31 @@ DOC TRACE_PLOT_CHAR
 
 MB &602E : eight bytes a character, so the code is multiplied by eight -- ADD A,A first because a code of &80 or more would not fit the doubling once HL is built
 
+MB &6030 : H cleared, so HL holds the doubled code by itself and the two ADD HL,HLs below finish the multiply
+
+MB &6038 : one character of the font, and the same eight that every row loop below counts
+
 MB &6042 : LMPR is about to be changed and has to come back
 
 MB &604B : modes 1 and 2 want the screen page at &4000, so LMPR takes one less; modes 3 and 4 want it at &0000 with its second half at &4000
 
 MB &604C : clearing bits 5 and 6 re-enables ROM 0 under the screen, which does not matter -- nothing here touches &0000-&3FFF
 
+MB &6050 : the eight rows of the character, for whichever of the three loops below is taken
+
 MB &6052 : the trace cursor, left by SHOW_LINE_AND_STATEMENT and stepped on at the end of each character
 
 MB &6058 : &00 mode 1, &20 mode 2, &40 and &60 modes 3 and 4, which share the last path
 
+MB &605C : so &20 is mode 2; the mask above has already sent mode 1 away, and anything left that is not this is mode 3 or 4
+
 MB &6064 : mode 2 is 32 bytes a row; only E needs adding to because eight rows cannot cross a page from a row-176 start
 
 MB &6069 : mode 2 attributes sit &2000 above the pixels, one byte per cell per pixel row, so eight of them are needed
+
+MB &606D : thirty-two, one attribute row -- the attribute file has the same shape as the pixels, so the step is the same as the &20 at &6064
+
+MB &6070 : and eight of them, one for each pixel row of the cell
 
 MB &6072 : &78 is bright, paper 7, ink 0 -- the manual's "PEN 0 on PAPER 15"
 
@@ -214,15 +226,25 @@ MB &6080 : mode 1 steps a pixel row by adding 256, the ROM's own layout
 
 MB &6084 : DEC H undoes the eighth INC D -- B is &08 at &6070; the three rotates and OR &58 are the ROM's way of turning a display address into its attribute address
 
+MB &6089 : H of a mode 1 display address runs &40 to &57, and three rotates put its bits 3 and 4 at the bottom: &00, &01 or &02 for the three thirds of the screen.  The mask is what makes the carry the RRAs shifted into the top harmless
+
+MB &608B : and &58 is where the attribute file starts, so the address comes out in &5800-&5AFF with L unchanged -- the cursor's own column
+
 MB &608E : B is 0 after the DJNZ, so this makes it 1 -- mode 1 needs one attribute byte where mode 2 needed eight, and the same loop serves both
 
 MB &6091 : &8100 is a sixteen-entry table, two bytes each, expanding a font nibble into mode 4 pixels: a set bit becomes pen 0 and a clear bit pen 15
 
+MB &6092 : the high byte of that table, put over the H the line above saved
+
 MB &6095 : the shadow set is wanted for the source pointer, so what was in it is parked in two spare words
+
+MB &60A5 : eight rows once more, this time of mode 4 output
 
 MB &60AA : C is loaded with the font byte so the LDIs below can decrement it, which is how &60B6 gets it back
 
 MB &60AB : three rotates and AND &1E give the top nibble doubled, the offset of its pair in the table
+
+MB &60AE : the mask that leaves it: bit 0 clear because the entries are two bytes, and nothing above bit 4 because a nibble doubled cannot reach &20
 
 MB &60B6 : two LDIs took two off BC, and C was the font byte -- so adding two restores it.  The RLA's carry-in is masked off by the AND
 

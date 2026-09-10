@@ -11720,12 +11720,14 @@ TRACE_PLOT_CHAR:
                                                ; ADD A,A first because a code of &80 or more would not fit the doubling
                                                ; once HL is built
                LD L,A                          ; 602F 6F
-               LD H,&00                        ; 6030 26 00
+               LD H,&00                        ; 6030 26 00  H cleared, so HL holds the doubled code by itself and the
+                                               ; two ADD HL,HLs below finish the multiply
                ADD HL,HL                       ; 6032 29
                ADD HL,HL                       ; 6033 29
                ADD HL,DE                       ; 6034 19
                LD DE,TRACE_FONT_BYTES+&4000    ; 6035 11 E2 82
-               LD BC,&0008                     ; 6038 01 08 00
+               LD BC,&0008                     ; 6038 01 08 00  one character of the font, and the same eight that every
+                                               ; row loop below counts
                LDIR                            ; 603B ED B0
                LD HL,TRACE_FONT_BYTES+&4000    ; 603D 21 E2 82
                IN A,(LMPR)                     ; 6040 DB FA
@@ -11741,14 +11743,16 @@ TRACE_PLOT_CHAR_1:
                AND PAGEMASK                    ; 604C E6 1F  clearing bits 5 and 6 re-enables ROM 0 under the screen,
                                                ; which does not matter -- nothing here touches &0000-&3FFF
                OUT (LMPR),A                    ; 604E D3 FA
-               LD B,&08                        ; 6050 06 08
+               LD B,&08                        ; 6050 06 08  the eight rows of the character, for whichever of the three
+                                               ; loops below is taken
                LD DE,(TRACE_CURSOR+&4000)      ; 6052 ED 5B 6D 80  the trace cursor, left by SHOW_LINE_AND_STATEMENT and
                                                ; stepped on at the end of each character
                IN A,(VMPR)                     ; 6056 DB FC
                AND &60                         ; 6058 E6 60  &00 mode 1, &20 mode 2, &40 and &60 modes 3 and 4, which
                                                ; share the last path
                JR Z,TRACE_PLOT_CHAR_LOOP3      ; 605A 28 21
-               CP &20                          ; 605C FE 20
+               CP &20                          ; 605C FE 20  so &20 is mode 2; the mask above has already sent mode 1
+                                               ; away, and anything left that is not this is mode 3 or 4
                JR NZ,TRACE_PLOT_CHAR_2         ; 605E 20 31
 
 ; ---- TRACE_PLOT_CHAR_LOOP ---- from &6067 when B is not 0 yet
@@ -11764,8 +11768,10 @@ TRACE_PLOT_CHAR_LOOP:
                LD HL,&2000                     ; 6069 21 00 20  mode 2 attributes sit &2000 above the pixels, one byte
                                                ; per cell per pixel row, so eight of them are needed
                ADD HL,DE                       ; 606C 19
-               LD DE,&0020                     ; 606D 11 20 00
-               LD B,&08                        ; 6070 06 08
+               LD DE,&0020                     ; 606D 11 20 00  thirty-two, one attribute row -- the attribute file has
+                                               ; the same shape as the pixels, so the step is the same as the &20 at
+                                               ; &6064
+               LD B,&08                        ; 6070 06 08  and eight of them, one for each pixel row of the cell
 
 ; ---- TRACE_PLOT_CHAR_LOOP2 ---- from &6075 when B is not 0 yet, &608F
 TRACE_PLOT_CHAR_LOOP2:
@@ -11792,8 +11798,12 @@ TRACE_PLOT_CHAR_LOOP3:
                RRA                             ; 6086 1F
                RRA                             ; 6087 1F
                RRA                             ; 6088 1F
-               AND &03                         ; 6089 E6 03
-               OR &58                          ; 608B F6 58
+               AND &03                         ; 6089 E6 03  H of a mode 1 display address runs &40 to &57, and three
+                                               ; rotates put its bits 3 and 4 at the bottom: &00, &01 or &02 for the
+                                               ; three thirds of the screen. The mask is what makes the carry the RRAs
+                                               ; shifted into the top harmless
+               OR &58                          ; 608B F6 58  and &58 is where the attribute file starts, so the address
+                                               ; comes out in &5800-&5AFF with L unchanged -- the cursor's own column
                LD H,A                          ; 608D 67
                INC B                           ; 608E 04  B is 0 after the DJNZ, so this makes it 1 -- mode 1 needs one
                                                ; attribute byte where mode 2 needed eight, and the same loop serves both
@@ -11804,7 +11814,8 @@ TRACE_PLOT_CHAR_2:
                LD A,H                          ; 6091 7C  &8100 is a sixteen-entry table, two bytes each, expanding a
                                                ; font nibble into mode 4 pixels: a set bit becomes pen 0 and a clear bit
                                                ; pen 15
-               LD H,&81                        ; 6092 26 81
+               LD H,&81                        ; 6092 26 81  the high byte of that table, put over the H the line above
+                                               ; saved
                EXX                             ; 6094 D9
                LD (TRACE_SAVED_BC+&4000),BC    ; 6095 ED 43 6B 80  the shadow set is wanted for the source pointer, so
                                                ; what was in it is parked in two spare words
@@ -11817,7 +11828,7 @@ TRACE_PLOT_CHAR_2:
                EXX                             ; 60A2 D9
                LD A,C                          ; 60A3 79
                EXX                             ; 60A4 D9
-               LD B,&08                        ; 60A5 06 08
+               LD B,&08                        ; 60A5 06 08  eight rows once more, this time of mode 4 output
 
 ; ---- TRACE_PLOT_CHAR_LOOP4 ---- from &60C8 when B is not 0 yet
 TRACE_PLOT_CHAR_LOOP4:
@@ -11830,7 +11841,9 @@ TRACE_PLOT_CHAR_LOOP4:
                                                ; offset of its pair in the table
                RRA                             ; 60AC 1F
                RRA                             ; 60AD 1F
-               AND &1E                         ; 60AE E6 1E
+               AND &1E                         ; 60AE E6 1E  the mask that leaves it: bit 0 clear because the entries
+                                               ; are two bytes, and nothing above bit 4 because a nibble doubled cannot
+                                               ; reach &20
                LD L,A                          ; 60B0 6F
                LDI                             ; 60B1 ED A0
                LDI                             ; 60B3 ED A0
