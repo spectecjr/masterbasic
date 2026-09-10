@@ -10566,7 +10566,13 @@ COPY_THEN_APPEND_CALL:
                LDIR                            ; 5D9F ED B0
                PUSH HL                         ; 5DA1 E5
                LD HL,COPY_THEN_APPEND_CALL_1   ; 5DA2 21 AB 5D
-               LD C,&03                        ; 5DA5 0E 03
+
+;; --------------------------------------------------------------------
+;; caller's own LDIR, so only C has to be set
+;; --------------------------------------------------------------------
+
+               LD C,&03                        ; 5DA5 0E 03  three bytes -- the CD 5B 4B at &5DAB. B is still zero from
+                                               ; the
                LDIR                            ; 5DA7 ED B0
                POP HL                          ; 5DA9 E1
                RET                             ; 5DAA C9
@@ -10770,14 +10776,16 @@ COPY_THEN_APPEND_CALL_5:
                DJNZ V5DBD                      ; 5DEE 10 CD
                INC B                           ; 5DF0 04
                NOP                             ; 5DF1 00
-               LD BC,&0017                     ; 5DF2 01 17 00
 
 ;; --------------------------------------------------------------------
-;; the way in and once on the way out
+;; holding this instruction's own address in whatever frame the block
+;; was copied to, and &17 on from it is the CALL STREAM at the tail,
+;; so the swap runs once on the way in and once on the way out
 ;; --------------------------------------------------------------------
 
-               ADD HL,BC                       ; 5DF5 09  &17 ahead is the CALL STREAM at the tail, so the swap runs
-                                               ; once on
+               LD BC,&0017                     ; 5DF2 01 17 00  the CALL &0004 above -- POP HL : JP (HL) in ROM 0 --
+                                               ; left HL
+               ADD HL,BC                       ; 5DF5 09
                CALL HLJUMP                     ; 5DF6 CD 05 00
                POP HL                          ; 5DF9 E1
                LD DE,INSTBUF                   ; 5DFA 11 00 4F
@@ -10936,21 +10944,59 @@ COPY_THEN_APPEND_CALL_9:
                RET                             ; 5E63 C9
 
 ;; --------------------------------------------------------------------
-;; listing labels LENGTH
+;; LENGTH, ASSEMBLED AT RUN TIME OUT OF THE ROM'S OWN LENGTH.
+;;
+;; Called from MasterDOS &78E5, the A = &25 arm of HKLEN, which MasterDOS's
+;; source labels LENGTH.  HKLEN handed back the HL it pushed at &789B, and
+;; that is one *below* the ROM's IMMEDCODES: it was built by adding the
+;; displacement byte of a JR to the address of the byte after that
+;; displacement, which is a byte short of where the JR itself lands.  Every
+;; offset here counts from there, and so does MasterDOS's own &11 and 6.
+;;
+;; Nothing of the ROM's routine is called.  ROM 1 comes in at &C000 and the
+;; system page at &8000, and 120 bytes of IMLENGTH are copied to &4F62 in
+;; the system page -- INSTBUF+&62 -- where four patches turn them into a
+;; version that can follow a variable across a page boundary:
+;;
+;;     &4FDA         fifteen bytes appended from &5ECE, which is where
+;;                   &4F62 + &78 lands
+;;     &4FCE = &0B   IMLENGTH's JR Z,IMLENC now enters those fifteen
+;;     &4F86 = &4F98 its JP P,IMLEN3 moved with it
+;;     &5003 = &08   LENGSR's LDIR count, seven in the ROM
+;;
+;; The fifteen bytes are the rotating-window step: if the address has run
+;; past &BFFF, bring H back down and count a page on in MEMVAL+2, then fall
+;; into IMLENC.  The ROM has no such step because the ROM's LENGTH never
+;; walks off the end of a page.
+;;
+;; LENGSR is copied too, because IMLENGTH reaches it through a DW rather
+;; than a CALL -- CALL R1OFFCL : DW LENGSR -- and a DW can be repointed.
+;; Twenty-five bytes go to &4FF2 and the DW at &4F6E is made to name them.
+;;
+;; ref/samrom/eval.asm has IMMEDCODES and IMFNATAB, using.asm IMLENGTH, and
+;; endprint.asm LENGSR.
+;;
+;; What was here before:
+;;
+;;     the operand of its LD HL,IMFNATAB
 ;; --------------------------------------------------------------------
 
-               LD BC,&000A                     ; 5E64 01 0A 00  called from MasterDOS &78E5 for immediate code &25,
-                                               ; which its own
+; ---- FN_LENGTH ---- from DOS &78E5
+FN_LENGTH:
+               LD BC,&000A                     ; 5E64 01 0A 00  ten past the address HKLEN handed back is nine into
+                                               ; IMMEDCODES,
                ADD HL,BC                       ; 5E67 09
-
-;; --------------------------------------------------------------------
-;; routine's address is reached
-;; --------------------------------------------------------------------
-
-               LD C,(HL)                       ; 5E68 4E  ten in, then eight in again -- two levels of table before the
+               LD C,(HL)                       ; 5E68 4E  so BC comes out as IMFNATAB itself, and the second index
+                                               ; follows
                INC HL                          ; 5E69 23
                LD B,(HL)                       ; 5E6A 46
-               LD HL,&0008                     ; 5E6B 21 08 00
+
+;; --------------------------------------------------------------------
+;; LENGTH -- so DE comes out as IMLENGTH
+;; --------------------------------------------------------------------
+
+               LD HL,&0008                     ; 5E6B 21 08 00  IMFNATAB's fifth two-byte entry, counting PI, RND,
+                                               ; POINT, MEM,
                ADD HL,BC                       ; 5E6E 09
                LD E,(HL)                       ; 5E6F 5E
                INC HL                          ; 5E70 23
@@ -10964,18 +11010,49 @@ COPY_THEN_APPEND_CALL_9:
                OUT (HMPR),A                    ; 5E7C D3 FB
                EX DE,HL                        ; 5E7E EB
                LD DE,&8F62                     ; 5E7F 11 62 8F  &8F62 is &4F62 in the system page, INSTBUF+&62
-               LD BC,&0078                     ; 5E82 01 78 00
 
-; ---- COPY_THEN_APPEND_CALL_LOOP3 ---- from &5EDB
-COPY_THEN_APPEND_CALL_LOOP3:
-               LDIR                            ; 5E85 ED B0
-               LD HL,COPY_THEN_APPEND_CALL_10  ; 5E87 21 CE 5E
-               LD C,&0F                        ; 5E8A 0E 0F
+;; --------------------------------------------------------------------
+;; "Integer out of range", which is the last thing it needs
+;; --------------------------------------------------------------------
+
+               LD BC,&0078                     ; 5E82 01 78 00  IMLENGTH down to the DEFB 30 that finishes its RST &08
+                                               ; for
+
+;; --------------------------------------------------------------------
+;; note there
+;; --------------------------------------------------------------------
+
+; ---- FN_LENGTH_LOOP ---- from &5EDB
+FN_LENGTH_LOOP:
+               LDIR                            ; 5E85 ED B0  nothing jumps here. The arrow from &5EDB is a frame out;
+                                               ; see the
+               LD HL,FN_LENGTH_1               ; 5E87 21 CE 5E
+
+;; --------------------------------------------------------------------
+;; where the first copy stopped
+;; --------------------------------------------------------------------
+
+               LD C,&0F                        ; 5E8A 0E 0F  fifteen more, landing at &4FDA because &4F62 + &78 is
+                                               ; exactly
                LDIR                            ; 5E8C ED B0
-               LD A,&0B                        ; 5E8E 3E 0B
+
+;; --------------------------------------------------------------------
+;; is &4FCF: &4FCF + &0B is &4FDA, the fifteen bytes just planted.
+;; It read &C2 in the ROM, the step back to IMLENC
+;; --------------------------------------------------------------------
+
+               LD A,&0B                        ; 5E8E 3E 0B  the new displacement for the JR Z at &4FCD, whose next
+                                               ; instruction
                LD (&8FCE),A                    ; 5E90 32 CE 8F  patches a byte inside what was just copied
-               LD HL,&4F98                     ; 5E93 21 98 4F
-               LD (&8F86),HL                   ; 5E96 22 86 8F
+               LD HL,&4F98                     ; 5E93 21 98 4F  IMLEN3 is &36 into the block, so &4F62 + &36 once it is
+                                               ; here
+
+;; --------------------------------------------------------------------
+;; address inside the copy that points back into the copy
+;; --------------------------------------------------------------------
+
+               LD (&8F86),HL                   ; 5E96 22 86 8F  and &24 in is the operand of JP P,IMLEN3 -- the one
+                                               ; absolute
 
 ;; --------------------------------------------------------------------
 ;; bytes copied at &5EA7, and &4F6E is repointed at where they go
@@ -10983,13 +11060,40 @@ COPY_THEN_APPEND_CALL_LOOP3:
 
                LD HL,(&8F6E)                   ; 5E99 2A 6E 8F  the old contents of &4F6E are used as the source of the
                                                ; twenty-five
-               LD DE,&4FF2                     ; 5E9C 11 F2 4F
-               LD (&8F6E),DE                   ; 5E9F ED 53 6E 8F
-               LD D,&8F                        ; 5EA3 16 8F
-               LD C,&19                        ; 5EA5 0E 19
+
+;; --------------------------------------------------------------------
+;; written is overwritten
+;; --------------------------------------------------------------------
+
+               LD DE,&4FF2                     ; 5E9C 11 F2 4F  &4FF2 is past the fifteen appended bytes, so nothing
+                                               ; already
+
+;; --------------------------------------------------------------------
+;; LENGSR in ROM 1
+;; --------------------------------------------------------------------
+
+               LD (&8F6E),DE                   ; 5E9F ED 53 6E 8F  the DW after IMLENGTH's CALL R1OFFCL now names the
+                                               ; copy instead of
+
+;; --------------------------------------------------------------------
+;; &4FF2 seen through the window at &8000
+;; --------------------------------------------------------------------
+
+               LD D,&8F                        ; 5EA3 16 8F  E is still &F2 from the LD DE above, so the destination is
+                                               ; &8FF2 --
+               LD C,&19                        ; 5EA5 0E 19  LENGSR is twenty-five bytes, CALL LOOKVARS through to RET
                LDIR                            ; 5EA7 ED B0
-               LD A,&08                        ; 5EA9 3E 08
-               LD (&9003),A                    ; 5EAB 32 03 90
+
+;; --------------------------------------------------------------------
+;; SCOPN2 that copies the variable's header to MEMVAL+3, and IMLEN3's
+;; two-dimensional-array path reads MEMVAL+3 to MEMVAL+10 -- eight
+;; bytes, one more than the ROM copies, the last of them the LD D,(HL)
+;; --------------------------------------------------------------------
+
+               LD A,&08                        ; 5EA9 3E 08  LENGSR's LD C,7 becomes LD C,8. It is the count for the
+                                               ; LDIR in
+               LD (&9003),A                    ; 5EAB 32 03 90  &5003 is &11 into the copy at &4FF2, the operand of that
+                                               ; LD C
                POP AF                          ; 5EAE F1
                OUT (HMPR),A                    ; 5EAF D3 FB
                CALL MBNRRDD                    ; 5EB1 CD 5F 45
@@ -11001,17 +11105,17 @@ COPY_THEN_APPEND_CALL_LOOP3:
 ;; handles at &6594
 ;; --------------------------------------------------------------------
 
-               CP CH_HASH                       ; 5EB8 FE 23  a "#" after the keyword means the channel form, which
-                                                ; MasterDOS
-               JR NZ,COPY_THEN_APPEND_CALL_DONE ; 5EBA 20 0C
-               CALL CALL_NEXTCHAR               ; 5EBC CD 61 44
-               CALL SKIP_THEN_NUMBER            ; 5EBF CD 82 44
-               CALL CALLDOS                     ; 5EC2 CD C1 42
-               DEFW &6594                       ; 5EC5 94 65
-               RET                              ; 5EC7 C9
+               CP CH_HASH                      ; 5EB8 FE 23  a "#" after the keyword means the channel form, which
+                                               ; MasterDOS
+               JR NZ,FN_LENGTH_DONE            ; 5EBA 20 0C
+               CALL CALL_NEXTCHAR              ; 5EBC CD 61 44
+               CALL SKIP_THEN_NUMBER           ; 5EBF CD 82 44
+               CALL CALLDOS                    ; 5EC2 CD C1 42
+               DEFW &6594                      ; 5EC5 94 65
+               RET                             ; 5EC7 C9
 
-; ---- COPY_THEN_APPEND_CALL_DONE ---- from &5EBA when A <> CH_HASH
-COPY_THEN_APPEND_CALL_DONE:
+; ---- FN_LENGTH_DONE ---- from &5EBA when A <> CH_HASH
+FN_LENGTH_DONE:
                CALL MBCMR                      ; 5EC8 CD F0 44  otherwise run what was built, at &4F62
                DEFW &4F62                      ; 5ECB 62 4F
                RET                             ; 5ECD C9
@@ -11021,19 +11125,31 @@ COPY_THEN_APPEND_CALL_DONE:
 ;; being walked
 ;; --------------------------------------------------------------------
 
-; ---- COPY_THEN_APPEND_CALL_10 ---- from &5E87
-COPY_THEN_APPEND_CALL_10:
+; ---- FN_LENGTH_1 ---- from &5E87
+FN_LENGTH_1:
                BIT 6,H                         ; 5ECE CB 74  fifteen bytes planted at &4FDA, the rotating-window check
                                                ; again;
-               JR Z,COPY_THEN_APPEND_CALL_11   ; 5ED0 28 09
+               JR Z,FN_LENGTH_2                ; 5ED0 28 09
                RES 6,H                         ; 5ED2 CB B4
-               LD A,(&5123)                    ; 5ED4 3A 23 51
-               INC A                           ; 5ED7 3C
-               LD (&5123),A                    ; 5ED8 32 23 51
 
-; ---- COPY_THEN_APPEND_CALL_11 ---- from &5ED0 when bit 6 of H clear
-COPY_THEN_APPEND_CALL_11:
-               JR COPY_THEN_APPEND_CALL_LOOP3  ; 5EDB 18 A8
+;; --------------------------------------------------------------------
+;; the listing names this one
+;; --------------------------------------------------------------------
+
+               LD A,(&5123)                    ; 5ED4 3A 23 51  MEMVAL+2, the page byte -- MEMVAL itself is &5121, so
+                                               ; nothing in
+               INC A                           ; 5ED7 3C
+               LD (&5123),A                    ; 5ED8 32 23 51  and back, a page further on
+
+;; --------------------------------------------------------------------
+;; &4F62 + &2F -- IMLENC in the copy.  The listing's arrow to &5E85 is
+;; the whole &0EF4 of the relocation out
+;; --------------------------------------------------------------------
+
+; ---- FN_LENGTH_2 ---- from &5ED0 when bit 6 of H clear
+FN_LENGTH_2:
+               JR FN_LENGTH_LOOP               ; 5EDB 18 A8  in the frame these bytes run in this reaches &4F91, which
+                                               ; is
 
 ;; --------------------------------------------------------------------
 ;; word first -- GET_LONG_INTEGER splits it with MOD and IDIV by

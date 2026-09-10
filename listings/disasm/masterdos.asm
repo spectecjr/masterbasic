@@ -13345,7 +13345,7 @@ V78E2:
 ; ---- HEVV2_DONE ---- from &78BC when A = &25
 HEVV2_DONE:
                CALL CALLMB                     ; 78E5 CD BD 42  PT TO "#"
-               DEFW &5E64                      ; 78E8 64 5E
+               DEFW MB_FN_LENGTH-&4000         ; 78E8 64 5E
                RET                             ; 78EA C9
 
 ;; --------------------------------------------------------------------

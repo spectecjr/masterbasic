@@ -22755,15 +22755,15 @@ V78E2:
 ;; Takes:     BC, DE, HL
 ;; Leaves:    BC, DE, HL, IY
 ;;
-;; ? calls CALLMB; falls into whatever follows rather than returning.
+;; ? reaches the ROM through MB_FN_LENGTH-&4000; calls CALLMB; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- HEVV2_DONE ---- from &78BC when A = &25
 HEVV2_DONE:
-                                               ; call &5E64 in the other page: LMPR is switched first, so that address
-                                               ; is how the other listing numbers it
+                                               ; call MB_FN_LENGTH-&4000 in the other page: LMPR is switched first, so
+                                               ; that address is how the other listing numbers it
                CALL CALLMB                     ; 78E5 CD BD 42  PT TO "#"
-               DEFW &5E64                      ; 78E8 64 5E
+               DEFW MB_FN_LENGTH-&4000         ; 78E8 64 5E
                RET                             ; 78EA C9
 
 ;; --------------------------------------------------------------------

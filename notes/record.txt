@@ -314,8 +314,10 @@ DOC SILENCE_SOUND_CHIP_2
 MB &5DEB : not recording, so the SOUND or PAUSE is finished
 MB &5DED : stream 16, the ROM's "write to a string variable" stream
            in HL", which works wherever this block has been copied
-MB &5DF5 : &17 ahead is the CALL STREAM at the tail, so the swap runs once on
-           the way in and once on the way out
+MB &5DF2 : the CALL &0004 above -- POP HL : JP (HL) in ROM 0 -- left HL
+           holding this instruction's own address in whatever frame the block
+           was copied to, and &17 on from it is the CALL STREAM at the tail,
+           so the swap runs once on the way in and once on the way out
 MB &5DFE : HL is where the ROM's parser stopped, two past the terminator
 MB &5E04 : the register/value pairs, or the two bytes PAUSE laid down
 MB &5E07 : back to the normal output stream
@@ -360,14 +362,73 @@ MB &5E5A : the last byte, not one past it
 MB &5E5B : and if that step fell out of the bottom of the window, one page
            back
 
-MB &5E64 : called from MasterDOS &78E5 for immediate code &25, which its own
-           listing labels LENGTH
-MB &5E68 : ten in, then eight in again -- two levels of table before the
-           routine's address is reached
+MB &5E64 FN_LENGTH
+DOC FN_LENGTH
+    LENGTH, ASSEMBLED AT RUN TIME OUT OF THE ROM'S OWN LENGTH.
+
+    Called from MasterDOS &78E5, the A = &25 arm of HKLEN, which MasterDOS's
+    source labels LENGTH.  HKLEN handed back the HL it pushed at &789B, and
+    that is one *below* the ROM's IMMEDCODES: it was built by adding the
+    displacement byte of a JR to the address of the byte after that
+    displacement, which is a byte short of where the JR itself lands.  Every
+    offset here counts from there, and so does MasterDOS's own &11 and 6.
+
+    Nothing of the ROM's routine is called.  ROM 1 comes in at &C000 and the
+    system page at &8000, and 120 bytes of IMLENGTH are copied to &4F62 in
+    the system page -- INSTBUF+&62 -- where four patches turn them into a
+    version that can follow a variable across a page boundary:
+
+        &4FDA         fifteen bytes appended from &5ECE, which is where
+                      &4F62 + &78 lands
+        &4FCE = &0B   IMLENGTH's JR Z,IMLENC now enters those fifteen
+        &4F86 = &4F98 its JP P,IMLEN3 moved with it
+        &5003 = &08   LENGSR's LDIR count, seven in the ROM
+
+    The fifteen bytes are the rotating-window step: if the address has run
+    past &BFFF, bring H back down and count a page on in MEMVAL+2, then fall
+    into IMLENC.  The ROM has no such step because the ROM's LENGTH never
+    walks off the end of a page.
+
+    LENGSR is copied too, because IMLENGTH reaches it through a DW rather
+    than a CALL -- CALL R1OFFCL : DW LENGSR -- and a DW can be repointed.
+    Twenty-five bytes go to &4FF2 and the DW at &4F6E is made to name them.
+
+    ref/samrom/eval.asm has IMMEDCODES and IMFNATAB, using.asm IMLENGTH, and
+    endprint.asm LENGSR.
+
+MB &5E64 : ten past the address HKLEN handed back is nine into IMMEDCODES,
+           the operand of its LD HL,IMFNATAB
+MB &5E68 : so BC comes out as IMFNATAB itself, and the second index follows
+MB &5E6B : IMFNATAB's fifth two-byte entry, counting PI, RND, POINT, MEM,
+           LENGTH -- so DE comes out as IMLENGTH
 MB &5E7F : &8F62 is &4F62 in the system page, INSTBUF+&62
+MB &5E82 : IMLENGTH down to the DEFB 30 that finishes its RST &08 for
+           "Integer out of range", which is the last thing it needs
+MB &5E85 : nothing jumps here.  The arrow from &5EDB is a frame out; see the
+           note there
+MB &5E8A : fifteen more, landing at &4FDA because &4F62 + &78 is exactly
+           where the first copy stopped
+MB &5E8E : the new displacement for the JR Z at &4FCD, whose next instruction
+           is &4FCF: &4FCF + &0B is &4FDA, the fifteen bytes just planted.
+           It read &C2 in the ROM, the step back to IMLENC
 MB &5E90 : patches a byte inside what was just copied
+MB &5E93 : IMLEN3 is &36 into the block, so &4F62 + &36 once it is here
+MB &5E96 : and &24 in is the operand of JP P,IMLEN3 -- the one absolute
+           address inside the copy that points back into the copy
 MB &5E99 : the old contents of &4F6E are used as the source of the twenty-five
            bytes copied at &5EA7, and &4F6E is repointed at where they go
+MB &5E9C : &4FF2 is past the fifteen appended bytes, so nothing already
+           written is overwritten
+MB &5E9F : the DW after IMLENGTH's CALL R1OFFCL now names the copy instead of
+           LENGSR in ROM 1
+MB &5EA3 : E is still &F2 from the LD DE above, so the destination is &8FF2 --
+           &4FF2 seen through the window at &8000
+MB &5EA5 : LENGSR is twenty-five bytes, CALL LOOKVARS through to RET
+MB &5EA9 : LENGSR's LD C,7 becomes LD C,8.  It is the count for the LDIR in
+           SCOPN2 that copies the variable's header to MEMVAL+3, and IMLEN3's
+           two-dimensional-array path reads MEMVAL+3 to MEMVAL+10 -- eight
+           bytes, one more than the ROM copies, the last of them the LD D,(HL)
+MB &5EAB : &5003 is &11 into the copy at &4FF2, the operand of that LD C
 MB &5EB8 : a "#" after the keyword means the channel form, which MasterDOS
            handles at &6594
 MB &5EC8 : otherwise run what was built, at &4F62
@@ -375,6 +436,12 @@ MB &5EC8 : otherwise run what was built, at &4F62
 MB &5ECE : fifteen bytes planted at &4FDA, the rotating-window check again;
            &5123 is MEMVAL+2 in the system page, the page byte of the pointer
            being walked
+MB &5ED4 : MEMVAL+2, the page byte -- MEMVAL itself is &5121, so nothing in
+           the listing names this one
+MB &5ED8 : and back, a page further on
+MB &5EDB : in the frame these bytes run in this reaches &4F91, which is
+           &4F62 + &2F -- IMLENC in the copy.  The listing's arrow to &5E85 is
+           the whole &0EF4 of the relocation out
 
 MB &5EDD : the value arrives as D:E in one pair and B:C in the other, high
            word first -- GET_LONG_INTEGER splits it with MOD and IDIV by

@@ -30,6 +30,9 @@ DOC COPY_THEN_APPEND_CALL
     preserved across the appended copy so the caller still has the end of
     its own block.
 
+MB &5DA5 : three bytes -- the CD 5B 4B at &5DAB.  B is still zero from the
+           caller's own LDIR, so only C has to be set
+
 MB &4240 BYTE_TO_DECIMAL
     A to three decimal characters, returned in A, C and B -- hundreds,
     tens and units.  &4249 pushes the hundreds and &4250 the tens; the
