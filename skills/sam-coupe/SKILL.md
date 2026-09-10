@@ -72,6 +72,28 @@ is CON 5: `&E8`,`&E9` for LPT1, `&EA`,`&EB` for LPT2.  **There is no
 fixed address**, so a driver reads the one it was told; MasterBASIC
 keeps it in an XVAR and defaults to `&EC`.
 
+The SCC2691's eight registers are different on the two sides (Table 1
+of its data sheet).  Write: 0 MR1/MR2, 1 CSR, 2 CR, 3 THR, 4 ACR, 5
+IMR, 6 CTUR, 7 CTLR.  Read: 0 MR1/MR2, 1 SR, 2 BRG test, 3 RHR, 4
+1X/16X test, 5 ISR, 6 CTU, 7 CTL.  Two of them mislead a reader:
+
+- **Register 0 is two registers.**  It is MR1 on the first write after a
+  reset-MR-pointer command and MR2 on the second, so a pair of writes to
+  the same register number is setting two different things.
+- **CR's top nibble is a command code, not four flags**: `&10` reset MR
+  pointer, `&20` reset receiver, `&30` reset transmitter, `&40` reset
+  error status, `&50` reset break change interrupt, `&80` start C/T,
+  `&90` stop counter, `&A0` assert RTSN, `&B0` negate RTSN.  Its low
+  nibble *is* four flags, and they are separate enables and disables:
+  bit 0 Rx on, bit 1 Rx off, bit 2 Tx on, bit 3 Tx off.
+
+So a run of writes to one port with the same register selected is a
+script of commands rather than a value being adjusted, and it should be
+read a byte at a time.  ACR is worth checking against the data sheet
+before assuming any of it is a choice -- in bit 3 "must be set to a
+logic 1 after reset", and ACR[2:0] of 000 is what puts RTSN on the MPO
+pin, without which an assert-RTSN command reaches nothing.
+
 **The SAMBUS real-time clock** (`SAM Bus Extension (with RTC).pdf`), an
 OKI M6242B, at `&EF`.  Thirteen registers, 0 to 12: units and tens of
 second, minute, hour (tens carries AM/PM), day, month and year, then the

@@ -349,9 +349,21 @@ MB &593B : the OUT (C) form puts B on the top half of the address bus, which is 
 
 MB &593D : resetting the MR pointer is what makes the next two writes to register 0 land on MR1 and then MR2
 
+MB &5941 : register 0, MR1 and MR2 -- Table 1 of the SCC2691 data sheet numbers the write side 0 MR1/MR2, 1 CSR, 2 CR, 3 THR, 4 ACR, 5 IMR, 6 CTUR, 7 CTLR, which is the whole of the walk below
+
+MB &594D : register 4, the auxiliary control register
+
+MB &594F : &38 is three fields at once, and only two of them are a choice.  Bit 7 clear picks baud rate generator set 1 -- 50 to 38.4k, the set with 300, 1200 and 9600 in it.  Bits 6 to 4 of 011 run the counter from the crystal divided by 16.  Bit 3 is not a choice at all: the data sheet says of the power-down select that "this bit must be set to a logic 1 after reset".  The three low bits being zero put RTSN on the MPO pin, which is what the last command below depends on
+
 MB &5954 : one XOR A serves IMR, CTUR and CTLR: no interrupts, and the counter/timer divisors cleared rather than left as found
 
-MB &596B : no CALL -- the last pair falls into SERCMD
+MB &595D : register 2, the command register, for the six commands the rest of the routine issues
+
+MB &595F : CR's top four bits are a command code, so each byte of a pair here is one command.  &20 is 0010, reset receiver, and &30 is 0011, reset transmitter -- "resets ... as if a hardware reset had been applied"
+
+MB &5965 : &40 is 0100, reset error status, clearing break, parity, framing and overrun in SR[7:4]; &50 is 0101, reset break change interrupt, clearing ISR[3].  So the four resets go out before anything is enabled
+
+MB &596B : no CALL -- the last pair falls into SERCMD.  &05 is the only byte of the six that uses CR's low nibble rather than its command field: bit 0 enables the receiver and bit 2 the transmitter.  &A0 is 1010, assert RTSN, which reaches the outside world only because &38 above selected RTSN onto MPO
 
 MB &596E : H before L, so a caller can write the pair in the order it reads
 

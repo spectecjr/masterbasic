@@ -12914,14 +12914,22 @@ SERINIT:
                LD A,&10                        ; 593D 3E 10  resetting the MR pointer is what makes the next two writes
                                                ; to register 0 land on MR1 and then MR2
                OUT (C),A                       ; 593F ED 79
-               LD B,&00                        ; 5941 06 00
+               LD B,&00                        ; 5941 06 00  register 0, MR1 and MR2 -- Table 1 of the SCC2691 data
+                                               ; sheet numbers the write side 0 MR1/MR2, 1 CSR, 2 CR, 3 THR, 4 ACR, 5
+                                               ; IMR, 6 CTUR, 7 CTLR, which is the whole of the walk below
                OUT (C),L                       ; 5943 ED 69
                OUT (C),H                       ; 5945 ED 61
                INC B                           ; 5947 04
                LD A,(BAUD)                     ; 5948 3A 0C 40
                OUT (C),A                       ; 594B ED 79
-               LD B,&04                        ; 594D 06 04
-               LD A,&38                        ; 594F 3E 38
+               LD B,&04                        ; 594D 06 04  register 4, the auxiliary control register
+               LD A,&38                        ; 594F 3E 38  &38 is three fields at once, and only two of them are a
+                                               ; choice. Bit 7 clear picks baud rate generator set 1 -- 50 to 38.4k, the
+                                               ; set with 300, 1200 and 9600 in it. Bits 6 to 4 of 011 run the counter
+                                               ; from the crystal divided by 16. Bit 3 is not a choice at all: the data
+                                               ; sheet says of the power-down select that "this bit must be set to a
+                                               ; logic 1 after reset". The three low bits being zero put RTSN on the MPO
+                                               ; pin, which is what the last command below depends on
                OUT (C),A                       ; 5951 ED 79
                INC B                           ; 5953 04
                XOR A                           ; 5954 AF  one XOR A serves IMR, CTUR and CTLR: no interrupts, and the
@@ -12931,12 +12939,23 @@ SERINIT:
                OUT (C),A                       ; 5958 ED 79
                INC B                           ; 595A 04
                OUT (C),A                       ; 595B ED 79
-               LD B,&02                        ; 595D 06 02
-               LD HL,&2030                     ; 595F 21 30 20
+               LD B,&02                        ; 595D 06 02  register 2, the command register, for the six commands the
+                                               ; rest of the routine issues
+               LD HL,&2030                     ; 595F 21 30 20  CR's top four bits are a command code, so each byte of a
+                                               ; pair here is one command. &20 is 0010, reset receiver, and &30 is 0011,
+                                               ; reset transmitter -- "resets ... as if a hardware reset had been
+                                               ; applied"
                CALL SERCMD                     ; 5962 CD 6E 59
-               LD HL,&4050                     ; 5965 21 50 40
+               LD HL,&4050                     ; 5965 21 50 40  &40 is 0100, reset error status, clearing break, parity,
+                                               ; framing and overrun in SR[7:4]; &50 is 0101, reset break change
+                                               ; interrupt, clearing ISR[3]. So the four resets go out before anything
+                                               ; is enabled
                CALL SERCMD                     ; 5968 CD 6E 59
-               LD HL,&05A0                     ; 596B 21 A0 05  no CALL -- the last pair falls into SERCMD
+               LD HL,&05A0                     ; 596B 21 A0 05  no CALL -- the last pair falls into SERCMD. &05 is the
+                                               ; only byte of the six that uses CR's low nibble rather than its command
+                                               ; field: bit 0 enables the receiver and bit 2 the transmitter. &A0 is
+                                               ; 1010, assert RTSN, which reaches the outside world only because &38
+                                               ; above selected RTSN onto MPO
 
 ;; --------------------------------------------------------------------
 ;; SERCMD -- &596E to &5972
