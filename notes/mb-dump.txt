@@ -156,6 +156,28 @@ MB &6AF9 DUMP_TEXT
     failure prints a space.  DEVICE is zeroed around each call and put
     back.
 
+    CARRY MEANS NOT FOUND, which is the opposite of what the Technical
+    Manual says of &0184 and the reason the JR C at &6B23 takes the
+    space.  ref/samrom/scrfn.asm settles it: SCBMCH's failure path is
+    "RET C ;RET IF NOT FOUND", and SCRNFND ends "LD HL,TEMPW1 : LD
+    (HL),A ;NC='FOUND'".  That second line also says what the LD A,(HL)
+    at &6B25 is reading -- HL is left pointing at TEMPW1, where the
+    matched code was just stored.
+
+MB &6AFD : PRRHS is the ROM's "PRINTER RHS LIMIT - 79", and &FF puts it out of reach so the only line breaks in the dump are the carriage returns this routine sends itself.  The old value went on the stack at &6AFC and comes back at &6B3E
+
+MB &6B02 : stream 3, the printer
+
+MB &6B07 expr CH_CR
+MB &6B07 : one carriage return before the first row
+
+MB &6B1A : DEVICE, which vars.asm numbers "0=US, 1=LS, 2=PRINTER", forced to the upper screen for the SCREEN$ call below and put straight back at &6B28.  The read has to come from the screen and the RST PRINT_A after it has to go to the printer, so the byte is flipped once per character rather than once per dump
+
+MB &6B21 : a space, for a cell whose pattern matches nothing in either character set.  It is loaded before the test because carry means the search failed -- see above
+
+MB &6B31 expr CH_CR
+MB &6B31 : and one at the end of every row
+
 MB &6B42 DUMP_UNSHADED
     DUMP 4's half, at &4F49 once moved.  Selects stream &FB and works
     through the ROM's dump control strings -- &5A16 and &5A1F are GCM1
@@ -583,6 +605,32 @@ MB &62E9 EXPAND_COMPRESSED_FILE
     same stream the encoder filled, and then pairs of nibbles come back
     out through READ_NEXT_NIBBLE -- the value first, into D at &630A,
     and the count after it.
+
+    THE LENGTH COMES IN TWO FORMS AND THEY MEET EXACTLY.  A length
+    nibble of 0 to 7 is a run of 4 to 11; a nibble with bit 3 set
+    introduces a second one, and the seven bits they make between them
+    come out as 12 to 139.  Four is the floor because escape, value,
+    length is three nibbles in for three nibbles out and saves nothing,
+    and the two ranges are contiguous -- so every run from 4 to 139 has
+    exactly one encoding and there is no length the encoder cannot say.
+
+    A RUN OF THE ESCAPE NIBBLE ITSELF is what the three DEC Bs at &6326
+    are for.  When the value equals the escape, three come off the
+    count, so the short form's 0 to 7 reads as 1 to 8 there -- which is
+    what lets a single literal occurrence of the escape nibble be
+    encoded at all, at a cost of three nibbles for one.
+
+MB &62EE : E is the nibble mask the two AND E in READ_NEXT_NIBBLE use, and D is its phase counter.  Zero, because the INC D at the top of that routine makes it one on the first call, and an odd D takes the high half of the byte -- so the stream reads high nibble first
+
+MB &62F1 : the work buffer, &2500 into section D.  LOAD_NEXT_INPUT_BLOCK fills it &1900 at a time -- as &A500 with HMPR bumped one, which is the same bytes seen through the moved window -- and &E500 plus &1900 is &FE00, which is the CP &FE at &637D asking for the next block.  BUILD_NIBBLE_TABLE puts its histogram at the same address on the way in
+
+MB &62F9 : one step before the first nibble, so the loop needs no special case for it.  HL is twice the offset from &8000 with bit 0 choosing the half of the byte; from &FFFF the first call rolls L to 0 and H to 0 together, and the SCF : RR H : RR L that follows makes &8000 with the high nibble selected
+
+MB &631B : bit 3 of the first nibble said this was the long form, and the four RLCAs above carried it up to bit 7, so this is where the flag is thrown away and only the seven value bits kept
+
+MB &631D : eight, and then the four below that this falls into: twelve in all, which is exactly where the short form's 4 to 11 leaves off
+
+MB &631F : four, because a run of three costs three nibbles and prints three.  So a short-form length of 0 to 7 means 4 to 11, and the shortest run worth encoding is the shortest one this can express
 
 MB &6331 NEXT_SCREEN_NIBBLE
     Step a nibble address down the screen the way NEXT_SCREEN_BYTE steps

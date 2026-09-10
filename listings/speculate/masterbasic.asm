@@ -18078,6 +18078,20 @@ PAGED_TO_LONG:
 ;;     same stream the encoder filled, and then pairs of nibbles come back
 ;;     out through READ_NEXT_NIBBLE -- the value first, into D at &630A,
 ;;     and the count after it.
+;;
+;;     THE LENGTH COMES IN TWO FORMS AND THEY MEET EXACTLY.  A length
+;;     nibble of 0 to 7 is a run of 4 to 11; a nibble with bit 3 set
+;;     introduces a second one, and the seven bits they make between them
+;;     come out as 12 to 139.  Four is the floor because escape, value,
+;;     length is three nibbles in for three nibbles out and saves nothing,
+;;     and the two ranges are contiguous -- so every run from 4 to 139 has
+;;     exactly one encoding and there is no length the encoder cannot say.
+;;
+;;     A RUN OF THE ESCAPE NIBBLE ITSELF is what the three DEC Bs at &6326
+;;     are for.  When the value equals the escape, three come off the
+;;     count, so the short form's 0 to 7 reads as 1 to 8 there -- which is
+;;     what lets a single literal occurrence of the escape nibble be
+;;     encoded at all, at a cost of three nibbles for one.
 ;; --------------------------------------------------------------------
 
 ; ---- EXPAND_COMPRESSED_FILE ---- from &62B5
@@ -18085,13 +18099,25 @@ EXPAND_COMPRESSED_FILE:
                LD (V4078),SP                   ; 62E9 ED 73 78 40
                                                ; to the alternate register set and back again
                EXX                             ; 62ED D9
-               LD DE,&000F                     ; 62EE 11 0F 00
-               LD HL,&E500                     ; 62F1 21 00 E5
+               LD DE,&000F                     ; 62EE 11 0F 00  E is the nibble mask the two AND E in READ_NEXT_NIBBLE
+                                               ; use, and D is its phase counter. Zero, because the INC D at the top of
+                                               ; that routine makes it one on the first call, and an odd D takes the
+                                               ; high half of the byte -- so the stream reads high nibble first
+               LD HL,&E500                     ; 62F1 21 00 E5  the work buffer, &2500 into section D.
+                                               ; LOAD_NEXT_INPUT_BLOCK fills it &1900 at a time -- as &A500 with HMPR
+                                               ; bumped one, which is the same bytes seen through the moved window --
+                                               ; and &E500 plus &1900 is &FE00, which is the CP &FE at &637D asking for
+                                               ; the next block. BUILD_NIBBLE_TABLE puts its histogram at the same
+                                               ; address on the way in
                                                ; to the alternate register set and back again
                EXX                             ; 62F4 D9
                CALL READ_NEXT_NIBBLE           ; 62F5 CD 67 63
                LD C,A                          ; 62F8 4F
-               LD HL,&FFFF                     ; 62F9 21 FF FF
+               LD HL,&FFFF                     ; 62F9 21 FF FF  one step before the first nibble, so the loop needs no
+                                               ; special case for it. HL is twice the offset from &8000 with bit 0
+                                               ; choosing the half of the byte; from &FFFF the first call rolls L to 0
+                                               ; and H to 0 together, and the SCF : RR H : RR L that follows makes &8000
+                                               ; with the high nibble selected
 
 ;; --------------------------------------------------------------------
 ;; EXPAND_COMPRESSED_FILE_LOOP -- &62FC to &6306
@@ -18134,8 +18160,11 @@ EXPAND_COMPRESSED_FILE_1:
                LD B,A                          ; 6316 47
                CALL READ_NEXT_NIBBLE           ; 6317 CD 67 63
                OR B                            ; 631A B0
-               AND &7F                         ; 631B E6 7F
-               ADD A,&08                       ; 631D C6 08
+               AND &7F                         ; 631B E6 7F  bit 3 of the first nibble said this was the long form, and
+                                               ; the four RLCAs above carried it up to bit 7, so this is where the flag
+                                               ; is thrown away and only the seven value bits kept
+               ADD A,&08                       ; 631D C6 08  eight, and then the four below that this falls into: twelve
+                                               ; in all, which is exactly where the short form's 4 to 11 leaves off
 
 ;; --------------------------------------------------------------------
 ;; EXPAND_COMPRESSED_FILE_2 -- &631F to &6328
@@ -18146,7 +18175,9 @@ EXPAND_COMPRESSED_FILE_1:
 
 ; ---- EXPAND_COMPRESSED_FILE_2 ---- from &6310 when bit 3 of A clear
 EXPAND_COMPRESSED_FILE_2:
-               ADD A,&04                       ; 631F C6 04
+               ADD A,&04                       ; 631F C6 04  four, because a run of three costs three nibbles and prints
+                                               ; three. So a short-form length of 0 to 7 means 4 to 11, and the shortest
+                                               ; run worth encoding is the shortest one this can express
                LD B,A                          ; 6321 47
                LD A,D                          ; 6322 7A
                CP C                            ; 6323 B9
@@ -22183,6 +22214,8 @@ CMD_DUMP_5_DISPATCH:
 ;; Takes:     nothing in registers
 ;; Leaves:    A, BC, DE, HL
 ;;
+;; ? tests for CH_CR; falls into whatever follows rather than returning.
+;;
 ;; Shown for this routine in listings/disasm/:
 ;;
 ;;     DUMP 5's half of the block, at &4F00 once moved.  It saves PRRHS,
@@ -22194,6 +22227,14 @@ CMD_DUMP_5_DISPATCH:
 ;;     with the character set in an attempt to match the character", and a
 ;;     failure prints a space.  DEVICE is zeroed around each call and put
 ;;     back.
+;;
+;;     CARRY MEANS NOT FOUND, which is the opposite of what the Technical
+;;     Manual says of &0184 and the reason the JR C at &6B23 takes the
+;;     space.  ref/samrom/scrfn.asm settles it: SCBMCH's failure path is
+;;     "RET C ;RET IF NOT FOUND", and SCRNFND ends "LD HL,TEMPW1 : LD
+;;     (HL),A ;NC='FOUND'".  That second line also says what the LD A,(HL)
+;;     at &6B25 is reading -- HL is left pointing at TEMPW1, where the
+;;     matched code was just stored.
 ;; --------------------------------------------------------------------
 
 ; ---- DUMP_TEXT ---- from &6ADD
@@ -22201,12 +22242,15 @@ DUMP_TEXT:
                LD A,(PRRHS)                    ; 6AF9 3A 0E 5A  from here to &6C2E this code is written for &4F00:
                                                ; subtract &1BF9 from any address in it
                PUSH AF                         ; 6AFC F5
-               LD A,&FF                        ; 6AFD 3E FF
+               LD A,&FF                        ; 6AFD 3E FF  PRRHS is the ROM's "PRINTER RHS LIMIT - 79", and &FF puts
+                                               ; it out of reach so the only line breaks in the dump are the carriage
+                                               ; returns this routine sends itself. The old value went on the stack at
+                                               ; &6AFC and comes back at &6B3E
                                                ; self-modifying: patches the operand of the LD at &5A0B
                LD (PRRHS),A                    ; 6AFF 32 0E 5A
-               LD A,&03                        ; 6B02 3E 03
+               LD A,&03                        ; 6B02 3E 03  stream 3, the printer
                CALL STREAM                     ; 6B04 CD 12 01
-               LD A,&0D                        ; 6B07 3E 0D
+               LD A,CH_CR                      ; 6B07 3E 0D  one carriage return before the first row
                RST PRINT_A                     ; 6B09 D7
                LD HL,UWRHS                     ; 6B0A 21 38 5A
                LD C,(HL)                       ; 6B0D 4E
@@ -22230,11 +22274,17 @@ DUMP_TEXT_LOOP:
                PUSH DE                         ; 6B15 D5
                LD HL,DEVICE                    ; 6B16 21 73 5A
                LD A,(HL)                       ; 6B19 7E
-               LD (HL),&00                     ; 6B1A 36 00
+               LD (HL),&00                     ; 6B1A 36 00  DEVICE, which vars.asm numbers "0=US, 1=LS, 2=PRINTER",
+                                               ; forced to the upper screen for the SCREEN$ call below and put straight
+                                               ; back at &6B28. The read has to come from the screen and the RST PRINT_A
+                                               ; after it has to go to the printer, so the byte is flipped once per
+                                               ; character rather than once per dump
                PUSH AF                         ; 6B1C F5
                PUSH HL                         ; 6B1D E5
                CALL JNCHAR                     ; 6B1E CD 84 01
-               LD A,&20                        ; 6B21 3E 20
+               LD A,&20                        ; 6B21 3E 20  a space, for a cell whose pattern matches nothing in either
+                                               ; character set. It is loaded before the test because carry means the
+                                               ; search failed -- see above
                JR C,DUMP_TEXT_1                ; 6B23 38 01
                LD A,(HL)                       ; 6B25 7E
 
@@ -22244,6 +22294,8 @@ DUMP_TEXT_LOOP:
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F, BC, DE, HL
 ;; Ends:      RET
+;;
+;; ? tests for CH_CR.
 ;; --------------------------------------------------------------------
 
 ; ---- DUMP_TEXT_1 ---- from &6B23
@@ -22258,7 +22310,7 @@ DUMP_TEXT_1:
                INC E                           ; 6B2D 1C
                CP C                            ; 6B2E B9
                JR NZ,DUMP_TEXT_LOOP            ; 6B2F 20 E3
-               LD A,&0D                        ; 6B31 3E 0D
+               LD A,CH_CR                      ; 6B31 3E 0D  and one at the end of every row
                RST PRINT_A                     ; 6B33 D7
                LD A,(UWLHS)                    ; 6B34 3A 39 5A
                LD E,A                          ; 6B37 5F

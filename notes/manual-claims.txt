@@ -117,6 +117,21 @@
 # INT(height/8) and the remainder spaces the rows out -- but it is not
 # what the code enforces.
 
+# THE TECHNICAL MANUAL HAS &0184'S CARRY THE WRONG WAY ROUND.  Of JMCHAR
+# it says "the carry flag is set if the search was successful, in which
+# case A holds a character code ... If the carry flag was reset, A=0 and
+# the search failed."  The ROM's own source says the reverse twice over:
+# SCBMCH in ref/samrom/scrfn.asm has "RET C ;RET IF NOT FOUND", and
+# SCRNFND ends "LD (HL),A ;NC='FOUND'".
+#
+# DUMP_TEXT agrees with the ROM and not the manual -- &6B21 loads a
+# space and &6B23 keeps it on carry -- so a reader who trusted the
+# manual here would conclude the text dump prints a space for every
+# character it recognised and the character for every one it did not.
+#
+# The same passage also gives the UDG range as "80H-7FH (128-168)",
+# where the hex and the decimal disagree and the decimal is right.
+
 # THE TECHNICAL MANUAL PUTS GCM1 ONE BYTE TOO HIGH.  It gives GCM1 as
 # &5A17, but its own account of the variable settles it the other way:
 # GCM1 holds nine bytes and GCM2 follows at &5A1F, so GCM1 begins at
