@@ -525,6 +525,31 @@ MB &6726 READ_COUNTED_STRING
     that many bytes after it, into the buffer at &7B00 -- the installer's
     dead bytes again.
 
+    WHAT IT READ IS A FIVE-BYTE HEADER AND A TABLE, and the four numbers
+    below say so between them:
+
+        &7B00  the escape byte           &6770 reads it into C
+        &7B01  the compressed length     &673B, and &66B0 wrote it
+        &7B03  the expanded length       &6756
+        &7B05  a table of literals       &676C, and &678F steps it
+
+    So the header is five bytes and the table starts where it ends.  The
+    table is what the escape byte doubled stands for: &6780 sees the
+    escape twice and &678F takes the next entry, with INC E rather than
+    INC DE, so the whole table has to live inside one 256-byte page.
+
+    BOTH &C000 IS THE SAME &C000, one past the top of the window.
+    Subtracting a length from it gives the address a block of that length
+    has to start at to finish flush with &BFFF -- once for the compressed
+    data and once for what it expands to, so each is laid as high in the
+    window as it will go.
+
+MB &6738 : one past &BFFF, so subtracting the length below lands where the compressed data has to start to end flush with the top of the window
+MB &673B : the compressed length, header bytes 1 and 2 -- the ones the compressor writes at &66B0
+MB &6753 : the same &C000 again, this time for the expanded length at &7B03
+MB &676C : five bytes in, just past the header, where the table of literals begins.  It goes into the alternate set because the main DE is the output pointer, and &678F reads it one entry at a time
+MB &6775 : one, the run length for a byte that is not the escape -- so the shared store below serves a literal and a run alike, and only a real run reloads B from the stream at &6782
+
 MB &5898 CHANNEL_WORD_FROM_5A67
     Read the ROM variable at &5A67 into DE and fall into
     EXCHANGE_CHANNEL_WORD, so that value is what goes into the channel

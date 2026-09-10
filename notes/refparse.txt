@@ -442,10 +442,27 @@ MB &5A17 : same address and same page as well: the buffer is empty and there is 
 
 MB &5A1E : D+1 divisible by four passes for any D ending in three -- sixty-four values, the last 256 bytes of every 1K -- which is a cheap first sieve before the fuller test below.  &3F, &7F, &BF and &FF are among them, not the whole of them
 
-MB &5A24 : the block mapped at &4000 has its link sixteen bytes lower than the others.  Why is not clear from this code
+MB &5A20 : three, because the slots are 1K and a link only ever sits in the last 256 bytes of one
+
+# ANSWERED: the block at &4000 has its link sixteen bytes lower because
+# SLOTT is there.
+#
+# SLOTT is the top sixteen bytes of the page, so in this frame it is
+# &7FF0-&7FFF -- and the top slot's link at &7FFE and &7FFF would be
+# entries 14 and 15 of it.  The allocator says the same thing from the
+# other window: ALLOC_UTILITY_SLOT's CP &BF at &5F53 picks out exactly
+# this slot and loads &EE instead of &FE, and FREE_SLOT_CHAIN's INC A at
+# &5F8E spots it and does the same.  So all four routines that touch the
+# chain carry the same exception, two of them at &BFEE and two at &7FEE,
+# and none of them needs it written down anywhere.
+MB &5A25 : the top slot in this frame, whose link is sixteen bytes below where every other slot keeps its -- SLOTT occupies &7FF0-&7FFF, so &7FFE and &7FFF are two of its entries
+
+MB &5A2A : so &EE is brought up to &FE and the one compare below serves both addresses
+MB &5A2C : the link's offset, &3FE of the slot's &400
 
 MB &5A33 : the last two bytes of a block are the link: the next block's address high byte, then its page
 
+MB &5A37 : the new slot's first byte -- the link gave D the next slot's high byte, and a slot always starts on a &400 boundary, so zero is the whole of the low half
 MB &5A3A : the same biased page byte read at &59FC, so the feed picks up where it left off next interrupt
 
 MB &5A42 : CHECK_PRINTER_READY is this half's own, at &432B -- &832B is this half seen through the window, because this code runs where MasterBASIC is at &8000

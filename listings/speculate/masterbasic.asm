@@ -13396,14 +13396,17 @@ PRINTER_FEED_TICK_1:
                                                ; first sieve before the fuller test below. &3F, &7F, &BF and &FF are
                                                ; among them, not the whole of them
                INC A                           ; 5A1F 3C
-               AND &03                         ; 5A20 E6 03
+               AND &03                         ; 5A20 E6 03  three, because the slots are 1K and a link only ever sits
+                                               ; in the last 256 bytes of one
                JR NZ,PRINTER_FEED_TICK_3       ; 5A22 20 1E
-               LD A,D                          ; 5A24 7A  the block mapped at &4000 has its link sixteen bytes lower
-                                               ; than the others. Why is not clear from this code
-               CP &7F                          ; 5A25 FE 7F
+               LD A,D                          ; 5A24 7A
+               CP &7F                          ; 5A25 FE 7F  the top slot in this frame, whose link is sixteen bytes
+                                               ; below where every other slot keeps its -- SLOTT occupies &7FF0-&7FFF,
+                                               ; so &7FFE and &7FFF are two of its entries
                LD A,E                          ; 5A27 7B
                JR NZ,PRINTER_FEED_TICK_2       ; 5A28 20 02
-               ADD A,&10                       ; 5A2A C6 10
+               ADD A,&10                       ; 5A2A C6 10  so &EE is brought up to &FE and the one compare below
+                                               ; serves both addresses
 
 ;; --------------------------------------------------------------------
 ;; PRINTER_FEED_TICK_2 -- &5A2C to &5A41
@@ -13416,7 +13419,7 @@ PRINTER_FEED_TICK_1:
 
 ; ---- PRINTER_FEED_TICK_2 ---- from &5A28 when A <> &7F
 PRINTER_FEED_TICK_2:
-               CP &FE                          ; 5A2C FE FE
+               CP &FE                          ; 5A2C FE FE  the link's offset, &3FE of the slot's &400
                JR NZ,PRINTER_FEED_TICK_3       ; 5A2E 20 12
                LD A,B                          ; 5A30 78
                OUT (LMPR),A                    ; 5A31 D3 FA
@@ -13425,7 +13428,9 @@ PRINTER_FEED_TICK_2:
                LD H,A                          ; 5A34 67
                INC E                           ; 5A35 1C
                LD A,(DE)                       ; 5A36 1A
-               LD E,&00                        ; 5A37 1E 00
+               LD E,&00                        ; 5A37 1E 00  the new slot's first byte -- the link gave D the next
+                                               ; slot's high byte, and a slot always starts on a &400 boundary, so zero
+                                               ; is the whole of the low half
                LD D,H                          ; 5A39 54
                LD (V4085+&4000),A              ; 5A3A 32 85 80  the same biased page byte read at &59FC, so the feed
                                                ; picks up where it left off next interrupt
@@ -13858,6 +13863,15 @@ HOOK_FARSCAN_3:
 ;;     usual SET 7,H and RES 6,H -- then AND &03 on the byte before the
 ;;     windowing, which is the page's low bits, decides whether the pointer
 ;;     has run off the end.
+;;
+;;     THE FIVE TESTS ARE THE CHAIN WALK, and this is the third routine to
+;;     make it: SOUND_FEED_TICK at &5A96 and PRINTER_FEED_TICK at &5A1E do
+;;     the same five instructions on the same two addresses.  The buffer is
+;;     1K slots from the utility allocator, each keeping its link in its
+;;     last two bytes, and the top slot in the &4000 frame keeps its
+;;     sixteen bytes lower to stay off SLOTT.  E holds the high byte from
+;;     before the windowing precisely so the &7F test can be made in that
+;;     frame, where the top slot is &7Fxx.
 ;; --------------------------------------------------------------------
 
 ; ---- WINDOW_SOUND_POINTER ---- from &5B03
@@ -13870,13 +13884,15 @@ WINDOW_SOUND_POINTER:
                                                ; &4000-&7FFF into the same byte of the ROM's system page at &8000-&BFFF
                SET 7,H                         ; 5B28 CB FC
                RES 6,H                         ; 5B2A CB B4
-               AND &03                         ; 5B2C E6 03
+               AND &03                         ; 5B2C E6 03  three, so only the last 256 bytes of each 1K slot go on to
+                                               ; the fuller test
                JR NZ,WINDOW_SOUND_POINTER_2    ; 5B2E 20 18
                LD A,E                          ; 5B30 7B
-               CP &7F                          ; 5B31 FE 7F
+               CP &7F                          ; 5B31 FE 7F  the top slot of the frame, whose link is sixteen bytes
+                                               ; lower -- see the banner
                LD A,L                          ; 5B33 7D
                JR NZ,WINDOW_SOUND_POINTER_1    ; 5B34 20 02
-               ADD A,&10                       ; 5B36 C6 10
+               ADD A,&10                       ; 5B36 C6 10  which the &10 undoes, so the compare below is written once
 
 ;; --------------------------------------------------------------------
 ;; WINDOW_SOUND_POINTER_1 -- &5B38 to &5B47
@@ -13889,12 +13905,13 @@ WINDOW_SOUND_POINTER:
 
 ; ---- WINDOW_SOUND_POINTER_1 ---- from &5B34 when A <> &7F
 WINDOW_SOUND_POINTER_1:
-               CP &FE                          ; 5B38 FE FE
+               CP &FE                          ; 5B38 FE FE  the link's offset in the slot, &3FE of &400
                JR NZ,WINDOW_SOUND_POINTER_2    ; 5B3A 20 0C
                LD E,(HL)                       ; 5B3C 5E
                INC L                           ; 5B3D 2C
                LD A,(HL)                       ; 5B3E 7E
-               LD L,&00                        ; 5B3F 2E 00
+               LD L,&00                        ; 5B3F 2E 00  the next slot's first byte, since a slot begins on a &400
+                                               ; boundary
                LD H,E                          ; 5B41 63
                                                ; HMPR is 0, so setting bit 7 and clearing bit 6 turns an address in
                                                ; &4000-&7FFF into the same byte of the ROM's system page at &8000-&BFFF
@@ -20324,6 +20341,25 @@ EXPAND_INTO_WORK_PAGE:
 ;;     Read a length byte from the open file through the DOS's LBYT, then
 ;;     that many bytes after it, into the buffer at &7B00 -- the installer's
 ;;     dead bytes again.
+;;
+;;     WHAT IT READ IS A FIVE-BYTE HEADER AND A TABLE, and the four numbers
+;;     below say so between them:
+;;
+;;         &7B00  the escape byte           &6770 reads it into C
+;;         &7B01  the compressed length     &673B, and &66B0 wrote it
+;;         &7B03  the expanded length       &6756
+;;         &7B05  a table of literals       &676C, and &678F steps it
+;;
+;;     So the header is five bytes and the table starts where it ends.  The
+;;     table is what the escape byte doubled stands for: &6780 sees the
+;;     escape twice and &678F takes the next entry, with INC E rather than
+;;     INC DE, so the whole table has to live inside one 256-byte page.
+;;
+;;     BOTH &C000 IS THE SAME &C000, one past the top of the window.
+;;     Subtracting a length from it gives the address a block of that length
+;;     has to start at to finish flush with &BFFF -- once for the compressed
+;;     data and once for what it expands to, so each is laid as high in the
+;;     window as it will go.
 ;; --------------------------------------------------------------------
 
 ; ---- READ_COUNTED_STRING ---- from &66F9
@@ -20353,8 +20389,11 @@ READ_COUNTED_STRING_LOOP:
                LD (HL),A                       ; 6734 77
                INC HL                          ; 6735 23
                DJNZ READ_COUNTED_STRING_LOOP   ; 6736 10 F7
-               LD HL,&C000                     ; 6738 21 00 C0
-               LD DE,(&7B01)                   ; 673B ED 5B 01 7B
+               LD HL,&C000                     ; 6738 21 00 C0  one past &BFFF, so subtracting the length below lands
+                                               ; where the compressed data has to start to end flush with the top of the
+                                               ; window
+               LD DE,(&7B01)                   ; 673B ED 5B 01 7B  the compressed length, header bytes 1 and 2 -- the
+                                               ; ones the compressor writes at &66B0
                AND A                           ; 673F A7
                SBC HL,DE                       ; 6740 ED 52
                PUSH HL                         ; 6742 E5
@@ -20369,7 +20408,8 @@ READ_COUNTED_STRING_LOOP:
                POP AF                          ; 674F F1
                DEC A                           ; 6750 3D
                OUT (HMPR),A                    ; 6751 D3 FB
-               LD HL,&C000                     ; 6753 21 00 C0
+               LD HL,&C000                     ; 6753 21 00 C0  the same &C000 again, this time for the expanded length
+                                               ; at &7B03
                LD BC,(INSTALL_ROM_PATCHES_1)   ; 6756 ED 4B 03 7B
                AND A                           ; 675A A7
                SBC HL,BC                       ; 675B ED 42
@@ -20382,7 +20422,9 @@ READ_COUNTED_STRING_LOOP:
                SET 6,H                         ; 6769 CB F4
                                                ; to the alternate register set and back again
                EXX                             ; 676B D9
-               LD DE,&7B05                     ; 676C 11 05 7B
+               LD DE,&7B05                     ; 676C 11 05 7B  five bytes in, just past the header, where the table of
+                                               ; literals begins. It goes into the alternate set because the main DE is
+                                               ; the output pointer, and &678F reads it one entry at a time
                                                ; to the alternate register set and back again
                EXX                             ; 676F D9
                LD A,(INSTALL_ROM_PATCHES)      ; 6770 3A 00 7B
@@ -20398,7 +20440,9 @@ READ_COUNTED_STRING_LOOP:
 ; ---- READ_COUNTED_STRING_LOOP2 ---- from &678C, &6794
 READ_COUNTED_STRING_LOOP2:
                LD A,(HL)                       ; 6774 7E
-               LD B,&01                        ; 6775 06 01
+               LD B,&01                        ; 6775 06 01  one, the run length for a byte that is not the escape -- so
+                                               ; the shared store below serves a literal and a run alike, and only a
+                                               ; real run reloads B from the stream at &6782
                INC HL                          ; 6777 23
                CP C                            ; 6778 B9
                JR NZ,READ_COUNTED_STRING_LOOP3 ; 6779 20 0A

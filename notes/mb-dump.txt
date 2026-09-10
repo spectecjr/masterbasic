@@ -690,6 +690,21 @@ MB &5B22 WINDOW_SOUND_POINTER
     windowing, which is the page's low bits, decides whether the pointer
     has run off the end.
 
+    THE FIVE TESTS ARE THE CHAIN WALK, and this is the third routine to
+    make it: SOUND_FEED_TICK at &5A96 and PRINTER_FEED_TICK at &5A1E do
+    the same five instructions on the same two addresses.  The buffer is
+    1K slots from the utility allocator, each keeping its link in its
+    last two bytes, and the top slot in the &4000 frame keeps its
+    sixteen bytes lower to stay off SLOTT.  E holds the high byte from
+    before the windowing precisely so the &7F test can be made in that
+    frame, where the top slot is &7Fxx.
+
+MB &5B2C : three, so only the last 256 bytes of each 1K slot go on to the fuller test
+MB &5B31 : the top slot of the frame, whose link is sixteen bytes lower -- see the banner
+MB &5B36 : which the &10 undoes, so the compare below is written once
+MB &5B38 : the link's offset in the slot, &3FE of &400
+MB &5B3F : the next slot's first byte, since a slot begins on a &400 boundary
+
 MB &61A0 ENCODE_SCREEN
     The encoder's driver.  SCAN_NIBBLE_TABLE picks a value into C, the
     alternate registers take DE = &000F and HL = &E500 for the output
