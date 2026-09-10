@@ -204,8 +204,19 @@ MB &5D69 : &91 bytes -- the ROM's own count.  Its DEF KEYCODE stub at &388D
            exactly where
 MB &5D6E : the one operand that changes, at INSTBUF+&0D
 
+MB &5D78 : HDR, &4B00 in the ROM's system page, seen through the window
+           PAGE_IN_ROM1 opens at &8000.  It is the destination, not the source:
+           PREPARE_ROM1_COPY takes the source out of the ROM stub's own LD HL
+           operand and ends with EX DE,HL at &5C68.  &5D9A hands the same &4B00
+           on as the address of what was built
 MB &5D7F : nine, then &16, then &2C, then six -- 81 bytes in all, which is the
            &0051 the ROM's own KEYIN stub at &3867 loads into BC
+MB &5D85 : the second of the four, and only C is loaded because the LDIR before
+           it left B at zero
+MB &5D8A : the third
+MB &5D8F : and the last, which needs no CALL after it -- there are three appended
+           calls for four pieces
+MB &5D96 : seventeen, the length of CMD_KEYIN_1, whose banner is below
 MB &5D82 : the ROM's block is broken into three so that a CALL can be dropped
            in after each
 MB &5D93 : and the seventeen bytes that CALL leads to, which land at &4B5B

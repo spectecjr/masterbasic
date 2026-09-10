@@ -52,6 +52,16 @@ MB &4240 BYTE_TO_DECIMAL
     three characters out in print order only because A is the
     hundreds.
 
+MB &4241 : H cleared, so HL is the byte on its own -- the divisions below are sixteen-bit and the value is not
+
+MB &4244 : a hundred, the first divisor
+
+MB &4247 : a space, which DECIMAL_DIGIT returns instead of a digit when the digit comes out zero.  So it is the padding character, and passing it in is what lets the same routine serve a leading digit and a middle one
+
+MB &424D : and ten, the second
+
+MB &4255 : '0', because the units go out as a digit without going through DECIMAL_DIGIT at all
+
 MB &425D DECIMAL_DIGIT
     One digit by repeated subtraction: take DE from HL counting in A
     until it goes negative, add DE back, and return A + &30 -- or C

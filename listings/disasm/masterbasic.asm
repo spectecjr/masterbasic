@@ -1038,18 +1038,23 @@ TRACK_SECTOR_TO_FILE_NUMBER:
 BYTE_TO_DECIMAL:
                PUSH DE                         ; 4240 D5  DE goes round the whole thing because the DOS's caller, DERR,
                                                ; has the failing track and sector in it
-               LD H,&00                        ; 4241 26 00
+               LD H,&00                        ; 4241 26 00  H cleared, so HL is the byte on its own -- the divisions
+                                               ; below are sixteen-bit and the value is not
                LD L,A                          ; 4243 6F
-               LD DE,&0064                     ; 4244 11 64 00
-               LD C,&20                        ; 4247 0E 20
+               LD DE,&0064                     ; 4244 11 64 00  a hundred, the first divisor
+               LD C,&20                        ; 4247 0E 20  a space, which DECIMAL_DIGIT returns instead of a digit
+                                               ; when the digit comes out zero. So it is the padding character, and
+                                               ; passing it in is what lets the same routine serve a leading digit and a
+                                               ; middle one
                CALL DECIMAL_DIGIT              ; 4249 CD 5D 42  A comes back as the hundreds character, or C's padding
                                                ; when that digit is zero
                PUSH AF                         ; 424C F5
-               LD DE,&000A                     ; 424D 11 0A 00
+               LD DE,&000A                     ; 424D 11 0A 00  and ten, the second
                CALL DECIMAL_DIGIT              ; 4250 CD 5D 42
                PUSH AF                         ; 4253 F5
                LD A,L                          ; 4254 7D
-               ADD A,&30                       ; 4255 C6 30
+               ADD A,&30                       ; 4255 C6 30  '0', because the units go out as a digit without going
+                                               ; through DECIMAL_DIGIT at all
                LD B,A                          ; 4257 47  the units always print as a digit and never as padding. From
                                                ; here on A is the hundreds, C the tens and B the units, which is the
                                                ; order DERR stores as A and then BC
@@ -10552,25 +10557,33 @@ CMD_DEF_KEYCODE:
                JR RESTORE_HMPR_AND_STORE       ; 5D76 18 E4
 
 ;; --------------------------------------------------------------------
-;; KEYIN, token &D1.  The same shape, into HDR at &4B00: three runs of
-;; &09, &16 and &2C bytes, each followed by a three-byte CALL that
-;; COPY_THEN_APPEND_CALL adds, then six more and the seventeen at
-;; CMD_KEYIN_1, and &4B00 is handed on.
+;; PAGE_IN_ROM1 opens at &8000.  It is the destination, not the source:
+;; PREPARE_ROM1_COPY takes the source out of the ROM stub's own LD HL
+;; operand and ends with EX DE,HL at &5C68.  &5D9A hands the same &4B00
+;; on as the address of what was built
 ;;
-;; The ROM's source settles this one too -- ref/samrom/miscx1.asm has
+;; What was here before:
 ;;
-;;     ORG HDR
-;;     KEYP2:  CALL SYNTAXA
+;;     KEYIN, token &D1.  The same shape, into HDR at &4B00: three runs of
+;;     &09, &16 and &2C bytes, each followed by a three-byte CALL that
+;;     COPY_THEN_APPEND_CALL adds, then six more and the seventeen at
+;;     CMD_KEYIN_1, and &4B00 is handed on.
 ;;
-;; so KEYIN is assembled to run in the eighty-byte header buffer, which
-;; is free because KEYIN cannot be loading a file at the same time.
-;; MasterBASIC copies it there in three pieces and interposes a call
-;; after each, where DEF KEYCODE needed one patched operand.
+;;     The ROM's source settles this one too -- ref/samrom/miscx1.asm has
+;;
+;;         ORG HDR
+;;         KEYP2:  CALL SYNTAXA
+;;
+;;     so KEYIN is assembled to run in the eighty-byte header buffer, which
+;;     is free because KEYIN cannot be loading a file at the same time.
+;;     MasterBASIC copies it there in three pieces and interposes a call
+;;     after each, where DEF KEYCODE needed one patched operand.
 ;; --------------------------------------------------------------------
 
 ; ---- CMD_KEYIN ---- from &4EC7 when A = T_KEYIN
 CMD_KEYIN:
-               LD HL,&8B00                     ; 5D78 21 00 8B
+               LD HL,&8B00                     ; 5D78 21 00 8B  HDR, &4B00 in the ROM's system page, seen through the
+                                               ; window
                CALL PREPARE_ROM1_COPY          ; 5D7B CD 4B 5C
                PUSH AF                         ; 5D7E F5
 
@@ -10587,11 +10600,23 @@ CMD_KEYIN:
 
                CALL COPY_THEN_APPEND_CALL      ; 5D82 CD 9F 5D  the ROM's block is broken into three so that a CALL can
                                                ; be dropped
-               LD C,&16                        ; 5D85 0E 16
+
+;; --------------------------------------------------------------------
+;; it left B at zero
+;; --------------------------------------------------------------------
+
+               LD C,&16                        ; 5D85 0E 16  the second of the four, and only C is loaded because the
+                                               ; LDIR before
                CALL COPY_THEN_APPEND_CALL      ; 5D87 CD 9F 5D
-               LD C,&2C                        ; 5D8A 0E 2C
+               LD C,&2C                        ; 5D8A 0E 2C  the third
                CALL COPY_THEN_APPEND_CALL      ; 5D8C CD 9F 5D
-               LD C,&06                        ; 5D8F 0E 06
+
+;; --------------------------------------------------------------------
+;; calls for four pieces
+;; --------------------------------------------------------------------
+
+               LD C,&06                        ; 5D8F 0E 06  and the last, which needs no CALL after it -- there are
+                                               ; three appended
                LDIR                            ; 5D91 ED B0
 
 ;; --------------------------------------------------------------------
@@ -10600,7 +10625,7 @@ CMD_KEYIN:
 
                LD HL,CMD_KEYIN_1               ; 5D93 21 AE 5D  and the seventeen bytes that CALL leads to, which land
                                                ; at &4B5B
-               LD C,&11                        ; 5D96 0E 11
+               LD C,&11                        ; 5D96 0E 11  seventeen, the length of CMD_KEYIN_1, whose banner is below
                LDIR                            ; 5D98 ED B0
                LD BC,HDR                       ; 5D9A 01 00 4B
                JR RESTORE_HMPR_AND_STORE       ; 5D9D 18 BD
@@ -11408,7 +11433,9 @@ ALLOC_UTILITY_SLOT_LOOP:
                AND A                           ; 5F1C A7
                JR Z,ALLOC_UTILITY_SLOT_1       ; 5F1D 28 0C  0 -- a page nobody owns, to be claimed as a new utilities
                                                ; page
-               CP &20                          ; 5F1F FE 20
+               CP &20                          ; 5F1F FE 20  &20 is the mark, and the DOC above says why -- it is the B
+                                               ; the reserving pass writes, so a page already marked is one this routine
+                                               ; claimed before
                JR Z,ALLOC_UTILITY_SLOT_2       ; 5F21 28 15  &20 -- an existing utilities page, which may still have a
                                                ; free slot
                DEC L                           ; 5F23 2D
@@ -11429,7 +11456,8 @@ ALLOC_UTILITY_SLOT_1:
 
 ; ---- ALLOC_UTILITY_SLOT_LOOP2 ---- from &5F35 when L is not 0
 ALLOC_UTILITY_SLOT_LOOP2:
-               LD (HL),&00                     ; 5F32 36 00
+               LD (HL),&00                     ; 5F32 36 00  zero is free, the value FREE_SLOT_CHAIN writes back at
+                                               ; &5F96 when it gives a slot up
                INC L                           ; 5F34 2C
                JR NZ,ALLOC_UTILITY_SLOT_LOOP2  ; 5F35 20 FB  INC L rolls &FF round to 0 at the page boundary, so the
                                                ; sixteen-byte clear needs no counter
@@ -11441,7 +11469,8 @@ ALLOC_UTILITY_SLOT_LOOP2:
 ALLOC_UTILITY_SLOT_2:
                LD A,L                          ; 5F38 7D
                OUT (HMPR),A                    ; 5F39 D3 FB
-               LD HL,&BFF0                     ; 5F3B 21 F0 BF
+               LD HL,&BFF0                     ; 5F3B 21 F0 BF  SLOTT again, for the page this arm selected rather than
+                                               ; the one above -- the two arms of the walk meet at the loop below
 
 ; ---- ALLOC_UTILITY_SLOT_LOOP3 ---- from &5F73 when L is not 0
 ALLOC_UTILITY_SLOT_LOOP3:
@@ -11467,11 +11496,13 @@ ALLOC_UTILITY_SLOT_3:
                ADD A,A                         ; 5F4D 87
                ADD A,&03                       ; 5F4E C6 03  H = &83 + 4n, the high byte of the last two bytes of slot n
                LD H,A                          ; 5F50 67
-               LD L,&EE                        ; 5F51 2E EE
+               LD L,&EE                        ; 5F51 2E EE  the exception is loaded first and the ordinary case
+                                               ; overwrites it, so the common path costs the compare and nothing else
                CP &BF                          ; 5F53 FE BF  slot 15's link would fall at &BFFE, on top of SLOTT entries
                                                ; 14 and 15 -- this is the slot the manual calls sixteen bytes short
                JR Z,ALLOC_UTILITY_SLOT_4       ; 5F55 28 02
-               LD L,&FE                        ; 5F57 2E FE
+               LD L,&FE                        ; 5F57 2E FE  &3FE of the slot's &400 for every other slot, which is
+                                               ; where FREE_SLOT_CHAIN looks for the link too
 
 ; ---- ALLOC_UTILITY_SLOT_4 ---- from &5F55 when A = &BF
 ALLOC_UTILITY_SLOT_4:

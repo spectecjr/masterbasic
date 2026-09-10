@@ -35,6 +35,7 @@ MB &5F19 : HMPR = 0 puts the system page in the window, which is what makes &911
 
 MB &5F1D : 0 -- a page nobody owns, to be claimed as a new utilities page
 
+MB &5F1F : &20 is the mark, and the DOC above says why -- it is the B the reserving pass writes, so a page already marked is one this routine claimed before
 MB &5F21 : &20 -- an existing utilities page, which may still have a free slot
 
 MB &5F24 : the walk stops at L = 0 without examining page 0, which is the system page and never a candidate
@@ -45,10 +46,12 @@ MB &5F2B : mark it with B.  On the counting pass B is 0 and this writes back the
 
 MB &5F2F : SLOTT, the last sixteen bytes of the page, now in the window at &BFF0-&BFFF
 
+MB &5F32 : zero is free, the value FREE_SLOT_CHAIN writes back at &5F96 when it gives a slot up
 MB &5F35 : INC L rolls &FF round to 0 at the page boundary, so the sixteen-byte clear needs no counter
 
 MB &5F37 : A still holds the page number, untouched by the clearing loop; putting it back in L lets the shared code below re-select a page it has already selected
 
+MB &5F3B : SLOTT again, for the page this arm selected rather than the one above -- the two arms of the walk meet at the loop below
 MB &5F3E : forwards from &BFF0 -- the Technical Manual says to look backwards through SLOTT, so this takes the lowest free slot where the manual would take the highest
 
 MB &5F43 : INC B : DEC B tests B for zero without disturbing A, which is holding the 0 just read from SLOTT
@@ -59,7 +62,9 @@ MB &5F4A : L is &F0..&FF, so masking with &2F rather than &0F keeps bit 5 as wel
 
 MB &5F4E : H = &83 + 4n, the high byte of the last two bytes of slot n
 
+MB &5F51 : the exception is loaded first and the ordinary case overwrites it, so the common path costs the compare and nothing else
 MB &5F53 : slot 15's link would fall at &BFFE, on top of SLOTT entries 14 and 15 -- this is the slot the manual calls sixteen bytes short
+MB &5F57 : &3FE of the slot's &400 for every other slot, which is where FREE_SLOT_CHAIN looks for the link too
 
 MB &5F59 : the chain so far, page and descriptor, to be written into this slot's link -- so the chain is built from the tail forwards
 
