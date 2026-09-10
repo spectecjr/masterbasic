@@ -70,19 +70,30 @@ MB &5BEE : &BE is 2*(&EF-&90), the ROM command table's entry for token &EF,
            entry holds &2C1A, which is assign.asm's RECORD
 MB &5BF2 : the table is in ROM 1; the routine it names is in ROM 0 and needs
            no paging of its own
+MB &5C02 : &5000 in the ROM's system page, which the XOR A : OUT (HMPR) above
+           has just put in the window -- the destination for the block being
+           assembled, and the frame every &50xx in the notes below is in
 MB &5C05 : &DF is RST &18, "the character we are on", where the ROM's
            dispatcher would have used RST &20.  CMD_RECORD has already
            stepped past SOUND and any OFF, so a second step would eat the TO
 MB &5C09 : 38 bytes reaches the end of the ROM's CALL SCOPN1
+MB &5C12 : twelve, the length of CMD_RECORD_1 -- &5C4B, where PREPARE_ROM1_COPY
+           starts, less its &5C3F.  B is left at zero by the LDIR above
 MB &5C17 : four bytes skipped -- the ROM's LD A,D : LD (GRARF),A, which would
            switch the ROM's own graphics recording on
+MB &5C1B : and three more of the ROM's, taking up again past the four
 MB &5C1F : the ROM ends with JR ASNS1; &54 is that JR's own two bytes plus its
            &52 displacement, so this computes the target without reading it.
            &52 is the displacement in every ROM image from 1.4 on
 MB &5C24 : and a JP, because a JR from &5036 could not reach it
+MB &5C2A expr SYS_RECORD_STATE
+MB &5C2A : loaded as a value, not read as one, so it needs the name spelling out
+           rather than the window's
 MB &5C2D : &5007 is the operand of the ROM's LD (GRARF),A on the STOP path, so
            RECORD SOUND STOP zeroes SYS_RECORD_STATE instead of the ROM's
            graphics flag
+MB &5C30 expr SYS_STRM16_SAVE
+MB &5C30 : likewise -- eleven bytes of MasterBASIC's own, not the ROM's
 MB &5C33 : &5022 is the operand of LD DE,STRM16NM.  The variable's name goes
            into MasterBASIC's saved copy, not the ROM's live one -- which is
            what the swap at &5E0C exists to shuttle back and forth

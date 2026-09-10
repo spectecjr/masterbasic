@@ -40,6 +40,31 @@ MB &4F31 CMDBUF_PROLOGUE
     shared buffer could not account for -- turns out to be the OUT
     (HMPR),A at &4F76.
 
+    &4A97 IS AN INSTRUCTION'S OPERAND, not a variable, and it is the one
+    thing here a reader has to be told.  The stub's bytes at &4A81
+    disassemble as
+
+        &4A84  LD HL,&5BB6 : SET 0,(HL)
+        &4A89  LD A,&FF : LD (&5B40),A
+        &4A8E  LD HL,(PROG) : LD A,(PROGP) : OUT (HMPR),A
+        &4A96  LD (HL),&00
+        &4A98  RET
+
+    and &4A97 is that &00 -- the boundaries land exactly, and the two
+    DEFB runs in listings/clean/postinstall-syspage.asm come to the
+    twenty-four bytes those instructions need.  So the LD (&4A97),A here
+    is arming the byte the stub will write at the start of the BASIC
+    program, with &FF standing for "nothing to write".  Reading it back
+    at &4F39 under INC A : RET Z therefore asks whether the CALL between
+    the two filled it in, and only a call that did reaches the JP at
+    &4F3E that runs the stub.
+
+MB &4F33 : the operand of the LD (HL) at &4A96, armed with &FF -- see above
+MB &4F39 : and read back, so the INC A : RET Z below is "did the call fill it in"
+MB &4F44 : token &96 is MERGE, which docs/sam-basic-grammar.txt has from CMDADT.  So the measuring below is done for MERGE and nothing else -- the one command that has to fit new lines into a program already in memory
+MB &4F61 : SAVARS less NUMEND is the room in the variables area, and only the high byte is looked at, so under six is under &0600
+MB &4F6C : and &0610 is what gets opened when less than that is free.  The Technical Manual gives JMKRBIG as "open A 16K pages and BC bytes at HL", A being the XOR A one instruction up
+
 MB &4F0C CMDBUF_EPILOGUE
     The thirty-seven bytes that go to &4D78, immediately after the
     eighty-eight copied from the table.  Its first two instructions are

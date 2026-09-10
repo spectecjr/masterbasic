@@ -8479,6 +8479,25 @@ CMDBUF_EPILOGUE_1:
 ;;     intact, which is how the &D3 at &4D18 -- an OUT the note on the
 ;;     shared buffer could not account for -- turns out to be the OUT
 ;;     (HMPR),A at &4F76.
+;;
+;;     &4A97 IS AN INSTRUCTION'S OPERAND, not a variable, and it is the one
+;;     thing here a reader has to be told.  The stub's bytes at &4A81
+;;     disassemble as
+;;
+;;         &4A84  LD HL,&5BB6 : SET 0,(HL)
+;;         &4A89  LD A,&FF : LD (&5B40),A
+;;         &4A8E  LD HL,(PROG) : LD A,(PROGP) : OUT (HMPR),A
+;;         &4A96  LD (HL),&00
+;;         &4A98  RET
+;;
+;;     and &4A97 is that &00 -- the boundaries land exactly, and the two
+;;     DEFB runs in listings/clean/postinstall-syspage.asm come to the
+;;     twenty-four bytes those instructions need.  So the LD (&4A97),A here
+;;     is arming the byte the stub will write at the start of the BASIC
+;;     program, with &FF standing for "nothing to write".  Reading it back
+;;     at &4F39 under INC A : RET Z therefore asks whether the CALL between
+;;     the two filled it in, and only a call that did reaches the JP at
+;;     &4F3E that runs the stub.
 ;; --------------------------------------------------------------------
 
 ; ---- CMDBUF_PROLOGUE ---- from &4EDB
@@ -8486,9 +8505,11 @@ CMDBUF_PROLOGUE:
                LD A,&FF                        ; 4F31 3E FF  from here to &4F7D this code is written for &4CD3: subtract
                                                ; &025E from any address in it
                                                ; self-modifying: patches the operand of the LD at &4A96
-               LD (&4A97),A                    ; 4F33 32 97 4A
+               LD (&4A97),A                    ; 4F33 32 97 4A  the operand of the LD (HL) at &4A96, armed with &FF --
+                                               ; see above
                CALL &4CE3                      ; 4F36 CD E3 4C  &4CE3 once this block is moved, not the label shown
-               LD A,(&4A97)                    ; 4F39 3A 97 4A
+               LD A,(&4A97)                    ; 4F39 3A 97 4A  and read back, so the INC A : RET Z below is "did the
+                                               ; call fill it in"
                INC A                           ; 4F3C 3C
                RET Z                           ; 4F3D C8
                JP &4A84                        ; 4F3E C3 84 4A  a system-page address -- this block runs at &4CD3 once
@@ -8502,7 +8523,10 @@ CMDBUF_PROLOGUE:
 ;; --------------------------------------------------------------------
 
                LD A,(CURCMD)                   ; 4F41 3A 74 5B
-               CP &96                          ; 4F44 FE 96
+               CP &96                          ; 4F44 FE 96  token &96 is MERGE, which docs/sam-basic-grammar.txt has
+                                               ; from CMDADT. So the measuring below is done for MERGE and nothing else
+                                               ; -- the one command that has to fit new lines into a program already in
+                                               ; memory
                JR NZ,CMDBUF_PROLOGUE_2         ; 4F46 20 30
                LD HL,(SAVARS)                  ; 4F48 2A 82 5A
                LD DE,(NUMEND)                  ; 4F4B ED 5B 85 5A
@@ -8529,14 +8553,17 @@ CMDBUF_PROLOGUE:
 CMDBUF_PROLOGUE_1:
                SBC HL,DE                       ; 4F5E ED 52
                LD A,H                          ; 4F60 7C
-               CP &06                          ; 4F61 FE 06
+               CP &06                          ; 4F61 FE 06  SAVARS less NUMEND is the room in the variables area, and
+                                               ; only the high byte is looked at, so under six is under &0600
                JR NC,CMDBUF_PROLOGUE_2         ; 4F63 30 13
                IN A,(HMPR)                     ; 4F65 DB FB
                PUSH AF                         ; 4F67 F5
                LD A,C                          ; 4F68 79
                OUT (HMPR),A                    ; 4F69 D3 FB
                XOR A                           ; 4F6B AF
-               LD BC,&0610                     ; 4F6C 01 10 06
+               LD BC,&0610                     ; 4F6C 01 10 06  and &0610 is what gets opened when less than that is
+                                               ; free. The Technical Manual gives JMKRBIG as "open A 16K pages and BC
+                                               ; bytes at HL", A being the XOR A one instruction up
                LD HL,(NUMEND)                  ; 4F6F 2A 85 5A
                CALL JMKRBIG                    ; 4F72 CD 0C 01
                POP AF                          ; 4F75 F1
@@ -14260,7 +14287,14 @@ CMD_RECORD:
                PUSH AF                         ; 5BFE F5
                XOR A                           ; 5BFF AF
                OUT (HMPR),A                    ; 5C00 D3 FB
-               LD DE,&9000                     ; 5C02 11 00 90
+
+;; --------------------------------------------------------------------
+;; has just put in the window -- the destination for the block being
+;; assembled, and the frame every &50xx in the notes below is in
+;; --------------------------------------------------------------------
+
+               LD DE,&9000                     ; 5C02 11 00 90  &5000 in the ROM's system page, which the XOR A : OUT
+                                               ; (HMPR) above
 
 ;; --------------------------------------------------------------------
 ;; dispatcher would have used RST &20.  CMD_RECORD has already
@@ -14274,7 +14308,13 @@ CMD_RECORD:
                LDIR                            ; 5C0C ED B0
                PUSH HL                         ; 5C0E E5
                LD HL,CMD_RECORD_1              ; 5C0F 21 3F 5C
-               LD C,&0C                        ; 5C12 0E 0C
+
+;; --------------------------------------------------------------------
+;; starts, less its &5C3F.  B is left at zero by the LDIR above
+;; --------------------------------------------------------------------
+
+               LD C,&0C                        ; 5C12 0E 0C  twelve, the length of CMD_RECORD_1 -- &5C4B, where
+                                               ; PREPARE_ROM1_COPY
                LDIR                            ; 5C14 ED B0
                POP HL                          ; 5C16 E1
 
@@ -14287,7 +14327,7 @@ CMD_RECORD:
                INC HL                          ; 5C18 23
                INC HL                          ; 5C19 23
                INC HL                          ; 5C1A 23
-               LD C,&03                        ; 5C1B 0E 03
+               LD C,&03                        ; 5C1B 0E 03  and three more of the ROM's, taking up again past the four
                LDIR                            ; 5C1D ED B0
 
 ;; --------------------------------------------------------------------
@@ -14304,7 +14344,13 @@ CMD_RECORD:
                LD (HL),E                       ; 5C27 73
                INC HL                          ; 5C28 23
                LD (HL),D                       ; 5C29 72
-               LD HL,&4AF4                     ; 5C2A 21 F4 4A
+
+;; --------------------------------------------------------------------
+;; rather than the window's
+;; --------------------------------------------------------------------
+
+               LD HL,SYS_RECORD_STATE          ; 5C2A 21 F4 4A  loaded as a value, not read as one, so it needs the name
+                                               ; spelling out
 
 ;; --------------------------------------------------------------------
 ;; RECORD SOUND STOP zeroes SYS_RECORD_STATE instead of the ROM's
@@ -14313,7 +14359,8 @@ CMD_RECORD:
 
                LD (&9007),HL                   ; 5C2D 22 07 90  &5007 is the operand of the ROM's LD (GRARF),A on the
                                                ; STOP path, so
-               LD HL,&4AF5                     ; 5C30 21 F5 4A
+               LD HL,SYS_STRM16_SAVE           ; 5C30 21 F5 4A  likewise -- eleven bytes of MasterBASIC's own, not the
+                                               ; ROM's
 
 ;; --------------------------------------------------------------------
 ;; into MasterBASIC's saved copy, not the ROM's live one -- which is
