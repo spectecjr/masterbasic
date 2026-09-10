@@ -234,6 +234,39 @@ MB &7826 : CFMI in the DOS page, not this half's &7841 -- MRINIT's own last inst
 MB &417F expr &4F00
 MB &417F : INSTBUF in the system page, written out by the MBWRTBC below -- not this page's &4F00
 
+# SVAL$ BUILDS A THREE-BYTE CALCULATOR CALL AND RUNS IT IN THE SYSTEM
+# PAGE.  &4182 and &4187 put EF 31 34 into INSTBUF and &418D calls it
+# through MBCMR: RST FPCALC, RESTACK, EXIT2.
+#
+# It has to be built there rather than executed here because the
+# calculator works on the ROM's stack, whose STKEND and the rest are
+# system-page variables -- and this half occupies the &4000-&7FFF they
+# live in.  The same reason CMD_PAUSE and FN_LENGTH assemble their code
+# into that page instead of calling into it.
+#
+# THREE BYTES NEED NO RET.  ref/samrom/fpcmain.asm gives &31 as RESTACK
+# and &34 as EXIT2, and FPEXIT2 there is
+#
+#     POP BC   ;FPC LOOPING ADDR
+#     POP BC   ;ROM0 RST 28H RET ADDR
+#     POP AF / POP IX / JP LRPOUT
+#
+# so EXIT2 throws away the return into the middle of the calculator AND
+# the return from the RST itself.  Control leaves INSTBUF without ever
+# reaching a fourth byte.
+
+MB &4168 : two is the odd length out -- the manual gives it "only whole positive numbers between 0 and 65535", stored as the two bytes GETINT returns -- so this both tests for it and rebases the other lengths on zero
+
+MB &4174 : two characters, which is the length of the string this path returns
+
+MB &4179 : A is the length less two, so under four admits 2, 3, 4 and 5 -- the manual's "2, 3, 4 or 5-character strings" exactly
+
+MB &4182 : &EF is RST FPCALC.  C goes to the lower address, so this is the first of the three bytes planted at INSTBUF; see the note above
+
+MB &4187 : and the other two, RESTACK then EXIT2, C first again.  RESTACK forces the number into its full five-byte form, which is what makes the five bytes below there to take
+
+MB &41AB : five, the whole of a floating-point number -- the manual's "Normal numbers occupy 5 bytes".  Complementing all five on this branch is what leaves the string form of a negative number sorting below a positive one, which the manual's "An array containing string-coded numbers can be SORTed according to their value" needs
+
 # The self-patch detector reads &66B0's write into &7B01 as patching the
 # operand of the IN at &7B00, and annotates both ends that way.  It is
 # not a patch: by then this routine has run and its space is the

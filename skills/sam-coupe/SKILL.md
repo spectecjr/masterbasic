@@ -40,8 +40,15 @@ bare number.
 
 Other ports: `&F9` STAT (read: status, key rows, interrupt flags;
 write: line interrupt), `&F8` CLUT base (16 write-only registers),
-`&FE` keyboard / border, `&FF` sound, `&FD` MIDI, `&80` external memory
-low.
+`&FE` keyboard / border, `&FD` MIDI, `&80` external memory low.
+
+**Sound is a pair of ports, not one**: the Technical Manual gives the
+SAA1099 as "address port 511 dec" and "data port 255 dec" -- `&01FF` and
+`&00FF`.  So it belongs with the clock and the comms chip below rather
+than with the single-byte ports above: the register number rides in the
+high byte, and code driving it reads `LD BC,&01FF : OUT (C),A : DEC B :
+OUT (C),A` -- select, then write, with `DEC B` as the whole of the
+difference between the two ports.
 
 **The disc controller is two ranges, not one.**  Drive 1 is `&E0`-`&E7`
 and **drive 2 is `&F0`-`&F7`** -- base plus an offset of 0 to 7, where

@@ -90,3 +90,28 @@ DOC SOUND_FEED_TICK
     at &5ACA to &01FF and then &00FF -- the SAA1099's address port and its
     data port -- and the loop goes back for the next pair until the read
     pointer reaches the write pointer.
+
+    THE LINK TEST IS THE ALLOCATOR'S, SEEN FROM THE OTHER WINDOW.  The
+    buffer is a chain of 1K slots and each keeps its link in its last two
+    bytes, which FREE_SLOT_CHAIN reaches at &BFFE-style addresses because
+    it works at &8000.  Here the slot is at &4000, so the same two bytes
+    are at (&43 + 4n)&FE, and the three tests at &5A96 to &5AA2 are that
+    address arrived at a byte at a time: D & 3 = 3 says the last 256 of
+    the 1K, and E = &FE says the link.
+
+    The topmost slot is the exception in both places.  Its link would sit
+    on SLOTT, so it lives &10 lower -- &7FEE here, &BFEE there -- and
+    rather than a second compare the ADD A,&10 at &5AA0 brings that &EE
+    up to &FE so the one CP &FE serves both.
+
+MB &5A96 : D & 3 = 3 is the last 256 bytes of a 1K slot, the only quarter a link can be in, so three quarters of the buffer skip the rest of this test entirely
+
+MB &5A9B : the topmost slot, whose link is &10 below where the others keep theirs
+
+MB &5AA0 : which is why &EE is brought up to &FE -- one compare below instead of two
+
+MB &5AA2 : the link's offset in the slot: &3FE of &400, the first of the last two bytes
+
+MB &5AAA : the new slot's first byte.  D has just been set from the link to the slot's descriptor, and a descriptor is &40 + 4n -- which in this window is already the high byte of where the slot starts, so a zero low byte is the whole address
+
+MB &5AC7 : the SAA1099's address port, which the Technical Manual gives as 511 with the data port at 255.  So B carries the difference between them, and the DEC B below is what turns "which register" into "what to put in it"

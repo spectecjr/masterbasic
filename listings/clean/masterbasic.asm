@@ -732,25 +732,33 @@ FN_SVAL_S_1:
                POP AF                          ; 4163 F1
                RET NC                          ; 4164 D0
                CALL CALL_GETINT                ; 4165 CD 76 44
-               SUB &02                         ; 4168 D6 02
+               SUB &02                         ; 4168 D6 02  two is the odd length out -- the manual gives it "only
+                                               ; whole positive numbers between 0 and 65535", stored as the two bytes
+                                               ; GETINT returns -- so this both tests for it and rebases the other
+                                               ; lengths on zero
                JR NZ,FN_SVAL_S_FAIL            ; 416A 20 0D
                CALL CALL_GETINT                ; 416C CD 76 44
                LD H,C                          ; 416F 61
                LD L,B                          ; 4170 68
                LD (V41C0),HL                   ; 4171 22 C0 41
-               LD BC,&0002                     ; 4174 01 02 00
+               LD BC,&0002                     ; 4174 01 02 00  two characters, which is the length of the string this
+                                               ; path returns
                JR FN_SVAL_S_3                  ; 4177 18 3B
 
 ; ---- FN_SVAL_S_FAIL ---- from &416A when A <> &02
 FN_SVAL_S_FAIL:
-               CP &04                          ; 4179 FE 04
+               CP &04                          ; 4179 FE 04  A is the length less two, so under four admits 2, 3, 4 and
+                                               ; 5 -- the manual's "2, 3, 4 or 5-character strings" exactly
                JP NC,REP_ARGUMENT              ; 417B D2 BC 43
                PUSH BC                         ; 417E C5
                LD HL,&4F00                     ; 417F 21 00 4F  INSTBUF in the system page, written out by the MBWRTBC
                                                ; below -- not this page's &4F00
-               LD C,&EF                        ; 4182 0E EF
+               LD C,&EF                        ; 4182 0E EF  &EF is RST FPCALC. C goes to the lower address, so this is
+                                               ; the first of the three bytes planted at INSTBUF; see the note above
                CALL MBWRTBC                    ; 4184 CD B3 45
-               LD BC,&3431                     ; 4187 01 31 34
+               LD BC,&3431                     ; 4187 01 31 34  and the other two, RESTACK then EXIT2, C first again.
+                                               ; RESTACK forces the number into its full five-byte form, which is what
+                                               ; makes the five bytes below there to take
                CALL MBWRTBC                    ; 418A CD B3 45
                CALL MBCMR                      ; 418D CD F0 44
                DEFW DKP2                       ; 4190 00 4F
@@ -771,7 +779,11 @@ FN_SVAL_S_FAIL:
                RLA                             ; 41A6 17
                JR C,FN_SVAL_S_2                ; 41A7 38 0A
                SET 7,(HL)                      ; 41A9 CB FE
-               LD B,&05                        ; 41AB 06 05
+               LD B,&05                        ; 41AB 06 05  five, the whole of a floating-point number -- the manual's
+                                               ; "Normal numbers occupy 5 bytes". Complementing all five on this branch
+                                               ; is what leaves the string form of a negative number sorting below a
+                                               ; positive one, which the manual's "An array containing string-coded
+                                               ; numbers can be SORTed according to their value" needs
 
 ; ---- FN_SVAL_S_LOOP ---- from &41B1 when B is not 0 yet
 FN_SVAL_S_LOOP:
@@ -9217,6 +9229,19 @@ PRINTER_FEED_TICK_4:
 ;; at &5ACA to &01FF and then &00FF -- the SAA1099's address port and its
 ;; data port -- and the loop goes back for the next pair until the read
 ;; pointer reaches the write pointer.
+;;
+;; THE LINK TEST IS THE ALLOCATOR'S, SEEN FROM THE OTHER WINDOW.  The
+;; buffer is a chain of 1K slots and each keeps its link in its last two
+;; bytes, which FREE_SLOT_CHAIN reaches at &BFFE-style addresses because
+;; it works at &8000.  Here the slot is at &4000, so the same two bytes
+;; are at (&43 + 4n)&FE, and the three tests at &5A96 to &5AA2 are that
+;; address arrived at a byte at a time: D & 3 = 3 says the last 256 of
+;; the 1K, and E = &FE says the link.
+;;
+;; The topmost slot is the exception in both places.  Its link would sit
+;; on SLOTT, so it lives &10 lower -- &7FEE here, &BFEE there -- and
+;; rather than a second compare the ADD A,&10 at &5AA0 brings that &EE
+;; up to &FE so the one CP &FE serves both.
 ;; --------------------------------------------------------------------
 
 ; ---- SOUND_FEED_TICK ---- from &5A00 when A = 0, &5A5A when A reaches 0
@@ -9251,23 +9276,31 @@ SOUND_FEED_TICK_LOOP:
 SOUND_FEED_TICK_1:
                LD A,D                          ; 5A94 7A
                INC A                           ; 5A95 3C
-               AND &03                         ; 5A96 E6 03
+               AND &03                         ; 5A96 E6 03  D & 3 = 3 is the last 256 bytes of a 1K slot, the only
+                                               ; quarter a link can be in, so three quarters of the buffer skip the rest
+                                               ; of this test entirely
                JR NZ,SOUND_FEED_TICK_3         ; 5A98 20 19
                LD A,D                          ; 5A9A 7A
-               CP &7F                          ; 5A9B FE 7F
+               CP &7F                          ; 5A9B FE 7F  the topmost slot, whose link is &10 below where the others
+                                               ; keep theirs
                LD A,E                          ; 5A9D 7B
                JR NZ,SOUND_FEED_TICK_2         ; 5A9E 20 02
-               ADD A,&10                       ; 5AA0 C6 10
+               ADD A,&10                       ; 5AA0 C6 10  which is why &EE is brought up to &FE -- one compare below
+                                               ; instead of two
 
 ; ---- SOUND_FEED_TICK_2 ---- from &5A9E when A <> &7F
 SOUND_FEED_TICK_2:
-               CP &FE                          ; 5AA2 FE FE
+               CP &FE                          ; 5AA2 FE FE  the link's offset in the slot: &3FE of &400, the first of
+                                               ; the last two bytes
                JR NZ,SOUND_FEED_TICK_3         ; 5AA4 20 0D
                LD A,(DE)                       ; 5AA6 1A
                LD H,A                          ; 5AA7 67
                INC E                           ; 5AA8 1C
                LD A,(DE)                       ; 5AA9 1A
-               LD E,&00                        ; 5AAA 1E 00
+               LD E,&00                        ; 5AAA 1E 00  the new slot's first byte. D has just been set from the
+                                               ; link to the slot's descriptor, and a descriptor is &40 + 4n -- which in
+                                               ; this window is already the high byte of where the slot starts, so a
+                                               ; zero low byte is the whole address
                LD D,H                          ; 5AAC 54
                LD (V407E+IN_PAGE_C),A          ; 5AAD 32 7E 80
                DEC A                           ; 5AB0 3D
@@ -9293,7 +9326,10 @@ SOUND_FEED_TICK_DONE:
 ; ---- SOUND_FEED_TICK_4 ---- from &5AB7 when A <> CH_SPACE
 SOUND_FEED_TICK_4:
                LD H,C                          ; 5AC6 61
-               LD BC,&01FF                     ; 5AC7 01 FF 01
+               LD BC,&01FF                     ; 5AC7 01 FF 01  the SAA1099's address port, which the Technical Manual
+                                               ; gives as 511 with the data port at 255. So B carries the difference
+                                               ; between them, and the DEC B below is what turns "which register" into
+                                               ; "what to put in it"
                OUT (C),A                       ; 5ACA ED 79
                DEC B                           ; 5ACC 05
                LD A,(DE)                       ; 5ACD 1A
