@@ -85,13 +85,25 @@ MB &5F7F : &40 + 4n plus &40 is &80 + 4n, and plus 3 is the high byte of the slo
 
 MB &5F81 : the low two bits are already clear in anything the allocator stored, so this only matters if a caller hands over a descriptor of its own
 
+MB &5F83 : the third part of the &43 the DOC above describes: &40 for the base, &40 to reach the window, and three for the last of the slot's four high bytes
+
+MB &5F86 : and the low byte of the pair.  A 1K slot runs to offset &3FF, so its last two bytes are at (&83 + 4n)&FE and (&83 + 4n)&FF -- which is where the chain link is kept
+
 MB &5F89 : two rotates turn &40 + 4n into &10 + n, and OR &F0 makes &F0 + n, the SLOTT entry's address in the window
 
+MB &5F8B : SLOTT is the top sixteen bytes of the page, so the low byte of an entry is &F0 + n and this is the &F0
+
 MB &5F8E : slot 15 gives exactly &FF here, so this single INC both spots it and drives the same &BFEE exception the allocator makes at &5F53
+
+MB &5F91 : slot 15's link would fall at &BFFE, on top of SLOTT entries 14 and 15, so it is kept at &BFEE instead -- &10 lower, clear of the table
+
+MB &5F93 : and &BF is the page of both, so DE is now the SLOTT entry and HL the link
 
 MB &5F96 : 0 -- the slot is free again.  The XOR A above does double duty: it is also the seed for the OR accumulator FREE_PAGE_IF_SLOTS_CLEAR expects
 
 MB &5F9C : the link's first byte is the next slot's descriptor; read it before clearing it, so the freed slot is left holding no stale chain
+
+MB &5F9D : and zero is what ends a chain, because &40 + 4n can never be zero.  Only this byte is cleared; the page byte after it is read at &5FA0 and left alone, which costs nothing once the descriptor beside it says the link is dead
 
 MB &5FA2 : a zero descriptor is the end of the chain -- no real slot has one
 

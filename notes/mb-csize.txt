@@ -94,4 +94,22 @@ DOC WIDEN_CHAR_BITMAP
     RLA to push it into the byte being built -- with the inner count
     B set from C each time, so one source bit becomes C output bits.
 
+    NOTHING COUNTS THE OUTPUT BITS.  A is seeded with &01 and the RLA
+    that shifts each data bit in at the bottom shifts that 1 up, so it
+    falls out into the carry on the eighth -- and the JR NC is therefore
+    both the "byte full" test and the store.  The two LD A,&01 in the
+    routine are that marker being set and re-set, not data.
+
+MB &64B3 : eight rows of the character, held in A' across the row loop and brought back by the EX AF,AF' at &64DF
+
+MB &64B5 : CDBUFF+&20.  CDBUFF is &4D00, which vars.asm calls the "CODE BUFFER FOR E.G. MULTI-LDI" and gives "MAX LEN=0181H" -- 385 bytes, against the 248 the widest character can need, since HOOK_CSIZE's CP &1F caps the factor at 31 and each cell is eight bytes
+
+MB &64BB : the eight bits of one source row
+
+MB &64C2 : the marker bit, not a value: see the banner above
+
+MB &64CC : eight on is the next cell of the same row.  The result is laid out as eight-byte cells because that is how PRINT_SIZED_CHAR walks it, one cell per call to &49E4
+
+MB &64D2 : and the marker set again for the cell just started
+
 MB &649C : &49E4 in the ROM's system page, which picks ordinary or magnified output

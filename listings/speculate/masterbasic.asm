@@ -16287,19 +16287,26 @@ FREE_SLOT_CHAIN:
                AND &FC                         ; 5F81 E6 FC  the low two bits are already clear in anything the
                                                ; allocator stored, so this only matters if a caller hands over a
                                                ; descriptor of its own
-               ADD A,&03                       ; 5F83 C6 03
+               ADD A,&03                       ; 5F83 C6 03  the third part of the &43 the DOC above describes: &40 for
+                                               ; the base, &40 to reach the window, and three for the last of the slot's
+                                               ; four high bytes
                LD H,A                          ; 5F85 67
-               LD L,&FE                        ; 5F86 2E FE
+               LD L,&FE                        ; 5F86 2E FE  and the low byte of the pair. A 1K slot runs to offset
+                                               ; &3FF, so its last two bytes are at (&83 + 4n)&FE and (&83 + 4n)&FF --
+                                               ; which is where the chain link is kept
                POP AF                          ; 5F88 F1
                RRCA                            ; 5F89 0F  two rotates turn &40 + 4n into &10 + n, and OR &F0 makes &F0 +
                                                ; n, the SLOTT entry's address in the window
                RRCA                            ; 5F8A 0F
-               OR &F0                          ; 5F8B F6 F0
+               OR &F0                          ; 5F8B F6 F0  SLOTT is the top sixteen bytes of the page, so the low byte
+                                               ; of an entry is &F0 + n and this is the &F0
                LD E,A                          ; 5F8D 5F
                INC A                           ; 5F8E 3C  slot 15 gives exactly &FF here, so this single INC both spots
                                                ; it and drives the same &BFEE exception the allocator makes at &5F53
                JR NZ,FREE_SLOT_CHAIN_1         ; 5F8F 20 02
-               LD L,&EE                        ; 5F91 2E EE
+               LD L,&EE                        ; 5F91 2E EE  slot 15's link would fall at &BFFE, on top of SLOTT entries
+                                               ; 14 and 15, so it is kept at &BFEE instead -- &10 lower, clear of the
+                                               ; table
 
 ;; --------------------------------------------------------------------
 ;; FREE_SLOT_CHAIN_1 -- &5F93 to &5FA6
@@ -16313,7 +16320,8 @@ FREE_SLOT_CHAIN:
 
 ; ---- FREE_SLOT_CHAIN_1 ---- from &5F8F when A is not 0
 FREE_SLOT_CHAIN_1:
-               LD D,&BF                        ; 5F93 16 BF
+               LD D,&BF                        ; 5F93 16 BF  and &BF is the page of both, so DE is now the SLOTT entry
+                                               ; and HL the link
                XOR A                           ; 5F95 AF
                LD (DE),A                       ; 5F96 12  0 -- the slot is free again. The XOR A above does double duty:
                                                ; it is also the seed for the OR accumulator FREE_PAGE_IF_SLOTS_CLEAR
@@ -16323,7 +16331,10 @@ FREE_SLOT_CHAIN_1:
                POP HL                          ; 5F9B E1
                LD D,(HL)                       ; 5F9C 56  the link's first byte is the next slot's descriptor; read it
                                                ; before clearing it, so the freed slot is left holding no stale chain
-               LD (HL),&00                     ; 5F9D 36 00
+               LD (HL),&00                     ; 5F9D 36 00  and zero is what ends a chain, because &40 + 4n can never
+                                               ; be zero. Only this byte is cleared; the page byte after it is read at
+                                               ; &5FA0 and left alone, which costs nothing once the descriptor beside it
+                                               ; says the link is dead
                INC HL                          ; 5F9F 23
                LD A,(HL)                       ; 5FA0 7E
                EX DE,HL                        ; 5FA1 EB
@@ -18922,6 +18933,12 @@ PRINT_SIZED_CHAR_LOOP:
 ;;     Each source byte is taken a bit at a time -- RLC D to fetch the bit,
 ;;     RLA to push it into the byte being built -- with the inner count
 ;;     B set from C each time, so one source bit becomes C output bits.
+;;
+;;     NOTHING COUNTS THE OUTPUT BITS.  A is seeded with &01 and the RLA
+;;     that shifts each data bit in at the bottom shifts that 1 up, so it
+;;     falls out into the carry on the eighth -- and the JR NC is therefore
+;;     both the "byte full" test and the store.  The two LD A,&01 in the
+;;     routine are that marker being set and re-set, not data.
 ;; --------------------------------------------------------------------
 
 WIDEN_CHAR_BITMAP:
@@ -18934,8 +18951,12 @@ WIDEN_CHAR_BITMAP:
                                                ; to the alternate register set and back again
                EXX                             ; 64B1 D9
                LD C,A                          ; 64B2 4F
-               LD A,&08                        ; 64B3 3E 08
-               LD HL,&4D20                     ; 64B5 21 20 4D
+               LD A,&08                        ; 64B3 3E 08  eight rows of the character, held in A' across the row loop
+                                               ; and brought back by the EX AF,AF' at &64DF
+               LD HL,&4D20                     ; 64B5 21 20 4D  CDBUFF+&20. CDBUFF is &4D00, which vars.asm calls the
+                                               ; "CODE BUFFER FOR E.G. MULTI-LDI" and gives "MAX LEN=0181H" -- 385
+                                               ; bytes, against the 248 the widest character can need, since
+                                               ; HOOK_CSIZE's CP &1F caps the factor at 31 and each cell is eight bytes
                PUSH HL                         ; 64B8 E5
 
 ;; --------------------------------------------------------------------
@@ -18950,7 +18971,7 @@ WIDEN_CHAR_BITMAP_LOOP:
                                                ; to the alternate register set and back again
                EX AF,AF'                       ; 64B9 08
                PUSH HL                         ; 64BA E5
-               LD E,&08                        ; 64BB 1E 08
+               LD E,&08                        ; 64BB 1E 08  the eight bits of one source row
                                                ; to the alternate register set and back again
                EXX                             ; 64BD D9
                LD A,(HL)                       ; 64BE 7E
@@ -18958,7 +18979,7 @@ WIDEN_CHAR_BITMAP_LOOP:
                                                ; to the alternate register set and back again
                EXX                             ; 64C0 D9
                LD D,A                          ; 64C1 57
-               LD A,&01                        ; 64C2 3E 01
+               LD A,&01                        ; 64C2 3E 01  the marker bit, not a value: see the banner above
 
 ;; --------------------------------------------------------------------
 ;; WIDEN_CHAR_BITMAP_LOOP2 -- &64C4 to &64C4
@@ -18985,7 +19006,9 @@ WIDEN_CHAR_BITMAP_LOOP3:
                JR NC,WIDEN_CHAR_BITMAP_2       ; 64C8 30 0A
                LD (HL),A                       ; 64CA 77
                LD A,L                          ; 64CB 7D
-               ADD A,&08                       ; 64CC C6 08
+               ADD A,&08                       ; 64CC C6 08  eight on is the next cell of the same row. The result is
+                                               ; laid out as eight-byte cells because that is how PRINT_SIZED_CHAR walks
+                                               ; it, one cell per call to &49E4
                LD L,A                          ; 64CE 6F
                JR NC,WIDEN_CHAR_BITMAP_1       ; 64CF 30 01
                INC H                           ; 64D1 24
@@ -18999,7 +19022,7 @@ WIDEN_CHAR_BITMAP_LOOP3:
 
 ; ---- WIDEN_CHAR_BITMAP_1 ---- from &64CF
 WIDEN_CHAR_BITMAP_1:
-               LD A,&01                        ; 64D2 3E 01
+               LD A,&01                        ; 64D2 3E 01  and the marker set again for the cell just started
 
 ;; --------------------------------------------------------------------
 ;; WIDEN_CHAR_BITMAP_2 -- &64D4 to &64E6
@@ -20706,7 +20729,9 @@ DUMP_ORIENT_SETUP_2:
                LD (DUMP_ORIENT),A              ; 6857 32 5C 40
                LD HL,(SDLHS)                   ; 685A 2A 10 40  the left and right edges of the dumped area
                LD DE,(SDTOP)                   ; 685D ED 5B 12 40  and the top and bottom
-               CP &03                          ; 6861 FE 03
+               CP &03                          ; 6861 FE 03  DUMP_ORIENT is 1 or 3 and nothing else, from the two LD A
+                                               ; above, so comparing with the upright value and taking the carry
+                                               ; separates them
                JR C,DUMP_ORIENT_SETUP_3        ; 6863 38 0C  sideways wants them as they are
                LD C,H                          ; 6865 4C  upright wants the pairs the other way round
                LD H,L                          ; 6866 65
@@ -20714,7 +20739,9 @@ DUMP_ORIENT_SETUP_2:
                LD A,&BF                        ; 6868 3E BF  and the rows counted from the top rather than the bottom
                SUB E                           ; 686A 93
                LD E,A                          ; 686B 5F
-               LD A,&BF                        ; 686C 3E BF
+               LD A,&BF                        ; 686C 3E BF  &BF a second time, for the other end of the same pair. 191
+                                               ; is the bottom scan line of the 192, so &BF minus a row is that row
+                                               ; measured from the top
                SUB D                           ; 686E 92
                LD D,A                          ; 686F 57
                EX DE,HL                        ; 6870 EB
@@ -20741,9 +20768,12 @@ DUMP_ORIENT_SETUP_3:
                CALL CALL_STREAM                ; 6886 CD EB 69
                LD HL,GCMX1                     ; 6889 21 23 40  GCMX1 -- left margin and line advance, sent once
                CALL PRINT_COUNTED_STRING       ; 688C CD F1 69
-               LD D,&00                        ; 688F 16 00
+               LD D,&00                        ; 688F 16 00  the ninth bit of the doubled start has to land somewhere,
+                                               ; and the RL D below shifts into a D that must start clear
                LD A,(DUMP_MODE)                ; 6891 3A AE 40  MODE 3 has half the columns, so the start doubles
-               CP &02                          ; 6894 FE 02
+               CP &02                          ; 6894 FE 02  DUMP_MODE is the ROM's MODE, read straight through MBNRRD
+                                               ; at &683B, and that holds 0 to 3 for modes 1 to 4 -- so 2 is screen MODE
+                                               ; 3, the same test &6844 makes to force a sideways dump
                LD A,(DUMP_BIT_FROM)            ; 6896 3A 5D 40
                JR NZ,DUMP_ORIENT_SETUP_4       ; 6899 20 03
                ADD A,A                         ; 689B 87
@@ -20762,8 +20792,12 @@ DUMP_ORIENT_SETUP_4:
                LD C,A                          ; 689E 4F
                LD A,D                          ; 689F 7A
                LD (V40AA),A                    ; 68A0 32 AA 40
-               LD D,&03                        ; 68A3 16 03
-               LD A,&02                        ; 68A5 3E 02
+               LD D,&03                        ; 68A3 16 03  the first DUMP_BITS_CARRY, which &68D5 writes: a whole
+                                               ; pixel's three bits still to come, so the first byte of the first line
+                                               ; starts on a pixel boundary rather than in the middle of one
+               LD A,&02                        ; 68A5 3E 02  the first dither phase, into V40A0 for &6909 to pick up.
+                                               ; The phase lives in 0 to 2 and DUMP_STRIKE's unmagnified path counts it
+                                               ; down, so two is the top of the range
                LD (V40A0),A                    ; 68A7 32 A0 40
 
 ;; --------------------------------------------------------------------
