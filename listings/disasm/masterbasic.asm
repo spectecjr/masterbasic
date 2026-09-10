@@ -10539,7 +10539,14 @@ CMD_PAUSE:
                                                ; past the
                CALL PREPARE_COPY_AT_5000       ; 5D34 CD 56 5C
                PUSH AF                         ; 5D37 F5
-               LD BC,&0006                     ; 5D38 01 06 00
+
+;; --------------------------------------------------------------------
+;; RST &20 at &5000 and stepped past it, so these fill &5001 to &5006
+;; and leave the PUSH AF below landing on &5007
+;; --------------------------------------------------------------------
+
+               LD BC,&0006                     ; 5D38 01 06 00  six of the ROM's bytes first. PREPARE_COPY_AT_5000
+                                               ; planted the
                LDIR                            ; 5D3B ED B0
 
 ;; --------------------------------------------------------------------
@@ -10551,18 +10558,30 @@ CMD_PAUSE:
                                                ; E,7.
                LD (DE),A                       ; 5D3F 12
                INC DE                          ; 5D40 13
-               LD C,&05                        ; 5D41 0E 05
+
+;; --------------------------------------------------------------------
+;; &500D the note below names.  1 + 6 + 1 + 5 is &0D
+;; --------------------------------------------------------------------
+
+               LD C,&05                        ; 5D41 0E 05  and five more, to &500C -- which is what puts CMD_PAUSE_1
+                                               ; at the
                LDIR                            ; 5D43 ED B0
                PUSH HL                         ; 5D45 E5
                LD HL,CMD_PAUSE_1               ; 5D46 21 CA 5D  seven bytes at &500D, in front of the pause loop
-               LD C,&07                        ; 5D49 0E 07
+               LD C,&07                        ; 5D49 0E 07  seven, which is &5DCA to &5DD0 -- the whole of CMD_PAUSE_1
                LDIR                            ; 5D4B ED B0
                POP HL                          ; 5D4D E1
                LD C,&10                        ; 5D4E 0E 10  the loop itself, sixteen ROM bytes at &5014
                LDIR                            ; 5D50 ED B0
                LD HL,CMD_PAUSE_2               ; 5D52 21 D1 5D  and &4E bytes at &5024 replacing the rest of the ROM's
                                                ; PAUSE
-               LD C,&4E                        ; 5D55 0E 4E
+
+;; --------------------------------------------------------------------
+;; number for the block at &5024
+;; --------------------------------------------------------------------
+
+               LD C,&4E                        ; 5D55 0E 4E  &4E, the length of CMD_PAUSE_2, whose own banner gives the
+                                               ; same
 
 ; ---- SILENCE_SOUND_CHIP_1 ---- from &5CDD
 SILENCE_SOUND_CHIP_1:
@@ -14913,7 +14932,8 @@ DUMP_PIXEL:
                PUSH BC                         ; 6915 C5
                CALL TRANSFORM_DUMP_COORDS      ; 6916 CD 00 6A
                LD C,A                          ; 6919 4F
-               LD B,&00                        ; 691A 06 00
+               LD B,&00                        ; 691A 06 00  B cleared, so BC is the colour index by itself for the ADD
+                                               ; HL,BC below
                LD HL,INSTALL_ROM_PATCHES_2     ; 691C 21 80 7B  the grey map, sixteen colours to twenty-five levels
                ADD HL,BC                       ; 691F 09
                LD C,(HL)                       ; 6920 4E
@@ -14926,11 +14946,11 @@ DUMP_PIXEL:
                LD C,A                          ; 6928 4F
                ADD HL,BC                       ; 6929 09
                LD A,(DUMP_BIT_STEP)            ; 692A 3A 9F 40  three bits to a pixel is the awkward case
-               CP &03                          ; 692D FE 03
+               CP &03                          ; 692D FE 03  which is three, so this is the test for it
                JR Z,DUMP_PIXEL_TRIPLE          ; 692F 28 31
                LD A,(DUMP_DITHER_PHASE)        ; 6931 3A A3 40
                INC A                           ; 6934 3C  the phase steps once per pixel and wraps at three
-               CP &03                          ; 6935 FE 03
+               CP &03                          ; 6935 FE 03  and three is where, so the XOR A below puts it back to zero
                JR C,DUMP_PIXEL_1               ; 6937 38 01
                XOR A                           ; 6939 AF
 
@@ -14973,7 +14993,10 @@ DUMP_PIXEL_3:
 DUMP_PIXEL_4:
                RRA                             ; 6959 1F  and the bit itself, into the byte being built
                RL D                            ; 695A CB 12
-               LD C,&01                        ; 695C 0E 01
+               LD C,&01                        ; 695C 0E 01  what D becomes for the next byte. DUMP_EMIT reloads D from
+                                               ; C, and D is the byte being built with a marker 1 at the bottom of it --
+                                               ; so the one is set here rather than there because the three-dot path
+                                               ; leaves the leftover count in C instead
                JR C,DUMP_EMIT                  ; 695E 38 28  eight shifted in, so the byte is full
                JR DUMP_PIXEL_5                 ; 6960 18 22
 
@@ -15000,7 +15023,9 @@ DUMP_PIXEL_TRIPLE:
                PUSH AF                         ; 6966 F5
                LD A,(DUMP_BITS_LEFT)           ; 6967 3A B0 40  how many of this pixel's three dots are still owed
                LD C,A                          ; 696A 4F
-               LD A,&03                        ; 696B 3E 03
+               LD A,&03                        ; 696B 3E 03  a pixel's three dots less the ones still owed, which is how
+                                               ; many have already gone out -- and that is the rotation that lines the
+                                               ; rest up
                SUB C                           ; 696D 91
                JR Z,DUMP_PIXEL_TRIPLE_1        ; 696E 28 06
                LD B,A                          ; 6970 47
@@ -15353,7 +15378,9 @@ ATTRIBUTE_PIXEL_COLOUR:
 ATTRIBUTE_PIXEL_COLOUR_1:
                CALL NC,MODE1_PIXEL_AND_ATTR    ; 6A4F D4 2F 6C
                LD A,C                          ; 6A52 79
-               AND &07                         ; 6A53 E6 07
+               AND &07                         ; 6A53 E6 07  C is the column, so C AND 7 is which pixel of the byte --
+                                               ; and the INC A after it makes the RLCA loop below bring that pixel into
+                                               ; bit 0
                INC A                           ; 6A55 3C
                LD H,A                          ; 6A56 67
                LD A,B                          ; 6A57 78
@@ -15363,13 +15390,16 @@ ATTRIBUTE_PIXEL_COLOUR_1:
 ATTRIBUTE_PIXEL_COLOUR_LOOP:
                RLCA                             ; 6A59 07
                DJNZ ATTRIBUTE_PIXEL_COLOUR_LOOP ; 6A5A 10 FD
-               AND &01                          ; 6A5C E6 01
+               AND &01                          ; 6A5C E6 01  that bit on its own: set is ink, clear is paper, and the
+                                                ; paper case leaves for the shift-down-three at READ_PIXEL_NIBBLE_1
                LD A,L                           ; 6A5E 7D
                JR Z,READ_PIXEL_NIBBLE_1         ; 6A5F 28 E1
-               AND &07                          ; 6A61 E6 07
+               AND &07                          ; 6A61 E6 07  the attribute's low three bits are the ink colour
                BIT 6,L                          ; 6A63 CB 75
                RET Z                            ; 6A65 C8
-               OR &08                           ; 6A66 F6 08
+               OR &08                           ; 6A66 F6 08  bit 6 of the attribute is BRIGHT, and bit 3 of a palette
+                                                ; index is what picks the bright eight of the sixteen -- so the test
+                                                ; above and this are one step
                RET                              ; 6A68 C9
 
 ;; --------------------------------------------------------------------
@@ -18491,18 +18521,42 @@ L73BE:
 ;; documented exit is "HL POINTS TO LOCN FOR 'PAGE' IN CALLING BUFFER".
 ;; A page of &FF is what the not-found path writes, and it gets there
 ;; through the &21 skip at &7409.
+;;
+;; IT IS THE ROM'S LOOKDP WITH THE INDEX IN PLACE OF THE SCAN.
+;; ref/samrom/fn.asm has LOOKDP walking the program itself for every
+;; call -- LKFC for a DEF PROC at a line start, MATCHER against the
+;; name, four DEC HLs, then the page -- and the tail of it reads
+;;
+;;     LKDP3:  LD B,&80
+;;     LKDP35: IN A,(251) : AND &1F : OR B : LD B,A
+;;                               ;B=PAGE WITH DEF PROC NAME, BIT 7 SET
+;;             DB &21            ;'JR+2'
+;;     LKDP4:  LD B,&FF          ;'NO DEF PROC/DEF FN'
+;;
+;; which is &7402 to &740A instruction for instruction, skip included.
+;; So both numbers at that end are the ROM's, under its own comments,
+;; and the four DEC DEs at &73FE are its four DEC HLs.  The ROM also
+;; says why an index is worth building, though it says it of DEF FN
+;; rather than DEF PROC: "looking through the program each time is too
+;; slow".
 ;; --------------------------------------------------------------------
 
 FIND_PROC_ENTRY:
                PUSH HL                         ; 73C9 E5
                IN A,(HMPR)                     ; 73CA DB FB
                PUSH AF                         ; 73CC F5
-               LD HL,&DFFA                     ; 73CD 21 FA DF
+               LD HL,&DFFA                     ; 73CD 21 FA DF  six below the table's base, so the ADD HL,DE at the top
+                                               ; of the loop lands on the first entry rather than past it
 
 ; ---- FIND_PROC_ENTRY_LOOP ---- from &73FC
 FIND_PROC_ENTRY_LOOP:
-               LD DE,&0006                     ; 73D0 11 06 00
-               LD A,(&5141)                    ; 73D3 3A 41 51
+               LD DE,&0006                     ; 73D0 11 06 00  six bytes to an entry, the stride BUILD_PROC_INDEX
+                                               ; writes
+               LD A,(&5141)                    ; 73D3 3A 41 51  NMBUFF+1. MATCHER in fn.asm opens LD HL,NMBUFF under the
+                                               ; comment "NAME WE ARE LOOKING FOR IS AT BUFFER+1", and LOOKDP calls it
+                                               ; as "MATCH (DE+1) VS. (BUFFER+1)" -- so this is the first character of
+                                               ; the name being looked up. The installer's signature for MATCHER at
+                                               ; &7A1B is 21 40 51, which is that very LD HL
                AND UPPER                       ; 73D6 E6 DF
                LD C,A                          ; 73D8 4F
                LD A,(FISCRNP)                  ; 73D9 3A 9F 5C
@@ -18543,14 +18597,15 @@ L73F7:
                DEC DE                          ; 7401 1B
                IN A,(HMPR)                     ; 7402 DB FB
                AND PAGEMASK                    ; 7404 E6 1F
-               OR &80                          ; 7406 F6 80
+               OR &80                          ; 7406 F6 80  the page with bit 7 set, which is the ROM's own convention
+                                               ; -- see above
                LD B,A                          ; 7408 47
                DEFB SKIP_2_VIA_LD_HL           ; 7409 !  skipped: reads as LD HL,&FF06 from here, swallowing the bytes
                                                ; below it
 
 ; ---- FIND_PROC_ENTRY_1 ---- from &73E3 when A = 0
 FIND_PROC_ENTRY_1:
-               LD B,&FF                        ; 740A 06 FF
+               LD B,&FF                        ; 740A 06 FF  and &FF for not found, likewise
                POP AF                          ; 740C F1
                OUT (HMPR),A                    ; 740D D3 FB
                POP HL                          ; 740F E1
@@ -18588,7 +18643,8 @@ FIND_PROC_ENTRY_1:
 ;; --------------------------------------------------------------------
 
 BUILD_PROC_INDEX:
-               LD HL,&E000                     ; 7419 21 00 E0
+               LD HL,&E000                     ; 7419 21 00 E0  the base of the table, and the paragraph above says why
+                                               ; it is there
                PUSH HL                         ; 741C E5
                LD A,(PROGP)                    ; 741D 3A 9F 5A
                OUT (HMPR),A                    ; 7420 D3 FB
@@ -18596,7 +18652,9 @@ BUILD_PROC_INDEX:
 
 ; ---- BUILD_PROC_INDEX_LOOP ---- from &7453
 BUILD_PROC_INDEX_LOOP:
-               LD BC,&21CA                     ; 7425 01 CA 21
+               LD BC,&21CA                     ; 7425 01 CA 21  the ROM writes the same constant, as LD BC,&2100+&CA
+                                               ; with the comment "DEFPROCTOK", in LOOKDP -- so the split into a flag
+                                               ; and a token is its own
 
 L7428:
                CALL &0000                      ; 7428 CD 00 00  the operand is written here at run time, from &7A2D
@@ -18615,7 +18673,8 @@ L7428:
                AND PAGEMASK                    ; 743B E6 1F
                OUT (HMPR),A                    ; 743D D3 FB
                POP AF                          ; 743F F1
-               AND &DF                         ; 7440 E6 DF
+               AND UPPER                       ; 7440 E6 DF  upper-cased, so a PROC name matches whatever case it was
+                                               ; called in
                LD (HL),A                       ; 7442 77
                INC HL                          ; 7443 23
                EX AF,AF'                       ; 7444 08
@@ -18640,7 +18699,7 @@ BUILD_PROC_INDEX_1:
                LD A,(FISCRNP)                  ; 7456 3A 9F 5C
                AND PAGEMASK                    ; 7459 E6 1F
                OUT (HMPR),A                    ; 745B D3 FB
-               LD (HL),&00                     ; 745D 36 00
+               LD (HL),&00                     ; 745D 36 00  the zero that ends the table, written after the last entry
                RET                             ; 745F C9
 
 ;; --------------------------------------------------------------------

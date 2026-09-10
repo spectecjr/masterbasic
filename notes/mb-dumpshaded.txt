@@ -215,17 +215,21 @@ DOC DUMP_PIXEL
     phase and take two.  Three has a routine of its own below, because
     three does not divide eight.
 
+MB &691A : B cleared, so BC is the colour index by itself for the ADD HL,BC below
 MB &691C : the grey map, sixteen colours to twenty-five levels
 MB &6921 : the table starts one byte past this, so index 0 never happens
 MB &6925 : three bytes to a level
 MB &6927 : and one of the three per printed line
 MB &692A : three bits to a pixel is the awkward case
+MB &692D : which is three, so this is the test for it
 MB &6934 : the phase steps once per pixel and wraps at three
+MB &6935 : and three is where, so the XOR A below puts it back to zero
 MB &693E : one bit to a pixel, or two
 MB &6949 : one bit: rotate the pattern down by the phase
 MB &6952 : two bits: twice as far
 MB &6956 : the first of the two
 MB &6959 : and the bit itself, into the byte being built
+MB &695C : what D becomes for the next byte.  DUMP_EMIT reloads D from C, and D is the byte being built with a marker 1 at the bottom of it -- so the one is set here rather than there because the three-dot path leaves the leftover count in C instead
 MB &695E : eight shifted in, so the byte is full
 
 DOC DUMP_PIXEL_TRIPLE
@@ -241,6 +245,7 @@ DOC DUMP_PIXEL_TRIPLE
     out; one that does not leaves it as it stands, and DUMP_EMIT's
     LD D,C picks it up.
 
+MB &696B : a pixel's three dots less the ones still owed, which is how many have already gone out -- and that is the rotation that lines the rest up
 MB &6963 : the pattern for this level, rotated into place
 MB &6967 : how many of this pixel's three dots are still owed
 MB &6971 : line the remaining dots up at the top

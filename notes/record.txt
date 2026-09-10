@@ -203,9 +203,17 @@ MB &5D32 : RST &20, because the ROM's dispatcher would have stepped past the
 MB &5D3D : PUSH AF planted between the ROM's CALL GETINT and its LD E,7.
            GETINT returns "A=C", the count mod 256, and this is the only copy
            of it that survives the pause loop -- &5DDE pops it back
+MB &5D38 : six of the ROM's bytes first.  PREPARE_COPY_AT_5000 planted the
+           RST &20 at &5000 and stepped past it, so these fill &5001 to &5006
+           and leave the PUSH AF below landing on &5007
+MB &5D41 : and five more, to &500C -- which is what puts CMD_PAUSE_1 at the
+           &500D the note below names.  1 + 6 + 1 + 5 is &0D
 MB &5D46 : seven bytes at &500D, in front of the pause loop
+MB &5D49 : seven, which is &5DCA to &5DD0 -- the whole of CMD_PAUSE_1
 MB &5D4E : the loop itself, sixteen ROM bytes at &5014
 MB &5D52 : and &4E bytes at &5024 replacing the rest of the ROM's PAUSE
+MB &5D55 : &4E, the length of CMD_PAUSE_2, whose own banner gives the same
+           number for the block at &5024
 
 MB &5D59 : &5000, the routine just assembled, for STORE_BC_AT_XVAR76 below
 

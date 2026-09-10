@@ -119,6 +119,11 @@ DOC ATTRIBUTE_PIXEL_COLOUR
     away, and the answer is L AND 7 for ink or L shifted down three for
     paper, with bit 6 of the attribute adding 8 for bright.
 
+MB &6A53 : C is the column, so C AND 7 is which pixel of the byte -- and the INC A after it makes the RLCA loop below bring that pixel into bit 0
+MB &6A5C : that bit on its own: set is ink, clear is paper, and the paper case leaves for the shift-down-three at READ_PIXEL_NIBBLE_1
+MB &6A61 : the attribute's low three bits are the ink colour
+MB &6A66 : bit 6 of the attribute is BRIGHT, and bit 3 of a palette index is what picks the bright eight of the sixteen -- so the test above and this are one step
+
 DOC MODE1_SCREEN_ADDRESS
     Row B, column C to a MODE 1 display address in the window.
 

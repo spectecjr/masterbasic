@@ -107,6 +107,12 @@ MB &7419 BUILD_PROC_INDEX
     24576 bytes in, which is exactly the size of a MODE 3 or 4 display.
     The index lives in the 8K above the screen data.
 
+MB &7419 : the base of the table, and the paragraph above says why it is there
+MB &7425 : the ROM writes the same constant, as LD BC,&2100+&CA with the comment "DEFPROCTOK", in LOOKDP -- so the split into a flag and a token is its own
+MB &7440 expr UPPER
+MB &7440 : upper-cased, so a PROC name matches whatever case it was called in
+MB &745D : the zero that ends the table, written after the last entry
+
 MB &73C9 FIND_PROC_ENTRY
     Resolve one PROC call, at &4D97 once moved.  It walks the table six
     bytes at a time from &E000, rejects an entry whose first character
@@ -120,6 +126,30 @@ MB &73C9 FIND_PROC_ENTRY
     documented exit is "HL POINTS TO LOCN FOR 'PAGE' IN CALLING BUFFER".
     A page of &FF is what the not-found path writes, and it gets there
     through the &21 skip at &7409.
+
+    IT IS THE ROM'S LOOKDP WITH THE INDEX IN PLACE OF THE SCAN.
+    ref/samrom/fn.asm has LOOKDP walking the program itself for every
+    call -- LKFC for a DEF PROC at a line start, MATCHER against the
+    name, four DEC HLs, then the page -- and the tail of it reads
+
+        LKDP3:  LD B,&80
+        LKDP35: IN A,(251) : AND &1F : OR B : LD B,A
+                                  ;B=PAGE WITH DEF PROC NAME, BIT 7 SET
+                DB &21            ;'JR+2'
+        LKDP4:  LD B,&FF          ;'NO DEF PROC/DEF FN'
+
+    which is &7402 to &740A instruction for instruction, skip included.
+    So both numbers at that end are the ROM's, under its own comments,
+    and the four DEC DEs at &73FE are its four DEC HLs.  The ROM also
+    says why an index is worth building, though it says it of DEF FN
+    rather than DEF PROC: "looking through the program each time is too
+    slow".
+
+MB &73CD : six below the table's base, so the ADD HL,DE at the top of the loop lands on the first entry rather than past it
+MB &73D0 : six bytes to an entry, the stride BUILD_PROC_INDEX writes
+MB &73D3 : NMBUFF+1.  MATCHER in fn.asm opens LD HL,NMBUFF under the comment "NAME WE ARE LOOKING FOR IS AT BUFFER+1", and LOOKDP calls it as "MATCH (DE+1) VS. (BUFFER+1)" -- so this is the first character of the name being looked up.  The installer's signature for MATCHER at &7A1B is 21 40 51, which is that very LD HL
+MB &7406 : the page with bit 7 set, which is the ROM's own convention -- see above
+MB &740A : and &FF for not found, likewise
 
 # Two of these routines have no reference anywhere in the listing, and
 # that is the point: nothing here calls them, because nothing here runs
