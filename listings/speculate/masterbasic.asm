@@ -27150,6 +27150,21 @@ INSTALLER_2:
 ;;     routine at &5C59 and nothing to do with it: the ROM's variable
 ;;     list marks &5C59-&5C60 "8 SPARE", and MasterBASIC uses them.
 ;;
+;;     HALF OF IT IS MASTERDOS'S OWN BOOT, REDEALT.  INIP3 in
+;;     ref/masterdos/src/masterdos23.asm does the same initialisations --
+;;     the two drive paths, the clock's control register, the DOS stack, the
+;;     default drive -- and the author's comments name every number in
+;;     them.  They are not in his order here: MasterBASIC deals them out
+;;     among its own vector writes, clock and stack first at &770B, the
+;;     paths and the drive later at &7733.  The two subroutines below are
+;;     his as well, &7774 being FTHREE, his three-byte signature search, and
+;;     &778B MRINIT, his external-memory sizing.
+;;
+;;     So most of the numbers here do not have to be worked out.  They have
+;;     to be looked up, and the place to look is his source rather than this
+;;     image.  What MasterBASIC adds to them is the vector table above,
+;;     BASIC's stack at &45A1, and the word at &5A69.
+;;
 ;;     What was here before:
 ;;
 ;;         Point the ROM's vectors at the code installed in the system page.
@@ -27158,8 +27173,19 @@ INSTALLER_2:
 ; ---- INSTALL_ROM_VECTORS ---- from &76D5 when bit 7 of H clear
 INSTALL_ROM_VECTORS:
                LD (DOS_NEXTST),HL              ; 76DA 22 1E 82
+
+;; --------------------------------------------------------------------
+;; SPARE between LSOFF and SPOSNU; &7BCF parks a return address in
+;; &5A62 out of the same fourteen.  &549F reads this word back with
+;; MBNRRDD beside the ROM's ERRSP and MasterDOS's NEXTST -- the
+;; DEFW &7889 two instructions later is LD BC,(NEXTST) -- so what
+;; it holds is a next-statement address.  It is MasterBASIC's
+;; NEXTST, written here in the same breath as the DOS's own
+;; --------------------------------------------------------------------
+
                                                ; self-modifying: patches the operand of the JR at &5A68
-               LD (&5A69),DE                   ; 76DD ED 53 69 5A
+               LD (&5A69),DE                   ; 76DD ED 53 69 5A  &5A69 is VAR2+&69, inside the fourteen bytes vars.asm
+                                               ; marks
                CALL DOS_MBCOPY_778B            ; 76E1 CD AA BD
                CALL DOS_MBCOPY_7829            ; 76E4 CD 48 BE
                LD HL,SYS_PRTOKV_PRINT_TOKEN    ; 76E7 21 B0 4B  &4BB0 in the system page -- inside the 36 bytes put at
@@ -27178,13 +27204,45 @@ INSTALL_ROM_VECTORS:
                LD (SYS_GAP_BLOCK+&06),HL       ; 7708 22 9C 58
                LD A,(DOS_CKPT)                 ; 770B 3A B6 82
                LD C,A                          ; 770E 4F
-               LD B,&F0                        ; 770F 06 F0
-               LD A,&05                        ; 7711 3E 05
+
+;; --------------------------------------------------------------------
+;; register number rides in bits 12-15 of the port address, so the
+;; number of it is &F0.  MasterDOS's source writes the same LD B
+;; and comments it "CONTROL REG"
+;; --------------------------------------------------------------------
+
+               LD B,&F0                        ; 770F 06 F0  the clock's control register F, which is register 15 -- and
+                                               ; the
+
+;; --------------------------------------------------------------------
+;; TEST/24H/RUN /REST".  The two OUTs are his "REST HI" and "WE CAN
+;; SET 24H NOW", which is the MSM6242B's documented order: REST to
+;; 1, write the 24/12 bit, REST back to 0, because "REST bit must
+;; = 1 to write to the 24/12 hour bit"
+;; --------------------------------------------------------------------
+
+               LD A,&05                        ; 7711 3E 05  &05 is 0101, and the author's comment for it reads "NOT
                OUT (C),A                       ; 7713 ED 79
                OUT (C),A                       ; 7715 ED 79
-               LD A,&04                        ; 7717 3E 04
+
+;; --------------------------------------------------------------------
+;; TEST/24H/RUN /NOT REST".  The clock is now running in 24-hour
+;; mode with its sub-second divider restarted
+;; --------------------------------------------------------------------
+
+               LD A,&04                        ; 7717 3E 04  and &04 is the same four bits with REST released -- 0100,
+                                               ; "NOT
                OUT (C),A                       ; 7719 ED 79
-               LD HL,&7FE6                     ; 771B 21 E6 7F
+
+;; --------------------------------------------------------------------
+;; and this build has it ten bytes lower: &6054 in the DOS reads LD
+;; HL,&7FE5 where that source reads LD HL,SYSP-1, and sets bit 6 of
+;; it to leave ROM 1 on when the DOS returns.  So &7FE6 is not a
+;; number MasterBASIC chose but one it has to agree with
+;; --------------------------------------------------------------------
+
+               LD HL,&7FE6                     ; 771B 21 E6 7F  SYSP, the DOS's syntax stack. masterdos23.asm EQUs it at
+                                               ; &7FF0
                LD (DOSSTK),HL                  ; 771E 22 59 5C
                LD HL,SYS_EDITV_EDITOR          ; 7721 21 66 48  &4866 likewise, inside the second stub
                                                ; self-modifying: patches the operand of the RES at &5AEB
@@ -27194,17 +27252,32 @@ INSTALL_ROM_VECTORS:
                LD HL,SYS_PATOUT_CHAR_OUT       ; 772D 21 A9 49
                                                ; self-modifying: patches the operand of the LD at &5BD0
                LD (PATOUT),HL                  ; 7730 22 D2 5B
-               LD HL,&3A31                     ; 7733 21 31 3A
+
+;; --------------------------------------------------------------------
+;; path "1:" and the INC L below makes PTH2 read "2:".  MasterDOS's
+;; source writes the same constant and comments it ":/1"
+;; --------------------------------------------------------------------
+
+               LD HL,&3A31                     ; 7733 21 31 3A  not an address: &31 is "1" and &3A is ":", so PTH1
+                                               ; becomes the
                LD (DOS_PTH1),HL                ; 7736 22 13 BF
                INC L                           ; 7739 2C
                LD (DOS_PTH2),HL                ; 773A 22 39 BF
-               LD HL,&45A1                     ; 773D 21 A1 45
+               LD HL,&45A1                     ; 773D 21 A1 45  &45A1, one below the first installed stub at &45A2
                LD (BSTKEND),HL                 ; 7740 22 C4 5B
                                                ; self-modifying: patches the operand of the CALL at &5BC4
                LD (BASSTK),HL                  ; 7743 22 C6 5B  BASIC's stack moved to &45A1, clear of the installed
                                                ; code
-               LD (HL),&FF                     ; 7746 36 FF
-               LD A,&01                        ; 7748 3E 01
+
+;; --------------------------------------------------------------------
+;; BSTKEND, ANDs it with &E0 and compares it with the type wanted,
+;; and &FF matches none of &80, &40 and &00 -- which is what an
+;; empty DO/GOSUB/PROC stack has to look like
+;; --------------------------------------------------------------------
+
+               LD (HL),&FF                     ; 7746 36 FF  the ROM's own "FF STOPPER". RETLOOP in do.asm reads the
+                                               ; byte at
+               LD A,&01                        ; 7748 3E 01  drive 1, the DOS's default
                LD (DOS_DRIVE),A                ; 774A 32 0B BC
                LD HL,SYS_INSLV_STRING_MOVE     ; 774D 21 CC 46  &46CC in the system page -- the string move stub, not
                                                ; whatever this page has at &46CC
@@ -27263,14 +27336,12 @@ INSTALL_ROM_VECTORS:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     Copied to &7D93 in the DOS page by the boot sector, and
-;;     called there from 1 site in this page as DOS_MBCOPY_7774.  The
-;;     bytes the file holds at &7D93 in the DOS page are not
-;;     these: they are whatever was in its buffers when the image
-;;     was saved, and the copy overwrites them at boot.
+;;     can match until two bytes have been read into it.  FTHREE in
+;;     MasterDOS's source opens with the same LD DE
 ;; --------------------------------------------------------------------
 
-               LD DE,&0000                     ; 7774 11 00 00
+               LD DE,&0000                     ; 7774 11 00 00  the two-byte window the search below slides along, so
+                                               ; nothing
 
 ;; --------------------------------------------------------------------
 ;; INSTALL_ROM_VECTORS_LOOP -- &7777 to &7778
@@ -27303,7 +27374,17 @@ INSTALL_ROM_VECTORS_LOOP2:
                POP BC                          ; 7780 C1
                EX DE,HL                        ; 7781 EB
                SBC HL,BC                       ; 7782 ED 42
-               ADD HL,BC                       ; 7784 09
+
+;; --------------------------------------------------------------------
+;; the flags from the subtraction and puts the window back, so a
+;; near miss does not cost a byte of it; FTHREE, which goes
+;; straight to EX DE,HL, carries the difference into DE and
+;; shifts it through the window on the next pass.  The restore is
+;; exact only because the loop above can only exit on equality,
+;; which leaves the carry clear for the SBC
+;; --------------------------------------------------------------------
+
+               ADD HL,BC                       ; 7784 09  the one instruction FTHREE does not have.  SBC then ADD leaves
                EX DE,HL                        ; 7785 EB
                JR NZ,INSTALL_ROM_VECTORS_LOOP  ; 7786 20 EF
                DEC HL                          ; 7788 2B
@@ -27337,7 +27418,14 @@ INSTALL_ROM_VECTORS_LOOP2:
                CALL &7DFA                      ; 7799 CD FA 7D  SIZE_EXTERNAL_MEMORY, at the address it runs at rather
                                                ; than where it is stored -- this is inside INSTALLER, which the boot
                                                ; sector copies to &BC00
-               LD HL,(&4212)                   ; 779C 2A 12 42
+
+;; --------------------------------------------------------------------
+;; pointer.  MRINIT, which this is a copy of, writes LD
+;; (TEMPW1),SP and LD HL,(TEMPW1) around the same call
+;; --------------------------------------------------------------------
+
+               LD HL,(&4212)                   ; 779C 2A 12 42  TEMPW1 in the DOS's own page, where &7792 parked the
+                                               ; stack
                LD BC,&5FFA                     ; 779F 01 FA 5F  &5F to LMPR: both ROMs on, the system page back in
                                                ; section B
                OUT (C),B                       ; 77A2 ED 41
@@ -27356,12 +27444,19 @@ INSTALL_ROM_VECTORS_LOOP2:
                RST FPCALC                      ; 77B0 EF
                DEFB FPC_LKADDRW,&12,&82        ; 77B1 LKADDRW at DOS_TEMPW1
                DEFB FPC_EXIT                   ; 77B4 EXIT
-               LD A,&02                        ; 77B5 3E 02
+               LD A,&02                        ; 77B5 3E 02  back to stream 2, the normal output stream, for the report
+                                               ; line
                CALL STREAM                     ; 77B7 CD 12 01
                CALL JPFSTRS                    ; 77BA CD 7E 01
                CALL PRINTSTR                   ; 77BD CD 13 00
                LD DE,DOS_V7DE8                 ; 77C0 11 E8 BD
-               LD BC,&0012                     ; 77C3 01 12 00
+
+;; --------------------------------------------------------------------
+;; there counts out
+;; --------------------------------------------------------------------
+
+               LD BC,&0012                     ; 77C3 01 12 00  eighteen -- the length of the text below, which the
+                                               ; banner
                JP PRINTSTR                     ; 77C6 C3 13 00
 
 ;; --------------------------------------------------------------------
