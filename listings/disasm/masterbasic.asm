@@ -4537,7 +4537,12 @@ FN_LOCN:
                PUSH DE                            ; 4B08 D5
                LD (V40A4),HL                      ; 4B09 22 A4 40
                LD L,D                             ; 4B0C 6A
-               LD A,&20                           ; 4B0D 3E 20
+               LD A,&20                           ; 4B0D 3E 20  one load doing two jobs, and only one of them cares what
+                                                  ; the value is. V40AD is never read as anything but a flag -- &4B71
+                                                  ; and &4C1C do nothing to it but AND A -- so LOCN needs any non-zero
+                                                  ; byte there, and INARRAY's &4B52 writes a real zero or one in the
+                                                  ; same place. The &20 is then reused as H for the word stored two
+                                                  ; instructions below
                LD (V40AD),A                       ; 4B0F 32 AD 40
                LD H,A                             ; 4B12 67
                LD (V40A2),HL                      ; 4B13 22 A2 40
@@ -4564,7 +4569,10 @@ FN_LOCN:
                LD C,A                             ; 4B2F 4F
                LD A,B                             ; 4B30 78
                DEC A                              ; 4B31 3D
-               LD B,&20                           ; 4B32 06 20
+               LD B,&20                           ; 4B32 06 20  &2000, one 8K block, which the DEC BC below turns into
+                                                  ; &2000 plus the search string's length less one. So a block is
+                                                  ; scanned a string-length past its own end, and a match lying across
+                                                  ; the boundary is still found
                DEC BC                             ; 4B34 0B
                RRA                                ; 4B35 1F  the bottom bit of the block number is the half of the 16K
                                                   ; page the address is in, so one rotate splits it: the carry says
@@ -4818,7 +4826,9 @@ FN_LOCN_2:
                RLC H                           ; 4C4D CB 04
                RLC H                           ; 4C4F CB 04
                RLC H                           ; 4C51 CB 04
-               LD B,&03                        ; 4C53 06 03
+               LD B,&03                        ; 4C53 06 03  three places, the same three GET_PAGED_ADDRESS shifts the
+                                               ; other way -- an 8K block number and an offset within it, turned back
+                                               ; into a page and a windowed address
 
 ; ---- COPY_STRING_TO_BUFFER_LOOP ---- from &4C58 when B is not 0 yet
 COPY_STRING_TO_BUFFER_LOOP:
@@ -6406,13 +6416,15 @@ HOOK_HPFF:
                CP &68                          ; 5096 FE 68  XVAR is FF 68, outside the run that ends at FF 38, so it is
                                                ; brought to &39 to continue it
                JR NZ,HOOK_HPFF_1               ; 5098 20 02
-               SUB &2F                         ; 509A D6 2F
+               SUB &2F                         ; 509A D6 2F  &68 less &2F is &39, which is the line above put as
+                                               ; arithmetic
 
 ; ---- HOOK_HPFF_1 ---- from &5098 when A <> &68
 HOOK_HPFF_1:
                CP &6A                          ; 509C FE 6A  and NVAL, FF 6A, to &3A
                JR NZ,HOOK_HPFF_2               ; 509E 20 02
-               SUB &30                         ; 50A0 D6 30
+               SUB &30                         ; 50A0 D6 30  and &6A less &30 is &3A, the same step for the second of
+                                               ; the two
 
 ; ---- HOOK_HPFF_2 ---- from &509E when A <> &6A
 HOOK_HPFF_2:
@@ -6424,7 +6436,10 @@ HOOK_HPFF_2:
                JR C,HOOK_HPFF_DONE             ; 50A9 38 29
                SUB &25                         ; 50AB D6 25  &25 rather than &26, because the space at &50D7 makes the
                                                ; list one-based
-               LD BC,&00FB                     ; 50AD 01 FB 00
+               LD BC,&00FB                     ; 50AD 01 FB 00  HMPR, with a zero in B that the pair carries for free:
+                                               ; IN E,(C) reads the port and OUT (C),B writes B to it, so one LD BC
+                                               ; saves the old paging and puts page 0 -- the system page -- in the
+                                               ; window
                IN E,(C)                        ; 50B0 ED 58
                OUT (C),B                       ; 50B2 ED 41
                LD B,E                          ; 50B4 43
@@ -8160,7 +8175,8 @@ SCAN_TEXT_PAGED_2:
                DEFW JPFSTRS                    ; 56CD 7E 01
                CALL MBCMR                      ; 56CF CD F0 44
                DEFW PRINTSTR                   ; 56D2 13 00
-               LD A,&0D                        ; 56D4 3E 0D
+               LD A,CH_CR                      ; 56D4 3E 0D  a carriage return after the string, so each match printed
+                                               ; ends its own line
                CALL CALL_PRINT_A               ; 56D6 CD FA 69
                POP HL                          ; 56D9 E1
                JP SCAN_TEXT_PAGED_5            ; 56DA C3 4D 57
@@ -8171,7 +8187,10 @@ SCAN_TEXT_PAGED_3:
                LD (V408B),DE                   ; 56DE ED 53 8B 40
                CALL MBNRWRHL                   ; 56E2 CD 75 45
                DEFW &5A5E                      ; 56E5 5E 5A
-               LD DE,&484D                     ; 56E7 11 4D 48
+               LD DE,&484D                     ; 56E7 11 4D 48  &484D, where the &7BA4 block runs once installed -- the
+                                               ; banner above calls it "MasterBASIC's own routine (assembled at &7BA4,
+                                               ; running at &484D)", and this is the address being hung on the channel
+                                               ; word
                CALL EXCHANGE_CHANNEL_WORD      ; 56EA CD 9F 58
                CALL MBNRWRD                    ; 56ED CD 77 45
                DEFW &5A67                      ; 56F0 67 5A
@@ -8335,7 +8354,8 @@ SCAN_TEXT_PAGED_4:
                LD HL,REF_BUFFER_2              ; 5739 21 80 7B
                LD C,(HL)                       ; 573C 4E  the length of the replacement, from the second buffer; B is
                                                ; cleared so BC is a byte count for the LDIR below
-               LD B,&00                        ; 573D 06 00
+               LD B,&00                        ; 573D 06 00  and this is that clearing -- the length is a byte and the
+                                               ; LDIR wants a word
                POP HL                          ; 573F E1
                CALL ALTER_RESIZE_GAP           ; 5740 CD BF 58  with A = old length, C = new length, DE = the text and
                                                ; HL = the line start, this opens or reclaims the difference and fixes
@@ -8607,12 +8627,21 @@ GET_STRING_AND_PAGE_IT_DONE:
 
 ; ---- PARSE_REFERENCE_3 ---- from &57A0
 PARSE_REFERENCE_3:
-               LD BC,&25EF                     ; 57F5 01 EF 25
+               LD BC,&25EF                     ; 57F5 01 EF 25  FOUR BYTES OF CODE, NOT TWO WORDS OF DATA. &EF is RST
+                                               ; &28, the floating-point calculator, whose literal stream follows the
+                                               ; RST rather than being addressed by it, and &25 is its DUP. The names
+                                               ; come out of ref/samrom/fpcmain.asm, whose table reads "DW FPDUP ;25
+                                               ; DUP"; tools/fpcalc.py does the decoding
                CALL MBNRWRD                    ; 57F8 CD 77 45  the operand is INSTBUF, &4F00 in the system page, not
                                                ; this page's &4F00 -- the label DKP2 is the ROM source's name for
                                                ; whichever overlay was loaded there last
                DEFW DKP2                       ; 57FB 00 4F
-               LD BC,&3457                     ; 57FD 01 57 34
+               LD BC,&3457                     ; 57FD 01 57 34  and the other two, &57 STR$ and &34 EXIT2 -- "DW FPSTRS
+                                               ; ;57 STR$" and "DW FPEXIT2 ;34 EXIT2" in the same table, with EXIT2
+                                               ; declared there as EQU &34. So what &5805 runs is duplicate, make a
+                                               ; string of the copy, leave the calculator: the number survives the
+                                               ; conversion, which is what lets &581E write the five-byte binary form
+                                               ; after the text one
                CALL MBNRWRD                    ; 5800 CD 77 45
                DEFW &4F02                      ; 5803 02 4F
                CALL MBCMR                      ; 5805 CD F0 44  run the four bytes just written
@@ -8637,7 +8666,8 @@ PARSE_REFERENCE_3:
                                                ; text holds
                LD (DE),A                       ; 5820 12
                INC DE                          ; 5821 13
-               LD B,&05                        ; 5822 06 05
+               LD B,&05                        ; 5822 06 05  and five is that number, the bytes of a floating-point
+                                               ; value as the program text carries it behind the &0E marker
 
 ; ---- GET_STRING_AND_PAGE_IT_LOOP2 ---- from &582A when B is not 0 yet
 GET_STRING_AND_PAGE_IT_LOOP2:
@@ -9350,12 +9380,14 @@ SEND_COUNTED_TO_CHANNEL_1:
                LD A,(TVFLAG)                   ; 59AC 3A 3C 5C  &10 exactly, not a bit test -- TVFLAG with only bit 4
                                                ; set is the ROM's automatic listing in progress, and AULX clears that
                                                ; bit when the listing ends
-               CP &10                          ; 59AF FE 10
+               CP &10                          ; 59AF FE 10  &10 is that value -- the line above says why it is a
+                                               ; compare and not a bit test
                JR NZ,SCREEN_BLANK_TICK         ; 59B1 20 35
                LD HL,(SPSTORE)                 ; 59B3 2A D2 5A  (SPSTORE) is the stack the interrupt came in on. The
                                                ; ROM's &0038 pushes AF, BC then HL before ANYI stores SP, so from there
                                                ; +0 is HL, +2 is BC, +4 is AF and +6 is the interrupted PC
-               LD BC,&0007                     ; 59B6 01 07 00
+               LD BC,&0007                     ; 59B6 01 07 00  +7, the high byte of the interrupted PC, from the
+                                               ; offsets just listed
                ADD HL,BC                       ; 59B9 09
                LD A,(HL)                       ; 59BA 7E
                CP &06                          ; 59BB FE 06  the high byte of the interrupted PC. &06 is the page AULLP
@@ -9396,7 +9428,9 @@ SEND_COUNTED_TO_CHANNEL_1:
                LD (HL),E                       ; 59DB 73
                INC HL                          ; 59DC 23
                LD (HL),D                       ; 59DD 72
-               LD BC,&0005                     ; 59DE 01 05 00
+               LD BC,&0005                     ; 59DE 01 05 00  five on from +1, which is +6 -- the interrupted PC. The
+                                               ; word just written went to +0 and +1, the interrupted HL, so this is the
+                                               ; step from the one field to the other
                ADD HL,BC                       ; 59E1 09
                LD DE,&061E                     ; 59E2 11 1E 06  &061E is AUL3 in the ROM the signature search found --
                                                ; the instruction just past the loop. Setting the interrupted PC to it is
@@ -13805,7 +13839,8 @@ PRINT_MAGNIFIED_CHAR:
                EXX                               ; 64F9 D9
                POP HL                            ; 64FA E1
                LD DE,SCRNBUF                     ; 64FB 11 88 51
-               LD B,&08                          ; 64FE 06 08
+               LD B,&08                          ; 64FE 06 08  eight source rows to a character, which is what the
+                                                 ; banner counts
 
 ; ---- PRINT_MAGNIFIED_CHAR_LOOP ---- from &652D when B is not 0 yet
 PRINT_MAGNIFIED_CHAR_LOOP:
@@ -13818,7 +13853,10 @@ PRINT_MAGNIFIED_CHAR_LOOP2:
                LD (DE),A                       ; 6503 12
                INC DE                          ; 6504 13
                LD A,E                          ; 6505 7B
-               CP &90                          ; 6506 FE 90
+               CP &90                          ; 6506 FE 90  SCRNBUF is &5188 and the buffer is eight bytes, so E
+                                               ; reaching &90 is the cell being full -- and &5190 is CHARSVAL, the next
+                                               ; variable along, which is why the test reads as an address rather than a
+                                               ; count
                JR NZ,PRINT_MAGNIFIED_CHAR_1    ; 6508 20 1F
                PUSH HL                         ; 650A E5
                PUSH BC                         ; 650B C5
@@ -13832,7 +13870,8 @@ PRINT_MAGNIFIED_CHAR_LOOP2:
 L6516:
                CALL Z,&0000                    ; 6516 CC 00 00  the operand is written here at run time, from &7637
                LD A,(DHADJ)                    ; 6519 3A 82 5B
-               ADD A,&08                       ; 651C C6 08
+               ADD A,&08                       ; 651C C6 08  eight scan lines, one character row, added to the ROM's own
+                                               ; DHADJ
                LD (DHADJ),A                    ; 651E 32 82 5B
                POP DE                          ; 6521 D1
                POP BC                          ; 6522 C1
@@ -14266,12 +14305,15 @@ COMPRESS_BLOCK:
                POP HL                          ; 6636 E1
                LD A,H                          ; 6637 7C  the same bytes seen through the top section: &C000 - length
                                                ; becomes &10000 - length, so the data runs up to &FFFF exactly
-               ADD A,&40                       ; 6638 C6 40
+               ADD A,&40                       ; 6638 C6 40  &40 on the high byte is &4000 on the address, which is one
+                                               ; section -- the step from the &C000 window to the top one the line above
+                                               ; describes
                LD H,A                          ; 663A 67
                LD A,(V40A0)                    ; 663B 3A A0 40  type &11 is a numeric array, five bytes to an element:
                                                ; transpose each 256-byte block so that bytes in the same position within
                                                ; an element become adjacent
-               CP &11                          ; 663E FE 11
+               CP &11                          ; 663E FE 11  and &11 is that type byte, so the transpose below happens
+                                               ; for a numeric array and for nothing else
                PUSH HL                         ; 6640 E5
                CALL Z,SET_STEP_AND_COUNT       ; 6641 CC 96 67
                POP DE                          ; 6644 D1  the start of the data twice over -- the encoder's input
@@ -14322,7 +14364,8 @@ COMPRESS_BLOCK_1:
                LD (INSTALL_ROM_PATCHES),A      ; 6668 32 00 7B
                EXX                             ; 666B D9  DE-prime is the side buffer at &7B05 -- header byte 5 onwards
                                                ; -- for the byte that follows each literal escape; see &669B
-               LD DE,&7B05                     ; 666C 11 05 7B
+               LD DE,&7B05                     ; 666C 11 05 7B  and &7B05 is that address, five bytes past the header
+                                               ; READ_COUNTED_STRING's banner sets out
                EXX                             ; 666F D9
                POP HL                          ; 6670 E1  output and input start together, because the encoder works in
                                                ; place and no case below writes more than it reads

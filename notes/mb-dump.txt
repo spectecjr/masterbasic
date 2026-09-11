@@ -521,7 +521,11 @@ MB &6631 : the page BELOW the work page into HMPR, which puts the work page itse
 
 MB &6637 : the same bytes seen through the top section: &C000 - length becomes &10000 - length, so the data runs up to &FFFF exactly
 
+MB &6638 : &40 on the high byte is &4000 on the address, which is one section -- the step from the &C000 window to the top one the line above describes
+
 MB &663B : type &11 is a numeric array, five bytes to an element: transpose each 256-byte block so that bytes in the same position within an element become adjacent
+
+MB &663E : and &11 is that type byte, so the transpose below happens for a numeric array and for nothing else
 
 MB &6644 : the start of the data twice over -- the encoder's input pointer, and the subtrahend for the compressed length at &66AE
 
@@ -540,6 +544,8 @@ MB &665F : strictly less only, so ties go to the lower value
 MB &6667 : header byte 0, the escape
 
 MB &666B : DE-prime is the side buffer at &7B05 -- header byte 5 onwards -- for the byte that follows each literal escape; see &669B
+
+MB &666C : and &7B05 is that address, five bytes past the header READ_COUNTED_STRING's banner sets out
 
 MB &6670 : output and input start together, because the encoder works in place and no case below writes more than it reads
 

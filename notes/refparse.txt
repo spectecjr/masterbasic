@@ -27,6 +27,11 @@ DOC L56F3
     the code that reads them back run with the system page at &4000 and
     MasterBASIC nowhere in sight.
 
+MB &56D4 expr CH_CR
+MB &56D4 : a carriage return after the string, so each match printed ends its own line
+
+MB &56E7 : &484D, where the &7BA4 block runs once installed -- the banner above calls it "MasterBASIC's own routine (assembled at &7BA4, running at &484D)", and this is the address being hung on the channel word
+
 MB &56F3 : the operand is written at boot from &79AE, where a signature search finds the ROM's EDKY1 -- the byte pair is version-dependent, so it cannot be assembled
 
 MB &56F8 : &5A65 is what the channel hook left behind: KCUR as it stood one character before the reference was reached
@@ -93,6 +98,8 @@ MB &5736 : the length of the reference being replaced, from the first buffer
 MB &5737 : DE = BC, the address in the program text where the match starts; MATCH_REFERENCE left HL past the match and the caller kept the start in BC
 
 MB &573C : the length of the replacement, from the second buffer; B is cleared so BC is a byte count for the LDIR below
+
+MB &573D : and this is that clearing -- the length is a byte and the LDIR wants a word
 
 MB &5740 : with A = old length, C = new length, DE = the text and HL = the line start, this opens or reclaims the difference and fixes the line's length field.  It comes back with DE at the gap and BC still the new length
 
@@ -206,11 +213,17 @@ DOC PARSE_REFERENCE_3
     bytes into the buffer behind an &0E marker, which is exactly how the
     number appears in a program line.
 
+MB &57F5 : FOUR BYTES OF CODE, NOT TWO WORDS OF DATA.  &EF is RST &28, the floating-point calculator, whose literal stream follows the RST rather than being addressed by it, and &25 is its DUP.  The names come out of ref/samrom/fpcmain.asm, whose table reads "DW FPDUP ;25 DUP"; tools/fpcalc.py does the decoding
+
 MB &57F8 : the operand is INSTBUF, &4F00 in the system page, not this page's &4F00 -- the label DKP2 is the ROM source's name for whichever overlay was loaded there last
+
+MB &57FD : and the other two, &57 STR$ and &34 EXIT2 -- "DW FPSTRS ;57 STR$" and "DW FPEXIT2 ;34 EXIT2" in the same table, with EXIT2 declared there as EQU &34.  So what &5805 runs is duplicate, make a string of the copy, leave the calculator: the number survives the conversion, which is what lets &581E write the five-byte binary form after the text one
 
 MB &5805 : run the four bytes just written
 
 MB &580D : STKEND, so the five bytes of the value are the five below it
+
+MB &5822 : and five is that number, the bytes of a floating-point value as the program text carries it behind the &0E marker
 
 MB &5817 : written back, which is the drop; the value has been consumed
 
@@ -404,13 +417,19 @@ MB &59A9 : &0066 is the ROM's NMI handler, so holding the pair does what the bre
 
 MB &59AC : &10 exactly, not a bit test -- TVFLAG with only bit 4 set is the ROM's automatic listing in progress, and AULX clears that bit when the listing ends
 
+MB &59AF : &10 is that value -- the line above says why it is a compare and not a bit test
+
 MB &59B3 : (SPSTORE) is the stack the interrupt came in on.  The ROM's &0038 pushes AF, BC then HL before ANYI stores SP, so from there +0 is HL, +2 is BC, +4 is AF and +6 is the interrupted PC
+
+MB &59B6 : +7, the high byte of the interrupted PC, from the offsets just listed
 
 MB &59BB : the high byte of the interrupted PC.  &06 is the page AULLP lives in, and it is written as a literal even though the low byte below is patched -- the rescue quietly assumes the ROM keeps that loop in &06xx
 
 MB &59C0 : the operand is written at boot from &79C7, from a signature search for AULLP: C is its low byte and B that plus &12.  So the pair of compares below asks whether the interrupt caught the ROM inside the first eighteen bytes of the auto-list loop, the part that hunts forward for SDTOP
 
 MB &59CA : +5 is the interrupted A, which in that loop is the page EPPC is in
+
+MB &59DE : five on from +1, which is +6 -- the interrupted PC.  The word just written went to +0 and +1, the interrupted HL, so this is the step from the one field to the other
 
 MB &59CC : D is the HMPR the hook read at &7CF4, so this acts only when the line wanted is in a page below the one in the window -- the case the ROM's loop walks forward for ever looking for
 

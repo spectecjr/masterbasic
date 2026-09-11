@@ -191,13 +191,19 @@ MB &508B : the word HPRTOK_1 parked, fetched back and written to XPTR -- two hoo
 
 MB &5096 : XVAR is FF 68, outside the run that ends at FF 38, so it is brought to &39 to continue it
 
+MB &509A : &68 less &2F is &39, which is the line above put as arithmetic
+
 MB &509C : and NVAL, FF 6A, to &3A
+
+MB &50A0 : and &6A less &30 is &3A, the same step for the second of the two
 
 MB &50A2 : below FF 26 is not MasterBASIC's
 
 MB &50A6 : and &3B or above is not either.  CP sets carry for "less than", so CCF turns the test into the one wanted
 
 MB &50AB : &25 rather than &26, because the space at &50D7 makes the list one-based
+
+MB &50AD : HMPR, with a zero in B that the pair carries for free: IN E,(C) reads the port and OUT (C),B writes B to it, so one LD BC saves the old paging and puts page 0 -- the system page -- in the window
 
 MB &50BC : the channel's real output routine, put back now the token has been printed
 

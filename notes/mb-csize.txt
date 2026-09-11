@@ -5,6 +5,10 @@ RENAME NMISTK SCRNBUF
 
 MB &64F3 PRINT_MAGNIFIED_CHAR
 
+MB &64FE : eight source rows to a character, which is what the banner counts
+MB &6506 : SCRNBUF is &5188 and the buffer is eight bytes, so E reaching &90 is the cell being full -- and &5190 is CHARSVAL, the next variable along, which is why the test reads as an address rather than a count
+MB &651C : eight scan lines, one character row, added to the ROM's own DHADJ
+
 DOC PRINT_MAGNIFIED_CHAR
     Print one character C cells tall, by building each cell in the ROM's
     own SCRNBUF and handing it to the ROM's character output.

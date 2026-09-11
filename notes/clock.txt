@@ -135,13 +135,19 @@ MB &4AFD : and the paging under it, for the POP AF at &4C26 -- the two are a mat
 
 MB &4B01 : the string being looked for, copied to &7B00 with its length left in V4098
 
+MB &4B0D : one load doing two jobs, and only one of them cares what the value is.  V40AD is never read as anything but a flag -- &4B71 and &4C1C do nothing to it but AND A -- so LOCN needs any non-zero byte there, and INARRAY's &4B52 writes a real zero or one in the same place.  The &20 is then reused as H for the word stored two instructions below
+
 MB &4B04 : the calculator stack is last-in first-out, so with the string already taken this is the length argument and &4B16 the start
 
 MB &4B1D : GET_PAGED_ADDRESS counts 8K blocks of a flat address in which 0 to 16383 is the ROM, so RAM page 0 begins at 16384 -- two blocks in.  Taking those two off turns the argument into a physical block number
 
 MB &4B1F : and 64 blocks is 512K, the most the machine can have, so anything higher is "Integer out of range"
 
+MB &4B32 : &2000, one 8K block, which the DEC BC below turns into &2000 plus the search string's length less one.  So a block is scanned a string-length past its own end, and a match lying across the boundary is still found
+
 MB &4B35 : the bottom bit of the block number is the half of the 16K page the address is in, so one rotate splits it: the carry says whether to add &2000 to the pointer, and what is left in A is the page for the OUT at &4B9E
+
+MB &4C53 : three places, the same three GET_PAGED_ADDRESS shifts the other way -- an 8K block number and an offset within it, turned back into a page and a windowed address
 
 MB &4B3F : TEST_RUNNING is Z on the syntax pass, when there is no array to find -- the jump goes straight to the second argument and checks it
 
