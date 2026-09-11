@@ -31,6 +31,14 @@ MB &4E37 value F_NVAL - FN_TOKEN_BIAS
 
 MB &7E03 : the two codes this stub lets through are XVAR's and NVAL's, the only MasterBASIC functions whose argument has no bracket round it
 
+# The stub six bytes further on is a different thing entirely -- the
+# RST8V error handler, covered in notes/mb-dispatch.txt.  Its RLA and
+# JR C, which carry no operand and so never reached the queue, are the
+# ROM's own division of RST &08: misc2.asm tests the code with CP 128
+# twice over, commented "JR IF NOT A DOS HOOK CODE" and "JR WITH HOOK
+# CODES".  So a code with bit 7 set is not an error at all, and every
+# hook in this image arrives that way.
+
 MB &4E3C : the token is XVAR.  Nothing here says so: the JP above has taken NVAL away and the stub at &7E03 let nothing but those two through, so what is left is XVAR n, and this reads the n
 
 MB &41C5 FN_NVAL

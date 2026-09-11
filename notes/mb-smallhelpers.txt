@@ -274,6 +274,10 @@ MB &49FD TWO_DIGITS_BEFORE_DE
     backwards, with TWO_DIGITS_FROM_DE reading forwards over the same
     shape.
 
+MB &49FD : "0" less one, because the INC C below comes before the subtraction and so runs once more often than it succeeds -- which leaves C at "0" for anything under ten
+MB &4A00 : ten, the divisor.  The loop keeps going while the subtraction carries, so it always goes one step too far
+MB &4A04 : "0" plus ten, which is both halves of the fix in one instruction: the ten the loop overshot by is put back and the remainder becomes a digit
+
 MB &47EE GET_NONEMPTY_STRING
     GET_STRING_PAGED, then refuse a length of zero with "Subscript
     wrong".  The INC B on the way out is for the page-crossing loops that

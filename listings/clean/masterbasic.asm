@@ -3689,7 +3689,8 @@ CMD_TIME_LOOP:
                SUB &3C                         ; 48C0 D6 3C  at most 59 + 9, so a single conditional subtraction of
                                                ; sixty is enough -- no loop needed
                JR NC,CMD_TIME_2                ; 48C2 30 03
-               ADD A,&3C                       ; 48C4 C6 3C
+               ADD A,&3C                       ; 48C4 C6 3C  the sixty put straight back, because the subtraction above
+                                               ; failed -- and the DEC H below takes away the carry &48BE assumed
                DEC H                           ; 48C6 25
 
 ; ---- CMD_TIME_2 ---- from &48C2 when A >= &3C
@@ -3698,10 +3699,11 @@ CMD_TIME_2:
                LD DE,V412F                     ; 48CA 11 2F 41
                CALL TWO_DIGITS_FROM_DE         ; 48CD CD 6A 4A
                ADD A,H                         ; 48D0 84
-               LD H,&01                        ; 48D1 26 01
+               LD H,&01                        ; 48D1 26 01  the same assumed carry as &48BE, this time into the day
                SUB &18                         ; 48D3 D6 18  the same shape again with twenty-four to the day
                JR NC,CMD_TIME_3                ; 48D5 30 03
-               ADD A,&18                       ; 48D7 C6 18
+               ADD A,&18                       ; 48D7 C6 18  and the twenty-four put back when that subtraction fails,
+                                               ; with the DEC H below cancelling the assumption
                DEC H                           ; 48D9 25
 
 ; ---- CMD_TIME_3 ---- from &48D5 when A >= &18
@@ -3733,7 +3735,9 @@ CMD_TIME_3:
 ; ---- CMD_TIME_4 ---- from &4892 when A = 0
 CMD_TIME_4:
                LD HL,V4120                     ; 48E9 21 20 41
-               LD A,&30                        ; 48EC 3E 30
+               LD A,&30                        ; 48EC 3E 30  "0", the character every field of the mirror is filled with
+                                               ; -- held in A right through the loop at &48F7, with only the second
+                                               ; digit of the day overwritten below
                LD (HL),A                       ; 48EE 77
                INC HL                          ; 48EF 23
                LD (HL),&31                     ; 48F0 36 31  day "01".  A day of 00 would make TICS's DEC A wrap
@@ -3882,7 +3886,9 @@ CMD_TIME_7:
 CMD_TIME_8:
                CALL EXPECT_END_OF_STATEMENT    ; 495B CD D0 44  still has to reject "DATE 1,2", and still finishes the
                                                ; syntax pass here
-               LD A,&02                        ; 495E 3E 02
+               LD A,&02                        ; 495E 3E 02  stream 2, the screen, for the ROM's STREAM below. LPRINT
+                                               ; REF loads 3 for the printer at &55C8 and PRINT REF loads 2 at &5641 --
+                                               ; the same two numbers, the same routine
                CALL MBCMR                      ; 4960 CD F0 44  stream 2, the screen
                DEFW STREAM                     ; 4963 12 01
                LD B,&09                        ; 4965 06 09  eight characters and the CR after them
@@ -4096,14 +4102,19 @@ PORT_BCD_DIGIT_1:
 
 ; ---- TWO_DIGITS_BEFORE_DE ---- from &48B4, &48C7, &48DA, &48E4
 TWO_DIGITS_BEFORE_DE:
-               LD C,&2F                        ; 49FD 0E 2F
+               LD C,&2F                        ; 49FD 0E 2F  "0" less one, because the INC C below comes before the
+                                               ; subtraction and so runs once more often than it succeeds -- which
+                                               ; leaves C at "0" for anything under ten
 
 ; ---- TWO_DIGITS_BEFORE_DE_LOOP ---- from &4A02 when A >= &0A
 TWO_DIGITS_BEFORE_DE_LOOP:
                INC C                           ; 49FF 0C
-               SUB &0A                         ; 4A00 D6 0A
+               SUB &0A                         ; 4A00 D6 0A  ten, the divisor. The loop keeps going while the
+                                               ; subtraction carries, so it always goes one step too far
                JR NC,TWO_DIGITS_BEFORE_DE_LOOP ; 4A02 30 FB
-               ADD A,&3A                       ; 4A04 C6 3A
+               ADD A,&3A                       ; 4A04 C6 3A  "0" plus ten, which is both halves of the fix in one
+                                               ; instruction: the ten the loop overshot by is put back and the remainder
+                                               ; becomes a digit
                DEC DE                          ; 4A06 1B
                DEC DE                          ; 4A07 1B
                LD (DE),A                       ; 4A08 12
@@ -17287,7 +17298,8 @@ ARRAY_ELEMENT_OFFSET_LOOP:
                DEFW STRLOCN                    ; 7085 BC 5B
                CALL MBNRWRD                    ; 7087 CD 77 45  the second variable's record, parked in PRPTR
                DEFW PRPTR                      ; 708A A9 5A
-               LD HL,&000B                     ; 708C 21 0B 00
+               LD HL,&000B                     ; 708C 21 0B 00  eleven, the offset of the 24-bit size in a variable's
+                                               ; record -- the "record+11: pages, then length mod 16K" &7029 names
                ADD HL,BC                       ; 708F 09
                LD A,(HL)                       ; 7090 7E
                INC HL                          ; 7091 23
@@ -17306,7 +17318,8 @@ ARRAY_ELEMENT_OFFSET_LOOP:
                POP HL                          ; 70A2 E1
                SBC HL,DE                       ; 70A3 ED 52  so the count copied is the text alone, without the array
                                                ; header
-               SBC A,&00                       ; 70A5 DE 00
+               SBC A,&00                       ; 70A5 DE 00  the borrow out of that subtraction, into the top byte --
+                                               ; the same 24-bit form the size is kept in
                CALL LONGADDR_TO_PAGED          ; 70A7 CD 27 44
                LD D,A                          ; 70AA 57
                LD B,H                          ; 70AB 44
@@ -17339,7 +17352,8 @@ ARRAY_ELEMENT_OFFSET_5:
                INC DE                          ; 70D2 13
                LD HL,(V40A2)                   ; 70D3 2A A2 40  the header size worked out at &709B, plus the fourteen
                                                ; bytes before the body
-               LD BC,&000E                     ; 70D6 01 0E 00
+               LD BC,&000E                     ; 70D6 01 0E 00  and fourteen is that number, the bytes of record that
+                                               ; come before the body begins
                ADD HL,BC                       ; 70D9 09
                CALL MBNRRDD                    ; 70DA CD 5F 45  PRPTR, now holding where the second variable ended up
                DEFW PRPTR                      ; 70DD A9 5A
@@ -19158,7 +19172,11 @@ MSG_EXTERNAL_MEMORY:
 ;; clear the ones that are.
 ;;
 ;; HMPR gets bit 7 set so that the window at &8000 shows external
-;; memory rather than an ordinary page, and then C counts from 0 right
+;; memory rather than an ordinary page -- the Technical Manual's port
+;; map calls that bit MCNTRL, "if this bit is set when the CPU addresses
+;; high memory, then the external signal XMEM goes low and the Coupe
+;; looks on its expansion connector for memory sections C and D" --
+;; and then C counts from 0 right
 ;; round to 0 again, each value written to XMPRL to bring that page
 ;; into the window.  The test is the obvious one done properly: write
 ;; zero to the first byte and read it back, then write one and read it
@@ -19308,9 +19326,13 @@ MSG_EXTERNAL_MEMORY:
 SIZE_EXTERNAL_MEMORY:
                IN A,(HMPR)                     ; 77DB DB FB
                PUSH AF                         ; 77DD F5
-               OR &80                          ; 77DE F6 80
+               OR &80                          ; 77DE F6 80  MCNTRL, HMPR bit 7, which sends the window at &8000 to the
+                                               ; expansion connector instead of a page of RAM. Nothing else in either
+                                               ; half sets it, because nothing else looks outside the machine
                OUT (HMPR),A                    ; 77E0 D3 FB
-               LD C,&00                        ; 77E2 0E 00
+               LD C,&00                        ; 77E2 0E 00  external page zero, the first to try -- and the loop at
+                                               ; &781C comes back only while C is not zero, so the walk ends when it has
+                                               ; come round to the start again
 
 ; ---- SIZE_EXTERNAL_MEMORY_1 ---- from &781C when C is not 0
 SIZE_EXTERNAL_MEMORY_1:
@@ -19329,7 +19351,9 @@ SIZE_EXTERNAL_MEMORY_1:
                CALL STACK_FILL_LOOP            ; 77F5 CD 06 78  RMRBIT in the DOS page, not this half's &7806 -- the
                                                ; block runs at &7C00 in the DOS page, so a page that passes has its
                                                ; MRTAB bit reset
-               LD HL,&0000                     ; 77F8 21 00 00
+               LD HL,&0000                     ; 77F8 21 00 00  the seed for ADD HL,SP below, which is the only way the
+                                               ; Z80 has of reading SP into a register pair. The zero is the idiom and
+                                               ; not a value
                ADD HL,SP                       ; 77FB 39
                EXX                             ; 77FC D9
                DEFB SKIP_2_VIA_LD_SP           ; 77FD 1  skipped: reads as LD SP,&C000 from here, swallowing the bytes
@@ -20936,7 +20960,13 @@ TBL_7D58_2:
                DEC A                           ; 7D86 3D
                JR NZ,TBL_7D58_3                ; 7D87 20 1C
                LD A,(TVDATA)                   ; 7D89 3A BE 5B
-               SUB &17                         ; 7D8C D6 17
+               SUB &17                         ; 7D8C D6 17  twenty-three, the bottom row of the twenty-four, and the OR
+                                               ; D under it asks for a scaled column of zero as well -- so the case
+                                               ; being caught is AT 23,0, and only on the lower screen, DEVICE 1, with
+                                               ; bit 7 of TVFLAG set. &4A18 below is TBL_7D58_1 at &7D6F seen in the
+                                               ; installed frame, so what happens next is the DE just read from OPSTORE
+                                               ; going back through CURCHL: the hook takes itself off the channel before
+                                               ; the two characters below go out
                OR D                            ; 7D8E B2
                JR NZ,TBL_7D58_3                ; 7D8F 20 14
                LD A,(TVFLAG)                   ; 7D91 3A 3C 5C
@@ -20944,9 +20974,10 @@ TBL_7D58_2:
                JR NC,TBL_7D58_3                ; 7D95 30 0E
                LD DE,(OPSTORE)                 ; 7D97 ED 5B B5 5A
                CALL &4A18                      ; 7D9B CD 18 4A  &4A18 once this block is moved, not the label shown
-               LD A,&20                        ; 7D9E 3E 20
+               LD A,&20                        ; 7D9E 3E 20  a space
                RST PRINT_A                     ; 7DA0 D7
-               LD A,&0D                        ; 7DA1 3E 0D
+               LD A,&0D                        ; 7DA1 3E 0D  and a carriage return -- the two characters this path emits
+                                               ; once the channel has been handed back
                RST PRINT_A                     ; 7DA3 D7
                RET                             ; 7DA4 C9
 
@@ -21099,17 +21130,27 @@ TBL_7D58_DONE:
                EXX                             ; 7E0D D9
                RET                             ; 7E0E C9
                PUSH AF                         ; 7E0F F5
-               CP &1D                          ; 7E10 FE 1D
+               CP &1D                          ; 7E10 FE 1D  error 29, the ROM's NONSENSE -- "NONSENSE: RST &08 : DB 29"
+                                               ; in mainlp.asm -- which the message table gives as "Not understood". It
+                                               ; is let through untouched, and the reason is a reading rather than
+                                               ; something the code says: it is the error every one of MasterBASIC's own
+                                               ; parsers raises when a line is not its syntax, so clearing the user's
+                                               ; CSIZE on it would happen on any mistyped line
                JR Z,TBL_7D58_DONE3             ; 7E12 28 1E
                RLA                             ; 7E14 17
                JR C,TBL_7D58_DONE3             ; 7E15 38 1B
                PUSH DE                         ; 7E17 D5
                LD HL,(SYS_CHAR_WIDTH)          ; 7E18 2A EE 4A
                LD A,H                          ; 7E1B 7C
-               CP &05                          ; 7E1C FE 05
+               CP &05                          ; 7E1C FE 05  five, tried first on SYS_CHAR_HEIGHT in H. Anything from
+                                               ; five up goes to the reset below, which zeroes both factors and re-runs
+                                               ; JMODE -- so an error that is about to be reported cannot arrive in
+                                               ; characters too large to read it in
                JR NC,TBL_7D58_6                ; 7E1E 30 05
                LD A,L                          ; 7E20 7D
-               CP &05                          ; 7E21 FE 05
+               CP &05                          ; 7E21 FE 05  and the same five on SYS_CHAR_WIDTH in L, so either factor
+                                               ; being that large is enough. Zero in them means the ROM prints unaided,
+                                               ; which is what the reset restores
                JR C,TBL_7D58_DONE2             ; 7E23 38 0C
 
 ; ---- TBL_7D58_6 ---- from &7E1E when A >= &05

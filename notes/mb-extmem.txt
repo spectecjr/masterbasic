@@ -16,12 +16,20 @@ MB &77DB SIZE_EXTERNAL_MEMORY
 MB &7800 FILL_PAGE_WITH_ZERO
 MB &7806 STACK_FILL_LOOP
 
+MB &77DE : MCNTRL, HMPR bit 7, which sends the window at &8000 to the expansion connector instead of a page of RAM.  Nothing else in either half sets it, because nothing else looks outside the machine
+MB &77E2 : external page zero, the first to try -- and the loop at &781C comes back only while C is not zero, so the walk ends when it has come round to the start again
+MB &77F8 : the seed for ADD HL,SP below, which is the only way the Z80 has of reading SP into a register pair.  The zero is the idiom and not a value
+
 DOC SIZE_EXTERNAL_MEMORY
     Walk the external memory pages, find which of them are there, and
     clear the ones that are.
 
     HMPR gets bit 7 set so that the window at &8000 shows external
-    memory rather than an ordinary page, and then C counts from 0 right
+    memory rather than an ordinary page -- the Technical Manual's port
+    map calls that bit MCNTRL, "if this bit is set when the CPU addresses
+    high memory, then the external signal XMEM goes low and the Coupe
+    looks on its expansion connector for memory sections C and D" --
+    and then C counts from 0 right
     round to 0 again, each value written to XMPRL to bring that page
     into the window.  The test is the obvious one done properly: write
     zero to the first byte and read it back, then write one and read it

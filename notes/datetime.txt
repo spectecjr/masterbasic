@@ -154,7 +154,13 @@ MB &48BE : assume a carry into the hours, and take it away again if the subtract
 
 MB &48C0 : at most 59 + 9, so a single conditional subtraction of sixty is enough -- no loop needed
 
+MB &48C4 : the sixty put straight back, because the subtraction above failed -- and the DEC H below takes away the carry &48BE assumed
+
+MB &48D1 : the same assumed carry as &48BE, this time into the day
+
 MB &48D3 : the same shape again with twenty-four to the day
+
+MB &48D7 : and the twenty-four put back when that subtraction fails, with the DEC H below cancelling the assumption
 
 MB &48E3 : the day gains the carry and that is all.  Nothing knows how long a month is, which is why the manual only promises the date "unless the real time was close to midnight"
 
@@ -172,6 +178,8 @@ DOC CMD_TIME_4
     the year are not touched at all, which is why the manual's example
     shows the date going to "O1/00/00": the mirror starts as zeroes and
     only the day is ever written.
+
+MB &48EC : "0", the character every field of the mirror is filled with -- held in A right through the loop at &48F7, with only the second digit of the day overwritten below
 
 MB &48F0 : day "01".  A day of 00 would make TICS's DEC A wrap
 
@@ -261,6 +269,8 @@ DOC CMD_TIME_8
     them, so the newline costs nothing extra.
 
 MB &495B : still has to reject "DATE 1,2", and still finishes the syntax pass here
+
+MB &495E : stream 2, the screen, for the ROM's STREAM below.  LPRINT REF loads 3 for the printer at &55C8 and PRINT REF loads 2 at &5641 -- the same two numbers, the same routine
 
 MB &4960 : stream 2, the screen
 

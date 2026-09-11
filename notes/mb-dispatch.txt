@@ -35,6 +35,25 @@ MB &7D52 : &17 is TAB, 23 in the same table, and the pair is what this stub exis
 
 MB &7D64 : &4A12 is this block's own &7D69 once it is running at &484D, and TBL_7D58_1 below writes it through CURCHL -- so AT points the channel at that handler.  The overlapping stream entered at &7D69 loads &4A1F instead, which is the next one along
 
+# The AT handler's one special case, and the error vector's two.
+
+MB &7D8C : twenty-three, the bottom row of the twenty-four, and the OR D under it asks for a scaled column of zero as well -- so the case being caught is AT 23,0, and only on the lower screen, DEVICE 1, with bit 7 of TVFLAG set.  &4A18 below is TBL_7D58_1 at &7D6F seen in the installed frame, so what happens next is the DE just read from OPSTORE going back through CURCHL: the hook takes itself off the channel before the two characters below go out
+
+MB &7D9E : a space
+
+MB &7DA1 : and a carriage return -- the two characters this path emits once the channel has been handed back
+
+# &7E0F is the RST8V handler, which the listing has an equate for:
+# SYS_RST8V_ERROR, &4AB8, and &484D plus &7E0F less &7BA4 is exactly
+# that.  misc2.asm calls it with LD A,(DE) holding the byte after the
+# RST &08, so A is the code being raised.
+
+MB &7E10 : error 29, the ROM's NONSENSE -- "NONSENSE: RST &08 : DB 29" in mainlp.asm -- which the message table gives as "Not understood".  It is let through untouched, and the reason is a reading rather than something the code says: it is the error every one of MasterBASIC's own parsers raises when a line is not its syntax, so clearing the user's CSIZE on it would happen on any mistyped line
+
+MB &7E1C : five, tried first on SYS_CHAR_HEIGHT in H.  Anything from five up goes to the reset below, which zeroes both factors and re-runs JMODE -- so an error that is about to be reported cannot arrive in characters too large to read it in
+
+MB &7E21 : and the same five on SYS_CHAR_WIDTH in L, so either factor being that large is enough.  Zero in them means the ROM prints unaided, which is what the reset restores
+
 MB &7D00 PATOUT_CHAR_OUT
     MasterBASIC's character output, which runs at &49A9 -- the address
     the listing already had an equate for, SYS_PATOUT_CHAR_OUT, because

@@ -305,16 +305,22 @@ MB &7075 : the carry from the ADD above, or from the ADD fourteen bytes below --
 MB &7078 : how many elements the second variable contributes; IX is loaded from here at &70FB
 MB &707C : plus a header, as an overflow test only -- HL is not used again
 MB &7087 : the second variable's record, parked in PRPTR
+
+MB &708C : eleven, the offset of the 24-bit size in a variable's record -- the "record+11: pages, then length mod 16K" &7029 names
 MB &7096 : its length as a bank and an offset
 MB &7099 : record+14, the first byte of its body
 MB &709B : how far the text starts past the body: nothing for a plain string, the dimension words for an array
 MB &70A3 : so the count copied is the text alone, without the array header
+
+MB &70A5 : the borrow out of that subtraction, into the top byte -- the same 24-bit form the size is kept in
 MB &70B3 : back to the page holding the end of the first variable
 MB &70BB : whole pages of gap
 MB &70BF : and the odd bytes, as a count rather than a windowed address
 MB &70C2 : open A pages plus BC bytes after HL.  Everything above moves, PRPTR and PRPTRP with it
 MB &70C6 : MODCOUNT and PAGCOUNT are FARLDIR's own counters, so the same two numbers are handed to the copy
 MB &70D3 : the header size worked out at &709B, plus the fourteen bytes before the body
+
+MB &70D6 : and fourteen is that number, the bytes of record that come before the body begins
 MB &70DA : PRPTR, now holding where the second variable ended up
 MB &70E0 : destination page is the current one, source page comes from PRPTRP
 MB &70E8 : the far copy, across as many pages as it takes
