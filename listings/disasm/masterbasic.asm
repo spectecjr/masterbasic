@@ -1341,7 +1341,9 @@ HOOK_SERSEND:
                LD E,A                          ; 4300 5F
                LD A,(SPORT)                    ; 4301 3A 0B 40
                LD C,A                          ; 4304 4F
-               LD B,&01                        ; 4305 06 01
+               LD B,&01                        ; 4305 06 01  register 1, SR, the status register. The BIT 3,A below
+                                               ; waits on TxEMT, which the data sheet's table puts at bit 3 and which
+                                               ; set means the transmitter has room
 
 ; ---- HOOK_SERSEND_LOOP ---- from &430E when bit 3 of A clear
 HOOK_SERSEND_LOOP:
@@ -1349,7 +1351,8 @@ HOOK_SERSEND_LOOP:
                IN A,(C)                        ; 430A ED 78
                BIT 3,A                         ; 430C CB 5F
                JR Z,HOOK_SERSEND_LOOP          ; 430E 28 F7
-               LD B,&03                        ; 4310 06 03
+               LD B,&03                        ; 4310 06 03  register 3, which on the write side is THR, the transmit
+                                               ; holding register -- so the OUT (C),E after it is the byte going out
                OUT (C),E                       ; 4312 ED 59
                RET                             ; 4314 C9
 
@@ -1366,7 +1369,8 @@ HOOK_SERSEND_LOOP:
 HOOK_SERRECV:
                LD A,(SPORT)                    ; 4315 3A 0B 40
                LD C,A                          ; 4318 4F
-               LD B,&01                        ; 4319 06 01
+               LD B,&01                        ; 4319 06 01  register 1 again, SR, for the other direction. Here the
+                                               ; wait is an RRA on bit 0, RxRDY, the first entry in the same table
 
 ; ---- HOOK_SERRECV_LOOP ---- from &4321 when bit 0 was clear
 HOOK_SERRECV_LOOP:
@@ -1374,7 +1378,9 @@ HOOK_SERRECV_LOOP:
                IN A,(C)                        ; 431E ED 78
                RRA                             ; 4320 1F
                JR NC,HOOK_SERRECV_LOOP         ; 4321 30 F8
-               LD B,&03                        ; 4323 06 03
+               LD B,&03                        ; 4323 06 03  register 3, which on the read side is RHR, the receive
+                                               ; holding register -- the same register number, a different register,
+                                               ; because the two sides of this chip are not the same eight
                IN A,(C)                        ; 4325 ED 78
                SCF                             ; 4327 37
                PUSH AF                         ; 4328 F5
@@ -5229,7 +5235,9 @@ PARSE_STRING_AND_OPTIONAL_ABS:
                                                         ; time
                PUSH AF                                  ; 4D36 F5
                LD C,A                                   ; 4D37 4F
-               SUB &2C                                  ; 4D38 D6 2C
+               SUB &2C                                  ; 4D38 D6 2C  a comma. Subtracting it rather than comparing
+                                                        ; leaves the zero that V4061 wants, so one instruction does the
+                                                        ; test and the store between them
                LD (V4061),A                             ; 4D3A 32 61 40  zero only if that character was a comma, i.e.
                                                         ; only for the ",ABS" form
                LD A,C                                   ; 4D3D 79
@@ -5237,7 +5245,9 @@ PARSE_STRING_AND_OPTIONAL_ABS:
                LD C,&FF                                 ; 4D40 0E FF  &FF then &5B is ABS. &5B is not a bracket here; it
                                                         ; is the second byte of a function token
                CALL NEXT_CHAR_MUST_BE_C                 ; 4D42 CD 5A 44
-               LD C,&5B                                 ; 4D45 0E 5B
+               LD C,&5B                                 ; 4D45 0E 5B  and &5B is that second byte, the function code the
+                                                        ; manual's table gives as "5B ABS" -- CMD_SORT tests for the
+                                                        ; same one at &4617
                CALL CHAR_MUST_BE_C                      ; 4D47 CD 5D 44
 
 ; ---- PARSE_STRING_AND_OPTIONAL_ABS_DONE ---- from &4D3E when A <> &2C
@@ -8021,10 +8031,14 @@ INSTALL_CHANNEL_HANDLER:
 IS_CHANNEL_OURS:
                CALL MBNRRDD                    ; 5629 CD 5F 45
                DEFW CHANS+&4000                ; 562C 4F 9C
-               LD HL,&0019                     ; 562E 21 19 00
+               LD HL,&0019                     ; 562E 21 19 00  &19 into CHANS, the word this half hung its own routine
+                                               ; on
                ADD HL,BC                       ; 5631 09
                CALL MBRDBC                     ; 5632 CD C2 45
-               LD HL,&4AE9                     ; 5635 21 E9 4A
+               LD HL,&4AE9                     ; 5635 21 E9 4A  and &4AE9 is what it should be pointing at -- MB &7E40
+                                               ; once the &7BA4 block runs at &484D, which is the three bytes that raise
+                                               ; HKC_LPRINT_BYTE. The installer's own list has &4AE6 against &7E3D,
+                                               ; three bytes below each
                AND A                           ; 5638 A7
                SBC HL,BC                       ; 5639 ED 42
                RET Z                           ; 563B C8
@@ -11545,7 +11559,10 @@ GET_BUFFER_SIZE_LOOP:
 
                RET Z                           ; 5EE8 C8  every byte zero, and the Z that says so is the caller's
                                                ; answer:
-               LD A,&FF                        ; 5EE9 3E FF
+               LD A,&FF                        ; 5EE9 3E FF  &FF, and all three bytes of the decrement take it: H and L
+                                               ; below make &FFFF and A keeps it, so the ADD HL,BC and ADC A,E after
+                                               ; them subtract one across 24 bits -- which is what makes the division
+                                               ; round up
 
 ;; --------------------------------------------------------------------
 ;; what makes the division round up
@@ -11608,7 +11625,9 @@ GET_BUFFER_SIZE_LOOP:
 
                LD A,L                          ; 5F0F 7D  out with the page in A and the slot's address in HL, and A
                                                ; non-zero
-               LD L,&00                        ; 5F10 2E 00
+               LD L,&00                        ; 5F10 2E 00  L cleared, so HL is the slot's own base. A utility slot
+                                               ; always starts on a &400 boundary, and the low byte is what said which
+                                               ; slot it was
                AND A                           ; 5F12 A7
                RET                             ; 5F13 C9
 
@@ -12431,7 +12450,8 @@ COMPRESS_SCREEN_FILE:
                SBC HL,BC                       ; 6152 ED 42
                PUSH HL                         ; 6154 E5
                CALL ENCODE_SCREEN              ; 6155 CD A0 61
-               LD DE,&E500                     ; 6158 11 00 E5
+               LD DE,&E500                     ; 6158 11 00 E5  &E500, the output stream, subtracted from the end
+                                               ; pointer to give the length -- the buffer &62F1's note describes
                AND A                           ; 615B A7
                SBC HL,DE                       ; 615C ED 52
                PUSH HL                         ; 615E E5
@@ -12443,7 +12463,8 @@ COMPRESS_SCREEN_FILE:
                PUSH BC                         ; 6169 C5
                POP IY                          ; 616A FD E1
                POP HL                          ; 616C E1
-               LD DE,&E500                     ; 616D 11 00 E5
+               LD DE,&E500                     ; 616D 11 00 E5  and the same &E500 as the source of the copy that puts
+                                               ; what was built where it has to go
                LDIR                            ; 6170 ED B0
 
 ;; --------------------------------------------------------------------
@@ -15403,7 +15424,7 @@ DUMP_LINE_END:
                DEC A                           ; 69B1 3D
                JP NZ,DUMP_STRIKE               ; 69B2 C2 B7 68
                LD A,(DUMP_MODE)                ; 69B5 3A AE 40  MODE 3 doubled the columns on the way in
-               CP &02                          ; 69B8 FE 02
+               CP &02                          ; 69B8 FE 02  and two is screen MODE 3, the same test &6894 makes
                LD B,C                          ; 69BA 41
                JR NZ,DUMP_LINE_END_2           ; 69BB 20 17
                LD A,C                          ; 69BD 79
@@ -15413,7 +15434,12 @@ DUMP_LINE_END:
                LD A,(HL)                       ; 69C4 7E
                AND A                           ; 69C5 A7
                JR NZ,DUMP_FINISH               ; 69C6 20 1C
-               LD (HL),&80                     ; 69C8 36 80
+               LD (HL),&80                     ; 69C8 36 80  &80 IS BOTH A FLAG AND A NUMBER, which is why V40AA can be
+                                               ; read two ways. Bit 7 is what the RLA at &69D0 takes out of it, so
+                                               ; writing &80 here says "one more pass"; and 128 is what &6A22 adds to
+                                               ; the halved column, which is where that pass reads -- a MODE 3 line is
+                                               ; 512 pixels, half of that is 256, and a column register only holds the
+                                               ; bottom half of it
 
 ; ---- DUMP_LINE_END_LOOP ---- from &69E2 when bit 0 was set
 DUMP_LINE_END_LOOP:
@@ -20085,8 +20111,12 @@ SIZE_EXTERNAL_MEMORY_2:
 ;; --------------------------------------------------------------------
 
 FILL_PAGE_WITH_ZERO:
-               LD HL,&0000                     ; 7800 21 00 00
-               LD BC,&0004                     ; 7803 01 04 00
+               LD HL,&0000                     ; 7800 21 00 00  the zero that gets written, sixteen bytes at a time, by
+                                               ; the eight PUSH HLs below
+               LD BC,&0004                     ; 7803 01 04 00  B is the zero here and C the four, which together make
+                                               ; one page exactly: a DJNZ entered with B zero runs 256 times, eight
+                                               ; PUSHes is sixteen bytes, and 256 times sixteen is 4K -- so four passes
+                                               ; of C fill &4000 bytes
 
 ; ---- STACK_FILL_LOOP ---- from &77F5, &780E when B is not 0 yet, &7811 when C is not 0 yet
 STACK_FILL_LOOP:
@@ -20990,12 +21020,24 @@ PRTOKV_STUB:
 ;; &25 passes, and so does anything below &21; the rest returns with
 ;; carry clear for the ROM to deal with.  What is left drops the return
 ;; address and raises HKC_HKLEN.
+;;
+;; AND THE BIAS IS THE ROM'S, WHICH NAMES BOTH CODES.  ABOVLETS in
+;; ref/samrom/eval.asm reads the byte after the &FF prefix and does
+;; "SUB &1A ;ADJUST 3B-83H TO 21H-69H" before calling this vector, so
+;; what arrives in A is the function code less &1A.  Adding it back:
+;; &21 is FF 3B, which is PI -- the first of the ROM's own functions --
+;; so "at or above &21" is exactly "the ROM's", and everything below is
+;; the &26 to &38 that MasterBASIC and MasterDOS added.  &25 is FF 3F,
+;; LENGTH, the one ROM function MasterBASIC takes over, and the hook it
+;; goes to is named for it: HKC_HKLEN.
 ;; --------------------------------------------------------------------
 
 EVALUV_STUB:
-               CP &25                          ; 7B9A FE 25
+               CP &25                          ; 7B9A FE 25  FF 3F, LENGTH -- see the banner. It is the only ROM
+                                               ; function this lets through, and FN_LENGTH is the replacement it reaches
                JR Z,EVALUV_STUB_1              ; 7B9C 28 03
-               CP &21                          ; 7B9E FE 21
+               CP &21                          ; 7B9E FE 21  FF 3B, PI, the lowest of the ROM's own functions, so this
+                                               ; one compare separates them from the extensions below
                RET NC                          ; 7BA0 D0
 
 ; ---- EVALUV_STUB_1 ---- from &7B9C when A = &25

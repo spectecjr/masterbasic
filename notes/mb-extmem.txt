@@ -20,6 +20,9 @@ MB &77DE : MCNTRL, HMPR bit 7, which sends the window at &8000 to the expansion 
 MB &77E2 : external page zero, the first to try -- and the loop at &781C comes back only while C is not zero, so the walk ends when it has come round to the start again
 MB &77F8 : the seed for ADD HL,SP below, which is the only way the Z80 has of reading SP into a register pair.  The zero is the idiom and not a value
 
+MB &7800 : the zero that gets written, sixteen bytes at a time, by the eight PUSH HLs below
+MB &7803 : B is the zero here and C the four, which together make one page exactly: a DJNZ entered with B zero runs 256 times, eight PUSHes is sixteen bytes, and 256 times sixteen is 4K -- so four passes of C fill &4000 bytes
+
 DOC SIZE_EXTERNAL_MEMORY
     Walk the external memory pages, find which of them are there, and
     clear the ones that are.

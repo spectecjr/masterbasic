@@ -18,6 +18,19 @@ DOC EVALUV_STUB
     carry clear for the ROM to deal with.  What is left drops the return
     address and raises HKC_HKLEN.
 
+    AND THE BIAS IS THE ROM'S, WHICH NAMES BOTH CODES.  ABOVLETS in
+    ref/samrom/eval.asm reads the byte after the &FF prefix and does
+    "SUB &1A ;ADJUST 3B-83H TO 21H-69H" before calling this vector, so
+    what arrives in A is the function code less &1A.  Adding it back:
+    &21 is FF 3B, which is PI -- the first of the ROM's own functions --
+    so "at or above &21" is exactly "the ROM's", and everything below is
+    the &26 to &38 that MasterBASIC and MasterDOS added.  &25 is FF 3F,
+    LENGTH, the one ROM function MasterBASIC takes over, and the hook it
+    goes to is named for it: HKC_HKLEN.
+
+MB &7B9A : FF 3F, LENGTH -- see the banner.  It is the only ROM function this lets through, and FN_LENGTH is the replacement it reaches
+MB &7B9E : FF 3B, PI, the lowest of the ROM's own functions, so this one compare separates them from the extensions below
+
 # The block, at &7B80 in this listing and &4BA0 when it runs:
 #
 #     +&00  &40, then JR over the next stub

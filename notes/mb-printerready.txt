@@ -25,6 +25,17 @@ MB &4345 : carry set only when A came out zero, which is the one thing AND canno
 MB &64ED : five, so four and under pass through untouched
 MB &64F0 : and anything from five up comes back as four, which is the clamp the banner below describes and mb-csize.txt reads as a limit on how large a magnified character may be in the lower window
 
+# HOOK_SERSEND and HOOK_SERRECV, whose four numbers are all SCC2691
+# register numbers.  They ride in the top half of the port address, so
+# B is the register and SPORT the port -- the same arrangement
+# CHECK_PRINTER_READY uses at &433F.
+
+MB &4305 : register 1, SR, the status register.  The BIT 3,A below waits on TxEMT, which the data sheet's table puts at bit 3 and which set means the transmitter has room
+MB &4310 : register 3, which on the write side is THR, the transmit holding register -- so the OUT (C),E after it is the byte going out
+
+MB &4319 : register 1 again, SR, for the other direction.  Here the wait is an RRA on bit 0, RxRDY, the first entry in the same table
+MB &4323 : register 3, which on the read side is RHR, the receive holding register -- the same register number, a different register, because the two sides of this chip are not the same eight
+
 MB &64E7 CLAMP_CELLS_FOR_DEVICE
 
 DOC CLAMP_CELLS_FOR_DEVICE

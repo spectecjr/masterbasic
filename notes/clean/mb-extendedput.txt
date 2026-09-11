@@ -12,6 +12,9 @@ CONST TOKEN_GRAB = &AB : the lower of the two command tokens this block serves; 
 CONST PUT_TRAMPOLINE = &F000 : section D, where a fragment of the finished block is copied and run with the extension paged out
 
 # The seven runs, by the count each LDIR is given.
+MB &7833 : &8D on from the address just read, which is where OVER0LP sits relative to it -- the line below says which call is being patched
+MB &783A : and &14 back the other way for GPVARS, written as &FFEC so that the same ADD HL,DE serves for both
+
 MB &7848 : ten -- the token-to-index stub named on the line above
 
 MB &7889 : HL is one past the end of the string -- DE plus BC, as GETSTR left them -- and the BIT 6,H above has just found bit 14 of it clear.  Clearing the whole of H keeps the low byte alone, which is what gets pushed for the INC H : DEC H test at &78B0

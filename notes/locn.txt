@@ -182,9 +182,13 @@ DOC PARSE_STRING_AND_OPTIONAL_ABS
 
 MB &4D33 : the ROM's EXPTSTR -- A comes back as the character the expression stopped on, carry set if this is run time
 
+MB &4D38 : a comma.  Subtracting it rather than comparing leaves the zero that V4061 wants, so one instruction does the test and the store between them
+
 MB &4D3A : zero only if that character was a comma, i.e. only for the ",ABS" form
 
 MB &4D40 : &FF then &5B is ABS.  &5B is not a bracket here; it is the second byte of a function token
+
+MB &4D45 : and &5B is that second byte, the function code the manual's table gives as "5B ABS" -- CMD_SORT tests for the same one at &4617
 
 MB &4D4D : the run flag from the string, handed back to the caller's RET NC
 

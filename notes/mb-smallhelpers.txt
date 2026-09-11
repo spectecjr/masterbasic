@@ -506,6 +506,9 @@ MB &5629 IS_CHANNEL_OURS
     half -- so the test is whether the channel is still pointed at what
     the installer put there.
 
+MB &562E : &19 into CHANS, the word this half hung its own routine on
+MB &5635 : and &4AE9 is what it should be pointing at -- MB &7E40 once the &7BA4 block runs at &484D, which is the three bytes that raise HKC_LPRINT_BYTE.  The installer's own list has &4AE6 against &7E3D, three bytes below each
+
 MB &4A0D READ_CLOCK_FIELDS
     Three two-digit fields out of the DOS's buffer.  The other half is
     paged in, the pointer at V4096 is windowed with SET 7,D and RES 6,D,

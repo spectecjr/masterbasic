@@ -241,6 +241,17 @@ signature search fills at boot — and take a comment saying so instead.
 `python tools/sites.py NAME [half]` shows a routine with its outstanding
 sites marked; `--list` gives the queue worst-first.
 
+**Quote the totals from `build.log`, not from a pipeline of your own.**
+It prints them already -- `N instructions carry a number, M of them
+unexplained` and `spread over K routines` -- and `sites.py --list` ends
+with the same figures on one line.  A session that summed the `--list`
+column with `awk` instead reported the routine count two too high in
+eight commit messages running, because `NR` counted the blank line and
+the summary line as routines.  The site total was right, so nothing
+looked wrong; the build was green throughout.  That is the fault this
+file already describes one paragraph up, committed again by the one
+number nobody thought to check.
+
 **Read the top entry before starting it.** `RELOCATED_TO_46CC` heads the
 MasterBASIC queue and is a poor first target: most of its remaining sites
 are operands inside a block that runs at `&46CC`, which can never be

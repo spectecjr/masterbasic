@@ -306,6 +306,10 @@ DOC DUMP_LINE_END
 
 MB &69AE : another strike of the same line?
 MB &69B5 : MODE 3 doubled the columns on the way in
+
+MB &69B8 : and two is screen MODE 3, the same test &6894 makes
+
+MB &69C8 : &80 IS BOTH A FLAG AND A NUMBER, which is why V40AA can be read two ways.  Bit 7 is what the RLA at &69D0 takes out of it, so writing &80 here says "one more pass"; and 128 is what &6A22 adds to the halved column, which is where that pass reads -- a MODE 3 line is 512 pixels, half of that is 256, and a column register only holds the bottom half of it
 MB &69D4 : two short, because a byte is eight dots deep
 MB &69DD : the half-row holding the space bar
 MB &69E1 : held down, so stop -- but stop tidily

@@ -299,6 +299,9 @@ MB &629A : the low nibble taken straight, with no rotation to undo -- the same m
 
 MB &62BC : &FF is how the compressed stream was closed.  WRITE_THREE_FF at &6194 puts three of them out at &6164, and this skips however many it finds, stopping on the first byte of whatever the file carries after the image.  The loop below copies that to DE -- which PICK_COMPRESSION_CONSTANTS set to just past the screen, &9B00, &B800 or &E000 as the mode requires -- and stops once it has stored an &FF of its own
 
+MB &5EE9 : &FF, and all three bytes of the decrement take it: H and L below make &FFFF and A keeps it, so the ADD HL,BC and ADC A,E after them subtract one across 24 bits -- which is what makes the division round up
+MB &5F10 : L cleared, so HL is the slot's own base.  A utility slot always starts on a &400 boundary, and the low byte is what said which slot it was
+
 MB &5EDD GET_BUFFER_SIZE
     The size argument of SOUND CLEAR.  GET_LONG_INTEGER, D refused as
     "Integer out of range", and then OR E : OR B : OR C so that a return
@@ -318,6 +321,9 @@ MB &63F6 SET_COMPRESSION_MODE
 
     Reached from SAVE MODE's own parsing three instructions above, and
     from DOS &54FE.
+
+MB &6158 : &E500, the output stream, subtracted from the end pointer to give the length -- the buffer &62F1's note describes
+MB &616D : and the same &E500 as the source of the copy that puts what was built where it has to go
 
 MB &614E COMPRESS_SCREEN_FILE
     Compress a SCREEN$ file on its way to disk, called from the DOS's
