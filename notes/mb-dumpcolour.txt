@@ -102,6 +102,21 @@ DOC SCREEN_PIXEL_COLOUR
     byte in the opposite order from the palette index, and 0 and 3 are
     the same either way round, which is why only the middle two move.
 
+    THE ROM MAKES THE SAME EXCHANGE, in bulk and the other way about.
+    IMPOINT in rom1fns.asm takes the screen byte, swaps every adjacent
+    pair of bits in it with the usual XOR-AND-XOR on a mask of &AA, and
+    only then rotates the wanted pixel down and masks it to two bits.
+    Its comment for that step reads "SWAP ODD/EVEN BITS IN MODE 2" --
+    MODE 2 in the ROM's numbering, which starts at zero, being screen
+    MODE 3.  So the exchange is the hardware's, not this code's: the
+    leftmost bit of a pair is the low bit of the palette index, and
+    anything reading a MODE 3 pixel back has to undo it.
+
+MB &6A16 : DUMP_MODE is the ROM's MODE, 0 to 3 for modes 1 to 4, so below, at and above 2 are the three storage layouts the banner lists
+MB &6A2D : two bits to a pixel in MODE 3, and the rotations above have brought the wanted pair down to the bottom of A
+MB &6A30 : 3 leaves unchanged, as 0 did two instructions earlier -- they are the two values whose bits are alike, so the exchange cannot move them and only 1 and 2 go on
+MB &6A34 : 1 becomes 2, and 2 becomes 1 through the DEC A below.  LD A,&02 does not touch the flags, so the RET Z after it is still answering the DEC A above it
+
 DOC READ_PIXEL_NIBBLE
     Fetch the byte holding pixel BC and shift the wanted nibble down.
 

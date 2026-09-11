@@ -170,3 +170,11 @@ MB &4433 MULTIPLY_HL_BY_DE
 MB &454E IS_DIGIT
 MB &4E1D FORCE_CASE_BYTE
 MB &7CA6 CALLBACK_HCMDV
+
+MB &453C : "A", the bottom of the upper-case range, and the CCF below turns "below it" into "not a letter"
+MB &4540 : one past "Z", so a carry here means the character is inside that range and the answer is already right
+MB &4543 : "a", the same two steps again for the lower-case range
+MB &4547 : one past "z", and this carry is the answer with no CCF needed
+
+MB &454E : one past "9", so no carry means the character is above the digits
+MB &4551 : "0", and the CCF turns "below zero" into "not a digit"

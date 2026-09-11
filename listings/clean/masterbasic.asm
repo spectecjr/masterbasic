@@ -2146,15 +2146,18 @@ MBCMR_DONE:
 
 ; ---- IS_LETTER ---- from &454A, &4CE6, &4E1E, &567C, &57BE, &5844
 IS_LETTER:
-               CP &41                          ; 453C FE 41
+               CP &41                          ; 453C FE 41  "A", the bottom of the upper-case range, and the CCF below
+                                               ; turns "below it" into "not a letter"
                CCF                             ; 453E 3F
                RET NC                          ; 453F D0
-               CP &5B                          ; 4540 FE 5B
+               CP &5B                          ; 4540 FE 5B  one past "Z", so a carry here means the character is inside
+                                               ; that range and the answer is already right
                RET C                           ; 4542 D8
-               CP &61                          ; 4543 FE 61
+               CP &61                          ; 4543 FE 61  "a", the same two steps again for the lower-case range
                CCF                             ; 4545 3F
                RET NC                          ; 4546 D0
-               CP &7B                          ; 4547 FE 7B
+               CP &7B                          ; 4547 FE 7B  one past "z", and this carry is the answer with no CCF
+                                               ; needed
                RET                             ; 4549 C9
 
 ;; --------------------------------------------------------------------
@@ -2178,9 +2181,10 @@ IS_LETTER_OR_DIGIT:
 
 ; ---- IS_DIGIT ---- from &4938, &4948, &57B1, &6E98
 IS_DIGIT:
-               CP &3A                          ; 454E FE 3A
+               CP &3A                          ; 454E FE 3A  one past "9", so no carry means the character is above the
+                                               ; digits
                RET NC                          ; 4550 D0
-               CP &30                          ; 4551 FE 30
+               CP &30                          ; 4551 FE 30  "0", and the CCF turns "below zero" into "not a digit"
                CCF                             ; 4553 3F
                RET                             ; 4554 C9
 
@@ -2198,7 +2202,9 @@ IS_DIGIT:
 IS_NAME_CHAR:
                CALL IS_LETTER_OR_DIGIT         ; 4555 CD 4A 45
                RET C                           ; 4558 D8
-               CP &5F                          ; 4559 FE 5F
+               CP &5F                          ; 4559 FE 5F  underscore, the one character a name may hold that is
+                                               ; neither a letter nor a digit -- the banner below says the ROM's own
+                                               ; classifier will not have it
                SCF                             ; 455B 37
                RET Z                           ; 455C C8
                AND A                           ; 455D A7
@@ -6813,29 +6819,59 @@ HOOK_VARSPACE_4:
                RET                             ; 52FC C9
 
 ;; --------------------------------------------------------------------
-;; Hook code 177.  Read the argument after one of MasterBASIC's keywords.
+;; Hook 177: the character after an &FF prefix, dispatched four ways.
 ;;
-;; Fetches the next character and subtracts &26, then branches on the next
-;; three values in turn, so it dispatches on tokens &26, &27 and &28 --
-;; which are in the range MasterBASIC gives its own functions.  A fourth
-;; path calls POINTC in the DOS page; anything else reports "Not
-;; understood".
+;; &FF is not a statement token -- the statement range stops at &FD --
+;; but the byte every extended keyword is written behind, and the stub
+;; at &7C92 raises this hook once the ROM has reached it.  Four codes
+;; are accepted, and the manual's own table of them names all four:
 ;;
-;; THE FOURTH TEST IS WRITTEN IN WHAT IS LEFT IN A, not in the token.  The
-;; SUB &26 and the two DEC A have taken &28 off by the time CP &15 runs at
-;; &530A, so the character it matches is &3D -- and POINT #s,x is what
-;; POINTC is for.
+;;     &26  EXIT PROC     HOOK_TOKENARG_3 at &5326
+;;     &27  EXIT DO       HOOK_TOKENARG_2 at &531E
+;;     &28  EXIT FOR      HOOK_TOKENARG_1 at &5315
+;;     &3D  POINT         handed to the DOS's POINTC
+;;
+;; The three EXITs are consecutive, so one subtraction and two DEC As
+;; sort them with no table; POINT is nowhere near, which is why it is a
+;; fourth compare instead.  &3D is the author's own number -- CNF in
+;; masterdos23.asm reaches POINTC by the same test, commented "POINT IS
+;; FF 3D" -- and this is that test made one page earlier, now that
+;; MasterBASIC owns the prefix.
+;;
+;; EXIT PROC IS THE ONE WITH WORK TO DO, and the manual says what makes
+;; it hard: "it will work correctly even if you use it within a loop".
+;; The ROM's own unstacking cannot.  RETLOOP in do.asm looks at the top
+;; frame of the BASIC stack and nothing else --
+;;
+;;     RETLOOP:   LD HL,(BSTKEND)
+;;                LD A,(HL)         ;TYPE/PAGE
+;;                AND &E0           ;ISOLATE TYPE BITS
+;;                CP B
+;;                RET NZ            ;RET IF WRONG TYPE OR STACK MT
+;;                                  ;(FF STOPPER)
+;;
+;; -- so with a DO frame on top, a PROC is not there to be found.
+;; &5338 and &533A are that same pair of instructions with the wanted
+;; type written in rather than passed in B, and where the ROM gives up
+;; this steps HL past a whole frame and asks again: the four INC HLs at
+;; &533E are four bytes, which is what RETLOOP2 reads out of one entry
+;; -- type and page, address low, address high, statement.  The &FF
+;; stopper the ROM's comment mentions is the INC A at &5333, and
+;; running onto it is error 12, "Missing DEF PROC".
 ;; --------------------------------------------------------------------
 
 HOOK_TOKENARG:
                CALL CALL_NEXTCHAR              ; 52FD CD 61 44
-               SUB &26                         ; 5300 D6 26
+               SUB &26                         ; 5300 D6 26  &26 is EXIT PROC's code, and &27 and &28 are the other two
+                                               ; EXITs, so this one subtraction serves all three -- see the banner
                JR Z,HOOK_TOKENARG_3            ; 5302 28 22
                DEC A                           ; 5304 3D
                JR Z,HOOK_TOKENARG_2            ; 5305 28 17
                DEC A                           ; 5307 3D
                JR Z,HOOK_TOKENARG_1            ; 5308 28 0B
-               CP &15                          ; 530A FE 15
+               CP &15                          ; 530A FE 15  token &3D, POINT, which is &15 further on than the &28 the
+                                               ; two DEC As have already taken off. The author's own source makes the
+                                               ; same test and comments it "POINT IS FF 3D"
                JP NZ,REP_NOT_UNDERSTOOD        ; 530C C2 B0 43
                CALL CALLDOS                    ; 530F CD C1 42
                DEFW DOS_POINTC-&4000           ; 5312 76 70
@@ -6873,8 +6909,10 @@ HOOK_TOKENARG_LOOP2:
                INC A                           ; 5333 3C
                JP Z,REP_MISSING_DEF_PROC       ; 5334 CA AA 43
                DEC A                           ; 5337 3D
-               AND &E0                         ; 5338 E6 E0
-               CP &40                          ; 533A FE 40
+               AND &E0                         ; 5338 E6 E0  the type field of a BASIC stack frame, isolated exactly as
+                                               ; do.asm's RETLOOP isolates it
+               CP &40                          ; 533A FE 40  and &40 is the PROC type -- fn.asm's DPRA loads &40 under
+                                               ; the comment 'PROC' TYPE, against &80 for DO and 0 for GOSUB
                JR Z,HOOK_TOKENARG_4            ; 533C 28 06
                INC HL                          ; 533E 23
                INC HL                          ; 533F 23
@@ -14893,12 +14931,23 @@ TRANSFORM_DUMP_COORDS_1:
 ;; exchanges 1 and 2 on the way out -- the two bits come out of the
 ;; byte in the opposite order from the palette index, and 0 and 3 are
 ;; the same either way round, which is why only the middle two move.
+;;
+;; THE ROM MAKES THE SAME EXCHANGE, in bulk and the other way about.
+;; IMPOINT in rom1fns.asm takes the screen byte, swaps every adjacent
+;; pair of bits in it with the usual XOR-AND-XOR on a mask of &AA, and
+;; only then rotates the wanted pixel down and masks it to two bits.
+;; Its comment for that step reads "SWAP ODD/EVEN BITS IN MODE 2" --
+;; MODE 2 in the ROM's numbering, which starts at zero, being screen
+;; MODE 3.  So the exchange is the hardware's, not this code's: the
+;; leftmost bit of a pair is the low bit of the palette index, and
+;; anything reading a MODE 3 pixel back has to undo it.
 ;; --------------------------------------------------------------------
 
 ; ---- SCREEN_PIXEL_COLOUR ---- from &6A07 when A reaches 0, &6A0D when A reaches 0, &6CF6, &6D02
 SCREEN_PIXEL_COLOUR:
                LD A,(DUMP_MODE)                ; 6A13 3A AE 40
-               CP &02                          ; 6A16 FE 02
+               CP &02                          ; 6A16 FE 02  DUMP_MODE is the ROM's MODE, 0 to 3 for modes 1 to 4, so
+                                               ; below, at and above 2 are the three storage layouts the banner lists
                JR C,ATTRIBUTE_PIXEL_COLOUR     ; 6A18 38 2E
                JR NZ,READ_PIXEL_NIBBLE         ; 6A1A 20 1D
                LD H,C                          ; 6A1C 61
@@ -14914,12 +14963,17 @@ SCREEN_PIXEL_COLOUR:
 
 ; ---- SCREEN_PIXEL_COLOUR_1 ---- from &6A29 when bit 0 of H set
 SCREEN_PIXEL_COLOUR_1:
-               AND &03                         ; 6A2D E6 03
+               AND &03                         ; 6A2D E6 03  two bits to a pixel in MODE 3, and the rotations above have
+                                               ; brought the wanted pair down to the bottom of A
                RET Z                           ; 6A2F C8
-               CP &03                          ; 6A30 FE 03
+               CP &03                          ; 6A30 FE 03  3 leaves unchanged, as 0 did two instructions earlier --
+                                               ; they are the two values whose bits are alike, so the exchange cannot
+                                               ; move them and only 1 and 2 go on
                RET Z                           ; 6A32 C8
                DEC A                           ; 6A33 3D
-               LD A,&02                        ; 6A34 3E 02
+               LD A,&02                        ; 6A34 3E 02  1 becomes 2, and 2 becomes 1 through the DEC A below. LD
+                                               ; A,&02 does not touch the flags, so the RET Z after it is still
+                                               ; answering the DEC A above it
                RET Z                           ; 6A36 C8
                DEC A                           ; 6A37 3D
                RET                             ; 6A38 C9
@@ -20357,9 +20411,9 @@ DISPATCH_ON_COMMAND_TOKEN:
                RET NZ                          ; 7C90 C0
                POP HL                          ; 7C91 E1
                RST ERR_HOOK                    ; 7C92 CF  hook 177, HOOK_TOKENARG at &52FD: it takes the character after
-                                               ; the function prefix and dispatches on it, which is how the argument of
-                                               ; one of MasterBASIC's own functions gets read. Anything it does not know
-                                               ; reports "Not understood"
+                                               ; the &FF prefix and dispatches on it -- the three EXIT statements and
+                                               ; POINT, which are all the prefixed tokens this half deals with itself.
+                                               ; Anything else reports "Not understood"
                DEFB HKC_TOKENARG               ; 7C93 B1 hook code
                RET                             ; 7C94 C9
 

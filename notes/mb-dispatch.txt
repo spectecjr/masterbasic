@@ -70,7 +70,7 @@ MB &7D00 PATOUT_CHAR_OUT
 # Every one of them pops the ROM's return address first, so the hook
 # returns to the ROM's caller and not into the stub.
 
-MB &7C92 : hook 177, HOOK_TOKENARG at &52FD: it takes the character after the function prefix and dispatches on it, which is how the argument of one of MasterBASIC's own functions gets read.  Anything it does not know reports "Not understood"
+MB &7C92 : hook 177, HOOK_TOKENARG at &52FD: it takes the character after the &FF prefix and dispatches on it -- the three EXIT statements and POINT, which are all the prefixed tokens this half deals with itself.  Anything else reports "Not understood"
 
 MB &7CA7 : hook 173, HCMDV at &4E96 -- the same dispatcher the ROM's CMDV points at, reached here for the commands that need no test beyond their token
 
@@ -225,6 +225,52 @@ MB &525B : &4D38 seen through the window
 
 MB &5266 value T_CLEAR
 MB &5266 : the token that came in, so CLEAR leaves with what was built and RUN with DE
+
+DOC HOOK_TOKENARG
+    Hook 177: the character after an &FF prefix, dispatched four ways.
+
+    &FF is not a statement token -- the statement range stops at &FD --
+    but the byte every extended keyword is written behind, and the stub
+    at &7C92 raises this hook once the ROM has reached it.  Four codes
+    are accepted, and the manual's own table of them names all four:
+
+        &26  EXIT PROC     HOOK_TOKENARG_3 at &5326
+        &27  EXIT DO       HOOK_TOKENARG_2 at &531E
+        &28  EXIT FOR      HOOK_TOKENARG_1 at &5315
+        &3D  POINT         handed to the DOS's POINTC
+
+    The three EXITs are consecutive, so one subtraction and two DEC As
+    sort them with no table; POINT is nowhere near, which is why it is a
+    fourth compare instead.  &3D is the author's own number -- CNF in
+    masterdos23.asm reaches POINTC by the same test, commented "POINT IS
+    FF 3D" -- and this is that test made one page earlier, now that
+    MasterBASIC owns the prefix.
+
+    EXIT PROC IS THE ONE WITH WORK TO DO, and the manual says what makes
+    it hard: "it will work correctly even if you use it within a loop".
+    The ROM's own unstacking cannot.  RETLOOP in do.asm looks at the top
+    frame of the BASIC stack and nothing else --
+
+        RETLOOP:   LD HL,(BSTKEND)
+                   LD A,(HL)         ;TYPE/PAGE
+                   AND &E0           ;ISOLATE TYPE BITS
+                   CP B
+                   RET NZ            ;RET IF WRONG TYPE OR STACK MT
+                                     ;(FF STOPPER)
+
+    -- so with a DO frame on top, a PROC is not there to be found.
+    &5338 and &533A are that same pair of instructions with the wanted
+    type written in rather than passed in B, and where the ROM gives up
+    this steps HL past a whole frame and asks again: the four INC HLs at
+    &533E are four bytes, which is what RETLOOP2 reads out of one entry
+    -- type and page, address low, address high, statement.  The &FF
+    stopper the ROM's comment mentions is the INC A at &5333, and
+    running onto it is error 12, "Missing DEF PROC".
+
+MB &5300 : &26 is EXIT PROC's code, and &27 and &28 are the other two EXITs, so this one subtraction serves all three -- see the banner
+MB &530A : token &3D, POINT, which is &15 further on than the &28 the two DEC As have already taken off.  The author's own source makes the same test and comments it "POINT IS FF 3D"
+MB &5338 : the type field of a BASIC stack frame, isolated exactly as do.asm's RETLOOP isolates it
+MB &533A : and &40 is the PROC type -- fn.asm's DPRA loads &40 under the comment 'PROC' TYPE, against &80 for DO and 0 for GOSUB
 
 MB &54E1 : &0049 is ANYI, the ROM's own frame-interrupt entry, so ALTER DISPLAY OFF hands the interrupt straight back to it
 

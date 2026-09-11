@@ -208,8 +208,8 @@ HKC_RCPTCH:                     EQU  &AE                                     ; H
 HKC_MERGECOMPFLG:               EQU  &AF                                     ; Hook code 175, and the label is right
                                                                              ; only for its first twenty-seven bytes.
                                                                              ; (see HOOK_MERGECOMPFLG)
-HKC_TOKENARG:                   EQU  &B1                                     ; Read the argument after one of
-                                                                             ; MasterBASIC's keywords. (see
+HKC_TOKENARG:                   EQU  &B1                                     ; Hook 177: the character after an &FF
+                                                                             ; prefix, dispatched four ways. (see
                                                                              ; HOOK_TOKENARG)
 HKC_SKIPNAME:                   EQU  &B2                                     ; DELETE, for strings and string arrays.
                                                                              ; (see CMD_DELETE)

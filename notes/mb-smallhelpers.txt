@@ -4,6 +4,8 @@ MB &4555 IS_NAME_CHAR
 MB &46C2 PAGE_ON_TWO
 MB &5D9F COPY_THEN_APPEND_CALL
 
+MB &4559 : underscore, the one character a name may hold that is neither a letter nor a digit -- the banner below says the ROM's own classifier will not have it
+
 DOC IS_NAME_CHAR
     Carry set if the character in A may appear in a name.
 
