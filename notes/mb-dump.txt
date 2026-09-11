@@ -268,6 +268,11 @@ MB &6DD8 SCREEN_NUMBER_ARGUMENT
     What comes back is the byte CMD_MODE writes: AND &1F takes the page
     out of it and the bits above are the mode.
 
+MB &6DDC : sixteen screens, and the DEC A above has brought them to 0 to 15, so &10 is the first number that is not one -- the same bound &551A applies to ALTER's pair
+MB &6DEC expr PAGEMASK
+MB &6DEC : the low five bits are the page.  The ROM's table calls SCLIST "MODE/PAGE OF SCREENS 1-16, OR FFH", and five bits is what a page number takes
+MB &6DF3 : and bits 5 and 6 are the mode, which the three RLCAs above have just brought down to bits 0 and 1.  CMD_MODE puts them up there with three RRCAs, so this is that step undone -- which is why &6DB7 can say the mode is 0 to 3 here and not &00, &20, &40, &60
+
 MB &6288 READ_NIBBLE_AT_HL
     Read the nibble numbered HL from the window at &8000, without moving
     HL.  SCF then RR H and RR L halves HL and brings a 1 into bit 15, so
@@ -281,6 +286,15 @@ MB &6288 READ_NIBBLE_AT_HL
     this note called it.  They are opposite ends of the same pipeline:
     WRITE_NEXT_NIBBLE works in the alternate registers on the output at
     &E500, this one in the main registers on the input at &8000.
+
+MB &6295 : the four RLCAs above rotate the whole byte, so the low nibble has landed in the high half; this drops it and leaves the nibble that was wanted
+MB &629A : the low nibble taken straight, with no rotation to undo -- the same mask for the opposite reason
+
+# &62B9 to &62CB is not part of READ_NIBBLE_AT_HL; it is the tail of the
+# expander entered at &62A6, and it lands here because that entry
+# carries no label of its own.
+
+MB &62BC : &FF is how the compressed stream was closed.  WRITE_THREE_FF at &6194 puts three of them out at &6164, and this skips however many it finds, stopping on the first byte of whatever the file carries after the image.  The loop below copies that to DE -- which PICK_COMPRESSION_CONSTANTS set to just past the screen, &9B00, &B800 or &E000 as the mode requires -- and stops once it has stored an &FF of its own
 
 MB &5EDD GET_BUFFER_SIZE
     The size argument of SOUND CLEAR.  GET_LONG_INTEGER, D refused as
@@ -631,6 +645,12 @@ MB &631B : bit 3 of the first nibble said this was the long form, and the four R
 MB &631D : eight, and then the four below that this falls into: twelve in all, which is exactly where the short form's 4 to 11 leaves off
 
 MB &631F : four, because a run of three costs three nibbles and prints three.  So a short-form length of 0 to 7 means 4 to 11, and the shortest run worth encoding is the shortest one this can express
+
+MB &637D : &FE00 is &E500 plus &1900, so the buffer is spent and LOAD_NEXT_INPUT_BLOCK below fetches the next block.  The same number as &62F1's arithmetic, asked from the reading end
+
+MB &6388 : back to the top of the refilled buffer, the same &E500 &62F1 describes
+
+MB &638B : and the mask and phase counter set again as at &62EE.  Putting D back to zero is safe because a refill can only happen between bytes: the path that gets here went through READ_NEXT_NIBBLE_1, which is the branch D even takes, so the byte just read was a second nibble
 
 MB &6331 NEXT_SCREEN_NIBBLE
     Step a nibble address down the screen the way NEXT_SCREEN_BYTE steps

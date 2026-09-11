@@ -467,3 +467,13 @@ MB &5A3A : the same biased page byte read at &59FC, so the feed picks up where i
 
 MB &5A42 : CHECK_PRINTER_READY is this half's own, at &432B -- &832B is this half seen through the window, because this code runs where MasterBASIC is at &8000
 
+# LPRINT's three forms, and the one number that separates the last of
+# them from PRINT's.
+
+MB &5586 : LPRINT MODE takes 1 or 2 and the DEC A above made them 0 and 1, so two is the first value out of range.  What goes into SORP is therefore zero for parallel and one for serial, which is exactly how the manual describes XVAR 6 -- "zero value when LPRINT MODE 1 (parallel) has been set, and is non-zero when LPRINT MODE 2 (serial)"
+
+MB &55C6 expr T_CLEAR
+MB &55C6 : LPRINT CLEAR, the buffer-sizing form.  Anything else goes to the REF test at &5646
+
+MB &55C8 : stream 3, the printer, which the REF path hands to the ROM's STREAM at &5651.  &5641 loads 2 for PRINT REF instead -- the screen -- and that one byte is the whole difference between the two commands.  It is set before the branch because only the branch that is taken reads C; the CLEAR fall-through never looks at it
+

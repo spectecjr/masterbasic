@@ -5968,7 +5968,8 @@ CMD_MODE:
                CALL BYTE_ARGUMENT              ; 4F84 CD A1 43
                DEC A                           ; 4F87 3D
                LD B,A                          ; 4F88 47
-               CP &04                          ; 4F89 FE 04
+               CP &04                          ; 4F89 FE 04  the DEC A above turned MODE 1 to 4 into 0 to 3, so four is
+                                               ; the first value that is not a mode and the carry separates them
                LD A,&22                        ; 4F8B 3E 22  error 34, "screen mode"
                JP NC,REPORT                    ; 4F8D D2 BE 43
                LD A,B                          ; 4F90 78
@@ -5984,13 +5985,19 @@ CMD_MODE:
                CALL MBRDA                      ; 4F9D CD D1 45
                POP BC                          ; 4FA0 C1
                XOR B                           ; 4FA1 A8
-               AND &9F                         ; 4FA2 E6 9F
+               AND &9F                         ; 4FA2 E6 9F  every bit but 5 and 6. XOR B : AND &9F : XOR B takes the
+                                               ; bits the mask selects from the byte just read and the other two from B,
+                                               ; which holds the mode already rotated into place -- so the page in the
+                                               ; low five bits survives untouched
                XOR B                           ; 4FA4 A8
                CALL WRA                        ; 4FA5 CD A4 45
                POP AF                          ; 4FA8 F1
                CALL MBCMR                      ; 4FA9 CD F0 44
                DEFW JMODE                      ; 4FAC 5A 01
-               LD BC,&0000                     ; 4FAE 01 00 00
+               LD BC,&0000                     ; 4FAE 01 00 00  a zero WORD, so SYS_CHAR_WIDTH and SYS_CHAR_HEIGHT are
+                                               ; cleared together. Zero in them means the ROM prints unaided -- &6596
+                                               ; says so from the other end -- so a MODE drops whatever magnification
+                                               ; CSIZE had set
                CALL MBNRWRD                    ; 4FB1 CD 77 45
                DEFW SYS_CHAR_WIDTH             ; 4FB4 EE 4A
                RET                             ; 4FB6 C9
@@ -7833,7 +7840,11 @@ CMD_LPRINT:
                CALL CALL_NEXTCHAR              ; 557F CD 61 44
                CALL INT_ARG_THEN_END           ; 5582 CD 73 44
                DEC A                           ; 5585 3D
-               CP &02                          ; 5586 FE 02
+               CP &02                          ; 5586 FE 02  LPRINT MODE takes 1 or 2 and the DEC A above made them 0
+                                               ; and 1, so two is the first value out of range. What goes into SORP is
+                                               ; therefore zero for parallel and one for serial, which is exactly how
+                                               ; the manual describes XVAR 6 -- "zero value when LPRINT MODE 1
+                                               ; (parallel) has been set, and is non-zero when LPRINT MODE 2 (serial)"
                JP NC,REP_INTEGER_OUT_OF_RANGE  ; 5588 D2 A7 43
                LD (SORP),A                     ; 558B 32 06 40
                CALL INIT_SERIAL_FROM_TABLE     ; 558E CD 99 55
@@ -7885,8 +7896,13 @@ SERIAL_CHANNEL_TABLE_RECV:
 
 ; ---- CMD_LPRINT_1 ---- from &557D when A <> T_MODE
 CMD_LPRINT_1:
-               CP &B3                            ; 55C6 FE B3
-               LD C,&03                          ; 55C8 0E 03
+               CP T_CLEAR                        ; 55C6 FE B3  LPRINT CLEAR, the buffer-sizing form. Anything else goes
+                                                 ; to the REF test at &5646
+               LD C,&03                          ; 55C8 0E 03  stream 3, the printer, which the REF path hands to the
+                                                 ; ROM's STREAM at &5651. &5641 loads 2 for PRINT REF instead -- the
+                                                 ; screen -- and that one byte is the whole difference between the two
+                                                 ; commands. It is set before the branch because only the branch that is
+                                                 ; taken reads C; the CLEAR fall-through never looks at it
                JR NZ,INIT_SERIAL_FROM_TABLE_FAIL ; 55CA 20 7A
                CALL CALL_NEXTCHAR                ; 55CC CD 61 44
                CP CH_COLON                       ; 55CF FE 3A
@@ -8002,7 +8018,7 @@ CMD_PRINT:
                LD C,&02                        ; 5641 0E 02
                CALL CALL_NEXTCHAR              ; 5643 CD 61 44
 
-; ---- INIT_SERIAL_FROM_TABLE_FAIL ---- from &55CA when A <> &B3
+; ---- INIT_SERIAL_FROM_TABLE_FAIL ---- from &55CA when A <> T_CLEAR
 INIT_SERIAL_FROM_TABLE_FAIL:
                CP T_REF                        ; 5646 FE CE
                JP NZ,REP_NOT_UNDERSTOOD        ; 5648 C2 B0 43
@@ -12865,14 +12881,17 @@ READ_NIBBLE_AT_HL:
                RLCA                            ; 6292 07
                RLCA                            ; 6293 07
                RLCA                            ; 6294 07
-               AND &0F                         ; 6295 E6 0F
+               AND &0F                         ; 6295 E6 0F  the four RLCAs above rotate the whole byte, so the low
+                                               ; nibble has landed in the high half; this drops it and leaves the nibble
+                                               ; that was wanted
                RET                             ; 6297 C9
 
 ; ---- READ_NIBBLE_AT_HL_DONE ---- from &628E when bit 0 of L was set
 READ_NIBBLE_AT_HL_DONE:
                ADD HL,HL                       ; 6298 29
                INC L                           ; 6299 2C
-               AND &0F                         ; 629A E6 0F
+               AND &0F                         ; 629A E6 0F  the low nibble taken straight, with no rotation to undo --
+                                               ; the same mask for the opposite reason
                RET                             ; 629C C9
 
 ; ---- NEXT_SCREEN_BYTE_3 ---- from &6283 when L wraps to 0
@@ -12901,7 +12920,13 @@ NEXT_SCREEN_BYTE_3:
 ; ---- READ_NIBBLE_AT_HL_LOOP ---- from &62BE when A = &FF
 READ_NIBBLE_AT_HL_LOOP:
                CALL FETCH_SOURCE_BYTE          ; 62B9 CD CE 62
-               CP &FF                          ; 62BC FE FF
+               CP &FF                          ; 62BC FE FF  &FF is how the compressed stream was closed. WRITE_THREE_FF
+                                               ; at &6194 puts three of them out at &6164, and this skips however many
+                                               ; it finds, stopping on the first byte of whatever the file carries after
+                                               ; the image. The loop below copies that to DE -- which
+                                               ; PICK_COMPRESSION_CONSTANTS set to just past the screen, &9B00, &B800 or
+                                               ; &E000 as the mode requires -- and stops once it has stored an &FF of
+                                               ; its own
                JR Z,READ_NIBBLE_AT_HL_LOOP     ; 62BE 28 F9
                LD (DE),A                       ; 62C0 12
                INC DE                          ; 62C1 13
@@ -13151,7 +13176,9 @@ READ_NEXT_NIBBLE_1:
                INC H                           ; 637A 24
                LD B,A                          ; 637B 47
                LD A,H                          ; 637C 7C
-               CP &FE                          ; 637D FE FE
+               CP &FE                          ; 637D FE FE  &FE00 is &E500 plus &1900, so the buffer is spent and
+                                               ; LOAD_NEXT_INPUT_BLOCK below fetches the next block. The same number as
+                                               ; &62F1's arithmetic, asked from the reading end
                LD A,B                          ; 637F 78
                EXX                             ; 6380 D9
                RET NZ                          ; 6381 C0
@@ -13159,8 +13186,12 @@ READ_NEXT_NIBBLE_1:
                CALL LOAD_NEXT_INPUT_BLOCK      ; 6383 CD 90 63
                POP AF                          ; 6386 F1
                EXX                             ; 6387 D9
-               LD HL,&E500                     ; 6388 21 00 E5
-               LD DE,&000F                     ; 638B 11 0F 00
+               LD HL,&E500                     ; 6388 21 00 E5  back to the top of the refilled buffer, the same &E500
+                                               ; &62F1 describes
+               LD DE,&000F                     ; 638B 11 0F 00  and the mask and phase counter set again as at &62EE.
+                                               ; Putting D back to zero is safe because a refill can only happen between
+                                               ; bytes: the path that gets here went through READ_NEXT_NIBBLE_1, which
+                                               ; is the branch D even takes, so the byte just read was a second nibble
                EXX                             ; 638E D9
                RET                             ; 638F C9
 
@@ -14590,7 +14621,9 @@ READ_COUNTED_STRING_1:
 
 ; ---- SET_STEP_AND_COUNT ---- from &6641 when A = &11
 SET_STEP_AND_COUNT:
-               LD BC,&0533                     ; 6796 01 33 05
+               LD BC,&0533                     ; 6796 01 33 05  B is 5 and C is &33, so COPY_EVERY_NTH_BYTE takes five
+                                               ; bytes at a time fifty-one times over -- 255, which with its opening LDI
+                                               ; is the 256 a whole pass moves
                JR SET_STEP_AND_COUNT_1         ; 6799 18 03
 
 ;; --------------------------------------------------------------------
@@ -14601,7 +14634,9 @@ SET_STEP_AND_COUNT:
 
 ; ---- SET_STEP_AND_COUNT_SWAPPED ---- from &670F when A = &11
 SET_STEP_AND_COUNT_SWAPPED:
-               LD BC,&3305                     ; 679B 01 05 33
+               LD BC,&3305                     ; 679B 01 05 33  the same 255 the other way round, fifty-one bytes taken
+                                               ; five times. Both reach 256 with the LDI; what differs is the shape of
+                                               ; the walk, and the note above says which is which
 
 ; ---- SET_STEP_AND_COUNT_1 ---- from &6799
 SET_STEP_AND_COUNT_1:
@@ -14613,7 +14648,8 @@ SET_STEP_AND_COUNT_1:
                LD (L67C6+1),A                  ; 67A5 32 C7 67  patches the operand of the ADD at &67C6
                LD A,C                          ; 67A8 79
                LD (L67C1+1),A                  ; 67A9 32 C2 67  patches the operand of the LD at &67C1
-               LD L,&00                        ; 67AC 2E 00
+               LD L,&00                        ; 67AC 2E 00  L to zero, so every pass starts on a 256-byte boundary --
+                                               ; the loop below steps H alone and ends when it wraps
 
 ; ---- SET_STEP_AND_COUNT_SWAPPED_LOOP ---- from &67B4 when H is not 0
 SET_STEP_AND_COUNT_SWAPPED_LOOP:
@@ -16932,7 +16968,9 @@ CALL_J_FARLDIR:
 SCREEN_NUMBER_ARGUMENT:
                CALL BYTE_ARGUMENT              ; 6DD8 CD A1 43
                DEC A                           ; 6DDB 3D
-               CP &10                          ; 6DDC FE 10
+               CP &10                          ; 6DDC FE 10  sixteen screens, and the DEC A above has brought them to 0
+                                               ; to 15, so &10 is the first number that is not one -- the same bound
+                                               ; &551A applies to ALTER's pair
                JR NC,SCREEN_NUMBER_ARGUMENT_1  ; 6DDE 30 17
                LD HL,FISCRNP                   ; 6DE0 21 9F 5C
                ADD HL,BC                       ; 6DE3 09
@@ -16941,13 +16979,18 @@ SCREEN_NUMBER_ARGUMENT:
                JR Z,SCREEN_NUMBER_ARGUMENT_1   ; 6DE8 28 0D
                DEC A                           ; 6DEA 3D
                LD B,A                          ; 6DEB 47
-               AND &1F                         ; 6DEC E6 1F
+               AND PAGEMASK                    ; 6DEC E6 1F  the low five bits are the page. The ROM's table calls
+                                               ; SCLIST "MODE/PAGE OF SCREENS 1-16, OR FFH", and five bits is what a
+                                               ; page number takes
                LD C,A                          ; 6DEE 4F
                LD A,B                          ; 6DEF 78
                RLCA                            ; 6DF0 07
                RLCA                            ; 6DF1 07
                RLCA                            ; 6DF2 07
-               AND &03                         ; 6DF3 E6 03
+               AND &03                         ; 6DF3 E6 03  and bits 5 and 6 are the mode, which the three RLCAs above
+                                               ; have just brought down to bits 0 and 1. CMD_MODE puts them up there
+                                               ; with three RRCAs, so this is that step undone -- which is why &6DB7 can
+                                               ; say the mode is 0 to 3 here and not &00, &20, &40, &60
                LD B,A                          ; 6DF5 47
                RET                             ; 6DF6 C9
 
@@ -18498,14 +18541,27 @@ HOOK_PROGPREP:
                LD HL,ROM_DCT+&4000             ; 7330 21 B6 9B  DCT+&4000 -- the disc error counter, in the system page
                LD A,(HL)                       ; 7333 7E
                PUSH AF                         ; 7334 F5
-               AND &FA                         ; 7335 E6 FA
+               AND &FA                         ; 7335 E6 FA  bits 0 and 2 down. They are the "needs compiling" state --
+                                               ; &7C36 tests the same two to decide whether to raise this hook at all,
+                                               ; and SET_DCT_COMPILE_BITS puts them back up with OR &05 -- so they are
+                                               ; cleared before the rebuild below and the old value is kept on the stack
+                                               ; for the test after it
                LD (HL),A                       ; 7337 77
                CALL BUILD_COMPILER             ; 7338 CD 5D 73
                POP AF                          ; 733B F1
                RRA                             ; 733C 1F
                JR C,HOOK_PROGPREP_1            ; 733D 38 06
-               LD HL,&0118                     ; 733F 21 18 01
-               LD (&8D11),HL                   ; 7342 22 11 8D
+               LD HL,&0118                     ; 733F 21 18 01  NOT AN ADDRESS. &0118 is a jump-table entry by value,
+                                               ; and the listing would have it as JEXPT1NUM, but nothing calls it: the
+                                               ; two bytes go out as data, and as data they are &18 &01, a JR over one
+                                               ; byte
+               LD (&8D11),HL                   ; 7342 22 11 8D  the first bytes of what BUILD_COMPILER has just copied.
+                                               ; &4D11 is where its LDIR lands, and what lands there is the ROM's DOCOMP
+                                               ; -- ref/samrom/fn.asm has "DOCOMP: CALL SCOMP" with COMPILE as the very
+                                               ; next label, so DOCOMP is three bytes and a JR over one byte from &4D11
+                                               ; arrives at &4D14, which is COMPILE. The patch therefore drops SCOMP and
+                                               ; starts the copy at COMPILE, and only when bit 0 of the old DCT was
+                                               ; clear.
 
 ; ---- HOOK_PROGPREP_1 ---- from &733D when bit 0 was set
 HOOK_PROGPREP_1:

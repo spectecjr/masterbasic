@@ -570,6 +570,10 @@ MB &6796 SET_STEP_AND_COUNT
     everything after them is shared.  Both entries then check HL and
     return Z at the end of the run before doing any of the work.
 
+MB &6796 : B is 5 and C is &33, so COPY_EVERY_NTH_BYTE takes five bytes at a time fifty-one times over -- 255, which with its opening LDI is the 256 a whole pass moves
+MB &679B : the same 255 the other way round, fifty-one bytes taken five times.  Both reach 256 with the LDI; what differs is the shape of the walk, and the note above says which is which
+MB &67AC : L to zero, so every pass starts on a 256-byte boundary -- the loop below steps H alone and ends when it wraps
+
 MB &67B7 COPY_EVERY_NTH_BYTE
     Copy with a stride: LDI moves the first byte, then B bytes at a time
     are taken from HL, C times over, with the address stepped on by the

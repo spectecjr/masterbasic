@@ -32,3 +32,18 @@ MB &7221 : LD HL,&5A60 then LD A,(HL) -- code, not data, copied in ahead of HOOK
 MB &7214 : the &61 bytes at HOOK_SETUPREGS_1 are appended after those four
 MB &721B : &4D50, the address of what was just built, passed on to be stored
 MB &7330 : DCT+&4000 -- the disc error counter, in the system page
+
+MB &7335 : bits 0 and 2 down.  They are the "needs compiling" state -- &7C36 tests the same two to decide whether to raise this hook at all, and SET_DCT_COMPILE_BITS puts them back up with OR &05 -- so they are cleared before the rebuild below and the old value is kept on the stack for the test after it
+
+MB &733F : NOT AN ADDRESS.  &0118 is a jump-table entry by value, and the listing would have it as JEXPT1NUM, but nothing calls it: the two bytes go out as data, and as data they are &18 &01, a JR over one byte
+
+MB &7342 : the first bytes of what BUILD_COMPILER has just copied.  &4D11 is where its LDIR lands, and what lands there is the ROM's DOCOMP -- ref/samrom/fn.asm has "DOCOMP: CALL SCOMP" with COMPILE as the very next label, so DOCOMP is three bytes and a JR over one byte from &4D11 arrives at &4D14, which is COMPILE.  The patch therefore drops SCOMP and starts the copy at COMPILE, and only when bit 0 of the old DCT was clear.
+
+# &4D14 IS CORROBORATED TWICE OVER.  &5272's swallowed bytes are CD 14
+# 4D, a CALL to that very address, so &4D14 is an entry point something
+# else already uses.  And the two operands BUILD_COMPILER patches fall
+# exactly where COMPILE's own instructions put them: COMPILE opens
+# LD A,(CHADP) at &4D14 and LD (KCURP),A at &4D17, whose operand is the
+# &4D18 written at &7371; then LD HL,(CHAD) and LD (KCUR),HL at &4D1D,
+# whose operand is the &4D1E written at &7375.  Both are the KCUR pair
+# being swapped for the PRPTR pair, which is what those notes say.

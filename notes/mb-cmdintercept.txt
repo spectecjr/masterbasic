@@ -57,6 +57,10 @@ MB &4F7E CMD_MODE
     right at the moment the mode changes rather than at the next switch.
     That is a reading of why, not something the code states.
 
+MB &4F89 : the DEC A above turned MODE 1 to 4 into 0 to 3, so four is the first value that is not a mode and the carry separates them
+MB &4FA2 : every bit but 5 and 6.  XOR B : AND &9F : XOR B takes the bits the mask selects from the byte just read and the other two from B, which holds the mode already rotated into place -- so the page in the low five bits survives untouched
+MB &4FAE : a zero WORD, so SYS_CHAR_WIDTH and SYS_CHAR_HEIGHT are cleared together.  Zero in them means the ROM prints unaided -- &6596 says so from the other end -- so a MODE drops whatever magnification CSIZE had set
+
 MB &5C6A CMD_SOUND
     SOUND, token &AE -- and the reason for taking it over is in the
     manual, which documents SOUND CLEAR and SOUND CLEAR size:
