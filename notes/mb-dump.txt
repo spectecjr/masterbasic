@@ -785,7 +785,11 @@ MB &6264 : doubled, because each value has a two-byte counter
 
 MB &6266 : INC (HL) then JR NZ is a sixteen-bit increment done by hand: the high byte is only touched when the low one wraps
 
+MB &6262 : the low nibble of the source byte, which is one of the sixteen values being counted
+
 MB &626C : three rotates and AND &1E give the high nibble already doubled, which is the counter's offset without a separate shift
+
+MB &626F : and &1E is that mask -- the nibble doubled is 0 to 30 even, so bit 0 is dropped along with the three bits the rotates carried round
 
 MB &623A : one past the end of the table, and the low byte doubles as the index all the way down
 

@@ -32,6 +32,9 @@ DOC BUILD_GREY_MAP
 
 MB &6A69 : twenty-five flags, one per grey level -- another stub of the installer's, dead since boot
 
+MB &6A6C : and twenty-five is that count, one pass of the loop for each flag
+MB &6A6E : cleared, which is what "not taken yet" is -- the map is built by claiming levels as it goes
+
 MB &6A73 : the ROM's palette table in the system page, which is why every read below goes through RDA
 
 MB &6A76 : the answer table, sixteen bytes, indexed by palette register

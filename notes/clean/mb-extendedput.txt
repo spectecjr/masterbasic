@@ -13,6 +13,19 @@ CONST PUT_TRAMPOLINE = &F000 : section D, where a fragment of the finished block
 
 # The seven runs, by the count each LDIR is given.
 MB &7848 : ten -- the token-to-index stub named on the line above
+
+MB &7889 : HL is one past the end of the string -- DE plus BC, as GETSTR left them -- and the BIT 6,H above has just found bit 14 of it clear.  Clearing the whole of H keeps the low byte alone, which is what gets pushed for the INC H : DEC H test at &78B0
+
+# AND THAT TEST IS NOT SETTLED.  H is zero on the only path that
+# reaches the PUSH, so the Z at &78B6 looks like a foregone conclusion
+# and &78B8-&78C5 like dead code.  What could make it not one is the
+# splice: &7868 copies three bytes of the ROM's PUT into the block
+# between &788D and &788E, so three instructions of someone else's code
+# run between the PUSH AF and the PUSH BC, and if any of them touches
+# the stack the pops at &78A9 onwards are reading different words than
+# they appear to.  Which three bytes those are is not known here -- the
+# ROM's PUT is found at run time -- so this is recorded rather than
+# answered.
 MB &784E : thirteen, the ROM's PUT from its first byte
 MB &7855 : thirteen more, PUT+&0D onwards
 MB &785C : eight, added to HL rather than copied -- PUT+&1A to PUT+&22 is skipped
@@ -41,11 +54,15 @@ MB &78AB value PAGE_VALUE_MASK
 # has found the ROM's PUT: each is an address inside it, so none can be
 # written down here.
 MB &7886 : the operand is written at run time, an address inside the ROM's PUT
+MB &78D9 : the high half of that offset, which never exceeds fifty, so clearing D makes DE the offset by itself for the ADD IY,DE below
+
 MB &78DB : the same
 MB &78ED : the same
 MB &794B : the same
 
 # The PUT operation, from INVERT.
+MB &78BC : fifty, which is one entry past the five the arithmetic below can make.  &78D3 onwards is five doublings and adds that come to ten times A, and A is four or INVERT's low two bits, so the offsets it produces are 0, 10, 20, 30 and 40 -- ten bytes to an entry.  Fifty is the sixth, taken when SYS_FN_INDEX says GRAB rather than PUT
+
 MB &78CC : four when INVERT is not set
 MB &78D1 : otherwise the low two bits of it
 

@@ -39,6 +39,12 @@ DOC RESOLVE_ROM_ENTRIES
     given the codes for word-left and word-right.
 
 MB &799D : two of these results fill the JP &0000 operands in the stub
+
+MB &79A2 : and &7E01 is the second of them, the operand of the JP at &7E00.  Both are inside the 446 bytes the LDIR at &7B5C writes over, so neither is ever executed -- see notes/mb-install.txt
+
+MB &79C7 : eighteen, the length of the auto-list loop the rescue has to recognise.  &59C0's note has the other end of it: C is AULLP's low byte and B that plus this, and the two compares there ask whether the interrupt caught the ROM inside those eighteen bytes
+
+MB &79CA : and &59C1 is where the pair goes -- the operand of the LD BC,&0000 at &59C0, which is the one instruction in the rescue that cannot be assembled because AULLP moves with the ROM version
 MB &7AA6 : 24, which the manual gives as the code in "KEY 36+70,24" -- and the INC A below makes the 25 of "KEY 27+70,25"
 
 MB &7AA8 : &594A is KTAB entry 106, the 36+70 of that pair.  IT IS A KEY ASSIGNMENT AND NOT AN OPCODE: this line used to read &18 as JR, which is what the byte would be if it were being executed, and the doc block above the routine says otherwise -- MasterBASIC is doing two KEY statements by writing into the table

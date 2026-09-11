@@ -7863,7 +7863,9 @@ IS_CHANNEL_OURS:
 ;; --------------------------------------------------------------------
 
 CMD_PRINT:
-               LD C,&02                        ; 5641 0E 02
+               LD C,&02                        ; 5641 0E 02  stream 2, the screen. LPRINT REF loads 3 at &55C8 for the
+                                               ; printer and the two paths meet at &5646, so this one byte is the whole
+                                               ; difference between the commands
                CALL CALL_NEXTCHAR              ; 5643 CD 61 44
 
 ; ---- INIT_SERIAL_FROM_TABLE_FAIL ---- from &55CA when A <> T_CLEAR
@@ -7881,7 +7883,9 @@ CMD_PRINT_1:
                CALL CALL_NEXTCHAR              ; 5656 CD 61 44
                CALL CALLDOS                    ; 5659 CD C1 42
                DEFW DOS_PLNS-&4000             ; 565C 8E 50
-               LD D,&00                        ; 565E 16 00
+               LD D,&00                        ; 565E 16 00  zero is PRINT REF's own code. &5778 lists all three -- &80
+                                               ; for ALTER, &01 for REF, &00 for PRINT REF -- and &5665 loads the &01
+                                               ; for REF two instructions past this
                JR CMD_PRINT_2                  ; 5660 18 05
 
 ;; --------------------------------------------------------------------
@@ -11634,7 +11638,12 @@ SHOW_LINE_AND_STATEMENT_2:
 
 CHECK_BREAK:
                IN A,(STAT)                     ; 6000 DB F9
-               AND &20                         ; 6002 E6 20
+               AND &20                         ; 6002 E6 20  bit 5 of the status byte, which is keyboard matrix line K6.
+                                               ; The Technical Manual: "the STATUS port inputs the upper 3 bits
+                                               ; represented by K6, K7 and K8", and its own example strips them with AND
+                                               ; 11100000b. A line reads low when a key on it is down, so a zero here is
+                                               ; the key held and the error below is raised -- and nothing in this
+                                               ; routine selects the row, A arriving from the caller
                JR NZ,CHECK_BREAK_1             ; 6004 20 02
                RST ERR_HOOK                    ; 6006 CF
                DEFB ERR_BREAK_INTO_PROGRAM     ; 6007 0F error 15, "BREAK into program"
@@ -11653,7 +11662,9 @@ CHECK_BREAK_LOOP:
                LD A,H                          ; 6010 7C
                OR L                            ; 6011 B5
                JR NZ,CHECK_BREAK_LOOP          ; 6012 20 FB
-               LD H,&0A                        ; 6014 26 0A
+               LD H,&0A                        ; 6014 26 0A  ten in the high byte and L again left as it was, so the
+                                               ; count is about &0A00 -- the same idiom as &600D and the number &6019's
+                                               ; note quotes
 
 ; ---- CHECK_BREAK_LOOP2 ---- from &601D
 CHECK_BREAK_LOOP2:
@@ -12431,7 +12442,8 @@ BUILD_NIBBLE_TABLE_LOOP:
 ; ---- BUILD_NIBBLE_TABLE_LOOP2 ---- from &6278 when B is not 0 yet, &627B when C is not 0 yet
 BUILD_NIBBLE_TABLE_LOOP2:
                LD A,(DE)                       ; 6261 1A
-               AND &0F                         ; 6262 E6 0F
+               AND &0F                         ; 6262 E6 0F  the low nibble of the source byte, which is one of the
+                                               ; sixteen values being counted
                ADD A,A                         ; 6264 87  doubled, because each value has a two-byte counter
                LD L,A                          ; 6265 6F
                INC (HL)                        ; 6266 34  INC (HL) then JR NZ is a sixteen-bit increment done by hand:
@@ -12447,7 +12459,8 @@ BUILD_NIBBLE_TABLE_1:
                                                ; doubled, which is the counter's offset without a separate shift
                RRCA                            ; 626D 0F
                RRCA                            ; 626E 0F
-               AND &1E                         ; 626F E6 1E
+               AND &1E                         ; 626F E6 1E  and &1E is that mask -- the nibble doubled is 0 to 30 even,
+                                               ; so bit 0 is dropped along with the three bits the rotates carried round
                LD L,A                          ; 6271 6F
                INC (HL)                        ; 6272 34
                JR NZ,BUILD_NIBBLE_TABLE_2      ; 6273 20 02
@@ -13378,9 +13391,11 @@ CLAMP_CELLS_FOR_DEVICE:
                DEC A                           ; 64EA 3D
                LD A,C                          ; 64EB 79
                RET NZ                          ; 64EC C0
-               CP &05                          ; 64ED FE 05
+               CP &05                          ; 64ED FE 05  five, so four and under pass through untouched
                RET C                           ; 64EF D8
-               LD A,&04                        ; 64F0 3E 04
+               LD A,&04                        ; 64F0 3E 04  and anything from five up comes back as four, which is the
+                                               ; clamp the banner below describes and mb-csize.txt reads as a limit on
+                                               ; how large a magnified character may be in the lower window
                RET                             ; 64F2 C9
 
 ;; --------------------------------------------------------------------
@@ -15267,11 +15282,13 @@ ATTRIBUTE_PIXEL_COLOUR_LOOP:
 BUILD_GREY_MAP:
                LD HL,GREY_TAKEN                ; 6A69 21 90 7B  twenty-five flags, one per grey level -- another stub of
                                                ; the installer's, dead since boot
-               LD B,&19                        ; 6A6C 06 19
+               LD B,&19                        ; 6A6C 06 19  and twenty-five is that count, one pass of the loop for
+                                               ; each flag
 
 ; ---- BUILD_GREY_MAP_LOOP ---- from &6A71 when B is not 0 yet
 BUILD_GREY_MAP_LOOP:
-               LD (HL),&00                     ; 6A6E 36 00
+               LD (HL),&00                     ; 6A6E 36 00  cleared, which is what "not taken yet" is -- the map is
+                                               ; built by claiming levels as it goes
                INC HL                          ; 6A70 23
                DJNZ BUILD_GREY_MAP_LOOP        ; 6A71 10 FB
                LD HL,PALTAB                    ; 6A73 21 D8 55  the ROM's palette table in the system page, which is why
@@ -19602,7 +19619,10 @@ BUILD_PUT_BLOCK:
 
 ; ---- BUILD_PUT_BLOCK_1 ---- from &7881 when bit 6 of H clear
 BUILD_PUT_BLOCK_1:
-               LD H,&00                        ; 7889 26 00
+               LD H,&00                        ; 7889 26 00  HL is one past the end of the string -- DE plus BC, as
+                                               ; GETSTR left them -- and the BIT 6,H above has just found bit 14 of it
+                                               ; clear. Clearing the whole of H keeps the low byte alone, which is what
+                                               ; gets pushed for the INC H : DEC H test at &78B0
                PUSH HL                         ; 788B E5
                PUSH DE                         ; 788C D5
                PUSH AF                         ; 788D F5
@@ -19636,7 +19656,11 @@ BUILD_PUT_BLOCK_2:
                JR Z,BUILD_PUT_BLOCK_3          ; 78B6 28 0E
                LD A,(SYS_FN_INDEX)             ; 78B8 3A F0 4A
                AND A                           ; 78BB A7
-               LD E,&32                        ; 78BC 1E 32
+               LD E,&32                        ; 78BC 1E 32  fifty, which is one entry past the five the arithmetic
+                                               ; below can make. &78D3 onwards is five doublings and adds that come to
+                                               ; ten times A, and A is four or INVERT's low two bits, so the offsets it
+                                               ; produces are 0, 10, 20, 30 and 40 -- ten bytes to an entry. Fifty is
+                                               ; the sixth, taken when SYS_FN_INDEX says GRAB rather than PUT
                JR NZ,BUILD_PUT_BLOCK_5         ; 78BE 20 19
                LD IY,PUT_TRAMPOLINE + &1D      ; 78C0 FD 21 1D F0
                JR BUILD_PUT_BLOCK_6            ; 78C4 18 1B
@@ -19662,7 +19686,8 @@ BUILD_PUT_BLOCK_4:
 
 ; ---- BUILD_PUT_BLOCK_5 ---- from &78BE when A <> 0
 BUILD_PUT_BLOCK_5:
-               LD D,&00                        ; 78D9 16 00
+               LD D,&00                        ; 78D9 16 00  the high half of that offset, which never exceeds fifty, so
+                                               ; clearing D makes DE the offset by itself for the ADD IY,DE below
                LD IY,&0000                     ; 78DB FD 21 00 00  the same
                ADD IY,DE                       ; 78DF FD 19
 
@@ -19856,7 +19881,9 @@ BUILD_PUT_BLOCK_11:
                LD (&7DFB),DE                   ; 799D ED 53 FB 7D  two of these results fill the JP &0000 operands in
                                                ; the stub
                INC HL                          ; 79A1 23
-               LD (&7E01),HL                   ; 79A2 22 01 7E
+               LD (&7E01),HL                   ; 79A2 22 01 7E  and &7E01 is the second of them, the operand of the JP
+                                               ; at &7E00. Both are inside the 446 bytes the LDIR at &7B5C writes over,
+                                               ; so neither is ever executed -- see notes/mb-install.txt
                CALL DOS_FIND_ROM_CODE          ; 79A5 CD 79 BD
                DEFB &20,&08,&78,&03,&70,&02    ; 79A8 signature 20 08 78 from &0370, +2  -> &038B EDKY1
                LD (V56F6),HL                   ; 79AE 22 F6 56  patches the operand of the CALL at &56F3
@@ -19866,9 +19893,14 @@ BUILD_PUT_BLOCK_11:
                CALL DOS_FIND_ROM_CODE          ; 79BD CD 79 BD
                DEFB &F1,&0E,&FB,&05,&F0,&01    ; 79C0 signature F1 0E FB from &05F0, +1  -> &0604 AULLP
                LD A,L                          ; 79C6 7D
-               ADD A,&12                       ; 79C7 C6 12
+               ADD A,&12                       ; 79C7 C6 12  eighteen, the length of the auto-list loop the rescue has
+                                               ; to recognise. &59C0's note has the other end of it: C is AULLP's low
+                                               ; byte and B that plus this, and the two compares there ask whether the
+                                               ; interrupt caught the ROM inside those eighteen bytes
                LD H,A                          ; 79C9 67
-               LD (&59C1),HL                   ; 79CA 22 C1 59
+               LD (&59C1),HL                   ; 79CA 22 C1 59  and &59C1 is where the pair goes -- the operand of the
+                                               ; LD BC,&0000 at &59C0, which is the one instruction in the rescue that
+                                               ; cannot be assembled because AULLP moves with the ROM version
                CALL DOS_FIND_ROM_CODE          ; 79CD CD 79 BD
                DEFB &FF,&32,&46,&33,&00,&04    ; 79D0 signature FF 32 46 from &3300, +4  -> &33DB DOCOMP
                LD (BUILD_COMPILER+1),HL        ; 79D6 22 5E 73  patches the operand of the LD at &735D

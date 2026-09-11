@@ -97,6 +97,10 @@ MB &5736 : the length of the reference being replaced, from the first buffer
 
 MB &5737 : DE = BC, the address in the program text where the match starts; MATCH_REFERENCE left HL past the match and the caller kept the start in BC
 
+MB &5641 : stream 2, the screen.  LPRINT REF loads 3 at &55C8 for the printer and the two paths meet at &5646, so this one byte is the whole difference between the commands
+
+MB &565E : zero is PRINT REF's own code.  &5778 lists all three -- &80 for ALTER, &01 for REF, &00 for PRINT REF -- and &5665 loads the &01 for REF two instructions past this
+
 MB &573C : the length of the replacement, from the second buffer; B is cleared so BC is a byte count for the LDIR below
 
 MB &573D : and this is that clearing -- the length is a byte and the LDIR wants a word

@@ -22,6 +22,9 @@ MB &433F : register 1 of the SCC2691, which on the read side is SR, the status r
 MB &4343 : bit 3 of SR is TxEMT.  The data sheet's SR table reads, from bit 7 down: received break, framing error, parity error, overrun error, TxEMT, TxRDY, FFULL, RxRDY -- and TxEMT set means the transmitter has run dry and there is room for another byte
 MB &4345 : carry set only when A came out zero, which is the one thing AND cannot leave behind.  So a clear TxEMT becomes carry, and the serial path answers in the same coin as the parallel path's RRCA at &4338 -- carry means not ready
 
+MB &64ED : five, so four and under pass through untouched
+MB &64F0 : and anything from five up comes back as four, which is the clamp the banner below describes and mb-csize.txt reads as a limit on how large a magnified character may be in the lower window
+
 MB &64E7 CLAMP_CELLS_FOR_DEVICE
 
 DOC CLAMP_CELLS_FOR_DEVICE
