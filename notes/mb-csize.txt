@@ -116,4 +116,7 @@ MB &64CC : eight on is the next cell of the same row.  The result is laid out as
 
 MB &64D2 : and the marker set again for the cell just started
 
+MB &648F : three cells.  From there up INDOPFG is cleared, which the ROM's variable list calls the INDENTED O/P FLAG -- so a character this wide prints without the indent
+MB &64A0 : eight on is the next cell, the stride &64CC's note describes from the other end: WIDEN_CHAR_BITMAP lays its result out as eight-byte cells because this is what walks it
+
 MB &649C : &49E4 in the ROM's system page, which picks ordinary or magnified output

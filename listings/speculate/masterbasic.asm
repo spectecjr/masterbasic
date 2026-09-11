@@ -8033,10 +8033,13 @@ FN_SHIFT_S:
                                                ; lower, &00/&20 swaps
                DEC A                           ; 4DFA 3D
                JR Z,FORCE_CASE_BYTE            ; 4DFB 28 20
-               LD L,&00                        ; 4DFD 2E 00
+               LD L,&00                        ; 4DFD 2E 00  the second of those three -- H is still &20, so clearing L
+                                               ; alone makes &20/&00, lower case
                DEC A                           ; 4DFF 3D
                JR Z,FORCE_CASE_BYTE            ; 4E00 28 1B
-               LD HL,&0020                     ; 4E02 21 20 00
+               LD HL,&0020                     ; 4E02 21 20 00  and the third, &00/&20, which swaps the case of every
+                                               ; letter. Both are one instruction because the chain falls through the
+                                               ; option before them
                DEC A                           ; 4E05 3D
                JR Z,FORCE_CASE_BYTE            ; 4E06 28 15
                DEC A                           ; 4E08 3D
@@ -11267,10 +11270,13 @@ INIT_SERIAL_FROM_TABLE_1:
                XOR A                           ; 55AA AF
                OUT (HMPR),A                    ; 55AB D3 FB
                LD HL,(CHANS+&4000)             ; 55AD 2A 4F 9C
-               LD BC,&4019                     ; 55B0 01 19 40
+               LD BC,&4019                     ; 55B0 01 19 40  &19 into CHANS with &4000 on it for the window -- CHANS
+                                               ; was read as a plain address here, so the offset has to carry the window
+                                               ; that IS_CHANNEL_OURS gets for free by reading through NRRDD
                ADD HL,BC                       ; 55B3 09
                EX DE,HL                        ; 55B4 EB
-               LD BC,&0004                     ; 55B5 01 04 00
+               LD BC,&0004                     ; 55B5 01 04 00  four bytes, the pair of channel words the tables below
+                                               ; hold
                LDIR                            ; 55B8 ED B0
                                                ; to the alternate register set and back again
                EX AF,AF'                       ; 55BA 08
@@ -12629,6 +12635,8 @@ MATCH_REFERENCE_DONE:
 ;; Takes:     HL
 ;; Leaves:    A, F, HL
 ;;
+;; ? tests for CH_CR; falls into whatever follows rather than returning.
+;;
 ;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Walk forward through BASIC text looking for either of two
@@ -12663,11 +12671,14 @@ SCAN_TEXT_FOR_D_OR_E:
                CALL NUMBER                     ; 5878 CD A2 00  the ROM's NUMBER steps over &0E and the five bytes
                                                ; behind it in one call, so a byte of a number's binary form can never be
                                                ; mistaken for text
-               CP &0D                          ; 587B FE 0D
+               CP CH_CR                        ; 587B FE 0D  the carriage return that ends a line, which the SCF below
+                                               ; turns into the caller's answer
                SCF                             ; 587D 37  carry set on the carriage return is the "line finished" answer
                                                ; the paged wrapper tests
                RET Z                           ; 587E C8
-               CP &22                          ; 587F FE 22
+               CP &22                          ; 587F FE 22  a quote. The REFERENCE_KIND test under it is what decides
+                                               ; whether a quoted run counts, so this is where a string literal in the
+                                               ; program text is noticed
                JR NZ,SCAN_TEXT_FOR_D_OR_E_1    ; 5881 20 0B
                LD A,(REFERENCE_KIND)           ; 5883 3A 93 40  zero means the reference came out of quotes or a
                                                ; brackets expression, and those are looked for inside strings; anything
@@ -19314,7 +19325,9 @@ PRINT_SIZED_CHAR:
                CALL WIDEN_CHAR_BITMAP+&4000      ; 648A CD AC A4
                POP AF                            ; 648D F1
                PUSH AF                           ; 648E F5
-               CP &03                            ; 648F FE 03
+               CP &03                            ; 648F FE 03  three cells. From there up INDOPFG is cleared, which the
+                                                 ; ROM's variable list calls the INDENTED O/P FLAG -- so a character
+                                                 ; this wide prints without the indent
                JR C,PRINT_SIZED_CHAR_1           ; 6491 38 04
                XOR A                             ; 6493 AF
                                                  ; self-modifying: patches the operand of the LD at &5ABB
@@ -19349,7 +19362,9 @@ PRINT_SIZED_CHAR_LOOP:
                CALL SYS_CHAR_OUT               ; 649C CD E4 49  &49E4 in the ROM's system page, which picks ordinary or
                                                ; magnified output
                POP HL                          ; 649F E1
-               LD DE,&0008                     ; 64A0 11 08 00
+               LD DE,&0008                     ; 64A0 11 08 00  eight on is the next cell, the stride &64CC's note
+                                               ; describes from the other end: WIDEN_CHAR_BITMAP lays its result out as
+                                               ; eight-byte cells because this is what walks it
                ADD HL,DE                       ; 64A3 19
                POP DE                          ; 64A4 D1
                POP BC                          ; 64A5 C1
@@ -24672,9 +24687,11 @@ CMD_SPLIT_LINE_LOOP3:
                ADD HL,HL                       ; 6E8A 29
                ADD HL,DE                       ; 6E8B 19
                ADD HL,HL                       ; 6E8C 29
-               SUB &30                         ; 6E8D D6 30
+               SUB &30                         ; 6E8D D6 30  "0" off the digit, the other half of the times-ten above --
+                                               ; the accumulator is multiplied and then the digit added
                LD E,A                          ; 6E8F 5F
-               LD D,&00                        ; 6E90 16 00
+               LD D,&00                        ; 6E90 16 00  and D cleared so the digit goes in as a word, which is what
+                                               ; makes the ADD HL,DE below a sixteen-bit accumulate
                ADD HL,DE                       ; 6E92 19
                JP C,REP_NOT_UNDERSTOOD         ; 6E93 DA B0 43  more than 65535 and it is refused
                LD A,(BC)                       ; 6E96 0A
@@ -25923,7 +25940,8 @@ HOOK_SETUPREGS:
                DEFW XPTR                       ; 7201 A3 5A
                LD HL,V7221                     ; 7203 21 21 72
                LD DE,&8D50                     ; 7206 11 50 8D  CDBUFF+&50 in the system page -- HMPR is zeroed at &720F
-               LD BC,&0004                     ; 7209 01 04 00
+               LD BC,&0004                     ; 7209 01 04 00  four bytes, which the note two lines down calls "those
+                                               ; four"
                IN A,(HMPR)                     ; 720C DB FB
                PUSH AF                         ; 720E F5
                XOR A                           ; 720F AF
@@ -25931,7 +25949,8 @@ HOOK_SETUPREGS:
                LDIR                            ; 7212 ED B0
                LD HL,HOOK_SETUPREGS_1          ; 7214 21 03 7E  the &61 bytes at HOOK_SETUPREGS_1 are appended after
                                                ; those four
-               LD C,&61                        ; 7217 0E 61
+               LD C,&61                        ; 7217 0E 61  and &61 of them, the length the same note gives for
+                                               ; HOOK_SETUPREGS_1
                LDIR                            ; 7219 ED B0
                LD BC,&4D50                     ; 721B 01 50 4D  &4D50, the address of what was just built, passed on to
                                                ; be stored
@@ -30886,13 +30905,19 @@ L7DD8:
 
                LD HL,ROM_DCT                   ; 7DDB 21 B6 5B
                SET 0,(HL)                      ; 7DDE CB C6
-               LD A,&FF                        ; 7DE0 3E FF
+               LD A,&FF                        ; 7DE0 3E FF  &FF into COMPFLG, which the ROM's variable table calls
+                                               ; "FLAG BITS USED BY LABEL/FN/PROC COMPILER" and whose bit 7 high fn.asm
+                                               ; marks "'COMPILING PROGRAM'" against -- so what this asks for is a
+                                               ; program compile and not an E-line one
                                                ; self-modifying: patches the operand of the LD at &5B3F
                LD (COMPFLG),A                  ; 7DE2 32 40 5B
                LD HL,(PROG)                    ; 7DE5 2A A0 5A
                LD A,(PROGP)                    ; 7DE8 3A 9F 5A
                OUT (HMPR),A                    ; 7DEB D3 FB
-               LD (HL),&00                     ; 7DED 36 00
+               LD (HL),&00                     ; 7DED 36 00  NOT A VALUE. This instruction runs at &4A96 and its operand
+                                               ; is the &4A97 the banner above sets out: &4F33 arms it with the byte the
+                                               ; stub is to write at the start of the BASIC program, and &FF there
+                                               ; stands for "nothing to write"
                RET                             ; 7DEF C9
 
 ;; --------------------------------------------------------------------
@@ -31104,7 +31129,11 @@ GAP_BLOCK:
                EXX                             ; 7E45 D9
                PUSH BC                         ; 7E46 C5
                POP AF                          ; 7E47 F1
-               JP C,&0000                      ; 7E48 DA 00 00
+               JP C,&0000                      ; 7E48 DA 00 00  the operand is written at boot. This JP sits at &589B
+                                               ; once the forty bytes reach &5896, and &7708 does LD
+                                               ; (SYS_GAP_BLOCK+&06),HL -- which is &589C, this very operand -- with the
+                                               ; signature search two instructions before it finding the ROM's POSTFF.
+                                               ; The dump has &3DAD there; notes/mb-vectors.txt works it out
                RET                             ; 7E4B C9
 
 ;; --------------------------------------------------------------------
@@ -31139,7 +31168,13 @@ GAP_BLOCK:
                LD (DOSSTK),HL                  ; 7E54 22 59 5C
                POP AF                          ; 7E57 F1
                POP HL                          ; 7E58 E1
-               LD IY,&0286                     ; 7E59 FD 21 86 02
+               LD IY,&0286                     ; 7E59 FD 21 86 02  JSVIN2 + 7, which is its OUT (250),A -- the one
+                                               ; instruction that puts the caller's LMPR back. The four before it here
+                                               ; are JSVIN2's own opening done by hand with a different stack: the ROM
+                                               ; has EX AF,AF' : POP AF : DI : LD SP,(JVSP) and this has EX AF,AF' at
+                                               ; &7E51, POP AF at &7E57, DI at &7E5D and LD SP,HL from the address
+                                               ; popped at &7E58. So the JP (IY) below enters at the only step left to
+                                               ; do
                DI                              ; 7E5D F3
                                                ; the stack is being reset, so this path does not return
                LD SP,HL                        ; 7E5E F9

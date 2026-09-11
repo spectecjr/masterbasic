@@ -60,6 +60,10 @@ MB &4F31 CMDBUF_PROLOGUE
     &4F3E that runs the stub.
 
 MB &4F33 : the operand of the LD (HL) at &4A96, armed with &FF -- see above
+
+MB &7DE0 : &FF into COMPFLG, which the ROM's variable table calls "FLAG BITS USED BY LABEL/FN/PROC COMPILER" and whose bit 7 high fn.asm marks "'COMPILING PROGRAM'" against -- so what this asks for is a program compile and not an E-line one
+
+MB &7DED : NOT A VALUE.  This instruction runs at &4A96 and its operand is the &4A97 the banner above sets out: &4F33 arms it with the byte the stub is to write at the start of the BASIC program, and &FF there stands for "nothing to write"
 MB &4F39 : and read back, so the INC A : RET Z below is "did the call fill it in"
 MB &4F44 : token &96 is MERGE, which docs/sam-basic-grammar.txt has from CMDADT.  So the measuring below is done for MERGE and nothing else -- the one command that has to fit new lines into a program already in memory
 MB &4F61 : SAVARS less NUMEND is the room in the variables area, and only the high byte is looked at, so under six is under &0600

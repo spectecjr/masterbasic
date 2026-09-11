@@ -4,6 +4,10 @@ MB &7A9F INSTALL_SYSPAGE_CODE
 MB &7AF2 MB_PAGER
 MB &7E43 GAP_BLOCK
 
+MB &7E48 : the operand is written at boot.  This JP sits at &589B once the forty bytes reach &5896, and &7708 does LD (SYS_GAP_BLOCK+&06),HL -- which is &589C, this very operand -- with the signature search two instructions before it finding the ROM's POSTFF.  The dump has &3DAD there; notes/mb-vectors.txt works it out
+
+MB &7E59 : JSVIN2 + 7, which is its OUT (250),A -- the one instruction that puts the caller's LMPR back.  The four before it here are JSVIN2's own opening done by hand with a different stack: the ROM has EX AF,AF' : POP AF : DI : LD SP,(JVSP) and this has EX AF,AF' at &7E51, POP AF at &7E57, DI at &7E5D and LD SP,HL from the address popped at &7E58.  So the JP (IY) below enters at the only step left to do
+
 DOC INSTALL_SYSPAGE_CODE
     Write MasterBASIC's own code and settings into ten places in the
     ROM's system page.  Called once, from &7651.  HMPR is zeroed first,

@@ -284,6 +284,9 @@ MB &4DEC : FARLDIR: "move (PAGCOUNT/MODCOUNT) bytes from page A, HL to page C, D
 
 MB &4DF7 : three constants for the three case options, reached by falling down the DEC A chain, each one shorter to set up than the last.  FORCE_CASE_BYTE ORs H in and XORs L out: &20/&20 forces upper, &20/&00 lower, &00/&20 swaps
 
+MB &4DFD : the second of those three -- H is still &20, so clearing L alone makes &20/&00, lower case
+MB &4E02 : and the third, &00/&20, which swaps the case of every letter.  Both are one instruction because the chain falls through the option before them
+
 MB &4E09 : the fourth option is the printable one; anything else is out of range
 
 MB &4E0E : option 4 goes through MasterDOS a byte at a time -- "turns control codes into a full stop and strips the top bit from characters above 127", with DVAR 24 and DVAR 25 tuning both halves of that

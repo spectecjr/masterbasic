@@ -28,6 +28,9 @@ MB &737E : &4D71 is the CALL in COMPILE_PASS that will stand in its place
 MB &7381 : written where the operand was, so the copy now calls COMPILE_PASS and COMPILE_PASS calls what the copy used to.  It is the splice HCMDV makes at &4EF4, in fewer instructions
 
 MB &7206 : CDBUFF+&50 in the system page -- HMPR is zeroed at &720F
+MB &7209 : four bytes, which the note two lines down calls "those four"
+MB &7217 : and &61 of them, the length the same note gives for HOOK_SETUPREGS_1
+
 MB &7221 : LD HL,&5A60 then LD A,(HL) -- code, not data, copied in ahead of HOOK_SETUPREGS_1
 MB &7214 : the &61 bytes at HOOK_SETUPREGS_1 are appended after those four
 MB &721B : &4D50, the address of what was just built, passed on to be stored

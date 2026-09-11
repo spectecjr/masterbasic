@@ -1,6 +1,10 @@
 # Scanning program text.
 
 MB &5876 SCAN_TEXT_FOR_D_OR_E
+
+MB &587B expr CH_CR
+MB &587B : the carriage return that ends a line, which the SCF below turns into the caller's answer
+MB &587F : a quote.  The REFERENCE_KIND test under it is what decides whether a quoted run counts, so this is where a string literal in the program text is noticed
 MB &569B SCAN_TEXT_PAGED
 
 DOC SCAN_TEXT_FOR_D_OR_E

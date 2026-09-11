@@ -71,6 +71,9 @@ MB &6E75 : ELINE, the first byte of the edit line, into BC
 MB &6E7C : skip the leading spaces before the line number
 MB &6E82 : accumulate the line number from here
 MB &6E87 : times ten -- double, double, add the original back for five, double again
+MB &6E8D : "0" off the digit, the other half of the times-ten above -- the accumulator is multiplied and then the digit added
+MB &6E90 : and D cleared so the digit goes in as a word, which is what makes the ADD HL,DE below a sixteen-bit accumulate
+
 MB &6E93 : more than 65535 and it is refused
 MB &6E9D : back onto the character that ended the digits
 MB &6E9E : CHAD now points just past the line number, which is where INSERTLN expects it

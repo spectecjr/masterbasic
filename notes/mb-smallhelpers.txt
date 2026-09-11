@@ -382,6 +382,9 @@ MB &5599 INIT_SERIAL_FROM_TABLE
     four-byte channel tables below, chosen by the caller's A and copied
     over the channel's own vectors.
 
+MB &55B0 : &19 into CHANS with &4000 on it for the window -- CHANS was read as a plain address here, so the offset has to carry the window that IS_CHANNEL_OURS gets for free by reading through NRRDD
+MB &55B5 : four bytes, the pair of channel words the tables below hold
+
 MB &4C90 SEARCH_MEMORY
     LOCN's search proper.  The length of what is being searched has the
     pattern length taken off it first, so a match cannot run past the
