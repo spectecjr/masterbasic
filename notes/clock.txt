@@ -63,19 +63,27 @@ MB &4A8C : days count from 1 and seconds from 0, so the first of the month has t
 
 MB &4A8E : x2 then +x then x2 is six times the day, and six times 30 is 180, which still fits in A.  Twenty-four times 30 would not, which is why only part of the factor is done here
 
+MB &4A92 : six times the day is in L, and the two doublings below make it twenty-four times -- past a byte from the eleventh of the month on -- so H is cleared to hold the top half
+
 MB &4A94 : the other four, once the value is in HL: hours since the first of the month, at most 720
 
 MB &4A96 : TIMDT is "hh:mm:ss", and DE now walks it for the three calls that follow
 
+MB &4A9D : the hour is in C and the ADD below is sixteen bits wide, so B is the zero that makes BC the hour by itself
+
 MB &4A9F : hours in the month, at most 743
 
 MB &4AA0 : A is still the hour, so the top byte of this product comes out as rubbish.  HL does not: 743*60 is 44580 and cannot carry out of sixteen bits, and every step of MULTIPLY_BY_60 touches HL independently of A
+
+MB &4AA6 : B again, because MULTIPLY_BY_60 does not preserve it -- LD B,H at &4ADC keeps the multiplicand in BC -- so every ADD HL,BC after a call to it has to clear the high half afresh
 
 MB &4AAA : and here the rubbish goes, in one byte, just before the multiply that does need three
 
 MB &4AAB : minutes to seconds -- up to 2678340, which is where the third byte earns its place
 
 MB &4AAE : the top byte kept over a call that returns its answer in A
+
+MB &4AB2 : and a third time, after the second call.  This zero does double duty: the ADC A,B at &4AB7 adds B into the top byte and wants it clear as well
 
 MB &4AB5 : the POP has to come before the ADD, not after: POP AF would overwrite the carry the ADD is about to set
 
@@ -161,7 +169,7 @@ MB &4BA1 : B is the high byte of the span, so anything from &3F00 bytes up falls
 # system page whenever LMPR maps it into section B.
 
 MB &5318 expr &4A6B
-MB &5318 : a value, not a call -- and &4A6B is inside TWO_DIGITS_FROM_DE, which nothing enters mid-way
+MB &5318 : a value, not a call.  &4A6B falls inside TWO_DIGITS_FROM_DE in this page, which nothing enters mid-way, and that is the coincidence; what is meant is the system page's &4A6B, which is the LD DE,&C0C1 at &7DC2 once the second installed block is running at &484D.  EXIT FOR's handler -- see notes/mb-blocks.txt
 MB &5DAB expr &4B5B
 MB &5DAB : three bytes built into the ROM's header buffer, whose base LD BC,HDR loaded above
 MB &4F3E expr &4A84

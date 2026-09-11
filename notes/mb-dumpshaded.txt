@@ -164,12 +164,20 @@ DOC DUMP_STRIKE
     magnifications and the two axis limits all come together.
 
 MB &68BA : is the byte axis magnified?  the value itself is not wanted
+
+MB &68C6 : one past the top of the phase's range of 0 to 2, so the DEC A below turns 0 into 2 and the count wraps downward
 MB &68C8 : unmagnified -- the DEC A above set Z on a factor of 1, so this is the plain path, and the phase counts down
 MB &68CB : magnified: it counts up instead, and wraps at three
+
+MB &68CC : three phases, 0 to 2, so three is off the end and the XOR A below starts them again
 MB &68D5 : three bits to a pixel, carried across lines by the widest dump
 MB &68D8 : GCMX2 -- carriage return, then ESC "*" and the density
 MB &68E1 : the magnification, counted down once per byte
 MB &68E5 : how many steps the byte axis takes
+
+MB &68ED : the span is a byte and the dot count is not -- any span past 127 needs two the moment it is doubled -- so D is cleared to make DE a word for the repeated ADD HL,DE below, and is then used again at once as the zero for H and L
+
+MB &6901 : the dither cell is three dots wide, and E says which of the level's three pattern bytes the column being printed takes.  Resetting it here, at the head of every strike, aligns the cell to the left margin of each line; DUMP_EMIT steps it at &69A6
 MB &68F2 : times the magnification, by adding rather than multiplying
 MB &68F6 : the Epson count, low byte first
 MB &68FD : and start at the beginning of the byte axis
@@ -204,7 +212,11 @@ DOC DUMP_PIXEL
 
     THE PATTERN TABLE IS INDEXED FROM ONE.  The address loaded is
     DUMP_BITS_CARRY, and the offset is three times the grey level plus
-    the phase, which runs 3, 2, 1 -- never 0.  So the table proper starts
+    E, which runs 3, 2, 1 and never 0.  E is not the dither phase: it is
+    the column of the three-dot-wide dither cell, reset to three at the
+    head of each line and stepped once per byte printed, where the phase
+    is a separate counter in DUMP_DITHER_PHASE that steps once per pixel.
+    So the table proper starts
     at the byte after DUMP_BITS_CARRY, and that byte is free to be a
     variable of its own.  Twenty-five levels of three bytes is seventy-five
     bytes, &40B2 to &40FC.
@@ -219,7 +231,7 @@ MB &691A : B cleared, so BC is the colour index by itself for the ADD HL,BC belo
 MB &691C : the grey map, sixteen colours to twenty-five levels
 MB &6921 : the table starts one byte past this, so index 0 never happens
 MB &6925 : three bytes to a level
-MB &6927 : and one of the three per printed line
+MB &6927 : and one of the three, picked by E -- which column of the three-dot-wide dither cell this byte stands in
 MB &692A : three bits to a pixel is the awkward case
 MB &692D : which is three, so this is the test for it
 MB &6934 : the phase steps once per pixel and wraps at three
@@ -271,7 +283,7 @@ MB &698D : 1 normally; the leftover count in the widest dump
 MB &6992 : that pixel is done, so move along the bit axis
 MB &6995 : the magnification: this many bytes to a step
 MB &699F : and stop when the byte axis runs out
-MB &69A6 : one of the three pattern bytes per printed line
+MB &69A6 : one of the three pattern bytes, stepped once per byte printed rather than once per line -- which is what makes the dither cell three dots wide
 
 DOC DUMP_LINE_END
     The line is printed.  Print it again, move down, or stop.

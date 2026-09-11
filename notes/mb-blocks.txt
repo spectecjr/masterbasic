@@ -53,3 +53,25 @@ DOC CURSOR_PATTERNS
     cursor keeps its shape however the character set is swapped.
 
 MB &7B6A : HUDG, so CHR$ 169 and 170 render from CURSOR_PATTERNS at &4A52 -- see notes/mb-blocks.txt
+
+# WHAT FOLLOWS THE SIXTEEN BYTES IS CODE, and the label above is only
+# the nearest one.  Two separate stubs, both of them in the second
+# installed block, so their addresses are &484D plus the offset from
+# &7BA4:
+#
+#     &7DB9  ->  &4A62    the tape loader's entry, VERIFY
+#     &7DBB  ->  &4A64    the same stub entered two bytes in, LOAD
+#     &7DC2  ->  &4A6B    EXIT FOR
+#
+# The first pair is reached from the DOS half.  NETPA at DOS &649D
+# returns into BC when LSTR1 is &4E -- drive "N", the network -- and
+# HOOK_HLOAD loads &4A64 while HVERY loads &4A62, so LOAD and VERIFY
+# over the network are handed to the ROM's own LDBYTES.  The second is
+# HOOK_TOKENARG_1's destination: &5318 loads &4A6B into BC for EXIT FOR,
+# and HOOK_RCPTCH_5 writes it over the stacked return address.
+
+MB &7DBA : &3E &37 is LD A,&37 read from &7DBA and an SCF read from &7DBB, which is the swallowed-opcode idiom and not a value at all.  LDBLK in ref/samrom/tapex.asm reads the carry it is called with as "NC=VERIFY, CY=LOAD", so the AND A entry two bytes above verifies and this one loads -- and the DOS calls each from the routine that wants it
+
+MB &7DBD : the block type LDBLK checks against the first byte on tape.  Its comment gives the two values -- "01=HEADER, FF=DATA" -- so this asks for a data block
+
+MB &7DC2 : D and E are the ROM's search parameters, and &C0 and &C1 are the tokens FOR and NEXT.  FINDERS in ref/samrom/tadjm.asm documents them as "D=INTERVENING TOKS OR "THEN" FOR NULL, E=TARGET", so this walks forward for the matching NEXT counting nested FORs on the way, and the error below when it does not find one is "NEXT without FOR"

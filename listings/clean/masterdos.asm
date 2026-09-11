@@ -10039,8 +10039,10 @@ HOOK_HLDPG:
                OUT (HMPR),A                    ; 6420 D3 FB
 
 HOOK_HLOAD:
-               LD BC,&4A64                     ; 6422 01 64 4A  a system-page address -- the net-patch stub, not this
-                                               ; page's sector-write code
+               LD BC,&4A64                     ; 6422 01 64 4A  a system-page address, not this page's sector-write
+                                               ; code. It is MB &7DBB installed at &484D, and NETPA returns into it when
+                                               ; the drive letter is "N": an SCF, then the ROM's LDBYTES, which reads a
+                                               ; set carry as LOAD
                CALL NETPA                      ; 6425 CD 9D 64
                CALL RESET_BUFFER_POINTERS      ; 6428 CD 84 4F
                LD HL,V42E2                     ; 642B 21 E2 42
@@ -10144,7 +10146,9 @@ HVEPG:
 ;; --------------------------------------------------------------------
 
 HVERY:
-               LD BC,&4A62                     ; 64AB 01 62 4A  the other of the pair, three bytes below it
+               LD BC,&4A62                     ; 64AB 01 62 4A  the other entry to the same stub, two bytes below it
+                                               ; rather than three -- MB &7DB9, whose AND A clears the carry LDBLK reads
+                                               ; as VERIFY. One stub, two doors, and this is the verify one
                CALL NETPA                      ; 64AE CD 9D 64
                CALL DSCHD                      ; 64B1 CD 7F 64
                LD (IX+RPT-DCHAN),&09           ; 64B4 DD 36 0D 09

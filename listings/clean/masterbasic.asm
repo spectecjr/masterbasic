@@ -1427,10 +1427,18 @@ CHECK_PRINTER_READY:
 CHECK_PRINTER_READY_1:
                LD A,(SPORT+IN_PAGE_C)          ; 433B 3A 0B 80
                LD C,A                          ; 433E 4F
-               LD B,&01                        ; 433F 06 01
+               LD B,&01                        ; 433F 06 01  register 1 of the SCC2691, which on the read side is SR,
+                                               ; the status register. The register number rides in the top half of the
+                                               ; port address, so B is the register and SPORT is the port
                IN A,(C)                        ; 4341 ED 78
-               AND &08                         ; 4343 E6 08
-               CP &01                          ; 4345 FE 01
+               AND &08                         ; 4343 E6 08  bit 3 of SR is TxEMT. The data sheet's SR table reads, from
+                                               ; bit 7 down: received break, framing error, parity error, overrun error,
+                                               ; TxEMT, TxRDY, FFULL, RxRDY -- and TxEMT set means the transmitter has
+                                               ; run dry and there is room for another byte
+               CP &01                          ; 4345 FE 01  carry set only when A came out zero, which is the one thing
+                                               ; AND cannot leave behind. So a clear TxEMT becomes carry, and the serial
+                                               ; path answers in the same coin as the parallel path's RRCA at &4338 --
+                                               ; carry means not ready
                POP BC                          ; 4347 C1
                RET                             ; 4348 C9
 
@@ -4310,7 +4318,9 @@ TICS_SECONDS_IN_MONTH:
                ADD A,C                         ; 4A8F 81
                ADD A,A                         ; 4A90 87
                LD L,A                          ; 4A91 6F
-               LD H,&00                        ; 4A92 26 00
+               LD H,&00                        ; 4A92 26 00  six times the day is in L, and the two doublings below make
+                                               ; it twenty-four times -- past a byte from the eleventh of the month on
+                                               ; -- so H is cleared to hold the top half
                ADD HL,HL                       ; 4A94 29  the other four, once the value is in HL: hours since the first
                                                ; of the month, at most 720
                ADD HL,HL                       ; 4A95 29
@@ -4318,14 +4328,17 @@ TICS_SECONDS_IN_MONTH:
                                                ; calls that follow
                CALL TWO_DIGITS_FROM_DE         ; 4A99 CD 6A 4A
                LD C,A                          ; 4A9C 4F
-               LD B,&00                        ; 4A9D 06 00
+               LD B,&00                        ; 4A9D 06 00  the hour is in C and the ADD below is sixteen bits wide, so
+                                               ; B is the zero that makes BC the hour by itself
                ADD HL,BC                       ; 4A9F 09  hours in the month, at most 743
                CALL MULTIPLY_BY_60             ; 4AA0 CD DC 4A  A is still the hour, so the top byte of this product
                                                ; comes out as rubbish. HL does not: 743*60 is 44580 and cannot carry out
                                                ; of sixteen bits, and every step of MULTIPLY_BY_60 touches HL
                                                ; independently of A
                CALL TWO_DIGITS_FROM_DE         ; 4AA3 CD 6A 4A
-               LD B,&00                        ; 4AA6 06 00
+               LD B,&00                        ; 4AA6 06 00  B again, because MULTIPLY_BY_60 does not preserve it -- LD
+                                               ; B,H at &4ADC keeps the multiplicand in BC -- so every ADD HL,BC after a
+                                               ; call to it has to clear the high half afresh
                LD C,A                          ; 4AA8 4F
                ADD HL,BC                       ; 4AA9 09
                XOR A                           ; 4AAA AF  and here the rubbish goes, in one byte, just before the
@@ -4334,7 +4347,9 @@ TICS_SECONDS_IN_MONTH:
                                                ; third byte earns its place
                PUSH AF                         ; 4AAE F5  the top byte kept over a call that returns its answer in A
                CALL TWO_DIGITS_FROM_DE         ; 4AAF CD 6A 4A
-               LD B,&00                        ; 4AB2 06 00
+               LD B,&00                        ; 4AB2 06 00  and a third time, after the second call. This zero does
+                                               ; double duty: the ADC A,B at &4AB7 adds B into the top byte and wants it
+                                               ; clear as well
                LD C,A                          ; 4AB4 4F
                POP AF                          ; 4AB5 F1  the POP has to come before the ADD, not after: POP AF would
                                                ; overwrite the carry the ADD is about to set
@@ -6858,6 +6873,30 @@ HOOK_VARSPACE_4:
 ;; -- type and page, address low, address high, statement.  The &FF
 ;; stopper the ROM's comment mentions is the INC A at &5333, and
 ;; running onto it is error 12, "Missing DEF PROC".
+;;
+;; AND WHY IT WALKS AT ALL IS THE DESTINATION.  Each path ends by
+;; putting an address in BC, and HOOK_RCPTCH_5 writes BC over the return
+;; address on the stack MBCMR saved in V4076, so the ROM resumes there.
+;; Two of the three are ROM addresses the boot searches out, and the
+;; build resolves both against ref/samrom:
+;;
+;;     EXIT DO    &192D    EXITIF + 7
+;;     EXIT PROC  &19E1    ENDPROC + 3
+;;     EXIT FOR   &4A6B    MasterBASIC's own, &7DC2 installed
+;;
+;; The first two are the ROM's own routines entered past their own
+;; fronts.  EXIT IF at &1926 opens with SYNTAX6, then TRUETST, then a
+;; RET Z on the answer; EXIT DO skips all three, having no condition to
+;; test, and what is left is exactly EXIT IF's body.  END PROC at &19DE
+;; opens with CHKEND; EXIT PROC skips that, because a statement may
+;; follow it on the line.  What END PROC does next is call DPRA, and
+;; DPRA is the &40 and the RETLOOP above -- so the walk is there to
+;; leave the PROC frame on top, where DPRA will find it and the ROM's
+;; own END PROC can run unaltered.
+;;
+;; EXIT FOR gets no such gift.  The ROM has nothing that leaves a FOR
+;; loop, so MasterBASIC wrote it: &4A6B is its own code, and
+;; notes/mb-blocks.txt has it.
 ;; --------------------------------------------------------------------
 
 HOOK_TOKENARG:
@@ -6880,8 +6919,11 @@ HOOK_TOKENARG:
 ; ---- HOOK_TOKENARG_1 ---- from &5308 when A reaches 0
 HOOK_TOKENARG_1:
                CALL SKIP_THEN_END              ; 5315 CD CD 44
-               LD BC,&4A6B                     ; 5318 01 6B 4A  a value, not a call -- and &4A6B is inside
-                                               ; TWO_DIGITS_FROM_DE, which nothing enters mid-way
+               LD BC,&4A6B                     ; 5318 01 6B 4A  a value, not a call. &4A6B falls inside
+                                               ; TWO_DIGITS_FROM_DE in this page, which nothing enters mid-way, and that
+                                               ; is the coincidence; what is meant is the system page's &4A6B, which is
+                                               ; the LD DE,&C0C1 at &7DC2 once the second installed block is running at
+                                               ; &484D. EXIT FOR's handler -- see notes/mb-blocks.txt
 
 ; ---- HOOK_TOKENARG_LOOP ---- from &5324, &5350
 HOOK_TOKENARG_LOOP:
@@ -10401,7 +10443,9 @@ RESTORE_HMPR_AND_STORE:
 
 ; ---- CMD_DEF_KEYCODE ---- from &4EC2 when A = T_DEF_KEYCODE
 CMD_DEF_KEYCODE:
-               LD HL,&8F00                     ; 5D62 21 00 8F
+               LD HL,&8F00                     ; 5D62 21 00 8F  INSTBUF, the ROM's &4F00, through the window
+                                               ; PAGE_IN_ROM1 is about to open -- and the ROM's own destination for this
+                                               ; routine, as the ORG INSTBUF above says
                CALL PREPARE_ROM1_COPY          ; 5D65 CD 4B 5C
                PUSH AF                         ; 5D68 F5
 
@@ -10415,8 +10459,11 @@ CMD_DEF_KEYCODE:
                                                ; at &388D
                LDIR                            ; 5D6C ED B0
                LD HL,&4A9F                     ; 5D6E 21 9F 4A  the one operand that changes, at INSTBUF+&0D
-               LD (&8F0D),HL                   ; 5D71 22 0D 8F
-               LD B,&4F                        ; 5D74 06 4F
+               LD (&8F0D),HL                   ; 5D71 22 0D 8F  INSTBUF+&0D through the same window, the one operand in
+                                               ; the copy that has to change
+               LD B,&4F                        ; 5D74 06 4F  the LDIR left C at zero, so loading B alone makes BC the
+                                               ; &4F00 STORE_BC_AT_XVAR76 is to be handed -- the address of what has
+                                               ; just been built
                JR RESTORE_HMPR_AND_STORE       ; 5D76 18 E4
 
 ;; --------------------------------------------------------------------
@@ -14466,7 +14513,8 @@ DUMP_STRIKE:
                JR NZ,DUMP_STRIKE_2             ; 68C1 20 08
                AND A                           ; 68C3 A7
                JR NZ,DUMP_STRIKE_1             ; 68C4 20 02
-               LD A,&03                        ; 68C6 3E 03
+               LD A,&03                        ; 68C6 3E 03  one past the top of the phase's range of 0 to 2, so the DEC
+                                               ; A below turns 0 into 2 and the count wraps downward
 
 ; ---- DUMP_STRIKE_1 ---- from &68C4 when A <> 0
 DUMP_STRIKE_1:
@@ -14477,7 +14525,8 @@ DUMP_STRIKE_1:
 ; ---- DUMP_STRIKE_2 ---- from &68C1 when A is not 0 yet
 DUMP_STRIKE_2:
                INC A                           ; 68CB 3C  magnified: it counts up instead, and wraps at three
-               CP &03                          ; 68CC FE 03
+               CP &03                          ; 68CC FE 03  three phases, 0 to 2, so three is off the end and the XOR A
+                                               ; below starts them again
                JR C,DUMP_STRIKE_3              ; 68CE 38 01
                XOR A                           ; 68D0 AF
 
@@ -14496,7 +14545,10 @@ DUMP_STRIKE_3:
                LD HL,DUMP_BYTE_FROM            ; 68E8 21 60 40
                SUB (HL)                        ; 68EB 96
                LD E,A                          ; 68EC 5F
-               LD D,&00                        ; 68ED 16 00
+               LD D,&00                        ; 68ED 16 00  the span is a byte and the dot count is not -- any span
+                                               ; past 127 needs two the moment it is doubled -- so D is cleared to make
+                                               ; DE a word for the repeated ADD HL,DE below, and is then used again at
+                                               ; once as the zero for H and L
                LD H,D                          ; 68EF 62
                LD L,D                          ; 68F0 6A
                INC DE                          ; 68F1 13
@@ -14511,7 +14563,10 @@ DUMP_STRIKE_LOOP:
                CALL CALL_PRINT_A               ; 68FA CD FA 69
                LD A,(DUMP_BYTE_FROM)           ; 68FD 3A 60 40  and start at the beginning of the byte axis
                LD B,A                          ; 6900 47
-               LD E,&03                        ; 6901 1E 03
+               LD E,&03                        ; 6901 1E 03  the dither cell is three dots wide, and E says which of the
+                                               ; level's three pattern bytes the column being printed takes. Resetting
+                                               ; it here, at the head of every strike, aligns the cell to the left
+                                               ; margin of each line; DUMP_EMIT steps it at &69A6
 
 ;; --------------------------------------------------------------------
 ;; One byte of bit image: eight dots stacked up the paper.
@@ -14549,7 +14604,11 @@ DUMP_BYTE:
 ;;
 ;; THE PATTERN TABLE IS INDEXED FROM ONE.  The address loaded is
 ;; DUMP_BITS_CARRY, and the offset is three times the grey level plus
-;; the phase, which runs 3, 2, 1 -- never 0.  So the table proper starts
+;; E, which runs 3, 2, 1 and never 0.  E is not the dither phase: it is
+;; the column of the three-dot-wide dither cell, reset to three at the
+;; head of each line and stepped once per byte printed, where the phase
+;; is a separate counter in DUMP_DITHER_PHASE that steps once per pixel.
+;; So the table proper starts
 ;; at the byte after DUMP_BITS_CARRY, and that byte is free to be a
 ;; variable of its own.  Twenty-five levels of three bytes is seventy-five
 ;; bytes, &40B2 to &40FC.
@@ -14576,7 +14635,8 @@ DUMP_PIXEL:
                LD A,C                          ; 6924 79
                ADD A,A                         ; 6925 87  three bytes to a level
                ADD A,C                         ; 6926 81
-               ADD A,E                         ; 6927 83  and one of the three per printed line
+               ADD A,E                         ; 6927 83  and one of the three, picked by E -- which column of the
+                                               ; three-dot-wide dither cell this byte stands in
                LD C,A                          ; 6928 4F
                ADD HL,BC                       ; 6929 09
                LD A,(DUMP_BIT_STEP)            ; 692A 3A 9F 40  three bits to a pixel is the awkward case
@@ -14734,7 +14794,9 @@ DUMP_INVERT_1:
 
 ; ---- DUMP_INVERT_2 ---- from &6999
 DUMP_INVERT_2:
-               DEC E                           ; 69A6 1D  one of the three pattern bytes per printed line
+               DEC E                           ; 69A6 1D  one of the three pattern bytes, stepped once per byte printed
+                                               ; rather than once per line -- which is what makes the dither cell three
+                                               ; dots wide
                JR NZ,DUMP_INVERT_3             ; 69A7 20 02
                LD E,&03                        ; 69A9 1E 03
 
@@ -20852,13 +20914,30 @@ CURSOR_PATTERNS:
                DEFB &00,&00,&00,&00,&3C,&3C,&3C,&00,&00,&3C,&3C,&3C,&00,&00,&00 ; 7DA9 ....<<<..<<<...
                DEFB &00                                                         ; 7DB8 .
                AND A                                                            ; 7DB9 A7
-               LD A,&37                                                         ; 7DBA 3E 37
+               LD A,&37                                                         ; 7DBA 3E 37  &3E &37 is LD A,&37 read
+                                                                                ; from &7DBA and an SCF read from &7DBB,
+                                                                                ; which is the swallowed-opcode idiom
+                                                                                ; and not a value at all. LDBLK in
+                                                                                ; ref/samrom/tapex.asm reads the carry
+                                                                                ; it is called with as "NC=VERIFY,
+                                                                                ; CY=LOAD", so the AND A entry two bytes
+                                                                                ; above verifies and this one loads --
+                                                                                ; and the DOS calls each from the
+                                                                                ; routine that wants it
                EXX                                                              ; 7DBC D9
-               LD A,&FF                                                         ; 7DBD 3E FF
+               LD A,&FF                                                         ; 7DBD 3E FF  the block type LDBLK
+                                                                                ; checks against the first byte on tape.
+                                                                                ; Its comment gives the two values --
+                                                                                ; "01=HEADER, FF=DATA" -- so this asks
+                                                                                ; for a data block
 
 L7DBF:
                JP &0000                        ; 7DBF C3 00 00  the operand is written here at run time, from &7A39
-               LD DE,&C0C1                     ; 7DC2 11 C1 C0
+               LD DE,&C0C1                     ; 7DC2 11 C1 C0  D and E are the ROM's search parameters, and &C0 and &C1
+                                               ; are the tokens FOR and NEXT. FINDERS in ref/samrom/tadjm.asm documents
+                                               ; them as "D=INTERVENING TOKS OR "THEN" FOR NULL, E=TARGET", so this
+                                               ; walks forward for the matching NEXT counting nested FORs on the way,
+                                               ; and the error below when it does not find one is "NEXT without FOR"
 
 L7DC5:
                CALL &0000                      ; 7DC5 CD 00 00  the operand is written here at run time, from &7A6F

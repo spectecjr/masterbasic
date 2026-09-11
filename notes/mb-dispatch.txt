@@ -267,6 +267,30 @@ DOC HOOK_TOKENARG
     stopper the ROM's comment mentions is the INC A at &5333, and
     running onto it is error 12, "Missing DEF PROC".
 
+    AND WHY IT WALKS AT ALL IS THE DESTINATION.  Each path ends by
+    putting an address in BC, and HOOK_RCPTCH_5 writes BC over the return
+    address on the stack MBCMR saved in V4076, so the ROM resumes there.
+    Two of the three are ROM addresses the boot searches out, and the
+    build resolves both against ref/samrom:
+
+        EXIT DO    &192D    EXITIF + 7
+        EXIT PROC  &19E1    ENDPROC + 3
+        EXIT FOR   &4A6B    MasterBASIC's own, &7DC2 installed
+
+    The first two are the ROM's own routines entered past their own
+    fronts.  EXIT IF at &1926 opens with SYNTAX6, then TRUETST, then a
+    RET Z on the answer; EXIT DO skips all three, having no condition to
+    test, and what is left is exactly EXIT IF's body.  END PROC at &19DE
+    opens with CHKEND; EXIT PROC skips that, because a statement may
+    follow it on the line.  What END PROC does next is call DPRA, and
+    DPRA is the &40 and the RETLOOP above -- so the walk is there to
+    leave the PROC frame on top, where DPRA will find it and the ROM's
+    own END PROC can run unaltered.
+
+    EXIT FOR gets no such gift.  The ROM has nothing that leaves a FOR
+    loop, so MasterBASIC wrote it: &4A6B is its own code, and
+    notes/mb-blocks.txt has it.
+
 MB &5300 : &26 is EXIT PROC's code, and &27 and &28 are the other two EXITs, so this one subtraction serves all three -- see the banner
 MB &530A : token &3D, POINT, which is &15 further on than the &28 the two DEC As have already taken off.  The author's own source makes the same test and comments it "POINT IS FF 3D"
 MB &5338 : the type field of a BASIC stack frame, isolated exactly as do.asm's RETLOOP isolates it

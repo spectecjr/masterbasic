@@ -104,6 +104,10 @@ MB &5D62 CMD_DEF_KEYCODE
     the length it copies, is DKFIN+1-DKP2.  MasterBASIC does the ROM's
     own copy for it, prefixes an RST &20 and changes one operand.
 
+MB &5D62 : INSTBUF, the ROM's &4F00, through the window PAGE_IN_ROM1 is about to open -- and the ROM's own destination for this routine, as the ORG INSTBUF above says
+MB &5D71 : INSTBUF+&0D through the same window, the one operand in the copy that has to change
+MB &5D74 : the LDIR left C at zero, so loading B alone makes BC the &4F00 STORE_BC_AT_XVAR76 is to be handed -- the address of what has just been built
+
 MB &5D78 CMD_KEYIN
     KEYIN, token &D1.  The same shape, into HDR at &4B00: three runs of
     &09, &16 and &2C bytes, each followed by a three-byte CALL that

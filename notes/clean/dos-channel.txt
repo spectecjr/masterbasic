@@ -153,8 +153,8 @@ DOS &6075 : a system-page address just under the ROM's BSTACK, written through W
 # is ambiguous.
 
 DOS &6422 expr &4A64
-DOS &6422 : a system-page address -- the net-patch stub, not this page's sector-write code
+DOS &6422 : a system-page address, not this page's sector-write code.  It is MB &7DBB installed at &484D, and NETPA returns into it when the drive letter is "N": an SCF, then the ROM's LDBYTES, which reads a set carry as LOAD
 DOS &64AB expr &4A62
-DOS &64AB : the other of the pair, three bytes below it
+DOS &64AB : the other entry to the same stub, two bytes below it rather than three -- MB &7DB9, whose AND A clears the carry LDBLK reads as VERIFY.  One stub, two doors, and this is the verify one
 DOS &64C2 expr &4000
 DOS &64C2 : the verify loop's byte count for the next page, not an address
