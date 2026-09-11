@@ -3668,7 +3668,9 @@ CMD_SORT:
                INC A                           ; 4611 3C
                JR NZ,CMD_SORT_1                ; 4612 20 05
                CALL CALL_NEXTCHAR              ; 4614 CD 61 44
-               CP &5B                          ; 4617 FE 5B
+               CP &5B                          ; 4617 FE 5B  &5B is ABS's function code, so with the &FF prefix already
+                                               ; seen this is SORT ABS. The manual's function-token table gives "5B
+                                               ; ABS", and it is the only branch that goes on to look for INVERSE
 
 ;; --------------------------------------------------------------------
 ;; CMD_SORT_1 -- &4619 to &4629
@@ -3681,7 +3683,8 @@ CMD_SORT:
 
 ; ---- CMD_SORT_1 ---- from &4612 when A is not 0
 CMD_SORT_1:
-               LD A,&05                        ; 4619 3E 05
+               LD A,&05                        ; 4619 3E 05  five, the other comparison -- &4744's note has both, "2 for
+                                               ; ABS, 5 to go on and fold the case out", and &4628 loads the other
                JR NZ,CMD_SORT_2                ; 461B 20 0D
                CALL CALL_NEXTCHAR              ; 461D CD 61 44
                LD (V4098),A                    ; 4620 32 98 40  the character after ABS, kept because &47B1 looks here
@@ -10331,9 +10334,11 @@ BUILD_TRACK_IMAGE_LOOP:
                INC E                           ; 536F 1C  sectors are numbered 1 to 10 and wrap, so a skew that starts a
                                                ; track at 7 lays 7,8,9,10,1,2,...
                LD A,E                          ; 5370 7B
-               CP &0B                          ; 5371 FE 0B
+               CP &0B                          ; 5371 FE 0B  eleven, one past the last sector, which is where the wrap
+                                               ; has to happen
                JR NZ,BUILD_TRACK_IMAGE_1       ; 5373 20 02
-               LD E,&01                        ; 5375 1E 01
+               LD E,&01                        ; 5375 1E 01  and back to one, not zero -- the sectors are numbered from
+                                               ; one, as the line above says
 
 ;; --------------------------------------------------------------------
 ;; BUILD_TRACK_IMAGE_1 -- &5377 to &53A0
@@ -14973,10 +14978,12 @@ CMD_SOUND_2:
                PUSH HL                         ; 5CCB E5  the ROM source pointer is put back at &5CD3, so the eighteen
                                                ; bytes
                LD HL,V5DBF                     ; 5CCC 21 BF 5D
-               LD C,&0B                        ; 5CCF 0E 0B
+               LD C,&0B                        ; 5CCF 0E 0B  eleven, the OFF test -- the banner's "&5031 11 bytes from
+                                               ; V5DBF"
                LDIR                            ; 5CD1 ED B0
                POP HL                          ; 5CD3 E1
-               LD C,&12                        ; 5CD4 0E 12
+               LD C,&12                        ; 5CD4 0E 12  and eighteen of the ROM's own, the banner's "&503C 18 ROM
+                                               ; bytes", which are LD HL,INSTBUF and the output loop
                LDIR                            ; 5CD6 ED B0
                LD HL,SILENCE_SOUND_CHIP_2      ; 5CD8 21 E7 5D
                LD C,&38                        ; 5CDB 0E 38  and &38 more from &5DE7, which PAUSE also uses
@@ -17368,7 +17375,7 @@ TRACE_DIVISORS_2:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;; Ends:      JR
 ;;
-;; ? tests for T_OFF; calls CALL_NEXTCHAR, INT_ARG_THEN_END, AT_END_OF_STATEMENT, MBNRRD.
+;; ? tests for T_OFF, T_STEP; calls CALL_NEXTCHAR, INT_ARG_THEN_END, AT_END_OF_STATEMENT, MBNRRD.
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
@@ -17386,13 +17393,18 @@ TRACE_DIVISORS_2:
 ;; --------------------------------------------------------------------
 
 CMD_LINE:
-               CALL &4461                      ; 6117 CD 61 44
+               CALL CALL_NEXTCHAR              ; 6117 CD 61 44  CALL_NEXTCHAR at &4461, which is also where the divisor
+                                               ; table above ends: &6114's note has it -- the &CD of this very CALL
+                                               ; serves as the high byte of the table's terminator, so the instruction
+                                               ; and the data overlap by one byte
                CP T_OFF                        ; 611A FE 89
                PUSH AF                         ; 611C F5  the OFF test has to survive all the argument parsing that
                                                ; follows, so its flags go on the stack here and come back at &613E
                JR Z,CMD_LINE_1                 ; 611D 28 11
                LD C,&FF                        ; 611F 0E FF  &FF marks STEP, which takes no delay argument
-               CP &8F                          ; 6121 FE 8F
+               CP T_STEP                       ; 6121 FE 8F  LINE STEP, the second of the two forms that take no delay.
+                                               ; STEP is a qualifier token like TO, which is why it can follow a command
+                                               ; name at all
                JR Z,CMD_LINE_1                 ; 6123 28 0B
                INC C                           ; 6125 0C  and 0 is plain LINE, or LINE with a delay about to overwrite C
                CALL AT_END_OF_STATEMENT        ; 6126 CD BC 44
@@ -17410,7 +17422,7 @@ CMD_LINE:
 ;; ? calls CALL_NEXTCHAR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_LINE_1 ---- from &611D when A = T_OFF, &6123 when A = &8F
+; ---- CMD_LINE_1 ---- from &611D when A = T_OFF, &6123 when A = T_STEP
 CMD_LINE_1:
                CALL CALL_NEXTCHAR              ; 6130 CD 61 44
 
@@ -22646,8 +22658,11 @@ CMD_DUMP_4:
                XOR A                           ; 6ADA AF
                OUT (HMPR),A                    ; 6ADB D3 FB
                LD HL,DUMP_TEXT                 ; 6ADD 21 F9 6A
-               LD DE,&8F00                     ; 6AE0 11 00 8F
-               LD BC,&0136                     ; 6AE3 01 36 01
+               LD DE,&8F00                     ; 6AE0 11 00 8F  INSTBUF, the ROM's &4F00, through the window -- the same
+                                               ; destination CMD_DEF_KEYCODE writes to as &8F00
+               LD BC,&0136                     ; 6AE3 01 36 01  &136 bytes, which is DUMP_TEXT entire: the copy runs
+                                               ; from &6AF9 and that length is the one notes/mb-install.txt lists
+                                               ; against INSTBUF
                LDIR                            ; 6AE6 ED B0
                POP AF                          ; 6AE8 F1
                OUT (HMPR),A                    ; 6AE9 D3 FB
@@ -25808,12 +25823,14 @@ CMD_CLS:
                LD A,&11                        ; 71C7 3E 11  CHR$ 17 then 15 is PAPER 15 -- with the line above, the
                                                ; manual's "PEN 0: PAPER 15"
                CALL CALL_PRINT_A               ; 71C9 CD FA 69
-               LD A,&0F                        ; 71CC 3E 0F
+               LD A,&0F                        ; 71CC 3E 0F  and fifteen is that colour, the parameter the control code
+                                               ; above takes
                CALL CALL_PRINT_A               ; 71CE CD FA 69
                LD HL,ATTRT                     ; 71D1 21 4E 5A  the five temporary print variables copied over the five
                                                ; permanent ones, so the new colours stick
                LD DE,ATTRP                     ; 71D4 11 45 5A
-               LD BC,&0005                     ; 71D7 01 05 00
+               LD BC,&0005                     ; 71D7 01 05 00  five, the count the line below it names -- ATTRT to
+                                               ; GOVERT, the temporary print variables copied over the permanent ones
                CALL MBCMR                      ; 71DA CD F0 44
                DEFW &008F                      ; 71DD 8F 00
                LD A,&2F                        ; 71DF 3E 2F  &2F on the keyboard port is border 15

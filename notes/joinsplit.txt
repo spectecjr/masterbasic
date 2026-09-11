@@ -388,6 +388,9 @@ MB &71AF : PLNS puts the address of the next statement on the ROM's stack, so th
 MB &71B7 : stream &FE, the upper screen
 MB &71BE : CHR$ 16 then 0 is PEN 0
 MB &71C7 : CHR$ 17 then 15 is PAPER 15 -- with the line above, the manual's "PEN 0: PAPER 15"
+
+MB &71CC : and fifteen is that colour, the parameter the control code above takes
+MB &71D7 : five, the count the line below it names -- ATTRT to GOVERT, the temporary print variables copied over the permanent ones
 MB &71D1 : the five temporary print variables copied over the five permanent ones, so the new colours stick
 MB &71DF : &2F on the keyboard port is border 15
 MB &71E8 : &78 is PAPER 15 with PEN 0 -- fifteen shifted up three -- for the lower screen

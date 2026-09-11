@@ -17,6 +17,9 @@ MB &536D : the sector number, handed in by the DOS already skewed -- FMT1A works
 
 MB &536F : sectors are numbered 1 to 10 and wrap, so a skew that starts a track at 7 lays 7,8,9,10,1,2,...
 
+MB &5371 : eleven, one past the last sector, which is where the wrap has to happen
+MB &5375 : and back to one, not zero -- the sectors are numbered from one, as the line above says
+
 MB &5377 : the size code, 128 << 2 = 512 bytes
 
 MB &537A : &F7 is an instruction, not data: the controller lays down the two CRC bytes it has accumulated since the &F5s

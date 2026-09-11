@@ -186,6 +186,9 @@ MB &5CC1 : NOP, not RST &20.  CMD_SOUND has already stepped past the SOUND
            ROM's code expects it and a second step would eat an argument
 MB &5CC7 : forty-eight bytes -- everything up to and including the ROM's
            LD BC,&01FF
+MB &5CCF : eleven, the OFF test -- the banner's "&5031  11 bytes from V5DBF"
+MB &5CD4 : and eighteen of the ROM's own, the banner's "&503C  18 ROM bytes", which are LD HL,INSTBUF and the output loop
+
 MB &5CCB : the ROM source pointer is put back at &5CD3, so the eighteen bytes
            below carry on from offset 48, not from after the splice
 MB &5CDB : and &38 more from &5DE7, which PAUSE also uses

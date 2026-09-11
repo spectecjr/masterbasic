@@ -129,6 +129,9 @@ MB &61F8 EMIT_RUN
 # Registering the block as relocated names UWLHS, MODE, M23PAPP and
 # SCRNBUF, and clears thirteen labels this half never had a use for.
 
+MB &6AE0 : INSTBUF, the ROM's &4F00, through the window -- the same destination CMD_DEF_KEYCODE writes to as &8F00
+MB &6AE3 : &136 bytes, which is DUMP_TEXT entire: the copy runs from &6AF9 and that length is the one notes/mb-install.txt lists against INSTBUF
+
 MB &6AD4 CMD_DUMP_5
     DUMP 5, the text dump.  Sets carry and falls into the installer
     below, which is what picks the &4F00 entry rather than the &4F49

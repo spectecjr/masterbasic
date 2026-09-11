@@ -2,6 +2,10 @@
 # Proposed by a fresh reader, audited against the instructions.
 
 MB &4620 : the character after ABS, kept because &47B1 looks here again for INVERSE
+MB &4617 : &5B is ABS's function code, so with the &FF prefix already seen this is SORT ABS.  The manual's function-token table gives "5B ABS", and it is the only branch that goes on to look for INVERSE
+
+MB &4619 : five, the other comparison -- &4744's note has both, "2 for ABS, 5 to go on and fold the case out", and &4628 loads the other
+
 MB &4623 : ABS INVERSE -- INVERSE only gets a NEXTCHAR, the choice it makes is taken later from this byte
 MB &4628 : &02 is the ABS comparison: a JR NZ over two bytes, straight out of COMPARE_FAR_STRINGS on the first differing byte
 

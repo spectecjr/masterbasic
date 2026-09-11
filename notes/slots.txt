@@ -301,7 +301,13 @@ MB &6114 : the two-digit table used for the statement number, -10 and then the &
 
 MB &611C : the OFF test has to survive all the argument parsing that follows, so its flags go on the stack here and come back at &613E
 
+MB &6117 expr CALL_NEXTCHAR
+MB &6117 : CALL_NEXTCHAR at &4461, which is also where the divisor table above ends: &6114's note has it -- the &CD of this very CALL serves as the high byte of the table's terminator, so the instruction and the data overlap by one byte
+
 MB &611F : &FF marks STEP, which takes no delay argument
+
+MB &6121 value T_STEP
+MB &6121 : LINE STEP, the second of the two forms that take no delay.  STEP is a qualifier token like TO, which is why it can follow a command name at all
 
 MB &6125 : and 0 is plain LINE, or LINE with a delay about to overwrite C
 
