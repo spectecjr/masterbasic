@@ -1,5 +1,26 @@
 # How MasterBASIC finds its way around the ROM.
 
+# HOW TO PUT A NAME TO A RESOLVED ADDRESS BY HAND.  The build resolves
+# every signature against the ROM it assembles from ref/samrom and
+# prints the address, but not the label -- and it assembles into a
+# temporary directory, so the map goes when the build does.  Two
+# commands give a lasting copy, run from ref/samrom with pyz80 found
+# the way build.sh finds it:
+#
+#     pyz80 --obj=samrom.bin --mapfile=samrom.map -o samrom.dsk samrom.asm
+#
+# The map is one ADDR=LABEL a line and holds the ROM author's own names,
+# so a resolved address becomes the label at or above it and can then be
+# read in ref/samrom's source.  That is how EXIT DO's &192D was placed
+# at EXITIF+7 and EXIT PROC's &19E1 at ENDPROC+3 -- see
+# notes/mb-dispatch.txt -- neither of which could be settled from this
+# side of the image at all.
+#
+# This block is a "#" comment and not part of the banner below on
+# purpose: FIND_ROM_CODE is copied into the DOS page, so its banner is
+# carried into masterdos.asm as well, and a build recipe has no place in
+# six listings whose job is the image.
+
 RENAME MBCOPY_775A FIND_ROM_CODE
 
 DOC FIND_ROM_CODE

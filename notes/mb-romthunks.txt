@@ -47,3 +47,9 @@ DOC FIND_VARIABLE
     follows reads FLAGS bit 6 -- the ROM's numeric-or-string flag -- and
     the type bits in C, and refuses the combination that does not make
     sense with "Argument".
+
+MB &43F1 : bits 5 and 6 of the type byte NAMTOBUF hands back, whose own comment gives them as "BIT 6,C SET IF STRING ARRAY OR SLICED STRING" and "BIT 5,C SET IF NUMERIC ARRAY" -- so this asks whether the reference was subscripted or sliced at all.  LOOKVARS makes the identical test on the identical two bits, and those three bytes are what the installer searches the ROM for: the signature at &7A3F is 79 E6 60, LD A,C : AND &60, with an offset of -8, and eight bytes is exactly LOOKVARS's RST &18, its CALL NAMTOBUF and its LD (CHAD),DE
+
+MB &4416 : a page is 16K, so bits 1 and 0 of a page count are bits 15 and 14 of a length in bytes.  The two RRCAs line them up and the XOR/AND/XOR drops them into the top of B without disturbing the fourteen bits already there -- which is what lets &4770 read a B of &40 or more as "at least 16K"
+
+MB &441D : one, the element length of something that is not an array, so a caller that multiplies the count by the length gets the byte count either way.  JOIN's banner says the same thing from the other end -- "for a plain string it returns BC = the length and DE = one"

@@ -1676,7 +1676,14 @@ POINT_INTO_VARIABLE_1:
 ; ---- FIND_VARIABLE_1 ---- from &43EA when bit 6 of A clear
 FIND_VARIABLE_1:
                LD A,C                          ; 43F0 79
-               AND &60                         ; 43F1 E6 60
+               AND &60                         ; 43F1 E6 60  bits 5 and 6 of the type byte NAMTOBUF hands back, whose
+                                               ; own comment gives them as "BIT 6,C SET IF STRING ARRAY OR SLICED
+                                               ; STRING" and "BIT 5,C SET IF NUMERIC ARRAY" -- so this asks whether the
+                                               ; reference was subscripted or sliced at all. LOOKVARS makes the
+                                               ; identical test on the identical two bits, and those three bytes are
+                                               ; what the installer searches the ROM for: the signature at &7A3F is 79
+                                               ; E6 60, LD A,C : AND &60, with an offset of -8, and eight bytes is
+                                               ; exactly LOOKVARS's RST &18, its CALL NAMTOBUF and its LD (CHAD),DE
                JR Z,FIND_VARIABLE_2            ; 43F3 28 18
                INC HL                          ; 43F5 23
                INC HL                          ; 43F6 23
@@ -1712,7 +1719,11 @@ FIND_VARIABLE_2:
                RRCA                            ; 4413 0F
                RRCA                            ; 4414 0F
                XOR B                           ; 4415 A8
-               AND &C0                         ; 4416 E6 C0
+               AND &C0                         ; 4416 E6 C0  a page is 16K, so bits 1 and 0 of a page count are bits 15
+                                               ; and 14 of a length in bytes. The two RRCAs line them up and the
+                                               ; XOR/AND/XOR drops them into the top of B without disturbing the
+                                               ; fourteen bits already there -- which is what lets &4770 read a B of &40
+                                               ; or more as "at least 16K"
                XOR B                           ; 4418 A8
                LD B,A                          ; 4419 47
 
@@ -1721,7 +1732,10 @@ FIND_VARIABLE_3:
                POP AF                          ; 441A F1
                POP DE                          ; 441B D1
                LD A,D                          ; 441C 7A
-               LD DE,&0001                     ; 441D 11 01 00
+               LD DE,&0001                     ; 441D 11 01 00  one, the element length of something that is not an
+                                               ; array, so a caller that multiplies the count by the length gets the
+                                               ; byte count either way. JOIN's banner says the same thing from the other
+                                               ; end -- "for a plain string it returns BC = the length and DE = one"
                SCF                             ; 4420 37
                RET                             ; 4421 C9
 
@@ -3199,7 +3213,11 @@ FIND_STRING_VARIABLE:
                LD A,B                          ; 477E 78
                AND A                           ; 477F A7
                JR Z,FIND_STRING_VARIABLE_1     ; 4780 28 02
-               LD C,&00                        ; 4782 0E 00
+               LD C,&00                        ; 4782 0E 00  the key length is picked up as B for COMPARE_FAR_STRINGS's
+                                               ; DJNZ, so it can only be a byte, and zero there means 256 rather than
+                                               ; none. That is why a length of exactly 256 needs no special case -- and
+                                               ; why anything longer is compared on its first 256 characters and no
+                                               ; further
 
 ; ---- FIND_STRING_VARIABLE_1 ---- from &4780 when A = 0
 FIND_STRING_VARIABLE_1:
@@ -3213,7 +3231,9 @@ FIND_STRING_VARIABLE_1:
                POP BC                          ; 4794 C1
                RES 7,B                         ; 4795 CB B8
                ADD HL,BC                       ; 4797 09
-               ADC A,&00                       ; 4798 CE 00
+               ADC A,&00                       ; 4798 CE 00  the carry out of the sixteen-bit add above, into the page
+                                               ; it belongs to, so offset and page travel together into
+                                               ; LONGADDR_TO_PAGED below
                CALL LONGADDR_TO_PAGED          ; 479A CD 27 44
                LD C,A                          ; 479D 4F
                POP AF                          ; 479E F1
@@ -3223,11 +3243,16 @@ FIND_STRING_VARIABLE_1:
                LD BC,(V40A0)                   ; 47A6 ED 4B A0 40
                LD IX,PAGE_ON_TWO_LOOP6         ; 47AA DD 21 F7 46
                LD A,(V4098)                    ; 47AE 3A 98 40
-               CP &A5                          ; 47B1 FE A5
+               CP T_INVERSE                    ; 47B1 FE A5  the byte after ABS, which &4620 stored for exactly this
+                                               ; test -- so ABS INVERSE is settled here and not at the parse
                RET Z                           ; 47B3 C8
                LD IX,CMD_SORT_LOOP3            ; 47B4 DD 21 A4 46
-               LD A,(&4745)                    ; 47B8 3A 45 47
-               CP &02                          ; 47BB FE 02
+               LD A,(&4745)                    ; 47B8 3A 45 47  &4745 is the operand of the JR NZ at &4744, and &462A
+                                               ; patched it with 2 for ABS or 5 for the compare that folds case. The
+                                               ; choice already made is read back out of the code rather than kept in a
+                                               ; flag of its own
+               CP &02                          ; 47BB FE 02  and 2 is the ABS distance, from &4628 -- so this asks "was
+                                               ; it ABS?" of the patch
                RET Z                           ; 47BD C8
                LD IX,PAGE_ON_TWO_1             ; 47BE DD 21 CD 46
                RET                             ; 47C2 C9
@@ -12401,12 +12426,19 @@ ENCODE_SCREEN:
                CALL SCAN_NIBBLE_TABLE          ; 61A0 CD 37 62
                LD C,A                          ; 61A3 4F
                EXX                             ; 61A4 D9
-               LD DE,&000F                     ; 61A5 11 0F 00
-               LD HL,&E500                     ; 61A8 21 00 E5
+               LD DE,&000F                     ; 61A5 11 0F 00  E is the merge mask WRITE_NEXT_NIBBLE's XOR/AND/XOR
+                                               ; works to at &6210 -- &0F, so the low nibble comes from A and the high
+                                               ; half of the byte is left as it stands. D is the nibble counter, and
+                                               ; starting it even means the first nibble written plants a fresh byte
+                                               ; rather than merging into one
+               LD HL,&E500                     ; 61A8 21 00 E5  the output stream, and &1900 bytes of it: &6219 stops
+                                               ; when H reaches &FE, and &FE00 is &E500 plus &1900
                EXX                             ; 61AB D9
                CALL WRITE_NEXT_NIBBLE          ; 61AC CD 02 62  the escape marker goes out first, before any data: it is
                                                ; the one thing the decoder cannot work out for itself
-               LD HL,&0000                     ; 61AF 21 00 00
+               LD HL,&0000                     ; 61AF 21 00 00  pixel zero. READ_NIBBLE_AT_HL halves HL into an address
+                                               ; and forces bit 15, so a pixel number of zero is the byte at &8000, and
+                                               ; the loop below runs until H comes round to &FF
 
 ; ---- ENCODE_SCREEN_LOOP ---- from &61BA when A is not 0
 ENCODE_SCREEN_LOOP:
@@ -12506,13 +12538,18 @@ ENCODE_ONE_NIBBLE_1:
 
 ; ---- ENCODE_RUN ---- from &61CC when A <> E, &61D9 when A <> E
 ENCODE_RUN:
-               LD A,&8C                        ; 61DE 3E 8C
+               LD A,&8C                        ; 61DE 3E 8C  the length is &8C less B, which is what makes the two
+                                               ; entries differ: ENCODE_ONE_NIBBLE starts B at &8B for an ordinary
+                                               ; nibble and &88 for the escape, so the same subtraction reads one as 1
+                                               ; and the other as 4
                SUB B                           ; 61E0 90
                CP &04                          ; 61E1 FE 04  under four, and three nibbles is what escaping costs, so
                                                ; there is nothing to gain
                JR C,WRITE_NEXT_NIBBLE_LOOP     ; 61E3 38 48
-               SUB &04                         ; 61E5 D6 04
-               CP &08                          ; 61E7 FE 08
+               SUB &04                         ; 61E5 D6 04  the count nibble carries the length less four, so a run of
+                                               ; four to eleven comes out 0 to 7
+               CP &08                          ; 61E7 FE 08  eight, because that is as far as a single count nibble goes
+                                               ; -- anything from here takes the four-nibble form below
                JR C,EMIT_RUN                   ; 61E9 38 0D
                SUB &88                         ; 61EB D6 88  &88 maps lengths 12 to 139 onto &80 to &FF, so the first
                                                ; count nibble comes out 8 to F and says a second follows

@@ -285,6 +285,13 @@ MB &4759 FIND_STRING_VARIABLE
     "Not understood", then the variable's page in and an empty string or
     a slice stacked for it.
 
+MB &4782 : the key length is picked up as B for COMPARE_FAR_STRINGS's DJNZ, so it can only be a byte, and zero there means 256 rather than none.  That is why a length of exactly 256 needs no special case -- and why anything longer is compared on its first 256 characters and no further
+MB &4798 : the carry out of the sixteen-bit add above, into the page it belongs to, so offset and page travel together into LONGADDR_TO_PAGED below
+MB &47B1 expr T_INVERSE
+MB &47B1 : the byte after ABS, which &4620 stored for exactly this test -- so ABS INVERSE is settled here and not at the parse
+MB &47B8 : &4745 is the operand of the JR NZ at &4744, and &462A patched it with 2 for ABS or 5 for the compare that folds case.  The choice already made is read back out of the code rather than kept in a flag of its own
+MB &47BB : and 2 is the ABS distance, from &4628 -- so this asks "was it ABS?" of the patch
+
 MB &4C2A COPY_STRING_TO_BUFFER
     Evaluate a string and copy it into the buffer at &7B00, the bytes the
     installer leaves behind.  Anything longer than 255 goes to the error

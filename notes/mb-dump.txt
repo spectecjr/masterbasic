@@ -773,11 +773,23 @@ MB &624C : INC L then DEC L tests L without disturbing BC, which is holding the 
 
 MB &6250 : halve it, because the pointer stepped two bytes for every value
 
+MB &61A5 : E is the merge mask WRITE_NEXT_NIBBLE's XOR/AND/XOR works to at &6210 -- &0F, so the low nibble comes from A and the high half of the byte is left as it stands.  D is the nibble counter, and starting it even means the first nibble written plants a fresh byte rather than merging into one
+
+MB &61A8 : the output stream, and &1900 bytes of it: &6219 stops when H reaches &FE, and &FE00 is &E500 plus &1900
+
 MB &61AC : the escape marker goes out first, before any data: it is the one thing the decoder cannot work out for itself
+
+MB &61AF : pixel zero.  READ_NIBBLE_AT_HL halves HL into an address and forces bit 15, so a pixel number of zero is the byte at &8000, and the loop below runs until H comes round to &FF
 
 MB &61C5 : three less than the other path, and the length is &8C minus B, so every run of the escape comes out three longer -- four at the shortest, which is what stops a lone escape nibble ever being written literally
 
+MB &61DE : the length is &8C less B, which is what makes the two entries differ: ENCODE_ONE_NIBBLE starts B at &8B for an ordinary nibble and &88 for the escape, so the same subtraction reads one as 1 and the other as 4
+
 MB &61E1 : under four, and three nibbles is what escaping costs, so there is nothing to gain
+
+MB &61E5 : the count nibble carries the length less four, so a run of four to eleven comes out 0 to 7
+
+MB &61E7 : eight, because that is as far as a single count nibble goes -- anything from here takes the four-nibble form below
 
 MB &61EB : &88 maps lengths 12 to 139 onto &80 to &FF, so the first count nibble comes out 8 to F and says a second follows
 
