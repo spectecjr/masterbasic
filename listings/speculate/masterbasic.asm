@@ -27157,6 +27157,31 @@ BUILD_PROC_INDEX_1:
 ;;     search to find its way back, and a size test to decide when taking
 ;;     over is worth it at all.
 ;;
+;;     AND THE REST OF IT BORROWS MEMORY IT DOES NOT OWN.  A block move
+;;     across the paging cannot run from the pages it is moving, because
+;;     the OUT that brings the next page in would page the mover out from
+;;     under itself.  So this plants the moving instructions somewhere that
+;;     stays mapped whatever sections A and B are doing -- the very top of
+;;     memory -- and puts back what was there afterwards.
+;;
+;;     The ten bytes it plants are its own &75D7 to &75E0, which is &4843
+;;     once installed:
+;;
+;;         OUT (LMPR),A : CALL &0092 : LD A,&1F : OUT (LMPR),A : RET
+;;
+;;     -- page in, move, page the system back, return.  &0092 is not a
+;;     label in any map: ANYI is &0049 and the next name is DELBC at &005F,
+;;     and counting the ROM's bytes from there puts &008F on an LDIR : RET
+;;     and &0092 on an LDDR : RET.  The ROM keeps both as two-instruction
+;;     primitives so that code in any page can do a block move without the
+;;     instruction being in its own way, and this is a caller of the second.
+;;
+;;     THE SCRATCH IS TWENTY-TWO BYTES AT &FF80 or twelve at one end of
+;;     section C, kept in the system page at &4CEA while borrowed, with SP
+;;     parked at &4CE8 beside it.  Both sizes put the address to come back
+;;     to ten bytes in and set SP eight bytes in, so the ROM routine's own
+;;     RET unwinds through the borrowed bytes and lands on the jump home.
+;;
 ;;     What was here before:
 ;;
 ;;         385 bytes assembled to run at &46CC, not here.
@@ -27248,12 +27273,14 @@ RELOCATED_TO_46CC_LOOP:
                LD HL,(ROM_TEMPW1)              ; 7480 2A C8 5A
                JP Z,&482D                      ; 7483 CA 2D 48  &482D once this block is moved, not the label shown
                LD A,B                          ; 7486 78
-               CP &20                          ; 7487 FE 20
+               CP &20                          ; 7487 FE 20  thirty-two, and B counts 256-byte units, so this asks
+                                               ; whether the move is &2000 bytes or more -- more than one pass will take
                JR C,RELOCATED_TO_46CC_3        ; 7489 38 0B
-               SUB &1F                         ; 748B D6 1F
+               SUB &1F                         ; 748B D6 1F  thirty-one of those units off the count, which is the &1F00
+                                               ; below said the other way round
                LD B,A                          ; 748D 47
                CALL &4702                      ; 748E CD 02 47  &4702 once this block is moved, not the label shown
-               LD BC,&1F00                     ; 7491 01 00 1F
+               LD BC,&1F00                     ; 7491 01 00 1F  &1F00, 7936 bytes, the most one pass moves
                JR RELOCATED_TO_46CC_LOOP       ; 7494 18 E1
 
 ;; --------------------------------------------------------------------
@@ -27320,11 +27347,16 @@ RELOCATED_TO_46CC_4:
                                                ; to the alternate register set and back again
                EXX                             ; 74C6 D9
                                                ; self-modifying: patches the operand of the CALL at &4CE6
-               LD (&4CE8),SP                   ; 74C7 ED 73 E8 4C
-               LD HL,&FF80                     ; 74CB 21 80 FF
-               LD DE,&4CEA                     ; 74CE 11 EA 4C
-               LD BC,&0016                     ; 74D1 01 16 00
-               CP &FF                          ; 74D4 FE FF
+               LD (&4CE8),SP                   ; 74C7 ED 73 E8 4C  a word in the system page where SP is parked while
+                                               ; the stack is moved into the borrowed bytes; &74FA reads it back
+               LD HL,&FF80                     ; 74CB 21 80 FF  &FF80, the top of memory less 128 -- twenty-two bytes of
+                                               ; it are about to be borrowed, and being in section D they stay mapped
+                                               ; however sections A and B are paged
+               LD DE,&4CEA                     ; 74CE 11 EA 4C  where those twenty-two bytes are kept while they are
+                                               ; borrowed
+               LD BC,&0016                     ; 74D1 01 16 00  twenty-two of them
+               CP &FF                          ; 74D4 FE FF  is the move itself working in the top page? If it is, &FF80
+                                               ; is inside what is being moved, and &C000 is borrowed instead
                JR C,RELOCATED_TO_46CC_5        ; 74D6 38 03
                LD HL,&C000                     ; 74D8 21 00 C0
 
@@ -27338,29 +27370,33 @@ RELOCATED_TO_46CC_4:
 ; ---- RELOCATED_TO_46CC_5 ---- from &74D6 when A < &FF
 RELOCATED_TO_46CC_5:
                PUSH HL                         ; 74DB E5
-               LD (&4763),HL                   ; 74DC 22 63 47
+               LD (&4763),HL                   ; 74DC 22 63 47  the operand of the CALL at &74F6, which is why that CALL
+                                               ; reads &0000 here: what it calls is the code about to be planted, and
+                                               ; the address is whichever end was free
                LD A,(TEMPB2)                   ; 74DF 3A CF 5A
-               AND &1F                         ; 74E2 E6 1F
+               AND PAGEMASK                    ; 74E2 E6 1F
                LDIR                            ; 74E4 ED B0
                POP DE                          ; 74E6 D1
                PUSH DE                         ; 74E7 D5
-               LD HL,&4843                     ; 74E8 21 43 48
-               LD C,&0A                        ; 74EB 0E 0A
+               LD HL,&4843                     ; 74E8 21 43 48  the ten bytes to plant, which are this block's own &75D7
+                                               ; to &75E0 -- see the banner
+               LD C,&0A                        ; 74EB 0E 0A  ten of them
                LDIR                            ; 74ED ED B0
                POP DE                          ; 74EF D1
-               LD HL,&0016                     ; 74F0 21 16 00
+               LD HL,&0016                     ; 74F0 21 16 00  twenty-two again, to put SP just past the borrowed bytes
                ADD HL,DE                       ; 74F3 19
                                                ; the stack is being reset, so this path does not return
                LD SP,HL                        ; 74F4 F9
                                                ; to the alternate register set and back again
                EXX                             ; 74F5 D9
-               CALL &0000                      ; 74F6 CD 00 00
+               CALL &0000                      ; 74F6 CD 00 00  the operand is written at &74DC, three instructions
+                                               ; before this is reached
                                                ; to the alternate register set and back again
                EXX                             ; 74F9 D9
                                                ; the stack is being reset, so this path does not return
-               LD SP,(&4CE8)                   ; 74FA ED 7B E8 4C
-               LD HL,&4CEA                     ; 74FE 21 EA 4C
-               LD C,&16                        ; 7501 0E 16
+               LD SP,(&4CE8)                   ; 74FA ED 7B E8 4C  SP back from where &74C7 parked it
+               LD HL,&4CEA                     ; 74FE 21 EA 4C  and the twenty-two saved bytes, on their way home
+               LD C,&16                        ; 7501 0E 16  twenty-two of them
                LDIR                            ; 7503 ED B0
                                                ; to the alternate register set and back again
                EXX                             ; 7505 D9
@@ -27475,23 +27511,32 @@ RELOCATED_TO_46CC_7:
                                                ; to the alternate register set and back again
                EXX                             ; 7557 D9
                                                ; self-modifying: patches the operand of the CALL at &4CE6
-               LD (&4CE8),SP                   ; 7558 ED 73 E8 4C
-               LD HL,&BF80                     ; 755C 21 80 BF
-               LD DE,&4CEA                     ; 755F 11 EA 4C
-               LD BC,&000C                     ; 7562 01 0C 00
-               CP &9E                          ; 7565 FE 9E
+               LD (&4CE8),SP                   ; 7558 ED 73 E8 4C  the same word as &74C7, on the other of the two paths
+               LD HL,&BF80                     ; 755C 21 80 BF  &BF80, the top of section C this time, and twelve bytes
+                                               ; rather than twenty-two
+               LD DE,&4CEA                     ; 755F 11 EA 4C  the same save area in the system page
+               LD BC,&000C                     ; 7562 01 0C 00  twelve of them
+               CP &9E                          ; 7565 FE 9E  which end of section C to borrow -- below it the top, at or
+                                               ; above it the bottom at &8000. WHAT A HOLDS HERE IS NOT SETTLED: &7550
+                                               ; puts the destination's high byte in it, but the CALL NZ,INCURPAGE at
+                                               ; &7554 reaches SELURPG, which leaves A as an HMPR byte instead, and &9E
+                                               ; is not a value HMPR can sensibly take. One of those two readings is
+                                               ; wrong and this note does not say which
                LD A,(TEMPB2)                   ; 7567 3A CF 5A
                DEC A                           ; 756A 3D
                JR C,RELOCATED_TO_46CC_8        ; 756B 38 1A
-               LD HL,&8000                     ; 756D 21 00 80
+               LD HL,&8000                     ; 756D 21 00 80  the bottom of section C, borrowed when the top would be
+                                               ; in the way
                AND &1F                         ; 7570 E6 1F
                LDIR                            ; 7572 ED B0
                LD HL,&47ED                     ; 7574 21 ED 47
-               LD (&800A),HL                   ; 7577 22 0A 80
+               LD (&800A),HL                   ; 7577 22 0A 80  ten bytes in, where the address to come back to goes --
+                                               ; &47ED is this block's own &7581, the instruction after the jump below
                                                ; to the alternate register set and back again
                EXX                             ; 757A D9
                                                ; the stack is being reset, so this path does not return
-               LD SP,&8008                     ; 757B 31 08 80
+               LD SP,&8008                     ; 757B 31 08 80  eight bytes in, so that the ROM routine's RET unwinds
+                                               ; through the borrowed bytes and onto that address
 
 L757E:
                JP &0000                        ; 757E C3 00 00  the operand is written here at run time, from &79E2
@@ -27506,7 +27551,7 @@ L757E:
 
                                                ; to the alternate register set and back again
                EXX                             ; 7581 D9
-               LD DE,&8000                     ; 7582 11 00 80
+               LD DE,&8000                     ; 7582 11 00 80  the borrowed bytes again, to put back what was taken
                JR RELOCATED_TO_46CC_9          ; 7585 18 15
 
 ;; --------------------------------------------------------------------
@@ -27522,11 +27567,11 @@ RELOCATED_TO_46CC_8:
                AND &1F                         ; 7587 E6 1F
                LDIR                            ; 7589 ED B0
                LD HL,&4804                     ; 758B 21 04 48
-               LD (&BF8A),HL                   ; 758E 22 8A BF
+               LD (&BF8A),HL                   ; 758E 22 8A BF  the same offset of ten at the other end
                                                ; to the alternate register set and back again
                EXX                             ; 7591 D9
                                                ; the stack is being reset, so this path does not return
-               LD SP,&BF88                     ; 7592 31 88 BF
+               LD SP,&BF88                     ; 7592 31 88 BF  and the same eight
 
 L7595:
                JP &0000                        ; 7595 C3 00 00  the operand is written here at run time, from &79E5
@@ -27540,7 +27585,7 @@ L7595:
 
                                                ; to the alternate register set and back again
                EXX                             ; 7598 D9
-               LD DE,&BF80                     ; 7599 11 80 BF
+               LD DE,&BF80                     ; 7599 11 80 BF  and the same put-back
 
 ;; --------------------------------------------------------------------
 ;; RELOCATED_TO_46CC_9 -- &759C to &75AE
@@ -27552,9 +27597,9 @@ L7595:
 ; ---- RELOCATED_TO_46CC_9 ---- from &7585
 RELOCATED_TO_46CC_9:
                                                ; the stack is being reset, so this path does not return
-               LD SP,(&4CE8)                   ; 759C ED 7B E8 4C
-               LD HL,&4CEA                     ; 75A0 21 EA 4C
-               LD C,&0C                        ; 75A3 0E 0C
+               LD SP,(&4CE8)                   ; 759C ED 7B E8 4C  SP back, as at &74FA
+               LD HL,&4CEA                     ; 75A0 21 EA 4C  the twelve saved bytes
+               LD C,&0C                        ; 75A3 0E 0C  twelve of them
                LDIR                            ; 75A5 ED B0
                                                ; to the alternate register set and back again
                EXX                             ; 75A7 D9
@@ -27652,7 +27697,11 @@ RELOCATED_TO_46CC_10:
 ;; --------------------------------------------------------------------
 
                OUT (LMPR),A                    ; 75D7 D3 FA
-               CALL &0092                      ; 75D9 CD 92 00
+               CALL &0092                      ; 75D9 CD 92 00  the ROM's LDDR : RET, at &0092. No map names it -- DELBC
+                                               ; is &005F and RDCN is &00A1 -- but counting the bytes between them lands
+                                               ; an LDIR : RET on &008F and an LDDR : RET on &0092, and that pair is
+                                               ; what lets a mover in any page do the move without the instruction being
+                                               ; in its own way
                LD A,SYSPAGE_IN_B               ; 75DC 3E 1F
                OUT (LMPR),A                    ; 75DE D3 FA
                RET                             ; 75E0 C9
