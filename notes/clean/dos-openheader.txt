@@ -46,17 +46,21 @@ DOS &4EF2 : and the two after that
 DOS &4EFA : back one, to offset 210
 DOS &4EFB : ten below STR, so 220 onwards lands where STR-20 is read
 DOS &4EFE : forty-two bytes, 210 to 251
+DOS &4EF5 : two bytes: the flags at 220, and the one after
 DOS &4F02 : the type and the name, and spaces up to fifteen
 DOS &4F05 : SAM file or Spectrum file?
 DOS &4F06 : a SAM file has a real header on the disc
 DOS &4F08 : eleven spaces where the ROM's name would be
 DOS &4F0D : and &FF for the twenty-two that follow
+DOS &4F0F : the ROM's "not set" byte
 DOS &4F14 : the Spectrum header's length, sixteen bits of it
 DOS &4F18 : as pages and an offset, which is what the SAM ROM wants
 DOS &4F1D : into the header being built
 DOS &4F23 : and its offset half
 DOS &4F26 : and back over the sixteen-bit copy
 DOS &4F29 : the Spectrum header's start address
+DOS &4F30 : a header's page is one less than the address's -- the ROM adds the LMPR page back; see FSTAT
+DOS &4F31 expr PAGE_VALUE_MASK
 DOS &4F41 : offset 220, the ROM's own header on the disc
 DOS &4F46 : thirty-three bytes, which completes the forty-eight
 DOS &4F4B : offset 13, the first track and sector of the file

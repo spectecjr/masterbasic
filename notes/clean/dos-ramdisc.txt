@@ -102,6 +102,13 @@ DOS &77BE expr &4000 + SECTOR_LENGTH - 1
 DOS &77C1 : carry means the sector would run off the top of the window
 DOS &77C4 : &8xxx becomes &4xxx -- the same byte, seen from this page
 
+DOS &75C0 : the track alone, in HL and BC
+DOS &75CB : ten sectors a track, counted from 0 here
+DOS &75D2 : thirty-one: every thirty-second block is the page's own
+DOS &76CF : the first byte of LDI
+DOS &76D2 : and the second
+DOS &76DD : the low byte of the JP's target, &8020, the first of the LDIs
+
 GROUP Memory
 DOS &74C4 value DRAM_PAGE_HIGH
 DOS &77BA value RAMDISC_PAGE_HIGH

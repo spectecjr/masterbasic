@@ -61,6 +61,7 @@ DIR_FLAGS:               EQU  &DC              ; the ROM header's flag byte: bit
                                                ; MasterBASIC's bit 2 compressed and bit 3 SAVE MODE 3
 DIR_LENGTH:              EQU  &EF              ; the length, page form -- whole pages, then the bytes within the last
 DIR_START:               EQU  &EC              ; the start address, page form -- three bytes
+ENTRY_LENGTH:            EQU  &0100            ; bytes in a directory entry, two to a sector
 TYPE_MASK:               EQU  &1F              ; bits 0 to 4 of the type byte are the type itself
 
 ; Directory scan
@@ -86,9 +87,14 @@ DISK_STATUS_DRQ_BIT:     EQU  &01              ; the bit a byte-ready test looks
 TRANSFER_ERROR_FLAGS:    EQU  (DISK_STATUS_LOST_DATA | DISK_STATUS_CRC_ERROR | DISK_STATUS_RECORD_NOT_FOUND) >> 1
                                                ; the right one, used by the sector read and write
 
+; Channel record
+CNTH:                    EQU  &1E              ; the file pointer's whole sectors, high byte -- the 1991 name
+CNTL:                    EQU  &1F              ; and low
+
 ; File types
 TYPE_BASIC:              EQU  &10              ; a SAM BASIC program
 TYPE_CODE:               EQU  &13              ; SAM CODE
+TYPE_OPENTYPE:           EQU  &0A              ; an open-type file, which OPEN makes and INPUT and PRINT use
 TYPE_SCREEN:             EQU  &14              ; a SAM SCREEN$
 TYPE_ZX_SNP48:           EQU  &05              ; a Spectrum 48K snapshot
 
@@ -607,12 +613,13 @@ BOOT_LOAD_COMPLETE:
                LD BC,INSTALLER_LENGTH          ; 40E6 01 AF 03
                LDIR                            ; 40E9 ED B0
                IN A,(HMPR)                     ; 40EB DB FB  the page the DOS is in
-               AND &1F                         ; 40ED E6 1F
+               AND PAGE_VALUE_MASK             ; 40ED E6 1F
                DEC A                           ; 40EF 3D  one below it, which is MasterBASIC's
                LD (&42CD),A                    ; 40F0 32 CD 42  written into MasterBASIC's &42CC, not this half's: its
                                                ; page
                XOR A                           ; 40F3 AF
-               OUT (&E9),A                     ; 40F4 D3 E9
+               OUT (&E9),A                     ; 40F4 D3 E9  &E9 is the printer's strobe port, RESP in the 1991 source;
+                                               ; cleared before anything drives the printer
                JP DOSBUF+IN_PAGE_C             ; 40F6 C3 00 BC  and away, into the copy
 
 ; ---- STACK_ON_ENTRY ---- from MB &768F
@@ -1752,7 +1759,7 @@ ZFSP:
 ; ---- CLEAR_TSTR ---- from &436D, &638A
 CLEAR_TSTR:
                PUSH AF                         ; 4495 F5
-               LD A,&FF                        ; 4496 3E FF
+               LD A,&FF                        ; 4496 3E FF  &FF, "not set", over every byte from TSTR1 to UIFA
                LD HL,TSTR1                     ; 4498 21 32 41
                LD B,UIFA-TSTR1                 ; 449B 06 4B
 
@@ -2863,11 +2870,17 @@ CKDISC:
 CKDRV:
                LD A,(DSTR1)                    ; 4807 3A 36 41
 
+;; --------------------------------------------------------------------
+;; Is A a drive this machine has?  1 is always there; 2 only if
+;; TRAKS2, the second drive's track count, is not zero; 3 up to
+;; RDLIM less one is a RAM disc.  Anything else is "No such drive".
+;; --------------------------------------------------------------------
+
 ; ---- CKDRX ---- from &47FE, &53EB, &554F, &5565, &5D7F
 CKDRX:
-               CP &01                          ; 480A FE 01
+               CP &01                          ; 480A FE 01  drive 1
                JR Z,CKDRX_DONE                 ; 480C 28 17
-               CP &02                          ; 480E FE 02
+               CP &02                          ; 480E FE 02  drive 2, which may not be fitted
                JR Z,CKDV0                      ; 4810 28 09
                DEC A                           ; 4812 3D
                CP RDLIM-1                      ; 4813 FE 07
@@ -2878,9 +2891,9 @@ CKDRX:
 ; ---- CKDV0 ---- from &4810 when A = &02
 CKDV0:
                LD A,(RBCC+2)                   ; 481B 3A 22 42  TRAKS2
-               CP &00                          ; 481E FE 00
+               CP &00                          ; 481E FE 00  a track count of zero means there is no second drive
                JP Z,REP22                      ; 4820 CA 7D 51  "NO SUCH DRIVE"
-               LD A,&02                        ; 4823 3E 02
+               LD A,&02                        ; 4823 3E 02  drive 2, then
 
 ; ---- CKDRX_DONE ---- from &480C when A = &01, &4819
 CKDRX_DONE:
@@ -2934,10 +2947,10 @@ SEL1_DONE:
 AT_SECTOR_LINK:
                CALL GRPNT                      ; 4847 CD B1 4F
                LD A,C                          ; 484A 79
-               CP &FE                          ; 484B FE FE
+               CP &FE                          ; 484B FE FE  the low byte of 510, where the sector's link bytes begin
                RET NZ                          ; 484D C0
                LD A,B                          ; 484E 78
-               CP &01                          ; 484F FE 01
+               CP &01                          ; 484F FE 01  and its high byte: Z when the pointer is on the link
                RET                             ; 4851 C9
 
 HOOK_HLDBK:
@@ -4795,7 +4808,7 @@ COPY_HEADER_FIELDS:
                LD BC,&0009                     ; 4EED 01 09 00  nine bytes of it
                LDIR                            ; 4EF0 ED B0
                LD DE,V42E2                     ; 4EF2 11 E2 42  and the two after that
-               LD C,&02                        ; 4EF5 0E 02
+               LD C,&02                        ; 4EF5 0E 02  two bytes: the flags at 220, and the one after
                LDIR                            ; 4EF7 ED B0
                POP HL                          ; 4EF9 E1
                DEC HL                          ; 4EFA 2B  back one, to offset 210
@@ -4808,7 +4821,7 @@ COPY_HEADER_FIELDS:
                LD B,&0B                        ; 4F08 06 0B  eleven spaces where the ROM's name would be
                CALL LCNTA                      ; 4F0A CD 65 4F
                LD B,&16                        ; 4F0D 06 16  and &FF for the twenty-two that follow
-               LD A,&FF                        ; 4F0F 3E FF
+               LD A,&FF                        ; 4F0F 3E FF  the ROM's "not set" byte
                CALL FILL_DE_WITH_A             ; 4F11 CD 67 4F
                LD HL,(HD0B2)                   ; 4F14 2A 66 41  the Spectrum header's length, sixteen bits of it
                XOR A                           ; 4F17 AF
@@ -4821,8 +4834,9 @@ COPY_HEADER_FIELDS:
                LD HL,(HD0D2)                   ; 4F29 2A 68 41  the Spectrum header's start address
                XOR A                           ; 4F2C AF
                CALL PAGEFORM                   ; 4F2D CD E4 75
-               DEC A                           ; 4F30 3D
-               AND &1F                         ; 4F31 E6 1F
+               DEC A                           ; 4F30 3D  a header's page is one less than the address's -- the ROM adds
+                                               ; the LMPR page back; see FSTAT
+               AND PAGE_VALUE_MASK             ; 4F31 E6 1F
                LD (DIFA+31),A                  ; 4F33 32 CC 41
                LD (PAGE2),A                    ; 4F36 32 6D 41
                LD (DIFA+32),HL                 ; 4F39 22 CD 41
@@ -5201,16 +5215,18 @@ RENT:
                RET                             ; 5029 C9
 
 ;; --------------------------------------------------------------------
-;; TEST FOR BREAK ROUTINE
-;;  Reads the keyboard row selected by putting &F7 on the high address lines and tests the bit ESC occupies. Called
-;;  from inside the drive polling loops, so a disk that never becomes ready can still be escaped from.
+;; Is ESC pressed?  NZ if not.  The same four instructions as the
+;; ROM's own BRKTST: &F7 on the high address lines selects the
+;; keyboard row that has ESC, the status port returns that row's
+;; upper three keys in bits 5 to 7, and bit 5 is ESC, low when
+;; pressed.
 ;; --------------------------------------------------------------------
 
 ; ---- BRKTST ---- from &4573
 BRKTST:
-               LD A,&F7                        ; 502A 3E F7
+               LD A,&F7                        ; 502A 3E F7  &F7 on the address lines selects the row with ESC in it
                IN A,(STAT)                     ; 502C DB F9
-               AND &20                         ; 502E E6 20
+               AND &20                         ; 502E E6 20  bit 5 of the status port is ESC, low when pressed
                RET NZ                          ; 5030 C0
 
 REP3:
@@ -5798,9 +5814,9 @@ BITF7:
 ; ---- BCC ---- from &473D
 BCC:
                LD A,(RBCC)                     ; 5146 3A 20 42
-               AND &0F                         ; 5149 E6 0F
+               AND &0F                         ; 5149 E6 0F  the low four bits of RBCC; zero turns the effect off
                RET Z                           ; 514B C8
-               AND &07                         ; 514C E6 07
+               AND &07                         ; 514C E6 07  three of them are a border colour
                AND E                           ; 514E A3
                OUT (BORDER),A                  ; 514F D3 FE
                RET                             ; 5151 C9
@@ -6427,7 +6443,8 @@ SNAP5:
                LD (SNME+6),A                   ; 5409 32 EA 41
                LD HL,SNME                      ; 540C 21 E4 41  the finished name
                LD DE,NSTR1                     ; 540F 11 3A 41
-               LD BC,&0018                     ; 5412 01 18 00
+               LD BC,&0018                     ; 5412 01 18 00  twenty-four bytes: the type and name, four spaces, and
+                                               ; the nine-byte header
                LDIR                            ; 5415 ED B0
                XOR A                           ; 5417 AF  nothing of the interrupted command's flags survives
                LD (FLAG3),A                    ; 5418 32 0C 7C
@@ -6436,9 +6453,9 @@ SNAP5:
                LD HL,STR-20                    ; 5421 21 7C 7F  twenty bytes of registers, and the interrupted SP in STR
                                                ; just above them
                LD DE,FSA+220                   ; 5424 11 EF 7C  into the entry, where a ROM header would be
-               LD BC,&0016                     ; 5427 01 16 00
+               LD BC,&0016                     ; 5427 01 16 00  the twenty registers and the two bytes above them
                LD A,(NSTR1)                    ; 542A 3A 3A 41  which kind of file is this?
-               CP &05                          ; 542D FE 05
+               CP TYPE_ZX_SNP48                ; 542D FE 05
                JR Z,SNAP6                      ; 542F 28 10  a 48K snapshot keeps the registers there
                XOR A                           ; 5431 AF  a SCREEN$ has flags and a screen mode of its own
                LD (DE),A                       ; 5432 12  FLAGS
@@ -6447,9 +6464,10 @@ SNAP5:
                CALL SVHD                       ; 5435 CD 3B 5F
                LD HL,SNPTAB                    ; 5438 21 50 54  and its start and length come from a table
                LD DE,FSA+236                   ; 543B 11 FF 7C
-               LD BC,&0007                     ; 543E 01 07 00
+               LD BC,&0007                     ; 543E 01 07 00  seven bytes: the start, the length, and the &FF of no
+                                               ; execute address
 
-; ---- SNAP6 ---- from &542F when A = &05
+; ---- SNAP6 ---- from &542F when A = TYPE_ZX_SNP48
 SNAP6:
                LDIR                            ; 5441 ED B0
                LD HL,(SNADD)                   ; 5443 2A F6 41  the block itself
@@ -8384,7 +8402,8 @@ COLUMNS_FOR_DIRECTORY:
                CALL NRRD                       ; 5C91 CD 5E 50
                DEFW SYS_CHAR_WIDTH             ; 5C94 EE 4A
                AND A                           ; 5C96 A7
-               LD A,&00                        ; 5C97 3E 00
+               LD A,&00                        ; 5C97 3E 00  zero width if CSIZE has changed the character width, so one
+                                               ; name to a line
                JR NZ,COLUMNS_FOR_DIRECTORY_1   ; 5C99 20 08
                CALL NRRDD                      ; 5C9B CD 53 50
                DEFW WINDRHS                    ; 5C9E 56 5A
@@ -8394,9 +8413,10 @@ COLUMNS_FOR_DIRECTORY:
 
 ; ---- COLUMNS_FOR_DIRECTORY_1 ---- from &5C99 when A <> 0
 COLUMNS_FOR_DIRECTORY_1:
-               LD B,&01                        ; 5CA3 06 01
-               SUB &0B                         ; 5CA5 D6 0B
-               RET C                           ; 5CA7 D8
+               LD B,&01                        ; 5CA3 06 01  one column to begin with
+               SUB &0B                         ; 5CA5 D6 0B  eleven characters a column: ten of name and the space after
+                                               ; it
+               RET C                           ; 5CA7 D8  fewer than eleven characters: one column even so
                INC A                           ; 5CA8 3C
                DEC B                           ; 5CA9 05
 
@@ -11153,8 +11173,8 @@ MVNRC:
 
 ; ---- CHANNEL_LENGTH_AND_FLAGS ---- from &67F4, &68CD, &6E3C
 CHANNEL_LENGTH_AND_FLAGS:
-               LD C,(IX+&09)                    ; 67FC DD 4E 09
-               LD B,(IX+&0A)                    ; 67FF DD 46 0A
+               LD C,(IX+&09)                    ; 67FC DD 4E 09  offset 9, the record's length
+               LD B,(IX+&0A)                    ; 67FF DD 46 0A  and its high byte
                PUSH IX                          ; 6802 DD E5
                POP HL                           ; 6804 E1
                CALL BITF1                       ; 6805 CD 22 51
@@ -11625,10 +11645,12 @@ BACKUP:
                CALL EVAL_NAME_PAIR             ; 69D2 CD 7B 59  EVAL FILE TO FILE
                CALL COBUS                      ; 69D5 CD A0 59  EVFILES, SET SINGLE-DISC FLAG
                CALL CKDRV                      ; 69D8 CD 07 48  AS NEEDED
-               LD HL,&8000                     ; 69DB 21 00 80
+               LD HL,WINDOW                    ; 69DB 21 00 80  the transfer address: a whole track goes through the
+                                               ; window
                LD (HKHL),HL                    ; 69DE 22 DE 41  SRC/DEST
                CALL CLSAM                      ; 69E1 CD FA 4C  CLEAR SAM
-               LD A,&20                        ; 69E4 3E 20
+               LD A,DIR_MODE_BUILD_MAP         ; 69E4 3E 20  a scan that rebuilds the sector map, which is what the copy
+                                               ; will follow
                CALL FDHR                       ; 69E6 CD 31 4B  CREATE SAM
                LD B,&C3                        ; 69E9 06 C3  BYTES IN SAM
                LD HL,SAM+194                   ; 69EB 21 D1 40
@@ -11644,14 +11666,15 @@ SBKSL:
 ; ---- BKU2 ---- from &69F0 when A <> 0
 BKU2:
                LD L,B                          ; 69F5 68
-               LD H,&00                        ; 69F6 26 00
+               LD H,&00                        ; 69F6 26 00  the map's byte count alone, in HL
                ADD HL,HL                       ; 69F8 29
                ADD HL,HL                       ; 69F9 29
                ADD HL,HL                       ; 69FA 29  HL=SECTORS USED
-               LD BC,&0028                     ; 69FB 01 28 00
+               LD BC,&0028                     ; 69FB 01 28 00  forty sectors of directory, tracks 0 to 3, which the map
+                                               ; does not cover
                ADD HL,BC                       ; 69FE 09  ALLOW FOR DIRECTORY TKS 0-3
                INC B                           ; 69FF 04  NZ
-               LD DE,&0001                     ; 6A00 11 01 00
+               LD DE,&0001                     ; 6A00 11 01 00  track 0, sector 1
                LD (HKDE),DE                    ; 6A03 ED 53 E0 41  START AT T0/S1
 
 ; ---- BKUL ---- from &6A6F
@@ -11952,14 +11975,19 @@ OPEX:
                SBC HL,BC                       ; 6B46 ED 42
                JP C,REP30                      ; 6B48 DA 8F 51  past it, so this stream is already attached to something
 
+;; --------------------------------------------------------------------
+;; The stream is free; the file has to be on a disc, and it will be
+;; an open-type file.
+;; --------------------------------------------------------------------
+
 ; ---- OPEN25 ---- from &6B40 when A < &04
 OPEN25:
                LD A,(LSTR1)                    ; 6B4B 3A 39 41
-               AND &DF                         ; 6B4E E6 DF
-               CP &44                          ; 6B50 FE 44
+               AND CASE_BLIND                  ; 6B4E E6 DF
+               CP &44                          ; 6B50 FE 44  "D": only a disc file can be opened to a stream
                JP NZ,REP0                      ; 6B52 C2 E0 5E  "NONSENSE"
                CALL CKDRV                      ; 6B55 CD 07 48
-               LD A,&0A                        ; 6B58 3E 0A
+               LD A,TYPE_OPENTYPE              ; 6B58 3E 0A  whatever the name said, the file's type is open-type
                LD (NSTR1),A                    ; 6B5A 32 3A 41  FILE TYPE
 
 OPDST:
@@ -12101,12 +12129,24 @@ OPND2_2:
                JR NZ,OPND44                    ; 6C04 20 02  JR IF DEFAULT - IN
                LD C,&06                        ; 6C06 0E 06  BITS 1 AND 0 SHOW RND, BIT 2
 
+;; --------------------------------------------------------------------
+;; The file exists: fill the channel record from its directory
+;; entry and read its first sector.
+;;
+;; THE WHOLE ENTRY IS COPIED INTO THE RECORD at FFSA, which is what
+;; makes every later offset into the entry an offset into the
+;; record.  The type and name go to NSTR1 as well, the first track
+;; and sector come out of offsets 13 and 14, and the pointer's
+;; sector count starts at zero so that COUNT_AND_READ_SECTOR makes
+;; it one as it reads.
+;; --------------------------------------------------------------------
+
 ; ---- OPND44 ---- from &6BFB when A = MIN, &6C04 when A <> MRND
 OPND44:
                LD A,C                          ; 6C08 79
                CALL RAMST                      ; 6C09 CD 5D 70
                LD DE,FFSA                      ; 6C0C 11 13 00
-               LD BC,&0100                     ; 6C0F 01 00 01
+               LD BC,ENTRY_LENGTH              ; 6C0F 01 00 01
                PUSH IX                         ; 6C12 DD E5
                POP HL                          ; 6C14 E1  CHANNEL
                ADD HL,DE                       ; 6C15 19
@@ -12117,7 +12157,7 @@ OPND44:
                LDIR                            ; 6C1A ED B0  COPY 256 BYTES FROM DIR ENTRY TO CHANNE
                POP DE                          ; 6C1C D1  TYPE IN CHANNEL
                POP HL                          ; 6C1D E1  DIR ENTRY
-               LD BC,&000B                     ; 6C1E 01 0B 00
+               LD BC,NAME_AND_TYPE             ; 6C1E 01 0B 00
                LD A,(HL)                       ; 6C21 7E
                LD (NSTR1),A                    ; 6C22 32 3A 41
                LDIR                            ; 6C25 ED B0
@@ -12128,8 +12168,8 @@ OPND44:
                LD E,(HL)                       ; 6C2B 5E
                PUSH DE                         ; 6C2C D5  FIRST T/S
                XOR A                           ; 6C2D AF
-               LD (IX+&1F),A                   ; 6C2E DD 77 1F
-               LD (IX+&1E),A                   ; 6C31 DD 77 1E  FILE'S SECTOR=0 TO START WITH
+               LD (IX+CNTL),A                  ; 6C2E DD 77 1F
+               LD (IX+CNTH),A                  ; 6C31 DD 77 1E  no sectors read yet
                CALL COUNT_AND_READ_SECTOR      ; 6C34 CD CC 6F  INC SECTOR, LOAD AND MARK 1ST SECT
                CALL OPND8                      ; 6C37 CD 1F 6D  WITH T/S. GET STREAM OFFSET IN HL
                POP DE                          ; 6C3A D1
@@ -12300,13 +12340,15 @@ OPND75:
                JR Z,OPND8                      ; 6D0A 28 13  JR IF NOT MOVE
                PUSH IX                         ; 6D0C DD E5
                POP HL                          ; 6D0E E1
-               LD BC,&00EF                     ; 6D0F 01 EF 00
+               LD BC,FFSA+DIR_FLAGS            ; 6D0F 01 EF 00  offset 220 of the destination's entry
                ADD HL,BC                       ; 6D12 09
                EX DE,HL                        ; 6D13 EB  DEST=BYTE 220 IN FFSA (DEST DISC
                LD HL,(NSTR2)                   ; 6D14 2A 56 41
-               LD B,&40                        ; 6D17 06 40
+               LD B,&40                        ; 6D17 06 40  &40 on the high byte: NSTR2 holds the source channel in the
+                                               ; ROM's numbering, and &4000 puts it in the window; C is still &EF
                ADD HL,BC                       ; 6D19 09  DITTO FOR SRC (IF DISC CHANNEL)
-               LD BC,&0024                     ; 6D1A 01 24 00
+               LD BC,&0024                     ; 6D1A 01 24 00  thirty-six bytes, 220 to 255: the ROM header's tail and
+                                               ; the DOS's own bytes after it
                LDIR                            ; 6D1D ED B0  COPY 220-255
 
 ; ---- OPND8 ---- from &6C37, &6D0A
@@ -12357,21 +12399,23 @@ CRMCH_1:
                POP DE                          ; 6D4E D1
 
 ;; --------------------------------------------------------------------
-;; Eleven bytes from MTBLS, then &0308 bytes of zero after them -- the
-;; table and the room it needs, laid down in one go.
+;; Make a channel record: the eleven-byte template from MTBLS --
+;; the two ROM routine addresses, the letter with bit 7 set, two
+;; empty words and the length -- and then zeros to the end of the
+;; 787.
 ;; --------------------------------------------------------------------
 
 ; ---- COPY_MTBLS ---- from &6D39
 COPY_MTBLS:
                LD HL,MTBLS                     ; 6D4F 21 66 6D
-               LD BC,&000B                     ; 6D52 01 0B 00
+               LD BC,&000B                     ; 6D52 01 0B 00  the eleven bytes of the template
                LDIR                            ; 6D55 ED B0  O/P,I/P,D+80H,0,0,0,0,LEN
                EX DE,HL                        ; 6D57 EB
-               LD BC,&0308                     ; 6D58 01 08 03
+               LD BC,CHANNEL_BLOCK-&0B         ; 6D58 01 08 03  and the rest of the record
 
 ; ---- COPY_MTBLS_LOOP ---- from &6D61
 COPY_MTBLS_LOOP:
-               LD (HL),&00                     ; 6D5B 36 00
+               LD (HL),&00                     ; 6D5B 36 00  cleared
                INC HL                          ; 6D5D 23
                DEC BC                          ; 6D5E 0B
                LD A,B                          ; 6D5F 78
@@ -12457,7 +12501,7 @@ CLOS1:
 ;; --------------------------------------------------------------------
 
 CLEAR:
-               LD C,&23                        ; 6DC4 0E 23
+               LD C,&23                        ; 6DC4 0E 23  "#": CLEAR # is the only form
                CALL ISEPX                      ; 6DC6 CD 35 50
                CALL CEOS                       ; 6DC9 CD 07 50
                CALL SETF1                      ; 6DCC CD F2 50  "CLEAR#"
@@ -12524,14 +12568,14 @@ CLOSE1:
                OR C                            ; 6E16 B1
                RET NZ                          ; 6E17 C0  RET IF STREAM 0-3 JUST CLOSED
                LD A,(IX+RFDH-DCHAN)            ; 6E18 DD 7E 04
-               AND &5F                         ; 6E1B E6 5F
-               CP &44                          ; 6E1D FE 44
+               AND &5F                         ; 6E1B E6 5F  either case, and bit 7 off: a temporary channel is "D"+&80
+               CP &44                          ; 6E1D FE 44  a disc channel?
                RET NZ                          ; 6E1F C0
 
 ; ---- CLRCHD ---- from &69CC
 CLRCHD:
-               LD A,(IX+&0C)                   ; 6E20 DD 7E 0C
-               AND &03                         ; 6E23 E6 03
+               LD A,(IX+FLAG3-DCHAN)           ; 6E20 DD 7E 0C
+               AND &03                         ; 6E23 E6 03  bits 0 and 1 are the mode, and zero is IN
                JR NZ,CLRC2                     ; 6E25 20 0F  JR IF ITS NOT AN "IN" FILE
                CALL DECSAM                     ; 6E27 CD 2C 6E  (DECSAM DONE BY SDCM FOR RND/OUT)
                JR RCLAIM                       ; 6E2A 18 10
@@ -12662,8 +12706,8 @@ SDCM:
 
 ; ---- SDCM2 ---- from &6EA5 when A < &10
 SDCM2:
-               LD (IX+&1F),C                   ; 6EAD DD 71 1F  the pointer's sector count, low, over the file's
-               LD (IX+&1E),B                   ; 6EB0 DD 70 1E  and high: the file ends where the pointer stands
+               LD (IX+CNTL),C                  ; 6EAD DD 71 1F  the pointer's sector count, low, over the file's
+               LD (IX+CNTH),B                  ; 6EB0 DD 70 1E  and high: the file ends where the pointer stands
                EX DE,HL                        ; 6EB3 EB
                CALL CHANNEL_LENGTH_FIELD       ; 6EB4 CD F3 71  offset 214 of the entry, the length as it was
                DEC HL                          ; 6EB7 2B
@@ -12908,7 +12952,7 @@ SELECT_AND_READ_SECTOR:
 
 ; ---- CLEAR_SECTOR_FLAG ---- from &714F
 CLEAR_SECTOR_FLAG:
-               RES 3,(IX+&0C)                  ; 6FD5 DD CB 0C 9E
+               RES 3,(IX+FLAG3-DCHAN)          ; 6FD5 DD CB 0C 9E  bit 3: the sector has been written to
                JP SET_TRACK_AND_SECTOR         ; 6FD9 C3 C6 4F
 
 ;; --------------------------------------------------------------------
@@ -14505,7 +14549,7 @@ SRDP2:
 ; ---- CPFTS ---- from &7599, &768E
 CPFTS:
                LD L,D                          ; 75BF 6A
-               LD H,&00                        ; 75C0 26 00
+               LD H,&00                        ; 75C0 26 00  the track alone, in HL and BC
                LD B,H                          ; 75C2 44
                LD C,L                          ; 75C3 4D
                ADD HL,HL                       ; 75C4 29
@@ -14515,11 +14559,11 @@ CPFTS:
                LD C,E                          ; 75C8 4B
                DEC C                           ; 75C9 0D
                LD A,C                          ; 75CA 79
-               CP &0A                          ; 75CB FE 0A
+               CP &0A                          ; 75CB FE 0A  ten sectors a track, counted from 0 here
                JP NC,REP27                     ; 75CD D2 89 51  "END OF FILE" IF SECTOR NOT 1-10
                ADD HL,BC                       ; 75D0 09  SECTOR NUMBER 0 TO DISC LIMIT
                PUSH HL                         ; 75D1 E5
-               LD C,&1F                        ; 75D2 0E 1F
+               LD C,&1F                        ; 75D2 0E 1F  thirty-one: every thirty-second block is the page's own
                XOR A                           ; 75D4 AF  NC
                DEC A                           ; 75D5 3D  A=0FFH
 
@@ -14733,16 +14777,17 @@ FRMRD6:
 
 ; ---- FTCCL ---- from &76D5 when B is not 0 yet
 FTCCL:
-               LD (HL),&ED                     ; 76CF 36 ED
+               LD (HL),&ED                     ; 76CF 36 ED  the first byte of LDI
                INC HL                          ; 76D1 23
-               LD (HL),&A0                     ; 76D2 36 A0
+               LD (HL),&A0                     ; 76D2 36 A0  and the second
                INC HL                          ; 76D4 23
                DJNZ FTCCL                      ; 76D5 10 F8  CREATE 128 LDIs
                LD (HL),&3D                     ; 76D7 36 3D  DEC A
                INC HL                          ; 76D9 23
                LD (HL),&C2                     ; 76DA 36 C2  JP NZ
                INC HL                          ; 76DC 23
-               LD (HL),&20                     ; 76DD 36 20
+               LD (HL),&20                     ; 76DD 36 20  the low byte of the JP's target, &8020, the first of the
+                                               ; LDIs
                INC HL                          ; 76DF 23
                LD (HL),&80                     ; 76E0 36 80  8020H
                INC HL                          ; 76E2 23
@@ -15648,10 +15693,10 @@ SIBKS:
 
 INPST:
                CALL SIBKS                      ; 7A0E CD 09 7A  INSIST "("
-               LD C,&23                        ; 7A11 0E 23
+               LD C,&23                        ; 7A11 0E 23  "#" introduces the stream
                CALL ISEP                       ; 7A13 CD 38 50
                CALL NNB                        ; 7A16 CD 96 7A  GET CHARS IN BC, STREAM IN DE.
-               LD HL,&0010                     ; 7A19 21 10 00
+               LD HL,&0010                     ; 7A19 21 10 00  sixteen streams, 0 to 15
                AND A                           ; 7A1C A7
                SBC HL,DE                       ; 7A1D ED 52
                JP C,INVST                      ; 7A1F DA 44 70  LIMIT STREAM TO 0-16
@@ -15673,7 +15718,7 @@ INPST:
                PUSH BC                         ; 7A39 C5
                DEC BC                          ; 7A3A 0B  Z->FFFF
                LD A,B                          ; 7A3B 78
-               CP &40                          ; 7A3C FE 40
+               CP &40                          ; 7A3C FE 40  &4000 or more is refused
                JP NC,IOOR                      ; 7A3E D2 91 60
                JR INPST_2                      ; 7A41 18 03
 

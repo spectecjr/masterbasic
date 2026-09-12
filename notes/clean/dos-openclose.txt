@@ -199,6 +199,18 @@ DOS &4EDA : both are, so treat the file as the type that was asked for
 DOS &4EDC : the only test that is left
 DOS &4EDD : and this is where a wrong type is reported
 
+DOS &4496 : &FF, "not set", over every byte from TSTR1 to UIFA
+DOS &6DC4 : "#": CLEAR # is the only form
+DOS &6FD5 expr FLAG3-DCHAN
+DOS &6FD5 : bit 3: the sector has been written to
+
+DOS &67FC : offset 9, the record's length
+DOS &67FF : and its high byte
+DOS &6E1B : either case, and bit 7 off: a temporary channel is "D"+&80
+DOS &6E1D : a disc channel?
+DOS &6E20 expr FLAG3-DCHAN
+DOS &6E23 : bits 0 and 1 are the mode, and zero is IN
+
 DOC RAMST
     Fill in a channel record's mode, buffer address and drive.
 
@@ -247,7 +259,9 @@ DOS &6EA0 expr TYPE_MASK
 DOS &6EA2 : &10 and up is a SAM type, whose file begins with a nine-byte header
 DOS &6EA5 : a Spectrum type or an open-type file has no header to discount
 DOS &6EA7 : nine off the length, across all three bytes
+DOS &6EAD expr CNTL
 DOS &6EAD : the pointer's sector count, low, over the file's
+DOS &6EB0 expr CNTH
 DOS &6EB0 : and high: the file ends where the pointer stands
 DOS &6EB4 : offset 214 of the entry, the length as it was
 DOS &6EBD : offset 210: the old-form length, for G+DOS

@@ -89,6 +89,11 @@ DOS &698C : "D": only a disc file can be opened here
 DOS &6997 : 1, so that the INC leaves NZ: not a stream, so not "stream not open"
 DOS &69A1 : minus &4000: the record's window address, into the ROM's numbering
 
+DOS &6D0F expr FFSA+DIR_FLAGS
+DOS &6D0F : offset 220 of the destination's entry
+DOS &6D17 : &40 on the high byte: NSTR2 holds the source channel in the ROM's numbering, and &4000 puts it in the window; C is still &EF
+DOS &6D1A : thirty-six bytes, 220 to 255: the ROM header's tail and the DOS's own bytes after it
+
 DOC MOVA
     Copy, with one special case that makes MOVE more than a copier.
 

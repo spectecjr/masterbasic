@@ -3,7 +3,12 @@
 #
 # Prose for listings/clean/ only.
 
+GROUP Channel record
+CONST CNTH = &1E : the file pointer's whole sectors, high byte -- the 1991 name
+CONST CNTL = &1F : and low
+
 GROUP Directory entry
+CONST ENTRY_LENGTH = &0100 : bytes in a directory entry, two to a sector
 CONST DIR_FLAGS = &DC : the ROM header's flag byte: bit 0 hidden, bit 1 protected, and MasterBASIC's bit 2 compressed and bit 3 SAVE MODE 3
 CONST DIR_START = &EC : the start address, page form -- three bytes
 CONST DIR_LENGTH = &EF : the length, page form -- whole pages, then the bytes within the last
@@ -11,6 +16,7 @@ CONST DIR_EXECUTE = &F2 : the execute address for CODE, the auto-run line for BA
 
 GROUP File types
 CONST TYPE_ZX_SNP48 = &05 : a Spectrum 48K snapshot
+CONST TYPE_OPENTYPE = &0A : an open-type file, which OPEN makes and INPUT and PRINT use
 CONST TYPE_BASIC = &10 : a SAM BASIC program
 CONST TYPE_CODE = &13 : SAM CODE
 CONST TYPE_SCREEN = &14 : a SAM SCREEN$

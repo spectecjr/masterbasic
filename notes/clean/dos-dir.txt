@@ -13,6 +13,11 @@ DOS &5B93 value DIR_NAME_BUFFER
 DOS &5C33 value DIR_NAME_BUFFER
 DOS &7936 value DIR_NAME_BUFFER
 
+DOS &5C97 : zero width if CSIZE has changed the character width, so one name to a line
+DOS &5CA3 : one column to begin with
+DOS &5CA5 : eleven characters a column: ten of name and the space after it
+DOS &5CA7 : fewer than eleven characters: one column even so
+
 DOC DITOB
     Point the collector at the screen page and start the scan.
 

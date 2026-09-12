@@ -367,7 +367,9 @@ DOS &40E0 : INSTALLER, in the page LMPR has just put at &4000
 
 DOS &40E3 : the installer's landing ground, reached through the window
 DOS &40EB : the page the DOS is in
+DOS &40ED expr PAGE_VALUE_MASK
 DOS &40EF : one below it, which is MasterBASIC's
+DOS &40F4 : &E9 is the printer's strobe port, RESP in the 1991 source; cleared before anything drives the printer
 DOS &40F0 : written into MasterBASIC's &42CC, not this half's: its page
 DOS &40F6 : and away, into the copy
 

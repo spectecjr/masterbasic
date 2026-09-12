@@ -76,6 +76,19 @@ DOS &454F : keep it -- 40, for the usual 80-track disc
 DOS &4568 : a read-address command, wanted only for its side effect
 DOS &456A : it does not return until the disc is actually turning
 
+DOC BRKTST
+    Is ESC pressed?  NZ if not.  The same four instructions as the
+    ROM's own BRKTST: &F7 on the high address lines selects the
+    keyboard row that has ESC, the status port returns that row's
+    upper three keys in bits 5 to 7, and bit 5 is ESC, low when
+    pressed.
+
+DOS &502A : &F7 on the address lines selects the row with ESC in it
+DOS &502E : bit 5 of the status port is ESC, low when pressed
+
+DOS &5149 : the low four bits of RBCC; zero turns the effect off
+DOS &514C : three of them are a border colour
+
 GROUP Disk timing
 DOS &455F value CMD_LATENCY_LOOPS
 EQU CMD_LATENCY_LOOPS : DJNZ iterations, enough for the WD1772 to raise BUSY

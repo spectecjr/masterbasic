@@ -5,6 +5,19 @@
 # difference between the field and the base -- BUF-DCHAN is &0F, and says
 # which field it is instead of how far along it sits.
 
+DOS &484B : the low byte of 510, where the sector's link bytes begin
+DOS &484F : and its high byte: Z when the pointer is on the link
+
+DOC CKDRX
+    Is A a drive this machine has?  1 is always there; 2 only if
+    TRAKS2, the second drive's track count, is not zero; 3 up to
+    RDLIM less one is a RAM disc.  Anything else is "No such drive".
+
+DOS &480A : drive 1
+DOS &480E : drive 2, which may not be fitted
+DOS &481E : a track count of zero means there is no second drive
+DOS &4823 : drive 2, then
+
 DOC GTBUF
     Point HL at the sector buffer for the channel in IX.
 
@@ -131,7 +144,10 @@ DOC INPST
     stream; here it happens after, because the zero test has to come
     first.  A count of &4000 or more is still refused.
 
+DOS &7A11 : "#" introduces the stream
+DOS &7A19 : sixteen streams, 0 to 15
 DOS &7A35 : is a count given at all?
+DOS &7A3C : &4000 or more is refused
 DOS &7A43 : none, so &FFFF goes on the stack as the marker
 DOS &7A45 : and the claim is for one byte, the length not being known yet
 DOS &7A46 : the count again, or that one byte

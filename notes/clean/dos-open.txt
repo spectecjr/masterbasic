@@ -57,6 +57,43 @@ DOS &6ADA : but the length, so a walk of the list steps over it
 DOS &6AE0 : on to the next block
 DOS &6AE4 : and MasterBASIC is told the channel area has moved
 
+DOC COPY_MTBLS
+    Make a channel record: the eleven-byte template from MTBLS --
+    the two ROM routine addresses, the letter with bit 7 set, two
+    empty words and the length -- and then zeros to the end of the
+    787.
+
+DOS &6D52 : the eleven bytes of the template
+DOS &6D58 expr CHANNEL_BLOCK-&0B
+DOS &6D58 : and the rest of the record
+DOS &6D5B : cleared
+
+DOC OPEN25
+    The stream is free; the file has to be on a disc, and it will be
+    an open-type file.
+
+DOS &6B4E expr CASE_BLIND
+DOS &6B50 : "D": only a disc file can be opened to a stream
+DOS &6B58 expr TYPE_OPENTYPE
+DOS &6B58 : whatever the name said, the file's type is open-type
+
+DOC OPND44
+    The file exists: fill the channel record from its directory
+    entry and read its first sector.
+
+    THE WHOLE ENTRY IS COPIED INTO THE RECORD at FFSA, which is what
+    makes every later offset into the entry an offset into the
+    record.  The type and name go to NSTR1 as well, the first track
+    and sector come out of offsets 13 and 14, and the pointer's
+    sector count starts at zero so that COUNT_AND_READ_SECTOR makes
+    it one as it reads.
+
+DOS &6C0F expr ENTRY_LENGTH
+DOS &6C1E expr NAME_AND_TYPE
+DOS &6C2E expr CNTL
+DOS &6C31 expr CNTH
+DOS &6C31 : no sectors read yet
+
 DOC CMD_OPEN_1
     Not BLOCKS, so a stream or a subdirectory.
 

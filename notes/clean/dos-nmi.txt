@@ -203,6 +203,11 @@ DOS &5FDD : page 4, the Spectrum's RAM
 DOS &5FE3 expr WINDOW
 DOS &5FE9 : two more pages after this one: 48K in three
 
+DOS &5412 : twenty-four bytes: the type and name, four spaces, and the nine-byte header
+DOS &5427 : the twenty registers and the two bytes above them
+DOS &542D expr TYPE_ZX_SNP48
+DOS &543E : seven bytes: the start, the length, and the &FF of no execute address
+
 DOC SNAP7
     Start the interrupted program again.
 
