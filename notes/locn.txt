@@ -342,4 +342,21 @@ MB &5E30 : an address in this block's own frame, not this page's
 MB &5E41 expr &4D91
 MB &5E41 : likewise
 
+# The last two numbers in this half, and what settles them is what LOCN
+# returns.  The manual prints its answer as an address -- "PRINT
+# LOCN(32768,200*1024,"test")", and line 140 of the second example feeds
+# it straight back as the next start -- so the tail below is building
+# one, and EPCOM_1 stacks A:HL as a 24-bit integer.
+#
+# The three-place shift at &4C4D-&4C58 is the arithmetic.  Run over the
+# whole range it gives, exactly, A*8192 + HL: block 4 offset 0 comes out
+# &008000, block 2 offset 0 &004000, and block 63 offset 8191 &07FFFF,
+# which is 512K less one.  So A goes in as an 8K block number and HL as
+# the offset inside it, and what comes out is the flat address.  That is
+# GET_PAGED_ADDRESS's own three places undone -- its banner counts them
+# in the other direction.
+
+MB &4C5A : the top of that flat address, kept to four bits where only three can ever be set -- 64 blocks of 8K is 512K, so the most A can reach is 7.  PAGED_TO_LONG masks the same quantity to exactly three at &62E6
+MB &4C63 : the carry out of the ADD HL,DE above, into that top byte, so the start address in V40AB joins the offset across all 24 bits
+
 MB &4B66 : one, the count INARRAY uses when no range was given -- V40AD carries that choice, and &4B51's note has the test that sets it

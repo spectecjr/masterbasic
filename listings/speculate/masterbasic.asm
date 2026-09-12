@@ -7088,11 +7088,15 @@ COPY_STRING_TO_BUFFER_LOOP:
                RRA                             ; 4C55 1F
                RR H                            ; 4C56 CB 1C
                DJNZ COPY_STRING_TO_BUFFER_LOOP ; 4C58 10 FB
-               AND &0F                         ; 4C5A E6 0F
+               AND &0F                         ; 4C5A E6 0F  the top of that flat address, kept to four bits where only
+                                               ; three can ever be set -- 64 blocks of 8K is 512K, so the most A can
+                                               ; reach is 7. PAGED_TO_LONG masks the same quantity to exactly three at
+                                               ; &62E6
                LD DE,(V40AB)                   ; 4C5C ED 5B AB 40
                RES 7,D                         ; 4C60 CB BA
                ADD HL,DE                       ; 4C62 19
-               ADC A,&00                       ; 4C63 CE 00
+               ADC A,&00                       ; 4C63 CE 00  the carry out of the ADD HL,DE above, into that top byte,
+                                               ; so the start address in V40AB joins the offset across all 24 bits
                                                ; call DOS_EPCOM_1-&4000 in the other page: LMPR is switched first, so
                                                ; that address is how the other listing numbers it
                CALL CALLDOS                    ; 4C65 CD C1 42
