@@ -751,7 +751,21 @@ two and raises 29 on the third.
 
 @ 9D BLITZ
 = 'BLITZ' , strexpr
-: ref/samrom/graph2.asm BLITZ (SYNTAXA)
+= 'BLITZ' , 'SOUND' , strexpr                -- MasterBASIC
++ The ROM's form replays a string RECORD TO filled with graphics; the
++ SOUND form hands one RECORD SOUND filled to the interrupt-driven player.
++ SOUND is compulsory in the second: CMD_BLITZ opens LD C,T_SOUND then
++ NEXT_CHAR_MUST_BE_C, and only then CALL_EXPSTR.
++ It reaches MasterBASIC the way the head of [STATEMENTS] describes.  The
++ ROM's BLITZ is SYNTAXA, a string expression, and SOUND is &AE: SCANNING
++ sends any byte above the letters that is not the &FF function leader to
++ EVNONSE, which is 29, and 29 is one of the two errors that bring CTAB
++ in.  CTAB's entry for &9D is MB_CMD_BLITZ.  Reading the first
++ production alone makes SOUND a string expression, which it cannot be,
++ so every BLITZ SOUND line on the MasterBASIC disc reads as an error.
+: ref/samrom/graph2.asm BLITZ (SYNTAXA); ref/samrom/eval.asm ABOVLETS, EVNONSE
+: listings/clean/masterdos.asm CTAB; listings/clean/masterbasic.asm CMD_BLITZ
+: docs/masterbasic-manual.md (Sound commands)
 
 @ 9E BORDER
 = 'BORDER' , numexpr

@@ -101,7 +101,8 @@ stay consistent across the fast-mode switch.
 Manual: "New timing facilities".""",
 
 'CMD_PRINT': """\
-PRINT -- taken over from the ROM at token &BB.
+PRINT -- CTAB's entry for token &BB, reached only with what the ROM's
+own PRINT has refused.
 
 MasterBASIC claims PRINT for PRINT REF, which lists the line numbers a
 reference occurs in:
@@ -114,7 +115,8 @@ line gives that number twice.
 Manual: "Listing program references".""",
 
 'CMD_LPRINT': """\
-LPRINT -- taken over from the ROM at token &BC.
+LPRINT -- CTAB's entry for token &BC, reached only with what the ROM's
+own LPRINT has refused.
 
 Carries LPRINT REF, the printer form of PRINT REF, and the two commands
 that set printing up:
@@ -176,7 +178,8 @@ INSTBUF and run there -- see DUMP_TEXT and DUMP_UNSHADED.
 Manual: "Screen dumps".""",
 
 'CMD_BLITZ': """\
-BLITZ -- taken over from the ROM at token &9D, for BLITZ SOUND.
+BLITZ -- CTAB's entry for token &9D, reached only with what the ROM's
+own BLITZ has refused, for BLITZ SOUND.
 
     BLITZ SOUND a$
 
@@ -190,7 +193,8 @@ from FOR-NEXT loops.
 Manual: "Sound commands".""",
 
 'CMD_RECORD': """\
-RECORD -- taken over from the ROM at token &EF, for RECORD SOUND.
+RECORD -- CTAB's entry for token &EF, reached only with what the ROM's
+own RECORD has refused, for RECORD SOUND.
 
     RECORD SOUND TO a$        add every SOUND and PAUSE to a$ as well
                               as performing it
@@ -205,7 +209,8 @@ CLEAR sets the size of the buffer they are played back through.
 Manual: "Sound commands".""",
 
 'CMD_CLS': """\
-CLS -- taken over from the ROM at token &9F, for CLS *.
+CLS -- CTAB's entry for token &9F, reached only with what the ROM's own
+CLS has refused, for CLS *.
 
     CLS *
 
@@ -215,7 +220,8 @@ the many users who prefer it.  CLS # goes back to white on black.
 Manual: "CLS *".""",
 
 'CMD_LINE': """\
-LINE -- taken over from the ROM at token &8C, for line number tracing.
+LINE -- CTAB's entry for token &8C, a token below the ROM's own command
+table, for line number tracing.
 
     LINE           show each line and statement number as it runs
     LINE delay     the same, pausing; 1 is brief, 200 very long
@@ -228,7 +234,8 @@ The trace appears at the lower right of the screen in PEN 0 on PAPER
 Manual: "Line number tracing".""",
 
 'CMD_SAVE': """\
-SAVE -- taken over from the ROM at token &94.
+SAVE -- CTAB's entry for token &94, reached only with what the ROM's own
+SAVE has refused.
 
 Carries the two SAVE extensions:
 
@@ -248,7 +255,8 @@ Manual: "File compression with SAVE MODE" and "Saving the
 DOS/MasterBASIC file".""",
 
 'CMD_MERGE': """\
-MERGE -- taken over from the ROM at token &96, for MERGE *.
+MERGE -- CTAB's entry for token &96, reached only with what the ROM's
+own MERGE has refused, for MERGE *.
 
     MERGE *"filename"
 
@@ -261,7 +269,8 @@ variables in the merged file are lost.
 Manual: "Faster MERGE".""",
 
 'CMD_REF': """\
-REF -- taken over from the ROM at token &CE.
+REF -- CTAB's entry for token &CE, which the ROM's CMDADT gives
+NONSENSE, so every REF line arrives here.
 
     REF (reference)[,first[,last]]
 

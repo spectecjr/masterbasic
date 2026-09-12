@@ -9528,7 +9528,8 @@ MBKEYS:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     MERGE -- taken over from the ROM at token &96, for MERGE *.
+;;     MERGE -- CTAB's entry for token &96, reached only with what the ROM's
+;;     own MERGE has refused, for MERGE *.
 ;;
 ;;         MERGE *"filename"
 ;;
@@ -11235,7 +11236,8 @@ CMD_ALTER_3:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     LPRINT -- taken over from the ROM at token &BC.
+;;     LPRINT -- CTAB's entry for token &BC, reached only with what the ROM's
+;;     own LPRINT has refused.
 ;;
 ;;     Carries LPRINT REF, the printer form of PRINT REF, and the two commands
 ;;     that set printing up:
@@ -11531,7 +11533,8 @@ IS_CHANNEL_OURS:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     PRINT -- taken over from the ROM at token &BB.
+;;     PRINT -- CTAB's entry for token &BB, reached only with what the ROM's
+;;     own PRINT has refused.
 ;;
 ;;     MasterBASIC claims PRINT for PRINT REF, which lists the line numbers a
 ;;     reference occurs in:
@@ -11602,7 +11605,8 @@ CMD_PRINT_1:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     REF -- taken over from the ROM at token &CE.
+;;     REF -- CTAB's entry for token &CE, which the ROM's CMDADT gives
+;;     NONSENSE, so every REF line arrives here.
 ;;
 ;;         REF (reference)[,first[,last]]
 ;;
@@ -13970,7 +13974,8 @@ SOUND_FEED_TICK_4:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     BLITZ -- taken over from the ROM at token &9D, for BLITZ SOUND.
+;;     BLITZ -- CTAB's entry for token &9D, reached only with what the ROM's
+;;     own BLITZ has refused, for BLITZ SOUND.
 ;;
 ;;         BLITZ SOUND a$
 ;;
@@ -14506,7 +14511,8 @@ HOOK_LPRINT_BYTE_DONE:
 ;;
 ;;     What was here before:
 ;;
-;;         RECORD -- taken over from the ROM at token &EF, for RECORD SOUND.
+;;         RECORD -- CTAB's entry for token &EF, reached only with what the ROM's
+;;         own RECORD has refused, for RECORD SOUND.
 ;;
 ;;             RECORD SOUND TO a$        add every SOUND and PAUSE to a$ as well
 ;;                                       as performing it
@@ -17473,7 +17479,8 @@ TRACE_DIVISORS_2:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     LINE -- taken over from the ROM at token &8C, for line number tracing.
+;;     LINE -- CTAB's entry for token &8C, a token below the ROM's own command
+;;     table, for line number tracing.
 ;;
 ;;         LINE           show each line and statement number as it runs
 ;;         LINE delay     the same, pausing; 1 is brief, 200 very long
@@ -19032,7 +19039,8 @@ PICK_COMPRESSION_CONSTANTS_DONE:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     SAVE -- taken over from the ROM at token &94.
+;;     SAVE -- CTAB's entry for token &94, reached only with what the ROM's own
+;;     SAVE has refused.
 ;;
 ;;     Carries the two SAVE extensions:
 ;;
@@ -25927,7 +25935,8 @@ HOOK_SWAPCHARS_DONE2:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     CLS -- taken over from the ROM at token &9F, for CLS *.
+;;     CLS -- CTAB's entry for token &9F, reached only with what the ROM's own
+;;     CLS has refused, for CLS *.
 ;;
 ;;         CLS *
 ;;

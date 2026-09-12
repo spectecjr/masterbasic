@@ -6666,7 +6666,8 @@ MBKEYS:
                DEFB "T"+&80
 
 ;; --------------------------------------------------------------------
-;; MERGE -- taken over from the ROM at token &96, for MERGE *.
+;; MERGE -- CTAB's entry for token &96, reached only with what the ROM's
+;; own MERGE has refused, for MERGE *.
 ;;
 ;;     MERGE *"filename"
 ;;
@@ -7903,7 +7904,8 @@ CMD_ALTER_3:
                JP CMD_ALTER_4                   ; 5575 C3 70 56
 
 ;; --------------------------------------------------------------------
-;; LPRINT -- taken over from the ROM at token &BC.
+;; LPRINT -- CTAB's entry for token &BC, reached only with what the ROM's
+;; own LPRINT has refused.
 ;;
 ;; Carries LPRINT REF, the printer form of PRINT REF, and the two commands
 ;; that set printing up:
@@ -8098,7 +8100,8 @@ IS_CHANNEL_OURS:
                RET                             ; 5640 C9
 
 ;; --------------------------------------------------------------------
-;; PRINT -- taken over from the ROM at token &BB.
+;; PRINT -- CTAB's entry for token &BB, reached only with what the ROM's
+;; own PRINT has refused.
 ;;
 ;; MasterBASIC claims PRINT for PRINT REF, which lists the line numbers a
 ;; reference occurs in:
@@ -8138,7 +8141,8 @@ CMD_PRINT_1:
                JR CMD_PRINT_2                  ; 5660 18 05
 
 ;; --------------------------------------------------------------------
-;; REF -- taken over from the ROM at token &CE.
+;; REF -- CTAB's entry for token &CE, which the ROM's CMDADT gives
+;; NONSENSE, so every REF line arrives here.
 ;;
 ;;     REF (reference)[,first[,last]]
 ;;
@@ -9836,7 +9840,8 @@ SOUND_FEED_TICK_4:
                JR SOUND_FEED_TICK_LOOP         ; 5AD2 18 AE
 
 ;; --------------------------------------------------------------------
-;; BLITZ -- taken over from the ROM at token &9D, for BLITZ SOUND.
+;; BLITZ -- CTAB's entry for token &9D, reached only with what the ROM's
+;; own BLITZ has refused, for BLITZ SOUND.
 ;;
 ;;     BLITZ SOUND a$
 ;;
@@ -10202,7 +10207,8 @@ HOOK_LPRINT_BYTE_DONE:
 ;;
 ;; What was here before:
 ;;
-;;     RECORD -- taken over from the ROM at token &EF, for RECORD SOUND.
+;;     RECORD -- CTAB's entry for token &EF, reached only with what the ROM's
+;;     own RECORD has refused, for RECORD SOUND.
 ;;
 ;;         RECORD SOUND TO a$        add every SOUND and PAUSE to a$ as well
 ;;                                   as performing it
@@ -12442,7 +12448,8 @@ TRACE_DIVISORS_2:
                NOP                             ; 6116 00
 
 ;; --------------------------------------------------------------------
-;; LINE -- taken over from the ROM at token &8C, for line number tracing.
+;; LINE -- CTAB's entry for token &8C, a token below the ROM's own command
+;; table, for line number tracing.
 ;;
 ;;     LINE           show each line and statement number as it runs
 ;;     LINE delay     the same, pausing; 1 is brief, 200 very long
@@ -13465,7 +13472,8 @@ PICK_COMPRESSION_CONSTANTS_DONE:
                RET                             ; 63E5 C9
 
 ;; --------------------------------------------------------------------
-;; SAVE -- taken over from the ROM at token &94.
+;; SAVE -- CTAB's entry for token &94, reached only with what the ROM's own
+;; SAVE has refused.
 ;;
 ;; Carries the two SAVE extensions:
 ;;
@@ -18330,7 +18338,8 @@ HOOK_SWAPCHARS_DONE2:
                RET                             ; 71A3 C9
 
 ;; --------------------------------------------------------------------
-;; CLS -- taken over from the ROM at token &9F, for CLS *.
+;; CLS -- CTAB's entry for token &9F, reached only with what the ROM's own
+;; CLS has refused, for CLS *.
 ;;
 ;;     CLS *
 ;;
