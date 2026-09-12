@@ -6564,20 +6564,21 @@ MBKEYS:
 ;; --------------------------------------------------------------------
 
 CMD_MERGE:
-               LD C,&2A                        ; 5169 0E 2A  "*", which MasterBASIC's faster MERGE insists on. The
-                                               ; manual gives the form as MERGE *"filename" and says the plain MERGE is
-                                               ; left to the ROM, so NEXT_CHAR_MUST_BE_C below is what divides the two
-               CALL NEXT_CHAR_MUST_BE_C        ; 516B CD 5A 44
-               CALL CALLDOS                    ; 516E CD C1 42
-               DEFW DOS_EVNAM-&4000            ; 5171 CF 61
-               CALL EXPECT_END_OF_STATEMENT    ; 5173 CD D0 44
-               CALL SET_DCT_COMPILE_BITS       ; 5176 CD 9C 45
-               CALL CALLDOS                    ; 5179 CD C1 42
-               DEFW &7862                      ; 517C 62 78
-               DEC HL                          ; 517E 2B
-               BIT 7,H                         ; 517F CB 7C
-               JR NZ,CMD_MERGE_1               ; 5181 20 01
-               DEC A                           ; 5183 3D
+               LD C,&2A                            ; 5169 0E 2A  "*", which MasterBASIC's faster MERGE insists on. The
+                                                   ; manual gives the form as MERGE *"filename" and says the plain MERGE
+                                                   ; is left to the ROM, so NEXT_CHAR_MUST_BE_C below is what divides
+                                                   ; the two
+               CALL NEXT_CHAR_MUST_BE_C            ; 516B CD 5A 44
+               CALL CALLDOS                        ; 516E CD C1 42
+               DEFW DOS_EVNAM-&4000                ; 5171 CF 61
+               CALL EXPECT_END_OF_STATEMENT        ; 5173 CD D0 44
+               CALL SET_DCT_COMPILE_BITS           ; 5176 CD 9C 45
+               CALL CALLDOS                        ; 5179 CD C1 42
+               DEFW DOS_OPEN_BASIC_FOR_MERGE-&4000 ; 517C 62 78
+               DEC HL                              ; 517E 2B
+               BIT 7,H                             ; 517F CB 7C
+               JR NZ,CMD_MERGE_1                   ; 5181 20 01
+               DEC A                               ; 5183 3D
 
 ; ---- CMD_MERGE_1 ---- from &5181 when bit 7 of H set
 CMD_MERGE_1:

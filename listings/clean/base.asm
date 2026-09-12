@@ -375,6 +375,7 @@ DOS_MBCOPY_778B:                EQU  MBCOPY_778B + IN_PAGE_C
 DOS_MBCOPY_7829:                EQU  MBCOPY_7829 + IN_PAGE_C
 DOS_NEXTST:                     EQU  NEXTST + IN_PAGE_C
 DOS_OFSM_1:                     EQU  OFSM_1 + IN_PAGE_C
+DOS_OPEN_BASIC_FOR_MERGE:       EQU  OPEN_BASIC_FOR_MERGE + IN_PAGE_C
 DOS_PARK_WORD:                  EQU  PARK_WORD + IN_PAGE_C
 DOS_PLNS:                       EQU  PLNS + IN_PAGE_C
 DOS_POINT:                      EQU  POINT + IN_PAGE_C

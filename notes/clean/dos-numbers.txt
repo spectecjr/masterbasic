@@ -1,0 +1,188 @@
+# The last numbers: one to a routine, each explained where it stands.
+#
+# Prose for listings/clean/ only.  Anything that needed a paragraph has
+# one in the file for its part of the DOS; what is here is the operand
+# that only needed a line.
+
+# --- 20-bit arithmetic and page form ---------------------------------
+DOS &608E : four bits of page above the fourteen-bit offset: 20 bits in all
+DOS &6081 : and three for AHLN's nineteen
+DOS &4543 : &4000 on: the address moved up a page as the count comes down
+DOS &71E1 expr SECTOR_LENGTH-2
+DOS &71E1 : 510 bytes a sector, the link excluded
+DOS &71E8 : the carry out of the add, into the top byte
+DOS &62D4 : C zero, and the INC makes it NZ without touching the flags a compare would
+DOS &658F : the fifth byte of the integer form, always zero
+DOS &657A expr PAGE_VALUE_MASK
+DOS &7B3C : the byte alone
+
+# --- sectors, records and pointers -------------------------------------
+DOS &490F expr SECTOR_LENGTH-2
+DOS &490F : 510, the data bytes of a sector
+DOS &4861 expr SECTOR_LENGTH-2
+DOS &4861 : 510, the data bytes of a sector
+DOS &711C expr SECTOR_LENGTH-2
+DOS &711C : 510 again: the pointer against a sector's data
+DOS &7035 expr CNTL
+DOS &6FAE : 511 more after the first: the buffer cleared for the next sector
+DOS &4FAC : the offset in C alone: GRPNTB takes it in B, POINT gives none
+DOS &4829 expr DRIVE-DCHAN
+DOS &6F1D : bit 0 is set for OUT, and reading one is "Reading a write file"
+DOS &682F expr TYPE_MASK
+DOS &68B4 : offset 0, which is &0D only at the end of the list
+DOS &68D5 : and its high byte
+DOS &7030 : "D", with bit 5 cleared first to fold the case
+DOS &67ED : "D"+&80, a temporary channel MOVE made and so one it may reclaim; bit 5 is folded first
+DOS &47AD : track 0, sector 1: where a restore leaves the head, and the directory starts
+DOS &47CF : 256 turns of the DJNZ, for the controller to settle after a forced interrupt
+DOS &47A1 : 150 turns of the delay after a step, for the head to settle
+DOS &4A68 : 512: the pointer has reached the end of the buffer
+
+# --- the directory and its entries ------------------------------------
+DOS &4B6F : &FF: every sector of the extra track is reserved
+DOS &4BBD : &FF is no directory's tag, and means all of them
+DOS &55F5 : the directory tracks beyond SAMDOS's four, which is what entry 0 keeps
+DOS &4FA7 expr DIR_MODE_NAME_ONLY
+DOS &4FA7 : find it by name, whatever its type
+DOS &70B6 : 195 bytes of map, eight sectors each: the 1560 sectors after the four directory tracks
+DOS &4CFE : 195 bytes of map cleared, eight sectors each: the 1560 after the directory
+DOS &4AE0 : the offset in C alone
+DOS &4CF1 : "." between a name and its type
+DOS &5A03 : offset 11, the file's sector count
+DOS &5A98 : forty-two bytes, 210 to 251: the entry's own ten and the ROM header's tail
+DOS &4DBC : thirty-three bytes, 15 to 47 of the ROM's header
+DOS &6649 : a type of zero is an erased entry
+DOS &7898 : the byte alone: the displacement is only eight bits
+DOS &5ED3 : track 4: the extended directory skips its first sector, which is why SECTOR_FOR_CHANNEL and the map treat it apart
+
+# --- names, devices and the command line -------------------------------
+DOS &4803 : "D": only a disc file has a directory
+DOS &64A0 : "N": the network, handled by the ROM's own code in the system page
+DOS &6346 : "D"
+DOS &66F8 : "D", written to SLDEV as the default device
+DOS &617B expr CH_STAR
+DOS &617B : "*" in place of a drive number: the default drive, with the character after it looked at
+DOS &6160 expr CH_STAR
+DOS &6958 : "#": MOVE's end is a stream
+DOS &597F : a comma between the two names
+DOS &59BE : &E7 is the SCREEN token: COPY SCREEN is MasterBASIC's
+DOS &5DF9 : &8E is the TO token: HIDE TO n is MasterBASIC's line-hiding, not a file command
+DOS &5993 : "?" after a name: the form that asks about each file
+DOS &7911 : "(" opens the directory's argument
+DOS &7928 : and ")" closes it
+DOS &7076 : "#": POINT #s
+DOS &6DAA : "*": CLOSE * closes every stream
+DOS &6DD6 : sixteen streams, 0 to 15
+DOS &6E82 : sixteen streams, 0 to 15
+DOS &6E40 : the ROM's STREAMS table through the window: stream 0's entry is at &5C16, two bytes a stream
+DOS &7014 : sixteen streams, 0 to 15
+DOS &62A2 : seventeen and up is not a stream; 16 is the ROM's -4
+DOS &6A76 : the &FF prefix of a two-byte token: IN and RND are under it, OUT is not
+DOS &4392 : a colon between statements
+DOS &5F64 : a carriage return ends the line
+DOS &73A8 : "^" at the front of a path means the parent
+DOS &72DD expr CH_SPACE
+DOS &7398 : eleven characters is one more than a name holds
+DOS &7413 : the length in C alone
+DOS &73E1 expr CH_SPACE
+DOS &5764 expr CH_SPACE
+DOS &5DE1 expr NAME_FIELD
+DOS &660A : twenty-eight bytes: the first parameter block, DSTR1 up to DSTR2
+DOS &6250 : twenty-eight bytes: one file's parameters swapped for the other's
+DOS &6230 : eighty-eight bytes: the whole of the string buffer at &4F10
+DOS &66CF expr CH_STAR
+DOS &66CF : "*", a name that matches anything
+DOS &60B0 : a comma: the two-name form of FORMAT
+DOS &60C4 : a comma: a directory size follows
+DOS &6098 : four directory tracks unless FORMAT says otherwise
+DOS &610B : forty tracks of directory is the most FORMAT allows
+DOS &6114 expr FIRST_RAMDISC_DRIVE
+DOS &6140 : four or more is a normal or a large directory
+DOS &6147 : two off the total, so that against the limit of 159 a RAM disc may have 160 tracks
+DOS &614F expr FIRST_RAMDISC_DRIVE
+DOS &5542 : &FF in DSTR2 means no second name: a plain FORMAT
+DOS &59B5 expr FIRST_RAMDISC_DRIVE
+DOS &59B5 : a floppy, so the one-drive copy has to swap discs
+DOS &7B6A expr FIRST_RAMDISC_DRIVE
+DOS &4833 : drive 2's ports are sixteen above drive 1's
+DOS &7712 : eighty or more tracks is stored 48 up, so 80 reads as 128 and 160 as 208
+
+# --- the last six ---
+DOS &6DFA : zero, which is what a stream above 3 goes back to: no channel
+DOS &6DFD expr -(&5C1E+IN_PAGE_C)
+DOS &6DFD : minus stream 4's entry in STREAMS, seen through the window: carry below means stream 4 or above
+DOS &71D0 expr SECTOR_LENGTH-2
+DOS &64CF : the end of the window: past &BFFF the next page has to be paged in
+DOS &6CCD : 2 is the mode for RND; the DEC below makes it 1 for OUT
+DOS &630A : "." after the "*": only "*." carries on to match extensions
+DOS &630E : "." in the target name, where the extension begins
+
+# --- headers -------------------------------------------------------------
+DOS &63B3 expr PAGE_VALUE_MASK
+DOS &6688 expr PAGE_VALUE_MASK
+DOS &6409 : forty-eight bytes, the ROM's header
+DOS &63FB : HMPR in C, for the OUT (C),B that puts the system page in
+DOS &5F41 : the nine-byte header
+DOS &5F4D : the nine-byte header
+DOS &751F : two entries to a sector
+DOS &74F3 : B two and C zero: two rounds of 256 bytes, the whole sector
+DOS &5F23 : &0400 and up is out of range: the DOS variables run to &03FF
+DOS &5FF7 expr TYPE_BASIC
+DOS &6054 : a byte in the DOS's stack area the source calls the entry LMPR on the stack; SET 6 there brings ROM 1 in on the return, and which frame it is has not been traced here
+DOS &5013 : E = 1 tells the ROM to load the file's body: LDFL
+
+# --- the RAM disc ----------------------------------------------------------
+DOS &76B6 expr MIN_RAMDISC_PAGE_TYPE
+DOS &76B6 : the drive number under &D0, which is what marks an allocation-table entry as a RAM disc's
+DOS &766C : bits 5 to 7 set means a MegaRAM page
+DOS &7729 : the index in C alone
+DOS &769C : the count in C alone
+DOS &7760 expr SECTOR_LENGTH-2
+DOS &7776 expr SECTOR_LENGTH-2
+DOS &7541 expr SECTOR_LENGTH
+DOS &7609 expr SECTOR_LENGTH-2
+DOS &74DC expr SECTOR_LENGTH
+DOS &74CD expr SECTOR_LENGTH
+DOS &77A8 : bits 5 to 7 of LMPR, the ROM switches, kept from the port
+DOS &77EE : &20 is the first MegaRAM page; below it is internal memory, and the search stops there
+DOS &70E8 : minus ten: a track's worth of sectors off at a time
+DOS &69BD : minus &4000: the record's window address, into the ROM's numbering
+DOS &6D45 expr CHANNEL_BLOCK
+DOS &6CFA expr CHANNEL_BLOCK
+DOS &6CB8 : &FF over the whole map below SAM+195, so no sector reads as free
+
+# --- BASIC's numbers and the ROM's calls -----------------------------------
+DOS &596C : page 4, the Spectrum's RAM, as the display page
+DOS &4DE6 : the pitch the ROM's beeper takes in HL, with BEEPT as the length
+DOS &6597 : 2 selects LENGTH below; PTR enters with 1 and skips this
+DOS &659A : 1 selects PTR
+DOS &65B8 : zero: not at the end of the file
+DOS &797A : zero free bytes if the disc is write-protected
+DOS &7984 : six is option 8 with two taken off: the drive number
+DOS &79CD : two off again: zero is option 5, the file count in TCNT
+DOS &79E0 : the byte alone
+DOS &5001 : bit 7 of FLAGS: set while a program is running, clear on the syntax pass
+DOS &78CD : the offset alone
+DOS &5C23 : zero, for the counters
+DOS &5C55 : zero, for the total
+DOS &5C62 : five or more directory tracks is MasterDOS's extension
+DOS &5C05 : "s", to make it plural
+DOS &5BFC : a carriage return
+DOS &5BE7 : a comma
+DOS &573C : "0" makes a digit
+DOS &5740 : no top byte to the number or to the divisor
+DOS &5745 : the number's top byte into A, and B cleared
+DOS &5735 : ten, the last divisor
+DOS &572F : a hundred
+DOS &5729 : a thousand
+DOS &571D : a space for a leading zero
+DOS &571F : no top byte to the number
+DOS &566F : a space for a leading zero
+DOS &5693 : then a comma
+DOS &56CC : a space before the time
+DOS &53AC : eight colours, and the AND wraps the count
+DOS &53E6 : drive 1 unless SHIFT is down
+DOS &515D : bit 7 of port 254 is SOFF, the screen-off bit, read back and kept as it is
+DOS &6A19 : the page count alone
+DOS &7846 : eight bits a byte
+DOS &5CC6 : "?" after the name: every file, subdirectories included

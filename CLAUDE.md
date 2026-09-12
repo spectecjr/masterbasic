@@ -252,11 +252,22 @@ looked wrong; the build was green throughout.  That is the fault this
 file already describes one paragraph up, committed again by the one
 number nobody thought to check.
 
-**The MasterBASIC half is finished**: `build.log` reads `MB -- 1015
-instructions carry a number, 0 of them unexplained`, and that half has no
-routine-breakdown line any more.  The queue that is left is the DOS's --
-`python tools/sites.py --list masterdos`, 493 over 280 routines, headed by
-`FSTAT 17/98`.
+**Both halves are at zero**: `build.log` reads `MB -- 1015 instructions
+carry a number, 0 of them unexplained` and `DOS -- 658 instructions carry
+a number, 0 of them unexplained`, and neither half has a routine-breakdown
+line any more.  The DOS's 493 went in six commits on 2026-09-12, mostly
+as `:` lines in `notes/clean/dos-*.txt`; the equates that came out of it
+-- the directory-entry offsets `DIR_START`, `DIR_LENGTH`, `DIR_EXECUTE`
+and `DIR_FLAGS`, the `TYPE_` file types, `CNTH`/`CNTL`, `ROM_SP_AT_ENTRY`
+-- are declared in `notes/clean/dos-fstat.txt` and `dos-cmr.txt`.  The
+queue command still works and should keep printing an empty list; a
+number that reappears is a note that stopped matching, not new work.
+
+**Two readings were left open on purpose** and say so in the listing:
+`CKESV_1`'s interception of errors 4 and 26 is described mechanically
+with the MasterBASIC feature it serves untraced (`notes/clean/
+dos-syntax.txt`), and `DLVM2`'s `SET 6,(&7FE5)` is commented from the
+1991 source's word without the stack frame having been traced.
 
 **Read the top entry before starting it.**  The count ranks sites, not
 work; only reading the routine tells you which it is.  `RELOCATED_TO_46CC`

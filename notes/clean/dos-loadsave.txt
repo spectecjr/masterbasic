@@ -58,6 +58,28 @@ DOS &6535 : less the nine-byte header
 DOS &6540 : IX+&F8 is entry offset 229
 DOS &6544 : the pages, then the rest: the compressed length in page form
 
+DOS &7862 OPEN_BASIC_FOR_MERGE
+
+DOC OPEN_BASIC_FOR_MERGE
+     PART HOOKS -- Extending BASIC, the new functions, and the ROM patches
+
+    The DOS's half of MERGE *: find the named BASIC program, open it,
+    and hand MasterBASIC what it needs to splice the lines in.
+
+    NO CALLER IN THIS HALF -- MasterBASIC's CMD_MERGE reaches it through
+    CALLDOS.  The name has already been evaluated; this insists on a
+    disc, wants a BASIC file, finds it, and reads three bytes at entry
+    offset 221: the ROM header's offset 16, where SAVE put the length
+    of the program's lines alone, NVARS less PROG in page form.  Then
+    the first sector is read and the first two bytes after the nine-
+    byte header -- the first line number, high byte first as a program
+    stores it -- come back in BC, with the length in A and HL for
+    CMD_MERGE to make room by.
+
+DOS &7865 expr TYPE_BASIC
+DOS &7870 : offset 221: header offset 16, the length of the program's lines in page form
+DOS &787E : DRAM+9, the first line number of the program, high byte first
+
 DOC HOOK_HLOAD
     Hook 131: load the body of a file the header hook has opened.
 

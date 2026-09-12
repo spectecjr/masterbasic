@@ -402,12 +402,12 @@ DOC SECTOR_FOR_CHANNEL
     the DOS can always spare.  RPTH is cleared afterwards, as a read
     would have cleared it.
 
-    TRACK 4 IS TREATED DIFFERENTLY, and why is not settled here: on
-    that track it is a request for sector 2 that fills the copy, and
-    the fill still starts from sector 1.  Track 4 is the first that
-    is directory only on a disc with more than four directory tracks,
-    and &4B68 leaves its first sector's bit in the map alone, so that
-    sector is special in some way this reading has not pinned down.
+    TRACK 4 IS TREATED DIFFERENTLY because the directory skips its
+    first sector.  A directory longer than four tracks carries on at
+    track 4 sector 2 -- SNDF4 at &5ED7 steps past sector 1, and the
+    map code at &4B68 leaves that sector's bit alone -- so on track 4
+    it is the request for sector 2 that fills the copy, and the fill
+    still reads from sector 1 so that the arithmetic below holds.
 
     THE OTHER TWO PATHS are stock: bit 5 set is a read that rebuilds
     the free-sector map on the way past, and neither bit is a plain
@@ -417,7 +417,7 @@ DOS &45E5 : bit 2 is DIR_MODE_LIST
 DOS &45E7 : not a full listing, so read the sector
 DOS &45E9 : the screen page into the window
 DOS &45EE : track 4
-DOS &45F3 : where it is sector 2 that fills the copy
+DOS &45F3 : where it is sector 2 that fills the copy, the directory skipping sector 1 there
 DOS &45F9 : the first sector of any other track fills it
 DOS &45FC expr FTADD
 DOS &45FC : where the track goes: sector 1 at FTADD, and 512 bytes a sector after it
