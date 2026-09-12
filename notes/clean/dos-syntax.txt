@@ -31,6 +31,9 @@ DOS &78A2 : &1A is FSTAT less &1A; from there up the result is a number
 DOS &78A6 : &13 is SHIFT$; below it the result is a number too
 DOS &78AA : six bytes on from NUMCONT's operand is STRCONT's
 
+DOS &78BE : &0F is the first FNVEC entry, token &29; the code less that indexes the table
+DOS &78C3 : sixteen entries
+
 DOC CKESV_1
     Leave the DOS with an error number in A -- unless it is one of two
     that MasterBASIC handles first.

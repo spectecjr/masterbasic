@@ -192,6 +192,8 @@ DOS &4EC3 : no file of that name
 DOS &4EC6 : the type on the disc
 DOS &4EC9 : and the type that was asked for
 DOS &4ECD : is what was asked for CODE or SCREEN$?
+DOS &4ECF : the borrow put back, so &13 comes to zero as &14 does
+DOS &4ED6 : the same again for the type on the disc
 DOS &4ED1 : no, so the two must match exactly
 DOS &4ED4 : and is what is on the disc one of the two?
 DOS &4ED8 : no, so again they must match exactly
@@ -210,6 +212,8 @@ DOS &6E1B : either case, and bit 7 off: a temporary channel is "D"+&80
 DOS &6E1D : a disc channel?
 DOS &6E20 expr FLAG3-DCHAN
 DOS &6E23 : bits 0 and 1 are the mode, and zero is IN
+
+DOS &605C expr TYPE_BASIC
 
 DOC RAMST
     Fill in a channel record's mode, buffer address and drive.

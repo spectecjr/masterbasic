@@ -1,0 +1,53 @@
+# DSTAT, and the small parsing helpers the DOS's functions share.
+#
+# Prose for listings/clean/ only.
+
+DOC DSTAT
+    DSTAT(drive,n): the state of a drive, by eight questions.
+
+        1   free bytes, or 0 if the disc is write-protected or the
+            directory is full
+        2   1 if write-protected
+        3   free bytes regardless
+        4   free directory slots
+        5   files on the disc
+        6   files in the current directory
+        7   directory tracks
+        8   the current drive number
+
+    Every one but 8 answers -1 for a drive with no disc, or a RAM disc
+    never formatted; 8 is answered before the drive is looked at, and
+    2 is answered from TRAKS2 alone when drive 2 is asked about and
+    not fitted.
+
+    FREE SPACE IS COUNTED IN BYTES A FILE COULD USE: DE free sectors
+    become AHL as sectors times 512 less sectors times 2 -- 510 to the
+    sector, since each ends with its link -- and then nine less again
+    for the header a file carries.
+
+DOS &7950 : option 8 is the drive number, and needs no disc
+DOS &7958 : option 2, write protection, which drive 2 can answer without a disc
+DOS &79AC : A is the option less two by now, so this is option 4: free directory slots
+DOS &79B7 : DE, doubled already, times 256: sectors times 512 in AHL
+DOS &79C0 : nine bytes of any file go on its header
+
+DOC CNB
+    A comma, a number into BC, then the closing bracket: the second
+    argument of FSTAT and DSTAT.  The first number is left in DE.
+
+DOS &7A9A : a comma
+DOS &7AA3 : then the closing bracket
+
+DOS &7A09 : "(" -- the functions insist on one
+
+DOC WPCHK
+    Is drive A write-protected?  1 in A if so.  A RAM disc never is.
+    For a floppy a write is issued to an impossible sector: the
+    controller refuses at once, but its status still reports the
+    write-protect line, which two rotates bring down to bit 0.
+
+DOS &79F0 expr FIRST_RAMDISC_DRIVE
+DOS &79F2 : a RAM disc is never write-protected
+DOS &79F9 : the drive's sector register, two above its base
+DOS &7A04 : write protect is bit 6 of the status
+DOS &7A06 : rotated round to bit 0

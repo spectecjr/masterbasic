@@ -2,6 +2,11 @@
 #
 # Prose for listings/clean/ only.
 
+DOS &5925 expr CASE_BLIND
+DOS &5927 : "Y"
+DOS &5908 : "E" ends the command
+DOS &590D : "A" is yes to this one and every one after
+
 DOC DFMTA
     Before anything is destroyed, show what is on the disc and ask.
 
@@ -123,6 +128,9 @@ DOS &55EA : not the end of side 1, so carry on
 DOS &55EB : the head home
 DOS &55EE : and side 2 begins at &80
 DOS &55F0 : NZ, because there is more to do
+
+DOS &56EF expr PAGE_VALUE_MASK
+DOS &56F6 : the offset's bit 15 is the &8000 of page form, and printing wants it off
 
 DOC PNTYP
     Print a file's type, and whatever else that type has worth showing.

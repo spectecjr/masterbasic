@@ -64,6 +64,9 @@ DOS &4AAA : no, and that is the one
 DOS &4AAC : on to the next sector, and the next track if that ran out
 DOS &4AB2 : and the next bit of the byte
 
+DOS &70DC : the high byte of the bit's offset
+DOS &70DE : eight bits a byte, and E counted down from eight, so this is the bit's position
+
 DOC FNS6
     Mark the sector used, in both maps at once.
 

@@ -18,6 +18,15 @@ DOS &480E : drive 2, which may not be fitted
 DOS &481E : a track count of zero means there is no second drive
 DOS &4823 : drive 2, then
 
+DOS &4FB1 expr BUFL
+DOS &4FB4 expr BUFL+1
+DOS &6FEB expr CNTL
+DOS &6FF1 expr CNTH
+DOS &70A7 expr CNTL
+DOS &70AA expr CNTH
+DOS &71A9 expr CNTL
+DOS &71AD expr CNTH
+
 DOC GTBUF
     Point HL at the sector buffer for the channel in IX.
 
@@ -146,6 +155,8 @@ DOC INPST
 
 DOS &7A11 : "#" introduces the stream
 DOS &7A19 : sixteen streams, 0 to 15
+DOS &7A69 : a carriage return ends INP$(#s,0)
+DOS &7A76 : one more byte of workspace
 DOS &7A35 : is a count given at all?
 DOS &7A3C : &4000 or more is refused
 DOS &7A43 : none, so &FFFF goes on the stack as the marker

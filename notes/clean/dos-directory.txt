@@ -350,6 +350,15 @@ GROUP Directory scan
 CONST DIR_MODE_NAME = &08 : match the name, honouring * and ?
 CONST DIR_MODE_NAME_ONLY = &10 : match the name, ignoring the type
 
+DOS &4BE6 : offset 1, the name
+DOS &4BF0 expr NAME_LENGTH
+DOS &7319 expr TYPE_MASK
+DOS &731B expr DFT
+DOS &7383 expr CH_SPACE
+DOS &7385 expr NAME_LENGTH
+DOS &73CF : eleven or more is longer than a name can be
+DOS &73D3 : so ten
+
 DOC SDTKS
     Read the disc's own bytes out of entry 0, which has just been
     read: how long the directory is, which disc this is, and its
