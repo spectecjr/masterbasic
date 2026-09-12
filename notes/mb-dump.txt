@@ -311,6 +311,8 @@ MB &5EDD GET_BUFFER_SIZE
     "SOUND CLEAR 0 will delete the buffer and free the memory for other
     uses".
 
+MB &670D : type &11, a numeric array, the same type byte COMPRESS_BLOCK tests at &663E before it transposes
+
 MB &6194 WRITE_THREE_FF
 
 MB &6194 : three of them, which is what the reader at &62BC skips before it starts copying

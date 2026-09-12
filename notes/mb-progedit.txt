@@ -36,6 +36,8 @@ DOC OPEN_GAP_AT_LINE
     before the reclaim -- the same trick this image plays on itself all
     over, here played on the ROM.
 
+MB &5169 : "*", which MasterBASIC's faster MERGE insists on.  The manual gives the form as MERGE *"filename" and says the plain MERGE is left to the ROM, so NEXT_CHAR_MUST_BE_C below is what divides the two
+
 MB &5188 OPEN_GAP_AT_LINE
 
 MB &518F : &FF over the line-number high byte, which is the ROM's own end-of-program marker -- COMDF in fn.asm reads it as LD A,(HL) : INC A : RET Z, commented "RET IF NO PROGRAM".  So the program is made to look as though it stops here while the gap is opened, and the byte saved by the LD D,(HL) above goes back at &5195

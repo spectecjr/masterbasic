@@ -995,7 +995,9 @@ FN_NVAL_FLOAT:
                SUB &03                         ; 41E4 D6 03  SUB 3 then CP 3 -- lengths 3, 4 and 5 become 0, 1 and 2,
                                                ; while 0 and 1 wrap to &FD and &FE, so one unsigned compare throws out
                                                ; too short and too long together
-               CP &03                          ; 41E6 FE 03
+               CP &03                          ; 41E6 FE 03  three, the second half of the pair the line above describes
+                                               ; -- SUB 3 then CP 3 catches too short and too long in one unsigned
+                                               ; compare
                JP NC,REP_ARGUMENT              ; 41E8 D2 BC 43
                PUSH HL                         ; 41EB E5  pad to five with &FF, the first byte past the string and the
                                                ; one after it. B is zero, so DEC B is a one-byte way to get &FF. For a
@@ -1286,7 +1288,7 @@ DECIMAL_DIGIT_1:
 
 ; ---- DECIMAL_DIGIT_DONE ---- from &4267 when A <> 0
 DECIMAL_DIGIT_DONE:
-               LD C,&30                        ; 426B 0E 30
+               LD C,CH_ZERO                    ; 426B 0E 30
                ADD A,C                         ; 426D 81
                RET                             ; 426E C9
 
@@ -1387,7 +1389,7 @@ FN_SCRAD:
                RET Z                           ; 4291 C8
                CALL MBNRRD                     ; 4292 CD 6A 45
                DEFW CUSCRNP                    ; 4295 78 5A
-               AND &1F                         ; 4297 E6 1F
+               AND PAGEMASK                    ; 4297 E6 1F
                INC A                           ; 4299 3C
                LD HL,DOS_HEADER                ; 429A 21 00 80
                CALL PAGED_TO_LONG              ; 429D CD DC 62
@@ -1582,7 +1584,9 @@ CALLDOS:
                PUSH HL                         ; 42C7 E5
                LD C,LMPR                       ; 42C8 0E FA
                IN B,(C)                        ; 42CA ED 40
-               LD H,&00                        ; 42CC 26 00
+               LD H,&00                        ; 42CC 26 00  zero into LMPR, through H because OUT (C),r has no
+                                               ; immediate form and H is the register free here. Zero leaves ROM 0 in at
+                                               ; &0000 with page 0 behind it
                OUT (C),H                       ; 42CE ED 61
                PUSH BC                         ; 42D0 C5
                LD HL,CALLDOS_1                 ; 42D1 21 DC 42
@@ -6730,7 +6734,8 @@ FN_INARRAY_1:
                INC BC                          ; 4B61 03
                PUSH BC                         ; 4B62 C5
                CALL CALL_GETCHAR               ; 4B63 CD 67 44
-               LD BC,&0001                     ; 4B66 01 01 00
+               LD BC,&0001                     ; 4B66 01 01 00  one, the count INARRAY uses when no range was given --
+                                               ; V40AD carries that choice, and &4B51's note has the test that sets it
                CP CH_COMMA                     ; 4B69 FE 2C  a comma or TO at this point belongs to the enclosing
                                                ; expression, not to the subscript, so no further number is taken and the
                                                ; count stays at one
@@ -7134,7 +7139,9 @@ GET_PAGED_ADDRESS:
                LD A,E                          ; 4C7E 7B
                LD H,B                          ; 4C7F 60
                LD L,C                          ; 4C80 69
-               LD B,&03                        ; 4C81 06 03
+               LD B,&03                        ; 4C81 06 03  three places, which is what turns a flat address into a
+                                               ; page and a windowed one -- the banner above counts the shifts and
+                                               ; COPY_STRING_TO_BUFFER_LOOP undoes them
 
 ;; --------------------------------------------------------------------
 ;; GET_PAGED_ADDRESS_LOOP -- &4C83 to &4C8F
@@ -9510,7 +9517,9 @@ MBKEYS:
 ;; --------------------------------------------------------------------
 
 CMD_MERGE:
-               LD C,&2A                        ; 5169 0E 2A
+               LD C,&2A                        ; 5169 0E 2A  "*", which MasterBASIC's faster MERGE insists on. The
+                                               ; manual gives the form as MERGE *"filename" and says the plain MERGE is
+                                               ; left to the ROM, so NEXT_CHAR_MUST_BE_C below is what divides the two
                CALL NEXT_CHAR_MUST_BE_C        ; 516B CD 5A 44
                                                ; call DOS_EVNAM-&4000 in the other page: LMPR is switched first, so that
                                                ; address is how the other listing numbers it
@@ -11584,7 +11593,9 @@ CMD_PRINT_1:
 
 CMD_REF:
                CALL CALL_NEXTCHAR              ; 5662 CD 61 44
-               LD D,&01                        ; 5665 16 01
+               LD D,&01                        ; 5665 16 01  one, REF's own code in the three &5778 lists -- &80 for
+                                               ; ALTER, &01 for REF, &00 for PRINT REF -- and the only one of the three
+                                               ; this instruction sets
 
 ;; --------------------------------------------------------------------
 ;; CMD_PRINT_2 -- &5667 to &566F
@@ -12862,7 +12873,8 @@ ALTER_RESIZE_GAP:
                DEC HL                          ; 58D4 2B
                LD (HL),C                       ; 58D5 71
                POP AF                          ; 58D6 F1
-               LD B,&00                        ; 58D7 06 00
+               LD B,&00                        ; 58D7 06 00  B cleared, so the C below is a byte count for the
+                                               ; sixteen-bit work that follows
                JR NC,ALTER_RESIZE_GAP_1        ; 58D9 30 08  no borrow means the replacement is shorter, so bytes come
                                                ; out; a borrow means it is longer, so bytes go in
                NEG                             ; 58DB ED 44  back to a positive count for the amount to open
@@ -14006,7 +14018,10 @@ HOOK_FARSCAN:
 HOOK_FARSCAN_LOOP:
                PUSH BC                         ; 5AEF C5
                LD A,(HL)                       ; 5AF0 7E
-               CP &21                          ; 5AF1 FE 21
+               CP &21                          ; 5AF1 FE 21  one past thirty-two, and thirty-two is the longest a SAM
+                                               ; BASIC name can be: NAMTOBUF opens "LD B,32 ;MAX LEN+1 FOR A NAME
+                                               ; (EXCLUDING 1ST CHAR)" and gives C bits 4-0 as that length. So a byte of
+                                               ; 33 or more is not a name at all
                JP NC,REP_INTEGER_OUT_OF_RANGE  ; 5AF3 D2 A7 43
                LD B,A                          ; 5AF6 47
                INC HL                          ; 5AF7 23
@@ -16752,7 +16767,10 @@ FREE_SLOT_CHAIN_1:
 
 ; ---- FREE_PAGE_IF_SLOTS_CLEAR ---- from &5F98
 FREE_PAGE_IF_SLOTS_CLEAR:
-               LD HL,&BFF0                     ; 5FA7 21 F0 BF
+               LD HL,&BFF0                     ; 5FA7 21 F0 BF  SLOTT, the top sixteen bytes of the page, seen in the
+                                               ; &8000 window. It is the same table the allocator keeps clear of --
+                                               ; which is why the topmost slot's link sits sixteen bytes lower than
+                                               ; every other slot's
 
 ;; --------------------------------------------------------------------
 ;; FREE_PAGE_IF_SLOTS_CLEAR_LOOP -- &5FAA to &5FB8
@@ -18444,7 +18462,9 @@ READ_NIBBLE_AT_HL_LOOP2:
 ; ---- FETCH_SOURCE_BYTE ---- from &62B9, &62C2
 FETCH_SOURCE_BYTE:
                LD A,H                          ; 62CE 7C
-               CP &FE                          ; 62CF FE FE
+               CP &FE                          ; 62CF FE FE  &FE, so &FE00 -- &E500 plus &1900, the end of the input
+                                               ; buffer, and past it the byte comes from the DOS's LBYT instead. The
+                                               ; same test READ_NEXT_NIBBLE makes at &637D
                JR NC,FETCH_SOURCE_BYTE_DONE    ; 62D1 30 03
                LD A,(HL)                       ; 62D3 7E
                INC HL                          ; 62D4 23
@@ -20640,7 +20660,8 @@ EXPAND_INTO_WORK_PAGE:
                LD BC,PUTSWA                      ; 6706 01 00 40
                ADD HL,BC                         ; 6709 09
                LD A,(V40A0)                      ; 670A 3A A0 40
-               CP &11                            ; 670D FE 11
+               CP &11                            ; 670D FE 11  type &11, a numeric array, the same type byte
+                                                 ; COMPRESS_BLOCK tests at &663E before it transposes
                CALL Z,SET_STEP_AND_COUNT_SWAPPED ; 670F CC 9B 67
                POP HL                            ; 6712 E1
                LD A,(V40AA)                      ; 6713 3A AA 40
@@ -21842,7 +21863,8 @@ DUMP_INVERT_2:
                                                ; rather than once per line -- which is what makes the dither cell three
                                                ; dots wide
                JR NZ,DUMP_INVERT_3             ; 69A7 20 02
-               LD E,&03                        ; 69A9 1E 03
+               LD E,&03                        ; 69A9 1E 03  three again, wrapping the dither-cell column E back to the
+                                               ; top -- &6901 sets it and &69A6 steps it down
 
 ;; --------------------------------------------------------------------
 ;; DUMP_INVERT_3 -- &69AB to &69AD
@@ -24334,7 +24356,7 @@ SCREEN_NUMBER_ARGUMENT_1:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? tests for T_TO, CH_COLON; calls CALL_NEXTCHAR; falls into whatever follows rather than returning.
+;; ? tests for T_TO, CH_COLON, CH_CR; calls CALL_NEXTCHAR; falls into whatever follows rather than returning.
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
@@ -24371,7 +24393,7 @@ CMD_JOIN:
                JP Z,CMD_JOIN_TO                ; 6E01 CA 0C 70
                CP CH_COLON                     ; 6E04 FE 3A  a colon or a carriage return means no line number was given
                JR Z,CMD_JOIN_1                 ; 6E06 28 04
-               CP &0D                          ; 6E08 FE 0D
+               CP CH_CR                        ; 6E08 FE 0D
                JR NZ,CMD_JOIN_2                ; 6E0A 20 08
 
 ;; --------------------------------------------------------------------
@@ -24400,7 +24422,7 @@ CMD_JOIN_1:
 ;; ? calls CALL_GETINT, NUMBER_THEN_END; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- CMD_JOIN_2 ---- from &6E0A when A <> &0D
+; ---- CMD_JOIN_2 ---- from &6E0A when A <> CH_CR
 CMD_JOIN_2:
                CALL NUMBER_THEN_END            ; 6E14 CD C8 44  evaluate the line number and demand the end of the
                                                ; statement, then take it as an integer
@@ -25290,7 +25312,9 @@ ARRAY_ELEMENT_OFFSET:
                RES 7,H                         ; 6FF7 CB BC  the offset is a count, not a windowed address, so the top
                                                ; bit comes off before it is added to the base
                ADD HL,BC                       ; 6FF9 09
-               ADC A,&00                       ; 6FFA CE 00
+               ADC A,&00                       ; 6FFA CE 00  the carry out of the ADD HL,BC above, into the page -- the
+                                               ; same 24-bit step &70A5 makes, and the line above says why the window
+                                               ; bit comes off first
                CALL LONGADDR_TO_PAGED          ; 6FFC CD 27 44
                LD C,A                          ; 6FFF 4F
                IN A,(HMPR)                     ; 7000 DB FB
@@ -26758,7 +26782,12 @@ L73B9:
 
 ; ---- COMPILE_ALL_LOOP ---- from &73C7
 COMPILE_ALL_LOOP:
-               LD D,&FD                        ; 73BC 16 FD
+               LD D,&FD                        ; 73BC 16 FD  NOT THE EDIT TOKEN, though &FD is that as well. The CALL
+                                               ; below is the ROM's LKCALL, and its own header reads "ENTRY: HL=START OF
+                                               ; SEARCH, D=TARGET (FD/FE=PROC/FN)" with "LD A,D ;FE IF FN BUFFER WANTED,
+                                               ; FD IF PROC CALL BUFFER" against the CPIR that uses it. So this says
+                                               ; "look for PROC calls", and the byte is the marker a PROC call carries
+                                               ; in the program text rather than a statement token
 
 L73BE:
                CALL &0000                      ; 73BE CD 00 00  the operand is written here at run time, from &7A15

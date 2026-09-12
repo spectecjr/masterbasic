@@ -499,6 +499,14 @@ MB &4D33 PARSE_STRING_AND_OPTIONAL_ABS
     decides the path, and the second one wants &FF -- the two-byte
     function prefix -- followed by a left bracket.
 
+MB &42CC : zero into LMPR, through H because OUT (C),r has no immediate form and H is the register free here.  Zero leaves ROM 0 in at &0000 with page 0 behind it
+MB &426B expr CH_ZERO
+MB &4C81 : three places, which is what turns a flat address into a page and a windowed one -- the banner above counts the shifts and COPY_STRING_TO_BUFFER_LOOP undoes them
+MB &58D7 : B cleared, so the C below is a byte count for the sixteen-bit work that follows
+MB &62CF : &FE, so &FE00 -- &E500 plus &1900, the end of the input buffer, and past it the byte comes from the DOS's LBYT instead.  The same test READ_NEXT_NIBBLE makes at &637D
+MB &4297 expr PAGEMASK
+MB &5AF1 : one past thirty-two, and thirty-two is the longest a SAM BASIC name can be: NAMTOBUF opens "LD B,32 ;MAX LEN+1 FOR A NAME (EXCLUDING 1ST CHAR)" and gives C bits 4-0 as that length.  So a byte of 33 or more is not a name at all
+
 MB &561B INSTALL_CHANNEL_HANDLER
 
 MB &5621 : &19 into CHANS, the same word IS_CHANNEL_OURS reads back at &562E and INIT_SERIAL_FROM_TABLE writes at &55B0

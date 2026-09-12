@@ -341,3 +341,5 @@ MB &5E30 expr &4D91
 MB &5E30 : an address in this block's own frame, not this page's
 MB &5E41 expr &4D91
 MB &5E41 : likewise
+
+MB &4B66 : one, the count INARRAY uses when no range was given -- V40AD carries that choice, and &4B51's note has the test that sets it

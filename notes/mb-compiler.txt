@@ -61,6 +61,8 @@ MB &7385 COMPILE_PASS
     The two variables swapped here are the two the patches above swapped
     at the other end, which is what makes the reading of both certain.
 
+MB &73BC : NOT THE EDIT TOKEN, though &FD is that as well.  The CALL below is the ROM's LKCALL, and its own header reads "ENTRY: HL=START OF SEARCH, D=TARGET (FD/FE=PROC/FN)" with "LD A,D ;FE IF FN BUFFER WANTED, FD IF PROC CALL BUFFER" against the CPIR that uses it.  So this says "look for PROC calls", and the byte is the marker a PROC call carries in the program text rather than a statement token
+
 MB &73AD COMPILE_ELINE
 
 MB &73B0 : one, so the CCF after it turns "REFFLG is zero" into carry clear.  The ROM's variable table gives REFFLG as "Z IF REF VAR BEING WORKED ON", so the carry this leaves means there is no REF variable in hand

@@ -5,6 +5,8 @@ MB &5F16 ALLOC_UTILITY_SLOT
 MB &5F7B FREE_SLOT_CHAIN
 MB &5FA7 FREE_PAGE_IF_SLOTS_CLEAR
 
+MB &5FA7 : SLOTT, the top sixteen bytes of the page, seen in the &8000 window.  It is the same table the allocator keeps clear of -- which is why the topmost slot's link sits sixteen bytes lower than every other slot's
+
 DOC ALLOC_UTILITY_SLOT
     Reserve a 1K slot in a utilities page, taking a new page if none of
     the existing ones has room.

@@ -331,6 +331,9 @@ MB &70ED : STRLOCN back to the first variable, because VARIABLE_BODY_BY_KIND rea
 MB &70FB : the number of elements gained
 MB &70FF : zero: add, not subtract
 
+MB &6E08 expr CH_CR
+MB &6FFA : the carry out of the ADD HL,BC above, into the page -- the same 24-bit step &70A5 makes, and the line above says why the window bit comes off first
+
 DOC VARIABLE_BODY_BY_KIND
     THE LAST STEP OF BOTH COMMANDS: the bytes have been moved, and now
     the variable's own bookkeeping has to say so.  A on entry is the

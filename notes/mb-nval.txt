@@ -176,6 +176,8 @@ MB &427A : and twenty, the entries on a track, likewise
 
 MB &5002 : seventeen, and the MasterDOS author's own comment on the ADD IY,BC below says so: "PT TO 17 BYTES FURTHER ON"
 
+MB &41E6 : three, the second half of the pair the line above describes -- SUB 3 then CP 3 catches too short and too long in one unsigned compare
+
 MB &426F FILE_NUMBER_TO_TRACK_SECTOR
     The inverse of &4224, and the DOS's LOAD n calls it through CALLMB
     from &5F87.  HL is a file number; out come D as the track, E as the
