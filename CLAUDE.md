@@ -252,14 +252,25 @@ looked wrong; the build was green throughout.  That is the fault this
 file already describes one paragraph up, committed again by the one
 number nobody thought to check.
 
-**Read the top entry before starting it.** `RELOCATED_TO_46CC` heads the
-MasterBASIC queue and is a poor first target: most of its remaining sites
-are operands inside a block that runs at `&46CC`, which can never be
-named, only explained. `COPY_SCREEN_CONVERT` and `DUMP_UNSHADED` are
-ordinary code and better places to begin. The count ranks sites, not
-work; only reading the routine tells you which it is.  Its totals must equal
-the build's; if they do not, `SITES_DEBUG=NAME bash tools/build.sh` prints
-the addresses `clean.py` counted for that routine, to diff against.  A
+**The MasterBASIC half is finished**: `build.log` reads `MB -- 1015
+instructions carry a number, 0 of them unexplained`, and that half has no
+routine-breakdown line any more.  The queue that is left is the DOS's --
+`python tools/sites.py --list masterdos`, 493 over 280 routines, headed by
+`FSTAT 17/98`.
+
+**Read the top entry before starting it.**  The count ranks sites, not
+work; only reading the routine tells you which it is.  `RELOCATED_TO_46CC`
+headed the MasterBASIC queue for a long time under a note saying its
+operands could never be named, only explained -- and when it was finally
+read, most of them were one coherent mechanism: a block move that plants
+ten bytes of itself at the top of memory because the `OUT` that pages the
+next block in would otherwise page the mover out from under itself.  The
+lesson is not that such notes are wrong, but that "explain-only" is a
+description of one session's reading and not a property of the code.
+
+`sites.py`'s totals must equal the build's; if they do not,
+`SITES_DEBUG=NAME bash tools/build.sh` prints the addresses `clean.py`
+counted for that routine, to diff against.  A
 second implementation of the same rule is what caught the build excusing
 every `SUB`/`AND`/`CALL` line as if the mnemonic were a symbol.  Name only
 what you can defend from the code; a wrong name is worse than a number.
