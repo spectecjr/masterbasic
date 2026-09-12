@@ -1,0 +1,83 @@
+# The error entry's tail as MasterBASIC rewrote it: two ROM errors
+# that are intercepted before they are reported.
+#
+# Prose for listings/clean/ only.
+
+DOC HKLEN
+    Hook 172, the ROM's EVALUV: evaluate one of the DOS's or
+    MasterBASIC's functions, with the function code less &1A in A.
+
+    THE ROM'S OWN CONTINUATIONS ARE FOUND BY WALKING ITS CODE.  The
+    ROM called the vector from just before its CP SIN : JR C,
+    IMMEDCODES, so the return address plus three is the JR's
+    displacement and adding it reaches IMMEDCODES.  Seventeen bytes
+    into that routine is the operand of its LD HL,NUMCONT, the
+    address a function with a numeric result continues at, and six
+    bytes further on is the operand of its LD HL,STRCONT for a string
+    result.  Both are read out of the ROM rather than assumed, which
+    is what lets the same DOS run on more than one ROM.
+
+    WHICH CONTINUATION depends on the code: &13 to &19 -- SHIFT$,
+    SVAL$, USING$, TIME$, DATE$, INP$ and DIR$ -- return strings, and
+    everything else a number.  MasterDOS's source writes the upper
+    bound as &34-&1A, FSTAT being its first numeric function; the
+    lower bound is this build's, since the three string functions
+    below TIME$ are MasterBASIC's.
+
+DOS &7893 : the ROM's return address, into the scanner
+DOS &7897 : the displacement of the ROM's JR C,IMMEDCODES
+DOS &789C : seventeen bytes into IMMEDCODES: the operand of its LD HL,NUMCONT
+DOS &78A2 : &1A is FSTAT less &1A; from there up the result is a number
+DOS &78A6 : &13 is SHIFT$; below it the result is a number too
+DOS &78AA : six bytes on from NUMCONT's operand is STRCONT's
+
+DOC CKESV_1
+    Leave the DOS with an error number in A -- unless it is one of two
+    that MasterBASIC handles first.
+
+    THE 1991 SOURCE ENDS HERE IN THREE INSTRUCTIONS, SYNT3: E is set to
+    0 for "no action", NRFLG is cleared, and the error number goes back
+    to the ROM in A.  This build tests A against two ROM errors on the
+    way, and what it does for each is clear enough from the code even
+    where the reason is not:
+
+    ERROR 4, "Subscript wrong", at syntax time only.  The return the
+    ROM is about to make is redirected to ROM 0's &0057 -- which is
+    POP BC, POP AF, EI, RET, the tail of the interrupt handler, so the
+    ROM will drop two words and return a level higher -- FLAGS is
+    cleared, two words come off this stack too, and the DOS returns
+    with A and E both zero: no error, no action.  So a "Subscript
+    wrong" the ROM's syntax pass raises is swallowed and the pass goes
+    on a level up.  At run time the error stands.
+
+    ERROR 26, "Parameter error".  The BASIC stack is cut back: from the
+    frame BSTKEND points at, words are read at every byte offset until
+    a zero word is found, and BSTKEND is set to just past it -- which
+    discards the newer frames, whatever a procedure call had stacked
+    before its parameters failed.  The error is then raised as before.
+
+    Which of MasterBASIC's extensions each serves is not settled here;
+    the procedure and array code in the other half is where to look.
+
+    Every exit clears the byte at &5A60, one of the ROM's fourteen spare
+    bytes after LSOFF that MasterBASIC keeps a flag in -- MB &6F43 reads
+    it -- as well as NRFLG.
+
+DOS &43E5 : error 4, "Subscript wrong"
+DOS &43E9 : error 26, "Parameter error"
+DOS &43ED : the top of the BASIC stack
+DOS &43F4 : a word at HL, and HL left on its high byte, so the scan moves a byte at a time
+DOS &43F9 : until a zero word
+DOS &43FB : and past it
+DOS &43FC : RDBC's window form back to the ROM's own address
+DOS &4402 : the stack is cut back to there
+DOS &4407 : and the error raised as before
+DOS &440B : syntax time?
+DOS &440E : no: at run time the error stands
+DOS &4410 : ROM 0's &0057 is POP BC : POP AF : EI : RET, the tail of the interrupt handler
+DOS &4413 : written over the word at the ROM's saved stack pointer: the return it makes once the DOS is done
+DOS &4416 : FLAGS cleared
+DOS &441C : two words off this stack as well
+DOS &4422 : no error
+DOS &4423 : and no action
+DOS &4428 : a byte MasterBASIC keeps in the ROM's spare block after LSOFF

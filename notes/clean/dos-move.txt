@@ -73,6 +73,22 @@ DOS &67D7 : the second open is an ordinary one, whatever the first was
 DOS &67D9 : open that too
 DOS &67DC : both open, so the copying can start
 
+DOC OPMV1
+    Not a stream, so a file: open a temporary disc channel for it.
+
+    The device letter has to be "D".  RESET_CHANNEL_SCAN walks the
+    channel list with the system page in the window and comes back
+    with IX on the new record there, so &C000 -- minus &4000 -- puts
+    that address into the ROM's own numbering, which is what the
+    caller's NSTR1 wants.  The 1 before the INC is a way of setting
+    NZ without a compare: an error from here is never "stream not
+    open", and OPMOV's callers read Z as exactly that.
+
+DOS &698A expr CASE_BLIND
+DOS &698C : "D": only a disc file can be opened here
+DOS &6997 : 1, so that the INC leaves NZ: not a stream, so not "stream not open"
+DOS &69A1 : minus &4000: the record's window address, into the ROM's numbering
+
 DOC MOVA
     Copy, with one special case that makes MOVE more than a copier.
 

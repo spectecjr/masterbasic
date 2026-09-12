@@ -178,6 +178,31 @@ DOS &5450-&5456 data
 DOS &5450 : a SCREEN$'s start.  &6E is too large for a five-bit page number, and nothing in this build reads it
 DOS &5453 : its length, &1B00, and the &FF that means "no exec address"
 
+DOC CMD_LOAD_1
+    LOAD by number has found its file; a 48K snapshot is started here
+    rather than loaded.
+
+    A SPECTRUM 48K SNAPSHOT ARRIVES AS TYPE &14, because
+    FILE_TYPE_AT_POINT lifts the Spectrum types into SAM's range and
+    type 5 lands on SCREEN$ -- so the type alone cannot tell them
+    apart, and BITF7, the flag that records a Spectrum file, is what
+    does.  A real SCREEN$ goes on to the ordinary load.
+
+    THE SNAPSHOT IS LOADED INTO PAGE 4, the Spectrum's RAM, through
+    the window: 48K in three passes of &4000, PGES1 counting the two
+    pages after the first.  The three ports are saved first, since
+    SNAP7 will put them back through the resume stub -- see
+    docs/bugs.md 4 for what that saved LMPR then does -- and the
+    head is parked before the machine becomes a Spectrum.
+
+DOS &5FBE expr TYPE_SCREEN
+DOS &5FC0 : neither a screen nor a snapshot
+DOS &5FC2 : bit 7 of FLAG3: a Spectrum file
+DOS &5FC5 : clear, so a real SCREEN$
+DOS &5FDD : page 4, the Spectrum's RAM
+DOS &5FE3 expr WINDOW
+DOS &5FE9 : two more pages after this one: 48K in three
+
 DOC SNAP7
     Start the interrupted program again.
 

@@ -92,6 +92,25 @@ DOS &4F7D : lifted into SAM's range, where the meanings line up
 DOS &4F7F : and remembered, because the header will have to be invented
 DOS &4F82 : the entry now reads as a SAM file
 
+DOC GDIFA
+    Build DIFA, the second parameter block's ROM header, from the
+    entry the scan stopped on, and copy it over UIFA as well.
+
+    THE SAM-FILE HALF OF COPY_HEADER_FIELDS ON ITS OWN: the type and
+    name through NMMOV, then the thirty-three bytes from offset 220
+    that complete the forty-eight, with no provision for a Spectrum
+    file.  The first track and sector come back in DE.
+
+    NOTHING IN THIS BUILD CALLS IT.  The instruction before it is a
+    RET and no CALL or JP names it, so it is the 1991 routine left
+    behind when MasterBASIC rewrote its callers.
+
+DOS &6319 expr DIR_FLAGS
+DOS &6319 : offset 220: the flags byte, where the ROM header's tail begins
+DOS &631E : thirty-three bytes, which complete the forty-eight
+DOS &6329 : the whole header, forty-eight bytes, over UIFA
+DOS &632D : offset 13, the first track and sector
+
 DOC NMMOV
     The type, the name, and spaces to fifteen, into the second block's
     header.

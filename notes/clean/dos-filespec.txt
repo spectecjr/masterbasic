@@ -89,6 +89,22 @@ DOS &675C : the number, through the pretend table, to DSTR1
 DOS &6771 expr NAME_LENGTH
 DOS &6779 : and four spaces after it, to fill the field
 
+DOC ALPHA
+    Carry if A is a letter, either case.  Two range tests, each a
+    compare against the first letter and one against the character
+    after the last, with CCF turning the first compare's carry into
+    "below the range".  ALPHANUM adds the digits, through NUMERIC.
+
+DOS &62D8 : "A"
+DOS &62DB : below it: not a letter
+DOS &62DC : one past "Z"
+DOS &62DE : so carry means A to Z
+DOS &62DF : "a"
+DOS &62E2 : between the two ranges: not a letter
+DOS &62E3 : one past "z"
+DOS &504C : one past "9"
+DOS &504F : "0", and CCF makes carry mean a digit
+
 DOC C11SP
     Are the eleven characters after HL all spaces?  Z if so, and HL is
     left where it was.  Eleven is the field less the three a "D1:"

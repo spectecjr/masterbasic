@@ -199,6 +199,69 @@ DOS &4EDA : both are, so treat the file as the type that was asked for
 DOS &4EDC : the only test that is left
 DOS &4EDD : and this is where a wrong type is reported
 
+DOC RAMST
+    Fill in a channel record's mode, buffer address and drive.
+
+    A is the mode -- 0 IN, 1 OUT, 2 RND, with bit 2 for a file that
+    existed -- and goes to the flag byte; the sector buffer is the
+    one inside the record itself, at WRRAM, so the address written
+    is IX plus that; and the drive is whatever the file spec said.
+
+DOS &705E expr FLAG3-DCHAN
+DOS &705E : the mode
+DOS &7064 : the record's own sector buffer
+DOS &7068 expr BUFL
+DOS &706B expr BUFL+1
+DOS &7071 expr DRIVE-DCHAN
+
+DOC SDCM
+    Close a channel's file on the disc: flush the last sector, and if
+    the file was written, bring the directory entry up to date.
+
+    BIT 5 OF THE CHANNEL'S FLAG BYTE says whether anything was ever
+    written, and a file that was only read needs nothing more than
+    the flush.  Otherwise the length is taken from the channel, and
+    for a SAM type -- &10 and up -- nine is taken off it, because the
+    file begins with the nine-byte header and the length in the
+    entry does not count it.  Spectrum types and open-type files
+    have no such header.
+
+    THE LENGTH GOES INTO THE ENTRY TWICE.  Once in the old form at
+    offsets 210 to 213 -- the author's comment says so that G+DOS can
+    read the file, and notes that entry 0 cannot use it since the
+    disc's name is there -- and once in page form at DIR_LENGTH,
+    followed by &FF at DIR_EXECUTE for "no execute address".  The
+    pointer's sector count is written over the file's, so the file
+    ends where the pointer stands.
+
+    Then bit 2 says whether the file existed before it was opened: a
+    new file gets a fresh entry through CLOSX, and an existing one is
+    found again by name and overwritten in place through NCF25.
+
+DOS &6E8B : the free slot the open found is not to be reused here
+DOS &6E94 expr FLAG3-DCHAN
+DOS &6E94 : bit 5: the file was written to
+DOS &6E98 : only read, so the entry is right as it stands
+DOS &6E9D expr FFSA
+DOS &6EA0 expr TYPE_MASK
+DOS &6EA2 : &10 and up is a SAM type, whose file begins with a nine-byte header
+DOS &6EA5 : a Spectrum type or an open-type file has no header to discount
+DOS &6EA7 : nine off the length, across all three bytes
+DOS &6EAD : the pointer's sector count, low, over the file's
+DOS &6EB0 : and high: the file ends where the pointer stands
+DOS &6EB4 : offset 214 of the entry, the length as it was
+DOS &6EBD : offset 210: the old-form length, for G+DOS
+DOS &6EBF : and into page form for the new one
+DOS &6EC3 expr DIR_LENGTH-&D2
+DOS &6EC3 : from offset 210 to DIR_LENGTH
+DOS &6ECD : &FF at DIR_EXECUTE: no execute address
+DOS &6ED1 expr FLAG3-DCHAN
+DOS &6ED1 : bit 2: the file existed before it was opened
+DOS &6ED5 : it did not, so make a new entry
+DOS &6EE2 expr NAME_AND_TYPE
+DOS &6EE6 expr DIR_MODE_NAME
+DOS &6EE8 : find the old entry by name
+
 DOC CFSM
     Close the file: write the entry image into a directory slot.
 

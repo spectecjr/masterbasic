@@ -12610,7 +12610,7 @@ NEXT_SCREEN_BYTE:
                                                ; steps down. The DEC H DEC H before the shared INC H is what makes the
                                                ; odd case H-1
 
-; ---- NEXT_SCREEN_BYTE_1 ---- from DOS &45FC, DOS &499B, DOS &49CC, DOS &5552, DOS &5568, DOS &55A3, DOS &55BF
+; ---- NEXT_SCREEN_BYTE_1 ---- from DOS &499B, DOS &49CC, DOS &5552, DOS &5568, DOS &55A3, DOS &55BF
 NEXT_SCREEN_BYTE_1:
                JR Z,NEXT_SCREEN_BYTE_2         ; 6280 28 05
                INC L                           ; 6282 2C

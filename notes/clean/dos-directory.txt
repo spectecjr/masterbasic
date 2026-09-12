@@ -298,6 +298,32 @@ DOC FDH9
     allocate it -- so CDIRT set to &FF means every directory at once,
     which is what DIR "?" uses.
 
+DOC FDH5
+    One line of a full listing: number, name, sectors, type.
+
+    A PROTECTED FILE SHOWS "*" WHERE ITS NUMBER WOULD BE, which is
+    what bit 6 of the type byte decides first.  Otherwise the number
+    is printed in two digits with a space for a leading zero, or in
+    three with no space once it passes 99 -- the same width either
+    way.  The sector count gets the same treatment at 999, and a
+    subdirectory has no sector count to print at all: its type goes
+    straight after the name.
+
+DOS &4C01 : bit 6 of the type byte: protected
+DOS &4C08 : "*" in place of the number marks a protected file
+DOS &4C16 : 99, the most two digits will show
+DOS &4C1A : carry if the number needs three
+DOS &4C1E : a space for a leading zero
+DOS &4C22 : two digits and a space
+DOS &4C29 : or three digits and no space, the same width
+DOS &4C35 expr TYPE_MASK
+DOS &4C37 expr DFT
+DOS &4C39 : a subdirectory has no sectors to show
+DOS &4C3C : a space for a leading zero
+DOS &4C42 : 999, the most three digits will show
+DOS &4C4C : three digits and a space
+DOS &4C53 : or four digits and no space
+
 DOS &4C5D : the mode this scan was started with
 DOS &4C60 expr DIR_MODE_NAME | DIR_MODE_NAME_ONLY
 DOS &4C62 : no name to match, so nothing here applies
@@ -323,6 +349,77 @@ CONST TYPE_MASK = &1F : bits 0 to 4 of the type byte are the type itself
 GROUP Directory scan
 CONST DIR_MODE_NAME = &08 : match the name, honouring * and ?
 CONST DIR_MODE_NAME_ONLY = &10 : match the name, ignoring the type
+
+DOC SDTKS
+    Read the disc's own bytes out of entry 0, which has just been
+    read: how long the directory is, which disc this is, and its
+    name.
+
+    THREE FIELDS ARE THE DISC'S, not any file's.  Byte 255 is the
+    number of directory tracks beyond the four SAMDOS fixed, so four
+    is added and DTKS holds the whole.  Bytes 252 and 253 are the
+    random word FORMAT gave the disc, and comparing it with the one
+    remembered for the drive is how a disc change is noticed: on a
+    change the current directory goes back to the root, since the
+    tag it held belonged to another disc's tree -- unless it was &FF,
+    which is no directory's tag and means "all of them", and that is
+    kept.  Bytes 210 to 219 are the name, copied into DNAME for the
+    DIR heading.
+
+    THE WARNING.  If a file is open on this drive and the disc under
+    it has changed since, the DOS beeps and prints how many are
+    open.  It cannot refuse -- the file may legitimately span the
+    swap -- but it can say so.
+
+DOS &745A : 256 on, then one back: byte 255 of the entry
+DOS &745D : plus the four tracks every directory has
+DOS &7462 : bytes 253 and 252, the random word
+DOS &7481 : &FF is no directory's tag and means all of them; a disc change leaves that alone
+DOS &7489 : offset 210, the disc's name
+DOS &7490 : ten characters of it
+
+DOC SECTOR_FOR_CHANNEL
+    Read the next directory sector for the scan -- from the disc, or
+    from a copy of the whole track kept in the screen page.
+
+    THE FULL LISTING READS A TRACK AT A TIME.  Bit 2 of the mode byte
+    is DIR_MODE_LIST, and when it is set the first sector of each
+    track is not read alone: all of the track is read into the screen
+    page from FTADD up, 512 bytes a sector, and every sector after
+    that is copied out of the screen page instead of being read.
+    Sector n of the track sits at &A080 plus n times &200, which puts
+    sector 1 at FTADD -- the same place FORMAT builds its track
+    image, borrowed for the same reason: the screen is the one 16K
+    the DOS can always spare.  RPTH is cleared afterwards, as a read
+    would have cleared it.
+
+    TRACK 4 IS TREATED DIFFERENTLY, and why is not settled here: on
+    that track it is a request for sector 2 that fills the copy, and
+    the fill still starts from sector 1.  Track 4 is the first that
+    is directory only on a disc with more than four directory tracks,
+    and &4B68 leaves its first sector's bit in the map alone, so that
+    sector is special in some way this reading has not pinned down.
+
+    THE OTHER TWO PATHS are stock: bit 5 set is a read that rebuilds
+    the free-sector map on the way past, and neither bit is a plain
+    READ_SECTOR.
+
+DOS &45E5 : bit 2 is DIR_MODE_LIST
+DOS &45E7 : not a full listing, so read the sector
+DOS &45E9 : the screen page into the window
+DOS &45EE : track 4
+DOS &45F3 : where it is sector 2 that fills the copy
+DOS &45F9 : the first sector of any other track fills it
+DOS &45FC expr FTADD
+DOS &45FC : where the track goes: sector 1 at FTADD, and 512 bytes a sector after it
+DOS &4605 : 512 on for the next sector
+DOS &4607 : the next sector, until the track is done
+DOS &460C : the buffer proper again, for the copy below
+DOS &4616 : sector n of the copied track is at &A080 plus n times &200
+DOS &4619 : and the low byte of that is always &80
+DOS &461E expr SECTOR_LENGTH
+DOS &4624 : as a read would have left it
+DOS &4631 : bit 5: rebuild the map on the way
 
 DOC OPNDIR
      PART SUBD -- Subdirectories
