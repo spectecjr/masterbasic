@@ -172,7 +172,13 @@ MB &6466 : block 7's source, system page &484D, where the &029F bytes from &7BA4
 
 MB &6469 : block 7, &029F, filling MB &7BA4-&7E42
 
+MB &5AD4 expr T_SOUND
+MB &5AD4 : BLITZ SOUND, which is the only form of it -- the manual's example is "60 BLITZ SOUND snd$" and NEXT_CHAR_MUST_BE_C is what makes the keyword compulsory
+
 MB &646F : block 8's source, system page &5896.  It is read from there and not from &7E43 because &7E43 is inside INSTBUF's range and the boot has already overwritten it, so the original no longer exists to be saved
+
+MB &63ED expr T_MODE
+MB &63ED : SAVE MODE n, the compression setting -- BYTE_ARGUMENT and the DEC A below hand 1 to 3 as 0 to 2 to SET_COMPRESSION_MODE, which writes the DOS's CMPFG
 
 MB &6472 : block 8, &017D, filling MB &7E43-&7FBF.  &3B80 + &0024 + &029F + &017D is &3FC0 again, and the two halves are the 32640-byte file
 

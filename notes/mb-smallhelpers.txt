@@ -500,6 +500,8 @@ MB &4D33 PARSE_STRING_AND_OPTIONAL_ABS
     function prefix -- followed by a left bracket.
 
 MB &561B INSTALL_CHANNEL_HANDLER
+
+MB &5621 : &19 into CHANS, the same word IS_CHANNEL_OURS reads back at &562E and INIT_SERIAL_FROM_TABLE writes at &55B0
     Write BC into the word &19 bytes into the ROM's channel table, which
     is how MasterBASIC puts itself in a channel's place.
 

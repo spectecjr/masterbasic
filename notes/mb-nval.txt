@@ -171,6 +171,11 @@ MB &4257 : the units always print as a digit and never as padding.  From here on
 
 MB &425D : XOR A also clears carry for the first SBC; inside the loop the previous SBC has left it clear
 
+MB &4270 : -81, which the banner below calls "the first number past track 4 sector 1"
+MB &427A : and twenty, the entries on a track, likewise
+
+MB &5002 : seventeen, and the MasterDOS author's own comment on the ADD IY,BC below says so: "PT TO 17 BYTES FURTHER ON"
+
 MB &426F FILE_NUMBER_TO_TRACK_SECTOR
     The inverse of &4224, and the DOS's LOAD n calls it through CALLMB
     from &5F87.  HL is a file number; out come D as the track, E as the

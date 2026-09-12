@@ -62,6 +62,8 @@ MB &7385 COMPILE_PASS
     at the other end, which is what makes the reading of both certain.
 
 MB &73AD COMPILE_ELINE
+
+MB &73B0 : one, so the CCF after it turns "REFFLG is zero" into carry clear.  The ROM's variable table gives REFFLG as "Z IF REF VAR BEING WORKED ON", so the carry this leaves means there is no REF variable in hand
     What the ROM calls ELCOMAL, at &4D7B once moved.  Six bytes: read
     REFFLG, CP &01, CCF -- so carry comes out clear only when REFFLG is
     zero, which the ROM's variable table glosses as "Z IF REF VAR BEING

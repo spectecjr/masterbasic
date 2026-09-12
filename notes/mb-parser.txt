@@ -96,6 +96,10 @@ MB &444D EXPECT_NUMBER
 MB &4450 EXPECT_COMMA
 MB &4454 EXPECT_RPAREN
 MB &4458 EXPECT_NEXT_LPAREN
+
+MB &4450 expr CH_COMMA
+MB &4454 : ")", the character the shared tester below is being given
+MB &4458 : "(", likewise -- three entries, one routine, and the only difference between them is this byte
 MB &445A NEXT_CHAR_MUST_BE_C
 MB &445D CHAR_MUST_BE_C
 MB &4482 SKIP_THEN_NUMBER

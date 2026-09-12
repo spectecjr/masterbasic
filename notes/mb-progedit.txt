@@ -37,4 +37,8 @@ DOC OPEN_GAP_AT_LINE
     over, here played on the ROM.
 
 MB &5188 OPEN_GAP_AT_LINE
+
+MB &518F : &FF over the line-number high byte, which is the ROM's own end-of-program marker -- COMDF in fn.asm reads it as LD A,(HL) : INC A : RET Z, commented "RET IF NO PROGRAM".  So the program is made to look as though it stops here while the gap is opened, and the byte saved by the LD D,(HL) above goes back at &5195
+
+MB &51A1 : a line number no program can hold, so the search below runs to the end.  &FFxx is what the stopper itself reads as, which is why FNDLNHL's comment is "NZ=FOUND A LATER LINE, OR FF STOPPER"
 MB &51D7 : &0162 is the high byte of the ROM's DW at &0161, which is LD (HL),D, and falls into JP RECLAIM2 at &0163

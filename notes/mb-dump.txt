@@ -101,6 +101,8 @@ DOC EMIT_RUN
 
 MB &627E NEXT_SCREEN_BYTE
 MB &61D2 COUNT_RUN
+
+MB &61D2 : &8B, which ENCODE_ONE_NIBBLE's banner names -- "the two paths differ only in where B starts, &88 for a nibble equal to the escape, &8B for anything else" -- and &61DE takes it off &8C to get the length
 MB &61DE ENCODE_RUN
 MB &61F8 EMIT_RUN
 
@@ -310,6 +312,9 @@ MB &5EDD GET_BUFFER_SIZE
     uses".
 
 MB &6194 WRITE_THREE_FF
+
+MB &6194 : three of them, which is what the reader at &62BC skips before it starts copying
+MB &6196 : and &FF is the byte.  Nothing chooses it for its value: it is the marker that closes the compressed stream, and the expander's first loop eats however many it finds
     Three &FF bytes to the open file, through the DOS's save-byte hook.
 
 MB &63F6 SET_COMPRESSION_MODE

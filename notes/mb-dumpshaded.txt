@@ -105,6 +105,7 @@ DOC DUMP_ORIENT_SETUP
 MB &6844 : MODE 3 is always sideways, whichever DUMP was asked for
 MB &6848 : the user's own setting wins if there is one
 MB &684E : and otherwise DUMP 3 is the sideways one
+MB &684F : three being that DUMP, the number the line above names
 MB &6851 : sideways
 MB &6855 : upright
 MB &685A : the left and right edges of the dumped area

@@ -100,6 +100,14 @@ MB &7CAF : hook 156, HOOK_SWAPCHARS at &7159: BLOCKS 0, 1 or 2, which picks the 
 MB &7CB3 : hook 183, HOOK_COMADENT at &6F3E: finds an entry through COMAD.  There is no RET after it -- EDIT raises this hook and then falls into the one below
 
 MB &7CB5 : hook 178, DELETE for strings and string arrays.  The LD A below leaves &CD in A, which is DELETE's own token
+MB &7CB7 expr T_DELETE
+
+# The character loop inside the block at &7DCE, which runs to the end of
+# the statement so that EXIT FOR resumes past it.
+
+MB &7DCF expr CH_CR
+MB &7DD3 expr CH_COLON
+MB &7DD3 : a colon or a carriage return, whichever comes first, is where a statement ends -- so this reads forward to it and &7DD7 hands the count back
 
 MB &7CBB : hook 174, HOOK_RCPTCH at &51DD -- the slot MasterDOS calls RCPTCH and MasterBASIC replaces.  RUN and CLEAR both come here, and what follows waits for the raster before switching screens
 

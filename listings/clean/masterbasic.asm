@@ -1133,7 +1133,8 @@ DECIMAL_DIGIT_DONE:
 ; ---- FILE_NUMBER_TO_TRACK_SECTOR ---- from DOS &5F87
 FILE_NUMBER_TO_TRACK_SECTOR:
                PUSH HL                             ; 426F E5
-               LD BC,&FFAF                         ; 4270 01 AF FF
+               LD BC,&FFAF                         ; 4270 01 AF FF  -81, which the banner below calls "the first number
+                                                   ; past track 4 sector 1"
                ADD HL,BC                           ; 4273 09
                POP HL                              ; 4274 E1
                JR NC,FILE_NUMBER_TO_TRACK_SECTOR_1 ; 4275 30 02
@@ -1143,7 +1144,7 @@ FILE_NUMBER_TO_TRACK_SECTOR:
 ; ---- FILE_NUMBER_TO_TRACK_SECTOR_1 ---- from &4275
 FILE_NUMBER_TO_TRACK_SECTOR_1:
                DEC HL                          ; 4279 2B
-               LD BC,&0014                     ; 427A 01 14 00
+               LD BC,&0014                     ; 427A 01 14 00  and twenty, the entries on a track, likewise
                XOR A                           ; 427D AF
                DEC A                           ; 427E 3D
 
@@ -1841,7 +1842,7 @@ EXPECT_NUMBER:
 
 ; ---- EXPECT_COMMA ---- from &4B88, &4D55, &4E57, &6537, &7052
 EXPECT_COMMA:
-               LD C,&2C                        ; 4450 0E 2C
+               LD C,CH_COMMA                   ; 4450 0E 2C
                JR CHAR_MUST_BE_C               ; 4452 18 09
 
 ;; --------------------------------------------------------------------
@@ -1850,7 +1851,7 @@ EXPECT_COMMA:
 
 ; ---- EXPECT_RPAREN ---- from &4160, &4D4A, &4D5C, &4E5E
 EXPECT_RPAREN:
-               LD C,&29                        ; 4454 0E 29
+               LD C,&29                        ; 4454 0E 29  ")", the character the shared tester below is being given
                JR CHAR_MUST_BE_C               ; 4456 18 05
 
 ;; --------------------------------------------------------------------
@@ -1866,7 +1867,8 @@ EXPECT_RPAREN:
 
 ; ---- EXPECT_NEXT_LPAREN ---- from &444A, &4B3C, &4D4F, &4E51, &4E63
 EXPECT_NEXT_LPAREN:
-               LD C,&28                        ; 4458 0E 28
+               LD C,&28                        ; 4458 0E 28  "(", likewise -- three entries, one routine, and the only
+                                               ; difference between them is this byte
 
 ;; --------------------------------------------------------------------
 ;; Step to the next character and require it to be the one in C.
@@ -6087,7 +6089,8 @@ HGTTK_DONE2:
 ; ---- GTDT ---- from &4FBF, &5212, &5D59
 GTDT:
                POP IY                          ; 5000 FD E1
-               LD BC,&0011                     ; 5002 01 11 00
+               LD BC,&0011                     ; 5002 01 11 00  seventeen, and the MasterDOS author's own comment on the
+                                               ; ADD IY,BC below says so: "PT TO 17 BYTES FURTHER ON"
 
 ; ---- GTDT_1 ---- from &5216
 GTDT_1:
@@ -6582,7 +6585,11 @@ OPEN_GAP_AT_LINE:
                POP AF                             ; 518C F1
                LD D,(HL)                          ; 518D 56
                PUSH DE                            ; 518E D5
-               LD (HL),&FF                        ; 518F 36 FF
+               LD (HL),&FF                        ; 518F 36 FF  &FF over the line-number high byte, which is the ROM's
+                                                  ; own end-of-program marker -- COMDF in fn.asm reads it as LD A,(HL) :
+                                                  ; INC A : RET Z, commented "RET IF NO PROGRAM". So the program is made
+                                                  ; to look as though it stops here while the gap is opened, and the
+                                                  ; byte saved by the LD D,(HL) above goes back at &5195
                PUSH BC                            ; 5191 C5
                CALL CALL_JMKRBIG                  ; 5192 CD F3 58
                POP DE                             ; 5195 D1
@@ -6593,7 +6600,10 @@ OPEN_GAP_AT_LINE:
                DEFW DOS_ROOM_LEFT_IN_SECTOR-&4000 ; 519D 56 48
                POP AF                             ; 519F F1
                POP HL                             ; 51A0 E1
-               LD BC,&FF00                        ; 51A1 01 00 FF
+               LD BC,&FF00                        ; 51A1 01 00 FF  a line number no program can hold, so the search
+                                                  ; below runs to the end. &FFxx is what the stopper itself reads as,
+                                                  ; which is why FNDLNHL's comment is "NZ=FOUND A LATER LINE, OR FF
+                                                  ; STOPPER"
                CALL FIND_LINE_FROM_HL             ; 51A4 CD 0B 59
                POP AF                             ; 51A7 F1
                LD (HL),A                          ; 51A8 77
@@ -7833,17 +7843,19 @@ INIT_SERIAL_FROM_TABLE_DONE:
                LD (V4089),HL                   ; 5617 22 89 40
                RET                             ; 561A C9
 
-;; --------------------------------------------------------------------
-;; Write BC into the word &19 bytes into the ROM's channel table, which
-;; is how MasterBASIC puts itself in a channel's place.
-;; --------------------------------------------------------------------
-
 ; ---- INSTALL_CHANNEL_HANDLER ---- from &55FB
 INSTALL_CHANNEL_HANDLER:
                PUSH HL                         ; 561B E5
                CALL MBNRRDD                    ; 561C CD 5F 45
                DEFW CHANS+IN_PAGE_C            ; 561F 4F 9C
-               LD HL,&0019                     ; 5621 21 19 00
+
+;; --------------------------------------------------------------------
+;; Write BC into the word &19 bytes into the ROM's channel table, which
+;; is how MasterBASIC puts itself in a channel's place.
+;; --------------------------------------------------------------------
+
+               LD HL,&0019                     ; 5621 21 19 00  &19 into CHANS, the same word IS_CHANNEL_OURS reads back
+                                               ; at &562E and INIT_SERIAL_FROM_TABLE writes at &55B0
                ADD HL,BC                       ; 5624 09
                POP BC                          ; 5625 C1
                JP MBWRTBC                      ; 5626 C3 B3 45
@@ -9589,7 +9601,9 @@ SOUND_FEED_TICK_4:
 ;; --------------------------------------------------------------------
 
 CMD_BLITZ:
-               LD C,&AE                        ; 5AD4 0E AE
+               LD C,T_SOUND                    ; 5AD4 0E AE  BLITZ SOUND, which is the only form of it -- the manual's
+                                               ; example is "60 BLITZ SOUND snd$" and NEXT_CHAR_MUST_BE_C is what makes
+                                               ; the keyword compulsory
                CALL NEXT_CHAR_MUST_BE_C        ; 5AD6 CD 5A 44
                CALL CALL_EXPSTR                ; 5AD9 CD 7C 44
                CALL EXPECT_END_OF_STATEMENT    ; 5ADC CD D0 44
@@ -12126,17 +12140,20 @@ SEND_COMPRESSED_BLOCK:
                POP HL                          ; 6192 E1
                RET                             ; 6193 C9
 
+; ---- WRITE_THREE_FF ---- from &6164
+WRITE_THREE_FF:
+               LD B,&03                        ; 6194 06 03  three of them, which is what the reader at &62BC skips
+                                               ; before it starts copying
+
 ;; --------------------------------------------------------------------
 ;; Three &FF bytes to the open file, through the DOS's save-byte hook.
 ;; --------------------------------------------------------------------
 
-; ---- WRITE_THREE_FF ---- from &6164
-WRITE_THREE_FF:
-               LD B,&03                        ; 6194 06 03
-
 ; ---- WRITE_THREE_FF_LOOP ---- from &619D when B is not 0 yet
 WRITE_THREE_FF_LOOP:
-               LD A,&FF                        ; 6196 3E FF
+               LD A,&FF                        ; 6196 3E FF  and &FF is the byte. Nothing chooses it for its value: it
+                                               ; is the marker that closes the compressed stream, and the expander's
+                                               ; first loop eats however many it finds
                CALL CALLDOS                    ; 6198 CD C1 42
                DEFW DOS_HOOK_SBYT-&4000        ; 619B 75 6F
                DJNZ WRITE_THREE_FF_LOOP        ; 619D 10 F7
@@ -12231,7 +12248,10 @@ ENCODE_ONE_NIBBLE_LOOP:
 
 ; ---- COUNT_RUN ---- from &61C3 when A <> C
 COUNT_RUN:
-               LD B,&8B                        ; 61D2 06 8B
+               LD B,&8B                        ; 61D2 06 8B  &8B, which ENCODE_ONE_NIBBLE's banner names -- "the two
+                                               ; paths differ only in where B starts, &88 for a nibble equal to the
+                                               ; escape, &8B for anything else" -- and &61DE takes it off &8C to get the
+                                               ; length
                LD E,A                          ; 61D4 5F
 
 ; ---- COUNT_RUN_LOOP ---- from &61DB when B is not 0 yet
@@ -13008,7 +13028,9 @@ CMD_SAVE:
                CALL CALL_NEXTCHAR              ; 63E6 CD 61 44
                CP T_BOOT                       ; 63E9 FE E9
                JR Z,SAVE_BOOT                  ; 63EB 28 17
-               LD C,&AA                        ; 63ED 0E AA
+               LD C,T_MODE                     ; 63ED 0E AA  SAVE MODE n, the compression setting -- BYTE_ARGUMENT and
+                                               ; the DEC A below hand 1 to 3 as 0 to 2 to SET_COMPRESSION_MODE, which
+                                               ; writes the DOS's CMPFG
                CALL CHAR_THEN_NUMBER_THEN_END  ; 63EF CD C5 44
                CALL BYTE_ARGUMENT              ; 63F2 CD A1 43
                DEC A                           ; 63F5 3D
@@ -14581,7 +14603,7 @@ DUMP_ORIENT_SETUP:
                AND A                           ; 684B A7
                JR NZ,DUMP_ORIENT_SETUP_2       ; 684C 20 09
                LD A,H                          ; 684E 7C  and otherwise DUMP 3 is the sideways one
-               CP &03                          ; 684F FE 03
+               CP &03                          ; 684F FE 03  three being that DUMP, the number the line above names
 
 ; ---- DUMP_ORIENT_SETUP_1 ---- from &6846 when A = &02
 DUMP_ORIENT_SETUP_1:
@@ -18229,6 +18251,9 @@ COMPILE_PASS:
                OUT (HMPR),A                    ; 73AA D3 FB
                RET                             ; 73AC C9
 
+COMPILE_ELINE:
+               LD A,(REFFLG)                   ; 73AD 3A 76 5A
+
 ;; --------------------------------------------------------------------
 ;; What the ROM calls ELCOMAL, at &4D7B once moved.  Six bytes: read
 ;; REFFLG, CP &01, CCF -- so carry comes out clear only when REFFLG is
@@ -18237,9 +18262,10 @@ COMPILE_PASS:
 ;; whether the DEF FN table is rebuilt.
 ;; --------------------------------------------------------------------
 
-COMPILE_ELINE:
-               LD A,(REFFLG)                   ; 73AD 3A 76 5A
-               CP &01                          ; 73B0 FE 01
+               CP &01                          ; 73B0 FE 01  one, so the CCF after it turns "REFFLG is zero" into carry
+                                               ; clear. The ROM's variable table gives REFFLG as "Z IF REF VAR BEING
+                                               ; WORKED ON", so the carry this leaves means there is no REF variable in
+                                               ; hand
                CCF                             ; 73B2 3F
 
 ;; --------------------------------------------------------------------
@@ -20840,7 +20866,7 @@ CALLBACK_SKIPNAME:
                RST ERR_HOOK                    ; 7CB5 CF  hook 178, DELETE for strings and string arrays. The LD A below
                                                ; leaves &CD in A, which is DELETE's own token
                DEFB HKC_SKIPNAME               ; 7CB6 B2 hook code
-               LD A,&CD                        ; 7CB7 3E CD
+               LD A,T_DELETE                   ; 7CB7 3E CD
                RET                             ; 7CB9 C9
 
 ; ---- CALLBACK_RCPTCH ---- from &7C84 when A = T_CLEAR, &7C88 when A = T_RUN
@@ -21228,15 +21254,17 @@ L7DC5:
 TBL_7D58_4:
                LD D,A                          ; 7DCD 57
 
-; ---- TBL_7D58_LOOP2 ---- from &7DD5 when A <> &3A
+; ---- TBL_7D58_LOOP2 ---- from &7DD5 when A <> CH_COLON
 TBL_7D58_LOOP2:
                RST NEXT_CHAR                   ; 7DCE E7
-               CP &0D                          ; 7DCF FE 0D
+               CP CH_CR                        ; 7DCF FE 0D
                JR Z,TBL_7D58_5                 ; 7DD1 28 04
-               CP &3A                          ; 7DD3 FE 3A
+               CP CH_COLON                     ; 7DD3 FE 3A  a colon or a carriage return, whichever comes first, is
+                                               ; where a statement ends -- so this reads forward to it and &7DD7 hands
+                                               ; the count back
                JR NZ,TBL_7D58_LOOP2            ; 7DD5 20 F7
 
-; ---- TBL_7D58_5 ---- from &7DD1 when A = &0D
+; ---- TBL_7D58_5 ---- from &7DD1 when A = CH_CR
 TBL_7D58_5:
                LD A,D                          ; 7DD7 7A
 
