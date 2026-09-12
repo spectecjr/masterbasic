@@ -1,6 +1,12 @@
 # COPY, CALL MODE, and two helpers whose carried comments are a little
 # off.  Prose for listings/clean/ only.
 
+# TRX, transferring a name through COPY's wildcards.
+DOS &62EC : fifteen bytes: the type, the name, and the four after it
+DOS &62F7 expr NAME_LENGTH
+DOS &62FA expr CH_STAR
+DOS &62FE expr CH_QUERY
+
 # BACKUP.
 DOS &69DB expr WINDOW
 DOS &69DB : the transfer address: a whole track goes through the window

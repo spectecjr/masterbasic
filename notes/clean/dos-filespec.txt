@@ -105,6 +105,14 @@ DOS &62E3 : one past "z"
 DOS &504C : one past "9"
 DOS &504F : "0", and CCF makes carry mean a digit
 
+DOS &734E : one character of it
+DOS &7353 : "T": the tape gets a space, anything else the "*" after it
+
+DOS &5EE4 : a comma
+DOS &5EE8 : or a semicolon
+DOS &73D6 : the count in C alone
+DOS &73DB : ten less the name's length is how many spaces pad it
+
 DOC C11SP
     Are the eleven characters after HL all spaces?  Z if so, and HL is
     left where it was.  Eleven is the field less the three a "D1:"
@@ -119,6 +127,11 @@ DOC CODN
 
 DOS &61A0 : 1 to 7, tested as 0 to 6 after the DEC
 DOS &61A8 : the high byte of the index
+
+DOS &634D : "T", the tape
+DOS &6351 : "N", the network; anything else is "Invalid device"
+DOS &63D7 : offset 36 of the header: the high byte of the length within its last page
+DOS &63E9 : eighty bytes, the ROM's HDRL: the whole header buffer
 
 DOC EVFL75
     A tape or network header: set the ROM's temporary device and speed,

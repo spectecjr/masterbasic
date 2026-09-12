@@ -27,6 +27,19 @@ DOS &70AA expr CNTH
 DOS &71A9 expr CNTL
 DOS &71AD expr CNTH
 
+DOS &6F4B expr FLAG3-DCHAN
+DOS &6F4E : bits 0 and 1 are the mode, and zero is IN
+
+DOS &4FD0 expr NSR-DCHAN+1
+DOS &4FD3 expr NSR-DCHAN
+DOS &6CE4 expr CNTL
+DOS &6CE9 expr CNTH
+DOS &7139 expr SECTOR_LENGTH-2
+DOS &7139 : 510, the data bytes of a sector
+DOS &7184 expr SECTOR_LENGTH-2
+DOS &6E67 : either case, and bit 7 off: a temporary channel is "D"+&80
+DOS &6E69 : a disc channel?
+
 DOC GTBUF
     Point HL at the sector buffer for the channel in IX.
 

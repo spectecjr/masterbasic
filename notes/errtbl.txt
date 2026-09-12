@@ -49,3 +49,9 @@ DOC ERRTBL
     &706E, which compares a stored pointer against DE just after reading
     PRPTR and PRPTRP, the ROM's proc address and proc page.  "Size
     mismatch" fits, and it is the table's own word rather than a guess.
+
+# The two stubs the chain walker leaves bare, named by hand.
+DOS &519B value ERR_NO_PAGES_FREE
+DOS &519B : error 115, "No pages free"
+DOS &519E value ERR_PROTECTED_FILE
+DOS &519E : error 116, "PROTECTED file"

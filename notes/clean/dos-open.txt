@@ -96,6 +96,15 @@ DOS &6C2E expr CNTL
 DOS &6C31 expr CNTH
 DOS &6C31 : no sectors read yet
 
+DOS &6B61 : the ROM's STREAMS table through the window: stream 0's entry is at &5C16, two bytes a stream
+DOS &6B65 : the doubled stream number alone
+DOS &6C57 expr TYPE_MASK
+DOS &6C59 expr TYPE_OPENTYPE
+DOS &6C63 : &10 and up is a SAM type, with a nine-byte header in the file
+DOS &6C72 : the carry out of the add, into the top byte
+DOS &6C77 : 48K, the length of a 48K snapshot's image
+DOS &6C7B expr TYPE_ZX_SNP48
+
 DOC CMD_OPEN_1
     Not BLOCKS, so a stream or a subdirectory.
 

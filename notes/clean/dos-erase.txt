@@ -2,6 +2,11 @@
 #
 # Prose for listings/clean/ only.
 
+DOS &58DD : &F1 is the PROTECT token, with HIDE above it; ERASE and COPY are below
+DOS &58E8 : four characters: "UN " and the backspace that cancels the space
+DOS &58F1 : a quote, to open the name
+DOS &58F6 : 1 into INQUFG: tokens off again, since the name is inside quotes now
+
 DOC ERAZ
     ERASE, which is a loop over SNDFX with a filter and a prompt in it.
 

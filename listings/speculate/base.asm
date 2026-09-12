@@ -31,6 +31,8 @@
 ; where the same value means something else elsewhere.
 ENABLE_ROM1:                    EQU  &40                                 ; LMPR bit 6: ROM 1 in at &C000. Does not move
                                                                          ; the page in section B
+ERR_NO_PAGES_FREE:              EQU  &73
+ERR_PROTECTED_FILE:             EQU  &74
 SKIP_1_VIA_CP:                  EQU  &FE                                 ; CP n, skipping one byte and clobbering the
                                                                          ; flags
 SKIP_1_VIA_LD_A:                EQU  &3E                                 ; LD A,n, standing here only to swallow the

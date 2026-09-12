@@ -2925,9 +2925,9 @@ SELD:
 ; ---- SEL1 ---- from &4837 when A <> &02
 SEL1:
                LD A,D                          ; 483B 7A
-               AND &80                         ; 483C E6 80
+               AND &80                         ; 483C E6 80  bit 7 of the track is side 2
                JR Z,SEL1_DONE                  ; 483E 28 02
-               LD A,&04                        ; 4840 3E 04
+               LD A,&04                        ; 4840 3E 04  four up is the same register on side 2
 
 ; ---- SEL1_DONE ---- from &483E when no bit of &80 is set
 SEL1_DONE:
@@ -5061,8 +5061,8 @@ SET_TRACK_AND_SECTOR:
 ; ---- SWAP_TRACK_AND_SECTOR ---- from &498E, &6F85, &6FA4, &6FC5, &761D
 SWAP_TRACK_AND_SECTOR:
                CALL GET_TRACK_AND_SECTOR       ; 4FCD CD BF 4F
-               LD (IX+&12),H                   ; 4FD0 DD 74 12
-               LD (IX+&11),L                   ; 4FD3 DD 75 11
+               LD (IX+NSR-DCHAN+1),H           ; 4FD0 DD 74 12
+               LD (IX+NSR-DCHAN),L             ; 4FD3 DD 75 11
                RET                             ; 4FD6 C9
 
 ;; --------------------------------------------------------------------
@@ -5962,13 +5962,13 @@ REP33:
 
 ; ---- REP33_1 ---- from &5A33 when B reaches 0, &6A11 when A = 0
 REP33_1:
-               LD A,&73                        ; 519B 3E 73
+               LD A,ERR_NO_PAGES_FREE          ; 519B 3E 73  error 115, "No pages free"
                DEFB SKIP_2_VIA_LD_HL           ; 519D !  skipped: reads as LD HL,&743E from here, swallowing the bytes
                                                ; below it
 
 ; ---- REP33_2 ---- from &4D5B when bit 6 of (HL) set, &5E5F
 REP33_2:
-               LD A,&74                        ; 519E 3E 74
+               LD A,ERR_PROTECTED_FILE         ; 519E 3E 74  error 116, "PROTECTED file"
 
 REPORTA:
                LD (V51A6),A                    ; 51A0 32 A6 51  plant the code in the byte DERR will read
@@ -6427,9 +6427,10 @@ SNAP4A:
                CALL FDHR                       ; 53F0 CD 31 4B  where would this file go?
                JR NZ,SNAP3                     ; 53F3 20 85  nowhere, so ask again rather than report it
                LD A,D                          ; 53F5 7A  the track, as a digit
-               AND &07                         ; 53F6 E6 07
+               AND &07                         ; 53F6 E6 07  the low three bits of the track, as a digit; zero means
+                                               ; none
                JR Z,SNAP5                      ; 53F8 28 05
-               ADD A,&30                       ; 53FA C6 30
+               ADD A,&30                       ; 53FA C6 30  "0" makes it a digit
                LD (SNME+5),A                   ; 53FC 32 E9 41
 
 ; ---- SNAP5 ---- from &53F8 when no bit of &07 is set
@@ -6858,8 +6859,8 @@ SCTRK:
                CALL NRWR                       ; 55C8 CD 74 50
                DEFW SPOSNL                     ; 55CB 6E 5A
                LD L,D                          ; 55CD 6A
-               LD H,&00                        ; 55CE 26 00
-               LD A,&20                        ; 55D0 3E 20
+               LD H,&00                        ; 55CE 26 00  the track alone
+               LD A,&20                        ; 55D0 3E 20  a space for a leading zero
                CALL PNUM3                      ; 55D2 CD 2F 57  three digits, space padded
                DI                              ; 55D5 F3  the format loop runs with interrupts off
                POP DE                          ; 55D6 D1
@@ -6974,9 +6975,9 @@ FESE3:
 ISECT:
                INC E                           ; 5624 1C
                LD A,E                          ; 5625 7B
-               CP &0B                          ; 5626 FE 0B
+               CP &0B                          ; 5626 FE 0B  past sector 10
                RET NZ                          ; 5628 C0
-               LD E,&01                        ; 5629 1E 01
+               LD E,&01                        ; 5629 1E 01  back to sector 1, with Z for the caller: the track is done
                RET                             ; 562B C9
 
 ;; --------------------------------------------------------------------
@@ -7088,9 +7089,9 @@ PNTY5:
                LD A,(DTFLG)                    ; 56A2 3A 33 42
                AND A                           ; 56A5 A7
                JR Z,PNTY5_1                    ; 56A6 28 10
-               LD A,&17                        ; 56A8 3E 17
+               LD A,&17                        ; 56A8 3E 17  TAB, CHR$ 23
                CALL PRINT_A_KEEPING_IT         ; 56AA CD 66 57  TAB
-               LD A,&23                        ; 56AD 3E 23
+               LD A,&23                        ; 56AD 3E 23  its two argument bytes, both &23: column 35
                CALL PRINT_A_KEEPING_IT         ; 56AF CD 66 57
                CALL PRINT_A_KEEPING_IT         ; 56B2 CD 66 57
                CALL PRINT_DATE_IF_SET          ; 56B5 CD BB 56  PRINT DATE/TIME
@@ -7157,8 +7158,8 @@ PRINT_FIELD:
                PUSH DE                         ; 56DF D5
                PUSH BC                         ; 56E0 C5
                LD L,(HL)                       ; 56E1 6E
-               LD H,&00                        ; 56E2 26 00
-               LD A,&30                        ; 56E4 3E 30
+               LD H,&00                        ; 56E2 26 00  the byte alone
+               LD A,&30                        ; 56E4 3E 30  "0" for a leading zero: two digits always
                CALL PNUM2                      ; 56E6 CD 35 57
                POP BC                          ; 56E9 C1
                POP DE                          ; 56EA D1
@@ -7202,7 +7203,7 @@ GTVAL:
 PNUM6:
                LD (SVA),A                      ; 56FB 32 1D 41
                XOR A                           ; 56FE AF
-               LD DE,&0000                     ; 56FF 11 00 00
+               LD DE,&0000                     ; 56FF 11 00 00  cleared, to take the page's low two bits in D
                RR C                            ; 5702 CB 19
                RR D                            ; 5704 CB 1A
                RR C                            ; 5706 CB 19
@@ -7214,7 +7215,8 @@ PNUM6:
                LD A,C                          ; 570D 79
                ADC A,E                         ; 570E 8B
                LD B,A                          ; 570F 47
-               LD DE,&86A0                     ; 5710 11 A0 86
+               LD DE,&86A0                     ; 5710 11 A0 86  &186A0 is 100000, the sixth digit's divisor, with C as
+                                               ; its top byte
                LD C,&01                        ; 5713 0E 01  65536
                LD A,(SVA)                      ; 5715 3A 1D 41
                CALL PNM2                       ; 5718 CD 43 57
@@ -7230,8 +7232,8 @@ PNUM5X:
 
 ; ---- PNUM5Y ---- from &571B
 PNUM5Y:
-               LD C,&00                        ; 5721 0E 00
-               LD DE,&2710                     ; 5723 11 10 27
+               LD C,&00                        ; 5721 0E 00  no top byte this time
+               LD DE,&2710                     ; 5723 11 10 27  10000, the fifth digit's divisor
                CALL PNM2                       ; 5726 CD 43 57
 
 ; ---- PNUM4 ---- from &4C53, &5BD2, &5BDD, &5BF2
@@ -7361,8 +7363,9 @@ PTM:
 ; ---- PTM2 ---- from &579E
 PTM2:
                LD A,(HL)                       ; 577D 7E
-               AND &7F                         ; 577E E6 7F
-               CP &0D                          ; 5780 FE 0D
+               AND &7F                         ; 577E E6 7F  bit 7 marks the last character of a message
+               CP &0D                          ; 5780 FE 0D  &0D and up is a character; below it is a compression code,
+                                               ; of which 12 runs off the table
                JR NC,PTM4                      ; 5782 30 13
                PUSH HL                         ; 5784 E5
                PUSH DE                         ; 5785 D5
@@ -7554,10 +7557,10 @@ PNDN2:
                LD A,(HL)                       ; 589B 7E  00 IF OLD DOS, OR FF IF NEV USED
                RES 7,(HL)                      ; 589C CB BE  SO NEV CAN USE BIT 7 AS IBU MARKER
                INC A                           ; 589E 3C
-               CP &02                          ; 589F FE 02
+               CP &02                          ; 589F FE 02  &FF became 0 and &00 became 1: a disc with no name field
                JR C,PMOSD                      ; 58A1 38 DD  PRINT "   SAM DOS " IF OLD DOS
                LD A,(HL)                       ; 58A3 7E
-               CP &2A                          ; 58A4 FE 2A
+               CP &2A                          ; 58A4 FE 2A  "*" is a MasterDOS disc that was never named
                JR NZ,PMO8                      ; 58A6 20 0A  PRINT DISC NAME IF THERE IS ONE,
 
 PMOMD:
@@ -7597,21 +7600,24 @@ OHNM:
                CALL WIQF                       ; 58D5 CD F8 58  TOKENS ON
                CALL NRRD                       ; 58D8 CD 5E 50
                DEFW CURCMD                     ; 58DB 74 5B
-               CP &F1                          ; 58DD FE F1
+               CP &F1                          ; 58DD FE F1  &F1 is the PROTECT token, with HIDE above it; ERASE and
+                                               ; COPY are below
                JR C,OHNM2                      ; 58DF 38 0D  JR IF ERASE OR COPY
                PUSH AF                         ; 58E1 F5
                CALL BITF1                      ; 58E2 CD 22 51
                LD HL,MSGUN                     ; 58E5 21 CD 58
-               LD B,&04                        ; 58E8 06 04
+               LD B,&04                        ; 58E8 06 04  four characters: "UN " and the backspace that cancels the
+                                               ; space
                CALL NZ,PRINT_B_CHARACTERS      ; 58EA C4 1B 5C  PRINT "UN" IF PROTECT OR HIDE OFF
                POP AF                          ; 58ED F1
 
 ; ---- OHNM2 ---- from &58DF when A < &F1
 OHNM2:
                CALL PRINT_A_KEEPING_IT         ; 58EE CD 66 57  PRINT PROTECT, HIDE, ERASE OR COPY
-               LD A,&22                        ; 58F1 3E 22
+               LD A,&22                        ; 58F1 3E 22  a quote, to open the name
                CALL PRINT_A_KEEPING_IT         ; 58F3 CD 66 57  NOW E.G. ERASE "
-               LD A,&01                        ; 58F6 3E 01
+               LD A,&01                        ; 58F6 3E 01  1 into INQUFG: tokens off again, since the name is inside
+                                               ; quotes now
 
 ; ---- WIQF ---- from &58D5
 WIQF:
@@ -8357,10 +8363,10 @@ TRK1:
                ADD A,A                         ; 5C74 87  *4
                ADD A,C                         ; 5C75 81  *5 (5-195)
                LD L,A                          ; 5C76 6F
-               LD H,&00                        ; 5C77 26 00
+               LD H,&00                        ; 5C77 26 00  the count alone
                ADD HL,HL                       ; 5C79 29  *10
                LD A,C                          ; 5C7A 79
-               CP &05                          ; 5C7B FE 05
+               CP &05                          ; 5C7B FE 05  five or more directory tracks is MasterDOS's extension
                JR C,PCT2                       ; 5C7D 38 01  JR IF 4-TRACK DIR
                DEC HL                          ; 5C7F 2B  ALLOW FOR 2 UNUSABLE T4/S1 ENTRIES
 
@@ -9018,9 +9024,9 @@ REP0:
 
 ; ---- SEPAR ---- from &5B28, &5EDC
 SEPAR:
-               CP &2C                          ; 5EE4 FE 2C
+               CP &2C                          ; 5EE4 FE 2C  a comma
                JR Z,SEPA1                      ; 5EE6 28 07
-               CP &3B                          ; 5EE8 FE 3B
+               CP &3B                          ; 5EE8 FE 3B  or a semicolon
                JR Z,SEPA1                      ; 5EEA 28 03
                CP &22                          ; 5EEC FE 22  """
                RET                             ; 5EEE C9
@@ -9124,9 +9130,10 @@ SVHD1_LOOP:
 ; ---- REMFP ---- from &5F66 when A <> &0D, &5F6F, &6A9A
 REMFP:
                LD A,(HL)                       ; 5F55 7E
-               CP &0E                          ; 5F56 FE 0E
+               CP &0E                          ; 5F56 FE 0E  &0E is the ROM's number marker: five bytes of binary follow
+                                               ; every number in a line
                JR NZ,REMP1                     ; 5F58 20 08
-               LD BC,&0006                     ; 5F5A 01 06 00
+               LD BC,&0006                     ; 5F5A 01 06 00  six bytes: the marker and the five
                CALL CMR                        ; 5F5D CD B2 7B
                DEFW JRECLAIM                   ; 5F60 63 01
 
@@ -9950,29 +9957,29 @@ TRX:
 ; ---- TRX0 ---- from &5D99
 TRX0:
                LD DE,NSTR1                     ; 62E9 11 3A 41
-               LD BC,&000F                     ; 62EC 01 0F 00
+               LD BC,&000F                     ; 62EC 01 0F 00  fifteen bytes: the type, the name, and the four after it
                LDIR                            ; 62EF ED B0  NSTR1=DATA FROM DISC
                LD DE,NSTR1+1                   ; 62F1 11 3B 41
                LD HL,NSTR3+1                   ; 62F4 21 6F 41
-               LD B,&0A                        ; 62F7 06 0A
+               LD B,NAME_LENGTH                ; 62F7 06 0A
 
 ; ---- TRX1 ---- from &6305 when B is not 0 yet
 TRX1:
                LD A,(HL)                       ; 62F9 7E
-               CP &2A                          ; 62FA FE 2A
+               CP CH_STAR                      ; 62FA FE 2A
                JR Z,TRX3                       ; 62FC 28 0A
-               CP &3F                          ; 62FE FE 3F
+               CP CH_QUERY                     ; 62FE FE 3F
                JR Z,TRX2                       ; 6300 28 01  LEAVE CHARS IN TGT OPPOSITE "?"
                LD (DE),A                       ; 6302 12  TGT=SRC UNLESS SRC="?"
 
-; ---- TRX2 ---- from &6300 when A = &3F, &6310 when A = &2E
+; ---- TRX2 ---- from &6300 when A = CH_QUERY, &6310 when A = &2E
 TRX2:
                INC HL                          ; 6303 23
                INC DE                          ; 6304 13
                DJNZ TRX1                       ; 6305 10 F2
                RET                             ; 6307 C9
 
-; ---- TRX3 ---- from &62FC when A = &2A
+; ---- TRX3 ---- from &62FC when A = CH_STAR
 TRX3:
                INC HL                          ; 6308 23
                LD A,(HL)                       ; 6309 7E
@@ -10057,9 +10064,9 @@ RXSS:
 RXHED2:
                CALL RXSS                       ; 6349 CD 3D 63
                RET Z                           ; 634C C8
-               CP &54                          ; 634D FE 54
+               CP &54                          ; 634D FE 54  "T", the tape
                JR Z,EVFL75                     ; 634F 28 05
-               CP &4E                          ; 6351 FE 4E
+               CP &4E                          ; 6351 FE 4E  "N", the network; anything else is "Invalid device"
 
 REP10H:
                JP NZ,REP10                     ; 6353 C2 F4 47  INVALID DEVICE
@@ -10165,7 +10172,8 @@ TXHED:
                PUSH IX                         ; 63D3 DD E5
                POP HL                          ; 63D5 E1
                PUSH HL                         ; 63D6 E5
-               LD BC,&0024                     ; 63D7 01 24 00
+               LD BC,&0024                     ; 63D7 01 24 00  offset 36 of the header: the high byte of the length
+                                               ; within its last page
                ADD HL,BC                       ; 63DA 09  IX+24H
                CALL RDA                        ; 63DB CD C9 50  MSB OF LEN MOD 16K (HDR) TO A
                LD HL,DIFA+&24                  ; 63DE 21 D1 41
@@ -10177,7 +10185,7 @@ TXHED_1:
                XOR (HL)                        ; 63E4 AE  VERIFY DEPENDS ON EQUALIT
                LD (HL),A                       ; 63E5 77
                LD DE,DIFA                      ; 63E6 11 AD 41
-               LD BC,&0050                     ; 63E9 01 50 00
+               LD BC,&0050                     ; 63E9 01 50 00  eighty bytes, the ROM's HDRL: the whole header buffer
 
 ; ---- TXRM ---- from &6388
 TXRM:
@@ -11994,9 +12002,10 @@ OPEN25:
 OPDST:
                LD A,(SSTR1)                    ; 6B5D 3A 38 41
                ADD A,A                         ; 6B60 87
-               LD HL,&5C16+FS                  ; 6B61 21 16 9C
+               LD HL,&5C16+FS                  ; 6B61 21 16 9C  the ROM's STREAMS table through the window: stream 0's
+                                               ; entry is at &5C16, two bytes a stream
                LD E,A                          ; 6B64 5F
-               LD D,&00                        ; 6B65 16 00
+               LD D,&00                        ; 6B65 16 00  the doubled stream number alone
                ADD HL,DE                       ; 6B67 19
                PUSH HL                         ; 6B68 E5  ADDR OF PTR IN STRMS
                CALL RESET_CHANNEL_SCAN         ; 6B69 CD 77 6B
@@ -12189,8 +12198,8 @@ OPND44:
 
 ; ---- OPNDUP ---- from &6C51 when bit 6 of A clear
 OPNDUP:
-               AND &1F                         ; 6C57 E6 1F
-               CP &0A                          ; 6C59 FE 0A
+               AND TYPE_MASK                   ; 6C57 E6 1F
+               CP TYPE_OPENTYPE                ; 6C59 FE 0A
                JR NZ,NOTF                      ; 6C5B 20 06  JR IF NOT OPENTYPE
                LD A,(HL)                       ; 6C5D 7E
                INC A                           ; 6C5E 3C
@@ -12198,9 +12207,10 @@ OPNDUP:
                LD C,A                          ; 6C61 4F  C=0. NO HDR IN OPENTYPE FILE
                DEC A                           ; 6C62 3D  A=FF SO NO JR
 
-; ---- NOTF ---- from &6C5B when A <> &0A
+; ---- NOTF ---- from &6C5B when A <> TYPE_OPENTYPE
 NOTF:
-               CP &10                          ; 6C63 FE 10
+               CP &10                          ; 6C63 FE 10  &10 and up is a SAM type, with a nine-byte header in the
+                                               ; file
                JR C,OOTF                       ; 6C65 38 10  JR IF ZX TYPE
                DEC HL                          ; 6C67 2B  PT TO LEN DATA FOR ALL FILE TYPES
                LD D,(HL)                       ; 6C68 56
@@ -12211,15 +12221,15 @@ NOTF:
                EX DE,HL                        ; 6C6D EB
                CALL AHLNX                      ; 6C6E CD 84 60  GET 20-BIT LEN
                ADD HL,BC                       ; 6C71 09  HDR LEN OR ZERO
-               ADC A,&00                       ; 6C72 CE 00
+               ADC A,&00                       ; 6C72 CE 00  the carry out of the add, into the top byte
                LD B,A                          ; 6C74 47
                JR GT19B                        ; 6C75 18 13
 
 ; ---- OOTF ---- from &6C65 when A < &10
 OOTF:
-               LD HL,&C000                     ; 6C77 21 00 C0
+               LD HL,&C000                     ; 6C77 21 00 C0  48K, the length of a 48K snapshot's image
                LD B,L                          ; 6C7A 45
-               CP &05                          ; 6C7B FE 05
+               CP TYPE_ZX_SNP48                ; 6C7B FE 05
                JR Z,GT19B                      ; 6C7D 28 0B  JR IF 48K SNAP
 
 ; ---- OOTF2 ---- from &6C5F when A is not 0
@@ -12234,7 +12244,7 @@ OOTF2:
                LD B,(HL)                       ; 6C88 46
                EX DE,HL                        ; 6C89 EB  BHL=LEN IN ZX FORM
 
-; ---- GT19B ---- from &6C75, &6C7D when A = &05
+; ---- GT19B ---- from &6C75, &6C7D when A = TYPE_ZX_SNP48
 GT19B:
                CALL D510                       ; 6C8A CD B1 71  GET HL=LEN MOD 510, HL'=DIV 510
                EX DE,HL                        ; 6C8D EB
@@ -12313,10 +12323,10 @@ SETLEN:
                LD A,(IX+RPT-DCHAN+1)           ; 6CDF DD 7E 0E
                LD (HL),A                       ; 6CE2 77
                INC HL                          ; 6CE3 23
-               LD A,(IX+&1F)                   ; 6CE4 DD 7E 1F
+               LD A,(IX+CNTL)                  ; 6CE4 DD 7E 1F
                LD (HL),A                       ; 6CE7 77
                INC HL                          ; 6CE8 23
-               LD A,(IX+&1E)                   ; 6CE9 DD 7E 1E
+               LD A,(IX+CNTH)                  ; 6CE9 DD 7E 1E
                LD (HL),A                       ; 6CEC 77
                POP HL                          ; 6CED E1
                RET                             ; 6CEE C9  C=ABORTED
@@ -12632,8 +12642,8 @@ RCLM1:
                ADD HL,DE                       ; 6E64 19
                LD D,A                          ; 6E65 57
                LD A,(HL)                       ; 6E66 7E
-               AND &5F                         ; 6E67 E6 5F
-               CP &44                          ; 6E69 FE 44
+               AND &5F                         ; 6E67 E6 5F  either case, and bit 7 off: a temporary channel is "D"+&80
+               CP &44                          ; 6E69 FE 44  a disc channel?
                LD A,D                          ; 6E6B 7A
                JR NZ,RCLM4                     ; 6E6C 20 0E
                LD DE,BUFL-4                    ; 6E6E 11 0B 00
@@ -12823,8 +12833,8 @@ MCHWR:
                LD IX,(CURCHL+IN_PAGE_C)        ; 6F42 DD 2A 51 9C
                LD BC,HEADER                    ; 6F46 01 00 40
                ADD IX,BC                       ; 6F49 DD 09
-               LD A,(IX+&0C)                   ; 6F4B DD 7E 0C
-               AND &03                         ; 6F4E E6 03
+               LD A,(IX+FLAG3-DCHAN)           ; 6F4B DD 7E 0C
+               AND &03                         ; 6F4E E6 03  bits 0 and 1 are the mode, and zero is IN
                JP Z,REP19                      ; 6F50 CA 77 51  "WRITING A READ FILE" IF "IN"
                LD A,(CURCMD+IN_PAGE_C)         ; 6F53 3A 74 9B
                CP &C6                          ; 6F56 FE C6  VALUE FOR "INPUT"
@@ -13288,7 +13298,7 @@ PTRCSL:
                LD A,D                          ; 7135 7A
                OR E                            ; 7136 B3
                JR NZ,PTRCSL                    ; 7137 20 F0  LOOP UNTIL SKIPPED RIGHT NUMBER
-               LD HL,&01FE                     ; 7139 21 FE 01
+               LD HL,SECTOR_LENGTH-2           ; 7139 21 FE 01  510, the data bytes of a sector
                JR PTRCSL_1                     ; 713C 18 43
 
 ; ---- PTRSL ---- from &712B, &7132 when no match, &7178 when A <> (HL), &717B
@@ -13340,7 +13350,7 @@ PTRCOK:
 PTRCSL_1:
                SBC HL,BC                       ; 7181 ED 42  RECORD PTR-BUFFER START (0001-01FE)
                EX DE,HL                        ; 7183 EB
-               LD HL,&01FE                     ; 7184 21 FE 01
+               LD HL,SECTOR_LENGTH-2           ; 7184 21 FE 01
                AND A                           ; 7187 A7
                SBC HL,DE                       ; 7188 ED 52
                JR Z,PTRCOK_1                   ; 718A 28 07
@@ -13815,9 +13825,9 @@ PRPTH:
 ; ---- PRP2 ---- from &7341 when A < L, &7343
 PRP2:
                LD HL,PRPD                      ; 734B 21 58 73  USE "  " IF TAPE
-               LD B,&01                        ; 734E 06 01
+               LD B,&01                        ; 734E 06 01  one character of it
                LD A,(LSTR1)                    ; 7350 3A 39 41
-               CP &54                          ; 7353 FE 54
+               CP &54                          ; 7353 FE 54  "T": the tape gets a space, anything else the "*" after it
                RET Z                           ; 7355 C8
                INC HL                          ; 7356 23  ELSE "*"
                RET                             ; 7357 C9
@@ -13977,10 +13987,10 @@ FLRSL:
 ; ---- STDTN ---- from &73D1 when A < &0B
 STDTN:
                LD C,A                          ; 73D5 4F
-               LD B,&00                        ; 73D6 06 00
+               LD B,&00                        ; 73D6 06 00  the count in C alone
                LDIR                            ; 73D8 ED B0
                LD C,A                          ; 73DA 4F
-               LD A,&0A                        ; 73DB 3E 0A
+               LD A,&0A                        ; 73DB 3E 0A  ten less the name's length is how many spaces pad it
                SUB C                           ; 73DD 91
                JR Z,STDPP                      ; 73DE 28 07  JR IF NO PADS NEEDED
                EX DE,HL                        ; 73E0 EB
@@ -14419,13 +14429,14 @@ RDRS2:
                PUSH HL                         ; 7545 E5  MAIN MEM PTR
                PUSH BC                         ; 7546 C5
                CALL RDADR                      ; 7547 CD 64 75  GET SRC ADDR IN HL
-               LD BC,&0200                     ; 754A 01 00 02
+               LD BC,SECTOR_LENGTH             ; 754A 01 00 02
                LD DE,DRAM                      ; 754D 11 13 7D
                LDIR                            ; 7550 ED B0  COPY RAMDISC TO DRAM
                OUT (HMPR),A                    ; 7552 D3 FB  ORIG URPORT
                POP BC                          ; 7554 C1
                POP HL                          ; 7555 E1
-               LD A,&7D                        ; 7556 3E 7D
+               LD A,&7D                        ; 7556 3E 7D  DRAM's own page: if the caller's buffer was DRAM the copy
+                                               ; is already there
                CP H                            ; 7558 BC
                JR Z,RDW4                       ; 7559 28 88  RET IF DEST=DRAM - DONE IT
                EX DE,HL                        ; 755B EB  DE=BUF
@@ -14486,8 +14497,8 @@ RDAD2:
 ; ---- REP4H ---- from &758F when A >= &50
 REP4H:
                JP NC,REP4                      ; 7588 D2 65 51  TRK/SCT ERROR IF TRACK >=(LIMIT)
-               AND &7F                         ; 758B E6 7F
-               CP &50                          ; 758D FE 50
+               AND &7F                         ; 758B E6 7F  bit 7 of the track is the side; the rest is the track
+               CP &50                          ; 758D FE 50  eighty tracks a side
                JR NC,REP4H                     ; 758F 30 F7  ERROR IF E.G. TRK 81
                BIT 7,D                         ; 7591 CB 7A
                JR Z,RDAD3                      ; 7593 28 04  JR IF "SIDE 1"
@@ -14892,9 +14903,9 @@ MRDPN2:
                LD BC,MPL-2                     ; 7744 01 24 00
                LDIR                            ; 7747 ED B0  COPY PATH NAME FROM RAM DISC
                LD A,(DRIVE)                    ; 7749 3A 0B 7C
-               ADD A,&30                       ; 774C C6 30
+               ADD A,&30                       ; 774C C6 30  the drive number as a digit
                LD L,A                          ; 774E 6F
-               LD H,&3A                        ; 774F 26 3A
+               LD H,&3A                        ; 774F 26 3A  and a colon after it: the path starts "n:"
                LD (PTHRD),HL                   ; 7751 22 D2 40
                EX AF,AF'                       ; 7754 08
                OUT (HMPR),A                    ; 7755 D3 FB
@@ -15160,10 +15171,10 @@ MRADDR:
                AND &1F                         ; 7816 E6 1F  DIV BY 8
                LD C,A                          ; 7818 4F
                LD A,B                          ; 7819 78
-               AND &07                         ; 781A E6 07
+               AND &07                         ; 781A E6 07  the bit within the byte
                INC A                           ; 781C 3C
                LD B,A                          ; 781D 47  B=1 TO 8 FOR BIT 7-0
-               LD A,&01                        ; 781E 3E 01
+               LD A,&01                        ; 781E 3E 01  a single bit, to be shifted into place
 
 ; ---- MRBL ---- from &7821 when B is not 0 yet
 MRBL:
@@ -16457,10 +16468,10 @@ V7D1C:
 INSTALL_TAIL_INTO_SYSPAGE:
                LD HL,INSTALL_TAIL_INTO_SYSPAGE+IN_PAGE_C ; 7D60 21 60 BD
                LD DE,INSTBUF                             ; 7D63 11 00 4F
-               LD BC,&01BE                               ; 7D66 01 BE 01
+               LD BC,&01BE                               ; 7D66 01 BE 01  446 bytes, to &4F00-&50BD in the system page
                LDIR                                      ; 7D69 ED B0
                LD DE,SYS_MNIP_MAIN_INPUT                 ; 7D6B 11 14 4C
-               LD C,&A1                                  ; 7D6E 0E A1
+               LD C,&A1                                  ; 7D6E 0E A1  and 161 more; B is zero after an LDIR
                LDIR                                      ; 7D70 ED B0
                RET                                       ; 7D72 C9
                DEFB &36,&00,&A7,&C8,&3A,&71              ; 7D73 6.'H:q

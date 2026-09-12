@@ -4788,13 +4788,13 @@ REP33:
 
 ; ---- REP33_1 ---- from &5A33 when B reaches 0, &6A11 when A = 0
 REP33_1:
-               LD A,&73                        ; 519B 3E 73
+               LD A,ERR_NO_PAGES_FREE          ; 519B 3E 73  error 115, "No pages free"
                DEFB SKIP_2_VIA_LD_HL           ; 519D !  skipped: reads as LD HL,&743E from here, swallowing the bytes
                                                ; below it
 
 ; ---- REP33_2 ---- from &4D5B when bit 6 of (HL) set, &5E5F
 REP33_2:
-               LD A,&74                        ; 519E 3E 74
+               LD A,ERR_PROTECTED_FILE         ; 519E 3E 74  error 116, "PROTECTED file"
 
 REPORTA:
                LD (V51A6),A                    ; 51A0 32 A6 51  plant the code in the byte DERR will read

@@ -132,6 +132,24 @@ DOS &55F0 : NZ, because there is more to do
 DOS &56EF expr PAGE_VALUE_MASK
 DOS &56F6 : the offset's bit 15 is the &8000 of page form, and printing wants it off
 
+DOS &5626 : past sector 10
+DOS &5629 : back to sector 1, with Z for the caller: the track is done
+DOS &56A8 : TAB, CHR$ 23
+DOS &56AD : its two argument bytes, both &23: column 35
+DOS &56E2 : the byte alone
+DOS &56E4 : "0" for a leading zero: two digits always
+DOS &56FF : cleared, to take the page's low two bits in D
+DOS &5710 : &186A0 is 100000, the sixth digit's divisor, with C as its top byte
+DOS &5721 : no top byte this time
+DOS &5723 : 10000, the fifth digit's divisor
+DOS &577E : bit 7 marks the last character of a message
+DOS &5780 : &0D and up is a character; below it is a compression code, of which 12 runs off the table
+DOS &589F : &FF became 0 and &00 became 1: a disc with no name field
+DOS &58A4 : "*" is a MasterDOS disc that was never named
+
+DOS &55CE : the track alone
+DOS &55D0 : a space for a leading zero
+
 DOC PNTYP
     Print a file's type, and whatever else that type has worth showing.
 

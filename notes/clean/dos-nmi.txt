@@ -178,6 +178,11 @@ DOS &5450-&5456 data
 DOS &5450 : a SCREEN$'s start.  &6E is too large for a five-bit page number, and nothing in this build reads it
 DOS &5453 : its length, &1B00, and the &FF that means "no exec address"
 
+DOS &5F56 : &0E is the ROM's number marker: five bytes of binary follow every number in a line
+DOS &5F5A : six bytes: the marker and the five
+DOS &53F6 : the low three bits of the track, as a digit; zero means none
+DOS &53FA : "0" makes it a digit
+
 DOC CMD_LOAD_1
     LOAD by number has found its file; a 48K snapshot is started here
     rather than loaded.

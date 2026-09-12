@@ -102,6 +102,14 @@ DOS &77BE expr &4000 + SECTOR_LENGTH - 1
 DOS &77C1 : carry means the sector would run off the top of the window
 DOS &77C4 : &8xxx becomes &4xxx -- the same byte, seen from this page
 
+DOS &754A expr SECTOR_LENGTH
+DOS &7556 : DRAM's own page: if the caller's buffer was DRAM the copy is already there
+DOS &758B : bit 7 of the track is the side; the rest is the track
+DOS &758D : eighty tracks a side
+DOS &781A : the bit within the byte
+DOS &781E : a single bit, to be shifted into place
+DOS &774C : the drive number as a digit
+DOS &774F : and a colon after it: the path starts "n:"
 DOS &765C : the page list, fifty-two bytes
 DOS &7664 : &91 is the high byte of ALLOCT, &5100, seen through the window; E will index it by page
 DOS &76C3 : the mover goes at &8002, behind the two bytes at the head of the page
