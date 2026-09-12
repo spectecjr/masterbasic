@@ -201,6 +201,11 @@ MB &50A2 : below FF 26 is not MasterBASIC's
 
 MB &50A6 : and &3B or above is not either.  CP sets carry for "less than", so CCF turns the test into the one wanted
 
+MB &500E : &FF, the prefix every extended token is written behind -- the same byte HOOK_TOKENARG's stub tests at &7C8E
+MB &502C expr CH_SPACE
+MB &5039 : bit 7 off, because a word in these tables is ended by setting it on the last character -- the ROM's own convention, which JPOMSG's entry in the Technical Manual states
+MB &5059 : H cleared, so the count in L is a word for the printing below
+
 MB &50AB : &25 rather than &26, because the space at &50D7 makes the list one-based
 
 MB &50AD : HMPR, with a zero in B that the pair carries for free: IN E,(C) reads the port and OUT (C),B writes B to it, so one LD BC saves the old paging and puts page 0 -- the system page -- in the window

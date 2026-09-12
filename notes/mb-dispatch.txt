@@ -50,6 +50,8 @@ MB &7DA1 : and a carriage return -- the two characters this path emits once the 
 
 MB &7E10 : error 29, the ROM's NONSENSE -- "NONSENSE: RST &08 : DB 29" in mainlp.asm -- which the message table gives as "Not understood".  It is let through untouched, and the reason is a reading rather than something the code says: it is the error every one of MasterBASIC's own parsers raises when a line is not its syntax, so clearing the user's CSIZE on it would happen on any mistyped line
 
+MB &7E25 : both factors to zero at once, which is what "the ROM prints unaided" is -- and the JMODE below re-selects the mode so the change takes
+
 MB &7E1C : five, tried first on SYS_CHAR_HEIGHT in H.  Anything from five up goes to the reset below, which zeroes both factors and re-runs JMODE -- so an error that is about to be reported cannot arrive in characters too large to read it in
 
 MB &7E21 : and the same five on SYS_CHAR_WIDTH in L, so either factor being that large is enough.  Zero in them means the ROM prints unaided, which is what the reset restores

@@ -36,6 +36,9 @@ MB &4310 : register 3, which on the write side is THR, the transmit holding regi
 MB &4319 : register 1 again, SR, for the other direction.  Here the wait is an RRA on bit 0, RxRDY, the first entry in the same table
 MB &4323 : register 3, which on the read side is RHR, the receive holding register -- the same register number, a different register, because the two sides of this chip are not the same eight
 
+MB &4153 : register 3 of the SCC2691, THR on the write side -- the banner below says this path "writes to register 3", and the register number rides in the top half of the port address
+MB &5B98 : three, and the line at &5B92 says what it means -- H+1 with the low two bits clear is the pointer being in the last 256 bytes of a 1K slot.  The same sieve PRINTER_FEED_TICK makes at &5A1E
+
 MB &64E7 CLAMP_CELLS_FOR_DEVICE
 
 DOC CLAMP_CELLS_FOR_DEVICE

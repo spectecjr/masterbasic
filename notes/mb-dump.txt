@@ -313,6 +313,15 @@ MB &5EDD GET_BUFFER_SIZE
 
 MB &670D : type &11, a numeric array, the same type byte COMPRESS_BLOCK tests at &663E before it transposes
 
+MB &634A : a nibble, the low four bits of what the rotations above brought down
+MB &6A45 : the same mask at the other reader, after its four RRCAs
+MB &6228 : E is the merge mask WRITE_NEXT_NIBBLE's XOR/AND/XOR uses and D its phase counter, set here as &62EE sets them for the reading end
+MB &6397 : &1900, the length of the input buffer -- &E500 plus it is the &FE00 that &637D and &62CF both test for
+MB &6173 : &A500 is &E500 seen with HMPR one page further on, which &63A9's note works out; it is not a DOS routine
+MB &63F6 : three, the highest SAVE MODE.  The DEC A above has made 1 to 3 into 0 to 2, so three or more is out of range
+MB &6AD1 : 4 + 2 + 1, so the bright bit adds its share to all three weights in one addition rather than three -- the line above counts it out
+MB &6A0F : 191, the bottom scan line of the 192, so subtracting a row from it measures that row from the top.  &686C does the same with the same number
+
 MB &6194 WRITE_THREE_FF
 
 MB &6194 : three of them, which is what the reader at &62BC skips before it starts copying

@@ -717,7 +717,9 @@ SEND_BYTE_TO_PRINTER:
 ; ---- SEND_BYTE_TO_PRINTER_1 ---- from &413E when A <> 0
 SEND_BYTE_TO_PRINTER_1:
                LD BC,(SPORT+&4000)             ; 414F ED 4B 0B 80
-               LD B,&03                        ; 4153 06 03
+               LD B,&03                        ; 4153 06 03  register 3 of the SCC2691, THR on the write side -- the
+                                               ; banner below says this path "writes to register 3", and the register
+                                               ; number rides in the top half of the port address
                OUT (C),A                       ; 4155 ED 79
                POP BC                          ; 4157 C1
                RET                             ; 4158 C9
@@ -1454,7 +1456,7 @@ SAVE_BLOCK_FROM_THIS_PAGE:
 
 ; ---- SAVE_BLOCK_FROM_DOS_PAGE ---- from &643F
 SAVE_BLOCK_FROM_DOS_PAGE:
-               LD A,(&42CD)                    ; 42AD 3A CD 42
+               LD A,(&42CD)                    ; 42AD 3A CD 42  the same &42CD, read here for the same reason
 
 ;; --------------------------------------------------------------------
 ;; SAVE_BLOCK_FROM_THIS_PAGE_1 -- &42B0 to &42B2
@@ -2093,7 +2095,8 @@ POINT_INTO_VARIABLE:
                LD L,C                          ; 43CC 69
                LD C,(HL)                       ; 43CD 4E
                EX DE,HL                        ; 43CE EB
-               LD HL,&000B                     ; 43CF 21 0B 00
+               LD HL,&000B                     ; 43CF 21 0B 00  eleven, the offset of the 24-bit size in a variable's
+                                               ; record -- the record+11 &7029 names
                ADD HL,DE                       ; 43D2 19
                JR POINT_INTO_VARIABLE_1        ; 43D3 18 0D
 
@@ -2307,7 +2310,8 @@ LONGADDR_TO_PAGED:
 
 ; ---- MULTIPLY_HL_BY_DE ---- from &4791, &6FE6, &6FEB, &711E
 MULTIPLY_HL_BY_DE:
-               LD B,&10                        ; 4433 06 10
+               LD B,&10                        ; 4433 06 10  sixteen passes, one per bit of DE, which is the whole of a
+                                               ; sixteen-by-sixteen multiply done by shift and add
                PUSH HL                         ; 4435 E5
                POP IY                          ; 4436 FD E1
                XOR A                           ; 4438 AF
@@ -2848,7 +2852,9 @@ TEST_RUNNING:
                LD (V4095),A                    ; 44E2 32 95 40
                CALL MBNRRD                     ; 44E5 CD 6A 45
                DEFW FLAGS                      ; 44E8 3B 5C
-               AND &80                         ; 44EA E6 80
+               AND &80                         ; 44EA E6 80  bit 7 of FLAGS. RUNFLG in ref/samrom/misc2.asm reads the
+                                               ; same bit by doubling the byte, commented "C IF RUNNING", so set means
+                                               ; the line is being run and clear that it is only being checked
                LD A,(V4095)                    ; 44EC 3A 95 40
                RET                             ; 44EF C9
 
@@ -2896,7 +2902,8 @@ MBCMR:
                INC A                           ; 4508 3C
                AND PAGEMASK                    ; 4509 E6 1F
                OUT (HMPR),A                    ; 450B D3 FB
-               LD IY,&0000                     ; 450D FD 21 00 00
+               LD IY,&0000                     ; 450D FD 21 00 00  the seed for the ADD IY,SP below, the only way the
+                                               ; Z80 has of reading SP -- the zero is the idiom, as at &77F8
                ADD IY,SP                       ; 4511 FD 39
                JP MBCMR_1+&4000                ; 4513 C3 16 85
 
@@ -3315,7 +3322,8 @@ SET_DCT_COMPILE_BITS:
 ;; Leaves:    A, F
 ;; --------------------------------------------------------------------
 
-               OR &05                          ; 45A2 F6 05
+               OR &05                          ; 45A2 F6 05  bits 0 and 2, the "needs compiling" pair -- the banner
+                                               ; below calls this the exact complement of HOOK_PROGPREP's AND &FA
 
 ;; --------------------------------------------------------------------
 ;; WRA -- &45A4 to &45B2
@@ -3627,7 +3635,8 @@ MULTIPLY_BY_100:
                ADD HL,HL                       ; 45FF 29
                ADC A,A                         ; 4600 8F
                ADD HL,BC                       ; 4601 09
-               ADC A,&00                       ; 4602 CE 00
+               ADC A,&00                       ; 4602 CE 00  the carry out of the ADD below it, into the top byte -- the
+                                               ; 24-bit form the banner counts from the sixth step on
                ADD HL,HL                       ; 4604 29
                ADC A,A                         ; 4605 8F
                ADD HL,HL                       ; 4606 29
@@ -5872,7 +5881,10 @@ WAIT_FOR_CLOCK_1:
                POP AF                          ; 49C7 F1
                OUT (HMPR),A                    ; 49C8 D3 FB
                XOR A                           ; 49CA AF  HOLD released, and the clock runs on
-               LD B,&D0                        ; 49CB 06 D0
+               LD B,&D0                        ; 49CB 06 D0  the clock's register 13 -- on this chip the register number
+                                               ; rides in bits 12 to 15 of the port address, so B of &D0 selects it. 13
+                                               ; is the first of the three control registers above the twelve that hold
+                                               ; the time, and the XOR A above is the HOLD bit going down again
                OUT (C),A                       ; 49CD ED 79
                POP HL                          ; 49CF E1  the caller's HL, pushed at &4989
                RET                             ; 49D0 C9
@@ -5902,7 +5914,8 @@ WAIT_FOR_CLOCK_1:
 PAGE_IN_OTHER_HALF:
                IN A,(HMPR)                     ; 49D1 DB FB
                PUSH AF                         ; 49D3 F5
-               LD A,(&42CD)                    ; 49D4 3A CD 42
+               LD A,(&42CD)                    ; 49D4 3A CD 42  &42CD is the byte the boot sector patched with the other
+                                               ; page's number less one, which the banner above sets out
                INC A                           ; 49D7 3C
                OUT (HMPR),A                    ; 49D8 D3 FB
                POP AF                          ; 49DA F1
@@ -5954,7 +5967,7 @@ PORT_BCD_DIGIT:
 ;; Ends:      JR, RET
 ;; --------------------------------------------------------------------
 
-               ADD A,&30                       ; 49E4 C6 30
+               ADD A,CH_ZERO                   ; 49E4 C6 30
                CP &3A                          ; 49E6 FE 3A  ':' -- a nibble of ten or more is not a BCD digit, so it
                                                ; came from a chip that is not there or not answering
                JR NC,PORT_BCD_DIGIT_1          ; 49E8 30 0C
@@ -6864,7 +6877,9 @@ PARSE_OPTIONAL_RANGE_LOOP:
                LD A,H                          ; 4BC8 7C
                OR L                            ; 4BC9 B5
                JR Z,PARSE_OPTIONAL_RANGE_7     ; 4BCA 28 4C
-               LD DE,&0000                     ; 4BCC 11 00 00
+               LD DE,&0000                     ; 4BCC 11 00 00  zero, which is INARRAY's mark in V40A4. &4B8F has the
+                                               ; pair: "LOCN puts a length in V40A4 at &4B09; INARRAY has no such limit,
+                                               ; so it stores zero", and the INC DE below then pushes the one
                LD (V40A4),DE                   ; 4BCF ED 53 A4 40
                INC DE                          ; 4BD3 13
                PUSH DE                         ; 4BD4 D5
@@ -7218,7 +7233,8 @@ GET_PAGED_ADDRESS_LOOP:
 ; ---- SEARCH_MEMORY ---- from &4BE9
 SEARCH_MEMORY:
                LD C,A                          ; 4C90 4F
-               LD B,&00                        ; 4C91 06 00
+               LD B,&00                        ; 4C91 06 00  B cleared, so the length in C is a byte count for the
+                                               ; sixteen-bit compare that follows
                AND A                           ; 4C93 A7
                JR Z,SEARCH_MEMORY_DONE         ; 4C94 28 47
                SBC HL,BC                       ; 4C96 ED 42
@@ -7788,7 +7804,7 @@ TWO_PAGED_STRINGS:
                PUSH AF                         ; 4D77 F5
                PUSH BC                         ; 4D78 C5
                CALL CALL_GETSTR                ; 4D79 CD 6D 44
-               AND &1F                         ; 4D7C E6 1F
+               AND PAGEMASK                    ; 4D7C E6 1F
                POP HL                          ; 4D7E E1
                SBC HL,BC                       ; 4D7F ED 42  the length difference, and its Z is the answer the routine
                                                ; finally returns
@@ -8967,7 +8983,8 @@ GTDT_1:
 ;; --------------------------------------------------------------------
 
 HPRTOK:
-               CP &FF                          ; 500E FE FF
+               CP &FF                          ; 500E FE FF  &FF, the prefix every extended token is written behind --
+                                               ; the same byte HOOK_TOKENARG's stub tests at &7C8E
                JR Z,HPRTOK_1                   ; 5010 28 54  &FF is not a token to print, it is the first byte of a
                                                ; two-byte one -- HPRTOK_1 sets up for the second byte instead of
                                                ; printing anything
@@ -9007,6 +9024,8 @@ HPRTOK:
 ;; Leaves:    A
 ;; Ends:      JP
 ;;
+;; ? tests for CH_SPACE.
+;;
 ;; Shown for this routine in listings/disasm/:
 ;;
 ;;     LD A,&20 and a JP into CALL_PRINT_A, called from &501C and &50D0 --
@@ -9028,7 +9047,7 @@ HPRTOK:
 
 ; ---- PRINT_SPACE ---- from &501C when bit 0 was clear, &50D0 when A >= &14
 PRINT_SPACE:
-               LD A,&20                        ; 502C 3E 20
+               LD A,CH_SPACE                   ; 502C 3E 20
                JP CALL_PRINT_A                 ; 502E C3 FA 69
 
 ;; --------------------------------------------------------------------
@@ -9096,7 +9115,9 @@ SKIP_TO_END_OF_WORD:
 ; ---- PRINT_WORD ---- from &5042, &5054
 PRINT_WORD:
                LD A,(HL)                       ; 5038 7E
-               AND &7F                         ; 5039 E6 7F
+               AND &7F                         ; 5039 E6 7F  bit 7 off, because a word in these tables is ended by
+                                               ; setting it on the last character -- the ROM's own convention, which
+                                               ; JPOMSG's entry in the Technical Manual states
                CALL CALL_PRINT_A               ; 503B CD FA 69
                BIT 7,(HL)                      ; 503E CB 7E  the test is made on (HL) rather than on A, because A has
                                                ; had bit 7 masked off it and could no longer answer
@@ -9147,7 +9168,8 @@ PRINT_OPEN_FILE_COUNT:
                POP AF                          ; 5057 F1
                LD L,A                          ; 5058 6F  HL = the count, which is what the DOS's PLUR takes: it prints
                                                ; an "s" unless the count is one
-               LD H,&00                        ; 5059 26 00
+               LD H,&00                        ; 5059 26 00  H cleared, so the count in L is a word for the printing
+                                               ; below
                RET                             ; 505B C9
 
 ; ---- V505C ---- from &5051
@@ -10967,7 +10989,9 @@ HOOK_MERGECOMPFLG_LOOP7:
                JR NZ,HOOK_MERGECOMPFLG_LOOP7   ; 548A 20 F8
                LD (LINE_RECALL_PTR),HL         ; 548C 22 62 40
                INC L                           ; 548F 2C
-               LD (HL),&00                     ; 5490 36 00
+               LD (HL),&00                     ; 5490 36 00  the terminator on the recall buffer -- LINE_RECALL_PTR has
+                                               ; just been pointed at the text and the INC L steps one past it, so a
+                                               ; zero there ends what was stored
                POP BC                          ; 5492 C1
                LD HL,V407D                     ; 5493 21 7D 40
                LD A,(HL)                       ; 5496 7E
@@ -12536,7 +12560,9 @@ MATCH_REFERENCE_LOOP:
                                                ; letters are allowed to differ in case
                JR NC,MATCH_REFERENCE_1         ; 5847 30 04
                XOR (HL)                        ; 5849 AE
-               AND &DF                         ; 584A E6 DF
+               AND UPPER                       ; 584A E6 DF  bit 5 out, so a letter compares equal whatever its case --
+                                               ; the same fold COMPARE_FAR_STRINGS makes at &474D, and with the same
+                                               ; side effect on the punctuation either side of the letters
                DEFB SKIP_1_VIA_LD_C            ; 584C .  skipped: reads as LD C,&BE from here, swallowing the bytes
                                                ; below it
 
@@ -14334,7 +14360,9 @@ HOOK_LPRINT_BYTE:
                                                ; &4000-&7FFF into the same byte of the ROM's system page at &8000-&BFFF
                SET 7,H                         ; 5B94 CB FC
                RES 6,H                         ; 5B96 CB B4
-               AND &03                         ; 5B98 E6 03
+               AND &03                         ; 5B98 E6 03  three, and the line at &5B92 says what it means -- H+1 with
+                                               ; the low two bits clear is the pointer being in the last 256 bytes of a
+                                               ; 1K slot. The same sieve PRINTER_FEED_TICK makes at &5A1E
                JR NZ,HOOK_LPRINT_BYTE_2        ; 5B9A 20 1B
                LD A,E                          ; 5B9C 7B
 
@@ -17328,7 +17356,8 @@ TRACE_PRINT_LINE_NUMBER:
 ;; --------------------------------------------------------------------
 
 TRACE_PRINT_DECIMAL:
-               LD E,&20                        ; 60E4 1E 20
+               LD E,&20                        ; 60E4 1E 20  a space, the character a leading zero prints as while the
+                                               ; number is still all padding
                PUSH BC                         ; 60E6 C5  the value is pushed and reached by EX (SP),HL, which frees HL
                                                ; to walk the table
 
@@ -17602,7 +17631,8 @@ COMPRESS_SCREEN_FILE:
 SEND_COMPRESSED_BLOCK:
                                                ; to the alternate register set and back again
                EXX                             ; 6172 D9
-               LD HL,&A500                     ; 6173 21 00 A5
+               LD HL,&A500                     ; 6173 21 00 A5  &A500 is &E500 seen with HMPR one page further on, which
+                                               ; &63A9's note works out; it is not a DOS routine
                                                ; to the alternate register set and back again
                EXX                             ; 6176 D9
                PUSH HL                         ; 6177 E5
@@ -18004,7 +18034,9 @@ WRITE_NEXT_NIBBLE_1:
                                                ; to the alternate register set and back again
                EXX                             ; 6224 D9
                LD HL,&E500                     ; 6225 21 00 E5  and the buffer starts again from the bottom
-               LD DE,&000F                     ; 6228 11 0F 00
+               LD DE,&000F                     ; 6228 11 0F 00  E is the merge mask WRITE_NEXT_NIBBLE's XOR/AND/XOR uses
+                                               ; and D its phase counter, set here as &62EE sets them for the reading
+                                               ; end
                                                ; to the alternate register set and back again
                EXX                             ; 622B D9
                RET                             ; 622C C9
@@ -18510,7 +18542,9 @@ PAGED_TO_LONG:
                RR H                            ; 62E1 CB 1C
                RRA                             ; 62E3 1F
                RR H                            ; 62E4 CB 1C
-               AND &07                         ; 62E6 E6 07
+               AND &07                         ; 62E6 E6 07  three bits, because eight 64K banks cover the 512K a SAM
+                                               ; can hold -- the banner above says the AND is what makes the result a
+                                               ; bank number
                RET                             ; 62E8 C9
 
 ;; --------------------------------------------------------------------
@@ -18733,7 +18767,8 @@ NEXT_SCREEN_NIBBLE_LOOP:
 ; ---- NEXT_SCREEN_NIBBLE_2 ---- from &6340 when bit 0 of L was set
 NEXT_SCREEN_NIBBLE_2:
                XOR (HL)                        ; 6349 AE
-               AND &0F                         ; 634A E6 0F
+               AND &0F                         ; 634A E6 0F  a nibble, the low four bits of what the rotations above
+                                               ; brought down
                XOR (HL)                        ; 634C AE
                LD (HL),A                       ; 634D 77
                ADD HL,HL                       ; 634E 29
@@ -18869,7 +18904,8 @@ LOAD_NEXT_INPUT_BLOCK:
                PUSH BC                         ; 6392 C5
                LD HL,(V407B)                   ; 6393 2A 7B 40
                PUSH HL                         ; 6396 E5
-               LD DE,&1900                     ; 6397 11 00 19
+               LD DE,&1900                     ; 6397 11 00 19  &1900, the length of the input buffer -- &E500 plus it
+                                               ; is the &FE00 that &637D and &62CF both test for
                AND A                           ; 639A A7
                SBC HL,DE                       ; 639B ED 52
                JR C,LOAD_NEXT_INPUT_BLOCK_1    ; 639D 38 07
@@ -19044,7 +19080,8 @@ CMD_SAVE:
 
 ; ---- SET_COMPRESSION_MODE ---- from DOS &54FE
 SET_COMPRESSION_MODE:
-               CP &03                          ; 63F6 FE 03
+               CP &03                          ; 63F6 FE 03  three, the highest SAVE MODE. The DEC A above has made 1 to
+                                               ; 3 into 0 to 2, so three or more is out of range
                JP NC,REP_INTEGER_OUT_OF_RANGE  ; 63F8 D2 A7 43
                LD HL,DVAR_CMPFG                ; 63FB 21 BA 42
 
@@ -22145,7 +22182,9 @@ TRANSFORM_DUMP_COORDS:
 
 ; ---- TRANSFORM_DUMP_COORDS_1 ---- from &6A04 when A reaches 0
 TRANSFORM_DUMP_COORDS_1:
-               LD A,&BF                        ; 6A0F 3E BF
+               LD A,&BF                        ; 6A0F 3E BF  191, the bottom scan line of the 192, so subtracting a row
+                                               ; from it measures that row from the top. &686C does the same with the
+                                               ; same number
                SUB B                           ; 6A11 90
                LD B,A                          ; 6A12 47
 
@@ -22279,7 +22318,7 @@ READ_PIXEL_NIBBLE_1:
 
 ; ---- READ_PIXEL_NIBBLE_DONE ---- from &6A3F when bit 0 of C was set
 READ_PIXEL_NIBBLE_DONE:
-               AND &0F                         ; 6A45 E6 0F
+               AND &0F                         ; 6A45 E6 0F  the same mask at the other reader, after its four RRCAs
                RET                             ; 6A47 C9
 
 ;; --------------------------------------------------------------------
@@ -22692,7 +22731,9 @@ PALETTE_INTENSITY:
                                                ; it is worth 4 + 2 + 1 to a total weighted 4:2:1 -- one addition of 7
                                                ; rather than three of its share
                RET Z                           ; 6AD0 C8
-               ADD A,&07                       ; 6AD1 C6 07
+               ADD A,&07                       ; 6AD1 C6 07  4 + 2 + 1, so the bright bit adds its share to all three
+                                               ; weights in one addition rather than three -- the line above counts it
+                                               ; out
                RET                             ; 6AD3 C9
 
 ;; --------------------------------------------------------------------
@@ -25624,7 +25665,7 @@ VARIABLE_BODY_BY_KIND:
                DEFW STRLOCN                    ; 710E BC 5B
                LD A,(BC)                       ; 7110 0A
                PUSH BC                         ; 7111 C5
-               LD HL,&000B                     ; 7112 21 0B 00
+               LD HL,&000B                     ; 7112 21 0B 00  the same eleven, reached from the other command
                ADD HL,BC                       ; 7115 09
                AND &60                         ; 7116 E6 60  bits 5 and 6 of the type byte are what tell an array from a
                                                ; simple variable
@@ -25801,7 +25842,9 @@ HOOK_SWAPCHARS:
                LD HL,&9490                     ; 7174 21 90 94  &300 into CHARSVAL is CHR$ 128, and &148 bytes from
                                                ; there is 41 characters ending where PALTAB begins
                LD DE,HOOK_SWAPCHARS_1          ; 7177 11 64 7E
-               LD BC,&0148                     ; 717A 01 48 01
+               LD BC,&0148                     ; 717A 01 48 01  &148 is 328, which the banner above works out exactly --
+                                               ; CHR$ 128 begins at &5490 and the area runs to &55D7 because &55D8 is
+                                               ; PALTAB. 41 characters and no more
 
 ;; --------------------------------------------------------------------
 ;; HOOK_SWAPCHARS_LOOP -- &717D to &719C
@@ -26710,7 +26753,10 @@ COMPILE_PASS:
 
                IN A,(HMPR)                     ; 73A3 DB FB
                PUSH AF                         ; 73A5 F5
-               CALL &0000                      ; 73A6 CD 00 00
+               CALL &0000                      ; 73A6 CD 00 00  the operand is written at run time. This CALL lands at
+                                               ; &4D74 once COMPILE_PASS's 219 bytes are copied to &4D53, and &737B
+                                               ; writes &4D75 -- its operand -- with the address read out of the ROM
+                                               ; code's own CALL at &4D4E, so that what the ROM called is still called
                POP AF                          ; 73A9 F1
                OUT (HMPR),A                    ; 73AA D3 FB
                RET                             ; 73AC C9
@@ -28603,7 +28649,8 @@ STACK_FILL_LOOP_1:
                DEFB SKIP_2_VIA_LD_HL           ; 7821 !  MRTAB, the MegaRAM bitmap, at the DOS's &4296
                SUB (HL)                        ; 7822 96
                LD B,D                          ; 7823 42
-               LD E,&20                        ; 7824 1E 20
+               LD E,&20                        ; 7824 1E 20  &20 is the 32 bytes of MRTAB, which the banner below names
+                                               ; along with the &4296 above it and the CFMI this jumps to
                JP BUILD_PUT_BLOCK              ; 7826 C3 41 78  CFMI in the DOS page, not this half's &7841 -- MRINIT's
                                                ; own last instruction, which counts the free pages into DE
 
@@ -29496,7 +29543,12 @@ MB_PAGER:
                PUSH AF                         ; 7AF5 F5
                                                ; to the alternate register set and back again
                EX AF,AF'                       ; 7AF6 08
-               CALL &005C                      ; 7AF7 CD 5C 00
+               CALL &005C                      ; 7AF7 CD 5C 00  three instructions of the ROM, reached by address
+                                               ; because nothing names them. &005C is just past ANYI's RET -- ANYI is
+                                               ; &0049 and the next label is DELBC at &005F -- and holds a zero byte,
+                                               ; then OUT (251),A and JP (HL). Calling it therefore sets HMPR from A and
+                                               ; jumps to HL with the return address still stacked, which is the whole
+                                               ; of what a pager needs
                                                ; to the alternate register set and back again
                EX AF,AF'                       ; 7AFA 08
                POP AF                          ; 7AFB F1
@@ -29790,7 +29842,8 @@ INSTALL_ROM_PATCHES_DONE:
 
 ; ---- PRTOKV_STUB ---- from &6A69, &6A95, &6AB9
 PRTOKV_STUB:
-               CP &F7                          ; 7B90 FE F7
+               CP &F7                          ; 7B90 FE F7  &F7 is that dividing line -- the first token MasterBASIC
+                                               ; prints for itself, everything below it being the ROM's
                RET C                           ; 7B92 D8
                POP HL                          ; 7B93 E1
                LD HL,(XPTR)                    ; 7B94 2A A3 5A
@@ -31083,7 +31136,9 @@ TBL_7D58_DONE:
 
 ; ---- TBL_7D58_6 ---- from &7E1E when A >= &05
 TBL_7D58_6:
-               LD HL,&0000                     ; 7E25 21 00 00
+               LD HL,&0000                     ; 7E25 21 00 00  both factors to zero at once, which is what "the ROM
+                                               ; prints unaided" is -- and the JMODE below re-selects the mode so the
+                                               ; change takes
                LD (SYS_CHAR_WIDTH),HL          ; 7E28 22 EE 4A
                LD A,(MODE)                     ; 7E2B 3A 40 5A
                CALL JMODE                      ; 7E2E CD 5A 01

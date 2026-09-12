@@ -54,6 +54,8 @@ DOC CURSOR_PATTERNS
 
 MB &7B6A : HUDG, so CHR$ 169 and 170 render from CURSOR_PATTERNS at &4A52 -- see notes/mb-blocks.txt
 
+MB &717A : &148 is 328, which the banner above works out exactly -- CHR$ 128 begins at &5490 and the area runs to &55D7 because &55D8 is PALTAB.  41 characters and no more
+
 # WHAT FOLLOWS THE SIXTEEN BYTES IS CODE, and the label above is only
 # the nearest one.  Two separate stubs, both of them in the second
 # installed block, so their addresses are &484D plus the offset from

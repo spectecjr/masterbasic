@@ -11,6 +11,8 @@ DOC PRTOKV_STUB
     it.  Anything above is MasterBASIC's: the return address is dropped,
     XPTR is picked up, and hook &A9 raised, which reaches HPRTOK.
 
+MB &7B90 : &F7 is that dividing line -- the first token MasterBASIC prints for itself, everything below it being the ROM's
+
 DOC EVALUV_STUB
     What EVALUV points at, installed at &4BBA.
 

@@ -133,6 +133,9 @@ MB &4AFA : the driver both LOCN and INARRAY share ends in a plain RET at &4C29, 
 
 MB &4AFD : and the paging under it, for the POP AF at &4C26 -- the two are a matched pair with the exit, not with anything nearer
 
+MB &49CB : the clock's register 13 -- on this chip the register number rides in bits 12 to 15 of the port address, so B of &D0 selects it.  13 is the first of the three control registers above the twelve that hold the time, and the XOR A above is the HOLD bit going down again
+MB &49E4 expr CH_ZERO
+
 MB &4B01 : the string being looked for, copied to &7B00 with its length left in V4098
 
 MB &4B0D : one load doing two jobs, and only one of them cares what the value is.  V40AD is never read as anything but a flag -- &4B71 and &4C1C do nothing to it but AND A -- so LOCN needs any non-zero byte there, and INARRAY's &4B52 writes a real zero or one in the same place.  The &20 is then reused as H for the word stored two instructions below

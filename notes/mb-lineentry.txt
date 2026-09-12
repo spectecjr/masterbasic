@@ -39,4 +39,6 @@ DOC CMD_SPLIT_LINE
     first entry: the table is in ascending order and a character sorts
     below every command token.
 
+MB &5490 : the terminator on the recall buffer -- LINE_RECALL_PTR has just been pointed at the text and the INC L steps one past it, so a zero there ends what was stored
+
 MB &6E62 CMD_SPLIT_LINE

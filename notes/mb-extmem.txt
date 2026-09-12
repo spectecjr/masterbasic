@@ -18,6 +18,8 @@ MB &7806 STACK_FILL_LOOP
 
 MB &77DE : MCNTRL, HMPR bit 7, which sends the window at &8000 to the expansion connector instead of a page of RAM.  Nothing else in either half sets it, because nothing else looks outside the machine
 MB &77E2 : external page zero, the first to try -- and the loop at &781C comes back only while C is not zero, so the walk ends when it has come round to the start again
+MB &7824 : &20 is the 32 bytes of MRTAB, which the banner below names along with the &4296 above it and the CFMI this jumps to
+
 MB &77F8 : the seed for ADD HL,SP below, which is the only way the Z80 has of reading SP into a register pair.  The zero is the idiom and not a value
 
 MB &7800 : the zero that gets written, sixteen bytes at a time, by the eight PUSH HLs below

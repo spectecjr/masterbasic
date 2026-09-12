@@ -507,6 +507,20 @@ MB &62CF : &FE, so &FE00 -- &E500 plus &1900, the end of the input buffer, and p
 MB &4297 expr PAGEMASK
 MB &5AF1 : one past thirty-two, and thirty-two is the longest a SAM BASIC name can be: NAMTOBUF opens "LD B,32 ;MAX LEN+1 FOR A NAME (EXCLUDING 1ST CHAR)" and gives C bits 4-0 as that length.  So a byte of 33 or more is not a name at all
 
+MB &450D : the seed for the ADD IY,SP below, the only way the Z80 has of reading SP -- the zero is the idiom, as at &77F8
+MB &4433 : sixteen passes, one per bit of DE, which is the whole of a sixteen-by-sixteen multiply done by shift and add
+MB &4602 : the carry out of the ADD below it, into the top byte -- the 24-bit form the banner counts from the sixth step on
+MB &62E6 : three bits, because eight 64K banks cover the 512K a SAM can hold -- the banner above says the AND is what makes the result a bank number
+MB &49D4 : &42CD is the byte the boot sector patched with the other page's number less one, which the banner above sets out
+MB &42AD : the same &42CD, read here for the same reason
+MB &4C91 : B cleared, so the length in C is a byte count for the sixteen-bit compare that follows
+MB &44EA : bit 7 of FLAGS.  RUNFLG in ref/samrom/misc2.asm reads the same bit by doubling the byte, commented "C IF RUNNING", so set means the line is being run and clear that it is only being checked
+MB &4D7C expr PAGEMASK
+MB &45A2 : bits 0 and 2, the "needs compiling" pair -- the banner below calls this the exact complement of HOOK_PROGPREP's AND &FA
+MB &43CF : eleven, the offset of the 24-bit size in a variable's record -- the record+11 &7029 names
+MB &7112 : the same eleven, reached from the other command
+MB &4BCC : zero, which is INARRAY's mark in V40A4.  &4B8F has the pair: "LOCN puts a length in V40A4 at &4B09; INARRAY has no such limit, so it stores zero", and the INC DE below then pushes the one
+
 MB &561B INSTALL_CHANNEL_HANDLER
 
 MB &5621 : &19 into CHANS, the same word IS_CHANNEL_OURS reads back at &562E and INIT_SERIAL_FROM_TABLE writes at &55B0

@@ -36,6 +36,10 @@ MB &7214 : the &61 bytes at HOOK_SETUPREGS_1 are appended after those four
 MB &721B : &4D50, the address of what was just built, passed on to be stored
 MB &7330 : DCT+&4000 -- the disc error counter, in the system page
 
+MB &73A6 : the operand is written at run time.  This CALL lands at &4D74 once COMPILE_PASS's 219 bytes are copied to &4D53, and &737B writes &4D75 -- its operand -- with the address read out of the ROM code's own CALL at &4D4E, so that what the ROM called is still called
+
+MB &7AF7 : three instructions of the ROM, reached by address because nothing names them.  &005C is just past ANYI's RET -- ANYI is &0049 and the next label is DELBC at &005F -- and holds a zero byte, then OUT (251),A and JP (HL).  Calling it therefore sets HMPR from A and jumps to HL with the return address still stacked, which is the whole of what a pager needs
+
 MB &7335 : bits 0 and 2 down.  They are the "needs compiling" state -- &7C36 tests the same two to decide whether to raise this hook at all, and SET_DCT_COMPILE_BITS puts them back up with OR &05 -- so they are cleared before the rebuild below and the old value is kept on the stack for the test after it
 
 MB &733F : NOT AN ADDRESS.  &0118 is a jump-table entry by value, and the listing would have it as JEXPT1NUM, but nothing calls it: the two bytes go out as data, and as data they are &18 &01, a JR over one byte
