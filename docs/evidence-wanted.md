@@ -217,13 +217,14 @@ result worth anything.
 
 ## What is still wanted, at a glance
 
-Three captures and a page of BASIC would close everything below.
+Three captures and a page of BASIC would close everything below; the
+directory-entry read is a confirmation now rather than a question.
 
 | | Closes | Cost |
 |---|---|---|
 | **A dump of page 3 with the Spectrum emulator loaded**, and of the system page while Spectrum mode is active | 9, and test 10d under it | needs Spectrum mode entered |
 | **The word at `&4EFE` in the system page while `SPLIT` runs** | 7 | needs a break in the right place |
-| **A directory entry read back after saving a compressed screen** | 8 | easy |
+| **A directory entry read back after saving a compressed screen** | confirms 8, which is now read from the code: offsets 229-231 should hold the compressed length in page form | easy |
 | **Seven short BASIC tests**, 10a to 10g | seven of the nine defects that have never been run | easy — a machine and a few lines each |
 | *(10h, 10i and 10j want damaged discs or an unreachable stack, and are listed so nobody spends an afternoon on them)* | — | hard to impossible |
 | **A printer stream from `POKE XVAR 33,3 : DUMP 4`** | 12 | easy — the same method as 6 |
