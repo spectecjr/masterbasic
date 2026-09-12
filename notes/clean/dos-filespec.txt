@@ -1,0 +1,122 @@
+# Reading a file specification: the name, and the device and drive
+# prefix in front of it.
+#
+# Prose for listings/clean/ only.
+
+GROUP Characters
+CONST CH_COLON = &3A : the statement separator in BASIC, and what ends a device or drive prefix in a file name
+CONST CH_SPACE = &20 : space
+CONST NAME_LENGTH = &0A : characters in a file name
+CONST NAME_FIELD = &0E : the fourteen characters NSTR1 keeps: the name, and room for the prefix
+CONST LONG_NAME_LIMIT = &4F : the longest name the system-page buffer takes, which is a path
+
+DOC EVNAM
+    Evaluate a file name, and keep it twice.
+
+    THE STRING CAN BE UP TO 79 CHARACTERS, because it may be a path,
+    and the whole of it goes to the ROM's buffer at &4F10 with its
+    length at &4F60, which is where part SUBD reads a path from.  The
+    first fourteen go to NSTR1+1 as well, padded out with spaces, and
+    that copy is what everything that only wants a name reads --
+    fourteen rather than ten because a "D1:" prefix has not been
+    stripped yet, and EVFILE strips it from there.
+
+    An empty name and a name over 79 are both "Invalid file name".
+
+DOS &61D8 expr LONG_NAME_LIMIT
+DOS &61DB : longer than that is an error
+DOS &61E3 expr NAME_FIELD
+DOS &61E6 : shorter than the field: copy what there is
+DOS &61EA expr NAME_FIELD
+DOS &61EA : longer: the field's worth, and the rest goes only to the long buffer
+DOS &61F0 : fifteen bytes: the type byte and the field
+DOS &61F2 expr CH_SPACE
+DOS &61FF expr PAGE_VALUE_MASK
+DOS &61FF : the page the string is in, out of SVC
+DOS &620E : the ROM's buffer, where the whole name goes
+DOS &6214 : the ROM's LDIR, called there so that the copy lands in the system page
+
+DOC EVFILE
+    Take the device and drive off the front of the name in NSTR1+1.
+
+    WHAT IT ACCEPTS is a letter, then up to two digits, then a colon:
+
+        T:name        device T, no number
+        D1:name       device D, drive 1
+        D12:name      two digits, taken as a number
+        D1            no name, which becomes "D1:*"
+        D1 (spaces)   the same, with the field blank after the digit
+        name          no prefix at all
+
+    A LETTER ON ITS OWN NEEDS THE COLON.  With no colon after the letter
+    the second character has to be a digit, and with no digit there is
+    no prefix: the whole field is the name and HL goes back to its
+    start.  Only "D" is allowed to drop the colon, and only when nothing
+    follows the digit but spaces -- C11SP checks the eleven characters
+    after it -- so that DIR "D1" means the whole of drive 1.
+
+    A NULL NAME IS &FF from the ROM, and becomes "T:": the tape, with
+    no name, which is what LOAD "" has always meant.
+
+    WHAT COMES OUT.  The letter goes to LSTR1 and the number, through
+    CODN's pretend table, to DSTR1; TEMPW3 holds how many characters
+    the prefix took, and the name is copied to the front of the field
+    from wherever it started, so NSTR1+1 reads as a bare name from here
+    on.
+
+DOS &6709 : &FF is the ROM's empty name
+DOS &670D : "T", for the tape
+DOS &6711 expr CH_COLON
+DOS &6714 expr CASE_BLIND
+DOS &6714 : the letter, either case
+DOS &6719 expr CH_COLON
+DOS &671B : letter and colon: a device with no number
+DOS &671D : "0", so a digit becomes its value
+DOS &671F : ten and over was not a digit, so there is no prefix
+DOS &6725 : "D" is the only letter that may drop the colon
+DOS &672B expr CH_COLON
+DOS &672F : nothing after "D1:" but spaces?
+DOS &6736 expr CH_SPACE
+DOS &6738 : not "D1 " either, so a second digit is expected
+DOS &673A : nothing after "D1 " but spaces?
+DOS &673F expr CH_COLON
+DOS &6742 expr CH_STAR
+DOS &6747 : "0", so a digit becomes its value
+DOS &6749 : ten and over was not a digit
+DOS &6757 expr CH_COLON
+DOS &6759 : two digits and no colon is no prefix
+DOS &675C : the number, through the pretend table, to DSTR1
+DOS &6771 expr NAME_LENGTH
+DOS &6779 : and four spaces after it, to fill the field
+
+DOC C11SP
+    Are the eleven characters after HL all spaces?  Z if so, and HL is
+    left where it was.  Eleven is the field less the three a "D1:"
+    takes, which is the most the prefix can be.
+
+DOS &678C : eleven characters
+DOS &6791 expr CH_SPACE
+
+DOC CODN
+    Map a drive number through DRPT, the table that lets each drive
+    pretend to be another.  Numbers outside 1 to 7 are left alone.
+
+DOS &61A0 : 1 to 7, tested as 0 to 6 after the DEC
+DOS &61A8 : the high byte of the index
+
+DOC EVFL75
+    A tape or network header: set the ROM's temporary device and speed,
+    and hand the name across.
+
+    THE NUMBER AFTER "T" IS A TAPE SPEED, and one below 8 -- a drive
+    number, in effect -- is replaced by the ROM's default of 112 before
+    it is written to the byte after SLDEV.  A blank name becomes the
+    ROM's &FF; anything else is copied whole, all fourteen characters.
+
+DOS &635E : below 8 is a drive number, not a speed
+DOS &6362 : TSPEED, the ROM's default
+DOS &6364 : the byte after SLDEV, the temporary device number -- a speed, for tape
+DOS &636D expr CH_SPACE
+DOS &636F : a name, so copy it
+DOS &6371 : &FF is the ROM's empty name
+DOS &637B expr NAME_FIELD

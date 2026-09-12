@@ -42,15 +42,25 @@ MIN_RAMDISC_PAGE_TYPE:   EQU  &D0              ; lowest allocation code that mea
 PAST_RAMDISC_PAGE_TYPE:  EQU  &D8              ; one above the highest, so the test is a range
 PAST_WINDOW_TOP:         EQU  &C0
 RAMDISC_PAGE_HIGH:       EQU  &80
+ROM_SP_AT_ENTRY:         EQU  &7FFC            ; the ROM's stack pointer as it entered the DOS -- the middle word of the
+                                               ; three its PTDOS pushes at the top of this page
 SCREEN_PAGE_TYPE:        EQU  &30              ; allocation code for a page holding a screen
 WINDOW:                  EQU  &8000            ; the window, holding whatever HMPR last selected
 ZX_RESUME:               EQU  &B900            ; the resume stub in the Spectrum page
+ZX_RESUME_ARGS:          EQU  &B8F6            ; what the stub reads: the address to return to, then LMPR, HMPR and VMPR
+                                               ; at +2, +3 and +4
 
 ; Directory entry
 CASE_BLIND:              EQU  &DF              ; every bit but the one that tells A from a
 CH_PERIOD:               EQU  &2E              ; between a name and its type
 CH_QUERY:                EQU  &3F              ; the wildcard that matches one character
 CH_STAR:                 EQU  &2A              ; the wildcard that matches any run of characters
+DIR_EXECUTE:             EQU  &F2              ; the execute address for CODE, the auto-run line for BASIC; &FF in the
+                                               ; first byte means none
+DIR_FLAGS:               EQU  &DC              ; the ROM header's flag byte: bit 0 hidden, bit 1 protected, and
+                                               ; MasterBASIC's bit 2 compressed and bit 3 SAVE MODE 3
+DIR_LENGTH:              EQU  &EF              ; the length, page form -- whole pages, then the bytes within the last
+DIR_START:               EQU  &EC              ; the start address, page form -- three bytes
 TYPE_MASK:               EQU  &1F              ; bits 0 to 4 of the type byte are the type itself
 
 ; Directory scan
@@ -62,6 +72,11 @@ DIR_MODE_NAME:           EQU  &08              ; match the name, honouring * and
 DIR_MODE_NAME_ONLY:      EQU  &10              ; match the name, ignoring the type
 NAME_AND_TYPE:           EQU  &0B              ; the type byte and the ten characters after it
 
+; Characters
+LONG_NAME_LIMIT:         EQU  &4F              ; the longest name the system-page buffer takes, which is a path
+NAME_FIELD:              EQU  &0E              ; the fourteen characters NSTR1 keeps: the name, and room for the prefix
+NAME_LENGTH:             EQU  &0A              ; characters in a file name
+
 ; Disk controller status
 BLOCK_ERROR_FLAGS:       EQU  (DISK_STATUS_DRQ | DISK_STATUS_CRC_ERROR | DISK_STATUS_RECORD_NOT_FOUND) >> 1
                                                ; what the block and boot loops test; it should be TRANSFER_ERROR_FLAGS
@@ -70,6 +85,15 @@ DISK_STATUS_BUSY_BIT:    EQU  &00              ; the same flags as bit numbers, 
 DISK_STATUS_DRQ_BIT:     EQU  &01              ; the bit a byte-ready test looks at
 TRANSFER_ERROR_FLAGS:    EQU  (DISK_STATUS_LOST_DATA | DISK_STATUS_CRC_ERROR | DISK_STATUS_RECORD_NOT_FOUND) >> 1
                                                ; the right one, used by the sector read and write
+
+; File types
+TYPE_BASIC:              EQU  &10              ; a SAM BASIC program
+TYPE_CODE:               EQU  &13              ; SAM CODE
+TYPE_SCREEN:             EQU  &14              ; a SAM SCREEN$
+TYPE_ZX_SNP48:           EQU  &05              ; a Spectrum 48K snapshot
+
+; FSTAT
+FSTAT_OPTIONS:           EQU  &08              ; FSTAT's second argument runs from 1 to 8; MasterDOS alone took 1 to 4
 
 ; Channels
 CHANNEL_BLOCK:           EQU  &0313            ; bytes in one open file's channel record
@@ -942,11 +966,7 @@ RDAT:
 
 ; ---- TEMPW1 ---- from &4697, &5A50, &5A86, &609E, &60D2, &611E, &6126, &6130 ...
 TEMPW1:
-               DEFB &00                        ; 4212 .
-
-; ---- V4213 ---- from &6B7A
-V4213:
-               DEFB &00                        ; 4213 .
+               DEFW &0000                      ; 4212 00 00
 
 ; ---- TEMPW2 ---- from &46C1, &5A55, &5AA9, &7161, &717E, &750C
 TEMPW2:
@@ -1243,9 +1263,10 @@ BEEPT:
 V42B9:
                DEFB &00                        ; 42B9 .
 
-; ---- V42BA ---- from &64FA, &6516
-V42BA:
-               DEFB &00                        ; 42BA .
+; ---- CMPFG ---- from &64FA, &6516
+CMPFG:
+               DEFB &00                        ; 42BA .  154 SAVE MODE less one, written by MasterBASIC's
+                                               ; SET_COMPRESSION_MODE and read by HOOK_HSAVE
 
 ; ---- V42BB ---- from &4786
 V42BB:
@@ -1277,7 +1298,8 @@ V42BB:
 
 ; ---- CALLMB ---- from &43B5, &4E53, &4FDA, &51A7, &54F9, &5506, &59C2, &5B9C ...
 CALLMB:
-               LD IY,(&7FFC)                   ; 42BD FD 2A FC 7F
+               LD IY,(ROM_SP_AT_ENTRY)         ; 42BD FD 2A FC 7F  the ROM's saved stack pointer, for the other half to
+                                               ; find
                EXX                             ; 42C1 D9
                POP HL                          ; 42C2 E1
                LD E,(HL)                       ; 42C3 5E
@@ -1287,7 +1309,8 @@ CALLMB:
                DEFB &E5                        ; 42C7 e
                LD C,LMPR                       ; 42C8 0E FA
                IN B,(C)                        ; 42CA ED 40
-               LD H,&00                        ; 42CC 26 00
+               LD H,&00                        ; 42CC 26 00  the operand is written by the boot: the other page less
+                                               ; one, so that it lands in section B
                OUT (C),H                       ; 42CE ED 61
                PUSH BC                         ; 42D0 C5
                LD HL,CALLMB_1                  ; 42D1 21 DC 42
@@ -1661,8 +1684,9 @@ UNWIND_HOOK_STACK:
                LD D,B                          ; 4473 50
                DEFB &59                        ; 4474 Y  READ - SET TO 7FF0H BY BASIC
                DEC DE                          ; 4475 1B
-               LD HL,&7FFF                     ; 4476 21 FF 7F
-               LD BC,&0006                     ; 4479 01 06 00
+               LD HL,ROM_SP_AT_ENTRY+3         ; 4476 21 FF 7F  the top of the page: the three words the ROM's PTDOS
+                                               ; pushed on entry
+               LD BC,&0006                     ; 4479 01 06 00  six bytes, so all three of them
                LDDR                            ; 447C ED B8
                INC DE                          ; 447E 13
                EX DE,HL                        ; 447F EB
@@ -2489,16 +2513,29 @@ CTS1_1:
                CALL STEP_HEAD_IN               ; 471E CD 7F 47
                JR CDE1_1                       ; 4721 18 CC
 
+;; --------------------------------------------------------------------
+;; Hook 133: park the head somewhere a reset cannot hurt.
+;;
+;; Every load ends here.  Nothing to do for a RAM disc; for a floppy
+;; the head is sent to the last directory track, DTKS less one --
+;; or to track 3 when that would be track 4, which the 1991 comment
+;; explains as "AVOID 1ST FILE!": on a standard four-track directory
+;; the first file's data begins on track 4.  E is set to sector 1 on
+;; the way, which the same comment marks "PROB NOT NEEDED", since
+;; SEEKD moves the head and touches nothing else.
+;; --------------------------------------------------------------------
+
 ; ---- HOOK_SKSAFE ---- from &4D55, &4E65, &5FF1, &647C, &64BE when A = 0
 HOOK_SKSAFE:
                CALL TIRD                       ; 4723 CD 5A 61
-               RET NC                          ; 4726 D0
-               LD A,(DTKS)                     ; 4727 3A 30 42
+               RET NC                          ; 4726 D0  a RAM disc has no head to park
+               LD A,(DTKS)                     ; 4727 3A 30 42  how many tracks the directory has
                LD (V7C06),A                    ; 472A 32 06 7C
-               DEC A                           ; 472D 3D
+               DEC A                           ; 472D 3D  so the last of them
                LD D,A                          ; 472E 57
                LD E,&01                        ; 472F 1E 01  PROB NOT NEEDED
-               CP &04                          ; 4731 FE 04
+               CP &04                          ; 4731 FE 04  which is track 4 only on a five-track directory; track 3
+                                               ; then, to stay off the first file
                JR NZ,SEEKD                     ; 4733 20 0D
                DEC D                           ; 4735 15
                JR SEEKD                        ; 4736 18 0A
@@ -4576,10 +4613,10 @@ CHECK_FILE_TYPE:
                CP DFT                          ; 4E7A FE 15
                JP NC,REP13                     ; 4E7C D2 71 51  a directory or an open-type file is not loadable
                SUB &12                         ; 4E7F D6 12  zero for &11 and for &12
-               ADC A,&00                       ; 4E81 CE 00
+               ADC A,&00                       ; 4E81 CE 00  the borrow put back, so &11 comes to zero as well
                JP Z,REP13                      ; 4E83 CA 71 51  which are the two array types, and not loadable either
                LD DE,NSTR1                     ; 4E86 11 3A 41  the type byte and the name
-               LD BC,&000B                     ; 4E89 01 0B 00
+               LD BC,NAME_AND_TYPE             ; 4E89 01 0B 00
                LDIR                            ; 4E8C ED B0
                LD B,&04                        ; 4E8E 06 04  four bytes of nothing between the name and the header
                XOR A                           ; 4E90 AF
@@ -4589,17 +4626,17 @@ CHECK_FILE_TYPE:
                LD BC,&0009                     ; 4E99 01 09 00  the nine bytes, straight into HD001
                LDIR                            ; 4E9C ED B0
                LD DE,V42E2                     ; 4E9E 11 E2 42  and the two after them
-               LD C,&02                        ; 4EA1 0E 02
+               LD C,&02                        ; 4EA1 0E 02  two bytes: the flags at 220, and the one after
                LDIR                            ; 4EA3 ED B0
                CALL POINT                      ; 4EA5 CD AC 4F  back to the head of the entry
                LD DE,UIFA                      ; 4EA8 11 7D 41  the ROM's 48-byte header starts with the type and the
                                                ; name
-               LD BC,&000B                     ; 4EAB 01 0B 00
+               LD BC,NAME_AND_TYPE             ; 4EAB 01 0B 00
                LDIR                            ; 4EAE ED B0
                LD B,&0F                        ; 4EB0 06 0F  fifteen spaces where the ROM would have had its own
                CALL LCNTA                      ; 4EB2 CD 65 4F
                LD B,&16                        ; 4EB5 06 16  and &FF -- "not set" -- for the twenty-two after that
-               LD A,&FF                        ; 4EB7 3E FF
+               LD A,&FF                        ; 4EB7 3E FF  the ROM's "not set" byte
                CALL FILL_DE_WITH_A             ; 4EB9 CD 67 4F
                JR GTFL4                        ; 4EBC 18 08
 
@@ -6378,7 +6415,7 @@ SNAP7:
                DI                              ; 5457 F3  nothing may interrupt the restart
                LD A,&03                        ; 5458 3E 03  page 3, the Spectrum's "ROM", into the window
                OUT (HMPR),A                    ; 545A D3 FB  SPECTRUM "ROM" AT 8000H
-               LD HL,&0000                     ; 545C 21 00 00
+               LD HL,&0000                     ; 545C 21 00 00  zero, for HKSP
                LD (HKSP),HL                    ; 545F 22 0B 42  no unwind address any more
                LD SP,STR-20                    ; 5462 31 7C 7F  the alternate set, as NMI pushed it
                POP IY                          ; 5465 FD E1
@@ -6390,13 +6427,13 @@ SNAP7:
                EX AF,AF'                       ; 546D 08
                EXX                             ; 546E D9
                LD HL,NMI                       ; 546F 21 55 53  where the button is to come back to
-               LD (&B8F6),HL                   ; 5472 22 F6 B8
+               LD (ZX_RESUME_ARGS),HL          ; 5472 22 F6 B8
                LD A,(SNPRT0)                   ; 5475 3A 06 41  and the three ports as Spectrum mode left them
-               LD (&B8F8),A                    ; 5478 32 F8 B8
+               LD (ZX_RESUME_ARGS+2),A         ; 5478 32 F8 B8  LMPR, from SNPRT0
                LD A,(SNPRT1)                   ; 547B 3A 07 41
-               LD (&B8F9),A                    ; 547E 32 F9 B8
+               LD (ZX_RESUME_ARGS+3),A         ; 547E 32 F9 B8  HMPR, from SNPRT1
                LD A,(SNPRT2)                   ; 5481 3A 08 41
-               LD (&B8FA),A                    ; 5484 32 FA B8
+               LD (ZX_RESUME_ARGS+4),A         ; 5484 32 FA B8  VMPR, from SNPRT2
                POP DE                          ; 5487 D1  the main set
                POP BC                          ; 5488 C1
                POP HL                          ; 5489 E1
@@ -6404,7 +6441,8 @@ SNAP7:
                LD I,A                          ; 548B ED 47  the interrupt register
                CP &00                          ; 548D FE 00  &00 or &3F in I means the program was not in mode 2
                JR Z,SNAP8                      ; 548F 28 06
-               CP &3F                          ; 5491 FE 3F
+               CP &3F                          ; 5491 FE 3F  &3F is I as the Spectrum ROM leaves it, and 0 is I as reset
+                                               ; leaves it: neither was set for mode 2
                JR Z,SNAP8                      ; 5493 28 02
                IM 2                            ; 5495 ED 5E  anything else was, so put mode 2 back
 
@@ -6458,6 +6496,27 @@ DFMT:
                LD B,&0A                        ; 54A5 06 0A  step in a little, so the restore below has somewhere to
                                                ; come back from
 
+;; --------------------------------------------------------------------
+;; Before anything is destroyed, show what is on the disc and ask.
+;;
+;; Track 0 sector 1 is read so that the prompt can name the disc.  A
+;; read error there is taken as a blank or unreadable disc and the
+;; prompt is skipped: the mask is the same wrong one as at &409D,
+;; applied to the status RDDATA leaves rotated, so a sector with a
+;; byte dropped passes -- harmless here, since all it decides is
+;; whether to print a name.
+;;
+;; THE NAME IS AT DRAM+&D2, entry 0's offset 210 in the buffer, and
+;; three kinds of it are told apart the way PNDN2 does: &00 or &FF
+;; is a disc formatted by SAMDOS, which has no name field, and "*"
+;; is a MasterDOS disc never given one.  Both go to PNDN2, which
+;; prints SAM DOS or MASTER DOS for them.  A real name is printed
+;; from the buffer directly, ten characters through PRINTABLE_FORM,
+;; because PNDN2 prints the copy in DNAME and that is not this disc's.
+;; Bit 7 of the first character is the in-backup marker, and is
+;; masked off before the "*" test.
+;; --------------------------------------------------------------------
+
 ; ---- DFMTA ---- from &54AC when B is not 0 yet
 DFMTA:
                PUSH BC                         ; 54A7 C5
@@ -6471,27 +6530,29 @@ DFMTA:
                CALL WAIT_DC_READY_BEFORE_CMD   ; 54B7 CD 58 45
                CALL GTBUF                      ; 54BA CD A0 4F
                CALL RDDATA                     ; 54BD CD C8 45
-               AND &0D                         ; 54C0 E6 0D
+               AND BLOCK_ERROR_FLAGS           ; 54C0 E6 0D  the same mask as &409D, on a status rotated the same way;
+                                               ; here it only decides whether to name the disc
                JR NZ,DFMTB                     ; 54C2 20 2C  JR IF ERROR ON READ T0/S1
                CALL PMO6                       ; 54C4 CD 09 58  "FORMAT "
-               LD HL,V7DE5                     ; 54C7 21 E5 7D
+               LD HL,V7DE5                     ; 54C7 21 E5 7D  DRAM+&D2, the disc's name in entry 0
                LD A,(HL)                       ; 54CA 7E
                INC A                           ; 54CB 3C
-               CP &02                          ; 54CC FE 02
+               CP &02                          ; 54CC FE 02  &FF became 0 and &00 became 1: either is a disc with no
+                                               ; name field
                JR C,DFMTA_1                    ; 54CE 38 07
                LD A,(HL)                       ; 54D0 7E
-               AND &7F                         ; 54D1 E6 7F
-               CP &2A                          ; 54D3 FE 2A
+               AND &7F                         ; 54D1 E6 7F  bit 7 of the first character is the in-backup marker
+               CP &2A                          ; 54D3 FE 2A  "*" is a MasterDOS disc that was never named
                JR NZ,DFMTA_2                   ; 54D5 20 05
 
 ; ---- DFMTA_1 ---- from &54CE when A < &02
 DFMTA_1:
-               CALL PNDN2                      ; 54D7 CD 9B 58
+               CALL PNDN2                      ; 54D7 CD 9B 58  SAM DOS or MASTER DOS, as PNDN2 decides
                JR DFMTA_3                      ; 54DA 18 10
 
 ; ---- DFMTA_2 ---- from &54D5 when A <> &2A
 DFMTA_2:
-               LD D,&0A                        ; 54DC 16 0A
+               LD D,&0A                        ; 54DC 16 0A  ten characters of name, straight from the buffer
 
 ; ---- DFMTA_LOOP ---- from &54E7 when D is not 0 yet
 DFMTA_LOOP:
@@ -6508,7 +6569,7 @@ DFMTA_3:
                CALL PM7K                       ; 54EC CD 1A 59  "Y/N", KEY
                RET NZ                          ; 54EF C0
 
-; ---- DFMTB ---- from &54C2 when a bit of &0D is set
+; ---- DFMTB ---- from &54C2 when a bit of BLOCK_ERROR_FLAGS is set
 DFMTB:
                CALL GETSCR                     ; 54F0 CD 2C 49
                CALL PMOA                       ; 54F3 CD 27 58  PRINT "FORMAT DISK AT TRACK "
@@ -7378,10 +7439,7 @@ PMOSD:
 PMYNAE:
                CALL PTM                        ; 588A CD 7C 57
                DEFB &22                        ; 588D
-               DEFM " (y/n/a/"                 ; 588E 20 28 79 2F 6E 2F 61 2F
-
-XTRA:
-               DEFM "e"                        ; 5896 65  XTRA HOOKS ETC. IN SYS PAGE
+               DEFM " (y/n/a/e"                ; 588E 20 28 79 2F 6E 2F 61 2F
                DEFB ")"+&80                    ; 5897 A9
 
 ;; --------------------------------------------------------------------
@@ -7406,15 +7464,9 @@ PNDN2:
                LD A,(HL)                       ; 589B 7E  00 IF OLD DOS, OR FF IF NEV USED
                RES 7,(HL)                      ; 589C CB BE  SO NEV CAN USE BIT 7 AS IBU MARKER
                INC A                           ; 589E 3C
-
-; ---- PNDN2_1 ---- from &7BF4
-PNDN2_1:
                CP &02                          ; 589F FE 02
                JR C,PMOSD                      ; 58A1 38 DD  PRINT "   SAM DOS " IF OLD DOS
                LD A,(HL)                       ; 58A3 7E
-
-; ---- PNDN2_2 ---- from &7BED
-PNDN2_2:
                CP &2A                          ; 58A4 FE 2A
                JR NZ,PMO8                      ; 58A6 20 0A  PRINT DISC NAME IF THERE IS ONE,
 
@@ -7991,7 +8043,7 @@ HOOK_PCAT:
                DEFW STREAM                     ; 5B6B 12 01
                CALL ZDVS                       ; 5B6D CD 23 5C  ZERO VARS
                POP AF                          ; 5B70 F1  which listing was chosen
-               CP &02                          ; 5B71 FE 02
+               CP DIR_MODE_COLLECT             ; 5B71 FE 02
                JR NZ,PCAT2                     ; 5B73 20 4E
                CALL DITOB                      ; 5B75 CD 30 5C  collect the names into the screen page
                CALL SETBORDER_BORDCOL          ; 5B78 CD 52 51  DIR TO BUFFER
@@ -8047,7 +8099,7 @@ PCN3:
                CALL PNCR                       ; 5BBE CD FC 5B
                JR PCN4                         ; 5BC1 18 03
 
-; ---- PCAT2 ---- from &5B73 when A <> &02
+; ---- PCAT2 ---- from &5B73 when A <> DIR_MODE_COLLECT
 PCAT2:
                CALL FDHR                       ; 5BC3 CD 31 4B  the detailed listing prints itself as it scans
 
@@ -9448,20 +9500,20 @@ EVDN3:
                RET                             ; 619E C9
 
 ;; --------------------------------------------------------------------
-;;  CODN -- map a drive number through DRPT, the table that lets each drive pretend to be another. That is how a
-;;  program written for drive 2 can be pointed at a RAM disc without changing it.
+;; Map a drive number through DRPT, the table that lets each drive
+;; pretend to be another.  Numbers outside 1 to 7 are left alone.
 ;; --------------------------------------------------------------------
 
 ; ---- CODN ---- from &47FB, &6197, &66F2, &675C
 CODN:
                DEC A                           ; 619F 3D
-               CP &07                          ; 61A0 FE 07
+               CP &07                          ; 61A0 FE 07  1 to 7, tested as 0 to 6 after the DEC
                INC A                           ; 61A2 3C
                JR NC,CODN2                     ; 61A3 30 0C  JR IF NOT 1-7 - LEAVE ALONE
                PUSH BC                         ; 61A5 C5
                PUSH HL                         ; 61A6 E5
                LD C,A                          ; 61A7 4F
-               LD B,&00                        ; 61A8 06 00
+               LD B,&00                        ; 61A8 06 00  the high byte of the index
                LD HL,DRPT-1                    ; 61AA 21 8E 42  DRIVE NUMBER PRETEND TABLE
                ADD HL,BC                       ; 61AD 09
                LD A,(HL)                       ; 61AE 7E
@@ -9499,16 +9551,17 @@ EVNAMX:
                CALL GTNC                       ; 61CC CD 3C 50
 
 ;; --------------------------------------------------------------------
-;;  EVNAM -- evaluate a file name
+;; Evaluate a file name, and keep it twice.
 ;;
-;;  Two copies are kept: the first fourteen characters in NSTR1, padded with spaces, which is what the directory code
-;;  uses; and the whole name, up to 79 characters, in the system page buffer at &4F10 with its length at &4F60, which
-;;  is where part SUBD looks for a path.
+;; THE STRING CAN BE UP TO 79 CHARACTERS, because it may be a path,
+;; and the whole of it goes to the ROM's buffer at &4F10 with its
+;; length at &4F60, which is where part SUBD reads a path from.  The
+;; first fourteen go to NSTR1+1 as well, padded out with spaces, and
+;; that copy is what everything that only wants a name reads --
+;; fourteen rather than ten because a "D1:" prefix has not been
+;; stripped yet, and EVFILE strips it from there.
 ;;
-;;  Errors: REP8 if the name is empty or longer than 79 characters
-;;
-;; EVALUATE FILE NAME
-;; EXIT: Z/NZ FOR SYN/RUN, A=CHAR AFTER
+;; An empty name and a name over 79 are both "Invalid file name".
 ;; --------------------------------------------------------------------
 
 ; ---- EVNAM ---- from &597B, &5990, &5B31, &60AD, &6221, &695D, &7245, &7AB6
@@ -9525,32 +9578,33 @@ EVNM2:
                LD A,C                          ; 61D4 79
                OR B                            ; 61D5 B0
                JR Z,REP8                       ; 61D6 28 F0  "INVALID FILE NAME" IF LEN 0
-               LD HL,&004F                     ; 61D8 21 4F 00
-               SBC HL,BC                       ; 61DB ED 42
+               LD HL,LONG_NAME_LIMIT           ; 61D8 21 4F 00
+               SBC HL,BC                       ; 61DB ED 42  longer than that is an error
                JR C,REP8                       ; 61DD 38 E9  ERROR IF TOO LONG
                IN A,(HMPR)                     ; 61DF DB FB
                PUSH AF                         ; 61E1 F5
                PUSH BC                         ; 61E2 C5  REAL LEN
-               LD HL,&000E                     ; 61E3 21 0E 00
-               SBC HL,BC                       ; 61E6 ED 42
+               LD HL,NAME_FIELD                ; 61E3 21 0E 00
+               SBC HL,BC                       ; 61E6 ED 42  shorter than the field: copy what there is
                JR NC,EVNM0                     ; 61E8 30 03
-               LD BC,&000E                     ; 61EA 01 0E 00
+               LD BC,NAME_FIELD                ; 61EA 01 0E 00  longer: the field's worth, and the rest goes only to the
+                                               ; long buffer
 
 ; ---- EVNM0 ---- from &61E8
 EVNM0:
                LD HL,NSTR1                     ; 61ED 21 3A 41
-               LD A,&0F                        ; 61F0 3E 0F
+               LD A,&0F                        ; 61F0 3E 0F  fifteen bytes: the type byte and the field
 
 ; ---- EVNM1 ---- from &61F6 when A is not 0 yet
 EVNM1:
-               LD (HL),&20                     ; 61F2 36 20
+               LD (HL),CH_SPACE                ; 61F2 36 20
                INC HL                          ; 61F4 23
                DEC A                           ; 61F5 3D
                JR NZ,EVNM1                     ; 61F6 20 FA
                LD HL,NSTR1+1                   ; 61F8 21 3B 41
                EX DE,HL                        ; 61FB EB
                LD A,(SVC)                      ; 61FC 3A 1E 41
-               AND &1F                         ; 61FF E6 1F
+               AND PAGE_VALUE_MASK             ; 61FF E6 1F  the page the string is in, out of SVC
                OUT (HMPR),A                    ; 6201 D3 FB
                PUSH HL                         ; 6203 E5
                LDIR                            ; 6204 ED B0
@@ -9559,9 +9613,10 @@ EVNM1:
                LD A,C                          ; 6208 79
                CALL NRWR                       ; 6209 CD 74 50
                DEFW &4F60                      ; 620C 60 4F  STORE REAL LEN
-               LD DE,&4F10                     ; 620E 11 10 4F
+               LD DE,&4F10                     ; 620E 11 10 4F  the ROM's buffer, where the whole name goes
                CALL CMR                        ; 6211 CD B2 7B
-               DEFW &008F                      ; 6214 8F 00  LDIR TO BUFFER IN SYS PAGE
+               DEFW &008F                      ; 6214 8F 00  the ROM's LDIR, called there so that the copy lands in the
+                                               ; system page
                POP AF                          ; 6216 F1
                OUT (HMPR),A                    ; 6217 D3 FB
                POP AF                          ; 6219 F1
@@ -9877,31 +9932,42 @@ RXHED2:
 REP10H:
                JP NZ,REP10                     ; 6353 C2 F4 47  INVALID DEVICE
 
+;; --------------------------------------------------------------------
+;; A tape or network header: set the ROM's temporary device and speed,
+;; and hand the name across.
+;;
+;; THE NUMBER AFTER "T" IS A TAPE SPEED, and one below 8 -- a drive
+;; number, in effect -- is replaced by the ROM's default of 112 before
+;; it is written to the byte after SLDEV.  A blank name becomes the
+;; ROM's &FF; anything else is copied whole, all fourteen characters.
+;; --------------------------------------------------------------------
+
 ; ---- EVFL75 ---- from &634F when A = &54
 EVFL75:
                CALL NRWR                       ; 6356 CD 74 50
                DEFW SLDEV                      ; 6359 B7 5B
                LD A,(DSTR1)                    ; 635B 3A 36 41
-               CP &08                          ; 635E FE 08
+               CP &08                          ; 635E FE 08  below 8 is a drive number, not a speed
                JR NC,EVFL75_1                  ; 6360 30 02  JR IF NO SENSIBLE TAPE SPEED
-               LD A,&70                        ; 6362 3E 70  DEFAULT TAPE SPEED (IRREL FOR NET)
+               LD A,&70                        ; 6362 3E 70  TSPEED, the ROM's default
 
 ; ---- EVFL75_1 ---- from &6360 when A >= &08
 EVFL75_1:
-               CALL NRWR                       ; 6364 CD 74 50
+               CALL NRWR                       ; 6364 CD 74 50  the byte after SLDEV, the temporary device number -- a
+                                               ; speed, for tape
                DEFW &5BB8                      ; 6367 B8 5B
                LD HL,NSTR1+1                   ; 6369 21 3B 41
                LD A,(HL)                       ; 636C 7E
-               CP &20                          ; 636D FE 20
-               JR NZ,EVFL8A                    ; 636F 20 07
-               LD A,&FF                        ; 6371 3E FF
+               CP CH_SPACE                     ; 636D FE 20
+               JR NZ,EVFL8A                    ; 636F 20 07  a name, so copy it
+               LD A,&FF                        ; 6371 3E FF  &FF is the ROM's empty name
                LD (UIFA+1),A                   ; 6373 32 7E 41  NULL NAME
                JR EVFL8B                       ; 6376 18 08
 
-; ---- EVFL8A ---- from &636F when A <> &20
+; ---- EVFL8A ---- from &636F when A <> CH_SPACE
 EVFL8A:
                LD DE,UIFA+1                    ; 6378 11 7E 41
-               LD BC,&000E                     ; 637B 01 0E 00
+               LD BC,NAME_FIELD                ; 637B 01 0E 00
                LDIR                            ; 637E ED B0
 
 ; ---- EVFL8B ---- from &604E, &6376
@@ -10038,6 +10104,33 @@ HGTH2:
 HOOK_HLDPG:
                OUT (HMPR),A                    ; 6420 D3 FB
 
+;; --------------------------------------------------------------------
+;; Hook 131: load the body of a file the header hook has opened.
+;;
+;; MASTERDOS'S HLOAD WAS FOUR INSTRUCTIONS -- NETPA, DSCHD, LDBLK --
+;; and this one branches first on two bits of V42E2, the copy of the
+;; entry's flags byte that CHECK_FILE_TYPE left there:
+;;
+;;     bit 2 clear      not compressed: the plain load, with the
+;;                      BASIC-program case below
+;;     bit 2 set        compressed: EXPAND_FILE in the other half,
+;;                      given the type in C
+;;     bits 2 and 3     a SAVE MODE 3 screen: the expander at &62A6,
+;;                      given the compressed length from STR-11, in
+;;                      page form, and the byte after the flags in A
+;;
+;; Every path ends in HOOK_SKSAFE, which parks the head.
+;;
+;; THE BASIC-PROGRAM CASE on the plain path: when the type is BASIC
+;; and the command is LOAD, the byte at DRAM+9 is written into the
+;; system page at &4A97 -- the operand of the LD (HL),&00 in the stub
+;; the boot put at &4A84, which CMDBUF_PROLOGUE runs to plant that
+;; byte at the start of the program -- and DRAM+9 is then set to
+;; &FF, the value that stub reads as "nothing to write".  What the
+;; byte is for is worked out in notes/mb-cmdbuf.txt from the other
+;; side.
+;; --------------------------------------------------------------------
+
 HOOK_HLOAD:
                LD BC,&4A64                     ; 6422 01 64 4A  a system-page address, not this page's sector-write
                                                ; code. It is MB &7DBB installed at &484D, and NETPA returns into it when
@@ -10046,19 +10139,19 @@ HOOK_HLOAD:
                CALL NETPA                      ; 6425 CD 9D 64
                CALL RESET_BUFFER_POINTERS      ; 6428 CD 84 4F
                LD HL,V42E2                     ; 642B 21 E2 42
-               BIT 2,(HL)                      ; 642E CB 56
+               BIT 2,(HL)                      ; 642E CB 56  bit 2 of the flags: the file is compressed
                JR Z,HOOK_HLOAD_2               ; 6430 28 27
-               BIT 3,(HL)                      ; 6432 CB 5E
+               BIT 3,(HL)                      ; 6432 CB 5E  bit 3: a SAVE MODE 3 screen
                JR NZ,HOOK_HLOAD_1              ; 6434 20 0D
                CALL HOOK_ARGS_TO_HEADER        ; 6436 CD 82 64
-               LD C,(IX+&13)                   ; 6439 DD 4E 13
+               LD C,(IX+FFSA)                  ; 6439 DD 4E 13  the type, for the expander
                CALL CALLMB                     ; 643C CD BD 42
                DEFW MB_EXPAND_FILE-&4000       ; 643F D2 66
                JR HOOK_HLOAD_4                 ; 6441 18 39
 
 ; ---- HOOK_HLOAD_1 ---- from &6434 when bit 3 of (HL) set
 HOOK_HLOAD_1:
-               INC HL                          ; 6443 23
+               INC HL                          ; 6443 23  the byte after the flags, offset 221
                LD A,(HL)                       ; 6444 7E
                PUSH AF                         ; 6445 F5
                CALL HOOK_ARGS_TO_HEADER        ; 6446 CD 82 64
@@ -10076,19 +10169,20 @@ HOOK_HLOAD_1:
 HOOK_HLOAD_2:
                CALL HOOK_ARGS_TO_HEADER        ; 6459 CD 82 64
                LD A,(NSTR1)                    ; 645C 3A 3A 41
-               CP &10                          ; 645F FE 10
+               CP TYPE_BASIC                   ; 645F FE 10
                JR NZ,HOOK_HLOAD_3              ; 6461 20 16
                CALL NRRD                       ; 6463 CD 5E 50
                DEFW CURCMD                     ; 6466 74 5B
-               CP &95                          ; 6468 FE 95
+               CP &95                          ; 6468 FE 95  the LOAD token: not MERGE, not VERIFY
                JR NZ,HOOK_HLOAD_3              ; 646A 20 0D
-               LD A,(V7D1C)                    ; 646C 3A 1C 7D
+               LD A,(V7D1C)                    ; 646C 3A 1C 7D  DRAM+9, the byte after the nine-byte header in the first
+                                               ; sector
                CALL NRWR                       ; 646F CD 74 50
                DEFW &4A97                      ; 6472 97 4A
-               LD A,&FF                        ; 6474 3E FF
+               LD A,&FF                        ; 6474 3E FF  &FF: nothing to write
                LD (V7D1C),A                    ; 6476 32 1C 7D
 
-; ---- HOOK_HLOAD_3 ---- from &6461 when A <> &10, &646A when A <> &95
+; ---- HOOK_HLOAD_3 ---- from &6461 when A <> TYPE_BASIC, &646A when A <> &95
 HOOK_HLOAD_3:
                CALL ROOM_LEFT_IN_SECTOR        ; 6479 CD 56 48
 
@@ -10178,39 +10272,76 @@ HVER2:
                CALL INCURPAGE                  ; 64D3 CD F2 3F
                JR HVER1                        ; 64D6 18 E0
 
+;; --------------------------------------------------------------------
+;; Hook 130: save the file whose header the ROM has built.
+;;
+;; MASTERDOS'S VERSION SAVED THE BLOCK AND CLOSED THE MAP.  This one
+;; does that too -- DSVBL then CFSM, at HOOK_HSAVE_4 -- but only for a
+;; BASIC program, or when CMPFG is zero because SAVE MODE 1 or no
+;; SAVE MODE at all is in force.  The manual's "no attempt is made to
+;; compress BASIC programs" is the CP against &10.
+;;
+;; ANYTHING ELSE IS HANDED TO MASTERBASIC.  Bit 2 of the flags byte in
+;; the entry -- offset 220, which is IX+&EF once the entry sits at
+;; FFSA in DCHAN -- is set to say the file is compressed, and then:
+;;
+;;     SCREEN$ with CMPFG 2       SAVE MODE 3.  Bit 3 of the same byte
+;;                                is set as well, the byte after it is
+;;                                taken in A, and COMPRESS_SCREEN_FILE
+;;                                does the work
+;;     everything else            COMPRESS_FILE, with the start in HL
+;;                                and its page in A
+;;
+;; Both come back to SCFSM, which closes the map as CFSM does.
+;;
+;; THE THREE BYTES AT OFFSET 229 are written on the SAVE MODE 3 path
+;; only, and they are the compressed length.  FPTR gives the position
+;; in the file once the compressor has written it -- sectors times
+;; 510 plus the offset -- and nine off that is the data without its
+;; header, put into page form and stored through IX at &F8.  That is
+;; the writer docs/evidence-wanted.md item 8 could not find by name:
+;; entry offset 229 is ROM header offset 24, and nothing writes
+;; DIFA+24 because the write goes through the entry in DCHAN.
+;; HOOK_HLOAD_1 reads the three bytes back from STR-11, and
+;; MasterBASIC's &62A6 turns them back into a byte count in V407B,
+;; which LOAD_NEXT_INPUT_BLOCK counts down as it refills the input.
+;; --------------------------------------------------------------------
+
 HOOK_HSAVE:
                CALL RXHED2                     ; 64D8 CD 49 63  GET HEADER, ALLOW DEVICES D/T/N
                JR C,HSAVE2                     ; 64DB 38 7D  JR IF T/N
                CALL CKDRV                      ; 64DD CD 07 48
-               IN A,(HMPR)                     ; 64E0 DB FB
+               IN A,(HMPR)                     ; 64E0 DB FB  the caller's window, put back at HSAVE1
                LD (PORT3),A                    ; 64E2 32 30 41
-               LD A,(UIFA+31)                  ; 64E5 3A 9C 41
+               LD A,(UIFA+31)                  ; 64E5 3A 9C 41  the start page, out of the ROM's header
                CALL SELURPG                    ; 64E8 CD DF 3F
                CALL GOFSM                      ; 64EB CD 28 4D
                JR C,HSAVE1                     ; 64EE 38 64  JR IF "OVERWRITE?" AND N
-               CALL SVHD                       ; 64F0 CD 3B 5F
+               CALL SVHD                       ; 64F0 CD 3B 5F  the nine-byte header goes out first, and into the entry
+                                               ; at offset 211
                LD HL,(HD0D1)                   ; 64F3 2A 4C 41
                LD DE,(HD0B1)                   ; 64F6 ED 5B 4A 41
-               LD A,(V42BA)                    ; 64FA 3A BA 42
+               LD A,(CMPFG)                    ; 64FA 3A BA 42  SAVE MODE less one, as MasterBASIC's
+                                               ; SET_COMPRESSION_MODE left it
                AND A                           ; 64FD A7
-               JR Z,HOOK_HSAVE_4               ; 64FE 28 4E
+               JR Z,HOOK_HSAVE_4               ; 64FE 28 4E  zero is no compression: the plain save
                LD C,A                          ; 6500 4F
-               LD A,(IX+&13)                   ; 6501 DD 7E 13
-               CP &10                          ; 6504 FE 10
-               JR Z,HOOK_HSAVE_4               ; 6506 28 46
+               LD A,(IX+FFSA)                  ; 6501 DD 7E 13  the type, from the entry in DCHAN
+               CP TYPE_BASIC                   ; 6504 FE 10
+               JR Z,HOOK_HSAVE_4               ; 6506 28 46  a BASIC program is never compressed
                PUSH IX                         ; 6508 DD E5
                POP HL                          ; 650A E1
-               LD BC,&00EF                     ; 650B 01 EF 00
+               LD BC,FFSA+DIR_FLAGS            ; 650B 01 EF 00  the entry's flags byte, offset 220
                ADD HL,BC                       ; 650E 09
-               SET 2,(HL)                      ; 650F CB D6
+               SET 2,(HL)                      ; 650F CB D6  bit 2: the file is compressed
                LD C,A                          ; 6511 4F
-               CP &14                          ; 6512 FE 14
-               JR NZ,HOOK_HSAVE_1              ; 6514 20 06
-               LD A,(V42BA)                    ; 6516 3A BA 42
-               DEC A                           ; 6519 3D
+               CP TYPE_SCREEN                  ; 6512 FE 14
+               JR NZ,HOOK_HSAVE_1              ; 6514 20 06  not a screen, so the general compressor
+               LD A,(CMPFG)                    ; 6516 3A BA 42
+               DEC A                           ; 6519 3D  CMPFG 1 is SAVE MODE 2, and takes the general compressor too
                JR NZ,HOOK_HSAVE_2              ; 651A 20 0D
 
-; ---- HOOK_HSAVE_1 ---- from &6514 when A <> &14
+; ---- HOOK_HSAVE_1 ---- from &6514 when A <> TYPE_SCREEN
 HOOK_HSAVE_1:
                LD HL,(HD0D1)                   ; 651C 2A 4C 41
                LD A,(PGES1)                    ; 651F 3A 50 41
@@ -10220,21 +10351,22 @@ HOOK_HSAVE_1:
 
 ; ---- HOOK_HSAVE_2 ---- from &651A when A is not 0 yet
 HOOK_HSAVE_2:
-               SET 3,(HL)                         ; 6529 CB DE
+               SET 3,(HL)                         ; 6529 CB DE  bit 3: a SAVE MODE 3 screen
                INC HL                             ; 652B 23
-               LD A,(HL)                          ; 652C 7E
+               LD A,(HL)                          ; 652C 7E  the byte after the flags, offset 221
                CALL CALLMB                        ; 652D CD BD 42
                DEFW MB_COMPRESS_SCREEN_FILE-&4000 ; 6530 4E 61
                CALL FPTR                          ; 6532 CD 35 70
-               LD BC,&FFF7                        ; 6535 01 F7 FF
+               LD BC,&FFF7                        ; 6535 01 F7 FF  less the nine-byte header
                ADD HL,BC                          ; 6538 09
                CALL PAGEFORM                      ; 6539 CD E4 75
                EX DE,HL                           ; 653C EB
                PUSH IX                            ; 653D DD E5
                POP HL                             ; 653F E1
-               LD BC,&00F8                        ; 6540 01 F8 00
+               LD BC,&00F8                        ; 6540 01 F8 00  IX+&F8 is entry offset 229
                ADD HL,BC                          ; 6543 09
-               LD (HL),A                          ; 6544 77
+               LD (HL),A                          ; 6544 77  the pages, then the rest: the compressed length in page
+                                                  ; form
                INC HL                             ; 6545 23
                LD (HL),E                          ; 6546 73
                INC HL                             ; 6547 23
@@ -10245,7 +10377,7 @@ HOOK_HSAVE_3:
                CALL SCFSM                      ; 6549 CD F8 4D
                JR HSAVE1                       ; 654C 18 06
 
-; ---- HOOK_HSAVE_4 ---- from &64FE when A = 0, &6506 when A = &10
+; ---- HOOK_HSAVE_4 ---- from &64FE when A = 0, &6506 when A = TYPE_BASIC
 HOOK_HSAVE_4:
                CALL DSVBL                      ; 654E CD 59 49
                CALL CFSM                       ; 6551 CD FE 4D
@@ -10634,12 +10766,32 @@ GTDD_2:
                RET                             ; 6700 C9
 
 ;; --------------------------------------------------------------------
-;; Parse the device and drive prefix of a file name.
+;; Take the device and drive off the front of the name in NSTR1+1.
 ;;
-;; A NULL NAME BECOMES "T:".  The byte tested is the first character
-;; of the name, not a type byte, and two are written where it was --
-;; &54 and &3A, "T" and ":" -- so LOAD "" is LOAD "T:", the tape.
-;; The 1991 comment on the instruction says exactly that.
+;; WHAT IT ACCEPTS is a letter, then up to two digits, then a colon:
+;;
+;;     T:name        device T, no number
+;;     D1:name       device D, drive 1
+;;     D12:name      two digits, taken as a number
+;;     D1            no name, which becomes "D1:*"
+;;     D1 (spaces)   the same, with the field blank after the digit
+;;     name          no prefix at all
+;;
+;; A LETTER ON ITS OWN NEEDS THE COLON.  With no colon after the letter
+;; the second character has to be a digit, and with no digit there is
+;; no prefix: the whole field is the name and HL goes back to its
+;; start.  Only "D" is allowed to drop the colon, and only when nothing
+;; follows the digit but spaces -- C11SP checks the eleven characters
+;; after it -- so that DIR "D1" means the whole of drive 1.
+;;
+;; A NULL NAME IS &FF from the ROM, and becomes "T:": the tape, with
+;; no name, which is what LOAD "" has always meant.
+;;
+;; WHAT COMES OUT.  The letter goes to LSTR1 and the number, through
+;; CODN's pretend table, to DSTR1; TEMPW3 holds how many characters
+;; the prefix took, and the name is copied to the front of the field
+;; from wherever it started, so NSTR1+1 reads as a bare name from here
+;; on.
 ;; --------------------------------------------------------------------
 
 ; ---- EVFILE ---- from &6390, &724E, &7324
@@ -10648,58 +10800,58 @@ EVFILE:
                PUSH HL                         ; 6704 E5
                LD (SVHL),HL                    ; 6705 22 05 7C
                LD A,(HL)                       ; 6708 7E
-               CP &FF                          ; 6709 FE FF
+               CP &FF                          ; 6709 FE FF  &FF is the ROM's empty name
                JR NZ,EVFL0                     ; 670B 20 07  JR UNLESS NULL NAME
-               LD A,&54                        ; 670D 3E 54  LOAD "" BECOMES LOAD "T:"
+               LD A,&54                        ; 670D 3E 54  "T", for the tape
                LD (HL),A                       ; 670F 77
                INC HL                          ; 6710 23
-               LD (HL),&3A                     ; 6711 36 3A
+               LD (HL),CH_COLON                ; 6711 36 3A
                DEC HL                          ; 6713 2B
 
 ; ---- EVFL0 ---- from &670B when A <> &FF
 EVFL0:
-               AND &DF                         ; 6714 E6 DF
+               AND CASE_BLIND                  ; 6714 E6 DF  the letter, either case
 
 EVFL1:
                LD C,A                          ; 6716 4F
                INC HL                          ; 6717 23
                LD A,(HL)                       ; 6718 7E
-               CP &3A                          ; 6719 FE 3A
-               JR Z,EVFL3                      ; 671B 28 42
-               SUB &30                         ; 671D D6 30
-               CP &0A                          ; 671F FE 0A
+               CP CH_COLON                     ; 6719 FE 3A
+               JR Z,EVFL3                      ; 671B 28 42  letter and colon: a device with no number
+               SUB &30                         ; 671D D6 30  "0", so a digit becomes its value
+               CP &0A                          ; 671F FE 0A  ten and over was not a digit, so there is no prefix
                JR NC,EVFL3_1                   ; 6721 30 43
                LD D,A                          ; 6723 57  SAVE FIRST DIGIT
                LD A,C                          ; 6724 79  FIRST CHAR
-               CP &44                          ; 6725 FE 44
+               CP &44                          ; 6725 FE 44  "D" is the only letter that may drop the colon
                INC HL                          ; 6727 23
                LD A,(HL)                       ; 6728 7E  CHAR AFTER DIGIT
                JR NZ,EVFL12                    ; 6729 20 1C  JR IF NOT "D1XXXXX"
-               CP &3A                          ; 672B FE 3A
+               CP CH_COLON                     ; 672B FE 3A
                JR NZ,EVFL11                    ; 672D 20 07  JR IF NOT "D1:XXXX"
-               CALL C11SP                      ; 672F CD 8C 67
+               CALL C11SP                      ; 672F CD 8C 67  nothing after "D1:" but spaces?
                JR NZ,EVFL2                     ; 6732 20 27  JR IF NOT "D1:       "
                JR EVFL14                       ; 6734 18 09
 
-; ---- EVFL11 ---- from &672D when A <> &3A
+; ---- EVFL11 ---- from &672D when A <> CH_COLON
 EVFL11:
-               CP &20                          ; 6736 FE 20
-               JR NZ,EVFL12                    ; 6738 20 0D  JR IF NOT E.G. "D2 XXXXX"
-               CALL C11SP                      ; 673A CD 8C 67
+               CP CH_SPACE                     ; 6736 FE 20
+               JR NZ,EVFL12                    ; 6738 20 0D  not "D1 " either, so a second digit is expected
+               CALL C11SP                      ; 673A CD 8C 67  nothing after "D1 " but spaces?
                JR NZ,EVFL3_1                   ; 673D 20 27  JR IF NOT "D1      "
 
 ; ---- EVFL14 ---- from &6734
 EVFL14:
-               LD (HL),&3A                     ; 673F 36 3A
+               LD (HL),CH_COLON                ; 673F 36 3A
                INC HL                          ; 6741 23
-               LD (HL),&2A                     ; 6742 36 2A  E.G. "D1" OR "D1:" BECOME "D1:*"
+               LD (HL),CH_STAR                 ; 6742 36 2A  E.G. "D1" OR "D1:" BECOME "D1:*"
                DEC HL                          ; 6744 2B  PT TO ":"
                JR EVFL2                        ; 6745 18 14
 
-; ---- EVFL12 ---- from &6729, &6738 when A <> &20
+; ---- EVFL12 ---- from &6729, &6738 when A <> CH_SPACE
 EVFL12:
-               SUB &30                         ; 6747 D6 30
-               CP &0A                          ; 6749 FE 0A
+               SUB &30                         ; 6747 D6 30  "0", so a digit becomes its value
+               CP &0A                          ; 6749 FE 0A  ten and over was not a digit
                JR NC,EVFL3_1                   ; 674B 30 19  JR IF 2ND DIGIT NOT FOUND
                LD E,A                          ; 674D 5F
                LD A,D                          ; 674E 7A
@@ -10711,22 +10863,22 @@ EVFL12:
                LD D,A                          ; 6754 57
                INC HL                          ; 6755 23
                LD A,(HL)                       ; 6756 7E
-               CP &3A                          ; 6757 FE 3A
-               JR NZ,EVFL3_1                   ; 6759 20 0B
+               CP CH_COLON                     ; 6757 FE 3A
+               JR NZ,EVFL3_1                   ; 6759 20 0B  two digits and no colon is no prefix
 
 ; ---- EVFL2 ---- from &6732, &6745
 EVFL2:
                LD A,D                          ; 675B 7A
-               CALL CODN                       ; 675C CD 9F 61
+               CALL CODN                       ; 675C CD 9F 61  the number, through the pretend table, to DSTR1
 
-; ---- EVFL3 ---- from &671B when A = &3A
+; ---- EVFL3 ---- from &671B when A = CH_COLON
 EVFL3:
                LD A,C                          ; 675F 79
                LD (LSTR1),A                    ; 6760 32 39 41  LETTER
                INC HL                          ; 6763 23  SKIP ":"
                JR EVFL3_2                      ; 6764 18 03
 
-; ---- EVFL3_1 ---- from &6721 when A >= &0A, &673D, &674B when A >= &0A, &6759 when A <> &3A
+; ---- EVFL3_1 ---- from &6721 when A >= &0A, &673D, &674B when A >= &0A, &6759 when A <> CH_COLON
 EVFL3_1:
                LD HL,(SVHL)                    ; 6766 2A 05 7C
 
@@ -10737,10 +10889,10 @@ EVFL3_2:
                SBC HL,DE                       ; 676B ED 52
                LD (TEMPW3),HL                  ; 676D 22 16 42  STORE NO. OF CHARS TRIMMED OFF
                ADD HL,DE                       ; 6770 19  FRONT (0-4)
-               LD BC,&000A                     ; 6771 01 0A 00
+               LD BC,NAME_LENGTH               ; 6771 01 0A 00
                LD DE,NSTR1+1                   ; 6774 11 3B 41
                LDIR                            ; 6777 ED B0  LEFT JUSTIFY NAME (OR COPY TO
-               LD B,&04                        ; 6779 06 04  NSTR1+1)
+               LD B,&04                        ; 6779 06 04  and four spaces after it, to fill the field
                CALL LCNTA                      ; 677B CD 65 4F  PAD WITH 4 SPACES...NOT NEEDED..
                LD A,(DSTR1)                    ; 677E 3A 36 41
 
@@ -10752,20 +10904,26 @@ DRSET:
                LD (CDIRT),A                    ; 6788 32 31 42
                RET                             ; 678B C9
 
+;; --------------------------------------------------------------------
+;; Are the eleven characters after HL all spaces?  Z if so, and HL is
+;; left where it was.  Eleven is the field less the three a "D1:"
+;; takes, which is the most the prefix can be.
+;; --------------------------------------------------------------------
+
 ; ---- C11SP ---- from &5615, &672F, &673A, &7264, &7273
 C11SP:
-               LD B,&0B                        ; 678C 06 0B
+               LD B,&0B                        ; 678C 06 0B  eleven characters
                PUSH HL                         ; 678E E5
 
 ; ---- C11LP ---- from &6795 when B is not 0 yet
 C11LP:
                INC HL                          ; 678F 23
                LD A,(HL)                       ; 6790 7E
-               CP &20                          ; 6791 FE 20
+               CP CH_SPACE                     ; 6791 FE 20
                JR NZ,C11LP_DONE                ; 6793 20 02
                DJNZ C11LP                      ; 6795 10 F8
 
-; ---- C11LP_DONE ---- from &6793 when A <> &20
+; ---- C11LP_DONE ---- from &6793 when A <> CH_SPACE
 C11LP_DONE:
                POP HL                          ; 6797 E1
                RET                             ; 6798 C9
@@ -11582,7 +11740,8 @@ CMD_OPEN_DONE:
 ;; &4000 is added to reach it through the window; &1E more steps past
 ;; the standard channels to the first that could be the DOS's.  From
 ;; there each record's own length at offset 9 says how far the next
-;; one is, and a channel letter of carriage return is the end.
+;; one is, and a carriage return where the next record's first byte
+;; would be is the end -- the ROM closes the list with one.
 ;;
 ;; CHKHL is the ROM's own bounds check, called before each read, so a
 ;; corrupt length cannot walk this off into nothing.
@@ -11595,23 +11754,23 @@ END_OF_CHANNELS:
                LD HL,(CHANS+IN_PAGE_C)         ; 6AED 2A 4F 9C  the head of the list
                LD DE,CHANS_BIAS_AND_FIRST      ; 6AF0 11 1E 40
 
-; ---- CHANNEL_ENTRY_AT_ZERO_PAGE_LOOP ---- from &6B03 when A <> &0D
-CHANNEL_ENTRY_AT_ZERO_PAGE_LOOP:
-               ADD HL,DE                             ; 6AF3 19
-               CALL ROM_CHKHL                        ; 6AF4 CD EF 3F  the ROM's window step -- past &BFFF it pages the
-                                                     ; next 16K in and drops HL back to &8000
-               LD A,(HL)                             ; 6AF7 7E
-               PUSH HL                               ; 6AF8 E5
-               LD DE,&0009                           ; 6AF9 11 09 00  offset 9 is this record's length
-               ADD HL,DE                             ; 6AFC 19
-               LD E,(HL)                             ; 6AFD 5E
-               INC HL                                ; 6AFE 23
-               LD D,(HL)                             ; 6AFF 56
-               POP HL                                ; 6B00 E1
-               CP &0D                                ; 6B01 FE 0D  a carriage return for a channel letter is the end of
-                                                     ; the list
-               JR NZ,CHANNEL_ENTRY_AT_ZERO_PAGE_LOOP ; 6B03 20 EE
-               RET                                   ; 6B05 C9
+; ---- END_OF_CHANNELS_LOOP ---- from &6B03 when A <> &0D
+END_OF_CHANNELS_LOOP:
+               ADD HL,DE                       ; 6AF3 19
+               CALL ROM_CHKHL                  ; 6AF4 CD EF 3F  the ROM's window step -- past &BFFF it pages the next
+                                               ; 16K in and drops HL back to &8000
+               LD A,(HL)                       ; 6AF7 7E  offset 0, which is &0D only at the end of the list
+               PUSH HL                         ; 6AF8 E5
+               LD DE,&0009                     ; 6AF9 11 09 00  offset 9 is this record's length
+               ADD HL,DE                       ; 6AFC 19
+               LD E,(HL)                       ; 6AFD 5E
+               INC HL                          ; 6AFE 23
+               LD D,(HL)                       ; 6AFF 56
+               POP HL                          ; 6B00 E1
+               CP &0D                          ; 6B01 FE 0D  a carriage return where a record should start is the end of
+                                               ; the list
+               JR NZ,END_OF_CHANNELS_LOOP      ; 6B03 20 EE
+               RET                             ; 6B05 C9
 
 HOOK_HOPEN:
                CALL GCHR                       ; 6B06 CD 42 50
@@ -11699,83 +11858,105 @@ OPDST1:
                RET                             ; 6B76 C9
 
 ;; --------------------------------------------------------------------
-;; The same setup with IX instead of HL, and V4213 cleared first --
-;; which is what makes it the start of a scan rather than a single
-;; lookup.
+;; Walk the channel list before opening a file, and find where the
+;; new channel will go.
+;;
+;; THE 1991 SOURCE CALLS THIS OPEND, and it does three things on one
+;; pass.  It remembers the first reserved block it meets -- a record
+;; whose letter at offset 4 is zero, which is what OPEN BLOCKS leaves
+;; -- in TEMPW1, so that a new channel can go there instead of at the
+;; end.  It refuses to open a file that is open already, with
+;; "Channel used".  And it stops on the carriage return that closes
+;; the list, which is where the channel goes if no block was
+;; reserved.
+;;
+;; THE CLASH TEST IS LOOSER THAN THE SOURCE'S, in a way the source
+;; does not have at all.  Two checks were added in front of the name
+;; compare: if the file is being opened IN, FSTR1 holding MIN, there
+;; is no clash to look for; and if the channel already open is IN --
+;; the two mode bits at offset &0C both clear -- it does not count as
+;; a clash either.  So any number of readers may share a file, and
+;; only a writer or a random-access channel excludes another.
+;;
+;; The letter is tested under AND &5F, which folds the case and
+;; drops bit 7: a temporary channel is "D"+&80, and OPDST1 clears
+;; that bit to make one permanent.
 ;; --------------------------------------------------------------------
 
 ; ---- RESET_CHANNEL_SCAN ---- from &6994, &6B69
 RESET_CHANNEL_SCAN:
                XOR A                           ; 6B77 AF
-               OUT (HMPR),A                    ; 6B78 D3 FB
-               LD (V4213),A                    ; 6B7A 32 13 42
-               LD IX,(CHANS+IN_PAGE_C)         ; 6B7D DD 2A 4F 9C
-               LD DE,&401E                     ; 6B81 11 1E 40
+               OUT (HMPR),A                    ; 6B78 D3 FB  the system page, where the channel list is
+               LD (TEMPW1+1),A                 ; 6B7A 32 13 42  the high byte of TEMPW1: no reserved block seen yet
+               LD IX,(CHANS+IN_PAGE_C)         ; 6B7D DD 2A 4F 9C  the head of the list
+               LD DE,CHANS_BIAS_AND_FIRST      ; 6B81 11 1E 40
 
 ; ---- RESET_CHANNEL_SCAN_1 ---- from &6BD3
 RESET_CHANNEL_SCAN_1:
                ADD IX,DE                       ; 6B84 DD 19  SKIP 6 STANDARD CHANNELS
-               LD A,(IX+&00)                   ; 6B86 DD 7E 00
-               CP &0D                          ; 6B89 FE 0D
+               LD A,(IX+&00)                   ; 6B86 DD 7E 00  offset 0, which is &0D only at the end of the list
+               CP &0D                          ; 6B89 FE 0D  the carriage return that closes the list
                JR Z,RESET_CHANNEL_SCAN_3       ; 6B8B 28 48  JR IF CHANS TERMINATOR FOUND
-               LD A,(IX+RFDH-DCHAN)            ; 6B8D DD 7E 04
+               LD A,(IX+RFDH-DCHAN)            ; 6B8D DD 7E 04  the channel letter, or zero for a block OPEN BLOCKS
+                                               ; reserved
                AND A                           ; 6B90 A7
                JR NZ,RESET_CHANNEL_SCAN_2      ; 6B91 20 04
-               LD (TEMPW1),IX                  ; 6B93 DD 22 12 42
+               LD (TEMPW1),IX                  ; 6B93 DD 22 12 42  the first reserved block is where the new channel
+                                               ; will go
 
 ; ---- RESET_CHANNEL_SCAN_2 ---- from &6B91 when A <> 0
 RESET_CHANNEL_SCAN_2:
-               AND &5F                         ; 6B97 E6 5F
-               CP &44                          ; 6B99 FE 44
+               AND &5F                         ; 6B97 E6 5F  either case, and bit 7 off: a temporary channel is "D"+&80
+               CP &44                          ; 6B99 FE 44  a disc channel?
                JR NZ,OPND2_1                   ; 6B9B 20 30
                LD A,(DSTR1)                    ; 6B9D 3A 36 41
-               CP (IX+&0B)                     ; 6BA0 DD BE 0B
+               CP (IX+DRIVE-DCHAN)             ; 6BA0 DD BE 0B  on the same drive?
                JR NZ,OPND2_1                   ; 6BA3 20 28
                LD A,(FSTR1)                    ; 6BA5 3A 37 41
-               CP &BF                          ; 6BA8 FE BF
-               JR Z,OPND2_1                    ; 6BAA 28 21
-               LD A,(IX+&0C)                   ; 6BAC DD 7E 0C
-               AND &03                         ; 6BAF E6 03
-               JR Z,OPND2_1                    ; 6BB1 28 1A
+               CP MIN                          ; 6BA8 FE BF
+               JR Z,OPND2_1                    ; 6BAA 28 21  opening for input never clashes
+               LD A,(IX+FLAG3-DCHAN)           ; 6BAC DD 7E 0C
+               AND &03                         ; 6BAF E6 03  bits 0 and 1 are the mode: 0 IN, 1 OUT, 2 RND
+               JR Z,OPND2_1                    ; 6BB1 28 1A  and a channel that is reading does not clash either
                PUSH IX                         ; 6BB3 DD E5
                POP HL                          ; 6BB5 E1
                LD DE,NAME                      ; 6BB6 11 14 00
                ADD HL,DE                       ; 6BB9 19
                EX DE,HL                        ; 6BBA EB
                LD HL,NSTR1+1                   ; 6BBB 21 3B 41
-               LD B,&0A                        ; 6BBE 06 0A
+               LD B,&0A                        ; 6BBE 06 0A  ten characters of name
 
 ; ---- OPND2 ---- from &6BC8 when B is not 0 yet
 OPND2:
                LD A,(DE)                       ; 6BC0 1A
                XOR (HL)                        ; 6BC1 AE
-               AND &DF                         ; 6BC2 E6 DF
+               AND CASE_BLIND                  ; 6BC2 E6 DF
                JR NZ,OPND2_1                   ; 6BC4 20 07
                INC HL                          ; 6BC6 23
                INC DE                          ; 6BC7 13
                DJNZ OPND2                      ; 6BC8 10 F6
-               JP REP31                        ; 6BCA C3 92 51  "CHANNEL USED"
+               JP REP31                        ; 6BCA C3 92 51  the same name, open for writing: "Channel used"
 
-; ---- OPND2_1 ---- from &6B9B when A <> &44, &6BA3 when A <> (IX+&0B), &6BAA when A = &BF, &6BB1 when no bit of &03 is
-; set, &6BC4 when a bit of &DF is set
+; ---- OPND2_1 ---- from &6B9B when A <> &44, &6BA3 when A <> (IX+DRIVE-DCHAN), &6BAA when A = MIN, &6BB1 when no bit of
+; &03 is set, &6BC4 when a bit of CASE_BLIND is set
 OPND2_1:
-               LD E,(IX+&09)                   ; 6BCD DD 5E 09
-               LD D,(IX+&0A)                   ; 6BD0 DD 56 0A
+               LD E,(IX+&09)                   ; 6BCD DD 5E 09  offset 9 is this record's length
+               LD D,(IX+&0A)                   ; 6BD0 DD 56 0A  and offset 10 its high byte
                JR RESET_CHANNEL_SCAN_1         ; 6BD3 18 AF
 
 ; ---- RESET_CHANNEL_SCAN_3 ---- from &6B8B when A = &0D
 RESET_CHANNEL_SCAN_3:
                PUSH IX                         ; 6BD5 DD E5
-               LD HL,(TEMPW1)                  ; 6BD7 2A 12 42
+               LD HL,(TEMPW1)                  ; 6BD7 2A 12 42  the reserved block, if one was seen
                LD A,H                          ; 6BDA 7C
                AND A                           ; 6BDB A7
                JR Z,OPND2_2                    ; 6BDC 28 01
-               EX (SP),HL                      ; 6BDE E3
+               EX (SP),HL                      ; 6BDE E3  which replaces the end of the list as the place to build
 
 ; ---- OPND2_2 ---- from &6BDC when A = 0
 OPND2_2:
-               LD A,&10                        ; 6BDF 3E 10
-               CALL FDHR                       ; 6BE1 CD 31 4B  Z IF FOUND
+               LD A,DIR_MODE_NAME_ONLY         ; 6BDF 3E 10
+               CALL FDHR                       ; 6BE1 CD 31 4B  is there a file of that name on the disc?
                POP HL                          ; 6BE4 E1  ADDR OF CHANS TERMINATOR
                PUSH HL                         ; 6BE5 E5  - LOCN FOR NEW CHAN
                LD A,(FSTR1)                    ; 6BE6 3A 37 41
@@ -15444,11 +15625,50 @@ FABORT:
                RET                             ; 7AAF C9
 
 ;; --------------------------------------------------------------------
-;; FILE STATUS FUNCTION
-;; FSTAT("NAME",1)=FILE NUMBER
-;; FSTAT("NAME",2)=FILE LENGTH
-;; FSTAT("NAME",3)=FILE TYPE
-;; FSTAT("NAME",4)=FILE TYPE AND PROTECT/HIDE BITS
+;; FSTAT("name",n): one fact about a file, without loading it.
+;;
+;; THE 1991 SOURCE HAS FOUR OPTIONS AND THIS BUILD HAS EIGHT.  The
+;; range check is against 7 where the source has 3, and the chain of
+;; DEC C below the file search has four more arms.  The manual for the
+;; merged product lists them:
+;;
+;;     1   the file's number in the directory
+;;     2   its length in bytes, excluding any header
+;;     3   its type, 0 to 31
+;;     4   the type byte whole, with the protect and hidden bits
+;;     5   the start address
+;;     6   the auto-start line for BASIC, the execute address for CODE
+;;     7   the date, as a number: 23/12/91 is 231291
+;;     8   the flags byte
+;;
+;; with 0 for a file that is not there and -1 for a drive with no disc
+;; in it, or a RAM disc that was never formatted.
+;;
+;; THE ENTRY IS READ IN PLACE.  FINDC leaves HL on the type byte of
+;; the directory entry, in the sector buffer, and every option after
+;; the first is that pointer plus an offset: &EC for the start, &EF
+;; for the length, &F2 for the execute address, &F5 for the date, &DC
+;; for the flags.  D is zeroed once, before the chain, so that each
+;; LD E,offset is a whole displacement.
+;;
+;; THE PAGE OF A START ADDRESS IS ONE MORE THAN THE ENTRY SAYS.  The
+;; ROM's SAVE adds the current LMPR page to the start page as it
+;; writes the header -- SAMAIN's "ADJUST START PAGE" -- and with LMPR
+;; at &1F, the ROM's own arrangement, that is the page BASIC named
+;; less one.  INC A puts the one back, so option 5 returns the address
+;; the program was saved from.  An execute address is stored in
+;; relative form as it stands, which is why option 6 reads its page
+;; with no INC.  PNTYP does the same INC, on C, when DIR prints a CODE
+;; file's start.
+;;
+;; A 48K SNAPSHOT HAS NO LENGTH FIELD, so option 2 answers three pages
+;; and nothing over -- 49152 -- from the type alone.
+;;
+;; THE DATE COMES OUT AS SIX DECIMAL DIGITS, and the two calls to
+;; APPEND_DATE_FIELD are how: the day, then times a hundred plus the
+;; month, then times a hundred plus the year, with A carrying what a
+;; 16-bit total cannot hold.  A first byte of &FF is an unstamped
+;; entry, and the answer is 0.
 ;; --------------------------------------------------------------------
 
 FSTAT:
@@ -15458,7 +15678,8 @@ FSTAT:
                CALL CNB                        ; 7AB9 CD 99 7A  COMMA,NUMBER, ")", ABORT
                PUSH BC                         ; 7ABC C5  NUMBER
                DEC BC                          ; 7ABD 0B  LEGAL VALUES NOW 0-3
-               LD HL,&0007                     ; 7ABE 21 07 00
+               LD HL,FSTAT_OPTIONS-1           ; 7ABE 21 07 00  the DEC has taken one off, so 0 to 7 are the legal
+                                               ; values
                AND A                           ; 7AC1 A7
                SBC HL,BC                       ; 7AC2 ED 42
                JP C,IOOR                       ; 7AC4 DA 91 60
@@ -15472,8 +15693,9 @@ FSTAT:
                JR NZ,FSTAT_2                   ; 7AD6 20 38  JR IF NOT FOUND - STACK 0
                DEC C                           ; 7AD8 0D
                JR Z,FSTAT_8                    ; 7AD9 28 6B
-               LD D,&00                        ; 7ADB 16 00
-               LD A,(HL)                       ; 7ADD 7E  TYPE
+               LD D,&00                        ; 7ADB 16 00  the high byte of every offset added below -- and, in option
+                                               ; 7, of the day
+               LD A,(HL)                       ; 7ADD 7E  the type byte, which options 3, 4 and 6 want as it is
                DEC C                           ; 7ADE 0D
                JR Z,FSTAT_10                   ; 7ADF 28 6D
                DEC C                           ; 7AE1 0D
@@ -15482,28 +15704,28 @@ FSTAT:
                JR Z,FSTAT_7                    ; 7AE5 28 5C
                DEC C                           ; 7AE7 0D
                JR NZ,FSTAT_1                   ; 7AE8 20 09  JR IF PARAM WAS 4
-               LD E,&EC                        ; 7AEA 1E EC
+               LD E,DIR_START                  ; 7AEA 1E EC
                ADD HL,DE                       ; 7AEC 19
                LD A,(HL)                       ; 7AED 7E
-               AND &1F                         ; 7AEE E6 1F
-               INC A                           ; 7AF0 3C
+               AND PAGE_VALUE_MASK             ; 7AEE E6 1F
+               INC A                           ; 7AF0 3C  the entry's page is the one BASIC named, less one; see above
                JR FSTAT_11                     ; 7AF1 18 69
 
 ; ---- FSTAT_1 ---- from &7AE8 when C is not 0 yet
 FSTAT_1:
                DEC C                           ; 7AF3 0D
                JR NZ,FSTAT_4                   ; 7AF4 20 22
-               LD E,&F2                        ; 7AF6 1E F2
+               LD E,DIR_EXECUTE                ; 7AF6 1E F2
                ADD HL,DE                       ; 7AF8 19
-               AND &1F                         ; 7AF9 E6 1F
+               AND TYPE_MASK                   ; 7AF9 E6 1F
                LD B,A                          ; 7AFB 47
                LD A,(HL)                       ; 7AFC 7E
-               INC A                           ; 7AFD 3C
+               INC A                           ; 7AFD 3C  &FF in the first byte means there is no execute address
                JR Z,FSTAT_7                    ; 7AFE 28 43
                LD A,B                          ; 7B00 78
-               CP &13                          ; 7B01 FE 13
+               CP TYPE_CODE                    ; 7B01 FE 13
                JR Z,FSTAT_3                    ; 7B03 28 0E
-               CP &10                          ; 7B05 FE 10
+               CP TYPE_BASIC                   ; 7B05 FE 10
                JR NZ,FSTAT_2                   ; 7B07 20 07
                INC HL                          ; 7B09 23
                LD E,(HL)                       ; 7B0A 5E
@@ -15512,39 +15734,40 @@ FSTAT_1:
                EX DE,HL                        ; 7B0D EB
                JR FSTAT_9                      ; 7B0E 18 3B
 
-; ---- FSTAT_2 ---- from &7AD6, &7B07 when A <> &10
+; ---- FSTAT_2 ---- from &7AD6, &7B07 when A <> TYPE_BASIC
 FSTAT_2:
                XOR A                           ; 7B10 AF
                JR FSTAT_7                      ; 7B11 18 30
 
-; ---- FSTAT_3 ---- from &7B03 when A = &13
+; ---- FSTAT_3 ---- from &7B03 when A = TYPE_CODE
 FSTAT_3:
                LD A,(HL)                       ; 7B13 7E
-               AND &1F                         ; 7B14 E6 1F
+               AND PAGE_VALUE_MASK             ; 7B14 E6 1F
                JR FSTAT_11                     ; 7B16 18 44
 
 ; ---- FSTAT_4 ---- from &7AF4 when C is not 0 yet
 FSTAT_4:
                DEC C                           ; 7B18 0D
                JR Z,FSTAT_5                    ; 7B19 28 08
-               LD E,&DC                        ; 7B1B 1E DC
+               LD E,DIR_FLAGS                  ; 7B1B 1E DC
                ADD HL,DE                       ; 7B1D 19
                LD A,(HL)                       ; 7B1E 7E
-               AND &1F                         ; 7B1F E6 1F
+               AND &1F                         ; 7B1F E6 1F  the low five bits of the flags byte; bits 0 to 3 are the
+                                               ; ones anything defines
                JR FSTAT_7                      ; 7B21 18 20
 
 ; ---- FSTAT_5 ---- from &7B19 when C reaches 0
 FSTAT_5:
-               LD E,&F5                        ; 7B23 1E F5
+               LD E,DIR_DATE                   ; 7B23 1E F5
                ADD HL,DE                       ; 7B25 19
                LD A,(HL)                       ; 7B26 7E
-               INC A                           ; 7B27 3C
+               INC A                           ; 7B27 3C  &FF means the entry was never stamped
                JR Z,FSTAT_7                    ; 7B28 28 19
                LD E,(HL)                       ; 7B2A 5E
                EX DE,HL                        ; 7B2B EB
                XOR A                           ; 7B2C AF
-               CALL TIME_TO_MINUTES            ; 7B2D CD 35 7B
-               CALL TIME_TO_MINUTES            ; 7B30 CD 35 7B
+               CALL APPEND_DATE_FIELD          ; 7B2D CD 35 7B
+               CALL APPEND_DATE_FIELD          ; 7B30 CD 35 7B
                JR FSTAT_12                     ; 7B33 18 2F
 
 ;; --------------------------------------------------------------------
@@ -15557,8 +15780,8 @@ FSTAT_5:
 ;; time.
 ;; --------------------------------------------------------------------
 
-; ---- TIME_TO_MINUTES ---- from &7B2D, &7B30
-TIME_TO_MINUTES:
+; ---- APPEND_DATE_FIELD ---- from &7B2D, &7B30
+APPEND_DATE_FIELD:
                CALL CALLMB                     ; 7B35 CD BD 42
                DEFW MB_MULTIPLY_BY_100-&4000   ; 7B38 F9 45
                LD C,(HL)                       ; 7B3A 4E
@@ -15570,7 +15793,7 @@ TIME_TO_MINUTES:
 
 ; ---- FSTAT_6 ---- from &7AE2 when C reaches 0
 FSTAT_6:
-               AND &1F                         ; 7B41 E6 1F
+               AND TYPE_MASK                   ; 7B41 E6 1F
 
 ; ---- FSTAT_7 ---- from &7AE5 when C reaches 0, &7AFE when A wraps to 0, &7B11, &7B21, &7B28 when A wraps to 0
 FSTAT_7:
@@ -15589,11 +15812,11 @@ FSTAT_9:
 ; ---- FSTAT_10 ---- from &7ADF when C reaches 0
 FSTAT_10:
                LD E,D                          ; 7B4E 5A
-               AND &1F                         ; 7B4F E6 1F
-               CP &05                          ; 7B51 FE 05
-               LD A,&03                        ; 7B53 3E 03
+               AND TYPE_MASK                   ; 7B4F E6 1F
+               CP TYPE_ZX_SNP48                ; 7B51 FE 05
+               LD A,&03                        ; 7B53 3E 03  three pages, with DE still zero: 48K exactly
                JR Z,FST4                       ; 7B55 28 09  JR IF 48K SNAP, ADE=48K
-               LD BC,&00EF                     ; 7B57 01 EF 00
+               LD BC,DIR_LENGTH                ; 7B57 01 EF 00
                ADD HL,BC                       ; 7B5A 09  POINT TO LEN DATA IN BUFFER
                LD A,(HL)                       ; 7B5B 7E  (DIR ENTRY)
 
@@ -15604,7 +15827,7 @@ FSTAT_11:
                INC HL                          ; 7B5E 23
                LD D,(HL)                       ; 7B5F 56
 
-; ---- FST4 ---- from &7B55 when A = &05
+; ---- FST4 ---- from &7B55 when A = TYPE_ZX_SNP48
 FST4:
                EX DE,HL                        ; 7B60 EB  AHL=PAGE FORM
 
@@ -15687,15 +15910,14 @@ STACK_FIVE_BYTE_NUMBER:
                RET                             ; 7BAB C9
 
 ;; --------------------------------------------------------------------
-;; Write BC over the word at the stack pointer kept in &7FFC -- the
-;; ROM's stack as it stood when the DOS was entered -- so that the
-;; pending return goes to BC instead.  The same trick MasterBASIC plays
-;; with STORE_BC_AT_XVAR76, from the other side.
+;; Write BC over the word at the ROM's saved stack pointer, so that
+;; the pending return goes to BC instead.  The same trick MasterBASIC
+;; plays with STORE_BC_AT_XVAR76, from the other side.
 ;; --------------------------------------------------------------------
 
 ; ---- RETURN_INTO_BC ---- from &4413, &64A4, &78B2
 RETURN_INTO_BC:
-               LD HL,(&7FFC)                   ; 7BAC 2A FC 7F
+               LD HL,(ROM_SP_AT_ENTRY)         ; 7BAC 2A FC 7F
                JP WRTBC                        ; 7BAF C3 AB 50
 
 ;; --------------------------------------------------------------------
@@ -15704,21 +15926,47 @@ RETURN_INTO_BC:
 ;;     CALL CMR
 ;;     DEFW <ROM address>
 ;;
-;; The mirror of the routine above: it pages the ROM back in rather than
-;; the other half, saves the current HMPR into the code that restores it,
-;; and returns through a stub that undoes both.
+;; THE ROM CANNOT SIMPLY BE CALLED, because the ROM's own code expects
+;; the system page at &4000 and this page is there instead.  So the
+;; DOS is put in the window as well -- HMPR set to the page LMPR has
+;; at &4000, which is the DOS's own -- and the routine jumps to its
+;; own next instruction at the &Bxxx address.  From there it can put
+;; LMPR back to the ROM's arrangement, &1F, without paging itself out.
+;;
+;; THE STACK MOVES TOO.  The ROM's PTDOS entered the DOS with SP at
+;; the top of this page, having pushed its LMPR, its own stack pointer
+;; and a return address there; those six bytes are the frame &7FFA to
+;; &7FFF, and the stack pointer among them is the one this reads --
+;; twice, once as &7FFC before the paging and once as &BFFC after it.
+;; The ROM routine runs on the ROM's stack, just below that saved
+;; pointer, and the DOS's stack pointer goes into DOSSTK so that a hook
+;; the ROM routine raises does not land on top of it.  That is what the
+;; author's "REWRITTEN TO ALLOW HOOKS TO BE USED BY ROUTINES CALLED BY
+;; CMR" means.
+;;
+;; WHAT IS PUSHED BEFORE THE JUMP is read back by a stub the boot has
+;; put in the system page, in the gap before the keyboard table: the
+;; routine's address, a return into the same block, the DOSSTK that
+;; was, the caller's LMPR with A beside it, and the DOS's own stack
+;; pointer, reading down from the top: HL, BC and IY went on in the
+;; other order, so the carried "ORIG SP" on the PUSH HL belongs to the source's
+;; layout and not this one.  The stub restores HMPR
+;; from the operand at &7BF3 -- patched in at &7BC4 -- puts A back and
+;; calls the routine; the return path restores DOSSTK, LMPR and the
+;; stack.  CMR_DONE runs last, with the DOS at &4000 again, and puts
+;; the ROM's saved stack pointer back in case the hook path changed it.
 ;; --------------------------------------------------------------------
 
 ; ---- CMR ---- from &423E, &4DED, &503C, &5042, &5767, &5953, &5AE6, &5B5A ...
 CMR:
                EXX                             ; 7BB2 D9
-               POP HL                          ; 7BB3 E1
+               POP HL                          ; 7BB3 E1  the word after the CALL is the ROM address
                LD E,(HL)                       ; 7BB4 5E
                INC HL                          ; 7BB5 23
                LD D,(HL)                       ; 7BB6 56
                INC HL                          ; 7BB7 23
                PUSH HL                         ; 7BB8 E5
-               LD HL,(&7FFC)                   ; 7BB9 2A FC 7F  MAIN ROM SP ON ENTRY TO DOS
+               LD HL,(ROM_SP_AT_ENTRY)         ; 7BB9 2A FC 7F  MAIN ROM SP ON ENTRY TO DOS
                PUSH HL                         ; 7BBC E5
                LD HL,CMR_DONE                  ; 7BBD 21 F7 7B
                PUSH HL                         ; 7BC0 E5
@@ -15726,31 +15974,39 @@ CMR:
                IN A,(HMPR)                     ; 7BC2 DB FB
                LD (L7BF2+1),A                  ; 7BC4 32 F3 7B  patches the operand of the LD at &7BF2
                IN A,(LMPR)                     ; 7BC7 DB FA
-               LD B,A                          ; 7BC9 47
-               INC A                           ; 7BCA 3C
-               AND &1F                         ; 7BCB E6 1F
-               OUT (HMPR),A                    ; 7BCD D3 FB  DOS AT 8000H ALSO
-               LD IY,&0000                     ; 7BCF FD 21 00 00
+               LD B,A                          ; 7BC9 47  the caller's LMPR, kept for the return path
+               INC A                           ; 7BCA 3C  one up is the page at &4000, this one
+               AND PAGE_VALUE_MASK             ; 7BCB E6 1F
+               OUT (HMPR),A                    ; 7BCD D3 FB  so this page is in the window as well
+               LD IY,&0000                     ; 7BCF FD 21 00 00  IY := SP, the DOS's stack, for DOSSTK once the system
+                                               ; page is in
                ADD IY,SP                       ; 7BD3 FD 39
-               JP &BBD8                        ; 7BD5 C3 D8 BB
-               LD A,&1F                        ; 7BD8 3E 1F
-               LD HL,(&BFFC)                   ; 7BDA 2A FC BF
-               DI                              ; 7BDD F3
-               OUT (LMPR),A                    ; 7BDE D3 FA  SYS PAGE AT 4000H
-               LD SP,HL                        ; 7BE0 F9
-               EI                              ; 7BE1 FB  STACK
-               LD HL,(&5C59)                   ; 7BE2 2A 59 5C
-               LD (&5C59),IY                   ; 7BE5 FD 22 59 5C
-               PUSH IY                         ; 7BE9 FD E5
-               PUSH BC                         ; 7BEB C5
-               PUSH HL                         ; 7BEC E5  ORIG SP
-               LD HL,PNDN2_2                   ; 7BED 21 A4 58  RET ADDR TO PAGING SR
-               PUSH HL                         ; 7BF0 E5  AFTER DEFKEYS
-               PUSH DE                         ; 7BF1 D5  ROUTINE ADDR TO CALL
+               JP CMR_IN_WINDOW+IN_PAGE_C      ; 7BD5 C3 D8 BB  the next instruction, through the window
+
+CMR_IN_WINDOW:
+               LD A,SYSPAGE_IN_B                 ; 7BD8 3E 1F
+               LD HL,(ROM_SP_AT_ENTRY+IN_PAGE_C) ; 7BDA 2A FC BF  the same word, now read through the window
+               DI                                ; 7BDD F3
+               OUT (LMPR),A                      ; 7BDE D3 FA  the ROM's arrangement: system page at &4000, and this
+                                                 ; page still in the window
+               LD SP,HL                          ; 7BE0 F9  the ROM's stack, below its saved pointer
+               EI                                ; 7BE1 FB  STACK
+               LD HL,(DOSSTK)                    ; 7BE2 2A 59 5C  the DOSSTK the ROM had
+               LD (DOSSTK),IY                    ; 7BE5 FD 22 59 5C  replaced by this stack, so a hook raised from the
+                                                 ; ROM keeps clear of it
+               PUSH IY                           ; 7BE9 FD E5  the DOS's stack pointer
+               PUSH BC                           ; 7BEB C5  the caller's LMPR, and A
+               PUSH HL                           ; 7BEC E5  the DOSSTK that was -- the carried "ORIG SP" is the source's
+                                                 ; layout, where HL held that
+               LD HL,SYS_GAP_BLOCK+&0E           ; 7BED 21 A4 58  where the stub's return lands, in the block the boot
+                                                 ; put in the gap before KTAB
+               PUSH HL                           ; 7BF0 E5  AFTER DEFKEYS
+               PUSH DE                           ; 7BF1 D5  ROUTINE ADDR TO CALL
 
 L7BF2:
-               LD A,&00                        ; 7BF2 3E 00  the operand is written here at run time, from &7BC4
-               JP XTRA+CMR3-PFV                ; 7BF4 C3 9F 58  PAGE IN ORIG URPORT,
+               LD A,&00                        ; 7BF2 3E 00  the operand is written here at run time, from &7BC4: the
+                                               ; caller's HMPR
+               JP SYS_GAP_BLOCK+&09            ; 7BF4 C3 9F 58  the stub: HMPR back, A back, and CALL the routine
 
 ;; --------------------------------------------------------------------
 ;;  INIP3 -- boot-time initialisation
@@ -15759,7 +16015,7 @@ L7BF2:
 ; ---- CMR_DONE ---- from &7BBD
 CMR_DONE:
                POP HL                          ; 7BF7 E1
-               LD (&7FFC),HL                   ; 7BF8 22 FC 7F
+               LD (ROM_SP_AT_ENTRY),HL         ; 7BF8 22 FC 7F
 
 ;; --------------------------------------------------------------------
 ;;  The blocks copied into the system page at boot
@@ -15936,13 +16192,8 @@ V7D1C:
                DEFB &01,&01,&00,&18,&17,&3E,&2D,&AE,&E6,&7F,&AE,&77,&23,&10,&F6 ; 7D1C .....>-.f..w#.v
                DEFB &C9,&CD,&34,&F7,&CB,&7C,&C0,&3E,&C9,&BF,&01,&02,&00,&FB,&C9 ; 7D2B IM4wK|@>I?...{I
                DEFB &D6,&4E,&21,&F5,&E5,&C5,&D5,&01,&80,&3C,&3E,&06,&00,&08,&61 ; 7D3A VN!ueEU..<>...a
-               DEFB &AF,&6F,&4F,&3E,&FA,&08,&57,&15,&08,&82,&96                 ; 7D49 /oO>z.W....
-
-PFV:
-               DEFB &77,&23,&7C,&FE,&BC,&20,&F1,&D1,&C1 ; 7D54 w#|~< qQA
-
-CMR3:
-               DEFB &E1,&F1,&C9                ; 7D5D aqI  ORIG URPORT
+               DEFB &AF,&6F,&4F,&3E,&FA,&08,&57,&15,&08,&82,&96,&77,&23,&7C,&FE ; 7D49 /oO>z.W....w#|~
+               DEFB &BC,&20,&F1,&D1,&C1,&E1,&F1,&C9                             ; 7D58 < qQAaqI
 
 ;; --------------------------------------------------------------------
 ;; Twenty-five bytes at the end of the DOS page, called once from the

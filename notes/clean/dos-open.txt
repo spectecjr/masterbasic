@@ -87,7 +87,8 @@ DOC END_OF_CHANNELS
     &4000 is added to reach it through the window; &1E more steps past
     the standard channels to the first that could be the DOS's.  From
     there each record's own length at offset 9 says how far the next
-    one is, and a channel letter of carriage return is the end.
+    one is, and a carriage return where the next record's first byte
+    would be is the end -- the ROM closes the list with one.
 
     CHKHL is the ROM's own bounds check, called before each read, so a
     corrupt length cannot walk this off into nothing.
@@ -97,4 +98,59 @@ DOS &6AED : the head of the list
 DOS &6AF0 expr CHANS_BIAS_AND_FIRST
 DOS &6AF4 : the ROM's window step -- past &BFFF it pages the next 16K in and drops HL back to &8000
 DOS &6AF9 : offset 9 is this record's length
-DOS &6B01 : a carriage return for a channel letter is the end of the list
+DOS &6AF3 END_OF_CHANNELS_LOOP
+DOS &6AF7 : offset 0, which is &0D only at the end of the list
+DOS &6B01 : a carriage return where a record should start is the end of the list
+
+DOC RESET_CHANNEL_SCAN
+    Walk the channel list before opening a file, and find where the
+    new channel will go.
+
+    THE 1991 SOURCE CALLS THIS OPEND, and it does three things on one
+    pass.  It remembers the first reserved block it meets -- a record
+    whose letter at offset 4 is zero, which is what OPEN BLOCKS leaves
+    -- in TEMPW1, so that a new channel can go there instead of at the
+    end.  It refuses to open a file that is open already, with
+    "Channel used".  And it stops on the carriage return that closes
+    the list, which is where the channel goes if no block was
+    reserved.
+
+    THE CLASH TEST IS LOOSER THAN THE SOURCE'S, in a way the source
+    does not have at all.  Two checks were added in front of the name
+    compare: if the file is being opened IN, FSTR1 holding MIN, there
+    is no clash to look for; and if the channel already open is IN --
+    the two mode bits at offset &0C both clear -- it does not count as
+    a clash either.  So any number of readers may share a file, and
+    only a writer or a random-access channel excludes another.
+
+    The letter is tested under AND &5F, which folds the case and
+    drops bit 7: a temporary channel is "D"+&80, and OPDST1 clears
+    that bit to make one permanent.
+
+DOS &6B78 : the system page, where the channel list is
+DOS &6B7A expr TEMPW1+1
+DOS &6B7A : the high byte of TEMPW1: no reserved block seen yet
+DOS &6B7D : the head of the list
+DOS &6B81 expr CHANS_BIAS_AND_FIRST
+DOS &6B86 : offset 0, which is &0D only at the end of the list
+DOS &6B89 : the carriage return that closes the list
+DOS &6B8D : the channel letter, or zero for a block OPEN BLOCKS reserved
+DOS &6B93 : the first reserved block is where the new channel will go
+DOS &6B97 : either case, and bit 7 off: a temporary channel is "D"+&80
+DOS &6B99 : a disc channel?
+DOS &6BA0 expr DRIVE-DCHAN
+DOS &6BA0 : on the same drive?
+DOS &6BA8 expr MIN
+DOS &6BAA : opening for input never clashes
+DOS &6BAC expr FLAG3-DCHAN
+DOS &6BAF : bits 0 and 1 are the mode: 0 IN, 1 OUT, 2 RND
+DOS &6BB1 : and a channel that is reading does not clash either
+DOS &6BBE : ten characters of name
+DOS &6BC2 expr CASE_BLIND
+DOS &6BCA : the same name, open for writing: "Channel used"
+DOS &6BCD : offset 9 is this record's length
+DOS &6BD0 : and offset 10 its high byte
+DOS &6BDF expr DIR_MODE_NAME_ONLY
+DOS &6BE1 : is there a file of that name on the disc?
+DOS &6BD7 : the reserved block, if one was seen
+DOS &6BDE : which replaces the end of the list as the place to build

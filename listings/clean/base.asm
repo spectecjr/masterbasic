@@ -97,6 +97,16 @@ IN_PAGE_C:                      EQU  &4000                                   ; t
 PAGE_VALUE_MASK:                EQU  &1F                                     ; a page number is five bits; the rest of
                                                                              ; the port is not
 
+; Directory entry
+DIR_DATE:                       EQU  &F5                                     ; the date stamp: day, month, year, hour,
+                                                                             ; minute
+
+; Characters
+CH_COLON:                       EQU  &3A                                     ; the statement separator in BASIC, and
+                                                                             ; what ends a device or drive prefix in a
+                                                                             ; file name
+CH_SPACE:                       EQU  &20                                     ; space
+
 ; Disk controller status
 DISK_STATUS_CRC_ERROR:          EQU  &08                                     ; what was read did not check out
 DISK_STATUS_DRQ:                EQU  &02                                     ; a byte is waiting to be taken, or wanted
@@ -128,6 +138,7 @@ SYSPAGE_IN_B:                   EQU  &1F                                     ; L
                                                                              ; gets page 32, which wraps to the system
                                                                              ; page. The ROM source calls it PAGE1F
 SYS_CHAR_WIDTH:                 EQU  &4AEE
+SYS_GAP_BLOCK:                  EQU  &5896
 T_BLOCKS:                       EQU  &A9
 T_CSIZE:                        EQU  &A8
 T_DEF_KEYCODE:                  EQU  &C9

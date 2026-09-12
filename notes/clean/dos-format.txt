@@ -2,6 +2,35 @@
 #
 # Prose for listings/clean/ only.
 
+DOC DFMTA
+    Before anything is destroyed, show what is on the disc and ask.
+
+    Track 0 sector 1 is read so that the prompt can name the disc.  A
+    read error there is taken as a blank or unreadable disc and the
+    prompt is skipped: the mask is the same wrong one as at &409D,
+    applied to the status RDDATA leaves rotated, so a sector with a
+    byte dropped passes -- harmless here, since all it decides is
+    whether to print a name.
+
+    THE NAME IS AT DRAM+&D2, entry 0's offset 210 in the buffer, and
+    three kinds of it are told apart the way PNDN2 does: &00 or &FF
+    is a disc formatted by SAMDOS, which has no name field, and "*"
+    is a MasterDOS disc never given one.  Both go to PNDN2, which
+    prints SAM DOS or MASTER DOS for them.  A real name is printed
+    from the buffer directly, ten characters through PRINTABLE_FORM,
+    because PNDN2 prints the copy in DNAME and that is not this disc's.
+    Bit 7 of the first character is the in-backup marker, and is
+    masked off before the "*" test.
+
+DOS &54C0 value BLOCK_ERROR_FLAGS
+DOS &54C0 : the same mask as &409D, on a status rotated the same way; here it only decides whether to name the disc
+DOS &54C7 : DRAM+&D2, the disc's name in entry 0
+DOS &54CC : &FF became 0 and &00 became 1: either is a disc with no name field
+DOS &54D1 : bit 7 of the first character is the in-backup marker
+DOS &54D3 : "*" is a MasterDOS disc that was never named
+DOS &54D7 : SAM DOS or MASTER DOS, as PNDN2 decides
+DOS &54DC : ten characters of name, straight from the buffer
+
 DOC FMT1A
     One track, then work out where the next one starts.
 

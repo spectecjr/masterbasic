@@ -447,9 +447,9 @@ manual's three `SAVE MODE`s, implemented as one branch.
 
 Coming out, the DOS borrows arithmetic it does not have: `PRINT_BYTE_AS_DECIMAL`
 calls `MB_BYTE_TO_DECIMAL`, `GET_FILE_NUMBER` calls the routine twenty-eight bytes
-before it for a file's number, and `TIME_TO_MINUTES`
+before it for a file's number, and `APPEND_DATE_FIELD`
 is itself called twice over, so `MB_MULTIPLY_BY_100` runs twice, packing three
-two-digit fields into one number. `COLUMNS_FOR_DIRECTORY` at `&5C8B` reaches further
+two-digit fields into one number -- `FSTAT` option 7, the date as `ddmmyy`. `COLUMNS_FOR_DIRECTORY` at `&5C8B` reaches further
 still — it takes `DCOLS` if it is set and otherwise asks MasterBASIC's
 `SYS_CHAR_WIDTH`, in the ROM's system page, whether `CSIZE` has changed the
 character width. Only whether, not what: a changed width gives up and prints one

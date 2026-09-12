@@ -1133,6 +1133,15 @@ def seeds(dos, mb):
     # The builder's own operands: &4D71 is inside what it has just
     # copied, in the ROM's system page, not this half's own &4D71.
     mb.sys_low.append((0x737E, 0x7381))
+    # CMR, from the OUT (LMPR),A at &7BDE that puts the ROM's
+    # arrangement back: the system page is at &4000 and this half is
+    # running in the window.  So &5C59 is the ROM's DOSSTK and &58A4
+    # is fourteen bytes into the forty the boot put in the gap before
+    # KTAB -- not this half's PNDN2_2, which happens to sit at the
+    # same address and was being named as the return address.  The
+    # MasterBASIC copy of the same routine already reads
+    # SYS_GAP_BLOCK+&0E there.
+    dos.sys_low.append((0x7BE2, 0x7BF7))
     # &5C3F reads and writes two of those bytes: it is called from &5C0F,
     # after &5BFF has zeroed HMPR, and CMD_RECORD reaches the same byte
     # by name -- CALL NRWR / DEFW &4AF3 at &5BE0.

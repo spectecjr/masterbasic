@@ -32,7 +32,6 @@
 ; given here so it can be judged.  Each is written only where
 ; the byte already had that value, so the file still assembles
 ; to the original either way.
-CH_COLON:               EQU  &3A               ; the statement separator
 CH_COMMA:               EQU  &2C               ; the argument separator
 CH_CR:                  EQU  &0D               ; carriage return, the end of a BASIC line
 CH_DOLLAR:              EQU  &24               ; the string-variable suffix
@@ -40,7 +39,6 @@ CH_DOT:                 EQU  &2E               ; the decimal point
 CH_HASH:                EQU  &23               ; the stream marker, as in PRINT #
 CH_LPAREN:              EQU  &28               ; open bracket
 CH_QUOTE:               EQU  &22               ; the string delimiter
-CH_SPACE:               EQU  &20               ; space
 CH_ZERO:                EQU  &30               ; ASCII "0", for digit conversion
 PAGEMASK:               EQU  &1F               ; the page number in LMPR and HMPR, bits 0 to 4
 UPPER:                  EQU  &DF               ; clearing bit 5 folds a letter to upper case
@@ -50,8 +48,8 @@ LPEN:                   EQU  &F8               ; port &F8 on the way in, where t
                                                ; the read is &01F8 instead, which is HPEN, the raster line
 
 
-; Directory entry
-DIR_DATE:               EQU  &F5               ; the date stamp: day, month, year, hour, minute
+
+
 
 
 
@@ -88,7 +86,6 @@ SYS_EDITV_EDITOR:       EQU  &4866
 SYS_EVALUV_EVAL_FN:     EQU  &4BBA
 SYS_FN_INDEX:           EQU  &4AF0
 SYS_FRAMIV_FRAME_INT:   EQU  &4986
-SYS_GAP_BLOCK:          EQU  &5896
 SYS_INSLV_STRING_MOVE:  EQU  &46CC
 SYS_PATOUT_CHAR_OUT:    EQU  &49A9
 SYS_PRTOKV_PRINT_TOKEN: EQU  &4BB0
@@ -2596,7 +2593,7 @@ V45F6:
 ;; A IS THE TOP OF A 24-BIT ANSWER, but only from the sixth step on:
 ;; the carries out of the first four adds are dropped, so the result is
 ;; right while twelve times HL still fits in sixteen bits -- HL up to
-;; 5461 -- with A entered as zero.  Both of TIME_TO_MINUTES's calls are
+;; 5461 -- with A entered as zero.  Both of APPEND_DATE_FIELD's calls are
 ;; inside that.
 ;; --------------------------------------------------------------------
 

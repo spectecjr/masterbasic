@@ -4,9 +4,9 @@ What this project cannot settle by reading. Each entry says what to capture,
 why, and what it would decide — so that whoever has the hardware or the
 emulator can do it without reading the rest of the repository first. All five
 are answered, and are kept because the answers are worth more than the
-questions were. Items 7, 8 and 12 are open: 8 could be settled by anyone
-who can save a compressed screen and look at the directory entry, and 12
-by anyone who can capture a printer stream.
+questions were. Items 7 and 12 are open: 12 could be settled by anyone
+who can capture a printer stream.  Item 8 was settled by reading, not
+by a capture, and is kept for the same reason as the others.
 
 ---
 
@@ -278,7 +278,22 @@ Failing that, two cheaper things would each narrow it:
 
 ---
 
-## 8. What writes ROM header offsets 24 to 26 when a compressed file is saved
+## 8. Answered -- `HOOK_HSAVE_2` writes ROM header offsets 24 to 26, through `IX`
+
+**Settled from the code.** The writer is at `DOS &6540`: `HOOK_HSAVE_2`
+adds `&F8` to `IX`, which is on `DCHAN`, and stores `A`, `E` and `D` there.
+`DCHAN+&F8` is entry offset 229 -- `FFSA` is 19, and 19 plus 229 is 248 --
+so the field is written by displacement from the entry and never by the
+`DIFA+24` name this item was looking for. What goes in is the **compressed
+length**: `FPTR` gives the position in the file once the compressor has
+written it, `&FFF7` takes the nine-byte header off, and `PAGEFORM` splits
+the result into a page and an address. On the way back in, MasterBASIC's
+`&62A6` folds the pair with `PAGED_TO_LONG` into `V407B`, which
+`LOAD_NEXT_INPUT_BLOCK` counts down as it refills the input -- so the
+expander does depend on it, and the carried comment that called it "the
+address to expand into" was wrong. The question as it stood is below.
+
+### As asked
 
 **Open.** MasterBASIC replaces MasterDOS's `HLOAD` hook outright -- the
 original is four instructions, `LD BC,&4BB0+HLDP-PVECT / NETPA / DSCHD /

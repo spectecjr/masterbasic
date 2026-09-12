@@ -1,0 +1,88 @@
+# FSTAT: the file-status function, and the directory-entry offsets
+# it reads.
+#
+# Prose for listings/clean/ only.
+
+GROUP Directory entry
+CONST DIR_FLAGS = &DC : the ROM header's flag byte: bit 0 hidden, bit 1 protected, and MasterBASIC's bit 2 compressed and bit 3 SAVE MODE 3
+CONST DIR_START = &EC : the start address, page form -- three bytes
+CONST DIR_LENGTH = &EF : the length, page form -- whole pages, then the bytes within the last
+CONST DIR_EXECUTE = &F2 : the execute address for CODE, the auto-run line for BASIC; &FF in the first byte means none
+
+GROUP File types
+CONST TYPE_ZX_SNP48 = &05 : a Spectrum 48K snapshot
+CONST TYPE_BASIC = &10 : a SAM BASIC program
+CONST TYPE_CODE = &13 : SAM CODE
+CONST TYPE_SCREEN = &14 : a SAM SCREEN$
+
+GROUP FSTAT
+CONST FSTAT_OPTIONS = &08 : FSTAT's second argument runs from 1 to 8; MasterDOS alone took 1 to 4
+
+DOC FSTAT
+    FSTAT("name",n): one fact about a file, without loading it.
+
+    THE 1991 SOURCE HAS FOUR OPTIONS AND THIS BUILD HAS EIGHT.  The
+    range check is against 7 where the source has 3, and the chain of
+    DEC C below the file search has four more arms.  The manual for the
+    merged product lists them:
+
+        1   the file's number in the directory
+        2   its length in bytes, excluding any header
+        3   its type, 0 to 31
+        4   the type byte whole, with the protect and hidden bits
+        5   the start address
+        6   the auto-start line for BASIC, the execute address for CODE
+        7   the date, as a number: 23/12/91 is 231291
+        8   the flags byte
+
+    with 0 for a file that is not there and -1 for a drive with no disc
+    in it, or a RAM disc that was never formatted.
+
+    THE ENTRY IS READ IN PLACE.  FINDC leaves HL on the type byte of
+    the directory entry, in the sector buffer, and every option after
+    the first is that pointer plus an offset: &EC for the start, &EF
+    for the length, &F2 for the execute address, &F5 for the date, &DC
+    for the flags.  D is zeroed once, before the chain, so that each
+    LD E,offset is a whole displacement.
+
+    THE PAGE OF A START ADDRESS IS ONE MORE THAN THE ENTRY SAYS.  The
+    ROM's SAVE adds the current LMPR page to the start page as it
+    writes the header -- SAMAIN's "ADJUST START PAGE" -- and with LMPR
+    at &1F, the ROM's own arrangement, that is the page BASIC named
+    less one.  INC A puts the one back, so option 5 returns the address
+    the program was saved from.  An execute address is stored in
+    relative form as it stands, which is why option 6 reads its page
+    with no INC.  PNTYP does the same INC, on C, when DIR prints a CODE
+    file's start.
+
+    A 48K SNAPSHOT HAS NO LENGTH FIELD, so option 2 answers three pages
+    and nothing over -- 49152 -- from the type alone.
+
+    THE DATE COMES OUT AS SIX DECIMAL DIGITS, and the two calls to
+    APPEND_DATE_FIELD are how: the day, then times a hundred plus the
+    month, then times a hundred plus the year, with A carrying what a
+    16-bit total cannot hold.  A first byte of &FF is an unstamped
+    entry, and the answer is 0.
+
+DOS &7ABE expr FSTAT_OPTIONS-1
+DOS &7ABE : the DEC has taken one off, so 0 to 7 are the legal values
+DOS &7ADB : the high byte of every offset added below -- and, in option 7, of the day
+DOS &7ADD : the type byte, which options 3, 4 and 6 want as it is
+DOS &7AEA expr DIR_START
+DOS &7AEE expr PAGE_VALUE_MASK
+DOS &7AF0 : the entry's page is the one BASIC named, less one; see above
+DOS &7AF6 expr DIR_EXECUTE
+DOS &7AF9 expr TYPE_MASK
+DOS &7AFD : &FF in the first byte means there is no execute address
+DOS &7B01 expr TYPE_CODE
+DOS &7B05 expr TYPE_BASIC
+DOS &7B14 expr PAGE_VALUE_MASK
+DOS &7B1B expr DIR_FLAGS
+DOS &7B1F : the low five bits of the flags byte; bits 0 to 3 are the ones anything defines
+DOS &7B23 expr DIR_DATE
+DOS &7B27 : &FF means the entry was never stamped
+DOS &7B41 expr TYPE_MASK
+DOS &7B4F expr TYPE_MASK
+DOS &7B51 expr TYPE_ZX_SNP48
+DOS &7B53 : three pages, with DE still zero: 48K exactly
+DOS &7B57 expr DIR_LENGTH

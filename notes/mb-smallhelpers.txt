@@ -327,7 +327,7 @@ MB &45F9 MULTIPLY_BY_100
     A IS THE TOP OF A 24-BIT ANSWER, but only from the sixth step on:
     the carries out of the first four adds are dropped, so the result is
     right while twelve times HL still fits in sixteen bits -- HL up to
-    5461 -- with A entered as zero.  Both of TIME_TO_MINUTES's calls are
+    5461 -- with A entered as zero.  Both of APPEND_DATE_FIELD's calls are
     inside that.
 
 MB &6E52 RECLAIM_BC_AT_HL

@@ -2,6 +2,22 @@
 #
 # Prose for listings/clean/ only.
 
+DOC HOOK_SKSAFE
+    Hook 133: park the head somewhere a reset cannot hurt.
+
+    Every load ends here.  Nothing to do for a RAM disc; for a floppy
+    the head is sent to the last directory track, DTKS less one --
+    or to track 3 when that would be track 4, which the 1991 comment
+    explains as "AVOID 1ST FILE!": on a standard four-track directory
+    the first file's data begins on track 4.  E is set to sector 1 on
+    the way, which the same comment marks "PROB NOT NEEDED", since
+    SEEKD moves the head and touches nothing else.
+
+DOS &4726 : a RAM disc has no head to park
+DOS &4727 : how many tracks the directory has
+DOS &472D : so the last of them
+DOS &4731 : which is track 4 only on a five-track directory; track 3 then, to stay off the first file
+
 DOC CTAS
     Put the head over track D and the controller's sector register on
     sector E.  Everything that touches a floppy comes through here first.

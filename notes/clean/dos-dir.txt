@@ -84,6 +84,7 @@ DOC HOOK_PCAT
     goes, one file to a line, and PCAT2 is the whole of it.
 
 DOS &5B70 : which listing was chosen
+DOS &5B71 expr DIR_MODE_COLLECT
 DOS &5B75 : collect the names into the screen page
 DOS &5B7B : the disc's name and the path
 DOS &5B7E : how far the collecting got

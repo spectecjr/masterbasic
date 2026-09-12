@@ -71,7 +71,6 @@ SYS_EDITV_EDITOR:       EQU  &4866
 SYS_EVALUV_EVAL_FN:     EQU  &4BBA
 SYS_FN_INDEX:           EQU  &4AF0
 SYS_FRAMIV_FRAME_INT:   EQU  &4986
-SYS_GAP_BLOCK:          EQU  &5896
 SYS_INSLV_STRING_MOVE:  EQU  &46CC
 SYS_PATOUT_CHAR_OUT:    EQU  &49A9
 SYS_PRTOKV_PRINT_TOKEN: EQU  &4BB0
@@ -3620,7 +3619,7 @@ V45F6:
 ;;     A IS THE TOP OF A 24-BIT ANSWER, but only from the sixth step on:
 ;;     the carries out of the first four adds are dropped, so the result is
 ;;     right while twelve times HL still fits in sixteen bits -- HL up to
-;;     5461 -- with A entered as zero.  Both of TIME_TO_MINUTES's calls are
+;;     5461 -- with A entered as zero.  Both of APPEND_DATE_FIELD's calls are
 ;;     inside that.
 ;; --------------------------------------------------------------------
 

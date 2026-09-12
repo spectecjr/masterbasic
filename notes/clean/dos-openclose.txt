@@ -158,16 +158,21 @@ DOS &4E78 expr TYPE_MASK
 DOS &4E7A value DFT
 DOS &4E7C : a directory or an open-type file is not loadable
 DOS &4E7F : zero for &11 and for &12
+DOS &4E81 : the borrow put back, so &11 comes to zero as well
 DOS &4E83 : which are the two array types, and not loadable either
 DOS &4E86 : the type byte and the name
+DOS &4E89 expr NAME_AND_TYPE
 DOS &4E8E : four bytes of nothing between the name and the header
 DOS &4E94 : offset 211 of the entry, where the nine-byte header is
 DOS &4E99 : the nine bytes, straight into HD001
 DOS &4E9E : and the two after them
+DOS &4EA1 : two bytes: the flags at 220, and the one after
 DOS &4EA5 : back to the head of the entry
 DOS &4EA8 : the ROM's 48-byte header starts with the type and the name
+DOS &4EAB expr NAME_AND_TYPE
 DOS &4EB0 : fifteen spaces where the ROM would have had its own
 DOS &4EB5 : and &FF -- "not set" -- for the twenty-two after that
+DOS &4EB7 : the ROM's "not set" byte
 
 DOC GTFL4
     Does the file that was found have the type that was asked for?

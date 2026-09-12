@@ -10,6 +10,7 @@
 GROUP Memory
 CONST WINDOW = &8000 : the window, holding whatever HMPR last selected
 CONST ZX_RESUME = &B900 : the resume stub in the Spectrum page
+CONST ZX_RESUME_ARGS = &B8F6 : what the stub reads: the address to return to, then LMPR, HMPR and VMPR at +2, +3 and +4
 
 DOS &53D2 value WINDOW
 DOS &549B value ZX_RESUME
@@ -195,6 +196,15 @@ DOC SNAP7
     the ports have been put back.
 
 DOS &5457 : nothing may interrupt the restart
+DOS &545C : zero, for HKSP
+DOS &5472 expr ZX_RESUME_ARGS
+DOS &5478 expr ZX_RESUME_ARGS+2
+DOS &5478 : LMPR, from SNPRT0
+DOS &547E expr ZX_RESUME_ARGS+3
+DOS &547E : HMPR, from SNPRT1
+DOS &5484 expr ZX_RESUME_ARGS+4
+DOS &5484 : VMPR, from SNPRT2
+DOS &5491 : &3F is I as the Spectrum ROM leaves it, and 0 is I as reset leaves it: neither was set for mode 2
 DOS &5458 : page 3, the Spectrum's "ROM", into the window
 DOS &545F : no unwind address any more
 DOS &5462 : the alternate set, as NMI pushed it

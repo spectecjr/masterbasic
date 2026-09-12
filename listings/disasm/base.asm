@@ -49,6 +49,7 @@ SYSPAGE_IN_B:                   EQU  &1F                                 ; LMPR 
                                                                          ; page 32, which wraps to the system page. The
                                                                          ; ROM source calls it PAGE1F
 SYS_CHAR_WIDTH:                 EQU  &4AEE
+SYS_GAP_BLOCK:                  EQU  &5896
 T_BLOCKS:                       EQU  &A9
 T_CSIZE:                        EQU  &A8
 T_DEF_KEYCODE:                  EQU  &C9

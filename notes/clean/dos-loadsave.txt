@@ -1,0 +1,97 @@
+# The LOAD and SAVE hooks as MasterBASIC rewrote them: where the
+# compressed-file paths branch off.
+#
+# Prose for listings/clean/ only.
+
+DOC HOOK_HSAVE
+    Hook 130: save the file whose header the ROM has built.
+
+    MASTERDOS'S VERSION SAVED THE BLOCK AND CLOSED THE MAP.  This one
+    does that too -- DSVBL then CFSM, at HOOK_HSAVE_4 -- but only for a
+    BASIC program, or when CMPFG is zero because SAVE MODE 1 or no
+    SAVE MODE at all is in force.  The manual's "no attempt is made to
+    compress BASIC programs" is the CP against &10.
+
+    ANYTHING ELSE IS HANDED TO MASTERBASIC.  Bit 2 of the flags byte in
+    the entry -- offset 220, which is IX+&EF once the entry sits at
+    FFSA in DCHAN -- is set to say the file is compressed, and then:
+
+        SCREEN$ with CMPFG 2       SAVE MODE 3.  Bit 3 of the same byte
+                                   is set as well, the byte after it is
+                                   taken in A, and COMPRESS_SCREEN_FILE
+                                   does the work
+        everything else            COMPRESS_FILE, with the start in HL
+                                   and its page in A
+
+    Both come back to SCFSM, which closes the map as CFSM does.
+
+    THE THREE BYTES AT OFFSET 229 are written on the SAVE MODE 3 path
+    only, and they are the compressed length.  FPTR gives the position
+    in the file once the compressor has written it -- sectors times
+    510 plus the offset -- and nine off that is the data without its
+    header, put into page form and stored through IX at &F8.  That is
+    the writer docs/evidence-wanted.md item 8 could not find by name:
+    entry offset 229 is ROM header offset 24, and nothing writes
+    DIFA+24 because the write goes through the entry in DCHAN.
+    HOOK_HLOAD_1 reads the three bytes back from STR-11, and
+    MasterBASIC's &62A6 turns them back into a byte count in V407B,
+    which LOAD_NEXT_INPUT_BLOCK counts down as it refills the input.
+
+DOS &64E0 : the caller's window, put back at HSAVE1
+DOS &64E5 : the start page, out of the ROM's header
+DOS &64F0 : the nine-byte header goes out first, and into the entry at offset 211
+DOS &64FA : SAVE MODE less one, as MasterBASIC's SET_COMPRESSION_MODE left it
+DOS &64FE : zero is no compression: the plain save
+DOS &6501 expr FFSA
+DOS &6501 : the type, from the entry in DCHAN
+DOS &6504 expr TYPE_BASIC
+DOS &6506 : a BASIC program is never compressed
+DOS &650B expr FFSA+DIR_FLAGS
+DOS &650B : the entry's flags byte, offset 220
+DOS &650F : bit 2: the file is compressed
+DOS &6512 expr TYPE_SCREEN
+DOS &6514 : not a screen, so the general compressor
+DOS &6519 : CMPFG 1 is SAVE MODE 2, and takes the general compressor too
+DOS &6529 : bit 3: a SAVE MODE 3 screen
+DOS &652C : the byte after the flags, offset 221
+DOS &6535 : less the nine-byte header
+DOS &6540 : IX+&F8 is entry offset 229
+DOS &6544 : the pages, then the rest: the compressed length in page form
+
+DOC HOOK_HLOAD
+    Hook 131: load the body of a file the header hook has opened.
+
+    MASTERDOS'S HLOAD WAS FOUR INSTRUCTIONS -- NETPA, DSCHD, LDBLK --
+    and this one branches first on two bits of V42E2, the copy of the
+    entry's flags byte that CHECK_FILE_TYPE left there:
+
+        bit 2 clear      not compressed: the plain load, with the
+                         BASIC-program case below
+        bit 2 set        compressed: EXPAND_FILE in the other half,
+                         given the type in C
+        bits 2 and 3     a SAVE MODE 3 screen: the expander at &62A6,
+                         given the compressed length from STR-11, in
+                         page form, and the byte after the flags in A
+
+    Every path ends in HOOK_SKSAFE, which parks the head.
+
+    THE BASIC-PROGRAM CASE on the plain path: when the type is BASIC
+    and the command is LOAD, the byte at DRAM+9 is written into the
+    system page at &4A97 -- the operand of the LD (HL),&00 in the stub
+    the boot put at &4A84, which CMDBUF_PROLOGUE runs to plant that
+    byte at the start of the program -- and DRAM+9 is then set to
+    &FF, the value that stub reads as "nothing to write".  What the
+    byte is for is worked out in notes/mb-cmdbuf.txt from the other
+    side.
+
+DOS &642E : bit 2 of the flags: the file is compressed
+DOS &6432 : bit 3: a SAVE MODE 3 screen
+DOS &6439 expr FFSA
+DOS &6439 : the type, for the expander
+DOS &6443 : the byte after the flags, offset 221
+DOS &6449 : STR-11, where COPY_HEADER_FIELDS lands entry offset 229: the compressed length's page
+DOS &644D : STR-10, offsets 230 and 231: the rest of it -- a length, not an address; see HOOK_HSAVE
+DOS &645F expr TYPE_BASIC
+DOS &6468 : the LOAD token: not MERGE, not VERIFY
+DOS &646C : DRAM+9, the byte after the nine-byte header in the first sector
+DOS &6474 : &FF: nothing to write

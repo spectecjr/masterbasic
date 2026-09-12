@@ -959,9 +959,10 @@ BEEPT:
 V42B9:
                DEFB &00                        ; 42B9 .
 
-; ---- V42BA ---- from &64FA, &6516
-V42BA:
-               DEFB &00                        ; 42BA .
+; ---- CMPFG ---- from &64FA, &6516
+CMPFG:
+               DEFB &00                        ; 42BA .  154 SAVE MODE less one, written by MasterBASIC's
+                                               ; SET_COMPRESSION_MODE and read by HOOK_HSAVE
 
 ; ---- V42BB ---- from &4786
 V42BB:
@@ -6142,10 +6143,7 @@ PMOSD:
 PMYNAE:
                CALL PTM                        ; 588A CD 7C 57
                DEFB &22                        ; 588D
-               DEFM " (y/n/a/"                 ; 588E 20 28 79 2F 6E 2F 61 2F
-
-XTRA:
-               DEFM "e"                        ; 5896 65  XTRA HOOKS ETC. IN SYS PAGE
+               DEFM " (y/n/a/e"                ; 588E 20 28 79 2F 6E 2F 61 2F
                DEFB ")"+&80                    ; 5897 A9
 
 ;; --------------------------------------------------------------------
@@ -6169,15 +6167,9 @@ PNDN2:
                LD A,(HL)                       ; 589B 7E  00 IF OLD DOS, OR FF IF NEV USED
                RES 7,(HL)                      ; 589C CB BE  SO NEV CAN USE BIT 7 AS IBU MARKER
                INC A                           ; 589E 3C
-
-; ---- PNDN2_1 ---- from &7BF4
-PNDN2_1:
                CP &02                          ; 589F FE 02
                JR C,PMOSD                      ; 58A1 38 DD  PRINT "   SAM DOS " IF OLD DOS
                LD A,(HL)                       ; 58A3 7E
-
-; ---- PNDN2_2 ---- from &7BED
-PNDN2_2:
                CP &2A                          ; 58A4 FE 2A
                JR NZ,PMO8                      ; 58A6 20 0A  PRINT DISC NAME IF THERE IS ONE,
 
@@ -8822,7 +8814,7 @@ HOOK_HSAVE:
                CALL SVHD                       ; 64F0 CD 3B 5F
                LD HL,(HD0D1)                   ; 64F3 2A 4C 41
                LD DE,(HD0B1)                   ; 64F6 ED 5B 4A 41
-               LD A,(V42BA)                    ; 64FA 3A BA 42
+               LD A,(CMPFG)                    ; 64FA 3A BA 42
                AND A                           ; 64FD A7
                JR Z,HOOK_HSAVE_4               ; 64FE 28 4E
                LD C,A                          ; 6500 4F
@@ -8837,7 +8829,7 @@ HOOK_HSAVE:
                LD C,A                          ; 6511 4F
                CP &14                          ; 6512 FE 14
                JR NZ,HOOK_HSAVE_1              ; 6514 20 06
-               LD A,(V42BA)                    ; 6516 3A BA 42
+               LD A,(CMPFG)                    ; 6516 3A BA 42
                DEC A                           ; 6519 3D
                JR NZ,HOOK_HSAVE_2              ; 651A 20 0D
 
@@ -13845,8 +13837,8 @@ FSTAT_5:
                LD E,(HL)                       ; 7B2A 5E
                EX DE,HL                        ; 7B2B EB
                XOR A                           ; 7B2C AF
-               CALL TIME_TO_MINUTES            ; 7B2D CD 35 7B
-               CALL TIME_TO_MINUTES            ; 7B30 CD 35 7B
+               CALL APPEND_DATE_FIELD          ; 7B2D CD 35 7B
+               CALL APPEND_DATE_FIELD          ; 7B30 CD 35 7B
                JR FSTAT_12                     ; 7B33 18 2F
 
 ;; --------------------------------------------------------------------
@@ -13859,8 +13851,8 @@ FSTAT_5:
 ;; time.
 ;; --------------------------------------------------------------------
 
-; ---- TIME_TO_MINUTES ---- from &7B2D, &7B30
-TIME_TO_MINUTES:
+; ---- APPEND_DATE_FIELD ---- from &7B2D, &7B30
+APPEND_DATE_FIELD:
                CALL CALLMB                     ; 7B35 CD BD 42
                DEFW MB_MULTIPLY_BY_100-&4000   ; 7B38 F9 45
                LD C,(HL)                       ; 7B3A 4E
@@ -14035,24 +14027,24 @@ CMR:
                LD IY,&0000                     ; 7BCF FD 21 00 00
                ADD IY,SP                       ; 7BD3 FD 39
                JP &BBD8                        ; 7BD5 C3 D8 BB
-               LD A,&1F                        ; 7BD8 3E 1F
+               LD A,SYSPAGE_IN_B               ; 7BD8 3E 1F
                LD HL,(&BFFC)                   ; 7BDA 2A FC BF
                DI                              ; 7BDD F3
                OUT (LMPR),A                    ; 7BDE D3 FA  SYS PAGE AT 4000H
                LD SP,HL                        ; 7BE0 F9
                EI                              ; 7BE1 FB  STACK
-               LD HL,(&5C59)                   ; 7BE2 2A 59 5C
-               LD (&5C59),IY                   ; 7BE5 FD 22 59 5C
+               LD HL,(DOSSTK)                  ; 7BE2 2A 59 5C
+               LD (DOSSTK),IY                  ; 7BE5 FD 22 59 5C
                PUSH IY                         ; 7BE9 FD E5
                PUSH BC                         ; 7BEB C5
                PUSH HL                         ; 7BEC E5  ORIG SP
-               LD HL,PNDN2_2                   ; 7BED 21 A4 58  RET ADDR TO PAGING SR
+               LD HL,SYS_GAP_BLOCK+&0E         ; 7BED 21 A4 58  RET ADDR TO PAGING SR
                PUSH HL                         ; 7BF0 E5  AFTER DEFKEYS
                PUSH DE                         ; 7BF1 D5  ROUTINE ADDR TO CALL
 
 L7BF2:
                LD A,&00                        ; 7BF2 3E 00  the operand is written here at run time, from &7BC4
-               JP XTRA+CMR3-PFV                ; 7BF4 C3 9F 58  PAGE IN ORIG URPORT,
+               JP SYS_GAP_BLOCK+&09            ; 7BF4 C3 9F 58  PAGE IN ORIG URPORT,
 
 ;; --------------------------------------------------------------------
 ;;  INIP3 -- boot-time initialisation
@@ -14182,13 +14174,8 @@ V7D1C:
                DEFB &01,&01,&00,&18,&17,&3E,&2D,&AE,&E6,&7F,&AE,&77,&23,&10,&F6 ; 7D1C .....>-.f..w#.v
                DEFB &C9,&CD,&34,&F7,&CB,&7C,&C0,&3E,&C9,&BF,&01,&02,&00,&FB,&C9 ; 7D2B IM4wK|@>I?...{I
                DEFB &D6,&4E,&21,&F5,&E5,&C5,&D5,&01,&80,&3C,&3E,&06,&00,&08,&61 ; 7D3A VN!ueEU..<>...a
-               DEFB &AF,&6F,&4F,&3E,&FA,&08,&57,&15,&08,&82,&96                 ; 7D49 /oO>z.W....
-
-PFV:
-               DEFB &77,&23,&7C,&FE,&BC,&20,&F1,&D1,&C1 ; 7D54 w#|~< qQA
-
-CMR3:
-               DEFB &E1,&F1,&C9                ; 7D5D aqI  ORIG URPORT
+               DEFB &AF,&6F,&4F,&3E,&FA,&08,&57,&15,&08,&82,&96,&77,&23,&7C,&FE ; 7D49 /oO>z.W....w#|~
+               DEFB &BC,&20,&F1,&D1,&C1,&E1,&F1,&C9                             ; 7D58 < qQAaqI
 
 ;; --------------------------------------------------------------------
 ;; Twenty-five bytes at the end of the DOS page, called once from the

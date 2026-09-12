@@ -1,0 +1,83 @@
+# CMR: calling the main ROM from the DOS, and the frame the ROM leaves
+# at the top of the DOS page when it enters.
+#
+# Prose for listings/clean/ only.
+
+GROUP Memory
+CONST ROM_SP_AT_ENTRY = &7FFC : the ROM's stack pointer as it entered the DOS -- the middle word of the three its PTDOS pushes at the top of this page
+
+DOC CMR
+    Call the main ROM.
+
+        CALL CMR
+        DEFW <ROM address>
+
+    THE ROM CANNOT SIMPLY BE CALLED, because the ROM's own code expects
+    the system page at &4000 and this page is there instead.  So the
+    DOS is put in the window as well -- HMPR set to the page LMPR has
+    at &4000, which is the DOS's own -- and the routine jumps to its
+    own next instruction at the &Bxxx address.  From there it can put
+    LMPR back to the ROM's arrangement, &1F, without paging itself out.
+
+    THE STACK MOVES TOO.  The ROM's PTDOS entered the DOS with SP at
+    the top of this page, having pushed its LMPR, its own stack pointer
+    and a return address there; those six bytes are the frame &7FFA to
+    &7FFF, and the stack pointer among them is the one this reads --
+    twice, once as &7FFC before the paging and once as &BFFC after it.
+    The ROM routine runs on the ROM's stack, just below that saved
+    pointer, and the DOS's stack pointer goes into DOSSTK so that a hook
+    the ROM routine raises does not land on top of it.  That is what the
+    author's "REWRITTEN TO ALLOW HOOKS TO BE USED BY ROUTINES CALLED BY
+    CMR" means.
+
+    WHAT IS PUSHED BEFORE THE JUMP is read back by a stub the boot has
+    put in the system page, in the gap before the keyboard table: the
+    routine's address, a return into the same block, the DOSSTK that
+    was, the caller's LMPR with A beside it, and the DOS's own stack
+    pointer, reading down from the top: HL, BC and IY went on in the
+    other order, so the carried "ORIG SP" on the PUSH HL belongs to the source's
+    layout and not this one.  The stub restores HMPR
+    from the operand at &7BF3 -- patched in at &7BC4 -- puts A back and
+    calls the routine; the return path restores DOSSTK, LMPR and the
+    stack.  CMR_DONE runs last, with the DOS at &4000 again, and puts
+    the ROM's saved stack pointer back in case the hook path changed it.
+
+DOS &7BB3 : the word after the CALL is the ROM address
+DOS &7BB9 expr ROM_SP_AT_ENTRY
+DOS &7BC4 : patches the operand of the LD at &7BF2
+DOS &7BC9 : the caller's LMPR, kept for the return path
+DOS &7BCA : one up is the page at &4000, this one
+DOS &7BCB expr PAGE_VALUE_MASK
+DOS &7BCD : so this page is in the window as well
+DOS &7BCF : IY := SP, the DOS's stack, for DOSSTK once the system page is in
+DOS &7BD5 expr CMR_IN_WINDOW+IN_PAGE_C
+DOS &7BD5 : the next instruction, through the window
+DOS &7BD8 CMR_IN_WINDOW
+DOS &7BDA expr ROM_SP_AT_ENTRY+IN_PAGE_C
+DOS &7BDA : the same word, now read through the window
+DOS &7BDE : the ROM's arrangement: system page at &4000, and this page still in the window
+DOS &7BE0 : the ROM's stack, below its saved pointer
+DOS &7BE2 : the DOSSTK the ROM had
+DOS &7BE5 : replaced by this stack, so a hook raised from the ROM keeps clear of it
+DOS &7BE9 : the DOS's stack pointer
+DOS &7BEB : the caller's LMPR, and A
+DOS &7BEC : the DOSSTK that was -- the carried "ORIG SP" is the source's layout, where HL held that
+DOS &7BED : where the stub's return lands, in the block the boot put in the gap before KTAB
+DOS &7BF2 : the operand is written here at run time, from &7BC4: the caller's HMPR
+DOS &7BF4 : the stub: HMPR back, A back, and CALL the routine
+DOS &7BF8 expr ROM_SP_AT_ENTRY
+
+DOC RETURN_INTO_BC
+    Write BC over the word at the ROM's saved stack pointer, so that
+    the pending return goes to BC instead.  The same trick MasterBASIC
+    plays with STORE_BC_AT_XVAR76, from the other side.
+
+DOS &7BAC expr ROM_SP_AT_ENTRY
+
+DOS &42BD expr ROM_SP_AT_ENTRY
+DOS &42BD : the ROM's saved stack pointer, for the other half to find
+DOS &42CC : the operand is written by the boot: the other page less one, so that it lands in section B
+
+DOS &4476 expr ROM_SP_AT_ENTRY+3
+DOS &4476 : the top of the page: the three words the ROM's PTDOS pushed on entry
+DOS &4479 : six bytes, so all three of them

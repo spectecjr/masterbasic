@@ -393,7 +393,7 @@ DOS &7799 READ_ADDRESS_SET
     join at &77A1.  The flag is the caller's answer, carried out in the
     alternate accumulator.
 
-DOS &7B35 TIME_TO_MINUTES
+DOS &7B35 APPEND_DATE_FIELD
     A hundred times the running total through MasterBASIC's
     MULTIPLY_BY_100, then the byte at HL added in with A extending the
     top -- the DOS reaching across for arithmetic it does not have of
@@ -461,6 +461,9 @@ DOS &42B6 CKPT
     150.  Its comment was carried across; the name was not, because the
     thirty-two bytes of MRTAB above it are data and the label matcher
     works on decoded instructions.  MasterBASIC reads it at MB &770B.
+
+DOS &42BA CMPFG
+DOS &42BA : 154 SAVE MODE less one, written by MasterBASIC's SET_COMPRESSION_MODE and read by HOOK_HSAVE
 
 DOS &6091 IOOR
     Report "integer out of range", which is what CALL DERR with a code of
