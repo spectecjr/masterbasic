@@ -131,7 +131,10 @@ DOS &6857 : the line number, as a number
 DOS &685A : the two-byte line length, which the reader does not want
 DOS &685F : one character of the line
 DOS &6862 : the marker before an embedded five-byte number
-DOS &6864 : which is dropped, digits and all
+DOS &6864 : and the five bytes after it are dropped; the digits before it have already gone out
+DOS &6B84 : SKIP 6 STANDARD CHANNELS -- on the first pass; thereafter this is the loop's step, by the length OPND2_1 loaded
+DOS &6BE4 : ADDR OF CHANS TERMINATOR, or of the last reserved block if one was seen
+DOS &67C2 : the source file's type, parked in FSTR1 by OPMV1 -- not a drive number, whatever the author's "DRIVE NO. FOR 2ND CHANNEL IS SAME AS FIRST??" asks
 DOS &686C : end of the line?
 DOS &6870 : then the next one
 DOS &6872 : the five number bytes and one more -- the sixth is left in A and is the character written above
@@ -209,9 +212,11 @@ DOS &68F4 : a control code prints as MSUPC instead
 DOC TOSCQ
     Is this a disc file being moved to something that shows it?
 
-    The two channels' device letters answer it.  The source must be "D",
-    with bit 7 set as the ROM marks a letter, and the destination one of
-    "S", "P" or "K" -- screen, printer or keyboard.  D also comes back
+    The two channels' device letters answer it.  The source must be "D"
+    with bit 7 set -- a temporary channel MOVE made for a named file,
+    not a stream already open to a disc file, whose letter is a plain
+    "D" -- and the destination one of "S", "P" or "K" -- screen,
+    printer or keyboard.  D also comes back
     holding the source file's type, which is what MOVA branches on next.
 
 DOS &68F8 : the channel being read from
@@ -229,7 +234,8 @@ DOC MOVRC
 
     CURCHL is set to the channel being read, and the address two bytes
     into its record is where the ROM keeps that channel's input routine.
-    A high byte of &4B -- "K" -- means the DOS's own, and is called
+    A high byte of &4B -- the stubs MTBLS plants at &4BA0 and &4BA9 in
+    the system page -- means the DOS's own, and is called
     directly; anything else is the ROM's, and is reached through CMR
     with the address planted in the instruction that calls it.
 
@@ -243,7 +249,7 @@ DOC MOVWC
     One character out, the same way round.
 
     The output routine is one byte into the record rather than two, and
-    the same "K" marks the DOS's own.
+    the same &4B marks the DOS's own.
 
 DOS &6940 : the channel being written to
 DOS &6946 : the output routine is the word at offset 0, and only its high byte is wanted

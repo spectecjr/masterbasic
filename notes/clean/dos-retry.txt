@@ -26,7 +26,7 @@ DOC RETRY_OR_GIVE_UP
     sector was not found at all, CDE1_1 goes and reads whatever ID field
     passes next to find out where the head really is.
 
-    THE RECOVERY BELOW CANNOT BE REACHED.  CDE1 jumps to CDE1_1 when the
+    THE RECOVERY BELOW IS NEVER REACHED ON A STATUS BIT.  CDE1 jumps to CDE1_1 when the
     status says RECORD NOT FOUND, and the test for that is BIT 4 -- the
     bit number SAMDOS uses, on a status it never rotates.  Here A is
     rotated, so RECORD NOT FOUND is bit 3; and worse, bit 4 has already
@@ -73,9 +73,10 @@ DOS &46FE : the track register
 DOS &4704 : and correct it to what the disc says
 
 DOC CTS1
-    The ID field would not read either.  Count that separately, and every
-    second time send the head all the way back to track 0, which is the
-    one position the drive can find without being told.
+    The ID field would not read either.  Count it against the same DCT,
+    with a lower limit of eight, and on every second pair of attempts
+    send the head all the way back to track 0, which is the one position
+    the drive can find without being told.
 
 DOS &4710 : eight failures at reading an address mark
 DOS &4713 : bit 1 of the count, so on every second pair of attempts
@@ -85,4 +86,4 @@ GROUP Disk retries
 DOS &46D9 value MAX_TRANSFER_RETRIES
 DOS &470E value MAX_ID_RETRIES
 
-DOS &46E1 : so this is never taken from here, and CDE1_1 is never entered
+DOS &46E1 : so this is never taken from here; CDE1_1 is entered only from SVB7, on bit 4 of a page number -- docs/bugs.md, defect 2

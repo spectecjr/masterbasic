@@ -53,7 +53,10 @@ DOC EVFILE
     no prefix: the whole field is the name and HL goes back to its
     start.  Only "D" is allowed to drop the colon, and only when nothing
     follows the digit but spaces -- C11SP checks the eleven characters
-    after it -- so that DIR "D1" means the whole of drive 1.
+    after it -- so that DIR "D1" means the whole of drive 1.  And only
+    "D" may take a single digit at all: for any other letter one digit
+    has to be followed by a second and then the colon, so "T1:name" is
+    a bare name and "T12:name" a prefix.
 
     A NULL NAME IS &FF from the ROM, and becomes "T:": the tape, with
     no name, which is what LOAD "" has always meant.
@@ -115,9 +118,11 @@ DOS &73D6 : the count in C alone
 DOS &73DB : ten less the name's length is how many spaces pad it
 
 DOC EXDT1
-    Swap BC bytes between HL and DE.  The carried "BC=0306H" above it
-    is the tail of BUDT's exit comment; this is called with &58 and
-    &1C as well.
+    Swap BC bytes between HL and DE: &0306 from BSWOP, where BUDT set
+    it, &58 from EXDATX and &1C from EXDAT.
+
+# The carry-across kept only the first line of BUDT's exit comment.
+DOS &6272 : GET HL=RPT, DE=PAGED IN BUFFER, BC=0306H
 
 DOC C11SP
     Are the eleven characters after HL all spaces?  Z if so, and HL is

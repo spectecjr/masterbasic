@@ -43,7 +43,8 @@ PTH1    &7F13   the current path for drive 1, PTH2 after it
 `RESET_BUFFER_POINTERS` at `&4F84` is what puts `IX` on `DCHAN` and `BUF` on
 `DRAM`, and everything that starts a fresh transfer comes through it. It
 falls into `CLEAR_TRANSFER_COUNT`, which zeroes the two count bytes at
-`(IX+&0D)` and `(IX+&0E)` — the pair `BUMP_TRANSFER_COUNT` later steps.
+`(IX+&0D)` and `(IX+&0E)` — `RPT`, the pointer into the sector buffer, which
+`ADVANCE_BUFFER_POINTER` later steps.
 
 ## A read
 
@@ -276,7 +277,7 @@ It builds IBM System 34, the format a WD177x writes:
     512 x &00                  the sector body
       1 x &F7                  CRC again
      27 x &4E                  gap 3
-256 x &4E                      the trailing gap
+512 x &4E                      the trailing gap
 ```
 
 Three of those bytes are instructions rather than data. `&F5` makes the
@@ -286,7 +287,9 @@ everything else goes down as itself. `WRITE_SYNC_AND_MARK` lays the twelve
 zeros and three `&F5`s, and its two callers differ only in the mark they pass
 in `A`.
 
-That comes to 6306 bytes for a track that holds about 6250, and the surplus
+That comes to 6562 bytes for a track that holds about 6250 -- the trailing
+gap is two fills of 256, because the `CALL FILL_WITH_C` at `&539E` returns
+into `FILL_WITH_C` itself -- and the surplus
 is deliberate: the controller stops at the index hole, so the last gap has to
 be longer than the space left rather than shorter.
 

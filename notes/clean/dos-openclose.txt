@@ -12,10 +12,19 @@ DOC ROFSM
     before clearing the map, and this is where it goes up.
 
     THE FIRST SUCH FILE ALSO PINS THE DISC.  SAMRN takes the random word
-    that identifies the disc in the drive and TDVAR the drive number, so
+    that identifies the disc in the drive and SAMDR the drive number, so
     that a later check can tell whether the map still describes the disc
     it was built from.  Only the first needs to: after that the disc is
     already pinned.
+
+# &426F is the source's SAMDR, not its TDVAR.  The two instructions that
+# touch it -- ROFSM's write at &4D1F and SDTKS's read at &7495 -- are the
+# source's LD (SAMDR),A and LD A,(SAMDR); the source keeps SAMDR at &420E
+# and TDVAR, DATE and TIME's pointer word, at &426F, and TDVAR's users
+# went to MasterBASIC.  The carried label was placed by data layout, so
+# the old occupant's name stuck to the address.
+DOS &426F SAMDR
+DOS &426F : the drive the open-file map was built from: written by ROFSM from DRIVE, read back by SDTKS.  The source's SAMDR; its TDVAR, which this word was, has no user in this build
 
 DOS &4D08 : how many long-term files were open
 DOS &4D0B : one more now
@@ -68,10 +77,10 @@ DOS &4D34 expr DIR_MODE_BUILD_MAP | DIR_MODE_NAME_ONLY
 DOS &4D36 : one pass answers both questions
 DOS &4D39 : no file of that name, so nothing to displace
 DOS &4D3C : is this OPEN DIR, which may not overwrite?
-DOS &4D42 : the entry that matched
+DOS &4D42 : the entry that matched -- but the LD A,(HL) the source's POIDFT has between this and the AND is missing here, so the type byte is never read
 DOS &4D45 expr TYPE_MASK
 DOS &4D47 value DFT
-DOS &4D49 : a directory is not something SAVE may overwrite either
+DOS &4D49 : meant to refuse a directory, and dead: A is the zero CKNAM's XOR A left in it when the name matched, so AND &1F gives 0 and the JP Z is never taken.  A SAVE whose name matches a subdirectory erases it -- docs/bugs.md, defect 10
 DOS &4D51 : was OVER given?
 DOS &4D52 : then the file goes without asking
 DOS &4D55 : in case the answer is no, leave the drive safe

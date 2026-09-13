@@ -46,9 +46,9 @@ DOC ERRTBL
 
     119 is the one that prompted this.  MasterBASIC's REP_SIZE_MISMATCH
     at &43AD loads it, and the only thing that reaches that stub is
-    &706E, which compares a stored pointer against DE just after reading
-    PRPTR and PRPTRP, the ROM's proc address and proc page.  "Size
-    mismatch" fits, and it is the table's own word rather than a guess.
+    &706E, which compares a stored element length, (V40A8), against DE
+    just after parking the current page in PRPTRP.  "Size mismatch"
+    fits, and it is the table's own word rather than a guess.
 
 # The two stubs the chain walker leaves bare, named by hand.  The 1991
 # source calls the second REP35; nothing in this listing does.

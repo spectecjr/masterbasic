@@ -6731,71 +6731,70 @@ CMD_MERGE_1:
 ;; --------------------------------------------------------------------
 
 OPEN_GAP_AT_LINE:
-               CALL FIND_LINE_FROM_START          ; 5188 CD FD 58
-               POP BC                             ; 518B C1
-               POP AF                             ; 518C F1
-               LD D,(HL)                          ; 518D 56
-               PUSH DE                            ; 518E D5
-               LD (HL),&FF                        ; 518F 36 FF  &FF over the line-number high byte, which is the ROM's
-                                                  ; own end-of-program marker -- COMDF in fn.asm reads it as LD A,(HL) :
-                                                  ; INC A : RET Z, commented "RET IF NO PROGRAM". So the program is made
-                                                  ; to look as though it stops here while the gap is opened, and the
-                                                  ; byte saved by the LD D,(HL) above goes back at &5195
-               PUSH BC                            ; 5191 C5
-               CALL CALL_JMKRBIG                  ; 5192 CD F3 58
-               POP DE                             ; 5195 D1
-               PUSH HL                            ; 5196 E5
-               IN A,(HMPR)                        ; 5197 DB FB
-               PUSH AF                            ; 5199 F5
-               CALL CALLDOS                       ; 519A CD C1 42
-               DEFW DOS_ROOM_LEFT_IN_SECTOR-&4000 ; 519D 56 48
-               POP AF                             ; 519F F1
-               POP HL                             ; 51A0 E1
-               LD BC,&FF00                        ; 51A1 01 00 FF  a line number no program can hold, so the search
-                                                  ; below runs to the end. &FFxx is what the stopper itself reads as,
-                                                  ; which is why FNDLNHL's comment is "NZ=FOUND A LATER LINE, OR FF
-                                                  ; STOPPER"
-               CALL FIND_LINE_FROM_HL             ; 51A4 CD 0B 59
-               POP AF                             ; 51A7 F1
-               LD (HL),A                          ; 51A8 77
-               PUSH HL                            ; 51A9 E5
-               IN A,(HMPR)                        ; 51AA DB FB
-               PUSH AF                            ; 51AC F5
-               EX DE,HL                           ; 51AD EB
-               LD B,(HL)                          ; 51AE 46
-               INC HL                             ; 51AF 23
-               LD C,(HL)                          ; 51B0 4E
-               DEC HL                             ; 51B1 2B
-               INC BC                             ; 51B2 03
-               CALL FIND_LINE_FROM_HL             ; 51B3 CD 0B 59
-               IN A,(HMPR)                        ; 51B6 DB FB
-               CALL PAGED_TO_LONG                 ; 51B8 CD DC 62
-               LD B,A                             ; 51BB 47
-               EX DE,HL                           ; 51BC EB
-               POP AF                             ; 51BD F1
-               OUT (HMPR),A                       ; 51BE D3 FB
-               POP HL                             ; 51C0 E1
-               PUSH HL                            ; 51C1 E5
-               CALL PAGED_TO_LONG                 ; 51C2 CD DC 62
-               EX DE,HL                           ; 51C5 EB
-               LD C,A                             ; 51C6 4F
-               LD A,B                             ; 51C7 78
-               SBC HL,DE                          ; 51C8 ED 52
-               SBC A,C                            ; 51CA 99
-               LD C,A                             ; 51CB 4F
-               POP DE                             ; 51CC D1
-               OR H                               ; 51CD B4
-               OR L                               ; 51CE B5
-               RET Z                              ; 51CF C8
-               LD A,C                             ; 51D0 79
-               CALL LONGADDR_TO_PAGED             ; 51D1 CD 27 44
-               LD B,H                             ; 51D4 44
-               LD C,L                             ; 51D5 4D
-               EX DE,HL                           ; 51D6 EB
-               CALL MBCMR                         ; 51D7 CD F0 44  &0162 is the high byte of the ROM's DW at &0161,
-                                                  ; which is LD (HL),D, and falls into JP RECLAIM2 at &0163
-               DEFW &0162                         ; 51DA 62 01
-               RET                                ; 51DC C9
+               CALL FIND_LINE_FROM_START       ; 5188 CD FD 58
+               POP BC                          ; 518B C1
+               POP AF                          ; 518C F1
+               LD D,(HL)                       ; 518D 56
+               PUSH DE                         ; 518E D5
+               LD (HL),&FF                     ; 518F 36 FF  &FF over the line-number high byte, which is the ROM's own
+                                               ; end-of-program marker -- COMDF in fn.asm reads it as LD A,(HL) : INC A
+                                               ; : RET Z, commented "RET IF NO PROGRAM". So the program is made to look
+                                               ; as though it stops here while the gap is opened, and the byte saved by
+                                               ; the LD D,(HL) above goes back at &5195
+               PUSH BC                         ; 5191 C5
+               CALL CALL_JMKRBIG               ; 5192 CD F3 58
+               POP DE                          ; 5195 D1
+               PUSH HL                         ; 5196 E5
+               IN A,(HMPR)                     ; 5197 DB FB
+               PUSH AF                         ; 5199 F5
+               CALL CALLDOS                    ; 519A CD C1 42
+               DEFW DOS_LDBLK-&4000            ; 519D 56 48
+               POP AF                          ; 519F F1
+               POP HL                          ; 51A0 E1
+               LD BC,&FF00                     ; 51A1 01 00 FF  a line number no program can hold, so the search below
+                                               ; runs to the end. &FFxx is what the stopper itself reads as, which is
+                                               ; why FNDLNHL's comment is "NZ=FOUND A LATER LINE, OR FF STOPPER"
+               CALL FIND_LINE_FROM_HL          ; 51A4 CD 0B 59
+               POP AF                          ; 51A7 F1
+               LD (HL),A                       ; 51A8 77
+               PUSH HL                         ; 51A9 E5
+               IN A,(HMPR)                     ; 51AA DB FB
+               PUSH AF                         ; 51AC F5
+               EX DE,HL                        ; 51AD EB
+               LD B,(HL)                       ; 51AE 46
+               INC HL                          ; 51AF 23
+               LD C,(HL)                       ; 51B0 4E
+               DEC HL                          ; 51B1 2B
+               INC BC                          ; 51B2 03
+               CALL FIND_LINE_FROM_HL          ; 51B3 CD 0B 59
+               IN A,(HMPR)                     ; 51B6 DB FB
+               CALL PAGED_TO_LONG              ; 51B8 CD DC 62
+               LD B,A                          ; 51BB 47
+               EX DE,HL                        ; 51BC EB
+               POP AF                          ; 51BD F1
+               OUT (HMPR),A                    ; 51BE D3 FB
+               POP HL                          ; 51C0 E1
+               PUSH HL                         ; 51C1 E5
+               CALL PAGED_TO_LONG              ; 51C2 CD DC 62
+               EX DE,HL                        ; 51C5 EB
+               LD C,A                          ; 51C6 4F
+               LD A,B                          ; 51C7 78
+               SBC HL,DE                       ; 51C8 ED 52
+               SBC A,C                         ; 51CA 99
+               LD C,A                          ; 51CB 4F
+               POP DE                          ; 51CC D1
+               OR H                            ; 51CD B4
+               OR L                            ; 51CE B5
+               RET Z                           ; 51CF C8
+               LD A,C                          ; 51D0 79
+               CALL LONGADDR_TO_PAGED          ; 51D1 CD 27 44
+               LD B,H                          ; 51D4 44
+               LD C,L                          ; 51D5 4D
+               EX DE,HL                        ; 51D6 EB
+               CALL MBCMR                      ; 51D7 CD F0 44  &0162 is the high byte of the ROM's DW at &0161, which
+                                               ; is LD (HL),D, and falls into JP RECLAIM2 at &0163
+               DEFW &0162                      ; 51DA 62 01
+               RET                             ; 51DC C9
 
 ;; --------------------------------------------------------------------
 ;; Hook 174, the slot MasterDOS calls RCPTCH.  MasterDOS's own name for
@@ -6877,7 +6876,8 @@ HOOK_RCPTCH_2:
 
 ; ---- HOOK_RCPTCH_3 ---- from &521F
 HOOK_RCPTCH_3:
-               LD DE,DOS_V5000                 ; 522B 11 00 90
+               LD DE,&9000                     ; 522B 11 00 90  system-page &5000 seen through the window -- HMPR is
+                                               ; still zero from &520A -- and not the DOS page
                LDIR                            ; 522E ED B0
                LD C,&02                        ; 5230 0E 02  two bytes more, unless the byte below is taken as well and
                                                ; the DEC C makes it one
@@ -6909,7 +6909,8 @@ HOOK_RCPTCH_4:
                LD (HL),D                       ; 5251 72
                CALL BUILD_COMPILER             ; 5252 CD 5D 73
                XOR A                           ; 5255 AF
-               LD (DOS_OFSM_1),A               ; 5256 32 2D 8D
+               LD (&8D2D),A                    ; 5256 32 2D 8D  &4D2D seen through the window, the code buffer; not the
+                                               ; DOS's &4D2D
                LD A,&24                        ; 5259 3E 24  &24 into the code buffer at &4D38, patching what
                                                ; BUILD_COMPILER laid down two instructions earlier
                LD (&8D38),A                    ; 525B 32 38 8D  &4D38 seen through the window
@@ -7256,9 +7257,11 @@ L534D:
 ;;                                     fills of 256 because B is zero
 ;;          1 x &F7                    CRC again
 ;;         27 x &4E                    gap 3
-;;     256 x &4E                       the trailing gap
+;;     512 x &4E                       the trailing gap, again as two
+;;                                     fills of 256: the CALL at &539E
+;;                                     returns into FILL_WITH_C itself
 ;;
-;; That is 6306 bytes for a track that holds about 6250, and the surplus
+;; That is 6562 bytes for a track that holds about 6250, and the surplus
 ;; is the point: the controller stops at the index hole, so the last gap
 ;; has to be longer than the space left rather than shorter.
 ;;
@@ -21437,7 +21440,11 @@ INSTALL_ROM_PATCHES_3:
                                                ; SAVE BOOT reads it back out as its third block -- which also carries
                                                ; the alternate character set at &7E64, see notes/mb-saveboot.txt
                JP &0000                        ; 7DF3 C3 00 00  an operand in the block the boot overwrites -- see
-                                               ; above; nothing fills it and nothing runs it
+                                               ; above. The DOS fills it: this JP runs at &4A9C, and DOS &606F writes
+                                               ; the ROM's pending return address to &4A9D with NRWRD before WRTBC
+                                               ; plants &4A99, the CALL above, as the return in its place -- so the
+                                               ; ROM's LOAD comes back through the stub and this JP takes it where it
+                                               ; was going
                DEFB &22,&9E,&4B,&E1            ; 7DF6 ".Ka  reads as LD (&4B9E),HL, and nothing the trace can follow
                                                ; reaches it
                CALL &0000                      ; 7DFA CD 00 00  the same, and not the DOS &7DFA that evidence item 3

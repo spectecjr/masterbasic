@@ -65,7 +65,7 @@ DOS &5B26 : it was a name
 DOS &5B2D : the drive the number set, kept across the name parse
 DOS &5B41 : "!" after either of them
 DOS &5B4E : forces the short listing
-DOS &5B58 : the detailed listing gets a window of its own
+DOS &5B58 : 1 to the ROM's CLSBL clears the current window rather than the whole screen
 DOS &5B5F : one file to a line, with its number, sectors and type
 
 DOC HOOK_PCAT

@@ -119,7 +119,7 @@ MB &7B11 : &4000 here is the window offset -- CHANS is a system variable in the 
 # in the same digits: that one is DOS &7DFA, where INSTALLER's copy runs
 # at &7C00 plus &1FA.)
 
-MB &7DF3 : an operand in the block the boot overwrites -- see above; nothing fills it and nothing runs it
+MB &7DF3 : an operand in the block the boot overwrites -- see above.  The DOS fills it: this JP runs at &4A9C, and DOS &606F writes the ROM's pending return address to &4A9D with NRWRD before WRTBC plants &4A99, the CALL above, as the return in its place -- so the ROM's LOAD comes back through the stub and this JP takes it where it was going
 
 MB &7DFA : the same, and not the DOS &7DFA that evidence item 3 answers
 
@@ -189,7 +189,8 @@ MB &7B03 : from here to &7B73 the ROM's system page is at &8000
 DOS &7D60-&7D72 code
 
 DOS &7D60 INSTALL_TAIL_INTO_SYSPAGE
-    Twenty-five bytes at the end of the DOS page, called once from the
+    Nineteen bytes at the end of the DOS page, &7D60-&7D72 (the six
+    after them, to FIND_ROM_CODE, are not part of it), called once from the
     boot sector at &40CD and never again.  It copies the tail of the DOS
     page into the ROM's system page, in two runs that follow on from
     each other:

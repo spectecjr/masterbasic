@@ -2,6 +2,10 @@
 #
 # Prose for listings/clean/ only.
 
+# PMOOF is named and marked as code in notes/disk.txt, which every tree
+# reads; the working notes are where a `code` range is decoded.
+DOS &58C0 : dead: the source's "print number of open files" message, whose one caller in SDTKS is now the CALLMB at &74AB
+
 DOS &5925 expr CASE_BLIND
 DOS &5927 : "Y"
 DOS &5908 : "E" ends the command
@@ -86,10 +90,14 @@ DOC FMTSR
     Issue the write-track command and let WSA3 do the transfer.
 
     THE PRECOMPENSATION IS WORKED OUT LAST, and the JP rather than a
-    CALL at the end is part of the same care: the controller begins
-    writing the moment the command is accepted, so everything between
-    accepting it and feeding the first byte is time the disc is turning
-    under an unwritten track.
+    CALL at the end is part of the same care: the controller raises DRQ
+    the moment the command is accepted and, by the WD1772 data sheet,
+    gives the first byte three byte times -- about 96 microseconds -- to
+    arrive, or abandons the command with LOST DATA, which nothing here
+    checks for (the one status bit tested afterwards, at &5511, is WRITE
+    PROTECT).  Everything between issuing the command in PRECMP and the
+    OUTI at &45AC is spent inside that window.  Writing itself does not
+    begin until the index pulse.
 
     The status port is written into the instruction that reads it, which
     saves loading C again in a loop that has none to spare.

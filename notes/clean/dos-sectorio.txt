@@ -63,7 +63,7 @@ DOC CHECK_WRITE_STATUS
     returns.  A second RRCA drops bit 1, DRQ, into carry: carry means
     the controller is asking for the next byte, so OUTI gives it one and
     falls straight back in here.  Neither test costs a compare, and the
-    loop is three instructions long.
+    loop is six instructions long.
 
     A is left rotated one place right, and the caller is written knowing
     it: the write-protect test above reads bit 5 of what comes back,

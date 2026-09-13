@@ -196,8 +196,8 @@ which end at BCRWC.  The caller's HL and DE come back off the stack,
 and EX (SP),HL puts the stepped-on return address where the RET will
 find it.
 
-Both halves carry this routine and both call it PPXR: MasterBASIC's
-is at &4598, where three of its four users reach it by a JR and
-NRWR falls through.""",
+Both halves carry this routine: MasterBASIC's is MBPPXR at &4598,
+where three of its four users reach it by a JR and NRWR falls
+through.""",
 
 }

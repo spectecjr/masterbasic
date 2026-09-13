@@ -44,7 +44,9 @@ DOC WAIT_DC_READY_BEFORE_CMD
     Two entry points and one path.  This one waits for the chip to go
     idle first, and is what nearly everything calls;
     WRITE_DRIVE_CMD_AND_DELAY skips the wait, for the one caller that
-    has just finished waiting on its own account.
+    is issuing a force interrupt -- TFIHO, "RESET DISC CHIP" -- and must
+    not wait for the chip to go idle first, since ending what it is
+    doing is what the command is for.
 
     The twenty-iteration delay on the way out is not padding.  The
     WD1772 takes a few microseconds to raise BUSY after a command is
@@ -74,7 +76,7 @@ DOS &4573 : let BREAK out of a drive that never answers
 DOS &454F : keep it -- 40, for the usual 80-track disc
 
 DOS &4568 : a read-address command, wanted only for its side effect
-DOS &456A : it does not return until the disc is actually turning
+DOS &456A : the command goes out; BUSY below is what waits for it to finish, and DWAIT for the disc to be turning
 
 DOS &483C : bit 7 of the track is side 2
 DOS &4840 : four up is the same register on side 2

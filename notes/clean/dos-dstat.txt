@@ -49,8 +49,8 @@ DOC STACK_AEDCB
     Push A, E, D, C and B onto the calculator stack through the ROM's
     STKSTORE, "STACK STRING PARAMS", with the paging handled by CMR.
     A string's page, start and length for DIR$, INP$, TIME$, DATE$ and
-    PATH$; the five-byte integer form HVAR1_1 builds in the same
-    registers for a number.
+    PATH$; the five-byte number HVAR1_1 builds in the same registers,
+    a float for the fall-through path and an integer for EPCOM_2's.
 
 DOC WPCHK
     Is drive A write-protected?  1 in A if so.  A RAM disc never is.

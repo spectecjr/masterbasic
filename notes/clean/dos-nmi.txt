@@ -107,8 +107,8 @@ DOC SNAP4
                          STR     the interrupted SP
 
     I rides in A because there is no way to push it: LD A,I on the way
-    in and LD I,A on the way out, which is also why SNAP8 has to work out
-    the interrupt mode from its value rather than being told.
+    in and LD I,A on the way out, which is also why SNAP7's tail has to
+    work out the interrupt mode from its value rather than being told.
 
     SOMETHING ELSE READS TWO OF THOSE BYTES.  MasterBASIC's replacement
     for the LOAD hook takes a page from STR-11 and an address from
@@ -173,7 +173,7 @@ DOS &5443 : the block itself
 DOS &544D : and close the file
 
 DOS &5450-&5456 data
-DOS &5450 : a SCREEN$'s start.  &6E is too large for a five-bit page number, and nothing in this build reads it
+DOS &5450 : a SCREEN$'s start: page 14, a 256K machine's screen page -- the author's "IF 256K MACHINE" -- with two high bits set, at &8000.  The LDIR at &5441 copies it into the header at FSA+236; nothing in this page interprets it
 DOS &5453 : its length, &1B00, and the &FF that means "no exec address"
 
 DOS &5F56 : &0E is the ROM's number marker: five bytes of binary follow every number in a line

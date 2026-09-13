@@ -244,12 +244,14 @@ MB &5230 : two bytes more, unless the byte below is taken as well and the DEC C 
 
 MB &523A : three added to the byte just read, which is the operand being fixed up rather than copied
 
+MB &522B : system-page &5000 seen through the window -- HMPR is still zero from &520A -- and not the DOS page
 MB &5245 : the four bytes at V5272, a CALL and a JP with the JP's operand still to come
 
 MB &524B : three on, to the operand of that JP
 
 MB &5259 : &24 into the code buffer at &4D38, patching what BUILD_COMPILER laid down two instructions earlier
 
+MB &5256 : &4D2D seen through the window, the code buffer; not the DOS's &4D2D
 MB &525B : &4D38 seen through the window
 
 MB &5266 value T_CLEAR

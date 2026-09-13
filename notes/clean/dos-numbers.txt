@@ -12,7 +12,7 @@ DOS &71E1 expr SECTOR_LENGTH-2
 DOS &71E1 : 510 bytes a sector, the link excluded
 DOS &71E8 : the carry out of the add, into the top byte
 DOS &62D4 : C zero, and the INC makes it NZ whatever A holds; a compare's Z would depend on the page count
-DOS &658F : the fifth byte of the integer form, always zero
+DOS &658F : the last byte of the five: the low mantissa byte for a float, the trailing zero for an integer -- zero either way
 DOS &657A expr PAGE_VALUE_MASK
 DOS &7B3C : the byte alone
 

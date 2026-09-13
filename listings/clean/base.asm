@@ -369,11 +369,11 @@ DOS_FNS56:                      EQU  FNS56 + IN_PAGE_C
 DOS_HEADER:                     EQU  HEADER + IN_PAGE_C
 DOS_HOOK_SBYT:                  EQU  HOOK_SBYT + IN_PAGE_C
 DOS_LBYT:                       EQU  LBYT + IN_PAGE_C
+DOS_LDBLK:                      EQU  LDBLK + IN_PAGE_C
 DOS_MBCOPY_7774:                EQU  MBCOPY_7774 + IN_PAGE_C
 DOS_MBCOPY_778B:                EQU  MBCOPY_778B + IN_PAGE_C
 DOS_MBCOPY_7829:                EQU  MBCOPY_7829 + IN_PAGE_C
 DOS_NEXTST:                     EQU  NEXTST + IN_PAGE_C
-DOS_OFSM_1:                     EQU  OFSM_1 + IN_PAGE_C
 DOS_OPEN_BASIC_FOR_MERGE:       EQU  OPEN_BASIC_FOR_MERGE + IN_PAGE_C
 DOS_PARK_WORD:                  EQU  PARK_WORD + IN_PAGE_C
 DOS_PLNS:                       EQU  PLNS + IN_PAGE_C
@@ -384,7 +384,6 @@ DOS_PRINTABLE_FORM:             EQU  PRINTABLE_FORM + IN_PAGE_C
 DOS_PTH1:                       EQU  PTH1 + IN_PAGE_C
 DOS_PTH2:                       EQU  PTH2 + IN_PAGE_C
 DOS_REPORTA:                    EQU  REPORTA + IN_PAGE_C
-DOS_ROOM_LEFT_IN_SECTOR:        EQU  ROOM_LEFT_IN_SECTOR + IN_PAGE_C
 DOS_SAMCNT:                     EQU  SAMCNT + IN_PAGE_C
 DOS_SCFSM:                      EQU  SCFSM + IN_PAGE_C
 DOS_SNPRT2:                     EQU  SNPRT2 + IN_PAGE_C
@@ -395,7 +394,6 @@ DOS_TEMPW1:                     EQU  TEMPW1 + IN_PAGE_C
 DOS_TIMDT:                      EQU  TIMDT + IN_PAGE_C
 DOS_UNPARK_WORD:                EQU  UNPARK_WORD + IN_PAGE_C
 DOS_V4222:                      EQU  V4222 + IN_PAGE_C
-DOS_V5000:                      EQU  V5000 + IN_PAGE_C
 DOS_V7CFF:                      EQU  V7CFF + IN_PAGE_C
 DOS_V7DE8:                      EQU  V7DE8 + IN_PAGE_C
 DOS_V7E98:                      EQU  V7E98 + IN_PAGE_C

@@ -17,8 +17,10 @@ OPSR -- read the access mode at the end of an OPEN.
     OPEN #4;"file" OUT    &E0       the ROM's OUT token
     OPEN #4;"file" RND    &FF &3C   the ROM's RND function token
 
-The mode is stored in FSTR1 as MIN, MOUT or MRND, and OUT is what a
-filespec with nothing after it gets.  RND is spelled with the function
+The mode is stored in FSTR1 as MIN, MOUT or MRND; with nothing after
+the name nothing is stored, and OPEND treats that as IN for a file that
+exists ("JR IF DEFAULT - IN" at &6C04) and OUT for one that does not
+(OPND45).  RND is spelled with the function
 token for RND because the ROM has no keyword closer to the meaning to
 borrow, which is also why the test for it sits under the &FF prefix
 with IN rather than beside OUT.

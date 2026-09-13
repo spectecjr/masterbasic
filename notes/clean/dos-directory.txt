@@ -325,7 +325,7 @@ DOS &4C42 : 999, the most three digits will show
 DOS &4C4C : three digits and a space
 DOS &4C53 : or four digits and no space
 
-DOS &5B78 : the border back to its colour; the carried "DIR TO BUFFER" is DITOB's, the line above
+DOS &5B78 : the border back to its colour
 DOS &4C5D : the mode this scan was started with
 DOS &4C60 expr DIR_MODE_NAME | DIR_MODE_NAME_ONLY
 DOS &4C62 : no name to match, so nothing here applies
@@ -372,10 +372,11 @@ DOC SDTKS
     random word FORMAT gave the disc, and comparing it with the one
     remembered for the drive is how a disc change is noticed: on a
     change the current directory goes back to the root, since the
-    tag it held belonged to another disc's tree -- unless it was &FF,
-    which is no directory's tag and means "all of them", and that is
-    kept.  Bytes 210 to 219 are the name, copied into DNAME for the
-    DIR heading.
+    tag it held belonged to another disc's tree.  A tag of &FF, which
+    is no directory's and means "all of them", is put back into CDIRT
+    after SETRT has run -- the drive's own entry and its path string
+    still go to the root.  Bytes 210 to 219 are the name, copied into
+    DNAME for the DIR heading.
 
     THE WARNING.  If a file is open on this drive and the disc under
     it has changed since, the DOS beeps and prints how many are
@@ -383,6 +384,27 @@ DOC SDTKS
     swap -- but it can say so.
 
 DOS &745A : 256 on, then one back: byte 255 of the entry
+
+DOC STDIR
+    DIR = "name": select a directory.  A bare root symbol resets to
+    the root without touching the disc, a bare "^" moves up one level,
+    and anything else is a path to descend; the last two look the
+    directory up on the disc, through FIND_SUBDIRECTORY.
+
+    A path beginning with a root symbol replaces the current one;
+    otherwise the new name is appended, so "GAMES" and "\GAMES" mean
+    different things.
+
+    SET CURRENT DIRECTORY
+     - JUMPED TO FROM "DIR" CMD WHEN "=" FOLLOWS IT
+
+DOC STDNR
+    Append the rest of the typed path to the path string, with a
+    divider in front of it.  DE is still the typed string, past any
+    leading root or up-arrow symbol, and B the characters left in it,
+    so a path of several components goes on whole, each root symbol
+    rewritten as the first RTSYM alternative; trailing spaces are
+    trimmed off, and the copy stops if the path would exceed MPL.
 DOS &745D : plus the four tracks every directory has
 DOS &7462 : bytes 253 and 252, the random word
 DOS &7481 : &FF is no directory's tag and means all of them; a disc change leaves that alone

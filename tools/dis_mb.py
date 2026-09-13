@@ -1047,6 +1047,13 @@ def seeds(dos, mb):
     # &735A, and the routine it calls builds code in the ROM's own code
     # buffer, so every &8Dxx through here is CDBUFF and not the DOS page.
     mb.no_peer.append((0x732A, 0x7385))
+    # HOOK_RCPTCH zeroes HMPR at &520A and puts it back at &5261; the
+    # derived range stops at the first CALL, and the two operands past
+    # it were coming out as DOS labels -- DOS_V5000 at &522B and a
+    # spurious "from MB &5256" on the DOS's OFSM_1.  Both are the ROM's
+    # code buffer seen through the window, like &525B beside them.
+    mb.no_peer.append((0x522B, 0x522E))
+    mb.no_peer.append((0x5256, 0x5259))
     # The screen-blanker tick and its neighbours run from the interrupt,
     # with the ROM's system page at &4000 and this half in the window: they
     # read SOFFCT at &5AC4 straight, and their own SOFV as &8002.

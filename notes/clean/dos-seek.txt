@@ -10,8 +10,9 @@ DOC HOOK_SKSAFE
     or to track 3 when that would be track 4, which the 1991 comment
     explains as "AVOID 1ST FILE!": on a standard four-track directory
     the first file's data begins on track 4.  E is set to sector 1 on
-    the way, which the same comment marks "PROB NOT NEEDED", since
-    SEEKD moves the head and touches nothing else.
+    the way, which the same comment marks "PROB NOT NEEDED": SEEKD
+    writes E into the sector register at &4748, and a park does not
+    care what it holds.
 
 DOS &4726 : a RAM disc has no head to park
 DOS &4727 : how many tracks the directory has
@@ -33,14 +34,17 @@ DOC CTAS
     DE of zero is not a track and sector but the end of a file, and is
     reported as "End of file" rather than sought.
 
-    SEEKD is the way in for callers that have already selected the drive
-    and want a seek and nothing else; FORMAT uses it.
+    SEEKD skips the end-of-chain test and the border flash, for a caller
+    that wants a seek and nothing else -- it selects the drive itself.
+    The source says FORMAT uses it; in this build DFMT seeks through
+    CTAS, REST and STEP_HEAD_IN, and SEEKD is reached only from the
+    head-parking hook above and as hook 137, HSKTD.
 
 DOS &4738 : track and sector, or zero for the end of the chain
 DOS &473D : flash the border, which is how a SAM shows disc activity
 DOS &4742 : select the drive, leaving its port base in A
 DOS &4747 : two above the base is the sector register
-DOS &4748 : the controller wants the sector before the seek, not after
+DOS &4748 : the sector register is loaded here, once, for the read or write that follows the seek; the step commands do not read it
 
 DOC CTA2
     One turn of the seek: where is the head, and which way to step.

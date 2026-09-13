@@ -5,7 +5,7 @@ as they were sold. The listings cannot be corrected: they assemble to the
 original image byte for byte, and that is the point of them. So a defect
 gets written down here and explained where it sits.
 
-Eight are confirmed and one is suspected. The three sweeps this file used to
+Nine are confirmed and one is suspected. The three sweeps this file used to
 plan have now been run, and what they found is at the end.
 
 ---
@@ -487,6 +487,48 @@ of five, anywhere, would widen the window again.
 **Not observed.** Read out of the instructions. The windowing either side of
 the `LDIR` is what makes the intent legible: the author knew `D` had to be
 converted back and reached for the saved copy rather than the arithmetic.
+
+---
+
+## 10. SAVE over a subdirectory's name erases the subdirectory
+
+**Where** `&4D42`–`&4D49` in `OFSM_1`, the open-for-writing path that
+`SAVE` reaches when a file of the same name already exists.
+
+**What** The source refuses to overwrite a directory entry of directory
+type: `CALL POIDFT / JP Z,REP28`, where `POIDFT` is `CALL POINT / LD
+A,(HL) / AND &1F / CP DFT / RET` — point at the entry, read its type
+byte, mask it, compare with the directory type. Stock `MDOS23.bin` still
+calls it. This build inlines `POIDFT` here as
+
+```
+4D42  CALL POINT
+4D45  AND TYPE_MASK
+4D47  CP DFT
+4D49  JP Z,REP28
+```
+
+with no `LD A,(HL)`. The other two places the build inlines the same
+routine, `&4C31` and `&7315`, keep the `7E`; only this one drops it.
+
+So `A` at `&4D45` is whatever `FDHR` left there, and every Z return from
+`FDHR` in this mode comes through `CKNAM`'s `XOR A` at `&4CE3` — the
+"whole pattern matched" exit. `POINT` (`LD B,0` into `GRPNTB`), `BITF4`
+and `HLFG`, the only code between, load nothing into `A`. `AND &1F` of
+zero is zero, `CP &15` is NZ, and the `JP Z,REP28` is never taken.
+
+**What it costs** A `SAVE` under a name that matches a subdirectory in
+the current directory goes on to `OFSM_3` and erases the entry as if it
+were a file. The directory's own contents are left on the disc with no
+entry pointing at them.
+
+**Not observed.** Read out of the bytes, which were checked against
+`dumps/MasterBasicMasterDos.bin` at offset `&0D42` and against stock
+`MDOS23.bin`, where the `CALL POIDFT` and its `7E` are both present. A
+`SAVE "name"` in a directory holding a subdirectory `name` would settle
+it.
+
+**Written up at** `&4D49` in `listings/clean/masterdos.asm`.
 
 ---
 

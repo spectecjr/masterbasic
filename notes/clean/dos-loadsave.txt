@@ -64,6 +64,35 @@ DOS &6535 : less the nine-byte header
 DOS &6540 : IX+&F8 is entry offset 229
 DOS &6544 : the pages, then the rest: the compressed length in page form
 
+# The source's comment on this JR is inverted: CP 8 then JR NC jumps
+# when a usable speed WAS given, past the LD A,&70 the author himself
+# labels the default.
+DOS &6360 : JR IF A SENSIBLE TAPE SPEED WAS SPECIFIED -- the author's "JR IF NO SENSIBLE TAPE SPEED" has it backwards
+
+DOC DDEL
+    Wait DWAI+1 quarter-seconds before writing -- the INC A at &6566,
+    and DWAI's own declaration says it is stored one less than the
+    count -- so that a drive which has just been started has come up
+    to speed.  RAM discs skip it.
+
+# Not SVHD1's end -- that RETs at &5F4C -- but a routine of its own, not
+# in the 1991 source, reached only by READ_SAVED_SECTOR's JP at &663A.
+DOS &5F4D SKIP_FILE_HEADER
+    Read and discard the nine bytes of the file header, through LBYT,
+    once the sector holding it has been read.
+
+# LDBLK's whole-sector loop.  The annotated source's "LDBLK -- load a
+# block from the open file" banner had landed here, on the loop, rather
+# than on the entry at &4856.
+DOC LDB3
+    The whole-sector loop of LDBLK: while a full sector's worth is still
+    wanted, read the next sector straight to the caller's address -- a
+    RAM disc through RDLB, a floppy through LDB4 -- and go round.  With
+    less than a sector left, LDB3_2 reads it into the buffer and jumps
+    back into LDBLK to copy the tail.
+
+DOS &4897 : less than a whole sector left: read it into the buffer and copy the tail through LDBLK_1
+
 # AUTNAM is a parameter block; tools/dis_mb.py declares it data before
 # the sweeps run, and this says what is in it.
 DOS &65D5 : the twenty-eight bytes AUINSR copies over DSTR1, laid out as the source declares that block: drive 1, &FF in FSTR1 and SSTR1, "D" in LSTR1, &10 in NSTR1, the name AUTO* padded to the fourteen of the name field, a zero in HD001, and &FFFF over the three header words and the page pair

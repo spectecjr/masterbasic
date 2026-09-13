@@ -923,15 +923,20 @@ for the block the boot sector copies out of the MasterBASIC page.
 
 Routines all over the DOS reach into the lower part of this with
 LD HL,&7Cxx and LD (&7Cxx),A, and nothing in the DOS page calls or
-jumps into any of it, so as far as this listing goes it is not code.
+jumps into any of it below &7D60 -- BOOT's one CALL at &40CD reaches
+INSTALL_TAIL_INTO_SYSPAGE there, through the window -- so as far as
+this listing goes the buffers are not code.
 
 That is only half the story.  The LDIR at the end of BOOT copies 943
 bytes from &75E1 in the MasterBASIC page to &BC00 -- this address, as
 the boot sector has the pages mapped -- and jumps to it.  MasterBASIC
 then goes on calling into the copy: &7D79 from twenty-eight sites, and
-four more addresses once each.  Those are marked MBCOPY_xxxx, named for
+three more addresses once each.  Those are marked MBCOPY_xxxx, named for
 the MasterBASIC address they were copied from, which is where the code
 that actually runs there can be read.
 
-So the bytes below are whatever was in the DOS's buffers when the image
-was saved.  None of them is ever executed."""
+So the bytes from here to &7D5F are whatever was in the DOS's buffers
+when the image was saved, and none of them is ever executed.  From
+&7D60 on they are content the boot installs into the system page -- a
+nineteen-byte routine it runs in place, the alternate character set,
+and code that lands at &4C14 -- which the banner at &7D60 sets out."""

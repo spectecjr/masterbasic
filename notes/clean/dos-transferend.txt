@@ -27,10 +27,21 @@ DOS &48E6 : nothing the mask can see, so the sector is good
 DOC SVB6
     Wait for the sector to finish going out, then say whether it did.
 
-    BOOT's loop at &4094 read one, this one writes one, and the seven
-    instructions are the same either way -- including the mask, which is
-    wrong here for the same reason and in the same way.  A sector written
-    with a byte dropped is reported as written.  See &409D.
+    BOOT's loop at &4094 read one, this one writes one, and the test
+    is the same either way -- with an EXX and a POP DE between the wait
+    and the mask here, which touch neither A nor the flags -- including
+    the mask, which is wrong here for the same reason and in the same
+    way.  A sector written with a byte dropped is reported as written.
+    See &409D.
+
+DOS &495C : the header's "PADDING LAST SECTOR WITH SPACES" is the source's word and the code's padding is zeros on both paths -- XOR A : LDIR at &49C2 and LD (HL),&00 at &4A6D, which the author's own line comments call zeros
+DOS &4A58 : TRY AGAIN - MAX 10 ERRORS IN ENTIRE BLOCK
+
+DOC SVBL2
+    ENTERED WHEN E COUNTS TO 0
+    The last two bytes of the sector are the link, and they come from
+    the list in the screen page rather than from the caller's data, so
+    the page is switched at that moment.
 
 DOS &4A2A : DRQ: the controller is ready for the next byte
 DOS &4A2E : carry is BUSY, and the mask below sees the rest

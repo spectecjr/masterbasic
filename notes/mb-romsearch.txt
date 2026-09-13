@@ -41,8 +41,10 @@ DOC FIND_ROM_CODE
 
     The search at &7774 keeps a three-byte sliding window -- the oldest
     byte in A, the newer two in DE -- and steps forward until the oldest
-    matches and DE matches BC.  The caller always follows the call with an
-    LD (nn),HL, so the pointer goes straight into a variable.
+    matches and DE matches BC.  Twenty-five of the twenty-eight callers
+    follow the call with an LD (nn),HL, so the pointer goes straight
+    into a variable; &7990, &79BD and &7A60 read through it where it
+    stands.
 
     The signatures are ordinary Z80:
 
@@ -59,7 +61,7 @@ DOC FIND_ROM_CODE
 
     The build now resolves every one of them against the ROM it
     assembles from ref/samrom, and prints the answer beside the
-    signature.  All 27 are found, which is as good a check on this
+    signature.  All 28 are found, which is as good a check on this
     reading as could be asked for: the parameter layout, the byte order,
     the choice of ROM 0 or ROM 1 from the start address, and the signed
     step all have to be right for that to happen.

@@ -15,12 +15,10 @@ DOS &5152 SETBORDER_BORDCOL
     XOR C does.
 
 DOS &4536 CKDE
-    (PGES1) is a page number, and DE is an offset in the range 0000-7FFF.
-
-    On entry, DE is about to be decremented. The routine checks if DE would cross
-    a page boundary as it is decremented.
-    
-    If it would, the PGES1 value is decremented, and the DE value is adjusted upwards by 16K.
+    PGES1 is the number of 16K blocks still to go and DE the bytes in
+    the current one.  Returns Z when both are zero -- "RETURN Z IF
+    PGES1/DE IS ZERO", which SBLOK depends on at &4975; otherwise, when
+    DE has run out, takes one block off PGES1 and puts &4000 into DE.
 
 DOS &4539 ADJUST_PAGE_DE
     Similar to CKDE, except it always perfoms the adjustment and doesn't check if DE
@@ -54,9 +52,11 @@ RENAME RSA2 READ_DATA_LOOP
 DOS &451A GET_DISK_PORT_BASE
      PART C11 -- The disk driver
 
-       COMMP .. COMMR        addressing the controller's registers
-       PRECMP / SADC / BUSY  issuing a command
-       WSAD / RSAD           write and read one sector, with retries
+       GET_DISK_PORT_BASE .. READ_SELECTED_DISK_STATUS
+                             addressing the controller's registers
+       PRECMP / WAIT_DC_READY_BEFORE_CMD / BUSY
+                             issuing a command
+       WSAD / READ_SECTOR    write and read one sector, with retries
        NRSAD                 read a directory sector, building the
                              free-sector map as it goes
 

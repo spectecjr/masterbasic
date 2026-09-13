@@ -101,10 +101,45 @@ all of them findings since applied.
 
 ---
 
-## Phase 1 -- the carried comments
+## Phase 1 -- the carried comments  (run 2026-09-13; round 8)
 
-`build.log` reads `1323 still the MasterDOS author's own` for the DOS
-reading copy.  Those upper-case comments were carried across from the 1991
+Twelve cuts -- ten PARTs and MOVE in two halves, by `cutregion.py` --
+sent to twelve reviewers on Opus with one prompt
+(`scratchpad/phase1/prompt-template.txt` that day; the facts block is the
+process file's with the controller's port table from the Technical
+Manual added).  100 findings, 92 confirmed and applied, 8 deferred as
+cosmetic or the generator's, none refuted.  The reviewers' own verdict
+on the carried comments was near-unanimous: all but a handful sit on the
+instruction the author wrote them against.  What they found instead was
+in three classes -- carried comments *split*, the second line of a
+two-line comment swept into the next routine's banner (ENTIRE BLOCK,
+IN CASE 2ND ONE WANTED, OLD ENTRY, BC=0306H); carried comments *stranded*
+where this build collapsed the source's sequence into one CALL (NSBYT's
+SELECT DRIVE and PREV, both on the wrong instruction); and the source
+*wrong* where the bytes say otherwise (PADDING WITH SPACES over two
+zero-filling paths, JR IF NO SENSIBLE TAPE SPEED inverted, HL+BC*510 a
+sector over, HL=SECTOR on a displacement).  And one defect: the inlined
+POIDFT at `&4D42` lost its `LD A,(HL)`, so SAVE over a subdirectory's
+name erases the subdirectory (`docs/bugs.md`, 10).  Density 2.4 per
+hundred own lines against round six's 11.5, on commentary that had
+mostly been reviewed once already.
+
+Two lessons for the next round.  A carried banner is corrected in
+the carried-fixes table in `tools/clean.py`, not by a `DOC` -- a `DOC` displaces the carried
+header, and three of the banner fixes went in as DOCs before the build's
+"carried fix matches 0 places" said so.  And removing a spurious
+cross-page reference renumbers the routine's derived labels (`OFSM_1`
+went, `OFSM_2..4` became `_1..3`), which `checkdocs` caught in the new
+bugs entry and would not catch in prose that merely names one.
+
+Two of the twelve cuts, C12 and RAMD, were also handed to Fable from
+another session with byte-identical prompts, for the model comparison
+the plan's convergence section wants; that score is not in yet.
+
+The description that follows is what was run.
+
+`build.log` read `1323 still the MasterDOS author's own` for the DOS
+reading copy before the sweep, 1312 after.  Those upper-case comments were carried across from the 1991
 source by `tools/carrydoc.py`, which matches instructions, and every
 round so far has found some sitting on the wrong instruction as a side
 effect of looking for something else: `ORIG SP` on a PUSH that holds the
@@ -126,7 +161,7 @@ wrong is fixed with a `:` line, which replaces it.
 
 ---
 
-## Phase 2 -- second passes where the first pass found a lot
+## Phase 2 -- second passes where the first pass found a lot  (next)
 
 The process file's own rule: a region that returns twelve findings is one
 to re-read, because a review samples the errors and does not exhaust them.

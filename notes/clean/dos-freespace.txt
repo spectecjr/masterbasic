@@ -99,8 +99,10 @@ DOC FNS5
 
     A RAM DISC HAS ITS DIRECTORY MOVED, not fixed at four tracks, so its
     usable tracks do not start where a floppy's do.  The limit is nudged
-    by however much DTKS differs from four, which keeps the arithmetic
-    above -- which always starts a file at track 4 -- correct for both.
+    upward by however much DTKS falls short of four -- a longer directory
+    takes the JR NC at &4AC0 and leaves it alone -- which keeps the
+    arithmetic above, which always starts a file at track 4, correct for
+    both.
 
 DOS &4AB6 : the next track
 DOS &4AB7 : how many this drive has, bit 7 for two sides

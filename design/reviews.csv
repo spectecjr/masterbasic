@@ -24,3 +24,15 @@ round,date,half,region,shape,model,own_lines,findings,C,P,G,confirmed,partly,ref
 6,2026-09-12,DOS,file specs and paths,review,claude-fable-5-1,55,8,3,2,3,8,0,0,0,two of the eight were label renames
 6,2026-09-12,DOS,FORMAT snapshot printing RAM disc format,review,claude-fable-5-1,150,16,6,4,6,16,0,0,0,
 6,2026-09-12,DOS,notes/clean/dos-numbers.txt line by line,review,claude-fable-5-1,150,14,9,4,1,14,0,0,0,the self-audit before the round had already corrected 31 lines of this file
+8,2026-09-13,DOS,PART C11 carried-comment sweep,review,claude-opus-5,494,17,10,3,4,17,0,0,0,two carried faults: SVBLK header says spaces and both paths pad with zeros; ENTIRE BLOCK stranded into SVBL2's banner. &4856 is LDBLK
+8,2026-09-13,DOS,PART C12 carried-comment sweep,review,claude-opus-5,774,4,2,0,2,4,0,0,0,the inlined POIDFT at &4D42 lost its LD A,(HL): bugs.md defect 10. Also run on Fable from another session for comparison
+8,2026-09-13,DOS,PART D1 carried-comment sweep,review,claude-opus-5,488,7,3,1,3,7,0,0,0,carried comments all sound; BACKUP's bit 1 is the opposite sense to COPY's
+8,2026-09-13,DOS,PART E1 carried-comment sweep,review,claude-opus-5,311,3,2,1,0,3,0,0,0,the track image is 6562 bytes with a 512-byte tail (CALL FILL_WITH_C returns into FILL_WITH_C); PMOOF was rendered as DNAME's text
+8,2026-09-13,DOS,PART F11 carried-comment sweep,review,claude-opus-5,340,12,4,4,4,11,0,0,1,M510's carried formula is a sector over; deferred: banner names the source's PROT/HIDE/PCAT
+8,2026-09-13,DOS,PART F12 carried-comment sweep,review,claude-opus-5,195,7,1,4,2,5,0,0,2,SVHD1_DONE is a routine of its own (SKIP_FILE_HEADER); deferred: the stale EXDT1_DONE label and two continuation lines rendered as banners
+8,2026-09-13,DOS,PART G1 carried-comment sweep,review,claude-opus-5,269,8,4,2,2,8,0,0,0,the source's JR IF NO SENSIBLE TAPE SPEED is inverted; DDEL waits DWAI+1
+8,2026-09-13,DOS,PART SUBD carried-comment sweep,review,claude-opus-5,128,4,1,1,2,4,0,0,0,&426F is the source's SAMDR under TDVAR's name
+8,2026-09-13,DOS,PART RAMD carried-comment sweep,review,claude-opus-5,225,5,2,2,1,5,0,0,0,carried comments all on their instructions; SDCHK2's rewrite is for the mover's map not this page's. Also run on Fable from another session for comparison
+8,2026-09-13,DOS,PART HOOKS carried-comment sweep,review,claude-opus-5,453,9,6,2,1,8,0,0,1,INP$ refuses &4001 not &4000; DOSBUF banner contradicted the &7D60 one; deferred: FNDI2 carried label with no referent
+8,2026-09-13,DOS,PART MOVE first half,review,claude-opus-5,401,12,3,5,4,9,0,0,3,CHANNEL_LENGTH_AND_FLAGS releases a channel (RELEASE_DISC_CHANNEL); TOSCQ's bit 7 is the DOS's mark not the ROM's; deferred: three cosmetic
+8,2026-09-13,DOS,PART MOVE second half,review,claude-opus-5,163,12,8,3,1,11,0,0,1,four carried comments on the wrong CALL after NSBYT's drive select collapsed into WRITE_SECTOR; D510 is one-based with a tail the source lacks

@@ -283,11 +283,11 @@ DOS_FNS56:                      EQU  FNS56 + &4000
 DOS_HEADER:                     EQU  HEADER + &4000
 DOS_HOOK_SBYT:                  EQU  HOOK_SBYT + &4000
 DOS_LBYT:                       EQU  LBYT + &4000
+DOS_LDBLK:                      EQU  LDBLK + &4000
 DOS_MBCOPY_7774:                EQU  MBCOPY_7774 + &4000
 DOS_MBCOPY_778B:                EQU  MBCOPY_778B + &4000
 DOS_MBCOPY_7829:                EQU  MBCOPY_7829 + &4000
 DOS_NEXTST:                     EQU  NEXTST + &4000
-DOS_OFSM_1:                     EQU  OFSM_1 + &4000
 DOS_PLNS:                       EQU  PLNS + &4000
 DOS_POINT:                      EQU  POINT + &4000
 DOS_POINTC:                     EQU  POINTC + &4000
@@ -296,7 +296,6 @@ DOS_PRINTABLE_FORM:             EQU  PRINTABLE_FORM + &4000
 DOS_PTH1:                       EQU  PTH1 + &4000
 DOS_PTH2:                       EQU  PTH2 + &4000
 DOS_REPORTA:                    EQU  REPORTA + &4000
-DOS_ROOM_LEFT_IN_SECTOR:        EQU  ROOM_LEFT_IN_SECTOR + &4000
 DOS_SAMCNT:                     EQU  SAMCNT + &4000
 DOS_SCFSM:                      EQU  SCFSM + &4000
 DOS_SNPRT2:                     EQU  SNPRT2 + &4000
@@ -306,7 +305,6 @@ DOS_TEMPW1:                     EQU  TEMPW1 + &4000
 DOS_TIMDT:                      EQU  TIMDT + &4000
 DOS_V40F9:                      EQU  V40F9 + &4000
 DOS_V4222:                      EQU  V4222 + &4000
-DOS_V5000:                      EQU  V5000 + &4000
 DOS_V7CFF:                      EQU  V7CFF + &4000
 DOS_V7DE8:                      EQU  V7DE8 + &4000
 DOS_V7E98:                      EQU  V7E98 + &4000

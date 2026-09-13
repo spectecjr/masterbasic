@@ -253,9 +253,11 @@ looked wrong; the build was green throughout.  That is the fault this
 file already describes one paragraph up, committed again by the one
 number nobody thought to check.
 
-**Both halves are at zero**: `build.log` reads `MB -- 1016 instructions
-carry a number, 0 of them unexplained` and `DOS -- 657 instructions carry
-a number, 0 of them unexplained`, and neither half has a routine-breakdown
+**Both halves are at zero**: `build.log` reads `MB -- 1018 instructions
+carry a number, 0 of them unexplained` and `DOS -- 659 instructions carry
+a number, 0 of them unexplained` (the first figures move by a few with
+every `expr` note; the zero is the one that matters), and neither half
+has a routine-breakdown
 line any more.  The DOS's 493 went in six commits on 2026-09-12, mostly
 as `:` lines in `notes/clean/dos-*.txt`; the equates that came out of it
 -- the directory-entry offsets `DIR_START`, `DIR_LENGTH`, `DIR_EXECUTE`

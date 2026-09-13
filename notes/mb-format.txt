@@ -39,9 +39,11 @@ DOC BUILD_TRACK_IMAGE
                                         fills of 256 because B is zero
              1 x &F7                    CRC again
             27 x &4E                    gap 3
-        256 x &4E                       the trailing gap
+        512 x &4E                       the trailing gap, again as two
+                                        fills of 256: the CALL at &539E
+                                        returns into FILL_WITH_C itself
 
-    That is 6306 bytes for a track that holds about 6250, and the surplus
+    That is 6562 bytes for a track that holds about 6250, and the surplus
     is the point: the controller stops at the index hole, so the last gap
     has to be longer than the space left rather than shorter.
 

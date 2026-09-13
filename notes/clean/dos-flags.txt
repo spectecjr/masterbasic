@@ -11,17 +11,19 @@
 DOC BITF4
     Is the operation on a directory rather than an ordinary file?
 
-    The odd one out.  The other seven BIT routines sit together after the
-    eight SETs; this one is on its own three hundred bytes away, in the
-    middle of part F12, presumably because it was wanted after the block
-    had been assembled and there was no room to grow it.
+    The odd one out.  The other seven BIT routines sit together at
+    &511C-&5145, after the eight SETs; this one has been moved to the
+    end of part F11 to follow SNDTC, so that the source's JP BITF4 there
+    becomes a fall-through.
 
-    Its three callers are the three questions flag 4 answers: whether
-    OPEN DIR is being asked to overwrite a name that exists, whether a
-    first sector has to be allocated -- a directory file has no contents
-    of its own -- and whether ERASE is erasing a file or a directory.
+    Three CALL sites and one fall-through are the questions flag 4
+    answers: whether OPEN DIR is being asked to overwrite a name that
+    exists, whether a first sector has to be allocated -- a directory
+    file has no contents of its own -- whether ERASE is erasing a file or
+    a directory, and, through SNDTC, whether the entry SNDFX found is
+    the kind RENAME, COPY, PROTECT or HIDE wants.
 
-DOS &5E73 : the one of the family that is not with the other seven at &50EC
+DOS &5E73 : the one of the family that is not with the other seven at &511C
 
 
 DOC HLFG
@@ -72,12 +74,16 @@ DOC SETF1
     Bit 1 up: the qualifier was there, or there is more still to do.
 
     SF1S raises it for OVER on ERASE and OFF on PROTECT and HIDE.  COPY
-    and BACKUP raise the same bit for "do not close the file yet, there
-    is another pass to come", which is safe because COPY takes its own
-    OVER through the ROM's OVERF instead.
+    raises the same bit for "do not close the file yet, there is more
+    of this file to come", which is safe because COPY takes its own
+    OVER through the ROM's OVERF instead; BACKUP raises it for the
+    opposite -- "this is the last pass", set at BKU3 when the sectors
+    left fit in the free space, and BKUL loops until it sees it.  CLEAR
+    raises it too, at &6DCC.
 
 DOC BITF1
-    Bit 1: was the qualifier given, or is there more to do?
+    Bit 1: was the qualifier given, or -- COPY -- is there more to do,
+    or -- BACKUP -- is this the last pass?
 
     ERASE reads it as OVER, PROTECT and HIDE as OFF, the command-name
     printer as "put UN in front of this one", and COPY as "this is a
@@ -114,11 +120,14 @@ DOC BITF3
     found" and "protected file"; from COPY it is always clear there.
 
 DOC SETF4
-    Bit 4 up: the operation is on a directory, not an ordinary file.
+    Bit 4 up: the operation is on a directory, or the file needs no
+    data sectors.
 
     REDI2 raises it on a leading DIR keyword -- ERASE DIR, RENAME DIR --
     and OPNDIR raises it directly, where it also means "this file needs
-    no data sectors" and OFSM allocates none.
+    no data sectors" and OFSM allocates none; GT19B raises it on the
+    OPEN-stream path for the same reason, "NO SECTOR NEEDED", and a
+    stream is no directory.
 
 DOC SETF5
     Bit 5 up: both ends of a COPY are the same drive.

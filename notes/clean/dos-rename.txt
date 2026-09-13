@@ -16,18 +16,27 @@ DOC RENAM
 
     THE LOOP IS ERASE'S, down to the three jumps that decide whether the
     entry found is the kind this command wants -- see ERAZ for what the
-    AND A between them is for.  What is different is that the sector is
-    written back inside the loop, so the buffer cannot be trusted from
-    one turn to the next: REFBUF re-reads it and PTSVT points back at
-    the entry the search had reached.
+    AND A between them is for.  What is different is FINDC: checking
+    that the new name is free runs a second directory scan through the
+    same buffer, so REFBUF re-reads it and PTSVT points back at the
+    entry the search had reached.  (ERASE writes its sector back inside
+    its loop too, at &5D18, and needs neither.)
 
     RENAMING ALSO MOVES A FILE.  The subdirectory tag at offset &FE is
-    written from CDIRT before the name is copied in, so a file renamed
-    from inside another directory ends up in the current one.
+    written from CDIRT before the name is copied in, and CDIRT at that
+    point is the TO name's directory -- the parameter blocks were
+    swapped at &5D95, and the author's comment on the write is "SUB DIR
+    VALUE FOR 2ND NAME" -- so a file renamed from inside another
+    directory ends up wherever the new name says: the current directory
+    when it says nothing.
 
     Errors: REP28 if the new name is already in use
 
 DOS &5D4F : a leading DIR, which makes this RENAME DIR
+
+DOS &5DCC : ENSURE DRAM CONTAINS DIR ENTRIES IN CASE 2ND ONE WANTED
+DOC PTSVT
+    PT TO SVTRS ENTRY
 DOS &5D52 : "TO" straight after RENAME means the disc, not a file
 DOS &5D5F : track 0, sector 1, which is where entry 0 lives
 DOS &5D68 : the far end of the entry, which is where FESE2 starts
@@ -45,7 +54,7 @@ DOS &5D9C : is the name it produced already on the disc?
 DOS &5D9F : then it may not be used
 DOS &5DA2 : back to the entry the search had reached
 DOS &5DA7 : offset &FE, the tag of the directory the file is in
-DOS &5DAA : the directory we are in now
+DOS &5DAA : the TO name's directory, which is the current one only when that name carries no path
 DOS &5DAD : so renaming a file also moves it here
 DOS &5DAF : offset 1, where the name goes
 DOS &5DB3 : ten characters of it
