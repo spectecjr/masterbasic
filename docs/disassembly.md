@@ -609,7 +609,7 @@ character:
 `tools/build.sh` prints this table on every run, so it can be checked
 rather than remembered.
 
-15413 instructions and 2372 labelled addresses. **Every byte is accounted for.** What was
+15437 instructions and 2372 labelled addresses. **Every byte is accounted for.** What was
 left at the end was not a third kind of thing: 29 bytes of zero fill, 17 of
 message text, and 81 bytes that are the *other* reading of bytes an overlapping
 instruction has already claimed — the skipped `&21` of an entry chain, the opcode

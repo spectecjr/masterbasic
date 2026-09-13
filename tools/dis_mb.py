@@ -2356,6 +2356,10 @@ def census(pages):
     described = sum(sum(1 for a in d.headers if a in d.labels) for d in pages)
     print('    %-26s %6d of %d labelled addresses'
           % ('described', described, labels))
+    # README.md and docs/disassembly.md quote this too, and had been
+    # quoting a number nothing printed.
+    print('    %-26s %6d' % ('instructions',
+                             sum(len(d.insns) for d in pages)))
 
 
 def analyse(d):

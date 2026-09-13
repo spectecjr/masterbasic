@@ -54,7 +54,7 @@ could not be established, they say so rather than guessing.
 **`listings/speculate/` is a reading, not a record.** It is the same two listings with a
 derived register contract on every routine and a machine-composed guess at what
 each one is for, every guess marked with a leading `?`. It is useful for finding
-your way around 2,118 routines; it is not evidence. Its
+your way around 2090 routines; it is not evidence. Its
 [README](listings/speculate/README.md) sets out where it is wrong and why.
 
 **`postinstall-syspage.asm` is a third kind again: a reconstruction.**
@@ -203,20 +203,21 @@ Every one of the 32640 bytes is accounted for:
 
 | | bytes |
 |---|---|
-| Code | 28376 (86.9%) |
-| Variables and other data | 2636 |
-| Inline call parameters | 893 |
-| Message and keyword text | 696 |
+| Code | 28405 (87.0%) |
+| Variables and other data | 2616 |
+| Inline call parameters | 859 |
+| Message and keyword text | 608 |
 | `RST &08` codes | 29 |
-| Pointer tables | 10 |
+| Pointer tables | 123 |
 | Unclassified | 0 |
 
-No label lands inside an instruction. 365 of the 2421 labelled addresses
+No label lands inside an instruction. 626 of the 2372 labelled addresses
 carry a description -- some written by hand after reading the code, the rest
 the annotated MasterDOS author's, carried across where the two instruction
-streams still agree. That is a minority of the 2,118 routines the
+streams still agree. That is a minority of the 2090 routines the
 disassembler segments, and the remainder are named but not explained.
-The build prints these counts, so they are measured rather than remembered.
+The build prints these counts -- the census table, its `described` line,
+and `read N routines` -- so they are measured rather than remembered.
 
 ## Credit
 
