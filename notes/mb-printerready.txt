@@ -83,7 +83,6 @@ DOC CLAMP_CELLS_FOR_DEVICE
 # in ~25us units" -- which is what a printer loop wants and a boot
 # address is not.
 
-MB &5A42 : the printer-ready test, called through the window
 MB &5A5D : the not-ready delay, from XVAR 9
 
 # The routine the printer loop hands each byte to.

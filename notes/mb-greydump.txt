@@ -30,6 +30,12 @@ DOC BUILD_GREY_MAP
     two palette entries mapping to the same grey while a neighbouring
     grey goes unused.
 
+    &7B80 is not scratch space in the file.  It is the thirty-six bytes
+    installed in the system page at &4BA0 -- the stubs PRTOKV and
+    others point at.  Once they are installed the copy here is dead, and
+    DUMP takes it over: sixteen bytes of map over the block and
+    twenty-five of level flags reaching five bytes past its end.
+
 MB &6A69 : twenty-five flags, one per grey level -- another stub of the installer's, dead since boot
 
 MB &6A6C : and twenty-five is that count, one pass of the loop for each flag

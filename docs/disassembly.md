@@ -598,20 +598,20 @@ character:
 
 | | bytes |
 |---|---|
-| Code | 28402 (87.0%) |
-| Variables and other data | 2614 |
+| Code | 28405 (87.0%) |
+| Variables and other data | 2616 |
 | Inline call parameters | 859 |
 | Message and keyword text | 608 |
 | `RST &08` codes | 29 |
-| Pointer tables | 128 |
+| Pointer tables | 123 |
 | Unclassified | 0 |
 
 `tools/build.sh` prints this table on every run, so it can be checked
 rather than remembered.
 
-15413 instructions and 2376 labels. **Every byte is accounted for.** What was
+15413 instructions and 2372 labelled addresses. **Every byte is accounted for.** What was
 left at the end was not a third kind of thing: 29 bytes of zero fill, 17 of
-message text, and 84 bytes that are the *other* reading of bytes an overlapping
+message text, and 81 bytes that are the *other* reading of bytes an overlapping
 instruction has already claimed — the skipped `&21` of an entry chain, the opcode
 a caller steps over by entering a byte later. Both readings are real and only one
 can be written down, so the byte left behind carries a comment saying what it

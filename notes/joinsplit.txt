@@ -47,21 +47,6 @@ MB &6E53 : the operand of the JP that JRECLAIM holds, not the jump-table entry i
 MB &6E57 : one past it, to skip the ROM's own XOR A
 MB &6E58 : patched into the CMR argument two instructions down
 
-DOC CMD_SPLIT_LINE
-    WHY PRPTR: the ROM keeps a list of pointers it fixes up whenever
-    memory moves, and vars.asm marks PRPTR as the last of them -- "END
-    OF ADJUSTED PTRS" comes immediately after it.  So a value parked in
-    PRPTR and PRPTRP survives INSERTLN moving the whole edit line up,
-    which a value in a register or in this page would not.  It is used
-    that way twice in this half: here for WORKSP, and again in JOIN TO
-    at &7087 for the source address of the copy.
-
-    THE EDIT LINE'S SHAPE is what the arithmetic turns on.  ELINE is its
-    first byte, WORKSP is two past the terminating CR, and the ROM's
-    INSERTLN computes the text length as WORKSP-CHAD-1.  That is why
-    &6ED4 adds two to the cut point before storing it as WORKSP: it
-    makes the ROM see a line that ends at the colon.
-
 MB &6E62 : A is the "/" and HL is CHAD, pointing at it
 MB &6E65 : the slash's address, wanted later as the end of the part to be thrown away
 MB &6E67 : walk back over spaces -- the manual's "first non-space character after the colon"

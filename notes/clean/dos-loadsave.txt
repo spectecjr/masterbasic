@@ -64,6 +64,10 @@ DOS &6535 : less the nine-byte header
 DOS &6540 : IX+&F8 is entry offset 229
 DOS &6544 : the pages, then the rest: the compressed length in page form
 
+# AUTNAM is a parameter block; tools/dis_mb.py declares it data before
+# the sweeps run, and this says what is in it.
+DOS &65D5 : the twenty-eight bytes AUINSR copies over DSTR1, laid out as the source declares that block: drive 1, &FF in FSTR1 and SSTR1, "D" in LSTR1, &10 in NSTR1, the name AUTO* padded to the fourteen of the name field, a zero in HD001, and &FFFF over the three header words and the page pair
+
 DOS &7862 OPEN_BASIC_FOR_MERGE
 
 DOC OPEN_BASIC_FOR_MERGE

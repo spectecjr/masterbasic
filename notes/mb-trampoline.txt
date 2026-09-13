@@ -72,5 +72,3 @@ DOC BUILD_PAGE_IN_TRAMPOLINE
     That is the third builder into CDBUFF, after &735D at +&11 and hook
     185 at +&50.  This one lands at +&50 as well, so it and the hook are
     alternative users of the same space rather than both being live.
-
-MB &5D20 : where the trampoline lands, with this half paged in at &8000

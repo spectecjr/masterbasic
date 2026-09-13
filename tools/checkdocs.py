@@ -512,6 +512,11 @@ def main():
             key = rel.replace(os.sep, '/')
             for word in set(SYNTHETIC.findall(line)) | set(
                     INVENTED.findall(line)):
+                # A word written as an assignment is an environment
+                # variable -- TRACE_DEBUG=6605, SITES_DEBUG=NAME -- and
+                # has the shape of an invented label without being one.
+                if word + '=' in line:
+                    continue
                 if word not in names and (key, word) not in HISTORICAL:
                     bad.append('%s:%d names %s, which no longer exists'
                                % (rel, n, word))

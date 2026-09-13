@@ -7,62 +7,6 @@ MB &5FA7 FREE_PAGE_IF_SLOTS_CLEAR
 
 MB &5FA7 : SLOTT, the top sixteen bytes of the page, seen in the &8000 window.  It is the same table the allocator keeps clear of -- which is why the topmost slot's link sits sixteen bytes lower than every other slot's
 
-DOC ALLOC_UTILITY_SLOT
-    Reserve a 1K slot in a utilities page, taking a new page if none of
-    the existing ones has room.
-
-    The Technical Manual describes the scheme and the method, and this
-    is that method:
-
-        A "Utilities" page is marked 20H.  It is divided into 16 1K
-        sections which can be used by assorted short utility programs.
-        The final 16 bytes in a utilities page (SLOTT) show which
-        "slots" are reserved -- a 0 shows the corresponding slot is
-        free, and FFH that it is reserved.  (The last slot is 16 bytes
-        short of 1K.)  The proper method of allocating space for a
-        short program is to look backwards through ALLOCT for 20H.  If
-        you find it switch in the indicated page and look backwards
-        through SLOTT for a spare slot.  Mark it and use that slot.  If
-        you do not find a 20H entry in ALLOCT, look for 00H; report an
-        error if none is found, else mark it 20H, clear the last 16
-        bytes of that page with zeros, and then reserve yourself some
-        space in the new SLOTT you have just created.
-
-    Instruction for instruction: HMPR is zeroed so &91xx reads ALLOCT
-    in the system page; FIND_SLOTS enters with L = &1F, the top page,
-    and DEC L walks down, which is the manual's "look backwards"; &20
-    jumps to the SLOTT scan and 0 claims the page first; running off the
-    end reports error 1.  A newly claimed page has its last sixteen
-    bytes zeroed before the scan, and is marked with B, which the caller
-    sets to &20 -- the manual's "mark it 20H".
-
-    The caller runs it twice.  B = 0 first, which skips every write and
-    so asks whether the slots can be found at all, then B = &20 to
-    reserve them.  C carries how many are wanted and DEC C : RET Z ends
-    it, and C is worked out just above by dividing the byte count by
-    1024 and adding one -- "the number you supply is rounded up".
-
-    The continuation path is the other DEC L: when a page turns out to
-    be full, &5F75 restarts the ALLOCT scan from below the page it had
-    in the window rather than from &1F again.
-
-    One divergence from the manual worth noting: it says to look
-    backwards through SLOTT, and this looks forwards, LD HL,&BFF0 then
-    INC L, taking the first free slot rather than the last.
-
-    Slot n is the kilobyte at &8000+n*&400 as the page sits in the
-    window, and its last two bytes hold a link.  Slot 15 is the one the
-    manual calls sixteen bytes short: its link goes at &BFEE, because
-    &BFFE and &BFFF are SLOTT entries 14 and 15.
-
-DOC FREE_SLOT_CHAIN
-    Walk a chain of reserved slots, clearing each SLOTT entry, and give
-    back any page left with none reserved.
-
-    The link at the end of each slot gives the next slot's index and the
-    next page; a zero index ends it.  The same &BFEE exception applies,
-    tested here as INC A : JR NZ.
-
 DOC FREE_PAGE_IF_SLOTS_CLEAR
     OR the sixteen SLOTT entries together, and if all are clear write 0
     over the page's ALLOCT byte, giving it back.

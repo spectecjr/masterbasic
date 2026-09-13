@@ -917,6 +917,14 @@ def seeds(dos, mb):
     if 'DERR' in rev:
         dos._inline[rev['DERR']] = 1
         dos.dead_calls.add(rev['DERR'])
+    # AUTNAM is the auto-load file's parameter block, twenty-eight bytes
+    # the source declares as DEFB, DEFM and DEFW and AUINSR copies over
+    # DSTR1.  Declared data here, before any sweep can read it as code:
+    # 01 FF FF 44 10 41 55 ... decodes to exactly where HAUTO begins,
+    # and read that way its "DJNZ" and "JR NZ" landed inside AUINSR's
+    # LD HL,AUTNAM and INIT's CALL AUINSR, which came out as skips.
+    if 'AUTNAM' in rev:
+        dos.region(rev['AUTNAM'], rev['AUTNAM'] + 28, DATA)
 
     # The search helper this half keeps at &775A is copied into the DOS
     # page and called there, at &BD79 through the window, by 28 sites.  It
@@ -1362,6 +1370,23 @@ def looks_like_text(d, s, e):
     return plain * 10 >= n * 7
 
 
+def splits_instruction(d, i):
+    """True if a decoded relative branch lands inside a known instruction.
+
+    The test every sweep applies to a run it is about to take: bytes
+    that decode but branch into the middle of known code are not being
+    read at the right alignment, or are not code.  Relative branches
+    only -- JR and DJNZ -- because a block assembled to run somewhere
+    else has absolute JPs and CALLs that mean the copy's addresses, and
+    those land anywhere at all in this page.  RELOCATED_TO_46CC is
+    such a block and is found by these sweeps; the first version of
+    this test returned it to DEFBs.
+    """
+    return (i.target is not None and d.inside(i.target)
+            and d.m(i.target) == CONT
+            and i.text.startswith(('JR ', 'DJNZ')))
+
+
 def sweep_gaps(d, minlen=6, maxskew=3, permissive=False):
     """Disassemble unclaimed runs that read as code.
 
@@ -1369,26 +1394,50 @@ def sweep_gaps(d, minlen=6, maxskew=3, permissive=False):
     holes between traced regions.  Where such a hole decodes cleanly and
     ends exactly where the next known instruction begins, it is code, and
     seeding the tracer there lets flow analysis take over again.
+
+    Cleanly includes where its branches go.  A run that decodes but
+    branches into the middle of an instruction already known is not
+    being read at the right alignment, or is not code: AUTNAM's
+    parameter block -- 01 FF FF 44 10 41 55 54 4F 2A 20 20 ... -- met
+    HAUTO exactly with one NOP against it, and read that way its
+    "DJNZ" and "JR NZ" landed inside AUINSR's LD HL,AUTNAM and INIT's
+    CALL AUINSR.  The trace followed both, and the two instructions
+    were rendered as one-byte skips for two rounds of review while what
+    had claimed their second bytes went unfound.
     """
     seeded = 0
     for s, e in list(d.gaps()):
         if e - s < minlen or d.m(s) != UNKNOWN or looks_like_text(d, s, e):
             continue
         best = None
+        splits = set()
         for off in range(min(maxskew, e - s) + 1):
-            a, bad = s + off, 0
+            a, bad, live = s + off, 0, True
             while a < e:
                 i = d.decode(a)
                 if i is None:
                     break
                 if not i.asm or i.text == 'NOP':
                     bad += 1
+                if splits_instruction(d, i):
+                    # Disqualifying for the permissive pass only while
+                    # flow from the gap's start can still reach it: a
+                    # gap is code and then whatever follows, and the
+                    # trace stops at the code's last RET.  A split
+                    # beyond that is in bytes nothing would decode.
+                    if live:
+                        splits.add(off)
+                    break
+                live = live and i.falls_through()
                 a = i.end
             if a == e:                       # meets the next instruction exactly
                 score = (bad, off)
                 if best is None or score < best[0]:
                     best = (score, s + off)
-        if best is None and permissive:
+        # The permissive pass takes a gap on no evidence at all, so it
+        # is the one that most needs the branch test: what it seeds, the
+        # trace follows.
+        if best is None and permissive and 0 not in splits:
             best = ((0, 0), s)
         if best:
             d.seed(best[1])
@@ -1710,11 +1759,100 @@ def name_tables(dos, mb, work):
 
 
 # Instructions that leave the flags exactly as they were, so a test can be
-# looked for behind them.  LD A,I and LD A,R set them; POP AF replaces them.
+# looked for behind them.  LD A,I and LD A,R set them; POP AF replaces
+# them; EX AF,AF' swaps them for the other set's.
 FLAG_NEUTRAL = re.compile(r"""^(?:
-      LD\ (?!A,[IR]$)  | PUSH\  | POP\ (?!AF$) | EX\  | EXX$
+      LD\ (?!A,[IR]$)  | PUSH\  | POP\ (?!AF$) | EX\ (?!AF) | EXX$
     | NOP$ | DI$ | EI$ | OUT\   | IM\
 )""", re.X)
+
+def _regs(operand):
+    """The eight-bit registers an operand touches, as a set.
+
+    A pair is its two halves, so a condition about B is stale after
+    POP BC and one about (HL) after LD L,x -- and not after LD C,x,
+    which PAGE_ON_TWO's DEC B : PUSH BC : LD C,&00 : JR NZ showed up
+    when the pair itself was in every set.
+
+    A bracketed operand is memory.  Reading one -- BIT 3,(HL) -- depends
+    on the register and on the byte, so both are in the set; writing
+    one -- LD (HL),&FF -- changes the byte and not the register, and
+    _writes() returns the operand alone.  CSL2's DEC L : LD (HL),&FF :
+    JR NZ came out as "L was not 0 yet" while the two were confused.
+    """
+    operand = operand.strip()
+    if operand.startswith('('):
+        inner = re.split(r'[+-]', operand[1:-1])[0].strip()
+        return _regs(inner) | {operand}
+    if operand in ('AF', 'BC', 'DE', 'HL'):
+        return {operand[0], operand[1]}
+    if operand in ('IX', 'IY'):
+        return {operand + 'H', operand + 'L'}
+    if operand in ('A', 'F', 'B', 'C', 'D', 'E', 'H', 'L', 'SP',
+                   'IXH', 'IXL', 'IYH', 'IYL'):
+        return {operand}
+    return set()
+
+
+def _writes(text):
+    """What a flag-neutral instruction overwrites: registers, or a byte."""
+    m = re.match(r'^LD ([^,]+),', text)
+    if m:
+        dest = m.group(1).strip()
+        return {dest} if dest.startswith('(') else _regs(dest)
+    m = re.match(r'^POP (\w+)$', text)
+    if m:
+        return _regs(m.group(1))
+    if text == 'EX DE,HL':
+        return _regs('DE') | _regs('HL')
+    if text == 'EXX':
+        return _regs('BC') | _regs('DE') | _regs('HL')
+    m = re.match(r'^EX \(SP\),(\w+)$', text)
+    if m:
+        return _regs(m.group(1))
+    return set()
+
+
+def _tested(setter):
+    """The registers a _condition() reading names, from its setter.
+
+    CP B reads as "A < B", and a load of either register between the
+    compare and the branch leaves that stale, so the operand counts
+    when it is a register.  _regs() of a number is the empty set.
+    """
+    m = re.match(r'^(?:CP|SUB|OR|AND|XOR) (.+)$', setter)
+    if m:
+        return _regs('A') | _regs(m.group(1))
+    if setter in ('RRA', 'RLA', 'RRCA', 'RLCA'):
+        return _regs('A')
+    m = re.match(r'^BIT \d,(.+)$', setter)
+    if m:
+        return _regs(m.group(1))
+    m = re.match(r'^(?:DEC|INC|SRL|RR|RRC|SLA|RL|RLC) (.+)$', setter)
+    if m:
+        return _regs(m.group(1))
+    return set()
+
+
+def _past(setter, why):
+    """The reading, said of the moment of the test rather than of now.
+
+    Used when a load between the test and the branch has replaced the
+    register the reading names: at the label A is not &44 any more, but
+    the CP found it so, and that is still why the branch was taken.
+    """
+    if re.match(r'^A (?:=|<>|<|>=) ', why):
+        word = setter if setter in ('OR A', 'AND A') else setter.split()[0]
+        return 'the %s found %s' % (word, why)
+    if ' was ' in why:                      # the shifts already say so
+        return why
+    for old, new in ((' is set', ' was set'),
+                     (' clear', ' was clear'), (' set', ' was set'),
+                     (' reaches 0', ' reached 0'), (' wraps to 0', ' wrapped to 0'),
+                     (' is not 0 yet', ' was not 0 yet'), (' is not 0', ' was not 0')):
+        if why.endswith(old):
+            return why[:-len(old)] + new
+    return why
 
 
 def _condition(setter, cc):
@@ -1796,6 +1934,7 @@ def explain_branches(d):
         if not m:
             continue
         k = where[a]
+        written = set()
         while k > 0:
             k -= 1
             prev = d.insns[order[k]]
@@ -1806,9 +1945,16 @@ def explain_branches(d):
             if not FLAG_NEUTRAL.match(prev.text):
                 why = _condition(shown, m.group(1))
                 if why:
+                    # CP &44 : LD A,D : JR NZ -- the flags are the CP's
+                    # and A is not.  "when A <> &44" at the label named
+                    # a value A no longer held; RCLM4, SDCM2 and OPND45_1
+                    # were three of them.
+                    if _tested(prev.text) & written:
+                        why = _past(shown, why)
                     d.ref_reason[(i.target, a)] = why
                     n += 1
                 break
+            written |= _writes(prev.text)
             if order[k] in d.labels:      # flow can join here: stop looking
                 break
     return n
@@ -3501,7 +3647,9 @@ def sweep_unknown(d, minlen=6):
     never looked at.  This walks the runs that are unclaimed and nothing
     else, and takes one only when decoding from its first byte lands
     exactly on the next instruction with nothing invalid in between --
-    the same test, applied where the other pass could not reach.
+    the same test, applied where the other pass could not reach.  And
+    the same refusal: a run whose decode branches into the middle of
+    an instruction is not taken, however exactly it lands.
     """
     runs, a = [], d.base
     while a < d.limit:
@@ -3519,7 +3667,7 @@ def sweep_unknown(d, minlen=6):
         p, bad, n = s, 0, 0
         while p < e:
             i = d.decode(p)
-            if i is None:
+            if i is None or splits_instruction(d, i):
                 break
             if not i.asm:
                 bad += 1

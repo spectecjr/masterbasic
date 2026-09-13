@@ -2531,7 +2531,7 @@ SECTOR_FOR_CHANNEL:
 ;; Leaves:    A, F, HL
 ;; --------------------------------------------------------------------
 
-; ---- SECTOR_FOR_CHANNEL_1 ---- from &45F1 when A <> &04
+; ---- SECTOR_FOR_CHANNEL_1 ---- from &45F1 when the CP found A <> &04
 SECTOR_FOR_CHANNEL_1:
                DEC A                           ; 45F9 3D
                JR NZ,SECTOR_FOR_CHANNEL_2      ; 45FA 20 16
@@ -4837,7 +4837,7 @@ PFNM1:
 ;; Leaves:    F, HL
 ;; --------------------------------------------------------------------
 
-; ---- PFNM12 ---- from &4B17 when A <> (HL)
+; ---- PFNM12 ---- from &4B17 when the CP found A <> (HL)
 PFNM12:
                INC HL                          ; 4B21 23
                CP &20                          ; 4B22 FE 20
@@ -11730,7 +11730,7 @@ COLUMNS_FOR_DIRECTORY:
 ;; Leaves:    A, F, B
 ;; --------------------------------------------------------------------
 
-; ---- COLUMNS_FOR_DIRECTORY_1 ---- from &5C99 when A <> 0
+; ---- COLUMNS_FOR_DIRECTORY_1 ---- from &5C99 when the AND A found A <> 0
 COLUMNS_FOR_DIRECTORY_1:
                LD B,&01                        ; 5CA3 06 01
                SUB &0B                         ; 5CA5 D6 0B
@@ -15430,6 +15430,7 @@ EPCOM_2:
 ;;  name together.
 ;; --------------------------------------------------------------------
 
+; ---- AUTNAM ---- from &6604
 AUTNAM:
                DEFB &01,&FF,&FF,&44,&10,&41,&55,&54,&4F,&2A,&20,&20,&20,&20,&20 ; 65D5 ...D.AUTO*
                DEFB &20,&20,&20,&20,&00,&FF,&FF,&FF,&FF,&FF,&FF,&FF,&FF         ; 65E4     .........
@@ -15469,7 +15470,7 @@ AUINC:
                JP CMD_LOAD_1                   ; 65FA C3 BB 5F
 
 ;; --------------------------------------------------------------------
-;; AUINSR -- &65FD to &661F
+;; AUINSR -- &65FD to &6619
 ;;
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, DE, HL
@@ -15477,16 +15478,13 @@ AUINC:
 ;; ? reaches the ROM through CURCMD; calls NRWR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- AUINSR ---- from &65F1
+; ---- AUINSR ---- from &65F1, &661A
 AUINSR:
                LD A,&95                        ; 65FD 3E 95  LOAD TOK
                                                ; write the ROM variable CURCMD
                CALL NRWR                       ; 65FF CD 74 50
                DEFW CURCMD                     ; 6602 74 5B
-               DEFB SKIP_2_VIA_LD_HL           ; 6604 !  skipped: reads as LD HL,AUTNAM from here, swallowing the bytes
-                                               ; below it
-               PUSH DE                         ; 6605 D5
-               LD H,L                          ; 6606 65
+               LD HL,AUTNAM                    ; 6604 21 D5 65
                LD DE,DSTR1                     ; 6607 11 36 41
                LD BC,&001C                     ; 660A 01 1C 00
                LDIR                            ; 660D ED B0
@@ -15495,10 +15493,18 @@ AUINSR:
                LD A,&10                        ; 6615 3E 10  "LOOK FOR NAME"
                JP FDHR                         ; 6617 C3 31 4B
 
+;; --------------------------------------------------------------------
+;; INIT -- &661A to &661F
+;;
+;; Takes:     DE, HL, IX
+;; Leaves:    A, F, BC, DE, HL, IX, IY, I
+;; Ends:      JP, JR
+;;
+;; ? drives IN A,(HMPR), IN A,(LMPR); calls READ_SECTOR, HOOK_SKSAFE, ROOM_LEFT_IN_SECTOR, CHECK_FILE_TYPE.
+;; --------------------------------------------------------------------
+
 INIT:
-               DEFB &CD,&FD                    ; 661A M}  skipped: reads as CALL AUINSR from here, and as part of the
-                                               ; instruction above it
-               LD H,L                          ; 661C 65
+               CALL AUINSR                     ; 661A CD FD 65
                RET NZ                          ; 661D C0  RET IF NOT FOUND
                JR AUINC                        ; 661E 18 D7
 
@@ -16531,7 +16537,7 @@ PRINTABLE_FORM:
 ;; Leaves:    B
 ;; --------------------------------------------------------------------
 
-; ---- PRINTABLE_FORM_1 ---- from &68E6 when A = 0
+; ---- PRINTABLE_FORM_1 ---- from &68E6 when the AND A found A = 0
 PRINTABLE_FORM_1:
                LD B,&FF                        ; 68ED 06 FF
 
@@ -17797,7 +17803,7 @@ OPND45:
 ;; ? calls OPND7; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- OPND45_1 ---- from &6CCF when A = MRND
+; ---- OPND45_1 ---- from &6CCF when the CP found A = MRND
 OPND45_1:
                CALL OPND7                      ; 6CD2 CD EF 6C  SETS FTRK/FSCT, CNT=1
                RET C                           ; 6CD5 D8
@@ -18377,7 +18383,7 @@ RCLM1:
 ;; Ends:      RET
 ;; --------------------------------------------------------------------
 
-; ---- RCLM4 ---- from &6E4F, &6E6C when A <> &44
+; ---- RCLM4 ---- from &6E4F, &6E6C when the CP found A <> &44
 RCLM4:
                LD HL,(SVHL)                    ; 6E7C 2A 05 7C
                INC HL                          ; 6E7F 23
@@ -18437,7 +18443,7 @@ SDCM:
 ;; ? calls FDHR, CFMC, POINT, NRRD.
 ;; --------------------------------------------------------------------
 
-; ---- SDCM2 ---- from &6EA5 when A < &10
+; ---- SDCM2 ---- from &6EA5 when the CP found A < &10
 SDCM2:
                LD (IX+&1F),C                   ; 6EAD DD 71 1F  OVER-WRITE PTR
                LD (IX+&1E),B                   ; 6EB0 DD 70 1E
@@ -18604,7 +18610,7 @@ MCHN2_1:
 ;;      INPUT is in progress.
 ;; --------------------------------------------------------------------
 
-; ---- MCHWR ---- from &694F when A = &4B, &6D9D
+; ---- MCHWR ---- from &694F when the CP found A = &4B, &6D9D
 MCHWR:
                LD D,A                          ; 6F3B 57
                IN A,(HMPR)                     ; 6F3C DB FB
@@ -23112,7 +23118,8 @@ DST3:
 ;; Leaves:    HL
 ;; --------------------------------------------------------------------
 
-; ---- STKA ---- from &7955 when A = &08, &797C, &7989 when A = &06, &79B5, &79DA, &79EE, &7B43
+; ---- STKA ---- from &7955 when the CP found A = &08, &797C, &7989 when the CP found A = &06, &79B5, &79DA, &79EE,
+; &7B43
 STKA:
                LD L,A                          ; 79DF 6F
                LD H,&00                        ; 79E0 26 00
@@ -23182,7 +23189,7 @@ WPCHK:
 ;; Ends:      RET
 ;; --------------------------------------------------------------------
 
-; ---- WPC2 ---- from &79F4 when A >= &03
+; ---- WPC2 ---- from &79F4 when the CP found A >= &03
 WPC2:
                AND &01                         ; 7A06 E6 01
                RET                             ; 7A08 C9
@@ -23723,7 +23730,7 @@ FSTAT_11:
 ;; Leaves:    DE, HL
 ;; --------------------------------------------------------------------
 
-; ---- FST4 ---- from &7B55 when A = &05
+; ---- FST4 ---- from &7B55 when the CP found A = &05
 FST4:
                EX DE,HL                        ; 7B60 EB  AHL=PAGE FORM
 

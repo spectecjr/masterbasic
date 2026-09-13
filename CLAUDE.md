@@ -89,7 +89,8 @@ write can change a byte; the build says so if it does.
 only.  `DOS` substitutes for `MB`.
 
     MB &7465 NAME                   label
-    MB &7465 : text                 comment on that instruction
+    MB &7465 : text                 comment on that instruction; a second
+               line aligned under the text is the same comment, wrapped
     MB &7465-&7470 data|word|text|code
     MB &7465 value NAME             name this operand (an equate is made)
     MB &74A6 expr SECTION_D + 1     rewrite the operand; checked against the bytes
@@ -252,8 +253,8 @@ looked wrong; the build was green throughout.  That is the fault this
 file already describes one paragraph up, committed again by the one
 number nobody thought to check.
 
-**Both halves are at zero**: `build.log` reads `MB -- 1015 instructions
-carry a number, 0 of them unexplained` and `DOS -- 658 instructions carry
+**Both halves are at zero**: `build.log` reads `MB -- 1016 instructions
+carry a number, 0 of them unexplained` and `DOS -- 657 instructions carry
 a number, 0 of them unexplained`, and neither half has a routine-breakdown
 line any more.  The DOS's 493 went in six commits on 2026-09-12, mostly
 as `:` lines in `notes/clean/dos-*.txt`; the equates that came out of it

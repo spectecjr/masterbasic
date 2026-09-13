@@ -15,13 +15,6 @@ DOC IS_NAME_CHAR
     while the classifier at IS_NAME_CHAR keeps saying the character belongs to a
     name" -- so this is the classifier that description meant.
 
-DOC PAGE_ON_TWO
-    Move the window on by two pages and turn HL into a window address.
-
-    IN A,(HMPR), add 2, OUT, then SET 7,H.  Two pages is 32K, and the
-    address is left pointing into &8000-&BFFF at the same offset.  A is
-    preserved through the alternate set rather than the stack.
-
 DOC COPY_THEN_APPEND_CALL
     Do the caller's LDIR, then append three bytes that are a CALL.
 

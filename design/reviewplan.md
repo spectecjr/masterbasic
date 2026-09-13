@@ -36,54 +36,68 @@ Working rules that apply throughout:
 
 ---
 
-## Phase 0 -- the tools
+## Phase 0 -- the tools  (done 2026-09-13)
 
-Each of these is a day or less.  Together they remove the faults that cost
-the sixth round time or lost it a finding.
+Each was a day or less.  What each found is kept here because it says
+what the tools are for.
 
-**0.1  Warn on two notes for one address.**  In `tools/notes.py`, a `:`
-line, `value` or `expr` for an address that another file has already
-given one is applied silently, last file wins.  `&644D` had a line in
-`dos-nmi.txt` and `dos-loadsave.txt`; the correction in the second was
-never seen because the first is later in the alphabet.  Print a problem
-line naming both files.  Expect a handful of existing collisions to
-surface; resolve each by deleting the one that is wrong.
+**0.1  Two notes for one address now warn.**  `notes.apply` prints
+`file:line: &addr already has a line comment from other:line; this one
+wins` for a `:` line, AFTER, `value`, `expr`, `step` or header given
+twice in one folder (`notes/clean/` over `notes/` is by design and not
+reported).  Fourteen line-comment pairs and sixteen doubled headers
+surfaced; the line comments were resolved by reading each pair against
+the code, the headers by deleting eleven the later file had rewritten
+in full and merging the five that said different things.  One pair was
+the wrong way round: `STORE_BC_AT_XVAR76`'s two-line header ("the ROM
+system variable whose address is held at &4076") was winning over the
+twelve-line one that knew `V4076` is the ROM's saved stack pointer and
+the write lands on its return address.
 
-**0.2  Cut regions by label, not by address range.**  The cutter used for
-round six kept the label line before a range's first address only when
-the previous range's flag was still on, and three of seven reviewers lost
-time to labels sitting over the wrong routine.  Write `tools/cutregion.py`
-that takes a list of routine names (or a PART name on the DOS side) and
-emits the listing from each label's banner to the next label outside the
-set, and prints the count of this project's own comment lines for the
-`own_lines` column.  MasterBASIC has no PART banners, so the DOS recipe in
-reviewprocess.md does not transfer; this replaces it for both halves.
+  The survey found a larger fault beside it.  **A `:` comment wrapped
+onto a second line was being read as a header.**  The parser treated
+any indented line under an entry as its description, so the tail of
+114 long comments -- nearly all of `record.txt` and `mb-vectors.txt`,
+proposal-round output wrapped at the text column -- came out as a
+`;; ----` banner above the instruction, and where the address had a
+header of its own (ESCCHK, PREPARE_ROM1_COPY) the fragment displaced
+it.  A continuation aligned to the comment's text column now joins the
+comment; indented any other way it is a header, as before, which is
+what the six deliberate ones do.
 
-**0.3  The stale-A branch lines.**  The generated `; ---- NAME ---- from
-&xxxx when A <> &44` lines key on the CP and do not notice an intervening
-`LD A`; `RCLM4`, `SDCM2` and `OPND45_1` are three of them.  Deferred in
-rounds five and six.  The condition named is right; only the register is
-stale, so the fix is to say "when the compare found A <> &44" or to drop
-the register when a load sits between the CP and the jump.
+**0.2  `tools/cutregion.py`** cuts by routine: `MB NAME...`, `DOS --part
+C11`, or `MB --range &5E00-&6400` (half-open; every routine whose label
+is inside).  A routine runs from its banner to the banner of the next
+label the namer did not derive, so a routine's `_1` and `_LOOP` labels
+stay with it and `CMD_JOIN_TO` does not.  It prints the routines taken, so a
+range cut can be repeated by name, and the two counts step 1 of the
+process file asks for.
 
-**0.4  The two instructions decoded as skips.**  `&6604` is a live `LD
-HL,AUTNAM` in AUINSR and `&661A` is INIT's `CALL AUINSR`; both listings
-render each as a one-byte `DEFB` skip plus a phantom instruction, because
-the trace claimed their second bytes as instruction starts.  What claims
-`&6605` and `&661C` was not found in round six -- no CALL, JP, DEFW or
-peer reference names either -- so the first job is to find it
-(tracing what seeds the queue, the way the build's sites debug switch traces a routine), the second to stop
-it.  A rendering fault, not a byte fault: the build stays green either way.
+**0.3  The stale-A branch lines** now read `when the CP found A <> &44`:
+`explain_branches` tracks what the flag-neutral instructions it steps
+over write, and puts the reading in the past tense when the tested
+register is among them.  `EX AF,AF'` also stops the walk now; it had
+been treated as leaving the flags alone.
 
-**0.5  `review_audit.py` flags a stale `says:`.**  When the quoted claim
-is not in the current listing, say so beside the finding.  Two findings in
-round two were stale because the region had been cut before a rebuild,
-and the agent said so; the tool should, too.
+**0.4  The two skips were `sweep_gaps`' doing.**  `TRACE_DEBUG=6605,661C`
+(a switch on the trace queue in `tools/disasm.py`, new) named the
+instruction that queued each: `DJNZ &661C` at `&65D9` and `JR NZ,&6605`
+at `&65E3` -- inside AUTNAM, the auto-load parameter block, which the
+gap sweeps read as code because `01 FF FF 44 10 41 55 ...` decodes to
+exactly where HAUTO begins.  A sweep now refuses a run whose decode
+carries a *relative* branch into the middle of a known instruction
+(absolute ones are what a relocated block legitimately has, and the
+first version of the test returned RELOCATED_TO_46CC to DEFBs); the
+permissive sweep applies it only up to the first point flow stops.
+AUTNAM is marked data in `notes/clean/dos-loadsave.txt` besides.
 
-**0.6  Extend `reviewlog.py` only if a question needs it.**  It prints
-findings per hundred own lines, the confirmed rate and the `[C]` share per
-round.  That is the convergence view; do not add columns for their own
-sake.
+**0.5  `review_audit.py` flags a stale `says:`**: the quoted text is
+looked for in the listing's prose with whitespace normalised, and a
+finding whose quote is not there gets a line saying so and a place in
+the summary.  On a round-five report it flagged nine of twenty-eight,
+all of them findings since applied.
+
+**0.6  `reviewlog.py`** was not extended; no question needed it.
 
 ---
 
@@ -160,8 +174,10 @@ against rather than a claim itself.
 
 Bounded jobs, good between rounds or when a round is out for review:
 
-- `described 638 of 2372 labelled addresses` in `build.log`.  The other
-  1700 have a name and, on the DOS side, the author's carried header; a
+- `described N of 2372 labelled addresses` in `build.log` (626 on
+  2026-09-13; eleven of the earlier figure were wrapped-comment
+  fragments, see phase 0.1).  The other 1700 have a name and, on the DOS
+  side, the author's carried header; a
   banner of this project's own is the difference.  Do it by PART, and
   send each PART for review once it is written -- that is what round six
   was.

@@ -15,6 +15,10 @@ Eight kinds of entry, one per line, blank lines and # comments ignored
 
     MB &593F : CR = &10, reset the MR pointer
                                   a comment on that one instruction
+    MB &593F : a long comment, wrapped onto a second line that starts
+               in the same column as the text -- it is joined back up.
+               Indented any other way, the lines below a comment are a
+               header for the address, as they are under a name.
 
     DOS &4220-&42BC data DVAR     mark a range as data, and name its start
     MB &7E6B-&7FBF text           mark a range as text
@@ -55,6 +59,14 @@ Hand-written entries win.  Where one of these names an address something
 else has already named, this one replaces it and the old name is
 reported, because a disagreement between a person and a guess is worth
 seeing rather than resolving silently.
+
+Two entries of the same kind for one address, in one folder, are
+reported too.  The later file wins, and used to win silently: &644D had
+a line comment in dos-loadsave.txt and another in dos-nmi.txt, and the
+correction written into the first was never seen, because the second is
+later in the alphabet.  notes/clean/ over notes/ is not a collision --
+the reading copy is meant to override the working prose -- so the check
+is within a folder only.
 """
 
 import os
@@ -116,6 +128,8 @@ def parse(path):
             # anywhere else just separates entries.
             if cur is not None and cur['doc']:
                 cur['doc'].append('')
+            if cur is not None:
+                cur['col'] = None           # a wrap has no blank line in it
             continue
         if line.lstrip().startswith('#'):
             continue
@@ -123,6 +137,16 @@ def parse(path):
             if cur is None:
                 raise ValueError('%s:%d: indented text with nothing above it'
                                  % (path, n))
+            # A line that starts in the column the comment's text started
+            # in is the comment, wrapped.  It was read as a header for
+            # the address instead -- so the tail of a long `:` line came
+            # out as a banner above the instruction, and where the
+            # address had a header of its own, in place of it.  A hundred
+            # and fourteen comments were rendered that way.
+            if (cur.get('col') is not None and not cur['doc']
+                    and len(line) - len(line.lstrip()) == cur['col']):
+                cur['comment'] += ' ' + line.strip()
+                continue
             # Kept with its indentation, and dedented as a block below:
             # a layout table in a header is a table, and flattening every
             # line to the left margin turns it into a paragraph that
@@ -193,6 +217,8 @@ def parse(path):
                'where': '%s:%d' % (os.path.basename(path), n)}
         if rest.startswith(':'):
             cur['comment'] = rest[1:].strip()
+            text = line.index(':', m.start(4)) + 1
+            cur['col'] = text + (len(line[text:]) - len(line[text:].lstrip()))
         else:
             bits = rest.split()
             if bits and bits[0] in KINDS:
@@ -333,9 +359,10 @@ def apply(pages, root, banner, folder='notes', deferred=None):
     # as a number a reader has to look up.
     kinds = {'data': 3, 'text': 5, 'word': 4, 'code': 1}
 
-    equates, later, expressions = {}, [], []
+    equates, later, expressions, commented = {}, [], [], {}
     entries, complaints = load(root, folder)
     problems.extend(complaints)
+    problems.extend(collisions(entries))
 
     # CONSTs first, and in the order written, so that one may be built
     # out of the ones above it however the files happen to be named.
@@ -529,6 +556,7 @@ def apply(pages, root, banner, folder='notes', deferred=None):
 
         if e['comment'] is not None:
             d.comments[a] = e['comment']
+            commented[(d.tag, a)] = e['where']
             noted += 1
 
         if e['name']:
@@ -624,12 +652,58 @@ def apply(pages, root, banner, folder='notes', deferred=None):
             problems.append('%s: %s+%d is not an instruction'
                             % (e['where'], e['name'], e['end']))
             continue
+        # An AFTER lands on an address a `:` line may already have
+        # commented, which the by-address check above cannot see.
+        other = commented.get((d.tag, a))
+        if other:
+            problems.append('%s: &%04X already has a line comment from %s; '
+                            'this one wins' % (e['where'], a, other))
         d.comments[a] = e['comment']
         noted += 1
 
     for d in pages:
         d.romdesc.update(equates)
     return named, noted, marked, stepped, problems
+
+
+def collisions(entries):
+    """Two entries of one kind for one address: the later file wins.
+
+    Reported rather than resolved, because which is right is not the
+    parser's to say.  Kinds that overwrite each other silently are the
+    ones checked: a line comment (`:` and AFTER), a `value` or `expr`
+    (both rewrite the operand), a `step`, and a header -- by address, or
+    by name for DOC.  A label is already reported by apply() when the
+    old name was not synthetic, and a RENAME by rename().
+    """
+    out, seen = [], {}
+    what = {'comment': 'a line comment', 'operand': 'a value or expr',
+            'step': 'a step', 'header': 'a header'}
+    for e in entries:
+        keys = []
+        if e['page'] in ('MB', 'DOS'):
+            at = '&%04X' % e['addr']
+            if e['comment'] is not None:
+                keys.append(('comment', e['page'], e['addr']))
+            if e['kind'] in ('value', 'expr'):
+                keys.append(('operand', e['page'], e['addr']))
+            if e['kind'] == 'step':
+                keys.append(('step', e['page'], e['addr']))
+            elif e['doc']:
+                keys.append(('header', e['page'], e['addr']))
+        elif e['page'] == 'DOC':
+            at = e['name']
+            keys.append(('header', 'DOC', e['name']))
+        elif e['page'] == 'AFTER':
+            at = '%s+%d' % (e['name'], e['end'])
+            keys.append(('comment', 'AFTER', e['name'], e['end']))
+        for k in keys:
+            if k in seen:
+                out.append('%s: %s already has %s from %s; this one wins'
+                           % (e['where'], at, what[k[0]], seen[k]))
+            else:
+                seen[k] = e['where']
+    return out
 
 
 def apply_deferred(pages, deferred, banner):

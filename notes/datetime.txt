@@ -70,8 +70,6 @@ DOC CMD_TIME
     two values control register F wants for the chip's test mode.  From
     &4882 on, the two forms are the same instructions.
 
-MB &486A : &4280 is TIMDT in MasterDOS's page, immediately after DATDT's fifteen bytes.  &4280 is also an address inside this page, and the label there has nothing to do with it -- see the notes
-
 MB &4876 : the bit pattern for the test mode, set here so that only the '-' case has to change it
 
 MB &4878 : '+'
@@ -310,8 +308,6 @@ DOC WAIT_FOR_CLOCK
     runs after the stamp reaches a CMR of its own.  That is longer than
     the other two paths and still bounded by the statement, but it is
     the one place where the missing EI is worth knowing about.
-
-MB &497D : &42B6 is CKPT, DVAR 150, in MasterDOS's page -- the clock's port number, not anything at &42B6 in this one
 
 MB &4987 : zero means no clock is fitted, and the DOS's buffers keep whatever they had
 

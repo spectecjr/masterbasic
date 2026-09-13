@@ -524,7 +524,6 @@ DOS &4C8C : which of the two entries in this sector was the last
 DOS &4C8F : entry 1 was the second of them
 DOS &4C90 : so this sector is finished
 DOS &4C92 : nothing has been transferred out of the new entry yet
-DOS &4C95 : one entry on, which is one whole page of the sector
 DOS &4C98 : and round again, without reading anything from the disc
 DOS &4C9B : the next sector of this track
 DOS &4C9E : still inside the track, so that is all that was needed

@@ -64,6 +64,18 @@ DOC RELOCATED_TO_46CC
     to ten bytes in and set SP eight bytes in, so the ROM routine's own
     RET unwinds through the borrowed bytes and lands on the jump home.
 
+    That the block runs at &46CC is not a guess.  Every absolute CALL
+    and JP in it that targets &4000-&7FFF -- eight of them -- lands
+    inside &46CC to &484C, exactly the range the copy covers, and not
+    one lands anywhere else in that range.  A block written for where
+    it sits could not do that.  The listing writes those operands as
+    numbers, because whatever this page has at &483A is not what is
+    meant.  Relative jumps are unaffected, which is why the block is
+    mostly JR.
+
+    The block ends exactly where the resident helper block at &75E1
+    begins, so the two are neighbours, both written to be moved.
+
 MB &7487 : thirty-two, and B counts 256-byte units, so this asks whether the move is &2000 bytes or more -- more than one pass will take
 MB &748B : thirty-one of those units off the count, which is the &1F00 below said the other way round
 MB &7491 : &1F00, 7936 bytes, the most one pass moves

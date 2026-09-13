@@ -338,7 +338,6 @@ RENAME COPY_BETWEEN_PAGES COMPARE_FAR_STRINGS_FOLDED
 # only the agreed part is written here.
 
 MB &5E30 expr &4D91
-MB &5E30 : an address in this block's own frame, not this page's
 MB &5E41 expr &4D91
 MB &5E41 : likewise
 

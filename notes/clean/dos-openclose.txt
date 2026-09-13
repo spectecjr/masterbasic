@@ -339,7 +339,6 @@ DOS &4E35 : and past it in the image
 DOS &4E37 : the ROM header's tail, 32 bytes of it
 DOS &4E39 : bytes 220 to 251, out of the image as well
 DOS &4E3C : the directory tag out of the image
-DOS &4E41 : the file's tag is the file's, even in this entry
 DOS &4E42 : set Z, so the copy below is not done twice
 DOS &4E43 : the whole entry, for every other slot
 DOS &4E4A : which command is running

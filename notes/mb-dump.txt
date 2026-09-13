@@ -37,21 +37,6 @@
 # CALLDOS.  The manual's three modes, the DVAR they set, and the two
 # encoders they choose between, all in one line of evidence.
 
-DOC NEXT_SCREEN_BYTE
-    Step to the byte below the current one on screen.
-
-    H is the line and L the column, and bit 0 of H says which line of a
-    pair we are on: even, and the step is INC H to the other one; odd,
-    and it is INC L to the next column with H brought back down.  So the
-    walk goes two lines at a time and then one column right.
-
-    NOT THE SPECTRUM'S THIRDS, which an earlier reading of this claimed.
-    Nothing here tests the low three bits of H or masks with &F8, which
-    is what that fixup would need; there is only the one bit.
-    Reading a column downwards is the order a printer wants its bit
-    image in, which is why the encoder above walks the screen this way
-    rather than along each line.
-
 DOC COUNT_RUN
     Count how many nibbles below this one are the same.
 

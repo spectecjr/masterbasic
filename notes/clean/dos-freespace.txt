@@ -14,8 +14,6 @@ RENAME FFDE BOOTNM_2
 RENAME CALLMB_2 FFHL
 RENAME CALLMB_3 FFDE
 
-DOS &4100 : the name the ROM's BOOT command looks for, bit 7 ending it
-
 DOC FNFS
     Claim the next free sector on the disc.
 

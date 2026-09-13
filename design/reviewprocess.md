@@ -94,25 +94,25 @@ Run the proposal shape only on regions that are genuinely bare.
 ### 1. Cut the region out
 
 The agent gets the region as its own file, not a line range in a 20,000-line
-listing. Regions here are `PART` blocks, delimited by `;;  PART <name>` banners:
+listing.
 
-```python
-import io, re
-L = io.open('listings/clean/masterdos.asm', encoding='utf-8').read().split('\n')
-out, inpart = [], False
-for l in L:
-    m = re.match(r';;\s+PART (\S+)', l)
-    if m:
-        inpart = (m.group(1) == 'C11')
-    if inpart:
-        out.append(l)
-io.open(SCRATCH + 'c11-region.asm', 'w', encoding='utf-8',
-        newline='\n').write('\n'.join(out))
 ```
+python tools/cutregion.py DOS --part C11 -o <scratch>/c11-region.asm
+python tools/cutregion.py MB --range &5E00-&6400 -o <scratch>/slots-region.asm
+python tools/cutregion.py MB ALLOC_UTILITY_SLOT FREE_SLOT_CHAIN -o ...
+```
+
+It cuts by routine -- from a label's banner to the banner of the next
+routine outside the set, so a label lands over the code it names -- and
+prints the routines taken and the two counts below. A `--range` is
+half-open and takes every routine whose label falls inside it; the
+routines it names can be pasted back as a name list to repeat the cut
+after a rebuild.
 
 Count the lines of *your own* prose in it while you are there (a listing comment
 containing a lower-case letter is yours; the 1991 author's are upper case). That
-is the denominator for the hit rate afterwards.
+is the denominator for the hit rate afterwards, and the cutter's last line
+prints it as `own_lines`.
 
 **It is not the number that chooses the shape, and using it that way has already
 gone wrong.** PART SUBD came out at 16% by this count and was billed as the
@@ -124,7 +124,7 @@ carries the source's own header, it understates total annotation by about half.
 The MasterBASIC side has no carried comments and is unaffected.
 
 To choose the shape, count every commented line regardless of case. To score the
-round afterwards, count only your own.
+round afterwards, count only your own. The cutter prints both.
 
 Aim for 500–1500 lines. Larger and the agent skims the far end.
 
@@ -148,7 +148,10 @@ two adjacent lines rather than three lookups. It also flags:
 - **`DOC` headers naming a label that does not exist** — same;
 - **the confidence distribution**, which is the thing to look at first. All-`[C]`
   means the marker instruction did not land and the markers carry no
-  information.
+  information;
+- **a `says:` that quotes text the listing no longer holds** -- stale, from
+  a region cut before a rebuild, or paraphrased. Either way the claim has to
+  be read against what is there now, not against the report.
 
 Then read every finding against the code yourself. Three outcomes:
 
@@ -534,13 +537,15 @@ findings against the listing; a third filed one against a routine
 the extract had mislabelled.  Cut by PART, as the recipe above says,
 or carry the label lines with their addresses.
 
-**Deferred from the round, and still open**: the trace decodes
-`&6604` (a live `LD HL,AUTNAM` in AUINSR) and `&661A` (INIT's `CALL
-AUINSR`) as one-byte skips, so both listings render two real
-instructions as `DEFB` plus a phantom; what claims their second bytes
-as instruction starts was not found.  And the generated "from &xxxx
-when A ..." lines still name A after an intervening `LD A`, a fault
-the fifth round also deferred.
+**Deferred from the round, and closed by phase 0 of the plan the next
+day**: the trace decoded `&6604` (a live `LD HL,AUTNAM` in AUINSR) and
+`&661A` (INIT's `CALL AUINSR`) as one-byte skips because the gap sweeps
+had read AUTNAM's parameter block as code and followed its "branches"
+into them -- found by asking the trace queue who queued the addresses,
+which is now a switch: `TRACE_DEBUG=6605,661C python tools/dis_mb.py`.  And the generated
+"from &xxxx when A ..." lines now say "when the CP found A ..." where a
+load sits between the test and the branch.  `design/reviewplan.md`
+records both.
 
 ## Things learned the hard way
 

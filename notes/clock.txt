@@ -180,10 +180,8 @@ MB &4BA1 : B is the high byte of the span, so anything from &3F00 bytes up falls
 MB &5318 expr &4A6B
 MB &5318 : a value, not a call.  &4A6B falls inside TWO_DIGITS_FROM_DE in this page, which nothing enters mid-way, and that is the coincidence; what is meant is the system page's &4A6B, which is the LD DE,&C0C1 at &7DC2 once the second installed block is running at &484D.  EXIT FOR's handler -- see notes/mb-blocks.txt
 MB &5DAB expr &4B5B
-MB &5DAB : three bytes built into the ROM's header buffer, whose base LD BC,HDR loaded above
 MB &4F3E expr &4A84
 MB &4F3E : a system-page address -- this block runs at &4CD3 once copied, so its numbers are the ROM's
-MB &4ACD : this page's own &4AD3 through the window, which is why HMPR was just set to this page
 
 # WHY THE PHANTOM LABELS ARE STILL THERE.  The six operands above no
 # longer name this page's labels, but the labels themselves remain, and

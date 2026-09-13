@@ -99,7 +99,6 @@ DOS &55B2 : written into the instruction that will read the status
 DOS &55B5 : three on from the status port is the data port
 DOS &55B9 : the command that writes a whole track
 DOS &55BF : the track image MasterBASIC built
-DOS &55C2 : a JP, not a CALL: the disc is already turning
 
 DOC SCTRK
     Print the track number in the lower screen, over the last one.

@@ -30,9 +30,6 @@ DOC IS_LETTER
     fails -- which is why the callers that scan a name test the first
     character with this and later characters with something looser.
 
-DOC FILL_WITH_C
-    Write C into B bytes from HL upwards.
-
 DOC TWO_DIGITS_FROM_DE
     Read two ASCII digits from (DE) and return 0 to 99 in A.
 
@@ -91,14 +88,6 @@ DOC PAGE_IN_OTHER_HALF
 
 DOC RESTORE_HMPR_AND_STORE
     Put HMPR back from the stack, then fall into STORE_BC_AT_XVAR76.
-
-DOC STORE_BC_AT_XVAR76
-    Write BC to the ROM system variable whose address is held in the
-    two bytes at &4076.
-
-DOC SKIP_TO_END_OF_WORD
-    Step HL past a run of characters, stopping after the one with bit 7
-    set.  That is how every word list in this image is terminated.
 
 DOC WRITE_NEXT_NIBBLE
     Write four bits into a packed stream.

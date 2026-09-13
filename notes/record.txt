@@ -501,6 +501,4 @@ MB &5F0F : out with the page in A and the slot's address in HL, and A non-zero
 
 MB &5F14 : &1F is the top page; the DEC L below walks down, which is the
            Technical Manual's "look backwards through ALLOCT"
-MB &5F16 : &91xx is ALLOCT at &5100, read through the window
-MB &5F26 : off the bottom of ALLOCT with no page free
 

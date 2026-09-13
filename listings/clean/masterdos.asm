@@ -2277,7 +2277,7 @@ SECTOR_FOR_CHANNEL:
                DEC A                           ; 45F7 3D
                LD E,A                          ; 45F8 5F
 
-; ---- SECTOR_FOR_CHANNEL_1 ---- from &45F1 when A <> &04
+; ---- SECTOR_FOR_CHANNEL_1 ---- from &45F1 when the CP found A <> &04
 SECTOR_FOR_CHANNEL_1:
                DEC A                           ; 45F9 3D  the first sector of any other track fills it
                JR NZ,SECTOR_FOR_CHANNEL_2      ; 45FA 20 16
@@ -3721,7 +3721,7 @@ PFNM1:
                LD A,(FNSEP)                    ; 4B1E 3A 2B 42  four left, so this is the column the separator belongs
                                                ; in
 
-; ---- PFNM12 ---- from &4B17 when A <> (HL)
+; ---- PFNM12 ---- from &4B17 when the CP found A <> (HL)
 PFNM12:
                INC HL                          ; 4B21 23
                CP &20                          ; 4B22 FE 20  a space?
@@ -8466,7 +8466,7 @@ COLUMNS_FOR_DIRECTORY:
                SUB B                           ; 5CA1 90
                INC A                           ; 5CA2 3C  WINDOW WIDTH (NORMALLY 32, 64 OR 85)
 
-; ---- COLUMNS_FOR_DIRECTORY_1 ---- from &5C99 when A <> 0
+; ---- COLUMNS_FOR_DIRECTORY_1 ---- from &5C99 when the AND A found A <> 0
 COLUMNS_FOR_DIRECTORY_1:
                LD B,&01                        ; 5CA3 06 01  one column to begin with
                SUB &0B                         ; 5CA5 D6 0B  eleven characters a column: ten of name and the space after
@@ -10782,8 +10782,17 @@ EPCOM_2:
 ;;  name together.
 ;; --------------------------------------------------------------------
 
+; ---- AUTNAM ---- from &6604
 AUTNAM:
-               DEFB &01,&FF,&FF,&44,&10,&41,&55,&54,&4F,&2A,&20,&20,&20,&20,&20 ; 65D5 ...D.AUTO*
+               DEFB &01,&FF,&FF,&44,&10,&41,&55,&54,&4F,&2A,&20,&20,&20,&20,&20 ; 65D5 ...D.AUTO*  the twenty-eight
+                                                                                ; bytes AUINSR copies over DSTR1, laid
+                                                                                ; out as the source declares that block:
+                                                                                ; drive 1, &FF in FSTR1 and SSTR1, "D"
+                                                                                ; in LSTR1, &10 in NSTR1, the name AUTO*
+                                                                                ; padded to the fourteen of the name
+                                                                                ; field, a zero in HD001, and &FFFF over
+                                                                                ; the three header words and the page
+                                                                                ; pair
                DEFB &20,&20,&20,&20,&00,&FF,&FF,&FF,&FF,&FF,&FF,&FF,&FF         ; 65E4     .........
 
 ;; --------------------------------------------------------------------
@@ -10801,15 +10810,12 @@ AUINC:
                CALL CHECK_FILE_TYPE            ; 65F7 CD 75 4E
                JP CMD_LOAD_1                   ; 65FA C3 BB 5F
 
-; ---- AUINSR ---- from &65F1
+; ---- AUINSR ---- from &65F1, &661A
 AUINSR:
                LD A,&95                        ; 65FD 3E 95  LOAD TOK
                CALL NRWR                       ; 65FF CD 74 50
                DEFW CURCMD                     ; 6602 74 5B
-               DEFB SKIP_2_VIA_LD_HL           ; 6604 !  skipped: reads as LD HL,AUTNAM from here, swallowing the bytes
-                                               ; below it
-               PUSH DE                         ; 6605 D5
-               LD H,L                          ; 6606 65
+               LD HL,AUTNAM                    ; 6604 21 D5 65
                LD DE,DSTR1                     ; 6607 11 36 41
                LD BC,&001C                     ; 660A 01 1C 00  twenty-eight bytes: the first parameter block, DSTR1 up
                                                ; to DSTR2
@@ -10820,9 +10826,7 @@ AUINSR:
                JP FDHR                         ; 6617 C3 31 4B
 
 INIT:
-               DEFB &CD,&FD                    ; 661A M}  skipped: reads as CALL AUINSR from here, and as part of the
-                                               ; instruction above it
-               LD H,L                          ; 661C 65
+               CALL AUINSR                     ; 661A CD FD 65
                RET NZ                          ; 661D C0  RET IF NOT FOUND
                JR AUINC                        ; 661E 18 D7
 
@@ -11505,7 +11509,7 @@ PRINTABLE_FORM:
                RET NZ                          ; 68EA C0
                JR PRINTABLE_FORM_DONE          ; 68EB 18 07
 
-; ---- PRINTABLE_FORM_1 ---- from &68E6 when A = 0
+; ---- PRINTABLE_FORM_1 ---- from &68E6 when the AND A found A = 0
 PRINTABLE_FORM_1:
                LD B,&FF                        ; 68ED 06 FF  inverse, and the low seven bits are what is printed
 
@@ -12408,7 +12412,7 @@ OPND45:
                JR Z,OPND45_1                   ; 6CCF 28 01  JR IF RND (BITS 1-0 = 10)
                DEC A                           ; 6CD1 3D  BITS 1-0 SHOW OUT (01). OUT IS
 
-; ---- OPND45_1 ---- from &6CCF when A = MRND
+; ---- OPND45_1 ---- from &6CCF when the CP found A = MRND
 OPND45_1:
                CALL OPND7                      ; 6CD2 CD EF 6C  SETS FTRK/FSCT, CNT=1
                RET C                           ; 6CD5 D8  this is the RET the 1991 comment "C=ABORTED", now on SETLEN's
@@ -12772,7 +12776,7 @@ RCLM1:
                DEC HL                          ; 6E7A 2B
                LD (HL),E                       ; 6E7B 73  ADJUSTED MBUFF
 
-; ---- RCLM4 ---- from &6E4F, &6E6C when A <> &44
+; ---- RCLM4 ---- from &6E4F, &6E6C when the CP found A <> &44
 RCLM4:
                LD HL,(SVHL)                    ; 6E7C 2A 05 7C
                INC HL                          ; 6E7F 23
@@ -12831,7 +12835,7 @@ SDCM:
                ADD HL,DE                       ; 6EAA 19
                ADC A,&FF                       ; 6EAB CE FF  AHL=AHL-9 (HDR NOT INCLUDED IN LEN)
 
-; ---- SDCM2 ---- from &6EA5 when A < &10
+; ---- SDCM2 ---- from &6EA5 when the CP found A < &10
 SDCM2:
                LD (IX+CNTL),C                  ; 6EAD DD 71 1F  the file's sector count, from the length field, over the
                                                ; pointer's -- offset 12 of the entry
@@ -12942,7 +12946,7 @@ MCHN2_1:
 ;;  INPUT is in progress.
 ;; --------------------------------------------------------------------
 
-; ---- MCHWR ---- from &694F when A = &4B, &6D9D
+; ---- MCHWR ---- from &694F when the CP found A = &4B, &6D9D
 MCHWR:
                LD D,A                          ; 6F3B 57
                IN A,(HMPR)                     ; 6F3C DB FB
@@ -15789,7 +15793,8 @@ DST2:
 DST3:
                CALL WPCHK                      ; 79DC CD F0 79
 
-; ---- STKA ---- from &7955 when A = &08, &797C, &7989 when A = &06, &79B5, &79DA, &79EE, &7B43
+; ---- STKA ---- from &7955 when the CP found A = &08, &797C, &7989 when the CP found A = &06, &79B5, &79DA, &79EE,
+; &7B43
 STKA:
                LD L,A                          ; 79DF 6F
                LD H,&00                        ; 79E0 26 00  the byte alone
@@ -15825,7 +15830,7 @@ WPCHK:
                RLCA                            ; 7A04 07  write protect is bit 6 of the status
                RLCA                            ; 7A05 07  BIT 6 (WRITE PROT) TO BIT 0
 
-; ---- WPC2 ---- from &79F4 when A >= FIRST_RAMDISC_DRIVE
+; ---- WPC2 ---- from &79F4 when the CP found A >= FIRST_RAMDISC_DRIVE
 WPC2:
                AND &01                         ; 7A06 E6 01  rotated round to bit 0
                RET                             ; 7A08 C9
@@ -16213,7 +16218,7 @@ FSTAT_11:
                INC HL                          ; 7B5E 23
                LD D,(HL)                       ; 7B5F 56
 
-; ---- FST4 ---- from &7B55 when A = TYPE_ZX_SNP48
+; ---- FST4 ---- from &7B55 when the CP found A = TYPE_ZX_SNP48
 FST4:
                EX DE,HL                        ; 7B60 EB  AHL=PAGE FORM
 

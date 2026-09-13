@@ -9,12 +9,44 @@ Usage as a library: build a Disassembler, add seeds and symbols, call
 run(), then emit().
 """
 
+import os
+import sys
+
 from z80 import Decoder, hexn
 from z80 import NORMAL, JUMP, CJUMP, CALL, CCALL, RET, CRET, RST, JPHL, HALT_
 
 UNKNOWN, CODE, CONT, DATA, WORD, TEXT, RST8, PARAM = range(8)
 
 NOP_RUN = 3         # runs of at least this many NOPs are written as DEFS
+
+
+class _Queue(list):
+    """The trace's work list, with a way of asking who queued an address.
+
+    TRACE_DEBUG=6605,661C in the environment prints the caller's stack
+    whenever one of those addresses is queued, by any of the passes that
+    do it.  It exists because two DOS instructions were rendered as
+    one-byte skips for two rounds of review while what claimed their
+    second bytes went unfound: no CALL, JP or DEFW named either, so the
+    claim had to come from a pass, and only the pass can say which.
+    """
+    WATCH = None
+
+    def append(self, addr):
+        if _Queue.WATCH is None:
+            _Queue.WATCH = {int(x.strip().lstrip('&'), 16) for x in
+                            os.environ.get('TRACE_DEBUG', '').split(',')
+                            if x.strip()}
+        if addr in _Queue.WATCH:
+            import traceback
+            f = sys._getframe(1).f_locals
+            at, insn = f.get('addr'), f.get('insn')
+            sys.stderr.write('TRACE_DEBUG: &%04X queued%s from\n' % (
+                addr, '' if at is None else ' by &%04X %s' % (
+                    at, getattr(insn, 'text', ''))))
+            for line in traceback.format_stack()[-6:-1]:
+                sys.stderr.write(line)
+        list.append(self, addr)
 
 
 class Disassembler(Decoder):
@@ -34,7 +66,7 @@ class Disassembler(Decoder):
         self.steps = {}                       # addr -> narration, at the margin
         self.mdos_equs = {}                   # names those overrides need defining
         self.used_ext = set()                 # outside names the listing mentions
-        self.queue = []
+        self.queue = _Queue()
         self.seen = set()
         self.rst_inline = {0x08: 1}           # RST &08 is followed by a code byte
         self._cur = None
