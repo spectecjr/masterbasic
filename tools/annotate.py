@@ -31,8 +31,9 @@ down is a placeholder: the boot sector pokes the other page's number,
 less one, into it once it knows which page that is.  &7FFC holds the
 ROM's stack pointer as it stood when the DOS was entered.
 
-The parameter is read after the paging has changed, so a value of
-&4000 or more is an address in the other page, and is written here as
+The parameter is read before the paging changes and jumped to after
+it, so a value of &4000 or more is an address in the other page, and
+is written here as
 that page's own label less &4000 -- the mirror of the +&4000 used for
 the bit-15 pointers in the tables.  Everywhere else in this file an
 inline DEFW is a ROM address, and reading this one that way would name
@@ -86,8 +87,9 @@ Indexed jump through a table of addresses, with L as the index.
 An entry with bit 15 set does not live in this page.  The bit is
 cleared, leaving the address as the *other* page numbers it, and the
 call goes through CALLMB instead of a plain JP -- which is how the hook
-table and the command table below reach the routines MasterBASIC has
-taken over."""
+table and the function table below reach the routines MasterBASIC has
+taken over.  The command table is walked by LCMDL and has a CALLMB
+stub of its own."""
 
 CTAB_DOC = """\
 CTAB -- the commands the DOS claims from the ROM.
@@ -95,7 +97,8 @@ CTAB -- the commands the DOS claims from the ROM.
 Three bytes per entry: the token, then the address of the routine.  The
 byte before the table is the number of entries; the last entry's token
 is zero, which nothing matches, so an unrecognised command always falls
-through to CNF.  SYNTAX walks it with the token in A.
+through to the word after it, CKESV -- the source's CNF, which handled
+POINT there, is not in this build.  SYNTAX walks it with the token in A.
 
 What is in A is whatever GCHR returned at the start of the statement, so
 an entry is a command token only because that is how a statement usually
@@ -107,8 +110,8 @@ non-space character after a colon cuts the line in two.
 As with SAMHK, an address with bit 15 set belongs to the MasterBASIC
 page: the bit is cleared and the routine is called through CALLMB.  That
 is how PRINT, LPRINT, SAVE, MERGE, DUMP, REF, RECORD, BLITZ, CLS and
-LINE reach MasterBASIC, and how its own commands at tokens &F7-&FC are
-reached.
+LINE reach MasterBASIC, and how its own commands at tokens &F8-&FC are
+reached; &F7, BACKUP, is this page's.
 
 "TAKES OVER" IS THE WRONG WORD FOR THOSE TEN.  The table is only ever
 read from SYNTAX, the unrecognised-command entry, so the ROM's own
@@ -249,8 +252,10 @@ that every command routine ends there, and looks the token up in CTAB.
 THIS IS A SECOND CHANCE, NOT A FIRST, and every entry in CTAB has to be
 read that way.  Where a token has both a ROM routine and one here, the
 ROM's runs first and this is reached only if it gave up: the two tests
-above are `CP &1D` for 29 and `CP &35` for 53, and no other error brings
-the DOS in at all.  So a line the ROM's routine accepts never reaches
+above are `CP &1D` for 29 and `CP &35` for 53, and no other error reaches
+the table at all.  Every error does enter the DOS once it is booted --
+the ROM's ERROR2 sends them all through PTDOS -- and the others leave
+again through CKESV_1, which is where MasterBASIC intercepts two of them.  So a line the ROM's routine accepts never reaches
 the table, and what CTAB dispatches is the remainder -- the arguments
 the ROM refused.
 

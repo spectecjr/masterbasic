@@ -97,8 +97,8 @@ DOS &4F7F : and remembered, because the header will have to be invented
 DOS &4F82 : the entry now reads as a SAM file
 
 DOC GDIFA
-    Build DIFA, the second parameter block's ROM header, from the
-    entry the scan stopped on, and copy it over UIFA as well.
+    Build DIFA, the header read from the disc, from the entry the
+    scan stopped on, and copy it over UIFA as well.
 
     THE SAM-FILE HALF OF COPY_HEADER_FIELDS ON ITS OWN: the type and
     name through NMMOV, then the thirty-three bytes from offset 220

@@ -4,7 +4,7 @@
 # Prose for listings/clean/ only.
 
 DOC HOOK_HSAVE
-    Hook 130: save the file whose header the ROM has built.
+    Hook 132: save the file whose header the ROM has built.
 
     MASTERDOS'S VERSION SAVED THE BLOCK AND CLOSED THE MAP.  This one
     does that too -- DSVBL then CFSM, at HOOK_HSAVE_4 -- but only for a
@@ -21,7 +21,9 @@ DOC HOOK_HSAVE
                                    taken in A, and COMPRESS_SCREEN_FILE
                                    does the work
         everything else            COMPRESS_FILE, with the start in HL
-                                   and its page in A
+                                   -- its page already in the window
+                                   from &64E8 -- the length's whole
+                                   pages in A and its remainder in DE
 
     Both come back to SCFSM, which closes the map as CFSM does.
 
@@ -36,6 +38,10 @@ DOC HOOK_HSAVE
     HOOK_HLOAD_1 reads the three bytes back from STR-11, and
     MasterBASIC's &62A6 turns them back into a byte count in V407B,
     which LOAD_NEXT_INPUT_BLOCK counts down as it refills the input.
+    Two edges of it: the count takes in the three &FF bytes the
+    compressor closes the stream with, which the expander skips, and
+    &62AF keeps only HL of the folded length -- a screen never needs
+    more, but the field is not general.
 
 DOS &64E0 : the caller's window, put back at HSAVE1
 DOS &64E5 : the start page, out of the ROM's header
@@ -81,11 +87,13 @@ DOS &7870 : offset 221: header offset 16, the length of the program's lines in p
 DOS &787E : DRAM+9, the first line number of the program, high byte first
 
 DOC HOOK_HLOAD
-    Hook 131: load the body of a file the header hook has opened.
+    Hook 130: load the body of a file the header hook has opened.
 
     MASTERDOS'S HLOAD WAS FOUR INSTRUCTIONS -- NETPA, DSCHD, LDBLK --
     and this one branches first on two bits of V42E2, the copy of the
-    entry's flags byte that CHECK_FILE_TYPE left there:
+    entry's flags byte that COPY_HEADER_FIELDS left there -- LOAD by
+    number writes it in CHECK_FILE_TYPE first, but that ends in JR
+    GTFL4 and reaches the same copy:
 
         bit 2 clear      not compressed: the plain load, with the
                          BASIC-program case below
@@ -102,9 +110,14 @@ DOC HOOK_HLOAD
     system page at &4A97 -- the operand of the LD (HL),&00 in the stub
     the boot put at &4A84, which CMDBUF_PROLOGUE runs to plant that
     byte at the start of the program -- and DRAM+9 is then set to
-    &FF, the value that stub reads as "nothing to write".  What the
-    byte is for is worked out in notes/mb-cmdbuf.txt from the other
-    side.
+    &FF.  DRAM+9 is the first
+    byte of the program as it will be loaded, the high byte of its
+    first line number, and &FF there is the ROM's end-of-program
+    stopper: the program loads invisible, and stays so until the stub
+    at &4A84 puts the saved byte back at (PROG).  DLVM2 at &606F
+    arranges that by sending the ROM's LOAD back through that stub.
+    What the byte at &4A97 means is worked out in notes/mb-cmdbuf.txt
+    from the other side.
 
 DOS &642E : bit 2 of the flags: the file is compressed
 DOS &6432 : bit 3: a SAVE MODE 3 screen
@@ -112,8 +125,8 @@ DOS &6439 expr FFSA
 DOS &6439 : the type, for the expander
 DOS &6443 : the byte after the flags, offset 221
 DOS &6449 : STR-11, where COPY_HEADER_FIELDS lands entry offset 229: the compressed length's page
-DOS &644D : STR-10, offsets 230 and 231: the rest of it -- a length, not an address; see HOOK_HSAVE
+DOS &644D : STR-10, offsets 230 and 231: the address half of the compressed length, whose page is the byte above
 DOS &645F expr TYPE_BASIC
 DOS &6468 : the LOAD token: not MERGE, not VERIFY
 DOS &646C : DRAM+9, the byte after the nine-byte header in the first sector
-DOS &6474 : &FF: nothing to write
+DOS &6474 : &FF, the ROM's end-of-program stopper, so the program loads invisible until the stub at &4A84 puts the saved byte back

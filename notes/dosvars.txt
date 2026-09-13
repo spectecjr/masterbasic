@@ -33,10 +33,16 @@ DOS &6579 STACK_VAR_ADDRESS
     exponent down from &96, and RES 7,A drops the leading bit a
     normalised mantissa does not store.
 
-    Exactly which number that leaves -- whether the &4000 the shifts
-    discard is what the ADD A,&02 is putting back, and so whether the
-    result is a flat byte address or a page-plus-window one -- is not
-    settled here.  Both readings fit the instructions; telling them apart
-    wants a machine and a known DVAR.
+    WHICH NUMBER THAT LEAVES the ROM's own source settles.  The value
+    stacked is (LMPR page + 2) times 16384 plus the offset within the
+    page -- exponent &96 with the value shifted up two is the same
+    number as EPCOM_1's exponent &98 with it unshifted -- and LMPR's
+    page is one below the DOS's, so that is (DOS page + 1) * 16384 +
+    offset.  PEEK takes a number apart through PDPSUBR in misc1.asm:
+    UNSTLEN gives the page as N div 16384, and for a page of 4 or more
+    PDPSUBR does DEC A before TSURPG pages it in at &8000.  So PEEK
+    (DVAR n) reads the DOS page at the variable's own offset: the
+    extra one in ADD A,&02 is PDPSUBR's DEC A, and the result is the
+    address BASIC's PEEK and POKE take, not a flat byte count.
 
 DOS &6579 : HL is the caller's own base, so the DOS arrives with DVAR and MasterBASIC with PUTSWA, and everything after this point is shared

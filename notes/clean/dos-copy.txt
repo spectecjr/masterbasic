@@ -8,10 +8,28 @@ DOS &62FA expr CH_STAR
 DOS &62FE expr CH_QUERY
 
 # BACKUP.
+DOC BACKUP
+    Copy a whole disc, transferring only the sectors in use.
+
+    THE FREE-SECTOR MAP GIVES ONE NUMBER, THE BOUND.  Scanning it
+    backwards for the last non-zero byte gives the highest sector in
+    use, and the passes then read sectors linearly from track 0 sector
+    1 up to that count, used or not; on a disc holding a few small
+    files that turns a whole-disc copy into a short one.
+
+    The passes are sized by whatever free RAM there is -- FFPG again --
+    each page holding 32 sectors, read into memory from &8000 upwards
+    and paged on at &C000.  The first pass stamps the target with a
+    fresh random word and the disc name, so the copy is a distinct
+    disc rather than a duplicate identity.  With one drive the user
+    is prompted to swap discs between each read and write.
+
+    Errors: 115, "No pages free", if there are none.
+
 DOS &69DB expr WINDOW
-DOS &69DB : the transfer address: a whole track goes through the window
+DOS &69DB : the transfer address: each pass is read in from &8000 upwards, through as many pages as FFPG found
 DOS &69E4 expr DIR_MODE_BUILD_MAP
-DOS &69E4 : a scan that rebuilds the sector map, which is what the copy will follow
+DOS &69E4 : a scan that rebuilds the sector map, from which the copy takes its upper bound
 DOS &69F6 : the map's byte count alone, in HL
 DOS &69FB : forty sectors of directory, tracks 0 to 3, which the map does not cover
 DOS &6A00 : track 0, sector 1
@@ -21,7 +39,7 @@ DOS &5975 : page 3, the Spectrum "ROM" -- so what follows is in that page and no
 DOS &5A18 : one sector's worth up front, which is what makes the total come out at BC times 510
 DOS &5AB3 : the base of the copy buffer in the page just put in the window
 
-DOS &6233 : &4F10 in the system page, not &4F00 as the line above says
-DOS &6236 : and &4F68, not &4F80
+DOS &6233 : &4F10 in the system page
+DOS &6236 : and the second copy at &4F68, eighty-eight bytes on
 
 DOS &71EB : counted down before the test, so the body runs one time fewer than BC

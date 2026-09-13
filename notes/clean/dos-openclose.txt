@@ -242,13 +242,15 @@ DOC SDCM
     entry does not count it.  Spectrum types and open-type files
     have no such header.
 
-    THE LENGTH GOES INTO THE ENTRY TWICE.  Once in the old form at
-    offsets 210 to 213 -- the author's comment says so that G+DOS can
-    read the file, and notes that entry 0 cannot use it since the
-    disc's name is there -- and once in page form at DIR_LENGTH,
-    followed by &FF at DIR_EXECUTE for "no execute address".  The
-    pointer's sector count is written over the file's, so the file
-    ends where the pointer stands.
+    THE LENGTH GOES INTO THE ENTRY THREE TIMES.  Its sector count,
+    from the length field GLEN reads, is written over CNTH/CNTL --
+    entry offsets 11 and 12, the entry's own sector count, which the
+    open file had been using as its pointer's sector index -- so the
+    entry says how long the file is.  Then the byte count in the old
+    form at offsets 210 to 213 -- the author's comment says so that
+    G+DOS can read the file, and notes that entry 0 cannot use it
+    since the disc's name is there -- and in page form at DIR_LENGTH,
+    followed by &FF at DIR_EXECUTE for "no execute address".
 
     Then bit 2 says whether the file existed before it was opened: a
     new file gets a fresh entry through CLOSX, and an existing one is
@@ -264,9 +266,9 @@ DOS &6EA2 : &10 and up is a SAM type, whose file begins with a nine-byte header
 DOS &6EA5 : a Spectrum type or an open-type file has no header to discount
 DOS &6EA7 : nine off the length, across all three bytes
 DOS &6EAD expr CNTL
-DOS &6EAD : the pointer's sector count, low, over the file's
+DOS &6EAD : the file's sector count, from the length field, over the pointer's -- offset 12 of the entry
 DOS &6EB0 expr CNTH
-DOS &6EB0 : and high: the file ends where the pointer stands
+DOS &6EB0 : and offset 11: the entry's sector count says how long the file is again
 DOS &6EB4 : offset 214 of the entry, the length as it was
 DOS &6EBD : offset 210: the old-form length, for G+DOS
 DOS &6EBF : and into page form for the new one

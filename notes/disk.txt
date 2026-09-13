@@ -22,9 +22,15 @@ DOS &4A01 value DISKCTL_DATA_OFS
 
 
 
-DOS &446C UNWIND_HOOK_STACK
-    Take the return address into IY, read DOSSTK, and LDDR six bytes down
-    from &7FFF -- the stack the DOS unwinds to when a hook gives up.
+DOS &446C SET_DOS_STACK
+    Move the three words the ROM's PTDOS pushed at &7FFA-&7FFF down to
+    just below DOSSTK, make that the stack, and keep the old ENTSP on
+    it.  The 1991 source calls it SETSTK, "NEW STACK SO THAT DOS->CALL
+    ROM->HOOKS CAN AVOID OVERWRITING MAIN DOS STACK": a nested entry
+    through CMR starts at &8000 again and would land on the DOS's own
+    stack if it were still up there.  Both entries, SYNTAX and HOOK,
+    come through here; the return address goes into IY first so the
+    LDDR can use the stack it is moving.
 
 DOS &4495 CLEAR_TSTR
     Fill TSTR1 up to UIFA with &FF and set RDAT to the same, which is the
@@ -167,7 +173,7 @@ DOS &56D0 PRINT_FIELDS_WITH_SEPARATORS
     though it ends at the second separator.
 
 DOS &56DE PRINT_FIELD
-    One field as a decimal number through the ROM's PNUM2, with HL, DE
+    One field as a decimal number through PNUM2 below, with HL, DE
     and BC all saved around it, so the caller's pointer survives.
 
 DOS &5766 PRINT_A_KEEPING_IT
@@ -177,13 +183,17 @@ DOS &5766 PRINT_A_KEEPING_IT
     again goes through here.
 
 DOS &576E PRINT_WORD_AND_SPACE
-    A bit-7-terminated word and then a space, the space through the ROM's
-    SPC.
+    Word B of the list at HL, then a space through SPC below.
 
-DOS &5774 SKIP_B_WORDS
-    Step HL over B words, each ending at the character with bit 7 set.
-    The RLA is the test and the two jumps are the two loops -- inner over
-    a word, outer over the count -- with no counter of its own.
+DOS &5774 PRINT_WORD_B
+    Step HL over B words, each ending at the character with bit 7 set,
+    and then print the one it lands on.  The RLA is the test and the
+    two jumps are the two loops -- inner over a word, outer over the
+    count -- with no counter of its own; and when the DJNZ falls
+    through, the &3E at &577B swallows PTM's POP HL so that execution
+    runs on into PTM2, which prints the word now at HL and returns
+    from PTM4.  That fall-through is how a type name or a compression
+    code's text gets printed at all.
 
 DOS &5815 PRINT_YN_PROMPT
     The tail of a confirmation prompt: a close quote, then compression
@@ -210,13 +220,15 @@ DOS &5C8B COLUMNS_FOR_DIRECTORY
     written from MasterBASIC's side: &65D0 puts the number of magnified
     characters that fit on a line into it, every time CSIZE runs.  So
     when characters have been widened the count below divides THAT, and
-    a listing falls to one name a line only when fewer than eleven
-    magnified characters fit.
+    a listing falls to one name a line only when fewer than twenty-one
+    magnified characters fit -- two names need ten, a space and ten.
 
     With the width left alone the count comes from the window instead:
     WINDRHS gives the right and left edges, C minus B plus one is the
-    width in characters, and dividing that by eleven -- ten for a name
-    and one for the space after it -- is the number of columns.
+    width in characters, and the width plus one divided by eleven --
+    ten for a name and one for the space after it, the last name on a
+    line needing no space -- is the number of columns: three for the
+    32-column window, where a plain division would give two.
 
 DOS &5D27 WRITE_TYPE_IF_CONFIRMED
     Ask through OHASR, and if the answer is yes store A over the entry's
@@ -233,12 +245,14 @@ DOS &5E70 BITF4
     other seven of the family are together at &50EC-&5145; this one is
     on its own, three and a half kilobytes away.
 
-DOS &6284 EVAL_STRING_IF_RUNNING
+DOS &6284 FETCH_STRING_IF_RUNNING
     A string expression, then CFSO so that syntax time returns without
     fetching it, and GETSTR only if the program is really running.  The
     page comes back in SVC.
 
 DOS &6336 RXHED
+     PART G1 -- The load and save hooks, and file name parsing
+
     Read a header from IX and require the device to be a disc.
 
     RXSS unpacks the header into UIFA and compares the device letter
@@ -250,11 +264,14 @@ DOS &6336 RXHED
     check and directory search.
 
 DOS &6482 HOOK_ARGS_TO_HEADER
-    The hook's arguments, into the header the ROM wants.
+    The hook's arguments, into the DOS's own nine-byte header HD001 and
+    the page count beside it.  The ROM's header, UIFA, is not touched.
 
     D IS THE HIGH BYTE OF THE LENGTH, and goes to HD0B1.  Bit 7 of it
-    is not a paged-address marker, whatever an earlier reading said;
-    the TXHED banner in this same region names that bit correctly.
+    is the &8000 of page form on a length's remainder -- PAGEFORM
+    leaves it there and HCONR strips it at &63BB -- not a marker that
+    the value is an address, which an earlier reading said; the TXHED
+    banner in this same region names the bit correctly.
 
 DOS &6633 READ_SAVED_SECTOR
     Take the track and sector out of SVDE and read it, then leave for
@@ -359,7 +376,7 @@ DOS &71F3 CHANNEL_LENGTH_FIELD
     want, which is cheaper in bytes than writing the addition out at each
     of them.
 
-DOS &730B FIND_DIRECTORY_ENTRY
+DOS &730B FIND_SUBDIRECTORY
     SNDFL, error 113 if it fails, bit 2 of FLAG3 down, and then POINT and
     the type byte masked -- the run-up every directory lookup shares.
     Nothing here writes: each of the three callers goes on to read a tag
@@ -402,9 +419,13 @@ DOS &7B35 APPEND_DATE_FIELD
     row pack three fields into one number two decimal digits at a
     time.
 
-DOS &7BA6 STACK_FIVE_BYTE_NUMBER
-    Push a five-byte number onto the calculator stack through the ROM's
-    STKSTR, with the paging handled by CMR.
+DOS &7BA6 STACK_AEDCB
+    Push A, E, D, C and B onto the calculator stack through the ROM's
+    STKSTORE -- "STACK STRING PARAMS" at &0127 -- with the paging
+    handled by CMR.  Three of the four callers hand it a string's
+    page, start and length: DIR$, INP$, and TIME$, DATE$ and PATH$
+    through HPTH2.  Only HVAR1_1 uses it for a number, by building
+    the five-byte integer form in the same registers.
 
 DOS &7BAC RETURN_INTO_BC
     Write BC over the word at the stack pointer kept in &7FFC -- the
@@ -486,5 +507,5 @@ DOS &742F expr RDDT-3
 # across to MasterBASIC, and the source's comment came across onto the
 # instruction that followed it -- PLUR, which prints a plural "s" and
 # nothing else.
-DOS &74AB : the text, which lives in the other half at MB &505C
+DOS &74AB : MasterBASIC clears the lower screen and prints "<n> OPEN file" -- PRINT_OPEN_FILE_COUNT, MB &5044 -- handing the count back in HL
 DOS &74B0 : and the plural s, if more than one file is open

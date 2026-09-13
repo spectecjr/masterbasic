@@ -4,8 +4,8 @@
 # Prose for listings/clean/ only.
 
 GROUP Channel record
-CONST CNTH = &1E : the file pointer's whole sectors, high byte -- the 1991 name
-CONST CNTL = &1F : and low
+CONST CNTH = &1E : entry offset 11, the sector count's high byte, which an open file uses as its pointer's sector index -- the 1991 name
+CONST CNTL = &1F : and offset 12, the low byte
 
 GROUP Directory entry
 CONST ENTRY_LENGTH = &0100 : bytes in a directory entry, two to a sector
@@ -70,10 +70,12 @@ DOC FSTAT
     16-bit total cannot hold.  A first byte of &FF is an unstamped
     entry, and the answer is 0.
 
+DOS &7ABD : 0 to 7 now: the carried "0-3" is the source's four options
 DOS &7ABE expr FSTAT_OPTIONS-1
 DOS &7ABE : the DEC has taken one off, so 0 to 7 are the legal values
 DOS &7ADB : the high byte of every offset added below -- and, in option 7, of the day
 DOS &7ADD : the type byte, which options 3, 4 and 6 want as it is
+DOS &7AE8 : NZ is option 6, 7 or 8; Z is 5, the start address -- the carried "4" is the source's third DEC
 DOS &7AEA expr DIR_START
 DOS &7AEE expr PAGE_VALUE_MASK
 DOS &7AF0 : the entry's page is the one BASIC named, less one; see above

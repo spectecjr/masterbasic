@@ -40,6 +40,11 @@ DOS &7184 expr SECTOR_LENGTH-2
 DOS &6E67 : either case, and bit 7 off: a temporary channel is "D"+&80
 DOS &6E69 : a disc channel?
 
+DOC CCNT
+    Is there at least a whole sector still to transfer?  SCF then SBC
+    HL,BC takes 511 off, so carry means 510 bytes or fewer remain --
+    not a whole sector plus something after it.
+
 DOC GTBUF
     Point HL at the sector buffer for the channel in IX.
 
@@ -128,7 +133,7 @@ DOC SET_TRACK_AND_SECTOR
 # reads.  The edit that inserted SETLEN between them carried the comment
 # along with the wrong instruction.
 
-DOS &6CD5 : this is the RET the 1991 comment four lines down belongs to
+DOS &6CD5 : this is the RET the 1991 comment "C=ABORTED", now on SETLEN's RET at &6CEE, belongs to
 
 # &6E04 loads a table base, not a routine.  TABLE is the eight bytes at
 # &6EF1 and MCHRD begins at &6EF9 immediately after it, so the number is
@@ -167,7 +172,7 @@ DOC INPST
     first.  A count of &4000 or more is still refused.
 
 DOS &7A11 : "#" introduces the stream
-DOS &7A19 : sixteen streams, 0 to 15
+DOS &7A19 : sixteen less the stream: 0 to 16 pass, and 17 up is "Invalid stream"
 DOS &7A69 : a carriage return ends INP$(#s,0)
 DOS &7A76 : one more byte of workspace
 DOS &7A35 : is a count given at all?
@@ -186,7 +191,7 @@ DOS &5FE6 : a count, not an address -- &4000 bytes a pass, which is the 48K the 
 DOS &604A expr &4B00
 DOS &604A : the ROM's own HDR buffer, reached with page 0 in the window
 DOS &6075 expr &4A99
-DOS &6075 : a system-page address just under the ROM's BSTACK, written through WRTBC which pages page 0 in
+DOS &6075 : not a destination: WRTBC writes it over the ROM's pending return address, whose old value &606F has just planted at &4A9D.  &4A99 is MB &7DF0 relocated -- CALL &4A84 : JP nn -- so the ROM's LOAD returns through the stub that puts the program's first byte back, then goes where it was going
 
 # Three more numbers that this page's own labels collide with, all of
 # them system-page addresses.  See docs/disassembly.md on why &4000-&7FBF
@@ -195,6 +200,6 @@ DOS &6075 : a system-page address just under the ROM's BSTACK, written through W
 DOS &6422 expr &4A64
 DOS &6422 : a system-page address, not this page's sector-write code.  It is MB &7DBB installed at &484D, and NETPA returns into it when the drive letter is "N": an SCF, then the ROM's LDBYTES, which reads a set carry as LOAD
 DOS &64AB expr &4A62
-DOS &64AB : the other entry to the same stub, two bytes below it rather than three -- MB &7DB9, whose AND A clears the carry LDBLK reads as VERIFY.  One stub, two doors, and this is the verify one
+DOS &64AB : the other entry to the same stub, two bytes below it -- MB &7DB9, whose AND A clears the carry LDBLK reads as VERIFY.  One stub, two doors, and this is the verify one
 DOS &64C2 expr &4000
 DOS &64C2 : the verify loop's byte count for the next page, not an address

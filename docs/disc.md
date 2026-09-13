@@ -292,9 +292,10 @@ be longer than the space left rather than shorter.
 
 **It is built in the screen.** `HL` starts at `&A280`, which the DOS's equate
 list calls `FTADD` and marks "(SCR in section C)" — which is what `GETSCR` is
-for two instructions earlier. Reading the MasterBASIC listing, beware that
-the operand renders as `DOS_EXDT1_DONE`: there is a label at the peer page's
-`&6280`, and a window address usually does mean the peer. Here it does not.
+for two instructions earlier. The MasterBASIC listing used to render that
+operand as the DOS's label at `&6280`, because a window address usually does
+mean the peer page; here it does not, and the operand is now pinned to the
+number.
 
 ## The directory
 

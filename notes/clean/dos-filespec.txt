@@ -92,8 +92,9 @@ DOS &6779 : and four spaces after it, to fill the field
 DOC ALPHA
     Carry if A is a letter, either case.  Two range tests, each a
     compare against the first letter and one against the character
-    after the last, with CCF turning the first compare's carry into
-    "below the range".  ALPHANUM adds the digits, through NUMERIC.
+    after the last, with CCF inverting the first compare's carry so
+    that RET NC leaves on "below the range".  ALPHANUM adds the
+    digits, through NUMERIC.
 
 DOS &62D8 : "A"
 DOS &62DB : below it: not a letter
@@ -113,10 +114,17 @@ DOS &5EE8 : or a semicolon
 DOS &73D6 : the count in C alone
 DOS &73DB : ten less the name's length is how many spaces pad it
 
+DOC EXDT1
+    Swap BC bytes between HL and DE.  The carried "BC=0306H" above it
+    is the tail of BUDT's exit comment; this is called with &58 and
+    &1C as well.
+
 DOC C11SP
     Are the eleven characters after HL all spaces?  Z if so, and HL is
-    left where it was.  Eleven is the field less the three a "D1:"
-    takes, which is the most the prefix can be.
+    left where it was.  Eleven is what is left of the fourteen-
+    character field after the two characters the callers in EVFILE
+    have already passed and the one HL sits on; a two-digit prefix,
+    "D12:", never comes here.
 
 DOS &678C : eleven characters
 DOS &6791 expr CH_SPACE
@@ -131,7 +139,7 @@ DOS &61A8 : the high byte of the index
 DOS &634D : "T", the tape
 DOS &6351 : "N", the network; anything else is "Invalid device"
 DOS &63D7 : offset 36 of the header: the high byte of the length within its last page
-DOS &63E9 : eighty bytes, the ROM's HDRL: the whole header buffer
+DOS &63E9 : eighty is the displacement from the ROM's HDR to its HDL, added to IX at TXRM; the count is the forty-eight loaded at &6409
 
 DOC EVFL75
     A tape or network header: set the ROM's temporary device and speed,

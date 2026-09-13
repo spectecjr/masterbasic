@@ -24,14 +24,15 @@ DOC DFMTA
     prints SAM DOS or MASTER DOS for them.  A real name is printed
     from the buffer directly, ten characters through PRINTABLE_FORM,
     because PNDN2 prints the copy in DNAME and that is not this disc's.
-    Bit 7 of the first character is the in-backup marker, and is
-    masked off before the "*" test.
+    Bit 7 of the first character is reserved -- the source calls it an
+    "IBU marker" and never says what IBU is; nothing in either half
+    sets it -- and is masked off before the "*" test.
 
 DOS &54C0 value BLOCK_ERROR_FLAGS
 DOS &54C0 : the same mask as &409D, on a status rotated the same way; here it only decides whether to name the disc
 DOS &54C7 : DRAM+&D2, the disc's name in entry 0
 DOS &54CC : &FF became 0 and &00 became 1: either is a disc with no name field
-DOS &54D1 : bit 7 of the first character is the in-backup marker
+DOS &54D1 : bit 7 of the first character is reserved, the source's "IBU marker"
 DOS &54D3 : "*" is a MasterDOS disc that was never named
 DOS &54D7 : SAM DOS or MASTER DOS, as PNDN2 decides
 DOS &54DC : ten characters of name, straight from the buffer
@@ -57,9 +58,8 @@ DOC FMT1A
     THE ORIGINAL COMMENT SAYS "&00: 0", AND IT IS WRONG.  With SKEW
     zero the ADD A,E never carries, because E is 0 to 9, so ten is
     added every track and the sector number climbs out of range: 1,
-    12, 23 and on.  The value that gives no skew under this fold is
-    &F6, minus ten.  The same claim is on the SKEW byte itself at
-    &422E.
+    11, 21 and on.  The value that gives no skew under this fold is
+    &F6, minus ten.
 
     SIDE 2 IS TRACK &80 upwards, so finishing side 1 is a REST to bring
     the head home and a fresh start at &80 rather than an increment.
@@ -150,6 +150,19 @@ DOS &58A4 : "*" is a MasterDOS disc that was never named
 DOS &55CE : the track alone
 DOS &55D0 : a space for a leading zero
 
+DOC PNDNM
+    Print the disc's name.
+
+    A disc formatted by SAMDOS has no name field.  Formatting fills it
+    with zeros, and &FF is accepted too; either prints "SAM DOS".  A
+    name of "*" means the disc was formatted by MasterDOS but not
+    named, and prints "MASTER DOS".  Anything else is a real name and
+    is copied into the message at DNAME, which is printed in place.
+
+    Bit 7 of the first character is reserved -- the source calls it an
+    "IBU marker" without saying what IBU is, and nothing in either
+    half sets it -- and is cleared as the name is read.
+
 DOC PNTYP
     Print a file's type, and whatever else that type has worth showing.
 
@@ -177,7 +190,7 @@ DOS &562C expr TYPE_MASK
 DOS &562F : &16 and up is not a file type
 DOS &5633 : so print one name for the lot of them
 DOS &5639 : CALLMB's LMPR operand -- the page below MasterBASIC's, so MasterBASIC lands at &C000
-DOS &563E : where its table of type names is, seen through the window
+DOS &563E : where its table of type names is: in section D, the page above the one HMPR puts in the window
 DOS &5645 : and the window back as it was
 DOS &5648 : BASIC?
 DOS &564C : offset &F2, where the auto-run line is

@@ -21,8 +21,9 @@ DOC FDHR
                 been traced
         bit 1   collect names for a sorted listing rather than printing
         bit 2   print a full listing, with a heading
-        bit 3   match the name, honouring * and ?
+        bit 3   match the type byte and the name
         bit 4   match the name, ignoring the type
+                (* and ? are honoured under either)
         bit 5   read through NRSAD, rebuilding the free-sector map
         bit 6   stop at the first free entry rather than at a match
 
@@ -324,6 +325,7 @@ DOS &4C42 : 999, the most three digits will show
 DOS &4C4C : three digits and a space
 DOS &4C53 : or four digits and no space
 
+DOS &5B78 : the border back to its colour; the carried "DIR TO BUFFER" is DITOB's, the line above
 DOS &4C5D : the mode this scan was started with
 DOS &4C60 expr DIR_MODE_NAME | DIR_MODE_NAME_ONLY
 DOS &4C62 : no name to match, so nothing here applies
@@ -347,7 +349,7 @@ GROUP Directory entry
 CONST TYPE_MASK = &1F : bits 0 to 4 of the type byte are the type itself
 
 GROUP Directory scan
-CONST DIR_MODE_NAME = &08 : match the name, honouring * and ?
+CONST DIR_MODE_NAME = &08 : match the type byte and the name; * and ? are honoured under this and the next
 CONST DIR_MODE_NAME_ONLY = &10 : match the name, ignoring the type
 
 DOS &4BE6 : offset 1, the name
@@ -403,10 +405,12 @@ DOC SECTOR_FOR_CHANNEL
     would have cleared it.
 
     TRACK 4 IS TREATED DIFFERENTLY because the directory skips its
-    first sector.  A directory longer than four tracks carries on at
-    track 4 sector 2 -- SNDF4 at &5ED7 steps past sector 1, and the
-    map code at &4B68 leaves that sector's bit alone -- so on track 4
-    it is the request for sector 2 that fills the copy, and the fill
+    first sector, which is where the DOS file itself begins on a
+    boot disc.  A directory longer than four tracks carries on at
+    track 4 sector 2: FDHe, this scan's own walker, steps past sector
+    1 at &4CA7 (SNDF4 at &5ED7 does the same in the name search), and
+    the map code at &4B68 leaves that sector's bit alone.  So on track
+    4 it is the request for sector 2 that fills the copy, and the fill
     still reads from sector 1 so that the arithmetic below holds.
 
     THE OTHER TWO PATHS are stock: bit 5 set is a read that rebuilds
@@ -612,15 +616,15 @@ DOC CKNAM
     only name compare in the DOS, and ERASE, RENAME and COPY reach it
     through SNDF2 while the "does this name already exist" test reaches
     it through FDH95: ERASE "A[" will erase A{, and a SAVE can be offered
-    the wrong file to overwrite.  SAMDOS's cknam has the same instruction
-    and the same comment, so this one was inherited rather than
-    introduced.  Set out in docs/bugs.md.
+    the wrong file to overwrite.  SAMDOS's cknam has the same XOR and
+    AND &DF, uncommented there too, so this one was inherited rather
+    than introduced.  Set out in docs/bugs.md.
 
     * MATCHES THE REST, unless a period follows it.  A star with nothing
     after it, or with anything other than a period, is a match there and
     then: "*" and "A*" match everything.  A star followed by a period
-    means the type still has to match, which is how a pattern can select
-    on type alone.
+    means the part of the name after the period still has to match,
+    which is how a pattern can select on extension alone.
 
     ? matches whatever is in that one position and nothing else changes.
 

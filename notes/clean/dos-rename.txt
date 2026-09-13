@@ -78,7 +78,7 @@ DOS &5605 : forty-two bytes back
 DOS &5608 : is offset 210, where the disc's name goes
 DOS &560F expr CASE_BLIND
 DOS &5611 : does the name start with a D?
-DOS &5615 : and is the rest of it a digit and spaces?
+DOS &5615 : and is the rest of it all spaces?
 DOS &561A : then it would read as a drive, so make it a star instead
 DOS &561C : ten characters of name
 DOS &561F : into the sector, ready to be written

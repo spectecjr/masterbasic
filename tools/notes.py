@@ -258,6 +258,19 @@ def set_header(d, a, doc, banner):
     """
     body = list(doc)
     was = d.headers.get(a)
+    # A DOC that opens with a PART line has folded a section heading in.
+    # If the carried copy of that heading landed on some other routine
+    # -- the first label after it in source order, when this one had
+    # moved -- it would now print twice, so the bare copy goes.
+    first = next((x.strip() for x in doc if x.strip()), '')
+    if PART_HEADING.search(first):
+        for k, v in list(d.headers.items()):
+            if k == a:
+                continue
+            bare = [x.lstrip(';').strip() for x in v.split(NL)]
+            bare = [x for x in bare if x and not x.startswith('---')]
+            if bare == [first]:
+                del d.headers[k]
     # A DOC replaces what is there, and the reading copy keeps only the
     # replacement -- so a DOC on the routine that heads a section takes
     # the section's own heading with it.  That happened once, to PART

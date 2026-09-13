@@ -386,6 +386,13 @@ The differences from the review prompt:
 | MB &6400–&6594 (SAVE BOOT, CSIZE head) | review | 9 findings | 9 |
 | MB &5C00–&5E00 (RECORD, ROM-1 builders) | review | 10 findings | 10 |
 | MB &7700–&7900 (installer, external memory) | review | 14 findings | 14 |
+| DOS functions, CALLMB, SYNTAX/CKESV (2026-09-12) | review | 19 findings | 19 |
+| DOS open/close, &6A72–&7075 | review | 8 findings | 7 + 1 deferred |
+| DOS directory scan and listings | review | 9 findings | 9 |
+| DOS load/save hooks, CHECK_FILE_TYPE, MERGE | review | 20 findings | 20 |
+| DOS file specs and paths | review | 8 findings | 8 |
+| DOS FORMAT, snapshot, printing, RAM disc format | review | 16 findings | 16 |
+| notes/clean/dos-numbers.txt, line by line | review | 14 findings | 14 |
 
 The first five ran on one model; the rest on another, after the first hit a
 session limit mid-run. The prompts were byte-identical across the change,
@@ -487,6 +494,50 @@ In rough order of return:
 4. Bare regions — proposal shape, and only if genuinely bare.
 
 ---
+
+## The seventh round: a session's own work, the same day
+
+The 2026-09-12 round reviewed the commentary that had cleared the DOS's
+magic-number queue that morning -- 493 numbers over six commits -- with
+the prompts run from a separate session because the reviewing model
+was not available to the writing one.  Seven regions, ~94 findings,
+one deferred as "a look, not a correction" (RCLAIM's arithmetic on a
+channel built in an OPEN BLOCKS slot) and the rest confirmed.  Three
+things from it belong here.
+
+**The author's self-audit had found the same kind of fault and missed
+the rest.**  Before the round, the writer re-read the fastest-written
+part and corrected one line in five.  The round then found fourteen
+more in that same file, of the same kind -- a register named the
+wrong way round (`LD BC,&0002` is B zero, C two), a count that is a
+displacement, a comma that introduces the other argument, the loop
+that fills the map read backwards.  Self-audit and second reader are
+not substitutes; the first finds what the writer can see, the second
+what they cannot.
+
+**Two notes for one address do not warn.**  `notes/clean/dos-nmi.txt`
+and `dos-loadsave.txt` both carried a `:` line for `&644D`; the later
+file's won silently and the correction the writer believed applied
+was still the wrong text the reviewer quoted.  The build knows every
+note it reads; until it says so, grep the address before writing a
+line for it.
+
+**A region cut by address range mislabels its edges.**  Cutting by
+`; ADDR` columns keeps the label line that precedes the first address
+of a range only if the previous range's flag was still on, which put
+HOOK's label over what is now SET_DOS_STACK and CLEAR_TSTR's over HKLEN.  Two
+of the seven reviewers noticed and said so rather than filing
+findings against the listing; a third filed one against a routine
+the extract had mislabelled.  Cut by PART, as the recipe above says,
+or carry the label lines with their addresses.
+
+**Deferred from the round, and still open**: the trace decodes
+`&6604` (a live `LD HL,AUTNAM` in AUINSR) and `&661A` (INIT's `CALL
+AUINSR`) as one-byte skips, so both listings render two real
+instructions as `DEFB` plus a phantom; what claims their second bytes
+as instruction starts was not found.  And the generated "from &xxxx
+when A ..." lines still name A after an intervening `LD A`, a fault
+the fifth round also deferred.
 
 ## Things learned the hard way
 

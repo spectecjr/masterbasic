@@ -138,8 +138,10 @@ DOC END_OF_CHANNELS
     one is, and a carriage return where the next record's first byte
     would be is the end -- the ROM closes the list with one.
 
-    CHKHL is the ROM's own bounds check, called before each read, so a
-    corrupt length cannot walk this off into nothing.
+    CHKHL is the ROM's window step, called before each read: past
+    &BFFF it pages the next 16K in and pulls HL back to &8000.  It
+    checks nothing about the length; a corrupt one walks on into the
+    next page.
 
 DOS &6AEB : the system page, where the channel list is
 DOS &6AED : the head of the list
@@ -155,10 +157,11 @@ DOC RESET_CHANNEL_SCAN
     new channel will go.
 
     THE 1991 SOURCE CALLS THIS OPEND, and it does three things on one
-    pass.  It remembers the first reserved block it meets -- a record
+    pass.  It remembers the last reserved block it meets -- a record
     whose letter at offset 4 is zero, which is what OPEN BLOCKS leaves
-    -- in TEMPW1, so that a new channel can go there instead of at the
-    end.  It refuses to open a file that is open already, with
+    -- in TEMPW1, every one overwriting the last, so that a new
+    channel can go there instead of at the end.  OPEN BLOCKS lays
+    them out one after another, so the last met is the highest.  It refuses to open a file that is open already, with
     "Channel used".  And it stops on the carriage return that closes
     the list, which is where the channel goes if no block was
     reserved.
@@ -183,7 +186,7 @@ DOS &6B81 expr CHANS_BIAS_AND_FIRST
 DOS &6B86 : offset 0, which is &0D only at the end of the list
 DOS &6B89 : the carriage return that closes the list
 DOS &6B8D : the channel letter, or zero for a block OPEN BLOCKS reserved
-DOS &6B93 : the first reserved block is where the new channel will go
+DOS &6B93 : every reserved block lands here, so the last one met is where the new channel will go
 DOS &6B97 : either case, and bit 7 off: a temporary channel is "D"+&80
 DOS &6B99 : a disc channel?
 DOS &6BA0 expr DRIVE-DCHAN

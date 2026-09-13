@@ -147,8 +147,6 @@ DOC SNAP4
     from.  A SCREEN$ gets a header built the ordinary way, with the
     start and length taken from a table.
 
-DOS &6449 : STR-11, where COPY_HEADER_FIELDS lands ROM header offset 24: the page
-DOS &644D : STR-10, header offsets 25 and 26: the address to expand into
 
 DOS &53CF : the type, into the name template
 DOS &53D2 : the Spectrum's RAM, as this page sees it
@@ -184,8 +182,8 @@ DOS &53F6 : the low three bits of the track, as a digit; zero means none
 DOS &53FA : "0" makes it a digit
 
 DOC CMD_LOAD_1
-    LOAD by number has found its file; a 48K snapshot is started here
-    rather than loaded.
+    LOAD by number has found its file; a 48K snapshot is loaded by the
+    DOS itself and started, rather than handed to the ROM's loader.
 
     A SPECTRUM 48K SNAPSHOT ARRIVES AS TYPE &14, because
     FILE_TYPE_AT_POINT lifts the Spectrum types into SAM's range and
@@ -243,8 +241,8 @@ DOS &5491 : &3F is I as the Spectrum ROM leaves it, and 0 is I as reset leaves i
 DOS &5458 : page 3, the Spectrum's "ROM", into the window
 DOS &545F : no unwind address any more
 DOS &5462 : the alternate set, as NMI pushed it
-DOS &546F : where the button is to come back to
-DOS &5475 : and the three ports as Spectrum mode left them
+DOS &546F : NMI's address, for the emulator page to use -- presumably as where its NMI comes back to; the stub is in page 3, which neither half holds
+DOS &5475 : and the three ports as they were when Spectrum mode was entered, saved at &5FCE
 DOS &5487 : the main set
 DOS &548B : the interrupt register
 DOS &548D : &00 or &3F in I means the program was not in mode 2

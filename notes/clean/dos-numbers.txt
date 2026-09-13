@@ -5,13 +5,13 @@
 # that only needed a line.
 
 # --- 20-bit arithmetic and page form ---------------------------------
-DOS &608E : four bits of page above the fourteen-bit offset: 20 bits in all
+DOS &608E : four bits of page above the sixteen HL now holds -- two of page over fourteen of offset: 20 bits in all
 DOS &6081 : and three for AHLN's nineteen
 DOS &4543 : &4000 on: the address moved up a page as the count comes down
 DOS &71E1 expr SECTOR_LENGTH-2
 DOS &71E1 : 510 bytes a sector, the link excluded
 DOS &71E8 : the carry out of the add, into the top byte
-DOS &62D4 : C zero, and the INC makes it NZ without touching the flags a compare would
+DOS &62D4 : C zero, and the INC makes it NZ whatever A holds; a compare's Z would depend on the page count
 DOS &658F : the fifth byte of the integer form, always zero
 DOS &657A expr PAGE_VALUE_MASK
 DOS &7B3C : the byte alone
@@ -24,8 +24,9 @@ DOS &4861 : 510, the data bytes of a sector
 DOS &711C expr SECTOR_LENGTH-2
 DOS &711C : 510 again: the pointer against a sector's data
 DOS &7035 expr CNTL
+DOS &7038 expr CNTH
 DOS &6FAE : 511 more after the first: the buffer cleared for the next sector
-DOS &4FAC : the offset in C alone: GRPNTB takes it in B, POINT gives none
+DOS &4FAC : offset zero into RPT, the start of the entry: GRPNTB takes an offset in B, POINT gives none
 DOS &4829 expr DRIVE-DCHAN
 DOS &6F1D : bit 0 is set for OUT, and reading one is "Reading a write file"
 DOS &682F expr TYPE_MASK
@@ -44,8 +45,8 @@ DOS &4BBD : &FF is no directory's tag, and means all of them
 DOS &55F5 : the directory tracks beyond SAMDOS's four, which is what entry 0 keeps
 DOS &4FA7 expr DIR_MODE_NAME_ONLY
 DOS &4FA7 : find it by name, whatever its type
-DOS &70B6 : 195 bytes of map, eight sectors each: the 1560 sectors after the four directory tracks
-DOS &4CFE : 195 bytes of map cleared, eight sectors each: the 1560 after the directory
+DOS &70B6 : 195 bytes of map, eight sectors each: the 1560 from track 4 sector 1 on
+DOS &4CFE : 195 bytes of map cleared, eight sectors each: the 1560 from track 4 sector 1 on, whatever DTKS is
 DOS &4AE0 : the offset in C alone
 DOS &4CF1 : "." between a name and its type
 DOS &5A03 : offset 11, the file's sector count
@@ -57,7 +58,7 @@ DOS &5ED3 : track 4: the extended directory skips its first sector, which is why
 
 # --- names, devices and the command line -------------------------------
 DOS &4803 : "D": only a disc file has a directory
-DOS &64A0 : "N": the network, handled by the ROM's own code in the system page
+DOS &64A0 : "N": the network; NETPA hands over to MasterBASIC's stub in the system page, which sets carry and enters the ROM's tape and net loader
 DOS &6346 : "D"
 DOS &66F8 : "D", written to SLDEV as the default device
 DOS &617B expr CH_STAR
@@ -92,10 +93,10 @@ DOS &6250 : twenty-eight bytes: one file's parameters swapped for the other's
 DOS &6230 : eighty-eight bytes: the whole of the string buffer at &4F10
 DOS &66CF expr CH_STAR
 DOS &66CF : "*", a name that matches anything
-DOS &60B0 : a comma: the two-name form of FORMAT
-DOS &60C4 : a comma: a directory size follows
+DOS &60B0 : a comma: the directory size follows; no comma is the two-name form, FORMAT "a" TO "b"
+DOS &60C4 : a second comma: a RAM disc's size in tracks follows
 DOS &6098 : four directory tracks unless FORMAT says otherwise
-DOS &610B : forty tracks of directory is the most FORMAT allows
+DOS &610B : forty or more directory tracks is refused; 39 is the most
 DOS &6114 expr FIRST_RAMDISC_DRIVE
 DOS &6140 : four or more is a normal or a large directory
 DOS &6147 : two off the total, so that against the limit of 159 a RAM disc may have 160 tracks
@@ -125,16 +126,16 @@ DOS &63FB : HMPR in C, for the OUT (C),B that puts the system page in
 DOS &5F41 : the nine-byte header
 DOS &5F4D : the nine-byte header
 DOS &751F : two entries to a sector
-DOS &74F3 : B two and C zero: two rounds of 256 bytes, the whole sector
-DOS &5F23 : &0400 and up is out of range: the DOS variables run to &03FF
+DOS &74F3 : B zero and C two: the DJNZ runs 256 times and C sends it round twice, the whole sector
+DOS &5F23 : &0400 and up, after the DEC, is 1025 sectors or more; 1 to 1024 is the range
 DOS &5FF7 expr TYPE_BASIC
-DOS &6054 : a byte in the DOS's stack area the source calls the entry LMPR on the stack; SET 6 there brings ROM 1 in on the return, and which frame it is has not been traced here
+DOS &6054 : the ROM's entry LMPR, where SET_DOS_STACK put it: MasterBASIC sets DOSSTK to &7FE6, so the frame's top byte -- B from the ROM's PUSH BC -- lands at &7FE5, the source's SYSP-1.  SET 6 there brings ROM 1 in when the ROM's DOSC restores the port; the source's "port 251" is a slip for 250
 DOS &5013 : E = 1 tells the ROM to load the file's body: LDFL
 
 # --- the RAM disc ----------------------------------------------------------
 DOS &76B6 expr MIN_RAMDISC_PAGE_TYPE
 DOS &76B6 : the drive number under &D0, which is what marks an allocation-table entry as a RAM disc's
-DOS &766C : bits 5 to 7 set means a MegaRAM page
+DOS &766C : any of bits 5 to 7 set -- page &20 or above -- is a MegaRAM page
 DOS &7729 : the index in C alone
 DOS &769C : the count in C alone
 DOS &7760 expr SECTOR_LENGTH-2
@@ -143,13 +144,13 @@ DOS &7541 expr SECTOR_LENGTH
 DOS &7609 expr SECTOR_LENGTH-2
 DOS &74DC expr SECTOR_LENGTH
 DOS &74CD expr SECTOR_LENGTH
-DOS &77A8 : bits 5 to 7 of LMPR, the ROM switches, kept from the port
+DOS &77A8 : bits 5 to 7 of LMPR -- the two ROM switches and write protect -- kept from the port
 DOS &77EE : &20 is the first MegaRAM page; below it is internal memory, and the search stops there
 DOS &70E8 : minus ten: a track's worth of sectors off at a time
 DOS &69BD : minus &4000: the record's window address, into the ROM's numbering
 DOS &6D45 expr CHANNEL_BLOCK
 DOS &6CFA expr CHANNEL_BLOCK
-DOS &6CB8 : &FF over the whole map below SAM+195, so no sector reads as free
+DOS &6CB8 : &FF from the last used byte of the map down to &4000, so an extended random-access file can only take sectors after the ones it has; the free tail above is left
 
 # --- BASIC's numbers and the ROM's calls -----------------------------------
 DOS &596C : page 4, the Spectrum's RAM, as the display page

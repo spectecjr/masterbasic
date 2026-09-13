@@ -19,8 +19,6 @@ DOC CMD_MOVE
        BACKUP                whole-disc copy, in as many passes as the
                              free memory allows
        PTREC / FITS / FPTR   the PTR function and its record arithmetic
-       STDIR / DTREE / PRPTH subdirectory paths: selecting, walking and
-                             printing them
        RDWSCT / RDRSCT / ... the RAM discs, where a sector transfer is a
                              memory copy
        HKLEN / FNVEC / INDJP the function hooks the extension is reached
@@ -262,5 +260,5 @@ DOS &6D6A value "D"+&80
 # The source declares these DEFW but without a label, so the pass that
 # takes DEFW from the source cannot reach them.
 DOS &6D6B-&6D6E word
-DOS &6D6A : the channel letter, with bit 7 set as the DOS marks its own
+DOS &6D6A : the channel letter, with bit 7 set: temporary until OPDST1 attaches it to a stream and clears the bit
 DOS &6D6B : two empty words, and then 787 -- the length of a channel record

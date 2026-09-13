@@ -10,12 +10,14 @@ DOC HKLEN
     THE ROM'S OWN CONTINUATIONS ARE FOUND BY WALKING ITS CODE.  The
     ROM called the vector from just before its CP SIN : JR C,
     IMMEDCODES, so the return address plus three is the JR's
-    displacement and adding it reaches IMMEDCODES.  Seventeen bytes
-    into that routine is the operand of its LD HL,NUMCONT, the
-    address a function with a numeric result continues at, and six
-    bytes further on is the operand of its LD HL,STRCONT for a string
-    result.  Both are read out of the ROM rather than assumed, which
-    is what lets the same DOS run on more than one ROM.
+    displacement, and adding that to its own address -- without the
+    one a JR adds -- lands one byte before IMMEDCODES.  Seventeen on
+    from there, sixteen bytes into the routine, is the operand of its
+    LD HL,NUMCONT, the address a function with a numeric result
+    continues at, and six bytes further on is the operand of its LD
+    HL,STRCONT for a string result.  Both are read out of the ROM
+    rather than assumed, which is what lets the same DOS run on more
+    than one ROM.
 
     WHICH CONTINUATION depends on the code: &13 to &19 -- SHIFT$,
     SVAL$, USING$, TIME$, DATE$, INP$ and DIR$ -- return strings, and
@@ -26,10 +28,11 @@ DOC HKLEN
 
 DOS &7893 : the ROM's return address, into the scanner
 DOS &7897 : the displacement of the ROM's JR C,IMMEDCODES
-DOS &789C : seventeen bytes into IMMEDCODES: the operand of its LD HL,NUMCONT
+DOS &789C : seventeen on from one byte before IMMEDCODES: the operand of its LD HL,NUMCONT, sixteen bytes in
 DOS &78A2 : &1A is FSTAT less &1A; from there up the result is a number
 DOS &78A6 : &13 is SHIFT$; below it the result is a number too
 DOS &78AA : six bytes on from NUMCONT's operand is STRCONT's
+DOS &78E5 : LENGTH, handed whole to MasterBASIC's FN_LENGTH; the carried "PT TO '#'" was on the source's GTNC
 
 DOS &78BE : &0F is the first FNVEC entry, token &29; the code less that indexes the table
 DOS &78C3 : sixteen entries
@@ -44,14 +47,20 @@ DOC CKESV_1
     way, and what it does for each is clear enough from the code even
     where the reason is not:
 
-    ERROR 4, "Subscript wrong", at syntax time only.  The return the
-    ROM is about to make is redirected to ROM 0's &0057 -- which is
-    POP BC, POP AF, EI, RET, the tail of the interrupt handler, so the
-    ROM will drop two words and return a level higher -- FLAGS is
-    cleared, two words come off this stack too, and the DOS returns
-    with A and E both zero: no error, no action.  So a "Subscript
-    wrong" the ROM's syntax pass raises is swallowed and the pass goes
-    on a level up.  At run time the error stands.
+    ERROR 4, "Subscript wrong", at syntax time only.  Two return
+    addresses are rewritten.  The word at the ROM's saved stack
+    pointer -- the return the ROM's DOS-call code will make once it
+    is done -- becomes ROM 0's &0057, which is POP BC, POP AF, EI,
+    RET, the tail of the interrupt handler, so the ROM drops two words
+    and returns a level higher.  And the word on top of this stack,
+    the return into PTDOS from its CALL &4203, is moved on by four:
+    past the SCF and the CALL NC,&4200 that follow it, to DOSC.  So
+    when the DOS returns with A and E zero and carry clear, PTDOS
+    treats it as a hook returning rather than an error entry, keeps
+    its stack instead of cutting it back to ERRSP, runs its DEC E
+    chain to nothing, and RETs through the &0057 just planted.  FLAGS
+    is cleared on the way.  A "Subscript wrong" the ROM's syntax
+    pass raises is thereby swallowed; at run time the error stands.
 
     ERROR 26, "Parameter error".  The BASIC stack is cut back: from the
     frame BSTKEND points at, words are read at every byte offset until
@@ -63,8 +72,9 @@ DOC CKESV_1
     the procedure and array code in the other half is where to look.
 
     Every exit clears the byte at &5A60, one of the ROM's fourteen spare
-    bytes after LSOFF that MasterBASIC keeps a flag in -- MB &6F43 reads
-    it -- as well as NRFLG.
+    bytes after LSOFF that MasterBASIC keeps a flag in -- MB &6F43 sets
+    it to &FF and the copied fragment at MB &7221 reads it -- as well
+    as NRFLG.
 
 DOS &43E5 : error 4, "Subscript wrong"
 DOS &43E9 : error 26, "Parameter error"
@@ -80,7 +90,7 @@ DOS &440E : no: at run time the error stands
 DOS &4410 : ROM 0's &0057 is POP BC : POP AF : EI : RET, the tail of the interrupt handler
 DOS &4413 : written over the word at the ROM's saved stack pointer: the return it makes once the DOS is done
 DOS &4416 : FLAGS cleared
-DOS &441C : two words off this stack as well
+DOS &441C : the return into PTDOS moved on four bytes, past its SCF and CALL NC,&4200, so the ROM sees a hook-style return and keeps its stack
 DOS &4422 : no error
 DOS &4423 : and no action
 DOS &4428 : a byte MasterBASIC keeps in the ROM's spare block after LSOFF

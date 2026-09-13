@@ -709,11 +709,14 @@ def apply(dos, work, root, banner, data_mark=None, data_region=None):
 
     # A section banner heads whatever follows it; if the first thing there
     # did not survive the splice, the next thing that did will do.
+    # Only on a label: a section banner placed on an instruction inside
+    # a routine splits it, which is what INIP3's and PFV's did to
+    # CMR_DONE when neither block survived here to be headed.
     nsec = 0
     for heads, body in banners:
         for a in heads:
             t = pairs.get(a)
-            if t is None or not dos._starts_insn(t):
+            if t is None or not dos._starts_insn(t) or t not in dos.labels:
                 continue
             if t not in dos.headers:
                 dos.headers[t] = banner('\n'.join(body))

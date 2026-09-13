@@ -60,9 +60,10 @@ MB &4A5C : hour and minute; seconds are not kept
 DOC PRINT_DATE_IF_SET
     Print the date stamp beside a file in a full listing, if it has one.
 
-    An unstamped entry holds &00: both DOSes format every data byte of
-    every sector to zero, and STAMP_WITH_DATE leaves the field alone
-    when the clock is not set.  The test accepts &FF as well, which
+    An unstamped entry holds &00: the floppy format writes every data
+    byte as zero, the RAM disc format zeroes the first two bytes of
+    each entry slot, and STAMP_WITH_DATE leaves the field alone when
+    the clock is not set.  The test accepts &FF as well, which
     is what a disc written by something else may leave there.
 
     The fields are printed in pairs with a separator between them, "/"

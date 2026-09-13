@@ -16,9 +16,9 @@ DOC DSTAT
         8   the current drive number
 
     Every one but 8 answers -1 for a drive with no disc, or a RAM disc
-    never formatted; 8 is answered before the drive is looked at, and
-    2 is answered from TRAKS2 alone when drive 2 is asked about and
-    not fitted.
+    never formatted; 8 is answered before the drive is looked at.  And
+    every one but 8 answers -1 for DSTAT(2,n) when TRAKS2 says there
+    is no second drive, before CKDRV could raise "No such drive".
 
     FREE SPACE IS COUNTED IN BYTES A FILE COULD USE: DE free sectors
     become AHL as sectors times 512 less sectors times 2 -- 510 to the
@@ -26,7 +26,7 @@ DOC DSTAT
     for the header a file carries.
 
 DOS &7950 : option 8 is the drive number, and needs no disc
-DOS &7958 : option 2, write protection, which drive 2 can answer without a disc
+DOS &7958 : the drive less two: drive 2, which may not be fitted
 DOS &79AC : A is the option less two by now, so this is option 4: free directory slots
 DOS &79B7 : DE, doubled already, times 256: sectors times 512 in AHL
 DOS &79C0 : nine bytes of any file go on its header
@@ -39,6 +39,18 @@ DOS &7A9A : a comma
 DOS &7AA3 : then the closing bracket
 
 DOS &7A09 : "(" -- the functions insist on one
+
+DOC HOCHK
+    Is there a disc in the drive?  Z, and AEHL = -1, if not.  A RAM
+    disc answers from whether it has been formatted; a floppy from
+    whether an index hole comes round.
+
+DOC STACK_AEDCB
+    Push A, E, D, C and B onto the calculator stack through the ROM's
+    STKSTORE, "STACK STRING PARAMS", with the paging handled by CMR.
+    A string's page, start and length for DIR$, INP$, TIME$, DATE$ and
+    PATH$; the five-byte integer form HVAR1_1 builds in the same
+    registers for a number.
 
 DOC WPCHK
     Is drive A write-protected?  1 in A if so.  A RAM disc never is.

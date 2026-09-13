@@ -3468,7 +3468,9 @@ def classify_leftovers(d):
                         'the instruction above it' % first.text)
             elif p > e:
                 note = ('skipped: reads as %s from here, swallowing the '
-                        'bytes below it' % first.text)
+                        '%s below it'
+                        % (first.text,
+                           'byte' if first.end - s == 2 else 'bytes'))
             else:
                 note = ('reads as %s, and nothing the trace can follow '
                         'reaches it' % first.text)

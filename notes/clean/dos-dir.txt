@@ -13,10 +13,10 @@ DOS &5B93 value DIR_NAME_BUFFER
 DOS &5C33 value DIR_NAME_BUFFER
 DOS &7936 value DIR_NAME_BUFFER
 
-DOS &5C97 : zero width if CSIZE has changed the character width, so one name to a line
+DOS &5C97 : a patch site: MasterBASIC's CSIZE writes how many magnified characters fit on a line into this operand at &5C98; &00 is only what the image holds
 DOS &5CA3 : one column to begin with
 DOS &5CA5 : eleven characters a column: ten of name and the space after it
-DOS &5CA7 : fewer than eleven characters: one column even so
+DOS &5CA7 : fewer than eleven characters: one column; eleven to twenty come to one below as well
 
 DOS &5C77 : the count alone
 DOS &5C7B : five or more directory tracks is MasterDOS's extension

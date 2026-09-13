@@ -1281,8 +1281,9 @@ SAVE_BLOCK_FROM_SYSPAGE_DONE:
 ;; less one, into it once it knows which page that is.  &7FFC holds the
 ;; ROM's stack pointer as it stood when the DOS was entered.
 ;;
-;; The parameter is read after the paging has changed, so a value of
-;; &4000 or more is an address in the other page, and is written here as
+;; The parameter is read before the paging changes and jumped to after
+;; it, so a value of &4000 or more is an address in the other page, and
+;; is written here as
 ;; that page's own label less &4000 -- the mirror of the +&4000 used for
 ;; the bit-15 pointers in the tables.  Everywhere else in this file an
 ;; inline DEFW is a ROM address, and reading this one that way would name
@@ -3862,21 +3863,21 @@ CMD_TIME_LOOP3:
 
 ; ---- CMD_DATE_2 ---- from &4867
 CMD_DATE_2:
-               CALL AT_END_OF_STATEMENT              ; 4918 CD BC 44  "DATE" or "TIME" with nothing after it prints
-                                                     ; instead of setting
-               JR Z,CMD_TIME_8                       ; 491B 28 3E
-               CALL CALLDOS                          ; 491D CD C1 42  the DOS's own string-expression helper -- EXPSTR,
-                                                     ; then GETSTR only if the program is running. DE ends at the
-                                                     ; characters, C at the length and H at the page they live in
-               DEFW DOS_EVAL_STRING_IF_RUNNING-&4000 ; 4920 84 62
-               PUSH HL                               ; 4922 E5  PUSH HL here and POP AF at &4926 is how H, the page the
-                                                     ; string lives in, survives a call that has A for its own purposes
-               CALL EXPECT_END_OF_STATEMENT          ; 4923 CD D0 44
-               POP AF                                ; 4926 F1
-               CALL TSURPG                           ; 4927 CD DF 3F  that page into the window, so DE addresses real
-                                                     ; characters
-               LD HL,(V4096)                         ; 492A 2A 96 40
-               LD B,&06                              ; 492D 06 06  six digits: dd mm yy, or hh mm ss
+               CALL AT_END_OF_STATEMENT               ; 4918 CD BC 44  "DATE" or "TIME" with nothing after it prints
+                                                      ; instead of setting
+               JR Z,CMD_TIME_8                        ; 491B 28 3E
+               CALL CALLDOS                           ; 491D CD C1 42  the DOS's own string-expression helper -- EXPSTR,
+                                                      ; then GETSTR only if the program is running. DE ends at the
+                                                      ; characters, C at the length and H at the page they live in
+               DEFW DOS_FETCH_STRING_IF_RUNNING-&4000 ; 4920 84 62
+               PUSH HL                                ; 4922 E5  PUSH HL here and POP AF at &4926 is how H, the page the
+                                                      ; string lives in, survives a call that has A for its own purposes
+               CALL EXPECT_END_OF_STATEMENT           ; 4923 CD D0 44
+               POP AF                                 ; 4926 F1
+               CALL TSURPG                            ; 4927 CD DF 3F  that page into the window, so DE addresses real
+                                                      ; characters
+               LD HL,(V4096)                          ; 492A 2A 96 40
+               LD B,&06                               ; 492D 06 06  six digits: dd mm yy, or hh mm ss
 
 ; ---- CMD_TIME_LOOP4 ---- from &493B, &494D when B is not 0 yet
 CMD_TIME_LOOP4:
@@ -7244,9 +7245,9 @@ L534D:
 ;; IT BUILDS INTO THE SCREEN.  HL starts at &A280, which the DOS's own
 ;; equate list calls FTADD and marks "(SCR in section C)" -- screen
 ;; memory, borrowed as scratch, which is why DFMTB calls GETSCR before
-;; getting here.  Beware the operand: the listing renders &A280 as
-;; DOS_EXDT1_DONE, because there is a label at the peer page's &6280 and
-;; that is what a window address usually means.  Here it does not.
+;; getting here.  The listing used to render &A280 as the DOS's label
+;; at &6280, because that is what a window address usually means;
+;; here it does not, and the operand is pinned to the number.
 ;;
 ;; THE LAYOUT is IBM System 34, the format the WD177x writes:
 ;;
@@ -7279,7 +7280,7 @@ L534D:
 
 ; ---- BUILD_TRACK_IMAGE ---- from DOS &54F9, DOS &5506
 BUILD_TRACK_IMAGE:
-               LD HL,DOS_EXDT1_DONE            ; 5352 21 80 A2  &A280 here is FTADD, the screen used as scratch -- not
+               LD HL,&A280                     ; 5352 21 80 A2  &A280 here is FTADD, the screen used as scratch -- not
                                                ; the peer page's &6280
                LD BC,&3C4E                     ; 5355 01 4E 3C  B = 60 gap bytes, and the &4E stays in C for every other
                                                ; gap fill in the routine
@@ -8818,8 +8819,8 @@ MATCH_REFERENCE_LOOP:
                AND UPPER                       ; 584A E6 DF  bit 5 out, so a letter compares equal whatever its case --
                                                ; the same fold COMPARE_FAR_STRINGS makes at &474D, and with the same
                                                ; side effect on the punctuation either side of the letters
-               DEFB SKIP_1_VIA_LD_C            ; 584C .  skipped: reads as LD C,&BE from here, swallowing the bytes
-                                               ; below it
+               DEFB SKIP_1_VIA_LD_C            ; 584C .  skipped: reads as LD C,&BE from here, swallowing the byte below
+                                               ; it
 
 ; ---- MATCH_REFERENCE_1 ---- from &5847
 MATCH_REFERENCE_1:
@@ -17089,7 +17090,7 @@ COPY_SCREEN_CONVERT_12:
                RL B                            ; 6D92 CB 10
                JR C,COPY_SCREEN_CONVERT_13     ; 6D94 38 02
                OR C                            ; 6D96 B1
-               DEFB SKIP_1_VIA_CP              ; 6D97 ~  skipped: reads as CP &B3 from here, swallowing the bytes below
+               DEFB SKIP_1_VIA_CP              ; 6D97 ~  skipped: reads as CP &B3 from here, swallowing the byte below
                                                ; it
 
 ; ---- COPY_SCREEN_CONVERT_13 ---- from &6D94 when bit 7 of B was set

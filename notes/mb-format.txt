@@ -18,9 +18,9 @@ DOC BUILD_TRACK_IMAGE
     IT BUILDS INTO THE SCREEN.  HL starts at &A280, which the DOS's own
     equate list calls FTADD and marks "(SCR in section C)" -- screen
     memory, borrowed as scratch, which is why DFMTB calls GETSCR before
-    getting here.  Beware the operand: the listing renders &A280 as
-    DOS_EXDT1_DONE, because there is a label at the peer page's &6280 and
-    that is what a window address usually means.  Here it does not.
+    getting here.  The listing used to render &A280 as the DOS's label
+    at &6280, because that is what a window address usually means;
+    here it does not, and the operand is pinned to the number.
 
     THE LAYOUT is IBM System 34, the format the WD177x writes:
 
@@ -65,4 +65,5 @@ DOC WRITE_ENTRY_HEADER
     is for is not established here".  It is a track, and the entry is a
     sector.
 
+MB &5352 expr &A280
 MB &5352 : &A280 here is FTADD, the screen used as scratch -- not the peer page's &6280

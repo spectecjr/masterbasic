@@ -272,11 +272,10 @@ DOS_DATDT:                      EQU  DATDT + &4000
 DOS_DRIVE:                      EQU  DRIVE + &4000
 DOS_ENDS:                       EQU  ENDS + &4000
 DOS_EPCOM_1:                    EQU  EPCOM_1 + &4000
-DOS_EVAL_STRING_IF_RUNNING:     EQU  EVAL_STRING_IF_RUNNING + &4000
 DOS_EVFINS:                     EQU  EVFINS + &4000
 DOS_EVNAM:                      EQU  EVNAM + &4000
 DOS_EVNUMX:                     EQU  EVNUMX + &4000
-DOS_EXDT1_DONE:                 EQU  EXDT1_DONE + &4000
+DOS_FETCH_STRING_IF_RUNNING:    EQU  FETCH_STRING_IF_RUNNING + &4000
 DOS_FFHL:                       EQU  FFHL + &4000
 DOS_FFPG:                       EQU  FFPG + &4000
 DOS_FIND_ROM_CODE:              EQU  FIND_ROM_CODE + &4000
