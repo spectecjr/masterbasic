@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 215" width="900" height="215" font-family="Helvetica, Arial, sans-serif" font-size="14">
+  <title>A SAVE MODE 3 screen file on disk</title>
+  <style>
+    .box { fill: #ffffff; stroke: #333333; stroke-width: 1.5; }
+    .hdr { fill: #eef3fb; }
+    .str { fill: #f6f6f6; }
+    .tail { fill: #f3f8ee; }
+    .lbl { fill: #111111; text-anchor: middle; }
+    .mono { font-family: Menlo, Consolas, "DejaVu Sans Mono", monospace; }
+    .sub { fill: #555555; font-size: 12px; text-anchor: middle; }
+    .brace { fill: none; stroke: #555555; stroke-width: 1.2; }
+  </style>
+
+  <rect class="box hdr"  x="20"  y="30" width="130" height="60"/>
+  <rect class="box str"  x="150" y="30" width="350" height="60"/>
+  <rect class="box"      x="500" y="30" width="80"  height="60"/>
+  <rect class="box tail" x="580" y="30" width="120" height="60"/>
+  <rect class="box tail" x="700" y="30" width="180" height="60"/>
+
+  <text class="lbl"      x="85"  y="58">nine-byte header</text>
+  <text class="sub"      x="85"  y="76">expanded length</text>
+  <text class="lbl"      x="325" y="58">nibble stream</text>
+  <text class="sub"      x="325" y="76">escape nibble first, high nibble first, byte-padded</text>
+  <text class="lbl mono" x="540" y="65">FF FF FF</text>
+  <text class="lbl mono" x="640" y="58">PALTAB</text>
+  <text class="sub"      x="640" y="76">40 bytes, verbatim</text>
+  <text class="lbl"      x="790" y="58">line-interrupt table</text>
+  <text class="sub"      x="790" y="76">4 bytes an entry, then FF</text>
+
+  <text class="sub" x="85"  y="110">9</text>
+  <text class="sub" x="325" y="110">as long as it takes</text>
+  <text class="sub" x="540" y="110">3</text>
+  <text class="sub" x="640" y="110">40</text>
+  <text class="sub" x="790" y="110">4n + 1</text>
+
+  <!-- brace: what offsets 229-231 count -->
+  <path class="brace" d="M 152 135 v 8 h 726 v -8"/>
+  <text class="sub" x="515" y="160">the compressed length at directory entry offsets 229–231 counts all of this</text>
+
+  <text class="sub" x="450" y="198">The decoder stops when the screen is full, skips the FF bytes, and copies the tail up to and including its first FF.</text>
+</svg>

@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 250" width="900" height="250" font-family="Helvetica, Arial, sans-serif" font-size="14">
+  <title>A SAVE MODE 2 block on disk</title>
+  <style>
+    .box { fill: #ffffff; stroke: #333333; stroke-width: 1.5; }
+    .hdr { fill: #eef3fb; }
+    .str { fill: #f6f6f6; }
+    .lbl { fill: #111111; text-anchor: middle; }
+    .mono { font-family: Menlo, Consolas, "DejaVu Sans Mono", monospace; }
+    .sub { fill: #555555; font-size: 12px; text-anchor: middle; }
+    .brace { fill: none; stroke: #555555; stroke-width: 1.2; }
+  </style>
+
+  <!-- the header: one count byte, then n bytes -->
+  <rect class="box hdr" x="20"  y="70" width="50"  height="60"/>
+  <rect class="box hdr" x="70"  y="70" width="60"  height="60"/>
+  <rect class="box hdr" x="130" y="70" width="110" height="60"/>
+  <rect class="box hdr" x="240" y="70" width="110" height="60"/>
+  <rect class="box hdr" x="350" y="70" width="170" height="60"/>
+  <!-- the stream -->
+  <rect class="box str" x="520" y="70" width="360" height="60"/>
+
+  <text class="lbl mono" x="45"  y="105">n</text>
+  <text class="lbl mono" x="100" y="105">esc</text>
+  <text class="lbl mono" x="185" y="98">clen</text>
+  <text class="sub"      x="185" y="116">lo, hi</text>
+  <text class="lbl mono" x="295" y="98">xlen</text>
+  <text class="sub"      x="295" y="116">lo, hi</text>
+  <text class="lbl"      x="435" y="98">parked bytes</text>
+  <text class="sub"      x="435" y="116">one per literal escape</text>
+  <text class="lbl"      x="700" y="98">stream</text>
+  <text class="sub"      x="700" y="116">literals, esc v count, esc esc</text>
+
+  <!-- byte counts under each field -->
+  <text class="sub" x="45"  y="150">1</text>
+  <text class="sub" x="100" y="150">1</text>
+  <text class="sub" x="185" y="150">2</text>
+  <text class="sub" x="295" y="150">2</text>
+  <text class="sub" x="435" y="150">n − 5</text>
+  <text class="sub" x="700" y="150">clen</text>
+
+  <!-- brace: n bytes follow the count -->
+  <path class="brace" d="M 72 50 v -8 h 446 v 8"/>
+  <text class="sub" x="295" y="34">n bytes, read after the count</text>
+
+  <!-- brace: what the block expands to -->
+  <path class="brace" d="M 522 175 v 8 h 356 v -8"/>
+  <text class="sub" x="700" y="200">expands to xlen bytes — 16384 for every block but the last</text>
+
+  <text class="sub" x="450" y="235">A file is a sequence of these: one per whole 16K, then one for the remainder.</text>
+</svg>

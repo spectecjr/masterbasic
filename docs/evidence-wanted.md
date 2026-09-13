@@ -4,8 +4,8 @@ What this project cannot settle by reading. Each entry says what to capture,
 why, and what it would decide — so that whoever has the hardware or the
 emulator can do it without reading the rest of the repository first. All five
 are answered, and are kept because the answers are worth more than the
-questions were. Items 7 and 12 are open: 12 could be settled by anyone
-who can capture a printer stream.  Item 8 was settled by reading, not
+questions were. Items 7, 12 and 13 are open: 12 could be settled by anyone
+who can capture a printer stream, and 13 by a few lines of BASIC.  Item 8 was settled by reading, not
 by a capture, and is kept for the same reason as the others.
 
 ---
@@ -228,6 +228,7 @@ directory-entry read is a confirmation now rather than a question.
 | **Seven short BASIC tests**, 10a to 10g | seven of the nine defects that have never been run | easy — a machine and a few lines each |
 | *(10h, 10i and 10j want damaged discs or an unreachable stack, and are listed so nobody spends an afternoon on them)* | — | hard to impossible |
 | **A printer stream from `POKE XVAR 33,3 : DUMP 4`** | 12 | easy — the same method as 6 |
+| **A 512-byte CODE file saved under `SAVE MODE 2` and loaded back**, built as item 13 says | 13, a defect read from the compressor and never run | easy — a machine and a few lines |
 
 The Spectrum capture is the valuable one: it is the only thing that would
 settle where the NMI menu is entered from, and one of the defects below sits on
@@ -508,6 +509,55 @@ the four `DPVARS` bytes may be set to, and that page is not in `ref/`.
 Item 6 settled the `DUMP 1-3` magnification out of those same two count bytes
 with no printer and no photograph. Both of its captures used multipliers of 1
 and 2 — the one range where this disagreement cannot show.
+
+---
+
+## 13. Whether a SAVE MODE 2 block that saves nothing loads back wrong
+
+`COMPRESS_BLOCK` runs its byte run-length coder in place over a block laid
+so as to end at `&FFFF`, and two of its loops step past that end without a
+check. `COMPRESS_BLOCK_LOOP5` increments `HL` before it compares, so a run
+that reaches the last byte is compared once more against address `&0000` —
+ROM 0 under `CALLMB`, whose first byte is `&F3`. `COMPRESS_BLOCK_5` takes
+the byte *after* a literal escape, so an escape in the last position takes
+that ROM byte too. Either way the stream comes out one byte longer than the
+input, and `COMPRESS_BLOCK_6` records that as the block's compressed length.
+
+If the block saved a byte anywhere else the surplus is harmless: the
+decoder stops on the expanded length. **If the block saved nothing** — no
+run of four or more in it — the compressed length exceeds the expanded one,
+which the loader's in-place decode cannot survive: `READ_COUNTED_STRING`
+places the stream one byte below where the output starts, and the first
+write lands on the second unread byte. The file saves without complaint
+and loads without an error. [compression-modes.md](compression-modes.md)
+has the format and the trace.
+
+**What would settle it.** Under `SAVE MODE 2`, save 512 bytes as CODE that
+contain no run of four and end in `&F3`:
+
+```
+byte i = i AND 255    for i = 0 to 510
+byte 511 = &F3
+```
+
+Every value occurs twice except `&FF`, which occurs once, so the escape is
+`&FF`; nothing in it is a run; and the last byte is `&F3` with `&FE` before
+it. Load it back somewhere else and compare. **The prediction, written before
+the test:** the stream is 513 bytes for 512 — the `&F3` counted as a run of
+two — and the loaded block is **512 bytes of zero**. The decoder reads
+stream byte 0, which is zero, writes it over stream byte 1, reads that, and
+so on to the end: every read sees the byte it has just written. Two
+controls: the same block with its last byte changed to `&07` should load
+back exactly, and so should the original under `SAVE MODE 1`.
+
+The other edge — an escape in the last position — is tested by
+`0..255, 1..255, 0` (512 bytes: the second cycle skips its zero, and the
+final zero is the escape). Predicted: a first byte of zero and 511 bytes of
+one, the parked byte cascading the same way.
+
+Neither has been run, and this is not in [bugs.md](bugs.md) until one has.
+Ordinary code, screens and arrays carry runs of four throughout, so the
+defect would show only on data that is already compressed or random.
 
 ---
 
