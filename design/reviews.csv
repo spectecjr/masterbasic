@@ -1,0 +1,26 @@
+round,date,half,region,shape,model,own_lines,findings,C,P,G,confirmed,partly,refuted,deferred,notes
+1,,DOS,PART RAMD &74C1-&7861,proposal,opus,,87 comments 6 headers,,,,,,,,used as raw material; not scored
+1,,DOS,PART C12 &4A78-&4FEF,review,opus,,12,,,,12,0,0,0,
+1,,DOS,PART C11 &451A-&4A77,review,opus,,12,,,,12,0,0,0,
+1,,DOS,PART F11 &595B-&5E75,review,opus,,13,,,,13,0,0,0,
+1,,DOS,PART D1 &4FF0-&549B,review,opus,,17,,,,17,0,0,0,
+1,,DOS,PART E1 &549E-&595A,review,opus,,17,,,,17,0,0,0,
+2,,DOS,PART MOVE A/B + HOOKS + RAMD,review,fable,,55,,,,55,0,0,0,
+2,,DOS,PART F12 + two sweeps,review,fable,,,,,,,,,,not tallied at the time
+2,,DOS,&5E78-&61FF (inside F12),review,fable,,8,,,,6,0,0,2,two stale: region cut before a rebuild
+3,,MB,&500C-&51D6 tokens,review,fable,,8,,,,8,0,0,0,
+3,,MB,&69E7-&6AD4 grey DUMP,review,fable,,7,,,,6,0,1,0,refuted: &BF-B as a coordinate conversion
+3,,MB,&6C01-&6DF6 COPY SCREEN,review,fable,,11,,,,11,0,0,0,
+4,,MB,&6594-&66AE CSIZE and compressor,proposal,fable,,61 comments 4 headers,,,,,,,,not scored
+4,,MB,&41C5-&42B1 NVAL,proposal,fable,,53 comments 7 headers,,,,,,,,not scored
+5,,MB,&4500-&4700 classifiers NR SORT,review,fable,,15,,,,14,0,0,1,deferred: generator "from" lines naming a stale A
+5,,MB,&6400-&6594 SAVE BOOT and CSIZE head,review,fable,,9,,,,9,0,0,0,
+5,,MB,&5C00-&5E00 RECORD and ROM-1 builders,review,fable,,10,,,,10,0,0,0,
+5,,MB,&7700-&7900 installer and external memory,review,fable,,14,,,,13,1,0,0,partly: MULTIPLY_BY_100's bound was right in substance and wrong in number
+6,2026-09-12,DOS,functions CALLMB SYNTAX CKESV &7893-&7BFC,review,claude-fable-5-1,90,19,13,6,0,19,0,0,0,five secondary (carried comments on the wrong instruction)
+6,2026-09-12,DOS,open/close &6A72-&7075,review,claude-fable-5-1,100,8,3,2,3,7,0,0,1,deferred: RCLAIM's stream adjustment for an OPEN BLOCKS slot
+6,2026-09-12,DOS,directory scan and listings,review,claude-fable-5-1,160,9,6,3,0,9,0,0,0,also flagged ref/masterdos/docs/disk-format.md's map origin
+6,2026-09-12,DOS,load/save hooks CHECK_FILE_TYPE MERGE,review,claude-fable-5-1,113,20,9,7,4,20,0,0,0,two generator faults noted: &6604 and &661A decoded as skips
+6,2026-09-12,DOS,file specs and paths,review,claude-fable-5-1,55,8,3,2,3,8,0,0,0,two of the eight were label renames
+6,2026-09-12,DOS,FORMAT snapshot printing RAM disc format,review,claude-fable-5-1,150,16,6,4,6,16,0,0,0,
+6,2026-09-12,DOS,notes/clean/dos-numbers.txt line by line,review,claude-fable-5-1,150,14,9,4,1,14,0,0,0,the self-audit before the round had already corrected 31 lines of this file

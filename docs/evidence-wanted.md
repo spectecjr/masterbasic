@@ -231,7 +231,9 @@ directory-entry read is a confirmation now rather than a question.
 
 The Spectrum capture is the valuable one: it is the only thing that would
 settle where the NMI menu is entered from, and one of the defects below sits on
-the same path and cannot be exercised without it.
+the same path and cannot be exercised without it.  **Parked as of 2026-09-13**:
+the Spectrum emulator would not meaningfully load files when it was tried, so
+nothing below that depends on it should be planned for.
 
 ---
 

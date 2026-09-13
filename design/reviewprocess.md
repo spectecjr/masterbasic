@@ -471,7 +471,10 @@ would settle it" rather than asserting the opposite. Count those as confirmed â€
 the finding was right â€” but do not let the tally tempt you into writing a new
 claim you cannot support either.
 
-Track the score anyway, per region. A region that comes back with nothing is
+Track the score anyway, per region -- in design/reviews.csv, one row per
+region per round with the audit's counts, which `python tools/reviewlog.py`
+turns into the per-round figures; design/reviewplan.md says what to read
+them for. A region that comes back with nothing is
 evidence the commentary there is sound; a region that comes back with twelve is
 a region to re-read by hand afterwards, because a review finds a sample of the
 errors and not all of them.
@@ -495,7 +498,7 @@ In rough order of return:
 
 ---
 
-## The seventh round: a session's own work, the same day
+## The sixth round: a session's own work, the same day
 
 The 2026-09-12 round reviewed the commentary that had cleared the DOS's
 magic-number queue that morning -- 493 numbers over six commits -- with
