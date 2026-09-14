@@ -150,7 +150,6 @@ C_PAPER:                EQU  &11
 FN_PFX:                 EQU  &FF
 FN_TOKEN_BIAS:          EQU  &1A
 FPC_ADDN:               EQU  &01
-FPC_CONST2:             EQU  &E2
 FPC_DIVN:               EQU  &05
 FPC_DUP:                EQU  &25
 FPC_EXIT:               EQU  &33
@@ -162,6 +161,7 @@ FPC_JPTRUE:             EQU  &1E
 FPC_LKADDRW:            EQU  &2A
 FPC_MOD:                EQU  &08
 FPC_RCL5:               EQU  &DD
+FPC_STK16K:             EQU  &E2
 FPC_STO5:               EQU  &D5
 FPC_SWOP:               EQU  &06
 FPC_SWOP13:             EQU  &1C
@@ -1735,8 +1735,8 @@ FIND_VARIABLE_2:
                AND &C0                         ; 4416 E6 C0  a page is 16K, so bits 1 and 0 of a page count are bits 15
                                                ; and 14 of a length in bytes. The two RRCAs line them up and the
                                                ; XOR/AND/XOR drops them into the top of B without disturbing the
-                                               ; fourteen bits already there -- which is what lets &4770 read a B of &40
-                                               ; or more as "at least 16K"
+                                               ; fourteen bits already there -- which is what lets &4770 refuse an
+                                               ; element size of &4000 or more, once &476A has copied it into B
                XOR B                           ; 4418 A8
                LD B,A                          ; 4419 47
 
@@ -2962,59 +2962,60 @@ PAGE_ON_TWO:
 ;; (&441D), so its characters are the elements.
 ;; --------------------------------------------------------------------
 
-; ---- PAGE_ON_TWO_1 ---- from &47BE
-PAGE_ON_TWO_1:
+; ---- SCAN_FOLDED_ASCENDING ---- from &47BE
+SCAN_FOLDED_ASCENDING:
                PUSH BC                         ; 46CD C5  the high half of the count, because B is about to be the
                                                ; fold's scratch register
 
-; ---- PAGE_ON_TWO_LOOP ---- from &46E0, &46E7
-PAGE_ON_TWO_LOOP:
+; ---- SCAN_FOLDED_ASCENDING_LOOP ---- from &46E0, &46E7
+SCAN_FOLDED_ASCENDING_LOOP:
                CALL SAVE_FAR_POINTER           ; 46CE CD 17 47
 
-; ---- PAGE_ON_TWO_LOOP2 ---- from &46E5
-PAGE_ON_TWO_LOOP2:
+; ---- SCAN_FOLDED_ASCENDING_LOOP2 ---- from &46E5
+SCAN_FOLDED_ASCENDING_LOOP2:
                LD A,(HL)                       ; 46D1 7E
                AND UPPER                       ; 46D2 E6 DF  bit 5 out of the best element's first byte, once, and it
                                                ; stays folded in A
 
-; ---- PAGE_ON_TWO_LOOP3 ---- from &46DE when A < B
-PAGE_ON_TWO_LOOP3:
+; ---- SCAN_FOLDED_ASCENDING_LOOP3 ---- from &46DE when A < B
+SCAN_FOLDED_ASCENDING_LOOP3:
                ADD HL,DE                       ; 46D4 19
-               JR C,PAGE_ON_TWO_3              ; 46D5 38 1B
+               JR C,SCAN_FOLDED_ASCENDING_2    ; 46D5 38 1B
 
-; ---- PAGE_ON_TWO_LOOP4 ---- from &46F5
-PAGE_ON_TWO_LOOP4:
+; ---- SCAN_FOLDED_ASCENDING_LOOP4 ---- from &46F5
+SCAN_FOLDED_ASCENDING_LOOP4:
                DEC C                           ; 46D7 0D
-               JR Z,PAGE_ON_TWO_2              ; 46D8 28 0F
+               JR Z,SCAN_FOLDED_ASCENDING_1    ; 46D8 28 0F
 
-; ---- PAGE_ON_TWO_LOOP5 ---- from &46EE when B is not 0 yet
-PAGE_ON_TWO_LOOP5:
-               LD B,(HL)                       ; 46DA 46
-               RES 5,B                         ; 46DB CB A8  and out of the candidate's, every time
-               CP B                            ; 46DD B8
-               JR C,PAGE_ON_TWO_LOOP3          ; 46DE 38 F4  folded, so "a" and "A" reach the tail together
-               JR NZ,PAGE_ON_TWO_LOOP          ; 46E0 20 EC
-               CALL COMPARE_FAR_STRINGS        ; 46E2 CD 25 47
-               JR C,PAGE_ON_TWO_LOOP2          ; 46E5 38 EA  carry keeps the best; A is reloaded and refolded at &46D1,
-                                               ; which is exact even when the raw bytes differ in case
-               JR PAGE_ON_TWO_LOOP             ; 46E7 18 E5
+; ---- SCAN_FOLDED_ASCENDING_LOOP5 ---- from &46EE when B is not 0 yet
+SCAN_FOLDED_ASCENDING_LOOP5:
+               LD B,(HL)                        ; 46DA 46
+               RES 5,B                          ; 46DB CB A8  and out of the candidate's, every time
+               CP B                             ; 46DD B8
+               JR C,SCAN_FOLDED_ASCENDING_LOOP3 ; 46DE 38 F4  folded, so "a" and "A" reach the tail together
+               JR NZ,SCAN_FOLDED_ASCENDING_LOOP ; 46E0 20 EC
+               CALL COMPARE_FAR_STRINGS         ; 46E2 CD 25 47
+               JR C,SCAN_FOLDED_ASCENDING_LOOP2 ; 46E5 38 EA  carry keeps the best; A is reloaded and refolded at &46D1,
+                                                ; which is exact even when the raw bytes differ in case
+               JR SCAN_FOLDED_ASCENDING_LOOP    ; 46E7 18 E5
 
-; ---- PAGE_ON_TWO_2 ---- from &46D8 when C reaches 0
-PAGE_ON_TWO_2:
-               POP BC                          ; 46E9 C1  the high half comes back off the stack rather than out of B
-               DEC B                           ; 46EA 05
-               PUSH BC                         ; 46EB C5
-               LD C,&00                        ; 46EC 0E 00  the POP two instructions back has just put the pushed low
-                                               ; count into C, so it is zeroed again here; the next DEC wraps it to 256
-               JR NZ,PAGE_ON_TWO_LOOP5         ; 46EE 20 EA  back to the comparison, not to the step: HL was advanced
-                                               ; before the count was tested
-               POP BC                          ; 46F0 C1
-               RET                             ; 46F1 C9
+; ---- SCAN_FOLDED_ASCENDING_1 ---- from &46D8 when C reaches 0
+SCAN_FOLDED_ASCENDING_1:
+               POP BC                            ; 46E9 C1  the high half comes back off the stack rather than out of B
+               DEC B                             ; 46EA 05
+               PUSH BC                           ; 46EB C5
+               LD C,&00                          ; 46EC 0E 00  the POP two instructions back has just put the pushed low
+                                                 ; count into C, so it is zeroed again here; the next DEC wraps it to
+                                                 ; 256
+               JR NZ,SCAN_FOLDED_ASCENDING_LOOP5 ; 46EE 20 EA  back to the comparison, not to the step: HL was advanced
+                                                 ; before the count was tested
+               POP BC                            ; 46F0 C1
+               RET                               ; 46F1 C9
 
-; ---- PAGE_ON_TWO_3 ---- from &46D5
-PAGE_ON_TWO_3:
+; ---- SCAN_FOLDED_ASCENDING_2 ---- from &46D5
+SCAN_FOLDED_ASCENDING_2:
                CALL PAGE_ON_TWO                ; 46F2 CD C2 46
-               JR PAGE_ON_TWO_LOOP4            ; 46F5 18 E0
+               JR SCAN_FOLDED_ASCENDING_LOOP4  ; 46F5 18 E0
 
 ;; --------------------------------------------------------------------
 ;; The descending scan -- SORT ABS INVERSE.
@@ -3035,43 +3036,43 @@ PAGE_ON_TWO_3:
 ;; of an INVERSE sort is scanned with ascending comparisons.
 ;; --------------------------------------------------------------------
 
-; ---- PAGE_ON_TWO_LOOP6 ---- from &4706, &470D, &47AA
-PAGE_ON_TWO_LOOP6:
+; ---- SCAN_DESCENDING ---- from &4706, &470D, &47AA
+SCAN_DESCENDING:
                CALL SAVE_FAR_POINTER           ; 46F7 CD 17 47
 
-; ---- PAGE_ON_TWO_LOOP7 ---- from &470B
-PAGE_ON_TWO_LOOP7:
+; ---- SCAN_DESCENDING_LOOP ---- from &470B
+SCAN_DESCENDING_LOOP:
                LD A,(HL)                       ; 46FA 7E
 
-; ---- PAGE_ON_TWO_LOOP8 ---- from &4704
-PAGE_ON_TWO_LOOP8:
+; ---- SCAN_DESCENDING_LOOP2 ---- from &4704
+SCAN_DESCENDING_LOOP2:
                ADD HL,DE                       ; 46FB 19
-               JR C,PAGE_ON_TWO_5              ; 46FC 38 14
+               JR C,SCAN_DESCENDING_2          ; 46FC 38 14
 
-; ---- PAGE_ON_TWO_LOOP9 ---- from &4715
-PAGE_ON_TWO_LOOP9:
+; ---- SCAN_DESCENDING_LOOP3 ---- from &4715
+SCAN_DESCENDING_LOOP3:
                DEC C                           ; 46FE 0D
                JR Z,CMD_SORT_DONE              ; 46FF 28 B9  lands in the ascending scan's tail -- see the note on this
                                                ; routine, and &470F
                CP (HL)                         ; 4701 BE
-               JR Z,PAGE_ON_TWO_4              ; 4702 28 04  equal first bytes go to the rest of the key; everything
+               JR Z,SCAN_DESCENDING_1          ; 4702 28 04  equal first bytes go to the rest of the key; everything
                                                ; else is settled by carry alone
-               JR NC,PAGE_ON_TWO_LOOP8         ; 4704 30 F5  the best is larger, so it stays and HL moves on
-               JR PAGE_ON_TWO_LOOP6            ; 4706 18 EF
+               JR NC,SCAN_DESCENDING_LOOP2     ; 4704 30 F5  the best is larger, so it stays and HL moves on
+               JR SCAN_DESCENDING              ; 4706 18 EF
 
-; ---- PAGE_ON_TWO_4 ---- from &4702 when A = (HL)
-PAGE_ON_TWO_4:
+; ---- SCAN_DESCENDING_1 ---- from &4702 when A = (HL)
+SCAN_DESCENDING_1:
                CALL COMPARE_FAR_STRINGS        ; 4708 CD 25 47
-               JR NC,PAGE_ON_TWO_LOOP7         ; 470B 30 ED  no carry -- the best is still the larger -- so A is
+               JR NC,SCAN_DESCENDING_LOOP      ; 470B 30 ED  no carry -- the best is still the larger -- so A is
                                                ; reloaded from the equal byte at HL
-               JR PAGE_ON_TWO_LOOP6            ; 470D 18 E8
+               JR SCAN_DESCENDING              ; 470D 18 E8
                DEFB &10,&F0,&C9                ; 470F .pI  the tail this loop was meant to use, unreachable because of
                                                ; the operand at &46FF
 
-; ---- PAGE_ON_TWO_5 ---- from &46FC
-PAGE_ON_TWO_5:
+; ---- SCAN_DESCENDING_2 ---- from &46FC
+SCAN_DESCENDING_2:
                CALL PAGE_ON_TWO                ; 4712 CD C2 46
-               JR PAGE_ON_TWO_LOOP9            ; 4715 18 E7
+               JR SCAN_DESCENDING_LOOP3        ; 4715 18 E7
 
 ;; --------------------------------------------------------------------
 ;; Remember where the best element is, in a form that survives the
@@ -3120,15 +3121,16 @@ SAVE_FAR_POINTER:
 ;; &474B, which clears bit 5 of both bytes and lets an equal pair
 ;; carry on.
 ;;
-;; It returns the flags of whichever CP settled it -- carry if the
-;; saved element sorts first, Z if the whole key matched -- and both
-;; are read by all three callers.
+;; It returns the carry of whichever CP settled it -- set if the
+;; saved element sorts first -- and that is all any caller reads; Z is
+;; not guaranteed for a one-byte key, where the DJNZ falls through
+;; with the flags of the IN before it.
 ;; --------------------------------------------------------------------
 
 ; ---- COMPARE_FAR_STRINGS ---- from &46B3, &46E2, &4708
 COMPARE_FAR_STRINGS:
-               BIT 6,H                         ; 4725 CB 74  the caller's pointer may have run into &C000-&FFFF, and it
-                                               ; is about to be used with the other page mapped
+               BIT 6,H                         ; 4725 CB 74  normalised so that the INC HLs below cannot run off &FFFF;
+                                               ; the byte is always read with the caller's own page back in, at &473E
                CALL NZ,INCURPAGE               ; 4727 C4 F2 3F
                PUSH HL                         ; 472A E5
                EXX                             ; 472B D9
@@ -3182,8 +3184,9 @@ COMPARE_FAR_STRINGS_LOOP3:
 
 ;; --------------------------------------------------------------------
 ;; FIND_VARIABLE, with carry clear taken as "nothing to do" and NZ as
-;; "Not understood", then the variable's page in and an empty string or
-;; a slice stacked for it.
+;; "Not understood", then the caller's page back in for the slicers,
+;; with the variable's page kept on the stack for &479E, and an empty
+;; string or a slice stacked for it.
 ;; --------------------------------------------------------------------
 
 ; ---- FIND_STRING_VARIABLE ---- from &462D
@@ -3198,13 +3201,14 @@ FIND_STRING_VARIABLE:
                OUT (HMPR),A                    ; 4765 D3 FB
                CALL STACK_STRIDE_AND_SLICE_IT  ; 4767 CD C3 47
                LD B,D                          ; 476A 42  the second dimension, passed as the length for the second
-                                               ; slice. BC came back from the first call unchanged, which is why this
+                                               ; slice. DE came back from the first call unchanged, which is why this
                                                ; can be written as a move rather than a reload
                LD C,E                          ; 476B 4B
                CALL STACK_STRIDE_AND_SLICE_IT  ; 476C CD C3 47
                LD A,B                          ; 476F 78
-               CP &40                          ; 4770 FE 40  &4000 or more, so the slice is at least 16K and cannot be a
-                                               ; string
+               CP &40                          ; 4770 FE 40  B is D here, the element size FIND_VARIABLE returned and
+                                               ; both slicer calls left alone, so this refuses a string array whose
+                                               ; elements are 16K or more; a plain string passes with B = 0
                JP NC,REP_STRING_TOO_LONG       ; 4772 D2 B9 43
                PUSH HL                         ; 4775 E5
                PUSH BC                         ; 4776 C5
@@ -3241,7 +3245,7 @@ FIND_STRING_VARIABLE_1:
                LD (V4099),A                    ; 47A0 32 99 40
                LD (V40A2),HL                   ; 47A3 22 A2 40
                LD BC,(V40A0)                   ; 47A6 ED 4B A0 40
-               LD IX,PAGE_ON_TWO_LOOP6         ; 47AA DD 21 F7 46
+               LD IX,SCAN_DESCENDING           ; 47AA DD 21 F7 46
                LD A,(V4098)                    ; 47AE 3A 98 40
                CP T_INVERSE                    ; 47B1 FE A5  the byte after ABS, which &4620 stored for exactly this
                                                ; test -- so ABS INVERSE is settled here and not at the parse
@@ -3254,7 +3258,7 @@ FIND_STRING_VARIABLE_1:
                CP &02                          ; 47BB FE 02  and 2 is the ABS distance, from &4628 -- so this asks "was
                                                ; it ABS?" of the patch
                RET Z                           ; 47BD C8
-               LD IX,PAGE_ON_TWO_1             ; 47BE DD 21 CD 46
+               LD IX,SCAN_FOLDED_ASCENDING     ; 47BE DD 21 CD 46
                RET                             ; 47C2 C9
 
 ;; --------------------------------------------------------------------
@@ -3277,8 +3281,8 @@ FIND_STRING_VARIABLE_1:
 ;; works out the count.  What comes back is the offset in place of the
 ;; address and the slice length in place of the length -- which is
 ;; exactly what the caller wanted and could not have got as cheaply any
-;; other way, since SLICING also raises the ROM's own "Subscript out of
-;; range" for it.
+;; other way, since SLICING also raises the ROM's own "Subscript wrong"
+;; for it.
 ;;
 ;; An earlier reading of this header said "a string of length zero at
 ;; address zero".  Zero is the address; BC is not touched, and if it
@@ -3290,9 +3294,9 @@ FIND_STRING_VARIABLE_1:
 ;; is left as stacked, which for a caller that passed BC = 0 is an
 ;; empty string and otherwise is the whole extent.
 ;;
-;; Both of the ROM routines it uses -- STKSTR and SLICING -- are
-;; reached through thunks whose targets are found by signature search
-;; at boot.
+;; STKSTR is the ROM's fixed jump-table entry at &0127; SLICING has no
+;; such entry, and its thunk at &45ED is filled by signature search at
+;; boot.
 ;;
 ;; Everything is preserved: BC, DE and HL are pushed on entry and
 ;; popped on both exits, so the result is on the ROM's calculator stack
@@ -3336,10 +3340,11 @@ STACK_STRIDE_AND_SLICE_IT_DONE:
                RET                             ; 47E5 C9
 
 ;; --------------------------------------------------------------------
-;; Evaluate a string and hand back a paged address.  GETSTR leaves the
-;; page in A and an offset in DE, and if the page is not zero SET 6,D
-;; turns that offset into a section B address -- the same long-address
-;; convention LONGADDR_TO_PAGED and PAGED_TO_LONG work in.
+;; Evaluate a string and hand back its offset.  GETSTR returns the
+;; offset with SLICING's page carry split off it -- bit 6 into A --
+;; and SET 6,D reassembles the 16-bit offset; A is not used by any of
+;; the three callers, all of which hand this routine a slice of the
+;; page-0 string STACK_STRIDE_AND_SLICE_IT stacks.
 ;; --------------------------------------------------------------------
 
 ; ---- GET_STRING_PAGED ---- from &4777, &47EE, &6FDF
@@ -3374,15 +3379,26 @@ GET_NONEMPTY_STRING:
 ;;
 ;; TWO WAYS IN.  SORT_NAMES is the DOS's: ten-byte records, compared
 ;; over the whole ten, with HL at the first and DE holding how many
-;; there are.  HOOK_HORDER three bytes further on is the ORDER command's,
-;; and takes its lengths from the caller -- which is what the EXX at
-;; the top is for, and why the DOS's entry has to skip it.  The CP that
-;; does the skipping is idiom 8: &FE swallows the byte after it.
+;; there are.  HOOK_HORDER, five bytes further on, is hook code 153's
+;; -- the source's HORDER; its ORDER is the DOS entry above -- and was
+;; written to take its lengths from the caller through the EXX at the
+;; top, which the DOS's entry has to skip.  The CP that does the
+;; skipping is idiom 8: &FE swallows the byte after it.
+;;
+;; THE EXX NO LONGER DOES WHAT IT WAS FOR.  In stock MasterDOS INDJP
+;; reached HORDER by JP (HL) with the caller's HL, DE and BC still in
+;; the alternate set, which is where the DOS's hook entry keeps them
+;; (DOS &4442-&444E saves them from there).  Here code 153 has bit 15
+;; set, so INDJP_1 does its own EXX at DOS &78DE before CALLMB, and
+;; CALLMB leaves its scratch in the alternate set -- so the EXX at
+;; &4800 swaps the caller's registers out for CALLMB's leftovers, and
+;; hook 153 sorts DE' = &4800 "records" from HL' = &42DC.  Only A
+;; reaches it.  docs/bugs.md, defect 12.
 ;;
 ;; A SELECTION SORT IS THE RIGHT CHOICE HERE.  It compares as often as
 ;; any of the simple sorts -- one pass per record, each scanning what
-;; is left -- but it moves each record at most once, and moving one
-;; means ten byte swaps with no room for a temporary.  A bubble sort
+;; is left -- but it exchanges once per pass, n-1 times in all, and
+;; an exchange means ten byte swaps with no room for a temporary.  A bubble sort
 ;; would compare no less and move very much more.
 ;;
 ;; EACH PASS finds the smallest record still unsorted and swaps it to
@@ -3411,8 +3427,11 @@ SORT_NAMES:
                DEFB SKIP_1_VIA_CP              ; 47FF ~  skips the EXX, which belongs to the other entry
 
 HOOK_HORDER:
-               EXX                             ; 4800 D9  the hook entry starts here, and the EXX is its own: SORT_NAMES
-                                               ; skips it, having just loaded BC itself
+               EXX                             ; 4800 D9  the hook entry starts here, and the EXX is the source's HORDER
+                                               ; opening, which SORT_NAMES skips. In this build it swaps the caller's
+                                               ; registers OUT -- INDJP_1 at DOS &78DE has already brought them into the
+                                               ; main set before CALLMB -- so hook 153 does not receive its list; see
+                                               ; the header
                DEC A                           ; 4801 3D  one fewer, because the first byte is compared on its own
                LD (SORT_TAIL+1),A              ; 4802 32 23 48  into the inner loop's own count, below
                PUSH DE                         ; 4805 D5
@@ -3682,8 +3701,9 @@ CMD_TIME_1:
                                                ; This page keeps its own mirror of both DOS buffers at &4120
                CALL TWO_DIGITS_FROM_DE         ; 48A2 CD 6A 4A  read back as a number 0 to 99
                LD C,A                          ; 48A5 4F
-               XOR A                           ; 48A6 AF  A is wanted as zero for the count below, and the XOR also
-                                               ; clears the carry that the first SBC HL,BC depends on
+               XOR A                           ; 48A6 AF  A is wanted as zero for the count below; the ADD HL,BC that
+                                               ; follows leaves carry clear, since HL cannot overflow there, which is
+                                               ; what the first SBC needs
                LD B,A                          ; 48A7 47
                ADD HL,BC                       ; 48A8 09  elapsed seconds added to the seconds that were on the clock
                                                ; when the mode was entered
@@ -3795,8 +3815,8 @@ CMD_TIME_LOOP2:
 CMD_TIME_5:
                LD DE,DOS_DATDT                 ; 48FE 11 71 82  the DOS's DATDT through the window; TIMDT follows it
                                                ; fifteen bytes later, so one run covers both
-               LD HL,V4120                     ; 4901 21 20 41  this page's mirror, which the labels at &4125, &412F,
-                                               ; &4132 and &4135 split up but which is one 23-byte block
+               LD HL,V4120                     ; 4901 21 20 41  this page's mirror, which the labels at &412F, &4132 and
+                                               ; &4135 split up but which is one 23-byte block
                LD B,&17                        ; 4904 06 17  fifteen bytes of date plus eight characters of time
                CALL PAGE_IN_OTHER_HALF         ; 4906 CD D1 49
                PUSH AF                         ; 4909 F5
@@ -3907,8 +3927,9 @@ CMD_TIME_7:
 
 ; ---- CMD_TIME_8 ---- from &491B
 CMD_TIME_8:
-               CALL EXPECT_END_OF_STATEMENT    ; 495B CD D0 44  still has to reject "DATE 1,2", and still finishes the
-                                               ; syntax pass here
+               CALL EXPECT_END_OF_STATEMENT    ; 495B CD D0 44  reached only at CR or ":", so the "Not understood"
+                                               ; inside can never fire; this call is here to finish the syntax pass
+                                               ; through ENDS
                LD A,&02                        ; 495E 3E 02  stream 2, the screen, for the ROM's STREAM below. LPRINT
                                                ; REF loads 3 for the printer at &55C8 and PRINT REF loads 2 at &5641 --
                                                ; the same two numbers, the same routine
@@ -3977,10 +3998,10 @@ CMD_TIME_9:
                AND A                           ; 4986 A7
                RET Z                           ; 4987 C8  zero means no clock is fitted, and the DOS's buffers keep
                                                ; whatever they had
-               DI                              ; 4988 F3  the handshake below must not be interrupted with HOLD
-                                               ; asserted, or the clock would be stopped for the length of the
-                                               ; interrupt. There is no matching EI anywhere in the routine -- see the
-                                               ; header
+               DI                              ; 4988 F3  the source's CKHW, moved across with its DI, which the author
+                                               ; comments "CRASHES IF NOT"; a guess at why is that the handshake below
+                                               ; must not be interrupted with HOLD asserted. There is no matching EI
+                                               ; anywhere in the routine -- see the header
                PUSH HL                         ; 4989 E5
                LD C,A                          ; 498A 4F
                LD B,&D0                        ; 498B 06 D0  register 13, control D
@@ -5253,8 +5274,9 @@ FN_EQU:
                RET NC                          ; 4D60 D0
                CALL TWO_PAGED_STRINGS          ; 4D61 CD 6D 4D
                LD BC,&0001                     ; 4D64 01 01 00  true is 1 and false is 0, and the Z that chooses between
-                                               ; them came out of TWO_PAGED_STRINGS -- it is the length comparison made
-                                               ; before the byte loop, not the byte loop's own answer
+                                               ; them came out of TWO_PAGED_STRINGS: set only when the lengths matched
+                                               ; at &4D7F and every byte matched after folding, clear on the first
+                                               ; differing byte -- the CP at &4DA5 -- or on a length mismatch
                JR Z,FN_EQU_1                   ; 4D67 28 01
                DEC BC                          ; 4D69 0B
 
@@ -5453,9 +5475,8 @@ FN_SHIFT_S:
                PUSH DE                         ; 4DF5 D5
                LD A,L                          ; 4DF6 7D
                LD HL,&2020                     ; 4DF7 21 20 20  three constants for the three case options, reached by
-                                               ; falling down the DEC A chain, each one shorter to set up than the last.
-                                               ; FORCE_CASE_BYTE ORs H in and XORs L out: &20/&20 forces upper, &20/&00
-                                               ; lower, &00/&20 swaps
+                                               ; falling down the DEC A chain. FORCE_CASE_BYTE ORs H in and XORs L:
+                                               ; &20/&20 forces upper, &20/&00 lower, &00/&20 swaps
                DEC A                           ; 4DFA 3D
                JR Z,FORCE_CASE_BYTE            ; 4DFB 28 20
                LD L,&00                        ; 4DFD 2E 00  the second of those three -- H is still &20, so clearing L
@@ -5463,8 +5484,8 @@ FN_SHIFT_S:
                DEC A                           ; 4DFF 3D
                JR Z,FORCE_CASE_BYTE            ; 4E00 28 1B
                LD HL,&0020                     ; 4E02 21 20 00  and the third, &00/&20, which swaps the case of every
-                                               ; letter. Both are one instruction because the chain falls through the
-                                               ; option before them
+                                               ; letter -- a fresh pair; only the LD L,&00 above leaned on the H the
+                                               ; first option left
                DEC A                           ; 4E05 3D
                JR Z,FORCE_CASE_BYTE            ; 4E06 28 15
                DEC A                           ; 4E08 3D
@@ -5493,7 +5514,8 @@ FN_SHIFT_S_LOOP:
 ;; Force the case of one letter at (DE), leaving anything else alone.
 ;;
 ;; IS_LETTER decides whether to touch it at all; then OR H sets the bits
-;; H selects and XOR L clears the ones L selects, so the caller chooses
+;; H selects and XOR L flips the ones L selects -- which clears them
+;; when H has just set them, and swaps them when H is zero -- so the caller chooses
 ;; what happens by what it puts in HL.  &20 in both makes upper case,
 ;; &20 in H alone lower case, &20 in L alone swaps it.  That is the
 ;; machinery behind SHIFT$.
@@ -5631,7 +5653,7 @@ FN_RESERVED:
                DEFB FPC_DUP                    ; 4E82 DUP
                DEFB FPC_GRTE0                  ; 4E83 GRTE0
                DEFB FPC_JPTRUE,&07             ; 4E84 JPTRUE to &4E8C (+7)
-               DEFB FPC_CONST2                 ; 4E86 CONST2 -- stack constant 2
+               DEFB FPC_STK16K                 ; 4E86 STK16K -- stacks 16384, FPCTAB+2
                DEFB FPC_DUP                    ; 4E87 DUP
                DEFB FPC_ADDN                   ; 4E88 ADDN (NUMBERS)
                DEFB FPC_DUP                    ; 4E89 DUP
@@ -5647,9 +5669,13 @@ FN_RESERVED:
                DEFB ERR_OUT_OF_MEMORY          ; 4E95 01 error 1, "Out of memory"
 
 ;; --------------------------------------------------------------------
-;; Hook 173 -- dispatch one of MasterBASIC's commands.  The ROM's CMDV
-;; vector points here, and like SYNTAX it is reached only for a statement
-;; the ROM could not run itself.
+;; Hook 173 -- dispatch one of MasterBASIC's commands.  The ROM calls
+;; CMDV once a statement, before its own dispatch -- mainlp.asm's "ALLOWS
+;; ADDING OF EXTRA CMDS" -- and CMDV points at the stub at &488E, whose
+;; DISPATCH_ON_COMMAND_TOKEN passes only the tokens listed there to this
+;; hook: SAVE, LOAD, MERGE and VERIFY, and the six tested below.  The
+;; default path from &4ED4 is SAVE/LOAD/MERGE/VERIFY's, all four of which
+;; CMDADT sends to SLMVC, which is why the prologue tests for MERGE.
 ;;
 ;; It reads the ROM's COMAD, records the token in CURCMD, and indexes a
 ;; table by token minus &90 to find the routine.  Six of the ROM's own
@@ -5765,7 +5791,9 @@ HCMDV_1:
 ;; this epilogue calls what that CALL used to.  The routine is spliced
 ;; into, not replaced.
 ;;
-;; The rest of it shifts &50 bytes up by sixteen inside INSTBUF, the
+;; The rest of it shifts &50 bytes up by sixteen inside INSTBUF -- or
+;; &51 bytes up by fifteen when the byte at (DE) is under four, the
+;; INC HL : INC BC branch at &4F1E -- the
 ;; ROM's &4F00 buffer "for ROM1 xfer code, etc" -- LD HL,&4F4F and
 ;; LD DE,&4F60 with an LDDR, both of which happen to collide with this
 ;; half's own addresses and read as local labels until the block is
@@ -5818,7 +5846,7 @@ CMDBUF_EPILOGUE_1:
 ;; stub.
 ;;
 ;; What it does there names itself.  It reads CURCMD -- which HCMDV
-;; wrote three instructions before starting the copy -- and compares it
+;; wrote at &4E9E, before it looked the token up -- and compares it
 ;; with &96; then SAVARS, NUMEND, NUMENDP and SAVARSP, the ROM's
 ;; pointers into the variables area, and a subtraction of one pair from
 ;; the other.  So it measures the variables area for one particular
@@ -5830,8 +5858,8 @@ CMDBUF_EPILOGUE_1:
 ;; such.
 ;;
 ;; In the dump the copy survives except for &4D00-&4D13, the first
-;; twenty bytes of CDBUFF proper, which something later overwrote with
-;; zeroes.  Everything below CDBUFF and everything from &4D14 on is
+;; twenty bytes of CDBUFF proper, which something later overwrote --
+;; nineteen zeros and a &10 at &4D03.  Everything below CDBUFF and everything from &4D14 on is
 ;; intact, which is how the &D3 at &4D18 -- an OUT the note on the
 ;; shared buffer could not account for -- turns out to be the OUT
 ;; (HMPR),A at &4F76.
@@ -5862,7 +5890,8 @@ CMDBUF_PROLOGUE:
                                                ; &025E from any address in it
                LD (&4A97),A                    ; 4F33 32 97 4A  the operand of the LD (HL) at &4A96, armed with &FF --
                                                ; see above
-               CALL &4CE3                      ; 4F36 CD E3 4C  &4CE3 once this block is moved, not the label shown
+               CALL &4CE3                      ; 4F36 CD E3 4C  &4CE3 once this block is moved -- the operand means the
+                                               ; copy, not anything at that address in this page
                LD A,(&4A97)                    ; 4F39 3A 97 4A  and read back, so the INC A : RET Z below is "did the
                                                ; call fill it in"
                INC A                           ; 4F3C 3C
@@ -5914,7 +5943,8 @@ CMDBUF_PROLOGUE_2:
 
 ;; --------------------------------------------------------------------
 ;; MODE, token &AA.  Reads the number, expects the end of the statement,
-;; and rejects anything outside 1 to 4 with error 34 -- which the ROM's
+;; and rejects 0 and 5 to 255 with error 34 (a negative or anything
+;; over 255 already fell to "Integer out of range" in BYTE_ARGUMENT) -- which the ROM's
 ;; own message table gives as "screen mode", and which is the single
 ;; strongest confirmation that this is what the token is.
 ;;
@@ -6024,9 +6054,9 @@ HGTTK:
                OUT (HMPR),A                    ; 4FCF D3 FB
                CALL CALLDOS                    ; 4FD1 CD C1 42
                DEFW &788E                      ; 4FD4 8E 78
-               LD HL,&90D6                     ; 4FD6 21 D6 90  one below MBKEYS, because JGTTOK is documented as
-                                               ; matching "A-1 words from list at HL+1" -- &50D6 holds a RET and the
-                                               ; list starts at &50D7
+               LD HL,&90D6                     ; 4FD6 21 D6 90  one below the word-0 space at &50D7 (two below the
+                                               ; MBKEYS label), because JGTTOK is documented as matching "A-1 words from
+                                               ; list at HL+1" -- &50D6 holds a RET and the list starts at &50D7
                LD A,&1D                        ; 4FD9 3E 1D  29, so A-1 is 28, which is the length of MBKEYS
                CALL MBCMR                      ; 4FDB CD F0 44
                DEFW JGTTOK                     ; 4FDE 8A 01
@@ -6053,14 +6083,6 @@ HGTTK:
                JR HGTTK_DONE2                  ; 4FF9 18 02
 
 ;; --------------------------------------------------------------------
-;; SUB &E1 IS THE WHOLE OF THE LOOKUP.  MBKEYS is one list holding both
-;; kinds of MasterBASIC keyword: words 1 to 21 are the two-byte FF nn
-;; forms and words 22 to 28 the single-byte tokens 247 to 253.  Taking
-;; &E1 off a single-byte token lands on its word -- 247 - &E1 is 22,
-;; which is BACKUP, and 253 - &E1 is 28, which is EDIT.  &E1 is not a
-;; chosen constant: it is 247 less 22, the offset that makes the
-;; single-byte tokens continue the numbering the FF forms started.
-;;
 ;; It is also the inverse of the + &A6 in MasterBASIC's own HGTTK and
 ;; the ROM's + &3B in TOK42 (miscx2.asm, "CONVERT LIST ENTRY TO TOKEN
 ;; CODE"), which come to the same &E1 going the other way.
@@ -6133,6 +6155,14 @@ GTDT_1:
 ;; --------------------------------------------------------------------
 ;; Hook 169, and the ROM's PRTOKV points here, so LIST and the error
 ;; printer both come through it.
+;;
+;; SUB &E1 IS THE WHOLE OF THE LOOKUP.  MBKEYS is one list holding both
+;; kinds of MasterBASIC keyword: words 1 to 21 are the two-byte FF nn
+;; forms and words 22 to 28 the single-byte tokens 247 to 253.  Taking
+;; &E1 off a single-byte token lands on its word -- 247 - &E1 is 22,
+;; which is BACKUP, and 253 - &E1 is 28, which is EDIT.  &E1 is not a
+;; chosen constant: it is 247 less 22, the offset that makes the
+;; single-byte tokens continue the numbering the FF forms started.
 ;; --------------------------------------------------------------------
 
 HPRTOK:
@@ -13783,7 +13813,7 @@ COMPRESS_BLOCK_1:
                EXX                             ; 666B D9  DE-prime is the side buffer at &7B05 -- header byte 5 onwards
                                                ; -- for the byte that follows each literal escape; see &669B
                LD DE,&7B05                     ; 666C 11 05 7B  and &7B05 is that address, five bytes past the header
-                                               ; READ_COUNTED_STRING's banner sets out
+                                               ; EXPAND_BLOCK's banner sets out
                EXX                             ; 666F D9
                POP HL                          ; 6670 E1  output and input start together, because the encoder works in
                                                ; place and no case below writes more than it reads
@@ -13935,9 +13965,10 @@ EXPAND_FILE_1:
 
 ;; --------------------------------------------------------------------
 ;; Set up to expand a file: take a work page through GET_WORK_PAGE --
-;; which falls back on the display if there is none free -- read the
-;; counted string that heads the data, and clear the ROM's PAGCOUNT
-;; before the run begins.
+;; which falls back on the display if there is none free -- and call
+;; EXPAND_BLOCK, which reads the header, loads the block and decodes
+;; it in the work page.  PAGCOUNT is cleared afterwards, for the
+;; FARLDIR copy-back that moves the result to the file's own page.
 ;; --------------------------------------------------------------------
 
 ; ---- EXPAND_INTO_WORK_PAGE ---- from &66E2
@@ -13946,7 +13977,7 @@ EXPAND_INTO_WORK_PAGE:
                IN A,(HMPR)                       ; 66F3 DB FB
                PUSH AF                           ; 66F5 F5
                CALL GET_WORK_PAGE                ; 66F6 CD D7 67
-               CALL READ_COUNTED_STRING          ; 66F9 CD 26 67
+               CALL EXPAND_BLOCK                 ; 66F9 CD 26 67
                XOR A                             ; 66FC AF
                CALL MBNRWR                       ; 66FD CD 82 45
                DEFW PAGCOUNT                     ; 6700 83 5B
@@ -13971,9 +14002,13 @@ EXPAND_INTO_WORK_PAGE:
                RET                               ; 6725 C9
 
 ;; --------------------------------------------------------------------
-;; Read a length byte from the open file through the DOS's LBYT, then
-;; that many bytes after it, into the buffer at &7B00 -- the installer's
-;; dead bytes again.
+;; The mirror of COMPRESS_BLOCK.  Read a length byte from the open file
+;; through the DOS's LBYT, then that many bytes after it, into the
+;; buffer at &7B00 -- the installer's dead bytes again -- and then, from
+;; &6738, the block itself: laid at the top of the work page through
+;; the DOS's LDBLK, the work page brought to &C000, MODCOUNT written
+;; with the expanded length, and the run-length decoder at &6774-&6794
+;; unpacking it in place.
 ;;
 ;; WHAT IT READ IS A FIVE-BYTE HEADER AND A TABLE, and the four numbers
 ;; below say so between them:
@@ -13995,20 +14030,20 @@ EXPAND_INTO_WORK_PAGE:
 ;; window as it will go.
 ;; --------------------------------------------------------------------
 
-; ---- READ_COUNTED_STRING ---- from &66F9
-READ_COUNTED_STRING:
+; ---- EXPAND_BLOCK ---- from &66F9
+EXPAND_BLOCK:
                CALL CALLDOS                    ; 6726 CD C1 42
                DEFW DOS_LBYT-&4000             ; 6729 F6 6F
                LD B,A                          ; 672B 47
                LD HL,INSTALL_ROM_PATCHES       ; 672C 21 00 7B
 
-; ---- READ_COUNTED_STRING_LOOP ---- from &6736 when B is not 0 yet
-READ_COUNTED_STRING_LOOP:
+; ---- EXPAND_BLOCK_LOOP ---- from &6736 when B is not 0 yet
+EXPAND_BLOCK_LOOP:
                CALL CALLDOS                    ; 672F CD C1 42
                DEFW DOS_LBYT-&4000             ; 6732 F6 6F
                LD (HL),A                       ; 6734 77
                INC HL                          ; 6735 23
-               DJNZ READ_COUNTED_STRING_LOOP   ; 6736 10 F7
+               DJNZ EXPAND_BLOCK_LOOP          ; 6736 10 F7
                LD HL,&C000                     ; 6738 21 00 C0  one past &BFFF, so subtracting the length below lands
                                                ; where the compressed data has to start to end flush with the top of the
                                                ; window
@@ -14046,57 +14081,59 @@ READ_COUNTED_STRING_LOOP:
                LD A,(INSTALL_ROM_PATCHES)      ; 6770 3A 00 7B
                LD C,A                          ; 6773 4F
 
-; ---- READ_COUNTED_STRING_LOOP2 ---- from &678C, &6794
-READ_COUNTED_STRING_LOOP2:
+; ---- EXPAND_BLOCK_LOOP2 ---- from &678C, &6794
+EXPAND_BLOCK_LOOP2:
                LD A,(HL)                       ; 6774 7E
                LD B,&01                        ; 6775 06 01  one, the run length for a byte that is not the escape -- so
                                                ; the shared store below serves a literal and a run alike, and only a
                                                ; real run reloads B from the stream at &6782
                INC HL                          ; 6777 23
                CP C                            ; 6778 B9
-               JR NZ,READ_COUNTED_STRING_LOOP3 ; 6779 20 0A
+               JR NZ,EXPAND_BLOCK_LOOP3        ; 6779 20 0A
                LD A,(HL)                       ; 677B 7E
                LD (DE),A                       ; 677C 12
                INC DE                          ; 677D 13
                INC HL                          ; 677E 23
                CP C                            ; 677F B9
-               JR Z,READ_COUNTED_STRING_1      ; 6780 28 0C
+               JR Z,EXPAND_BLOCK_1             ; 6780 28 0C
                LD B,(HL)                       ; 6782 46
                DEC B                           ; 6783 05
                INC HL                          ; 6784 23
 
-; ---- READ_COUNTED_STRING_LOOP3 ---- from &6779 when A <> C, &678A when B is not 0 yet
-READ_COUNTED_STRING_LOOP3:
+; ---- EXPAND_BLOCK_LOOP3 ---- from &6779 when A <> C, &678A when B is not 0 yet
+EXPAND_BLOCK_LOOP3:
                LD (DE),A                       ; 6785 12
                INC DE                          ; 6786 13
                INC D                           ; 6787 14
                DEC D                           ; 6788 15
                RET Z                           ; 6789 C8
-               DJNZ READ_COUNTED_STRING_LOOP3  ; 678A 10 F9
-               JR READ_COUNTED_STRING_LOOP2    ; 678C 18 E6
+               DJNZ EXPAND_BLOCK_LOOP3         ; 678A 10 F9
+               JR EXPAND_BLOCK_LOOP2           ; 678C 18 E6
 
-; ---- READ_COUNTED_STRING_1 ---- from &6780 when A = C
-READ_COUNTED_STRING_1:
+; ---- EXPAND_BLOCK_1 ---- from &6780 when A = C
+EXPAND_BLOCK_1:
                EXX                             ; 678E D9
                LD A,(DE)                       ; 678F 1A
                INC E                           ; 6790 1C
                EXX                             ; 6791 D9
                LD (DE),A                       ; 6792 12
                INC DE                          ; 6793 13
-               JR READ_COUNTED_STRING_LOOP2    ; 6794 18 DE
+               JR EXPAND_BLOCK_LOOP2           ; 6794 18 DE
 
 ;; --------------------------------------------------------------------
-;; Plant a step and a count into four instructions further on -- &6796
+;; Plant a step and a count into three instructions further on -- &6796
 ;; supplies &05 and &33, &679B the same pair the other way round, and
-;; everything after them is shared.  Both entries then check HL and
-;; return Z at the end of the run before doing any of the work.
+;; everything after them is shared.  Both entries first return if the
+;; block is under 256 bytes: HL is &10000 less the length, so DEC HL /
+;; INC H is zero only when there is no whole 256-byte page to work on.
 ;; --------------------------------------------------------------------
 
 ; ---- SET_STEP_AND_COUNT ---- from &6641 when A = &11
 SET_STEP_AND_COUNT:
-               LD BC,&0533                     ; 6796 01 33 05  B is 5 and C is &33, so COPY_EVERY_NTH_BYTE takes five
-                                               ; bytes at a time fifty-one times over -- 255, which with its opening LDI
-                                               ; is the 256 a whole pass moves
+               LD BC,&0533                     ; 6796 01 33 05  B is 5 and C is &33: B becomes the pass count and the
+                                               ; stride, C the bytes per pass, so COPY_EVERY_NTH_BYTE takes fifty-one
+                                               ; bytes at a stride of five, five times over -- 255, which with its
+                                               ; opening LDI is the 256 a whole pass moves
                JR SET_STEP_AND_COUNT_1         ; 6799 18 03
 
 ;; --------------------------------------------------------------------
@@ -14107,9 +14144,10 @@ SET_STEP_AND_COUNT:
 
 ; ---- SET_STEP_AND_COUNT_SWAPPED ---- from &670F when A = &11
 SET_STEP_AND_COUNT_SWAPPED:
-               LD BC,&3305                     ; 679B 01 05 33  the same 255 the other way round, fifty-one bytes taken
-                                               ; five times. Both reach 256 with the LDI; what differs is the shape of
-                                               ; the walk, and the note above says which is which
+               LD BC,&3305                     ; 679B 01 05 33  the same 255 the other way round: five bytes at a stride
+                                               ; of fifty-one, fifty-one times over. Both reach 256 with the LDI; what
+                                               ; differs is the shape of the walk, and the note above says which is
+                                               ; which
 
 ; ---- SET_STEP_AND_COUNT_1 ---- from &6799
 SET_STEP_AND_COUNT_1:
@@ -14371,9 +14409,9 @@ DUMP_ORIENT_SETUP_2:
                LD (DUMP_ORIENT),A              ; 6857 32 5C 40
                LD HL,(SDLHS)                   ; 685A 2A 10 40  the left and right edges of the dumped area
                LD DE,(SDTOP)                   ; 685D ED 5B 12 40  and the top and bottom
-               CP &03                          ; 6861 FE 03  DUMP_ORIENT is 1 or 3 and nothing else, from the two LD A
-                                               ; above, so comparing with the upright value and taking the carry
-                                               ; separates them
+               CP &03                          ; 6861 FE 03  DUMP_ORIENT is 1 or 2 for a sideways dump and 3 or 4 for an
+                                               ; upright one -- SDORI is stored straight through when it is set -- so
+                                               ; comparing with 3 and taking the carry separates them
                JR C,DUMP_ORIENT_SETUP_3        ; 6863 38 0C  sideways wants them as they are
                LD C,H                          ; 6865 4C  upright wants the pairs the other way round
                LD H,L                          ; 6866 65
@@ -14392,7 +14430,8 @@ DUMP_ORIENT_SETUP_2:
 DUMP_ORIENT_SETUP_3:
                LD (DUMP_BIT_FROM),HL           ; 6871 22 5D 40  the axis that fills the bits of a byte
                LD (DUMP_BYTE_TO),DE            ; 6874 ED 53 5F 40  and the axis that steps from byte to byte
-               CALL MBNRRD                     ; 6878 CD 6A 45  the screen being displayed
+               CALL MBNRRD                     ; 6878 CD 6A 45  the current screen -- the one PRINT and PLOT go to,
+                                               ; which DISPLAY can make a different one from the one on the monitor
                DEFW CUSCRNP                    ; 687B 78 5A
                AND PAGEMASK                    ; 687D E6 1F
                OUT (HMPR),A                    ; 687F D3 FB  into the window, where the pixel reader expects it
@@ -14403,15 +14442,19 @@ DUMP_ORIENT_SETUP_3:
                CALL PRINT_COUNTED_STRING       ; 688C CD F1 69
                LD D,&00                        ; 688F 16 00  the ninth bit of the doubled start has to land somewhere,
                                                ; and the RL D below shifts into a D that must start clear
-               LD A,(DUMP_MODE)                ; 6891 3A AE 40  MODE 3 has half the columns, so the start doubles
+               LD A,(DUMP_MODE)                ; 6891 3A AE 40  MODE 3 has twice the columns, 512, so the manual's 0-255
+                                               ; start doubles
                CP &02                          ; 6894 FE 02  DUMP_MODE is the ROM's MODE, read straight through MBNRRD
                                                ; at &683B, and that holds 0 to 3 for modes 1 to 4 -- so 2 is screen MODE
                                                ; 3, the same test &6844 makes to force a sideways dump
                LD A,(DUMP_BIT_FROM)            ; 6896 3A 5D 40
                JR NZ,DUMP_ORIENT_SETUP_4       ; 6899 20 03
                ADD A,A                         ; 689B 87
-               RL D                            ; 689C CB 12  and the bit that carries out of it is kept for the pixel
-                                               ; reader
+               RL D                            ; 689C CB 12  and the bit that carries out of it lands in bit 0 of V40AA
+                                               ; -- where &6A22 adds it to the halved column as one nibble, two pixels,
+                                               ; and &69D0 never sees it. The value the reader needs for the second half
+                                               ; is the &80 that &69C8 writes, so a MODE 3 start of 128 or more is not
+                                               ; honoured: docs/bugs.md, defect 11
 
 ; ---- DUMP_ORIENT_SETUP_4 ---- from &6899 when the CP found A <> &02
 DUMP_ORIENT_SETUP_4:
@@ -14421,16 +14464,19 @@ DUMP_ORIENT_SETUP_4:
                LD D,&03                        ; 68A3 16 03  the first DUMP_BITS_CARRY, which &68D5 writes: a whole
                                                ; pixel's three bits still to come, so the first byte of the first line
                                                ; starts on a pixel boundary rather than in the middle of one
-               LD A,&02                        ; 68A5 3E 02  the first dither phase, into V40A0 for &6909 to pick up.
-                                               ; The phase lives in 0 to 2 and DUMP_STRIKE's unmagnified path counts it
-                                               ; down, so two is the top of the range
+               LD A,&02                        ; 68A5 3E 02  the seed for the dither phase, into V40A0; DUMP_STRIKE
+                                               ; steps it at &68BE-&68D1 before &6909 first reads it. The phase lives in
+                                               ; 0 to 2 and DUMP_STRIKE's unmagnified path counts it down, so two is the
+                                               ; top of the range
                LD (V40A0),A                    ; 68A7 32 A0 40
 
 ;; --------------------------------------------------------------------
 ;; One bit-image line: eight dots deep, the whole width of the dump.
 ;;
 ;; DUMP_LINE_BASE holds where this line starts on the bit axis, and the
-;; line advances it by eight each time round.  GCMX4 goes out first,
+;; line advances it by one byte's worth each time round -- eight dots,
+;; which is eight pixels at DUMP 1, four at DUMP 2, and two and a
+;; fraction at DUMP 3, DUMP_BITS_CARRY holding the fraction.  GCMX4 goes out first,
 ;; which is the carriage return and line feed that ends the line before
 ;; -- so a dump opens with one carriage return and line feed that has
 ;; nothing in front of it, and its last line is not followed by
@@ -14453,11 +14499,12 @@ DUMP_LINE:
 ;; --------------------------------------------------------------------
 ;; One pass of the print head over one line.
 ;;
-;; THE DITHER PATTERN IS ROTATED BETWEEN LINES, and which way round
+;; THE DITHER PATTERN IS ROTATED BETWEEN STRIKES -- between lines when
+;; DTTH is 1 -- and which way round
 ;; depends on whether the second magnification is 1.  &68BA reads it and
 ;; throws the value away immediately -- the DEC A is only there to set
 ;; Z -- so the branch is "is the byte axis being magnified at all".
-;; Magnified, the phase counts down and wraps at 0; not magnified, it
+;; Not magnified, the phase counts down and wraps at 0; magnified, it
 ;; counts up and wraps at 3.  Either way it stays in 0 to 2, and it is
 ;; what stops a flat area of colour printing as stripes.
 ;;
@@ -14544,9 +14591,10 @@ DUMP_STRIKE_LOOP:
 ;; D IS THE BYTE BEING BUILT, and it starts at 1 rather than 0.  Bits
 ;; are shifted in at the bottom with RL D, and after eight of them the
 ;; 1 falls out into carry -- so the byte is finished by the carry and
-;; not by a counter.  Every path that shifts a bit tests it, which is
-;; why a pixel worth two or three bits can finish a byte in the middle
-;; of itself.
+;; not by a counter.  The three-dot path tests every shift, which is
+;; why a pixel worth three bits can finish a byte in the middle of
+;; itself; the two-dot path tests only its second shift, and needs no
+;; more because two divides eight.
 ;; --------------------------------------------------------------------
 
 ; ---- DUMP_BYTE ---- from &69AB
@@ -14664,9 +14712,10 @@ DUMP_PIXEL_4:
 ;;
 ;; DUMP_BITS_LEFT carries the count across the byte boundary: a pixel
 ;; that runs out of room finishes in the next byte, and the count says
-;; how many of its three dots are still owed.  The RRA RRA RRA before
-;; the loop is the same rotation the narrower cases do, done once
-;; because the phase is always the whole three here.
+;; how many of its three dots are still owed.  The three RRAs before
+;; the loop park bit 2 of the pattern in carry with bits 1 and 0 behind
+;; it: the three-dot path uses no phase, and takes the same three bits
+;; every time.
 ;;
 ;; A pixel that fits entirely puts the count back to three on the way
 ;; out; one that does not leaves it as it stands, and DUMP_EMIT's
@@ -14726,8 +14775,8 @@ DUMP_PIXEL_5:
 ;; is 1 for the narrow dumps and the leftover count for the widest one;
 ;; when it comes down to zero the pixel really is finished and the
 ;; position on the bit axis moves on.  The magnification counter decides
-;; whether the next byte repeats this column or moves along, and the
-;; three-phase counter for the dither pattern steps once a byte.
+;; whether the next byte repeats this column or moves along, and E,
+;; the column within the three-dot dither cell, steps once a byte.
 ;; --------------------------------------------------------------------
 
 ; ---- DUMP_EMIT ---- from &695E when bit 7 of D was set, &6979 when bit 7 of D was set
@@ -14774,8 +14823,9 @@ DUMP_INVERT_3:
 ;; The line is printed.  Print it again, move down, or stop.
 ;;
 ;; DTTH's count is spent first.  Then MODE 3, whose columns were
-;; doubled on the way in, is halved again here so that the bit axis
-;; advances by eight screen pixels and not sixteen.
+;; doubled on the way in, has the column halved again -- into B only, C
+;; is untouched -- so that the end test below compares it in the same
+;; 0-255 units as DUMP_BIT_TO.
 ;;
 ;; THE END TEST IS TWO SHORT OF THE LIMIT, because a bit-image byte is
 ;; eight dots and the position has already stepped past the last one it
@@ -15515,7 +15565,8 @@ DUMP_UNSHADED:
                                                ; instead; a bit image must not have its bytes touched
                CALL STREAM                     ; 6B44 CD 12 01
                LD DE,GCM1                      ; 6B47 11 16 5A
-               CALL &500B                      ; 6B4A CD 0B 50  &500B once this block is moved, not the label shown
+               CALL &500B                      ; 6B4A CD 0B 50  &500B once this block is moved -- the operand means the
+                                               ; copy, not anything at that address in this page
                LD HL,(ROM_DMPTL)               ; 6B4D 2A 2D 5A
                LD A,(ROM_DPVARS+3)             ; 6B50 3A 15 5A  the height multiplier. One means eight screen rows to a
                                                ; bit-image line and the length stands as it is; anything else means
@@ -15530,7 +15581,8 @@ DUMP_UNSHADED_1:
                LD C,A                          ; 6B5A 4F
                PUSH HL                         ; 6B5B E5
                LD DE,GCM2                      ; 6B5C 11 1F 5A
-               CALL &500B                      ; 6B5F CD 0B 50  &500B once this block is moved, not the label shown
+               CALL &500B                      ; 6B5F CD 0B 50  &500B once this block is moved -- the operand means the
+                                               ; copy, not anything at that address in this page
                LD A,(MODE)                     ; 6B62 3A 40 5A
                CP &02                          ; 6B65 FE 02  &02 is MODE 3, the one mode with 512 pixel columns, so the
                                                ; width doubles for it and for nothing else
@@ -15589,7 +15641,8 @@ DUMP_UNSHADED_3:
 DUMP_UNSHADED_LOOP3:
                CALL SREAD                      ; 6B9B CD BB 3F
                LD (DE),A                       ; 6B9E 12
-               CALL &5015                      ; 6B9F CD 15 50  &5015 once this block is moved, not the label shown
+               CALL &5015                      ; 6B9F CD 15 50  &5015 once this block is moved -- the operand means the
+                                               ; copy, not anything at that address in this page
                INC DE                          ; 6BA2 13
                DJNZ DUMP_UNSHADED_LOOP3        ; 6BA3 10 F6
 
@@ -17690,9 +17743,11 @@ FN_USING_S_2:
                DEFB FPC_DUP                    ; 7272 DUP
                DEFB FPC_SWOP13                 ; 7273 SWOP13
                DEFB FPC_EXIT                   ; 7274 EXIT
-               CALL &50D7                      ; 7275 CD D7 50  &50D7 once this block is moved, not the label shown
+               CALL &50D7                      ; 7275 CD D7 50  &50D7 once this block is moved -- the operand means the
+                                               ; copy, not anything at that address in this page
                PUSH AF                         ; 7278 F5
-               CALL &50D7                      ; 7279 CD D7 50  &50D7 once this block is moved, not the label shown
+               CALL &50D7                      ; 7279 CD D7 50  &50D7 once this block is moved -- the operand means the
+                                               ; copy, not anything at that address in this page
                POP HL                          ; 727C E1
                SUB H                           ; 727D 94
                EX AF,AF'                       ; 727E 08
@@ -17762,7 +17817,8 @@ FN_USING_S_8:
                POP AF                          ; 72B5 F1
                POP BC                          ; 72B6 C1
                PUSH BC                         ; 72B7 C5
-               CALL C,&50AC                    ; 72B8 DC AC 50  &50AC once this block is moved, not the label shown
+               CALL C,&50AC                    ; 72B8 DC AC 50  &50AC once this block is moved -- the operand means the
+                                               ; copy, not anything at that address in this page
                POP BC                          ; 72BB C1
                POP HL                          ; 72BC E1
                PUSH HL                         ; 72BD E5
@@ -18031,7 +18087,8 @@ COMPILE_PASS:
                                                ; subtract &2632 from any address in it
                XOR A                           ; 7388 AF
                LD (COMPFLG),A                  ; 7389 32 40 5B
-               CALL &4D7B                      ; 738C CD 7B 4D  &4D7B once this block is moved, not the label shown
+               CALL &4D7B                      ; 738C CD 7B 4D  &4D7B once this block is moved -- the operand means the
+                                               ; copy, not anything at that address in this page
                POP AF                          ; 738F F1
                LD (CLAPG),A                    ; 7390 32 AE 5A
                POP HL                          ; 7393 E1
@@ -18087,7 +18144,8 @@ COMPILE_ELINE:
 
 COMPILE_ALL:
                CALL C,&0000                    ; 73B3 DC 00 00  the operand is written here at run time, from &79FD
-               CALL &4DE7                      ; 73B6 CD E7 4D  &4DE7 once this block is moved, not the label shown
+               CALL &4DE7                      ; 73B6 CD E7 4D  &4DE7 once this block is moved -- the operand means the
+                                               ; copy, not anything at that address in this page
 
 L73B9:
                CALL &0000                      ; 73B9 CD 00 00  the operand is written here at run time, from &7A09
@@ -18105,7 +18163,8 @@ L73BE:
                CALL &0000                      ; 73BE CD 00 00  the operand is written here at run time, from &7A15
                RET C                           ; 73C1 D8
                PUSH BC                         ; 73C2 C5
-               CALL &4D97                      ; 73C3 CD 97 4D  &4D97 once this block is moved, not the label shown
+               CALL &4D97                      ; 73C3 CD 97 4D  &4D97 once this block is moved -- the operand means the
+                                               ; copy, not anything at that address in this page
                POP BC                          ; 73C6 C1
                JR COMPILE_ALL_LOOP             ; 73C7 18 F3
 
@@ -18401,7 +18460,8 @@ RELOCATED_TO_46CC_1:
                EX AF,AF'                       ; 746D 08
                LD HL,(ROM_TEMPW1)              ; 746E 2A C8 5A
                EX DE,HL                        ; 7471 EB
-               CALL &483A                      ; 7472 CD 3A 48  &483A once this block is moved, not the label shown
+               CALL &483A                      ; 7472 CD 3A 48  &483A once this block is moved -- the operand means the
+                                               ; copy, not anything at that address in this page
                EX AF,AF'                       ; 7475 08
 
 ; ---- RELOCATED_TO_46CC_2 ---- from &746B
@@ -18416,7 +18476,8 @@ RELOCATED_TO_46CC_LOOP:
                XOR H                           ; 747D AC
                AND PAGEMASK                    ; 747E E6 1F
                LD HL,(ROM_TEMPW1)              ; 7480 2A C8 5A
-               JP Z,&482D                      ; 7483 CA 2D 48  &482D once this block is moved, not the label shown
+               JP Z,&482D                      ; 7483 CA 2D 48  &482D once this block is moved -- the operand means the
+                                               ; copy, not anything at that address in this page
                LD A,B                          ; 7486 78
                CP &20                          ; 7487 FE 20  thirty-two, and B counts 256-byte units, so this asks
                                                ; whether the move is &2000 bytes or more -- more than one pass will take
@@ -18424,14 +18485,16 @@ RELOCATED_TO_46CC_LOOP:
                SUB &1F                         ; 748B D6 1F  thirty-one of those units off the count, which is the &1F00
                                                ; below said the other way round
                LD B,A                          ; 748D 47
-               CALL &4702                      ; 748E CD 02 47  &4702 once this block is moved, not the label shown
+               CALL &4702                      ; 748E CD 02 47  &4702 once this block is moved -- the operand means the
+                                               ; copy, not anything at that address in this page
                LD BC,&1F00                     ; 7491 01 00 1F  &1F00, 7936 bytes, the most one pass moves
                JR RELOCATED_TO_46CC_LOOP       ; 7494 18 E1
 
 ; ---- RELOCATED_TO_46CC_3 ---- from &7489 when A < &20
 RELOCATED_TO_46CC_3:
                EX AF,AF'                       ; 7496 08
-               JP C,&478B                      ; 7497 DA 8B 47  &478B once this block is moved, not the label shown
+               JP C,&478B                      ; 7497 DA 8B 47  &478B once this block is moved -- the operand means the
+                                               ; copy, not anything at that address in this page
                SBC HL,BC                       ; 749A ED 42
                EX AF,AF'                       ; 749C 08
                INC HL                          ; 749D 23
@@ -18450,7 +18513,8 @@ RELOCATED_TO_46CC_3:
                SBC HL,BC                       ; 74AE ED 42
                LD B,H                          ; 74B0 44
                LD C,L                          ; 74B1 4D
-               CALL &4724                      ; 74B2 CD 24 47  &4724 once this block is moved, not the label shown
+               CALL &4724                      ; 74B2 CD 24 47  &4724 once this block is moved -- the operand means the
+                                               ; copy, not anything at that address in this page
                POP BC                          ; 74B5 C1
                JR RELOCATED_TO_46CC_LOOP       ; 74B6 18 BF
 
@@ -18547,9 +18611,11 @@ RELOCATED_TO_46CC_6:
                SBC HL,BC                       ; 753E ED 42
                LD B,H                          ; 7540 44
                LD C,L                          ; 7541 4D
-               CALL &47B5                      ; 7542 CD B5 47  &47B5 once this block is moved, not the label shown
+               CALL &47B5                      ; 7542 CD B5 47  &47B5 once this block is moved -- the operand means the
+                                               ; copy, not anything at that address in this page
                POP BC                          ; 7545 C1
-               JP &46E3                        ; 7546 C3 E3 46  &46E3 once this block is moved, not the label shown
+               JP &46E3                        ; 7546 C3 E3 46  &46E3 once this block is moved -- the operand means the
+                                               ; copy, not anything at that address in this page
 
 ; ---- RELOCATED_TO_46CC_7 ---- from &7535 when A < &C0
 RELOCATED_TO_46CC_7:
@@ -18638,7 +18704,8 @@ RELOCATED_TO_46CC_DONE2:
                JR C,RELOCATED_TO_46CC_10       ; 75C3 38 06
                EX AF,AF'                       ; 75C5 08
                LDDR                            ; 75C6 ED B8
-               JP &4772                        ; 75C8 C3 72 47  &4772 once this block is moved, not the label shown
+               JP &4772                        ; 75C8 C3 72 47  &4772 once this block is moved -- the operand means the
+                                               ; copy, not anything at that address in this page
 
 ; ---- RELOCATED_TO_46CC_10 ---- from &75C3
 RELOCATED_TO_46CC_10:
@@ -20895,7 +20962,8 @@ PATOUT_CHAR_OUT_3:
                JR Z,PATOUT_CHAR_OUT_4           ; 7D2D 28 0C
                EXX                              ; 7D2F D9
                LD HL,PRINT_SIZED_CHAR+IN_PAGE_C ; 7D30 21 85 A4
-               CALL &49EE                       ; 7D33 CD EE 49  &49EE once this block is moved, not the label shown
+               CALL &49EE                       ; 7D33 CD EE 49  &49EE once this block is moved -- the operand means the
+                                                ; copy, not anything at that address in this page
                DEC E                            ; 7D36 1D
                POP HL                           ; 7D37 E1
                POP AF                           ; 7D38 F1
@@ -20980,7 +21048,8 @@ TBL_7D58_2:
                RLA                             ; 7D94 17
                JR NC,TBL_7D58_3                ; 7D95 30 0E
                LD DE,(OPSTORE)                 ; 7D97 ED 5B B5 5A
-               CALL &4A18                      ; 7D9B CD 18 4A  &4A18 once this block is moved, not the label shown
+               CALL &4A18                      ; 7D9B CD 18 4A  &4A18 once this block is moved -- the operand means the
+                                               ; copy, not anything at that address in this page
                LD A,&20                        ; 7D9E 3E 20  a space
                RST PRINT_A                     ; 7DA0 D7
                LD A,&0D                        ; 7DA1 3E 0D  and a carriage return -- the two characters this path emits

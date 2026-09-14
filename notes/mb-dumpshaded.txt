@@ -112,29 +112,31 @@ MB &6851 : sideways
 MB &6855 : upright
 MB &685A : the left and right edges of the dumped area
 MB &685D : and the top and bottom
-MB &6861 : DUMP_ORIENT is 1 or 3 and nothing else, from the two LD A above, so comparing with the upright value and taking the carry separates them
+MB &6861 : DUMP_ORIENT is 1 or 2 for a sideways dump and 3 or 4 for an upright one -- SDORI is stored straight through when it is set -- so comparing with 3 and taking the carry separates them
 MB &6863 : sideways wants them as they are
 MB &6865 : upright wants the pairs the other way round
 MB &6868 : and the rows counted from the top rather than the bottom
 MB &686C : &BF a second time, for the other end of the same pair.  191 is the bottom scan line of the 192, so &BF minus a row is that row measured from the top
 MB &6871 : the axis that fills the bits of a byte
 MB &6874 : and the axis that steps from byte to byte
-MB &6878 : the screen being displayed
+MB &6878 : the current screen -- the one PRINT and PLOT go to, which DISPLAY can make a different one from the one on the monitor
 MB &687F : into the window, where the pixel reader expects it
 MB &6884 : stream &FB, the printer
 MB &6889 : GCMX1 -- left margin and line advance, sent once
 MB &688F : the ninth bit of the doubled start has to land somewhere, and the RL D below shifts into a D that must start clear
-MB &6891 : MODE 3 has half the columns, so the start doubles
+MB &6891 : MODE 3 has twice the columns, 512, so the manual's 0-255 start doubles
 MB &6894 : DUMP_MODE is the ROM's MODE, read straight through MBNRRD at &683B, and that holds 0 to 3 for modes 1 to 4 -- so 2 is screen MODE 3, the same test &6844 makes to force a sideways dump
-MB &689C : and the bit that carries out of it is kept for the pixel reader
+MB &689C : and the bit that carries out of it lands in bit 0 of V40AA -- where &6A22 adds it to the halved column as one nibble, two pixels, and &69D0 never sees it.  The value the reader needs for the second half is the &80 that &69C8 writes, so a MODE 3 start of 128 or more is not honoured: docs/bugs.md, defect 11
 MB &68A3 : the first DUMP_BITS_CARRY, which &68D5 writes: a whole pixel's three bits still to come, so the first byte of the first line starts on a pixel boundary rather than in the middle of one
-MB &68A5 : the first dither phase, into V40A0 for &6909 to pick up.  The phase lives in 0 to 2 and DUMP_STRIKE's unmagnified path counts it down, so two is the top of the range
+MB &68A5 : the seed for the dither phase, into V40A0; DUMP_STRIKE steps it at &68BE-&68D1 before &6909 first reads it.  The phase lives in 0 to 2 and DUMP_STRIKE's unmagnified path counts it down, so two is the top of the range
 
 DOC DUMP_LINE
     One bit-image line: eight dots deep, the whole width of the dump.
 
     DUMP_LINE_BASE holds where this line starts on the bit axis, and the
-    line advances it by eight each time round.  GCMX4 goes out first,
+    line advances it by one byte's worth each time round -- eight dots,
+    which is eight pixels at DUMP 1, four at DUMP 2, and two and a
+    fraction at DUMP 3, DUMP_BITS_CARRY holding the fraction.  GCMX4 goes out first,
     which is the carriage return and line feed that ends the line before
     -- so a dump opens with one carriage return and line feed that has
     nothing in front of it, and its last line is not followed by
@@ -152,11 +154,12 @@ MB &68B4 : how many times to print this line
 DOC DUMP_STRIKE
     One pass of the print head over one line.
 
-    THE DITHER PATTERN IS ROTATED BETWEEN LINES, and which way round
+    THE DITHER PATTERN IS ROTATED BETWEEN STRIKES -- between lines when
+    DTTH is 1 -- and which way round
     depends on whether the second magnification is 1.  &68BA reads it and
     throws the value away immediately -- the DEC A is only there to set
     Z -- so the branch is "is the byte axis being magnified at all".
-    Magnified, the phase counts down and wraps at 0; not magnified, it
+    Not magnified, the phase counts down and wraps at 0; magnified, it
     counts up and wraps at 3.  Either way it stays in 0 to 2, and it is
     what stops a flat area of colour printing as stripes.
 
@@ -196,9 +199,10 @@ DOC DUMP_BYTE
     D IS THE BYTE BEING BUILT, and it starts at 1 rather than 0.  Bits
     are shifted in at the bottom with RL D, and after eight of them the
     1 falls out into carry -- so the byte is finished by the carry and
-    not by a counter.  Every path that shifts a bit tests it, which is
-    why a pixel worth two or three bits can finish a byte in the middle
-    of itself.
+    not by a counter.  The three-dot path tests every shift, which is
+    why a pixel worth three bits can finish a byte in the middle of
+    itself; the two-dot path tests only its second shift, and needs no
+    more because two divides eight.
 
 MB &6906 : three bits to a pixel again, or what was left of one
 MB &690C : the phase this line starts at
@@ -252,9 +256,10 @@ DOC DUMP_PIXEL_TRIPLE
 
     DUMP_BITS_LEFT carries the count across the byte boundary: a pixel
     that runs out of room finishes in the next byte, and the count says
-    how many of its three dots are still owed.  The RRA RRA RRA before
-    the loop is the same rotation the narrower cases do, done once
-    because the phase is always the whole three here.
+    how many of its three dots are still owed.  The three RRAs before
+    the loop park bit 2 of the pattern in carry with bits 1 and 0 behind
+    it: the three-dot path uses no phase, and takes the same three bits
+    every time.
 
     A pixel that fits entirely puts the count back to three on the way
     out; one that does not leaves it as it stands, and DUMP_EMIT's
@@ -278,8 +283,8 @@ DOC DUMP_EMIT
     is 1 for the narrow dumps and the leftover count for the widest one;
     when it comes down to zero the pixel really is finished and the
     position on the bit axis moves on.  The magnification counter decides
-    whether the next byte repeats this column or moves along, and the
-    three-phase counter for the dither pattern steps once a byte.
+    whether the next byte repeats this column or moves along, and E,
+    the column within the three-dot dither cell, steps once a byte.
 
 MB &6989 : NOP, or CPL if INVERSE was asked for
 MB &698D : 1 normally; the leftover count in the widest dump
@@ -292,8 +297,9 @@ DOC DUMP_LINE_END
     The line is printed.  Print it again, move down, or stop.
 
     DTTH's count is spent first.  Then MODE 3, whose columns were
-    doubled on the way in, is halved again here so that the bit axis
-    advances by eight screen pixels and not sixteen.
+    doubled on the way in, has the column halved again -- into B only, C
+    is untouched -- so that the end test below compares it in the same
+    0-255 units as DUMP_BIT_TO.
 
     THE END TEST IS TWO SHORT OF THE LIMIT, because a bit-image byte is
     eight dots and the position has already stepped past the last one it

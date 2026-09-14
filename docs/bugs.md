@@ -5,7 +5,7 @@ as they were sold. The listings cannot be corrected: they assemble to the
 original image byte for byte, and that is the point of them. So a defect
 gets written down here and explained where it sits.
 
-Nine are confirmed and one is suspected. The three sweeps this file used to
+Eleven are confirmed and one is suspected. The three sweeps this file used to
 plan have now been run, and what they found is at the end.
 
 ---
@@ -529,6 +529,102 @@ entry pointing at them.
 it.
 
 **Written up at** `&4D49` in `listings/clean/masterdos.asm`.
+
+---
+
+## 11. A MODE 3 DUMP with a start column of 128 or more dumps the wrong half
+
+**Where** `&689B`–`&68A0` in `DUMP_ORIENT_SETUP`, and the reader at
+`&6A1D`–`&6A23` that consumes what they store.
+
+**What** The manual's coordinates run 0–255 across the screen, and a
+MODE 3 line is 512 pixels wide, so the start column is doubled for MODE 3:
+`ADD A,A` at `&689B`. The ninth bit of that doubling — set when the start
+is 128 or more, the right-hand half of the screen — is rotated into `D`,
+which was cleared to zero at `&688F`, and `D` is stored in `V40AA`:
+
+```
+688F  LD D,&00
+689B  ADD A,A          ; the start doubled; bit 7 into carry
+689C  RL D             ; D = 0 or 1
+689F  LD A,D
+68A0  LD (V40AA),A
+```
+
+So a start of 128 or more leaves `V40AA` holding **1**. The pixel reader
+adds `V40AA` to the *halved* column before it reads:
+
+```
+6A1D  LD A,(V40AA)
+6A20  SRL C            ; the column, back in 0-255 units
+6A22  ADD A,C
+```
+
+In those units the right-hand half begins at 128, which is what the
+second pass of a MODE 3 dump writes into `V40AA` at `&69C8` (`LD
+(HL),&80` — "both a flag and a number", as the listing says there). A 1
+is one nibble: two MODE 3 pixels. And the end test at `&69CD`–`&69D3`
+takes only bit 7 of `V40AA`, so the 1 does nothing there either. `RR D`
+in place of `RL D` would have produced the `&80` the rest of the code
+expects.
+
+**What it costs** `DUMP` of a MODE 3 screen with a start column of 128
+or more reads from the left half of the screen, two pixels in from
+where the doubled start says, instead of from the right half; and
+because `V40AA` is non-zero the wrap test at `&69C5` ends the dump
+after that one pass. The other three modes are unaffected — the
+doubling and the ninth bit exist only for MODE 3.
+
+**Not observed.** Read out of the instructions. `DUMP` a MODE 3 screen
+with `SDLHS` set to 128 would settle it: the output should be the
+right-hand half, and this reading says it is the left.
+
+**Written up at** `&689C` in `listings/clean/masterbasic.asm`.
+
+---
+
+## 12. Hook 153, HORDER, cannot receive its argument list
+
+**Where** `EXX` at `MB &4800`, the first instruction of `HOOK_HORDER`;
+the DOS's `INDJP_1` at `&78DE`; `CALLMB` at `&42BD`.
+
+**What** Hook 153 is the sort MasterDOS documents for machine code:
+`A` = the key length, `BC` = the record length, `DE` = the count, `HL`
+= the list. The DOS's hook entry keeps a caller's `HL`, `DE` and `BC`
+in the alternate register set — `&4442`–`&444E` saves them from there
+— and the source's `HORDER` opens with `EXX` to bring them in. In stock
+MasterDOS `INDJP` reached `HORDER` by `JP (HL)`, and that was right.
+
+In this build the sort lives in the MasterBASIC page, so code 153's
+table entry has bit 15 set and `INDJP` takes its cross-page branch:
+
+```
+78D9  RES 7,H
+78DB  LD (V78E2),HL
+78DE  EXX              ; the caller's HL, DE, BC into the main set
+78DF  CALL CALLMB
+```
+
+`CALLMB` does an `EXX` of its own, pops the address and pushes its
+return frame in the alternate set, and `EXX`s back, so it arrives at
+`&4800` with the caller's registers in the main set and its scratch —
+`HL'` = `CALLMB_1`, `DE'` = `&4800`, `BC'` = the LMPR port and value —
+in the alternate set. `HOOK_HORDER`'s `EXX` then swaps the caller's
+registers out for that scratch, and `&4805`–`&4806` push `DE` and `HL`
+from it. Only `A` reaches the sort.
+
+**What it costs** A program calling hook 153 sorts `&4800` "records"
+of `BC'` bytes starting at `&42DC` — the DOS's own code — rather than
+its list, and the sort writes as it goes. `SORT_NAMES`, the entry the
+DOS's own catalogue uses, is unaffected: it is reached by a plain
+`CALLMB` with `HL` and `DE` in the main set and skips the `EXX`. The
+`SORT` command does not come this way either.
+
+**Not observed.** Read out of the instruction chain, every step of
+which is in the listings. A `CALL` of hook 153 from machine code with a
+small list would settle it.
+
+**Written up at** `&4800` in `listings/clean/masterbasic.asm`.
 
 ---
 

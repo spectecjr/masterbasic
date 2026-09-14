@@ -12,15 +12,26 @@ DOC SORT_NAMES
 
     TWO WAYS IN.  SORT_NAMES is the DOS's: ten-byte records, compared
     over the whole ten, with HL at the first and DE holding how many
-    there are.  HOOK_HORDER three bytes further on is the ORDER command's,
-    and takes its lengths from the caller -- which is what the EXX at
-    the top is for, and why the DOS's entry has to skip it.  The CP that
-    does the skipping is idiom 8: &FE swallows the byte after it.
+    there are.  HOOK_HORDER, five bytes further on, is hook code 153's
+    -- the source's HORDER; its ORDER is the DOS entry above -- and was
+    written to take its lengths from the caller through the EXX at the
+    top, which the DOS's entry has to skip.  The CP that does the
+    skipping is idiom 8: &FE swallows the byte after it.
+
+    THE EXX NO LONGER DOES WHAT IT WAS FOR.  In stock MasterDOS INDJP
+    reached HORDER by JP (HL) with the caller's HL, DE and BC still in
+    the alternate set, which is where the DOS's hook entry keeps them
+    (DOS &4442-&444E saves them from there).  Here code 153 has bit 15
+    set, so INDJP_1 does its own EXX at DOS &78DE before CALLMB, and
+    CALLMB leaves its scratch in the alternate set -- so the EXX at
+    &4800 swaps the caller's registers out for CALLMB's leftovers, and
+    hook 153 sorts DE' = &4800 "records" from HL' = &42DC.  Only A
+    reaches it.  docs/bugs.md, defect 12.
 
     A SELECTION SORT IS THE RIGHT CHOICE HERE.  It compares as often as
     any of the simple sorts -- one pass per record, each scanning what
-    is left -- but it moves each record at most once, and moving one
-    means ten byte swaps with no room for a temporary.  A bubble sort
+    is left -- but it exchanges once per pass, n-1 times in all, and
+    an exchange means ten byte swaps with no room for a temporary.  A bubble sort
     would compare no less and move very much more.
 
     EACH PASS finds the smallest record still unsorted and swaps it to
@@ -44,7 +55,7 @@ DOC SORT_NAMES
 MB &47FB : ten bytes to a record, and ten of them compared
 MB &47FF value SKIP_1_VIA_CP
 MB &47FF : skips the EXX, which belongs to the other entry
-MB &4800 : the hook entry starts here, and the EXX is its own: SORT_NAMES skips it, having just loaded BC itself
+MB &4800 : the hook entry starts here, and the EXX is the source's HORDER opening, which SORT_NAMES skips.  In this build it swaps the caller's registers OUT -- INDJP_1 at DOS &78DE has already brought them into the main set before CALLMB -- so hook 153 does not receive its list; see the header
 MB &4801 : one fewer, because the first byte is compared on its own
 MB &4802 : into the inner loop's own count, below
 MB &480A : how many records are left to sort

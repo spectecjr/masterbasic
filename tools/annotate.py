@@ -206,9 +206,13 @@ points here, so LIST and the error printer come through it.
 is the inverse of the `+ &A6` and the ROM's `+ &3B` in HGTTK."""
 
 CMDV_DOC = """\
-Hook 173 -- dispatch one of MasterBASIC's commands.  The ROM's CMDV
-vector points here, and like SYNTAX it is reached only for a statement
-the ROM could not run itself.
+Hook 173 -- dispatch one of MasterBASIC's commands.  The ROM calls
+CMDV once a statement, before its own dispatch -- mainlp.asm's "ALLOWS
+ADDING OF EXTRA CMDS" -- and CMDV points at the stub at &488E, whose
+DISPATCH_ON_COMMAND_TOKEN passes only the tokens listed there to this
+hook: SAVE, LOAD, MERGE and VERIFY, and the six tested below.  The
+default path from &4ED4 is SAVE/LOAD/MERGE/VERIFY's, all four of which
+CMDADT sends to SLMVC, which is why the prologue tests for MERGE.
 
 It reads the ROM's COMAD, records the token in CURCMD, and indexes a
 table by token minus &90 to find the routine.  Six of the ROM's own

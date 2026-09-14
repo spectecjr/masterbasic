@@ -132,7 +132,7 @@ MB &489F : the seconds of the time saved when TIME + was selected.  This page ke
 
 MB &48A2 : read back as a number 0 to 99
 
-MB &48A6 : A is wanted as zero for the count below, and the XOR also clears the carry that the first SBC HL,BC depends on
+MB &48A6 : A is wanted as zero for the count below; the ADD HL,BC that follows leaves carry clear, since HL cannot overflow there, which is what the first SBC needs
 
 MB &48A8 : elapsed seconds added to the seconds that were on the clock when the mode was entered
 
@@ -200,7 +200,7 @@ DOC CMD_TIME_5
 
 MB &48FE : the DOS's DATDT through the window; TIMDT follows it fifteen bytes later, so one run covers both
 
-MB &4901 : this page's mirror, which the labels at &4125, &412F, &4132 and &4135 split up but which is one 23-byte block
+MB &4901 : this page's mirror, which the labels at &412F, &4132 and &4135 split up but which is one 23-byte block
 
 MB &4904 : fifteen bytes of date plus eight characters of time
 
@@ -266,7 +266,7 @@ DOC CMD_TIME_8
     "dd/mm/yy" or "hh:mm:ss", and the CR that MasterDOS keeps after
     them, so the newline costs nothing extra.
 
-MB &495B : still has to reject "DATE 1,2", and still finishes the syntax pass here
+MB &495B : reached only at CR or ":", so the "Not understood" inside can never fire; this call is here to finish the syntax pass through ENDS
 
 MB &495E : stream 2, the screen, for the ROM's STREAM below.  LPRINT REF loads 3 for the printer at &55C8 and PRINT REF loads 2 at &5641 -- the same two numbers, the same routine
 
@@ -311,7 +311,7 @@ DOC WAIT_FOR_CLOCK
 
 MB &4987 : zero means no clock is fitted, and the DOS's buffers keep whatever they had
 
-MB &4988 : the handshake below must not be interrupted with HOLD asserted, or the clock would be stopped for the length of the interrupt.  There is no matching EI anywhere in the routine -- see the header
+MB &4988 : the source's CKHW, moved across with its DI, which the author comments "CRASHES IF NOT"; a guess at why is that the handshake below must not be interrupted with HOLD asserted.  There is no matching EI anywhere in the routine -- see the header
 
 MB &498B : register 13, control D
 

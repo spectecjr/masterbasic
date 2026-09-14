@@ -26,6 +26,11 @@ import re
 # MULT -- so the line does not begin with whitespace, and requiring
 # that dropped code &00 from the table entirely.
 TABLE = re.compile(r'^(?:\w+:)?\s+DW\s+\w+\s*;([0-9A-F]{2})\s+(\S.*?)\s*$')
+# The codes above the jump table are named as equates -- STK16K: EQU &E2
+# -- and those names are the ROM's own; CONSTn was this file's invention
+# and named the index, which is a byte offset into FPCTAB and says
+# nothing about the value.  "CONST2 -- stack constant 2" stacked 16384.
+EQUATE = re.compile(r'^(\w+):\s+EQU\s+&([C-F][0-9A-F])\b')
 CLEAN = re.compile(r'^[A-Za-z][A-Za-z0-9]*$')
 
 # Literals that eat bytes of their own.  SOMELIT is special: its first
@@ -52,10 +57,25 @@ def names(root):
     """code -> the ROM's name for it."""
     path = os.path.join(root, 'ref', 'samrom', 'fpcmain.asm')
     out = {}
+    consts = constants(root)
     for line in open(path, encoding='latin-1'):
         m = TABLE.match(line)
         if m:
             out.setdefault(int(m.group(1), 16), m.group(2))
+            continue
+        m = EQUATE.match(line)
+        if m:
+            code, sym = int(m.group(2), 16), m.group(1)
+            if code >= 0xE0 and code - 0xE0 + 5 <= len(consts):
+                why = 'stacks %s, FPCTAB+%d' % (
+                    show(value(consts[code - 0xE0:code - 0xE0 + 5])), code - 0xE0)
+            elif code >= 0xD8:
+                why = 'recall memory %d' % (code & 7)
+            elif code >= 0xD0:
+                why = 'store to memory %d' % (code & 7)
+            else:
+                why = 'store to memory %d, deleting' % (code & 7)
+            out.setdefault(code, '%s -- %s' % (sym, why))
     for base, n, sym, why in RANGES:
         for i in range(n):
             out.setdefault(base + i, (sym % i) + ' -- ' + (why % i))

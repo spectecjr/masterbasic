@@ -561,7 +561,7 @@ MB &6667 : header byte 0, the escape
 
 MB &666B : DE-prime is the side buffer at &7B05 -- header byte 5 onwards -- for the byte that follows each literal escape; see &669B
 
-MB &666C : and &7B05 is that address, five bytes past the header READ_COUNTED_STRING's banner sets out
+MB &666C : and &7B05 is that address, five bytes past the header EXPAND_BLOCK's banner sets out
 
 MB &6670 : output and input start together, because the encoder works in place and no case below writes more than it reads
 
@@ -792,9 +792,10 @@ DOC LOAD_NEXT_INPUT_BLOCK
 
 MB &66F2 EXPAND_INTO_WORK_PAGE
     Set up to expand a file: take a work page through GET_WORK_PAGE --
-    which falls back on the display if there is none free -- read the
-    counted string that heads the data, and clear the ROM's PAGCOUNT
-    before the run begins.
+    which falls back on the display if there is none free -- and call
+    EXPAND_BLOCK, which reads the header, loads the block and decodes
+    it in the work page.  PAGCOUNT is cleared afterwards, for the
+    FARLDIR copy-back that moves the result to the file's own page.
 
 
 MB &610E-&6115 word

@@ -33,7 +33,8 @@ MB &4ECF value T_MODE
 
 MB &4F7E CMD_MODE
     MODE, token &AA.  Reads the number, expects the end of the statement,
-    and rejects anything outside 1 to 4 with error 34 -- which the ROM's
+    and rejects 0 and 5 to 255 with error 34 (a negative or anything
+    over 255 already fell to "Integer out of range" in BYTE_ARGUMENT) -- which the ROM's
     own message table gives as "screen mode", and which is the single
     strongest confirmation that this is what the token is.
 

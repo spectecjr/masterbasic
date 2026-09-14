@@ -144,7 +144,8 @@ DOC FORCE_CASE_BYTE
     Force the case of one letter at (DE), leaving anything else alone.
 
     IS_LETTER decides whether to touch it at all; then OR H sets the bits
-    H selects and XOR L clears the ones L selects, so the caller chooses
+    H selects and XOR L flips the ones L selects -- which clears them
+    when H has just set them, and swaps them when H is zero -- so the caller chooses
     what happens by what it puts in HL.  &20 in both makes upper case,
     &20 in H alone lower case, &20 in L alone swaps it.  That is the
     machinery behind SHIFT$.

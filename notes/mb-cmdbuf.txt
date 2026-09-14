@@ -22,7 +22,7 @@ MB &4F31 CMDBUF_PROLOGUE
     stub.
 
     What it does there names itself.  It reads CURCMD -- which HCMDV
-    wrote three instructions before starting the copy -- and compares it
+    wrote at &4E9E, before it looked the token up -- and compares it
     with &96; then SAVARS, NUMEND, NUMENDP and SAVARSP, the ROM's
     pointers into the variables area, and a subtraction of one pair from
     the other.  So it measures the variables area for one particular
@@ -34,8 +34,8 @@ MB &4F31 CMDBUF_PROLOGUE
     such.
 
     In the dump the copy survives except for &4D00-&4D13, the first
-    twenty bytes of CDBUFF proper, which something later overwrote with
-    zeroes.  Everything below CDBUFF and everything from &4D14 on is
+    twenty bytes of CDBUFF proper, which something later overwrote --
+    nineteen zeros and a &10 at &4D03.  Everything below CDBUFF and everything from &4D14 on is
     intact, which is how the &D3 at &4D18 -- an OUT the note on the
     shared buffer could not account for -- turns out to be the OUT
     (HMPR),A at &4F76.
@@ -88,7 +88,9 @@ MB &4F0C CMDBUF_EPILOGUE
     this epilogue calls what that CALL used to.  The routine is spliced
     into, not replaced.
 
-    The rest of it shifts &50 bytes up by sixteen inside INSTBUF, the
+    The rest of it shifts &50 bytes up by sixteen inside INSTBUF -- or
+    &51 bytes up by fifteen when the byte at (DE) is under four, the
+    INC HL : INC BC branch at &4F1E -- the
     ROM's &4F00 buffer "for ROM1 xfer code, etc" -- LD HL,&4F4F and
     LD DE,&4F60 with an LDDR, both of which happen to collide with this
     half's own addresses and read as local labels until the block is

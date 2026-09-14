@@ -22,8 +22,8 @@ DOC STACK_STRIDE_AND_SLICE_IT
     works out the count.  What comes back is the offset in place of the
     address and the slice length in place of the length -- which is
     exactly what the caller wanted and could not have got as cheaply any
-    other way, since SLICING also raises the ROM's own "Subscript out of
-    range" for it.
+    other way, since SLICING also raises the ROM's own "Subscript wrong"
+    for it.
 
     An earlier reading of this header said "a string of length zero at
     address zero".  Zero is the address; BC is not touched, and if it
@@ -35,9 +35,9 @@ DOC STACK_STRIDE_AND_SLICE_IT
     is left as stacked, which for a caller that passed BC = 0 is an
     empty string and otherwise is the whole extent.
 
-    Both of the ROM routines it uses -- STKSTR and SLICING -- are
-    reached through thunks whose targets are found by signature search
-    at boot.
+    STKSTR is the ROM's fixed jump-table entry at &0127; SLICING has no
+    such entry, and its thunk at &45ED is filled by signature search at
+    boot.
 
     Everything is preserved: BC, DE and HL are pushed on entry and
     popped on both exits, so the result is on the ROM's calculator stack
@@ -53,9 +53,9 @@ MB &47D7 : the ROM's slicer, doing arithmetic on a string that is not there.  It
 
 MB &47DD : the NEXTCHAR above has stepped past the bracket SLICING stopped on, so this is asking whether a second slicer follows -- CALL Z steps over its opening bracket and the caller runs SLICING again
 
-MB &476A : the second dimension, passed as the length for the second slice.  BC came back from the first call unchanged, which is why this can be written as a move rather than a reload
+MB &476A : the second dimension, passed as the length for the second slice.  DE came back from the first call unchanged, which is why this can be written as a move rather than a reload
 
-MB &4770 : &4000 or more, so the slice is at least 16K and cannot be a string
+MB &4770 : B is D here, the element size FIND_VARIABLE returned and both slicer calls left alone, so this refuses a string array whose elements are 16K or more; a plain string passes with B = 0
 
 # The reference REF, PRINT REF and ALTER search for.
 

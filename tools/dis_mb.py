@@ -3834,7 +3834,8 @@ def note_relocated(d):
             if not (dest <= t < dest + (hi - lo)):
                 continue
             d.comments.setdefault(
-                a, '&%04X once this block is moved, not the label shown' % t)
+                a, '&%04X once this block is moved -- the operand means the '
+                   'copy, not anything at that address in this page' % t)
             n += 1
     return n
 

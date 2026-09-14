@@ -219,8 +219,8 @@ by a second reader, in the order they are worth doing:
 | Range | What is there | Why this order |
 |---|---|---|
 | `&5E00-&6400` -- done 2026-09-14, round 10: 29 findings on 861 own lines (3.4 per hundred), 17 of them `[C]`; the slot chain is a ring, `&62A6` is now EXPAND_SCREEN_FILE, and three claims in `docs/compression-modes.md` were refuted from the bytes | | |
-| `&66AE-&69E7` | EXPAND_FILE and the work page, CMD_DUMP and its line, strike and pixel routines | the DUMP claims the emulator settled were about &69E7 on; this is the half before |
-| `&4700-&500C` | the far-string compares, SORT_NAMES, CMD_DATE and CMD_TIME and the clock, STAMP_WITH_DATE, FN_TICS, FN_LOCN, FN_INARRAY, SEARCH_MEMORY, FN_EQU | the clock and date-stamp claims cross into the DOS, which round six read from the other side |
+| `&66AE-&69E7` -- done 2026-09-14: 16 findings on 368 own lines, all confirmed; a second shipped defect, the MODE 3 start column (`docs/bugs.md` 11) | | |
+| `&4700-&500C` -- three cuts, two done 2026-09-14 (26 findings on 941 own lines, all confirmed; hook 153's broken argument passing is `docs/bugs.md` 12), the middle cut `&49E0-&4C90` out for review after a stalled run | | |
 | `&51D6-&5C00` | HOOK_RCPTCH and the program walk, BUILD_TRACK_IMAGE, CMD_ALTER, the serial channel and CMD_LPRINT, CMD_PRINT, CMD_REF and the reference parser | large and bare of review; `notes/mb-cmdbuf.txt` and the serial notes make the boldest claims in the repository |
 | `&42B1-&4500` | CALLDOS, the serial hooks, DRTAB, the REP_ stubs, FIND_VARIABLE, the EXPECT_ and CALL_ helpers | paging claims; the kind reviewers have overturned before |
 | `&6DF6-&7700` | CMD_JOIN and CMD_DELETE, CMD_SPLIT_LINE, FN_USING_S, the compiler, the PROC index, RELOCATED_TO_46CC and INSTALLER | RELOCATED_TO_46CC was the mechanism a note had called unexplainable until it was read |

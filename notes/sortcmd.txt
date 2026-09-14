@@ -147,7 +147,8 @@ DOC PAGE_ON_TWO
 MB &46C5 : two, because &8000 to the end of &FFFF is two pages, and HL has already wrapped past both
 MB &46CA : H wrapped into &00-&3F, so bit 7 alone puts it back at the same offset in the new page
 
-DOC PAGE_ON_TWO_1
+MB &46CD SCAN_FOLDED_ASCENDING
+DOC SCAN_FOLDED_ASCENDING
     The case-folding ascending scan -- plain SORT, the default.
 
     THE SAME SCAN AS CMD_SORT_LOOP3 with bit 5 taken out of both bytes
@@ -176,7 +177,8 @@ MB &46E9 : the high half comes back off the stack rather than out of B
 MB &46EC : the POP two instructions back has just put the pushed low count into C, so it is zeroed again here; the next DEC wraps it to 256
 MB &46EE : back to the comparison, not to the step: HL was advanced before the count was tested
 
-DOC PAGE_ON_TWO_LOOP6
+MB &46F7 SCAN_DESCENDING
+DOC SCAN_DESCENDING
     The descending scan -- SORT ABS INVERSE.
 
     THE SAME SCAN WITH THE SENSE OF THE COMPARISON TURNED ROUND, and
@@ -238,11 +240,12 @@ DOC COMPARE_FAR_STRINGS
     &474B, which clears bit 5 of both bytes and lets an equal pair
     carry on.
 
-    It returns the flags of whichever CP settled it -- carry if the
-    saved element sorts first, Z if the whole key matched -- and both
-    are read by all three callers.
+    It returns the carry of whichever CP settled it -- set if the
+    saved element sorts first -- and that is all any caller reads; Z is
+    not guaranteed for a one-byte key, where the DJNZ falls through
+    with the flags of the IN before it.
 
-MB &4725 : the caller's pointer may have run into &C000-&FFFF, and it is about to be used with the other page mapped
+MB &4725 : normalised so that the INC HLs below cannot run off &FFFF; the byte is always read with the caller's own page back in, at &473E
 MB &472F : C the saved page from V409C, B the key length from V409D
 MB &4736 : the page the caller is standing in, to switch back to after every byte
 MB &4738 : straight to the DJNZ, because the caller has already compared the first byte

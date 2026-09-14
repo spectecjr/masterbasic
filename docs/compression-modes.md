@@ -172,7 +172,7 @@ count in the file.
 - the parked bytes, one per literal escape in the stream, in stream order.
 - the stream.
 
-The reader `READ_COUNTED_STRING` at `MB &6726` takes `n`, then `n` bytes into
+The reader `EXPAND_BLOCK` at `MB &6726` takes `n`, then `n` bytes into
 a buffer at `&7B00`, then `clen` bytes of stream through the DOS's
 block-load entry. The parked bytes are read from `&7B05` upwards with an
 eight-bit increment, so the table cannot cross `&7BFF` — and cannot need to:
@@ -274,7 +274,7 @@ Two details a reimplementation must copy:
 
 ### Decoding a block
 
-`READ_COUNTED_STRING_LOOP2` at `MB &6774`, in prose:
+`EXPAND_BLOCK_LOOP2` at `MB &6774`, in prose:
 
 ```
 esc   = header[0]
@@ -336,7 +336,7 @@ elsewhere that is absorbed: the decoder stops on `xlen` and the surplus byte
 is never used. **If the block saved nothing** — no run of four or more
 anywhere in it — then `clen = xlen + 1`, and the loader cannot place a
 stream that is longer than its expansion: for a full 16K block
-`READ_COUNTED_STRING` computes a load address of `&7FFF` and the decode
+`EXPAND_BLOCK` computes a load address of `&7FFF` and the decode
 starts from the wrong byte, and for a shorter block the writer runs one
 byte ahead of the reader from the first token. The file would load without
 an error and be wrong.
@@ -510,7 +510,7 @@ of the screen as it was, and one that is long is ignored.
 | `HOOK_HSAVE` | `DOS &64D8` | the save hook: header, branch on `CMPFG` and type, flags |
 | `HOOK_HLOAD` | `DOS &6422` | the load hook: branch on flags bits 2 and 3 |
 | `COMPRESS_FILE` / `COMPRESS_BLOCK` | `MB &65EA` / `&660A` | byte coder |
-| `EXPAND_FILE` / `EXPAND_INTO_WORK_PAGE` / `READ_COUNTED_STRING` | `MB &66D2` / `&66F2` / `&6726` | byte decoder |
+| `EXPAND_FILE` / `EXPAND_INTO_WORK_PAGE` / `EXPAND_BLOCK` | `MB &66D2` / `&66F2` / `&6726` | byte decoder |
 | `SET_STEP_AND_COUNT` / `COPY_EVERY_NTH_BYTE` | `MB &6796` / `&67B7` | the numeric-array transpose |
 | `GET_WORK_PAGE` | `MB &67D7` | a free page, or the screen |
 | `COMPRESS_SCREEN_FILE` / `ENCODE_SCREEN` / `ENCODE_RUN` | `MB &614E` / `&61A0` / `&61DE` | nibble coder |

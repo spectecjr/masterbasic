@@ -68,11 +68,19 @@ DOC HPRTOK
     Hook 169, and the ROM's PRTOKV points here, so LIST and the error
     printer both come through it.
 
+    SUB &E1 IS THE WHOLE OF THE LOOKUP.  MBKEYS is one list holding both
+    kinds of MasterBASIC keyword: words 1 to 21 are the two-byte FF nn
+    forms and words 22 to 28 the single-byte tokens 247 to 253.  Taking
+    &E1 off a single-byte token lands on its word -- 247 - &E1 is 22,
+    which is BACKUP, and 253 - &E1 is 28, which is EDIT.  &E1 is not a
+    chosen constant: it is 247 less 22, the offset that makes the
+    single-byte tokens continue the numbering the FF forms started.
+
 MB &4FC2 : INSTBUF at &4F00 in the system page, which is where the fourteen bytes go and where they run
 
 MB &4FC5 : the fourteen bytes of GTDT
 
-MB &4FD6 : one below MBKEYS, because JGTTOK is documented as matching "A-1 words from list at HL+1" -- &50D6 holds a RET and the list starts at &50D7
+MB &4FD6 : one below the word-0 space at &50D7 (two below the MBKEYS label), because JGTTOK is documented as matching "A-1 words from list at HL+1" -- &50D6 holds a RET and the list starts at &50D7
 
 MB &4FD9 : 29, so A-1 is 28, which is the length of MBKEYS
 
@@ -87,14 +95,6 @@ MB &4FF3 : word 20 or 21, the two that do not follow the run
 MB &4FF6 : CP &3A then CCF then ADC is a two-way skip.  Word 20 leaves carry set, CCF clears it and &39 + &2F is &68; word 21 leaves it clear, CCF sets it and &3A + &2F + 1 is &6A.  So the pair lands on &FF68 and &FF6A, stepping over &69 -- the ROM's two spare FPC slots
 
 MB &4FFB : word 22 comes out &BC here, and the ROM's own TOK42 adds &3B, so 22 to 28 become 247 to 253.  tools/tokentab.py works the same sum in the same order
-
-    SUB &E1 IS THE WHOLE OF THE LOOKUP.  MBKEYS is one list holding both
-    kinds of MasterBASIC keyword: words 1 to 21 are the two-byte FF nn
-    forms and words 22 to 28 the single-byte tokens 247 to 253.  Taking
-    &E1 off a single-byte token lands on its word -- 247 - &E1 is 22,
-    which is BACKUP, and 253 - &E1 is 28, which is EDIT.  &E1 is not a
-    chosen constant: it is 247 less 22, the offset that makes the
-    single-byte tokens continue the numbering the FF forms started.
 
     It is also the inverse of the + &A6 in MasterBASIC's own HGTTK and
     the ROM's + &3B in TOK42 (miscx2.asm, "CONVERT LIST ENTRY TO TOKEN

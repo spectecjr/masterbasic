@@ -526,7 +526,7 @@ input, and `COMPRESS_BLOCK_6` records that as the block's compressed length.
 If the block saved a byte anywhere else the surplus is harmless: the
 decoder stops on the expanded length. **If the block saved nothing** — no
 run of four or more in it — the compressed length exceeds the expanded one,
-which the loader's in-place decode cannot survive: `READ_COUNTED_STRING`
+which the loader's in-place decode cannot survive: `EXPAND_BLOCK`
 places the stream one byte below where the output starts, and the first
 write lands on the second unread byte. The file saves without complaint
 and loads without an error. [compression-modes.md](compression-modes.md)
