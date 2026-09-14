@@ -107,8 +107,12 @@ Twelve cuts -- ten PARTs and MOVE in two halves, by `cutregion.py` --
 sent to twelve reviewers on Opus with one prompt
 (`scratchpad/phase1/prompt-template.txt` that day; the facts block is the
 process file's with the controller's port table from the Technical
-Manual added).  100 findings, 92 confirmed and applied, 8 deferred as
-cosmetic or the generator's, none refuted.  The reviewers' own verdict
+Manual added).  100 findings, 97 confirmed and applied, 3 left open,
+none refuted.  The three: EXDT1_DONE at &6280, a stale label the old
+&A280 misreading left and nothing references (generator); two source
+continuation lines rendered as banners above EVPR5 and WFODB; and the
+carried FNDI2 at &7925, three instructions from where the source put
+it, with no referent.  The reviewers' own verdict
 on the carried comments was near-unanimous: all but a handful sit on the
 instruction the author wrote them against.  What they found instead was
 in three classes -- carried comments *split*, the second line of a

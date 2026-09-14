@@ -7822,12 +7822,12 @@ RDKY:
 ;;  PART F11 -- COPY, DIR, ERASE, RENAME, PROTECT and HIDE
 ;;
 ;;    CALL_Label            CALL MODE n -- resume a snapshot, or enter the Spectrum emulation
-;;    COPY / FFPG / GCOP    copy files, using whatever free RAM there is as the buffer
-;;    DIR / PCAT / STATS    the catalogue, in either of its two forms
+;;    CMD_COPY / FFPG / GCOP  copy files, using whatever free RAM there is as the buffer
+;;    DIR / HOOK_PCAT / STATS  the catalogue, in either of its two forms
 ;;    HOOK_PCAT             the sorted catalogue -- the sort itself is SORT_NAMES in the MasterBASIC page, reached
 ;;                          by a direct cross-page call; hook 153 enters the same routine one instruction later
 ;;    ERAZ / RENAM          ERASE and RENAME, both of which also work on subdirectories
-;;    PROT / HIDE           the two flag-setting commands, which differ only in the bit
+;;    CMD_PROTECT / CMD_HIDE  the two flag-setting commands, which differ only in the bit
 ;;    OHASR                 the per-file confirmation the "?" option asks for (FNMAE, which prints it, is in E1)
 ;;
 ;;  The "?" option
@@ -11430,7 +11430,7 @@ MOVA:
                CALL MOVJ                       ; 6838 CD 74 68  JUNK HEADER
                POP AF                          ; 683B F1
                CP &10                          ; 683C FE 10  only a BASIC program is taken apart line by line
-               JR NZ,MOVJ_LOOP                 ; 683E 20 3C  IF NOT PROGRAM, SUPPRESS
+               JR NZ,MOVCD                     ; 683E 20 3C  IF NOT PROGRAM, SUPPRESS
                XOR A                           ; 6840 AF
                LD (INQUFG+IN_PAGE_C),A         ; 6841 32 BA 9A  out of quotes, so the ROM expands the tokens
 
@@ -11481,8 +11481,8 @@ MOVJ:
                DJNZ MOVJ                       ; 6879 10 F9
                RET                             ; 687B C9
 
-; ---- MOVJ_LOOP ---- from &683E when A <> &10, &688F
-MOVJ_LOOP:
+; ---- MOVCD ---- from &683E when A <> &10, &688F
+MOVCD:
                CALL MOVRC                      ; 687C CD 19 69  one character
                JR NC,MEOF                      ; 687F 30 1A  end of the file
                CALL PRINTABLE_FORM             ; 6881 CD DA 68
@@ -11491,7 +11491,7 @@ MOVJ_LOOP:
                CALL MOVWC                      ; 6888 CD 40 69  WRITE PRINTABLE CHAR
                XOR A                           ; 688B AF
                LD (INVERT+IN_PAGE_C),A         ; 688C 32 54 9A  and back to normal after it
-               JR MOVJ_LOOP                    ; 688F 18 EB
+               JR MOVCD                        ; 688F 18 EB
 
 ; ---- MOVE1 ---- from &6823, &6833 when A = &0A, &6899
 MOVE1:
@@ -11523,15 +11523,14 @@ MEOF:
 ;; the &4000 window bias, and the thirty bytes of the six five-byte
 ;; standard channels the ROM installs.  It is added exactly once.
 ;; Every step after that comes from the record's own length at +9,
-;; which is what the comment further down says.
-;; end of the list -- that is the ROM's marker, not the DOS's.
+;; which is what the comment further down says; a length of zero is
+;; the end of the list -- that is the ROM's marker, not the DOS's.
 ;;
 ;; A channel whose LETTER is "D" with bit 7 set is one of MOVE's own,
 ;; left over from a command that did not finish, and it is reclaimed
 ;; rather than walked past.  The letter is at offset 4 -- the fifth
 ;; byte of the ROM's header, after the output and input routines --
 ;; and RES 5 first folds "d" onto "D".
-;; reclaimed rather than walked past.
 ;; --------------------------------------------------------------------
 
 ; ---- RECLAIM_TEMP_CHANNELS ---- from &68C6, &68D0, &6DDA
@@ -11740,8 +11739,8 @@ HEVSY:
 ;;  OPMOV -- open one end of a MOVE
 ;;
 ;;  Either an existing stream, in which case its channel is used as it stands, or a file, in which case a temporary
-;;  disk channel is created. Temporary channels are marked by a channel letter with bit 7 set, so that CLTEMP can
-;;  recognise and reclaim them afterwards.
+;;  disk channel is created. Temporary channels are marked by a channel letter with bit 7 set, so that
+;;  RECLAIM_TEMP_CHANNELS can recognise and reclaim them afterwards.
 ;;
 ;;  Exit:   NC and NSTR1 = the channel address; CY on failure, with Z if the reason was a stream that is not open
 ;;
@@ -13672,7 +13671,10 @@ GLEN:
                INC HL                          ; 71DA 23
                LD C,(HL)                       ; 71DB 4E
                INC HL                          ; 71DC 23
-               LD B,(HL)                       ; 71DD 46  BC=LEN DIV 510
+               LD B,(HL)                       ; 71DD 46  CNT, which SETLEN stores as 1 for the first sector, so BC is
+                                               ; LEN DIV 510 + 1; M510 below counts it down before the first add, and
+                                               ; the author's "BC=LEN DIV 510" is the same sector over as his M510
+                                               ; formula
                EX DE,HL                        ; 71DE EB  HL=LEN MOD 510
 
 ; ---- M510 ---- from &5A1B, &7041

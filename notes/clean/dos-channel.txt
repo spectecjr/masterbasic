@@ -146,6 +146,7 @@ DOS &6FA4 : PLACE NEXT T/S IN IX+, as at &6F85
 DOS &6FA7 : write the sector just filled; WRITE_SECTOR selects the drive itself, and this build restores no previous drive
 DOS &6FC5 : SET NEW CUR. T/S FROM HL, GET DE=OLD CUR. T/S -- the author's comment for this CALL; the "NC" that was here is SETLEN's PTLEN comment, carried by shape onto the wrong CALL
 
+DOS &71DD : CNT, which SETLEN stores as 1 for the first sector, so BC is LEN DIV 510 + 1; M510 below counts it down before the first add, and the author's "BC=LEN DIV 510" is the same sector over as his M510 formula
 DOS &6D74 expr &5C16
 DOS &6D74 : the stream-zero entry of the ROM's STREAMS table, as at &6B13 -- not this page's PDIRH_1, which happens to sit at the same address
 DOS &6B13 expr &5C16

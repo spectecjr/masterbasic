@@ -165,17 +165,20 @@ DOC FIRST_DISC_CHANNEL
     the &4000 window bias, and the thirty bytes of the six five-byte
     standard channels the ROM installs.  It is added exactly once.
     Every step after that comes from the record's own length at +9,
-    which is what the comment further down says.
-    end of the list -- that is the ROM's marker, not the DOS's.
+    which is what the comment further down says; a length of zero is
+    the end of the list -- that is the ROM's marker, not the DOS's.
 
     A channel whose LETTER is "D" with bit 7 set is one of MOVE's own,
     left over from a command that did not finish, and it is reclaimed
     rather than walked past.  The letter is at offset 4 -- the fifth
     byte of the ROM's header, after the output and input routines --
     and RES 5 first folds "d" onto "D".
-    reclaimed rather than walked past.
 
 DOS &68AB : the head of the ROM's channel list
+
+# MOVCD in the source: the character-at-a-time path for a non-BASIC
+# file being listed, a routine of its own and not MOVJ's loop.
+DOS &687C MOVCD
 DOS &68AF : one record's worth
 DOS &68B7 : a carriage return is the end of the list
 DOS &68BA : offset 4 of a ROM channel record is its letter
