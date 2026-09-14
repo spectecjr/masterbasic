@@ -22151,7 +22151,7 @@ READ_ADDRESS_SET:
                SCF                             ; 77A0 37
 
 ;; --------------------------------------------------------------------
-;; READ_ADDRESS_CLEAR_1 -- &77A1 to &77B8
+;; READ_ADDRESS_CLEAR_1 -- &77A1 to &77B5
 ;;
 ;; Takes:     A, HL
 ;; Leaves:    A, F, BC, DE, HL
@@ -22180,8 +22180,18 @@ READ_ADDRESS_CLEAR_1:
                POP DE                          ; 77B4 D1  CURRENT T/S
                RET                             ; 77B5 C9
 
+;; --------------------------------------------------------------------
+;; SDCHK -- &77B6 to &77B8
+;;
+;; Takes:     IX
+;; Leaves:    HL
+;;
+;; ? calls GTBUF; falls into whatever follows rather than returning.
+;; --------------------------------------------------------------------
+
 SDCHK:
-               DEFB &CD,&A0,&4F                ; 77B6 M O  PT HL TO BUFF (EITHER DRAM
+               CALL GTBUF                      ; 77B6 CD A0 4F  unreferenced in this build; the author's entry, which
+                                               ; SDCHK2's callers no longer use
 
 ;; --------------------------------------------------------------------
 ;; SDCHK2 -- &77B9 to &77C8

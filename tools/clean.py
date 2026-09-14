@@ -174,7 +174,7 @@ CARRIED_FIXES = [
     ([';;  The first entry of the directory -- track 0, sector 1, entry 1 -- is special: it also holds the disk name, the',
       ";;  disk's random identifying word, the directory tag and the count of extra directory tracks. Those are read from the",
       ';;  disk and written back unchanged, so only the parts of the entry that belong to the file are replaced.'],
-     [';;  The first entry of the directory -- track 0, sector 1, entry 1 -- is special: it also holds the disk name, the',
+     [';;  The first entry of the directory -- track 0, sector 1, the first of its two entries -- is special: it also holds the disk name, the',
       ";;  disk's random identifying word and the count of extra directory tracks. Those are read from the disk and written",
       ';;  back unchanged, so only the parts of the entry that belong to the file are replaced.']),
 ]

@@ -4588,7 +4588,8 @@ BEEP:
 ;;  Writes the directory entry built up in the entry image into the slot FSLOT and FSLTE noted earlier, or finds one
 ;;  if they noted none.
 ;;
-;;  The first entry of the directory -- track 0, sector 1, entry 1 -- is special: it also holds the disk name, the
+;;  The first entry of the directory -- track 0, sector 1, the first of its two entries -- is special: it also holds the
+;;  disk name, the
 ;;  disk's random identifying word and the count of extra directory tracks. Those are read from the disk and written
 ;;  back unchanged, so only the parts of the entry that belong to the file are replaced.
 ;;
@@ -4631,7 +4632,8 @@ CLOSX:
 ;; --------------------------------------------------------------------
 ;; Write the entry, keeping the parts of it that are the disc's.
 ;;
-;; ENTRY 1 OF SECTOR 1 OF TRACK 0 is not only a file's entry.  It also
+;; THE FIRST ENTRY OF SECTOR 1 OF TRACK 0 -- RPTH zero, the author's
+;; "ENTRY1" counting from one -- is not only a file's entry.  It also
 ;; carries the disc's name, the word that identifies the disc, and the
 ;; number of directory tracks beyond the four SAMDOS allowed.  Those
 ;; belong to the disc and not to the file being closed, so on that one
@@ -4731,9 +4733,12 @@ CFMC:
 ;; leaves zero for &11 and for &12 -- the numeric and the string array
 ;; -- because subtracting borrows on the lower of the two and the ADC
 ;; puts the borrow back.  Two values tested in four bytes; see idiom
-;; 14 in docs/idioms.md.  What survives is BASIC, CODE and SCREEN$ --
-;; and only those, because FILE_TYPE_AT_POINT has already lifted every
-;; Spectrum type into the same range before either test runs.
+;; 14 in docs/idioms.md.  What survives is &10, &13 and &14 -- BASIC,
+;; CODE and SCREEN$ -- and only those numbers, because
+;; FILE_TYPE_AT_POINT has already lifted every Spectrum type into the
+;; same range before either test runs.  A Spectrum 48K snapshot, type
+;; 5, is lifted to &14 and so comes through under SCREEN$'s number; the
+;; other Spectrum types lift to &15 and above and die here.
 ;;
 ;; THE REST IS ASSEMBLY OF TWO STRUCTURES from the one entry, and the
 ;; addresses are chosen so that each is filled by walking forwards:
@@ -4877,7 +4882,9 @@ COPY_HEADER_FIELDS:
                LDIR                            ; 4EF7 ED B0
                POP HL                          ; 4EF9 E1
                DEC HL                          ; 4EFA 2B  back one, to offset 210
-               LD DE,STR-30                    ; 4EFB 11 72 7F  ten below STR, so 220 onwards lands where STR-20 is read
+               LD DE,STR-30                    ; 4EFB 11 72 7F  thirty below STR: ten bytes of the entry's own come
+                                               ; first, from offset 210, so 220 onwards lands at STR-20, where the
+                                               ; snapshot registers are read
                LD C,&2A                        ; 4EFE 0E 2A  forty-two bytes, 210 to 251
                LDIR                            ; 4F00 ED B0  210-251 WITH SNP REGS AT STR-20
                CALL NMMOV                      ; 4F02 CD 58 4F  the type and the name, and spaces up to fifteen
@@ -5051,7 +5058,10 @@ RSSR:
 ;;     DCHAN+7   SVIX    saved IX
 ;;     DCHAN+9   REG1    scratch
 ;;     DCHAN+11  DRIVE   which drive this channel is on
-;;     DCHAN+12  FLAG3   the flag byte; bit 3 is "the buffer is dirty"
+;;     DCHAN+12  FLAG3   the flag byte, whose bits are set out at &7C0C.
+;;                       "The sector has been written to" is bit 3 of the
+;;                       same offset in an open file's channel record --
+;;                       &457B, &6F62, &6FD5 -- not of DCHAN's
 ;;     DCHAN+13  RPT     how far through the buffer the file has read
 ;;     DCHAN+15  BUF     where the buffer is
 ;;     DCHAN+17  NSR     the track and sector this buffer holds
@@ -14458,8 +14468,8 @@ SDTK4:
 ;;  one plus a thirty-first of itself, which skips the first 512-byte
 ;;  block of every page.  Those blocks are not wasted: each holds a
 ;;  copy of the block mover described below, and the first page holds
-;;  the page list and the current path as well.
-;;  path as well.  Only the first: FORMRD copies the list in once, at
+;;  the page list and the current path as well.  Only the first:
+;;  FORMRD copies the list in once, at
 ;;  &7704, after the loop that claims the pages has finished, and
 ;;  PTRD2 always reads it from there.
 ;;
@@ -15272,14 +15282,18 @@ COPY_SECTOR_MOVE:
                RET                             ; 77B5 C9
 
 SDCHK:
-               DEFB &CD,&A0,&4F                ; 77B6 M O  PT HL TO BUFF (EITHER DRAM
+               CALL GTBUF                      ; 77B6 CD A0 4F  unreferenced in this build; the author's entry, which
+                                               ; SDCHK2's callers no longer use
 
 ;; --------------------------------------------------------------------
 ;; Can the transfer be done where it stands, or must it go through DRAM?
 ;;
 ;; Two questions in six instructions, and the second is the interesting
-;; one.  A destination below &8000 is in this page already and needs
-;; nothing.  Above it, the destination is in the window, and 512 bytes
+;; one.  A destination below &8000 is DRAM -- GTBUF hands back either
+;; DRAM or a window address -- and returns carry, the same answer as a
+;; block that will not fit, so both callers send it down the RDRS2
+;; route, which copies into DRAM and finds at &7556 that the copy has
+;; already landed.  Above &8000 the destination is in the window, and 512 bytes
 ;; starting near the top of the window would run off the end of it.
 ;;
 ;; THE TEST IS AN ADDITION RATHER THAN A COMPARE.  Adding &41FF to HL
@@ -15300,7 +15314,9 @@ SDCHK:
 SDCHK2:
                LD A,H                          ; 77B9 7C
                CP RAMDISC_PAGE_HIGH            ; 77BA FE 80
-               RET C                           ; 77BC D8  below the window, so it is in this page and can be used as is
+               RET C                           ; 77BC D8  below the window, which means DRAM -- and carry, the same exit
+                                               ; as "will not fit", so the caller takes the DRAM route and RDRS2 finds
+                                               ; the copy already home
                PUSH HL                         ; 77BD E5
                LD BC,&4000 + SECTOR_LENGTH - 1 ; 77BE 01 FF 41
                ADD HL,BC                       ; 77C1 09  carry means the sector would run off the top of the window
@@ -15507,7 +15523,7 @@ CFPBL_DONE:
 ;;
 ;; Two stubs with no callers in this half.  MasterBASIC reaches them
 ;; through CALLDOS -- HPRTOK_1 at MB &5066 parks a word here, HOOK_HPFF
-;; at MB &508B fetches it back and writes it to the ROM's XPTR.
+;; at MB &508A fetches it back and writes it to the ROM's XPTR.
 ;;
 ;; NOT BECAUSE A REGISTER CANNOT CROSS A CALLDOS.  UNPARK_WORD is the
 ;; counter-example three lines below: it returns the word in BC and

@@ -13033,7 +13033,8 @@ READ_ADDRESS_CLEAR_1:
                RET                             ; 77B5 C9
 
 SDCHK:
-               DEFB &CD,&A0,&4F                ; 77B6 M O  PT HL TO BUFF (EITHER DRAM
+               CALL GTBUF                      ; 77B6 CD A0 4F  unreferenced in this build; the author's entry, which
+                                               ; SDCHK2's callers no longer use
 
 ; ---- SDCHK2 ---- from &7536, &775B
 SDCHK2:

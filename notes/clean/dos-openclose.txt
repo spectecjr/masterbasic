@@ -139,9 +139,12 @@ DOC CHECK_FILE_TYPE
     leaves zero for &11 and for &12 -- the numeric and the string array
     -- because subtracting borrows on the lower of the two and the ADC
     puts the borrow back.  Two values tested in four bytes; see idiom
-    14 in docs/idioms.md.  What survives is BASIC, CODE and SCREEN$ --
-    and only those, because FILE_TYPE_AT_POINT has already lifted every
-    Spectrum type into the same range before either test runs.
+    14 in docs/idioms.md.  What survives is &10, &13 and &14 -- BASIC,
+    CODE and SCREEN$ -- and only those numbers, because
+    FILE_TYPE_AT_POINT has already lifted every Spectrum type into the
+    same range before either test runs.  A Spectrum 48K snapshot, type
+    5, is lifted to &14 and so comes through under SCREEN$'s number; the
+    other Spectrum types lift to &15 and above and die here.
 
     THE REST IS ASSEMBLY OF TWO STRUCTURES from the one entry, and the
     addresses are chosen so that each is filled by walking forwards:
@@ -311,7 +314,8 @@ DOS &4E18 : there really is nowhere to put it
 DOC NCF25
     Write the entry, keeping the parts of it that are the disc's.
 
-    ENTRY 1 OF SECTOR 1 OF TRACK 0 is not only a file's entry.  It also
+    THE FIRST ENTRY OF SECTOR 1 OF TRACK 0 -- RPTH zero, the author's
+    "ENTRY1" counting from one -- is not only a file's entry.  It also
     carries the disc's name, the word that identifies the disc, and the
     number of directory tracks beyond the four SAMDOS allowed.  Those
     belong to the disc and not to the file being closed, so on that one

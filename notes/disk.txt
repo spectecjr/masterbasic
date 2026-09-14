@@ -106,6 +106,12 @@ DOS &4847 AT_SECTOR_LINK
 DOS &58C0 PMOOF
 DOS &58C0-&58C2 code
 
+# SDCHK is CALL GTBUF falling into SDCHK2 -- the source's entry that
+# points HL at the buffer first.  Nothing calls it in this build, so
+# the trace never reached it and the bytes came out as "M O".
+DOS &77B6-&77B8 code
+DOS &77B6 : unreferenced in this build; the author's entry, which SDCHK2's callers no longer use
+
 DOS &4856 LDBLK
     Load a block from the open file to HL: the source's LDBLK, which
     HOOK_HLDBK falls into.  What is left of the current sector's data

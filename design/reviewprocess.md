@@ -397,6 +397,7 @@ The differences from the review prompt:
 | DOS FORMAT, snapshot, printing, RAM disc format | review | 16 findings | 16 |
 | notes/clean/dos-numbers.txt, line by line | review | 14 findings | 14 |
 | DOS carried-comment sweep, twelve PART cuts (2026-09-13) | review | 100 findings | 92 + 8 deferred |
+| C12 and RAMD again, on Fable, same prompts (2026-09-13) | review | 11 findings | 11; 3 shared with the Opus pair |
 
 The first five ran on one model; the rest on another, after the first hit a
 session limit mid-run. The prompts were byte-identical across the change,

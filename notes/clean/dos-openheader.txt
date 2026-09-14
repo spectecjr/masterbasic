@@ -44,7 +44,7 @@ DOS &4EE7 : offset 211, the nine-byte header
 DOS &4EED : nine bytes of it
 DOS &4EF2 : and the two after that
 DOS &4EFA : back one, to offset 210
-DOS &4EFB : ten below STR, so 220 onwards lands where STR-20 is read
+DOS &4EFB : thirty below STR: ten bytes of the entry's own come first, from offset 210, so 220 onwards lands at STR-20, where the snapshot registers are read
 DOS &4EFE : forty-two bytes, 210 to 251
 DOS &4EF5 : two bytes: the flags at 220, and the one after
 DOS &4F02 : the type and the name, and spaces up to fifteen

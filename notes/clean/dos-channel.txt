@@ -60,7 +60,10 @@ DOC GTBUF
         DCHAN+7   SVIX    saved IX
         DCHAN+9   REG1    scratch
         DCHAN+11  DRIVE   which drive this channel is on
-        DCHAN+12  FLAG3   the flag byte; bit 3 is "the buffer is dirty"
+        DCHAN+12  FLAG3   the flag byte, whose bits are set out at &7C0C.
+                          "The sector has been written to" is bit 3 of the
+                          same offset in an open file's channel record --
+                          &457B, &6F62, &6FD5 -- not of DCHAN's
         DCHAN+13  RPT     how far through the buffer the file has read
         DCHAN+15  BUF     where the buffer is
         DCHAN+17  NSR     the track and sector this buffer holds

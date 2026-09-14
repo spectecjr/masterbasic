@@ -134,7 +134,20 @@ bugs entry and would not catch in prose that merely names one.
 
 Two of the twelve cuts, C12 and RAMD, were also handed to Fable from
 another session with byte-identical prompts, for the model comparison
-the plan's convergence section wants; that score is not in yet.
+the plan's convergence section wants.  Both pairs audited:
+
+    C12   Opus 4 (2C 2G)   Fable 6 (1C 4P 1G)   shared 1
+    RAMD  Opus 5 (2C 2P 1G) Fable 5 (1C 1P 3G)  shared 2
+
+Every finding on both sides confirmed; neither invented anything.  The
+overlap is small -- three of eighteen -- and what each found alone is
+of the same kind: Opus had the round's one defect (the dead POIDFT test)
+and the `&77C4` page misreading; Fable had FLAG3's bit 3 credited to
+the wrong record, a 48K snapshot passing CHECK_FILE_TYPE as SCREEN$, and
+that both of SDCHK2's exits return carry.  Two reviewers on one region
+found nearly twice what one did, and that -- not a difference between
+the models -- is the measurable result.  It argues for phase 2's second
+passes more than it argues for either model.
 
 The description that follows is what was run.
 

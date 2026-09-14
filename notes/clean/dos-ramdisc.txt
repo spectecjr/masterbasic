@@ -38,8 +38,8 @@ DOC RDWSCT
      one plus a thirty-first of itself, which skips the first 512-byte
      block of every page.  Those blocks are not wasted: each holds a
      copy of the block mover described below, and the first page holds
-     the page list and the current path as well.
-     path as well.  Only the first: FORMRD copies the list in once, at
+     the page list and the current path as well.  Only the first:
+     FORMRD copies the list in once, at
      &7704, after the loop that claims the pages has finished, and
      PTRD2 always reads it from there.
 
@@ -87,8 +87,11 @@ DOC SDCHK2
     Can the transfer be done where it stands, or must it go through DRAM?
 
     Two questions in six instructions, and the second is the interesting
-    one.  A destination below &8000 is in this page already and needs
-    nothing.  Above it, the destination is in the window, and 512 bytes
+    one.  A destination below &8000 is DRAM -- GTBUF hands back either
+    DRAM or a window address -- and returns carry, the same answer as a
+    block that will not fit, so both callers send it down the RDRS2
+    route, which copies into DRAM and finds at &7556 that the copy has
+    already landed.  Above &8000 the destination is in the window, and 512 bytes
     starting near the top of the window would run off the end of it.
 
     THE TEST IS AN ADDITION RATHER THAN A COMPARE.  Adding &41FF to HL
@@ -117,7 +120,7 @@ DOC SELRDP
     through port &80, XMPRL, and the paging register gets the
     external-memory bit instead of a page.
 
-DOS &77BC : below the window, so it is in this page and can be used as is
+DOS &77BC : below the window, which means DRAM -- and carry, the same exit as "will not fit", so the caller takes the DRAM route and RDRS2 finds the copy already home
 DOS &77BE expr &4000 + SECTOR_LENGTH - 1
 DOS &77C1 : carry means the sector would run off the top of the window
 DOS &77C4 : &8xxx becomes &4xxx -- the same byte, at the address it will have once the mover pages the caller's page into section B
@@ -195,7 +198,7 @@ DOC PARK_WORD
 
     Two stubs with no callers in this half.  MasterBASIC reaches them
     through CALLDOS -- HPRTOK_1 at MB &5066 parks a word here, HOOK_HPFF
-    at MB &508B fetches it back and writes it to the ROM's XPTR.
+    at MB &508A fetches it back and writes it to the ROM's XPTR.
 
     NOT BECAUSE A REGISTER CANNOT CROSS A CALLDOS.  UNPARK_WORD is the
     counter-example three lines below: it returns the word in BC and
