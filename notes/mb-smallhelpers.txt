@@ -453,11 +453,17 @@ MB &53B5 READ_KEY_LINE
     line.  Which of the two the seven-read settling loop is waiting on is
     not established here, and the name says only what the routine does.
 
-MB &4B5B PARSE_OPTIONAL_RANGE
-    Take an optional second value after the first: the character is
-    fetched and compared with a comma and with TO, and either of them
-    means a range follows.  Anything else leaves the count at one and
-    falls back on V40AD.
+MB &4B5B INARRAY_START_ELEMENT
+    INARRAY's first argument, read twice.  FIND_VARIABLE has parsed a$(
+    and returned the dimensions; if the variable is a two-dimensional
+    array (V40AD non-zero) and the subscript does not open with a comma
+    or TO, EXPNUM and GETINT read the start element into BC, otherwise
+    BC stays 1.  CHADD is then rewound to the name at &4B80, so that the
+    ROM's EXPSTR at &4B85 can evaluate the whole a$(start[,slicer]) and
+    GETSTR hand the search the element to start from.
+
+# The search driver's loop, which was named off the routine above.
+MB &4BBE INARRAY_SEARCH_LOOP
 
 MB &5778 PARSE_REFERENCE_INTO_BUFFER
     Keep D as the kind flag in V4094, point HL at the buffer at &7B00,

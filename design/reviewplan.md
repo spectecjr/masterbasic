@@ -220,7 +220,7 @@ by a second reader, in the order they are worth doing:
 |---|---|---|
 | `&5E00-&6400` -- done 2026-09-14, round 10: 29 findings on 861 own lines (3.4 per hundred), 17 of them `[C]`; the slot chain is a ring, `&62A6` is now EXPAND_SCREEN_FILE, and three claims in `docs/compression-modes.md` were refuted from the bytes | | |
 | `&66AE-&69E7` -- done 2026-09-14: 16 findings on 368 own lines, all confirmed; a second shipped defect, the MODE 3 start column (`docs/bugs.md` 11) | | |
-| `&4700-&500C` -- three cuts, two done 2026-09-14 (26 findings on 941 own lines, all confirmed; hook 153's broken argument passing is `docs/bugs.md` 12), the middle cut `&49E0-&4C90` out for review after a stalled run | | |
+| `&4700-&500C` -- three cuts, done 2026-09-14: 36 findings on 1411 own lines, all confirmed; hook 153's broken argument passing is `docs/bugs.md` 12, and the LOCN entry there lost its "reports a match" consequence to the carry it had not followed | | |
 | `&51D6-&5C00` | HOOK_RCPTCH and the program walk, BUILD_TRACK_IMAGE, CMD_ALTER, the serial channel and CMD_LPRINT, CMD_PRINT, CMD_REF and the reference parser | large and bare of review; `notes/mb-cmdbuf.txt` and the serial notes make the boldest claims in the repository |
 | `&42B1-&4500` | CALLDOS, the serial hooks, DRTAB, the REP_ stubs, FIND_VARIABLE, the EXPECT_ and CALL_ helpers | paging claims; the kind reviewers have overturned before |
 | `&6DF6-&7700` | CMD_JOIN and CMD_DELETE, CMD_SPLIT_LINE, FN_USING_S, the compiler, the PROC index, RELOCATED_TO_46CC and INSTALLER | RELOCATED_TO_46CC was the mechanism a note had called unexplainable until it was read |

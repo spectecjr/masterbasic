@@ -1212,6 +1212,11 @@ def seeds(dos, mb):
     # &84AE, which is its own &44AE seen from there: the calculator
     # literals it needs, reachable while ROM 1 is paged in.
     mb.self_window.append((0x449F, 0x44A1))
+    # TICS does the same at &4ACD: HMPR set to this page at &4AC8, then
+    # MBCMR handed &8AD3, its own calculator call at &4AD3.  It was
+    # coming out as the DOS's FNS56, a RAM-disc branch target that
+    # happens to share the address.
+    mb.self_window.append((0x4ACD, 0x4ACF))
     for at in (0x644B, 0x645D, 0x6466, 0x646F):
         mb.no_peer.append((at, at + 3))
     # The same again for the five commands HCMDV intercepts by name.

@@ -45,7 +45,7 @@ DOC STAMP_WITH_DATE
     the window.
 
 MB &4A3A : the DOS's half, where its sector buffer is
-MB &4A3E : the clock is read once and cached; wait for that to finish
+MB &4A3E : read the chip into DATDT and TIMDT first -- or leave them alone if no clock is fitted
 MB &4A41 : the entry that is being closed
 MB &4A46 expr DIR_DATE+&4000
 MB &4A49 : the date stamp's five bytes, seen through the window

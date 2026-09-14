@@ -861,7 +861,7 @@ FN_NVAL:
                                                 ; that the strings compare in numeric order
                INC HL                           ; 41D9 23
                LD C,(HL)                        ; 41DA 4E
-               CALL STACK_PAGE0_STRING          ; 41DB CD 6B 4C  no string is stacked, whatever the label says. A, E and
+               CALL STACK_BC_AS_INTEGER         ; 41DB CD 6B 4C  no string is stacked, whatever the label says. A, E and
                                                 ; B all leave here zero, so what goes on the calculator stack is 00 00
                                                 ; lo hi 00 -- the small-integer form
                LD DE,(PAGE_IN_ROM1_1+IN_PAGE_C) ; 41DE ED 5B 65 9C  STKEND read through the window; the same four bytes
@@ -4251,8 +4251,8 @@ STAMP_WITH_DATE:
                PUSH DE                         ; 4A39 D5
                CALL PAGE_IN_OTHER_HALF         ; 4A3A CD D1 49  the DOS's half, where its sector buffer is
                PUSH AF                         ; 4A3D F5
-               CALL WAIT_FOR_CLOCK             ; 4A3E CD 78 49  the clock is read once and cached; wait for that to
-                                               ; finish
+               CALL WAIT_FOR_CLOCK             ; 4A3E CD 78 49  read the chip into DATDT and TIMDT first -- or leave
+                                               ; them alone if no clock is fitted
                CALL CALLDOS                    ; 4A41 CD C1 42  the entry that is being closed
                DEFW DOS_POINT-&4000            ; 4A44 AC 4F  POINT zeroes the low byte of the channel's record pointer
                                                ; before adding it to the buffer base, so what comes back is the start of
@@ -4263,29 +4263,29 @@ STAMP_WITH_DATE:
                LD DE,DOS_DATDT                 ; 4A4A 11 71 82  day, month and year, as characters
                LD B,&03                        ; 4A4D 06 03  three of them
 
-; ---- READ_CLOCK_FIELDS_LOOP2 ---- from &4A57 when B is not 0 yet
-READ_CLOCK_FIELDS_LOOP2:
+; ---- STAMP_DATE_FIELDS ---- from &4A57 when B is not 0 yet
+STAMP_DATE_FIELDS:
                CALL TWO_DIGITS_FROM_DE         ; 4A4F CD 6A 4A  two characters, one byte
                AND A                           ; 4A52 A7  a zero field means the clock was never set
-               JR Z,READ_CLOCK_FIELDS_DONE2    ; 4A53 28 10  so stop, and leave the stamp as it was
+               JR Z,STAMP_DATE_FIELDS_DONE     ; 4A53 28 10  so stop, and leave the stamp as it was
                LD (HL),A                       ; 4A55 77  the field goes in as a number 0 to 99, not as the two
                                                ; characters it was read from -- five bytes instead of fourteen
                INC HL                          ; 4A56 23
-               DJNZ READ_CLOCK_FIELDS_LOOP2    ; 4A57 10 F6
+               DJNZ STAMP_DATE_FIELDS          ; 4A57 10 F6
                LD DE,DOS_TIMDT                 ; 4A59 11 80 82  the time, in the same form
                LD B,&02                        ; 4A5C 06 02  hour and minute; seconds are not kept
 
-; ---- READ_CLOCK_FIELDS_LOOP3 ---- from &4A63 when B is not 0 yet
-READ_CLOCK_FIELDS_LOOP3:
+; ---- STAMP_DATE_FIELDS_LOOP ---- from &4A63 when B is not 0 yet
+STAMP_DATE_FIELDS_LOOP:
                CALL TWO_DIGITS_FROM_DE         ; 4A5E CD 6A 4A  no zero test on this loop, unlike the one above. An hour
                                                ; or a minute of 00 is a real time; only the date can prove the clock
                                                ; unset, and it already has
                LD (HL),A                       ; 4A61 77
                INC HL                          ; 4A62 23
-               DJNZ READ_CLOCK_FIELDS_LOOP3    ; 4A63 10 F9
+               DJNZ STAMP_DATE_FIELDS_LOOP     ; 4A63 10 F9
 
-; ---- READ_CLOCK_FIELDS_DONE2 ---- from &4A53 when A = 0
-READ_CLOCK_FIELDS_DONE2:
+; ---- STAMP_DATE_FIELDS_DONE ---- from &4A53 when A = 0
+STAMP_DATE_FIELDS_DONE:
                POP AF                          ; 4A65 F1  the HMPR that PAGE_IN_OTHER_HALF returned at &4A3D. Abandoning
                                                ; the first loop early needs no unwinding, because the loops push nothing
                OUT (HMPR),A                    ; 4A66 D3 FB
@@ -4381,95 +4381,97 @@ FN_TICS:
 
 ; ---- TICS_SECONDS_IN_MONTH ---- from &4896
 TICS_SECONDS_IN_MONTH:
-               CALL PAGE_IN_OTHER_HALF         ; 4A7F CD D1 49  the DOS's half into the window, which is where DATDT and
-                                               ; TIMDT are: &8271 and &8280 here are its own &4271 and &4280, DVARs 81
-                                               ; and 96
-               PUSH AF                         ; 4A82 F5  the caller's paging, put back at &4AD0
-               DEFB &CD                        ; 4A83 M  this is CALL WAIT_FOR_CLOCK -- &CD &78 &49 -- which reads the
-                                               ; chip into DATDT and TIMDT. Without it TICS would return whatever the
-                                               ; last TIME$ or DATE$ left there. A phantom label at &4A84 is all that
-                                               ; splits the instruction in the listing; see the notes
-               LD A,B                          ; 4A84 78
-               LD C,C                          ; 4A85 49
-               LD DE,DOS_DATDT                 ; 4A86 11 71 82  DATDT is "dd/mm/yy", so the day is the first field
-               CALL TWO_DIGITS_FROM_DE         ; 4A89 CD 6A 4A
-               DEC A                           ; 4A8C 3D  days count from 1 and seconds from 0, so the first of the
-                                               ; month has to contribute nothing
-               LD C,A                          ; 4A8D 4F
-               ADD A,A                         ; 4A8E 87  x2 then +x then x2 is six times the day, and six times 30 is
-                                               ; 180, which still fits in A. Twenty-four times 30 would not, which is
-                                               ; why only part of the factor is done here
-               ADD A,C                         ; 4A8F 81
-               ADD A,A                         ; 4A90 87
-               LD L,A                          ; 4A91 6F
-               LD H,&00                        ; 4A92 26 00  six times the day is in L, and the two doublings below make
-                                               ; it twenty-four times -- past a byte from the eleventh of the month on
-                                               ; -- so H is cleared to hold the top half
-               ADD HL,HL                       ; 4A94 29  the other four, once the value is in HL: hours since the first
-                                               ; of the month, at most 720
-               ADD HL,HL                       ; 4A95 29
-               LD DE,DOS_TIMDT                 ; 4A96 11 80 82  TIMDT is "hh:mm:ss", and DE now walks it for the three
-                                               ; calls that follow
-               CALL TWO_DIGITS_FROM_DE         ; 4A99 CD 6A 4A
-               LD C,A                          ; 4A9C 4F
-               LD B,&00                        ; 4A9D 06 00  the hour is in C and the ADD below is sixteen bits wide, so
-                                               ; B is the zero that makes BC the hour by itself
-               ADD HL,BC                       ; 4A9F 09  hours in the month, at most 743
-               CALL MULTIPLY_BY_60             ; 4AA0 CD DC 4A  A is still the hour, so the top byte of this product
-                                               ; comes out as rubbish. HL does not: 743*60 is 44580 and cannot carry out
-                                               ; of sixteen bits, and every step of MULTIPLY_BY_60 touches HL
-                                               ; independently of A
-               CALL TWO_DIGITS_FROM_DE         ; 4AA3 CD 6A 4A
-               LD B,&00                        ; 4AA6 06 00  B again, because MULTIPLY_BY_60 does not preserve it -- LD
-                                               ; B,H at &4ADC keeps the multiplicand in BC -- so every ADD HL,BC after a
-                                               ; call to it has to clear the high half afresh
-               LD C,A                          ; 4AA8 4F
-               ADD HL,BC                       ; 4AA9 09
-               XOR A                           ; 4AAA AF  and here the rubbish goes, in one byte, just before the
-                                               ; multiply that does need three
-               CALL MULTIPLY_BY_60             ; 4AAB CD DC 4A  minutes to seconds -- up to 2678340, which is where the
-                                               ; third byte earns its place
-               PUSH AF                         ; 4AAE F5  the top byte kept over a call that returns its answer in A
-               CALL TWO_DIGITS_FROM_DE         ; 4AAF CD 6A 4A
-               LD B,&00                        ; 4AB2 06 00  and a third time, after the second call. This zero does
-                                               ; double duty: the ADC A,B at &4AB7 adds B into the top byte and wants it
-                                               ; clear as well
-               LD C,A                          ; 4AB4 4F
-               POP AF                          ; 4AB5 F1  the POP has to come before the ADD, not after: POP AF would
-                                               ; overwrite the carry the ADD is about to set
-               ADD HL,BC                       ; 4AB6 09
-               ADC A,B                         ; 4AB7 88  B is zero, so this adds nothing but HL's carry into the top
-                                               ; byte -- the ordinary 24-bit carry, not the SUB/ADC pair idiom
-               CALL CALLDOS                    ; 4AB8 CD C1 42  the DOS's EPCOM_1 stacks A:HL as a floating-point
-                                               ; number; its exponent starts at &98, which is 128 + 24, the width it is
-                                               ; being handed
-               DEFW DOS_EPCOM_1-&4000          ; 4ABB C4 65
-               LD A,(V4075)                    ; 4ABD 3A 75 40  non-zero exactly while TIME + is selected -- CMD_TIME
-                                               ; writes the 8 it sent to the clock's control register there, and zeroed
-                                               ; the time and date at the same moment, so what has just been computed is
-                                               ; time since TIME +
-               AND A                           ; 4AC0 A7
-               JR Z,TICS_SECONDS_IN_MONTH_DONE ; 4AC1 28 0C
-               IN A,(LMPR)                     ; 4AC3 DB FA  LMPR's low five bits are the page at &0000 and this page is
-                                               ; the one after it, so LMPR+1 is MasterBASIC's own number. Writing it to
-                                               ; HMPR puts this page in the window as well as in section B
-               INC A                           ; 4AC5 3C
-               AND PAGEMASK                    ; 4AC6 E6 1F  LMPR's bits 5 and 6 disable ROM 0 and enable ROM 1; in HMPR
-                                               ; they mean something else entirely and must not travel with the page
-                                               ; number
-               OUT (HMPR),A                    ; 4AC8 D3 FB
-               CALL MBCMR                      ; 4ACA CD F0 44
-               DEFW DOS_FNS56                  ; 4ACD D3 8A  &8AD3 is this page's own &4AD3 seen through the window just
-                                               ; opened. It has to be reached that way twice over: CMR restores the
-                                               ; caller's HMPR before jumping to the address, so the address must be
-                                               ; meaningful under it -- and CMR also puts the system page into section
-                                               ; B, which would page &4AD3 out from under the calculator
+               CALL PAGE_IN_OTHER_HALF            ; 4A7F CD D1 49  the DOS's half into the window, which is where DATDT
+                                                  ; and TIMDT are: &8271 and &8280 here are its own &4271 and &4280,
+                                                  ; DVARs 81 and 96
+               PUSH AF                            ; 4A82 F5  the caller's paging, put back at &4AD0
+               DEFB &CD                           ; 4A83 M  this is CALL WAIT_FOR_CLOCK -- &CD &78 &49 -- which reads
+                                                  ; the chip into DATDT and TIMDT. Without it TICS would return whatever
+                                                  ; the last TIME$ or DATE$ left there. A phantom label at &4A84 is all
+                                                  ; that splits the instruction in the listing; see the notes
+               LD A,B                             ; 4A84 78
+               LD C,C                             ; 4A85 49
+               LD DE,DOS_DATDT                    ; 4A86 11 71 82  DATDT is "dd/mm/yy", so the day is the first field
+               CALL TWO_DIGITS_FROM_DE            ; 4A89 CD 6A 4A
+               DEC A                              ; 4A8C 3D  days count from 1 and seconds from 0, so the first of the
+                                                  ; month has to contribute nothing
+               LD C,A                             ; 4A8D 4F
+               ADD A,A                            ; 4A8E 87  x2 then +x then x2 is six times the day, and six times 30
+                                                  ; is 180, which still fits in A. Twenty-four times 30 would not, which
+                                                  ; is why only part of the factor is done here
+               ADD A,C                            ; 4A8F 81
+               ADD A,A                            ; 4A90 87
+               LD L,A                             ; 4A91 6F
+               LD H,&00                           ; 4A92 26 00  six times the day is in L, and the two doublings below
+                                                  ; make it twenty-four times -- past a byte from the twelfth of the
+                                                  ; month on, 24 times 11 -- so H is cleared to hold the top half
+               ADD HL,HL                          ; 4A94 29  the other four, once the value is in HL: hours since the
+                                                  ; first of the month, at most 720
+               ADD HL,HL                          ; 4A95 29
+               LD DE,DOS_TIMDT                    ; 4A96 11 80 82  TIMDT is "hh:mm:ss", and DE now walks it for the
+                                                  ; three calls that follow
+               CALL TWO_DIGITS_FROM_DE            ; 4A99 CD 6A 4A
+               LD C,A                             ; 4A9C 4F
+               LD B,&00                           ; 4A9D 06 00  the hour is in C and the ADD below is sixteen bits wide,
+                                                  ; so B is the zero that makes BC the hour by itself
+               ADD HL,BC                          ; 4A9F 09  hours in the month, at most 743
+               CALL MULTIPLY_BY_60                ; 4AA0 CD DC 4A  A is still the hour, so the top byte of this product
+                                                  ; comes out as rubbish. HL does not: 743*60 is 44580 and cannot carry
+                                                  ; out of sixteen bits, and every step of MULTIPLY_BY_60 touches HL
+                                                  ; independently of A
+               CALL TWO_DIGITS_FROM_DE            ; 4AA3 CD 6A 4A
+               LD B,&00                           ; 4AA6 06 00  B again, because MULTIPLY_BY_60 does not preserve it --
+                                                  ; LD B,H at &4ADC keeps the multiplicand in BC -- so every ADD HL,BC
+                                                  ; after a call to it has to clear the high half afresh
+               LD C,A                             ; 4AA8 4F
+               ADD HL,BC                          ; 4AA9 09
+               XOR A                              ; 4AAA AF  and here the rubbish goes, in one byte, just before the
+                                                  ; multiply that does need three
+               CALL MULTIPLY_BY_60                ; 4AAB CD DC 4A  minutes to seconds -- up to 2678340, which is where
+                                                  ; the third byte earns its place
+               PUSH AF                            ; 4AAE F5  the top byte kept over a call that returns its answer in A
+               CALL TWO_DIGITS_FROM_DE            ; 4AAF CD 6A 4A
+               LD B,&00                           ; 4AB2 06 00  and a third time, after the second call. This zero does
+                                                  ; double duty: the ADC A,B at &4AB7 adds B into the top byte and wants
+                                                  ; it clear as well
+               LD C,A                             ; 4AB4 4F
+               POP AF                             ; 4AB5 F1  the POP has to come before the ADD, not after: POP AF would
+                                                  ; overwrite the carry the ADD is about to set
+               ADD HL,BC                          ; 4AB6 09
+               ADC A,B                            ; 4AB7 88  B is zero, so this adds nothing but HL's carry into the top
+                                                  ; byte -- the ordinary 24-bit carry, not the SUB/ADC pair idiom
+               CALL CALLDOS                       ; 4AB8 CD C1 42  the DOS's EPCOM_1 stacks A:HL as a floating-point
+                                                  ; number; its exponent starts at &98, which is 128 + 24, the width it
+                                                  ; is being handed
+               DEFW DOS_EPCOM_1-&4000             ; 4ABB C4 65
+               LD A,(V4075)                       ; 4ABD 3A 75 40  non-zero exactly while TIME + is selected -- CMD_TIME
+                                                  ; writes the 8 it sent to the clock's control register there, and
+                                                  ; zeroed the time and date at the same moment, so what has just been
+                                                  ; computed is time since TIME +
+               AND A                              ; 4AC0 A7
+               JR Z,TICS_SECONDS_IN_MONTH_DONE    ; 4AC1 28 0C
+               IN A,(LMPR)                        ; 4AC3 DB FA  LMPR's low five bits are the page at &0000 and this page
+                                                  ; is the one after it, so LMPR+1 is MasterBASIC's own number. Writing
+                                                  ; it to HMPR puts this page in the window as well as in section B
+               INC A                              ; 4AC5 3C
+               AND PAGEMASK                       ; 4AC6 E6 1F  LMPR's bits 5 and 6 disable ROM 0 and enable ROM 1; in
+                                                  ; HMPR they mean something else entirely and must not travel with the
+                                                  ; page number
+               OUT (HMPR),A                       ; 4AC8 D3 FB
+               CALL MBCMR                         ; 4ACA CD F0 44
+               DEFW TICS_DIVIDE_BY_5416+IN_PAGE_C ; 4ACD D3 8A  &8AD3 is this page's own &4AD3 seen through the window
+                                                  ; just opened. It has to be reached that way twice over: CMR restores
+                                                  ; the caller's HMPR before jumping to the address, so the address must
+                                                  ; be meaningful under it -- and CMR also puts the system page into
+                                                  ; section B, which would page &4AD3 out from under the calculator
 
 ; ---- TICS_SECONDS_IN_MONTH_DONE ---- from &4AC1 when A = 0
 TICS_SECONDS_IN_MONTH_DONE:
-               POP AF                               ; 4ACF F1
-               OUT (HMPR),A                         ; 4AD0 D3 FB
-               RET                                  ; 4AD2 C9
+               POP AF                          ; 4ACF F1
+               OUT (HMPR),A                    ; 4AD0 D3 FB
+               RET                             ; 4AD2 C9
+
+TICS_DIVIDE_BY_5416:
                                                     ; calculator: = x / 5416.3
                RST FPCALC                           ; 4AD3 EF  reached only by that call, never by falling through the
                                                     ; RET above, and executing at &8AD3 when it runs
@@ -4481,7 +4483,7 @@ TICS_SECONDS_IN_MONTH_DONE:
 ;; A:HL times sixty, with the multiplicand kept in BC.
 ;;
 ;; FOUR DOUBLINGS AND ONE SUBTRACTION, then two more doublings:
-;; 16x - x is 15x, and 15x times four is 60x.  Five shifts and a
+;; 16x - x is 15x, and 15x times four is 60x.  Six shifts and a
 ;; subtract against a general multiply routine and a constant, and it
 ;; works in 24 bits because that is what TICS needs -- seconds in a
 ;; month reach 2678399.
@@ -4623,11 +4625,12 @@ FN_INARRAY:
                JR Z,FN_INARRAY_2               ; 4B42 28 41
                PUSH HL                         ; 4B44 E5
                CALL FIND_VARIABLE              ; 4B45 CD D5 43
-               LD HL,STACK_PAGE0_STRING        ; 4B48 21 6B 4C
+               LD HL,STACK_BC_AS_INTEGER       ; 4B48 21 6B 4C
                EX (SP),HL                      ; 4B4B E3
                PUSH AF                         ; 4B4C F5
-               OUT (HMPR),A                    ; 4B4D D3 FB  the array's own page into the window, so its elements can
-                                               ; be walked
+               OUT (HMPR),A                    ; 4B4D D3 FB  the HMPR FIND_VARIABLE saved before LOOKVARS, put back --
+                                               ; LOOKVARS leaves the variables' page in the window and this undoes it.
+                                               ; The page the search reads under comes from GETSTR at &4B98
                LD A,E                          ; 4B4F 7B
                DEC A                           ; 4B50 3D
                OR D                            ; 4B51 B2  zero only when DE is exactly 1, which is the flag V40AD
@@ -4642,13 +4645,16 @@ FN_INARRAY:
                                                ; describes; see the notes
 
 ;; --------------------------------------------------------------------
-;; Take an optional second value after the first: the character is
-;; fetched and compared with a comma and with TO, and either of them
-;; means a range follows.  Anything else leaves the count at one and
-;; falls back on V40AD.
+;; INARRAY's first argument, read twice.  FIND_VARIABLE has parsed a$(
+;; and returned the dimensions; if the variable is a two-dimensional
+;; array (V40AD non-zero) and the subscript does not open with a comma
+;; or TO, EXPNUM and GETINT read the start element into BC, otherwise
+;; BC stays 1.  CHADD is then rewound to the name at &4B80, so that the
+;; ROM's EXPSTR at &4B85 can evaluate the whole a$(start[,slicer]) and
+;; GETSTR hand the search the element to start from.
 ;; --------------------------------------------------------------------
 
-PARSE_OPTIONAL_RANGE:
+INARRAY_START_ELEMENT:
                NOP                             ; 4B5B 00
 
 ; ---- FN_INARRAY_1 ---- from &4B55
@@ -4658,28 +4664,28 @@ FN_INARRAY_1:
                INC BC                          ; 4B61 03
                PUSH BC                         ; 4B62 C5
                CALL CALL_GETCHAR               ; 4B63 CD 67 44
-               LD BC,&0001                     ; 4B66 01 01 00  one, the count INARRAY uses when no range was given --
-                                               ; V40AD carries that choice, and &4B51's note has the test that sets it
-               CP CH_COMMA                     ; 4B69 FE 2C  a comma or TO at this point belongs to the enclosing
-                                               ; expression, not to the subscript, so no further number is taken and the
-                                               ; count stays at one
-               JR Z,PARSE_OPTIONAL_RANGE_1     ; 4B6B 28 10
+               LD BC,&0001                     ; 4B66 01 01 00  one: the first element, when there is no element number
+                                               ; to read -- V40AD says whether the variable is a two-dimensional array,
+                                               ; and &4B51's note has the test that sets it
+               CP CH_COMMA                     ; 4B69 FE 2C  a subscript that opens with a comma or TO has no start
+                                               ; element to read, so BC stays at one
+               JR Z,INARRAY_START_ELEMENT_1    ; 4B6B 28 10
                CP T_TO                         ; 4B6D FE 8E
-               JR Z,PARSE_OPTIONAL_RANGE_1     ; 4B6F 28 0C
+               JR Z,INARRAY_START_ELEMENT_1    ; 4B6F 28 0C
                LD A,(V40AD)                    ; 4B71 3A AD 40
                AND A                           ; 4B74 A7
-               JR Z,PARSE_OPTIONAL_RANGE_1     ; 4B75 28 06
+               JR Z,INARRAY_START_ELEMENT_1    ; 4B75 28 06
                CALL CALL_EXPNUM                ; 4B77 CD 85 44
                CALL CALL_GETINT                ; 4B7A CD 76 44
 
-; ---- PARSE_OPTIONAL_RANGE_1 ---- from &4B6B when A = CH_COMMA, &4B6F when A = T_TO, &4B75 when A = 0
-PARSE_OPTIONAL_RANGE_1:
+; ---- INARRAY_START_ELEMENT_1 ---- from &4B6B when A = CH_COMMA, &4B6F when A = T_TO, &4B75 when A = 0
+INARRAY_START_ELEMENT_1:
                POP HL                          ; 4B7D E1
                EX (SP),HL                      ; 4B7E E3
                PUSH BC                         ; 4B7F C5
                CALL MBNRWRHL                   ; 4B80 CD 75 45
-               DEFW CHADD                      ; 4B83 97 5A  CHADD put back, so the ROM's parser carries on from the
-                                               ; character this left off at
+               DEFW CHADD                      ; 4B83 97 5A  CHADD rewound to the array name -- the HL pushed at &4B44
+                                               ; -- so EXPSTR at &4B85 re-parses the whole reference as a string
 
 ; ---- FN_INARRAY_2 ---- from &4B42
 FN_INARRAY_2:
@@ -4705,8 +4711,8 @@ FN_LOCN_1:
                CP &3F                          ; 4BA1 FE 3F  B is the high byte of the span, so anything from &3F00
                                                ; bytes up falls into the error at &4BA3
 
-; ---- PARSE_OPTIONAL_RANGE_2 ---- from &4C33 when A <> 0
-PARSE_OPTIONAL_RANGE_2:
+; ---- INARRAY_START_ELEMENT_2 ---- from &4C33 when A <> 0
+INARRAY_START_ELEMENT_2:
                LD A,&2A                        ; 4BA3 3E 2A  error 42, "String too long"
                JP NC,REPORT                    ; 4BA5 D2 BE 43
                LD (V409E),HL                   ; 4BA8 22 9E 40
@@ -4723,32 +4729,32 @@ PARSE_OPTIONAL_RANGE_2:
                SBC HL,BC                       ; 4BBB ED 42
                INC HL                          ; 4BBD 23
 
-; ---- PARSE_OPTIONAL_RANGE_LOOP ---- from &4C13
-PARSE_OPTIONAL_RANGE_LOOP:
+; ---- INARRAY_SEARCH_LOOP ---- from &4C13
+INARRAY_SEARCH_LOOP:
                DEC HL                          ; 4BBE 2B
                LD A,H                          ; 4BBF 7C
                OR L                            ; 4BC0 B5
-               JR NZ,PARSE_OPTIONAL_RANGE_3    ; 4BC1 20 14
+               JR NZ,INARRAY_SEARCH_LOOP_1     ; 4BC1 20 14
                LD HL,(V40A4)                   ; 4BC3 2A A4 40
                RES 7,H                         ; 4BC6 CB BC
                LD A,H                          ; 4BC8 7C
                OR L                            ; 4BC9 B5
-               JR Z,PARSE_OPTIONAL_RANGE_7     ; 4BCA 28 4C
+               JR Z,INARRAY_SEARCH_LOOP_5      ; 4BCA 28 4C
                LD DE,&0000                     ; 4BCC 11 00 00  zero, which is INARRAY's mark in V40A4. &4B8F has the
                                                ; pair: "LOCN puts a length in V40A4 at &4B09; INARRAY has no such limit,
                                                ; so it stores zero", and the INC DE below then pushes the one
                LD (V40A4),DE                   ; 4BCF ED 53 A4 40
                INC DE                          ; 4BD3 13
                PUSH DE                         ; 4BD4 D5
-               JR PARSE_OPTIONAL_RANGE_4       ; 4BD5 18 04
+               JR INARRAY_SEARCH_LOOP_2        ; 4BD5 18 04
 
-; ---- PARSE_OPTIONAL_RANGE_3 ---- from &4BC1
-PARSE_OPTIONAL_RANGE_3:
+; ---- INARRAY_SEARCH_LOOP_1 ---- from &4BC1
+INARRAY_SEARCH_LOOP_1:
                PUSH HL                         ; 4BD7 E5
                LD HL,(V40A0)                   ; 4BD8 2A A0 40
 
-; ---- PARSE_OPTIONAL_RANGE_4 ---- from &4BD5
-PARSE_OPTIONAL_RANGE_4:
+; ---- INARRAY_SEARCH_LOOP_2 ---- from &4BD5
+INARRAY_SEARCH_LOOP_2:
                INC BC                          ; 4BDB 03
                PUSH BC                         ; 4BDC C5
                LD DE,(V409E)                   ; 4BDD ED 5B 9E 40
@@ -4762,47 +4768,47 @@ PARSE_OPTIONAL_RANGE_4:
                OUT (C),B                       ; 4BF1 ED 41
                POP BC                          ; 4BF3 C1
                POP HL                          ; 4BF4 E1
-               JR NC,PARSE_OPTIONAL_RANGE_8    ; 4BF5 30 25
+               JR NC,INARRAY_SEARCH_LOOP_6     ; 4BF5 30 25
                PUSH HL                         ; 4BF7 E5
                LD HL,(V40A2)                   ; 4BF8 2A A2 40
                LD DE,(V409E)                   ; 4BFB ED 5B 9E 40
                ADD HL,DE                       ; 4BFF 19
                BIT 6,H                         ; 4C00 CB 74
-               JR Z,PARSE_OPTIONAL_RANGE_5     ; 4C02 28 0B
+               JR Z,INARRAY_SEARCH_LOOP_3      ; 4C02 28 0B
                RES 6,H                         ; 4C04 CB B4
                IN A,(HMPR)                     ; 4C06 DB FB
                INC A                           ; 4C08 3C
                AND PAGEMASK                    ; 4C09 E6 1F
                OUT (HMPR),A                    ; 4C0B D3 FB
-               JR Z,PARSE_OPTIONAL_RANGE_6     ; 4C0D 28 06
+               JR Z,INARRAY_SEARCH_LOOP_4      ; 4C0D 28 06
 
-; ---- PARSE_OPTIONAL_RANGE_5 ---- from &4C02 when bit 6 of H clear
-PARSE_OPTIONAL_RANGE_5:
+; ---- INARRAY_SEARCH_LOOP_3 ---- from &4C02 when bit 6 of H clear
+INARRAY_SEARCH_LOOP_3:
                LD (V409E),HL                   ; 4C0F 22 9E 40
                POP HL                          ; 4C12 E1
-               JR PARSE_OPTIONAL_RANGE_LOOP    ; 4C13 18 A9
+               JR INARRAY_SEARCH_LOOP          ; 4C13 18 A9
 
-; ---- PARSE_OPTIONAL_RANGE_6 ---- from &4C0D when no bit of PAGEMASK is set
-PARSE_OPTIONAL_RANGE_6:
+; ---- INARRAY_SEARCH_LOOP_4 ---- from &4C0D when no bit of PAGEMASK is set
+INARRAY_SEARCH_LOOP_4:
                POP HL                          ; 4C15 E1
                LD H,A                          ; 4C16 67
                LD L,A                          ; 4C17 6F
 
-; ---- PARSE_OPTIONAL_RANGE_7 ---- from &4BCA
-PARSE_OPTIONAL_RANGE_7:
+; ---- INARRAY_SEARCH_LOOP_5 ---- from &4BCA
+INARRAY_SEARCH_LOOP_5:
                LD B,H                          ; 4C18 44
                LD C,L                          ; 4C19 4D
-               JR PARSE_OPTIONAL_RANGE_DONE    ; 4C1A 18 0A
+               JR INARRAY_SEARCH_LOOP_DONE     ; 4C1A 18 0A
 
-; ---- PARSE_OPTIONAL_RANGE_8 ---- from &4BF5
-PARSE_OPTIONAL_RANGE_8:
+; ---- INARRAY_SEARCH_LOOP_6 ---- from &4BF5
+INARRAY_SEARCH_LOOP_6:
                LD A,(V40AD)                    ; 4C1C 3A AD 40
                AND A                           ; 4C1F A7
-               JR NZ,PARSE_OPTIONAL_RANGE_DONE ; 4C20 20 04
+               JR NZ,INARRAY_SEARCH_LOOP_DONE  ; 4C20 20 04
                LD BC,(IAPOS)                   ; 4C22 ED 4B 03 40
 
-; ---- PARSE_OPTIONAL_RANGE_DONE ---- from &4C1A, &4C20 when A <> 0
-PARSE_OPTIONAL_RANGE_DONE:
+; ---- INARRAY_SEARCH_LOOP_DONE ---- from &4C1A, &4C20 when A <> 0
+INARRAY_SEARCH_LOOP_DONE:
                POP AF                          ; 4C26 F1
                OUT (HMPR),A                    ; 4C27 D3 FB
                RET                             ; 4C29 C9
@@ -4821,7 +4827,7 @@ COPY_STRING_TO_BUFFER:
                OUT (HMPR),A                    ; 4C2F D3 FB
                LD A,B                          ; 4C31 78
                AND A                           ; 4C32 A7
-               JP NZ,PARSE_OPTIONAL_RANGE_2    ; 4C33 C2 A3 4B
+               JP NZ,INARRAY_START_ELEMENT_2   ; 4C33 C2 A3 4B
                LD A,C                          ; 4C36 79
                LD (V4098),A                    ; 4C37 32 98 40
                AND A                           ; 4C3A A7
@@ -4836,7 +4842,7 @@ COPY_STRING_TO_BUFFER:
 FN_LOCN_2:
                LD A,B                          ; 4C43 78
                OR C                            ; 4C44 B1
-               JR Z,STACK_PAGE0_STRING         ; 4C45 28 24
+               JR Z,STACK_BC_AS_INTEGER        ; 4C45 28 24
                LD A,C                          ; 4C47 79
                INC A                           ; 4C48 3C
                LD HL,(IAPOS)                   ; 4C49 2A 03 40
@@ -4846,17 +4852,17 @@ FN_LOCN_2:
                RLC H                           ; 4C51 CB 04
                LD B,&03                        ; 4C53 06 03  three places, the same three GET_PAGED_ADDRESS shifts the
                                                ; other way -- an 8K block number and an offset within it, turned back
-                                               ; into a page and a windowed address
+                                               ; into the flat address LOCN reports
 
 ; ---- COPY_STRING_TO_BUFFER_LOOP ---- from &4C58 when B is not 0 yet
 COPY_STRING_TO_BUFFER_LOOP:
                RRA                             ; 4C55 1F
                RR H                            ; 4C56 CB 1C
                DJNZ COPY_STRING_TO_BUFFER_LOOP ; 4C58 10 FB
-               AND &0F                         ; 4C5A E6 0F  the top of that flat address, kept to four bits where only
-                                               ; three can ever be set -- 64 blocks of 8K is 512K, so the most A can
-                                               ; reach is 7. PAGED_TO_LONG masks the same quantity to exactly three at
-                                               ; &62E6
+               AND &0F                         ; 4C5A E6 0F  the top byte of the flat address. Blocks are counted from
+                                               ; the ROM here, so page 31's upper block is block 65 and A can reach 8 --
+                                               ; four bits are needed, unlike PAGED_TO_LONG's RAM-only page count at
+                                               ; &62E6, which fits in three
                LD DE,(V40AB)                   ; 4C5C ED 5B AB 40
                RES 7,D                         ; 4C60 CB BA
                ADD HL,DE                       ; 4C62 19
@@ -4867,16 +4873,14 @@ COPY_STRING_TO_BUFFER_LOOP:
                RET                             ; 4C6A C9
 
 ;; --------------------------------------------------------------------
-;; Stack a string descriptor for a block in page 0.
-;;
-;; The ROM's STKSTORE wants the page in A, the address in DE and the
-;; length in BC.  This builds them from two bytes: the address becomes
-;; C times 256 and the length the old B, with the page forced to zero.
-;; A whole-page-aligned block in the system page is what that describes.
+;; Stack the integer in BC.  A copy of the ROM's STACKBC: A, E and B
+;; go out as zero and C and B become the low and high bytes, so
+;; STKSTORE writes 00 00 lo hi 00, the small-integer form.  LOCN
+;; returns its 0 through here and INARRAY its element number.
 ;; --------------------------------------------------------------------
 
-; ---- STACK_PAGE0_STRING ---- from &41DB, &4B48, &4C45, &4D6A, &4DC6, &4E7E
-STACK_PAGE0_STRING:
+; ---- STACK_BC_AS_INTEGER ---- from &41DB, &4B48, &4C45, &4D6A, &4DC6, &4E7E
+STACK_BC_AS_INTEGER:
                XOR A                           ; 4C6B AF
                LD E,A                          ; 4C6C 5F
                LD D,C                          ; 4C6D 51
@@ -5282,8 +5286,8 @@ FN_EQU:
 
 ; ---- FN_EQU_1 ---- from &4D67
 FN_EQU_1:
-               JP STACK_PAGE0_STRING           ; 4D6A C3 6B 4C  returned as a number, despite the label:
-                                               ; STACK_PAGE0_STRING is the ROM's STACKBC written out
+               JP STACK_BC_AS_INTEGER          ; 4D6A C3 6B 4C  returned as a number: STACK_BC_AS_INTEGER is the ROM's
+                                               ; STACKBC written out
 
 ;; --------------------------------------------------------------------
 ;; EQU's comparison: two strings, each in its own page, compared
@@ -5438,7 +5442,7 @@ FN_SHIFT_S:
                LD H,A                          ; 4DC3 67  H is the string's page, L the option number 1 to 4
                LD A,B                          ; 4DC4 78
                OR C                            ; 4DC5 B1
-               JP Z,STACK_PAGE0_STRING         ; 4DC6 CA 6B 4C  the empty string. STKSTORE's five zero bytes serve as an
+               JP Z,STACK_BC_AS_INTEGER        ; 4DC6 CA 6B 4C  the empty string. STKSTORE's five zero bytes serve as an
                                                ; empty string here as readily as they serve as zero elsewhere
                IN A,(HMPR)                     ; 4DC9 DB FB
                PUSH AF                         ; 4DCB F5
@@ -5647,7 +5651,7 @@ FN_RESERVED:
                LD B,D                          ; 4E7C 42  HEAPROOM's DE, the start of the space it handed out, is what
                                                ; RESERVED returns
                LD C,E                          ; 4E7D 4B
-               JP STACK_PAGE0_STRING           ; 4E7E C3 6B 4C
+               JP STACK_BC_AS_INTEGER          ; 4E7E C3 6B 4C
                                                ; calculator: = x when x >= 0, otherwise x + 65536
                RST FPCALC                      ; 4E81 EF
                DEFB FPC_DUP                    ; 4E82 DUP

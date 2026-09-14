@@ -315,13 +315,13 @@ month, year, hour, minute. The first three are read in a loop:
 ```asm
       LD B,&03                        ; 4A4D  day, month, year
 
-READ_CLOCK_FIELDS_LOOP2:
+STAMP_DATE_FIELDS:
       CALL TWO_DIGITS_FROM_DE         ; 4A4F  two characters, one byte
       AND A                           ; 4A52  a zero field means the clock is unset
-      JR Z,READ_CLOCK_FIELDS_DONE2    ; 4A53  so stop and leave the stamp alone
+      JR Z,STAMP_DATE_FIELDS_DONE     ; 4A53  so stop and leave the stamp alone
       LD (HL),A                       ; 4A55
       INC HL                          ; 4A56
-      DJNZ READ_CLOCK_FIELDS_LOOP2    ; 4A57
+      DJNZ STAMP_DATE_FIELDS          ; 4A57
 ```
 
 The zero test is a sentinel for "the clock was never set", and as a sentinel it
@@ -330,7 +330,7 @@ routine's own commentary says. But the same test runs on all three fields, and
 a **year** of zero is legal — it is 2000.
 
 **Consequence** In that year the loop writes the day and the month, then reads
-`00` for the year and jumps out. `READ_CLOCK_FIELDS_DONE2` is past the time
+`00` for the year and jumps out. `STAMP_DATE_FIELDS_DONE` is past the time
 loop as well, so the hour and minute are never written either. The entry keeps
 whatever the entry image held at those three bytes — not the previous file's
 stamp, which does not survive: `NCF25` copies the whole image over the sector
@@ -973,15 +973,22 @@ SCAN_FOR_EITHER_CASE:
 Entering at the read is deliberate and the `INC BC` at `&4CE3` pays for
 it, so N positions get the full `CP D`/`CP E`. But the exhaustion return
 falls through `&4D31` and carries that comparison's flags — and `&4D06
-JR NZ` treats only non-Z as "keep scanning". **So when the byte
-following the region happens to equal E, the routine reports a find.**
+JR NZ` treats only non-Z as "keep scanning". **So when the byte at
+offset N happens to equal E, the scan carries on as if it had found a
+candidate.**
 
-Two things follow, and the second is worse.
+Two things can follow from that, and only the second does harm.
 
-**The pattern matches from there.** `&4CCA` sees B=0, C=0; the `DEC BC`
-at `&4CD1`, which exists to undo the `INC BC`, takes BC to `&FFFF`, and
-the answer `positions - BC` comes out `N+1`. LOCN reports a match one
-past the last legal start, whose last byte is outside the region.
+**The pattern matches from there — and the match is thrown away.**
+`&4CCA` sees B=0, C=0; the `DEC BC` at `&4CD1`, which exists to undo
+the `INC BC`, takes BC to `&FFFF`; and then `&4CD6 SBC HL,BC` computes
+`positions - &FFFF`, which for any N up to `&2000` *borrows*. Carry set
+is what the caller at `&4BF5` (`JR NC`) reads as "not found in this
+chunk", so the driver moves on exactly as for a miss. For LOCN the next
+chunk starts precisely at offset N, so a real match there is found
+legitimately as its first position. An earlier version of this entry
+said LOCN reports a match one past the last legal start; it does not —
+the `N+1` is computed and then discarded with the carry.
 
 **The pattern does not match.** `&4D1F`-`&4D24` restores DE, HL and AF
 and jumps to `SEARCH_MEMORY_LOOP4`, which re-enters the scan **without
@@ -1003,5 +1010,9 @@ beyond the region. That is what the bound at `&4C96` exists to prevent.
 
 Reachable whenever the byte at offset N equals the lower-case form of
 the pattern's first character — roughly one search in 256. Reads only,
-never writes.
+never writes. And a match found during the overrun is accepted only when
+the reconstructed count at `&4CCA`–`&4CD1` comes out at N or less, which
+happens only in the final 255 bytes of the 65536: the usual cost is a
+64K read through sections C, D and round into A for one chunk, not a
+wrong answer.
 

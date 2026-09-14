@@ -366,7 +366,6 @@ DOS_EVNUMX:                     EQU  EVNUMX + IN_PAGE_C
 DOS_FETCH_STRING_IF_RUNNING:    EQU  FETCH_STRING_IF_RUNNING + IN_PAGE_C
 DOS_FFPG:                       EQU  FFPG + IN_PAGE_C
 DOS_FIND_ROM_CODE:              EQU  FIND_ROM_CODE + IN_PAGE_C
-DOS_FNS56:                      EQU  FNS56 + IN_PAGE_C
 DOS_HEADER:                     EQU  HEADER + IN_PAGE_C
 DOS_HOOK_SBYT:                  EQU  HOOK_SBYT + IN_PAGE_C
 DOS_LBYT:                       EQU  LBYT + IN_PAGE_C

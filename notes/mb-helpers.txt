@@ -106,13 +106,11 @@ DOC READ_NEXT_NIBBLE
     Read four bits from a packed stream: the mirror of WRITE_NEXT_NIBBLE
     at &6202, stepping the same way and masking with E'.
 
-DOC STACK_PAGE0_STRING
-    Stack a string descriptor for a block in page 0.
-
-    The ROM's STKSTORE wants the page in A, the address in DE and the
-    length in BC.  This builds them from two bytes: the address becomes
-    C times 256 and the length the old B, with the page forced to zero.
-    A whole-page-aligned block in the system page is what that describes.
+DOC STACK_BC_AS_INTEGER
+    Stack the integer in BC.  A copy of the ROM's STACKBC: A, E and B
+    go out as zero and C and B become the low and high bytes, so
+    STKSTORE writes 00 00 lo hi 00, the small-integer form.  LOCN
+    returns its 0 through here and INARRAY its element number.
 
 MB &49D1 PAGE_IN_OTHER_HALF
 MB &5D5C RESTORE_HMPR_AND_STORE
@@ -120,7 +118,7 @@ MB &6F5C STORE_BC_AT_XVAR76
 MB &5031 SKIP_TO_END_OF_WORD
 MB &6202 WRITE_NEXT_NIBBLE
 MB &6367 READ_NEXT_NIBBLE
-MB &4C6B STACK_PAGE0_STRING
+MB &4C6B STACK_BC_AS_INTEGER
 
 DOC MULTIPLY_HL_BY_DE
     Multiply HL by DE into the 24-bit result A:HL, carry set if it will

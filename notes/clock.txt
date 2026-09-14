@@ -63,7 +63,8 @@ MB &4A8C : days count from 1 and seconds from 0, so the first of the month has t
 
 MB &4A8E : x2 then +x then x2 is six times the day, and six times 30 is 180, which still fits in A.  Twenty-four times 30 would not, which is why only part of the factor is done here
 
-MB &4A92 : six times the day is in L, and the two doublings below make it twenty-four times -- past a byte from the eleventh of the month on -- so H is cleared to hold the top half
+MB &4A4F STAMP_DATE_FIELDS
+MB &4A92 : six times the day is in L, and the two doublings below make it twenty-four times -- past a byte from the twelfth of the month on, 24 times 11 -- so H is cleared to hold the top half
 
 MB &4A94 : the other four, once the value is in HL: hours since the first of the month, at most 720
 
@@ -99,6 +100,7 @@ MB &4AC6 : LMPR's bits 5 and 6 disable ROM 0 and enable ROM 1; in HMPR they mean
 
 MB &4ACD : &8AD3 is this page's own &4AD3 seen through the window just opened.  It has to be reached that way twice over: CMR restores the caller's HMPR before jumping to the address, so the address must be meaningful under it -- and CMR also puts the system page into section B, which would page &4AD3 out from under the calculator
 
+MB &4AD3 TICS_DIVIDE_BY_5416
 MB &4AD3 : reached only by that call, never by falling through the RET above, and executing at &8AD3 when it runs
 
 MB &4AD4 : &8D &29 &42 &66 &66 is 5416.3 -- 2^(141-128) times &A9426666/2^32, which comes to 5416.30 -- the fast-mode factor the manual names
@@ -107,7 +109,7 @@ DOC MULTIPLY_BY_60
     A:HL times sixty, with the multiplicand kept in BC.
 
     FOUR DOUBLINGS AND ONE SUBTRACTION, then two more doublings:
-    16x - x is 15x, and 15x times four is 60x.  Five shifts and a
+    16x - x is 15x, and 15x times four is 60x.  Six shifts and a
     subtract against a general multiply routine and a constant, and it
     works in 24 bits because that is what TICS needs -- seconds in a
     month reach 2678399.
@@ -150,19 +152,19 @@ MB &4B32 : &2000, one 8K block, which the DEC BC below turns into &2000 plus the
 
 MB &4B35 : the bottom bit of the block number is the half of the 16K page the address is in, so one rotate splits it: the carry says whether to add &2000 to the pointer, and what is left in A is the page for the OUT at &4B9E
 
-MB &4C53 : three places, the same three GET_PAGED_ADDRESS shifts the other way -- an 8K block number and an offset within it, turned back into a page and a windowed address
+MB &4C53 : three places, the same three GET_PAGED_ADDRESS shifts the other way -- an 8K block number and an offset within it, turned back into the flat address LOCN reports
 
 MB &4B3F : TEST_RUNNING is Z on the syntax pass, when there is no array to find -- the jump goes straight to the second argument and checks it
 
-MB &4B4D : the array's own page into the window, so its elements can be walked
+MB &4B4D : the HMPR FIND_VARIABLE saved before LOOKVARS, put back -- LOOKVARS leaves the variables' page in the window and this undoes it.  The page the search reads under comes from GETSTR at &4B98
 
 MB &4B51 : zero only when DE is exactly 1, which is the flag V40AD carries into the search
 
 MB &4B59 : one instruction, LD BC,&0001, jumped over by the JR NZ at &4B55.  It is split in the listing by a phantom label at &4B5B, and it is not an instance of the swallowed-opcode idiom the note there describes; see the notes
 
-MB &4B69 : a comma or TO at this point belongs to the enclosing expression, not to the subscript, so no further number is taken and the count stays at one
+MB &4B69 : a subscript that opens with a comma or TO has no start element to read, so BC stays at one
 
-MB &4B83 : CHADD put back, so the ROM's parser carries on from the character this left off at
+MB &4B83 : CHADD rewound to the array name -- the HL pushed at &4B44 -- so EXPSTR at &4B85 re-parses the whole reference as a string
 
 MB &4B8F : LOCN puts a length in V40A4 at &4B09; INARRAY has no such limit, so it stores zero and the test at &4BC3 falls the other way
 
