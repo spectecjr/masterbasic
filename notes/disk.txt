@@ -392,10 +392,13 @@ DOS &7003 ADVANCE_BUFFER_POINTER
     (IX+&0D), carrying into (IX+&0E) only when the low byte wraps, so
     the common case is one INC and a RET NZ.  The source's INCRPT.
 
-DOS &700B GET_STREAM_NUMBER
-    A stream number through the ROM's GETINT, refused unless it fits in a
-    byte and is below &10 -- INC H with DEC H tests the high byte without
-    disturbing A.
+DOS &700B STREAM_FILE_POINTER
+    The source's PESR, "PTR/EOF SR": a stream number through the ROM's
+    GETINT, refused unless it fits in a byte and is below &10 -- INC H
+    with DEC H tests the high byte without disturbing A -- then straight
+    on through CHANNEL_FOR_STREAM into FPTR and M510, so what comes back
+    is the file pointer in AHL, which is all HEOF, HPTR and FNLN2 want
+    of it.
 
 DOS &7018 CHANNEL_FOR_STREAM
     STRMD gives the displacement, zero means no channel, and one less

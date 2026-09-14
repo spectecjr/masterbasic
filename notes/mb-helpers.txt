@@ -103,8 +103,8 @@ DOC WRITE_NEXT_NIBBLE
     packed here, though nothing in the routine says so.
 
 DOC READ_NEXT_NIBBLE
-    Read four bits from a packed stream: the mirror of the routine
-    above, stepping the same way and masking with E'.
+    Read four bits from a packed stream: the mirror of WRITE_NEXT_NIBBLE
+    at &6202, stepping the same way and masking with E'.
 
 DOC STACK_PAGE0_STRING
     Stack a string descriptor for a block in page 0.

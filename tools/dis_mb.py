@@ -978,6 +978,13 @@ def seeds(dos, mb):
     # reads as though the DOS were calling MasterBASIC's CHECK_BREAK.
     for at in (0x5B81, 0x5B93, 0x5C33, 0x7936):
         dos.no_peer.append((at, at + 3))
+    # FTADD, the screen borrowed as FORMAT's track image, is &A280 --
+    # which as an address in the other half is NEXT_SOURCE_NIBBLE_1, and
+    # FTADD+&0176 is SET_COMPRESSION_MODE.  The operands were already
+    # written as FTADD; the cross-references still credited the DOS with
+    # seven calls it does not make.
+    for at in (0x499B, 0x49CC, 0x54FE, 0x5552, 0x5568, 0x55A3, 0x55BF):
+        dos.no_peer.append((at, at + 3))
 
     # Two more coincidences of address.  &6E04's LD BC,&6EF9 is a table
     # base added to a stream displacement, not the routine that happens

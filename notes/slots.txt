@@ -37,11 +37,18 @@ DOC ALLOC_UTILITY_SLOT
     writes a zero into a byte that was already zero.
 
     IT IS NOT A READ-ONLY PASS, THOUGH.  Two writes happen whichever
-    value B holds: &5F2F-&5F35 clears the sixteen SLOTT bytes at the
-    top of every candidate page, and &5F6B stores the new chain head
-    in V409E.  Neither is guarded.  So a counting pass leaves SLOTT
-    cleared in each page it looked at and V409E pointing at the chain
-    it would have built.
+    value B holds: &5F2F-&5F35 clears the sixteen SLOTT bytes of every
+    page it finds unowned (ALLOCT = 0; a page already marked &20 keeps
+    its SLOTT, as it must), and &5F6B stores the last slot found in
+    V409E.  Neither is guarded.  So a counting pass leaves SLOTT
+    cleared in each unowned page it looked at, and V409E holding the
+    last free slot it saw -- which the reserving pass reads at &5F59
+    for the link of the FIRST slot it reserves.  Both passes see the
+    same slots in the same order, so that last slot is the head the
+    reserving pass returns in DE: the tail of the chain points at its
+    head, and the chain is a ring.  The &5C83 comment relies on that
+    ("the chain is circular"); whether it is design or an accident of
+    sharing the code, the code makes it so.
 
     C counts the slots still wanted; DEC C : RET Z at &5F70 ends the
     routine as soon as enough have been found.  On return DE holds the
@@ -98,7 +105,7 @@ MB &5F37 : A still holds the page number, untouched by the clearing loop; puttin
 MB &5F3B : SLOTT again, for the page this arm selected rather than the one above -- the two arms of the walk meet at the loop below
 MB &5F3E : forwards from &BFF0 -- the Technical Manual says to look backwards through SLOTT, so this takes the lowest free slot where the manual would take the highest
 
-MB &5F43 : INC B : DEC B tests B for zero without disturbing A, which is holding the 0 just read from SLOTT
+MB &5F43 : INC B : DEC B is the way to test a register other than A for zero; A is overwritten at &5F49 on both arms
 
 MB &5F47 : &FF -- reserved, the manual's marker
 
@@ -129,12 +136,15 @@ DOC FREE_SLOT_CHAIN
     is why the walk needs no table of its own and can cross pages.
     Entry is A = page, H = descriptor; a zero descriptor ends the walk,
     which is safe because the allocator's &40 + 4n form can never be 0.
+    The chain is a ring, so the walk ends only because &5F9D zeroes each
+    freed slot's descriptor and the ring comes back round to one -- the
+    same slot is freed twice, harmlessly, and the second time stops it.
 
 MB &5F7F : &40 + 4n plus &40 is &80 + 4n, and plus 3 is the high byte of the slot's last two bytes -- the allocator's arithmetic run forwards
 
 MB &5F81 : the low two bits are already clear in anything the allocator stored, so this only matters if a caller hands over a descriptor of its own
 
-MB &5F83 : the third part of the &43 the DOC above describes: &40 for the base, &40 to reach the window, and three for the last of the slot's four high bytes
+MB &5F83 : the second part of the &43 the DOC above describes: &40 at &5F7F to reach the window, and three here for the last of the slot's four high bytes; the base &40 is the descriptor's own
 
 MB &5F86 : and the low byte of the pair.  A 1K slot runs to offset &3FF, so its last two bytes are at (&83 + 4n)&FE and (&83 + 4n)&FF -- which is where the chain link is kept
 
@@ -215,7 +225,7 @@ MB &5FEC : TRACE_PRINT_DECIMAL takes its value in BC, not HL
 
 MB &5FF5 : what LINE stored: 0 for no pause, &FF for STEP, anything else a delay.  &614A is the only place that writes it, and writes it as &406F -- the command runs at home, the trace runs in the window
 
-MB &5FFC : &FF is STEP, which waits for a key instead of counting; any other value falls through to the delay loop
+MB &5FFC : &FF is STEP, which waits for a key instead of counting: any other value jumps to the delay loop, and &FF falls through to the wait
 
 MB &5FFE : &F7 is the keyboard row, put in A because IN A,(STAT) drives it onto the top half of the address bus.  Entering CHECK_BREAK at &6000 instead leaves the row to the caller
 
@@ -267,11 +277,11 @@ DOC TRACE_PLOT_CHAR
 
     Modes 1 and 2 have the screen page brought in one page low, so the
     screen sits at &4000-&7FFF; modes 3 and 4 bring it in as it is, so
-    its top 16K sits there instead.  Either way the address chosen in
+    the screen's last 8K sits there instead.  Either way the address chosen in
     SHOW_LINE_AND_STATEMENT is a section B address and the code, running
     in the window, is untouched.
 
-MB &602E : eight bytes a character, so the code is multiplied by eight -- ADD A,A first because a code of &80 or more would not fit the doubling once HL is built
+MB &602E : eight bytes a character, so the code is multiplied by eight -- ADD A,A on the byte is a byte shorter than ADD HL,HL, and drops bit 7, which is safe because nothing plotted here is above &3A
 
 MB &6030 : H cleared, so HL holds the doubled code by itself and the two ADD HL,HLs below finish the multiply
 
@@ -291,7 +301,7 @@ MB &6058 : &00 mode 1, &20 mode 2, &40 and &60 modes 3 and 4, which share the la
 
 MB &605C : so &20 is mode 2; the mask above has already sent mode 1 away, and anything left that is not this is mode 3 or 4
 
-MB &6064 : mode 2 is 32 bytes a row; only E needs adding to because eight rows cannot cross a page from a row-176 start
+MB &6064 : mode 2 is 32 bytes a row; only E needs adding to because eight rows cannot cross a page from a row-176 start -- and the eighth add wraps E back to the start, which is the DE the attribute address at &606C needs
 
 MB &6069 : mode 2 attributes sit &2000 above the pixels, one byte per cell per pixel row, so eight of them are needed
 
@@ -379,7 +389,7 @@ MB &613C : bit 1 is what &7C1C tests before each statement -- so setting it here
 
 MB &6149 : after LINE OFF C was never loaded and this stores rubbish, which does not matter because bit 1 is now clear and nothing will read it
 
-DOC NEXT_SCREEN_BYTE
+DOC NEXT_SOURCE_NIBBLE
     Step to the next pixel of the scan and read it.  The routine falls
     into READ_NIBBLE_AT_HL, which is where the reading happens.
 
@@ -396,11 +406,24 @@ DOC NEXT_SCREEN_BYTE
     up.  L rolling to 0 finishes a pair of lines and is the only place
     the limit in V407A is tested.
 
+# The screen expander's entry, called from the DOS -- HOOK_HLOAD_1's
+# CALLMB / DEFW &62A6 -- with A the mode byte, H the compressed length's
+# page and DE its offset.  It had no label, so the tail-copy loops after
+# it were named for READ_NIBBLE_AT_HL, the encoder's reader above.
+MB &62A6 EXPAND_SCREEN_FILE
+    Expand a compressed SCREEN$ on its way in from disk: the pair of
+    COMPRESS_SCREEN_FILE.  A = the mode byte, H = the compressed length's
+    page and DE its offset, which PAGED_TO_LONG turns into the count
+    V407B holds; PICK_COMPRESSION_CONSTANTS gives the sizes, the nibble
+    decoder EXPAND_COMPRESSED_FILE rebuilds the bitmap, and the loops
+    after it skip the closing &FFs and copy the file's tail to the byte
+    after the bitmap.
+
 MB &627E : an odd line steps back up and one pixel along; an even one steps down.  The DEC H DEC H before the shared INC H is what makes the odd case H-1
 
 MB &6289 : SCF before the two rotates halves the pixel number into an address and forces bit 15, since the screen sits at &8000 upwards; the bit that falls out of L says which half of the byte
 
-MB &629D : three short of the last line, because CP H : JR NC lets H equal it and &6287 starts one more pair, so the walk ends at V407A+2.  That is V407A+3 lines, which is what the totals need: &33, &6D and &BD reach exactly &1B00, &3800 and &6000 bytes -- a MODE 1, a MODE 2 and a MODE 3 or 4 screen
+MB &629D : three short of the number of lines, because CP H : JR NC lets H equal it and &6287 starts one more pair, so the walk ends at V407A+2.  That is V407A+3 lines, which is what the totals need: &33, &6D and &BD reach exactly &1B00, &3800 and &6000 bytes -- a MODE 1, a MODE 2 and a MODE 3 or 4 screen
 
 MB &62A4 : H = &FF is how the walk says it has finished, which is the test ENCODE_SCREEN makes
 

@@ -398,6 +398,8 @@ The differences from the review prompt:
 | notes/clean/dos-numbers.txt, line by line | review | 14 findings | 14 |
 | DOS carried-comment sweep, twelve PART cuts (2026-09-13) | review | 100 findings | 92 + 8 deferred |
 | C12 and RAMD again, on Fable, same prompts (2026-09-13) | review | 11 findings | 11; 3 shared with the Opus pair |
+| Round-six functions and load/save regions, second pass (2026-09-14) | review | 9 findings | 7 + 2 left; none [C] |
+| MB &5E64-&63FE, two cuts (2026-09-14) | review | 29 findings | 27 + 2 informational |
 
 The first five ran on one model; the rest on another, after the first hit a
 session limit mid-run. The prompts were byte-identical across the change,

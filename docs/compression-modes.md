@@ -352,7 +352,8 @@ could meet them.
 
 `COMPRESS_SCREEN_FILE` at `MB &614E` is given the screen as the ROM saved
 it — the bitmap at `&8000` in the screen's page, the palette tail after it,
-and the file length in `HL` — with the screen mode from entry offset 221 in
+and the file's in-page length in `DE`, the header's `HD0B1`, which
+`PICK_COMPRESSION_CONSTANTS` moves into `HL` — with the screen mode from entry offset 221 in
 `A`. It needs no spare page: its output stream is built at `&E500`, above a
 MODE 4 screen in the screen's own second page, and handed to the DOS in
 `&1900`-byte pieces as it fills.
@@ -364,7 +365,9 @@ MODE 4 screen in the screen's own second page, and handed to the DOS in
 - The nine-byte header is the ROM's, with the expanded length.
 - The stream is nibbles packed **high nibble first**, its first nibble the
   escape value. If the last nibble lands in the high half of a byte the low
-  half is zero and the byte is sent.
+  half is zero and the byte is sent — except after a two-nibble count, whose
+  second nibble is stored by rotating the whole `r+116` byte, so the pad is
+  that count's first nibble again (8–F). Nothing reads it.
 - `WRITE_THREE_FF` at `MB &6194` closes the stream with three `&FF` bytes.
 - The tail is what the ROM appended to the bitmap when it built the file:
   `PALTAB`, forty bytes of palette, then the line-interrupt colour table,
@@ -386,9 +389,9 @@ numbers, and the bitmap size is the one that matters for the format:
 
 The bitmap is treated as **rows of 128 bytes** whatever the mode — 54, 112
 or 192 of them — and `V407A` is three less than the row count, which is how
-`NEXT_SCREEN_BYTE_3` tests for the end. Each byte is two nibbles, high first.
+`NEXT_SOURCE_NIBBLE_3` tests for the end. Each byte is two nibbles, high first.
 
-`NEXT_SCREEN_BYTE` at `MB &627E` defines the order the nibbles are coded in,
+`NEXT_SOURCE_NIBBLE` at `MB &627E` defines the order the nibbles are coded in,
 and it is not left to right. With `H` the row and `L` the nibble within it:
 
 - from an even row, step to the same nibble of the row below;
@@ -409,7 +412,8 @@ pairing means less there.
 the start of the bitmap**, whatever the mode — for a MODE 1 or 2 screen the
 count runs on past the bitmap into whatever follows. That only affects which
 value is chosen. `SCAN_NIBBLE_TABLE` then takes the least frequent of the
-sixteen, the lowest value on a tie, and `ENCODE_SCREEN` writes it as the
+sixteen, the highest value on a tie — the scan runs from 15 down and
+replaces only on strictly less — and `ENCODE_SCREEN` writes it as the
 stream's first nibble.
 
 ### The stream
@@ -483,7 +487,8 @@ loop:
 
 The walk stopping is the only end condition: `NEXT_SCREEN_NIBBLE_4` at
 `MB &635D` resets `SP` from `V4078` and returns straight out of the expander
-when the row after `V407A + 1` is reached, wherever the stream stands. Then
+when the walk would enter row `V407A + 3`, the row after the last, wherever
+the stream stands. Then
 the tail: `FETCH_SOURCE_BYTE` skips every `&FF` it finds, copies from the
 first other byte to the address after the bitmap, and stops after it has
 stored an `&FF` of its own — the line-interrupt table's terminator. The
@@ -510,7 +515,7 @@ of the screen as it was, and one that is long is ignored.
 | `GET_WORK_PAGE` | `MB &67D7` | a free page, or the screen |
 | `COMPRESS_SCREEN_FILE` / `ENCODE_SCREEN` / `ENCODE_RUN` | `MB &614E` / `&61A0` / `&61DE` | nibble coder |
 | `BUILD_NIBBLE_TABLE` / `SCAN_NIBBLE_TABLE` | `MB &6253` / `&6237` | the escape nibble |
-| `NEXT_SCREEN_BYTE` / `NEXT_SCREEN_NIBBLE` | `MB &627E` / `&6331` | the walk, encoding and decoding |
+| `NEXT_SOURCE_NIBBLE` / `NEXT_SCREEN_NIBBLE` | `MB &627E` / `&6331` | the walk, encoding and decoding |
 | `EXPAND_COMPRESSED_FILE` | `MB &62E9` | nibble decoder; entered from `&62A6` |
 | `PICK_COMPRESSION_CONSTANTS` | `MB &63C5` | the per-mode sizes |
 

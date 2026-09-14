@@ -28,7 +28,8 @@ DOC CALL_LOOKVARS
     is exactly what a signature search is for.
 
 DOC CHECK_BREAK
-    Report "BREAK into program" if the key is down, otherwise return.
+    Report "BREAK into program" if the key is down; otherwise, for LINE
+    STEP, go on into the CNTRL wait, debounce and release loops below.
 
     IN A,(STAT), bit 5, and the sense is active low: set means not
     pressed.  Nothing calls it.  The DOS half names it nowhere, and no

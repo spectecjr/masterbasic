@@ -178,7 +178,21 @@ wrong is fixed with a `:` line, which replaces it.
 
 ---
 
-## Phase 2 -- second passes where the first pass found a lot  (next)
+## Phase 2 -- second passes where the first pass found a lot  (run 2026-09-14; round 9)
+
+Both regions re-cut by routine and sent to fresh reviewers with the
+round-six brief.  Functions: 4 findings on 276 own lines, none `[C]`.
+Load/save: 5 on 432, none `[C]`.  That is 1.3 per hundred against the
+11.5 the first pass returned, and the `[C]` share is zero -- the
+convergence signature the last section describes, on the two regions
+that had the most to find.  One of the nine reversed a round-8 `[P]`
+(FSTAT's option 5 is the manual's page rule for every file type, not a
+page high for BASIC), which is the second reader catching the first
+reader's second reader; the others were softenings and one name.
+
+So a second pass on a reviewed region returns about a tenth of the
+first, and what it returns is mostly wording.  Phase 3's fresh regions
+are the better use of a reviewer from here.
 
 The process file's own rule: a region that returns twelve findings is one
 to re-read, because a review samples the errors and does not exhaust them.
@@ -204,7 +218,7 @@ by a second reader, in the order they are worth doing:
 
 | Range | What is there | Why this order |
 |---|---|---|
-| `&5E00-&6400` | the utility slots, CHECK_BREAK and TRACE, COMPRESS_SCREEN_FILE and the nibble encoder, EXPAND_COMPRESSED_FILE, LOAD_NEXT_INPUT_BLOCK, CMD_SAVE | strong claims about mechanisms, and round six leaned on `&62A6` and `LOAD_NEXT_INPUT_BLOCK`: check what it leaned on |
+| `&5E00-&6400` -- done 2026-09-14, round 10: 29 findings on 861 own lines (3.4 per hundred), 17 of them `[C]`; the slot chain is a ring, `&62A6` is now EXPAND_SCREEN_FILE, and three claims in `docs/compression-modes.md` were refuted from the bytes | | |
 | `&66AE-&69E7` | EXPAND_FILE and the work page, CMD_DUMP and its line, strike and pixel routines | the DUMP claims the emulator settled were about &69E7 on; this is the half before |
 | `&4700-&500C` | the far-string compares, SORT_NAMES, CMD_DATE and CMD_TIME and the clock, STAMP_WITH_DATE, FN_TICS, FN_LOCN, FN_INARRAY, SEARCH_MEMORY, FN_EQU | the clock and date-stamp claims cross into the DOS, which round six read from the other side |
 | `&51D6-&5C00` | HOOK_RCPTCH and the program walk, BUILD_TRACK_IMAGE, CMD_ALTER, the serial channel and CMD_LPRINT, CMD_PRINT, CMD_REF and the reference parser | large and bare of review; `notes/mb-cmdbuf.txt` and the serial notes make the boldest claims in the repository |

@@ -15700,8 +15700,9 @@ COPY_THEN_APPEND_CALL_9:
 ;;
 ;;     The fifteen bytes are the rotating-window step: if the address has run
 ;;     past &BFFF, bring H back down and count a page on in MEMVAL+2, then fall
-;;     into IMLENC.  The ROM has no such step because the ROM's LENGTH never
-;;     walks off the end of a page.
+;;     into IMLENC.  The ROM has no such step: ASSAR5's INC H can carry HL
+;;     past &BFFF and AHLNORM then drops the top two bits, so this is a
+;;     correction, not an addition.
 ;;
 ;;     LENGSR is copied too, because IMLENGTH reaches it through a DW rather
 ;;     than a CALL -- CALL R1OFFCL : DW LENGSR -- and a DW can be repointed.
@@ -15770,7 +15771,8 @@ FN_LENGTH_LOOP:
                LD DE,&4FF2                     ; 5E9C 11 F2 4F  &4FF2 is past the fifteen appended bytes, so nothing
                                                ; already written is overwritten
                LD (&8F6E),DE                   ; 5E9F ED 53 6E 8F  the DW after IMLENGTH's CALL R1OFFCL now names the
-                                               ; copy instead of LENGSR in ROM 1
+                                               ; copy instead of LENGSR in ROM 0 -- at &3F73, whose twenty-five bytes
+                                               ; are what &5EA7 copies; R1OFFCL exists to call ROM 0 with ROM 1 off
                LD D,&8F                        ; 5EA3 16 8F  E is still &F2 from the LD DE above, so the destination is
                                                ; &8FF2 -- &4FF2 seen through the window at &8000
                LD C,&19                        ; 5EA5 0E 19  LENGSR is twenty-five bytes, CALL LOOKVARS through to RET
@@ -15935,8 +15937,8 @@ GET_BUFFER_SIZE_LOOP:
                LD A,L                          ; 5F0F 7D  out with the page in A and the slot's address in HL, and A
                                                ; non-zero so that the caller's Z still means "the size was nought"
                LD L,&00                        ; 5F10 2E 00  L cleared, so HL is the slot's own base. A utility slot
-                                               ; always starts on a &400 boundary, and the low byte is what said which
-                                               ; slot it was
+                                               ; always starts on a &400 boundary; the low byte was the page number, now
+                                               ; moved into A, and H, the descriptor, says which slot
                AND A                           ; 5F12 A7
                RET                             ; 5F13 C9
 
@@ -15997,11 +15999,18 @@ FIND_SLOTS:
 ;;     writes a zero into a byte that was already zero.
 ;;
 ;;     IT IS NOT A READ-ONLY PASS, THOUGH.  Two writes happen whichever
-;;     value B holds: &5F2F-&5F35 clears the sixteen SLOTT bytes at the
-;;     top of every candidate page, and &5F6B stores the new chain head
-;;     in V409E.  Neither is guarded.  So a counting pass leaves SLOTT
-;;     cleared in each page it looked at and V409E pointing at the chain
-;;     it would have built.
+;;     value B holds: &5F2F-&5F35 clears the sixteen SLOTT bytes of every
+;;     page it finds unowned (ALLOCT = 0; a page already marked &20 keeps
+;;     its SLOTT, as it must), and &5F6B stores the last slot found in
+;;     V409E.  Neither is guarded.  So a counting pass leaves SLOTT
+;;     cleared in each unowned page it looked at, and V409E holding the
+;;     last free slot it saw -- which the reserving pass reads at &5F59
+;;     for the link of the FIRST slot it reserves.  Both passes see the
+;;     same slots in the same order, so that last slot is the head the
+;;     reserving pass returns in DE: the tail of the chain points at its
+;;     head, and the chain is a ring.  The &5C83 comment relies on that
+;;     ("the chain is circular"); whether it is design or an accident of
+;;     sharing the code, the code makes it so.
 ;;
 ;;     C counts the slots still wanted; DEC C : RET Z at &5F70 ends the
 ;;     routine as soon as enough have been found.  On return DE holds the
@@ -16137,8 +16146,8 @@ ALLOC_UTILITY_SLOT_LOOP3:
                AND A                           ; 5F3F A7
                JR NZ,ALLOC_UTILITY_SLOT_6      ; 5F40 20 30
                PUSH HL                         ; 5F42 E5
-               INC B                           ; 5F43 04  INC B : DEC B tests B for zero without disturbing A, which is
-                                               ; holding the 0 just read from SLOTT
+               INC B                           ; 5F43 04  INC B : DEC B is the way to test a register other than A for
+                                               ; zero; A is overwritten at &5F49 on both arms
                DEC B                           ; 5F44 05
                JR Z,ALLOC_UTILITY_SLOT_3       ; 5F45 28 02
                LD (HL),&FF                     ; 5F47 36 FF  &FF -- reserved, the manual's marker
@@ -16249,6 +16258,9 @@ ALLOC_UTILITY_SLOT_6:
 ;;     is why the walk needs no table of its own and can cross pages.
 ;;     Entry is A = page, H = descriptor; a zero descriptor ends the walk,
 ;;     which is safe because the allocator's &40 + 4n form can never be 0.
+;;     The chain is a ring, so the walk ends only because &5F9D zeroes each
+;;     freed slot's descriptor and the ring comes back round to one -- the
+;;     same slot is freed twice, harmlessly, and the second time stops it.
 ;; --------------------------------------------------------------------
 
 ; ---- FREE_SLOT_CHAIN ---- from &5596, &55DE when A <> 0, &5C8A when A <> 0, &5FA4 when H is not 0 yet
@@ -16261,9 +16273,9 @@ FREE_SLOT_CHAIN:
                AND &FC                         ; 5F81 E6 FC  the low two bits are already clear in anything the
                                                ; allocator stored, so this only matters if a caller hands over a
                                                ; descriptor of its own
-               ADD A,&03                       ; 5F83 C6 03  the third part of the &43 the DOC above describes: &40 for
-                                               ; the base, &40 to reach the window, and three for the last of the slot's
-                                               ; four high bytes
+               ADD A,&03                       ; 5F83 C6 03  the second part of the &43 the DOC above describes: &40 at
+                                               ; &5F7F to reach the window, and three here for the last of the slot's
+                                               ; four high bytes; the base &40 is the descriptor's own
                LD H,A                          ; 5F85 67
                LD L,&FE                        ; 5F86 2E FE  and the low byte of the pair. A 1K slot runs to offset
                                                ; &3FF, so its last two bytes are at (&83 + 4n)&FE and (&83 + 4n)&FF --
@@ -16462,8 +16474,9 @@ SHOW_LINE_AND_STATEMENT_1:
                RET Z                              ; 5FF9 C8
                LD B,A                             ; 5FFA 47
                INC A                              ; 5FFB 3C
-               JR NZ,CHECK_BREAK_LOOP3            ; 5FFC 20 22  &FF is STEP, which waits for a key instead of counting;
-                                                  ; any other value falls through to the delay loop
+               JR NZ,CHECK_BREAK_LOOP3            ; 5FFC 20 22  &FF is STEP, which waits for a key instead of counting:
+                                                  ; any other value jumps to the delay loop, and &FF falls through to
+                                                  ; the wait
 
 ;; --------------------------------------------------------------------
 ;; SHOW_LINE_AND_STATEMENT_2 -- &5FFE to &5FFF
@@ -16488,7 +16501,8 @@ SHOW_LINE_AND_STATEMENT_2:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     Report "BREAK into program" if the key is down, otherwise return.
+;;     Report "BREAK into program" if the key is down; otherwise, for LINE
+;;     STEP, go on into the CNTRL wait, debounce and release loops below.
 ;;
 ;;     IN A,(STAT), bit 5, and the sense is active low: set means not
 ;;     pressed.  Nothing calls it.  The DOS half names it nowhere, and no
@@ -16611,7 +16625,7 @@ CHECK_BREAK_LOOP4:
 ;;
 ;;     Modes 1 and 2 have the screen page brought in one page low, so the
 ;;     screen sits at &4000-&7FFF; modes 3 and 4 bring it in as it is, so
-;;     its top 16K sits there instead.  Either way the address chosen in
+;;     the screen's last 8K sits there instead.  Either way the address chosen in
 ;;     SHOW_LINE_AND_STATEMENT is a section B address and the code, running
 ;;     in the window, is untouched.
 ;; --------------------------------------------------------------------
@@ -16619,8 +16633,8 @@ CHECK_BREAK_LOOP4:
 TRACE_PLOT_CHAR:
                LD DE,(CHARS)                   ; 602A ED 5B 36 5C
                ADD A,A                         ; 602E 87  eight bytes a character, so the code is multiplied by eight --
-                                               ; ADD A,A first because a code of &80 or more would not fit the doubling
-                                               ; once HL is built
+                                               ; ADD A,A on the byte is a byte shorter than ADD HL,HL, and drops bit 7,
+                                               ; which is safe because nothing plotted here is above &3A
                LD L,A                          ; 602F 6F
                LD H,&00                        ; 6030 26 00  H cleared, so HL holds the doubled code by itself and the
                                                ; two ADD HL,HLs below finish the multiply
@@ -16680,7 +16694,9 @@ TRACE_PLOT_CHAR_LOOP:
                INC HL                          ; 6062 23
                LD A,E                          ; 6063 7B
                ADD A,&20                       ; 6064 C6 20  mode 2 is 32 bytes a row; only E needs adding to because
-                                               ; eight rows cannot cross a page from a row-176 start
+                                               ; eight rows cannot cross a page from a row-176 start -- and the eighth
+                                               ; add wraps E back to the start, which is the DE the attribute address at
+                                               ; &606C needs
                LD E,A                          ; 6066 5F
                DJNZ TRACE_PLOT_CHAR_LOOP       ; 6067 10 F7
                LD HL,&2000                     ; 6069 21 00 20  mode 2 attributes sit &2000 above the pixels, one byte
@@ -17013,7 +17029,7 @@ TRACE_DIVISORS_2:
 ;;
 ;;         LINE           show each line and statement number as it runs
 ;;         LINE delay     the same, pausing; 1 is brief, 200 very long
-;;         LINE STEP      wait for CNTRL before each line
+;;         LINE STEP      wait for CNTRL before each statement
 ;;         LINE OFF       stop
 ;;
 ;;     The trace appears at the lower right of the screen in PEN 0 on PAPER
@@ -17124,7 +17140,10 @@ CMD_LINE_4:
 ;;     Compress a SCREEN$ file on its way to disk, called from the DOS's
 ;;     HOOK_HSAVE through CALLMB.  PICK_COMPRESSION_CONSTANTS sets up, the encoder fills &E500, the
 ;;     length is worked out by taking &E500 off the end pointer, and
-;;     WRITE_THREE_FF closes the stream.
+;;     WRITE_THREE_FF closes the stream.  Then a fourth step the encoder
+;;     has no part in: what follows the bitmap in the file -- the palette
+;;     tail -- is copied to &E500 and sent through SEND_COMPRESSED_BLOCK as
+;;     it is, so the expander's tail copy can find it after the &FFs.
 ;; --------------------------------------------------------------------
 
 ; ---- COMPRESS_SCREEN_FILE ---- from DOS &652D
@@ -17148,8 +17167,11 @@ COMPRESS_SCREEN_FILE:
                PUSH BC                         ; 6169 C5
                POP IY                          ; 616A FD E1
                POP HL                          ; 616C E1
-               LD DE,&E500                     ; 616D 11 00 E5  and the same &E500 as the source of the copy that puts
-                                               ; what was built where it has to go
+               LD DE,&E500                     ; 616D 11 00 E5  &E500 is the destination this time: the tail of the file
+                                               ; -- from the byte after the bitmap, the HL popped above, for the
+                                               ; caller's length less the bitmap's -- is copied here, and the fall into
+                                               ; SEND_COMPRESSED_BLOCK below sends it out uncompressed after the three
+                                               ; &FF
                LDIR                            ; 6170 ED B0
 
 ;; --------------------------------------------------------------------
@@ -17206,6 +17228,10 @@ SEND_COMPRESSED_BLOCK:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    B
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Three &FF bytes to the open file, through the DOS's save-byte hook.
 ;; --------------------------------------------------------------------
 
 ; ---- WRITE_THREE_FF ---- from &6164
@@ -17220,10 +17246,6 @@ WRITE_THREE_FF:
 ;; Leaves:    A, F, BC, DE, HL
 ;;
 ;; ? reaches the ROM through DOS_HOOK_SBYT-&4000; calls CALLDOS; falls into whatever follows rather than returning.
-;;
-;; Shown for this routine in listings/disasm/:
-;;
-;;     Three &FF bytes to the open file, through the DOS's save-byte hook.
 ;; --------------------------------------------------------------------
 
 ; ---- WRITE_THREE_FF_LOOP ---- from &619D when B is not 0 yet
@@ -17338,12 +17360,12 @@ ENCODE_ONE_NIBBLE:
 ;; Preserves: A, F (saved and restored)
 ;; Ends:      JR
 ;;
-;; ? calls EMIT_RUN, NEXT_SCREEN_BYTE.
+;; ? calls EMIT_RUN, NEXT_SOURCE_NIBBLE.
 ;; --------------------------------------------------------------------
 
 ; ---- ENCODE_ONE_NIBBLE_LOOP ---- from &61CE when B is not 0 yet
 ENCODE_ONE_NIBBLE_LOOP:
-               CALL NEXT_SCREEN_BYTE           ; 61C8 CD 7E 62
+               CALL NEXT_SOURCE_NIBBLE         ; 61C8 CD 7E 62
                CP E                            ; 61CB BB
                JR NZ,ENCODE_RUN                ; 61CC 20 10
                DJNZ ENCODE_ONE_NIBBLE_LOOP     ; 61CE 10 F8
@@ -17359,7 +17381,7 @@ ENCODE_ONE_NIBBLE_LOOP:
 ;;
 ;;     Count how many nibbles below this one are the same.
 ;;
-;;     B counts down from &8B while NEXT_SCREEN_BYTE keeps returning the
+;;     B counts down from &8B while NEXT_SOURCE_NIBBLE keeps returning the
 ;;     value held in E, so &8C minus B is the run's length: no match at all
 ;;     leaves B at &8B and gives 1, which is the nibble by itself.
 ;;
@@ -17386,12 +17408,12 @@ COUNT_RUN:
 ;; Takes:     A, B, E, H
 ;; Leaves:    F, B
 ;;
-;; ? calls NEXT_SCREEN_BYTE; falls into whatever follows rather than returning.
+;; ? calls NEXT_SOURCE_NIBBLE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- COUNT_RUN_LOOP ---- from &61DB when B is not 0 yet
 COUNT_RUN_LOOP:
-               CALL NEXT_SCREEN_BYTE           ; 61D5 CD 7E 62
+               CALL NEXT_SOURCE_NIBBLE         ; 61D5 CD 7E 62
                CP E                            ; 61D8 BB
                JR NZ,ENCODE_RUN                ; 61D9 20 03
                DJNZ COUNT_RUN_LOOP             ; 61DB 10 F8
@@ -17721,7 +17743,9 @@ SCAN_NIBBLE_TABLE_1:
 BUILD_NIBBLE_TABLE:
                LD HL,&E500                     ; 6253 21 00 E5  E is zero because DE has just been pointed at the
                                                ; source, so the clearing loop needs no separate zero
-               LD DE,DOS_HEADER                ; 6256 11 00 80
+               LD DE,&8000                     ; 6256 11 00 80  the bitmap, paged in at &8000 by the HMPR HOOK_HSAVE
+                                               ; selected -- not the DOS page's first byte, which the label resolution
+                                               ; made of it
                LD B,&20                        ; 6259 06 20  thirty-two bytes -- sixteen values, two bytes each
 
 ;; --------------------------------------------------------------------
@@ -17798,7 +17822,7 @@ BUILD_NIBBLE_TABLE_2:
                RET                             ; 627D C9
 
 ;; --------------------------------------------------------------------
-;; NEXT_SCREEN_BYTE -- &627E to &627F
+;; NEXT_SOURCE_NIBBLE -- &627E to &627F
 ;;
 ;; Takes:     H
 ;; Leaves:    F
@@ -17822,36 +17846,36 @@ BUILD_NIBBLE_TABLE_2:
 ;;     the limit in V407A is tested.
 ;; --------------------------------------------------------------------
 
-; ---- NEXT_SCREEN_BYTE ---- from &61C8, &61D5
-NEXT_SCREEN_BYTE:
+; ---- NEXT_SOURCE_NIBBLE ---- from &61C8, &61D5
+NEXT_SOURCE_NIBBLE:
                BIT 0,H                         ; 627E CB 44  an odd line steps back up and one pixel along; an even one
                                                ; steps down. The DEC H DEC H before the shared INC H is what makes the
                                                ; odd case H-1
 
 ;; --------------------------------------------------------------------
-;; NEXT_SCREEN_BYTE_1 -- &6280 to &6286
+;; NEXT_SOURCE_NIBBLE_1 -- &6280 to &6286
 ;;
 ;; Takes:     HL
 ;; Leaves:    F, HL
 ;; --------------------------------------------------------------------
 
-; ---- NEXT_SCREEN_BYTE_1 ---- from DOS &45FC, DOS &499B, DOS &49CC, DOS &5552, DOS &5568, DOS &55A3, DOS &55BF
-NEXT_SCREEN_BYTE_1:
-               JR Z,NEXT_SCREEN_BYTE_2         ; 6280 28 05
+; ---- NEXT_SOURCE_NIBBLE_1 ---- from DOS &45FC
+NEXT_SOURCE_NIBBLE_1:
+               JR Z,NEXT_SOURCE_NIBBLE_2       ; 6280 28 05
                INC L                           ; 6282 2C
-               JR Z,NEXT_SCREEN_BYTE_3         ; 6283 28 18
+               JR Z,NEXT_SOURCE_NIBBLE_3       ; 6283 28 18
                DEC H                           ; 6285 25
                DEC H                           ; 6286 25
 
 ;; --------------------------------------------------------------------
-;; NEXT_SCREEN_BYTE_2 -- &6287 to &6287
+;; NEXT_SOURCE_NIBBLE_2 -- &6287 to &6287
 ;;
 ;; Takes:     H
 ;; Leaves:    F, H
 ;; --------------------------------------------------------------------
 
-; ---- NEXT_SCREEN_BYTE_2 ---- from &6280 when bit 0 of H clear, &62A1 when A >= H
-NEXT_SCREEN_BYTE_2:
+; ---- NEXT_SOURCE_NIBBLE_2 ---- from &6280 when bit 0 of H clear, &62A1 when A >= H
+NEXT_SOURCE_NIBBLE_2:
                INC H                           ; 6287 24
 
 ;; --------------------------------------------------------------------
@@ -17913,29 +17937,29 @@ READ_NIBBLE_AT_HL_DONE:
                RET                             ; 629C C9
 
 ;; --------------------------------------------------------------------
-;; NEXT_SCREEN_BYTE_3 -- &629D to &62A5
+;; NEXT_SOURCE_NIBBLE_3 -- &629D to &62A5
 ;;
 ;; Takes:     HL
 ;; Leaves:    A, F, HL
 ;; Ends:      RET
 ;; --------------------------------------------------------------------
 
-; ---- NEXT_SCREEN_BYTE_3 ---- from &6283 when L wraps to 0
-NEXT_SCREEN_BYTE_3:
-               LD A,(V407A)                    ; 629D 3A 7A 40  three short of the last line, because CP H : JR NC lets
-                                               ; H equal it and &6287 starts one more pair, so the walk ends at V407A+2.
-                                               ; That is V407A+3 lines, which is what the totals need: &33, &6D and &BD
-                                               ; reach exactly &1B00, &3800 and &6000 bytes -- a MODE 1, a MODE 2 and a
-                                               ; MODE 3 or 4 screen
+; ---- NEXT_SOURCE_NIBBLE_3 ---- from &6283 when L wraps to 0
+NEXT_SOURCE_NIBBLE_3:
+               LD A,(V407A)                    ; 629D 3A 7A 40  three short of the number of lines, because CP H : JR NC
+                                               ; lets H equal it and &6287 starts one more pair, so the walk ends at
+                                               ; V407A+2. That is V407A+3 lines, which is what the totals need: &33, &6D
+                                               ; and &BD reach exactly &1B00, &3800 and &6000 bytes -- a MODE 1, a MODE
+                                               ; 2 and a MODE 3 or 4 screen
                CP H                            ; 62A0 BC
-               JR NC,NEXT_SCREEN_BYTE_2        ; 62A1 30 E4
+               JR NC,NEXT_SOURCE_NIBBLE_2      ; 62A1 30 E4
                DEC L                           ; 62A3 2D
                LD H,L                          ; 62A4 65  H = &FF is how the walk says it has finished, which is the
                                                ; test ENCODE_SCREEN makes
                RET                             ; 62A5 C9
 
 ;; --------------------------------------------------------------------
-;; L62A6 -- &62A6 to &62B8
+;; EXPAND_SCREEN_FILE -- &62A6 to &62B8
 ;;
 ;; Takes:     A, DE, HL
 ;; Leaves:    A, F, BC, HL
@@ -17943,8 +17967,20 @@ NEXT_SCREEN_BYTE_3:
 ;;
 ;; ? calls PAGED_TO_LONG, EXPAND_COMPRESSED_FILE, LOAD_NEXT_INPUT_BLOCK, PICK_COMPRESSION_CONSTANTS; falls into whatever
 ;; follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Expand a compressed SCREEN$ on its way in from disk: the pair of
+;;     COMPRESS_SCREEN_FILE.  A = the mode byte, H = the compressed length's
+;;     page and DE its offset, which PAGED_TO_LONG turns into the count
+;;     V407B holds; PICK_COMPRESSION_CONSTANTS gives the sizes, the nibble
+;;     decoder EXPAND_COMPRESSED_FILE rebuilds the bitmap, and the loops
+;;     after it skip the closing &FFs and copy the file's tail to the byte
+;;     after the bitmap.
 ;; --------------------------------------------------------------------
 
+; ---- EXPAND_SCREEN_FILE ---- from DOS &6452
+EXPAND_SCREEN_FILE:
                PUSH HL                         ; 62A6 E5
                CALL PICK_COMPRESSION_CONSTANTS ; 62A7 CD C5 63
                POP AF                          ; 62AA F1
@@ -17956,7 +17992,7 @@ NEXT_SCREEN_BYTE_3:
                POP DE                          ; 62B8 D1
 
 ;; --------------------------------------------------------------------
-;; READ_NIBBLE_AT_HL_LOOP -- &62B9 to &62C1
+;; EXPAND_SCREEN_FILE_LOOP -- &62B9 to &62C1
 ;;
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, DE, HL
@@ -17964,8 +18000,8 @@ NEXT_SCREEN_BYTE_3:
 ;; ? calls FETCH_SOURCE_BYTE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
-; ---- READ_NIBBLE_AT_HL_LOOP ---- from &62BE when A = &FF
-READ_NIBBLE_AT_HL_LOOP:
+; ---- EXPAND_SCREEN_FILE_LOOP ---- from &62BE when A = &FF
+EXPAND_SCREEN_FILE_LOOP:
                CALL FETCH_SOURCE_BYTE          ; 62B9 CD CE 62
                CP &FF                          ; 62BC FE FF  &FF is how the compressed stream was closed. WRITE_THREE_FF
                                                ; at &6194 puts three of them out at &6164, and this skips however many
@@ -17974,12 +18010,12 @@ READ_NIBBLE_AT_HL_LOOP:
                                                ; PICK_COMPRESSION_CONSTANTS set to just past the screen, &9B00, &B800 or
                                                ; &E000 as the mode requires -- and stops once it has stored an &FF of
                                                ; its own
-               JR Z,READ_NIBBLE_AT_HL_LOOP     ; 62BE 28 F9
+               JR Z,EXPAND_SCREEN_FILE_LOOP    ; 62BE 28 F9
                LD (DE),A                       ; 62C0 12
                INC DE                          ; 62C1 13
 
 ;; --------------------------------------------------------------------
-;; READ_NIBBLE_AT_HL_LOOP2 -- &62C2 to &62CD
+;; EXPAND_SCREEN_FILE_LOOP2 -- &62C2 to &62CD
 ;;
 ;; Takes:     DE, HL
 ;; Leaves:    A, F, DE, HL
@@ -17988,13 +18024,13 @@ READ_NIBBLE_AT_HL_LOOP:
 ;; ? calls FETCH_SOURCE_BYTE.
 ;; --------------------------------------------------------------------
 
-; ---- READ_NIBBLE_AT_HL_LOOP2 ---- from &62C8 when A is not 0
-READ_NIBBLE_AT_HL_LOOP2:
+; ---- EXPAND_SCREEN_FILE_LOOP2 ---- from &62C8 when A is not 0
+EXPAND_SCREEN_FILE_LOOP2:
                CALL FETCH_SOURCE_BYTE          ; 62C2 CD CE 62
                LD (DE),A                       ; 62C5 12
                INC DE                          ; 62C6 13
                INC A                           ; 62C7 3C
-               JR NZ,READ_NIBBLE_AT_HL_LOOP2   ; 62C8 20 F8
+               JR NZ,EXPAND_SCREEN_FILE_LOOP2  ; 62C8 20 F8
                EX DE,HL                        ; 62CA EB
                JP ROM_CHKHL                    ; 62CB C3 EF 3F
 
@@ -18083,9 +18119,10 @@ PAGED_TO_LONG:
 ;;     The other half of the compression, and the manual's "A compressed
 ;;     file will be automatically expanded again on reloading."  SP is
 ;;     parked in V4078 first, and nothing borrows it: the one LD SP in the
-;;     whole expander is the &635D that puts it back, which is how the
-;;     nibble reader gets out of a nested call in one step when the stream
-;;     ends.  The alternate registers take DE = &000F and HL = &E500, the
+;;     whole expander is the &635D that puts it back, which is how
+;;     NEXT_SCREEN_NIBBLE gets out of the run loop it was called from in
+;;     one step when the walk reaches the end of the screen.  The stream's
+;;     end is never looked for.  The alternate registers take DE = &000F and HL = &E500, the
 ;;     same stream the encoder filled, and then pairs of nibbles come back
 ;;     out through READ_NEXT_NIBBLE -- the value first, into D at &630A,
 ;;     and the count after it.
@@ -18232,8 +18269,8 @@ EXPAND_COMPRESSED_FILE_3:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     Step a nibble address down the screen the way NEXT_SCREEN_BYTE steps
-;;     a byte one, with the halving that turns a nibble index into an
+;;     Step a nibble address down the screen the way NEXT_SOURCE_NIBBLE
+;;     steps a nibble index, with the halving that turns the index into an
 ;;     address folded into the same run of shifts.
 ;; --------------------------------------------------------------------
 
@@ -18346,8 +18383,8 @@ NEXT_SCREEN_NIBBLE_4:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     Read four bits from a packed stream: the mirror of the routine
-;;     above, stepping the same way and masking with E'.
+;;     Read four bits from a packed stream: the mirror of WRITE_NEXT_NIBBLE
+;;     at &6202, stepping the same way and masking with E'.
 ;; --------------------------------------------------------------------
 
 ; ---- READ_NEXT_NIBBLE ---- from &62F5, &62FC, &6307, &630B, &6317
@@ -18418,6 +18455,12 @@ READ_NEXT_NIBBLE_1:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, DE
 ;; Preserves: HL (saved and restored)
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Compare what is left of the compressed input against &1900 and take the
+;;     short path if there is less, with the caller's registers saved around
+;;     it.  V407B holds the compressed length still to be read, set at &62AF from the length HOOK_HLOAD passed.
 ;; --------------------------------------------------------------------
 
 ; ---- LOAD_NEXT_INPUT_BLOCK ---- from &62B2, &6383
@@ -18464,13 +18507,6 @@ LOAD_NEXT_INPUT_BLOCK_1:
                INC A                           ; 63B3 3C
                OUT (HMPR),A                    ; 63B4 D3 FB
                XOR A                           ; 63B6 AF
-
-;; --------------------------------------------------------------------
-;; Compare what is left of the work area against &1900 and take the
-;; short path if there is less, with the caller's registers saved around
-;; it.  V407B is where the running total lives.
-;; --------------------------------------------------------------------
-
                                                ; call &4853 in the other page: LMPR is switched first, so that address
                                                ; is how the other listing numbers it
                CALL CALLDOS                    ; 63B7 CD C1 42  LDBLK, "load a block from the open file" -- this refills
@@ -18494,10 +18530,14 @@ LOAD_NEXT_INPUT_BLOCK_1:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     Load the three constants the compressor works to -- H, BC and DE --
-;;     with one set or the other depending on the flag in A: &33, &1B00 and
-;;     CEXTAB windowed for the first, &6D, &38 and &B8 for the second.  One
-;;     routine so the two paths through the encoder share their setup.
+;;     Load the three constants the compressor and the expander work to --
+;;     H, BC and DE -- from one of three sets, by the mode byte in A: &33 /
+;;     &1B00 / &9B00 for A = 0, &6D / &3800 / &B800 for 1, and &BD / &2000 /
+;;     &E000 for anything above, the last with the bitmap's length given
+;;     less a whole page since it is the in-page part that counts.  DE is
+;;     the end of the bitmap as the window sees it, &8000 plus the length.
+;;     One routine so COMPRESS_SCREEN_FILE and EXPAND_SCREEN_FILE agree on
+;;     the sizes.
 ;; --------------------------------------------------------------------
 
 ; ---- PICK_COMPRESSION_CONSTANTS ---- from &614E, &62A7
@@ -18507,7 +18547,7 @@ PICK_COMPRESSION_CONSTANTS:
                                                     ; way to V407A
                LD BC,&1B00                          ; 63C8 01 00 1B  &1B00 is a MODE 1 screen entire, which is under 16K
                                                     ; so BC holds all of it
-               LD DE,CEXTAB+&4000                   ; 63CB 11 00 9B  &9B00 is the end of a MODE 1 screen in the window,
+               LD DE,&9B00                          ; 63CB 11 00 9B  &9B00 is the end of a MODE 1 screen in the window,
                                                     ; &8000 + &1B00. It is not CEXTAB, whose &5B00 is a system page
                                                     ; variable
                AND A                                ; 63CE A7
@@ -18599,10 +18639,10 @@ CMD_SAVE:
 ;;     the pages have swapped by the time it is used.
 ;;
 ;;     Reached from SAVE MODE's own parsing three instructions above, and
-;;     from DOS &54FE.
+;;     from nowhere else -- the DOS's &A3F6 at &54FE is FTADD+&0176, a
+;;     pointer into the FORMAT track image in the screen page.
 ;; --------------------------------------------------------------------
 
-; ---- SET_COMPRESSION_MODE ---- from DOS &54FE
 SET_COMPRESSION_MODE:
                CP &03                          ; 63F6 FE 03  three, the highest SAVE MODE. The DEC A above has made 1 to
                                                ; 3 into 0 to 2, so three or more is out of range

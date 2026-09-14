@@ -40,7 +40,7 @@
 DOC COUNT_RUN
     Count how many nibbles below this one are the same.
 
-    B counts down from &8B while NEXT_SCREEN_BYTE keeps returning the
+    B counts down from &8B while NEXT_SOURCE_NIBBLE keeps returning the
     value held in E, so &8C minus B is the run's length: no match at all
     leaves B at &8B and gives 1, which is the nibble by itself.
 
@@ -84,7 +84,7 @@ DOC EMIT_RUN
     count at all.  It is the escape value SCAN_NIBBLE_TABLE chose, which
     is the whole of how the decoder knows a run follows.
 
-MB &627E NEXT_SCREEN_BYTE
+MB &627E NEXT_SOURCE_NIBBLE
 MB &61D2 COUNT_RUN
 
 MB &61D2 : &8B, which ENCODE_ONE_NIBBLE's banner names -- "the two paths differ only in where B starts, &88 for a nibble equal to the escape, &8B for anything else" -- and &61DE takes it off &8C to get the length
@@ -287,7 +287,7 @@ MB &629A : the low nibble taken straight, with no rotation to undo -- the same m
 MB &62BC : &FF is how the compressed stream was closed.  WRITE_THREE_FF at &6194 puts three of them out at &6164, and this skips however many it finds, stopping on the first byte of whatever the file carries after the image.  The loop below copies that to DE -- which PICK_COMPRESSION_CONSTANTS set to just past the screen, &9B00, &B800 or &E000 as the mode requires -- and stops once it has stored an &FF of its own
 
 MB &5EE9 : &FF, and all three bytes of the decrement take it: H and L below make &FFFF and A keeps it, so the ADD HL,BC and ADC A,E after them subtract one across 24 bits -- which is what makes the division round up
-MB &5F10 : L cleared, so HL is the slot's own base.  A utility slot always starts on a &400 boundary, and the low byte is what said which slot it was
+MB &5F10 : L cleared, so HL is the slot's own base.  A utility slot always starts on a &400 boundary; the low byte was the page number, now moved into A, and H, the descriptor, says which slot
 
 MB &5EDD GET_BUFFER_SIZE
     The size argument of SOUND CLEAR.  GET_LONG_INTEGER, D refused as
@@ -311,6 +311,8 @@ MB &6194 WRITE_THREE_FF
 
 MB &6194 : three of them, which is what the reader at &62BC skips before it starts copying
 MB &6196 : and &FF is the byte.  Nothing chooses it for its value: it is the marker that closes the compressed stream, and the expander's first loop eats however many it finds
+
+DOC WRITE_THREE_FF
     Three &FF bytes to the open file, through the DOS's save-byte hook.
 
 MB &63F6 SET_COMPRESSION_MODE
@@ -321,16 +323,20 @@ MB &63F6 SET_COMPRESSION_MODE
     the pages have swapped by the time it is used.
 
     Reached from SAVE MODE's own parsing three instructions above, and
-    from DOS &54FE.
+    from nowhere else -- the DOS's &A3F6 at &54FE is FTADD+&0176, a
+    pointer into the FORMAT track image in the screen page.
 
 MB &6158 : &E500, the output stream, subtracted from the end pointer to give the length -- the buffer &62F1's note describes
-MB &616D : and the same &E500 as the source of the copy that puts what was built where it has to go
+MB &616D : &E500 is the destination this time: the tail of the file -- from the byte after the bitmap, the HL popped above, for the caller's length less the bitmap's -- is copied here, and the fall into SEND_COMPRESSED_BLOCK below sends it out uncompressed after the three &FF
 
 MB &614E COMPRESS_SCREEN_FILE
     Compress a SCREEN$ file on its way to disk, called from the DOS's
     HOOK_HSAVE through CALLMB.  PICK_COMPRESSION_CONSTANTS sets up, the encoder fills &E500, the
     length is worked out by taking &E500 off the end pointer, and
-    WRITE_THREE_FF closes the stream.
+    WRITE_THREE_FF closes the stream.  Then a fourth step the encoder
+    has no part in: what follows the bitmap in the file -- the palette
+    tail -- is copied to &E500 and sent through SEND_COMPRESSED_BLOCK as
+    it is, so the expander's tail copy can find it after the &FFs.
 
 MB &6172 SEND_COMPRESSED_BLOCK
     Hand what the encoder produced to the DOS, with the registers and the
@@ -629,9 +635,10 @@ MB &62E9 EXPAND_COMPRESSED_FILE
     The other half of the compression, and the manual's "A compressed
     file will be automatically expanded again on reloading."  SP is
     parked in V4078 first, and nothing borrows it: the one LD SP in the
-    whole expander is the &635D that puts it back, which is how the
-    nibble reader gets out of a nested call in one step when the stream
-    ends.  The alternate registers take DE = &000F and HL = &E500, the
+    whole expander is the &635D that puts it back, which is how
+    NEXT_SCREEN_NIBBLE gets out of the run loop it was called from in
+    one step when the walk reaches the end of the screen.  The stream's
+    end is never looked for.  The alternate registers take DE = &000F and HL = &E500, the
     same stream the encoder filled, and then pairs of nibbles come back
     out through READ_NEXT_NIBBLE -- the value first, into D at &630A,
     and the count after it.
@@ -669,8 +676,8 @@ MB &6388 : back to the top of the refilled buffer, the same &E500 &62F1 describe
 MB &638B : and the mask and phase counter set again as at &62EE.  Putting D back to zero is safe because a refill can only happen between bytes: the path that gets here went through READ_NEXT_NIBBLE_1, which is the branch D even takes, so the byte just read was a second nibble
 
 MB &6331 NEXT_SCREEN_NIBBLE
-    Step a nibble address down the screen the way NEXT_SCREEN_BYTE steps
-    a byte one, with the halving that turns a nibble index into an
+    Step a nibble address down the screen the way NEXT_SOURCE_NIBBLE
+    steps a nibble index, with the halving that turns the index into an
     address folded into the same run of shifts.
 
 MB &6253 BUILD_NIBBLE_TABLE
@@ -761,19 +768,27 @@ MB &61C2 ENCODE_ONE_NIBBLE
     run was starting.
 
 MB &63C5 PICK_COMPRESSION_CONSTANTS
-    Load the three constants the compressor works to -- H, BC and DE --
-    with one set or the other depending on the flag in A: &33, &1B00 and
-    CEXTAB windowed for the first, &6D, &38 and &B8 for the second.  One
-    routine so the two paths through the encoder share their setup.
+    Load the three constants the compressor and the expander work to --
+    H, BC and DE -- from one of three sets, by the mode byte in A: &33 /
+    &1B00 / &9B00 for A = 0, &6D / &3800 / &B800 for 1, and &BD / &2000 /
+    &E000 for anything above, the last with the bitmap's length given
+    less a whole page since it is the in-page part that counts.  DE is
+    the end of the bitmap as the window sees it, &8000 plus the length.
+    One routine so COMPRESS_SCREEN_FILE and EXPAND_SCREEN_FILE agree on
+    the sizes.
+
+MB &63CB expr &9B00
 
 MB &6390 LOAD_NEXT_INPUT_BLOCK
 MB &6173 expr &A500
 MB &63A9 expr &A500
 MB &63A9 : &A500 is not a DOS routine.  HMPR is bumped by one at &63B3, three instructions on, and this address is used through that moved window -- so resolving it against the DOS page gives HOOK_HSAVE_1, which nothing here calls, and puts a caller in that routine's list in the other listing
 MB &63B7 : LDBLK, "load a block from the open file" -- this refills the input, which is what the routine is for
-    Compare what is left of the work area against &1900 and take the
+
+DOC LOAD_NEXT_INPUT_BLOCK
+    Compare what is left of the compressed input against &1900 and take the
     short path if there is less, with the caller's registers saved around
-    it.  V407B is where the running total lives.
+    it.  V407B holds the compressed length still to be read, set at &62AF from the length HOOK_HLOAD passed.
 
 MB &66F2 EXPAND_INTO_WORK_PAGE
     Set up to expand a file: take a work page through GET_WORK_PAGE --
@@ -786,6 +801,8 @@ MB &610E-&6115 word
 MB &6112 : the third of the four, and not the SBC A,H the trace made of it
 
 MB &6253 : E is zero because DE has just been pointed at the source, so the clearing loop needs no separate zero
+MB &6256 expr &8000
+MB &6256 : the bitmap, paged in at &8000 by the HMPR HOOK_HSAVE selected -- not the DOS page's first byte, which the label resolution made of it
 
 MB &6259 : thirty-two bytes -- sixteen values, two bytes each
 

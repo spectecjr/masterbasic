@@ -225,7 +225,7 @@ table, for line number tracing.
 
     LINE           show each line and statement number as it runs
     LINE delay     the same, pausing; 1 is brief, 200 very long
-    LINE STEP      wait for CNTRL before each line
+    LINE STEP      wait for CNTRL before each statement
     LINE OFF       stop
 
 The trace appears at the lower right of the screen in PEN 0 on PAPER

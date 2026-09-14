@@ -14,8 +14,9 @@ DOC HKLEN
     one a JR adds -- lands one byte before IMMEDCODES.  Seventeen on
     from there, sixteen bytes into the routine, is the operand of its
     LD HL,NUMCONT, the address a function with a numeric result
-    continues at, and six bytes further on is the operand of its LD
-    HL,STRCONT for a string result.  Both are read out of the ROM
+    continues at, and seven bytes further on -- six from where HL
+    stands after the INC, on the operand's high byte -- is the operand
+    of its LD HL,STRCONT for a string result.  Both are read out of the ROM
     rather than assumed, which is what lets the same DOS run on more
     than one ROM.
 
@@ -31,7 +32,7 @@ DOS &7897 : the displacement of the ROM's JR C,IMMEDCODES
 DOS &789C : seventeen on from one byte before IMMEDCODES: the operand of its LD HL,NUMCONT, sixteen bytes in
 DOS &78A2 : &1A is FSTAT less &1A; from there up the result is a number
 DOS &78A6 : &13 is SHIFT$; below it the result is a number too
-DOS &78AA : six bytes on from NUMCONT's operand is STRCONT's
+DOS &78AA : six on from where HL stands, the high byte of NUMCONT's operand, is STRCONT's -- seven from the operand itself
 DOS &78E5 : LENGTH, handed whole to MasterBASIC's FN_LENGTH; the carried "PT TO '#'" was on the source's GTNC
 
 DOS &78BE : &0F is the first FNVEC entry, token &29; the code less that indexes the table

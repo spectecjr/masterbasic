@@ -419,8 +419,9 @@ DOC FN_LENGTH
 
     The fifteen bytes are the rotating-window step: if the address has run
     past &BFFF, bring H back down and count a page on in MEMVAL+2, then fall
-    into IMLENC.  The ROM has no such step because the ROM's LENGTH never
-    walks off the end of a page.
+    into IMLENC.  The ROM has no such step: ASSAR5's INC H can carry HL
+    past &BFFF and AHLNORM then drops the top two bits, so this is a
+    correction, not an addition.
 
     LENGSR is copied too, because IMLENGTH reaches it through a DW rather
     than a CALL -- CALL R1OFFCL : DW LENGSR -- and a DW can be repointed.
@@ -453,7 +454,8 @@ MB &5E99 : the old contents of &4F6E are used as the source of the twenty-five
 MB &5E9C : &4FF2 is past the fifteen appended bytes, so nothing already
            written is overwritten
 MB &5E9F : the DW after IMLENGTH's CALL R1OFFCL now names the copy instead of
-           LENGSR in ROM 1
+           LENGSR in ROM 0 -- at &3F73, whose twenty-five bytes are what &5EA7
+           copies; R1OFFCL exists to call ROM 0 with ROM 1 off
 MB &5EA3 : E is still &F2 from the LD DE above, so the destination is &8FF2 --
            &4FF2 seen through the window at &8000
 MB &5EA5 : LENGSR is twenty-five bytes, CALL LOOKVARS through to RET

@@ -1838,7 +1838,7 @@ SECTOR_FOR_CHANNEL:
 SECTOR_FOR_CHANNEL_1:
                DEC A                           ; 45F9 3D
                JR NZ,SECTOR_FOR_CHANNEL_2      ; 45FA 20 16
-               LD HL,MB_NEXT_SCREEN_BYTE_1     ; 45FC 21 80 A2
+               LD HL,MB_NEXT_SOURCE_NIBBLE_1   ; 45FC 21 80 A2
 
 ; ---- SECTOR_FOR_CHANNEL_LOOP ---- from &460A
 SECTOR_FOR_CHANNEL_LOOP:
@@ -8701,17 +8701,17 @@ HOOK_HLOAD:
 
 ; ---- HOOK_HLOAD_1 ---- from &6434 when bit 3 of (HL) set
 HOOK_HLOAD_1:
-               INC HL                          ; 6443 23
-               LD A,(HL)                       ; 6444 7E
-               PUSH AF                         ; 6445 F5
-               CALL HOOK_ARGS_TO_HEADER        ; 6446 CD 82 64
-               LD A,(&7F85)                    ; 6449 3A 85 7F
-               LD H,A                          ; 644C 67
-               LD DE,(&7F86)                   ; 644D ED 5B 86 7F
-               POP AF                          ; 6451 F1
-               CALL CALLMB                     ; 6452 CD BD 42
-               DEFW &62A6                      ; 6455 A6 62
-               JR HOOK_HLOAD_4                 ; 6457 18 23
+               INC HL                           ; 6443 23
+               LD A,(HL)                        ; 6444 7E
+               PUSH AF                          ; 6445 F5
+               CALL HOOK_ARGS_TO_HEADER         ; 6446 CD 82 64
+               LD A,(&7F85)                     ; 6449 3A 85 7F
+               LD H,A                           ; 644C 67
+               LD DE,(&7F86)                    ; 644D ED 5B 86 7F
+               POP AF                           ; 6451 F1
+               CALL CALLMB                      ; 6452 CD BD 42
+               DEFW MB_EXPAND_SCREEN_FILE-&4000 ; 6455 A6 62
+               JR HOOK_HLOAD_4                  ; 6457 18 23
 
 ; ---- HOOK_HLOAD_2 ---- from &6430 when bit 2 of (HL) clear
 HOOK_HLOAD_2:
@@ -9014,7 +9014,7 @@ HEOF:
                IN B,(C)                        ; 65A2 ED 40
                PUSH BC                         ; 65A4 C5
                PUSH AF                         ; 65A5 F5  0 IF EOF, 1 IF PTR
-               CALL GET_STREAM_NUMBER          ; 65A6 CD 0B 70  AHL=PTR
+               CALL STREAM_FILE_POINTER        ; 65A6 CD 0B 70  AHL=PTR
                POP DE                          ; 65A9 D1
                DEC D                           ; 65AA 15
                JR Z,EPCOM                      ; 65AB 28 12  JR IF PTR
@@ -11101,13 +11101,16 @@ ADVANCE_BUFFER_POINTER:
                RET                             ; 700A C9
 
 ;; --------------------------------------------------------------------
-;; A stream number through the ROM's GETINT, refused unless it fits in a
-;; byte and is below &10 -- INC H with DEC H tests the high byte without
-;; disturbing A.
+;; The source's PESR, "PTR/EOF SR": a stream number through the ROM's
+;; GETINT, refused unless it fits in a byte and is below &10 -- INC H
+;; with DEC H tests the high byte without disturbing A -- then straight
+;; on through CHANNEL_FOR_STREAM into FPTR and M510, so what comes back
+;; is the file pointer in AHL, which is all HEOF, HPTR and FNLN2 want
+;; of it.
 ;; --------------------------------------------------------------------
 
-; ---- GET_STREAM_NUMBER ---- from &65A6
-GET_STREAM_NUMBER:
+; ---- STREAM_FILE_POINTER ---- from &65A6
+STREAM_FILE_POINTER:
                CALL CMR                        ; 700B CD B2 7B
                DEFW GETINT                     ; 700E 21 01
                INC H                           ; 7010 24

@@ -4890,7 +4890,9 @@ COPY_HEADER_FIELDS:
                CALL NMMOV                      ; 4F02 CD 58 4F  the type and the name, and spaces up to fifteen
                POP AF                          ; 4F05 F1  SAM file or Spectrum file?
                JR Z,GTFL7                      ; 4F06 28 39  a SAM file has a real header on the disc
-               LD B,&0B                        ; 4F08 06 0B  eleven spaces where the ROM's name would be
+               LD B,&0B                        ; 4F08 06 0B  eleven spaces over header bytes 15 to 25 -- the flags byte
+                                               ; and the program-length block, which a Spectrum file has no values for;
+                                               ; NMMOV has already written the name
                CALL LCNTA                      ; 4F0A CD 65 4F
                LD B,&16                        ; 4F0D 06 16  and &FF for the twenty-two that follow
                LD A,&FF                        ; 4F0F 3E FF  the ROM's "not set" byte
@@ -4906,8 +4908,8 @@ COPY_HEADER_FIELDS:
                LD HL,(HD0D2)                   ; 4F29 2A 68 41  the Spectrum header's start address
                XOR A                           ; 4F2C AF
                CALL PAGEFORM                   ; 4F2D CD E4 75
-               DEC A                           ; 4F30 3D  a header's page is one less than the address's -- the ROM adds
-                                               ; the LMPR page back; see FSTAT
+               DEC A                           ; 4F30 3D  one less, which is how the ROM's own SAVE writes a CODE start
+                                               ; page -- SAMAIN adds LMPR, &1F, to it; see FSTAT
                AND PAGE_VALUE_MASK             ; 4F31 E6 1F
                LD (DIFA+31),A                  ; 4F33 32 CC 41
                LD (PAGE2),A                    ; 4F36 32 6D 41
@@ -10442,19 +10444,19 @@ HOOK_HLOAD:
 
 ; ---- HOOK_HLOAD_1 ---- from &6434 when bit 3 of (HL) set
 HOOK_HLOAD_1:
-               INC HL                          ; 6443 23  the byte after the flags, offset 221
-               LD A,(HL)                       ; 6444 7E
-               PUSH AF                         ; 6445 F5
-               CALL HOOK_ARGS_TO_HEADER        ; 6446 CD 82 64
-               LD A,(&7F85)                    ; 6449 3A 85 7F  STR-11, where COPY_HEADER_FIELDS lands entry offset 229:
-                                               ; the compressed length's page
-               LD H,A                          ; 644C 67
-               LD DE,(&7F86)                   ; 644D ED 5B 86 7F  STR-10, offsets 230 and 231: the address half of the
-                                               ; compressed length, whose page is the byte above
-               POP AF                          ; 6451 F1
-               CALL CALLMB                     ; 6452 CD BD 42
-               DEFW &62A6                      ; 6455 A6 62
-               JR HOOK_HLOAD_4                 ; 6457 18 23
+               INC HL                           ; 6443 23  the byte after the flags, offset 221
+               LD A,(HL)                        ; 6444 7E
+               PUSH AF                          ; 6445 F5
+               CALL HOOK_ARGS_TO_HEADER         ; 6446 CD 82 64
+               LD A,(&7F85)                     ; 6449 3A 85 7F  STR-11, where COPY_HEADER_FIELDS lands entry offset
+                                                ; 229: the compressed length's page
+               LD H,A                           ; 644C 67
+               LD DE,(&7F86)                    ; 644D ED 5B 86 7F  STR-10, offsets 230 and 231: the address half of the
+                                                ; compressed length, whose page is the byte above
+               POP AF                           ; 6451 F1
+               CALL CALLMB                      ; 6452 CD BD 42
+               DEFW MB_EXPAND_SCREEN_FILE-&4000 ; 6455 A6 62
+               JR HOOK_HLOAD_4                  ; 6457 18 23
 
 ; ---- HOOK_HLOAD_2 ---- from &6430 when bit 2 of (HL) clear
 HOOK_HLOAD_2:
@@ -10812,7 +10814,7 @@ HEOF:
                IN B,(C)                        ; 65A2 ED 40
                PUSH BC                         ; 65A4 C5
                PUSH AF                         ; 65A5 F5  0 IF EOF, 1 IF PTR
-               CALL GET_STREAM_NUMBER          ; 65A6 CD 0B 70  AHL=PTR
+               CALL STREAM_FILE_POINTER        ; 65A6 CD 0B 70  AHL=PTR
                POP DE                          ; 65A9 D1
                DEC D                           ; 65AA 15
                JR Z,EPCOM                      ; 65AB 28 12  JR IF PTR
@@ -13241,13 +13243,16 @@ ADVANCE_BUFFER_POINTER:
                RET                             ; 700A C9
 
 ;; --------------------------------------------------------------------
-;; A stream number through the ROM's GETINT, refused unless it fits in a
-;; byte and is below &10 -- INC H with DEC H tests the high byte without
-;; disturbing A.
+;; The source's PESR, "PTR/EOF SR": a stream number through the ROM's
+;; GETINT, refused unless it fits in a byte and is below &10 -- INC H
+;; with DEC H tests the high byte without disturbing A -- then straight
+;; on through CHANNEL_FOR_STREAM into FPTR and M510, so what comes back
+;; is the file pointer in AHL, which is all HEOF, HPTR and FNLN2 want
+;; of it.
 ;; --------------------------------------------------------------------
 
-; ---- GET_STREAM_NUMBER ---- from &65A6
-GET_STREAM_NUMBER:
+; ---- STREAM_FILE_POINTER ---- from &65A6
+STREAM_FILE_POINTER:
                CALL CMR                        ; 700B CD B2 7B
                DEFW GETINT                     ; 700E 21 01
                INC H                           ; 7010 24
@@ -15612,8 +15617,9 @@ OPEN_BASIC_FOR_MERGE:
 ;; one a JR adds -- lands one byte before IMMEDCODES.  Seventeen on
 ;; from there, sixteen bytes into the routine, is the operand of its
 ;; LD HL,NUMCONT, the address a function with a numeric result
-;; continues at, and six bytes further on is the operand of its LD
-;; HL,STRCONT for a string result.  Both are read out of the ROM
+;; continues at, and seven bytes further on -- six from where HL
+;; stands after the INC, on the operand's high byte -- is the operand
+;; of its LD HL,STRCONT for a string result.  Both are read out of the ROM
 ;; rather than assumed, which is what lets the same DOS run on more
 ;; than one ROM.
 ;;
@@ -15644,7 +15650,8 @@ HKLEN:
                JR NC,HEVV2                     ; 78A4 30 0B  JR IF NUMERIC RESULT
                CP &13                          ; 78A6 FE 13  &13 is SHIFT$; below it the result is a number too
                JR C,HEVV2                      ; 78A8 38 07
-               LD BC,&0006                     ; 78AA 01 06 00  six bytes on from NUMCONT's operand is STRCONT's
+               LD BC,&0006                     ; 78AA 01 06 00  six on from where HL stands, the high byte of NUMCONT's
+                                               ; operand, is STRCONT's -- seven from the operand itself
                ADD HL,BC                       ; 78AD 09
                LD C,(HL)                       ; 78AE 4E
                INC HL                          ; 78AF 23
@@ -15805,7 +15812,7 @@ FNDI3:
 ;;     5   files on the disc
 ;;     6   files in the current directory
 ;;     7   directory tracks
-;;     8   the current drive number
+;;     8   the drive the first argument names -- the default drive for *
 ;;
 ;; Every one but 8 answers -1 for a drive with no disc, or a RAM disc
 ;; never formatted; 8 is answered before the drive is looked at.  And
@@ -15946,9 +15953,11 @@ FPAGES:
 
 ;; --------------------------------------------------------------------
 ;; Is drive A write-protected?  1 in A if so.  A RAM disc never is.
-;; For a floppy a write is issued to an impossible sector: the
-;; controller refuses at once, but its status still reports the
-;; write-protect line, which two rotates bring down to bit 0.
+;; For a floppy a write is issued to an impossible sector: a protected
+;; disc is refused at once, an unprotected one is hunted for the sector
+;; until the controller gives up -- which is what BUSY waits through --
+;; and either way the status left behind reports the write-protect
+;; line, which two rotates bring down to bit 0.
 ;; --------------------------------------------------------------------
 
 ; ---- WPCHK ---- from &7977, &79DC
@@ -16181,18 +16190,20 @@ FABORT:
 ;; for the flags.  D is zeroed once, before the chain, so that each
 ;; LD E,offset is a whole displacement.
 ;;
-;; THE PAGE OF A CODE FILE'S START IS ONE MORE THAN THE ENTRY SAYS.
-;; The ROM's SAVE adds the current LMPR page to the start page as it
-;; writes the header -- SAMAIN's "ADJUST START PAGE", which its CP 19
-;; makes for CODE files only -- and with LMPR at &1F, the ROM's own
-;; arrangement, that is the page BASIC named less one.  INC A puts the
-;; one back, so option 5 returns the address a CODE file was saved
-;; from.  The INC is unconditional, where the ROM's adjustment and
-;; PNTYP's INC C at &566C are both inside the CODE test, so for a
-;; BASIC or SCREEN$ file option 5 reads one page high -- unless the
-;; DOS adjusts the entry's page on the way to the directory, which has
-;; not been traced.  An execute address is stored in relative form as
-;; it stands, which is why option 6 reads its page with no INC.
+;; THE ENTRY HOLDS A PHYSICAL PAGE, AND THE INC IS THE MANUAL'S RULE.
+;; The ROM stores PROG's page for a BASIC file (HDRLNOK, straight from
+;; ADDRPROG) and the screen's for a SCREEN$; a CODE file's page arrives
+;; in BASIC's numbering, where 1 is the first RAM page, and SAMAIN's
+;; "ADJUST START PAGE" -- adding LMPR, &1F, minus one mod 32, for CODE
+;; alone -- brings that one type down to the physical page the other
+;; two already carry.  So every entry's start page is physical, and
+;; FSTAT's AND &1F / INC A / AHLNX computes (page + 1) * 16384 plus the
+;; offset's low fourteen bits: the Technical Manual's "multiply the
+;; page number by 16384, add the offset, and subtract 4000H", i.e. the
+;; start as a BASIC address, for every type alike.  An execute address
+;; is stored in relative form as it stands, which is why option 6
+;; reads its page with no INC.  (An earlier reading here had option 5
+;; a page high for BASIC and SCREEN$; the ROM source says otherwise.)
 ;;
 ;; A 48K SNAPSHOT HAS NO LENGTH FIELD, so option 2 answers three pages
 ;; and nothing over -- 49152 -- from the type alone.
@@ -16242,8 +16253,8 @@ FSTAT:
                ADD HL,DE                       ; 7AEC 19
                LD A,(HL)                       ; 7AED 7E
                AND PAGE_VALUE_MASK             ; 7AEE E6 1F
-               INC A                           ; 7AF0 3C  for a CODE file the entry's page is the one BASIC named, less
-                                               ; one; see above
+               INC A                           ; 7AF0 3C  the manual's "subtract 4000H": physical page plus one, for the
+                                               ; 20-bit address BASIC uses; see above
                JR FSTAT_11                     ; 7AF1 18 69
 
 ; ---- FSTAT_1 ---- from &7AE8 when C is not 0 yet

@@ -13,7 +13,7 @@ DOC DSTAT
         5   files on the disc
         6   files in the current directory
         7   directory tracks
-        8   the current drive number
+        8   the drive the first argument names -- the default drive for *
 
     Every one but 8 answers -1 for a drive with no disc, or a RAM disc
     never formatted; 8 is answered before the drive is looked at.  And
@@ -54,9 +54,11 @@ DOC STACK_AEDCB
 
 DOC WPCHK
     Is drive A write-protected?  1 in A if so.  A RAM disc never is.
-    For a floppy a write is issued to an impossible sector: the
-    controller refuses at once, but its status still reports the
-    write-protect line, which two rotates bring down to bit 0.
+    For a floppy a write is issued to an impossible sector: a protected
+    disc is refused at once, an unprotected one is hunted for the sector
+    until the controller gives up -- which is what BUSY waits through --
+    and either way the status left behind reports the write-protect
+    line, which two rotates bring down to bit 0.
 
 DOS &79F0 expr FIRST_RAMDISC_DRIVE
 DOS &79F2 : a RAM disc is never write-protected
