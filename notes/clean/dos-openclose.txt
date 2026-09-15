@@ -154,7 +154,7 @@ DOC CHECK_FILE_TYPE
         HD001     the file's own nine-byte header, from offset 211 of
                   the entry -- which is NSTR1+15, so the same DE that
                   finished the name arrives here
-        V42E2     the two bytes after it
+        ENTRY_FLAGS     the two bytes after it
 
         UIFA      the type and name again
         +11       fifteen spaces

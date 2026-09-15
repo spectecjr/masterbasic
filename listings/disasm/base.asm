@@ -310,8 +310,8 @@ DOS_STACK_VAR_ADDRESS:          EQU  STACK_VAR_ADDRESS + &4000
 DOS_SVHDR:                      EQU  SVHDR + &4000
 DOS_TEMPW1:                     EQU  TEMPW1 + &4000
 DOS_TIMDT:                      EQU  TIMDT + &4000
+DOS_TRAKS2:                     EQU  TRAKS2 + &4000
 DOS_V40F9:                      EQU  V40F9 + &4000
-DOS_V4222:                      EQU  V4222 + &4000
 DOS_V7CFF:                      EQU  V7CFF + &4000
 DOS_V7DE8:                      EQU  V7DE8 + &4000
 DOS_V7E98:                      EQU  V7E98 + &4000

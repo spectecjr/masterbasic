@@ -208,7 +208,7 @@ DOC PARK_WORD
     different hook invocations -- one hook parks the word, a later one
     collects it -- and nothing survives in a register between them.
 
-    WHERE IT IS PARKED IS NOT SPARE SPACE.  V42E4 is the DOS's own copy
+    WHERE IT IS PARKED IS NOT SPARE SPACE.  XPTR_COPY is the DOS's own copy
     of the ROM's XPTR, read at &437C and compared against CHADD at
     &51D3 to decide whether an error marker can be placed.  Parking a
     word here overwrites that, which is safe only because the two never

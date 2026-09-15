@@ -13,7 +13,7 @@ DOC COPY_HEADER_FIELDS
     THREE COPIES OUT OF THE ENTRY, all of them by offset:
 
         211 to 219   the file's own nine-byte header, into HD002
-        220 to 221   the two bytes after it, into V42E2
+        220 to 221   the two bytes after it, into ENTRY_FLAGS
         210 to 251   forty-two bytes to STR-30.  The first ten are
                      the entry's own, so the thirty-two after them --
                      the ROM header tail, which for a snapshot holds

@@ -265,10 +265,10 @@ INDJP:         LD H,&00
                JR NZ,BUILD_PUT_BLOCK_5                     ; bit 15: the other page
                JP (HL)                         ; this page: go straight there
 BUILD_PUT_BLOCK_5:         RES 7,H
-               LD (V78E2),HL                   ; patch the DEFW below
+               LD (INDJP_MB_TARGET),HL                   ; patch the DEFW below
                EXX
                CALL CALLMB
-V78E2:         DEFW &0000
+INDJP_MB_TARGET:         DEFW &0000
                RET
 ```
 

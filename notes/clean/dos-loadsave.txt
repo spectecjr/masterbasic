@@ -123,7 +123,7 @@ DOC HOOK_HLOAD
     Hook 130: load the body of a file the header hook has opened.
 
     MASTERDOS'S HLOAD WAS FOUR INSTRUCTIONS -- NETPA, DSCHD, LDBLK --
-    and this one branches first on two bits of V42E2, the copy of the
+    and this one branches first on two bits of ENTRY_FLAGS, the copy of the
     entry's flags byte that COPY_HEADER_FIELDS left there -- LOAD by
     number writes it in CHECK_FILE_TYPE first, but that ends in JR
     GTFL4 and reaches the same copy:

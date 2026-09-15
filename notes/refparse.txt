@@ -2,7 +2,8 @@
 # and the interrupt tick.  Proposed by a fresh reader, audited
 # against the instructions.
 
-DOC L56F3
+MB &56F3 REF_SHOW_LINE
+DOC REF_SHOW_LINE
     The tail of REF: hand the found line to the ROM's editor, then arrange
     for RETURN to come back here and carry on searching.
 

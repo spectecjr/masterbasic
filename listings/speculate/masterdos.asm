@@ -71,8 +71,6 @@ RBCC:                EQU  &4220
 RDLIM:               EQU  &08                  ; ALLOW RAM DISCS 3-7
 READ_ADDRESS_CMD:    EQU  &C0                  ; read address
 READ_SECTOR_CMD:     EQU  &80                  ; read sector
-RPTH:                EQU  &0E                  ; and high -- 0 or 1, selecting one of the two entries in a directory
-                                               ; sector
 SAM:                 EQU  &400F                ; the map proper
 SELURPG:             EQU  &3FDF                ; ! ;4* page A in at &8000 and adjust HL to suit
 STEP_IN_CMD:         EQU  &5B                  ; step in one track, updating the track register
@@ -497,7 +495,6 @@ V40F9:
 V40FB:
                DEFB &00                        ; 40FB .
 
-L40FC:
                DEFB &00                        ; 40FC .  ***
 
 V40FD:
@@ -631,17 +628,10 @@ SSTR1:
 LSTR1:
                DEFB &00                        ; 4139 .  device letter
 
-; ---- NSTR1 ---- from &4CC8, &4DA8, &4E86, &4EC9, &540F, &542A, &61ED, &62E9 ...
+; ---- NSTR1 ---- from &4BD0, &4CC8, &4DA8, &4E86, &4EC9, &540F, &542A, &560A ...
 NSTR1:
-               DEFB &00                        ; 413A .  file type, followed by the name
-
-; ---- V413B ---- from &560A, &5A7A, &5D07, &5DB0, &61F8, &62F1, &6369, &66D1 ...
-V413B:
-               DEFB &00                        ; 413B .
-
-; ---- V413C ---- from &4BD0, &66D4
-V413C:
-               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 413C .............
+               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 413A ...............  file type,
+                                                                                ; followed by the name
 
 ; ---- HD001 ---- from &5F3B, &63A1
 HD001:
@@ -667,13 +657,9 @@ PAGE1:
 DSTR2:
                DEFB &00,&00,&00,&00            ; 4152 ....  the same block again, for the second file
 
-; ---- NSTR2 ---- from &67C5, &67DF, &684F, &6908, &6940, &6D14
+; ---- NSTR2 ---- from &5DDB, &67C5, &67DF, &684F, &6908, &6940, &6D14
 NSTR2:
-               DEFB &00                        ; 4156 .
-
-; ---- V4157 ---- from &5DDB
-V4157:
-               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 4157 ..............
+               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 4156 ...............
 
 ; ---- HD002 ---- from &4EE4
 HD002:
@@ -695,70 +681,28 @@ PGES2:
 PAGE2:
                DEFB &00                        ; 416D .
 
+; ---- NSTR3 ---- from &5DDE, &62F4
 NSTR3:
-               DEFB &00                        ; 416E .  the wildcard pattern COPY matches against
+               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 416E ...............  the wildcard
+                                                                                ; pattern COPY matches against
 
-; ---- V416F ---- from &5DDE, &62F4
-V416F:
-               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 416F ..............
-
-; ---- UIFA ---- from &4EA8, &6326, &6383, &639B, &63F0
+; ---- UIFA ---- from &4DB9, &4EA8, &600D, &6010, &6040, &6043, &6047, &6326 ...
 UIFA:
-               DEFB &00                        ; 417D .  the header the caller asked for; goes to the ROM's HDR at &4B00
-
-; ---- V417E ---- from &6373, &6378, &638D
-V417E:
-               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 417E ..............
-
-; ---- V418C ---- from &4DB9, &6047
-V418C:
+               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 417D ...............  the header the
+                                                                                ; caller asked for; goes to the ROM's
+                                                                                ; HDR at &4B00
                DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 418C ...............
-               DEFB &00                                                         ; 419B .
+               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 419B ...............
+               DEFB &00,&00,&00                                                 ; 41AA ...
 
-; ---- V419C ---- from &600D, &63A4, &64E5
-V419C:
-               DEFB &00                        ; 419C .
-
-; ---- V419D ---- from &6010, &63AA
-V419D:
-               DEFB &00,&00                    ; 419D ..
-
-; ---- V419F ---- from &6040, &63B0
-V419F:
-               DEFB &00                        ; 419F .
-
-; ---- V41A0 ---- from &6043, &63B8, &63BD
-V41A0:
-               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 41A0 .............
-
-; ---- DIFA ---- from &4F5B, &5FBB, &6059, &62E6, &6323, &63E6
+; ---- DIFA ---- from &4F1D, &4F23, &4F33, &4F39, &4F5B, &5A28, &5FBB, &6059 ...
 DIFA:
-               DEFB &00                        ; 41AD .  the header read from the disk; goes to the ROM's HDL at &4B50
-
-; ---- V41AE ---- from &5A28
-V41AE:
-               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 41AE ...............
-               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 41BD ...............
-
-; ---- V41CC ---- from &4F33
-V41CC:
-               DEFB &00                        ; 41CC .
-
-; ---- V41CD ---- from &4F39
-V41CD:
-               DEFB &00,&00                    ; 41CD ..
-
-; ---- V41CF ---- from &4F1D
-V41CF:
-               DEFB &00                        ; 41CF .
-
-; ---- V41D0 ---- from &4F23
-V41D0:
-               DEFB &00                        ; 41D0 .
-
-; ---- V41D1 ---- from &63DE
-V41D1:
-               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 41D1 ............
+               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 41AD ...............  the header read
+                                                                                ; from the disk; goes to the ROM's HDL
+                                                                                ; at &4B50
+               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 41BC ...............
+               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 41CB ...............
+               DEFB &00,&00,&00                                                 ; 41DA ...
 
 ; ---- HKA ---- from &4438, &445A, &47F8, &5F37, &6A36, &6A4B
 HKA:
@@ -776,17 +720,11 @@ HKDE:
 HKBC:
                DEFW &0000                      ; 41E2 00 00
 
-; ---- SNME ---- from &53CF, &540C
+; ---- SNME ---- from &53CF, &53FC, &5409, &540C
 SNME:
-               DEFB &13,&53,&4E,&41,&50        ; 41E4 .SNAP  the directory entry the NMI snapshot code writes
-
-; ---- V41E9 ---- from &53FC
-V41E9:
-               DEFB &20                        ; 41E9
-
-; ---- V41EA ---- from &5409
-V41EA:
-               DEFB &20,&20,&20,&20,&20,&20,&20,&20,&20,&13 ; 41EA          .
+               DEFB &13,&53,&4E,&41,&50,&20,&20,&20,&20,&20,&20,&20,&20,&20,&20 ; 41E4 .SNAP  the directory entry the
+                                                                                ; NMI snapshot code writes
+               DEFB &13                                                         ; 41F3 .
 
 ; ---- SNLEN ---- from &53D6, &5446
 SNLEN:
@@ -892,8 +830,6 @@ V4213:
 TEMPW2:
                DEFB &00                        ; 4214 .
 
-; ---- V4215 ---- from &7143
-V4215:
                DEFB &00                        ; 4215 .
 
 ; ---- TEMPW3 ---- from &46A2, &676D, &7155, &733D, &750F
@@ -951,8 +887,13 @@ DVAR:
 TRAKS1:
                DEFB &D0                        ; 4221 P  1 (v2.2=0 / v2.3=7 ?)
 
-; ---- V4222 ---- from &481B, &795C, MB &76C2, MB &76CA
-V4222:
+;; --------------------------------------------------------------------
+;; The source's own name for DVAR 2: tracks on drive 2, as TRAKS1 is
+;; drive 1's.  The carry dropped it.
+;; --------------------------------------------------------------------
+
+; ---- TRAKS2 ---- from &481B, &795C, MB &76C2, MB &76CA
+TRAKS2:
                DEFB &00                        ; 4222 .  2
 
 ; ---- STPRAT ---- from &4791
@@ -1003,8 +944,6 @@ DTKS:
 CDIRT:
                DEFB &00                        ; 4231 .  17 (2) CURRENT DIR CODE (TEMP)
 
-; ---- V4232 ---- from &5CFF
-V4232:
                DEFB &00                        ; 4232 .
 
 ; ---- DTFLG ---- from &56A2, &5AF7, &5B10
@@ -1074,12 +1013,9 @@ EAPG:
 MSINC:
                DEFB &00,&02                    ; 4245 ..  37 (2) MULTI-SECTOR INCREMENT
 
+; ---- RDDT ---- from &7437
 RDDT:
-               DEFB &00,&00                    ; 4247 ..  (5) 39-43 RAM DISCS 3,4,5,6,7
-
-; ---- V4249 ---- from &7437
-V4249:
-               DEFB &00,&00,&00                ; 4249 ...
+               DEFB &00,&00,&00,&00,&00        ; 4247 .....  (5) 39-43 RAM DISCS 3,4,5,6,7
 
 ;; --------------------------------------------------------------------
 ;;     START AT 0 TKS
@@ -1087,26 +1023,17 @@ V4249:
 ;; TABLE OF FIRST PAGE FOR EACH RAM DISC
 ;; --------------------------------------------------------------------
 
+; ---- FIPT ---- from &7445
 FIPT:
-               DEFB &00,&00,&00,&00            ; 424C ....  (5) 44-48
+               DEFB &00,&00,&00,&00,&00        ; 424C .....  (5) 44-48
 
-; ---- V4250 ---- from &7445
-V4250:
-               DEFB &00                        ; 4250 .
-
+; ---- CDIT ---- from &744A
 CDIT:
-               DEFB &00,&00,&00,&00,&00,&00    ; 4251 ......  (7) 49-55
+               DEFB &00,&00,&00,&00,&00,&00,&00 ; 4251 .......  (7) 49-55
 
-; ---- V4257 ---- from &744A
-V4257:
-               DEFB &00                        ; 4257 .
-
+; ---- PLT ---- from &743C
 PLT:
-               DEFB &02,&02,&02,&02,&02        ; 4258 .....  (7) 56-62
-
-; ---- V425D ---- from &743C
-V425D:
-               DEFB &02,&02                    ; 425D ..
+               DEFB &02,&02,&02,&02,&02,&02,&02 ; 4258 .......  (7) 56-62
 
 CRWT:
                DEFW &0000,&0000,&0000,&0000,&0000,&0000,&0000 ; 425F 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (14)
@@ -1136,15 +1063,11 @@ DATDT:
 ;; ???
 ;; --------------------------------------------------------------------
 
-; ---- TIMDT ---- from &7B7F, MB &49A9, MB &4A59, MB &4A96
+; ---- TIMDT ---- from &61AA, &7B7F, MB &49A9, MB &4A59, MB &4A96
 TIMDT:
                DEFB &30,&30,&3A,&30,&30,&3A,&30,&30 ; 4280 00:00:00  (9) 96-103 HH:MM:SS
                DEFB &0D                             ; 4288 .  104             CR
-               DEFB &17,&00,&3B,&00,&3B             ; 4289 ..;.;  (6) 105-110 HH/MM/SS
-
-; ---- V428E ---- from &61AA
-V428E:
-               DEFB &00                        ; 428E .
+               DEFB &17,&00,&3B,&00,&3B,&00         ; 4289 ..;.;.  (6) 105-110 HH/MM/SS
 
 ;; --------------------------------------------------------------------
 ;; Logical to physical drive number mappings.
@@ -1168,14 +1091,11 @@ DRPT:
 ;; 4 POSSIBLE MEGA RAMS=32 BYTES
 ;; --------------------------------------------------------------------
 
-; ---- MRTAB ---- from &7823
+; ---- MRTAB ---- from &7823, &783C
 MRTAB:
-               DEFB &00,&00,&00,&00            ; 4296 ....  (32) 118-149
-
-; ---- V429A ---- from &783C
-V429A:
-               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 429A ...............
-               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00         ; 42A9 .............
+               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 4296 ...............  (32) 118-149
+               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 42A5 ...............
+               DEFB &00,&00                                                     ; 42B4 ..
 
 ;; --------------------------------------------------------------------
 ;; The clock port, which the 1991 source calls CKPT and numbers as DVAR
@@ -1192,8 +1112,12 @@ CKPT:
 BEEPT:
                DEFW &0085                      ; 42B7 85 00  151 (2) BEEP TIME
 
-; ---- V42B9 ---- from &558F
-V42B9:
+;; --------------------------------------------------------------------
+;; The source's XPTR STORE, DVAR 153; the byte after it is CMPFG here.
+;; --------------------------------------------------------------------
+
+; ---- XXPTR ---- from &558F
+XXPTR:
                DEFB &00                        ; 42B9 .
 
 ; ---- CMPFG ---- from &64FA, &6516
@@ -1201,8 +1125,14 @@ CMPFG:
                DEFB &00                        ; 42BA .  154 SAVE MODE less one, written by MasterBASIC's
                                                ; SET_COMPRESSION_MODE and read by HOOK_HSAVE
 
-; ---- V42BB ---- from &4786
-V42BB:
+;; --------------------------------------------------------------------
+;; DVAR 155, the manual's DBSTP: "can be POKEd to a non-zero value to
+;; cause double stepping of the drive head", which STEP_HEAD_IN and
+;; STEP_HEAD_OUT consult after every step.
+;; --------------------------------------------------------------------
+
+; ---- DBSTP ---- from &4786
+DBSTP:
                DEFB &00,&00                    ; 42BB ..
 
 ;; --------------------------------------------------------------------
@@ -1282,12 +1212,24 @@ CALLMB_1:
                EXX                             ; 42E0 D9
                RET                             ; 42E1 C9
 
-; ---- V42E2 ---- from &4E9E, &4EF2, &642B
-V42E2:
+;; --------------------------------------------------------------------
+;; The two bytes at offsets 220 and 221 of the directory entry being
+;; opened, copied here by CHECK_FILE_TYPE and COPY_HEADER_FIELDS and
+;; read back by the loader.
+;; --------------------------------------------------------------------
+
+; ---- ENTRY_FLAGS ---- from &4E9E, &4EF2, &642B
+ENTRY_FLAGS:
                DEFB &00,&00                    ; 42E2 ..  zero fill
 
-; ---- V42E4 ---- from &4381, &51D8, &7859, &785D
-V42E4:
+;; --------------------------------------------------------------------
+;; The DOS's own copy of the ROM's XPTR, read at &437C and compared
+;; against CHADD at &51D3 -- and borrowed by PARK_WORD, which is safe
+;; only because the two never matter at once.
+;; --------------------------------------------------------------------
+
+; ---- XPTR_COPY ---- from &4381, &51D8, &7859, &785D
+XPTR_COPY:
                DEFB &00                        ; 42E4 .
                NOP                             ; 42E5 00
 
@@ -1506,7 +1448,7 @@ ST3HP:
                                                ; call returns past it
                CALL NRRDD                      ; 437C CD 53 50
                DEFW XPTR                       ; 437F A3 5A
-               LD (V42E4),BC                   ; 4381 ED 43 E4 42
+               LD (XPTR_COPY),BC               ; 4381 ED 43 E4 42
                                                ; read the ROM variable CSTAT -- the word below is its address, and the
                                                ; call returns past it
                CALL NRRDD                      ; 4385 CD 53 50
@@ -1569,13 +1511,19 @@ LCMDL_1:
 ; ---- LCMDL_DONE ---- from &43AB when bit 7 of B set
 LCMDL_DONE:
                RES 7,B                         ; 43AF CB B8
-               LD (V43B8),BC                   ; 43B1 ED 43 B8 43
+               LD (CTAB_MB_TARGET),BC          ; 43B1 ED 43 B8 43
                                                ; call &0000 in the other page: LMPR is switched first, so that address
                                                ; is how the other listing numbers it
                CALL CALLMB                     ; 43B5 CD BD 42
 
-; ---- V43B8 ---- from &43B1
-V43B8:
+;; --------------------------------------------------------------------
+;; The word after the CALLMB at &43B5, written just before it from BC:
+;; a CTAB entry with bit 15 set names a routine in the other page, and
+;; this is how the dispatcher calls whichever one the token chose.
+;; --------------------------------------------------------------------
+
+; ---- CTAB_MB_TARGET ---- from &43B1
+CTAB_MB_TARGET:
                DEFW &0000                      ; 43B8 00 00
                RET                             ; 43BA C9
 
@@ -2581,7 +2529,7 @@ SECTOR_FOR_CHANNEL_2:
                LD BC,&0200                     ; 461E 01 00 02
                LDIR                            ; 4621 ED B0
                XOR A                           ; 4623 AF
-               LD (V7C0E),A                    ; 4624 32 0E 7C
+               LD (RPT+1),A                    ; 4624 32 0E 7C
                POP DE                          ; 4627 D1
 
 ;; --------------------------------------------------------------------
@@ -3036,7 +2984,7 @@ HOOK_SKSAFE:
                CALL TIRD                       ; 4723 CD 5A 61
                RET NC                          ; 4726 D0
                LD A,(DTKS)                     ; 4727 3A 30 42
-               LD (V7C06),A                    ; 472A 32 06 7C
+               LD (SVHL+1),A                   ; 472A 32 06 7C
                DEC A                           ; 472D 3D
                LD D,A                          ; 472E 57
                LD E,&01                        ; 472F 1E 01  PROB NOT NEEDED
@@ -3198,7 +3146,7 @@ STEP_HEAD_OUT:
 ;;
 ;;     One step of the head, either way: the direction is the only
 ;;     difference and both fall into the same code, which issues the command
-;;     and then consults V42BB -- the double-step setting the manual calls
+;;     and then consults DBSTP -- the double-step setting the manual calls
 ;;     DBSTP, "can be POKEd to a non-zero value to cause double stepping of
 ;;     the drive head ... useful when reading 40-track disks" -- and repeats
 ;;     the step when it is set.
@@ -3223,7 +3171,7 @@ STEP_HEAD_OUT_1:
                PUSH BC                         ; 4781 C5
                CALL STEP                       ; 4782 CD 8D 47
                POP BC                          ; 4785 C1
-               LD A,(V42BB)                    ; 4786 3A BB 42
+               LD A,(DBSTP)                    ; 4786 3A BB 42
                AND A                           ; 4789 A7
                RET Z                           ; 478A C8
                RES 4,C                         ; 478B CB A1
@@ -5149,7 +5097,7 @@ FDH4:
                BIT 1,(IX+&04)                  ; 4BDB DD CB 04 4E
                JR Z,FDH5                       ; 4BDF 28 1C  JR IF COMPLEX DIR,
                PUSH DE                         ; 4BE1 D5
-               LD A,(DCHAN+RPTH)               ; 4BE2 3A 0E 7C  GET DIR ENTRY (0 OR 1)
+               LD A,(RPT+1)                    ; 4BE2 3A 0E 7C  GET DIR ENTRY (0 OR 1)
                LD B,A                          ; 4BE5 47
                LD C,&01                        ; 4BE6 0E 01
                LD HL,(DCHAN+BUFL)              ; 4BE8 2A 0F 7C  GET SECT BUFFER ADDR IN HL
@@ -5394,7 +5342,7 @@ FDH95:
 ; ---- FDHd ---- from &4BC2 when A <> B, &4BFA, &4C5B, &4C62 when no bit of &18 is set, &4C86 when A is not 0, &4CBE
 ; when A <> 0
 FDHd:
-               LD A,(DCHAN+RPTH)               ; 4C8C 3A 0E 7C
+               LD A,(RPT+1)                    ; 4C8C 3A 0E 7C
                DEC A                           ; 4C8F 3D
                JR Z,FDHe                       ; 4C90 28 09  JR IF WE HAVE JUST DONE SECOND DIR
                CALL CLEAR_TRANSFER_COUNT       ; 4C92 CD 8E 4F
@@ -5967,7 +5915,7 @@ CFSM:
                JR Z,CLOSX                      ; 4E06 28 0B  DIR PROBABLY FULL - BUT DO A FULL
                CALL READ_SECTOR                ; 4E08 CD B7 45  READ DIR SECTOR WITH FREE SLOTS
                LD A,(FSLTE)                    ; 4E0B 3A FE 41
-               LD (DCHAN+RPTH),A               ; 4E0E 32 0E 7C  PT RPT TO FREE SLOT
+               LD (RPT+1),A                    ; 4E0E 32 0E 7C  PT RPT TO FREE SLOT
                JR NCF25                        ; 4E11 18 08
 
 ;; --------------------------------------------------------------------
@@ -6103,7 +6051,7 @@ CFMC:
 ;;     "wrong file type", and SUB &12 with ADC A,&00 comes to zero for
 ;;     &11 and &12 alike -- the two array types, refused the same way.
 ;;     Then the name and type go to NSTR1, the nine-byte header to HD001
-;;     and the flags after it to V42E2, and the ROM's 48-byte header at
+;;     and the flags after it to ENTRY_FLAGS, and the ROM's 48-byte header at
 ;;     UIFA is built from the entry -- notes/clean/dos-openclose.txt has
 ;;     the banner.
 ;; --------------------------------------------------------------------
@@ -6127,7 +6075,7 @@ CHECK_FILE_TYPE:
                CALL GRPNTB                     ; 4E96 CD AE 4F
                LD BC,&0009                     ; 4E99 01 09 00
                LDIR                            ; 4E9C ED B0
-               LD DE,V42E2                     ; 4E9E 11 E2 42
+               LD DE,ENTRY_FLAGS               ; 4E9E 11 E2 42
                LD C,&02                        ; 4EA1 0E 02
                LDIR                            ; 4EA3 ED B0
                CALL POINT                      ; 4EA5 CD AC 4F
@@ -6207,7 +6155,7 @@ GTFL5A:
 ;; Shown for this routine in listings/disasm/:
 ;;
 ;;     Nine bytes from HD002 into the buffer GRPNTB points at, and then on
-;;     to V42E2.  The &D3 in B is which buffer GRPNTB is to fetch.
+;;     to ENTRY_FLAGS.  The &D3 in B is which buffer GRPNTB is to fetch.
 ;; --------------------------------------------------------------------
 
 ; ---- COPY_HEADER_FIELDS ---- from &5A0D
@@ -6219,7 +6167,7 @@ COPY_HEADER_FIELDS:
                PUSH HL                         ; 4EEC E5
                LD BC,&0009                     ; 4EED 01 09 00
                LDIR                            ; 4EF0 ED B0
-               LD DE,V42E2                     ; 4EF2 11 E2 42
+               LD DE,ENTRY_FLAGS               ; 4EF2 11 E2 42
                LD C,&02                        ; 4EF5 0E 02
                LDIR                            ; 4EF7 ED B0
                POP HL                          ; 4EF9 E1
@@ -6619,7 +6567,7 @@ CLAIM_FREE_SLOT:
                AND A                           ; 4FE3 A7
                RET NZ                          ; 4FE4 C0
                LD (FSLOT),DE                   ; 4FE5 ED 53 FC 41
-               LD A,(V7C0E)                    ; 4FE9 3A 0E 7C
+               LD A,(RPT+1)                    ; 4FE9 3A 0E 7C
                LD (FSLTE),A                    ; 4FEC 32 FE 41
                RET                             ; 4FEF C9
 
@@ -8019,11 +7967,15 @@ REP33_2:
 
 ; ---- REPORTA ---- from MB &43BE
 REPORTA:
-               LD (V51A6),A                    ; 51A0 32 A6 51  plant the code in the byte DERR will read
+               LD (REPORT_CODE),A              ; 51A0 32 A6 51  plant the code in the byte DERR will read
                CALL DERR                       ; 51A3 CD AD 51
 
-; ---- V51A6 ---- from &51A0
-V51A6:
+;; --------------------------------------------------------------------
+;; The error code REPORTA plants for DERR to read.
+;; --------------------------------------------------------------------
+
+; ---- REPORT_CODE ---- from &51A0
+REPORT_CODE:
                DEFB &00                        ; 51A6 .
 
 ;; --------------------------------------------------------------------
@@ -8109,7 +8061,7 @@ DERR1:
                                                ; call returns past it
                CALL NRRDD                      ; 51D3 CD 53 50
                DEFW CHADD                      ; 51D6 97 5A
-               LD HL,(V42E4)                   ; 51D8 2A E4 42
+               LD HL,(XPTR_COPY)               ; 51D8 2A E4 42
                AND A                           ; 51DB A7
                SBC HL,BC                       ; 51DC ED 42
                JR C,DERR1_1                    ; 51DE 38 03
@@ -8211,8 +8163,6 @@ ERRTBL:
 PRTRK:
                DEFM " "                        ; 5217 20
 
-; ---- V5218 ---- from &51C3
-V5218:
                DEFM "  ,SCT-"                  ; 5218 20 20 2C 53 43 54 2D
 
 ; ---- PRSEC ---- from &51CF
@@ -8225,8 +8175,6 @@ PRSEC:
 FMTRK:
                DEFM " "                        ; 5232 20
 
-; ---- V5233 ---- from &51C7
-V5233:
                DEFM "   los"                   ; 5233 20 20 20 6C 6F 73
                DEFB "t"+&80                    ; 5239 F4
                DEFM "Check disk in driv"       ; 523A 43 68 65 63 6B 20 64 69
@@ -8755,7 +8703,7 @@ DFMTA:
                AND &0D                         ; 54C0 E6 0D
                JR NZ,DFMTB                     ; 54C2 20 2C  JR IF ERROR ON READ T0/S1
                CALL PMO6                       ; 54C4 CD 09 58  "FORMAT "
-               LD HL,V7DE5                     ; 54C7 21 E5 7D
+               LD HL,DRAM+210                  ; 54C7 21 E5 7D
                LD A,(HL)                       ; 54CA 7E
                INC A                           ; 54CB 3C
                CP &02                          ; 54CC FE 02
@@ -9037,7 +8985,7 @@ FMT10_LOOP:
 
 ; ---- FMT7_1 ---- from &5544 when A = &FF
 FMT7_1:
-               LD A,(V42B9)                    ; 558F 3A B9 42
+               LD A,(XXPTR)                    ; 558F 3A B9 42
                AND A                           ; 5592 A7
                JR NZ,FMT10_2                   ; 5593 20 0B
                CALL PMOC                       ; 5595 CD 3F 58
@@ -12987,7 +12935,7 @@ CMD_LOAD:
                OR D                                      ; 5F97 B2
                CALL NZ,READ_SECTOR                       ; 5F98 C4 B7 45
                POP AF                                    ; 5F9B F1
-               LD (V7C0E),A                              ; 5F9C 32 0E 7C
+               LD (RPT+1),A                              ; 5F9C 32 0E 7C
                CALL POINT                                ; 5F9F CD AC 4F
                LD A,(HL)                                 ; 5FA2 7E
                AND A                                     ; 5FA3 A7
@@ -13726,7 +13674,7 @@ CODN:
                PUSH HL                         ; 61A6 E5
                LD C,A                          ; 61A7 4F
                LD B,&00                        ; 61A8 06 00
-               LD HL,DRPT-1                    ; 61AA 21 8E 42  DRIVE NUMBER PRETEND TABLE
+               LD HL,TIMDT+14                  ; 61AA 21 8E 42  DRIVE NUMBER PRETEND TABLE
                ADD HL,BC                       ; 61AD 09
                LD A,(HL)                       ; 61AE 7E
                POP HL                          ; 61AF E1
@@ -14656,7 +14604,7 @@ TXHED:
                LD BC,&0024                     ; 63D7 01 24 00
                ADD HL,BC                       ; 63DA 09  IX+24H
                CALL RDA                        ; 63DB CD C9 50  MSB OF LEN MOD 16K (HDR) TO A
-               LD HL,DIFA+&24                  ; 63DE 21 D1 41
+               LD HL,DIFA+36                   ; 63DE 21 D1 41
                XOR (HL)                        ; 63E1 AE
 
 ;; --------------------------------------------------------------------
@@ -14809,7 +14757,7 @@ HOOK_HLOAD:
                LD BC,SVBSI                     ; 6422 01 64 4A
                CALL NETPA                      ; 6425 CD 9D 64
                CALL RESET_BUFFER_POINTERS      ; 6428 CD 84 4F
-               LD HL,V42E2                     ; 642B 21 E2 42
+               LD HL,ENTRY_FLAGS               ; 642B 21 E2 42
                BIT 2,(HL)                      ; 642E CB 56
                JR Z,HOOK_HLOAD_2               ; 6430 28 27
                BIT 3,(HL)                      ; 6432 CB 5E
@@ -14870,14 +14818,14 @@ HOOK_HLOAD_2:
                DEFW CURCMD                     ; 6466 74 5B
                CP &95                          ; 6468 FE 95
                JR NZ,HOOK_HLOAD_3              ; 646A 20 0D
-               LD A,(V7D1C)                    ; 646C 3A 1C 7D
+               LD A,(DRAM+9)                   ; 646C 3A 1C 7D
                                                ; write the ROM variable &4A97
                CALL NRWR                       ; 646F CD 74 50
                DEFW &4A97                      ; 6472 97 4A  the operand of the LD (HL),&00 at system-page &4A96, the
                                                ; byte the post-LOAD stub writes back over the start of the program -- MB
                                                ; &7DED has the other end
                LD A,&FF                        ; 6474 3E FF
-               LD (V7D1C),A                    ; 6476 32 1C 7D
+               LD (DRAM+9),A                   ; 6476 32 1C 7D
 
 ;; --------------------------------------------------------------------
 ;; HOOK_HLOAD_3 -- &6479 to &647B
@@ -19844,7 +19792,7 @@ OPNDIR:
                INC A                           ; 7217 3C  TAG VALUE FOR THIS DIRECTORY'S
                CP &FF                          ; 7218 FE FF  FILES
                JP Z,REP25                      ; 721A CA 86 51  ERROR IF TOO MANY DIR FILES
-               LD (FSA+DIRT),A                 ; 721D 32 0D 7D  COPIED TO SECTOR BUFFER
+               LD (FSA+250),A                  ; 721D 32 0D 7D  COPIED TO SECTOR BUFFER
                JP CFSM                         ; 7220 C3 FE 4D
 
 ;; --------------------------------------------------------------------
@@ -20492,7 +20440,7 @@ EFNLP:
 ;; Takes:     A, BC, DE, HL
 ;; Leaves:    A, F, HL
 ;;
-;; ? calls DERR; falls into whatever follows rather than returning.
+;; ? reaches the ROM through DRAM+255; calls DERR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- IFNE ---- from &7364 when B reaches 0, &739A when A = &0B, &73AD when B reaches 0
@@ -20752,7 +20700,7 @@ RTSTD:
 
 ; ---- GFPA ---- from &75A7, &7707
 GFPA:
-               LD HL,FIPT-3                    ; 7437 21 49 42
+               LD HL,RDDT+2                    ; 7437 21 49 42
                JR GPLA2                        ; 743A 18 11
 
 ;; --------------------------------------------------------------------
@@ -20765,7 +20713,7 @@ GFPA:
 
 ; ---- GRWA ---- from &4D12, &7467
 GRWA:
-               LD HL,CRWT-2                    ; 743C 21 5D 42
+               LD HL,PLT+5                     ; 743C 21 5D 42
                LD A,(DRIVE)                    ; 743F 3A 0B 7C
                ADD A,A                         ; 7442 87
                JR GPLA3                        ; 7443 18 0B
@@ -20780,7 +20728,7 @@ GRWA:
 
 ; ---- GCDIA ---- from &6784, &7282, &72EE
 GCDIA:
-               LD HL,CDIT-1                    ; 7445 21 50 42
+               LD HL,FIPT+4                    ; 7445 21 50 42
                JR GPLA2                        ; 7448 18 03
 
 ;; --------------------------------------------------------------------
@@ -20792,7 +20740,7 @@ GCDIA:
 
 ; ---- GPLA ---- from &7254, &727B, &7298, &72F6, &73C4, &7410
 GPLA:
-               LD HL,PLT-1                     ; 744A 21 57 42
+               LD HL,CDIT+6                    ; 744A 21 57 42
 
 ;; --------------------------------------------------------------------
 ;; GPLA2 -- &744D to &744F
@@ -22645,7 +22593,7 @@ CFPBL_DONE:
 ;; Ends:      RET
 ;; --------------------------------------------------------------------
 
-               LD (V42E4),HL                   ; 7859 22 E4 42
+               LD (XPTR_COPY),HL               ; 7859 22 E4 42
                RET                             ; 785C C9
 
 ;; --------------------------------------------------------------------
@@ -22656,7 +22604,7 @@ CFPBL_DONE:
 ;; Ends:      RET
 ;; --------------------------------------------------------------------
 
-               LD BC,(V42E4)                   ; 785D ED 4B E4 42
+               LD BC,(XPTR_COPY)               ; 785D ED 4B E4 42
                RET                             ; 7861 C9
 
 ;; --------------------------------------------------------------------
@@ -22685,7 +22633,7 @@ CFPBL_DONE:
                PUSH AF                         ; 7879 F5
                PUSH DE                         ; 787A D5
                CALL DSCHD                      ; 787B CD 7F 64
-               LD HL,(V7D1C)                   ; 787E 2A 1C 7D
+               LD HL,(DRAM+9)                  ; 787E 2A 1C 7D
                LD C,H                          ; 7881 4C
                LD B,L                          ; 7882 45
                POP HL                          ; 7883 E1
@@ -22848,15 +22796,20 @@ INDJP:
 ; ---- INDJP_1 ---- from &78D6 when bit 7 of H set
 INDJP_1:
                RES 7,H                         ; 78D9 CB BC
-               LD (V78E2),HL                   ; 78DB 22 E2 78
+               LD (INDJP_MB_TARGET),HL         ; 78DB 22 E2 78
                                                ; to the alternate register set and back again
                EXX                             ; 78DE D9
                                                ; call &0000 in the other page: LMPR is switched first, so that address
                                                ; is how the other listing numbers it
                CALL CALLMB                     ; 78DF CD BD 42
 
-; ---- V78E2 ---- from &78DB
-V78E2:
+;; --------------------------------------------------------------------
+;; The same shape as CTAB_MB_TARGET, for the hook table: the word after
+;; INDJP's CALLMB, written from HL at &78DB.
+;; --------------------------------------------------------------------
+
+; ---- INDJP_MB_TARGET ---- from &78DB
+INDJP_MB_TARGET:
                DEFW &0000                      ; 78E2 00 00
                RET                             ; 78E4 C9
 
@@ -24072,7 +24025,7 @@ CMR:
                LD C,A                          ; 7BC1 4F
                IN A,(HMPR)                     ; 7BC2 DB FB
                                                ; self-modifying: patches the operand of the LD at &7BF2
-               LD (L7BF2+1),A                  ; 7BC4 32 F3 7B  patches the operand of the LD at &7BF2
+               LD (CMR_CALLER_HMPR+1),A        ; 7BC4 32 F3 7B  patches the operand of the LD at &7BF2
                IN A,(LMPR)                     ; 7BC7 DB FA
                LD B,A                          ; 7BC9 47
                INC A                           ; 7BCA 3C
@@ -24083,13 +24036,12 @@ CMR:
                JP &BBD8                        ; 7BD5 C3 D8 BB
 
 ;; --------------------------------------------------------------------
-;; L7BD8 -- &7BD8 to &7BF6
+;; L7BD8 -- &7BD8 to &7BF1
 ;;
 ;; Takes:     BC, DE, IY
-;; Leaves:    A, F, HL
-;; Ends:      JP
+;; Leaves:    A, HL
 ;;
-;; ? drives OUT (LMPR),A; calls PTM.
+;; ? drives OUT (LMPR),A; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
                LD A,SYSPAGE_IN_B               ; 7BD8 3E 1F
@@ -24109,7 +24061,17 @@ CMR:
                PUSH HL                         ; 7BF0 E5  AFTER DEFKEYS
                PUSH DE                         ; 7BF1 D5  ROUTINE ADDR TO CALL
 
-L7BF2:
+;; --------------------------------------------------------------------
+;; CMR_CALLER_HMPR -- &7BF2 to &7BF6
+;;
+;; Takes:     HL
+;; Leaves:    A, F, HL
+;; Ends:      JP
+;;
+;; ? calls PTM.
+;; --------------------------------------------------------------------
+
+CMR_CALLER_HMPR:
                LD A,&00                        ; 7BF2 3E 00  the operand is written here at run time, from &7BC4
                JP SYS_GAP_BLOCK+&09            ; 7BF4 C3 9F 58  PAGE IN ORIG URPORT,
 
@@ -24163,17 +24125,11 @@ DOSBUF:
 SVDE:
                DEFB &06,&21                    ; 7C02 .!  (2) saved DE, usually a track and sector
 
-; ---- V7C04 ---- from &4B37, &4B90, &4C5D
-V7C04:
                DEFB &13                        ; 7C04 .
 
-; ---- SVHL ---- from &487D, &48CD, &48F3, &4902, &4954, &4969, &497A, &4A1E ...
+; ---- SVHL ---- from &472A, &475E, &4767, &487D, &48CD, &48F3, &4902, &4954 ...
 SVHL:
-               DEFB &72                        ; 7C05 r  (2) saved HL, usually the transfer address
-
-; ---- V7C06 ---- from &472A, &475E, &4767
-V7C06:
-               DEFB &F3                        ; 7C06 s
+               DEFB &72,&F3                    ; 7C05 rs  (2) saved HL, usually the transfer address
 
 ; ---- SVIX ---- from &4E1E, &4E46
 SVIX:
@@ -24187,18 +24143,15 @@ DRIVE:
 FLAG3:
                DEFB &03                        ; 7C0C .  the DOS's flag byte
 
-; ---- RPT ---- from &5ADA
+; ---- RPT ---- from &4624, &4BE2, &4C8C, &4E0E, &4FE9, &5ADA, &5F9C
 RPT:
-               DEFB &D3                        ; 7C0D S  (2) pointer into the sector buffer
-
-; ---- V7C0E ---- from &4624, &4BE2, &4C8C, &4E0E, &4FE9, &5F9C
-V7C0E:
-               DEFB &FA                        ; 7C0E z
+               DEFB &D3,&FA                    ; 7C0D Sz  (2) pointer into the sector buffer
 
 ; ---- BUF ---- from &45FF, &460F, &4BE8, &4F8B, &5555, &556B, &6694
 BUF:
                DEFB &3E,&40,&31,&00            ; 7C0F >@1.  (2) address of the sector buffer
 
+; ---- FSA ---- from &5424, &543B, &5A95, &5F3E, &721D
 FSA:
                DEFB &80,&CD,&3D,&BD,&CD,&2C,&BD,&F5,&3E,&01,&01,&D9,&67,&21,&00 ; 7C13 .M==M,=u>..Yg!.  the 256-byte
                                                                                 ; image of a directory entry
@@ -24215,39 +24168,23 @@ FSA:
                DEFB &A9,&01,&22,&00,&ED,&B0,&21,&65,&51,&22,&98,&AA,&22,&07,&AB ; 7CB8 ).".m0!eQ".*".+
                DEFB &22,&AB,&AD,&22,&C5,&AD,&22,&0C,&B0,&22,&77,&B0,&21,&40,&37 ; 7CC7 "+-"E-".0"w0!@7
                DEFB &22,&5D,&A1,&3E,&18,&32,&95,&99,&3E,&11,&32,&59,&F7,&21,&00 ; 7CD6 "]!>.2..>.2Yw!.
+               DEFB &00,&22,&5A,&F7,&3E,&C9,&32,&2A,&B3,&11,&CE,&66,&21,&F9,&B8 ; 7CE5 ."Zw>I2*3.Nf!y8
+               DEFB &06,&07,&73,&23,&72,&23,&10,&FA,&21,&33,&B5                 ; 7CF4 ..s#r#.z!35
 
-; ---- V7CE5 ---- from &5A95
-V7CE5:
-               DEFB &00                        ; 7CE5 .
-
-; ---- V7CE6 ---- from &5F3E
-V7CE6:
-               DEFB &22,&5A,&F7,&3E,&C9,&32,&2A,&B3,&11 ; 7CE6 "Zw>I2*3.
-
-; ---- V7CEF ---- from &5424
-V7CEF:
-               DEFB &CE,&66,&21,&F9,&B8,&06,&07,&73,&23,&72,&23,&10,&FA,&21,&33 ; 7CEF Nf!y8..s#r#.z!3
-               DEFB &B5                                                         ; 7CFE 5
-
-; ---- V7CFF ---- from &543B, MB &6428
+; ---- V7CFF ---- from MB &6428
 V7CFF:
-               DEFB &11,&C1,&B4,&06,&1A,&7E,&2F,&12,&23,&13,&EB,&10,&F8,&21 ; 7CFF .A4..~/.#.k.x!
+               DEFB &11,&C1,&B4,&06,&1A,&7E,&2F,&12,&23,&13,&EB,&10,&F8,&21,&D4 ; 7CFF .A4..~/.#.k.x!T
+               DEFB &D0,&06,&22,&CD,&21                                         ; 7D0E P."M!
 
-; ---- V7D0D ---- from &721D
-V7D0D:
-               DEFB &D4,&D0,&06,&22,&CD,&21    ; 7D0D TP."M!
-
-; ---- DRAM ---- from &460C, &461B, &4F88, &74CA, &754D, &755C, &7606, &7638 ...
+; ---- DRAM ---- from &460C, &461B, &4F88, &54C7, &646C, &6476, &74CA, &754D ...
 DRAM:
-               DEFB &BD,&21,&0A,&D1,&06,&0E,&CD,&21,&BD ; 7D13 =!.Q..M!=  the sector buffer proper
-
-; ---- V7D1C ---- from &646C, &6476, &787E
-V7D1C:
-               DEFB &01,&01,&00,&18,&17,&3E,&2D,&AE,&E6,&7F,&AE,&77,&23,&10,&F6 ; 7D1C .....>-.f..w#.v
-               DEFB &C9,&CD,&34,&F7,&CB,&7C,&C0,&3E,&C9,&BF,&01,&02,&00,&FB,&C9 ; 7D2B IM4wK|@>I?...{I
-               DEFB &D6,&4E,&21,&F5,&E5,&C5,&D5,&01,&80,&3C,&3E,&06,&00,&08,&61 ; 7D3A VN!ueEU..<>...a
-               DEFB &AF,&6F,&4F,&3E,&FA,&08,&57,&15,&08,&82,&96,&77,&23,&7C,&FE ; 7D49 /oO>z.W....w#|~
-               DEFB &BC,&20,&F1,&D1,&C1,&E1,&F1,&C9                             ; 7D58 < qQAaqI
+               DEFB &BD,&21,&0A,&D1,&06,&0E,&CD,&21,&BD,&01,&01,&00,&18,&17,&3E ; 7D13 =!.Q..M!=.....>  the sector
+                                                                                ; buffer proper
+               DEFB &2D,&AE,&E6,&7F,&AE,&77,&23,&10,&F6,&C9,&CD,&34,&F7,&CB,&7C ; 7D22 -.f..w#.vIM4wK|
+               DEFB &C0,&3E,&C9,&BF,&01,&02,&00,&FB,&C9,&D6,&4E,&21,&F5,&E5,&C5 ; 7D31 @>I?...{IVN!ueE
+               DEFB &D5,&01,&80,&3C,&3E,&06,&00,&08,&61,&AF,&6F,&4F,&3E,&FA,&08 ; 7D40 U..<>...a/oO>z.
+               DEFB &57,&15,&08,&82,&96,&77,&23,&7C,&FE,&BC,&20,&F1,&D1,&C1,&E1 ; 7D4F W....w#|~< qQAa
+               DEFB &F1,&C9                                                     ; 7D5E qI
 
 ;; --------------------------------------------------------------------
 ;; INSTALL_TAIL_INTO_SYSPAGE -- &7D60 to &7D72
@@ -24437,11 +24374,8 @@ MBCOPY_778B:
                DEFB &99,&5A,&F5,&CD,&DF,&3F,&2A,&9A,&5A,&23,&22,&9A,&5A,&2B,&AF ; 7DAA .ZuM_?*.Z#".Z+/
                DEFB &CD,&0C,&01,&AF,&32,&83,&5B,&F1,&C1,&ED,&43,&84,&5B,&EB,&2A ; 7DB9 M../2.[qAmC.[k*
                DEFB &9A,&5A,&2B,&22,&9A,&5A,&E1,&4F,&F1,&C3,&2D,&01,&1C,&22,&20 ; 7DC8 .Z+".ZaOqC-.."
-               DEFB &20,&22,&1C,&04,&18,&00,&14,&00,&22,&22,&22,&1E,&00,&0C     ; 7DD7  "......"""...
-
-; ---- V7DE5 ---- from &54C7
-V7DE5:
-               DEFB &10,&1C,&22                ; 7DE5 .."
+               DEFB &20,&22,&1C,&04,&18,&00,&14,&00,&22,&22,&22,&1E,&00,&0C,&10 ; 7DD7  "......"""....
+               DEFB &1C,&22                                                     ; 7DE6 ."
 
 ; ---- V7DE8 ---- from MB &77C0
 V7DE8:

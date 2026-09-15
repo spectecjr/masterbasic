@@ -138,7 +138,7 @@ has already gone out:
 | 2 | `&14` SCREEN$ | nibble coder, `MB_COMPRESS_SCREEN_FILE` | bits 2 and 3 |
 | 2 | anything else | byte coder, `MB_COMPRESS_FILE` | bit 2 |
 
-`HOOK_HLOAD` at `DOS &6422` reads the same two bits back from `V42E2`, the
+`HOOK_HLOAD` at `DOS &6422` reads the same two bits back from `ENTRY_FLAGS`, the
 copy of entry offset 220 that `COPY_HEADER_FIELDS` makes, and dispatches the
 same way: bit 2 clear is a plain load, bit 2 alone is `MB_EXPAND_FILE`, bits
 2 and 3 together is the screen expander at `MB &62A6` with the mode byte

@@ -49,7 +49,7 @@ falls into `CLEAR_TRANSFER_COUNT`, which zeroes the two count bytes at
 ## A read
 
 **1. The statement.** `LOAD` reaches `HOOK_HLOAD` at `&6422` through the hook
-table. It resets the buffer pointers, then looks at two bits of `V42E2` to
+table. It resets the buffer pointers, then looks at two bits of `ENTRY_FLAGS` to
 decide which kind of load this is — one path hands off to MasterBASIC
 through `CALLMB`, which is how a compressed file gets expanded on the way in.
 

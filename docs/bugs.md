@@ -600,7 +600,7 @@ table entry has bit 15 set and `INDJP` takes its cross-page branch:
 
 ```
 78D9  RES 7,H
-78DB  LD (V78E2),HL
+78DB  LD (INDJP_MB_TARGET),HL
 78DE  EXX              ; the caller's HL, DE, BC into the main set
 78DF  CALL CALLMB
 ```
@@ -787,7 +787,7 @@ operand as `RDDT-3`, and `GFPA` three instructions later already renders
 behind.** They can be listed by walking `notes/` for `expr` entries and
 grepping each listing for a `; ---- ` line that still names the address.
 Two are worse than the rest: `PTH2` is credited `MB &773A`, which is the
-wrong page as well as the wrong instruction, and `V7C0E` collects three
+wrong page as well as the wrong instruction, and `RPT+1` collects three
 of them.
 
 ### Why removing the reference could not work
@@ -816,7 +816,7 @@ synthetic name with none left is referred to by nothing:
 `drop_unreferenced_labels()` drops those.
 
 **Only `V####` and `TBL_####`, never `L####`.** The first attempt
-dropped `L` names too and the assembly failed on `LD (L7BF2+1),A` —
+dropped `L` names too and the assembly failed on `LD (CMR_CALLER_HMPR+1),A` —
 self-modifying code writing to an instruction's operand byte, where the
 reference lands on `&7BF3` and `&7BF2` has no xref at all while being
 very much in use. Any `NAME+n` form does this, and `autolabel` gives
@@ -905,7 +905,7 @@ reference.
 Two of the examples that entry collected were never faults at all.
 `PTH2`'s credit from `MB &773A` is a real cross-half write — `&773A` is
 `22 39 BF`, `LD (&BF39),HL`, and `&BF39` windows to DOS `&7F39`, which is
-`PTH2`. `V7C0E`'s three callers are two `LD A,(&7C0E)` and one
+`PTH2`. `RPT+1`'s three callers are two `LD A,(&7C0E)` and one
 `LD (&7C0E),A`, and none of them carries an `expr` note. A phantom and a
 coincidence look alike from a distance, which is the reason for counting
 them rather than estimating.

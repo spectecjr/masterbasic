@@ -8370,7 +8370,7 @@ SCAN_TEXT_PAGED_3:
 ;; MasterBASIC nowhere in sight.
 ;; --------------------------------------------------------------------
 
-L56F3:
+REF_SHOW_LINE:
                CALL MBCMR                      ; 56F3 CD F0 44  the operand is written at boot from &79AE, where a
                                                ; signature search finds the ROM's EDKY1 -- the byte pair is
                                                ; version-dependent, so it cannot be assembled
@@ -10354,7 +10354,6 @@ CMD_RECORD:
                OUT (HMPR),A                    ; 5C37 D3 FB
                CALL MBCMR                      ; 5C39 CD F0 44  and run what was just built
 
-V5C3C:
                DEFW GTDT                       ; 5C3C 00 50  the inline parameter of the CALL above -- &5000, the
                                                ; routine just assembled
                RET                             ; 5C3E C9
@@ -13806,7 +13805,6 @@ HOOK_CSIZE_7:
                OR ENABLE_ROM1                  ; 658D F6 40
                OUT (LMPR),A                    ; 658F D3 FA
 
-L6591:
                CALL MBCMR                      ; 6591 CD F0 44  the operand is written here at run time, from &761F
 
 ;; --------------------------------------------------------------------
@@ -19305,7 +19303,7 @@ INSTALLER_LOOP6:
                                                ; own value for "no second drive"
                JR NZ,INSTALLER_1               ; 76BE 20 0A
                DJNZ INSTALLER_LOOP5            ; 76C0 10 F0
-               LD A,(DOS_V4222)                ; 76C2 3A 22 82
+               LD A,(DOS_TRAKS2)               ; 76C2 3A 22 82
                AND A                           ; 76C5 A7
                JR NZ,INSTALLER_2               ; 76C6 20 05
                LD A,&D0                        ; 76C8 3E D0  &D0 is 128 + 80, which is what MasterDOS's own
@@ -19317,7 +19315,7 @@ INSTALLER_LOOP6:
 
 ; ---- INSTALLER_1 ---- from &76BE when the CP found A <> B
 INSTALLER_1:
-               LD (DOS_V4222),A                ; 76CA 32 22 82
+               LD (DOS_TRAKS2),A               ; 76CA 32 22 82
 
 ; ---- INSTALLER_2 ---- from &76C6 when A <> 0
 INSTALLER_2:

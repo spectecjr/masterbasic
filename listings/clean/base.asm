@@ -399,8 +399,8 @@ DOS_STACK_VAR_ADDRESS:          EQU  STACK_VAR_ADDRESS + IN_PAGE_C
 DOS_SVHDR:                      EQU  SVHDR + IN_PAGE_C
 DOS_TEMPW1:                     EQU  TEMPW1 + IN_PAGE_C
 DOS_TIMDT:                      EQU  TIMDT + IN_PAGE_C
+DOS_TRAKS2:                     EQU  TRAKS2 + IN_PAGE_C
 DOS_UNPARK_WORD:                EQU  UNPARK_WORD + IN_PAGE_C
-DOS_V4222:                      EQU  V4222 + IN_PAGE_C
 DOS_V7CFF:                      EQU  V7CFF + IN_PAGE_C
 DOS_V7DE8:                      EQU  V7DE8 + IN_PAGE_C
 DOS_V7E98:                      EQU  V7E98 + IN_PAGE_C

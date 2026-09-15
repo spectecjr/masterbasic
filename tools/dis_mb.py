@@ -184,6 +184,7 @@ class Page(Disassembler):
         self.no_peer = []             # ranges where &8000+ is not the peer
         self.self_window = []         # ranges where &8000+ is this page
         self.site_labels = set()      # named instructions that head nothing
+        self.blocks = {}              # (base, name) -> length: NAME+n inside
         self.sys_low = []             # ranges where &4000+ is the system page
         self.carried_by_value = {}    # address -> the MasterDOS source's name
         self.rendered = []            # ranges written by a renderer
@@ -508,6 +509,16 @@ class Page(Disassembler):
                 # Otherwise raw hex, which says less than this page's own
                 # label would and is not wrong the way it would be.
                 return hexn(v, 4)
+            # An address inside a declared data block -- the fifteen
+            # bytes of NSTR1, the forty-eight of UIFA -- is an offset
+            # into it, and the reference belongs to the block: NSTR1+2
+            # says what V413C could not, and leaves no label behind.
+            for (base, name), size in self.blocks.items():
+                if base < v < base + size:
+                    if self._cur is not None \
+                            and self._cur not in self.expr_operands:
+                        self.xrefs.setdefault(base, set()).add(self._cur)
+                    return '%s+%d' % (self.labels.get(base, name), v - base)
             # An operand a notes/ `expr` entry has rewritten is a
             # number, not an address in this page, so whatever happens
             # to live at that address gains no caller from it.  This is
@@ -1209,6 +1220,29 @@ def seeds(dos, mb):
     # &55EA loads the same &4AE9 for INSTALL_CHANNEL_HANDLER to write
     # into channel B; it was reading as a label inside MULTIPLY_BY_60.
     mb.sys_low.append((0x55EA, 0x55ED))
+    # The DOS's variable blocks, sized from the source's own DEFS and
+    # DEFB lists, so that a reference into one reads as an offset and
+    # not as a synthetic label on the byte: NSTR1 is DEFB 0 / DEFS 14,
+    # UIFA and DIFA are DEFB 0 / DEFS 47, SNME is a byte, fourteen of
+    # name and a byte, MRTAB is DEFS &20, TIMDT is the eight digits, a
+    # CR and six limits, and the per-drive tables are five or seven.
+    dos.blocks.update({
+        (0x413A, 'NSTR1'): 15, (0x4156, 'NSTR2'): 15, (0x416E, 'NSTR3'): 15,
+        (0x417D, 'UIFA'): 48, (0x41AD, 'DIFA'): 48, (0x41E4, 'SNME'): 16,
+        (0x4296, 'MRTAB'): 32, (0x4280, 'TIMDT'): 15,
+        (0x4247, 'RDDT'): 5, (0x424C, 'FIPT'): 5,
+        (0x4251, 'CDIT'): 7, (0x4258, 'PLT'): 7,
+        # and the channel record at &7C00: SVHL and RPT are words, FSA
+        # the 256-byte sector area (whose offsets are directory-entry
+        # fields) and DRAM the 512 bytes after it, PTH1 being DRAM+512.
+        (0x7C05, 'SVHL'): 2, (0x7C0D, 'RPT'): 2,
+        (0x7C13, 'FSA'): 256, (0x7D13, 'DRAM'): 512,
+    })
+    # NSTR3 was reaching its name late, from the source text of the
+    # LD DE,NSTR3+1 that refers to it; with the reference now credited
+    # to the block's base the name has to be there first.
+    for (base, name) in dos.blocks:
+        dos.labels.setdefault(base, name)
     # The three vector values INSTALL_ROM_PATCHES writes: &49F7, &4A52
     # and &4AE6 are addresses in the ROM's system page, in the stubs it
     # has just put there, and not in this half.  &4AAC two instructions
@@ -2908,6 +2942,53 @@ BASE_TITLE = """; base.asm -- both halves of the image, in one assembly.
 """
 
 
+def prune_unnamed_synthetics(texts):
+    """Drop an Lxxxx/Vxxxx label that no operand in either half names.
+
+    A label is made for every address something refers to, and that is
+    right until the reference is written some other way: the source's
+    own LD DE,FSA+210 and LD HL,DRPT-1 are carried as they stand, a
+    reference into a declared block reads NSTR1+2, an `expr` note
+    rewrites an operand to a number.  The xref is still there, so the
+    label stays -- V7CE5 on a byte every reference already calls
+    FSA+210.  The text is the only place the question can be answered,
+    so it is asked of the text: a synthetic label mentioned nowhere but
+    on its own line and its own banner, and not reached from the other
+    half as DOS_V7CE5 or MB_V4061, goes.  Names from notes/ or the
+    source are never touched, however unreferenced.
+    """
+    peer = {'masterdos.asm': ('masterbasic.asm', 'DOS_'),
+            'masterbasic.asm': ('masterdos.asm', 'MB_')}
+    label = re.compile(r'^([LV][0-9A-F]{4}):$')
+    dropped = 0
+    for name in ('masterdos.asm', 'masterbasic.asm'):
+        text = texts[name]
+        other, prefix = peer[name]
+        mentions = collections.Counter(re.findall(r'\b[LV][0-9A-F]{4}\b', text))
+        from_peer = set(re.findall(r'\b(?:DOS|MB)_[LV][0-9A-F]{4}\b',
+                                   texts[other]))
+        out = []
+        for line in text.split(chr(10)):
+            m = label.match(line)
+            if m:
+                lab = m.group(1)
+                banner = bool(out) and out[-1].startswith('; ---- %s ----' % lab)
+                # A label someone wrote a header for stays, however it
+                # is named: the DOC was attached to this name on purpose.
+                above = [l for l in out[-3:] if l.strip()]
+                headed = bool(above) and above[-1].startswith(';;')
+                own = 2 if banner else 1
+                if mentions[lab] <= own and prefix + lab not in from_peer \
+                        and not headed:
+                    if banner:
+                        out.pop()
+                    dropped += 1
+                    continue
+            out.append(line)
+        texts[name] = chr(10).join(out)
+    return dropped
+
+
 def write_trio(outdir, dos, mb, texts, bias, preamble=None):
     """Write the two halves and the base.asm that includes them.
 
@@ -2916,6 +2997,10 @@ def write_trio(outdir, dos, mb, texts, bias, preamble=None):
     into base.asm, and the peer blocks -- each half's view of the other
     -- are replaced by references to the labels they name.
     """
+    gone = prune_unnamed_synthetics(texts)
+    if gone:
+        print('%s: dropped %d synthetic labels no operand names'
+              % (os.path.basename(outdir), gone))
     heads, rests = {}, {}
     for name, text in texts.items():
         heads[name], rests[name] = basefile.split_at_org(text)

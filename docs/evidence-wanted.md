@@ -301,7 +301,7 @@ address to expand into" was wrong. The question as it stood is below.
 
 **Open.** MasterBASIC replaces MasterDOS's `HLOAD` hook outright -- the
 original is four instructions, `LD BC,&4BB0+HLDP-PVECT / NETPA / DSCHD /
-LDBLK` -- and its version at `DOS &6422` branches on bits 2 and 3 of `V42E2`,
+LDBLK` -- and its version at `DOS &6422` branches on bits 2 and 3 of `ENTRY_FLAGS`,
 which `COPY_HEADER_FIELDS` fills from directory entry offsets 220 and 221.
 On the compressed path it does:
 

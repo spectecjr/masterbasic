@@ -82,7 +82,7 @@ DOS &477B STEP_HEAD_OUT
 DOS &477F STEP_HEAD_IN
     One step of the head, either way: the direction is the only
     difference and both fall into the same code, which issues the command
-    and then consults V42BB -- the double-step setting the manual calls
+    and then consults DBSTP -- the double-step setting the manual calls
     DBSTP, "can be POKEd to a non-zero value to cause double stepping of
     the drive head ... useful when reading 40-track disks" -- and repeats
     the step when it is set.
@@ -128,13 +128,13 @@ DOS &4E75 CHECK_FILE_TYPE
     "wrong file type", and SUB &12 with ADC A,&00 comes to zero for
     &11 and &12 alike -- the two array types, refused the same way.
     Then the name and type go to NSTR1, the nine-byte header to HD001
-    and the flags after it to V42E2, and the ROM's 48-byte header at
+    and the flags after it to ENTRY_FLAGS, and the ROM's 48-byte header at
     UIFA is built from the entry -- notes/clean/dos-openclose.txt has
     the banner.
 
 DOS &4EE3 COPY_HEADER_FIELDS
     Nine bytes from HD002 into the buffer GRPNTB points at, and then on
-    to V42E2.  The &D3 in B is which buffer GRPNTB is to fetch.
+    to ENTRY_FLAGS.  The &D3 in B is which buffer GRPNTB is to fetch.
 
 DOS &4F67 FILL_DE_WITH_A
     B bytes of A at DE.  Three instructions, four callers, and &4F69 is
@@ -576,3 +576,33 @@ DOS &6594 FN_LENGTH_CHANNEL
     LENGTH #stream, MasterBASIC's &5EC2: FABORT first -- at syntax
     time it pops the return and leaves, so FNLN2 below is reached
     only when running.
+
+# The DOS's remaining synthetic labels, named from the source, the
+# manual's DVAR list, or what the one routine that uses each does.
+DOS &4222 TRAKS2
+    The source's own name for DVAR 2: tracks on drive 2, as TRAKS1 is
+    drive 1's.  The carry dropped it.
+DOS &42B9 XXPTR
+    The source's XPTR STORE, DVAR 153; the byte after it is CMPFG here.
+DOS &42BB DBSTP
+    DVAR 155, the manual's DBSTP: "can be POKEd to a non-zero value to
+    cause double stepping of the drive head", which STEP_HEAD_IN and
+    STEP_HEAD_OUT consult after every step.
+DOS &42E2 ENTRY_FLAGS
+    The two bytes at offsets 220 and 221 of the directory entry being
+    opened, copied here by CHECK_FILE_TYPE and COPY_HEADER_FIELDS and
+    read back by the loader.
+DOS &42E4 XPTR_COPY
+    The DOS's own copy of the ROM's XPTR, read at &437C and compared
+    against CHADD at &51D3 -- and borrowed by PARK_WORD, which is safe
+    only because the two never matter at once.
+DOS &43B8 CTAB_MB_TARGET
+    The word after the CALLMB at &43B5, written just before it from BC:
+    a CTAB entry with bit 15 set names a routine in the other page, and
+    this is how the dispatcher calls whichever one the token chose.
+DOS &51A6 REPORT_CODE
+    The error code REPORTA plants for DERR to read.
+DOS &78E2 INDJP_MB_TARGET
+    The same shape as CTAB_MB_TARGET, for the hook table: the word after
+    INDJP's CALLMB, written from HL at &78DB.
+DOS &7BF2 site CMR_CALLER_HMPR
