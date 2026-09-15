@@ -553,9 +553,10 @@ else says nothing rather than something vague. That covers 1006 branches.
 
 ## The BASIC at the end of the extension page
 
-`&7E6B`–`&7FBF` (`MBTEXT`) is not code but tokenised SAM BASIC: fragments of
-program text MasterBASIC pastes together and runs, including the profiler's
-report and its key prompts. It is written out with the keywords named:
+`&7E6B`–`&7FBF` (`MBTEXT`) is not code but tokenised SAM BASIC: lines left
+in the page from whatever program was in memory when the image was written.
+Nothing refers to them, and the boot writes the DOS's tail over all but the
+last eighteen bytes. They are written out with the keywords named:
 
 ```
 ;

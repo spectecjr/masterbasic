@@ -56,7 +56,8 @@ DOC INSTALL_SYSPAGE_CODE
 
     PAGER is the fourteen bytes the ROM's variable table reserves at
     &5BE0 "for paging S.R." -- and MasterBASIC fills them with its own
-    paging routine, which is why the relocated block calls &5BE0 twice.
+    paging routine, which is why the relocated block reaches &5BE0
+    twice, once by CALL NZ and once by JP.
     It was not calling a ROM routine at all; it was calling this.
 
     How big KTAB is, which bounds all of this: the Technical Manual says

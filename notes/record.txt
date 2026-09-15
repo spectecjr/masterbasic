@@ -360,7 +360,8 @@ MB &5E0C : STRM16NM is &5B76 in the system page -- vars.asm calls it
 MB &5E12 : eleven bytes, exchanged rather than copied, so one variable name is
            put in place and the other taken away in the same pass
 
-DOC COPY_THEN_APPEND_CALL_6
+MB &5E1F FAR_MOVE_EITHER_WAY
+DOC FAR_MOVE_EITHER_WAY
     Sixty-nine bytes assembled for &4D65 in the system page -- the block at
     &5D20 copies them there.  Subtract &10BA from any address in it.
 

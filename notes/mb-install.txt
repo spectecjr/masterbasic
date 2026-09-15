@@ -31,7 +31,7 @@ MB &7B00 INSTALL_ROM_PATCHES
 
     THE TWO COPIES THAT RUN THE OTHER WAY ARE THE ORIGINALS BEING KEPT,
     and this is now read at both ends rather than guessed.  &4F00 got
-    its 446 bytes from INSTALL_TAIL_INTO_SYSPAGE, twenty-five bytes at
+    its 446 bytes from INSTALL_TAIL_INTO_SYSPAGE, nineteen bytes at
     the DOS's own &7D60 that the boot sector calls once; SAVE BOOT's
     third block reads the same 446 bytes back out of &7DF0 and writes
     them into the file at DOS &7D60, where they started.  So the round
@@ -65,7 +65,7 @@ MB &7B00 INSTALL_ROM_PATCHES
 
     ONE MORE THING THIS ROUTINE IS.  It is called once, from &7654,
     inside the installer that runs at boot -- and after that its bytes
-    are free.  MasterBASIC uses them: nineteen of the twenty-one
+    are free.  MasterBASIC uses them: twenty of the twenty-one
     references to &7B00 in this listing are not calls but loads, and
     they treat it as a buffer.
 
@@ -110,12 +110,14 @@ MB &7B11 : &4000 here is the window offset -- CHANS is a system variable in the 
 # The middle two can be checked against listings/*/postinstall-syspage.asm,
 # which has the same bytes at the same addresses.
 
-# &7DF3 to &7E00 are inside the 446 bytes the LDIR at &7B5C overwrites.
+# &7DF3 to &7E00 are inside the 446 bytes the LDIR at &7B65 overwrites.
 # INSTALL_ROM_PATCHES copies the ROM's own INSTBUF from &8F00 down over
 # &7DF0-&7FAD, so whatever the image holds at these four addresses is
-# replaced before anything can execute it, and nothing in the image
-# patches the &0000 operands either.  They are not resolvable and are
-# not meant to be.  (The &7DFA in evidence item 3 is a different address
+# replaced in this page before anything could execute it here -- but
+# the &7BA4 block has been copied out to &484D at &7B5A by then, and the
+# CALL and JP at &7DFA and &7E00 had their operands filled by
+# RESOLVE_ROM_ENTRIES (&799D, &79A2) before that, so the copies at
+# &4AA3 and &4AA9 are whole.  (The &7DFA in evidence item 3 is a different address
 # in the same digits: that one is DOS &7DFA, where INSTALLER's copy runs
 # at &7C00 plus &1FA.)
 
@@ -140,6 +142,25 @@ MB &7B37 : &0181 is &7460 to &75E0, the whole of the block written to run at &46
 MB &7B3F : &4BA0 seen through the window
 
 MB &7B42 : &0024 is &7B80 to &7BA3
+
+# &7DF0 is the post-LOAD return stub, which runs at system &4A99 (DOS
+# &6075 says so); its only reference here, &7B5F, is the copy
+# destination, so its label was deriving from the installer.
+MB &7DF0 LOAD_RETURN_STUB
+# &7E03 is the RST28V handler, installed at &4AAC by &7B6D.
+MB &7E03 RST28V_XVAR_NVAL
+# &7177 is a data reference to where the alternate character set sits
+# after boot, not an entry into GAP_BLOCK, whose last seven bytes these
+# are in the file.
+MB &7177 expr GAP_BLOCK+&21
+MB &7177 : &7E64, where the alternate character set sits once the boot has put the DOS's tail here; the seven bytes the file has at that address are GAP_BLOCK's last, and not what this reads
+
+# The 36 bytes at &7B80 are the DOS's hook stubs, installed at &4BA0;
+# their labels were deriving from the installer above and from the
+# routine that borrows &7B81 as a buffer.
+MB &7B80 DOS_HOOK_STUBS
+MB &7B86 MCHWR_STUB
+MB &7B89 MCHRD_STUB
 
 MB &7B54 : &484D seen through the window
 
@@ -187,6 +208,7 @@ MB &7B03 : from here to &7B73 the ROM's system page is at &8000
 # The boot sector's last act, in the DOS page's tail.
 
 DOS &7D60-&7D72 code
+DOS &7D73 : in the file, this and the 96 bytes after it -- to &7DD3 -- are MasterBASIC's EDIT stub body, LD (HL),&00 : AND A : RET Z : LD A,(FLAGX) : RRA : RET C ... JP &012D, which INSTALL_TAIL_INTO_SYSPAGE carries to &4F13 and the installer on to MB &7E03, where HOOK_SETUPREGS copies it from at run time.  FIND_ROM_CODE is written over it here at boot, from &7D79, which is why the listing shows that
 
 DOS &7D60 INSTALL_TAIL_INTO_SYSPAGE
     Nineteen bytes at the end of the DOS page, &7D60-&7D72 (the six

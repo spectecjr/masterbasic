@@ -60,8 +60,9 @@ DOC RELOCATED_TO_484D
     complete by the time it runs.
 
     A third check settles the relocation itself: no label anywhere in
-    &7BA4-&7E42 is referenced from outside that range.  Every one is
-    reached only from within the block.  Nothing calls into it where it
+    &7BA4-&7E42 is called or jumped to from outside that range -- the
+    one outside reference, &7214's LD HL, is a block-copy source.
+    Every entry is reached only from within the block.  Nothing calls into it where it
     sits, so it never runs in place, and the copy is the only version
     that executes.  The helper block at &7B80 just above it is the
     opposite -- called from &5561, &5739, &691C and &6A76 -- which is how
@@ -125,9 +126,9 @@ MB &7BB9 : &5A65 takes the cursor, caught in passing rather than worked out: the
 
 MB &7BC0 : bit 5 of FLAGX, which the ROM sets while an INPUT is in progress
 
-MB &7BC5 : the store is the point.  The load below puts the same value straight back, so HL is unchanged either way and what matters is that it has been left at &4AF1 in the system page
+MB &7BC5 : the store is the point: the editor's continuation address is left at &4AF1 in the system page, where the re-entry below can find it
 
-MB &7BC8 : and this reads it back, which for HL alone changes nothing
+MB &7BC8 : and this reads it back.  On the straight path that changes nothing, but this instruction is system-page &4871, the address HOOK_MERGECOMPFLG_5 returns the hook to (&5475), and on that path the load is what restores the editor's continuation address before the CALL HLJUMP below -- a second pass through the editor
 
 MB &7BCF : &5A62 is another of the fourteen spare bytes, holding the return address across the CALL below.  The three DECs above and the three INCs at &7BD9 undo one another, so what is parked is the address less three
 

@@ -33,11 +33,31 @@ MB &7D4E : &16 is AT.  ref/samrom/tprint.asm's control-code table has "22 AT" ag
 
 MB &7D52 : &17 is TAB, 23 in the same table, and the pair is what this stub exists to catch
 
-MB &7D64 : &4A12 is this block's own &7D69 once it is running at &484D, and TBL_7D58_1 below writes it through CURCHL -- so AT points the channel at that handler.  The overlapping stream entered at &7D69 loads &4A1F instead, which is the next one along
+MB &7D64 : &4A12 is this block's own &7D69 once it is running at &484D, and SET_CHANNEL_OUTPUT_DE below writes it through CURCHL -- so AT and TAB both point the channel at the first-operand collector.  &7D69 loads &4A1F instead, the second-operand collector at &7D76
 
-# The AT handler's one special case, and the error vector's two.
+# The AT/TAB handler.  &7D57-&7D63 and &7D69-&7D6E are code the trace
+# did not reach: the channel vector points at them.  Byte for byte they
+# are the ROM's SETADCOM + SVCUROP + POCHNG and its PRERESTOP
+# (ref/samrom/tprint.asm): store the control code in TVDATA, save the
+# channel's output word in OPSTORE, and swing the channel to the
+# operand collector.
+MB &7D57-&7D63 code
+MB &7D69-&7D6E code
+MB &7D57 AT_TAB_HOOK
+    What AT and TAB reach through the channel: the control code goes to
+    TVDATA, the channel's output word to OPSTORE, and the channel is
+    pointed at AT_TAB_FIRST_OPERAND -- the ROM's SETADCOM, SVCUROP and
+    POCHNG, byte for byte.
+MB &7D69 AT_TAB_FIRST_OPERAND
+    The first operand goes to TVDATA+1 and the channel moves on to the
+    second-operand collector, as the ROM's PRERESTOP does.
+MB &7D6F SET_CHANNEL_OUTPUT_DE
+MB &7D76 AT_TAB_SECOND_OPERAND
+MB &7D69 expr TVDATA+1
+MB &7D69 : the first operand -- AT's row -- into TVDATA+1, where the ROM's own CCRP2 reads "H=1ST OPERAND"
+MB &7D6C : &4A1F is this block's own &7D76, AT_TAB_SECOND_OPERAND, once it is running at &484D
 
-MB &7D8C : twenty-three, the bottom row of the twenty-four, and the OR D under it asks for a scaled column of zero as well -- so the case being caught is AT 23,0, and only on the lower screen, DEVICE 1, with bit 7 of TVFLAG set.  &4A18 below is TBL_7D58_1 at &7D6F seen in the installed frame, so what happens next is the DE just read from OPSTORE going back through CURCHL: the hook takes itself off the channel before the two characters below go out
+MB &7D8C : &17 is TAB's control code, which &7D57 stored in TVDATA -- AT's row went to TVDATA+1, so zero here means the code was TAB, never AT -- and the OR D under it adds "second operand, times the width, is zero".  That, on the lower screen, DEVICE 1, with bit 7 of TVFLAG set, is the case caught.  &4A18 below is SET_CHANNEL_OUTPUT_DE at &7D6F seen in the installed frame, so what happens next is the DE just read from OPSTORE going back through CURCHL: the hook takes itself off the channel before the two characters below go out
 
 MB &7D9E : a space
 
@@ -66,8 +86,8 @@ MB &7D00 PATOUT_CHAR_OUT
 
     IT IS NOT A ROUTINE HEAD AND THE LABEL HERE ONCE SAID IT WAS.  The
     only reference to &7D00 in the image is LD DE,&7D00 at &7B78, which
-    is a destination and not a call, so the label read
-    INSTALL_ROM_PATCHES_3 and the blocks after it were parented to
+    is a destination and not a call, so the label was derived from
+    INSTALL_ROM_PATCHES and the blocks after it were parented to
     whatever underived label came before -- CALLBACK_HCMDV once, and
     CALLBACK_RCPTCH after the stubs were renamed.  Both were wrong.
 
@@ -99,7 +119,7 @@ MB &7CAB : hook 155, HOOK_CSIZE at &6534: the manual's "Improved CSIZE", which r
 
 MB &7CAF : hook 156, HOOK_SWAPCHARS at &7159: BLOCKS 0, 1 or 2, which picks the character set to swap in -- 1 being the one that changes nothing
 
-MB &7CB3 : hook 183, HOOK_COMADENT at &6F3E: finds an entry through COMAD.  There is no RET after it -- EDIT raises this hook and then falls into the one below
+MB &7CB3 : hook 183, HOOK_COMADENT at &6F3E: EDIT.  There is no RET after it because the hook replaces its own return address with the ROM's INPUT entry, COMAD+&6C, on both passes; what follows is DELETE's stub, reached only by the JR at &7C7C
 
 MB &7CB5 : hook 178, DELETE for strings and string arrays.  The LD A below leaves &CD in A, which is DELETE's own token
 MB &7CB7 expr T_DELETE
@@ -111,7 +131,14 @@ MB &7DCF expr CH_CR
 MB &7DD3 expr CH_COLON
 MB &7DD3 : a colon or a carriage return, whichever comes first, is where a statement ends -- so this reads forward to it and &7DD7 hands the count back
 
-MB &7CBB : hook 174, HOOK_RCPTCH at &51DD -- the slot MasterDOS calls RCPTCH and MasterBASIC replaces.  RUN and CLEAR both come here, and what follows waits for the raster before switching screens
+MB &7CBB : hook 174, HOOK_RCPTCH at &51DD -- the slot MasterDOS calls RCPTCH and MasterBASIC replaces.  RUN and CLEAR both come here, and neither comes back: HOOK_RCPTCH_5 writes its own return address over the RST's.  What follows is a separate entry, the split-display interrupt handler
+
+MB &7CBD SPLIT_DISPLAY_INT
+    The line-interrupt entry ALTER DISPLAY points ANYIV at -- &4966 in
+    the system page, which is &7CBD here, and the number CMD_ALTER
+    writes at &552A.  Entered from the ROM's &0038 with C the STATUS
+    byte and B the LMPR it read; nothing falls into it from the stub
+    above.
 
 MB &7C95 INTERCEPT_SOUND_CLEAR
     SOUND is worth intercepting only when CLEAR follows it, which is the

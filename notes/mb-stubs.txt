@@ -8,10 +8,11 @@ DOC PRTOKV_STUB
     What PRTOKV points at, installed at &4BB0.
 
     A token below &F7 is the ROM's own and gets RET C, so the ROM prints
-    it.  Anything above is MasterBASIC's: the return address is dropped,
+    it.  Anything from &F7 up is the DOS's (BACKUP, TIME, DATE) or
+    MasterBASIC's, and goes the same way: the return address is dropped,
     XPTR is picked up, and hook &A9 raised, which reaches HPRTOK.
 
-MB &7B90 : &F7 is that dividing line -- the first token MasterBASIC prints for itself, everything below it being the ROM's
+MB &7B90 : &F7 is that dividing line -- the first token the ROM does not print for itself; from here up they are the DOS's and MasterBASIC's and go to HPRTOK
 
 DOC EVALUV_STUB
     What EVALUV points at, installed at &4BBA.

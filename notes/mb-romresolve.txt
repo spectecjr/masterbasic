@@ -6,7 +6,7 @@ DOC RESOLVE_ROM_ENTRIES
     Find twenty ROM entry points by signature and patch them into the
     code that calls them.
 
-    Called from &75EF and &798D.  Each step is a call to FIND_ROM_CODE
+    Called once, from &75EF.  Each step is a call to FIND_ROM_CODE
     with six inline bytes -- three opcodes to look for, where to start
     looking, and a signed step -- followed by an LD (nn),HL that drops
     the answer into a patch site.  MasterBASIC therefore contains almost
@@ -23,7 +23,10 @@ DOC RESOLVE_ROM_ENTRIES
 
     Two of the destinations matter more than the rest.  &7DFB and &7E01
     are inside the block at &7BA4 that gets copied into the system page,
-    and they are the operand bytes of the JP &0000 instructions in it.
+    and they are the operand bytes of the CALL &0000 at &7DFA and the
+    JP &0000 at &7E00 in it: the search lands on ROM &1063, so &1066 is
+    the operand of the ROM's own CALL STMTNEXT at &1065 -- &0E01 -- and
+    three on is &1069, past the POP HL the stub does for itself.
     So the stub's empty jumps are not patched at run time by something
     unknown: they are filled in here, before the block is copied out.
     That is the whole of what was left open about those operands.
@@ -38,11 +41,11 @@ DOC RESOLVE_ROM_ENTRIES
     routine: they are entries 106 and 97 of the ROM's key table, being
     given the codes for word-left and word-right.
 
-MB &799D : two of these results fill the JP &0000 operands in the stub
+MB &799D : two of these results fill the CALL &0000 and JP &0000 operands in the stub
 
-MB &79A2 : and &7E01 is the second of them, the operand of the JP at &7E00.  Both are inside the 446 bytes the LDIR at &7B5C writes over, so neither is ever executed -- see notes/mb-install.txt
+MB &79A2 : and &7E01 is the second of them, the operand of the JP at &7E00.  Both are inside the &7DF0-&7FAD the LDIR at &7B65 later overwrites, but the &7BA4 block has already gone out to &484D by then, at &7B5A, so the patched CALL and JP live on at &4AA3 and &4AA9 in the system page
 
-MB &79C7 : eighteen, the length of the auto-list loop the rescue has to recognise.  &59C0's note has the other end of it: C is AULLP's low byte and B that plus this, and the two compares there ask whether the interrupt caught the ROM inside those eighteen bytes
+MB &79C7 : eighteen, the first eighteen bytes of the ROM's auto-list loop -- AULLP is 26 bytes to its JR back, and the window stops at its ADD HL,BC, before the PUSH AF -- which is what the rescue has to recognise.  &59C0's note has the other end of it: C is AULLP's low byte and B that plus this, and the two compares there ask whether the interrupt caught the ROM inside those eighteen bytes
 
 MB &79CA : and &59C1 is where the pair goes -- the operand of the LD BC,&0000 at &59C0, which is the one instruction in the rescue that cannot be assembled because AULLP moves with the ROM version
 MB &7AA6 : 24, which the manual gives as the code in "KEY 36+70,24" -- and the INC A below makes the 25 of "KEY 27+70,25"

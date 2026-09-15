@@ -24230,7 +24230,13 @@ INSTALL_TAIL_INTO_SYSPAGE:
                LD C,&A1                              ; 7D6E 0E A1
                LDIR                                  ; 7D70 ED B0
                RET                                   ; 7D72 C9
-               DEFB &36,&00,&A7,&C8,&3A,&71          ; 7D73 6.'H:q
+               DEFB &36,&00,&A7,&C8,&3A,&71          ; 7D73 6.'H:q  in the file, this and the 96 bytes after it -- to
+                                                     ; &7DD3 -- are MasterBASIC's EDIT stub body, LD (HL),&00 : AND A :
+                                                     ; RET Z : LD A,(FLAGX) : RRA : RET C ... JP &012D, which
+                                                     ; INSTALL_TAIL_INTO_SYSPAGE carries to &4F13 and the installer on
+                                                     ; to MB &7E03, where HOOK_SETUPREGS copies it from at run time.
+                                                     ; FIND_ROM_CODE is written over it here at boot, from &7D79, which
+                                                     ; is why the listing shows that
 
 ;; --------------------------------------------------------------------
 ;; Find a three-byte instruction sequence in the ROM and hand back a

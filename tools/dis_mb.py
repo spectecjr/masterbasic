@@ -332,6 +332,19 @@ class Page(Disassembler):
         # saves a label whose only reference is the line it sits on.
         if SELF_LOOP[0] and rel and v == self._cur:
             return '$'
+        # A relative branch out of a relocated block does not land where
+        # the displacement says in this page: the block runs at its
+        # installed address, and the branch lands that far past the
+        # block's copy there.  &798D's JR NZ,+1 runs at &45AD and lands
+        # on &45B0; followed here it made &7990 a "caller" of
+        # RESOLVE_ROM_ENTRIES, and the routine's header repeated it.
+        # Written as a displacement it assembles to the same bytes and
+        # names nothing.
+        if rel and self._cur is not None:
+            for lo, hi, dest in self.relocated:
+                if lo <= self._cur < hi and not lo <= v < hi:
+                    off = v - self._cur
+                    return '$%+d' % off
         # A JR or DJNZ target is not an address the routine names: it is
         # this code, wherever this code happens to be paged.  Everything
         # else -- JP, CALL, LD -- names a location, and in an inverted
@@ -822,9 +835,12 @@ NOTES['keywords'] = '\n'.join((
 
 NOTES['tail'] = '\n'.join((
     ';; ------------------------------------------------------------------',
-    ';; Tokenised SAM BASIC.  The end of the page holds fragments of BASIC',
-    ';; source that MasterBASIC pastes into a program -- the profiler report',
-    ';; ("TOTAL FRAMES", "MEMORY USED") and its key prompts among them.',
+    ';; Tokenised SAM BASIC, left in the page.  Nothing in either half',
+    ';; refers to it, and all but the last eighteen bytes are written over',
+    ';; at boot by the copy of the DOS tail; the lines -- PRINT "TOTAL',
+    ';; FRAMES", "MEMORY USED", key prompts, DEF PROC moveinf -- are what',
+    ';; was in memory when the image was written, from a program that has',
+    ';; not been identified.',
     ';;',
     ';; Each fragment is a run of program lines: two bytes of line number,',
     ';; high byte first -- the one word in either listing that is not',

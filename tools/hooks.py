@@ -264,10 +264,17 @@ page, and &4D50 there is CDBUFF+&50 -- the buffer the ROM's variable
 table describes as being for e.g. MULTI-LDI, max length &181.
 
 What it copies is code.  The four bytes at V7221 are &21 &60 &5A &7E,
-which is LD HL,&5A60 followed by LD A,(HL), and the &61 bytes at
-HOOK_SETUPREGS_1 (&7E03) are appended straight after them.  So a routine is assembled
+which is LD HL,&5A60 followed by LD A,(HL), and the &61 bytes at &7E03
+are appended straight after them.  Those are not the RST28V stub this
+listing shows at &7E03: the boot copies that block out to &484D and
+then writes the DOS's tail over &7DF0-&7FAD, so at run time &7E03
+holds the DOS file's &7D73-&7DD3 -- LD (HL),&00 : AND A : RET Z : LD
+A,(FLAGX) : RRA : RET C, then the work, ending JP &012D -- which is
+the body this hook exists to plant.  So a routine is assembled
 head-first in the buffer, and &4D50 -- its address -- is then handed to
-STORE_BC_AT_XVAR76, which writes it through the pointer in V4076.  The
+STORE_BC_AT_XVAR76, which writes it through the pointer in V4076; the
+word it stores is the ROM's return address, so the assembled routine
+runs when the hook returns.  The
 routine at &735D builds into the same buffer at &4D11, far enough
 along to overlap this one, so the two are alternative uses of it
 rather than both being live at once.

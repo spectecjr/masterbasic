@@ -224,7 +224,7 @@ by a second reader, in the order they are worth doing:
 | `&51D6-&5C00` -- three cuts, done 2026-09-14: 37 findings on 1481 own lines, all confirmed, 21 of them `[C]`; two operands had been read as this page's labels when they were the DOS's DRPT-1 and the system page's HKC_LPRINT_BYTE stub, the routine labelled as a far-memory scan hook was BLITZ SOUND's body, and the ALTER argument comments had the calculator stack's order backwards.  All three reviewers stalled at the 600-second watchdog and were resumed; the template now tells them to read a routine at a time | | |
 | `&42B1-&4500` -- done 2026-09-14: 7 findings on 248 own lines, all confirmed; the shared CMR banner had both halves "paging the ROM back in" when they put the system page in section B, and CHAR_MUST_BE_C's "not stepped past" was the opposite of the fall-through | | |
 | `&6DF6-&7700` -- three cuts, done 2026-09-14: 26 findings on 1144 own lines, 25 confirmed and one judgement call (HOOK_SETUPREGS's name) left; DELETE's paging comment was inverted, hook 183 is EDIT handing the line to INPUT, the two borrows in the string mover were described as one, and the DOS's equate calling `&30` a screen page was MasterBASIC's own page mark, `MB_PAGE_MARK` now | | |
-| `&7900-&7FC0` | RESOLVE_ROM_ENTRIES, INSTALL_SYSPAGE_CODE, MB_PAGER, the stubs and callbacks, the installed blocks | the copy rules are checked against the dump; the callbacks are not |
+| `&7900-&7FC0` -- two cuts, done 2026-09-14: 22 findings on 826 own lines, all confirmed.  `&7D57` was a "table" that is the ROM's AT/TAB channel hook byte for byte; a JR leaving a relocated block had manufactured a caller (the generator now writes those as `$+n`, which also undid three fictional labels in CMD_PAUSE's interleaved blocks); and the 97 bytes HOOK_SETUPREGS copies from `&7E03` at run time are the DOS file's `&7D73-&7DD3`, EDIT's stub body, which the DOS listing shows as DEFBs -- see phase 4 | | |
 | `&41C5-&42B1`, `&6594-&66AE` | the two proposal-only regions | proposals were applied without a review pass |
 
 Aim for 800-1200 lines a cut, and cut by routine (phase 0.2).  A reviewer
@@ -243,6 +243,19 @@ against rather than a claim itself.
 ## Phase 4 -- the countable backlog
 
 Bounded jobs, good between rounds or when a round is out for review:
+
+- **EDIT's stub body.**  The DOS file's `&7D73-&7DD3` (97 bytes, `LD
+  (HL),&00 : AND A : RET Z : LD A,(FLAGX) : RRA : RET C ... JP &012D`)
+  is the routine HOOK_SETUPREGS assembles behind `LD HL,&5A60 : LD
+  A,(HL)` at run time -- it travels DOS `&7D60` -> system `&4F00` ->
+  MB `&7DF0` at boot and is read from MB `&7E03` -- and the DOS listing
+  renders it as DEFBs under FIND_ROM_CODE's header, because the boot
+  writes FIND_ROM_CODE over it from `&7D79`.  Decoding it collides with
+  the boot-time entry label at `&7D79`, which lands mid-instruction; the
+  bytes are decoded in `notes/mb-install.txt`'s comment on DOS `&7D73`
+  and want a reading and a home.  With it, whether HOOK_SETUPREGS should
+  be renamed for the return stub it builds (a reviewer's judgement call,
+  left open 2026-09-14).
 
 - `described N of 2372 labelled addresses` in `build.log` (626 on
   2026-09-13; eleven of the earlier figure were wrapped-comment
