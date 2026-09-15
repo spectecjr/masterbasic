@@ -381,14 +381,14 @@ MODE 4 screen in the screen's own second page, and handed to the DOS in
 `PICK_COMPRESSION_CONSTANTS` at `MB &63C5` turns the mode byte into three
 numbers, and the bitmap size is the one that matters for the format:
 
-| Mode byte | Screen | Bitmap | `V407A` | Tail, with the bitmap at `&8000` |
+| Mode byte | Screen | Bitmap | `EXPAND_LINE_COUNT` | Tail, with the bitmap at `&8000` |
 |---|---|---|---|---|
 | 0 | MODE 1 | `&1B00` | `&33` | `&9B00` |
 | 1 | MODE 2 | `&3800` | `&6D` | `&B800` |
 | 2 or 3 | MODE 3 or 4 | `&6000` | `&BD` | `&E000` |
 
 The bitmap is treated as **rows of 128 bytes** whatever the mode — 54, 112
-or 192 of them — and `V407A` is three less than the row count, which is how
+or 192 of them — and `EXPAND_LINE_COUNT` is three less than the row count, which is how
 `NEXT_SOURCE_NIBBLE_3` tests for the end. Each byte is two nibbles, high first.
 
 `NEXT_SOURCE_NIBBLE` at `MB &627E` defines the order the nibbles are coded in,
@@ -486,8 +486,8 @@ loop:
 ```
 
 The walk stopping is the only end condition: `NEXT_SCREEN_NIBBLE_4` at
-`MB &635D` resets `SP` from `V4078` and returns straight out of the expander
-when the walk would enter row `V407A + 3`, the row after the last, wherever
+`MB &635D` resets `SP` from `EXPAND_SAVED_SP` and returns straight out of the expander
+when the walk would enter row `EXPAND_LINE_COUNT + 3`, the row after the last, wherever
 the stream stands. Then
 the tail: `FETCH_SOURCE_BYTE` skips every `&FF` it finds, copies from the
 first other byte to the address after the bitmap, and stops after it has

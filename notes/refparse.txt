@@ -418,7 +418,7 @@ DOC SEND_COUNTED_TO_CHANNEL_1
     HMPR to MasterBASIC's page, so this code is executing at &99A3 and
     its own variables are at &8xxx, while the ROM's system page is at
     &4000 where the interrupt left it.  That is why SPSTORE and TVFLAG
-    are read as plain addresses and V4085 is read as &8085.
+    are read as plain addresses and PRINT_READ_PAGE is read as &8085.
 
     Three unrelated jobs in a row: a keyboard escape, a rescue for the
     ROM's automatic listing, and the screen-blank countdown and printer

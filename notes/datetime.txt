@@ -36,7 +36,7 @@ DOC CMD_DATE
 
     DATE AND TIME ARE ONE ROUTINE with two entry points, and all that
     separates them is which of MasterDOS's two buffers gets stored in
-    V4096: &4271, DATDT, "dd/mm/yy" with a CR and six limit bytes after
+    CLOCK_BUFFER_POINTER: &4271, DATDT, "dd/mm/yy" with a CR and six limit bytes after
     it, or &4280, TIMDT, "hh:mm:ss" in the same shape.  Everything from
     &4918 down works through that pointer and never has to know which
     command it is serving.
@@ -85,11 +85,11 @@ DOC CMD_TIME_1
 
     THE MODE BIT GOES OUT FIRST and the bookkeeping follows.  &F0EF is
     the clock at register 15, control F; bit 3 of it is the test bit,
-    which lets the counter chain run 5416.3 times too fast.  V4075 then
+    which lets the counter chain run 5416.3 times too fast.  FAST_MODE_FLAG then
     remembers the same value, and TICS reads it at &4ABD to decide
     whether to divide its answer down.
 
-    THE OLD VALUE OF V4075, NOT THE NEW ONE, CHOOSES THE PATH.  Equal
+    THE OLD VALUE OF FAST_MODE_FLAG, NOT THE NEW ONE, CHOOSES THE PATH.  Equal
     means the mode is already in the state asked for and there is
     nothing to correct.  Zero means it is being switched on, so the
     saved copy is filled with the value the clock is about to be set to.

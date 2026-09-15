@@ -274,7 +274,7 @@ MB &5230 : two bytes more, unless the byte below is taken as well and the DEC C 
 MB &523A : three added to the byte just read, which is the operand being fixed up rather than copied
 
 MB &522B : system-page &5000 seen through the window -- HMPR is still zero from &520A -- and not the DOS page
-MB &5245 : the four bytes at V5272, a CALL and a JP with the JP's operand still to come
+MB &5245 : the four bytes at RCPTCH_PATCH_BYTES, a CALL and a JP with the JP's operand still to come
 
 MB &524B : three on, to the operand of that JP
 
@@ -329,7 +329,7 @@ DOC HOOK_TOKENARG
 
     AND WHY IT WALKS AT ALL IS THE DESTINATION.  Each path ends by
     putting an address in BC, and HOOK_RCPTCH_5 writes BC over the return
-    address on the stack CALLDOS saved in V4076, so the ROM resumes there.
+    address on the stack CALLDOS saved in HOOK_ROM_SP, so the ROM resumes there.
     Two of the three are ROM addresses the boot searches out, and the
     build resolves both against ref/samrom:
 

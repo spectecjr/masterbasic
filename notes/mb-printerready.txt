@@ -118,4 +118,4 @@ MB &55BE : SENDA for output and the SERRECV stub for input -- channel B's two ve
 MB &55C2 : and the pair for LPRINT MODE 2: serial output through the SERSEND stub, and the same serial input.  The two tables differ only in the output word
 
 MB &55C6 CMD_LPRINT_CLEAR
-MB &55EA : &4AE9, the HKC_LPRINT_BYTE stub in the system page -- &7E40 once the &7BA4 block runs at &484D, the same number IS_CHANNEL_OURS tests at &5635 -- chosen when the size is not zero; a zero size puts back the vector saved in V4066.  Not an address in this page, though MULTIPLY_BY_60 has an instruction at it
+MB &55EA : &4AE9, the HKC_LPRINT_BYTE stub in the system page -- &7E40 once the &7BA4 block runs at &484D, the same number IS_CHANNEL_OURS tests at &5635 -- chosen when the size is not zero; a zero size puts back the vector saved in SAVED_LPRINT_OUTPUT.  Not an address in this page, though MULTIPLY_BY_60 has an instruction at it

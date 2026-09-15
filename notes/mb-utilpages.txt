@@ -34,6 +34,6 @@ DOC FREE_PAGE_IF_SLOTS_CLEAR
 # "LPRINT CLEAR 0 has the special function of turning off
 # interrupt-driven printing and freeing the buffer space for other
 # uses".  FREE_SLOT_CHAIN is reached from &5596, straight after the call
-# that loads the print buffer's pointers into V4088 and V4089.  And
+# that loads the print buffer's pointers into PRINT_WRITE_PAGE and PRINT_WRITE_ADDR.  And
 # both LPRINT CLEAR and RECORD SOUND are documented as allocating "in 1K
 # units", rounded up, which is the slot.

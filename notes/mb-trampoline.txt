@@ -25,7 +25,7 @@ MB &5D12 : &C3 is JP
 MB &5D15 : its operand -- this half's own &5D20, seen from a page where this half is at &8000
 
 MB &5D1B expr SYS_CDBUFF_50
-MB &5D1B : the address of what has just been built, which RESTORE_HMPR_AND_STORE writes through V4076 so that whoever needs the trampoline can find it
+MB &5D1B : the address of what has just been built, which RESTORE_HMPR_AND_STORE writes through HOOK_ROM_SP so that whoever needs the trampoline can find it
 
 MB &5D2B : &45 is the sixty-nine bytes of the far-move helper
 
@@ -66,7 +66,7 @@ DOC BUILD_PAGE_IN_TRAMPOLINE
 
     Finally LD BC,&4D50 and a fall into RESTORE_HMPR_AND_STORE, which
     puts HMPR back and writes &4D50 -- the address of what was just
-    built -- through the pointer in V4076, so whoever needs the
+    built -- through the pointer in HOOK_ROM_SP, so whoever needs the
     trampoline can find it.
 
     That is the third builder into CDBUFF, after &735D at +&11 and hook

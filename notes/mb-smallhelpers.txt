@@ -77,8 +77,8 @@ MB &459C SET_DCT_COMPILE_BITS
 
 MB &4717 SAVE_FAR_POINTER
     Normalise HL through the rotating window -- BIT 6,H and INCURPAGE,
-    the ROM's own step-the-page routine -- and keep the result in V409A
-    with the page it belongs to in V409C.
+    the ROM's own step-the-page routine -- and keep the result in SORT_BEST_ADDR
+    with the page it belongs to in SORT_BEST_PAGE.
 
 MB &4725 COMPARE_FAR_STRINGS
     Compare against the pointer SAVE_FAR_POINTER left, byte for byte,
@@ -368,7 +368,7 @@ MB &5CA0 SILENCE_SOUND_CHIP
     "clear the buffer" -- CMD_SOUND calls it from &5C80.
 
 MB &560D COPY_BUFFER_POINTER
-    Copy the page and address at V4085 with interrupts off, so that the
+    Copy the page and address at PRINT_READ_PAGE with interrupts off, so that the
     pair cannot be caught half updated by the interrupt that consumes
     them.  Called from both LPRINT MODE, after INIT_SERIAL_FROM_TABLE,
     and LPRINT CLEAR n, which runs no SERINIT at all.
@@ -470,7 +470,7 @@ MB &4B5B INARRAY_START_ELEMENT
 MB &4BBE INARRAY_SEARCH_LOOP
 
 MB &5778 PARSE_REFERENCE_INTO_BUFFER
-    Keep D as the kind flag in V4094, point HL at the buffer at &7B00,
+    Keep D as the kind flag in REF_COMMAND_KIND, point HL at the buffer at &7B00,
     and fall into the entry below.
 
 MB &577F PARSE_REFERENCE_SAVING_PAGE
@@ -503,7 +503,7 @@ MB &4D33 PARSE_STRING_AND_OPTIONAL_ABS
     The tail of LOCN's and INARRAY's argument lists: a string
     expression, then -- only if a comma follows it -- the two bytes of
     ABS, &FF and its function code &5B, and then the closing bracket.
-    V4061 keeps whether the comma was there.
+    LOCN_SEARCH_KIND keeps whether the comma was there.
 
 MB &42CC : zero into LMPR, through H because OUT (C),r has no immediate form and H is the register free here.  Zero leaves ROM 0 in at &0000 with page 0 behind it
 MB &426B expr CH_ZERO
@@ -532,7 +532,7 @@ MB &561B INSTALL_CHANNEL_HANDLER
     at &5625 -- into channel B's output word, &19 bytes into the ROM's
     channel table, which is how MasterBASIC puts itself in a channel's
     place.  The one caller, &55FB, passes the HKC_LPRINT_BYTE stub or the
-    vector saved in V4066.
+    vector saved in SAVED_LPRINT_OUTPUT.
 
 MB &5621 : &19 into CHANS, the same word IS_CHANNEL_OURS reads back at &562E and INIT_SERIAL_FROM_TABLE writes at &55B0
 
@@ -542,7 +542,7 @@ MB &5629 IS_CHANNEL_OURS
     half -- so the test is whether channel B's output is already the
     HKC_LPRINT_BYTE stub that LPRINT CLEAR installs; the boot never writes
     it, only &55EA and INSTALL_CHANNEL_HANDLER do.  If it is not, the
-    vector that is there is saved in V4066 for LPRINT CLEAR 0 to put
+    vector that is there is saved in SAVED_LPRINT_OUTPUT for LPRINT CLEAR 0 to put
     back.
 
 MB &562E : &19 into CHANS, the word this half hung its own routine on
@@ -550,7 +550,7 @@ MB &5635 : and &4AE9 is what it should be pointing at -- MB &7E40 once the &7BA4
 
 MB &4A0D READ_CLOCK_FIELDS
     Three two-digit fields out of the DOS's buffer.  The other half is
-    paged in, the pointer at V4096 is windowed with SET 7,D and RES 6,D,
+    paged in, the pointer at CLOCK_BUFFER_POINTER is windowed with SET 7,D and RES 6,D,
     and TWO_DIGITS_FROM_DE reads each field from DE, stepping over the
     separator between them.  Nine bytes on -- past eight characters and
     the CR -- is the table of limits, which the loop reads through HL to

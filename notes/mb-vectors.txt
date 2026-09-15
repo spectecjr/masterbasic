@@ -179,7 +179,7 @@ MB &77C3 : eighteen -- the length of the text below, which the banner
 # ANSWERED: CALL &50D7 at &7275 and &7279 is a call inside the block
 # itself, once it has been moved.
 #
-# The two calls carried the label V50D7, this page's &A0 sentinel, and
+# The two calls carried the label SPACE_WORD, this page's &A0 sentinel, and
 # calling that would run AND B and fall into the keyword text.  The
 # label was wrong, and so was the assumption behind looking for the
 # target anywhere else: the code doing the calling is not run here.

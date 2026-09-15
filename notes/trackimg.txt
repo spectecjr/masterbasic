@@ -192,7 +192,7 @@ MB &5464 : copy the entry out, one byte at a time because BC is not a count any 
 
 MB &546E : KCUR is where the ROM will put the cursor, so it lands at the end of the recalled line, ready to edit or to RETURN
 
-MB &5475 : &4871 is NOT this page -- that address here is inside the CALL at &4870.  It is &7BC8 seen at its installed address, six instructions into the EDITV wrapper at &7BBD, just past where it saved the ROM's return address.  Writing it through the pointer in V4076 makes the hook return into the editor for another go instead of handing the line back to BASIC
+MB &5475 : &4871 is NOT this page -- that address here is inside the CALL at &4870.  It is &7BC8 seen at its installed address, six instructions into the EDITV wrapper at &7BBD, just past where it saved the ROM's return address.  Writing it through the pointer in HOOK_ROM_SP makes the hook return into the editor for another go instead of handing the line back to BASIC
 
 DOC HOOK_MERGECOMPFLG_6
     File the line just finished in the recall buffer.  Reached when
@@ -210,7 +210,7 @@ DOC HOOK_MERGECOMPFLG_6
     line-storage buffer and come back to where you were".
 
     From &5493 on it does something further, and it is the two-gate test
-    that lets REF resume.  The byte at V407D, which SCAN_TEXT_PAGED set
+    that lets REF resume.  The byte at REF_RETURN_COUNT, which SCAN_TEXT_PAGED set
     to 2, is counted down by the DEC (HL) at &5499 -- so the first line
     entry leaves 1 and the second reaches 0 -- and reaching zero is
     necessary but not enough.  &549B then does LD A,(BC) : CP CH_CR :

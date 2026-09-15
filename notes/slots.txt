@@ -404,7 +404,7 @@ DOC NEXT_SOURCE_NIBBLE
     (n,x+1)... which pairs each pixel with the one under it and makes
     runs out of vertical features that a left-to-right scan would break
     up.  L rolling to 0 finishes a pair of lines and is the only place
-    the limit in V407A is tested.
+    the limit in EXPAND_LINE_COUNT is tested.
 
 # The screen expander's entry, called from the DOS -- HOOK_HLOAD_1's
 # CALLMB / DEFW &62A6 -- with A the mode byte, H the compressed length's
@@ -414,7 +414,7 @@ MB &62A6 EXPAND_SCREEN_FILE
     Expand a compressed SCREEN$ on its way in from disk: the pair of
     COMPRESS_SCREEN_FILE.  A = the mode byte, H = the compressed length's
     page and DE its offset, which PAGED_TO_LONG turns into the count
-    V407B holds; PICK_COMPRESSION_CONSTANTS gives the sizes, the nibble
+    EXPAND_INPUT_POINTER holds; PICK_COMPRESSION_CONSTANTS gives the sizes, the nibble
     decoder EXPAND_COMPRESSED_FILE rebuilds the bitmap, and the loops
     after it skip the closing &FFs and copy the file's tail to the byte
     after the bitmap.
@@ -423,13 +423,13 @@ MB &627E : an odd line steps back up and one pixel along; an even one steps down
 
 MB &6289 : SCF before the two rotates halves the pixel number into an address and forces bit 15, since the screen sits at &8000 upwards; the bit that falls out of L says which half of the byte
 
-MB &629D : three short of the number of lines, because CP H : JR NC lets H equal it and &6287 starts one more pair, so the walk ends at V407A+2.  That is V407A+3 lines, which is what the totals need: &33, &6D and &BD reach exactly &1B00, &3800 and &6000 bytes -- a MODE 1, a MODE 2 and a MODE 3 or 4 screen
+MB &629D : three short of the number of lines, because CP H : JR NC lets H equal it and &6287 starts one more pair, so the walk ends at EXPAND_LINE_COUNT+2.  That is EXPAND_LINE_COUNT+3 lines, which is what the totals need: &33, &6D and &BD reach exactly &1B00, &3800 and &6000 bytes -- a MODE 1, a MODE 2 and a MODE 3 or 4 screen
 
 MB &62A4 : H = &FF is how the walk says it has finished, which is the test ENCODE_SCREEN makes
 
 MB &6351 : the expander tests one line further on than the encoder does, because it has already stepped H
 
-MB &63C6 : H is not a register the caller wants -- it is on its way to V407A
+MB &63C6 : H is not a register the caller wants -- it is on its way to EXPAND_LINE_COUNT
 
 MB &63CB : &9B00 is the end of a MODE 1 screen in the window, &8000 + &1B00.  It is not CEXTAB, whose &5B00 is a system page variable
 

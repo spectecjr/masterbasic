@@ -1,0 +1,82 @@
+# MasterBASIC's own variables at &4061-&40AD, named where one routine
+# or one mechanism owns the byte.  The words several commands share as
+# scratch -- V409E, V40A0-V40AD, V4098 -- keep their addresses as
+# names: SORT, LOCN, INARRAY, JOIN TO, DUMP and the compressor each put
+# something different in them, and a name from any one of those would
+# lie for the others.
+
+MB &4061 LOCN_SEARCH_KIND
+    Zero when LOCN's or INARRAY's argument list carried the ABS, which
+    PARSE_STRING_AND_OPTIONAL_ABS records and SEARCH_MEMORY reads to
+    choose between its two searches.
+MB &4064 OWN_PAGE_NUMBER
+    This half's page number, written once by the installer at &764B.
+MB &4066 SAVED_LPRINT_OUTPUT
+    The channel's own output word, put aside by IS_CHANNEL_OURS when
+    the channel is not pointed at this half's routine and restored by
+    LPRINT CLEAR.  &0181, SENDA, as shipped.
+MB &4074 CHARSET_IN_PLACE
+    Which character set HOOK_SWAPCHARS last swapped in.
+MB &4075 FAST_MODE_FLAG
+    Non-zero exactly while TIME's fast mode runs, which TICS reads.
+MB &4076 HOOK_ROM_SP
+    The ROM's stack pointer as the DOS's CALLMB loaded it into IY on
+    the way into a hook, kept by CALLDOS; STORE_BC_AT_XVAR76 writes the
+    hook's return address through it.
+MB &4078 EXPAND_SAVED_SP
+MB &407A EXPAND_LINE_COUNT
+MB &407B EXPAND_INPUT_POINTER
+MB &407D REF_RETURN_COUNT
+    REF's two-RETURN countdown: two when a match has just been shown.
+
+# The interrupt-fed buffers: a page byte and an address for each end.
+MB &407E SOUND_READ_PAGE
+MB &407F SOUND_READ_ADDR
+MB &4081 SOUND_WRITE_PAGE
+MB &4082 SOUND_WRITE_ADDR
+MB &4084 SOUND_PLAYER_STATE
+    0 idle, 1 take data on the next interrupt, as WINDOW_SOUND_POINTER
+    and SILENCE_SOUND_CHIP set it.
+MB &4085 PRINT_READ_PAGE
+MB &4086 PRINT_READ_ADDR
+MB &4088 PRINT_WRITE_PAGE
+MB &4089 PRINT_WRITE_ADDR
+
+MB &408B REF_CASE_PAIR
+    D and E, the two case forms of the reference's first character,
+    kept across the editor so RETURN can resume the scan.
+MB &4094 REF_COMMAND_KIND
+    &80 for ALTER, &01 for REF, &00 for PRINT REF.
+MB &4095 TEST_RUNNING_KEEP_A
+    Where TEST_RUNNING parks A across its read of the ROM's flag.
+MB &4096 CLOCK_BUFFER_POINTER
+    The buffer DATE or TIME is working in.
+
+MB &4099 SORT_ELEMENT_PAGE
+MB &409A SORT_BEST_ADDR
+MB &409C SORT_BEST_PAGE
+MB &409D SORT_KEY_LENGTH
+
+# The clock's text: the date template, then the three fields of the
+# time, contiguous.
+MB &4120 DATE_TEXT
+MB &412F TIME_TEXT_HOURS
+MB &4132 TIME_TEXT_MINUTES
+MB &4135 TIME_TEXT_SECONDS
+
+MB &41C0 SVAL_NUMBER
+    The five bytes of SVAL$'s number, built downwards from the top.
+
+MB &505C OPEN_FILES_TEXT
+MB &50D7 SPACE_WORD
+MB &5272 RCPTCH_PATCH_BYTES
+    The four bytes HOOK_RCPTCH copies over the ROM's CALL: CALL &4D14
+    and a JP.
+MB &5DBF PAUSE_STUB_BYTES
+MB &6E5F RECLAIM2_WORD
+    The inline word of the CMR two instructions above, written from DE
+    just before it: one past the ROM's own XOR A in RECLAIM2.
+MB &6F22 UNWIND_CALL_WORD
+    The inline word of the CMR below it, written from BC: the ROM
+    routine SPLIT_UNWIND_ROM_STACK found on the stack is called as one.
+MB &7221 EDIT_INSERT_HEAD

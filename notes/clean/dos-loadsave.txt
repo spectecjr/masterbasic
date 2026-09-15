@@ -36,7 +36,7 @@ DOC HOOK_HSAVE
     entry offset 229 is ROM header offset 24, and nothing writes
     DIFA+24 because the write goes through the entry in DCHAN.
     HOOK_HLOAD_1 reads the three bytes back from STR-11, and
-    MasterBASIC's &62A6 turns them back into a byte count in V407B,
+    MasterBASIC's &62A6 turns them back into a byte count in EXPAND_INPUT_POINTER,
     which LOAD_NEXT_INPUT_BLOCK counts down as it refills the input.
     Two edges of it: the count takes in the three &FF bytes the
     compressor closes the stream with, which the expander skips, and

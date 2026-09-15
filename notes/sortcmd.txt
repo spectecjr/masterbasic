@@ -32,7 +32,7 @@ DOC CMD_SORT_2
 
 MB &462A : the operand of the JR at &4744 -- 2 quits on a difference, 5 goes on to fold the case out of it
 MB &462D : parses both slicers and works out where the array is; it also chooses the scan, into IX
-MB &4633 : the first element to sort, as a window address, with its page in V4099
+MB &4633 : the first element to sort, as a window address, with its page in SORT_ELEMENT_PAGE
 MB &4639 : from here on HMPR belongs to the sort, not to whoever called it
 
 DOC CMD_SORT_LOOP
@@ -97,7 +97,7 @@ MB &469E : C down to zero and then B, the same count and the same absence of a t
 
 DOC CMD_SORT_LOOP3
     The ABS ascending scan: walk what is left of the array and leave
-    the smallest element in V409A/V409C.
+    the smallest element in SORT_BEST_ADDR/SORT_BEST_PAGE.
 
     THE FIRST BYTE DECIDES ALMOST EVERYTHING.  A holds the first key
     byte of the best element found so far and never has to be reloaded
@@ -212,11 +212,11 @@ DOC SAVE_FAR_POINTER
     stored beside it is the page the pointer is actually in, not the
     one before.
 
-    THE PAGE GOES IN V409C AND THE KEY LENGTH IN V409D on purpose:
-    COMPARE_FAR_STRINGS picks both up in one LD BC,(V409C) at &472F.
+    THE PAGE GOES IN SORT_BEST_PAGE AND THE KEY LENGTH IN SORT_KEY_LENGTH on purpose:
+    COMPARE_FAR_STRINGS picks both up in one LD BC,(SORT_BEST_PAGE) at &472F.
 
 MB &4717 : normalise first, or the page recorded below would be the one before the byte
-MB &4721 : V409D, the byte after this one, already holds the key length -- see &4785 and &472F
+MB &4721 : SORT_KEY_LENGTH, the byte after this one, already holds the key length -- see &4785 and &472F
 
 DOC COMPARE_FAR_STRINGS
     Compare the rest of two keys that are in different pages.
@@ -227,7 +227,7 @@ DOC COMPARE_FAR_STRINGS
     that neither has to be reloaded, and the byte in flight sits in A,
     which EXX does not touch.
 
-    THE COUNT ARRIVES FREE.  LD BC,(V409C) takes the saved page into C
+    THE COUNT ARRIVES FREE.  LD BC,(SORT_BEST_PAGE) takes the saved page into C
     and, out of the byte above it, the number of key bytes into B --
     two values written by two different routines and read back as one.
     B is the whole key length and the loop is entered at its DJNZ, so
@@ -246,7 +246,7 @@ DOC COMPARE_FAR_STRINGS
     with the flags of the IN before it.
 
 MB &4725 : normalised so that the INC HLs below cannot run off &FFFF; the byte is always read with the caller's own page back in, at &473E
-MB &472F : C the saved page from V409C, B the key length from V409D
+MB &472F : C the saved page from SORT_BEST_PAGE, B the key length from SORT_KEY_LENGTH
 MB &4736 : the page the caller is standing in, to switch back to after every byte
 MB &4738 : straight to the DJNZ, because the caller has already compared the first byte
 MB &4741 : both pointers step, one in each bank

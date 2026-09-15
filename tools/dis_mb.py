@@ -1243,6 +1243,8 @@ def seeds(dos, mb):
     # to the block's base the name has to be there first.
     for (base, name) in dos.blocks:
         dos.labels.setdefault(base, name)
+    # SVAL$'s five-byte number image, filled from the top down.
+    mb.blocks[(0x41C0, 'SVAL_NUMBER')] = 5
     # The three vector values INSTALL_ROM_PATCHES writes: &49F7, &4A52
     # and &4AE6 are addresses in the ROM's system page, in the stubs it
     # has just put there, and not in this half.  &4AAC two instructions

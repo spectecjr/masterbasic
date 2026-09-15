@@ -2,7 +2,7 @@
 # a ROM routine into the system page and patch a few bytes of it.
 # Proposed by a fresh reader, audited against the instructions.
 
-MB &5B70 : the write pointer has moved, so wake the player: 0 in V4084 means
+MB &5B70 : the write pointer has moved, so wake the player: 0 in SOUND_PLAYER_STATE means
            idle, 1 means "take data on the next interrupt"
 
 MB &5B75 : the keyboard half-row ESC sits on.  The ROM does the identical
@@ -17,7 +17,7 @@ MB &5B7B : not pressed is the common case, so that is the cheap exit
 MB &5B81 : the byte to print, kept in B because A is about to carry paging
 MB &5B82 : the wait below can be long, so it must be escapable
 MB &5B88 : the tick touches these same pointers, so no interrupt may land
-           between reading V4088 and writing V4089 back
+           between reading PRINT_WRITE_PAGE and writing PRINT_WRITE_ADDR back
 MB &5B8C : the buffer's page into the window; the pointer that follows is a
            &4000-&7FFF value, read there by the SET 7,H / RES 6,H below
 MB &5B92 : H+1 with the low two bits clear means the pointer is inside the
@@ -165,7 +165,7 @@ DOC CMD_SOUND_2
 
     THE SPLICE IS FOUR INSTRUCTIONS AND IT IS THE WHOLE OF "OFF".  The ROM
     leaves the sound chip's address port in BC as &01FF just before its output
-    loop; the eleven bytes at V5DBF land there and, when SYS_RECORD_STATE says
+    loop; the eleven bytes at PAUSE_STUB_BYTES land there and, when SYS_RECORD_STATE says
     OFF, change C to &E2 so the loop's two OUTs go to a port nothing answers.
     The sound is suppressed by writing somewhere else, not by skipping the
     write.
@@ -174,7 +174,7 @@ DOC CMD_SOUND_2
 
         &5000  NOP                     (B = 0, see below)
         &5001  48 ROM bytes, up to and including LD BC,&01FF
-        &5031  11 bytes from V5DBF     the OFF test
+        &5031  11 bytes from PAUSE_STUB_BYTES     the OFF test
         &503C  18 ROM bytes            LD HL,INSTBUF and the output loop
         &504E  56 bytes from &5DE7     the shared "append to the string" tail
 
@@ -186,7 +186,7 @@ MB &5CC1 : NOP, not RST &20.  CMD_SOUND has already stepped past the SOUND
            ROM's code expects it and a second step would eat an argument
 MB &5CC7 : forty-eight bytes -- everything up to and including the ROM's
            LD BC,&01FF
-MB &5CCF : eleven, the OFF test -- the banner's "&5031  11 bytes from V5DBF"
+MB &5CCF : eleven, the OFF test -- the banner's "&5031  11 bytes from PAUSE_STUB_BYTES"
 MB &5CD4 : and eighteen of the ROM's own, the banner's "&503C  18 ROM bytes", which are LD HL,INSTBUF and the output loop
 
 MB &5CCB : the ROM source pointer is put back at &5CD3, so the eighteen bytes
@@ -262,7 +262,7 @@ MB &5DB7 : already the same page, so there is nothing to move
 MB &5DBC : two on from WORKSPP is the high byte of WORKSP; what setting bit 6
            of it is for I cannot work out
 
-DOC V5DBF
+DOC PAUSE_STUB_BYTES
     Eleven bytes assembled for &5031 -- CMD_SOUND_2 copies them there.
     Subtract &0D8E from any address in this fragment.
 

@@ -472,7 +472,7 @@ and look at the trouble it takes:
 MBCMR_1:
       LD A,B                          ; 4516
       OR SYSPAGE_IN_B                 ; 4517  page zero into section B
-      LD HL,(V4076+&4000)             ; 4519
+      LD HL,(HOOK_ROM_SP+&4000)             ; 4519
       DI                              ; 451C
       OUT (LMPR),A                    ; 451D  now safe: this is running at &851D
       LD SP,HL                        ; 451F

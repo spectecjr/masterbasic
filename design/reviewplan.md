@@ -51,7 +51,7 @@ the code, the headers by deleting eleven the later file had rewritten
 in full and merging the five that said different things.  One pair was
 the wrong way round: `STORE_BC_AT_XVAR76`'s two-line header ("the ROM
 system variable whose address is held at &4076") was winning over the
-twelve-line one that knew `V4076` is the ROM's saved stack pointer and
+twelve-line one that knew `HOOK_ROM_SP` is the ROM's saved stack pointer and
 the write lands on its return address.
 
   The survey found a larger fault beside it.  **A `:` comment wrapped
@@ -279,10 +279,27 @@ Bounded jobs, good between rounds or when a round is out for review:
   banner of this project's own is the difference.  Do it by PART, and
   send each PART for review once it is written -- that is what round six
   was.
-- 141 synthetic `Lxxxx`/`Vxxxx` labels between the halves (`grep -c
-  '^[LV][0-9A-F]\{4\}:$'` on each clean listing).  Each is a routine or
-  variable nobody has named; name by address, never by RENAME, and read
-  the label diff afterwards.
+- **The synthetic labels -- 138 to 19, done 2026-09-14** (`grep -c
+  '^[LV][0-9A-F]\{4\}:$'` on each clean listing).  Three commits.
+  MasterBASIC's 31 patched sites are named for what their operands
+  become, from the resolver's own signature results, and a `site` kind
+  in the notes syntax keeps such a name from parenting the derived
+  labels after it -- the first attempt re-parented the string mover's
+  internals wholesale.  The DOS's 55 fell to 9 by two generator rules:
+  a page declares its data blocks (NSTR1, UIFA, the channel record)
+  sized from the source, so a reference inside reads `NSTR1+2`; and
+  after emit a synthetic label that no operand in either half names is
+  dropped, since the cross-reference alone was keeping a synthetic name on
+  a byte every reference calls `FSA+210`.  MasterBASIC's variables at
+  `&4061-&40AD` are named where one mechanism owns the byte (the two
+  interrupt-fed buffers' four pointers each, SORT's best-element
+  pointer and page, REF's kind and case pair, the clock's text).  What
+  is left is deliberate: ten words at `&4098-&40AD` that SORT, LOCN,
+  INARRAY, JOIN TO, DUMP and the compressor share as scratch, where any
+  one command's name would lie for the others; the source's own
+  `L41FF`; and eight labels in the DOS's tail that are MasterBASIC's
+  installer addressing its own copy in the DOS page, which want a
+  rendering rule on the MasterBASIC side.
 - **The two lists -- done 2026-09-14.**  `describedtwice.py`'s 39 pairs
   were read against each other and the code: four disagreed
   (CHECK_FILE_TYPE's declaration had the SUB/ADC arithmetic separating

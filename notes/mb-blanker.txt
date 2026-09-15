@@ -44,12 +44,12 @@ DOC PRINTER_FEED_TICK
     The manual's promise that "the computer will wait for the printer to
     deal with some of the data" is that block; this is what ends it.
 
-    THE BUFFER IS A RING OF 1K SLOTS WITH TWO POINTERS.  V4085 and V4086
-    are the page and address read from here, V4088 and V4089 the page and
+    THE BUFFER IS A RING OF 1K SLOTS WITH TWO POINTERS.  PRINT_READ_PAGE and PRINT_READ_ADDR
+    are the page and address read from here, PRINT_WRITE_PAGE and PRINT_WRITE_ADDR the page and
     address written by the hook.  Both pointers are read at &8085 and
     &8086 rather than at &4085 and &4086, because this code runs from the
     interrupt with the ROM's system page low and this half in the window.
-    V4085 is the buffer's page as FIND_SLOTS returned it, and the DEC
+    PRINT_READ_PAGE is the buffer's page as FIND_SLOTS returned it, and the DEC
     at &5A02 makes the LMPR value that puts that page in section B, which
     is where the slot addresses point.  Zero means there is no buffer at
     all -- what LPRINT CLEAR 0 leaves behind, and the first test here --
@@ -80,12 +80,12 @@ DOC SOUND_FEED_TICK
     are at &807E, &807F and &8082 -- this half through the window again --
     and the link walk at &5A96 is the same one the printer feed makes.
 
-    V4084 IS A FRAME COUNTER, NOT A FLAG.  Zero means idle and returns at
+    SOUND_PLAYER_STATE IS A FRAME COUNTER, NOT A FLAG.  Zero means idle and returns at
     once.  Otherwise it is decremented every interrupt and nothing is sent
     until it reaches zero, so a value of n holds the sound still for n
     frames.  That is where the manual's PAUSE goes: a space, &20, in the
     recorded stream is the pause marker, and the byte after it is written
-    to V4084 at &5ABB and the feed stops for now.  Timing in a recorded
+    to SOUND_PLAYER_STATE at &5ABB and the feed stops for now.  Timing in a recorded
     program therefore has to come from PAUSE, because nothing else in the
     stream takes any time at all.
 

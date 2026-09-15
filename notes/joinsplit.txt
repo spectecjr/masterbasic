@@ -147,9 +147,9 @@ MB &6F53 : ROM 1 into &C000; nothing puts it back here, so the caller's paging i
 MB &6F59 : the word found there becomes the ROM's return address, through the routine below
 
 DOC STORE_BC_AT_XVAR76
-    THE ROM'S RETURN ADDRESS, replaced.  V4076 is not a pointer to a
+    THE ROM'S RETURN ADDRESS, replaced.  HOOK_ROM_SP is not a pointer to a
     system variable: it is the ROM's own stack pointer, saved there by
-    CALLDOS with LD (V4076),IY and read back by CMR with LD HL,(V4076)
+    CALLDOS with LD (HOOK_ROM_SP),IY and read back by CMR with LD HL,(HOOK_ROM_SP)
     followed by LD SP,HL.  So writing BC through it overwrites the word
     on top of the ROM's stack, which is the address the ROM will RET to
     when the hook finishes.

@@ -156,7 +156,7 @@ settle delays, which is where it reads best:
 The label goes with it — but only where the instruction is the one thing
 that refers to it, and all five turn out to be. One looked as though it
 were not: something in MasterBASIC appeared to jump into the middle of the
-delay at `&4081`. It does not. `MB &5A8E` is `LD A,(V4081+IN_PAGE_C)`, a
+delay at `&4081`. It does not. `MB &5A8E` is `LD A,(SOUND_WRITE_PAGE+IN_PAGE_C)`, a
 *load* inside `SOUND_FEED_TICK` reading its own buffer pointer through the
 window, resolved against this half instead of that one. Nothing was ever
 entered at any of them, which `notes/clean/dos-boot.txt` records at

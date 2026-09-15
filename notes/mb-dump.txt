@@ -634,7 +634,7 @@ MB &660A COMPRESS_BLOCK
 MB &62E9 EXPAND_COMPRESSED_FILE
     The other half of the compression, and the manual's "A compressed
     file will be automatically expanded again on reloading."  SP is
-    parked in V4078 first, and nothing borrows it: the one LD SP in the
+    parked in EXPAND_SAVED_SP first, and nothing borrows it: the one LD SP in the
     whole expander is the &635D that puts it back, which is how
     NEXT_SCREEN_NIBBLE gets out of the run loop it was called from in
     one step when the walk reaches the end of the screen.  The stream's
@@ -689,7 +689,7 @@ MB &6253 BUILD_NIBBLE_TABLE
     zero by the clearing loop above, so the inner DJNZ runs 256 times,
     and C is &60 -- 96 times 256 is &6000, the space a MODE 4 screen
     occupies.  Neither number is written down as a screen size anywhere
-    here, and nothing in this routine reads V407A or the mode.
+    here, and nothing in this routine reads EXPAND_LINE_COUNT or the mode.
 
     So for a smaller screen it histograms past the end of it:
     PICK_COMPRESSION_CONSTANTS has sets for &1B00 and &3800 screens as
@@ -728,7 +728,7 @@ MB &6237 SCAN_NIBBLE_TABLE
     two-byte stride to a value 0 to 15.
 
 MB &5B22 WINDOW_SOUND_POINTER
-    Take the pointer at V4082, keep its high byte, and window it with the
+    Take the pointer at SOUND_WRITE_ADDR, keep its high byte, and window it with the
     usual SET 7,H and RES 6,H -- then AND &03 on the high byte plus one,
     from before the windowing, picks out the last quarter of the 1K slot,
     and the CP &FE at &5B38 says whether the pointer is on the link.
@@ -788,7 +788,7 @@ MB &63B7 : LDBLK, "load a block from the open file" -- this refills the input, w
 DOC LOAD_NEXT_INPUT_BLOCK
     Compare what is left of the compressed input against &1900 and take the
     short path if there is less, with the caller's registers saved around
-    it.  V407B holds the compressed length still to be read, set at &62AF from the length HOOK_HLOAD passed.
+    it.  EXPAND_INPUT_POINTER holds the compressed length still to be read, set at &62AF from the length HOOK_HLOAD passed.
 
 MB &66F2 EXPAND_INTO_WORK_PAGE
     Set up to expand a file: take a work page through GET_WORK_PAGE --

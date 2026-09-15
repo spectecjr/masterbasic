@@ -182,7 +182,7 @@ DOC PARSE_STRING_AND_OPTIONAL_ABS
 
 MB &4D33 : the ROM's EXPTSTR -- A comes back as the character the expression stopped on, carry set if this is run time
 
-MB &4D38 : a comma.  Subtracting it rather than comparing leaves the zero that V4061 wants, so one instruction does the test and the store between them
+MB &4D38 : a comma.  Subtracting it rather than comparing leaves the zero that LOCN_SEARCH_KIND wants, so one instruction does the test and the store between them
 
 MB &4D3A : zero only if that character was a comma, i.e. only for the ",ABS" form
 
