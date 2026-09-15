@@ -1633,7 +1633,8 @@ PRECMP:
                RES 1,C                         ; 4556 CB 89  ELSE TURN *ON* PRECMP
 
 ;; --------------------------------------------------------------------
-;; Wait for the disk controller to be ready before continuing.
+;; Wait until the controller is not BUSY, then issue the command byte
+;; in C and spin long enough for it to raise BUSY again.
 ;; --------------------------------------------------------------------
 
 ; ---- WAIT_DC_READY_BEFORE_CMD ---- from &4554 when A < B, &456A, &46F1, &478D, &48B4, &4F9D, &54B7
@@ -3781,10 +3782,14 @@ CFMC:
                RET                             ; 4E74 C9
 
 ;; --------------------------------------------------------------------
-;; The file type out of the header, masked to five bits and bounded: &15
-;; or more is "wrong file type", and &12 to &14 -- the three SAM types --
-;; are separated by SUB &12 with ADC A,&00, so one subtract and one add
-;; do the work of two comparisons.
+;; Take the file the scan has found and set the DOS up to load it.
+;; First the type, masked to five bits and bounded: &15 or more is
+;; "wrong file type", and SUB &12 with ADC A,&00 comes to zero for
+;; &11 and &12 alike -- the two array types, refused the same way.
+;; Then the name and type go to NSTR1, the nine-byte header to HD001
+;; and the flags after it to V42E2, and the ROM's 48-byte header at
+;; UIFA is built from the entry -- notes/clean/dos-openclose.txt has
+;; the banner.
 ;; --------------------------------------------------------------------
 
 ; ---- CHECK_FILE_TYPE ---- from &5FA7, &65F7
@@ -4949,9 +4954,9 @@ DERR1_1:
 ;; --------------------------------------------------------------------
 
 ERRTBL:
-               DEFB " "+&80                    ; 5200 A0
-               DEFB " "+&80                    ; 5201 A0
-               DEFB " "+&80                    ; 5202 A0
+               DEFB " "+&80                    ; 5200 A0  0
+               DEFB " "+&80                    ; 5201 A0  1
+               DEFB " "+&80                    ; 5202 A0  2
                DEFM "Escape requeste"          ; 5203 45 73 63 61 70 65 20 72  3
                DEFB "d"+&80                    ; 5212 E4
                DEFM "TRK-"                     ; 5213 54 52 4B 2D  4
@@ -6208,7 +6213,7 @@ PMO8:
 
 ; ---- DNAME ---- from &5898, &748D
 DNAME:
-               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 58B5
+               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 58B5  *DEFS 10        ;- ;(Alloc 10 bytes) OVER-WRITTEN
                DEFB " "+&80                                 ; 58BF A0
 
 PMOOF:
@@ -6219,7 +6224,7 @@ PMOOF:
 ; ---- MSGUN ---- from &58E5
 MSGUN:
                DEFM "UN "                      ; 58CD 55 4E 20  SPACE, BACKSPACE CANCELS LEADING
-               DEFB &08                        ; 58D0
+               DEFB &08                        ; 58D0  SPACE ON KWDS
 
 ;; --------------------------------------------------------------------
 ;;  OHNM -- print the name of the command that is asking for confirmation

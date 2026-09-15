@@ -103,7 +103,7 @@ MB &4ACD : &8AD3 is this page's own &4AD3 seen through the window just opened.  
 MB &4AD3 TICS_DIVIDE_BY_5416
 MB &4AD3 : reached only by that call, never by falling through the RET above, and executing at &8AD3 when it runs
 
-MB &4AD4 : &8D &29 &42 &66 &66 is 5416.3 -- 2^(141-128) times &A9426666/2^32, which comes to 5416.30 -- the fast-mode factor the manual names
+MB &4AD4 : 2^(141-128) times &A9426666/2^32, which comes to 5416.30 -- the fast-mode factor the manual names
 
 DOC MULTIPLY_BY_60
     A:HL times sixty, with the multiplicand kept in BC.

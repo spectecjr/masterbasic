@@ -123,10 +123,14 @@ DOS &4856 LDBLK
     LDIR replaced that loop.
 
 DOS &4E75 CHECK_FILE_TYPE
-    The file type out of the header, masked to five bits and bounded: &15
-    or more is "wrong file type", and &12 to &14 -- the three SAM types --
-    are separated by SUB &12 with ADC A,&00, so one subtract and one add
-    do the work of two comparisons.
+    Take the file the scan has found and set the DOS up to load it.
+    First the type, masked to five bits and bounded: &15 or more is
+    "wrong file type", and SUB &12 with ADC A,&00 comes to zero for
+    &11 and &12 alike -- the two array types, refused the same way.
+    Then the name and type go to NSTR1, the nine-byte header to HD001
+    and the flags after it to V42E2, and the ROM's 48-byte header at
+    UIFA is built from the entry -- notes/clean/dos-openclose.txt has
+    the banner.
 
 DOS &4EE3 COPY_HEADER_FIELDS
     Nine bytes from HD002 into the buffer GRPNTB points at, and then on

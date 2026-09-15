@@ -1990,7 +1990,8 @@ PRECMP:
                RES 1,C                         ; 4556 CB 89  the inner half, so switch it on
 
 ;; --------------------------------------------------------------------
-;; Issue the command byte in C to the disk controller.
+;; Wait until the controller is not BUSY, then issue the command byte
+;; in C and spin long enough for it to raise BUSY again.
 ;;
 ;; Two entry points and one path.  This one waits for the chip to go
 ;; idle first, and is what nearly everything calls;
@@ -6203,9 +6204,9 @@ DERR1_1:
 ;; --------------------------------------------------------------------
 
 ERRTBL:
-               DEFB " "+&80                    ; 5200 A0
-               DEFB " "+&80                    ; 5201 A0
-               DEFB " "+&80                    ; 5202 A0
+               DEFB " "+&80                    ; 5200 A0  0
+               DEFB " "+&80                    ; 5201 A0  1
+               DEFB " "+&80                    ; 5202 A0  2
                DEFM "Escape requeste"          ; 5203 45 73 63 61 70 65 20 72  3
                DEFB "d"+&80                    ; 5212 E4
                DEFM "TRK-"                     ; 5213 54 52 4B 2D  4
@@ -7689,7 +7690,7 @@ PMO8:
 
 ; ---- DNAME ---- from &5898, &748D
 DNAME:
-               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 58B5
+               DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 58B5  *DEFS 10        ;- ;(Alloc 10 bytes) OVER-WRITTEN
                DEFB " "+&80                                 ; 58BF A0
 
 PMOOF:
@@ -7701,7 +7702,7 @@ PMOOF:
 ; ---- MSGUN ---- from &58E5
 MSGUN:
                DEFM "UN "                      ; 58CD 55 4E 20  SPACE, BACKSPACE CANCELS LEADING
-               DEFB &08                        ; 58D0
+               DEFB &08                        ; 58D0  SPACE ON KWDS
 
 ;; --------------------------------------------------------------------
 ;;  OHNM -- print the name of the command that is asking for confirmation

@@ -316,7 +316,7 @@ MB &4E77 : &8E81 is &4E81 seen through the window, the fragment below, run with 
 
 MB &4E7C : HEAPROOM's DE, the start of the space it handed out, is what RESERVED returns
 
-MB &4E86 : CONST2 stacks 16384, so the four adds make 65536 and a negative n becomes its unsigned equal.  GETINT below wants a plain word, and 65536-n is what HEAPROOM reads as "give this much back" -- the manual's "LET junk=RESERVED(-10)"
+MB &4E86 : four adds of it make 65536 and a negative n becomes its unsigned equal.  GETINT below wants a plain word, and 65536-n is what HEAPROOM reads as "give this much back" -- the manual's "LET junk=RESERVED(-10)"
 
 MB &4E90 : HEAPROOM returns carry when there was room, and DE as the old HEAPEND
 

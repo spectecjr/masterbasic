@@ -220,6 +220,11 @@ def render(d, items, syms):
         if extra:
             head += ',' + ','.join('&%02X' % b for b in extra)
         why = note(code, extra, at, d.mem16)
+        # A note on the literal's own address, if one was written: this
+        # runs at emit time, after notes.apply, so it is there to read.
+        said = d.comments.get(at)
+        if said:
+            why = (why + '  ' + said) if why else said
         out.append(('%-14s DEFB %-25s ; %04X %s %s'
                     % ('', head, at, name, why)).rstrip())
     return '\n'.join(out) + '\n'

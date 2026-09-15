@@ -69,7 +69,14 @@ def main():
     notes = collect()
     total = sum(len(v) for v in notes.values())
 
-    dup = {k: v for k, v in notes.items() if len(v) > 1}
+    # A note in notes/clean/ over one in notes/ is how the reading copy
+    # says its conclusion while the working copy keeps the argument:
+    # neither is lost.  Two in the same tree are.
+    def same_tree(entries):
+        trees = set(p.startswith('notes/clean/') for p, _n, _t in entries)
+        return len(trees) < len(entries)
+    dup = {k: v for k, v in notes.items()
+           if len(v) > 1 and same_tree(v)}
     lost = []
     for (tag, a), entries in sorted(notes.items()):
         if len(entries) > 1:
@@ -81,8 +88,8 @@ def main():
             lost.append(((tag, a), entries[0]))
 
     print('%d line notes at %d addresses.' % (total, len(notes)))
-    print('%d addresses carry more than one, so all but one are discarded:'
-          % len(dup))
+    print('%d addresses carry more than one in the same tree, so all but '
+          'one are discarded:' % len(dup))
     for (tag, a), entries in sorted(dup.items()):
         print()
         print('  %s &%04X' % (tag, a))

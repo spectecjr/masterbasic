@@ -25,7 +25,8 @@ DOS &4539 ADJUST_PAGE_DE
     is about to cross a page boundary first.
 
 DOS &4558 WAIT_DC_READY_BEFORE_CMD
-    Wait for the disk controller to be ready before continuing.
+    Wait until the controller is not BUSY, then issue the command byte
+    in C and spin long enough for it to raise BUSY again.
 
 RENAME SDC1 POST_CMD_WAIT
 

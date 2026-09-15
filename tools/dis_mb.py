@@ -3299,7 +3299,11 @@ def main():
     n = ok = 0
     for d in (dos, mb):
         for at, end, items in d.fpc:
-            d.renderers[at] = (end, fpcalc.render(d, items, syms))
+            # Rendered at emit time, so that a `:` note on a literal's
+            # address -- &4AD4's, saying what 5416.3 is -- reaches the
+            # line instead of being overwritten by the decode.
+            d.renderers[at] = (end, (lambda d=d, items=items:
+                                     fpcalc.render(d, items, syms)))
             d.rendered.append((at, end))
             n += 1
             # What the list computes, said once above the RST that starts

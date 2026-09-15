@@ -283,9 +283,22 @@ Bounded jobs, good between rounds or when a round is out for review:
   '^[LV][0-9A-F]\{4\}:$'` on each clean listing).  Each is a routine or
   variable nobody has named; name by address, never by RENAME, and read
   the label diff afterwards.
-- `python tools/describedtwice.py` prints the banner/declaration pairs that
-  could have drifted apart; `python tools/deadnotes.py` the notes that
-  match nothing.  Both are short lists; clear them.
+- **The two lists -- done 2026-09-14.**  `describedtwice.py`'s 39 pairs
+  were read against each other and the code: four disagreed
+  (CHECK_FILE_TYPE's declaration had the SUB/ADC arithmetic separating
+  "the three SAM types" when it folds `&11` and `&12`, the two array
+  types, into one refusal; WAIT_DC_READY_BEFORE_CMD's two texts each
+  described half the routine; PARSE_STRING_AND_OPTIONAL_ABS's had a
+  subscript and a left bracket where the code wants a comma then ABS's
+  two bytes; READ_KEY_LINE's did not say which row `&FFFE` is) and are
+  reconciled.  `deadnotes.py`'s three lost notes were `:` lines on
+  rendered data -- two calculator literals and a keyword-list
+  terminator -- that the renderers never consulted; the emitters now
+  do, and the fpcalc renderer runs at emit time so the note is there
+  to read.  Its one "duplicate" was a clean-tree note over a shared
+  one, which is the override design, so it now counts only two notes
+  in the same tree.  `deadnotes` prints nothing now and `describedtwice`'s
+  pairs agree; run both after each round.
 - `DEFW` operands and data are outside the magic-number count by design.
   A pass over the DOS's inline parameters that still read as numbers --
   `DEFW &5BB8`, `DEFW &4A97` -- explaining each with a `:` line.

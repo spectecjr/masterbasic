@@ -6510,7 +6510,8 @@ TICS_DIVIDE_BY_5416:
                                                     ; calculator: = x / 5416.3
                RST FPCALC                           ; 4AD3 EF  reached only by that call, never by falling through the
                                                     ; RET above, and executing at &8AD3 when it runs
-               DEFB FPC_FIVELIT,&8D,&29,&42,&66,&66 ; 4AD4 FIVELIT = 5416.3
+               DEFB FPC_FIVELIT,&8D,&29,&42,&66,&66 ; 4AD4 FIVELIT = 5416.3  2^(141-128) times &A9426666/2^32, which
+                                                    ; comes to 5416.30 -- the fast-mode factor the manual names
                DEFB FPC_DIVN                        ; 4ADA DIVN
                DEFB FPC_EXIT2                       ; 4ADB EXIT2
 
@@ -7674,9 +7675,10 @@ SCAN_FOR_EITHER_CASE:
 ;;
 ;;     What was here before:
 ;;
-;;         A string expression, then a subscript: what the page came back as
-;;         decides the path, and the second one wants &FF -- the two-byte
-;;         function prefix -- followed by a left bracket.
+;;         The tail of LOCN's and INARRAY's argument lists: a string
+;;         expression, then -- only if a comma follows it -- the two bytes of
+;;         ABS, &FF and its function code &5B, and then the closing bracket.
+;;         V4061 keeps whether the comma was there.
 ;; --------------------------------------------------------------------
 
 ; ---- PARSE_STRING_AND_OPTIONAL_ABS ---- from &4AF6, &4B8B
@@ -8354,7 +8356,9 @@ FN_RESERVED:
                DEFB FPC_DUP                    ; 4E82 DUP
                DEFB FPC_GRTE0                  ; 4E83 GRTE0
                DEFB FPC_JPTRUE,&07             ; 4E84 JPTRUE to &4E8C (+7)
-               DEFB FPC_STK16K                 ; 4E86 STK16K -- stacks 16384, FPCTAB+2
+               DEFB FPC_STK16K                 ; 4E86 STK16K -- stacks 16384, FPCTAB+2 four adds of it make 65536 and a negative n becomes its unsigned equal. 
+                                               ; GETINT below wants a plain word, and 65536-n is what HEAPROOM reads as
+                                               ; "give this much back" -- the manual's "LET junk=RESERVED(-10)"
                DEFB FPC_DUP                    ; 4E87 DUP
                DEFB FPC_ADDN                   ; 4E88 ADDN (NUMBERS)
                DEFB FPC_DUP                    ; 4E89 DUP
@@ -9394,7 +9398,8 @@ HOOK_HPFF_DONE:
 
 ; ---- V50D7 ---- from &5026, &50C7
 V50D7:
-               DEFB " "+&80                    ; 50D7 A0
+               DEFB " "+&80                    ; 50D7 A0  one word of one character, so that word 1 is the first real
+                                               ; keyword and the index needs no adjusting
 
 ;; --------------------------------------------------------------------
 ;; The 28 names MasterBASIC adds to SAM BASIC, each ended by bit 7 of its
@@ -10571,9 +10576,10 @@ WRITE_SYNC_AND_MARK:
 ;;
 ;;     What was here before:
 ;;
-;;         Read port &FE seven times over with B held at &FF, OR the results
-;;         together, and return bit 0 of that in carry.  Seven reads of an
-;;         unchanging port is a settling loop rather than a scan.
+;;         Read port &FFFE -- B at &FF selects the row that carries CNTRL and
+;;         the four cursor keys -- seven times over, ORing the results, so a
+;;         key counts as down only if it was down in all seven.  RRA then puts
+;;         CNTRL into carry and leaves the cursor keys in bits 3-0.
 ;;
 ;;         Its caller branches on the carry and then reads a key through the
 ;;         ROM's RDKEY, so the answer gates a key read.  The Technical Manual's
@@ -25235,9 +25241,11 @@ CMD_JOIN_TO_5:
 ;;
 ;;     What was here before:
 ;;
-;;         The same again, and then a branch on AND &60 -- bits 5 and 6 of the
-;;         type byte, which are what tell the kinds of variable apart.  It keeps
-;;         IX across the lookup, so the caller's own record survives it.
+;;         POINT_INTO_VARIABLE and TIMES_FIVE first, as DELETE does, then a
+;;         branch on AND &60 -- bits 5 and 6 of the type byte, which are
+;;         what tell the kinds of variable apart -- to adjust an array's size
+;;         and first dimension or a string's length.  A is the direction and
+;;         IX the element count, kept across the lookup.
 ;; --------------------------------------------------------------------
 
 ; ---- VARIABLE_BODY_BY_KIND ---- from &6FA7

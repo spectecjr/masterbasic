@@ -39,7 +39,8 @@ DOS &4554 : borrow: the outer half, where precompensation is unwanted
 DOS &4556 : the inner half, so switch it on
 
 DOC WAIT_DC_READY_BEFORE_CMD
-    Issue the command byte in C to the disk controller.
+    Wait until the controller is not BUSY, then issue the command byte
+    in C and spin long enough for it to raise BUSY again.
 
     Two entry points and one path.  This one waits for the chip to go
     idle first, and is what nearly everything calls;

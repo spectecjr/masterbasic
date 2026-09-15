@@ -297,7 +297,10 @@ class Disassembler(Decoder):
                     stop, text = self.renderers[a]
                     if a in self.labels:
                         w('\n%s:\n' % self.labels[a])
-                    w(text)
+                    # A renderer built before the notes were applied can
+                    # be a callable, so that a note on one of its lines
+                    # is there when the text is made.
+                    w(text() if callable(text) else text)
                     a = stop
                 else:
                     s0 = a
@@ -366,8 +369,8 @@ class Disassembler(Decoder):
             return codes.get(c) or hexn(c, 2)
 
         def emit_defb(a, b):
-            w('%-14s DEFB %-25s ; %04X\n'
-              % ('', ','.join(one(i) for i in range(a, b)), a))
+            w('%-14s DEFB %-25s ; %04X%s\n'
+              % ('', ','.join(one(i) for i in range(a, b)), a, note(a)))
 
         a = s
         while a < e:
@@ -384,12 +387,18 @@ class Disassembler(Decoder):
             if b < e:                       # the terminator, bit 7 set
                 low = self.byte(b) & 0x7F
                 last = chr(low)
+                # The terminator takes the note too: a one-character
+                # word is nothing but its terminator, and &50D7's note
+                # on the single space that heads a keyword list was
+                # never printed.
                 if low in codes:
-                    w('%-14s DEFB %-25s ; %04X %s\n'
-                      % ('', codes[low] + '+&80', b, hexn(self.byte(b), 2)[1:]))
+                    w('%-14s DEFB %-25s ; %04X %s%s\n'
+                      % ('', codes[low] + '+&80', b,
+                         hexn(self.byte(b), 2)[1:], note(b)))
                 elif last.isprintable() and last != '"':
-                    w('%-14s DEFB %-25s ; %04X %s\n'
-                      % ('', '"%s"+&80' % last, b, hexn(self.byte(b), 2)[1:]))
+                    w('%-14s DEFB %-25s ; %04X %s%s\n'
+                      % ('', '"%s"+&80' % last, b,
+                         hexn(self.byte(b), 2)[1:], note(b)))
                 else:
                     emit_defb(b, b + 1)
             a = b + 1

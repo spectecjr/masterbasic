@@ -4500,7 +4500,8 @@ TICS_DIVIDE_BY_5416:
                                                     ; calculator: = x / 5416.3
                RST FPCALC                           ; 4AD3 EF  reached only by that call, never by falling through the
                                                     ; RET above, and executing at &8AD3 when it runs
-               DEFB FPC_FIVELIT,&8D,&29,&42,&66,&66 ; 4AD4 FIVELIT = 5416.3
+               DEFB FPC_FIVELIT,&8D,&29,&42,&66,&66 ; 4AD4 FIVELIT = 5416.3  2^(141-128) times &A9426666/2^32, which
+                                                    ; comes to 5416.30 -- the fast-mode factor the manual names
                DEFB FPC_DIVN                        ; 4ADA DIVN
                DEFB FPC_EXIT2                       ; 4ADB EXIT2
 
@@ -5679,7 +5680,9 @@ FN_RESERVED:
                DEFB FPC_DUP                    ; 4E82 DUP
                DEFB FPC_GRTE0                  ; 4E83 GRTE0
                DEFB FPC_JPTRUE,&07             ; 4E84 JPTRUE to &4E8C (+7)
-               DEFB FPC_STK16K                 ; 4E86 STK16K -- stacks 16384, FPCTAB+2
+               DEFB FPC_STK16K                 ; 4E86 STK16K -- stacks 16384, FPCTAB+2 four adds of it make 65536 and a negative n becomes its unsigned equal. 
+                                               ; GETINT below wants a plain word, and 65536-n is what HEAPROOM reads as
+                                               ; "give this much back" -- the manual's "LET junk=RESERVED(-10)"
                DEFB FPC_DUP                    ; 4E87 DUP
                DEFB FPC_ADDN                   ; 4E88 ADDN (NUMBERS)
                DEFB FPC_DUP                    ; 4E89 DUP
@@ -6464,7 +6467,8 @@ HOOK_HPFF_DONE:
 
 ; ---- V50D7 ---- from &5026, &50C7
 V50D7:
-               DEFB " "+&80                    ; 50D7 A0
+               DEFB " "+&80                    ; 50D7 A0  one word of one character, so that word 1 is the first real
+                                               ; keyword and the index needs no adjusting
 
 ;; --------------------------------------------------------------------
 ;; The 28 names MasterBASIC adds to SAM BASIC, each ended by bit 7 of its

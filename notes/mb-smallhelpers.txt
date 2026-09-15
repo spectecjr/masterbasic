@@ -405,9 +405,11 @@ MB &43C3 POINT_INTO_VARIABLE
     takes the type byte into C, and adds &0B.
 
 MB &7100 VARIABLE_BODY_BY_KIND
-    The same again, and then a branch on AND &60 -- bits 5 and 6 of the
-    type byte, which are what tell the kinds of variable apart.  It keeps
-    IX across the lookup, so the caller's own record survives it.
+    POINT_INTO_VARIABLE and TIMES_FIVE first, as DELETE does, then a
+    branch on AND &60 -- bits 5 and 6 of the type byte, which are
+    what tell the kinds of variable apart -- to adjust an array's size
+    and first dimension or a string's length.  A is the direction and
+    IX the element count, kept across the lookup.
 
 MB &4978 WAIT_FOR_CLOCK
     Wait for the SAMBus clock to be ready, and give up rather than hang.
@@ -441,9 +443,10 @@ MB &4D91 COMPARE_FAR_STRINGS_FOLDED
     is used -- see notes/locn.txt.
 
 MB &53B5 READ_KEY_LINE
-    Read port &FE seven times over with B held at &FF, OR the results
-    together, and return bit 0 of that in carry.  Seven reads of an
-    unchanging port is a settling loop rather than a scan.
+    Read port &FFFE -- B at &FF selects the row that carries CNTRL and
+    the four cursor keys -- seven times over, ORing the results, so a
+    key counts as down only if it was down in all seven.  RRA then puts
+    CNTRL into carry and leaves the cursor keys in bits 3-0.
 
     Its caller branches on the carry and then reads a key through the
     ROM's RDKEY, so the answer gates a key read.  The Technical Manual's
@@ -497,9 +500,10 @@ MB &4A7F TICS_SECONDS_IN_MONTH
     that has already paged the DOS in.
 
 MB &4D33 PARSE_STRING_AND_OPTIONAL_ABS
-    A string expression, then a subscript: what the page came back as
-    decides the path, and the second one wants &FF -- the two-byte
-    function prefix -- followed by a left bracket.
+    The tail of LOCN's and INARRAY's argument lists: a string
+    expression, then -- only if a comma follows it -- the two bytes of
+    ABS, &FF and its function code &5B, and then the closing bracket.
+    V4061 keeps whether the comma was there.
 
 MB &42CC : zero into LMPR, through H because OUT (C),r has no immediate form and H is the register free here.  Zero leaves ROM 0 in at &0000 with page 0 behind it
 MB &426B expr CH_ZERO
