@@ -288,9 +288,6 @@ DOS_HOOK_SBYT:                  EQU  HOOK_SBYT + &4000
 DOS_HSVBK_DWAIT:                EQU  HSVBK_DWAIT + &4000
 DOS_LBYT:                       EQU  LBYT + &4000
 DOS_LDBLK:                      EQU  LDBLK + &4000
-DOS_MBCOPY_7774:                EQU  MBCOPY_7774 + &4000
-DOS_MBCOPY_778B:                EQU  MBCOPY_778B + &4000
-DOS_MBCOPY_7829:                EQU  MBCOPY_7829 + &4000
 DOS_NEXTST:                     EQU  NEXTST + &4000
 DOS_PLANT_TYPE_THEN_GOFSM:      EQU  PLANT_TYPE_THEN_GOFSM + &4000
 DOS_PLNS:                       EQU  PLNS + &4000
@@ -313,10 +310,3 @@ DOS_TIMDT:                      EQU  TIMDT + &4000
 DOS_TRAKS2:                     EQU  TRAKS2 + &4000
 DOS_V40F9:                      EQU  V40F9 + &4000
 DOS_V7CFF:                      EQU  V7CFF + &4000
-DOS_V7DE8:                      EQU  V7DE8 + &4000
-DOS_V7E98:                      EQU  V7E98 + &4000
-DOS_V7EA6:                      EQU  V7EA6 + &4000
-DOS_V7EFC:                      EQU  V7EFC + &4000
-DOS_V7F0D:                      EQU  V7F0D + &4000
-DOS_V7F6B:                      EQU  V7F6B + &4000
-DOS_V7FA5:                      EQU  V7FA5 + &4000

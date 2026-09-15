@@ -374,9 +374,6 @@ DOS_HOOK_SBYT:                  EQU  HOOK_SBYT + IN_PAGE_C
 DOS_HSVBK_DWAIT:                EQU  HSVBK_DWAIT + IN_PAGE_C
 DOS_LBYT:                       EQU  LBYT + IN_PAGE_C
 DOS_LDBLK:                      EQU  LDBLK + IN_PAGE_C
-DOS_MBCOPY_7774:                EQU  MBCOPY_7774 + IN_PAGE_C
-DOS_MBCOPY_778B:                EQU  MBCOPY_778B + IN_PAGE_C
-DOS_MBCOPY_7829:                EQU  MBCOPY_7829 + IN_PAGE_C
 DOS_NEXTST:                     EQU  NEXTST + IN_PAGE_C
 DOS_OPEN_BASIC_FOR_MERGE:       EQU  OPEN_BASIC_FOR_MERGE + IN_PAGE_C
 DOS_PARK_WORD:                  EQU  PARK_WORD + IN_PAGE_C
@@ -402,10 +399,3 @@ DOS_TIMDT:                      EQU  TIMDT + IN_PAGE_C
 DOS_TRAKS2:                     EQU  TRAKS2 + IN_PAGE_C
 DOS_UNPARK_WORD:                EQU  UNPARK_WORD + IN_PAGE_C
 DOS_V7CFF:                      EQU  V7CFF + IN_PAGE_C
-DOS_V7DE8:                      EQU  V7DE8 + IN_PAGE_C
-DOS_V7E98:                      EQU  V7E98 + IN_PAGE_C
-DOS_V7EA6:                      EQU  V7EA6 + IN_PAGE_C
-DOS_V7EFC:                      EQU  V7EFC + IN_PAGE_C
-DOS_V7F0D:                      EQU  V7F0D + IN_PAGE_C
-DOS_V7F6B:                      EQU  V7F6B + IN_PAGE_C
-DOS_V7FA5:                      EQU  V7FA5 + IN_PAGE_C

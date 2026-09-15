@@ -97,3 +97,14 @@ DOC FIND_ROM_CODE
 # is inside BUFMV2.  MasterBASIC knows the ROM's front doors already.
 # What it has to search for is the exact instruction inside a routine at
 # which it wants to resume.
+
+# The helpers the installer's copy calls within itself, named here at
+# their home; the DOS page's &7D79 keeps FIND_ROM_CODE, being what 28
+# sites call there after the boot.
+MB &775A FIND_ROM_CODE_SOURCE
+MB &7774 FIND_ROM_CODE_SEARCH
+MB &778B REPORT_EXTERNAL_MEMORY
+    DI, the DOS page into section B, SIZE_EXTERNAL_MEMORY at the address
+    it runs at, both ROMs back, and if any was found the size times
+    sixteen into DOS TEMPW1 and printed through the calculator with the
+    "K External Memory" text.

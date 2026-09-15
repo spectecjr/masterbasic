@@ -358,10 +358,10 @@ place to keep one while using the other.
 MasterBASIC calls almost no fixed address inside ROM 0. Instead:
 
 ```asm
-      CALL DOS_FIND_ROM_CODE          ; 75FE
+      CALL FIND_ROM_CODE_SOURCE+INSTALLER_COPY ; 75FE
       DEFB &0A,&FE,&20,&10,&00,&F5    ; 7601  signature 0A FE 20 from &1000, -11
       LD (INSERTLN_WORD),HL           ; 7607                     -> &10A0 INSERTLN
-      CALL DOS_FIND_ROM_CODE          ; 760A
+      CALL FIND_ROM_CODE_SOURCE+INSTALLER_COPY ; 760A
       DEFB &56,&5A,&C9,&3C,&00,&03    ; 760D  signature 56 5A C9 from &3C00, +3
       LD (JP_CCRESTOP+1),HL           ; 7613                     -> &3DA7 CCRESTOP
 ```

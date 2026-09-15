@@ -69,6 +69,8 @@ DVAR_DRPT_BASE:         EQU  &428E             ; DVAR 110 in the DOS page, the b
 GREY_MAP:               EQU  &7B80
 GREY_TAKEN:             EQU  &7B90
 HMPR:                   EQU  &FB
+INSTALLER_COPY:         EQU  &461F             ; the installer copy at &BC00 less its home at &75E1, for the installer
+                                               ; addressing itself where it runs
 PUT_TRAMPOLINE:         EQU  &F000             ; section D, where a fragment of the finished block is copied and run
                                                ; with the extension paged out
 REF_BUFFER:             EQU  &7B00
@@ -18942,46 +18944,46 @@ INSTALLER:
 
 ; ---- INSTALLER_LOOP ---- from &75E7 when B is not 0 yet
 INSTALLER_LOOP:
-               LD (HL),A                       ; 75E6 77
-               DJNZ INSTALLER_LOOP             ; 75E7 10 FD
-               LD A,(SORP)                     ; 75E9 3A 06 40
-               CALL INIT_SERIAL_FROM_TABLE     ; 75EC CD 99 55
-               CALL RESOLVE_ROM_ENTRIES        ; 75EF CD 90 79
-               CALL DOS_FIND_ROM_CODE          ; 75F2 CD 79 BD
-               DEFB &F5,&DF,&E1,&2E,&00,&FA    ; 75F5 signature F5 DF E1 from &2E00, -6  -> &2E69 SLICING
-               LD (SLICING_WORD),HL            ; 75FB 22 F0 45
-               CALL DOS_FIND_ROM_CODE          ; 75FE CD 79 BD
-               DEFB &0A,&FE,&20,&10,&00,&F5    ; 7601 signature 0A FE 20 from &1000, -11  -> &10A0 INSERTLN
-               LD (INSERTLN_WORD),HL           ; 7607 22 F6 45  patches the operand of the CALL at &45F3
-               CALL DOS_FIND_ROM_CODE          ; 760A CD 79 BD
-               DEFB &56,&5A,&C9,&3C,&00,&03    ; 760D signature 56 5A C9 from &3C00, +3  -> &3DA7 CCRESTOP
-               LD (JP_CCRESTOP+1),HL           ; 7613 22 A7 7D  patches the operand of the JP at &7DA6
-               CALL DOS_FIND_ROM_CODE          ; 7616 CD 79 BD
-               DEFB &D6,&06,&32,&D7,&00,&05    ; 7619 signature D6 06 32 from &D700, +5  -> &D80E
-               LD (CSZ2_WORD),HL               ; 761F 22 94 65  patches the operand of the CALL at &6591
-               CALL DOS_FIND_ROM_CODE          ; 7622 CD 79 BD
-               DEFB &3A,&B7,&5A,&DB,&00,&00    ; 7625 signature 3A B7 5A from &DB00  -> &DC77 ENDOUTP
-               LD (PATOUT_CHAR_OUT_5+1),HL     ; 762B 22 4C 7D  patches the operand of the JP at &7D4B
-               CALL DOS_FIND_ROM_CODE          ; 762E CD 79 BD
-               DEFB &00,&37,&C9,&3C,&00,&03    ; 7631 signature 00 37 C9 from &3C00, +3  -> &3C39 EPSUB
-               LD (CALL_Z_EPSUB+1),HL          ; 7637 22 17 65  patches the operand of the CALL at &6516
-               CALL DOS_FIND_ROM_CODE          ; 763A CD 79 BD
-               DEFB &EB,&E9,&F7,&01,&80,&02    ; 763D signature EB E9 F7 from &0180, +2  -> &01CC PRMAIN
-               LD (JP_NZ_PRMAIN+1),HL          ; 7643 22 55 7D  patches the operand of the JP at &7D54
-               IN A,(LMPR)                     ; 7646 DB FA
-               INC A                           ; 7648 3C
-               AND PAGEMASK                    ; 7649 E6 1F
-               LD (OWN_PAGE_NUMBER),A          ; 764B 32 64 40
-               LD (&7C2D),A                    ; 764E 32 2D 7C  MasterBASIC's own page number, planted in the LD A at
-                                               ; &7C2C. That instruction is inside the &7BA4 block and runs at &48D5
-                                               ; once installed, where it has to page this half back in and cannot know
-                                               ; the number by assembling it
-               CALL INSTALL_SYSPAGE_CODE       ; 7651 CD 9F 7A
-               CALL INSTALL_ROM_PATCHES        ; 7654 CD 00 7B
-               LD HL,&7C00                     ; 7657 21 00 7C  &7C00, and LD B,L below takes the count from the low
-                                               ; byte -- zero, so the DJNZ runs the full 256 and the fill covers
-                                               ; &7C00-&7CFF
-               LD B,L                          ; 765A 45
+               LD (HL),A                                ; 75E6 77
+               DJNZ INSTALLER_LOOP                      ; 75E7 10 FD
+               LD A,(SORP)                              ; 75E9 3A 06 40
+               CALL INIT_SERIAL_FROM_TABLE              ; 75EC CD 99 55
+               CALL RESOLVE_ROM_ENTRIES                 ; 75EF CD 90 79
+               CALL FIND_ROM_CODE_SOURCE+INSTALLER_COPY ; 75F2 CD 79 BD
+               DEFB &F5,&DF,&E1,&2E,&00,&FA             ; 75F5 signature F5 DF E1 from &2E00, -6  -> &2E69 SLICING
+               LD (SLICING_WORD),HL                     ; 75FB 22 F0 45
+               CALL FIND_ROM_CODE_SOURCE+INSTALLER_COPY ; 75FE CD 79 BD
+               DEFB &0A,&FE,&20,&10,&00,&F5             ; 7601 signature 0A FE 20 from &1000, -11  -> &10A0 INSERTLN
+               LD (INSERTLN_WORD),HL                    ; 7607 22 F6 45  patches the operand of the CALL at &45F3
+               CALL FIND_ROM_CODE_SOURCE+INSTALLER_COPY ; 760A CD 79 BD
+               DEFB &56,&5A,&C9,&3C,&00,&03             ; 760D signature 56 5A C9 from &3C00, +3  -> &3DA7 CCRESTOP
+               LD (JP_CCRESTOP+1),HL                    ; 7613 22 A7 7D  patches the operand of the JP at &7DA6
+               CALL FIND_ROM_CODE_SOURCE+INSTALLER_COPY ; 7616 CD 79 BD
+               DEFB &D6,&06,&32,&D7,&00,&05             ; 7619 signature D6 06 32 from &D700, +5  -> &D80E
+               LD (CSZ2_WORD),HL                        ; 761F 22 94 65  patches the operand of the CALL at &6591
+               CALL FIND_ROM_CODE_SOURCE+INSTALLER_COPY ; 7622 CD 79 BD
+               DEFB &3A,&B7,&5A,&DB,&00,&00             ; 7625 signature 3A B7 5A from &DB00  -> &DC77 ENDOUTP
+               LD (PATOUT_CHAR_OUT_5+1),HL              ; 762B 22 4C 7D  patches the operand of the JP at &7D4B
+               CALL FIND_ROM_CODE_SOURCE+INSTALLER_COPY ; 762E CD 79 BD
+               DEFB &00,&37,&C9,&3C,&00,&03             ; 7631 signature 00 37 C9 from &3C00, +3  -> &3C39 EPSUB
+               LD (CALL_Z_EPSUB+1),HL                   ; 7637 22 17 65  patches the operand of the CALL at &6516
+               CALL FIND_ROM_CODE_SOURCE+INSTALLER_COPY ; 763A CD 79 BD
+               DEFB &EB,&E9,&F7,&01,&80,&02             ; 763D signature EB E9 F7 from &0180, +2  -> &01CC PRMAIN
+               LD (JP_NZ_PRMAIN+1),HL                   ; 7643 22 55 7D  patches the operand of the JP at &7D54
+               IN A,(LMPR)                              ; 7646 DB FA
+               INC A                                    ; 7648 3C
+               AND PAGEMASK                             ; 7649 E6 1F
+               LD (OWN_PAGE_NUMBER),A                   ; 764B 32 64 40
+               LD (&7C2D),A                             ; 764E 32 2D 7C  MasterBASIC's own page number, planted in the
+                                                        ; LD A at &7C2C. That instruction is inside the &7BA4 block and
+                                                        ; runs at &48D5 once installed, where it has to page this half
+                                                        ; back in and cannot know the number by assembling it
+               CALL INSTALL_SYSPAGE_CODE                ; 7651 CD 9F 7A
+               CALL INSTALL_ROM_PATCHES                 ; 7654 CD 00 7B
+               LD HL,&7C00                              ; 7657 21 00 7C  &7C00, and LD B,L below takes the count from
+                                                        ; the low byte -- zero, so the DJNZ runs the full 256 and the
+                                                        ; fill covers &7C00-&7CFF
+               LD B,L                                   ; 765A 45
 
 ; ---- INSTALLER_LOOP2 ---- from &765E when B is not 0 yet
 INSTALLER_LOOP2:
@@ -19128,8 +19130,9 @@ INSTALLER_2:
 ;; used to name them after whatever this half happens to hold there.
 ;;
 ;; That means the ROM's system page is at &4000 while this runs, and the
-;; DOS is in the window, since DOS_MBCOPY_778B and DOS_FIND_ROM_CODE are
-;; called at &BDAA and &BD79.
+;; DOS is in the window, since REPORT_EXTERNAL_MEMORY and
+;; FIND_ROM_CODE_SOURCE are called in the installer's copy there, at
+;; &BDAA and &BD79.
 ;;
 ;; WHERE THIS CODE ITSELF EXECUTES FROM was left open here, on the
 ;; grounds that it cannot be at &4000.  It is not executing in this page
@@ -19197,199 +19200,213 @@ INSTALLER_2:
 
 ; ---- INSTALL_ROM_VECTORS ---- from &76D5 when bit 7 of H clear
 INSTALL_ROM_VECTORS:
-               LD (DOS_NEXTST),HL              ; 76DA 22 1E 82
-               LD (MB_NEXTST),DE               ; 76DD ED 53 69 5A  &5A69 is VAR2+&69, inside the fourteen bytes vars.asm
-                                               ; marks SPARE between LSOFF and SPOSNU; &7BCF parks a return address in
-                                               ; &5A62 out of the same fourteen. &549F reads this word back with MBNRRDD
-                                               ; beside the ROM's ERRSP and MasterDOS's NEXTST -- the DEFW &7889 at
-                                               ; &54B2, a few instructions later, is LD BC,(NEXTST) -- so what it holds
-                                               ; is a next-statement address. It is MasterBASIC's NEXTST, written here
-                                               ; in the same breath as the DOS's own
-               CALL DOS_MBCOPY_778B            ; 76E1 CD AA BD
-               CALL DOS_MBCOPY_7829            ; 76E4 CD 48 BE
-               LD HL,SYS_PRTOKV_PRINT_TOKEN    ; 76E7 21 B0 4B  &4BB0 in the system page -- inside the 36 bytes put at
-                                               ; &4BA0
-               LD (PRTOKV),HL                  ; 76EA 22 DE 5A
-               LD HL,SYS_GAP_BLOCK+&1E         ; 76ED 21 B4 58
-               LD (MTOKV),HL                   ; 76F0 22 FA 5A
-               LD HL,SYS_EVALUV_EVAL_FN        ; 76F3 21 BA 4B
-               LD (EVALUV),HL                  ; 76F6 22 F6 5A
-               LD HL,SYS_CMDV_COMMAND          ; 76F9 21 8E 48
-               LD (CMDV),HL                    ; 76FC 22 F4 5A  CMDV gets &488E, inside the second stub
-               CALL DOS_FIND_ROM_CODE          ; 76FF CD 79 BD
-               DEFB &5B,&D6,&5B,&3D,&00,&FC    ; 7702 signature 5B D6 5B from &3D00, -4  -> &3DAD POSTFF
-               LD (SYS_GAP_BLOCK+&06),HL       ; 7708 22 9C 58
-               LD A,(DOS_CKPT)                 ; 770B 3A B6 82
-               LD C,A                          ; 770E 4F
-               LD B,&F0                        ; 770F 06 F0  the clock's control register F, which is register 15 -- and
-                                               ; the register number rides in bits 12-15 of the port address, so the
-                                               ; number of it is &F0. MasterDOS's source writes the same LD B and
-                                               ; comments it "CONTROL REG"
-               LD A,&05                        ; 7711 3E 05  &05 is 0101, and the author's comment for it reads "NOT
-                                               ; TEST/24H/RUN /REST". The two OUTs are his "REST HI" and "WE CAN SET 24H
-                                               ; NOW", which is the MSM6242B's documented order: REST to 1, write the
-                                               ; 24/12 bit, REST back to 0, because "REST bit must = 1 to write to the
-                                               ; 24/12 hour bit"
-               OUT (C),A                       ; 7713 ED 79
-               OUT (C),A                       ; 7715 ED 79
-               LD A,&04                        ; 7717 3E 04  and &04 is the same four bits with REST released -- 0100,
-                                               ; "NOT TEST/24H/RUN /NOT REST". The clock is now running in 24-hour mode
-                                               ; with its sub-second divider restarted
-               OUT (C),A                       ; 7719 ED 79
-               LD HL,&7FE6                     ; 771B 21 E6 7F  SYSP, the DOS's syntax stack. masterdos23.asm EQUs it at
-                                               ; &7FF0 and this build has it ten bytes lower: &6054 in the DOS reads LD
-                                               ; HL,&7FE5 where that source reads LD HL,SYSP-1, and sets bit 6 of it to
-                                               ; leave ROM 1 on when the DOS returns. So &7FE6 is not a number
-                                               ; MasterBASIC chose but one it has to agree with
-               LD (DOSSTK),HL                  ; 771E 22 59 5C
-               LD HL,SYS_EDITV_EDITOR          ; 7721 21 66 48  &4866 likewise, inside the second stub
-               LD (EDITV),HL                   ; 7724 22 EC 5A
-               LD HL,SYS_FRAMIV_FRAME_INT      ; 7727 21 86 49
-               LD (FRAMIV),HL                  ; 772A 22 E2 5A
-               LD HL,SYS_PATOUT_CHAR_OUT       ; 772D 21 A9 49
-               LD (PATOUT),HL                  ; 7730 22 D2 5B
-               LD HL,&3A31                     ; 7733 21 31 3A  not an address: &31 is "1" and &3A is ":", so PTH1
-                                               ; becomes the path "1:" and the INC L below makes PTH2 read "2:".
-                                               ; MasterDOS's source writes the same constant and comments it ":/1"
-               LD (DOS_PTH1),HL                ; 7736 22 13 BF
-               INC L                           ; 7739 2C
-               LD (DOS_PTH2),HL                ; 773A 22 39 BF
-               LD HL,&45A1                     ; 773D 21 A1 45  &45A1, one below the first installed stub at &45A2
-               LD (BSTKEND),HL                 ; 7740 22 C4 5B
-               LD (BASSTK),HL                  ; 7743 22 C6 5B  BASIC's stack moved to &45A1, clear of the installed
-                                               ; code
-               LD (HL),&FF                     ; 7746 36 FF  the ROM's own "FF STOPPER". RETLOOP in do.asm reads the
-                                               ; byte at BSTKEND, ANDs it with &E0 and compares it with the type wanted,
-                                               ; and &FF matches none of &80, &40 and &00 -- which is what an empty
-                                               ; DO/GOSUB/PROC stack has to look like
-               LD A,&01                        ; 7748 3E 01  drive 1, the DOS's default
-               LD (DOS_DRIVE),A                ; 774A 32 0B BC
-               LD HL,SYS_INSLV_STRING_MOVE     ; 774D 21 CC 46  &46CC in the system page -- the string move stub, not
-                                               ; whatever this page has at &46CC
-               LD (INSLV),HL                   ; 7750 22 BA 5B
-               LD HL,SYS_RST8V_ERROR           ; 7753 21 B8 4A
-               LD (RST8V),HL                   ; 7756 22 EE 5A
-               RET                             ; 7759 C9
+               LD (DOS_NEXTST),HL                         ; 76DA 22 1E 82
+               LD (MB_NEXTST),DE                          ; 76DD ED 53 69 5A  &5A69 is VAR2+&69, inside the fourteen
+                                                          ; bytes vars.asm marks SPARE between LSOFF and SPOSNU; &7BCF
+                                                          ; parks a return address in &5A62 out of the same fourteen.
+                                                          ; &549F reads this word back with MBNRRDD beside the ROM's
+                                                          ; ERRSP and MasterDOS's NEXTST -- the DEFW &7889 at &54B2, a
+                                                          ; few instructions later, is LD BC,(NEXTST) -- so what it
+                                                          ; holds is a next-statement address. It is MasterBASIC's
+                                                          ; NEXTST, written here in the same breath as the DOS's own
+               CALL REPORT_EXTERNAL_MEMORY+INSTALLER_COPY ; 76E1 CD AA BD
+               CALL INSTALL_EXTENDED_PUT+INSTALLER_COPY   ; 76E4 CD 48 BE
+               LD HL,SYS_PRTOKV_PRINT_TOKEN               ; 76E7 21 B0 4B  &4BB0 in the system page -- inside the 36
+                                                          ; bytes put at &4BA0
+               LD (PRTOKV),HL                             ; 76EA 22 DE 5A
+               LD HL,SYS_GAP_BLOCK+&1E                    ; 76ED 21 B4 58
+               LD (MTOKV),HL                              ; 76F0 22 FA 5A
+               LD HL,SYS_EVALUV_EVAL_FN                   ; 76F3 21 BA 4B
+               LD (EVALUV),HL                             ; 76F6 22 F6 5A
+               LD HL,SYS_CMDV_COMMAND                     ; 76F9 21 8E 48
+               LD (CMDV),HL                               ; 76FC 22 F4 5A  CMDV gets &488E, inside the second stub
+               CALL FIND_ROM_CODE_SOURCE+INSTALLER_COPY   ; 76FF CD 79 BD
+               DEFB &5B,&D6,&5B,&3D,&00,&FC               ; 7702 signature 5B D6 5B from &3D00, -4  -> &3DAD POSTFF
+               LD (SYS_GAP_BLOCK+&06),HL                  ; 7708 22 9C 58
+               LD A,(DOS_CKPT)                            ; 770B 3A B6 82
+               LD C,A                                     ; 770E 4F
+               LD B,&F0                                   ; 770F 06 F0  the clock's control register F, which is
+                                                          ; register 15 -- and the register number rides in bits 12-15
+                                                          ; of the port address, so the number of it is &F0. MasterDOS's
+                                                          ; source writes the same LD B and comments it "CONTROL REG"
+               LD A,&05                                   ; 7711 3E 05  &05 is 0101, and the author's comment for it
+                                                          ; reads "NOT TEST/24H/RUN /REST". The two OUTs are his "REST
+                                                          ; HI" and "WE CAN SET 24H NOW", which is the MSM6242B's
+                                                          ; documented order: REST to 1, write the 24/12 bit, REST back
+                                                          ; to 0, because "REST bit must = 1 to write to the 24/12 hour
+                                                          ; bit"
+               OUT (C),A                                  ; 7713 ED 79
+               OUT (C),A                                  ; 7715 ED 79
+               LD A,&04                                   ; 7717 3E 04  and &04 is the same four bits with REST released
+                                                          ; -- 0100, "NOT TEST/24H/RUN /NOT REST". The clock is now
+                                                          ; running in 24-hour mode with its sub-second divider
+                                                          ; restarted
+               OUT (C),A                                  ; 7719 ED 79
+               LD HL,&7FE6                                ; 771B 21 E6 7F  SYSP, the DOS's syntax stack. masterdos23.asm
+                                                          ; EQUs it at &7FF0 and this build has it ten bytes lower:
+                                                          ; &6054 in the DOS reads LD HL,&7FE5 where that source reads
+                                                          ; LD HL,SYSP-1, and sets bit 6 of it to leave ROM 1 on when
+                                                          ; the DOS returns. So &7FE6 is not a number MasterBASIC chose
+                                                          ; but one it has to agree with
+               LD (DOSSTK),HL                             ; 771E 22 59 5C
+               LD HL,SYS_EDITV_EDITOR                     ; 7721 21 66 48  &4866 likewise, inside the second stub
+               LD (EDITV),HL                              ; 7724 22 EC 5A
+               LD HL,SYS_FRAMIV_FRAME_INT                 ; 7727 21 86 49
+               LD (FRAMIV),HL                             ; 772A 22 E2 5A
+               LD HL,SYS_PATOUT_CHAR_OUT                  ; 772D 21 A9 49
+               LD (PATOUT),HL                             ; 7730 22 D2 5B
+               LD HL,&3A31                                ; 7733 21 31 3A  not an address: &31 is "1" and &3A is ":", so
+                                                          ; PTH1 becomes the path "1:" and the INC L below makes PTH2
+                                                          ; read "2:". MasterDOS's source writes the same constant and
+                                                          ; comments it ":/1"
+               LD (DOS_PTH1),HL                           ; 7736 22 13 BF
+               INC L                                      ; 7739 2C
+               LD (DOS_PTH2),HL                           ; 773A 22 39 BF
+               LD HL,&45A1                                ; 773D 21 A1 45  &45A1, one below the first installed stub at
+                                                          ; &45A2
+               LD (BSTKEND),HL                            ; 7740 22 C4 5B
+               LD (BASSTK),HL                             ; 7743 22 C6 5B  BASIC's stack moved to &45A1, clear of the
+                                                          ; installed code
+               LD (HL),&FF                                ; 7746 36 FF  the ROM's own "FF STOPPER". RETLOOP in do.asm
+                                                          ; reads the byte at BSTKEND, ANDs it with &E0 and compares it
+                                                          ; with the type wanted, and &FF matches none of &80, &40 and
+                                                          ; &00 -- which is what an empty DO/GOSUB/PROC stack has to
+                                                          ; look like
+               LD A,&01                                   ; 7748 3E 01  drive 1, the DOS's default
+               LD (DOS_DRIVE),A                           ; 774A 32 0B BC
+               LD HL,SYS_INSLV_STRING_MOVE                ; 774D 21 CC 46  &46CC in the system page -- the string move
+                                                          ; stub, not whatever this page has at &46CC
+               LD (INSLV),HL                              ; 7750 22 BA 5B
+               LD HL,SYS_RST8V_ERROR                      ; 7753 21 B8 4A
+               LD (RST8V),HL                              ; 7756 22 EE 5A
+               RET                                        ; 7759 C9
 
 ;; --------------------------------------------------------------------
 ;; Copied to &7D79 in the DOS page by the boot sector, and
-;; called there from 28 sites in this page as DOS_FIND_ROM_CODE.  The
+;; called there from 20 sites in this page as DOS_FIND_ROM_CODE.  The
 ;; bytes the file holds at &7D79 in the DOS page are not
 ;; these: they are whatever was in its buffers when the image
 ;; was saved, and the copy overwrites them at boot.
 ;; --------------------------------------------------------------------
 
-               POP HL                          ; 775A E1
-               LD A,(HL)                       ; 775B 7E
-               INC HL                          ; 775C 23
-               LD B,(HL)                       ; 775D 46
-               INC HL                          ; 775E 23
-               LD C,(HL)                       ; 775F 4E
-               INC HL                          ; 7760 23
-               LD D,(HL)                       ; 7761 56
-               INC HL                          ; 7762 23
-               LD E,(HL)                       ; 7763 5E
-               INC HL                          ; 7764 23
-               PUSH HL                         ; 7765 E5
-               EX DE,HL                        ; 7766 EB
-               CALL DOS_MBCOPY_7774            ; 7767 CD 93 BD
-               POP DE                          ; 776A D1
-               LD A,(DE)                       ; 776B 1A
-               INC DE                          ; 776C 13
-               PUSH DE                         ; 776D D5
-               LD E,A                          ; 776E 5F
-               RLA                             ; 776F 17
-               SBC A,A                         ; 7770 9F
-               LD D,A                          ; 7771 57
-               ADD HL,DE                       ; 7772 19
-               RET                             ; 7773 C9
+; ---- FIND_ROM_CODE_SOURCE ---- from &75F2, &75FE, &760A, &7616, &7622, &762E, &763A, &76FF
+FIND_ROM_CODE_SOURCE:
+               POP HL                                   ; 775A E1
+               LD A,(HL)                                ; 775B 7E
+               INC HL                                   ; 775C 23
+               LD B,(HL)                                ; 775D 46
+               INC HL                                   ; 775E 23
+               LD C,(HL)                                ; 775F 4E
+               INC HL                                   ; 7760 23
+               LD D,(HL)                                ; 7761 56
+               INC HL                                   ; 7762 23
+               LD E,(HL)                                ; 7763 5E
+               INC HL                                   ; 7764 23
+               PUSH HL                                  ; 7765 E5
+               EX DE,HL                                 ; 7766 EB
+               CALL FIND_ROM_CODE_SEARCH+INSTALLER_COPY ; 7767 CD 93 BD
+               POP DE                                   ; 776A D1
+               LD A,(DE)                                ; 776B 1A
+               INC DE                                   ; 776C 13
+               PUSH DE                                  ; 776D D5
+               LD E,A                                   ; 776E 5F
+               RLA                                      ; 776F 17
+               SBC A,A                                  ; 7770 9F
+               LD D,A                                   ; 7771 57
+               ADD HL,DE                                ; 7772 19
+               RET                                      ; 7773 C9
 
 ;; --------------------------------------------------------------------
 ;; Copied to &7D93 in the DOS page by the boot sector, and
-;; called there from 1 site in this page as DOS_MBCOPY_7774.  The
+;; reached there only from the copy itself, 1 time, written as this address plus INSTALLER_COPY.  The
 ;; bytes the file holds at &7D93 in the DOS page are not
 ;; these: they are whatever was in its buffers when the image
 ;; was saved, and the copy overwrites them at boot.
 ;; --------------------------------------------------------------------
 
+; ---- FIND_ROM_CODE_SEARCH ---- from &7767
+FIND_ROM_CODE_SEARCH:
                LD DE,&0000                     ; 7774 11 00 00  the two-byte window the search below slides along, so
                                                ; nothing can match until two bytes have been read into it. FTHREE in
                                                ; MasterDOS's source opens with the same LD DE
 
-; ---- INSTALL_ROM_VECTORS_LOOP ---- from &7786
-INSTALL_ROM_VECTORS_LOOP:
+; ---- FIND_ROM_CODE_SEARCH_LOOP ---- from &7786
+FIND_ROM_CODE_SEARCH_LOOP:
                PUSH BC                         ; 7777 C5
                LD B,A                          ; 7778 47
 
-; ---- INSTALL_ROM_VECTORS_LOOP2 ---- from &777E when A <> B
-INSTALL_ROM_VECTORS_LOOP2:
-               LD A,D                          ; 7779 7A
-               LD D,E                          ; 777A 53
-               INC HL                          ; 777B 23
-               LD E,(HL)                       ; 777C 5E
-               CP B                            ; 777D B8
-               JR NZ,INSTALL_ROM_VECTORS_LOOP2 ; 777E 20 F9
-               POP BC                          ; 7780 C1
-               EX DE,HL                        ; 7781 EB
-               SBC HL,BC                       ; 7782 ED 42
-               ADD HL,BC                       ; 7784 09  the one instruction FTHREE does not have. SBC then ADD leaves
-                                               ; the flags from the subtraction and puts the window back, so a near miss
-                                               ; does not cost a byte of it; FTHREE, which goes straight to EX DE,HL,
-                                               ; carries the difference into DE and shifts it through the window on the
-                                               ; next pass. The restore is exact only because the loop above can only
-                                               ; exit on equality, which leaves the carry clear for the SBC
-               EX DE,HL                        ; 7785 EB
-               JR NZ,INSTALL_ROM_VECTORS_LOOP  ; 7786 20 EF
-               DEC HL                          ; 7788 2B
-               DEC HL                          ; 7789 2B
-               RET                             ; 778A C9
+; ---- FIND_ROM_CODE_SEARCH_LOOP2 ---- from &777E when A <> B
+FIND_ROM_CODE_SEARCH_LOOP2:
+               LD A,D                           ; 7779 7A
+               LD D,E                           ; 777A 53
+               INC HL                           ; 777B 23
+               LD E,(HL)                        ; 777C 5E
+               CP B                             ; 777D B8
+               JR NZ,FIND_ROM_CODE_SEARCH_LOOP2 ; 777E 20 F9
+               POP BC                           ; 7780 C1
+               EX DE,HL                         ; 7781 EB
+               SBC HL,BC                        ; 7782 ED 42
+               ADD HL,BC                        ; 7784 09  the one instruction FTHREE does not have. SBC then ADD leaves
+                                                ; the flags from the subtraction and puts the window back, so a near
+                                                ; miss does not cost a byte of it; FTHREE, which goes straight to EX
+                                                ; DE,HL, carries the difference into DE and shifts it through the window
+                                                ; on the next pass. The restore is exact only because the loop above can
+                                                ; only exit on equality, which leaves the carry clear for the SBC
+               EX DE,HL                         ; 7785 EB
+               JR NZ,FIND_ROM_CODE_SEARCH_LOOP  ; 7786 20 EF
+               DEC HL                           ; 7788 2B
+               DEC HL                           ; 7789 2B
+               RET                              ; 778A C9
 
 ;; --------------------------------------------------------------------
-;; Copied to &7DAA in the DOS page by the boot sector, and
-;; called there from 1 site in this page as DOS_MBCOPY_778B.  The
-;; bytes the file holds at &7DAA in the DOS page are not
-;; these: they are whatever was in its buffers when the image
-;; was saved, and the copy overwrites them at boot.
+;; DI, the DOS page into section B, SIZE_EXTERNAL_MEMORY at the address
+;; it runs at, both ROMs back, and if any was found the size times
+;; sixteen into DOS TEMPW1 and printed through the calculator with the
+;; "K External Memory" text.
 ;; --------------------------------------------------------------------
 
-               DI                              ; 778B F3
-               LD A,(DOSFLG)                   ; 778C 3A C2 5B
-               DEC A                           ; 778F 3D
-               OUT (LMPR),A                    ; 7790 D3 FA  LMPR := DOSFLG-1, which puts the DOS page itself at &4000
-               LD (&4212),SP                   ; 7792 ED 73 12 42  so &4212 here is that page's, not this half's
-               LD SP,DOS_HEADER                ; 7796 31 00 80
-               CALL &7DFA                      ; 7799 CD FA 7D  SIZE_EXTERNAL_MEMORY, at the address it runs at rather
-                                               ; than where it is stored -- this is inside INSTALLER, which the boot
-                                               ; sector copies to &BC00
-               LD HL,(&4212)                   ; 779C 2A 12 42  TEMPW1 in the DOS's own page, where &7792 parked the
-                                               ; stack pointer. MRINIT, which this is a copy of, writes LD (TEMPW1),SP
-                                               ; and LD HL,(TEMPW1) around the same call
-               LD BC,&5FFA                     ; 779F 01 FA 5F  &5F to LMPR: both ROMs on, the system page back in
-                                               ; section B
-               OUT (C),B                       ; 77A2 ED 41
-               LD SP,HL                        ; 77A4 F9
-               LD A,D                          ; 77A5 7A
-               OR E                            ; 77A6 B3
-               RET Z                           ; 77A7 C8
-               EX DE,HL                        ; 77A8 EB
-               ADD HL,HL                       ; 77A9 29
-               ADD HL,HL                       ; 77AA 29
-               ADD HL,HL                       ; 77AB 29
-               ADD HL,HL                       ; 77AC 29
-               LD (DOS_TEMPW1),HL              ; 77AD 22 12 82
-                                               ; calculator: = DPEEK DOS_TEMPW1
-               RST FPCALC                      ; 77B0 EF
-               DEFB FPC_LKADDRW,&12,&82        ; 77B1 LKADDRW at DOS_TEMPW1
-               DEFB FPC_EXIT                   ; 77B4 EXIT
-               LD A,&02                        ; 77B5 3E 02  back to stream 2, the normal output stream, for the report
-                                               ; line
-               CALL STREAM                     ; 77B7 CD 12 01
-               CALL JPFSTRS                    ; 77BA CD 7E 01
-               CALL PRINTSTR                   ; 77BD CD 13 00
-               LD DE,DOS_V7DE8                 ; 77C0 11 E8 BD
-               LD BC,&0012                     ; 77C3 01 12 00  eighteen -- the length of the text below, which the
-                                               ; banner there counts out
-               JP PRINTSTR                     ; 77C6 C3 13 00
+; ---- REPORT_EXTERNAL_MEMORY ---- from &76E1
+REPORT_EXTERNAL_MEMORY:
+               DI                                       ; 778B F3
+               LD A,(DOSFLG)                            ; 778C 3A C2 5B
+               DEC A                                    ; 778F 3D
+               OUT (LMPR),A                             ; 7790 D3 FA  LMPR := DOSFLG-1, which puts the DOS page itself
+                                                        ; at &4000
+               LD (&4212),SP                            ; 7792 ED 73 12 42  so &4212 here is that page's, not this
+                                                        ; half's
+               LD SP,DOS_HEADER                         ; 7796 31 00 80
+               CALL &7DFA                               ; 7799 CD FA 7D  SIZE_EXTERNAL_MEMORY, at the address it runs at
+                                                        ; rather than where it is stored -- this is inside INSTALLER,
+                                                        ; which the boot sector copies to &BC00
+               LD HL,(&4212)                            ; 779C 2A 12 42  TEMPW1 in the DOS's own page, where &7792
+                                                        ; parked the stack pointer. MRINIT, which this is a copy of,
+                                                        ; writes LD (TEMPW1),SP and LD HL,(TEMPW1) around the same call
+               LD BC,&5FFA                              ; 779F 01 FA 5F  &5F to LMPR: both ROMs on, the system page back
+                                                        ; in section B
+               OUT (C),B                                ; 77A2 ED 41
+               LD SP,HL                                 ; 77A4 F9
+               LD A,D                                   ; 77A5 7A
+               OR E                                     ; 77A6 B3
+               RET Z                                    ; 77A7 C8
+               EX DE,HL                                 ; 77A8 EB
+               ADD HL,HL                                ; 77A9 29
+               ADD HL,HL                                ; 77AA 29
+               ADD HL,HL                                ; 77AB 29
+               ADD HL,HL                                ; 77AC 29
+               LD (DOS_TEMPW1),HL                       ; 77AD 22 12 82
+                                                        ; calculator: = DPEEK DOS_TEMPW1
+               RST FPCALC                               ; 77B0 EF
+               DEFB FPC_LKADDRW,&12,&82                 ; 77B1 LKADDRW at DOS_TEMPW1
+               DEFB FPC_EXIT                            ; 77B4 EXIT
+               LD A,&02                                 ; 77B5 3E 02  back to stream 2, the normal output stream, for
+                                                        ; the report line
+               CALL STREAM                              ; 77B7 CD 12 01
+               CALL JPFSTRS                             ; 77BA CD 7E 01
+               CALL PRINTSTR                            ; 77BD CD 13 00
+               LD DE,MSG_EXTERNAL_MEMORY+INSTALLER_COPY ; 77C0 11 E8 BD
+               LD BC,&0012                              ; 77C3 01 12 00  eighteen -- the length of the text below, which
+                                                        ; the banner there counts out
+               JP PRINTSTR                              ; 77C6 C3 13 00
 
 ;; --------------------------------------------------------------------
 ;; "K External Memory" and a carriage return, eighteen bytes -- which is
@@ -19402,6 +19419,7 @@ INSTALL_ROM_VECTORS_LOOP2:
 ;; where a message should be.
 ;; --------------------------------------------------------------------
 
+; ---- MSG_EXTERNAL_MEMORY ---- from &77C0
 MSG_EXTERNAL_MEMORY:
                DEFM "K External Memory"        ; 77C9 4B 20 45 78 74 65 72 6E
                DEFB &0D                        ; 77DA
@@ -19743,6 +19761,7 @@ STACK_FILL_LOOP_1:
 ;; calls included, runs at install time and never again.
 ;; --------------------------------------------------------------------
 
+; ---- INSTALL_EXTENDED_PUT ---- from &76E4
 INSTALL_EXTENDED_PUT:
                LD HL,(CMDADDRT)                ; 7829 2A DA 5B  CMDADDRT, the ROM's command address table pointer
                LD BC,&0038                     ; 782C 01 38 00  token &AC, PUT, is entry 28 of the table
@@ -19754,58 +19773,62 @@ INSTALL_EXTENDED_PUT:
                                                ; OVER0LP sits relative to it -- the line below says which call is being
                                                ; patched
                ADD HL,DE                       ; 7836 19
-               LD (DOS_V7EFC),HL               ; 7837 22 FC BE  patch a call to OVER0LP into the block
+               LD (&78DD+INSTALLER_COPY),HL    ; 7837 22 FC BE  patch a call to OVER0LP into the block
                LD HL,&FFEC                     ; 783A 21 EC FF  and &14 back the other way for GPVARS, written as &FFEC
                                                ; so that the same ADD HL,DE serves for both
                ADD HL,DE                       ; 783D 19
-               LD (DOS_V7F0D),HL               ; 783E 22 0D BF  patch a call to GPVARS into the block
+               LD (&78EE+INSTALLER_COPY),HL    ; 783E 22 0D BF  patch a call to GPVARS into the block
 
 ; ---- BUILD_PUT_BLOCK ---- from &7826
 BUILD_PUT_BLOCK:
-               PUSH DE                         ; 7841 D5
-               LD HL,DOS_V7FA5                 ; 7842 21 A5 BF  ten bytes of this half's own code, from &7986
-               LD DE,SYS_TOKEN_TO_FN_INDEX     ; 7845 11 A2 45
-               LD BC,&000A                     ; 7848 01 0A 00  ten -- the token-to-index stub named on the line above
-               LDIR                            ; 784B ED B0
-               POP HL                          ; 784D E1  the ROM's PUT itself, 13 bytes
-               LD C,&0D                        ; 784E 0E 0D  thirteen, the ROM's PUT from its first byte
-               LDIR                            ; 7850 ED B0
-               LD (DOS_V7F6B),HL               ; 7852 22 6B BF  patch PUT+&0D into the block
-               LD C,&0D                        ; 7855 0E 0D  thirteen more, PUT+&0D onwards
-               LDIR                            ; 7857 ED B0
-               LD (DOS_V7EA6),HL               ; 7859 22 A6 BE  patch PUT+&1A into the block
-               LD C,&08                        ; 785C 0E 08  eight, added to HL rather than copied -- PUT+&1A to PUT+&22
-                                               ; is skipped
-               ADD HL,BC                       ; 785E 09
-               PUSH HL                         ; 785F E5
-               LD HL,DOS_V7E98                 ; 7860 21 98 BE  this half's &7879, 21 bytes
-               LD C,&15                        ; 7863 0E 15  twenty-one, this half's &7879
-               LDIR                            ; 7865 ED B0
-               EX (SP),HL                      ; 7867 E3
-               LD C,&03                        ; 7868 0E 03  the ROM's PUT again, 3 bytes from PUT+34
-               LDIR                            ; 786A ED B0
-               POP HL                          ; 786C E1
-               LD C,&EE                        ; 786D 0E EE  the bulk of it, 238 bytes from this half's &788E
-               LDIR                            ; 786F ED B0
-               LD DE,&45B9                     ; 7871 11 B9 45  and ten bytes over &45B9, replacing the ROM's second
-                                               ; fragment
-               LD C,&0A                        ; 7874 0E 0A  ten, written back over &45B9 -- the last run overwrites
-                                               ; part of the third
-               LDIR                            ; 7876 ED B0
-               RET                             ; 7878 C9
+               PUSH DE                             ; 7841 D5
+               LD HL,PUT_PIECE_45A2+INSTALLER_COPY ; 7842 21 A5 BF  ten bytes of this half's own code, from &7986
+               LD DE,SYS_TOKEN_TO_FN_INDEX         ; 7845 11 A2 45
+               LD BC,&000A                         ; 7848 01 0A 00  ten -- the token-to-index stub named on the line
+                                                   ; above
+               LDIR                                ; 784B ED B0
+               POP HL                              ; 784D E1  the ROM's PUT itself, 13 bytes
+               LD C,&0D                            ; 784E 0E 0D  thirteen, the ROM's PUT from its first byte
+               LDIR                                ; 7850 ED B0
+               LD (&794C+INSTALLER_COPY),HL        ; 7852 22 6B BF  patch PUT+&0D into the block
+               LD C,&0D                            ; 7855 0E 0D  thirteen more, PUT+&0D onwards
+               LDIR                                ; 7857 ED B0
+               LD (&7887+INSTALLER_COPY),HL        ; 7859 22 A6 BE  patch PUT+&1A into the block
+               LD C,&08                            ; 785C 0E 08  eight, added to HL rather than copied -- PUT+&1A to
+                                                   ; PUT+&22 is skipped
+               ADD HL,BC                           ; 785E 09
+               PUSH HL                             ; 785F E5
+               LD HL,PUT_PIECE_45C6+INSTALLER_COPY ; 7860 21 98 BE  this half's &7879, 21 bytes
+               LD C,&15                            ; 7863 0E 15  twenty-one, this half's &7879
+               LDIR                                ; 7865 ED B0
+               EX (SP),HL                          ; 7867 E3
+               LD C,&03                            ; 7868 0E 03  the ROM's PUT again, 3 bytes from PUT+34
+               LDIR                                ; 786A ED B0
+               POP HL                              ; 786C E1
+               LD C,&EE                            ; 786D 0E EE  the bulk of it, 238 bytes from this half's &788E
+               LDIR                                ; 786F ED B0
+               LD DE,&45B9                         ; 7871 11 B9 45  and ten bytes over &45B9, replacing the ROM's second
+                                                   ; fragment
+               LD C,&0A                            ; 7874 0E 0A  ten, written back over &45B9 -- the last run overwrites
+                                                   ; part of the third
+               LDIR                                ; 7876 ED B0
+               RET                                 ; 7878 C9
+
+; ---- PUT_PIECE_45C6 ---- from &7860
+PUT_PIECE_45C6:
                CALL GETSTR                     ; 7879 CD 24 01  from here to &788D this code is written for &45C6:
                                                ; subtract &32B3 from any address in it
                LD H,D                          ; 787C 62
                LD L,E                          ; 787D 6B
                ADD HL,BC                       ; 787E 09
                BIT 6,H                         ; 787F CB 74
-               JR Z,BUILD_PUT_BLOCK_1          ; 7881 28 06
+               JR Z,PUT_PIECE_45C6_1           ; 7881 28 06
                CALL STKSTR                     ; 7883 CD 27 01
                JP &0000                        ; 7886 C3 00 00  the operand is written at run time, an address inside
                                                ; the ROM's PUT
 
-; ---- BUILD_PUT_BLOCK_1 ---- from &7881 when bit 6 of H clear
-BUILD_PUT_BLOCK_1:
+; ---- PUT_PIECE_45C6_1 ---- from &7881 when bit 6 of H clear
+PUT_PIECE_45C6_1:
                LD H,&00                        ; 7889 26 00  HL is one past the end of the string -- DE plus BC, as
                                                ; GETSTR left them -- and the BIT 6,H above has just found bit 14 of it
                                                ; clear. Clearing the whole of H keeps the low byte alone, which is what
@@ -19813,6 +19836,8 @@ BUILD_PUT_BLOCK_1:
                PUSH HL                         ; 788B E5
                PUSH DE                         ; 788C D5
                PUSH AF                         ; 788D F5
+
+PUT_PIECE_45DE:
                PUSH BC                         ; 788E C5  from here to &797B this code is written for &45DE: subtract
                                                ; &32B0 from any address in it
                LD A,(CUSCRNP)                  ; 788F 3A 78 5A
@@ -19823,11 +19848,11 @@ BUILD_PUT_BLOCK_1:
                LD BC,&002E                     ; 789C 01 2E 00  forty-six bytes for PUT
                LD A,(SYS_FN_INDEX)             ; 789F 3A F0 4A
                AND A                           ; 78A2 A7
-               JR Z,BUILD_PUT_BLOCK_2          ; 78A3 28 02
+               JR Z,PUT_PIECE_45DE_1           ; 78A3 28 02
                LD C,&1D                        ; 78A5 0E 1D  twenty-nine for GRAB, which needs less of it
 
-; ---- BUILD_PUT_BLOCK_2 ---- from &78A3 when A = 0
-BUILD_PUT_BLOCK_2:
+; ---- PUT_PIECE_45DE_1 ---- from &78A3 when A = 0
+PUT_PIECE_45DE_1:
                LDIR                            ; 78A7 ED B0
                POP BC                          ; 78A9 C1
                POP AF                          ; 78AA F1
@@ -19840,7 +19865,7 @@ BUILD_PUT_BLOCK_2:
                EXX                             ; 78B2 D9
                PUSH AF                         ; 78B3 F5
                OUT (HMPR),A                    ; 78B4 D3 FB
-               JR Z,BUILD_PUT_BLOCK_3          ; 78B6 28 0E
+               JR Z,PUT_PIECE_45DE_2           ; 78B6 28 0E
                LD A,(SYS_FN_INDEX)             ; 78B8 3A F0 4A
                AND A                           ; 78BB A7
                LD E,&32                        ; 78BC 1E 32  fifty, which is one entry past the five the arithmetic
@@ -19848,22 +19873,22 @@ BUILD_PUT_BLOCK_2:
                                                ; ten times A, and A is four or INVERT's low two bits, so the offsets it
                                                ; produces are 0, 10, 20, 30 and 40 -- ten bytes to an entry. Fifty is
                                                ; the sixth, taken when SYS_FN_INDEX says GRAB rather than PUT
-               JR NZ,BUILD_PUT_BLOCK_5         ; 78BE 20 19
+               JR NZ,PUT_PIECE_45DE_4          ; 78BE 20 19
                LD IY,PUT_TRAMPOLINE + &1D      ; 78C0 FD 21 1D F0
-               JR BUILD_PUT_BLOCK_6            ; 78C4 18 1B
+               JR PUT_PIECE_45DE_5             ; 78C4 18 1B
 
-; ---- BUILD_PUT_BLOCK_3 ---- from &78B6 when H reached 0
-BUILD_PUT_BLOCK_3:
+; ---- PUT_PIECE_45DE_2 ---- from &78B6 when H reached 0
+PUT_PIECE_45DE_2:
                LD DE,(INVERT)                  ; 78C6 ED 5B 54 5A
                LD A,E                          ; 78CA 7B
                OR D                            ; 78CB B2
                LD A,&04                        ; 78CC 3E 04  four when INVERT is not set
-               JR Z,BUILD_PUT_BLOCK_4          ; 78CE 28 03
+               JR Z,PUT_PIECE_45DE_3           ; 78CE 28 03
                LD A,D                          ; 78D0 7A
                AND &03                         ; 78D1 E6 03  otherwise the low two bits of it
 
-; ---- BUILD_PUT_BLOCK_4 ---- from &78CE
-BUILD_PUT_BLOCK_4:
+; ---- PUT_PIECE_45DE_3 ---- from &78CE
+PUT_PIECE_45DE_3:
                ADD A,A                         ; 78D3 87
                LD E,A                          ; 78D4 5F
                ADD A,A                         ; 78D5 87
@@ -19871,23 +19896,23 @@ BUILD_PUT_BLOCK_4:
                ADD A,E                         ; 78D7 83
                LD E,A                          ; 78D8 5F
 
-; ---- BUILD_PUT_BLOCK_5 ---- from &78BE when A <> 0
-BUILD_PUT_BLOCK_5:
+; ---- PUT_PIECE_45DE_4 ---- from &78BE when A <> 0
+PUT_PIECE_45DE_4:
                LD D,&00                        ; 78D9 16 00  the high half of that offset, which never exceeds fifty, so
                                                ; clearing D makes DE the offset by itself for the ADD IY,DE below
                LD IY,&0000                     ; 78DB FD 21 00 00  the same
                ADD IY,DE                       ; 78DF FD 19
 
-; ---- BUILD_PUT_BLOCK_6 ---- from &78C4
-BUILD_PUT_BLOCK_6:
+; ---- PUT_PIECE_45DE_5 ---- from &78C4
+PUT_PIECE_45DE_5:
                LD A,(HL)                       ; 78E1 7E
                AND A                           ; 78E2 A7
-               JR Z,BUILD_PUT_BLOCK_7          ; 78E3 28 02
+               JR Z,PUT_PIECE_45DE_6           ; 78E3 28 02
                RST ERR_HOOK                    ; 78E5 CF
                DEFB ERR_PUT_BLOCK              ; 78E6 25 error 37, "PUT block"
 
-; ---- BUILD_PUT_BLOCK_7 ---- from &78E3 when A = 0
-BUILD_PUT_BLOCK_7:
+; ---- PUT_PIECE_45DE_6 ---- from &78E3 when A = 0
+PUT_PIECE_45DE_6:
                INC HL                          ; 78E7 23
                LD E,(HL)                       ; 78E8 5E
                INC HL                          ; 78E9 23
@@ -19926,44 +19951,44 @@ BUILD_PUT_BLOCK_7:
                INC DE                          ; 7925 13
                ADD HL,BC                       ; 7926 09
                BIT 6,H                         ; 7927 CB 74
-               JR NZ,BUILD_PUT_BLOCK_8         ; 7929 20 13
+               JR NZ,PUT_PIECE_45DE_7          ; 7929 20 13
                EX AF,AF'                       ; 792B 08
                EXX                             ; 792C D9
                CALL GETSTR                     ; 792D CD 24 01
                LD H,A                          ; 7930 67
                EX AF,AF'                       ; 7931 08
                CP H                            ; 7932 BC
-               JR NZ,BUILD_PUT_BLOCK_8         ; 7933 20 09
+               JR NZ,PUT_PIECE_45DE_7          ; 7933 20 09
                LD H,D                          ; 7935 62
                LD L,E                          ; 7936 6B
                ADD HL,BC                       ; 7937 09
                BIT 6,H                         ; 7938 CB 74
                POP HL                          ; 793A E1
-               JR NZ,BUILD_PUT_BLOCK_9         ; 793B 20 02
+               JR NZ,PUT_PIECE_45DE_8          ; 793B 20 02
                RET                             ; 793D C9
 
-; ---- BUILD_PUT_BLOCK_8 ---- from &7929 when bit 6 of H set, &7933 when A <> H
-BUILD_PUT_BLOCK_8:
+; ---- PUT_PIECE_45DE_7 ---- from &7929 when bit 6 of H set, &7933 when A <> H
+PUT_PIECE_45DE_7:
                POP HL                          ; 793E E1
 
-; ---- BUILD_PUT_BLOCK_9 ---- from &793B when bit 6 of H was set
-BUILD_PUT_BLOCK_9:
+; ---- PUT_PIECE_45DE_8 ---- from &793B when bit 6 of H was set
+PUT_PIECE_45DE_8:
                LD (STKEND),HL                  ; 793F 22 65 5C
                POP HL                          ; 7942 E1
                LD A,(SYS_FN_INDEX)             ; 7943 3A F0 4A
                AND A                           ; 7946 A7
-               JR NZ,BUILD_PUT_BLOCK_10        ; 7947 20 02
+               JR NZ,PUT_PIECE_45DE_9          ; 7947 20 02
                RST ERR_HOOK                    ; 7949 CF
                DEFB ERR_PAGE_OVERLAP           ; 794A 76 error 118, "Page overlap"
 
-; ---- BUILD_PUT_BLOCK_10 ---- from &7947 when A <> 0
-BUILD_PUT_BLOCK_10:
+; ---- PUT_PIECE_45DE_9 ---- from &7947 when A <> 0
+PUT_PIECE_45DE_9:
                JP &0000                        ; 794B C3 00 00  the same
                OUT (LMPR),A                    ; 794E D3 FA
                LD A,C                          ; 7950 79
 
-; ---- BUILD_PUT_BLOCK_LOOP ---- from &7960 when B is not 0 yet
-BUILD_PUT_BLOCK_LOOP:
+; ---- PUT_PIECE_45DE_LOOP ---- from &7960 when B is not 0 yet
+PUT_PIECE_45DE_LOOP:
                EXX                             ; 7951 D9
                LD B,A                          ; 7952 47
                EX AF,AF'                       ; 7953 08
@@ -19978,14 +20003,14 @@ BUILD_PUT_BLOCK_LOOP:
                ADD HL,BC                       ; 795D 09
                EXX                             ; 795E D9
                LD A,C                          ; 795F 79
-               DJNZ BUILD_PUT_BLOCK_LOOP       ; 7960 10 EF
+               DJNZ PUT_PIECE_45DE_LOOP        ; 7960 10 EF
                LD A,SYSPAGE_IN_B               ; 7962 3E 1F
                OUT (LMPR),A                    ; 7964 D3 FA
                LD SP,(PUT_TRAMPOLINE - 2)      ; 7966 ED 7B FE EF
                RET                             ; 796A C9
 
-; ---- BUILD_PUT_BLOCK_LOOP2 ---- from &7978 when B is not 0 yet
-BUILD_PUT_BLOCK_LOOP2:
+; ---- PUT_PIECE_45DE_LOOP2 ---- from &7978 when B is not 0 yet
+PUT_PIECE_45DE_LOOP2:
                LD A,(DE)                       ; 796B 1A
                XOR (HL)                        ; 796C AE
                EXX                             ; 796D D9
@@ -19999,8 +20024,10 @@ BUILD_PUT_BLOCK_LOOP2:
                LD (DE),A                       ; 7975 12
                INC DE                          ; 7976 13
                INC HL                          ; 7977 23
-               DJNZ BUILD_PUT_BLOCK_LOOP2      ; 7978 10 F1
+               DJNZ PUT_PIECE_45DE_LOOP2       ; 7978 10 F1
                JP (IX)                         ; 797A DD E9
+
+PUT_PIECE_45B9:
                CALL &4667                      ; 797C CD 67 46  from here to &7985 this code is written for &45B9:
                                                ; subtract &33C3 from any address in it
                EXX                             ; 797F D9
@@ -20009,6 +20036,9 @@ BUILD_PUT_BLOCK_LOOP2:
                POP HL                          ; 7982 E1
                INC HL                          ; 7983 23
                JR $+23                         ; 7984 18 15
+
+; ---- PUT_PIECE_45A2 ---- from &7842
+PUT_PIECE_45A2:
                POP HL                          ; 7986 E1  from here to &798F this code is written for &45A2: subtract
                                                ; &33E4 from any address in it
                RST NEXT_CHAR                   ; 7987 E7

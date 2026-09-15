@@ -262,9 +262,9 @@ INDJP:         LD H,&00
                LD D,(HL)
                EX DE,HL
                BIT 7,H
-               JR NZ,BUILD_PUT_BLOCK_5                     ; bit 15: the other page
+               JR NZ,INDJP_1                               ; bit 15: the other page
                JP (HL)                         ; this page: go straight there
-BUILD_PUT_BLOCK_5:         RES 7,H
+INDJP_1:                   RES 7,H
                LD (INDJP_MB_TARGET),HL                   ; patch the DEFW below
                EXX
                CALL CALLMB

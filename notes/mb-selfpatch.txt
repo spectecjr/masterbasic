@@ -98,3 +98,11 @@ MB &7860 : this half's &7879, 21 bytes
 MB &7868 : the ROM's PUT again, 3 bytes from PUT+34
 MB &786D : the bulk of it, 238 bytes from this half's &788E
 MB &7871 : and ten bytes over &45B9, replacing the ROM's second fragment
+
+# The pieces BUILD_PUT_BLOCK assembles into &45A2-&46CB, named for
+# where each lands; the installer reaches them in its own copy, as the
+# address plus INSTALLER_COPY.
+MB &7879 PUT_PIECE_45C6
+MB &788E PUT_PIECE_45DE
+MB &797C PUT_PIECE_45B9
+MB &7986 PUT_PIECE_45A2

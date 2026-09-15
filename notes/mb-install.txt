@@ -350,3 +350,5 @@ MB &41AB : five, the whole of a floating-point number -- the manual's "Normal nu
 # back by the LD DE,(&7B01) at &673B.
 MB &66B0 : the compressed length into the buffer's header, bytes 1 and 2, which &673B reads back
 MB &7B00 : the IN this routine opens with, later overwritten by the header the compressor builds here
+
+EQU INSTALLER_COPY : the installer copy at &BC00 less its home at &75E1, for the installer addressing itself where it runs

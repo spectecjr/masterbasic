@@ -185,6 +185,11 @@ class Page(Disassembler):
         self.self_window = []         # ranges where &8000+ is this page
         self.site_labels = set()      # named instructions that head nothing
         self.blocks = {}              # (base, name) -> length: NAME+n inside
+        self.copy_window = []         # (lo, hi, at, equate, sites): a
+                                      # block that runs as a copy at `at`;
+                                      # a jump or call from inside it to the
+                                      # copy is to itself, and so is a data
+                                      # operand at one of `sites`
         self.sys_low = []             # ranges where &4000+ is the system page
         self.carried_by_value = {}    # address -> the MasterDOS source's name
         self.rendered = []            # ranges written by a renderer
@@ -350,7 +355,7 @@ class Page(Disassembler):
         # this code, wherever this code happens to be paged.  Everything
         # else -- JP, CALL, LD -- names a location, and in an inverted
         # stretch that location is in the ROM's system page.
-        return self._name(v, self.ext_target, absolute=not rel)
+        return self._name(v, self.ext_target, absolute=not rel, flow=True)
 
     def mem16(self, v, at=None):
         """A memory address.  If nothing in this page claims it and the
@@ -456,9 +461,30 @@ class Page(Disassembler):
                 return n + '+' + PAGE_BIAS[0]
         return self._name(v, lambda _: None)
 
-    def _name(self, v, outside, absolute=False):
+    def _name(self, v, outside, absolute=False, flow=False):
         if v is None:
             return '?'
+        # A block that the boot copies elsewhere and runs there -- the
+        # installer, 943 bytes at &75E1 run at &BC00 in the DOS page --
+        # addresses its own bytes at the copy's address.  &7837's LD
+        # (&BEFC),HL is the installer patching its own &78DD, and it was
+        # coming out as a write into a DOS variable that does not exist,
+        # with a label planted in the DOS listing for the purpose.
+        # The copy lands over the DOS's channel record and buffers, and
+        # the installer writes real DOS variables there too -- DRIVE at
+        # &7C0B, PTH1 and PTH2 -- so a data operand is the copy's own
+        # only where it is listed; a call or jump into the copy from
+        # inside it can only be to itself, the buffers holding no code.
+        if absolute and self._cur is not None:
+            for lo, hi, at, equ, sites in self.copy_window:
+                if lo <= self._cur < hi and at <= v < at + (hi - lo) \
+                        and (flow or self._cur in sites):
+                    src = v - at + lo
+                    if self._cur not in self.expr_operands:
+                        self.xrefs.setdefault(src, set()).add(self._cur)
+                    self.user_equs[equ] = at - lo
+                    return '%s+%s' % (self.labels.get(src) or hexn(src, 4),
+                                      equ)
         if self.inside(v):
             # In code that runs with the ROM's system page at &4000, an
             # address in this range is a ROM variable, not this page's own
@@ -1245,6 +1271,19 @@ def seeds(dos, mb):
         dos.labels.setdefault(base, name)
     # SVAL$'s five-byte number image, filled from the top down.
     mb.blocks[(0x41C0, 'SVAL_NUMBER')] = 5
+    # The installer, 943 bytes from &75E1, which the boot sector copies
+    # to &BC00 -- the DOS page in section C -- and runs there.  Its own
+    # absolute references to &BCxx-&BFxx are to itself in that copy:
+    # the patches INSTALL_EXTENDED_PUT makes, FIND_ROM_CODE's home at
+    # &BD79.  INSTALLER_COPY is the distance, &461F.
+    # The data operands that are the copy's own bytes: the "K External
+    # Memory" text at &77C0, and INSTALL_EXTENDED_PUT's four patches and
+    # three sources at &7837-&7860.  The rest of the installer's &BCxx
+    # operands -- DRIVE at &774A, PTH1 and PTH2 at &7736 and &773A --
+    # are the DOS's variables under the copy, and stay so.
+    mb.copy_window.append((0x75E1, 0x7990, 0xBC00, 'INSTALLER_COPY',
+                           {0x77C0, 0x7837, 0x783E, 0x7842, 0x7852,
+                            0x7859, 0x7860}))
     # The three vector values INSTALL_ROM_PATCHES writes: &49F7, &4A52
     # and &4AE6 are addresses in the ROM's system page, in the stubs it
     # has just put there, and not in this half.  &4AAC two instructions

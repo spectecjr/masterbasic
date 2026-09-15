@@ -886,23 +886,32 @@ COPY_DST, COPY_SRC, COPY_LEN = 0x7C00, 0x75E1, 0x3AF
 
 
 def name_copied_block(dos, mb):
-    """Name the copied helpers on both sides of the copy."""
-    calls = {}
+    """Name the copied helpers on both sides of the copy.
+
+    A call from inside the copy itself -- the installer calling its own
+    search helper -- is written on the MasterBASIC side as the source
+    address plus INSTALLER_COPY, so it wants no label in the DOS page;
+    only a call from outside, made after the boot with the DOS in the
+    window, reaches the copy as a DOS address and needs one there.
+    """
+    calls, inside = {}, {}
     for a, ins in mb.insns.items():
         if not ins.text.startswith(('CALL', 'JP ', 'JR ')):
             continue
         p = mb.peer_addr(ins.target, a) if ins.target else None
         if p is not None and COPY_DST <= p < COPY_DST + COPY_LEN:
-            calls.setdefault(p, set()).add(a)
+            (inside if COPY_SRC <= a < COPY_SRC + COPY_LEN
+             else calls).setdefault(p, set()).add(a)
 
     n = 0
     mb.copied_blocks = []
-    for dst, sites in sorted(calls.items()):
+    for dst in sorted(set(calls) | set(inside)):
         src = COPY_SRC + (dst - COPY_DST)
-        if dst not in dos.labels:
+        outside = len(calls.get(dst, ()))
+        if outside and dst not in dos.labels:
             dos.labels[dst] = 'MBCOPY_%04X' % src
             n += 1
-        mb.copied_blocks.append((src, dst, len(sites)))
+        mb.copied_blocks.append((src, dst, outside, len(inside.get(dst, ()))))
     return n
 
 
@@ -916,13 +925,20 @@ def describe_copied_block(dos, mb):
     as everywhere else.
     """
     n = 0
-    for src, dst, sites in getattr(mb, 'copied_blocks', ()):
+    for src, dst, sites, own in getattr(mb, 'copied_blocks', ()):
         if not mb.inside(src) or src in mb.headers:
             continue
+        if sites:
+            how = ('called there from %d site%s in this page as DOS_%s'
+                   % (sites, '' if sites == 1 else 's',
+                      dos.labels.get(dst, '?')))
+        else:
+            how = ('reached there only from the copy itself, %d time%s,'
+                   ' written as this address plus INSTALLER_COPY'
+                   % (own, '' if own == 1 else 's'))
         mb.headers[src] = banner(NL.join([
             'Copied to &%04X in the DOS page by the boot sector, and' % dst,
-            'called there from %d site%s in this page as DOS_%s.  The'
-            % (sites, '' if sites == 1 else 's', dos.labels.get(dst, '?')),
+            how + '.  The',
             'bytes the file holds at &%04X in the DOS page are not' % dst,
             'these: they are whatever was in its buffers when the image',
             'was saved, and the copy overwrites them at boot.']))
@@ -942,10 +958,12 @@ this listing goes the buffers are not code.
 That is only half the story.  The LDIR at the end of BOOT copies 943
 bytes from &75E1 in the MasterBASIC page to &BC00 -- this address, as
 the boot sector has the pages mapped -- and jumps to it.  MasterBASIC
-then goes on calling into the copy: &7D79 from twenty-eight sites, and
-three more addresses once each.  Those are marked MBCOPY_xxxx, named for
-the MasterBASIC address they were copied from, which is where the code
-that actually runs there can be read.
+then goes on calling into the copy: &7D79 from twenty-eight sites, which
+is why that address has a label here, named for what runs there.  The
+other entries the copy reaches are called only from within it, and the
+MasterBASIC listing writes those as the source address plus
+INSTALLER_COPY, which is where the code that actually runs here can be
+read.
 
 So the bytes from here to &7D5F are whatever was in the DOS's buffers
 when the image was saved, and none of them is ever executed.  From

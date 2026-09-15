@@ -297,9 +297,14 @@ Bounded jobs, good between rounds or when a round is out for review:
   is left is deliberate: ten words at `&4098-&40AD` that SORT, LOCN,
   INARRAY, JOIN TO, DUMP and the compressor share as scratch, where any
   one command's name would lie for the others; the source's own
-  `L41FF`; and eight labels in the DOS's tail that are MasterBASIC's
-  installer addressing its own copy in the DOS page, which want a
-  rendering rule on the MasterBASIC side.
+  `L41FF`; and `V7CFF`, the one byte of the sector area a MasterBASIC
+  routine reaches by number from outside the installer.  The eight
+  labels in the DOS's tail that were the installer addressing its own
+  copy are gone: a call or jump from inside the installer into the copy,
+  and seven listed data operands, now read as the source address plus
+  `INSTALLER_COPY` (&461F); the installer's other &BCxx operands --
+  DRIVE, PTH1, PTH2 -- are the DOS's variables under the copy and stay
+  so, which the first version of the rule got wrong.
 - **The two lists -- done 2026-09-14.**  `describedtwice.py`'s 39 pairs
   were read against each other and the code: four disagreed
   (CHECK_FILE_TYPE's declaration had the SUB/ADC arithmetic separating

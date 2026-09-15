@@ -30,8 +30,9 @@ DOC INSTALL_ROM_VECTORS
     used to name them after whatever this half happens to hold there.
 
     That means the ROM's system page is at &4000 while this runs, and the
-    DOS is in the window, since DOS_MBCOPY_778B and DOS_FIND_ROM_CODE are
-    called at &BDAA and &BD79.
+    DOS is in the window, since REPORT_EXTERNAL_MEMORY and
+    FIND_ROM_CODE_SOURCE are called in the installer's copy there, at
+    &BDAA and &BD79.
 
     WHERE THIS CODE ITSELF EXECUTES FROM was left open here, on the
     grounds that it cannot be at &4000.  It is not executing in this page

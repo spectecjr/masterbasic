@@ -113,7 +113,7 @@ are therefore two address spaces, not one, and get a file each; a reference to
 under a `DOS_` or `MB_` prefix:
 
 ```
-               CALL DOS_FIND_ROM_CODE          ; 75FE CD 79 BD
+               CALL FIND_ROM_CODE_SOURCE+INSTALLER_COPY ; 75FE CD 79 BD
 ```
 
 The boot sector is the exception at both ends: it runs before either page is in
