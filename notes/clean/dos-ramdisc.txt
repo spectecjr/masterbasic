@@ -260,8 +260,17 @@ DOC SDCHK
     build calls.
 
 DOC RDCE
-    A RET: the RAM-disc copy's exit, jumped to when there was nothing
-    to move.
+    The mover's RET, which both paths fall into, and the end of the
+    block FORMRD copies into every page: &76C6 measures RDCE-RDCODE+1,
+    thirty bytes, so this one lands at &801F and the LDIs start at
+    &8020.
+
+DOC RDAD2
+    Where every path arrives, the track fiddled or not: the drive's
+    track count from RTSTD, "No such drive" if it is zero, and the
+    track checked against it.  The source's note on the fiddle above
+    reads: if DTKS=1 on a 40-track disc, track 0 stays 0 and tracks
+    4-42 become 1-39.
 
 DOC RMRBIT
     Release a MegaRAM page: its bit in MRTAB, found through MRADDR,
@@ -269,4 +278,8 @@ DOC RMRBIT
 
 DOC CFMI
     Count the free MegaRAM pages from HL on, E bytes of MRTAB, eight
-    bits a byte, into D.
+    bits a byte, into DE: E the count, D set only when it reaches 256,
+    which the boot-time call with 32 bytes can.
+
+DOS &7829 : GET FREE MEGA RAM PAGES IN E -- the source says 0-2, but CFMRP looks at 28 bytes of MRTAB and CFMI counts every clear bit, so 0 to 224
+DOS &762E : the bytes left, saved at &7602 -- the source's "* POP DE ;PREV TRK" on this line is a commented-out instruction, not a description

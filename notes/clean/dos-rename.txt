@@ -48,7 +48,7 @@ DOS &5D88 : renaming files, so a directory is not wanted
 DOS &5D8A : renaming a directory, so a file is not wanted
 DOS &5D8C : and clear the carry, so the shared test below lets it past
 DOS &5D8F : with "?", ask before this one
-DOS &5D95 : the name found, put where the template can be applied to it
+DOS &5D95 : the two parameter blocks swapped: the FROM parse goes to NSTR2 for safe keeping and the TO name's block -- and its CDIRT -- becomes current; TRX0 below overwrites NSTR1 with the entry's name
 DOS &5D99 : the template, applied
 DOS &5D9C : is the name it produced already on the disc?
 DOS &5D9F : then it may not be used
@@ -151,7 +151,8 @@ DOC ZDVS
     the disc, files in the directory.
 
 DOC SF1S
-    DIR's OVER option: SETF1, and on to the next character.
+    Flag 1 and on to the next character: the tail of OVERO, which is
+    ERASE's OVER, and the OFF option of PROTECT and HIDE at &5E33.
 
 DOC NWSADH
     WSAD by a jump, for the branch that is too far for a JR: the entry

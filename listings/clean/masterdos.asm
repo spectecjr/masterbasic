@@ -8309,7 +8309,8 @@ RDKY:
 ;;    CMD_COPY / FFPG / GCOP  copy files, using whatever free RAM there is as the buffer
 ;;    DIR / HOOK_PCAT / STATS  the catalogue, in either of its two forms
 ;;    HOOK_PCAT             the sorted catalogue -- the sort itself is SORT_NAMES in the MasterBASIC page, reached
-;;                          by a direct cross-page call; hook 153 enters the same routine one instruction later
+;;                          by a direct cross-page call; hook 153 enters the same routine five bytes in, at the EXX the
+;;                          DOS entry skips
 ;;    ERAZ / RENAM          ERASE and RENAME, both of which also work on subdirectories
 ;;    CMD_PROTECT / CMD_HIDE  the two flag-setting commands, which differ only in the bit
 ;;    OHASR                 the per-file confirmation the "?" option asks for (FNMAE, which prints it, is in E1)
@@ -9071,7 +9072,8 @@ OVERO:
                RET NZ                          ; 5CB5 C0
 
 ;; --------------------------------------------------------------------
-;; DIR's OVER option: SETF1, and on to the next character.
+;; Flag 1 and on to the next character: the tail of OVERO, which is
+;; ERASE's OVER, and the OFF option of PROTECT and HIDE at &5E33.
 ;; --------------------------------------------------------------------
 
 ; ---- SF1S ---- from &5E33 when A = &89
@@ -9098,7 +9100,8 @@ REDI2:
 
 ; ---- ALLSR ---- from &5B1B, &5B48, &5B52, &7922
 ALLSR:
-               SUB &3F                         ; 5CC6 D6 3F  "?" after the name: every file, subdirectories included
+               SUB &3F                         ; 5CC6 D6 3F  "?" -- before the name in DIR, after it elsewhere: every
+                                               ; file, subdirectories included
                RET NZ                          ; 5CC8 C0
                DEC A                           ; 5CC9 3D
                LD (CDIRT),A                    ; 5CCA 32 31 42  CDIRT=FF
@@ -9331,8 +9334,9 @@ RENM3:
                CALL OHASR                      ; 5D8F CD 2F 5D  with "?", ask before this one
                JR NZ,RENM2                     ; 5D92 20 EE  JR IF "?" AND "N"
                PUSH HL                         ; 5D94 E5
-               CALL EXDAT                      ; 5D95 CD 43 62  the name found, put where the template can be applied to
-                                               ; it
+               CALL EXDAT                      ; 5D95 CD 43 62  the two parameter blocks swapped: the FROM parse goes to
+                                               ; NSTR2 for safe keeping and the TO name's block -- and its CDIRT --
+                                               ; becomes current; TRX0 below overwrites NSTR1 with the entry's name
                POP HL                          ; 5D98 E1
                CALL TRX0                       ; 5D99 CD E9 62  the template, applied
                CALL FINDC                      ; 5D9C CD A7 4F  is the name it produced already on the disc?
@@ -11155,8 +11159,10 @@ HOOK_HLOAD_4:
                JP HOOK_SKSAFE                  ; 647C C3 23 47
 
 ;; --------------------------------------------------------------------
-;; Take a file's header from the disc entry into HD001 and the page
-;; count beside it, from RESET_BUFFER_POINTERS on.
+;; Read the file's first sector and step past its nine-byte header,
+;; then put the hook's start, page count and length into the DOS's
+;; own header, as HOOK_ARGS_TO_HEADER below does -- nothing from the
+;; disc entry reaches HD001.  RESET_BUFFER_POINTERS first.
 ;; --------------------------------------------------------------------
 
 ; ---- DSCHD ---- from &64B1, &787B
@@ -11164,8 +11170,9 @@ DSCHD:
                CALL RESET_BUFFER_POINTERS      ; 647F CD 84 4F
 
 ;; --------------------------------------------------------------------
-;; The hook's arguments, into the DOS's own nine-byte header HD001 and
-;; the page count beside it.  The ROM's header, UIFA, is not touched.
+;; The hook's arguments, into the DOS's own nine-byte header at HD001
+;; -- the start, the length and the page count, PGES1 being HD001+7.
+;; The ROM's header, UIFA, is not touched.
 ;;
 ;; D IS THE HIGH BYTE OF THE LENGTH, and goes to HD0B1.  Bit 7 of it
 ;; is the &8000 of page form on a length's remainder -- PAGEFORM
@@ -11635,7 +11642,9 @@ HOFLE:
 
 ;; --------------------------------------------------------------------
 ;; Hook 158, open a file for reading: the header read in, the file
-;; found by name whatever its type.
+;; found by name whatever its type, and then -- falling into
+;; READ_SAVED_SECTOR -- its first sector read and the header skipped,
+;; ready for LBYT.
 ;; --------------------------------------------------------------------
 
 HOOK_HGFLE:
@@ -11785,9 +11794,11 @@ CALS:
                LD BC,&0001                     ; 66BD 01 01 00  1 SECT TO DO
 
 ;; --------------------------------------------------------------------
-;; The sector-address form of a save: the page kept in HKBC -- an
-;; address under &4000, page &FF, is "Integer out of range" -- the
-;; offset in HKHL and the sector count in SVHDR.
+;; Store the address for a raw sector transfer, read or write -- READ
+;; AT and WRITE AT through EVPRM, the hook reads and writes through
+;; CALS: the page kept in HKBC -- an address under &4000, page &FF,
+;; is "Integer out of range" -- the offset in HKHL and the sector
+;; count in SVHDR.
 ;; --------------------------------------------------------------------
 
 ; ---- SCASD ---- from &5F2A
@@ -11799,7 +11810,10 @@ SCASD:
                LD (SVHDR),BC                   ; 66CA ED 43 0A 41  SECTORS TO DO
 
 ;; --------------------------------------------------------------------
-;; A RET: the hook table's placeholder, "WAS S:" in the source.
+;; The RET SCASD ends on.  In the source this was also HDUMMY, the
+;; hook table's placeholder, "WAS S:"; in this build the table's
+;; placeholder is HOOK_HDUMMY, the RET at &55AC, and nothing points
+;; here.
 ;; --------------------------------------------------------------------
 
 HDUMMY:
@@ -11851,14 +11865,17 @@ GTDD_2:
                LD (ODEF),A                     ; 66EF 32 2F 42
                CALL CODN                       ; 66F2 CD 9F 61  CONVERT DRV NUM
                CALL DRSET                      ; 66F5 CD 81 67
-               LD A,&44                        ; 66F8 3E 44  "D", written to SLDEV as the default device
+               LD A,&44                        ; 66F8 3E 44  "D" into SLDEV, the ROM's temporary device, so that a
+                                               ; default drive reads as a disc device to the ROM
                CALL NRWR                       ; 66FA CD 74 50
                DEFW SLDEV                      ; 66FD B7 5B
                POP HL                          ; 66FF E1
                RET                             ; 6700 C9
 
 ;; --------------------------------------------------------------------
-;; Take the device and drive off the front of the name in NSTR1+1.
+;; Take the device and drive off the front of the name at HL --
+;; NSTR1+1 from the command parsers, UIFA+1 from HCONR -- and leave
+;; the bare name in NSTR1+1.
 ;;
 ;; WHAT IT ACCEPTS is a letter, then up to two digits, then a colon:
 ;;
@@ -11884,9 +11901,8 @@ GTDD_2:
 ;;
 ;; WHAT COMES OUT.  The letter goes to LSTR1 and the number, through
 ;; CODN's pretend table, to DSTR1; TEMPW3 holds how many characters
-;; the prefix took, and the name is copied to the front of the field
-;; from wherever it started, so NSTR1+1 reads as a bare name from here
-;; on.
+;; the prefix took, and the name is copied to NSTR1+1 from wherever
+;; it started, so NSTR1+1 reads as a bare name from here on.
 ;; --------------------------------------------------------------------
 
 ; ---- EVFILE ---- from &6390, &724E, &7324
@@ -11910,7 +11926,9 @@ EVFL0:
 ;; --------------------------------------------------------------------
 ;; The device prefix proper, with its letter in C: a colon straight
 ;; after is a device with no number; a digit is the drive, and "D"
-;; alone may drop the colon, as in "D1name".
+;; alone may drop the colon, but only with nothing after the digit
+;; but spaces -- "D1" alone, which becomes "D1:*".  "D1name" is a
+;; name.
 ;; --------------------------------------------------------------------
 
 EVFL1:
@@ -12308,8 +12326,9 @@ MEOF:
 ;; the &4000 window bias, and the thirty bytes of the six five-byte
 ;; standard channels the ROM installs.  It is added exactly once.
 ;; Every step after that comes from the record's own length at +9,
-;; which is what the comment further down says; a length of zero is
-;; the end of the list -- that is the ROM's marker, not the DOS's.
+;; which is what the comment further down says; a &0D where the next
+;; record's first byte would be is the end of the list -- that is the
+;; ROM's marker, not the DOS's.
 ;;
 ;; A channel whose LETTER is "D" with bit 7 set is one of MOVE's own,
 ;; left over from a command that did not finish, and it is reclaimed
@@ -12433,10 +12452,11 @@ TOSCQ:
 ;;
 ;; CURCHL is set to the channel being read, and the address two bytes
 ;; into its record is where the ROM keeps that channel's input routine.
-;; A high byte of &4B -- the stubs MTBLS plants at &4BA0 and &4BA9 in
-;; the system page -- means the DOS's own, and is called
-;; directly; anything else is the ROM's, and is reached through CMR
-;; with the address planted in the instruction that calls it.
+;; A high byte of &4B -- the stubs the boot plants at &4BA0 and &4BA9
+;; in the system page, whose addresses MTBLS puts in the record --
+;; means the DOS's own, and is called directly; anything else is the
+;; ROM's, and is reached through CMR with the address planted in the
+;; instruction that calls it.
 ;; --------------------------------------------------------------------
 
 ; ---- MOVRC ---- from &6844, &684C, &685F, &6875, &687C, &6891
@@ -12506,8 +12526,9 @@ MOVWC:
                JP PRINT_A_KEEPING_IT           ; 6952 C3 66 57  otherwise let the ROM print it
 
 ;; --------------------------------------------------------------------
-;; MOVE's second operand, after the TO: "#" makes it a stream, read
-;; through EVSRM; otherwise a file name, through EVSYN.
+;; Either MOVE operand -- CMD_MOVE calls it for the first before it
+;; looks for the TO, and again for the second: "#" makes it a stream,
+;; read through EVSRM; otherwise a file name, through EVSYN.
 ;; --------------------------------------------------------------------
 
 ; ---- EVMOV ---- from &6799, &67A8
@@ -13504,7 +13525,8 @@ COPY_MTBLS_LOOP:
 MTBLS:
                DEFW &4BA0,&4BA9                ; 6D66 A0 4B A9 4B  the channel's output and input routines: the two hook
                                                ; stubs the boot plants in the system page at &4BA0 and &4BA9, MCHWR
-                                               ; through the JR at &4BA0 and MCHRD -- MB &7B80 holds the block
+                                               ; through the JR just inside the &4BA0 stub and MCHRD -- MB &7B80 holds
+                                               ; the block
                DEFB "D"+&80                    ; 6D6A D  the channel letter, with bit 7 set: temporary until OPDST1
                                                ; attaches it to a stream and clears the bit
                DEFW &0000,&0000                ; 6D6B 00 00 00 00  two empty words, and then 787 -- the length of a
@@ -13563,9 +13585,10 @@ DBOL:
                JR DBOL                         ; 6DA8 18 EC
 
 ;; --------------------------------------------------------------------
-;; CLOSE #stream, or CLOSE * for every stream: "*" is insisted on,
+;; CLOSE *stream, or CLOSE * for every stream: "*" is insisted on,
 ;; then either the end of the line, which is all of them, or the
-;; stream number, which CLSRM closes.
+;; stream number, which CLSRM closes.  CLOSE #n is the ROM's own
+;; command and reaches the DOS through hook 135, HOOK_HCLOS.
 ;; --------------------------------------------------------------------
 
 CLOSE:
@@ -13664,9 +13687,10 @@ CLOSE1:
                RET NZ                          ; 6E1F C0
 
 ;; --------------------------------------------------------------------
-;; Take a channel record out: an IN file first gives back its count
-;; in SAMCNT, an OUT or RND file has already done so through SDCM;
-;; then RCLAIM closes the record up.
+;; Take a channel record out: an IN file gives back its count in
+;; SAMCNT here; an OUT or RND file does so inside SDCM, which CLRC2
+;; calls next unless this is CLEAR #; then RCLAIM closes the record
+;; up.
 ;; --------------------------------------------------------------------
 
 ; ---- CLRCHD ---- from &69CC
@@ -15713,8 +15737,11 @@ RDADR:
                LD D,A                          ; 757D 57  E.G. TRACK 4 ACCESS BECOMES TRACK 1
 
 ;; --------------------------------------------------------------------
-;; SO IF DTKS=1, DISK=40 TRK, TRK 0=0
-;; TRKS 4-42 BECOME 1-39
+;; Where every path arrives, the track fiddled or not: the drive's
+;; track count from RTSTD, "No such drive" if it is zero, and the
+;; track checked against it.  The source's note on the fiddle above
+;; reads: if DTKS=1 on a 40-track disc, track 0 stays 0 and tracks
+;; 4-42 become 1-39.
 ;; --------------------------------------------------------------------
 
 ; ---- RDAD2 ---- from &7568 when A = 0, &7576 when A >= D, &757A when A >= &03
@@ -15895,7 +15922,9 @@ RDSB2:
 
 ; ---- RDSB3 ---- from &75FF
 RDSB3:
-               LD BC,(SVDE)                    ; 762E ED 4B 02 7C  * POP DE          ;PREV TRK
+               LD BC,(SVDE)                    ; 762E ED 4B 02 7C  the bytes left, saved at &7602 -- the source's "* POP
+                                               ; DE ;PREV TRK" on this line is a commented-out instruction, not a
+                                               ; description
                LD (IX+RPT-DCHAN+1),B           ; 7632 DD 70 0E
                LD (IX+RPT-DCHAN),C             ; 7635 DD 71 0D
                LD DE,DRAM                      ; 7638 11 13 7D
@@ -16364,8 +16393,10 @@ RDC1:
                LD SP,(RAMDISC_PAGE)            ; 77E2 ED 7B 00 80
 
 ;; --------------------------------------------------------------------
-;; A RET: the RAM-disc copy's exit, jumped to when there was nothing
-;; to move.
+;; The mover's RET, which both paths fall into, and the end of the
+;; block FORMRD copies into every page: &76C6 measures RDCE-RDCODE+1,
+;; thirty bytes, so this one lands at &801F and the LDIs start at
+;; &8020.
 ;; --------------------------------------------------------------------
 
 RDCE:
@@ -16478,7 +16509,9 @@ MRBL:
 
 ; ---- CNTFP ---- from &7693, &79EB
 CNTFP:
-               CALL CFMRP                      ; 7829 CD 3C 78  GET FREE MEGA RAM PAGES IN E (0-2)
+               CALL CFMRP                      ; 7829 CD 3C 78  GET FREE MEGA RAM PAGES IN E -- the source says 0-2, but
+                                               ; CFMRP looks at 28 bytes of MRTAB and CFMI counts every clear bit, so 0
+                                               ; to 224
                LD B,E                          ; 782C 43
                LD HL,ALLOCT+FS+32              ; 782D 21 20 91
 
@@ -16508,7 +16541,8 @@ CFMRP:
 
 ;; --------------------------------------------------------------------
 ;; Count the free MegaRAM pages from HL on, E bytes of MRTAB, eight
-;; bits a byte, into D.
+;; bits a byte, into DE: E the count, D set only when it reaches 256,
+;; which the boot-time call with 32 bytes can.
 ;; --------------------------------------------------------------------
 
 CFMI:
@@ -16907,13 +16941,16 @@ DST1:
                DEC C                           ; 7980 0D
                JR Z,DST3                       ; 7981 28 59  JR TO CHECK WRITE PROTECT
                LD A,C                          ; 7983 79
-               CP &06                          ; 7984 FE 06  six is option 8 with two taken off: the drive number
+               CP &06                          ; 7984 FE 06  six is option 8 with two taken off: the drive number, which
+                                               ; &7955 has already answered, so the JR Z below is dead and only the
+                                               ; carry matters
                LD A,(DRIVE)                    ; 7986 3A 0B 7C
 
 ;; --------------------------------------------------------------------
-;; DSTAT's option 8, the drive number: the drive stacked as a byte
-;; through STKA if the option matched, "Integer out of range" if it
-;; was higher.
+;; The source's target for DSTAT's option 8, the drive number; this
+;; build answers option 8 at &7955 with a JP Z,STKA of its own, so
+;; nothing jumps here and the JR Z at &7989 is dead.  What lives here
+;; is the range check: an option above 8 is "Integer out of range".
 ;; --------------------------------------------------------------------
 
 NSTKAH:
@@ -17463,8 +17500,10 @@ HOCHK:
                RET NZ                          ; 7B72 C0  RET IF RAM DISC FORMATTED
 
 ;; --------------------------------------------------------------------
-;; No disc, or a RAM disc not formatted: HL := A, which is zero, and
-;; HOC2 makes the -1 the function returns.
+;; An unformatted RAM disc, or DSTAT's missing drive 2: HL := A, which
+;; is zero, and HOC2 makes the -1 the function returns.  A floppy
+;; with no disc does not come this way: HOC1 falls from TFIHO's RET NZ
+;; straight into HOC2.
 ;; --------------------------------------------------------------------
 
 ; ---- HOC0 ---- from &7962

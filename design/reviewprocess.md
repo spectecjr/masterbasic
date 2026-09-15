@@ -415,6 +415,7 @@ The differences from the review prompt:
 | MB &41C5-&42AD and &6594-&660A, the proposal-only regions (2026-09-14) | review | 9 findings | 8 + 1 code observation; the SAVE copiers' DOS target was misnamed |
 | DOS C11 with 23 new banners (2026-09-14, round 11) | review | 8 findings | 8; two on the new banners, six on prose reviewed before |
 | DOS C12, D1, E1, F12 with 51 new banners (2026-09-14, round 11) | review | 16 findings | 15 + 1 left; four on the new banners, two on the generated headers |
+| DOS G1, MOVE, F11, SUBD, RAMD, HOOKS with 89 new banners (2026-09-14/15, round 11) | review | 28 findings | 25 + 3 left as code observations; thirteen on the new banners, one carried continuation placed as a header |
 
 The first five ran on one model; the rest on another, after the first hit a
 session limit mid-run. The prompts were byte-identical across the change,

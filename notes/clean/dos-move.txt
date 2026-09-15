@@ -165,8 +165,9 @@ DOC FIRST_DISC_CHANNEL
     the &4000 window bias, and the thirty bytes of the six five-byte
     standard channels the ROM installs.  It is added exactly once.
     Every step after that comes from the record's own length at +9,
-    which is what the comment further down says; a length of zero is
-    the end of the list -- that is the ROM's marker, not the DOS's.
+    which is what the comment further down says; a &0D where the next
+    record's first byte would be is the end of the list -- that is the
+    ROM's marker, not the DOS's.
 
     A channel whose LETTER is "D" with bit 7 set is one of MOVE's own,
     left over from a command that did not finish, and it is reclaimed
@@ -237,10 +238,11 @@ DOC MOVRC
 
     CURCHL is set to the channel being read, and the address two bytes
     into its record is where the ROM keeps that channel's input routine.
-    A high byte of &4B -- the stubs MTBLS plants at &4BA0 and &4BA9 in
-    the system page -- means the DOS's own, and is called
-    directly; anything else is the ROM's, and is reached through CMR
-    with the address planted in the instruction that calls it.
+    A high byte of &4B -- the stubs the boot plants at &4BA0 and &4BA9
+    in the system page, whose addresses MTBLS puts in the record --
+    means the DOS's own, and is called directly; anything else is the
+    ROM's, and is reached through CMR with the address planted in the
+    instruction that calls it.
 
 DOS &6919 : the channel being read from
 DOS &691C : which is where the ROM will read from
@@ -282,8 +284,9 @@ DOC MOVRC2
     anything else is the ROM's and is planted in the CALL at MTARG.
 
 DOC EVMOV
-    MOVE's second operand, after the TO: "#" makes it a stream, read
-    through EVSRM; otherwise a file name, through EVSYN.
+    Either MOVE operand -- CMD_MOVE calls it for the first before it
+    looks for the TO, and again for the second: "#" makes it a stream,
+    read through EVSRM; otherwise a file name, through EVSYN.
 
 DOC EVSYN
     A file name for a syntax-checked command: EVNAM, and back at once
@@ -335,14 +338,16 @@ DOC HOOK_HCLOS
     SSTR1, and CLSRM closes it.
 
 DOC CLOSE
-    CLOSE #stream, or CLOSE * for every stream: "*" is insisted on,
+    CLOSE *stream, or CLOSE * for every stream: "*" is insisted on,
     then either the end of the line, which is all of them, or the
-    stream number, which CLSRM closes.
+    stream number, which CLSRM closes.  CLOSE #n is the ROM's own
+    command and reaches the DOS through hook 135, HOOK_HCLOS.
 
 DOC CLRCHD
-    Take a channel record out: an IN file first gives back its count
-    in SAMCNT, an OUT or RND file has already done so through SDCM;
-    then RCLAIM closes the record up.
+    Take a channel record out: an IN file gives back its count in
+    SAMCNT here; an OUT or RND file does so inside SDCM, which CLRC2
+    calls next unless this is CLEAR #; then RCLAIM closes the record
+    up.
 
 DOC DECSAM
     One off SAMCNT, the count of long-term files open, and never below

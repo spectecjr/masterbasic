@@ -1,0 +1,180 @@
+# Banners for MasterBASIC's routine heads that had none, written in
+# round eleven (2026-09-15) after every DOS PART's.  Each is a head
+# reached from outside its routine -- a call, a planted address, a hook
+# entry, a stub the boot copies out -- and a label that is only a
+# branch target inside its own routine is left as it is.  The CALL_x
+# thunks and the CALLBACK_x stubs take generated headers instead
+# (describe_rom_thunks and describe_hook_callbacks in tools/dis_mb.py).
+
+DOC MBPPXR
+    The shared exit of the three inline-word primitives above, MBNRRDD,
+    MBNRRD and MBNRWRD: the return address MBGTHL stepped past the
+    word comes off the stack into HL, the caller's DE comes back, EX
+    (SP),HL puts the caller's HL back and the stepped return in its
+    place, and RET goes there.
+
+DOC CALL_SLICING
+    The ROM's SLICING as a subroutine of this page, through MBCMR --
+    but the word after the call is zero in the file: SLICING_WORD,
+    which the signature search fills at boot from &75FB.  One caller,
+    &47D7.
+
+DOC CALL_INSERTLN
+    The same for the ROM's INSERTLN: INSERTLN_WORD is filled from
+    &7607, and the one caller is &6EDD.
+
+DOC HOOK_HORDER
+    Hook 153, ORDER: the entry the DOS's hook table points at, five
+    bytes into SORT_NAMES, whose header is the account of the sort.
+    The EXX here is the source's opening and swaps the caller's
+    registers out, so the hook does not receive its list; SORT_NAMES,
+    which the DOS enters by a direct cross-page call, is the working
+    entry.
+
+DOC CMD_LPRINT_CLEAR
+    The rest of LPRINT once MODE is ruled out: LPRINT CLEAR, alone or
+    with a size, sizes the printer buffer; anything else has to be
+    LPRINT REF, and goes to PRINT_REF_COMMON with C = 3, the printer
+    stream.
+
+DOC PRINT_REF_COMMON
+    PRINT REF and LPRINT REF meet here with the stream in C, 2 or 3:
+    REF is insisted on, the stream selected when the line is running,
+    the DOS's PLNS called, and D = 0 -- PRINT REF's own code -- for the
+    search it shares with REF and ALTER.
+
+DOC FIND_SLOTS
+    The entry GET_BUFFER_SIZE calls, twice: L = &1F, the top page, then
+    into ALLOC_UTILITY_SLOT's walk down ALLOCT from there.
+
+DOC DUMP_FINISH
+    DUMP's end, reached when the lines run out and when the space bar
+    stops it: GCMX3 puts the printer back into text mode, and A = 0
+    falls into CALL_STREAM to select stream 0 again.
+
+DOC GREY_LEVEL_ABOVE
+    Probe for a free grey level D steps above the one wanted, A having
+    arrived as level plus D: past the top, &19, the search turns
+    downwards into GREY_LEVEL_BELOW at once; otherwise the flag D
+    steps up the table is read, and a free level comes back in A with
+    carry set and Z.  A taken one falls into GREY_LEVEL_BELOW.
+
+DOC GREY_LEVEL_BELOW
+    The same probe D steps below: two SUB Ds turn level plus D into
+    level less D, and a borrow -- CCF, RET NC -- means off the bottom.
+    Otherwise GREY_TAKEN plus the level is read: NZ back means taken,
+    carry set and Z means free, and A is the level either way.
+
+DOC CMD_DUMP_5_DISPATCH
+    DUMP 5's call into the block just copied: the text dump, DKP2 at
+    &4F00 in the system page, through MBCMR.  The thunk above it, on
+    the carry-clear path, is DUMP 4's, INP2 at &4F49.
+
+DOC MODE1_PIXEL_AND_ATTR
+    Row B, column C on a MODE 1 screen: the display byte into B and the
+    attribute byte into L, through the two address routines below.
+
+DOC MODE2_PIXEL_AND_ATTR
+    The same for MODE 2: the display byte into B, and SET 5,H reaches
+    the attribute &2000 above it, into L.
+
+DOC BUILD_PUT_BLOCK
+    The extended PUT, assembled in the system page from &45A2: the ten
+    bytes of PUT_PIECE_45A2 first, then the ROM's own PUT in runs --
+    thirteen, thirteen, three -- with this half's pieces between and
+    after them, and the address of each run's end written into the
+    piece that jumps back into the ROM's code.  This runs from the
+    installer's copy, so its addresses in this half carry
+    INSTALLER_COPY.  The JP at &7826 that appears to land here is the
+    DOS's CFMI, in a block written to run elsewhere, and not a caller.
+
+DOC PUT_PIECE_45C6
+    Twenty-one bytes of the extended PUT, written to run at &45C6,
+    where BUILD_PUT_BLOCK copies them from &7860: the JP at &7886
+    takes PUT+&1A as its operand, patched in at &7859.
+
+DOC PUT_PIECE_45DE
+    The bulk of the extended PUT: 238 bytes written to run at &45DE,
+    copied from &788E, with three operands patched in by the installer
+    -- OVER0LP at &78DD, GPVARS at &78EE and PUT+&0D at &794C.
+
+DOC PUT_PIECE_45B9
+    Ten bytes written to run at &45B9, copied last and over the end of
+    the ROM's second run: a CALL into the block at &4667, the count
+    from DE' plus one into HL, and a JR that lands on PUT_PIECE_45C6's
+    PUSH HL at &788B.
+
+DOC PUT_PIECE_45A2
+    Ten bytes written to run at &45A2, SYS_TOKEN_TO_FN_INDEX, the first
+    thing BUILD_PUT_BLOCK copies: the token after PUT less TOKEN_GRAB
+    into SYS_FN_INDEX -- zero for GRAB -- and a second RST NEXT_CHAR
+    to step past it when it was.
+
+DOC DOS_HOOK_STUBS
+    The 36 bytes the boot copies to &4BA0 in the system page, from
+    &7B3F, written to run there: at &4BA0 a no-op and a JR to
+    MCHWR_STUB, the channel output routine MTBLS names; at &4BA9
+    MCHRD_STUB, its input routine; at &4BB0 PRTOKV_STUB.  The three
+    bytes at &4BA3 are a hook 151 call nothing reaches.
+
+DOC MCHRD_STUB
+    Call hook 168, MCHRD, and bring its answer back the way the ROM's
+    input routines return it: the hook's exit leaves the handler's AF
+    in BC', and EXX, PUSH BC, POP AF put it in AF -- carry for a byte
+    read, NC and NZ for end of file, as MCHRD's own exits say.
+
+DOC CALLBACK_SKIPNAME
+    Call hook 178, CMD_DELETE -- the slot the DOS's table calls
+    SKIPNAME -- and go back to the ROM with A = T_DELETE, DELETE's own
+    token: the one stub here that keeps the ROM's return address.
+
+DOC SET_CHANNEL_OUTPUT_DE
+    DE into the current channel's output word, the first two bytes of
+    the record CURCHL points at: how the AT/TAB hook moves the channel
+    from one operand collector to the next.
+
+DOC AT_TAB_SECOND_OPERAND
+    The second operand of AT or TAB, at &4A1F once installed.  It is
+    multiplied by SYS_CHAR_WIDTH when that is set; then, on the lower
+    screen (DEVICE 1) with TAB's code in TVDATA, a zero result and bit
+    7 of TVFLAG set, the channel is handed back through &4A18 and a
+    space and a carriage return go out; otherwise the operand goes on
+    to the ROM's CCRESTOP through JP_CCRESTOP.
+
+DOC TAPE_VERIFY_STUB
+    Two entries into the ROM's LDBLK for the DOS's tape path, at &4A62
+    and &4A64 once installed: AND A here clears carry for a verify, and
+    the LD A,&37 two bytes on -- entered in its middle, its &37 is an
+    SCF -- sets it for a load.  Then EXX, A = &FF for a data block, and
+    the JP to LDVD3 that the boot fills at &7A39.  HOOK_HLOAD and HVERY
+    in the DOS load the two addresses.
+
+DOC EXIT_FOR_STUB
+    EXIT FOR's helper, at &4A6B once installed, the address
+    HOOK_TOKENARG_1 hands to the ROM: D and E are the ROM's search
+    tokens, FOR and NEXT, for the SEARCHALL the boot fills in at &7A6F;
+    no match is "NEXT without FOR"; a match reads forward to the end of
+    the statement, a colon or a carriage return, with A kept in D, and
+    jumps into the ROM's search at the address the boot fills at &7A77.
+
+DOC POST_LOAD_STUB
+    Run after a LOAD, at &4A84 once installed: bit 0 of DCT set,
+    COMPFLG = &FF for a full program compile, and the byte the DOS's
+    HOOK_HLOAD armed at &4A97 -- the first byte of the program as it
+    was on the disc, which the load left as &FF -- written back over
+    (PROG) with PROGP paged in.
+
+DOC LOAD_RETURN_STUB
+    Where the ROM's LOAD comes back to, at &4A99 once installed: the
+    DOS's WRTBC plants this address as the return and the real one in
+    the JP at &4A9D, so POST_LOAD_STUB runs first through the CALL
+    &4A84 and the JP then goes where LOAD was going.  The bytes after
+    it are a copy overwritten before anything could use it.
+
+DOC RST28V_XVAR_NVAL
+    What RST28V, the ROM's function-evaluator vector, points at once
+    the boot has copied the &61 bytes from here to &4AAC: XVAR and
+    NVAL, the two functions whose argument takes no bracket, drop the
+    ROM's return address and go to hook 179; anything else returns to
+    the ROM.  The bytes from &7E0F are the rest of that copy, the
+    error intercept the comments there read.

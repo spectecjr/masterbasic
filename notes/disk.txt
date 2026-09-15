@@ -293,8 +293,9 @@ DOS &6336 RXHED
     either -- and all three go on to their own directory search.
 
 DOS &6482 HOOK_ARGS_TO_HEADER
-    The hook's arguments, into the DOS's own nine-byte header HD001 and
-    the page count beside it.  The ROM's header, UIFA, is not touched.
+    The hook's arguments, into the DOS's own nine-byte header at HD001
+    -- the start, the length and the page count, PGES1 being HD001+7.
+    The ROM's header, UIFA, is not touched.
 
     D IS THE HIGH BYTE OF THE LENGTH, and goes to HD0B1.  Bit 7 of it
     is the &8000 of page form on a length's remainder -- PAGEFORM
@@ -554,7 +555,7 @@ DOS &41F4 : &C000, the source's DEFW 49152: the length of a Spectrum snapshot's 
 DOS &6072 : the operand of the JP at system-page &4A9C, LOAD_RETURN_STUB's, so the stub jumps on to where the ROM's LOAD was returning -- MB &7DF3 has the other end
 DOS &6367 : SLDEV+1, the number half of the two-byte device variable
 DOS &6472 : the operand of the LD (HL),&00 at system-page &4A96, the byte the post-LOAD stub writes back over the start of the program -- MB &7DED has the other end
-DOS &6D66 : the channel's output and input routines: the two hook stubs the boot plants in the system page at &4BA0 and &4BA9, MCHWR through the JR at &4BA0 and MCHRD -- MB &7B80 holds the block
+DOS &6D66 : the channel's output and input routines: the two hook stubs the boot plants in the system page at &4BA0 and &4BA9, MCHWR through the JR just inside the &4BA0 stub and MCHRD -- MB &7B80 holds the block
 
 # Entries MasterBASIC calls through CALLDOS that had no label, so its
 # DEFWs read as numbers.  Each named for what the bytes do.

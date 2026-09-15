@@ -142,7 +142,7 @@ CARRIED_FIXES = [
       ';;  sector to sector as the disc turns. Setting RBCC to zero turns the effect off.']),
     ([';;    ORDER                 the sort behind a sorted listing, and hook code 153'],
      [';;    HOOK_PCAT             the sorted catalogue -- the sort itself is SORT_NAMES in the MasterBASIC page, reached',
-      ';;                          by a direct cross-page call; hook 153 enters the same routine one instruction later']),
+      ';;                          by a direct cross-page call; hook 153 enters the same routine five bytes in, at the EXX the DOS entry skips']),
     ([';;  disk channel is created. Temporary channels are marked by a channel letter with bit 7 set, so that CLTEMP can',
       ';;  recognise and reclaim them afterwards.'],
      [';;  disk channel is created. Temporary channels are marked by a channel letter with bit 7 set, so that',

@@ -37,7 +37,9 @@ DOS &620E : the ROM's buffer, where the whole name goes
 DOS &6214 : the ROM's LDIR, called there so that the copy lands in the system page
 
 DOC EVFILE
-    Take the device and drive off the front of the name in NSTR1+1.
+    Take the device and drive off the front of the name at HL --
+    NSTR1+1 from the command parsers, UIFA+1 from HCONR -- and leave
+    the bare name in NSTR1+1.
 
     WHAT IT ACCEPTS is a letter, then up to two digits, then a colon:
 
@@ -63,9 +65,8 @@ DOC EVFILE
 
     WHAT COMES OUT.  The letter goes to LSTR1 and the number, through
     CODN's pretend table, to DSTR1; TEMPW3 holds how many characters
-    the prefix took, and the name is copied to the front of the field
-    from wherever it started, so NSTR1+1 reads as a bare name from here
-    on.
+    the prefix took, and the name is copied to NSTR1+1 from wherever
+    it started, so NSTR1+1 reads as a bare name from here on.
 
 DOS &6709 : &FF is the ROM's empty name
 DOS &670D : "T", for the tape

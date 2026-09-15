@@ -943,6 +943,13 @@ FN_SVAL_S_3:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? reaches the ROM through STKSTR; calls MBCMR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     The ROM's STKSTR as a subroutine of this page -- CALL MBCMR with the
+;;     address as its word, then RET -- so a caller spends three bytes
+;;     rather than five.  STKSTR: push a five-byte number from A, E, D, C,
+;;     B.  3 callers.
 ;; --------------------------------------------------------------------
 
 ; ---- CALL_STKSTR ---- from &47C9, &4E30, &56C7
@@ -2608,6 +2615,13 @@ CHAR_MUST_BE_C:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? reaches the ROM through NEXTCHAR; calls MBCMR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     The ROM's NEXTCHAR as a subroutine of this page -- CALL MBCMR with
+;;     the address as its word, then RET -- so a caller spends three bytes
+;;     rather than five.  NEXTCHAR: step CHAD and fetch the character
+;;     there.  42 callers.
 ;; --------------------------------------------------------------------
 
 ; ---- CALL_NEXTCHAR ---- from &445A, &4482, &44CD, &44DF, &460B, &4614, &461D, &4625 when A = T_INVERSE ...
@@ -2623,6 +2637,13 @@ CALL_NEXTCHAR:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? reaches the ROM through GETCHAR; calls MBCMR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     The ROM's GETCHAR as a subroutine of this page -- CALL MBCMR with
+;;     the address as its word, then RET -- so a caller spends three bytes
+;;     rather than five.  GETCHAR: the character at CHAD, control codes
+;;     skipped.  10 callers.
 ;; --------------------------------------------------------------------
 
 ; ---- CALL_GETCHAR ---- from &44BC, &47CC, &4B63, &5556, &575E, &578C, &57D8, &6E62 ...
@@ -2638,6 +2659,13 @@ CALL_GETCHAR:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? reaches the ROM through GETSTR; calls MBCMR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     The ROM's GETSTR as a subroutine of this page -- CALL MBCMR with the
+;;     address as its word, then RET -- so a caller spends three bytes
+;;     rather than five.  GETSTR: pop a string descriptor: A = page, DE =
+;;     start, BC = length.  9 callers.
 ;; --------------------------------------------------------------------
 
 ; ---- CALL_GETSTR ---- from &4192, &47E6, &4B98, &4C2A, &4D71, &4D79, &4DBF, &57A7 ...
@@ -2672,6 +2700,13 @@ INT_ARG_THEN_END:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? reaches the ROM through GETINT; calls MBCMR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     The ROM's GETINT as a subroutine of this page -- CALL MBCMR with the
+;;     address as its word, then RET -- so a caller spends three bytes
+;;     rather than five.  GETINT: UNSTACK WORD FROM CALCULATOR STACK TO BC.
+;;     HL=BC, A=C.  10 callers.
 ;; --------------------------------------------------------------------
 
 ; ---- CALL_GETINT ---- from &4165, &416C, &43A1, &44A4, &44A8, &489C, &4B7A, &4DBB ...
@@ -2687,6 +2722,12 @@ CALL_GETINT:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? reaches the ROM through EXPSTR; calls MBCMR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     The ROM's EXPSTR as a subroutine of this page -- CALL MBCMR with the
+;;     address as its word, then RET -- so a caller spends three bytes
+;;     rather than five.  EXPSTR: evaluate a string expression.  6 callers.
 ;; --------------------------------------------------------------------
 
 ; ---- CALL_EXPSTR ---- from &4422, &4B85, &4D33, &4D58, &4E54, &5AD9
@@ -2719,6 +2760,13 @@ SKIP_THEN_NUMBER:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? reaches the ROM through EXPNUM; calls MBCMR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     The ROM's EXPNUM as a subroutine of this page -- CALL MBCMR with the
+;;     address as its word, then RET -- so a caller spends three bytes
+;;     rather than five.  EXPNUM: evaluate a numeric expression at (CHADD).
+;;     10 callers.
 ;; --------------------------------------------------------------------
 
 ; ---- CALL_EXPNUM ---- from &415C, &444D, &448B, &44C8, &4B77, &4E5A, &5502, &550A ...
@@ -13211,6 +13259,12 @@ OPEN_ROOM_AT_HL:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? reaches the ROM through JMKRBIG; calls MBCMR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     The ROM's JMKRBIG as a subroutine of this page -- CALL MBCMR with
+;;     the address as its word, then RET -- so a caller spends three bytes
+;;     rather than five.  JMKRBIG: open A*16K + BC bytes at HL.  2 callers.
 ;; --------------------------------------------------------------------
 
 ; ---- CALL_JMKRBIG ---- from &5192, &70C2
@@ -13583,6 +13637,13 @@ SUBSTITUTE_PRINTER_CHAR:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? reaches the ROM through PRMAIN; calls MBCMR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     The ROM's PRMAIN as a subroutine of this page -- CALL MBCMR with the
+;;     address as its word, then RET -- so a caller spends three bytes
+;;     rather than five.  PRMAIN: Main ROM Print routine entrypoint. Prints
+;;     the character in A.  One caller.
 ;; --------------------------------------------------------------------
 
 CALL_PRMAIN:
@@ -21865,6 +21926,12 @@ DUMP_FINISH:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? reaches the ROM through STREAM; calls MBCMR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     The ROM's STREAM as a subroutine of this page -- CALL MBCMR with the
+;;     address as its word, then RET -- so a caller spends three bytes
+;;     rather than five.  STREAM: select the stream in A.  One caller.
 ;; --------------------------------------------------------------------
 
 ; ---- CALL_STREAM ---- from &6886
@@ -24097,6 +24164,13 @@ SET_UP_FAR_LDIR:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? reaches the ROM through J_FARLDIR; calls MBCMR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     The ROM's J_FARLDIR as a subroutine of this page -- CALL MBCMR with
+;;     the address as its word, then RET -- so a caller spends three bytes
+;;     rather than five.  J_FARLDIR: MOVE (PAGCOUNT/MODCOUNT) BYTES FROM
+;;     PAGE A, HL TO PAGE C, DE, USING LDIR.  One caller.
 ;; --------------------------------------------------------------------
 
 CALL_J_FARLDIR:
@@ -25783,6 +25857,13 @@ CMD_CLS:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? reaches the ROM through JCLSBL; calls MBCMR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     The ROM's JCLSBL as a subroutine of this page -- CALL MBCMR with the
+;;     address as its word, then RET -- so a caller spends three bytes
+;;     rather than five.  JCLSBL: clear the whole screen if A is zero,
+;;     otherwise the window.  One caller.
 ;; --------------------------------------------------------------------
 
 CALL_JCLSBL:
@@ -26585,19 +26666,18 @@ COMPILE_PASS:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A, F
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     What the ROM calls ELCOMAL, at &4D7B once moved.  Six bytes: read
+;;     REFFLG, CP &01, CCF -- so carry comes out clear only when REFFLG is
+;;     zero, which the ROM's variable table glosses as "Z IF REF VAR BEING
+;;     WORKED ON" -- and fall into COMPILE_ALL, where the carry decides
+;;     whether the DEF FN table is rebuilt.
 ;; --------------------------------------------------------------------
 
 COMPILE_ELINE:
                LD A,(REFFLG)                   ; 73AD 3A 76 5A
-
-;; --------------------------------------------------------------------
-;; What the ROM calls ELCOMAL, at &4D7B once moved.  Six bytes: read
-;; REFFLG, CP &01, CCF -- so carry comes out clear only when REFFLG is
-;; zero, which the ROM's variable table glosses as "Z IF REF VAR BEING
-;; WORKED ON" -- and fall into COMPILE_ALL, where the carry decides
-;; whether the DEF FN table is rebuilt.
-;; --------------------------------------------------------------------
-
                CP &01                          ; 73B0 FE 01  one, so the CCF after it turns "REFFLG is zero" into carry
                                                ; clear. The ROM's variable table gives REFFLG as "Z IF REF VAR BEING
                                                ; WORKED ON", so the carry this leaves means there is no REF variable in
@@ -29744,6 +29824,10 @@ WRITE_A_DESCENDING_2:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    registers unchanged
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Call hook 167, MCHWR, which says what it does.
 ;; --------------------------------------------------------------------
 
 ; ---- MCHWR_STUB ---- from &7B81
@@ -30318,6 +30402,11 @@ CALLBACK_HCMDV:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    HL
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Drop the ROM's return address and call hook 155, HOOK_CSIZE, which
+;;     says what it does.
 ;; --------------------------------------------------------------------
 
 ; ---- CALLBACK_CSIZE ---- from &7C74 when A = T_CSIZE
@@ -30334,6 +30423,11 @@ CALLBACK_CSIZE:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    HL
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Drop the ROM's return address and call hook 156, HOOK_SWAPCHARS,
+;;     which says what it does.
 ;; --------------------------------------------------------------------
 
 ; ---- CALLBACK_SWAPCHARS ---- from &7C78 when A = T_BLOCKS
@@ -30350,6 +30444,11 @@ CALLBACK_SWAPCHARS:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    HL
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Drop the ROM's return address and call hook 183, HOOK_COMADENT,
+;;     which says what it does.
 ;; --------------------------------------------------------------------
 
 ; ---- CALLBACK_COMADENT ---- from &7C80 when A = T_EDIT
@@ -30381,6 +30480,11 @@ CALLBACK_SKIPNAME:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    HL
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Drop the ROM's return address and call hook 174, HOOK_RCPTCH, which
+;;     says what it does.
 ;; --------------------------------------------------------------------
 
 ; ---- CALLBACK_RCPTCH ---- from &7C84 when A = T_CLEAR, &7C88 when A = T_RUN

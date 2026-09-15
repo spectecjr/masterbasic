@@ -5,7 +5,7 @@
 # names in the screen page.
 
 MB &47FB SORT_NAMES
-RENAME L4822 SORT_TAIL
+MB &4822 site SORT_TAIL
 
 DOC SORT_NAMES
     Sort records in place.  A selection sort.

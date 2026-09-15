@@ -6843,6 +6843,13 @@ REP0HC:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? reaches the ROM through NEXTCHAR; calls CMR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     The ROM's NEXTCHAR as a subroutine of this page -- CALL CMR with the
+;;     address as its word, then RET -- so a caller spends three bytes
+;;     rather than five.  NEXTCHAR: step CHAD and fetch the character
+;;     there.  31 callers.
 ;; --------------------------------------------------------------------
 
 ; ---- GTNC ---- from &4394 when A = &3A, &5035, &5997, &59BB, &59CC, &5AFA, &5B13, &5B45 ...
@@ -6860,6 +6867,13 @@ GTNC:
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
 ;; ? reaches the ROM through GETCHAR; calls CMR; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     The ROM's GETCHAR as a subroutine of this page -- CALL CMR with the
+;;     address as its word, then RET -- so a caller spends three bytes
+;;     rather than five.  GETCHAR: the character at CHAD, control codes
+;;     skipped.  8 callers.
 ;; --------------------------------------------------------------------
 
 ; ---- GCHR ---- from &438F, &4FF0, &598B, &5B3E, &60C1, &6178, &6B06, &7925
@@ -15057,8 +15071,9 @@ DSCHD:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     The hook's arguments, into the DOS's own nine-byte header HD001 and
-;;     the page count beside it.  The ROM's header, UIFA, is not touched.
+;;     The hook's arguments, into the DOS's own nine-byte header at HD001
+;;     -- the start, the length and the page count, PGES1 being HD001+7.
+;;     The ROM's header, UIFA, is not touched.
 ;;
 ;;     D IS THE HIGH BYTE OF THE LENGTH, and goes to HD0B1.  Bit 7 of it
 ;;     is the &8000 of page form on a length's remainder -- PAGEFORM
@@ -18218,8 +18233,8 @@ COPY_MTBLS_LOOP:
 MTBLS:
                DEFW &4BA0,&4BA9,&00C4,&0000    ; 6D66 A0 4B A9 4B C4 00 00 00  the channel's output and input routines:
                                                ; the two hook stubs the boot plants in the system page at &4BA0 and
-                                               ; &4BA9, MCHWR through the JR at &4BA0 and MCHRD -- MB &7B80 holds the
-                                               ; block
+                                               ; &4BA9, MCHWR through the JR just inside the &4BA0 stub and MCHRD -- MB
+                                               ; &7B80 holds the block
                DEFB &00                        ; 6D6E .
                DEFW &0313                      ; 6D6F 13 03  CHAN LEN (IX+9/10)
 

@@ -107,9 +107,10 @@ DOC FNDI2
     aborts here, and the directory is read into the buffer.
 
 DOC NSTKAH
-    DSTAT's option 8, the drive number: the drive stacked as a byte
-    through STKA if the option matched, "Integer out of range" if it
-    was higher.
+    The source's target for DSTAT's option 8, the drive number; this
+    build answers option 8 at &7955 with a JP Z,STKA of its own, so
+    nothing jumps here and the JR Z at &7989 is dead.  What lives here
+    is the range check: an option above 8 is "Integer out of range".
 
 DOC STKA
     Stack the byte in A as a number: into HL with H = 0, and out
@@ -124,8 +125,10 @@ DOC STK20B
     EPCOM_1 stacks it.
 
 DOC HOC0
-    No disc, or a RAM disc not formatted: HL := A, which is zero, and
-    HOC2 makes the -1 the function returns.
+    An unformatted RAM disc, or DSTAT's missing drive 2: HL := A, which
+    is zero, and HOC2 makes the -1 the function returns.  A floppy
+    with no disc does not come this way: HOC1 falls from TFIHO's RET NZ
+    straight into HOC2.
 
 DOC FNTIME
     The TIME$ function: HL to TIMDT, and the skip over FNDATE's LD HL

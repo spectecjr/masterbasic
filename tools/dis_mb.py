@@ -2204,6 +2204,92 @@ def describe_message_stubs(d):
     return n
 
 
+def describe_rom_thunks(d):
+    """A header for every CALL_x thunk that has none.
+
+    A thunk is CALL MBCMR, the ROM address as a DEFW, and RET: the ROM
+    routine as a subroutine of this page, so that a caller can reach it
+    in three bytes instead of five and without the inline word.  The
+    ROM's own description of the routine, from the equate, is the
+    banner; a person's DOC still replaces it.
+    """
+    described = _describer(d)
+    n = 0
+    for at, name in d.labels.items():
+        if at in d.headers or at not in d.insns:
+            continue
+        ins = d.insns[at]
+        if not re.match(r'^CALL (MBCMR|CMR)$', ins.text):
+            continue
+        w = ins.end
+        target = d.word(w)
+        rom = d.ext_target(target) if target < BASE else None
+        if not rom or w + 2 not in d.insns or d.insns[w + 2].text != 'RET':
+            continue
+        callers = len(d.xrefs.get(at, ()))
+        # The description is the ROM source's or romsyms' own words and
+        # keeps their case; "ROM entry:" opens some of them and says
+        # nothing here.
+        what = re.sub(r'^ROM entry:\s*', '', described(rom)).rstrip('.')
+        text = ("The ROM's %s as a subroutine of this page -- %s with the "
+                "address as its word, then RET -- so a caller spends three "
+                "bytes rather than five.%s  %s"
+                % (rom, ins.text, '  %s: %s.' % (rom, what) if what else '',
+                   '%d callers.' % callers if callers > 1 else 'One caller.'))
+        d.headers[at] = annotate.banner(textwrap.fill(text, 68))
+        n += 1
+    return n
+
+
+def describe_hook_callbacks(dos, mb):
+    """A header for every stub that is a hook call and nothing else.
+
+    The stubs living in the ROM's page -- CALLBACK_x, and the ones the
+    installer copies out with them -- are RST &08 and a hook code, with
+    POP HL first where the ROM's own return address has to go, and
+    then RET or the next stub's label.  A stub that does anything more
+    (MCHRD_STUB restores AF from BC') is not one shape and is written
+    by hand; so is a derived label, which is a branch target inside a
+    routine and not a head.  The banner points at the handler rather
+    than quoting it: the RST's own line comment already says what the
+    hook is for, and the handler's banner is the one place that answers.
+    """
+    if dos is None or mb is None:
+        return 0
+    notes = hook_notes(dos, mb)
+    n = 0
+    for d in (dos, mb):
+        for at, name in d.labels.items():
+            if at in d.headers or at not in d.insns:
+                continue
+            if re.search(r'_(\d+|LOOP\d*|DONE\d*|FAIL\d*)$', name):
+                continue
+            ins = d.insns[at]
+            pop = ins.text == 'POP HL'
+            if pop:
+                if ins.end not in d.insns:
+                    continue
+                ins = d.insns[ins.end]
+            # name_restarts writes the ROM's name as an override; the
+            # instruction's own text still says RST &08.
+            if ins.text != 'RST &08':
+                continue
+            after = ins.end + 1
+            if not (after in d.labels or (after in d.insns
+                                          and d.insns[after].text == 'RET')):
+                continue
+            code = d.byte(ins.addr + 1)
+            if code not in notes:
+                continue
+            handler = notes[code][0]
+            text = ("%s hook %d, %s, which says what it does."
+                    % ("Drop the ROM's return address and call" if pop
+                       else "Call", code, handler))
+            d.headers[at] = annotate.banner(textwrap.fill(text, 68))
+            n += 1
+    return n
+
+
 def drop_unused_labels(d):
     """Drop synthetic labels that nothing refers to any more.
 
@@ -3638,6 +3724,9 @@ def main():
     print('%d error stubs given a header' % sum(describe_error_stubs(d)
                                                 for d in (dos, mb)))
     print('%d message stubs given a header' % describe_message_stubs(dos))
+    print('%d ROM thunks given a header' % sum(describe_rom_thunks(d)
+                                               for d in (dos, mb)))
+    print('%d hook stubs given a header' % describe_hook_callbacks(dos, mb))
 
     # After autolabel, so the label a patch refers to is the final one.
     print('%d operands in relocated blocks told what they mean'

@@ -287,15 +287,31 @@ Bounded jobs, good between rounds or when a round is out for review:
   G1 (24), MOVE (23), F11 (12), SUBD (9), RAMD (11), HOOKS (10) -- and
   the 25 REP stubs and 16 PTM message stubs, being one shape each,
   take generated headers (the error code and message; the decoded
-  text).  Five PARTs reviewed so far: 24 findings on 2603 own lines,
-  23 applied; six were on the new banners, which is the point of
-  sending them -- TGT1 was the once-per-entry poll, AHLNX's rotate ran
-  backwards, WIORH's limit was 159 not 158, STPDX's A = 0 is 256
-  rounds, a generated message header decoded a run-time buffer, and
-  the error texts had come through a twenty-character equate cut.  The
-  other eighteen were on prose reviewed once before.  G1, MOVE, F11,
-  SUBD, RAMD and HOOKS still to review; then MasterBASIC's few dozen.
-  Reading copy: 952 of 2341.
+  text).  All eleven PARTs reviewed, 2026-09-14/15: 52 findings on
+  4969 own lines, 48 applied; nineteen were on the new banners, which
+  is the point of sending them -- TGT1 was the once-per-entry poll,
+  AHLNX's rotate ran backwards, WIORH's limit was 159 not 158, STPDX's
+  A = 0 is 256 rounds, a generated message header decoded a run-time
+  buffer, the error texts had come through a twenty-character equate
+  cut, DSCHD had the header coming from the disc entry when the hook's
+  registers supply it, SCASD was called a save, HDUMMY at &66CE is not
+  this build's placeholder, EVMOV is either operand, CLOSE here is
+  CLOSE *n, SF1S is ERASE's and PROTECT's not DIR's, RDCE is fallen
+  into, CFMI counts into DE, NSTKAH's JR Z is dead in this build, and
+  HOC0 never sees a floppy.  The other thirty-three were on prose
+  reviewed once before, and every carried comment in every PART sits
+  on the instruction the author wrote it against.  Four [G]s left as
+  observations (design/reviews.csv).  **MasterBASIC, 2026-09-15**: 55
+  heads without a banner, of which 17 are one shape each and take
+  generated headers -- the twelve CALL_x ROM thunks (CALL MBCMR, a
+  word, RET: the ROM's own description of the routine and the caller
+  count) and the five hook stubs that are RST &08 and a code (the hook
+  and its handler) -- 29 are written by hand in `notes/clean/
+  mb-heads.txt`, one (SORT_TAIL, a patched operand) is a `site` now,
+  and 8 are branch targets inside their own routine
+  (VARIABLE_BODY_BY_KIND_ADD, STAMP_DATE_FIELDS, DUMP_INVERT and the
+  like) that want no banner.  Out for review as one cut.  Reading
+  copy: 998 of 2341.
 - **The synthetic labels -- 138 to 19, done 2026-09-14** (`grep -c
   '^[LV][0-9A-F]\{4\}:$'` on each clean listing).  Three commits.
   MasterBASIC's 31 patched sites are named for what their operands

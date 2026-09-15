@@ -216,8 +216,10 @@ DOC HOOK_HLDPG
     pages it in, and the load below carries on as for hook 130.
 
 DOC DSCHD
-    Take a file's header from the disc entry into HD001 and the page
-    count beside it, from RESET_BUFFER_POINTERS on.
+    Read the file's first sector and step past its nine-byte header,
+    then put the hook's start, page count and length into the DOS's
+    own header, as HOOK_ARGS_TO_HEADER below does -- nothing from the
+    disc entry reaches HD001.  RESET_BUFFER_POINTERS first.
 
 DOC HVEPG
     Hook 144: HVERY with the page given in A -- the OUT pages it in,
@@ -249,7 +251,9 @@ DOC HOFLE
 
 DOC HOOK_HGFLE
     Hook 158, open a file for reading: the header read in, the file
-    found by name whatever its type.
+    found by name whatever its type, and then -- falling into
+    READ_SAVED_SECTOR -- its first sector read and the header skipped,
+    ready for LBYT.
 
 DOC HERAZ
     Hook 166, erase the file named at IX+1: found by name, its entry's
@@ -277,12 +281,17 @@ DOC HFWSAD
     IX sectors through it.
 
 DOC SCASD
-    The sector-address form of a save: the page kept in HKBC -- an
-    address under &4000, page &FF, is "Integer out of range" -- the
-    offset in HKHL and the sector count in SVHDR.
+    Store the address for a raw sector transfer, read or write -- READ
+    AT and WRITE AT through EVPRM, the hook reads and writes through
+    CALS: the page kept in HKBC -- an address under &4000, page &FF,
+    is "Integer out of range" -- the offset in HKHL and the sector
+    count in SVHDR.
 
 DOC HDUMMY
-    A RET: the hook table's placeholder, "WAS S:" in the source.
+    The RET SCASD ends on.  In the source this was also HDUMMY, the
+    hook table's placeholder, "WAS S:"; in this build the table's
+    placeholder is HOOK_HDUMMY, the RET at &55AC, and nothing points
+    here.
 
 DOC FDFSR
     Find the first file: "*" into the name, so that the scan matches
@@ -294,7 +303,9 @@ DOC GTDEF
 DOC EVFL1
     The device prefix proper, with its letter in C: a colon straight
     after is a device with no number; a digit is the drive, and "D"
-    alone may drop the colon, as in "D1name".
+    alone may drop the colon, but only with nothing after the digit
+    but spaces -- "D1" alone, which becomes "D1:*".  "D1name" is a
+    name.
 
 DOC DRSET
     Select the drive in A and take its current directory: DRIVE, then

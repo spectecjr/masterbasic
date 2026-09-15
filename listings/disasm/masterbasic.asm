@@ -851,6 +851,13 @@ FN_SVAL_S_3:
                INC A                           ; 41B6 3C
                LD DE,SVAL_NUMBER+&4000         ; 41B7 11 C0 81
 
+;; --------------------------------------------------------------------
+;; The ROM's STKSTR as a subroutine of this page -- CALL MBCMR with the
+;; address as its word, then RET -- so a caller spends three bytes
+;; rather than five.  STKSTR: push a five-byte number from A, E, D, C,
+;; B.  3 callers.
+;; --------------------------------------------------------------------
+
 ; ---- CALL_STKSTR ---- from &47C9, &4E30, &56C7
 CALL_STKSTR:
                CALL MBCMR                      ; 41BA CD F0 44
@@ -2019,17 +2026,38 @@ CHAR_MUST_BE_C:
                CP C                            ; 445D B9
                JP NZ,REP_NOT_UNDERSTOOD        ; 445E C2 B0 43
 
+;; --------------------------------------------------------------------
+;; The ROM's NEXTCHAR as a subroutine of this page -- CALL MBCMR with
+;; the address as its word, then RET -- so a caller spends three bytes
+;; rather than five.  NEXTCHAR: step CHAD and fetch the character
+;; there.  42 callers.
+;; --------------------------------------------------------------------
+
 ; ---- CALL_NEXTCHAR ---- from &445A, &4482, &44CD, &44DF, &460B, &4614, &461D, &4625 when A = T_INVERSE ...
 CALL_NEXTCHAR:
                CALL MBCMR                      ; 4461 CD F0 44
                DEFW NEXTCHAR                   ; 4464 20 00
                RET                             ; 4466 C9
 
+;; --------------------------------------------------------------------
+;; The ROM's GETCHAR as a subroutine of this page -- CALL MBCMR with
+;; the address as its word, then RET -- so a caller spends three bytes
+;; rather than five.  GETCHAR: the character at CHAD, control codes
+;; skipped.  10 callers.
+;; --------------------------------------------------------------------
+
 ; ---- CALL_GETCHAR ---- from &44BC, &47CC, &4B63, &5556, &575E, &578C, &57D8, &6E62 ...
 CALL_GETCHAR:
                CALL MBCMR                      ; 4467 CD F0 44
                DEFW GETCHAR                    ; 446A 18 00
                RET                             ; 446C C9
+
+;; --------------------------------------------------------------------
+;; The ROM's GETSTR as a subroutine of this page -- CALL MBCMR with the
+;; address as its word, then RET -- so a caller spends three bytes
+;; rather than five.  GETSTR: pop a string descriptor: A = page, DE =
+;; start, BC = length.  9 callers.
+;; --------------------------------------------------------------------
 
 ; ---- CALL_GETSTR ---- from &4192, &47E6, &4B98, &4C2A, &4D71, &4D79, &4DBF, &57A7 ...
 CALL_GETSTR:
@@ -2047,11 +2075,24 @@ CALL_GETSTR:
 INT_ARG_THEN_END:
                CALL NUMBER_THEN_END            ; 4473 CD C8 44
 
+;; --------------------------------------------------------------------
+;; The ROM's GETINT as a subroutine of this page -- CALL MBCMR with the
+;; address as its word, then RET -- so a caller spends three bytes
+;; rather than five.  GETINT: UNSTACK WORD FROM CALCULATOR STACK TO BC.
+;; HL=BC, A=C.  10 callers.
+;; --------------------------------------------------------------------
+
 ; ---- CALL_GETINT ---- from &4165, &416C, &43A1, &44A4, &44A8, &489C, &4B7A, &4DBB ...
 CALL_GETINT:
                CALL MBCMR                      ; 4476 CD F0 44
                DEFW GETINT                     ; 4479 21 01
                RET                             ; 447B C9
+
+;; --------------------------------------------------------------------
+;; The ROM's EXPSTR as a subroutine of this page -- CALL MBCMR with the
+;; address as its word, then RET -- so a caller spends three bytes
+;; rather than five.  EXPSTR: evaluate a string expression.  6 callers.
+;; --------------------------------------------------------------------
 
 ; ---- CALL_EXPSTR ---- from &4422, &4B85, &4D33, &4D58, &4E54, &5AD9
 CALL_EXPSTR:
@@ -2066,6 +2107,13 @@ CALL_EXPSTR:
 ; ---- SKIP_THEN_NUMBER ---- from &4F7E, &552F, &5EBF, &6534, &6C96
 SKIP_THEN_NUMBER:
                CALL CALL_NEXTCHAR              ; 4482 CD 61 44
+
+;; --------------------------------------------------------------------
+;; The ROM's EXPNUM as a subroutine of this page -- CALL MBCMR with the
+;; address as its word, then RET -- so a caller spends three bytes
+;; rather than five.  EXPNUM: evaluate a numeric expression at (CHADD).
+;; 10 callers.
+;; --------------------------------------------------------------------
 
 ; ---- CALL_EXPNUM ---- from &415C, &444D, &448B, &44C8, &4B77, &4E5A, &5502, &550A ...
 CALL_EXPNUM:
@@ -9291,6 +9339,12 @@ OPEN_ROOM_AT_DE:
 OPEN_ROOM_AT_HL:
                XOR A                           ; 58F2 AF  A = 0, so no whole 16K pages -- MKRBIG opens A*16K + BC bytes
 
+;; --------------------------------------------------------------------
+;; The ROM's JMKRBIG as a subroutine of this page -- CALL MBCMR with
+;; the address as its word, then RET -- so a caller spends three bytes
+;; rather than five.  JMKRBIG: open A*16K + BC bytes at HL.  2 callers.
+;; --------------------------------------------------------------------
+
 ; ---- CALL_JMKRBIG ---- from &5192, &70C2
 CALL_JMKRBIG:
                CALL MBCMR                      ; 58F3 CD F0 44
@@ -9577,6 +9631,13 @@ SUBSTITUTE_PRINTER_CHAR:
                LD HL,MODMSG2                   ; 597D 21 47 40
                CP D                            ; 5980 BA
                JR Z,SEND_COUNTED_TO_CHANNEL    ; 5981 28 06
+
+;; --------------------------------------------------------------------
+;; The ROM's PRMAIN as a subroutine of this page -- CALL MBCMR with the
+;; address as its word, then RET -- so a caller spends three bytes
+;; rather than five.  PRMAIN: Main ROM Print routine entrypoint. Prints
+;; the character in A.  One caller.
+;; --------------------------------------------------------------------
 
 CALL_PRMAIN:
                CALL MBCMR                      ; 5983 CD F0 44  anything that is neither of the two prints as itself,
@@ -15312,6 +15373,12 @@ DUMP_FINISH:
                CALL PRINT_COUNTED_STRING       ; 69E7 CD F1 69
                XOR A                           ; 69EA AF
 
+;; --------------------------------------------------------------------
+;; The ROM's STREAM as a subroutine of this page -- CALL MBCMR with the
+;; address as its word, then RET -- so a caller spends three bytes
+;; rather than five.  STREAM: select the stream in A.  One caller.
+;; --------------------------------------------------------------------
+
 ; ---- CALL_STREAM ---- from &6886
 CALL_STREAM:
                CALL MBCMR                      ; 69EB CD F0 44
@@ -16860,6 +16927,13 @@ SET_UP_FAR_LDIR:
                POP BC                          ; 6DD0 C1
                POP AF                          ; 6DD1 F1
 
+;; --------------------------------------------------------------------
+;; The ROM's J_FARLDIR as a subroutine of this page -- CALL MBCMR with
+;; the address as its word, then RET -- so a caller spends three bytes
+;; rather than five.  J_FARLDIR: MOVE (PAGCOUNT/MODCOUNT) BYTES FROM
+;; PAGE A, HL TO PAGE C, DE, USING LDIR.  One caller.
+;; --------------------------------------------------------------------
+
 CALL_J_FARLDIR:
                CALL MBCMR                      ; 6DD2 CD F0 44
                DEFW J_FARLDIR                  ; 6DD5 2D 01
@@ -18102,6 +18176,13 @@ CMD_CLS:
                DEFW M23LSC                     ; 71F5 30 5A
                XOR A                           ; 71F7 AF  A = 0, and JCLSBL clears the screen
 
+;; --------------------------------------------------------------------
+;; The ROM's JCLSBL as a subroutine of this page -- CALL MBCMR with the
+;; address as its word, then RET -- so a caller spends three bytes
+;; rather than five.  JCLSBL: clear the whole screen if A is zero,
+;; otherwise the window.  One caller.
+;; --------------------------------------------------------------------
+
 CALL_JCLSBL:
                CALL MBCMR                      ; 71F8 CD F0 44
                DEFW JCLSBL                     ; 71FB 4E 01
@@ -18650,9 +18731,6 @@ COMPILE_PASS:
                OUT (HMPR),A                    ; 73AA D3 FB
                RET                             ; 73AC C9
 
-COMPILE_ELINE:
-               LD A,(REFFLG)                   ; 73AD 3A 76 5A
-
 ;; --------------------------------------------------------------------
 ;; What the ROM calls ELCOMAL, at &4D7B once moved.  Six bytes: read
 ;; REFFLG, CP &01, CCF -- so carry comes out clear only when REFFLG is
@@ -18661,6 +18739,8 @@ COMPILE_ELINE:
 ;; whether the DEF FN table is rebuilt.
 ;; --------------------------------------------------------------------
 
+COMPILE_ELINE:
+               LD A,(REFFLG)                   ; 73AD 3A 76 5A
                CP &01                          ; 73B0 FE 01  one, so the CCF after it turns "REFFLG is zero" into carry
                                                ; clear. The ROM's variable table gives REFFLG as "Z IF REF VAR BEING
                                                ; WORKED ON", so the carry this leaves means there is no REF variable in
@@ -20903,6 +20983,10 @@ WRITE_A_DESCENDING_2:
                JR MCHWR_STUB                   ; 7B81 18 03
                DEFB &CF,&97,&C9                ; 7B83 O.I  reads as RST &08, and nothing the trace can follow reaches it
 
+;; --------------------------------------------------------------------
+;; Call hook 167, MCHWR, which says what it does.
+;; --------------------------------------------------------------------
+
 ; ---- MCHWR_STUB ---- from &7B81
 MCHWR_STUB:
                RST ERR_HOOK                    ; 7B86 CF
@@ -21358,6 +21442,11 @@ CALLBACK_HCMDV:
                DEFB HKC_HCMDV                  ; 7CA8 AD hook code
                RET                             ; 7CA9 C9
 
+;; --------------------------------------------------------------------
+;; Drop the ROM's return address and call hook 155, HOOK_CSIZE, which
+;; says what it does.
+;; --------------------------------------------------------------------
+
 ; ---- CALLBACK_CSIZE ---- from &7C74 when A = T_CSIZE
 CALLBACK_CSIZE:
                POP HL                          ; 7CAA E1
@@ -21367,6 +21456,11 @@ CALLBACK_CSIZE:
                DEFB HKC_CSIZE                  ; 7CAC 9B hook code
                RET                             ; 7CAD C9
 
+;; --------------------------------------------------------------------
+;; Drop the ROM's return address and call hook 156, HOOK_SWAPCHARS,
+;; which says what it does.
+;; --------------------------------------------------------------------
+
 ; ---- CALLBACK_SWAPCHARS ---- from &7C78 when A = T_BLOCKS
 CALLBACK_SWAPCHARS:
                POP HL                          ; 7CAE E1
@@ -21375,6 +21469,11 @@ CALLBACK_SWAPCHARS:
                                                ; nothing
                DEFB HKC_SWAPCHARS              ; 7CB0 9C hook code
                RET                             ; 7CB1 C9
+
+;; --------------------------------------------------------------------
+;; Drop the ROM's return address and call hook 183, HOOK_COMADENT,
+;; which says what it does.
+;; --------------------------------------------------------------------
 
 ; ---- CALLBACK_COMADENT ---- from &7C80 when A = T_EDIT
 CALLBACK_COMADENT:
@@ -21392,6 +21491,11 @@ CALLBACK_SKIPNAME:
                DEFB HKC_SKIPNAME               ; 7CB6 B2 hook code
                LD A,T_DELETE                   ; 7CB7 3E CD
                RET                             ; 7CB9 C9
+
+;; --------------------------------------------------------------------
+;; Drop the ROM's return address and call hook 174, HOOK_RCPTCH, which
+;; says what it does.
+;; --------------------------------------------------------------------
 
 ; ---- CALLBACK_RCPTCH ---- from &7C84 when A = T_CLEAR, &7C88 when A = T_RUN
 CALLBACK_RCPTCH:
