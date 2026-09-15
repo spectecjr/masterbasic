@@ -638,6 +638,9 @@ SPARE_TAKEN_BY_MB = {
     0x5A67: ('SAVED_CHANNEL_OUTPUT', "REF: the ROM's own channel output"
                                      " word, put aside while MasterBASIC's"
                                      ' is hung on the channel'),
+    0x5A69: ('MB_NEXTST', "MasterBASIC's next-statement address, stored by"
+                          " INSTALL_ROM_VECTORS beside the DOS's NEXTST and"
+                          ' read back by HOOK_MERGECOMPFLG'),
 }
 
 
@@ -698,6 +701,7 @@ EXTRA_NOTES = {
     'EDITOR_RETURN': SPARE_TAKEN_BY_MB[0x5A62][1],
     'REF_CURSOR': SPARE_TAKEN_BY_MB[0x5A65][1],
     'SAVED_CHANNEL_OUTPUT': SPARE_TAKEN_BY_MB[0x5A67][1],
+    'MB_NEXTST': SPARE_TAKEN_BY_MB[0x5A69][1],
     'RST8V': 'vector taken by RST &08 before the ROM handles it',
     'RST28V': 'vector taken by the calculator before each literal',
     'PRTOKV': 'vector for printing a keyword token',

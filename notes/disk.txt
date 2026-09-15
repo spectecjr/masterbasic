@@ -547,3 +547,32 @@ DOS &742F expr RDDT-3
 # nothing else.
 DOS &74AB : MasterBASIC clears the lower screen and prints "<n> OPEN file" -- PRINT_OPEN_FILE_COUNT, MB &5044 -- handing the count back in HL
 DOS &74B0 : and the plural s, if more than one file is open
+
+# The DOS's inline words that read as numbers, each said once.
+DOS &41F4 : &C000, the source's DEFW 49152: the length of a Spectrum snapshot's 48K, which SNAP4 stores here with its start in SNADD below
+DOS &6072 : the operand of the JP at system-page &4A9C, LOAD_RETURN_STUB's, so the stub jumps on to where the ROM's LOAD was returning -- MB &7DF3 has the other end
+DOS &6367 : SLDEV+1, the number half of the two-byte device variable
+DOS &6472 : the operand of the LD (HL),&00 at system-page &4A96, the byte the post-LOAD stub writes back over the start of the program -- MB &7DED has the other end
+DOS &6D66 : the channel's output and input routines: the two hook stubs the boot plants in the system page at &4BA0 and &4BA9, MCHWR through the JR at &4BA0 and MCHRD -- MB &7B80 holds the block
+
+# Entries MasterBASIC calls through CALLDOS that had no label, so its
+# DEFWs read as numbers.  Each named for what the bytes do.
+DOS &7889 READ_NEXTST_BC
+    LD BC,(NEXTST) : RET, just past the RET at &7888.  MasterBASIC's
+    &54AF calls it: the other page cannot read a DOS variable except
+    by calling something in this page that does.
+DOS &788E READ_HKDE_DE
+    LD DE,(HKDE) : RET -- the same for HKDE, from MasterBASIC's &4FD1.
+DOS &4853 HLDBK_NO_EXX
+    HOOK_HLDBK past its EXX: the hook dispatcher has swapped the sets
+    before it reaches &4852, and a direct caller has not, so
+    MasterBASIC's &63B7 and &674A enter here with A the page count.
+DOS &4D24 PLANT_TYPE_THEN_GOFSM
+    LD (HL),A : CALL CKDRV, falling into GOFSM.  SAVE BOOT's &6419
+    calls it with HL at the type byte of the name block and A the
+    type, so the type is planted and the file opened for writing in
+    one call.
+DOS &6594 FN_LENGTH_CHANNEL
+    LENGTH #stream, MasterBASIC's &5EC2: FABORT first -- at syntax
+    time it pops the return and leaves, so FNLN2 below is reached
+    only when running.

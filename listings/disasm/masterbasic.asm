@@ -6148,7 +6148,7 @@ HGTTK:
                AND PAGEMASK                    ; 4FCD E6 1F
                OUT (HMPR),A                    ; 4FCF D3 FB
                CALL CALLDOS                    ; 4FD1 CD C1 42
-               DEFW &788E                      ; 4FD4 8E 78
+               DEFW DOS_READ_HKDE_DE-&4000     ; 4FD4 8E 78
                LD HL,&90D6                     ; 4FD6 21 D6 90  one below the word-0 space at &50D7 (two below the
                                                ; MBKEYS label), because JGTTOK is documented as matching "A-1 words from
                                                ; list at HL+1" -- &50D6 holds a RET and the list starts at &50D7
@@ -7798,7 +7798,7 @@ HOOK_MERGECOMPFLG_LOOP7:
                CP CH_CR                        ; 549C FE 0D
                RET NZ                          ; 549E C0
                CALL MBNRRDD                    ; 549F CD 5F 45
-               DEFW &5A69                      ; 54A2 69 5A
+               DEFW MB_NEXTST                  ; 54A2 69 5A
                CALL STORE_BC_AT_XVAR76         ; 54A4 CD 5C 6F
                CALL MBNRRDD                    ; 54A7 CD 5F 45
                DEFW ERRSP                      ; 54AA 3D 5C
@@ -7806,7 +7806,7 @@ HOOK_MERGECOMPFLG_LOOP7:
                LD L,C                          ; 54AD 69
                DEC HL                          ; 54AE 2B
                CALL CALLDOS                    ; 54AF CD C1 42
-               DEFW &7889                      ; 54B2 89 78
+               DEFW DOS_READ_NEXTST_BC-&4000   ; 54B2 89 78
                CALL WRITE_BC_DESCENDING        ; 54B4 CD 25 57
                CALL FIND_FIRST_LINE_IN_RANGE   ; 54B7 CD F9 58
                PUSH HL                         ; 54BA E5
@@ -11203,53 +11203,53 @@ FN_LENGTH:
 
 ; ---- FN_LENGTH_LOOP ---- from &5EDB
 FN_LENGTH_LOOP:
-               LDIR                            ; 5E85 ED B0  nothing jumps here. The arrow from &5EDB is a frame out;
-                                               ; see the note there
-               LD HL,FN_LENGTH_1               ; 5E87 21 CE 5E
-               LD C,&0F                        ; 5E8A 0E 0F  fifteen more, landing at &4FDA because &4F62 + &78 is
-                                               ; exactly where the first copy stopped
-               LDIR                            ; 5E8C ED B0
-               LD A,&0B                        ; 5E8E 3E 0B  the new displacement for the JR Z at &4FCD, whose next
-                                               ; instruction is &4FCF: &4FCF + &0B is &4FDA, the fifteen bytes just
-                                               ; planted. It read &C2 in the ROM, the step back to IMLENC
-               LD (&8FCE),A                    ; 5E90 32 CE 8F  patches a byte inside what was just copied
-               LD HL,&4F98                     ; 5E93 21 98 4F  IMLEN3 is &36 into the block, so &4F62 + &36 once it is
-                                               ; here
-               LD (&8F86),HL                   ; 5E96 22 86 8F  and &24 in is the operand of JP P,IMLEN3 -- the one
-                                               ; absolute address inside the copy that points back into the copy
-               LD HL,(&8F6E)                   ; 5E99 2A 6E 8F  the old contents of &4F6E are used as the source of the
-                                               ; twenty-five bytes copied at &5EA7, and &4F6E is repointed at where they
-                                               ; go
-               LD DE,&4FF2                     ; 5E9C 11 F2 4F  &4FF2 is past the fifteen appended bytes, so nothing
-                                               ; already written is overwritten
-               LD (&8F6E),DE                   ; 5E9F ED 53 6E 8F  the DW after IMLENGTH's CALL R1OFFCL now names the
-                                               ; copy instead of LENGSR in ROM 0 -- at &3F73, whose twenty-five bytes
-                                               ; are what &5EA7 copies; R1OFFCL exists to call ROM 0 with ROM 1 off
-               LD D,&8F                        ; 5EA3 16 8F  E is still &F2 from the LD DE above, so the destination is
-                                               ; &8FF2 -- &4FF2 seen through the window at &8000
-               LD C,&19                        ; 5EA5 0E 19  LENGSR is twenty-five bytes, CALL LOOKVARS through to RET
-               LDIR                            ; 5EA7 ED B0
-               LD A,&08                        ; 5EA9 3E 08  LENGSR's LD C,7 becomes LD C,8. It is the count for the
-                                               ; LDIR in SCOPN2 that copies the variable's header to MEMVAL+3, and
-                                               ; IMLEN3's two-dimensional-array path reads MEMVAL+3 to MEMVAL+10 --
-                                               ; eight bytes, one more than the ROM copies, the last of them the LD
-                                               ; D,(HL)
-               LD (&9003),A                    ; 5EAB 32 03 90  &5003 is &11 into the copy at &4FF2, the operand of that
-                                               ; LD C
-               POP AF                          ; 5EAE F1
-               OUT (HMPR),A                    ; 5EAF D3 FB
-               CALL MBNRRDD                    ; 5EB1 CD 5F 45
-               DEFW CHADD                      ; 5EB4 97 5A
-               INC BC                          ; 5EB6 03
-               LD A,(BC)                       ; 5EB7 0A
-               CP CH_HASH                      ; 5EB8 FE 23  a "#" after the keyword means the channel form, which
-                                               ; MasterDOS handles at &6594
-               JR NZ,FN_LENGTH_DONE            ; 5EBA 20 0C
-               CALL CALL_NEXTCHAR              ; 5EBC CD 61 44
-               CALL SKIP_THEN_NUMBER           ; 5EBF CD 82 44
-               CALL CALLDOS                    ; 5EC2 CD C1 42
-               DEFW &6594                      ; 5EC5 94 65
-               RET                             ; 5EC7 C9
+               LDIR                             ; 5E85 ED B0  nothing jumps here. The arrow from &5EDB is a frame out;
+                                                ; see the note there
+               LD HL,FN_LENGTH_1                ; 5E87 21 CE 5E
+               LD C,&0F                         ; 5E8A 0E 0F  fifteen more, landing at &4FDA because &4F62 + &78 is
+                                                ; exactly where the first copy stopped
+               LDIR                             ; 5E8C ED B0
+               LD A,&0B                         ; 5E8E 3E 0B  the new displacement for the JR Z at &4FCD, whose next
+                                                ; instruction is &4FCF: &4FCF + &0B is &4FDA, the fifteen bytes just
+                                                ; planted. It read &C2 in the ROM, the step back to IMLENC
+               LD (&8FCE),A                     ; 5E90 32 CE 8F  patches a byte inside what was just copied
+               LD HL,&4F98                      ; 5E93 21 98 4F  IMLEN3 is &36 into the block, so &4F62 + &36 once it is
+                                                ; here
+               LD (&8F86),HL                    ; 5E96 22 86 8F  and &24 in is the operand of JP P,IMLEN3 -- the one
+                                                ; absolute address inside the copy that points back into the copy
+               LD HL,(&8F6E)                    ; 5E99 2A 6E 8F  the old contents of &4F6E are used as the source of the
+                                                ; twenty-five bytes copied at &5EA7, and &4F6E is repointed at where
+                                                ; they go
+               LD DE,&4FF2                      ; 5E9C 11 F2 4F  &4FF2 is past the fifteen appended bytes, so nothing
+                                                ; already written is overwritten
+               LD (&8F6E),DE                    ; 5E9F ED 53 6E 8F  the DW after IMLENGTH's CALL R1OFFCL now names the
+                                                ; copy instead of LENGSR in ROM 0 -- at &3F73, whose twenty-five bytes
+                                                ; are what &5EA7 copies; R1OFFCL exists to call ROM 0 with ROM 1 off
+               LD D,&8F                         ; 5EA3 16 8F  E is still &F2 from the LD DE above, so the destination is
+                                                ; &8FF2 -- &4FF2 seen through the window at &8000
+               LD C,&19                         ; 5EA5 0E 19  LENGSR is twenty-five bytes, CALL LOOKVARS through to RET
+               LDIR                             ; 5EA7 ED B0
+               LD A,&08                         ; 5EA9 3E 08  LENGSR's LD C,7 becomes LD C,8. It is the count for the
+                                                ; LDIR in SCOPN2 that copies the variable's header to MEMVAL+3, and
+                                                ; IMLEN3's two-dimensional-array path reads MEMVAL+3 to MEMVAL+10 --
+                                                ; eight bytes, one more than the ROM copies, the last of them the LD
+                                                ; D,(HL)
+               LD (&9003),A                     ; 5EAB 32 03 90  &5003 is &11 into the copy at &4FF2, the operand of
+                                                ; that LD C
+               POP AF                           ; 5EAE F1
+               OUT (HMPR),A                     ; 5EAF D3 FB
+               CALL MBNRRDD                     ; 5EB1 CD 5F 45
+               DEFW CHADD                       ; 5EB4 97 5A
+               INC BC                           ; 5EB6 03
+               LD A,(BC)                        ; 5EB7 0A
+               CP CH_HASH                       ; 5EB8 FE 23  a "#" after the keyword means the channel form, which
+                                                ; MasterDOS handles at &6594
+               JR NZ,FN_LENGTH_DONE             ; 5EBA 20 0C
+               CALL CALL_NEXTCHAR               ; 5EBC CD 61 44
+               CALL SKIP_THEN_NUMBER            ; 5EBF CD 82 44
+               CALL CALLDOS                     ; 5EC2 CD C1 42
+               DEFW DOS_FN_LENGTH_CHANNEL-&4000 ; 5EC5 94 65
+               RET                              ; 5EC7 C9
 
 ; ---- FN_LENGTH_DONE ---- from &5EBA when A <> CH_HASH
 FN_LENGTH_DONE:
@@ -13058,7 +13058,7 @@ LOAD_NEXT_INPUT_BLOCK_1:
                XOR A                           ; 63B6 AF
                CALL CALLDOS                    ; 63B7 CD C1 42  LDBLK, "load a block from the open file" -- this refills
                                                ; the input, which is what the routine is for
-               DEFW &4853                      ; 63BA 53 48
+               DEFW DOS_HLDBK_NO_EXX-&4000     ; 63BA 53 48
                POP AF                          ; 63BC F1
                OUT (HMPR),A                    ; 63BD D3 FB
                POP DE                          ; 63BF D1
@@ -13296,74 +13296,75 @@ WRITE_DOS_BYTE:
 
 ; ---- SAVE_BOOT ---- from &63EB when A = T_BOOT
 SAVE_BOOT:
-               CALL CALL_NEXTCHAR              ; 6404 CD 61 44
-               CALL CALLDOS                    ; 6407 CD C1 42
-               DEFW DOS_EVNAM-&4000            ; 640A CF 61
-               CALL EXPECT_END_OF_STATEMENT    ; 640C CD D0 44
-               CALL CALLDOS                    ; 640F CD C1 42
-               DEFW DOS_EVFINS-&4000           ; 6412 21 73
-               LD HL,&413A                     ; 6414 21 3A 41  DOS &413A is the file-type byte in the DOS's own name
-                                               ; block -- its listing has it as "file type, followed by the name" -- and
-                                               ; &4D24 is an LD (HL),A that falls through CKDRV into GOFSM, so the type
-                                               ; is planted and the file opened for writing in the one call
-               LD A,&13                        ; 6417 3E 13  type 19, which is CODE. notes/disks.txt has samdos2, MBMC
-                                               ; and MBASC all saved as type 19
-               CALL CALLDOS                    ; 6419 CD C1 42
-               DEFW &4D24                      ; 641C 24 4D
-               RET C                           ; 641E D8
-               LD A,(&42CD)                    ; 641F 3A CD 42  the DOS page, less one. The boot sector patched this
-                                               ; byte with it, so the INC A below makes it the page itself -- the same
-                                               ; byte SAVE_BLOCK_FROM_DOS_PAGE reads at &42AD
-               INC A                           ; 6422 3C
-               OUT (HMPR),A                    ; 6423 D3 FB
-               LD HL,BOOT_HEADER_FIELDS        ; 6425 21 7E 64
-               LD DE,DOS_V7CFF                 ; 6428 11 FF BC
-               LD BC,&0007                     ; 642B 01 07 00  the seven bytes of BOOT_HEADER_FIELDS below, which is
-                                               ; the same LD BC,&0007 the snapshot code uses to place SNPTAB
-               LDIR                            ; 642E ED B0
-               LD HL,SAVE_BOOT_BLOCK_1+&4000   ; 6430 21 F7 BC
-               LD DE,&0100                     ; 6433 11 00 01  block 1 of eight, &0100 bytes from &7CF7, which fills
-                                               ; the file's DOS &4000-&40FF -- and after a boot those first nine bytes
-                                               ; read &0D, which is why a SAVE BOOT file has filler where the shipped
-                                               ; image has a header
-               CALL SAVE_BLOCK_FROM_THIS_PAGE  ; 6436 CD A9 42
-               LD HL,DOS_FFHL                  ; 6439 21 00 81
-               LD DE,&3C60                     ; 643C 11 60 3C  block 2, &3C60 from the DOS page's &4100, filling DOS
-                                               ; &4100-&7D5F
-               CALL SAVE_BLOCK_FROM_DOS_PAGE   ; 643F CD AD 42
-               LD HL,LOAD_RETURN_STUB+&4000    ; 6442 21 F0 BD
-               LD DE,&01BE                     ; 6445 11 BE 01  block 3, &01BE from &7DF0 -- INSTBUF, which the
-                                               ; installer saved back into this page -- filling DOS &7D60-&7F1D
-               CALL SAVE_BLOCK_FROM_THIS_PAGE  ; 6448 CD A9 42
-               LD HL,&8C14                     ; 644B 21 14 8C  block 4's source, system page &4C14 seen through the
-                                               ; window
-               LD DE,&00A2                     ; 644E 11 A2 00  block 4, &00A2, filling DOS &7F1E-&7FBF. &0100 + &3C60 +
-                                               ; &01BE + &00A2 is &3FC0, so that half is complete
-               CALL SAVE_BLOCK_FROM_SYSPAGE    ; 6451 CD A6 42
-               LD HL,PUTSWA+&4000              ; 6454 21 00 80
-               LD DE,&3B80                     ; 6457 11 80 3B  block 5, &3B80 from &4000, this half's own first &3B80
-                                               ; bytes
-               CALL SAVE_BLOCK_FROM_THIS_PAGE  ; 645A CD A9 42
-               LD HL,&8BA0                     ; 645D 21 A0 8B  block 6's source, system page &4BA0, where
-                                               ; INSTALL_ROM_PATCHES put the 36 bytes it took from &7B80
-               LD DE,&0024                     ; 6460 11 24 00  block 6, &0024, filling MB &7B80-&7BA3
-               CALL SAVE_BLOCK_FROM_SYSPAGE    ; 6463 CD A6 42
-               LD HL,&884D                     ; 6466 21 4D 88  block 7's source, system page &484D, where the &029F
-                                               ; bytes from &7BA4 were installed -- the block PATOUT_CHAR_OUT and the
-                                               ; dispatcher are both inside
-               LD DE,&029F                     ; 6469 11 9F 02  block 7, &029F, filling MB &7BA4-&7E42
-               CALL SAVE_BLOCK_FROM_SYSPAGE    ; 646C CD A6 42
-               LD HL,&9896                     ; 646F 21 96 98  block 8's source, system page &5896. It is read from
-                                               ; there and not from &7E43 because &7E43 is inside INSTBUF's range and
-                                               ; the boot has already overwritten it, so the original no longer exists
-                                               ; to be saved
-               LD DE,&017D                     ; 6472 11 7D 01  block 8, &017D, filling MB &7E43-&7FBF. &3B80 + &0024 +
-                                               ; &029F + &017D is &3FC0 again, and the two halves are the 32640-byte
-                                               ; file
-               CALL SAVE_BLOCK_FROM_SYSPAGE    ; 6475 CD A6 42
-               CALL CALLDOS                    ; 6478 CD C1 42
-               DEFW DOS_SCFSM-&4000            ; 647B F8 4D
-               RET                             ; 647D C9
+               CALL CALL_NEXTCHAR                   ; 6404 CD 61 44
+               CALL CALLDOS                         ; 6407 CD C1 42
+               DEFW DOS_EVNAM-&4000                 ; 640A CF 61
+               CALL EXPECT_END_OF_STATEMENT         ; 640C CD D0 44
+               CALL CALLDOS                         ; 640F CD C1 42
+               DEFW DOS_EVFINS-&4000                ; 6412 21 73
+               LD HL,&413A                          ; 6414 21 3A 41  DOS &413A is the file-type byte in the DOS's own
+                                                    ; name block -- its listing has it as "file type, followed by the
+                                                    ; name" -- and &4D24 is an LD (HL),A that falls through CKDRV into
+                                                    ; GOFSM, so the type is planted and the file opened for writing in
+                                                    ; the one call
+               LD A,&13                             ; 6417 3E 13  type 19, which is CODE. notes/disks.txt has samdos2,
+                                                    ; MBMC and MBASC all saved as type 19
+               CALL CALLDOS                         ; 6419 CD C1 42
+               DEFW DOS_PLANT_TYPE_THEN_GOFSM-&4000 ; 641C 24 4D
+               RET C                                ; 641E D8
+               LD A,(&42CD)                         ; 641F 3A CD 42  the DOS page, less one. The boot sector patched
+                                                    ; this byte with it, so the INC A below makes it the page itself --
+                                                    ; the same byte SAVE_BLOCK_FROM_DOS_PAGE reads at &42AD
+               INC A                                ; 6422 3C
+               OUT (HMPR),A                         ; 6423 D3 FB
+               LD HL,BOOT_HEADER_FIELDS             ; 6425 21 7E 64
+               LD DE,DOS_V7CFF                      ; 6428 11 FF BC
+               LD BC,&0007                          ; 642B 01 07 00  the seven bytes of BOOT_HEADER_FIELDS below, which
+                                                    ; is the same LD BC,&0007 the snapshot code uses to place SNPTAB
+               LDIR                                 ; 642E ED B0
+               LD HL,SAVE_BOOT_BLOCK_1+&4000        ; 6430 21 F7 BC
+               LD DE,&0100                          ; 6433 11 00 01  block 1 of eight, &0100 bytes from &7CF7, which
+                                                    ; fills the file's DOS &4000-&40FF -- and after a boot those first
+                                                    ; nine bytes read &0D, which is why a SAVE BOOT file has filler
+                                                    ; where the shipped image has a header
+               CALL SAVE_BLOCK_FROM_THIS_PAGE       ; 6436 CD A9 42
+               LD HL,DOS_FFHL                       ; 6439 21 00 81
+               LD DE,&3C60                          ; 643C 11 60 3C  block 2, &3C60 from the DOS page's &4100, filling
+                                                    ; DOS &4100-&7D5F
+               CALL SAVE_BLOCK_FROM_DOS_PAGE        ; 643F CD AD 42
+               LD HL,LOAD_RETURN_STUB+&4000         ; 6442 21 F0 BD
+               LD DE,&01BE                          ; 6445 11 BE 01  block 3, &01BE from &7DF0 -- INSTBUF, which the
+                                                    ; installer saved back into this page -- filling DOS &7D60-&7F1D
+               CALL SAVE_BLOCK_FROM_THIS_PAGE       ; 6448 CD A9 42
+               LD HL,&8C14                          ; 644B 21 14 8C  block 4's source, system page &4C14 seen through
+                                                    ; the window
+               LD DE,&00A2                          ; 644E 11 A2 00  block 4, &00A2, filling DOS &7F1E-&7FBF. &0100 +
+                                                    ; &3C60 + &01BE + &00A2 is &3FC0, so that half is complete
+               CALL SAVE_BLOCK_FROM_SYSPAGE         ; 6451 CD A6 42
+               LD HL,PUTSWA+&4000                   ; 6454 21 00 80
+               LD DE,&3B80                          ; 6457 11 80 3B  block 5, &3B80 from &4000, this half's own first
+                                                    ; &3B80 bytes
+               CALL SAVE_BLOCK_FROM_THIS_PAGE       ; 645A CD A9 42
+               LD HL,&8BA0                          ; 645D 21 A0 8B  block 6's source, system page &4BA0, where
+                                                    ; INSTALL_ROM_PATCHES put the 36 bytes it took from &7B80
+               LD DE,&0024                          ; 6460 11 24 00  block 6, &0024, filling MB &7B80-&7BA3
+               CALL SAVE_BLOCK_FROM_SYSPAGE         ; 6463 CD A6 42
+               LD HL,&884D                          ; 6466 21 4D 88  block 7's source, system page &484D, where the
+                                                    ; &029F bytes from &7BA4 were installed -- the block PATOUT_CHAR_OUT
+                                                    ; and the dispatcher are both inside
+               LD DE,&029F                          ; 6469 11 9F 02  block 7, &029F, filling MB &7BA4-&7E42
+               CALL SAVE_BLOCK_FROM_SYSPAGE         ; 646C CD A6 42
+               LD HL,&9896                          ; 646F 21 96 98  block 8's source, system page &5896. It is read
+                                                    ; from there and not from &7E43 because &7E43 is inside INSTBUF's
+                                                    ; range and the boot has already overwritten it, so the original no
+                                                    ; longer exists to be saved
+               LD DE,&017D                          ; 6472 11 7D 01  block 8, &017D, filling MB &7E43-&7FBF. &3B80 +
+                                                    ; &0024 + &029F + &017D is &3FC0 again, and the two halves are the
+                                                    ; 32640-byte file
+               CALL SAVE_BLOCK_FROM_SYSPAGE         ; 6475 CD A6 42
+               CALL CALLDOS                         ; 6478 CD C1 42
+               DEFW DOS_SCFSM-&4000                 ; 647B F8 4D
+               RET                                  ; 647D C9
 
 ;; --------------------------------------------------------------------
 ;; The start, length and execution fields SAVE BOOT puts in the file's
@@ -14363,7 +14364,7 @@ EXPAND_BLOCK_LOOP:
                OUT (HMPR),A                    ; 6747 D3 FB
                XOR A                           ; 6749 AF
                CALL CALLDOS                    ; 674A CD C1 42
-               DEFW &4853                      ; 674D 53 48
+               DEFW DOS_HLDBK_NO_EXX-&4000     ; 674D 53 48
                POP AF                          ; 674F F1
                DEC A                           ; 6750 3D
                OUT (HMPR),A                    ; 6751 D3 FB
@@ -19439,7 +19440,7 @@ INSTALLER_2:
 ; ---- INSTALL_ROM_VECTORS ---- from &76D5 when bit 7 of H clear
 INSTALL_ROM_VECTORS:
                LD (DOS_NEXTST),HL              ; 76DA 22 1E 82
-               LD (&5A69),DE                   ; 76DD ED 53 69 5A  &5A69 is VAR2+&69, inside the fourteen bytes vars.asm
+               LD (MB_NEXTST),DE               ; 76DD ED 53 69 5A  &5A69 is VAR2+&69, inside the fourteen bytes vars.asm
                                                ; marks SPARE between LSOFF and SPOSNU; &7BCF parks a return address in
                                                ; &5A62 out of the same fourteen. &549F reads this word back with MBNRRDD
                                                ; beside the ROM's ERRSP and MasterDOS's NEXTST -- the DEFW &7889 at

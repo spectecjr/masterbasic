@@ -299,9 +299,17 @@ Bounded jobs, good between rounds or when a round is out for review:
   one, which is the override design, so it now counts only two notes
   in the same tree.  `deadnotes` prints nothing now and `describedtwice`'s
   pairs agree; run both after each round.
-- `DEFW` operands and data are outside the magic-number count by design.
-  A pass over the DOS's inline parameters that still read as numbers --
-  `DEFW &5BB8`, `DEFW &4A97` -- explaining each with a `:` line.
+- **The DOS's inline words -- done 2026-09-14.**  The five that read
+  as numbers with nothing on the line (`&C000` in SNLEN, `&4A9D`,
+  `SLDEV+1`, `&4A97`, MTBLS's two stub addresses) each have a `:` line;
+  the thirty-one `DEFW &0000` are run-time-filled operands and say so
+  already.  The same pass on the other side found five DOS entries
+  MasterBASIC reaches by number through CALLDOS that had no label --
+  `READ_NEXTST_BC`, `READ_HKDE_DE`, `HLDBK_NO_EXX`,
+  `PLANT_TYPE_THEN_GOFSM`, `FN_LENGTH_CHANNEL` -- so those `DEFW`s now
+  read as the DOS label less &4000 like the rest.  MasterBASIC's own remaining
+  numeric `DEFW`s are NR parameters whose CALL line explains them, and
+  the four-line tables at `&610E`.
 
 ---
 

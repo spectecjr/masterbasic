@@ -140,6 +140,8 @@ LSPTR:                EQU  &5B8B               ; LINE SCAN PTR
 LWRHS:                EQU  &5A3C               ; Lower-window right-hand side boundary
 M23LSC:               EQU  &5A30               ; M2/3 LOWER SCREEN COLOURS
 M23PAPP:              EQU  &5A48               ; NIBBLES OR DOUBLE BITS MATCH
+MB_NEXTST:            EQU  &5A69               ; MasterBASIC's next-statement address, stored by INSTALL_ROM_VECTORS
+                                               ; beside the DOS's NEXTST and read back by HOOK_MERGECOMPFLG
 MNIP:                 EQU  &5BDE               ; ADDR OF MAIN I/P ROUTINE
 MNOP:                 EQU  &5BDC               ; ADDR OF MAIN O/P ROUTINE
 MODCOUNT:             EQU  &5B84               ; MOD 16K COUNTER USED BY FARLDIR

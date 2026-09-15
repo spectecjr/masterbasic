@@ -930,7 +930,8 @@ V41EA:
 
 ; ---- SNLEN ---- from &53D6, &5446
 SNLEN:
-               DEFW &C000                      ; 41F4 00 C0
+               DEFW &C000                      ; 41F4 00 C0  &C000, the source's DEFW 49152: the length of a Spectrum
+                                               ; snapshot's 48K, which SNAP4 stores here with its start in SNADD below
 
 ; ---- SNADD ---- from &53DA, &5443
 SNADD:
@@ -3003,6 +3004,14 @@ AT_SECTOR_LINK:
 
 HOOK_HLDBK:
                EXX                             ; 4852 D9
+
+;; --------------------------------------------------------------------
+;; HOOK_HLDBK past its EXX: the hook dispatcher has swapped the sets
+;; before it reaches &4852, and a direct caller has not, so
+;; MasterBASIC's &63B7 and &674A enter here with A the page count.
+;; --------------------------------------------------------------------
+
+HLDBK_NO_EXX:
                LD (PGES1),A                    ; 4853 32 50 41
 
 ;; --------------------------------------------------------------------
@@ -4409,6 +4418,15 @@ ROFSM:
 ROFSM_DONE:
                XOR A                           ; 4D22 AF  NC: the file is open
                RET                             ; 4D23 C9
+
+;; --------------------------------------------------------------------
+;; LD (HL),A : CALL CKDRV, falling into GOFSM.  SAVE BOOT's &6419
+;; calls it with HL at the type byte of the name block and A the
+;; type, so the type is planted and the file opened for writing in
+;; one call.
+;; --------------------------------------------------------------------
+
+PLANT_TYPE_THEN_GOFSM:
                LD (HL),A                       ; 4D24 77
                CALL CKDRV                      ; 4D25 CD 07 48
 
@@ -9460,7 +9478,9 @@ DLVM2:
                PUSH HL                         ; 606B E5
                CALL RDBC                       ; 606C CD BA 50
                CALL NRWRD                      ; 606F CD 69 50
-               DEFW &4A9D                      ; 6072 9D 4A
+               DEFW &4A9D                      ; 6072 9D 4A  the operand of the JP at system-page &4A9C,
+                                               ; LOAD_RETURN_STUB's, so the stub jumps on to where the ROM's LOAD was
+                                               ; returning -- MB &7DF3 has the other end
                POP HL                          ; 6074 E1
                LD BC,&4A99                     ; 6075 01 99 4A  not a destination: WRTBC writes it over the ROM's
                                                ; pending return address, whose old value &606F has just planted at
@@ -10254,7 +10274,7 @@ EVFL75:
 EVFL75_1:
                CALL NRWR                       ; 6364 CD 74 50  the byte after SLDEV, the temporary device number -- a
                                                ; speed, for tape
-               DEFW &5BB8                      ; 6367 B8 5B
+               DEFW &5BB8                      ; 6367 B8 5B  SLDEV+1, the number half of the two-byte device variable
                LD HL,NSTR1+1                   ; 6369 21 3B 41
                LD A,(HL)                       ; 636C 7E
                CP CH_SPACE                     ; 636D FE 20
@@ -10486,7 +10506,9 @@ HOOK_HLOAD_2:
                LD A,(V7D1C)                    ; 646C 3A 1C 7D  DRAM+9, the byte after the nine-byte header in the first
                                                ; sector
                CALL NRWR                       ; 646F CD 74 50
-               DEFW &4A97                      ; 6472 97 4A
+               DEFW &4A97                      ; 6472 97 4A  the operand of the LD (HL),&00 at system-page &4A96, the
+                                               ; byte the post-LOAD stub writes back over the start of the program -- MB
+                                               ; &7DED has the other end
                LD A,&FF                        ; 6474 3E FF  &FF, the ROM's end-of-program stopper, so the program loads
                                                ; invisible until the stub at &4A84 puts the saved byte back
                LD (V7D1C),A                    ; 6476 32 1C 7D
@@ -10805,6 +10827,14 @@ HVAR1_1:
                LD B,&00                        ; 658F 06 00  the last byte of the five: the low mantissa byte for a
                                                ; float, the trailing zero for an integer -- zero either way
                JP STACK_AEDCB                  ; 6591 C3 A6 7B
+
+;; --------------------------------------------------------------------
+;; LENGTH #stream, MasterBASIC's &5EC2: FABORT first -- at syntax
+;; time it pops the return and leaves, so FNLN2 below is reached
+;; only when running.
+;; --------------------------------------------------------------------
+
+FN_LENGTH_CHANNEL:
                CALL FABORT                     ; 6594 CD AA 7A
 
 ;; --------------------------------------------------------------------
@@ -12638,9 +12668,9 @@ CRMCH_1:
 
 ;; --------------------------------------------------------------------
 ;; Make a channel record: the eleven-byte template from MTBLS --
-;; the two ROM routine addresses, the letter with bit 7 set, two
-;; empty words and the length -- and then zeros to the end of the
-;; 787.
+;; the two routine addresses in the ROM's system page, the letter
+;; with bit 7 set, two empty words and the length -- and then zeros
+;; to the end of the 787.
 ;; --------------------------------------------------------------------
 
 ; ---- COPY_MTBLS ---- from &6D39
@@ -12668,7 +12698,9 @@ COPY_MTBLS_LOOP:
 
 ; ---- MTBLS ---- from &6D4F
 MTBLS:
-               DEFW &4BA0,&4BA9                ; 6D66 A0 4B A9 4B
+               DEFW &4BA0,&4BA9                ; 6D66 A0 4B A9 4B  the channel's output and input routines: the two hook
+                                               ; stubs the boot plants in the system page at &4BA0 and &4BA9, MCHWR
+                                               ; through the JR at &4BA0 and MCHRD -- MB &7B80 holds the block
                DEFB "D"+&80                    ; 6D6A D  the channel letter, with bit 7 set: temporary until OPDST1
                                                ; attaches it to a stream and clears the bit
                DEFW &0000,&0000                ; 6D6B 00 00 00 00  two empty words, and then 787 -- the length of a
@@ -15616,8 +15648,22 @@ OPEN_BASIC_FOR_MERGE:
                POP AF                          ; 7884 F1
                LD (PGES1),A                    ; 7885 32 50 41
                RET                             ; 7888 C9
+
+;; --------------------------------------------------------------------
+;; LD BC,(NEXTST) : RET, just past the RET at &7888.  MasterBASIC's
+;; &54AF calls it: the other page cannot read a DOS variable except
+;; by calling something in this page that does.
+;; --------------------------------------------------------------------
+
+READ_NEXTST_BC:
                LD BC,(NEXTST)                  ; 7889 ED 4B 1E 42
                RET                             ; 788D C9
+
+;; --------------------------------------------------------------------
+;; LD DE,(HKDE) : RET -- the same for HKDE, from MasterBASIC's &4FD1.
+;; --------------------------------------------------------------------
+
+READ_HKDE_DE:
                LD DE,(HKDE)                    ; 788E ED 5B E0 41
                RET                             ; 7892 C9
 

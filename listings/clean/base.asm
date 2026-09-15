@@ -367,7 +367,9 @@ DOS_EVNUMX:                     EQU  EVNUMX + IN_PAGE_C
 DOS_FETCH_STRING_IF_RUNNING:    EQU  FETCH_STRING_IF_RUNNING + IN_PAGE_C
 DOS_FFPG:                       EQU  FFPG + IN_PAGE_C
 DOS_FIND_ROM_CODE:              EQU  FIND_ROM_CODE + IN_PAGE_C
+DOS_FN_LENGTH_CHANNEL:          EQU  FN_LENGTH_CHANNEL + IN_PAGE_C
 DOS_HEADER:                     EQU  HEADER + IN_PAGE_C
+DOS_HLDBK_NO_EXX:               EQU  HLDBK_NO_EXX + IN_PAGE_C
 DOS_HOOK_SBYT:                  EQU  HOOK_SBYT + IN_PAGE_C
 DOS_HSVBK_DWAIT:                EQU  HSVBK_DWAIT + IN_PAGE_C
 DOS_LBYT:                       EQU  LBYT + IN_PAGE_C
@@ -378,6 +380,7 @@ DOS_MBCOPY_7829:                EQU  MBCOPY_7829 + IN_PAGE_C
 DOS_NEXTST:                     EQU  NEXTST + IN_PAGE_C
 DOS_OPEN_BASIC_FOR_MERGE:       EQU  OPEN_BASIC_FOR_MERGE + IN_PAGE_C
 DOS_PARK_WORD:                  EQU  PARK_WORD + IN_PAGE_C
+DOS_PLANT_TYPE_THEN_GOFSM:      EQU  PLANT_TYPE_THEN_GOFSM + IN_PAGE_C
 DOS_PLNS:                       EQU  PLNS + IN_PAGE_C
 DOS_POINT:                      EQU  POINT + IN_PAGE_C
 DOS_POINTC:                     EQU  POINTC + IN_PAGE_C
@@ -385,6 +388,8 @@ DOS_PORT2:                      EQU  PORT2 + IN_PAGE_C
 DOS_PRINTABLE_FORM:             EQU  PRINTABLE_FORM + IN_PAGE_C
 DOS_PTH1:                       EQU  PTH1 + IN_PAGE_C
 DOS_PTH2:                       EQU  PTH2 + IN_PAGE_C
+DOS_READ_HKDE_DE:               EQU  READ_HKDE_DE + IN_PAGE_C
+DOS_READ_NEXTST_BC:             EQU  READ_NEXTST_BC + IN_PAGE_C
 DOS_REPORTA:                    EQU  REPORTA + IN_PAGE_C
 DOS_SAMCNT:                     EQU  SAMCNT + IN_PAGE_C
 DOS_SCFSM:                      EQU  SCFSM + IN_PAGE_C

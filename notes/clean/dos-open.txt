@@ -61,9 +61,9 @@ DOS &6AE4 : and MasterBASIC is told the channel area has moved
 
 DOC COPY_MTBLS
     Make a channel record: the eleven-byte template from MTBLS --
-    the two ROM routine addresses, the letter with bit 7 set, two
-    empty words and the length -- and then zeros to the end of the
-    787.
+    the two routine addresses in the ROM's system page, the letter
+    with bit 7 set, two empty words and the length -- and then zeros
+    to the end of the 787.
 
 DOS &6D52 : the eleven bytes of the template
 DOS &6D58 expr CHANNEL_BLOCK-&0B

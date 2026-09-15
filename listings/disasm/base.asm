@@ -281,7 +281,9 @@ DOS_FETCH_STRING_IF_RUNNING:    EQU  FETCH_STRING_IF_RUNNING + &4000
 DOS_FFHL:                       EQU  FFHL + &4000
 DOS_FFPG:                       EQU  FFPG + &4000
 DOS_FIND_ROM_CODE:              EQU  FIND_ROM_CODE + &4000
+DOS_FN_LENGTH_CHANNEL:          EQU  FN_LENGTH_CHANNEL + &4000
 DOS_HEADER:                     EQU  HEADER + &4000
+DOS_HLDBK_NO_EXX:               EQU  HLDBK_NO_EXX + &4000
 DOS_HOOK_SBYT:                  EQU  HOOK_SBYT + &4000
 DOS_HSVBK_DWAIT:                EQU  HSVBK_DWAIT + &4000
 DOS_LBYT:                       EQU  LBYT + &4000
@@ -290,6 +292,7 @@ DOS_MBCOPY_7774:                EQU  MBCOPY_7774 + &4000
 DOS_MBCOPY_778B:                EQU  MBCOPY_778B + &4000
 DOS_MBCOPY_7829:                EQU  MBCOPY_7829 + &4000
 DOS_NEXTST:                     EQU  NEXTST + &4000
+DOS_PLANT_TYPE_THEN_GOFSM:      EQU  PLANT_TYPE_THEN_GOFSM + &4000
 DOS_PLNS:                       EQU  PLNS + &4000
 DOS_POINT:                      EQU  POINT + &4000
 DOS_POINTC:                     EQU  POINTC + &4000
@@ -297,6 +300,8 @@ DOS_PORT2:                      EQU  PORT2 + &4000
 DOS_PRINTABLE_FORM:             EQU  PRINTABLE_FORM + &4000
 DOS_PTH1:                       EQU  PTH1 + &4000
 DOS_PTH2:                       EQU  PTH2 + &4000
+DOS_READ_HKDE_DE:               EQU  READ_HKDE_DE + &4000
+DOS_READ_NEXTST_BC:             EQU  READ_NEXTST_BC + &4000
 DOS_REPORTA:                    EQU  REPORTA + &4000
 DOS_SAMCNT:                     EQU  SAMCNT + &4000
 DOS_SCFSM:                      EQU  SCFSM + &4000
