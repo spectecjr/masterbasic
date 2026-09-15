@@ -282,12 +282,20 @@ Bounded jobs, good between rounds or when a round is out for review:
   PMO family, hook entries, micro-entries that fall into the routine
   below) and a few dozen in MasterBASIC, thunks mostly.  Do it by PART,
   and send each PART for review once it is written -- that is what
-  round six was.  **Round 11, 2026-09-14**: C11's 23 banners reviewed
-  (8 findings, 2 on the new banners, all applied); C12 (11), D1 (10),
-  E1 (11) and F12 (19) written and out for review; the 25 REP stubs and
-  17 PTM message stubs, being one shape each, take generated headers
-  -- the error code and message, the decoded text -- rather than
-  hand-written ones.  Reading copy: 864 of 2341.
+  round six was.  **Round 11, 2026-09-14**: every DOS PART's routine
+  heads bannered -- C11 (23), C12 (11), D1 (10), E1 (11), F12 (19),
+  G1 (24), MOVE (23), F11 (12), SUBD (9), RAMD (11), HOOKS (10) -- and
+  the 25 REP stubs and 16 PTM message stubs, being one shape each,
+  take generated headers (the error code and message; the decoded
+  text).  Five PARTs reviewed so far: 24 findings on 2603 own lines,
+  23 applied; six were on the new banners, which is the point of
+  sending them -- TGT1 was the once-per-entry poll, AHLNX's rotate ran
+  backwards, WIORH's limit was 159 not 158, STPDX's A = 0 is 256
+  rounds, a generated message header decoded a run-time buffer, and
+  the error texts had come through a twenty-character equate cut.  The
+  other eighteen were on prose reviewed once before.  G1, MOVE, F11,
+  SUBD, RAMD and HOOKS still to review; then MasterBASIC's few dozen.
+  Reading copy: 952 of 2341.
 - **The synthetic labels -- 138 to 19, done 2026-09-14** (`grep -c
   '^[LV][0-9A-F]\{4\}:$'` on each clean listing).  Three commits.
   MasterBASIC's 31 patched sites are named for what their operands

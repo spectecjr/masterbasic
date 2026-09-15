@@ -150,5 +150,54 @@ DOC PM7K
 
 DOC HOOK_HDUMMY
     A RET: the source's placeholder for the hook slots it left unused,
-    138, 154 and 155.  In this build only 138, "format track under
-    head", still points here; 154 and 155 are MasterBASIC's.
+    138 and 154 to 157.  In this build only 138, "format track under
+    head", still points here; 154 to 157 are MasterBASIC's four.
+
+# PART SUBD's entries that had no banner of this project's own.
+
+DOC OSRDPN
+    For a RAM disc, store the path name in the disc itself through
+    SRDPN; a floppy keeps it in the DOS's variables and returns.
+
+DOC EVFINS
+    Evaluate a file specification into NSTR1+1: EVFILE takes the device
+    and drive off the front, and CKDISC insists it is a disc.
+
+DOC GTLNM
+    The last name on a path: PRPTH points at the paged-in path and
+    DTREE descends it, leaving the file's name in NSTR1+1, with HMPR
+    kept round the walk.
+
+DOC UPAR2
+    Step back one directory in the path: from the path's end, back to
+    the last root symbol.
+
+# The per-drive tables, one entry a drive, are reached by adding the
+# drive number to a base placed so that drive 1 -- or drive 3, the
+# first RAM disc -- lands on the table's first entry.
+DOC RTSTD
+    HL to the drive's entry in the RAM-disc track table and A = its
+    track count: RDDT less three, so that drive 3 is the first.
+
+DOC GFPA
+    HL to the drive's first-page entry: RDDT+2 plus the drive, which
+    puts drive 3 on FIPT.
+
+DOC GRWA
+    HL to the drive's random word: PLT+5 plus twice the drive, the
+    table after PLT being two bytes an entry.
+
+DOC GCDIA
+    HL to the drive's current-directory entry: FIPT+4 plus the drive,
+    which puts drive 1 on CDIT.
+
+DOC GPLA
+    HL to the drive's path-length entry: CDIT+6 plus the drive, which
+    puts drive 1 on PLT.  GPLA2 and GPLA3 are the shared tail.
+
+DOC PMO8
+    The disc's name: PTM prints DNAME, the ten bytes after the call,
+    which SDTKS fills from the directory at run time -- the file holds
+    zeros there, which never print -- and the space after them.
+
+DOS &58A1 : PMOSD prints "SAM DOS" and four spaces after it if the field was never written; the source's "   SAM DOS " has the spaces on the wrong side

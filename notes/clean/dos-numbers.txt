@@ -77,7 +77,7 @@ DOS &6DD6 : sixteen streams, 0 to 15
 DOS &6E82 : sixteen streams, 0 to 15
 DOS &6E40 : the ROM's STREAMS table through the window: stream 0's entry is at &5C16, two bytes a stream
 DOS &7014 : sixteen streams, 0 to 15
-DOS &62A2 : seventeen and up is not a stream; 16 is the ROM's -4
+DOS &62A2 : seventeen and up in C -- B is not looked at -- is not a stream; 16 is the ROM's -4
 DOS &6A76 : the &FF prefix of a two-byte token: IN and RND are under it, OUT is not
 DOS &4392 : a colon between statements
 DOS &5F64 : a carriage return ends the line
@@ -93,7 +93,7 @@ DOS &6250 : twenty-eight bytes: one file's parameters swapped for the other's
 DOS &6230 : eighty-eight bytes: the whole of the string buffer at &4F10
 DOS &66CF expr CH_STAR
 DOS &66CF : "*", a name that matches anything
-DOS &60B0 : a comma: the directory size follows; no comma is the two-name form, FORMAT "a" TO "b"
+DOS &60B0 : a comma: the directory size follows; no comma is FORMAT "name" alone or the two-name form, FORMAT "a" TO "b"
 DOS &60C4 : a second comma: a RAM disc's size in tracks follows
 DOS &6098 : four directory tracks unless FORMAT says otherwise
 DOS &610B : forty or more directory tracks is refused; 39 is the most

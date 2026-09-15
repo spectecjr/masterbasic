@@ -142,9 +142,11 @@ DOC CHECK_FILE_TYPE
     14 in docs/idioms.md.  What survives is &10, &13 and &14 -- BASIC,
     CODE and SCREEN$ -- and only those numbers, because
     FILE_TYPE_AT_POINT has already lifted every Spectrum type into the
-    same range before either test runs.  A Spectrum 48K snapshot, type
-    5, is lifted to &14 and so comes through under SCREEN$'s number; the
-    other Spectrum types lift to &15 and above and die here.
+    same range before either test runs.  A Spectrum BASIC, CODE or
+    SCREEN$ file lifts to &10 or &13 and comes through; a 48K snapshot,
+    type 5, lifts to &14 and comes through under SCREEN$'s number; the
+    two Spectrum arrays lift to &11 and &12 and die at the array test;
+    everything else Spectrum lifts to &15 and above and dies here.
 
     THE REST IS ASSEMBLY OF TWO STRUCTURES from the one entry, and the
     addresses are chosen so that each is filled by walking forwards:

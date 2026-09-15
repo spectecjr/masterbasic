@@ -17,8 +17,9 @@ DOC FDHR
         bit 0   stock MasterDOS's "match the file number", for LOAD n.
                 No caller in this build sets it and nothing here tests
                 it: the matcher went when MasterBASIC relocated CONM,
-                and how LOAD by number is served now, if it is, has not
-                been traced
+                and LOAD n is served without a scan -- CMD_LOAD at
+                &5F87 turns the number straight into a track, sector
+                and entry through FILE_NUMBER_TO_TRACK_SECTOR
         bit 1   collect names for a sorted listing rather than printing
         bit 2   print a full listing, with a heading
         bit 3   match the type byte and the name
@@ -209,11 +210,9 @@ DOS &4C95 : one entry on, which is one whole page of the sector
 # the way the annotated source's own equate defines RFDH: the byte has a
 # label here, so an EQU for it as well would define the name twice.
 #
-# RPT's high byte says which of the two entries in the sector we are on.
-# Three sites already read DCHAN+RPTH; these are the rest.
-DOS &4624 expr DCHAN+RPTH
-DOS &4FE9 expr DCHAN+RPTH
-DOS &5F9C expr DCHAN+RPTH
+# RPT's high byte says which of the two entries in the sector we are on;
+# every site reads it as RPT+1 now that RPT is a declared two-byte
+# block, so the DCHAN+RPTH spelling three sites had is gone.
 
 DOC FDHF
     A free slot.  Two things can want one, and the mode byte says which.

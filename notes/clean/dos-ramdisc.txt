@@ -224,3 +224,49 @@ DOS &7576 : the track is inside the directory, so it stands as it is
 DOS &7578 : back to DTKS-4
 DOS &757A : no borrow means four or more directory tracks, the layout the DOS assumes
 DOS &757C : fewer than four, so adding a negative DTKS-4 slides the data tracks down over the gap
+
+# PART RAMD's entries that had no banner of this project's own.
+
+DOC RDW3
+    The RAM-disc sector write's tail, shared with the read: the page
+    the caller had back into HMPR, then RPT to the start of the buffer
+    and GTBUF for its address.
+
+DOC RDS1
+    The delimiter search over a RAM-disc sector: the delimiter in A,
+    compared against each of the 512 bytes -- B round 256 times and C
+    twice -- counting DE down at each hit.
+
+DOC SELFP
+    Select the RAM disc's first page: its entry through GFPA, and the
+    page paged in through SELRDP, which hands back the page that was.
+
+DOC FRMRD5
+    A free page found for the RAM disc: its allocation entry marked
+    with the drive number under &D0, and the page number into the
+    disc's own list.
+
+DOC PTRD
+    HL to entry A of the RAM disc's page table -- PTRD with A = 0 is
+    the first -- at &0125 into its first page, which SELFP has paged in.
+
+DOC CHKHL
+    Keep HL inside the window: if bit 6 of H has carried it past
+    &BFFF, INCURPAGE brings the next page in and the new HMPR is kept
+    in PORT1.
+
+DOC SDCHK
+    SDCHK2 with GTBUF first: the author's entry, which nothing in this
+    build calls.
+
+DOC RDCE
+    A RET: the RAM-disc copy's exit, jumped to when there was nothing
+    to move.
+
+DOC RMRBIT
+    Release a MegaRAM page: its bit in MRTAB, found through MRADDR,
+    cleared.
+
+DOC CFMI
+    Count the free MegaRAM pages from HL on, E bytes of MRTAB, eight
+    bits a byte, into D.

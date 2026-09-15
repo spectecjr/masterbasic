@@ -174,14 +174,15 @@ DOC REP0
     parse gives up on a character it cannot place.
 
 DOC AHLNX
-    A:HL as a 20-bit flat address: the two top bits of H become the low
-    two of the page, A's four low bits stand above them, and HL keeps
-    the fourteen bits of offset.  AHLN masks the page to three bits
-    for a nineteen-bit answer.
+    A:HL as a 20-bit flat address: the window base in H's top two bits
+    is discarded, the page's low two bits take their place, and the
+    page's remaining bits, 5 to 2, come down to A's low four.  AHLN
+    masks those to three for a nineteen-bit answer.
 
 DOC IOOR
-    The ROM's error 30, "Integer out of range", through DERR.  Nine
-    callers, none of them a fall-through from AHLNX above.
+    The ROM's error 30, "Integer out of range", through DERR.  Twelve
+    callers, six more of them through WIOOR, and none a fall-through
+    from AHLNX above.
 
 DOC WIOOR
     IOOR by a jump, for the branches inside the FORMAT checks that are
@@ -190,8 +191,8 @@ DOC WIOOR
 DOC WIORH
     The last of FORMAT's range checks, falling into the format proper:
     NC from the compare above means the track total, less two, has
-    reached the limit in B -- 158 less the directory's extra tracks --
-    and that is "Integer out of range".
+    reached the limit in B -- 159, less one for each directory track
+    short of four -- and that is "Integer out of range".
 
 DOC EVNAMX
     EVNAM after a NEXTCHAR: the file name that follows a separator.

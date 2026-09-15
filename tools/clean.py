@@ -97,7 +97,7 @@ CARRIED_FIXES = [
     ([';;  MCPT, whose codes are 1 to 12 and are listed with the table. Code 0 is not a substring at all: it clears the lower',
       ';;  screen, so a message can begin by wiping what was there.'],
      [';;  MCPT, whose codes are 1 to 11. Code 0 is not a substring at all: it clears the lower screen, so a message can',
-      ';;  begin by wiping what was there, and a code of 12 or more runs off the end of the table.']),
+      ';;  begin by wiping what was there; 12 is a code with no word under it, and 13 and up are characters.']),
     ([';;  Writes every track, then either copies another disk onto it, verifies it, or does neither, depending on whether a',
       ';;  second drive was named.'],
      [';;  Writes every track, then copies another disk onto it if a second drive was named. Without one it verifies what it',

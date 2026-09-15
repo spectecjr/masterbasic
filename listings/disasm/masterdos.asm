@@ -4685,18 +4685,18 @@ SETBORDER_BORDCOL:
 
 ; ---- REP4 ---- from &46DB when A >= &0A, &7588 when A >= C
 REP4:
-               LD A,ERR_TRK_NNN_SCT_NN_ERROR   ; 5165 3E 55
+               LD A,ERR_TRK_SCT_ERROR          ; 5165 3E 55
                DEFB SKIP_2_VIA_LD_HL           ; 5167 !
 
 ;; --------------------------------------------------------------------
-;; Error code 86, "Format trk nnn lost".  One of the error stubs: the
+;; Error code 86, "Format TRK-    lost".  One of the error stubs: the
 ;; code into A and down the skip chain to REPORTA, which plants it for
 ;; DERR.
 ;; --------------------------------------------------------------------
 
 ; ---- REP5 ---- from &4710 when A >= &08
 REP5:
-               LD A,ERR_FORMAT_TRK_NNN_LOST    ; 5168 3E 56
+               LD A,ERR_FORMAT_TRK_LOST        ; 5168 3E 56
                DEFB SKIP_2_VIA_LD_HL           ; 516A !
 
 ;; --------------------------------------------------------------------
@@ -4755,7 +4755,7 @@ REP19:
                DEFB SKIP_2_VIA_LD_HL           ; 5179 !
 
 ;; --------------------------------------------------------------------
-;; Error code 101, "No auto file".  One of the error stubs: the code
+;; Error code 101, "No AUTO* file".  One of the error stubs: the code
 ;; into A and down the skip chain to REPORTA, which plants it for DERR.
 ;; --------------------------------------------------------------------
 
@@ -4778,15 +4778,15 @@ REP22:
                                                ; below it
 
 ;; --------------------------------------------------------------------
-;; Error code 104, "Disk is write protec".  One of the error stubs: the
-;; code into A and down the skip chain to REPORTA, which plants it for
-;; DERR.
+;; Error code 104, "Disk is write protected".  One of the error stubs:
+;; the code into A and down the skip chain to REPORTA, which plants it
+;; for DERR.
 ;; --------------------------------------------------------------------
 
 ; ---- REP23 ---- from &45A4 when bit 5 of A set, &5513 when bit 5 of A set
 REP23:
-               LD A,ERR_DISK_IS_WRITE_PROTEC   ; 5180 3E 68
-               DEFB SKIP_2_VIA_LD_HL           ; 5182 !
+               LD A,ERR_DISK_IS_WRITE_PROTECTED ; 5180 3E 68
+               DEFB SKIP_2_VIA_LD_HL            ; 5182 !
 
 ;; --------------------------------------------------------------------
 ;; Error code 105, "Disk full".  One of the error stubs: the code into
@@ -6119,8 +6119,9 @@ MCPT:
                DEFB "$"+&80                    ; 57E1 A4
 
 ;; --------------------------------------------------------------------
-;; A message stub: PTM prints " / Number of Free K-Bytes = " from the
-;; text after the call and returns to this routine's caller.
+;; A message stub: PTM prints "<CR>Number of Free K-Bytes = " from the
+;; text after the call and returns to this routine's caller.  <CR> is a
+;; carriage return, printed as a character.
 ;; --------------------------------------------------------------------
 
 ; ---- PMO3 ---- from &5BC6
@@ -6347,14 +6348,6 @@ PMOMD:
                CALL PTM                        ; 58A8 CD 7C 57
                DEFM "MASTER"                   ; 58AB 4D 41 53 54 45 52
                DEFB &86                        ; 58B1
-
-;; --------------------------------------------------------------------
-;; A message stub: PTM prints "[clear the lower screen][clear the lower
-;; screen][clear the lower screen][clear the lower screen][clear the
-;; lower screen][clear the lower screen][clear the lower screen][clear
-;; the lower screen][clear the lower screen][clear the lower screen] "
-;; from the text after the call and returns to this routine's caller.
-;; --------------------------------------------------------------------
 
 ; ---- PMO8 ---- from &58A6 when A <> &2A
 PMO8:

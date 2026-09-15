@@ -119,3 +119,53 @@ DOS &5E45 : the entry's type byte
 DOS &5E47 : was OFF given?
 DOS &5E4A : then leaving it clear is the whole job
 DOS &5E4C : otherwise put it back
+
+# PART F11's entries that had no banner of this project's own.
+
+DOC NMQU
+    A file name and then the optional "?": EVNAM, and if a "?" follows
+    the name SETF7 marks the command as one that asks about each file
+    before acting.  Ends the statement.
+
+DOC BUDT
+    The channel record's movable part, for BSWOP to exchange: HL = RPT,
+    DE = &B800 in the screen page -- leaving &1580 bytes below it for
+    the sector list -- and BC = &0306, the length of RPT, BUF, NSR, FSA
+    and DRAM together.
+
+DOC CLSL
+    Clear the lower screen through the ROM's CLSLOW, with IX kept.
+
+DOC PNCR
+    Print a carriage return, through PTHP.
+
+DOC PLUR
+    Make the count in HL plural: an "s" through PTHP unless HL was one.
+
+DOC PDIRH
+    The directory listing's heading: a new line, the disc's name, the
+    current path, and two more new lines.
+
+DOC ZDVS
+    Zero the three counters a listing adds up: sectors used, files on
+    the disc, files in the directory.
+
+DOC SF1S
+    DIR's OVER option: SETF1, and on to the next character.
+
+DOC NWSADH
+    WSAD by a jump, for the branch that is too far for a JR: the entry
+    rewritten by RENAME goes back to the disc.
+
+DOC N2TN3
+    The second name into the third slot: fourteen bytes from NSTR2+1
+    to NSTR3+1, so that NSTR3 holds the target pattern TRX reads.
+
+DOC CMD_HIDE
+    HIDE, with HSTR1 = &80 for bit 7 of the type byte: HIDE TO n is
+    MasterBASIC's line-hiding and takes the other path; a file name
+    is found and its type byte marked.  PROTECT, just above, is the
+    same routine with &40.
+
+DOC REP26
+    Error code 107, "File not found", through DERR.

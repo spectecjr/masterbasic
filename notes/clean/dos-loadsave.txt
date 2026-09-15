@@ -193,3 +193,109 @@ DOC SVBS1
 DOC SVBS2
     One zero into the buffer and on to the next byte, without moving
     RPT.
+
+# PART G1's entries that had no banner of this project's own.
+
+DOC REP10H
+    The device letter was neither "D", "T" nor "N": "Invalid device",
+    by a jump for the branch that is too far for a JR.
+
+DOC EVFL8B
+    Copy the header to the ROM's own: BC = 0 and DE = UIFA, and TXRM
+    does the transfer, leaving carry set.
+
+DOC HGTHD
+    Hook 129, open a file and hand back its header: the ROM's header
+    read in with RXHED2 -- tape and network leave here at HGTH2 -- and
+    for a disc the drive checked, the file found by name whatever its
+    type, and then TXHED below carries the entry's header to the ROM's
+    buffer.
+
+DOC HOOK_HLDPG
+    Hook 143: HLOAD with the destination page given in A -- the OUT
+    pages it in, and the load below carries on as for hook 130.
+
+DOC DSCHD
+    Take a file's header from the disc entry into HD001 and the page
+    count beside it, from RESET_BUFFER_POINTERS on.
+
+DOC HVEPG
+    Hook 144: HVERY with the page given in A -- the OUT pages it in,
+    and the verify below carries on as for hook 131.
+
+DOC HOOK_HVAR
+    Hook 139, the DVAR function: the subscript through CGTINT, HL to
+    the base of the DOS's variables, LMPR read for the page, and the
+    entry's address packed into a number for the ROM.
+
+DOC HPTR
+    Hook 141, the PTR function: A = 1 selects the file pointer in the
+    body HEOF shares.
+
+DOC HEOF
+    Hook 140, the EOF function, and the body PTR and LENGTH share: 0
+    for EOF, 1 for PTR, 2 for LENGTH stacked on entry; the file
+    pointer from STREAM_FILE_POINTER, the length from GLEN for LENGTH,
+    and EOF compares the two rather than returning a number.
+
+DOC INIT
+    Hook 128, boot the DOS: the auto-load file's parameters are put in
+    place by AUINSR and, if the file is there, loaded and run by AUINC.
+
+DOC HOFLE
+    Hook 147, open a file for writing: the header read in, the drive
+    checked, the file opened with GOFSM, and SVHD writes its header
+    unless GOFSM's "Overwrite?" was answered no.
+
+DOC HOOK_HGFLE
+    Hook 158, open a file for reading: the header read in, the file
+    found by name whatever its type.
+
+DOC HERAZ
+    Hook 166, erase the file named at IX+1: found by name, its entry's
+    type byte zeroed, and the sector written back.
+
+DOC WRITE
+    WRITE AT drive,track,sector,address[,sectors]: the parameters
+    through EVPRM, then the far sector write, HFWSAD.
+
+DOC READ
+    READ AT, with the same parameters: EVPRM, then the far sector read,
+    HFRSAD.
+
+DOC HFRSAD
+    Hook 162, a far read: IY = READ_SECTOR, and FRWSR runs IX sectors
+    through it from drive A, track D, sector E to page C offset HL.
+
+DOC HWSAD
+    Hook 149, write one sector: the arguments through CALS, and into
+    HFWSAD for the write.
+
+DOC HFWSAD
+    Hook 163, a far write: the drive in HKA converted and checked,
+    selected and brought up to speed, then IY = WSAD and FRWSR runs
+    IX sectors through it.
+
+DOC SCASD
+    The sector-address form of a save: the page kept in HKBC -- an
+    address under &4000, page &FF, is "Integer out of range" -- the
+    offset in HKHL and the sector count in SVHDR.
+
+DOC HDUMMY
+    A RET: the hook table's placeholder, "WAS S:" in the source.
+
+DOC FDFSR
+    Find the first file: "*" into the name, so that the scan matches
+    anything, before the search proper.
+
+DOC GTDEF
+    The default device from the ROM's DEVL into LSTR1.
+
+DOC EVFL1
+    The device prefix proper, with its letter in C: a colon straight
+    after is a device with no number; a digit is the drive, and "D"
+    alone may drop the colon, as in "D1name".
+
+DOC DRSET
+    Select the drive in A and take its current directory: DRIVE, then
+    the drive's CDIRP entry into CDIRT.

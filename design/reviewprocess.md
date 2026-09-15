@@ -414,6 +414,7 @@ The differences from the review prompt:
 | MB &7990-&7E6B, two cuts (2026-09-14) | review | 22 findings | 22; a "table" that was the ROM's channel hook, a generator rule for branches leaving relocated blocks |
 | MB &41C5-&42AD and &6594-&660A, the proposal-only regions (2026-09-14) | review | 9 findings | 8 + 1 code observation; the SAVE copiers' DOS target was misnamed |
 | DOS C11 with 23 new banners (2026-09-14, round 11) | review | 8 findings | 8; two on the new banners, six on prose reviewed before |
+| DOS C12, D1, E1, F12 with 51 new banners (2026-09-14, round 11) | review | 16 findings | 15 + 1 left; four on the new banners, two on the generated headers |
 
 The first five ran on one model; the rest on another, after the first hit a
 session limit mid-run. The prompts were byte-identical across the change,

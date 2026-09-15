@@ -271,3 +271,115 @@ DOS &6D6A value "D"+&80
 DOS &6D6B-&6D6E word
 DOS &6D6A : the channel letter, with bit 7 set: temporary until OPDST1 attaches it to a stream and clears the bit
 DOS &6D6B : two empty words, and then 787 -- the length of a channel record
+
+# PART MOVE's entries that had no banner of this project's own.
+
+DOC MOVRC2
+    Read one character from the current channel, for MOVE's source:
+    the channel's input routine, the word at offset 2, is fetched
+    through the window, and an address in the &4Bxx page is one of the
+    DOS's own two stubs -- so the DOS reads it itself at DOSIP -- while
+    anything else is the ROM's and is planted in the CALL at MTARG.
+
+DOC EVMOV
+    MOVE's second operand, after the TO: "#" makes it a stream, read
+    through EVSRM; otherwise a file name, through EVSYN.
+
+DOC EVSYN
+    A file name for a syntax-checked command: EVNAM, and back at once
+    at syntax time; otherwise on into EVSY2.
+
+DOC HEVSY
+    The hook's form of EVSYN: the name from the hook's registers through
+    HEVNAM rather than from the line, then EVSY2 as before.
+
+DOC CLMOV
+    Close MOVE's file end: nothing to do if that end was a stream
+    (SSTR1 holds &FF), else IX to the channel record NSTR1 names and
+    DELD takes it out.
+
+DOC DELD
+    Delete the channel record at IX: its displacement from CHANS in
+    the ROM's numbering into SVTRS -- the record's window address less
+    &4000 -- and CLRCHD does the rest.
+
+DOC HOOK_HOPEN
+    Hook 134, open a stream onto a file: the character under CHAD,
+    OPSR for the stream, the name from the hook's registers, and the
+    stream number worked out from the STREAMS entry address in HKHL --
+    &5C16 is stream 0's entry, two bytes a stream.
+
+DOC OPDST
+    Point the stream at the channel: the stream's STREAMS entry, two
+    bytes a stream from &5C16, gets the channel's displacement once
+    the channel scan has placed it; carry from the scan is an error
+    and returns as it is.
+
+DOC OPDST1
+    The channel is permanent -- bit 7 off the letter, "D" not "D"+&80
+    -- and the displacement in DE goes into the STREAMS entry at HL.
+
+DOC OPND45
+    OPEN when the scan did not find the name: IN needs a file that
+    exists, so that is "File not found"; for the others a channel
+    record is made through CRMCH, and its mode bits are 2 for RND and
+    1 for OUT.
+
+DOC OPND8
+    The channel's displacement from CHANS in the ROM's numbering, into
+    HL: IX less HEADER, less CHANS, plus one.  NC.
+
+DOC HOOK_HCLOS
+    Hook 135, close a stream: the stream number from the STREAMS entry
+    address in HKDE -- &5C16 is stream 0's, two bytes a stream -- into
+    SSTR1, and CLSRM closes it.
+
+DOC CLOSE
+    CLOSE #stream, or CLOSE * for every stream: "*" is insisted on,
+    then either the end of the line, which is all of them, or the
+    stream number, which CLSRM closes.
+
+DOC CLRCHD
+    Take a channel record out: an IN file first gives back its count
+    in SAMCNT, an OUT or RND file has already done so through SDCM;
+    then RCLAIM closes the record up.
+
+DOC DECSAM
+    One off SAMCNT, the count of long-term files open, and never below
+    zero.
+
+DOC HOOK_SBYT
+    Hook 148, save one byte to the open file: A into the buffer at the
+    write point; when the write point has reached the link bytes a
+    fresh sector is found through FNFS and planted in the link, the
+    full sector goes out, and the byte goes into the next.
+
+DOC LBYT
+    Hook 159, load one byte from the open file into A: the byte at the
+    read point, after following the link to the next sector -- the
+    buffer flushed if it was written to, the linked sector read in --
+    when the read point has reached the link bytes.
+
+DOC FPTR
+    The file pointer as a flat address in A:HL: CNT sectors of 510
+    plus RPT, through M510.
+
+DOC INVST
+    Error code 21, "Invalid stream number", through DERR.
+
+DOC SNOP
+    Error code 47, "Stream is not open", through DERR.
+
+DOC ICNT
+    One on the channel's sector count, CNTL and CNTH.
+
+DOC GLEN
+    The open file's length as a flat address in A:HL: LEN MOD 510 from
+    the channel's length field into HL and its sector count into BC,
+    then M510 to add the sectors up.
+
+DOC M510
+    A:HL := HL + (BC - 1) * 510: the loop at PTAD2 counts BC down
+    before each add, so a count of one adds nothing, which is how a
+    length recorded as "first sector plus remainder" comes out right.
+    BC is kept for GLEN's caller.

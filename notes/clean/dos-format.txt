@@ -4,7 +4,7 @@
 
 # PMOOF is named and marked as code in notes/disk.txt, which every tree
 # reads; the working notes are where a `code` range is decoded.
-DOS &58C0 : dead: the source's "print number of open files" message, whose one caller in SDTKS is now the CALLMB at &74AB
+DOS &58C0 : dead: the source's "OPEN File" message -- it printed no count; the count is MasterBASIC's addition -- whose one caller in SDTKS is now the CALLMB at &74AB
 
 DOS &5925 expr CASE_BLIND
 DOS &5927 : "Y"

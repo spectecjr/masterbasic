@@ -1824,8 +1824,12 @@ def load_symbols(d, work, dos=None, peer=None):
         for code, name in romsyms.error_names(errs).items():
             d.errors.setdefault(code, name[4:].replace('_', ' ').capitalize())
     if dos is not None:
+        # The image's own text wins over errors.md's, which came back
+        # through an equate name and its twenty-character cut: "Disk is
+        # write protec" for what the machine prints as "Disk is write
+        # protected".  The symbol made from it is the same either way.
         for code, text in errtbl_errors(dos).items():
-            d.errors.setdefault(code, text)
+            d.errors[code] = text
     for code, text in d.errors.items():
         d.rst8.setdefault(code, romsyms.error_symbol(code, text, taken))
 
@@ -2168,8 +2172,13 @@ def describe_message_stubs(d):
         ins = d.insns[at]
         if ins.target != ptm or not ins.text.startswith('CALL'):
             continue
-        text, p = '', ins.end
+        text, p, buffer, cr = '', ins.end, False, False
         while d.inside(p):
+            # A label inside the text -- DNAME after PMO8 -- marks a
+            # buffer something fills at run time, and what the file
+            # holds there is not what prints.
+            if p in d.labels:
+                buffer = True
             c = d.byte(p)
             ch = c & 0x7F
             if ch == 0:
@@ -2177,15 +2186,20 @@ def describe_message_stubs(d):
             elif ch < 13:
                 text += words[ch] + ' ' if ch < len(words) else '?'
             elif ch == 13:
-                text += ' / '
+                text += '<CR>'
+                cr = True
             else:
                 text += chr(ch)
             p += 1
             if c & 0x80:
                 break
+        if buffer:
+            continue
         d.headers[at] = annotate.banner(textwrap.fill(
             'A message stub: PTM prints "%s" from the text after the '
-            'call and returns to this routine\'s caller.' % text, 68))
+            'call and returns to this routine\'s caller.%s'
+            % (text, '  <CR> is a carriage return, printed as a '
+                     'character.' if cr else ''), 68))
         n += 1
     return n
 

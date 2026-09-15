@@ -99,3 +99,50 @@ DOS &7B4F expr TYPE_MASK
 DOS &7B51 expr TYPE_ZX_SNP48
 DOS &7B53 : three pages, with DE still zero: 48K exactly
 DOS &7B57 expr DIR_LENGTH
+
+# PART HOOKS's entries that had no banner of this project's own.
+
+DOC FNDI2
+    FNDIRS past its name: ")" must close the argument, syntax time
+    aborts here, and the directory is read into the buffer.
+
+DOC NSTKAH
+    DSTAT's option 8, the drive number: the drive stacked as a byte
+    through STKA if the option matched, "Integer out of range" if it
+    was higher.
+
+DOC STKA
+    Stack the byte in A as a number: into HL with H = 0, and out
+    through DSSTK.
+
+DOC FPAGES
+    The FREE PAGES function: past the token, abort at syntax time,
+    the count from CNTFP, and stacked through STKA.
+
+DOC STK20B
+    Stack A:HL as a 20-bit number: AHLNX flattens the page form and
+    EPCOM_1 stacks it.
+
+DOC HOC0
+    No disc, or a RAM disc not formatted: HL := A, which is zero, and
+    HOC2 makes the -1 the function returns.
+
+DOC FNTIME
+    The TIME$ function: HL to TIMDT, and the skip over FNDATE's LD HL
+    into the shared body, which asks MasterBASIC to read the clock and
+    stacks the eight characters.
+
+DOC HPATH
+    The PATH$ function, hook 142: the default device from GTDEF, the
+    path's start and length from GPATD, and stacked as a string
+    through HPTH2.
+
+DOC CMR_IN_WINDOW
+    CMR's second half, run through the window once this page is in
+    section C: the system page into section B, the ROM's stack, DOSSTK
+    swapped for this stack, and the ROM routine called through the
+    GAP_BLOCK stub with the return stub after it.
+
+DOC CMR_CALLER_HMPR
+    The LD A whose operand CMR wrote with the caller's HMPR, and the
+    jump into the stub that restores it before the ROM routine runs.

@@ -462,7 +462,12 @@ def rom_error_names(path):
 
 def error_symbol(code, text, taken):
     """A unique EQU name for an error code."""
-    slug = re.sub(r'[^A-Za-z0-9]+', '_', text).strip('_').upper()[:22]
+    # Cut at a word, not mid-word: "DISK_IS_WRITE_PROTECTE" was the
+    # twenty-two-character cut of the message this build prints.
+    slug = re.sub(r'[^A-Za-z0-9]+', '_', text).strip('_').upper()
+    while len(slug) > 26 and '_' in slug:
+        slug = slug.rsplit('_', 1)[0]
+    slug = slug[:26]
     name = 'ERR_' + (slug if slug and not slug[0].isdigit() else '%d' % code)
     while name in taken and taken[name] != code:
         name += '_%d' % code
