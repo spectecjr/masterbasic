@@ -729,9 +729,9 @@ MB &6237 SCAN_NIBBLE_TABLE
 
 MB &5B22 WINDOW_SOUND_POINTER
     Take the pointer at V4082, keep its high byte, and window it with the
-    usual SET 7,H and RES 6,H -- then AND &03 on the byte before the
-    windowing, which is the page's low bits, decides whether the pointer
-    has run off the end.
+    usual SET 7,H and RES 6,H -- then AND &03 on the high byte plus one,
+    from before the windowing, picks out the last quarter of the 1K slot,
+    and the CP &FE at &5B38 says whether the pointer is on the link.
 
     THE FIVE TESTS ARE THE CHAIN WALK, and this is the third routine to
     make it: SOUND_FEED_TICK at &5A96 and PRINTER_FEED_TICK at &5A1E do

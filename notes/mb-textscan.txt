@@ -35,8 +35,12 @@ DOC SCAN_TEXT_FOR_D_OR_E
 DOC SCAN_TEXT_PAGED
     The same scan, carried across a 16K boundary.
 
-    It calls SCAN_TEXT_FOR_D_OR_E and, on the way out, tests bit 6 of H
-    -- the bit that says the pointer has run past the end of the window
-    -- and if so calls INCURPAGE and clears it, so the walk continues in
-    the next page.  That is the standard way this image steps a pointer
-    through memory it can only see 16K of at a time.
+    It calls SCAN_TEXT_FOR_D_OR_E and, on the way out, tests bit 6 of
+    the LINE START that its caller left on the stack (EX (SP),HL brings
+    it in, POP HL puts the scan pointer back) -- the bit that says the
+    line began at &C000 or above -- and if so calls INCURPAGE and clears
+    that bit in the scan pointer, so the walk continues in the next
+    page.  A line that runs across &BFFF is read on through &C0xx
+    unpaged, since section D holds the page after HMPR's; the correction
+    is taken at the start of the next line, on a pointer at least as far
+    on as the start that was tested.

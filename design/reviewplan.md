@@ -221,13 +221,17 @@ by a second reader, in the order they are worth doing:
 | `&5E00-&6400` -- done 2026-09-14, round 10: 29 findings on 861 own lines (3.4 per hundred), 17 of them `[C]`; the slot chain is a ring, `&62A6` is now EXPAND_SCREEN_FILE, and three claims in `docs/compression-modes.md` were refuted from the bytes | | |
 | `&66AE-&69E7` -- done 2026-09-14: 16 findings on 368 own lines, all confirmed; a second shipped defect, the MODE 3 start column (`docs/bugs.md` 11) | | |
 | `&4700-&500C` -- three cuts, done 2026-09-14: 36 findings on 1411 own lines, all confirmed; hook 153's broken argument passing is `docs/bugs.md` 12, and the LOCN entry there lost its "reports a match" consequence to the carry it had not followed | | |
-| `&51D6-&5C00` | HOOK_RCPTCH and the program walk, BUILD_TRACK_IMAGE, CMD_ALTER, the serial channel and CMD_LPRINT, CMD_PRINT, CMD_REF and the reference parser | large and bare of review; `notes/mb-cmdbuf.txt` and the serial notes make the boldest claims in the repository |
+| `&51D6-&5C00` -- three cuts, done 2026-09-14: 37 findings on 1481 own lines, all confirmed, 21 of them `[C]`; two operands had been read as this page's labels when they were the DOS's DRPT-1 and the system page's HKC_LPRINT_BYTE stub, HOOK_FARSCAN was BLITZ SOUND's body, and the ALTER argument comments had the calculator stack's order backwards.  All three reviewers stalled at the 600-second watchdog and were resumed; the template now tells them to read a routine at a time | | |
 | `&42B1-&4500` | CALLDOS, the serial hooks, DRTAB, the REP_ stubs, FIND_VARIABLE, the EXPECT_ and CALL_ helpers | paging claims; the kind reviewers have overturned before |
 | `&6DF6-&7700` | CMD_JOIN and CMD_DELETE, CMD_SPLIT_LINE, FN_USING_S, the compiler, the PROC index, RELOCATED_TO_46CC and INSTALLER | RELOCATED_TO_46CC was the mechanism a note had called unexplainable until it was read |
 | `&7900-&7FC0` | RESOLVE_ROM_ENTRIES, INSTALL_SYSPAGE_CODE, MB_PAGER, the stubs and callbacks, the installed blocks | the copy rules are checked against the dump; the callbacks are not |
 | `&41C5-&42B1`, `&6594-&66AE` | the two proposal-only regions | proposals were applied without a review pass |
 
-Aim for 800-1200 lines a cut, and cut by routine (phase 0.2).  The facts
+Aim for 800-1200 lines a cut, and cut by routine (phase 0.2).  A reviewer
+that reads the whole cut before writing anything can sit past the harness's
+600-second no-output watchdog and be killed; a resume with "continue from
+the last routine you wrote" recovers it with its context intact, and the
+template now asks for one routine per read and an append after each.  The facts
 block in the prompt needs the MasterBASIC additions: the installed blocks
 and their addresses in the system page (`notes/mb-postboot.txt` has the
 map), what `CALLDOS` leaves in the alternate registers, and that the

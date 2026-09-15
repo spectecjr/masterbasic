@@ -7,7 +7,8 @@ DOC L56F3
     for RETURN to come back here and carry on searching.
 
     THE LINE IS NOT COPIED BY THIS CODE AT ALL.  &56E2 has just put the
-    address of the match into the ROM's spare variable at &5A5E and hung
+    address just past the match -- HL as MATCH_REFERENCE's success exit
+    left it -- into the ROM's spare variable at &5A5E and hung
     MasterBASIC's own routine (assembled at &7BA4, running at &484D) on
     the channel word ten bytes into CHANS.  The CALL below is the ROM's
     EDKY1 -- the guts of the EDIT key -- which prints the line into the
@@ -44,7 +45,7 @@ MB &5706 : two line entries have to go by before the search resumes.  &5493 coun
 
 MB &570C : A = 0, so STREAM reselects stream 0; the ROM's edit left the channel pointing elsewhere
 
-MB &5712 : from here to &5724 the machine stack is rewritten so that the ROM's error exit lands back in MasterBASIC.  BC is the *contents* of ERRSP, i.e. an address in the system page's stack
+MB &5712 : from here to &5724 the machine stack is rewritten so that the ROM's error exit lands on the main loop's own CALL EDITOR -- the address the EDITV wrapper parked at &5A62, three bytes below its return -- which re-presents the edit line without passing SETMIN to clear it.  BC is the *contents* of ERRSP, i.e. an address in the system page's stack
 
 MB &5719 : the high byte of the word at (ERRSP), because the write below runs downwards
 
@@ -104,6 +105,8 @@ MB &584A : bit 5 out, so a letter compares equal whatever its case -- the same f
 
 MB &5641 : stream 2, the screen.  LPRINT REF loads 3 at &55C8 for the printer and the two paths meet at &5646, so this one byte is the whole difference between the commands
 
+MB &5646 PRINT_REF_COMMON
+
 MB &565E : zero is PRINT REF's own code.  &5778 lists all three -- &80 for ALTER, &01 for REF, &00 for PRINT REF -- and &5665 loads the &01 for REF two instructions past this
 
 MB &573C : the length of the replacement, from the second buffer; B is cleared so BC is a byte count for the LDIR below
@@ -122,7 +125,7 @@ MB &574E : SCAN_TEXT_FOR_D_OR_E opens with INC HL, so this puts the resumed scan
 
 MB &5752 : line 1, so a REF with no range starts at the top of the program
 
-MB &5758 : &FEFF is chosen, not arbitrary.  It is above any line number a program can hold and *below* the &FF that marks the end of the program, so the same "is this line past the last one?" test at &5693 stops the walk at the terminator with no separate end check
+MB &5758 : &FEFF is chosen, not arbitrary.  It is the highest line number the ROM accepts -- EVALLINO rejects anything over 65279 -- and *below* the &FF that marks the end of the program, so the same "is this line past the last one?" test at &5693 stops the walk at the terminator with no separate end check
 
 MB &575E : no comma at all and the two defaults stand, which is the bare REF a$ case
 
@@ -182,9 +185,11 @@ DOC GET_STRING_AND_PAGE_IT_2
                   zero means "insist on a word boundary at both ends",
                   anything else means "match anywhere"
 
-    Nothing else distinguishes REF count from REF "count".  The zero is
-    pushed by the bare-name path at &57D6; every other path pushes
-    something that happens to be non-zero and never says so.
+    Nothing else in the buffer distinguishes REF count from REF "count";
+    the other difference, whether quoted text is searched at all, is
+    carried by REFERENCE_KIND.  The zero is pushed by the bare-name path
+    at &57D6; every other path pushes something that happens to be
+    non-zero and never says so.
 
 MB &57DE : B is cleared rather than kept, so a string longer than 255 is truncated by its low byte -- and a 256-byte one reads as empty
 
@@ -224,7 +229,7 @@ DOC PARSE_REFERENCE_3
 
 MB &57F5 : FOUR BYTES OF CODE, NOT TWO WORDS OF DATA.  &EF is RST &28, the floating-point calculator, whose literal stream follows the RST rather than being addressed by it, and &25 is its DUP.  The names come out of ref/samrom/fpcmain.asm, whose table reads "DW FPDUP ;25 DUP"; tools/fpcalc.py does the decoding
 
-MB &57F8 : the operand is INSTBUF, &4F00 in the system page, not this page's &4F00 -- the label DKP2 is the ROM source's name for whichever overlay was loaded there last
+MB &57F8 : the operand is INSTBUF, &4F00 in the system page, not this page's &4F00 -- the label DKP2 is the ROM source's entry for DEF KEYCODE's overlay, which is assembled to run at INSTBUF, so the equate is just another name for &4F00
 
 MB &57FD : and the other two, &57 STR$ and &34 EXIT2 -- "DW FPSTRS ;57 STR$" and "DW FPEXIT2 ;34 EXIT2" in the same table, with EXIT2 declared there as EQU &34.  So what &5805 runs is duplicate, make a string of the copy, leave the calculator: the number survives the conversion, which is what lets &581E write the five-byte binary form after the text one
 
@@ -278,11 +283,11 @@ MB &5878 : the ROM's NUMBER steps over &0E and the five bytes behind it in one c
 
 MB &587D : carry set on the carriage return is the "line finished" answer the paged wrapper tests
 
-MB &5883 : zero means the reference came out of quotes or a brackets expression, and those are looked for inside strings; anything else and the quoted run below is stepped over whole
+MB &5883 : zero means the reference was a string value -- quoted, or a bracketed string expression -- and those are looked for inside strings; anything else, including a bracketed numeric, which keeps its "(" from &578F, and the quoted run below is stepped over whole
 
 MB &5887 : A is reloaded because the flag test overwrote it -- the quote character itself is what the skip loop below compares against
 
-MB &588A : run to the closing quote.  There is no end-of-line test in this loop; an unterminated string cannot occur in a line the ROM has accepted
+MB &588A : run to the closing quote.  There is no end-of-line test in this loop: it trusts every accepted line to pair its quotes, which is true of everything but a REM, whose text the ROM's REMARK never checks
 
 MB &5892 : &FF is a function token's prefix, so the byte after it is a token code, not text.  Skipping it is what keeps a reference from matching half of a two-byte token, and is the other side of the test at &5869
 
@@ -311,7 +316,7 @@ DOC ALTER_RESIZE_GAP
     routine keeps that one AF across the arithmetic in between so that
     the same borrow chooses between MKRBIG and RECLAIM at the end.  In
     between, the difference is turned into a signed 16-bit value with
-    LD L,A : RLA : SBC A,A : LD H,A -- three bytes that sign-extend an
+    LD L,A : RLA : SBC A,A : LD H,A -- four bytes that sign-extend an
     eight-bit number into HL without a branch -- and added to the line
     length.
 
@@ -355,7 +360,7 @@ MB &5913 : INCURPAGE clears bit 6 of H itself, so there is no RES 6,H here
 
 MB &591D : the length two bytes in counts the text only, so adding it to the address four bytes in lands on the next line.  The walk never looks inside a line
 
-MB &5922 : THERE IS NO END-OF-PROGRAM TEST IN THIS LOOP, and none is needed.  A line number is stored high byte first, the program ends with an &FF where a line number's high byte would be, and &FF is above any B the callers can pass, since B comes from SEARCH_FIRST_LINE and a line number's high byte cannot be &FF.  (&FEFF at &5758 is the other variable, SEARCH_LAST_LINE, the range end, and is chosen for the same reason at the other end of the walk.)  The terminator therefore stops the walk through the ordinary comparison
+MB &5922 : THERE IS NO END-OF-PROGRAM TEST IN THIS LOOP, and none is needed.  A line number is stored high byte first, the program ends with an &FF where a line number's high byte would be, and no caller passes B above &FF: for B below &FF the stopper is above on the high byte at &5923, and for the one caller that passes B = &FF -- OPEN_GAP_AT_LINE's &FF00 at &51A1 -- the high bytes compare equal and a low byte cannot be below the zero in C at &592C, so the walk still stops here.  (&FEFF at &5758 is the other variable, SEARCH_LAST_LINE, the range end, and is chosen for the same reason at the other end of the walk.)  The terminator therefore stops the walk through the ordinary comparison
 
 MB &5927 : above on the high byte, so the answer is this line and the low byte need not be looked at
 
@@ -393,7 +398,7 @@ MB &5973 : MODCHAR1 and MODCHAR2 are adjacent XVARs, so one fetch gets both char
 
 MB &5983 : anything that is neither of the two prints as itself, through the ROM
 
-MB &5989 : the first byte of the message is its length; the four XVAR messages are all stored that way
+MB &5989 : the first byte of the message is its length; both MODMSG strings, like the GCMX dump strings, are stored that way
 
 MB &598F : CHANS is re-read for every byte because the channel routine below is entitled to move it.  The operand is written pre-windowed here and plainly at &58A2 -- NRRDD's SET 7,H / RES 6,H leaves an already-windowed address alone, so the two spellings do the same thing
 
@@ -446,7 +451,7 @@ MB &59CF : the return address and the HMPR the hook saved
 
 MB &59D1 : the return address goes back, but the interrupted A goes in place of the saved HMPR -- so the POP AF / OUT (HMPR),A at &7CFC leaves the window on the page the line is in rather than restoring what was there.  A deliberate substitution, not a save/restore
 
-MB &59D3 : plus &100, which is the distance AULLP's own comment asks for: "HL SHOULD BE ABOUT 0100 HIGHER THAN ADDR FOR SDTOP"
+MB &59D3 : &4BFA is a slot on the ROM's interrupt stack, not a variable: ANYI sets SP to INTSTK, &4C00, and CALLs INTS, which pushes BC then DE, so &4BFE is the return, &4BFC BC and &4BFA the interrupted DE.  In AULLP that DE is EPPC's address less &100 -- the ROM's own DEC D above the loop -- so the INC D below undoes it and the word planted in the interrupted HL is EPPC's line itself, which AUL3 makes the new SDTOP.  The rescue restarts the listing at the current line
 
 MB &59D8 : overwriting the interrupted HL, so the loop resumes on a line address MasterBASIC chose
 
@@ -454,9 +459,9 @@ MB &59E2 : &061E is AUL3 in the ROM the signature search found -- the instructio
 
 MB &59E8 : SOFV read at &8002 is XVAR 2, this half seen through the window; SOFFCT at &5AC4, seven instructions on at &59F5, is the ROM's, read with the system page low.  Two pages in one short run, which is only possible from the interrupt
 
-MB &59FC : the printer buffer's page, biased by one so that zero means there is no buffer -- which is what LPRINT CLEAR 0 leaves behind
+MB &59FC : the printer buffer's page, as FIND_SLOTS returned it.  Zero means there is no buffer -- what LPRINT CLEAR 0 leaves behind -- because page 0, the system page, can never be a utilities page
 
-MB &5A02 : the real page number, kept in B because the feed below pages it in and out repeatedly
+MB &5A02 : one less is the LMPR value that puts the page in section B, where the slot addresses (&4000 plus &400 a slot, SLOTT at &7FF0) point; kept in B because the feed below pages it in and out repeatedly
 
 MB &5A04 : the paging to come back to after each dip into the buffer
 
@@ -491,7 +496,7 @@ MB &5A2C : the link's offset, &3FE of the slot's &400
 MB &5A33 : the last two bytes of a block are the link: the next block's address high byte, then its page
 
 MB &5A37 : the new slot's first byte -- the link gave D the next slot's high byte, and a slot always starts on a &400 boundary, so zero is the whole of the low half
-MB &5A3A : the same biased page byte read at &59FC, so the feed picks up where it left off next interrupt
+MB &5A3A : the link's page, stored raw as the page read at &59FC is, so the feed picks up where it left off next interrupt; the DEC below makes the LMPR value again
 
 MB &5A42 : CHECK_PRINTER_READY is this half's own, at &432B -- &832B is this half seen through the window, because this code runs where MasterBASIC is at &8000
 

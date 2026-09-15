@@ -119,10 +119,10 @@ MB &4ADC MULTIPLY_BY_60
     is why the note at &4AA0 has to call the first call's top byte
     rubbish.
 
-    MULTIPLY_BY_60_1 is an entry part of the way down it, for a caller
-    that has its own idea of what BC holds.  There used to be a second
-    such entry here, made only by a reference from &55EA -- which is a
-    word inside a data table, not a call, so the entry was never real.
+    &55EA loads &4AE9, the address of the SBC A,&00 part of the way
+    down, and means the system page's HKC_LPRINT_BYTE stub by it, not
+    anything here; that reference once put a spurious entry point on
+    the instruction.
 
 MB &58F1 OPEN_ROOM_AT_DE
     Open BC bytes at DE, through the ROM's MKRBIG -- "open A*16K + BC
@@ -204,8 +204,8 @@ MB &572A WRITE_A_DESCENDING
 
 MB &5752 PARSE_LINE_RANGE
     The ",first[,last]" that REF, PRINT REF and ALTER all accept.
-    SEARCH_FIRST_LINE starts at 1 and SEARCH_LAST_LINE at &FEFF, which
-    is past any line number a program can hold, so with neither given the
+    SEARCH_FIRST_LINE starts at 1 and SEARCH_LAST_LINE at &FEFF, the
+    last line number the ROM allows, so with neither given the
     range is the whole program.  A comma then a number replaces the
     first, and a second comma and number the last; anything else and it
     returns with the defaults standing.
@@ -233,7 +233,7 @@ MB &49E0 PORT_BCD_DIGIT
     there already stands.  A clock that is not there reads &FF and leaves
     the buffer alone rather than filling it with rubbish.
 
-MB &5299 : &BB on NVARS's high byte is which of the two paths to take, not a verdict -- at or above it the routine gathers NVARSP and RAMTOP, below it the program walk at &52D5 does the measuring.  RELOCATED_TO_484D raises this hook at &BE, three pages further up
+MB &5299 : &BB on NVARS's high byte is which of the two paths to take, not a verdict -- at or above it the routine gathers NVARSP and RAMTOP, below it the program walk at &52D5 does the measuring.  RELOCATED_TO_484D raises this hook at &BE, &300 bytes further up
 
 MB &52BD : the gap's high byte against seven, and under &0700 returns.  That is what makes the &0500 below safe: 1280 bytes are only opened when at least 1792 are there to open them in
 
@@ -370,7 +370,8 @@ MB &5CA0 SILENCE_SOUND_CHIP
 MB &560D COPY_BUFFER_POINTER
     Copy the page and address at V4085 with interrupts off, so that the
     pair cannot be caught half updated by the interrupt that consumes
-    them.  Called on the serial setup path, after SERINIT.
+    them.  Called from both LPRINT MODE, after INIT_SERIAL_FROM_TABLE,
+    and LPRINT CLEAR n, which runs no SERINIT at all.
 
 MB &5599 INIT_SERIAL_FROM_TABLE
     SERINIT with the caller's value kept across it, then one of the two
@@ -506,7 +507,7 @@ MB &4C81 : three places, which is what turns a flat address into a page and a wi
 MB &58D7 : B cleared, so the C below is a byte count for the sixteen-bit work that follows
 MB &62CF : &FE, so &FE00 -- &E500 plus &1900, the end of the input buffer, and past it the byte comes from the DOS's LBYT instead.  The same test READ_NEXT_NIBBLE makes at &637D
 MB &4297 expr PAGEMASK
-MB &5AF1 : one past thirty-two, and thirty-two is the longest a SAM BASIC name can be: NAMTOBUF opens "LD B,32 ;MAX LEN+1 FOR A NAME (EXCLUDING 1ST CHAR)" and gives C bits 4-0 as that length.  So a byte of 33 or more is not a name at all
+MB &5AF1 : the byte is the first of a register/value pair bound for the sound buffer, and the reader at &5AC7 sends it to port &01FF, the SAA1099's register select.  The chip has registers &00-&1F and &20 is the PAUSE marker the reader tests at &5AB5, so anything from &21 up is neither and the string is refused as Integer out of range
 
 MB &450D : the seed for the ADD IY,SP below, the only way the Z80 has of reading SP -- the zero is the idiom, as at &77F8
 MB &4433 : sixteen passes, one per bit of DE, which is the whole of a sixteen-by-sixteen multiply done by shift and add
@@ -523,16 +524,22 @@ MB &7112 : the same eleven, reached from the other command
 MB &4BCC : zero, which is INARRAY's mark in V40A4.  &4B8F has the pair: "LOCN puts a length in V40A4 at &4B09; INARRAY has no such limit, so it stores zero", and the INC DE below then pushes the one
 
 MB &561B INSTALL_CHANNEL_HANDLER
+    Write the HL it was called with -- pushed at &561B, popped into BC
+    at &5625 -- into channel B's output word, &19 bytes into the ROM's
+    channel table, which is how MasterBASIC puts itself in a channel's
+    place.  The one caller, &55FB, passes the HKC_LPRINT_BYTE stub or the
+    vector saved in V4066.
 
 MB &5621 : &19 into CHANS, the same word IS_CHANNEL_OURS reads back at &562E and INIT_SERIAL_FROM_TABLE writes at &55B0
-    Write BC into the word &19 bytes into the ROM's channel table, which
-    is how MasterBASIC puts itself in a channel's place.
 
 MB &5629 IS_CHANNEL_OURS
     Read that same word back and compare it with &4AE9 -- an address
     inside the second installed stub, in the ROM's system page, not this
-    half -- so the test is whether the channel is still pointed at what
-    the installer put there.
+    half -- so the test is whether channel B's output is already the
+    HKC_LPRINT_BYTE stub that LPRINT CLEAR installs; the boot never writes
+    it, only &55EA and INSTALL_CHANNEL_HANDLER do.  If it is not, the
+    vector that is there is saved in V4066 for LPRINT CLEAR 0 to put
+    back.
 
 MB &562E : &19 into CHANS, the word this half hung its own routine on
 MB &5635 : and &4AE9 is what it should be pointing at -- MB &7E40 once the &7BA4 block runs at &484D, which is the three bytes that raise HKC_LPRINT_BYTE.  The installer's own list has &4AE6 against &7E3D, three bytes below each

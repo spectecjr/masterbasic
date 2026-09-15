@@ -49,8 +49,11 @@ DOC PRINTER_FEED_TICK
     address written by the hook.  Both pointers are read at &8085 and
     &8086 rather than at &4085 and &4086, because this code runs from the
     interrupt with the ROM's system page low and this half in the window.
-    V4085 is biased by one, so zero means there is no buffer at all --
-    which is what LPRINT CLEAR 0 leaves behind, and the first test here.
+    V4085 is the buffer's page as FIND_SLOTS returned it, and the DEC
+    at &5A02 makes the LMPR value that puts that page in section B, which
+    is where the slot addresses point.  Zero means there is no buffer at
+    all -- what LPRINT CLEAR 0 leaves behind, and the first test here --
+    because page 0, the system page, can never be a utilities page.
 
     Equal addresses and equal pages mean the ring is empty and there is
     nothing to do.  The link walk at &5A1E is the same test the writer

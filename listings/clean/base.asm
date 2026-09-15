@@ -324,9 +324,9 @@ MB_FN_TICS:                     EQU  FN_TICS + IN_PAGE_C
 MB_FN_USING_S:                  EQU  FN_USING_S + IN_PAGE_C
 MB_HCMDV:                       EQU  HCMDV + IN_PAGE_C
 MB_HGTTK:                       EQU  HGTTK + IN_PAGE_C
+MB_HOOK_BLITZ_SOUND:            EQU  HOOK_BLITZ_SOUND + IN_PAGE_C
 MB_HOOK_COMADENT:               EQU  HOOK_COMADENT + IN_PAGE_C
 MB_HOOK_CSIZE:                  EQU  HOOK_CSIZE + IN_PAGE_C
-MB_HOOK_FARSCAN:                EQU  HOOK_FARSCAN + IN_PAGE_C
 MB_HOOK_HORDER:                 EQU  HOOK_HORDER + IN_PAGE_C
 MB_HOOK_HPFF:                   EQU  HOOK_HPFF + IN_PAGE_C
 MB_HOOK_LPRINT_BYTE:            EQU  HOOK_LPRINT_BYTE + IN_PAGE_C

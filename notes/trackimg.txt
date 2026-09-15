@@ -152,7 +152,7 @@ MB &53F1 : 1101 -- CNTRL/down-arrow.  Any other combination is somebody else's k
 
 MB &53F6 : &0E for up and, because the SUB left it zero, 0 for down.  Only "is it zero" is ever asked, at &542E
 
-MB &53F9 : wait for both arrow keys to come back up before doing anything.  Without it the ROM's auto-repeat would recall a fresh line every few frames.  BC is still the &FFFE that READ_KEY_LINE loaded, but not because MBCMR preserves it: &51D4 and &52F2 both load BC and HL and then call through MBCMR precisely so the ROM routine receives them
+MB &53F9 : wait for both arrow keys to come back up before doing anything.  Without it the ROM's auto-repeat would recall a fresh line every few frames.  BC is &FFFE again, but not because READ_KEY_LINE's value survived the call: KEYSCAN loads its own BC and walks every row, and its shift test KBSH (scrsel1.asm) leaves LD BC,&FEFE / INC B behind when it finds CONTROL down, which on this path it has
 
 MB &53FB : bits 1 and 2 -- up and down -- are the only ones left to test, and INC A gives zero only when both are set
 
@@ -192,7 +192,7 @@ MB &5464 : copy the entry out, one byte at a time because BC is not a count any 
 
 MB &546E : KCUR is where the ROM will put the cursor, so it lands at the end of the recalled line, ready to edit or to RETURN
 
-MB &5475 : &4871 is NOT this page -- that address here is inside the CALL at &4870.  It is &7BC8 seen at its installed address, three instructions into the EDITV wrapper, just past where it saved the ROM's return address.  Writing it through the pointer in V4076 makes the hook return into the editor for another go instead of handing the line back to BASIC
+MB &5475 : &4871 is NOT this page -- that address here is inside the CALL at &4870.  It is &7BC8 seen at its installed address, six instructions into the EDITV wrapper at &7BBD, just past where it saved the ROM's return address.  Writing it through the pointer in V4076 makes the hook return into the editor for another go instead of handing the line back to BASIC
 
 DOC HOOK_MERGECOMPFLG_6
     File the line just finished in the recall buffer.  Reached when

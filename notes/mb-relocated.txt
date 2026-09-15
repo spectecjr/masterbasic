@@ -119,9 +119,9 @@ DOC RELOCATED_TO_484D
 MB &7460 RELOCATED_TO_46CC
 MB &7BA4 RELOCATED_TO_484D
 
-MB &7BAD : &5A5E is where REF left the address of the match.  It is one of the fourteen bytes the ROM's variable table marks "14 SPARE" between LSOFF and SPOSNU, used rather than MasterBASIC's own page because this hook runs with the system page at &4000 and MasterBASIC nowhere in sight
+MB &7BAD : &5A5E is where REF left the address just past the match.  It is one of the fourteen bytes the ROM's variable table marks "14 SPARE" between LSOFF and SPOSNU, used rather than MasterBASIC's own page because this hook runs with the system page at &4000 and MasterBASIC nowhere in sight
 
-MB &7BB9 : &5A65 takes the cursor, caught in passing rather than worked out: the moment LSPTR reaches the match, KCUR less one is what the manual's "cursor just after the reference" means
+MB &7BB9 : &5A65 takes the cursor, caught in passing rather than worked out: the last time LSPTR is still below the end of the match, KCUR less one is what the manual's "cursor just after the reference" means
 
 MB &7BC0 : bit 5 of FLAGX, which the ROM sets while an INPUT is in progress
 

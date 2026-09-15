@@ -1187,6 +1187,9 @@ def seeds(dos, mb):
     # half's -- the whole point of the test is whether the channel has
     # been pointed at what the installer put there.
     mb.sys_low.append((0x5635, 0x5638))
+    # &55EA loads the same &4AE9 for INSTALL_CHANNEL_HANDLER to write
+    # into channel B; it was reading as a label inside MULTIPLY_BY_60.
+    mb.sys_low.append((0x55EA, 0x55ED))
     # The three vector values INSTALL_ROM_PATCHES writes: &49F7, &4A52
     # and &4AE6 are addresses in the ROM's system page, in the stubs it
     # has just put there, and not in this half.  &4AAC two instructions

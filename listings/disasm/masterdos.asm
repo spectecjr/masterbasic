@@ -1489,7 +1489,7 @@ SAMHK:
                DEFW MB_HCMDV+NOT_IN_THIS_PAGE                   ; 4500 code 173
                DEFW MB_HOOK_RCPTCH+NOT_IN_THIS_PAGE             ; 4502 code 174
                DEFW MB_HOOK_MERGECOMPFLG+NOT_IN_THIS_PAGE       ; 4504 code 175
-               DEFW MB_HOOK_FARSCAN+NOT_IN_THIS_PAGE            ; 4506 code 176
+               DEFW MB_HOOK_BLITZ_SOUND+NOT_IN_THIS_PAGE        ; 4506 code 176
                DEFW MB_HOOK_TOKENARG+NOT_IN_THIS_PAGE           ; 4508 code 177
                DEFW MB_HOOK_SKIPNAME+NOT_IN_THIS_PAGE           ; 450A code 178
                DEFW MB_HOOK_XVARNVAL+NOT_IN_THIS_PAGE           ; 450C code 179

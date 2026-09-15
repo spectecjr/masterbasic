@@ -133,6 +133,14 @@ Aim for 500–1500 lines. Larger and the agent skims the far end.
 One `Agent` call per region, `run_in_background: true`, several at once — they
 are independent. Templates below.
 
+The harness kills an agent that produces no output for 600 seconds, and a
+reviewer that reads a 500-line cut and the references before writing a
+word can hit that (three of three did on one dispatch; one of them three
+times).  The template tells the reviewer to open the report with the MODEL
+line at once, read one routine at a time and append after each; a stalled
+agent is resumed with `SendMessage` — "read the tail of your review.txt
+and continue from the next routine" — which keeps what it had read.
+
 ### 3. Audit
 
 ```
@@ -401,6 +409,7 @@ The differences from the review prompt:
 | Round-six functions and load/save regions, second pass (2026-09-14) | review | 9 findings | 7 + 2 left; none [C] |
 | MB &5E64-&63FE, two cuts (2026-09-14) | review | 29 findings | 27 + 2 informational |
 | MB &66D2-&69E4 and &4717-&5000, four cuts (2026-09-14) | review | 52 findings | 52; two shipped defects, and one bugs.md consequence refuted |
+| MB &51DD-&5BD8, three cuts (2026-09-14) | review | 37 findings | 37; two operands that were another page's addresses, one hook body misnamed |
 
 The first five ran on one model; the rest on another, after the first hit a
 session limit mid-run. The prompts were byte-identical across the change,

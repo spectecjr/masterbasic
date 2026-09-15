@@ -236,9 +236,9 @@ MB_FN_TICS:                     EQU  FN_TICS + &4000
 MB_FN_USING_S:                  EQU  FN_USING_S + &4000
 MB_HCMDV:                       EQU  HCMDV + &4000
 MB_HGTTK:                       EQU  HGTTK + &4000
+MB_HOOK_BLITZ_SOUND:            EQU  HOOK_BLITZ_SOUND + &4000
 MB_HOOK_COMADENT:               EQU  HOOK_COMADENT + &4000
 MB_HOOK_CSIZE:                  EQU  HOOK_CSIZE + &4000
-MB_HOOK_FARSCAN:                EQU  HOOK_FARSCAN + &4000
 MB_HOOK_HORDER:                 EQU  HOOK_HORDER + &4000
 MB_HOOK_HPFF:                   EQU  HOOK_HPFF + &4000
 MB_HOOK_LPRINT_BYTE:            EQU  HOOK_LPRINT_BYTE + &4000

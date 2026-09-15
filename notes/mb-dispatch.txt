@@ -220,13 +220,15 @@ MB &51DD HOOK_RCPTCH
     IT COPIES WHICHEVER OF THE TWO LIES LOWER.  The SBC HL,BC at &520D
     compares them and only the branch is different afterwards: RUN below
     CLEAR copies &3F bytes from RUN, and otherwise &41 from CLEAR.  Two
-    return addresses are pushed either way, and they differ too -- &5000
-    under &500B on the first path, &5005 under &5000 on the second.  The
+    addresses are pushed either way, and they differ too -- &500B under
+    &5000 on the first path, &5000 under &5005 on the second.  The
     span has to reach both routines, so which one it starts from decides
     how far it runs.
 
-    What comes back is an address, and the CP at &5266 picks it: CLEAR
-    keeps what was built and RUN takes DE instead.
+    Neither word is returned to.  They are popped into DE (the top) and
+    BC (the one beneath) at &5263, and the CP at &5266 picks which one
+    MBWRTBC writes over the ROM's return address: CLEAR takes the one
+    beneath and RUN the top.
 
 MB &51F1 : COMAD plus &40 -- entry 32 of the ROM's command table, which is token &B0, RUN
 
@@ -300,7 +302,7 @@ DOC HOOK_TOKENARG
 
     AND WHY IT WALKS AT ALL IS THE DESTINATION.  Each path ends by
     putting an address in BC, and HOOK_RCPTCH_5 writes BC over the return
-    address on the stack MBCMR saved in V4076, so the ROM resumes there.
+    address on the stack CALLDOS saved in V4076, so the ROM resumes there.
     Two of the three are ROM addresses the boot searches out, and the
     build resolves both against ref/samrom:
 
@@ -312,8 +314,12 @@ DOC HOOK_TOKENARG
     fronts.  EXIT IF at &1926 opens with SYNTAX6, then TRUETST, then a
     RET Z on the answer; EXIT DO skips all three, having no condition to
     test, and what is left is exactly EXIT IF's body.  END PROC at &19DE
-    opens with CHKEND; EXIT PROC skips that, because a statement may
-    follow it on the line.  What END PROC does next is call DPRA, and
+    opens with CHKEND; EXIT PROC skips that because the hook has
+    already done its end-of-statement work itself -- HOOK_TOKENARG_3
+    starts with SKIP_THEN_END at &5326 -- and CHKEND is in any case the
+    ROM's syntax-pass aborter (misc2.asm has it as a second name for
+    ABORTER), not a check on what follows.  What END PROC does next is
+    call DPRA, and
     DPRA is the &40 and the RETLOOP above -- so the walk is there to
     leave the PROC frame on top, where DPRA will find it and the ROM's
     own END PROC can run unaltered.
@@ -340,15 +346,19 @@ MB &550D value T_LINE
 
 MB &551A : screen numbers run 1 to 16, so the DEC A above brings them to 0 to 15 and this refuses anything past the end -- the same bound SCREEN_NUMBER_ARGUMENT applies
 
-MB &5523 : and the second screen number the same way
+MB &5523 : and the first screen number the same way -- GETINT pops the numbers last-evaluated first, so &5512 took LINE's row, &5516 the screen after TO, and this is the one before it
 
 MB &552A : &4966 is the split-display interrupt handler as it sits in the system page, which is &7CBD here.  Writing it into ANYIV is the whole of turning the split on
 
 MB &5532 value T_TO
 
-MB &553C : the logical drive, 1 to 7
+MB &553C : the real drive, 1 to 7 -- evaluated last, so popped first, and the PUSH AF above keeps it to be stored
 
-MB &5544 : and the real drive it is to mean
+MB &5544 : and the logical drive, which indexes the table
+MB &5549 value DVAR_DRPT_BASE
+MB &5549 : the byte before the DOS's DRPT, its logical-to-physical drive table at DVAR 111-117, so that the logical drive 1 to 7 in BC lands on its own entry -- the DOS's own source reaches the table as DRPT-1 the same way.  The number is this page's FN_SCRAD too, and means nothing of the kind here: WRITE_DOS_BYTE stores through CALLDOS, with the DOS page at &4000
+
+EQU DVAR_DRPT_BASE : DVAR 110 in the DOS page, the byte before DRPT, the logical-to-physical drive table (DVAR 111-117)
 
 MB &5551 : &80 is how PARSE_REFERENCE_INTO_BUFFER is told this is ALTER's call rather than REF's or PRINT REF's -- see the comment at &5778
 

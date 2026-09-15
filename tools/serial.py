@@ -37,7 +37,7 @@ datasheet's own reset-and-enable order:
                      146, 145 and 144 step down to seven, six and five,
                      which is the manual's table exactly
          MR2 = SBITS XVAR 14.  &1F is two stop bits, MR2[3:0] = 1111;
-                     &17 is 1111-4 = one stop bit
+                     &17 is 0111, bit 3 clear, = one stop bit
     B=1  CSR = BAUD  XVAR 12.  The top nibble is the receiver clock and
                      the bottom one the transmitter, and MasterBASIC
                      sets both the same -- which is why the manual's

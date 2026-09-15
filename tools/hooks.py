@@ -31,7 +31,7 @@ NAMES = {
     0x7159: 'HOOK_SWAPCHARS',
     0x732A: 'HOOK_PROGPREP',
     0x53C3: 'HOOK_MERGECOMPFLG',
-    0x5AE3: 'HOOK_FARSCAN',
+    0x5AE3: 'HOOK_BLITZ_SOUND',
     0x52FD: 'HOOK_TOKENARG',
     0x6F62: 'HOOK_SKIPNAME',
     0x4E37: 'HOOK_XVARNVAL',
@@ -62,10 +62,11 @@ The manual promises exactly that wait: "If the buffer becomes full, the
 computer will wait for the printer to deal with some of the data before
 finishing the LLIST, DUMP or LPRINT."
 
-The body from &5B8E to &5BBA is the same twenty-five instructions as
-WINDOW_SOUND_POINTER at &5B22, which does the same job for the sound
-buffer; the only difference is that this stores one byte where that
-stores a register number and a value.
+The body from &5B8E to &5BB0 is the same walk as WINDOW_SOUND_POINTER
+at &5B22 to &5B44, instruction for instruction, for the sound buffer.
+The differences: this stores one byte where that stores a register
+number and a value, and this writes the new page to V4088 as it goes
+(&5BB2) where that leaves the page for its caller's tail to record.
 
 Hook 154 is HDUMMY in the DOS's table, a reserved slot; this is what
 MasterBASIC put in it.""",
@@ -146,18 +147,18 @@ What the merged bit means is not established here; the routine is named
 for the operation, not for a purpose.""",
 
 0x5AE3: """\
-Hook code 176.  Scan memory in another page.
+Hook code 176, and the body of BLITZ SOUND: CMD_BLITZ fetches the
+string with CALL_GETSTR, does EXX at &5AE2 and falls straight in.
 
-Saves HMPR, masks the page number to five bits and pages it in before
-walking the bytes, so it reads memory outside the extension's own page.
-The surrounding routines compare bytes against a length-prefixed string.
-
-WHAT IT IS FOR IS NOT SETTLED.  It was read here as the engine behind
-an INSTRING function, on the strength of the manual's "over
-200K/second" -- but there is no INSTRING keyword in MasterBASIC, that
-figure is the manual's for LOCN's ABS form, and LOCN's engine is at
-&4C98.  So the identification is withdrawn rather than replaced: what
-the routine does is above, and which command reaches it is open.""",
+Copies the register/value pairs of a string (page A', address DE',
+length BC' -- the EXX here undoes CMD_BLITZ's) into the interrupt-driven
+sound buffer, two bytes a time through WINDOW_SOUND_POINTER, which
+stores B and C at the buffer's write pointer.  The source page is kept
+in A' and stepped when HL crosses &C000, so a string can be followed
+across a page boundary; "No Buffer" if SOUND CLEAR has not made one.
+It is the writing half of the sound ring, as HOOK_LPRINT_BYTE is of
+the printer ring.  SAMHK's entry for code 176 points here, but no
+RST &08 in either half uses the code.""",
 
 0x52FD: """\
 Hook code 177.  Read the argument after one of MasterBASIC's keywords.
