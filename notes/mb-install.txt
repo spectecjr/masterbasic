@@ -288,7 +288,7 @@ MB &4182 : &EF is RST FPCALC.  C goes to the lower address, so this is the first
 
 MB &4187 : and the other two, RESTACK then EXIT2, C first again.  RESTACK forces the number into its full five-byte form, which is what makes the five bytes below there to take
 
-MB &41AB : five, the whole of a floating-point number -- the manual's "Normal numbers occupy 5 bytes".  Complementing all five on this branch is what leaves the string form of a negative number sorting below a positive one, which the manual's "An array containing string-coded numbers can be SORTed according to their value" needs
+MB &41AB : five, the whole of a floating-point number -- the manual's "Normal numbers occupy 5 bytes".  Complementing all five of a positive number -- a negative one, its top bit already set, is left as it is by the branch above -- leaves every negative number's string comparing above every positive one's, so an ascending SORT lists the negatives last: string order is descending numeric order, which the manual's "An array containing string-coded numbers can be SORTed according to their value" needs
 
 # The self-patch detector reads &66B0's write into &7B01 as patching the
 # operand of the IN at &7B00, and annotates both ends that way.  It is

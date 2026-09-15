@@ -30,7 +30,7 @@ MB &5DA5 : three bytes -- the CD 5B 4B at &5DAB.  B is still zero from the
 
 MB &4240 BYTE_TO_DECIMAL
     A to three decimal characters, returned in A, C and B -- hundreds,
-    tens and units.  &4249 pushes the hundreds and &4250 the tens; the
+    tens and units.  &424C pushes the hundreds and &4253 the tens; the
     units go into B at &4257, and the two POPs then take the tens into
     C and leave the hundreds in A.
 

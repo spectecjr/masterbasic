@@ -211,6 +211,21 @@ no 1991 source: every explanation there was inferred from the bytes and
 the manual, which is the kind of claim the reviewers have been overturning.
 It is the larger risk.
 
+**Phase 3 record (2026-09-14, round 10).**  Sixteen cuts, 6,743 own
+lines, 182 findings, 178 confirmed -- 2.7 per hundred lines, 57% of
+them `[C]`.  Every cut returned something the bytes disproved, and the
+reach went past the region several times: two operands that were
+another page's addresses wearing this page's labels, a banner shared
+by both halves wrong for both, a DOS equate misnamed from this side, a
+"table" that was the ROM's channel hook byte for byte, a generator rule
+for branches leaving relocated blocks, and the 97 bytes HOOK_SETUPREGS
+copies at run time turning out to be the DOS file's, not this page's.
+Three items stand open in phase 4.  The stopping signal in
+"Convergence" has not shown: the `[C]` share is 57% over the sixteen
+cuts with the confirmed rate at 98%, and the two lowest-`[C]` cuts (the
+compiler and the proposal-only regions, a third each) still returned
+provable errors.
+
 Reviewed so far, by address: `&41C5-&42B1` and `&6594-&66AE` (proposals
 only, never reviewed), `&4500-&4700`, `&500C-&51D6`, `&5C00-&5E00`,
 `&6400-&6594`, `&69E7-&6AD4`, `&6C01-&6DF6`, `&7700-&7900`.  Never read
@@ -225,7 +240,7 @@ by a second reader, in the order they are worth doing:
 | `&42B1-&4500` -- done 2026-09-14: 7 findings on 248 own lines, all confirmed; the shared CMR banner had both halves "paging the ROM back in" when they put the system page in section B, and CHAR_MUST_BE_C's "not stepped past" was the opposite of the fall-through | | |
 | `&6DF6-&7700` -- three cuts, done 2026-09-14: 26 findings on 1144 own lines, 25 confirmed and one judgement call (HOOK_SETUPREGS's name) left; DELETE's paging comment was inverted, hook 183 is EDIT handing the line to INPUT, the two borrows in the string mover were described as one, and the DOS's equate calling `&30` a screen page was MasterBASIC's own page mark, `MB_PAGE_MARK` now | | |
 | `&7900-&7FC0` -- two cuts, done 2026-09-14: 22 findings on 826 own lines, all confirmed.  `&7D57` was a "table" that is the ROM's AT/TAB channel hook byte for byte; a JR leaving a relocated block had manufactured a caller (the generator now writes those as `$+n`, which also undid three fictional labels in CMD_PAUSE's interleaved blocks); and the 97 bytes HOOK_SETUPREGS copies from `&7E03` at run time are the DOS file's `&7D73-&7DD3`, EDIT's stub body, which the DOS listing shows as DEFBs -- see phase 4 | | |
-| `&41C5-&42B1`, `&6594-&66AE` | the two proposal-only regions | proposals were applied without a review pass |
+| `&41C5-&42B1`, `&6594-&66AE` -- done 2026-09-14 as one cut: 9 findings on 404 own lines, 8 confirmed and one code observation left (CSIZE's UWBOT fix-up and heights over 96); the SAVE block copiers were said to call SVBLK and call an unlabelled DOS entry that leaves the last sector in the buffer for the next block, now `HSVBK_DWAIT` | | |
 
 Aim for 800-1200 lines a cut, and cut by routine (phase 0.2).  A reviewer
 that reads the whole cut before writing anything can sit past the harness's

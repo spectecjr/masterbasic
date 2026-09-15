@@ -829,10 +829,13 @@ FN_SVAL_S_FAIL:
                JR C,FN_SVAL_S_2                ; 41A7 38 0A
                SET 7,(HL)                      ; 41A9 CB FE
                LD B,&05                        ; 41AB 06 05  five, the whole of a floating-point number -- the manual's
-                                               ; "Normal numbers occupy 5 bytes". Complementing all five on this branch
-                                               ; is what leaves the string form of a negative number sorting below a
-                                               ; positive one, which the manual's "An array containing string-coded
-                                               ; numbers can be SORTed according to their value" needs
+                                               ; "Normal numbers occupy 5 bytes". Complementing all five of a positive
+                                               ; number -- a negative one, its top bit already set, is left as it is by
+                                               ; the branch above -- leaves every negative number's string comparing
+                                               ; above every positive one's, so an ascending SORT lists the negatives
+                                               ; last: string order is descending numeric order, which the manual's "An
+                                               ; array containing string-coded numbers can be SORTed according to their
+                                               ; value" needs
 
 ;; --------------------------------------------------------------------
 ;; FN_SVAL_S_LOOP -- &41AD to &41B2
@@ -951,9 +954,9 @@ FN_NVAL:
                                                ; that the strings compare in numeric order
                INC HL                          ; 41D9 23
                LD C,(HL)                       ; 41DA 4E
-               CALL STACK_BC_AS_INTEGER        ; 41DB CD 6B 4C  no string is stacked, whatever the label says. A, E and
-                                               ; B all leave here zero, so what goes on the calculator stack is 00 00 lo
-                                               ; hi 00 -- the small-integer form
+               CALL STACK_BC_AS_INTEGER        ; 41DB CD 6B 4C  no string is stacked -- STKSTR here stores five bytes,
+                                               ; not a descriptor. A, E and B all leave here zero, so what goes on the
+                                               ; calculator stack is 00 00 lo hi 00 -- the small-integer form
                LD DE,(PAGE_IN_ROM1_1+&4000)    ; 41DE ED 5B 65 9C  STKEND read through the window; the same four bytes
                                                ; as &420D, which the listing labels correctly. The new STKEND in DE is
                                                ; what the hook hands back
@@ -988,9 +991,9 @@ FN_NVAL:
 ;;     SVAL$(0,3) comes back as exactly 0.  For a negative number the &FF
 ;;     stays put and the magnitude rounds up instead.
 ;;
-;;     The ordering runs descending, and the note at the foot of this file
-;;     says how that was settled: SVAL$'s calculator program is RESTACK
-;;     then EXIT2, so it never touches the sign.
+;;     The ordering runs descending, and notes/mb-nval.txt records how that
+;;     was settled: SVAL$'s calculator program is RESTACK then EXIT2, so it
+;;     never touches the sign.
 ;; --------------------------------------------------------------------
 
 ; ---- FN_NVAL_FLOAT ---- from &41D6 when A <> &02
@@ -1182,7 +1185,7 @@ TRACK_SECTOR_TO_FILE_NUMBER:
 ;; Shown for this routine in listings/disasm/:
 ;;
 ;;     A to three decimal characters, returned in A, C and B -- hundreds,
-;;     tens and units.  &4249 pushes the hundreds and &4250 the tens; the
+;;     tens and units.  &424C pushes the hundreds and &4253 the tens; the
 ;;     units go into B at &4257, and the two POPs then take the tens into
 ;;     C and leave the hundreds in A.
 ;;
@@ -1322,7 +1325,7 @@ DECIMAL_DIGIT_DONE:
 ; ---- FILE_NUMBER_TO_TRACK_SECTOR ---- from DOS &5F87
 FILE_NUMBER_TO_TRACK_SECTOR:
                PUSH HL                             ; 426F E5
-               LD BC,&FFAF                         ; 4270 01 AF FF  -81, which the banner below calls "the first number
+               LD BC,&FFAF                         ; 4270 01 AF FF  -81, which the banner above calls "the first number
                                                    ; past track 4 sector 1"
                ADD HL,BC                           ; 4273 09
                POP HL                              ; 4274 E1
@@ -1414,7 +1417,9 @@ FN_SCRAD:
 ;; Shown for this routine in listings/disasm/:
 ;;
 ;;     HMPR := 0, so &8000-&BFFF is the ROM's system page, then save DE
-;;     bytes from HL through the DOS's SVBLK.
+;;     bytes from HL through the DOS's HSVBK_DWAIT -- the hook-save loop,
+;;     which leaves the last partial sector in the buffer for the next
+;;     block, rather than SVBLK, which would write it out.
 ;; --------------------------------------------------------------------
 
 ; ---- SAVE_BLOCK_FROM_SYSPAGE ---- from &6451, &6463, &646C, &6475
@@ -1477,7 +1482,8 @@ SAVE_BLOCK_FROM_THIS_PAGE_1:
 ;; Takes:     A, BC, DE, HL, IY
 ;; Leaves:    A, F, BC, DE, HL
 ;;
-;; ? drives OUT (HMPR),A; calls CALLDOS; falls into whatever follows rather than returning.
+;; ? reaches the ROM through DOS_HSVBK_DWAIT-&4000; drives OUT (HMPR),A; calls CALLDOS; falls into whatever follows
+;; rather than returning.
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
@@ -1531,13 +1537,15 @@ SAVE_BLOCK_FROM_THIS_PAGE_1:
 
 ; ---- SAVE_BLOCK_FROM_SYSPAGE_DONE ---- from &42A7
 SAVE_BLOCK_FROM_SYSPAGE_DONE:
-               OUT (HMPR),A                    ; 42B3 D3 FB  and here they meet: page set, A zeroed, and SVBLK called
-                                               ; through CALLDOS
+               OUT (HMPR),A                    ; 42B3 D3 FB  and here they meet: page set, A zeroed -- it is PGES1, the
+                                               ; count of whole 16K pages, so none -- and the DOS's HSVBK_DWAIT called
+                                               ; through CALLDOS: a DWAIT, then the HSVB2 loop, which leaves the last
+                                               ; partial sector in the buffer for the next block
                XOR A                           ; 42B5 AF
-                                               ; call &493A in the other page: LMPR is switched first, so that address
-                                               ; is how the other listing numbers it
+                                               ; call DOS_HSVBK_DWAIT-&4000 in the other page: LMPR is switched first,
+                                               ; so that address is how the other listing numbers it
                CALL CALLDOS                    ; 42B6 CD C1 42
-               DEFW &493A                      ; 42B9 3A 49
+               DEFW DOS_HSVBK_DWAIT-&4000      ; 42B9 3A 49
                RET                             ; 42BB C9
                DEFB &00,&00,&00,&00,&00        ; 42BC .....  zero fill
 
@@ -17251,7 +17259,8 @@ COMPRESS_SCREEN_FILE:
 ;; Takes:     BC, DE, HL, IY
 ;; Leaves:    A, F, BC, DE, HL
 ;;
-;; ? drives IN A,(HMPR), OUT (HMPR),A; calls CALLDOS; falls into whatever follows rather than returning.
+;; ? reaches the ROM through DOS_HSVBK_DWAIT-&4000; drives IN A,(HMPR), OUT (HMPR),A; calls CALLDOS; falls into whatever
+;; follows rather than returning.
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
@@ -17280,10 +17289,10 @@ SEND_COMPRESSED_BLOCK:
                INC A                           ; 6182 3C
                OUT (HMPR),A                    ; 6183 D3 FB
                XOR A                           ; 6185 AF
-                                               ; call &493A in the other page: LMPR is switched first, so that address
-                                               ; is how the other listing numbers it
+                                               ; call DOS_HSVBK_DWAIT-&4000 in the other page: LMPR is switched first,
+                                               ; so that address is how the other listing numbers it
                CALL CALLDOS                    ; 6186 CD C1 42
-               DEFW &493A                      ; 6189 3A 49
+               DEFW DOS_HSVBK_DWAIT-&4000      ; 6189 3A 49
                POP AF                          ; 618B F1
                OUT (HMPR),A                    ; 618C D3 FB
                POP DE                          ; 618E D1
@@ -19659,8 +19668,8 @@ HOOK_CSIZE_9:
                                                ; edges are already right
                AND A                           ; 65C1 A7
                RET Z                           ; 65C2 C8
-               CALL MBNRRD                     ; 65C3 CD 6A 45  UWRHS + 1 is the number of 8-pixel columns across the
-                                               ; window -- 32, 64 or 85
+               CALL MBNRRD                     ; 65C3 CD 6A 45  UWRHS + 1 is the number of character columns across the
+                                               ; window -- 32, 64, or 85 of the six-pixel kind in MODE 3
                DEFW UWRHS                      ; 65C6 38 5A
                INC A                           ; 65C8 3C
                LD C,&FF                        ; 65C9 0E FF  C = columns / factor by repeated subtraction: how many
@@ -20197,10 +20206,10 @@ COMPRESS_BLOCK_LOOP7:
                POP DE                          ; 66C9 D1
                POP HL                          ; 66CA E1
                XOR A                           ; 66CB AF
-                                               ; call &493A in the other page: LMPR is switched first, so that address
-                                               ; is how the other listing numbers it
+                                               ; call DOS_HSVBK_DWAIT-&4000 in the other page: LMPR is switched first,
+                                               ; so that address is how the other listing numbers it
                CALL CALLDOS                    ; 66CC CD C1 42
-               DEFW &493A                      ; 66CF 3A 49
+               DEFW DOS_HSVBK_DWAIT-&4000      ; 66CF 3A 49
                RET                             ; 66D1 C9
 
 ;; --------------------------------------------------------------------

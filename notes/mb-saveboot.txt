@@ -182,9 +182,19 @@ MB &63ED : SAVE MODE n, the compression setting -- BYTE_ARGUMENT and the DEC A b
 
 MB &6472 : block 8, &017D, filling MB &7E43-&7FBF.  &3B80 + &0024 + &029F + &017D is &3FC0 again, and the two halves are the 32640-byte file
 
+DOS &493A HSVBK_DWAIT
+    HSVBK with a DWAIT in place of its quarter-second DDEL and no EXX:
+    A is stored as PGES1 and the HSVB2 loop saves whole sectors,
+    leaving the last partial one in the buffer for the next block.
+    Nothing in the DOS reaches it; MasterBASIC's block copiers at
+    &42B9 and &66CF call it through CALLDOS, for SAVE BOOT's eight
+    consecutive blocks and the compressor's.
+
 MB &42A6 SAVE_BLOCK_FROM_SYSPAGE
     HMPR := 0, so &8000-&BFFF is the ROM's system page, then save DE
-    bytes from HL through the DOS's SVBLK.
+    bytes from HL through the DOS's HSVBK_DWAIT -- the hook-save loop,
+    which leaves the last partial sector in the buffer for the next
+    block, rather than SVBLK, which would write it out.
 
 MB &42A9 SAVE_BLOCK_FROM_THIS_PAGE
     HMPR := LMPR+1, which is this half's own page number, so &8000-&BFFF
@@ -195,7 +205,7 @@ MB &42AD SAVE_BLOCK_FROM_DOS_PAGE
     byte with the DOS page less one -- so &8000-&BFFF is the DOS page,
     the one arrangement an &8xxx operand means by default.
 
-MB &42B3 : and here they meet: page set, A zeroed, and SVBLK called through CALLDOS
+MB &42B3 : and here they meet: page set, A zeroed -- it is PGES1, the count of whole 16K pages, so none -- and the DOS's HSVBK_DWAIT called through CALLDOS: a DWAIT, then the HSVB2 loop, which leaves the last partial sector in the buffer for the next block
 
     WHAT MASTERBASIC'S PAGE ACTUALLY HOLDS AFTER A BOOT, which no dump
     showed until dumps/FullMemoryDump_After_MB_Load.bin.  MasterBASIC is

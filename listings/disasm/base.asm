@@ -282,6 +282,7 @@ DOS_FFPG:                       EQU  FFPG + &4000
 DOS_FIND_ROM_CODE:              EQU  FIND_ROM_CODE + &4000
 DOS_HEADER:                     EQU  HEADER + &4000
 DOS_HOOK_SBYT:                  EQU  HOOK_SBYT + &4000
+DOS_HSVBK_DWAIT:                EQU  HSVBK_DWAIT + &4000
 DOS_LBYT:                       EQU  LBYT + &4000
 DOS_LDBLK:                      EQU  LDBLK + &4000
 DOS_MBCOPY_7774:                EQU  MBCOPY_7774 + &4000

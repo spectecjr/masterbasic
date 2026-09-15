@@ -72,7 +72,7 @@ MB &41D4 : the length, not a type code: two characters is SVAL$'s integer form
 
 MB &41D8 : high byte first, then low -- SVAL$ writes it big-endian so that the strings compare in numeric order
 
-MB &41DB : no string is stacked, whatever the label says.  A, E and B all leave here zero, so what goes on the calculator stack is 00 00 lo hi 00 -- the small-integer form
+MB &41DB : no string is stacked -- STKSTR here stores five bytes, not a descriptor.  A, E and B all leave here zero, so what goes on the calculator stack is 00 00 lo hi 00 -- the small-integer form
 
 MB &41DE : STKEND read through the window; the same four bytes as &420D, which the listing labels correctly.  The new STKEND in DE is what the hook hands back
 
@@ -98,9 +98,9 @@ MB &41E4 FN_NVAL_FLOAT
     SVAL$(0,3) comes back as exactly 0.  For a negative number the &FF
     stays put and the magnitude rounds up instead.
 
-    The ordering runs descending, and the note at the foot of this file
-    says how that was settled: SVAL$'s calculator program is RESTACK
-    then EXIT2, so it never touches the sign.
+    The ordering runs descending, and notes/mb-nval.txt records how that
+    was settled: SVAL$'s calculator program is RESTACK then EXIT2, so it
+    never touches the sign.
 
 MB &41E4 : SUB 3 then CP 3 -- lengths 3, 4 and 5 become 0, 1 and 2, while 0 and 1 wrap to &FD and &FE, so one unsigned compare throws out too short and too long together
 
@@ -171,7 +171,7 @@ MB &4257 : the units always print as a digit and never as padding.  From here on
 
 MB &425D : XOR A also clears carry for the first SBC; inside the loop the previous SBC has left it clear
 
-MB &4270 : -81, which the banner below calls "the first number past track 4 sector 1"
+MB &4270 : -81, which the banner above calls "the first number past track 4 sector 1"
 MB &427A : and twenty, the entries on a track, likewise
 
 MB &5002 : seventeen, and the MasterDOS author's own comment on the ADD IY,BC below says so: "PT TO 17 BYTES FURTHER ON"

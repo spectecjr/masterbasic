@@ -368,6 +368,7 @@ DOS_FFPG:                       EQU  FFPG + IN_PAGE_C
 DOS_FIND_ROM_CODE:              EQU  FIND_ROM_CODE + IN_PAGE_C
 DOS_HEADER:                     EQU  HEADER + IN_PAGE_C
 DOS_HOOK_SBYT:                  EQU  HOOK_SBYT + IN_PAGE_C
+DOS_HSVBK_DWAIT:                EQU  HSVBK_DWAIT + IN_PAGE_C
 DOS_LBYT:                       EQU  LBYT + IN_PAGE_C
 DOS_LDBLK:                      EQU  LDBLK + IN_PAGE_C
 DOS_MBCOPY_7774:                EQU  MBCOPY_7774 + IN_PAGE_C

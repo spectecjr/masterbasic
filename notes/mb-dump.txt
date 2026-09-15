@@ -485,7 +485,7 @@ MB &65BA : otherwise it is pulled up to the new bottom row
 
 MB &65C0 : factor zero: the ROM prints this width itself and its window edges are already right
 
-MB &65C3 : UWRHS + 1 is the number of 8-pixel columns across the window -- 32, 64 or 85
+MB &65C3 : UWRHS + 1 is the number of character columns across the window -- 32, 64, or 85 of the six-pixel kind in MODE 3
 
 MB &65C9 : C = columns / factor by repeated subtraction: how many whole magnified characters fit on a line
 

@@ -8,6 +8,12 @@
 
 CONST SHORT_MOVE_LIMIT = &15 : below this many bytes the ROM's own mover is quicker than the paging this one has to do
 CONST SECTION_D = &C000 : where section D begins; a move that reaches it has to change the paging rather than walk on
+CONST SECTION_C = &8000 : where section C, the window, begins
+# SCRAD's &8000 is the window base handed to PAGED_TO_LONG, which keeps
+# only the low fourteen bits of it; the DOS's HEADER, which shares the
+# number, is nowhere in the routine.
+MB &429A expr SECTION_C
+MB &429A : offset zero in the window form PAGED_TO_LONG wants -- its two shifts throw the top two bits away and put the page's in their place -- so the result is the start of the screen page.  Not the DOS's HEADER, which merely shares the number
 
 MB &7461 : is B zero?  It is the length's high byte, so anything else means 256 bytes or more and the JR NZ takes it -- only a shorter move falls through to the SHORT_MOVE_LIMIT test below
 
