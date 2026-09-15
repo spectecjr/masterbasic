@@ -8,8 +8,10 @@ DOC HOOK_SKSAFE
     Every load ends here.  Nothing to do for a RAM disc; for a floppy
     the head is sent to the last directory track, DTKS less one --
     or to track 3 when that would be track 4, which the 1991 comment
-    explains as "AVOID 1ST FILE!": on a standard four-track directory
-    the first file's data begins on track 4.  E is set to sector 1 on
+    explains as "AVOID 1ST FILE!": the CP &04 is against DTKS less one,
+    so it fires for a five-track directory, whose fifth track shares
+    track 4 with the DOS file at sector 1 (see SECTOR_FOR_CHANNEL).  E
+    is set to sector 1 on
     the way, which the same comment marks "PROB NOT NEEDED": SEEKD
     writes E into the sector register at &4748, and a park does not
     care what it holds.
@@ -99,3 +101,27 @@ DOS &4761 value PAST_WINDOW_TOP
 DOS &473A : a zero track and sector is the end of the chain, not a place
 DOS &474B : bit 7 of the track byte is the side, and the head does not care
 DOS &475C : an ordinary sector transfer, so nothing to page
+
+# PART C11's entries that had no banner of this project's own.
+
+DOC CTA1
+    CTAS past its end-of-chain test: the border flash, then SEEKD.  The
+    EXX here and the one at HSKTD cancel on this path; they are there
+    so that hook 137 can enter at HSKTD with the dispatcher's swap
+    undone and share the rest.
+
+DOC HSKTD
+    Hook 137, "seek track D": the dispatcher has already swapped the
+    register sets, this swaps them back, and SEEKD does the seek.
+
+DOC STPDX
+    A times 150 turns of a delay loop: STPDEL falls in with the drive's
+    STPRAT as the count, and DDEL calls it with A = 0: the first round
+    runs before the DEC A, which wraps to &FF, and 256 rounds in all
+    are its quarter of a second.  STPD2's RET Z is the way out.
+
+DOC REST
+    Restore: step the head out until the drive reports track 0, after
+    a check that a disc is turning at all, leaving DE = track 0, sector
+    1 -- where the directory starts -- for the caller's seek; a RAM
+    disc has nothing to restore and returns at once.

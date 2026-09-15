@@ -1651,21 +1651,45 @@ BYTE_ARGUMENT:
                DEC B                           ; 43A5 05
                RET Z                           ; 43A6 C8
 
+;; --------------------------------------------------------------------
+;; Error code 30, "Integer out of range".  One of the error stubs: the
+;; code into A and down the skip chain to REPORT, which hands it to the
+;; DOS's REPORTA.
+;; --------------------------------------------------------------------
+
 ; ---- REP_INTEGER_OUT_OF_RANGE ---- from &4952, &4B21 when A >= &40, &4C7B when A <> 0, &4E09 when A is not 0 yet,
 ; &5525 when A >= &10, &5546 when A >= &07, &5588 when A >= &02, &5AF3 when A >= &21 ...
 REP_INTEGER_OUT_OF_RANGE:
                LD A,ERR_INTEGER_OUT_OF_RANGE   ; 43A7 3E 1E  error 30, "Integer out of range"
                DEFB SKIP_2_VIA_LD_HL           ; 43A9 !
 
+;; --------------------------------------------------------------------
+;; Error code 12, "Missing DEF PROC".  One of the error stubs: the code
+;; into A and down the skip chain to REPORT, which hands it to the
+;; DOS's REPORTA.
+;; --------------------------------------------------------------------
+
 ; ---- REP_MISSING_DEF_PROC ---- from &5334 when A wraps to 0
 REP_MISSING_DEF_PROC:
                LD A,ERR_MISSING_DEF_PROC       ; 43AA 3E 0C  error 12, "Missing DEF PROC"
                DEFB SKIP_2_VIA_LD_HL           ; 43AC !
 
+;; --------------------------------------------------------------------
+;; Error code 119, "Size mismatch".  One of the error stubs: the code
+;; into A and down the skip chain to REPORT, which hands it to the
+;; DOS's REPORTA.
+;; --------------------------------------------------------------------
+
 ; ---- REP_SIZE_MISMATCH ---- from &706E
 REP_SIZE_MISMATCH:
                LD A,ERR_SIZE_MISMATCH          ; 43AD 3E 77  error 119, "Size mismatch"
                DEFB SKIP_2_VIA_LD_HL           ; 43AF !
+
+;; --------------------------------------------------------------------
+;; Error code 29, "Not understood".  One of the error stubs: the code
+;; into A and down the skip chain to REPORT, which hands it to the
+;; DOS's REPORTA.
+;; --------------------------------------------------------------------
 
 ; ---- REP_NOT_UNDERSTOOD ---- from &445E when A <> C, &44D3, &475D, &530C when A <> &15, &555B when A <> T_TO, &5648
 ; when A <> T_REF, &57C1, &6E6F when A <> CH_COLON ...
@@ -1673,20 +1697,44 @@ REP_NOT_UNDERSTOOD:
                LD A,ERR_NOT_UNDERSTOOD         ; 43B0 3E 1D  error 29, "Not understood"
                DEFB SKIP_2_VIA_LD_HL           ; 43B2 !
 
+;; --------------------------------------------------------------------
+;; Error code 2, "not found".  One of the error stubs: the code into A
+;; and down the skip chain to REPORT, which hands it to the DOS's
+;; REPORTA.
+;; --------------------------------------------------------------------
+
 ; ---- REP_NOT_FOUND ---- from &43E0
 REP_NOT_FOUND:
                LD A,ERR_NOT_FOUND              ; 43B3 3E 02  error 2, "not found"
                DEFB SKIP_2_VIA_LD_HL           ; 43B5 !
+
+;; --------------------------------------------------------------------
+;; Error code 4, "Subscript wrong".  One of the error stubs: the code
+;; into A and down the skip chain to REPORT, which hands it to the
+;; DOS's REPORTA.
+;; --------------------------------------------------------------------
 
 ; ---- REP_SUBSCRIPT_WRONG ---- from &47F3
 REP_SUBSCRIPT_WRONG:
                LD A,ERR_SUBSCRIPT_WRONG        ; 43B6 3E 04  error 4, "Subscript wrong"
                DEFB SKIP_2_VIA_LD_HL           ; 43B8 !
 
+;; --------------------------------------------------------------------
+;; Error code 42, "String too long".  One of the error stubs: the code
+;; into A and down the skip chain to REPORT, which hands it to the
+;; DOS's REPORTA.
+;; --------------------------------------------------------------------
+
 ; ---- REP_STRING_TOO_LONG ---- from &4772 when A >= &40, &4D8B when A >= &40, &4DD2 when A >= &40, &7075, &713D
 REP_STRING_TOO_LONG:
                LD A,ERR_STRING_TOO_LONG        ; 43B9 3E 2A  error 42, "String too long"
                DEFB SKIP_2_VIA_LD_HL           ; 43BB !
+
+;; --------------------------------------------------------------------
+;; Error code 27, "argument".  One of the error stubs: the code into A
+;; and down the skip chain to REPORT, which hands it to the DOS's
+;; REPORTA.
+;; --------------------------------------------------------------------
 
 ; ---- REP_ARGUMENT ---- from &417B when A >= &04, &41E8 when A >= &03, &43EE when bit 5 of C set, &4402 when A is not 0
 ; yet

@@ -89,3 +89,8 @@ DOS &4476 expr ROM_SP_AT_ENTRY+3
 DOS &4476 : the top of the page: the three words the ROM's PTDOS pushed on entry
 DOS &4479 : six bytes, so all three of them, to land just below DOSSTK
 DOS &42D8 : four bytes of fill; the carried "LAST ENTRY FOR NOT FOUND" belongs to CTAB's terminator at &434B
+
+DOC BEEP
+    The ROM's beeper through CMR, with HL = &036A for the pitch and
+    BEEPT for the length, and every register the caller cares about
+    kept round it.

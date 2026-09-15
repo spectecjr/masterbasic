@@ -668,3 +668,41 @@ DOS &4CEC value CH_PERIOD
 DOS &4CEE : not a period, so the star swallows the rest
 
 DOS &4CD4 : a star, so the rest of the pattern decides
+
+# PART C12's entries that had no banner of this project's own.
+
+DOC FDH1
+    The scan's step: the next directory sector for the channel, from the
+    disc or from the track image, then POINT to the entry in it.
+
+DOC CLSAM
+    Clear the sector allocation map: 195 zero bytes from SAM, one bit a
+    sector, before a scan that will rebuild it.
+
+DOC GOFSM
+    Open a file for writing, from RESET_BUFFER_POINTERS on: the scan
+    below finds the free space and the name in one pass.
+
+DOC CLOSX
+    Where a close puts an entry that has no slot yet: a whole scan for
+    the first free one, "Directory full" if there is none, and then the
+    entry is written there.
+
+DOC GTFL3
+    Find the named file whatever its type -- "File not found" if it is
+    not there -- and then, at GTFL4, ask whether its type is the one
+    wanted.
+
+DOC FINDC
+    Find the named file whatever its type, and point at its entry.
+
+DOC POINT
+    HL to the start of the current directory entry: GRPNTB with an
+    offset of zero.
+
+DOC GRPNTB
+    HL to offset B of the current directory entry: B goes into RPT's
+    low byte and GRPNT adds the pointer to the buffer.
+
+DOC GRPNT
+    HL = the channel's buffer plus its RPT, the pointer into it.

@@ -1543,8 +1543,10 @@ CKDE:
                RET NZ                          ; 4538 C0
 
 ;; --------------------------------------------------------------------
-;; Similar to CKDE, except it always perfoms the adjustment and doesn't check if DE
-;; is about to cross a page boundary first.
+;; CKDE's second half without the DE = 0 test: if PGES1 is not zero,
+;; take one block off it and fold it into DE as &4000 more, whatever
+;; DE holds; with PGES1 zero it returns untouched.  Used once, at
+;; LDBLK.
 ;; --------------------------------------------------------------------
 
 ; ---- ADJUST_PAGE_DE ---- from &4859
@@ -1990,7 +1992,7 @@ SRSA4:
 RETRY_OR_GIVE_UP:
                AND &0E                         ; 46C6 E6 0E
                JR NZ,CDE1                      ; 46C8 20 07  JR IF AN ERROR WAS DETECTED
-               CALL CLEAR_TRANSFER_COUNT       ; 46CA CD 8E 4F
+               CALL CLEAR_RPT                  ; 46CA CD 8E 4F
                POP HL                          ; 46CD E1  JUNK RET ADDR
                JP GTBUF                        ; 46CE C3 A0 4F
 
@@ -3345,7 +3347,7 @@ FDHd:
                LD A,(RPT+1)                    ; 4C8C 3A 0E 7C
                DEC A                           ; 4C8F 3D
                JR Z,FDHe                       ; 4C90 28 09  JR IF WE HAVE JUST DONE SECOND DIR
-               CALL CLEAR_TRANSFER_COUNT       ; 4C92 CD 8E 4F
+               CALL CLEAR_RPT                  ; 4C92 CD 8E 4F
                INC (IX+&0E)                    ; 4C95 DD 34 0E  NEXT ENTRY
                JP FDH1_1                       ; 4C98 C3 88 4B
 
@@ -3619,7 +3621,7 @@ OFM5:
                CALL SET_TRACK_AND_SECTOR       ; 4DC9 CD C6 4F
                LD (IX+&20),D                   ; 4DCC DD 72 20  FIRST TRACK
                LD (IX+&21),E                   ; 4DCF DD 73 21  AND SECTOR OF FILE IN DIR
-               CALL CLEAR_TRANSFER_COUNT       ; 4DD2 CD 8E 4F
+               CALL CLEAR_RPT                  ; 4DD2 CD 8E 4F
                XOR A                           ; 4DD5 AF  NC=OK
                RET                             ; 4DD6 C9
 
@@ -3950,11 +3952,12 @@ RESET_BUFFER_POINTERS:
                LD (BUF),HL                     ; 4F8B 22 0F 7C
 
 ;; --------------------------------------------------------------------
-;; Just those two bytes, for a caller whose buffer is already set up.
+;; Just those two bytes -- RPT, the pointer into the sector buffer;
+;; the source's CLRRPT -- for a caller whose buffer is already set up.
 ;; --------------------------------------------------------------------
 
-; ---- CLEAR_TRANSFER_COUNT ---- from &46CA, &4C92, &4DD2, &5D65, &5EBD, &74E4, &7782
-CLEAR_TRANSFER_COUNT:
+; ---- CLEAR_RPT ---- from &46CA, &4C92, &4DD2, &5D65, &5EBD, &74E4, &7782
+CLEAR_RPT:
                LD (IX+&0D),&00                 ; 4F8E DD 36 0D 00
                LD (IX+&0E),&00                 ; 4F92 DD 36 0E 00
                RET                             ; 4F96 C9
@@ -4685,20 +4688,42 @@ REP4:
                LD A,ERR_TRK_NNN_SCT_NN_ERROR   ; 5165 3E 55
                DEFB SKIP_2_VIA_LD_HL           ; 5167 !
 
+;; --------------------------------------------------------------------
+;; Error code 86, "Format trk nnn lost".  One of the error stubs: the
+;; code into A and down the skip chain to REPORTA, which plants it for
+;; DERR.
+;; --------------------------------------------------------------------
+
 ; ---- REP5 ---- from &4710 when A >= &08
 REP5:
                LD A,ERR_FORMAT_TRK_NNN_LOST    ; 5168 3E 56
                DEFB SKIP_2_VIA_LD_HL           ; 516A !
+
+;; --------------------------------------------------------------------
+;; Error code 87, "Check disk in drive".  One of the error stubs: the
+;; code into A and down the skip chain to REPORTA, which plants it for
+;; DERR.
+;; --------------------------------------------------------------------
 
 ; ---- REP6 ---- from &47B7
 REP6:
                LD A,ERR_CHECK_DISK_IN_DRIVE    ; 516B 3E 57
                DEFB SKIP_2_VIA_LD_HL           ; 516D !
 
+;; --------------------------------------------------------------------
+;; Error code 93, "Verify failed".  One of the error stubs: the code
+;; into A and down the skip chain to REPORTA, which plants it for DERR.
+;; --------------------------------------------------------------------
+
 ; ---- REP12 ---- from &64C9 when A <> (HL)
 REP12:
                LD A,ERR_VERIFY_FAILED          ; 516E 3E 5D
                DEFB SKIP_2_VIA_LD_HL           ; 5170 !
+
+;; --------------------------------------------------------------------
+;; Error code 94, "Wrong file type".  One of the error stubs: the code
+;; into A and down the skip chain to REPORTA, which plants it for DERR.
+;; --------------------------------------------------------------------
 
 ; ---- REP13 ---- from &4E7C when A >= &15, &4E83, &4EDD when A <> (HL), &5FFE
 REP13:
@@ -4706,22 +4731,44 @@ REP13:
                DEFB SKIP_2_VIA_LD_HL           ; 5173 !  skipped: reads as LD HL,&633E from here, swallowing the bytes
                                                ; below it
 
+;; --------------------------------------------------------------------
+;; Error code 99, "Reading a write file".  One of the error stubs: the
+;; code into A and down the skip chain to REPORTA, which plants it for
+;; DERR.
+;; --------------------------------------------------------------------
+
 ; ---- REP18 ---- from &6F21 when bit 0 of (IX+&0C) set
 REP18:
                LD A,ERR_READING_A_WRITE_FILE   ; 5174 3E 63
                DEFB SKIP_2_VIA_LD_HL           ; 5176 !  skipped: reads as LD HL,&643E from here, swallowing the bytes
                                                ; below it
 
+;; --------------------------------------------------------------------
+;; Error code 100, "Writing a read file".  One of the error stubs: the
+;; code into A and down the skip chain to REPORTA, which plants it for
+;; DERR.
+;; --------------------------------------------------------------------
+
 ; ---- REP19 ---- from &6BFF when A = MOUT, &6F50 when no bit of &03 is set
 REP19:
                LD A,ERR_WRITING_A_READ_FILE    ; 5177 3E 64
                DEFB SKIP_2_VIA_LD_HL           ; 5179 !
+
+;; --------------------------------------------------------------------
+;; Error code 101, "No auto file".  One of the error stubs: the code
+;; into A and down the skip chain to REPORTA, which plants it for DERR.
+;; --------------------------------------------------------------------
 
 ; ---- REP20 ---- from &65F4
 REP20:
                LD A,ERR_NO_AUTO_FILE           ; 517A 3E 65
                DEFB SKIP_2_VIA_LD_HL           ; 517C !  skipped: reads as LD HL,&673E from here, swallowing the bytes
                                                ; below it
+
+;; --------------------------------------------------------------------
+;; Error code 103, "No such drive".  One of the error stubs: the code
+;; into A and down the skip chain to REPORTA, which plants it for DERR.
+;; --------------------------------------------------------------------
 
 ; ---- REP22 ---- from &4815 when A >= RDLIM-1, &4820 when A = &00, &7582 when A = 0, &7645 when A >= RDLIM, &7734 when
 ; A = 0
@@ -4730,15 +4777,31 @@ REP22:
                DEFB SKIP_2_VIA_LD_HL           ; 517F !  skipped: reads as LD HL,&683E from here, swallowing the bytes
                                                ; below it
 
+;; --------------------------------------------------------------------
+;; Error code 104, "Disk is write protec".  One of the error stubs: the
+;; code into A and down the skip chain to REPORTA, which plants it for
+;; DERR.
+;; --------------------------------------------------------------------
+
 ; ---- REP23 ---- from &45A4 when bit 5 of A set, &5513 when bit 5 of A set
 REP23:
                LD A,ERR_DISK_IS_WRITE_PROTEC   ; 5180 3E 68
                DEFB SKIP_2_VIA_LD_HL           ; 5182 !
 
+;; --------------------------------------------------------------------
+;; Error code 105, "Disk full".  One of the error stubs: the code into
+;; A and down the skip chain to REPORTA, which plants it for DERR.
+;; --------------------------------------------------------------------
+
 ; ---- REP24 ---- from &4AC8 when A = D
 REP24:
                LD A,ERR_DISK_FULL              ; 5183 3E 69
                DEFB SKIP_2_VIA_LD_HL           ; 5185 !
+
+;; --------------------------------------------------------------------
+;; Error code 106, "Directory full".  One of the error stubs: the code
+;; into A and down the skip chain to REPORTA, which plants it for DERR.
+;; --------------------------------------------------------------------
 
 ; ---- REP25 ---- from &4E18, &721A when A = &FF
 REP25:
@@ -4746,20 +4809,40 @@ REP25:
                DEFB SKIP_2_VIA_LD_HL           ; 5188 !  skipped: reads as LD HL,&163E from here, swallowing the bytes
                                                ; below it
 
+;; --------------------------------------------------------------------
+;; Error code 22, "End of file".  One of the error stubs: the code into
+;; A and down the skip chain to REPORTA, which plants it for DERR.
+;; --------------------------------------------------------------------
+
 ; ---- REP27 ---- from &473A, &6F01, &70BF, &71A5, &75CD when A >= &0A, &7A5A
 REP27:
                LD A,ERR_END_OF_FILE            ; 5189 3E 16
                DEFB SKIP_2_VIA_LD_HL           ; 518B !  EOF
+
+;; --------------------------------------------------------------------
+;; Error code 109, "File name used".  One of the error stubs: the code
+;; into A and down the skip chain to REPORTA, which plants it for DERR.
+;; --------------------------------------------------------------------
 
 ; ---- REP28 ---- from &4D3F, &4D49 when A = &15, &5D9F
 REP28:
                LD A,ERR_FILE_NAME_USED         ; 518C 3E 6D
                DEFB SKIP_2_VIA_LD_HL           ; 518E !
 
+;; --------------------------------------------------------------------
+;; Error code 111, "Stream used".  One of the error stubs: the code
+;; into A and down the skip chain to REPORTA, which plants it for DERR.
+;; --------------------------------------------------------------------
+
 ; ---- REP30 ---- from &6B48
 REP30:
                LD A,ERR_STREAM_USED            ; 518F 3E 6F
                DEFB SKIP_2_VIA_LD_HL           ; 5191 !
+
+;; --------------------------------------------------------------------
+;; Error code 112, "Channel used".  One of the error stubs: the code
+;; into A and down the skip chain to REPORTA, which plants it for DERR.
+;; --------------------------------------------------------------------
 
 ; ---- REP31 ---- from &6BCA
 REP31:
@@ -4767,10 +4850,22 @@ REP31:
                DEFB SKIP_2_VIA_LD_HL           ; 5194 !  skipped: reads as LD HL,PTRSL from here, swallowing the bytes
                                                ; below it
 
+;; --------------------------------------------------------------------
+;; Error code 113, "Directory not found".  One of the error stubs: the
+;; code into A and down the skip chain to REPORTA, which plants it for
+;; DERR.
+;; --------------------------------------------------------------------
+
 ; ---- REP32 ---- from &731E
 REP32:
                LD A,ERR_DIRECTORY_NOT_FOUND    ; 5195 3E 71
                DEFB SKIP_2_VIA_LD_HL           ; 5197 !
+
+;; --------------------------------------------------------------------
+;; Error code 114, "Directory not empty".  One of the error stubs: the
+;; code into A and down the skip chain to REPORTA, which plants it for
+;; DERR.
+;; --------------------------------------------------------------------
 
 ; ---- REP33 ---- from &5D0F
 REP33:
@@ -6023,6 +6118,11 @@ MCPT:
                DEFM "SCREEN"                   ; 57DB 53 43 52 45 45 4E
                DEFB "$"+&80                    ; 57E1 A4
 
+;; --------------------------------------------------------------------
+;; A message stub: PTM prints " / Number of Free K-Bytes = " from the
+;; text after the call and returns to this routine's caller.
+;; --------------------------------------------------------------------
+
 ; ---- PMO3 ---- from &5BC6
 PMO3:
                CALL PTM                        ; 57E2 CD 7C 57
@@ -6032,12 +6132,22 @@ PMO3:
                DEFM "K-Bytes ="                ; 57F0 4B 2D 42 79 74 65 73 20
                DEFB " "+&80                    ; 57F9 A0
 
+;; --------------------------------------------------------------------
+;; A message stub: PTM prints "[clear the lower screen]OVERWRITE ""
+;; from the text after the call and returns to this routine's caller.
+;; --------------------------------------------------------------------
+
 ; ---- PMO5 ---- from &4D5E
 PMO5:
                CALL PTM                        ; 57FA CD 7C 57
                DEFB &00                        ; 57FD
                DEFM "OVERWRITE "               ; 57FE 4F 56 45 52 57 52 49 54
                DEFB &A2                        ; 5808
+
+;; --------------------------------------------------------------------
+;; A message stub: PTM prints "[clear the lower screen]FORMAT "" from
+;; the text after the call and returns to this routine's caller.
+;; --------------------------------------------------------------------
 
 ; ---- PMO6 ---- from &54C4
 PMO6:
@@ -6059,6 +6169,12 @@ PRINT_YN_PROMPT:
                DEFB &22                        ; 5818
                DEFB &84                        ; 5819
 
+;; --------------------------------------------------------------------
+;; A message stub: PTM prints "[clear the lower screen]Insert source
+;; disk press a key " from the text after the call and returns to this
+;; routine's caller.
+;; --------------------------------------------------------------------
+
 ; ---- PMO9 ---- from &5941
 PMO9:
                CALL PTM                        ; 581A CD 7C 57
@@ -6066,6 +6182,12 @@ PMO9:
                DEFM "source"                   ; 581F 73 6F 75 72 63 65
                DEFB &01                        ; 5825
                DEFB &82                        ; 5826
+
+;; --------------------------------------------------------------------
+;; A message stub: PTM prints "[clear the lower screen]Format disk at
+;; track " from the text after the call and returns to this routine's
+;; caller.
+;; --------------------------------------------------------------------
 
 ; ---- PMOA ---- from &54F3
 PMOA:
@@ -6075,6 +6197,12 @@ PMOA:
                DEFB &01                        ; 5831
                DEFB &83                        ; 5832
 
+;; --------------------------------------------------------------------
+;; A message stub: PTM prints "[clear the lower screen]  Copy disk at
+;; track " from the text after the call and returns to this routine's
+;; caller.
+;; --------------------------------------------------------------------
+
 ; ---- PMOB ---- from &5546
 PMOB:
                CALL PTM                        ; 5833 CD 7C 57
@@ -6082,6 +6210,12 @@ PMOB:
                DEFM "  Copy"                   ; 5837 20 20 43 6F 70 79
                DEFB &01                        ; 583D
                DEFB &83                        ; 583E
+
+;; --------------------------------------------------------------------
+;; A message stub: PTM prints "[clear the lower screen]Verify disk at
+;; track " from the text after the call and returns to this routine's
+;; caller.
+;; --------------------------------------------------------------------
 
 ; ---- PMOC ---- from &5595
 PMOC:
@@ -6091,6 +6225,12 @@ PMOC:
                DEFB &01                        ; 5849
                DEFB &83                        ; 584A
 
+;; --------------------------------------------------------------------
+;; A message stub: PTM prints "[clear the lower screen]Insert target
+;; disk press a key " from the text after the call and returns to this
+;; routine's caller.
+;; --------------------------------------------------------------------
+
 ; ---- PMOD ---- from &5938
 PMOD:
                CALL PTM                        ; 584B CD 7C 57
@@ -6099,11 +6239,21 @@ PMOD:
                DEFB &01                        ; 5856
                DEFB &82                        ; 5857
 
+;; --------------------------------------------------------------------
+;; A message stub: PTM prints " File" from the text after the call and
+;; returns to this routine's caller.
+;; --------------------------------------------------------------------
+
 ; ---- PMOE ---- from &5BE0
 PMOE:
                CALL PTM                        ; 5858 CD 7C 57
                DEFM " Fil"                     ; 585B 20 46 69 6C
                DEFB "e"+&80                    ; 585F E5
+
+;; --------------------------------------------------------------------
+;; A message stub: PTM prints " Free Slot" from the text after the call
+;; and returns to this routine's caller.
+;; --------------------------------------------------------------------
 
 ; ---- PMOF ---- from &5BF5
 PMOF:
@@ -6112,12 +6262,22 @@ PMOF:
                DEFM "Slo"                      ; 5864 53 6C 6F
                DEFB "t"+&80                    ; 5867 F4
 
+;; --------------------------------------------------------------------
+;; A message stub: PTM prints "[clear the lower screen]LOADING " from
+;; the text after the call and returns to this routine's caller.
+;; --------------------------------------------------------------------
+
 ; ---- PMOG ---- from &5A25
 PMOG:
                CALL PTM                        ; 5868 CD 7C 57
                DEFB &00                        ; 586B
                DEFM "LOADING"                  ; 586C 4C 4F 41 44 49 4E 47
                DEFB " "+&80                    ; 5873 A0
+
+;; --------------------------------------------------------------------
+;; A message stub: PTM prints "[clear the lower screen] SAVING " from
+;; the text after the call and returns to this routine's caller.
+;; --------------------------------------------------------------------
 
 ; ---- PMOH ---- from &5A77
 PMOH:
@@ -6126,6 +6286,11 @@ PMOH:
                DEFM " SAVING"                  ; 5878 20 53 41 56 49 4E 47
                DEFB " "+&80                    ; 587F A0
 
+;; --------------------------------------------------------------------
+;; A message stub: PTM prints "SAM DOS    " from the text after the
+;; call and returns to this routine's caller.
+;; --------------------------------------------------------------------
+
 ; ---- PMOSD ---- from &58A1 when A < &02
 PMOSD:
                CALL PTM                        ; 5880 CD 7C 57
@@ -6133,6 +6298,11 @@ PMOSD:
                DEFB &06                        ; 5886
                DEFM "  "                       ; 5887 20 20
                DEFB " "+&80                    ; 5889 A0
+
+;; --------------------------------------------------------------------
+;; A message stub: PTM prints "" (y/n/a/e)" from the text after the
+;; call and returns to this routine's caller.
+;; --------------------------------------------------------------------
 
 ; ---- PMYNAE ---- from &5901
 PMYNAE:
@@ -6168,10 +6338,23 @@ PNDN2:
                CP &2A                          ; 58A4 FE 2A
                JR NZ,PMO8                      ; 58A6 20 0A  PRINT DISC NAME IF THERE IS ONE,
 
+;; --------------------------------------------------------------------
+;; A message stub: PTM prints "MASTER DOS " from the text after the
+;; call and returns to this routine's caller.
+;; --------------------------------------------------------------------
+
 PMOMD:
                CALL PTM                        ; 58A8 CD 7C 57
                DEFM "MASTER"                   ; 58AB 4D 41 53 54 45 52
                DEFB &86                        ; 58B1
+
+;; --------------------------------------------------------------------
+;; A message stub: PTM prints "[clear the lower screen][clear the lower
+;; screen][clear the lower screen][clear the lower screen][clear the
+;; lower screen][clear the lower screen][clear the lower screen][clear
+;; the lower screen][clear the lower screen][clear the lower screen] "
+;; from the text after the call and returns to this routine's caller.
+;; --------------------------------------------------------------------
 
 ; ---- PMO8 ---- from &58A6 when A <> &2A
 PMO8:
@@ -6181,6 +6364,11 @@ PMO8:
 DNAME:
                DEFB &00,&00,&00,&00,&00,&00,&00,&00,&00,&00 ; 58B5  *DEFS 10        ;- ;(Alloc 10 bytes) OVER-WRITTEN
                DEFB " "+&80                                 ; 58BF A0
+
+;; --------------------------------------------------------------------
+;; A message stub: PTM prints " OPEN File" from the text after the call
+;; and returns to this routine's caller.
+;; --------------------------------------------------------------------
 
 PMOOF:
                CALL PTM                        ; 58C0 CD 7C 57
@@ -7169,7 +7357,7 @@ RENAM:
                CALL EVFINS                     ; 5D5C CD 21 73
                LD DE,&0001                     ; 5D5F 11 01 00
                CALL READ_SECTOR                ; 5D62 CD B7 45
-               CALL CLEAR_TRANSFER_COUNT       ; 5D65 CD 8E 4F
+               CALL CLEAR_RPT                  ; 5D65 CD 8E 4F
                LD B,&FF                        ; 5D68 06 FF
                CALL GRPNTB                     ; 5D6A CD AE 4F
                CALL FESE2                      ; 5D6D CD F8 55  COPY NAME, NEW RND NO.
@@ -7468,7 +7656,7 @@ SNDF3:
                LD (IX+&0E),A                   ; 5EB7 DD 77 0E
                DEC A                           ; 5EBA 3D
                JR Z,SNDF4                      ; 5EBB 28 08  JR IF PTR WAS TO 2ND ENTRY
-               CALL CLEAR_TRANSFER_COUNT       ; 5EBD CD 8E 4F
+               CALL CLEAR_RPT                  ; 5EBD CD 8E 4F
                INC (IX+&0E)                    ; 5EC0 DD 34 0E
                JR SNDF2                        ; 5EC3 18 D5  DEAL WITH 2ND ENTRY
 
@@ -12334,7 +12522,7 @@ RDW3:
 ; ---- RDW4 ---- from &753F, &7559 when A = H, &7561
 RDW4:
                POP DE                          ; 74E3 D1  T/S
-               CALL CLEAR_TRANSFER_COUNT       ; 74E4 CD 8E 4F
+               CALL CLEAR_RPT                  ; 74E4 CD 8E 4F
                JP GTBUF                        ; 74E7 C3 A0 4F
 
 ;; --------------------------------------------------------------------
@@ -12977,7 +13165,7 @@ RDLB3:
                LD (SVHL),HL                    ; 777D 22 05 7C
                LD D,B                          ; 7780 50
                LD E,C                          ; 7781 59  NEXT T/S
-               JP CLEAR_TRANSFER_COUNT         ; 7782 C3 8E 4F
+               JP CLEAR_RPT                    ; 7782 C3 8E 4F
 
 ; ---- CHKHL ---- from &6691, &760E, &777A
 CHKHL:

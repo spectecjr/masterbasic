@@ -151,8 +151,9 @@ DOS &4F84 RESET_BUFFER_POINTERS
     that clears the two counts at (IX+&0D) and (IX+&0E).  Everything that
     starts a fresh transfer comes through here.
 
-DOS &4F8E CLEAR_TRANSFER_COUNT
-    Just those two bytes, for a caller whose buffer is already set up.
+DOS &4F8E CLEAR_RPT
+    Just those two bytes -- RPT, the pointer into the sector buffer;
+    the source's CLRRPT -- for a caller whose buffer is already set up.
 
 DOS &4FBF GET_TRACK_AND_SECTOR
 DOS &4FC6 SET_TRACK_AND_SECTOR

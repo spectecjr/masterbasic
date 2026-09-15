@@ -2020,6 +2020,12 @@ BYTE_ARGUMENT:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 30, "Integer out of range".  One of the error stubs: the
+;;     code into A and down the skip chain to REPORT, which hands it to the
+;;     DOS's REPORTA.
 ;; --------------------------------------------------------------------
 
 ; ---- REP_INTEGER_OUT_OF_RANGE ---- from &4952, &4B21 when A >= &40, &4C7B when A <> 0, &4E09 when A is not 0 yet,
@@ -2033,6 +2039,12 @@ REP_INTEGER_OUT_OF_RANGE:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 12, "Missing DEF PROC".  One of the error stubs: the code
+;;     into A and down the skip chain to REPORT, which hands it to the
+;;     DOS's REPORTA.
 ;; --------------------------------------------------------------------
 
 ; ---- REP_MISSING_DEF_PROC ---- from &5334 when A wraps to 0
@@ -2045,6 +2057,12 @@ REP_MISSING_DEF_PROC:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 119, "Size mismatch".  One of the error stubs: the code
+;;     into A and down the skip chain to REPORT, which hands it to the
+;;     DOS's REPORTA.
 ;; --------------------------------------------------------------------
 
 ; ---- REP_SIZE_MISMATCH ---- from &706E
@@ -2057,6 +2075,12 @@ REP_SIZE_MISMATCH:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 29, "Not understood".  One of the error stubs: the code
+;;     into A and down the skip chain to REPORT, which hands it to the
+;;     DOS's REPORTA.
 ;; --------------------------------------------------------------------
 
 ; ---- REP_NOT_UNDERSTOOD ---- from &445E when A <> C, &44D3, &475D, &530C when A <> &15, &555B when A <> T_TO, &5648
@@ -2070,6 +2094,12 @@ REP_NOT_UNDERSTOOD:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 2, "not found".  One of the error stubs: the code into A
+;;     and down the skip chain to REPORT, which hands it to the DOS's
+;;     REPORTA.
 ;; --------------------------------------------------------------------
 
 ; ---- REP_NOT_FOUND ---- from &43E0
@@ -2082,6 +2112,12 @@ REP_NOT_FOUND:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 4, "Subscript wrong".  One of the error stubs: the code
+;;     into A and down the skip chain to REPORT, which hands it to the
+;;     DOS's REPORTA.
 ;; --------------------------------------------------------------------
 
 ; ---- REP_SUBSCRIPT_WRONG ---- from &47F3
@@ -2094,6 +2130,12 @@ REP_SUBSCRIPT_WRONG:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 42, "String too long".  One of the error stubs: the code
+;;     into A and down the skip chain to REPORT, which hands it to the
+;;     DOS's REPORTA.
 ;; --------------------------------------------------------------------
 
 ; ---- REP_STRING_TOO_LONG ---- from &4772 when A >= &40, &4D8B when A >= &40, &4DD2 when A >= &40, &7075, &713D
@@ -2106,6 +2148,12 @@ REP_STRING_TOO_LONG:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 27, "argument".  One of the error stubs: the code into A
+;;     and down the skip chain to REPORT, which hands it to the DOS's
+;;     REPORTA.
 ;; --------------------------------------------------------------------
 
 ; ---- REP_ARGUMENT ---- from &417B when A >= &04, &41E8 when A >= &03, &43EE when bit 5 of C set, &4402 when A is not 0

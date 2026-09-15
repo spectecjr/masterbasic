@@ -42,7 +42,7 @@ PTH1    &7F13   the current path for drive 1, PTH2 after it
 
 `RESET_BUFFER_POINTERS` at `&4F84` is what puts `IX` on `DCHAN` and `BUF` on
 `DRAM`, and everything that starts a fresh transfer comes through it. It
-falls into `CLEAR_TRANSFER_COUNT`, which zeroes the two count bytes at
+falls into `CLEAR_RPT`, which zeroes the two bytes at
 `(IX+&0D)` and `(IX+&0E)` — `RPT`, the pointer into the sector buffer, which
 `ADVANCE_BUFFER_POINTER` later steps.
 

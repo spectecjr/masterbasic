@@ -40,7 +40,8 @@ DOS &46C6 value TRANSFER_ERROR_FLAGS
 DOS &46C8 : something went wrong
 
 DOS &46CA step
-    A good transfer.  Clear the count, throw away the return address and
+    A good transfer.  RPT back to the start of the buffer, throw away
+    the return address and
     leave through GTBUF, so that this returns to whoever called the
     caller with the buffer address in HL.
 

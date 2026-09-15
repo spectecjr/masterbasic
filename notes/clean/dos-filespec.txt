@@ -162,3 +162,94 @@ DOS &636D expr CH_SPACE
 DOS &636F : a name, so copy it
 DOS &6371 : &FF is the ROM's empty name
 DOS &637B expr NAME_FIELD
+
+# PART F12's entries that had no banner of this project's own.
+
+DOC SEPARX
+    A separator, or nothing: SEPAR tests for one and returns Z if it
+    found it; anything else falls into REP0, "Nonsense in BASIC".
+
+DOC REP0
+    The ROM's error 29, "Nonsense in BASIC", through DERR: where a
+    parse gives up on a character it cannot place.
+
+DOC AHLNX
+    A:HL as a 20-bit flat address: the two top bits of H become the low
+    two of the page, A's four low bits stand above them, and HL keeps
+    the fourteen bits of offset.  AHLN masks the page to three bits
+    for a nineteen-bit answer.
+
+DOC IOOR
+    The ROM's error 30, "Integer out of range", through DERR.  Nine
+    callers, none of them a fall-through from AHLNX above.
+
+DOC WIOOR
+    IOOR by a jump, for the branches inside the FORMAT checks that are
+    too far for a JR.
+
+DOC WIORH
+    The last of FORMAT's range checks, falling into the format proper:
+    NC from the compare above means the track total, less two, has
+    reached the limit in B -- 158 less the directory's extra tracks --
+    and that is "Integer out of range".
+
+DOC EVNAMX
+    EVNAM after a NEXTCHAR: the file name that follows a separator.
+
+DOC EVNM2
+    EVNAM past the string fetch, with BC its length and the page in
+    SVC: empty or over LONG_NAME_LIMIT is "Invalid file name", and
+    otherwise the name goes to the ROM's buffer at &4F10 whole and to
+    NSTR1+1 fourteen characters at most, space padded.
+
+DOC EVNAM2X
+    The second file name of a two-name command, after a NEXTCHAR: the
+    parameter blocks are swapped with EXDATX and the name read with
+    EVNAM, so that it lands in the block that is now first.
+
+DOC EXDATX
+    EXDAT, and the string buffer with it: the eighty-eight bytes at
+    &4F10 in the system page swapped with the copy at &4F68, so that a
+    two-name command keeps both names' long forms.
+
+DOC BSWOP
+    EXDAT for the sector buffer as well: the parameter blocks swapped,
+    DTKS exchanged with DTKSX so each file keeps its own directory
+    depth, and the &0306 bytes from RPT exchanged with the paged-in
+    buffer BUDT points at, through EXDT1.
+
+DOC EVST2
+    Fetch a string that has been evaluated, when running: GETSTR, with
+    the page it lives in kept in SVC and put in H.  Z at syntax time,
+    with nothing done.
+
+DOC EVSRM
+    A stream number after a NEXTCHAR: EVSRMX.
+
+DOC EVSRMX
+    Evaluate a stream number and record it in SSTR1: seventeen and up
+    is "Invalid stream number" through EVSRE, and 16 itself is the
+    ROM's -4.  Z at syntax time, with nothing recorded.
+
+DOC EVNUMX
+    A number after a NEXTCHAR: EVNUM.
+
+DOC EVNUM
+    Evaluate a numeric expression through the ROM's EXPNUM and, when
+    running, fetch it as an integer into BC; Z at syntax time, with A
+    kept across the fetch.
+
+DOC EVNU2
+    EVNUM's tail: nothing more at syntax time, else the integer through
+    CGTINT.
+
+DOC CGTINT
+    The ROM's GETINT through CMR, with A kept: the number on the
+    calculator stack into BC.
+
+DOC TRX0
+    TRX with HL already on the source entry: fifteen bytes into NSTR1
+    -- type, name and the four after it -- and then the name copied
+    over character by character from NSTR3, where the target pattern
+    waits: a "?" there keeps the character the disc had, and a "*"
+    keeps the rest.

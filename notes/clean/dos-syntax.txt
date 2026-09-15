@@ -95,3 +95,49 @@ DOS &441C : the return into PTDOS moved on four bytes, past its SCF and CALL NC,
 DOS &4422 : no error
 DOS &4423 : and no action
 DOS &4428 : a byte MasterBASIC keeps in the ROM's spare block after LSOFF
+
+# PART D1's entries that had no banner of this project's own.
+
+DOC ABORT
+    Back to the caller if the program is running, and if the line is
+    only being checked, on into ENDS: how a command's syntax pass ends
+    without doing anything.  CFSO's NZ is "running".
+
+DOC ENDSX
+    ENDS with E = 1 rather than 0: the command is done, and the ROM's
+    own load machinery is to carry on from here -- the LOAD that hands
+    a file's body back to it.
+
+DOC END1
+    The common exit of every command: no error into XPTR+1, the border
+    put back, NRFLG cleared so the DOS can be entered again, and the
+    stack pointer the DOS was entered with restored from ENTSP, so that
+    the RET after RENT goes back into the ROM whatever the command left
+    on the stack.
+
+DOC RENT
+    Put the previous ENTSP back: the entry code exchanged it onto the
+    stack when it saved its own, so the word popped here is the value
+    an outer call had, and the RET goes to whatever is under it.  The
+    hook exit at &4469 jumps here with no error and no action to
+    report.
+
+DOC ISEPX
+    Step to the next character and require it to be C, the separator
+    wanted -- a comma, mostly -- or "Nonsense in BASIC" through REP0.
+
+DOC ISEP
+    Require the current character to be C, or REP0.
+
+DOC GTNC
+    The ROM's NEXTCHAR through CMR: step CHAD and fetch.
+
+DOC GCHR
+    The ROM's GETCHAR through CMR: fetch the character under CHAD.
+
+DOC ALPHANUM
+    Carry if A is a letter or a digit: ALPHA first, then NUMERIC.
+
+DOC NUMERIC
+    Carry if A is a digit: below ":" and not below "0", the second
+    compare's carry inverted so that carry means yes.

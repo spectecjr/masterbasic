@@ -129,3 +129,33 @@ DOS &45DC : clear, so the controller has finished with the sector
 DOS &45DD : carry is now bit 1, DRQ
 DOS &45DE : nothing waiting yet -- ask again
 DOS &45E0 : a byte is ready
+
+# PART C11's entries that had no banner of this project's own.
+
+DOC WRIF2
+    WRIF without the sector lookup, for the one caller that has just
+    exchanged the channel's track and sector and holds the old pair in
+    DE: the dirty-bit test, and a write if it is set.
+
+DOC NWSAD
+    WSAD after a DWAIT: the write-sector entry that first makes sure
+    the drive is up to speed, for a write that may come straight after
+    a step.
+
+DOC TGT1
+    The poll that follows the entry-type test: reached from NRS25 once
+    per directory entry, when L' has wrapped and H' has just been
+    chosen -- the status through the patched IN, AND B for the
+    data-ready bit.  If nothing is waiting, NRSA3 asks whether the
+    sector is over instead; NRSA3 is the per-byte poll, which every
+    byte placed at NRSA2 falls into.
+
+DOC SRSAD
+    READ_SECTOR_COUNTING_DELIMS proper, past the setup: a RAM disc is
+    handed to RDSSAD, which searches its copy in memory; a floppy
+    falls into SRSA1 and the controller.
+
+DOC RSSR
+    Read the sector at DE: seek there through CTAS, issue the read
+    command with interrupts off, and fall into GTBUF for the buffer the
+    bytes go to.

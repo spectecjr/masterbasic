@@ -2042,8 +2042,10 @@ CKDE:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     Similar to CKDE, except it always perfoms the adjustment and doesn't check if DE
-;;     is about to cross a page boundary first.
+;;     CKDE's second half without the DE = 0 test: if PGES1 is not zero,
+;;     take one block off it and fold it into DE as &4000 more, whatever
+;;     DE holds; with PGES1 zero it returns untouched.  Used once, at
+;;     LDBLK.
 ;; --------------------------------------------------------------------
 
 ; ---- ADJUST_PAGE_DE ---- from &4859
@@ -2858,7 +2860,7 @@ SRSA4:
 ;; Leaves:    A, F, HL
 ;; Ends:      JP
 ;;
-;; ? calls CLEAR_TRANSFER_COUNT.
+;; ? calls CLEAR_RPT.
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
@@ -2873,7 +2875,7 @@ SRSA4:
 RETRY_OR_GIVE_UP:
                AND &0E                         ; 46C6 E6 0E
                JR NZ,CDE1                      ; 46C8 20 07  JR IF AN ERROR WAS DETECTED
-               CALL CLEAR_TRANSFER_COUNT       ; 46CA CD 8E 4F
+               CALL CLEAR_RPT                  ; 46CA CD 8E 4F
                POP HL                          ; 46CD E1  JUNK RET ADDR
                JP GTBUF                        ; 46CE C3 A0 4F
 
@@ -4983,7 +4985,7 @@ FDH04:
 ;; Preserves: DE (saved and restored)
 ;; Ends:      JP, JR
 ;;
-;; ? calls CKNAM, CLEAR_TRANSFER_COUNT, POINT.
+;; ? calls CKNAM, CLEAR_RPT, POINT.
 ;; --------------------------------------------------------------------
 
 ; ---- FDH05 ---- from &4B57 when A < &05, &4B77 when no bit of &07 is set
@@ -5116,7 +5118,7 @@ FDH4:
 ;; Preserves: DE (saved and restored)
 ;; Ends:      JP
 ;;
-;; ? calls CKNAM, CLEAR_TRANSFER_COUNT, POINT.
+;; ? calls CKNAM, CLEAR_RPT, POINT.
 ;; --------------------------------------------------------------------
 
 ; ---- FDHH ---- from &4BCE when bit 7 was set, &4BD9
@@ -5131,7 +5133,7 @@ FDHH:
 ;; Preserves: DE (saved and restored)
 ;; Ends:      JP, JR
 ;;
-;; ? calls PFNME, CKNAM, CLEAR_TRANSFER_COUNT, POINT.
+;; ? calls PFNME, CKNAM, CLEAR_RPT, POINT.
 ;; --------------------------------------------------------------------
 
 ; ---- FDH5 ---- from &4BDF when bit 1 of (IX+&04) clear
@@ -5237,7 +5239,7 @@ FDH84:
 ;; Preserves: DE (saved and restored)
 ;; Ends:      JP, JR
 ;;
-;; ? calls CKNAM, CLEAR_TRANSFER_COUNT, POINT, PNTYP.
+;; ? calls CKNAM, CLEAR_RPT, POINT, PNTYP.
 ;; --------------------------------------------------------------------
 
 ; ---- FDH85 ---- from &4C39 when A = &15
@@ -5329,7 +5331,7 @@ FDH95:
 ;; Preserves: DE (saved and restored)
 ;; Ends:      JP
 ;;
-;; ? calls CKNAM, CLEAR_TRANSFER_COUNT, POINT.
+;; ? calls CKNAM, CLEAR_RPT, POINT.
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
@@ -5345,7 +5347,7 @@ FDHd:
                LD A,(RPT+1)                    ; 4C8C 3A 0E 7C
                DEC A                           ; 4C8F 3D
                JR Z,FDHe                       ; 4C90 28 09  JR IF WE HAVE JUST DONE SECOND DIR
-               CALL CLEAR_TRANSFER_COUNT       ; 4C92 CD 8E 4F
+               CALL CLEAR_RPT                  ; 4C92 CD 8E 4F
                INC (IX+&0E)                    ; 4C95 DD 34 0E  NEXT ENTRY
                JP FDH1_1                       ; 4C98 C3 88 4B
 
@@ -5792,7 +5794,7 @@ OFM4:
 ;; Preserves: IX (saved and restored)
 ;; Ends:      RET
 ;;
-;; ? calls FNFS, OFM6, CLEAR_TRANSFER_COUNT, SET_TRACK_AND_SECTOR.
+;; ? calls FNFS, OFM6, CLEAR_RPT, SET_TRACK_AND_SECTOR.
 ;; --------------------------------------------------------------------
 
 ; ---- OFM5 ---- from &4DA2 when B is not 0 yet
@@ -5818,7 +5820,7 @@ OFM5:
                CALL SET_TRACK_AND_SECTOR       ; 4DC9 CD C6 4F
                LD (IX+&20),D                   ; 4DCC DD 72 20  FIRST TRACK
                LD (IX+&21),E                   ; 4DCF DD 73 21  AND SECTOR OF FILE IN DIR
-               CALL CLEAR_TRANSFER_COUNT       ; 4DD2 CD 8E 4F
+               CALL CLEAR_RPT                  ; 4DD2 CD 8E 4F
                XOR A                           ; 4DD5 AF  NC=OK
                RET                             ; 4DD6 C9
 
@@ -6361,7 +6363,7 @@ RESET_BUFFER_POINTERS:
                LD (BUF),HL                     ; 4F8B 22 0F 7C
 
 ;; --------------------------------------------------------------------
-;; CLEAR_TRANSFER_COUNT -- &4F8E to &4F96
+;; CLEAR_RPT -- &4F8E to &4F96
 ;;
 ;; Takes:     IX
 ;; Leaves:    registers unchanged
@@ -6369,11 +6371,12 @@ RESET_BUFFER_POINTERS:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     Just those two bytes, for a caller whose buffer is already set up.
+;;     Just those two bytes -- RPT, the pointer into the sector buffer;
+;;     the source's CLRRPT -- for a caller whose buffer is already set up.
 ;; --------------------------------------------------------------------
 
-; ---- CLEAR_TRANSFER_COUNT ---- from &46CA, &4C92, &4DD2, &5D65, &5EBD, &74E4, &7782
-CLEAR_TRANSFER_COUNT:
+; ---- CLEAR_RPT ---- from &46CA, &4C92, &4DD2, &5D65, &5EBD, &74E4, &7782
+CLEAR_RPT:
                LD (IX+&0D),&00                 ; 4F8E DD 36 0D 00
                LD (IX+&0E),&00                 ; 4F92 DD 36 0E 00
                RET                             ; 4F96 C9
@@ -7726,6 +7729,12 @@ REP4:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 86, "Format trk nnn lost".  One of the error stubs: the
+;;     code into A and down the skip chain to REPORTA, which plants it for
+;;     DERR.
 ;; --------------------------------------------------------------------
 
 ; ---- REP5 ---- from &4710 when A >= &08
@@ -7738,6 +7747,12 @@ REP5:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 87, "Check disk in drive".  One of the error stubs: the
+;;     code into A and down the skip chain to REPORTA, which plants it for
+;;     DERR.
 ;; --------------------------------------------------------------------
 
 ; ---- REP6 ---- from &47B7
@@ -7750,6 +7765,11 @@ REP6:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 93, "Verify failed".  One of the error stubs: the code
+;;     into A and down the skip chain to REPORTA, which plants it for DERR.
 ;; --------------------------------------------------------------------
 
 ; ---- REP12 ---- from &64C9 when A <> (HL)
@@ -7762,6 +7782,11 @@ REP12:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 94, "Wrong file type".  One of the error stubs: the code
+;;     into A and down the skip chain to REPORTA, which plants it for DERR.
 ;; --------------------------------------------------------------------
 
 ; ---- REP13 ---- from &4E7C when A >= &15, &4E83, &4EDD when A <> (HL), &5FFE
@@ -7775,6 +7800,12 @@ REP13:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 99, "Reading a write file".  One of the error stubs: the
+;;     code into A and down the skip chain to REPORTA, which plants it for
+;;     DERR.
 ;; --------------------------------------------------------------------
 
 ; ---- REP18 ---- from &6F21 when bit 0 of (IX+&0C) set
@@ -7788,6 +7819,12 @@ REP18:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 100, "Writing a read file".  One of the error stubs: the
+;;     code into A and down the skip chain to REPORTA, which plants it for
+;;     DERR.
 ;; --------------------------------------------------------------------
 
 ; ---- REP19 ---- from &6BFF when A = MOUT, &6F50 when no bit of &03 is set
@@ -7800,6 +7837,11 @@ REP19:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 101, "No auto file".  One of the error stubs: the code
+;;     into A and down the skip chain to REPORTA, which plants it for DERR.
 ;; --------------------------------------------------------------------
 
 ; ---- REP20 ---- from &65F4
@@ -7813,6 +7855,11 @@ REP20:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 103, "No such drive".  One of the error stubs: the code
+;;     into A and down the skip chain to REPORTA, which plants it for DERR.
 ;; --------------------------------------------------------------------
 
 ; ---- REP22 ---- from &4815 when A >= RDLIM-1, &4820 when A = &00, &7582 when A = 0, &7645 when A >= RDLIM, &7734 when
@@ -7827,6 +7874,12 @@ REP22:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 104, "Disk is write protec".  One of the error stubs: the
+;;     code into A and down the skip chain to REPORTA, which plants it for
+;;     DERR.
 ;; --------------------------------------------------------------------
 
 ; ---- REP23 ---- from &45A4 when bit 5 of A set, &5513 when bit 5 of A set
@@ -7839,6 +7892,11 @@ REP23:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 105, "Disk full".  One of the error stubs: the code into
+;;     A and down the skip chain to REPORTA, which plants it for DERR.
 ;; --------------------------------------------------------------------
 
 ; ---- REP24 ---- from &4AC8 when A = D
@@ -7851,6 +7909,11 @@ REP24:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 106, "Directory full".  One of the error stubs: the code
+;;     into A and down the skip chain to REPORTA, which plants it for DERR.
 ;; --------------------------------------------------------------------
 
 ; ---- REP25 ---- from &4E18, &721A when A = &FF
@@ -7864,6 +7927,11 @@ REP25:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 22, "End of file".  One of the error stubs: the code into
+;;     A and down the skip chain to REPORTA, which plants it for DERR.
 ;; --------------------------------------------------------------------
 
 ; ---- REP27 ---- from &473A, &6F01, &70BF, &71A5, &75CD when A >= &0A, &7A5A
@@ -7876,6 +7944,11 @@ REP27:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 109, "File name used".  One of the error stubs: the code
+;;     into A and down the skip chain to REPORTA, which plants it for DERR.
 ;; --------------------------------------------------------------------
 
 ; ---- REP28 ---- from &4D3F, &4D49 when A = &15, &5D9F
@@ -7888,6 +7961,11 @@ REP28:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 111, "Stream used".  One of the error stubs: the code
+;;     into A and down the skip chain to REPORTA, which plants it for DERR.
 ;; --------------------------------------------------------------------
 
 ; ---- REP30 ---- from &6B48
@@ -7900,6 +7978,11 @@ REP30:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 112, "Channel used".  One of the error stubs: the code
+;;     into A and down the skip chain to REPORTA, which plants it for DERR.
 ;; --------------------------------------------------------------------
 
 ; ---- REP31 ---- from &6BCA
@@ -7913,6 +7996,12 @@ REP31:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 113, "Directory not found".  One of the error stubs: the
+;;     code into A and down the skip chain to REPORTA, which plants it for
+;;     DERR.
 ;; --------------------------------------------------------------------
 
 ; ---- REP32 ---- from &731E
@@ -7925,6 +8014,12 @@ REP32:
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    A
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     Error code 114, "Directory not empty".  One of the error stubs: the
+;;     code into A and down the skip chain to REPORTA, which plants it for
+;;     DERR.
 ;; --------------------------------------------------------------------
 
 ; ---- REP33 ---- from &5D0F
@@ -9957,6 +10052,11 @@ MCPT:
 ;; Leaves:    HL
 ;;
 ;; ? calls PTM; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     A message stub: PTM prints " / Number of Free K-Bytes = " from the
+;;     text after the call and returns to this routine's caller.
 ;; --------------------------------------------------------------------
 
 ; ---- PMO3 ---- from &5BC6
@@ -9975,6 +10075,11 @@ PMO3:
 ;; Leaves:    HL
 ;;
 ;; ? calls PTM; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     A message stub: PTM prints "[clear the lower screen]OVERWRITE ""
+;;     from the text after the call and returns to this routine's caller.
 ;; --------------------------------------------------------------------
 
 ; ---- PMO5 ---- from &4D5E
@@ -9991,6 +10096,11 @@ PMO5:
 ;; Leaves:    HL
 ;;
 ;; ? calls PTM; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     A message stub: PTM prints "[clear the lower screen]FORMAT "" from
+;;     the text after the call and returns to this routine's caller.
 ;; --------------------------------------------------------------------
 
 ; ---- PMO6 ---- from &54C4
@@ -10029,6 +10139,12 @@ PRINT_YN_PROMPT:
 ;; Leaves:    HL
 ;;
 ;; ? calls PTM; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     A message stub: PTM prints "[clear the lower screen]Insert source
+;;     disk press a key " from the text after the call and returns to this
+;;     routine's caller.
 ;; --------------------------------------------------------------------
 
 ; ---- PMO9 ---- from &5941
@@ -10046,6 +10162,12 @@ PMO9:
 ;; Leaves:    HL
 ;;
 ;; ? calls PTM; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     A message stub: PTM prints "[clear the lower screen]Format disk at
+;;     track " from the text after the call and returns to this routine's
+;;     caller.
 ;; --------------------------------------------------------------------
 
 ; ---- PMOA ---- from &54F3
@@ -10063,6 +10185,12 @@ PMOA:
 ;; Leaves:    HL
 ;;
 ;; ? calls PTM; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     A message stub: PTM prints "[clear the lower screen]  Copy disk at
+;;     track " from the text after the call and returns to this routine's
+;;     caller.
 ;; --------------------------------------------------------------------
 
 ; ---- PMOB ---- from &5546
@@ -10080,6 +10208,12 @@ PMOB:
 ;; Leaves:    HL
 ;;
 ;; ? calls PTM; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     A message stub: PTM prints "[clear the lower screen]Verify disk at
+;;     track " from the text after the call and returns to this routine's
+;;     caller.
 ;; --------------------------------------------------------------------
 
 ; ---- PMOC ---- from &5595
@@ -10097,6 +10231,12 @@ PMOC:
 ;; Leaves:    HL
 ;;
 ;; ? calls PTM; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     A message stub: PTM prints "[clear the lower screen]Insert target
+;;     disk press a key " from the text after the call and returns to this
+;;     routine's caller.
 ;; --------------------------------------------------------------------
 
 ; ---- PMOD ---- from &5938
@@ -10114,6 +10254,11 @@ PMOD:
 ;; Leaves:    HL
 ;;
 ;; ? calls PTM; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     A message stub: PTM prints " File" from the text after the call and
+;;     returns to this routine's caller.
 ;; --------------------------------------------------------------------
 
 ; ---- PMOE ---- from &5BE0
@@ -10129,6 +10274,11 @@ PMOE:
 ;; Leaves:    HL
 ;;
 ;; ? calls PTM; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     A message stub: PTM prints " Free Slot" from the text after the call
+;;     and returns to this routine's caller.
 ;; --------------------------------------------------------------------
 
 ; ---- PMOF ---- from &5BF5
@@ -10145,6 +10295,11 @@ PMOF:
 ;; Leaves:    HL
 ;;
 ;; ? calls PTM; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     A message stub: PTM prints "[clear the lower screen]LOADING " from
+;;     the text after the call and returns to this routine's caller.
 ;; --------------------------------------------------------------------
 
 ; ---- PMOG ---- from &5A25
@@ -10161,6 +10316,11 @@ PMOG:
 ;; Leaves:    HL
 ;;
 ;; ? calls PTM; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     A message stub: PTM prints "[clear the lower screen] SAVING " from
+;;     the text after the call and returns to this routine's caller.
 ;; --------------------------------------------------------------------
 
 ; ---- PMOH ---- from &5A77
@@ -10177,6 +10337,11 @@ PMOH:
 ;; Leaves:    HL
 ;;
 ;; ? calls PTM; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     A message stub: PTM prints "SAM DOS    " from the text after the
+;;     call and returns to this routine's caller.
 ;; --------------------------------------------------------------------
 
 ; ---- PMOSD ---- from &58A1 when A < &02
@@ -10194,6 +10359,11 @@ PMOSD:
 ;; Leaves:    HL
 ;;
 ;; ? calls PTM; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     A message stub: PTM prints "" (y/n/a/e)" from the text after the
+;;     call and returns to this routine's caller.
 ;; --------------------------------------------------------------------
 
 ; ---- PMYNAE ---- from &5901
@@ -10260,6 +10430,11 @@ PNDN2:
 ;; Leaves:    HL
 ;;
 ;; ? calls PTM; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     A message stub: PTM prints "MASTER DOS " from the text after the
+;;     call and returns to this routine's caller.
 ;; --------------------------------------------------------------------
 
 PMOMD:
@@ -10274,6 +10449,14 @@ PMOMD:
 ;; Leaves:    HL
 ;;
 ;; ? calls PTM; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     A message stub: PTM prints "[clear the lower screen][clear the lower
+;;     screen][clear the lower screen][clear the lower screen][clear the
+;;     lower screen][clear the lower screen][clear the lower screen][clear
+;;     the lower screen][clear the lower screen][clear the lower screen] "
+;;     from the text after the call and returns to this routine's caller.
 ;; --------------------------------------------------------------------
 
 ; ---- PMO8 ---- from &58A6 when A <> &2A
@@ -10292,6 +10475,11 @@ DNAME:
 ;; Leaves:    HL
 ;;
 ;; ? calls PTM; falls into whatever follows rather than returning.
+;;
+;; Shown for this routine in listings/disasm/:
+;;
+;;     A message stub: PTM prints " OPEN File" from the text after the call
+;;     and returns to this routine's caller.
 ;; --------------------------------------------------------------------
 
 PMOOF:
@@ -12045,7 +12233,7 @@ CKDIR:
 ;; Takes:     A, BC, DE, HL, IX, R
 ;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls READ_SECTOR, CLEAR_TRANSFER_COUNT, GRPNTB, CEOS; falls into whatever follows rather than returning.
+;; ? calls READ_SECTOR, CLEAR_RPT, GRPNTB, CEOS; falls into whatever follows rather than returning.
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
@@ -12071,7 +12259,7 @@ RENAM:
                CALL EVFINS                     ; 5D5C CD 21 73
                LD DE,&0001                     ; 5D5F 11 01 00
                CALL READ_SECTOR                ; 5D62 CD B7 45
-               CALL CLEAR_TRANSFER_COUNT       ; 5D65 CD 8E 4F
+               CALL CLEAR_RPT                  ; 5D65 CD 8E 4F
                LD B,&FF                        ; 5D68 06 FF
                CALL GRPNTB                     ; 5D6A CD AE 4F
                CALL FESE2                      ; 5D6D CD F8 55  COPY NAME, NEW RND NO.
@@ -12596,7 +12784,7 @@ SNDF25:
 ;; Leaves:    A, F, B, DE, HL, IX
 ;; Ends:      JR, RET
 ;;
-;; ? calls CKNAM, CLEAR_TRANSFER_COUNT, POINT, CKDIR.
+;; ? calls CKNAM, CLEAR_RPT, POINT, CKDIR.
 ;; --------------------------------------------------------------------
 
 ; ---- SNDF3 ---- from &5E79, &5EAD
@@ -12605,7 +12793,7 @@ SNDF3:
                LD (IX+&0E),A                   ; 5EB7 DD 77 0E
                DEC A                           ; 5EBA 3D
                JR Z,SNDF4                      ; 5EBB 28 08  JR IF PTR WAS TO 2ND ENTRY
-               CALL CLEAR_TRANSFER_COUNT       ; 5EBD CD 8E 4F
+               CALL CLEAR_RPT                  ; 5EBD CD 8E 4F
                INC (IX+&0E)                    ; 5EC0 DD 34 0E
                JR SNDF2                        ; 5EC3 18 D5  DEAL WITH 2ND ENTRY
 
@@ -21007,13 +21195,13 @@ RDW3:
 ;; Leaves:    DE
 ;; Ends:      JP
 ;;
-;; ? calls CLEAR_TRANSFER_COUNT.
+;; ? calls CLEAR_RPT.
 ;; --------------------------------------------------------------------
 
 ; ---- RDW4 ---- from &753F, &7559 when A = H, &7561
 RDW4:
                POP DE                          ; 74E3 D1  T/S
-               CALL CLEAR_TRANSFER_COUNT       ; 74E4 CD 8E 4F
+               CALL CLEAR_RPT                  ; 74E4 CD 8E 4F
                JP GTBUF                        ; 74E7 C3 A0 4F
 
 ;; --------------------------------------------------------------------
@@ -21204,7 +21392,7 @@ NRDROL_DONE:
 ;; Preserves: DE (saved and restored)
 ;; Ends:      JP, JR
 ;;
-;; ? calls CLEAR_TRANSFER_COUNT, GTBUF, READ_ADDRESS_CLEAR, SDCHK2.
+;; ? calls CLEAR_RPT, GTBUF, READ_ADDRESS_CLEAR, SDCHK2.
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
@@ -21251,7 +21439,7 @@ RDRSCT_1:
 ;; Preserves: DE (saved and restored)
 ;; Ends:      JP
 ;;
-;; ? drives OUT (HMPR),A; calls CLEAR_TRANSFER_COUNT, RDADR.
+;; ? drives OUT (HMPR),A; calls CLEAR_RPT, RDADR.
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
@@ -22091,7 +22279,7 @@ RDLB3:
                LD (SVHL),HL                    ; 777D 22 05 7C
                LD D,B                          ; 7780 50
                LD E,C                          ; 7781 59  NEXT T/S
-               JP CLEAR_TRANSFER_COUNT         ; 7782 C3 8E 4F
+               JP CLEAR_RPT                    ; 7782 C3 8E 4F
 
 ;; --------------------------------------------------------------------
 ;; CHKHL -- &7785 to &778E

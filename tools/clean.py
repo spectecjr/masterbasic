@@ -76,6 +76,10 @@ BAR = ';; ' + '-' * 68
 #  correction that no longer matches is a correction that has gone
 #  stale, and a silent miss is the failure this file exists to prevent.
 CARRIED_FIXES = [
+    ([';;  SVBLK -- save a block to the open file'],
+     [';;  HSVBK -- save whole sectors to the open file, leaving the tail in the buffer.  SVBLK, below with its',
+      ';;  own header, is the one that writes the partial last sector out; this returns on SBLOK\'s carry with it',
+      ';;  still in the buffer, for the next block to continue']),
     ([';;  Normalise a page and address pair so the address lies within one page and the surplus is in the page number.'],
      [';;  Flatten a page and address pair into one number.  Not the other way about: the window base is discarded and',
       ";;  the page's low bits are shifted down into the address, so what comes back is a flat byte address rather than",

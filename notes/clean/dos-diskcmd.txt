@@ -127,3 +127,48 @@ CONST BLOCK_ERROR_FLAGS = (DISK_STATUS_DRQ | DISK_STATUS_CRC_ERROR | DISK_STATUS
 CONST TRANSFER_ERROR_FLAGS = (DISK_STATUS_LOST_DATA | DISK_STATUS_CRC_ERROR | DISK_STATUS_RECORD_NOT_FOUND) >> 1 : the right one, used by the sector read and write
 
 DOS &4570 expr DISK_STATUS_BUSY_BIT
+
+# PART C11's entries that had no banner of this project's own.
+
+DOC TRCKP
+    The selected drive's track register: the port base and one.
+
+DOC READ_SELECTED_DISK_STATUS
+    The selected drive's status byte, read from its port base with BC
+    kept.
+
+DOC WRITE_DRIVE_CMD_AND_DELAY
+    WAIT_DC_READY_BEFORE_CMD's second entry: the command in C goes to
+    the controller without waiting for it to go idle first, then the
+    twenty-turn spin that gives it time to raise BUSY.  One caller,
+    TFIHO, which is resetting the chip and must not wait on what it is
+    about to end.
+
+DOC FTOSR
+    A floppy or nothing: a real drive goes on to EXDAT, a RAM disc
+    falls into REP10, "Invalid device".  TIRD's carry is the test --
+    set for a floppy, clear for a RAM disc.
+
+DOC REP10
+    Error 10, "Invalid device", through DERR.  CKDISC and FTOSR arrive
+    here for a RAM disc or a device that is not a disc.
+
+DOC HFWCD
+    The drive number in HKA, mapped through DRPT and then validated and
+    recorded as CKDRX does: how the far-sector hooks, HFWSAD and its
+    read twin, pick their drive.
+
+DOC CKDISC
+    Only a disc file has a directory: LSTR1 must be "D", or it is
+    "Invalid device", and then the drive is checked and selected as
+    for any other command.
+
+DOC SSDRV2
+    SELECT_DRIVE's second entry, for a caller that already has the
+    drive number in A rather than in the channel: it records it in
+    DRIVE and falls into SELD for the port block.
+
+DOC SELD
+    Which port block: DISKCTL_0_BASE in B for drive 1, DISKCTL_1_BASE
+    for drive 2, nothing at all for a RAM disc, which TIRD's clear
+    carry returns on at once.

@@ -91,7 +91,7 @@ DOC LDB3
     less than a sector left, LDB3_2 reads it into the buffer and jumps
     back into LDBLK to copy the tail.
 
-DOS &4897 : less than a whole sector left: read it into the buffer and copy the tail through LDBLK_1
+DOS &4897 : 510 bytes or fewer left: read it into the buffer and copy the tail through LDBLK_1
 
 # AUTNAM is a parameter block; tools/dis_mb.py declares it data before
 # the sweeps run, and this says what is in it.
@@ -163,3 +163,33 @@ DOS &645F expr TYPE_BASIC
 DOS &6468 : the LOAD token: not MERGE, not VERIFY
 DOS &646C : DRAM+9, the byte after the nine-byte header in the first sector
 DOS &6474 : &FF, the ROM's end-of-program stopper, so the program loads invisible until the stub at &4A84 puts the saved byte back
+
+# PART C11's entries that had no banner of this project's own.
+
+DOC HOOK_HLDBK
+    Hook 161, load a block: the dispatcher has swapped the register
+    sets, so this swaps them back and stores A as PGES1 before LDBLK.
+    HLDBK_NO_EXX below is the same entry for a caller that did not
+    come through the dispatcher.
+
+DOC HOOK_HKSB
+    Hook 150, save a block: the same swap-back and PGES1 store, then
+    HSVBK's quarter-second delay and the HSVB2 loop.
+
+DOC DSVBL
+    SVBLK after DDEL's quarter-second wait, for a save that does not
+    follow another write and must let the drive come up to speed.
+
+DOC SVBSI
+    The tail of a save whose data ended inside the buffer: GRPNT to
+    the buffer pointer, then SVBS1 pads to the end.
+
+DOC SVBS1
+    Pad the rest of the sector: while the pointer is short of the 512,
+    SVBS2 writes a zero and steps on; at the end SVBS3 fetches the
+    track and sector and returns with carry set, the source's "single
+    sector".
+
+DOC SVBS2
+    One zero into the buffer and on to the next byte, without moving
+    RPT.

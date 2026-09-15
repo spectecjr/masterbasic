@@ -21,8 +21,10 @@ DOS &4536 CKDE
     DE has run out, takes one block off PGES1 and puts &4000 into DE.
 
 DOS &4539 ADJUST_PAGE_DE
-    Similar to CKDE, except it always perfoms the adjustment and doesn't check if DE
-    is about to cross a page boundary first.
+    CKDE's second half without the DE = 0 test: if PGES1 is not zero,
+    take one block off it and fold it into DE as &4000 more, whatever
+    DE holds; with PGES1 zero it returns untouched.  Used once, at
+    LDBLK.
 
 DOS &4558 WAIT_DC_READY_BEFORE_CMD
     Wait until the controller is not BUSY, then issue the command byte

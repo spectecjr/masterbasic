@@ -272,13 +272,22 @@ Bounded jobs, good between rounds or when a round is out for review:
   `EDITOR_RETURN`, `SAVED_CHANNEL_OUTPUT`).  Not traced: where the planted
   routine's final RET lands.
 
-- `described N of 2372 labelled addresses` in `build.log` (626 on
-  2026-09-13; eleven of the earlier figure were wrapped-comment
-  fragments, see phase 0.1).  The other 1700 have a name and, on the DOS
-  side, the author's carried header; a
-  banner of this project's own is the difference.  Do it by PART, and
-  send each PART for review once it is written -- that is what round six
-  was.
+- `described N of M labelled addresses` in `build.log` -- two lines
+  since 2026-09-14, because the one line was counting the working copy's
+  headers while README quoted it as the reading copy's, and twenty-three
+  new DOCs did not move it: 666 of 2345 in the working copy, 772 of 2341
+  in the reading copy.  Most labelled addresses are derived internal
+  labels and variables that want no banner; the routine heads without
+  one, reached from afar, come to about 200 in the DOS (REP stubs, the
+  PMO family, hook entries, micro-entries that fall into the routine
+  below) and a few dozen in MasterBASIC, thunks mostly.  Do it by PART,
+  and send each PART for review once it is written -- that is what
+  round six was.  **Round 11, 2026-09-14**: C11's 23 banners reviewed
+  (8 findings, 2 on the new banners, all applied); C12 (11), D1 (10),
+  E1 (11) and F12 (19) written and out for review; the 25 REP stubs and
+  17 PTM message stubs, being one shape each, take generated headers
+  -- the error code and message, the decoded text -- rather than
+  hand-written ones.  Reading copy: 864 of 2341.
 - **The synthetic labels -- 138 to 19, done 2026-09-14** (`grep -c
   '^[LV][0-9A-F]\{4\}:$'` on each clean listing).  Three commits.
   MasterBASIC's 31 patched sites are named for what their operands

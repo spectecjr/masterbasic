@@ -34,7 +34,7 @@ DOS &68B4 : offset 0, which is &0D only at the end of the list
 DOS &68D5 : and its high byte
 DOS &7030 : "D", with bit 5 cleared first to fold the case
 DOS &67ED : "D"+&80, a temporary channel MOVE made and so one it may reclaim; bit 5 is folded first
-DOS &47AD : track 0, sector 1: where a restore leaves the head, and the directory starts
+DOS &47AD : track 0, sector 1, handed back in DE for the caller's seek: where the directory starts.  The restore itself never writes the sector register
 DOS &47CF : 256 turns of the DJNZ, for the controller to settle after a forced interrupt
 DOS &47A1 : 150 turns of the delay after a step, for the head to settle
 DOS &4A68 : 512: the pointer has reached the end of the buffer
@@ -187,3 +187,25 @@ DOS &515D : bit 7 of port 254 is SOFF, the screen-off bit, read back and kept as
 DOS &6A19 : the page count alone
 DOS &7846 : eight bits a byte
 DOS &5CC6 : "?" after the name: every file, subdirectories included
+
+# PART E1's entries that had no banner of this project's own.
+
+DOC PNUM5
+    Print HL as up to five digits, a leading zero as a space: 10000 is
+    the first divisor, and the PNUM entries below take the number from
+    there with one divisor fewer each.
+
+DOC PNUM4
+    Four digits of HL, from a thousand down.
+
+DOC PNUM3
+    Three digits of HL, from a hundred down.
+
+DOC PNUM2
+    Two digits of HL: the tens, then the units through PNUM1.
+
+DOC PNUM1
+    The last digit: L plus "0", printed with A given back.
+
+DOC SPC
+    Print a space, through PRINT_A_KEEPING_IT below.

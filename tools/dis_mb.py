@@ -37,6 +37,7 @@ assembling ref/masterdos/annotated-src and ref/samrom with pyz80.
 
 import argparse
 import collections
+import textwrap
 import glob
 import re
 import copy
@@ -2105,6 +2106,90 @@ def name_error_codes(d):
     return n
 
 
+def describe_error_stubs(d):
+    """A header for every REP stub that has none.
+
+    The stubs are one shape -- LD A,code and a skip into the next, down
+    to the reporter -- and the code names the message, so the header
+    writes itself; a person's DOC still replaces it, as anywhere.  They
+    were the largest single class of routine head without a banner.
+    """
+    into = {'DOS': 'REPORTA, which plants it for DERR',
+            'MB': "REPORT, which hands it to the DOS's REPORTA"}[d.tag]
+    n = 0
+    for a, name in d.labels.items():
+        if not re.match(r'^REP(_|[0-9]+$)', name) or a not in d.insns:
+            continue
+        if a in d.headers:
+            continue
+        m = re.match(r'^LD A,(?:&([0-9A-F]{2})|(\w+))$',
+                     d.overrides.get(a, d.insns[a].text))
+        if not m:
+            continue
+        code = int(m.group(1), 16) if m.group(1) else next(
+            (c for c, s in d.rst8.items() if s == m.group(2)), None)
+        text = d.errors.get(code)
+        if text is None:
+            continue
+        d.headers[a] = annotate.banner(textwrap.fill(
+            'Error code %d, "%s".  One of the error stubs: the code into A '
+            'and down the skip chain to %s.' % (code, text, into), 68))
+        n += 1
+    return n
+
+
+def describe_message_stubs(d):
+    """A header for every PMOx: what PTM prints from the text after it.
+
+    A message stub is CALL PTM and the text, and PTM pops the text's
+    address and returns from there to the stub's caller, so the stub is
+    the message and nothing else.  The text is decoded as PTM decodes
+    it: a byte with bit 7 set ends it, 0 clears the lower screen, and 1
+    to 12 step that many words into MCPT and print the one they land
+    on with a space after it -- PRINT_WORD_B skips B words and PTM3's
+    caller adds SPC.
+    """
+    ptm = next((a for a, n in d.labels.items() if n == 'PTM'), None)
+    mcpt = next((a for a, n in d.labels.items() if n == 'MCPT'), None)
+    if ptm is None or mcpt is None:
+        return 0
+    words, a = [], mcpt
+    for _ in range(16):
+        w, b = '', a
+        while not (d.byte(b) & 0x80):
+            w += chr(d.byte(b))
+            b += 1
+        words.append(w + chr(d.byte(b) & 0x7F))
+        a = b + 1
+    n = 0
+    for at, name in d.labels.items():
+        if at in d.headers or at not in d.insns:
+            continue
+        ins = d.insns[at]
+        if ins.target != ptm or not ins.text.startswith('CALL'):
+            continue
+        text, p = '', ins.end
+        while d.inside(p):
+            c = d.byte(p)
+            ch = c & 0x7F
+            if ch == 0:
+                text += '[clear the lower screen]'
+            elif ch < 13:
+                text += words[ch] + ' ' if ch < len(words) else '?'
+            elif ch == 13:
+                text += ' / '
+            else:
+                text += chr(ch)
+            p += 1
+            if c & 0x80:
+                break
+        d.headers[at] = annotate.banner(textwrap.fill(
+            'A message stub: PTM prints "%s" from the text after the '
+            'call and returns to this routine\'s caller.' % text, 68))
+        n += 1
+    return n
+
+
 def drop_unused_labels(d):
     """Drop synthetic labels that nothing refers to any more.
 
@@ -2464,11 +2549,14 @@ CENSUS = (('Code', (CODE, CONT)), ('Variables and other data', (DATA,)),
           ('Unclassified', (UNKNOWN,)))
 
 
-def census(pages):
+def census(pages, clean_described=None):
     """Every byte of the image by what the listing makes of it.
 
     The counts in README.md and docs/disassembly.md are this table, so
-    that they can be checked rather than remembered."""
+    that they can be checked rather than remembered.  `clean_described`
+    is the reading copy's own count of labelled addresses with a banner,
+    which write_clean returns; the working copy's is printed beside it,
+    and README quotes the reading copy's."""
     tot = sum(len(d.mark) for d in pages)
     print('byte census, %d bytes:' % tot)
     for name, kinds in CENSUS:
@@ -2477,8 +2565,11 @@ def census(pages):
         print('    %-26s %6d%s' % (name, n, pct))
     labels = sum(len(d.labels) for d in pages)
     described = sum(sum(1 for a in d.headers if a in d.labels) for d in pages)
-    print('    %-26s %6d of %d labelled addresses'
+    print('    %-26s %6d of %d labelled addresses (working copy)'
           % ('described', described, labels))
+    if clean_described is not None:
+        print('    %-26s %6d of %d labelled addresses'
+              % (('described (reading copy)',) + tuple(clean_described)))
     # README.md and docs/disassembly.md quote this too, and had been
     # quoting a number nothing printed.
     print('    %-26s %6d' % ('instructions',
@@ -3257,6 +3348,12 @@ def write_clean(pages):
         heavy = ', '.join('%s %d/%d' % r for r in rows[:12])
         print('listings/clean/:   spread over %d routines; worst: %s'
               % (len(rows), heavy))
+    # The reading copy's banners, for the census: its DOCs live on this
+    # copy of the pages and nowhere else, and the census was counting
+    # the working copy's headers while README quoted the number as the
+    # reading copy's.  Twenty-three banners went in and it did not move.
+    return (sum(sum(1 for a in d.headers if a in d.labels) for d in (dos, mb)),
+            sum(len(d.labels) for d in (dos, mb)))
 
 
 def write_speculation(dos, mb, outdir):
@@ -3524,6 +3621,9 @@ def main():
           % sum(explain_branches(d) for d in (dos, mb)))
     print('%d error stubs name their code' % sum(name_error_codes(d)
                                                  for d in (dos, mb)))
+    print('%d error stubs given a header' % sum(describe_error_stubs(d)
+                                                for d in (dos, mb)))
+    print('%d message stubs given a header' % describe_message_stubs(dos))
 
     # After autolabel, so the label a patch refers to is the final one.
     print('%d operands in relocated blocks told what they mean'
@@ -3581,10 +3681,10 @@ def main():
                              'assembled' % len(clashes))
         # Before the speculation pass, which puts a header on every
         # routine and would swamp what the reading copy is for.
-        write_clean((dos, mb))
+        clean_described = write_clean((dos, mb))
         # Only now: the speculation is written by adding to these same
         # headers and notes, so it has to come after the plain listings.
-        census((dos, mb))
+        census((dos, mb), clean_described)
         write_speculation(dos, mb, args.outdir)
     return dos, mb
 

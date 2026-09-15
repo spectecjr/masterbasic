@@ -129,3 +129,26 @@ DOS &5BCD : two sectors to the kilobyte
 DOS &5BD2 : and that is the number
 DOS &5BD8 : how many files this directory holds
 DOS &5BE4 : "File" or "Files", depending on the count above
+
+# PART E1's entries that had no banner of this project's own.
+
+DOC ISECT
+    Step E to the next sector, wrapping 10 to 1 and returning Z when it
+    does, so the caller knows the track is used up.
+
+DOC PNDN2
+    PNDNM past its LD HL,DNAME, for a caller that already points at the
+    name: SAM DOS if the field was never written, MASTER DOS if it holds
+    the "*" a MasterDOS format leaves, and the name itself otherwise.
+
+DOC FNM7K
+    Print the file's name and then ask: PFNME, and into PM7K.
+
+DOC PM7K
+    The "(y/n)" prompt and the answer: PRINT_YN_PROMPT, then CYES to
+    read the key, returning Z for yes.
+
+DOC HOOK_HDUMMY
+    A RET: the source's placeholder for the hook slots it left unused,
+    138, 154 and 155.  In this build only 138, "format track under
+    head", still points here; 154 and 155 are MasterBASIC's.
