@@ -218,7 +218,7 @@ reach went past the region several times: two operands that were
 another page's addresses wearing this page's labels, a banner shared
 by both halves wrong for both, a DOS equate misnamed from this side, a
 "table" that was the ROM's channel hook byte for byte, a generator rule
-for branches leaving relocated blocks, and the 97 bytes HOOK_SETUPREGS
+for branches leaving relocated blocks, and the 97 bytes hook 185
 copies at run time turning out to be the DOS file's, not this page's.
 Three items stand open in phase 4.  The stopping signal in
 "Convergence" has not shown: the `[C]` share is 57% over the sixteen
@@ -238,8 +238,8 @@ by a second reader, in the order they are worth doing:
 | `&4700-&500C` -- three cuts, done 2026-09-14: 36 findings on 1411 own lines, all confirmed; hook 153's broken argument passing is `docs/bugs.md` 12, and the LOCN entry there lost its "reports a match" consequence to the carry it had not followed | | |
 | `&51D6-&5C00` -- three cuts, done 2026-09-14: 37 findings on 1481 own lines, all confirmed, 21 of them `[C]`; two operands had been read as this page's labels when they were the DOS's DRPT-1 and the system page's HKC_LPRINT_BYTE stub, the routine labelled as a far-memory scan hook was BLITZ SOUND's body, and the ALTER argument comments had the calculator stack's order backwards.  All three reviewers stalled at the 600-second watchdog and were resumed; the template now tells them to read a routine at a time | | |
 | `&42B1-&4500` -- done 2026-09-14: 7 findings on 248 own lines, all confirmed; the shared CMR banner had both halves "paging the ROM back in" when they put the system page in section B, and CHAR_MUST_BE_C's "not stepped past" was the opposite of the fall-through | | |
-| `&6DF6-&7700` -- three cuts, done 2026-09-14: 26 findings on 1144 own lines, 25 confirmed and one judgement call (HOOK_SETUPREGS's name) left; DELETE's paging comment was inverted, hook 183 is EDIT handing the line to INPUT, the two borrows in the string mover were described as one, and the DOS's equate calling `&30` a screen page was MasterBASIC's own page mark, `MB_PAGE_MARK` now | | |
-| `&7900-&7FC0` -- two cuts, done 2026-09-14: 22 findings on 826 own lines, all confirmed.  `&7D57` was a "table" that is the ROM's AT/TAB channel hook byte for byte; a JR leaving a relocated block had manufactured a caller (the generator now writes those as `$+n`, which also undid three fictional labels in CMD_PAUSE's interleaved blocks); and the 97 bytes HOOK_SETUPREGS copies from `&7E03` at run time are the DOS file's `&7D73-&7DD3`, EDIT's stub body, which the DOS listing shows as DEFBs -- see phase 4 | | |
+| `&6DF6-&7700` -- three cuts, done 2026-09-14: 26 findings on 1144 own lines, 25 confirmed and one judgement call (hook 185's name, settled in phase 4) left; DELETE's paging comment was inverted, hook 183 is EDIT handing the line to INPUT, the two borrows in the string mover were described as one, and the DOS's equate calling `&30` a screen page was MasterBASIC's own page mark, `MB_PAGE_MARK` now | | |
+| `&7900-&7FC0` -- two cuts, done 2026-09-14: 22 findings on 826 own lines, all confirmed.  `&7D57` was a "table" that is the ROM's AT/TAB channel hook byte for byte; a JR leaving a relocated block had manufactured a caller (the generator now writes those as `$+n`, which also undid three fictional labels in CMD_PAUSE's interleaved blocks); and the 97 bytes hook 185 copies from `&7E03` at run time are the DOS file's `&7D73-&7DD3`, EDIT's body, which the DOS listing shows as DEFBs -- read in phase 4 | | |
 | `&41C5-&42B1`, `&6594-&66AE` -- done 2026-09-14 as one cut: 9 findings on 404 own lines, 8 confirmed and one code observation left (CSIZE's UWBOT fix-up and heights over 96); the SAVE block copiers were said to call SVBLK and call an unlabelled DOS entry that leaves the last sector in the buffer for the next block, now `HSVBK_DWAIT` | | |
 
 Aim for 800-1200 lines a cut, and cut by routine (phase 0.2).  A reviewer
@@ -259,18 +259,18 @@ against rather than a claim itself.
 
 Bounded jobs, good between rounds or when a round is out for review:
 
-- **EDIT's stub body.**  The DOS file's `&7D73-&7DD3` (97 bytes, `LD
-  (HL),&00 : AND A : RET Z : LD A,(FLAGX) : RRA : RET C ... JP &012D`)
-  is the routine HOOK_SETUPREGS assembles behind `LD HL,&5A60 : LD
-  A,(HL)` at run time -- it travels DOS `&7D60` -> system `&4F00` ->
-  MB `&7DF0` at boot and is read from MB `&7E03` -- and the DOS listing
-  renders it as DEFBs under FIND_ROM_CODE's header, because the boot
-  writes FIND_ROM_CODE over it from `&7D79`.  Decoding it collides with
-  the boot-time entry label at `&7D79`, which lands mid-instruction; the
-  bytes are decoded in `notes/mb-install.txt`'s comment on DOS `&7D73`
-  and want a reading and a home.  With it, whether HOOK_SETUPREGS should
-  be renamed for the return stub it builds (a reviewer's judgement call,
-  left open 2026-09-14).
+- **EDIT's body -- done 2026-09-14.**  The DOS file's `&7D73-&7DD3` is
+  `EDIT_INSERT_VALUE_BODY`, with the 97 bytes decoded and read in its
+  banner: clear `EDIT_PENDING`, return if it was clear or FLAGX says the
+  variable is new, else STR$ a number, open room at KCUR and FARLDIR the
+  value into the edit line with the cursor after it -- the manual's EDIT.
+  `postinstall-syspage.asm` decodes it at `&4F13`, where the DOS's tail
+  puts it; the DOS listing keeps the DEFBs because FIND_ROM_CODE's
+  boot-time label lands mid-instruction.  Hook 185 is `HOOK_EDIT_INSERT`,
+  and the five spare ROM bytes MasterBASIC uses between LSOFF and SPOSNU
+  have names (`EDIT_PENDING`, `REF_MATCH_END`, `REF_CURSOR`,
+  `EDITOR_RETURN`, `SAVED_CHANNEL_OUTPUT`).  Not traced: where the planted
+  routine's final RET lands.
 
 - `described N of 2372 labelled addresses` in `build.log` (626 on
   2026-09-13; eleven of the earlier figure were wrapped-comment

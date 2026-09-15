@@ -239,8 +239,9 @@ HKC_COMADENT:                   EQU  &B7                                     ; H
                                                                              ; HOOK_COMADENT)
 HKC_VARSPACE:                   EQU  &B8                                     ; Check the room above the variables area.
                                                                              ; (see HOOK_VARSPACE)
-HKC_SETUPREGS:                  EQU  &B9                                     ; Build a routine in the ROM's code buffer.
-                                                                             ; (see HOOK_SETUPREGS)
+HKC_EDIT_INSERT:                EQU  &B9                                     ; Build EDIT's insert-the-value routine and
+                                                                             ; make it the hook's return. (see
+                                                                             ; HOOK_EDIT_INSERT)
 
 ; Read from the code, not carried from a source.  MasterBASIC
 ; has no published source, so unlike the names above these are
@@ -327,6 +328,7 @@ MB_HGTTK:                       EQU  HGTTK + IN_PAGE_C
 MB_HOOK_BLITZ_SOUND:            EQU  HOOK_BLITZ_SOUND + IN_PAGE_C
 MB_HOOK_COMADENT:               EQU  HOOK_COMADENT + IN_PAGE_C
 MB_HOOK_CSIZE:                  EQU  HOOK_CSIZE + IN_PAGE_C
+MB_HOOK_EDIT_INSERT:            EQU  HOOK_EDIT_INSERT + IN_PAGE_C
 MB_HOOK_HORDER:                 EQU  HOOK_HORDER + IN_PAGE_C
 MB_HOOK_HPFF:                   EQU  HOOK_HPFF + IN_PAGE_C
 MB_HOOK_LPRINT_BYTE:            EQU  HOOK_LPRINT_BYTE + IN_PAGE_C
@@ -335,7 +337,6 @@ MB_HOOK_PROGPREP:               EQU  HOOK_PROGPREP + IN_PAGE_C
 MB_HOOK_RCPTCH:                 EQU  HOOK_RCPTCH + IN_PAGE_C
 MB_HOOK_SERRECV:                EQU  HOOK_SERRECV + IN_PAGE_C
 MB_HOOK_SERSEND:                EQU  HOOK_SERSEND + IN_PAGE_C
-MB_HOOK_SETUPREGS:              EQU  HOOK_SETUPREGS + IN_PAGE_C
 MB_HOOK_SKIPNAME:               EQU  CMD_DELETE + IN_PAGE_C
 MB_HOOK_SWAPCHARS:              EQU  HOOK_SWAPCHARS + IN_PAGE_C
 MB_HOOK_TOKENARG:               EQU  HOOK_TOKENARG + IN_PAGE_C

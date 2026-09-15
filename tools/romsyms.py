@@ -621,6 +621,23 @@ SPARE_TAKEN_BY_MB = {
                             ' of the frame, and zero when there is no split'),
     0x5C5C: ('ALTDISP_BOTTOM', 'ALTER DISPLAY: the screen switched to at'
                                ' the split line LINICOLS holds'),
+    # Five more out of the fourteen the ROM's table marks "14 SPARE"
+    # between LSOFF and SPOSNU.  They are used from code that runs with
+    # the system page at &4000 and this half nowhere in sight -- the
+    # installed blocks and the routines that talk to them -- which is
+    # why MasterBASIC's own page could not hold them.
+    0x5A5E: ('REF_MATCH_END', 'REF: the address just past the match, for'
+                              ' the editor hook to catch the cursor against'),
+    0x5A60: ('EDIT_PENDING', 'EDIT: &FF from hook 183 before the ROM\'s'
+                             ' INPUT runs; the routine hook 185 plants'
+                             ' reads and clears it'),
+    0x5A62: ('EDITOR_RETURN', "REF: the ROM's return into its main loop,"
+                              ' less three, parked across the editor call'),
+    0x5A65: ('REF_CURSOR', 'REF: KCUR less one, caught by the editor hook'
+                           ' the last time it was still short of the match'),
+    0x5A67: ('SAVED_CHANNEL_OUTPUT', "REF: the ROM's own channel output"
+                                     " word, put aside while MasterBASIC's"
+                                     ' is hung on the channel'),
 }
 
 
@@ -676,6 +693,11 @@ EXTRA_NOTES = {
     'STRMS': FROM_MDOS_COMMENTS[0x5C16][1],
     'ALTDISP_TOP': SPARE_TAKEN_BY_MB[0x5C5B][1],
     'ALTDISP_BOTTOM': SPARE_TAKEN_BY_MB[0x5C5C][1],
+    'REF_MATCH_END': SPARE_TAKEN_BY_MB[0x5A5E][1],
+    'EDIT_PENDING': SPARE_TAKEN_BY_MB[0x5A60][1],
+    'EDITOR_RETURN': SPARE_TAKEN_BY_MB[0x5A62][1],
+    'REF_CURSOR': SPARE_TAKEN_BY_MB[0x5A65][1],
+    'SAVED_CHANNEL_OUTPUT': SPARE_TAKEN_BY_MB[0x5A67][1],
     'RST8V': 'vector taken by RST &08 before the ROM handles it',
     'RST28V': 'vector taken by the calculator before each literal',
     'PRTOKV': 'vector for printing a keyword token',

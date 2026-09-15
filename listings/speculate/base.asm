@@ -148,8 +148,9 @@ HKC_COMADENT:                   EQU  &B7                                 ; Hook 
                                                                          ; HOOK_COMADENT)
 HKC_VARSPACE:                   EQU  &B8                                 ; Check the room above the variables area. (see
                                                                          ; HOOK_VARSPACE)
-HKC_SETUPREGS:                  EQU  &B9                                 ; Build a routine in the ROM's code buffer.
-                                                                         ; (see HOOK_SETUPREGS)
+HKC_EDIT_INSERT:                EQU  &B9                                 ; Build EDIT's insert-the-value routine and
+                                                                         ; make it the hook's return. (see
+                                                                         ; HOOK_EDIT_INSERT)
 
 ; Read from the code, not carried from a source.  MasterBASIC
 ; has no published source, so unlike the names above these are
@@ -239,6 +240,7 @@ MB_HGTTK:                       EQU  HGTTK + &4000
 MB_HOOK_BLITZ_SOUND:            EQU  HOOK_BLITZ_SOUND + &4000
 MB_HOOK_COMADENT:               EQU  HOOK_COMADENT + &4000
 MB_HOOK_CSIZE:                  EQU  HOOK_CSIZE + &4000
+MB_HOOK_EDIT_INSERT:            EQU  HOOK_EDIT_INSERT + &4000
 MB_HOOK_HORDER:                 EQU  HOOK_HORDER + &4000
 MB_HOOK_HPFF:                   EQU  HOOK_HPFF + &4000
 MB_HOOK_LPRINT_BYTE:            EQU  HOOK_LPRINT_BYTE + &4000
@@ -247,7 +249,6 @@ MB_HOOK_PROGPREP:               EQU  HOOK_PROGPREP + &4000
 MB_HOOK_RCPTCH:                 EQU  HOOK_RCPTCH + &4000
 MB_HOOK_SERRECV:                EQU  HOOK_SERRECV + &4000
 MB_HOOK_SERSEND:                EQU  HOOK_SERSEND + &4000
-MB_HOOK_SETUPREGS:              EQU  HOOK_SETUPREGS + &4000
 MB_HOOK_SKIPNAME:               EQU  CMD_DELETE + &4000
 MB_HOOK_SWAPCHARS:              EQU  HOOK_SWAPCHARS + &4000
 MB_HOOK_TOKENARG:               EQU  HOOK_TOKENARG + &4000

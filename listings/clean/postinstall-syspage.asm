@@ -22,7 +22,7 @@
 ; the image: it is assembled out of the copy rules, checked against a
 ; dump of a booted machine where one is available.
 ;
-; 1224 bytes are reached as code from the ROM's entry points; 18137 bytes
+; 1321 bytes are reached as code from the ROM's entry points; 18137 bytes
 ; were placed in total.
                ORG  &4000
 
@@ -496,9 +496,9 @@ EDITV_EDITOR:
                DEC DE                          ; 4875 1B
                DEC DE                          ; 4876 1B
                DEC DE                          ; 4877 1B
-               LD (&5A62),DE                   ; 4878 ED 53 62 5A
+               LD (EDITOR_RETURN),DE           ; 4878 ED 53 62 5A
                CALL &0005                      ; 487C CD 05 00
-               LD HL,(&5A62)                   ; 487F 2A 62 5A
+               LD HL,(EDITOR_RETURN)           ; 487F 2A 62 5A
                INC HL                          ; 4882 23
                INC HL                          ; 4883 23
                INC HL                          ; 4884 23
@@ -1180,26 +1180,67 @@ CDBUFF_50:
                DEFB &94,&02,&FE,&4E,&7F,&48                                     ; 4EFA ..~N.H
 
 ; --------------------------------------------------------------------
-; the DOS page's tail, 446 bytes, which carries the alternate character set at &4F74
+; the DOS page's tail, 446 bytes, which carries EDIT's body at &4F13 and the alternate character set at &4F74
 ; --------------------------------------------------------------------
 
 INSTALL_TAIL_INTO_SYSPAGE:
                DEFB &21,&60,&BD,&11,&00,&4F,&01,&BE,&01,&ED,&B0,&11,&14,&4C,&0E ; 4F00 !`=..O.>.m0..L.
-               DEFB &A1,&ED,&B0,&C9,&36,&00,&A7,&C8,&3A,&71                     ; 4F0F !m0I6.'H:q
+               DEFB &A1,&ED,&B0,&C9                                             ; 4F0F !m0I
 
-FIND_ROM_CODE:
-               DEFB &5C,&1F,&D8,&3A,&A5,&5A,&CD,&DF,&3F,&2A,&A6,&5A,&ED,&4B,&72 ; 4F19 \.X:%ZM_?*&ZmKr
-               DEFB &5C,&3A,&3B,&5C,&CB,&77,&28,&11,&ED,&5B,&65                 ; 4F28 \:;\Kw(.m[e
+EDIT_INSERT_VALUE:
+               LD (HL),&00                     ; 4F13 36 00
+               AND A                           ; 4F15 A7
+               RET Z                           ; 4F16 C8
+               LD A,(FLAGX)                    ; 4F17 3A 71 5C
+               RRA                             ; 4F1A 1F
+               RET C                           ; 4F1B D8
+               LD A,(DESTP)                    ; 4F1C 3A A5 5A
+               CALL &3FDF                      ; 4F1F CD DF 3F
+               LD HL,(DEST)                    ; 4F22 2A A6 5A
+               LD BC,(STRLEN)                  ; 4F25 ED 4B 72 5C
+               LD A,(FLAGS)                    ; 4F29 3A 3B 5C
+               BIT 6,A                         ; 4F2C CB 77
+               JR Z,S4F41                      ; 4F2E 28 11
+               LD DE,(STKEND)                  ; 4F30 ED 5B 65 5C
+               LD BC,&0005                     ; 4F34 01 05 00
+               LDIR                            ; 4F37 ED B0
+               LD (STKEND),DE                  ; 4F39 ED 53 65 5C
+               CALL &017E                      ; 4F3D CD 7E 01
+               EX DE,HL                        ; 4F40 EB
 
-MBCOPY_7774:
-               DEFB &5C,&01,&05,&00,&ED,&B0,&ED,&53,&65,&5C,&CD,&7E,&01,&EB,&78 ; 4F33 \...m0mSe\M~.kx
-               DEFB &B1,&C8,&DB,&FB,&F5,&E5,&C5,&3A                             ; 4F42 1H[{ueE:
-
-MBCOPY_778B:
-               DEFB &99,&5A,&F5,&CD,&DF,&3F,&2A,&9A,&5A,&23,&22,&9A,&5A,&2B,&AF ; 4F4A .ZuM_?*.Z#".Z+/
-               DEFB &CD,&0C,&01,&AF,&32,&83,&5B,&F1,&C1,&ED,&43,&84,&5B,&EB,&2A ; 4F59 M../2.[qAmC.[k*
-               DEFB &9A,&5A,&2B,&22,&9A,&5A,&E1,&4F,&F1,&C3,&2D,&01,&1C,&22,&20 ; 4F68 .Z+".ZaOqC-.."
-               DEFB &20,&22,&1C,&04,&18,&00,&14,&00,&22,&22,&22,&1E,&00,&0C     ; 4F77  "......"""...
+; ---- S4F41 ---- from &4F2E
+S4F41:
+               LD A,B                                                           ; 4F41 78
+               OR C                                                             ; 4F42 B1
+               RET Z                                                            ; 4F43 C8
+               IN A,(&FB)                                                       ; 4F44 DB FB
+               PUSH AF                                                          ; 4F46 F5
+               PUSH HL                                                          ; 4F47 E5
+               PUSH BC                                                          ; 4F48 C5
+               LD A,(KCURP)                                                     ; 4F49 3A 99 5A
+               PUSH AF                                                          ; 4F4C F5
+               CALL &3FDF                                                       ; 4F4D CD DF 3F
+               LD HL,(KCUR)                                                     ; 4F50 2A 9A 5A
+               INC HL                                                           ; 4F53 23
+               LD (KCUR),HL                                                     ; 4F54 22 9A 5A
+               DEC HL                                                           ; 4F57 2B
+               XOR A                                                            ; 4F58 AF
+               CALL &010C                                                       ; 4F59 CD 0C 01
+               XOR A                                                            ; 4F5C AF
+               LD (PAGCOUNT),A                                                  ; 4F5D 32 83 5B
+               POP AF                                                           ; 4F60 F1
+               POP BC                                                           ; 4F61 C1
+               LD (MODCOUNT),BC                                                 ; 4F62 ED 43 84 5B
+               EX DE,HL                                                         ; 4F66 EB
+               LD HL,(KCUR)                                                     ; 4F67 2A 9A 5A
+               DEC HL                                                           ; 4F6A 2B
+               LD (KCUR),HL                                                     ; 4F6B 22 9A 5A
+               POP HL                                                           ; 4F6E E1
+               LD C,A                                                           ; 4F6F 4F
+               POP AF                                                           ; 4F70 F1
+               JP &012D                                                         ; 4F71 C3 2D 01
+               DEFB &1C,&22,&20,&20,&22,&1C,&04,&18,&00,&14,&00,&22,&22,&22,&1E ; 4F74 ."  "......""".
+               DEFB &00,&0C                                                     ; 4F83 ..
 
 V7DE5:
                DEFB &10,&1C,&22                ; 4F85 .."

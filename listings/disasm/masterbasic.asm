@@ -7806,7 +7806,7 @@ HOOK_MERGECOMPFLG_LOOP7:
                PUSH HL                         ; 54BA E5
                LD DE,(V408B)                   ; 54BB ED 5B 8B 40
                CALL MBNRRDD                    ; 54BF CD 5F 45
-               DEFW &5A5E                      ; 54C2 5E 5A
+               DEFW REF_MATCH_END              ; 54C2 5E 5A
                LD H,B                          ; 54C4 60
                LD L,C                          ; 54C5 69
                DEC HL                          ; 54C6 2B
@@ -8327,14 +8327,14 @@ SCAN_TEXT_PAGED_3:
                PUSH BC                         ; 56DD C5
                LD (V408B),DE                   ; 56DE ED 53 8B 40
                CALL MBNRWRHL                   ; 56E2 CD 75 45
-               DEFW &5A5E                      ; 56E5 5E 5A
+               DEFW REF_MATCH_END              ; 56E5 5E 5A
                LD DE,&484D                     ; 56E7 11 4D 48  &484D, where the &7BA4 block runs once installed -- the
                                                ; banner above calls it "MasterBASIC's own routine (assembled at &7BA4,
                                                ; running at &484D)", and this is the address being hung on the channel
                                                ; word
                CALL EXCHANGE_CHANNEL_WORD      ; 56EA CD 9F 58
                CALL MBNRWRD                    ; 56ED CD 77 45
-               DEFW &5A67                      ; 56F0 67 5A
+               DEFW SAVED_CHANNEL_OUTPUT       ; 56F0 67 5A
                POP BC                          ; 56F2 C1
 
 ;; --------------------------------------------------------------------
@@ -8374,7 +8374,7 @@ V56F6:
                DEFW &0000                      ; 56F6 00 00
                CALL MBNRRDD                    ; 56F8 CD 5F 45  &5A65 is what the channel hook left behind: KCUR as it
                                                ; stood one character before the reference was reached
-               DEFW &5A65                      ; 56FB 65 5A
+               DEFW REF_CURSOR                 ; 56FB 65 5A
                INC BC                          ; 56FD 03  undoes the DEC HL the hook did at &7BB8, so KCUR ends up
                                                ; exactly where the hook saw it
                CALL MBNRWRD                    ; 56FE CD 77 45
@@ -8405,7 +8405,7 @@ V56F6:
                                                ; runs downwards
                CALL MBNRRDD                    ; 571A CD 5F 45  the address the hook at &7BCF saved, three bytes short
                                                ; of where it was popped from
-               DEFW &5A62                      ; 571D 62 5A
+               DEFW EDITOR_RETURN              ; 571D 62 5A
                CALL WRITE_BC_DESCENDING        ; 571F CD 25 57  replaces the word at (ERRSP) with that address
                LD BC,&0004                     ; 5722 01 04 00  NOT a call -- this falls into WRITE_BC_DESCENDING with
                                                ; HL already one word lower, laying &0004 into the word at (ERRSP)-2.
@@ -9041,7 +9041,7 @@ SCAN_TEXT_FOR_D_OR_E_1:
 ; ---- CHANNEL_WORD_FROM_5A67 ---- from &5703
 CHANNEL_WORD_FROM_5A67:
                CALL MBNRRDD                    ; 5898 CD 5F 45
-               DEFW &5A67                      ; 589B 67 5A  the ROM's own channel word, put aside at &56ED before
+               DEFW SAVED_CHANNEL_OUTPUT       ; 589B 67 5A  the ROM's own channel word, put aside at &56ED before
                                                ; MasterBASIC's was installed
                LD D,B                          ; 589D 50
                LD E,C                          ; 589E 59
@@ -17241,8 +17241,8 @@ SPLIT_UNWIND_ROM_STACK_LOOP:
 ;; Hook code 183, raised by EDIT.
 ;;
 ;; On the running pass the spare ROM byte at &5A60 is set to &FF -- the
-;; flag the stub HOOK_SETUPREGS builds reads back with LD HL,&5A60 / LD
-;; A,(HL) -- and then the word at COMAD+&6C becomes the ROM's return
+;; flag the routine HOOK_EDIT_INSERT plants reads back with LD
+;; HL,EDIT_PENDING / LD A,(HL) -- and then the word at COMAD+&6C becomes the ROM's return
 ;; address.  COMAD is the ROM's CMDADT, which runs from token &90, so &6C
 ;; is entry &36, token &C6: the ROM's INPUT.  EDIT is INPUT with a flag,
 ;; which is what docs/masterbasic-keywords.md says of it.
@@ -17254,7 +17254,7 @@ HOOK_COMADENT:
                LD A,&FF                        ; 6F43 3E FF  the byte at &5A60 is a ROM variable, not the code the label
                                                ; names
                CALL MBNRWR                     ; 6F45 CD 82 45
-               DEFW &5A60                      ; 6F48 60 5A
+               DEFW EDIT_PENDING               ; 6F48 60 5A
 
 ; ---- HOOK_COMADENT_1 ---- from &6F41
 HOOK_COMADENT_1:
@@ -17978,7 +17978,8 @@ CALL_JCLSBL:
                RET                             ; 71FD C9
 
 ;; --------------------------------------------------------------------
-;; Hook code 185.  Build a routine in the ROM's code buffer.
+;; Hook code 185.  Build EDIT's insert-the-value routine and make it the
+;; hook's return.
 ;;
 ;; It writes HL to XPTR, then pages HMPR to zero and copies into &4D50.
 ;; That is not the DOS page: with HMPR zero an &8xxx is the ROM's system
@@ -17986,27 +17987,31 @@ CALL_JCLSBL:
 ;; table describes as being for e.g. MULTI-LDI, max length &181.
 ;;
 ;; What it copies is code.  The four bytes at V7221 are &21 &60 &5A &7E,
-;; which is LD HL,&5A60 followed by LD A,(HL), and the &61 bytes at &7E03
-;; are appended straight after them.  Those are not the RST28V stub this
-;; listing shows at &7E03: the boot copies that block out to &484D and
-;; then writes the DOS's tail over &7DF0-&7FAD, so at run time &7E03
-;; holds the DOS file's &7D73-&7DD3 -- LD (HL),&00 : AND A : RET Z : LD
-;; A,(FLAGX) : RRA : RET C, then the work, ending JP &012D -- which is
-;; the body this hook exists to plant.  So a routine is assembled
-;; head-first in the buffer, and &4D50 -- its address -- is then handed to
+;; which is LD HL,EDIT_PENDING followed by LD A,(HL), and the &61 bytes at
+;; &7E03 are appended straight after them.  Those are not the RST28V stub
+;; this listing shows at &7E03: the boot copies that block out to &484D
+;; and then writes the DOS's tail over &7DF0-&7FAD, so at run time &7E03
+;; holds the DOS file's &7D73-&7DD3, EDIT_INSERT_VALUE_BODY in the DOS
+;; listing, whose banner decodes it.  Read together: clear EDIT_PENDING
+;; and return at once if it was clear (a plain INPUT) or if FLAGX bit 0
+;; says the variable is new (the manual's "exactly equivalent to INPUT");
+;; otherwise take the variable DEST/DESTP point at, STR$ it if FLAGS bit 6
+;; says numeric, open room for it at KCUR in the edit line and FARLDIR it
+;; in, leaving the cursor after it.  So a routine is assembled head-first
+;; in the buffer, and &4D50 -- its address -- is then handed to
 ;; STORE_BC_AT_XVAR76, which writes it through the pointer in V4076; the
 ;; word it stores is the ROM's return address, so the assembled routine
-;; runs when the hook returns.  The
-;; routine at &735D builds into the same buffer at &4D11, far enough
-;; along to overlap this one, so the two are alternative uses of it
-;; rather than both being live at once.
+;; runs when the hook returns.  The routine at &735D builds into the same
+;; buffer at &4D11, far enough along to overlap this one, so the two are
+;; alternative uses of it rather than both being live at once.
 ;;
 ;; It is called from the block at &7BE0, on the path taken when FLAGX bit
 ;; 5 is set -- the ROM's INPUT-in-progress flag -- so it belongs to the
 ;; editing and INPUT path rather than to anything on the command side.
+;; Where the planted routine's own RET lands has not been traced.
 ;; --------------------------------------------------------------------
 
-HOOK_SETUPREGS:
+HOOK_EDIT_INSERT:
                CALL MBNRWRHL                   ; 71FE CD 75 45  XPTR, which the ROM uses to mark where an error was
                                                ; found
                DEFW XPTR                       ; 7201 A3 5A
@@ -18022,10 +18027,10 @@ HOOK_SETUPREGS:
                LD HL,RST28V_XVAR_NVAL          ; 7214 21 03 7E  the &61 bytes from &7E03 are appended after those four.
                                                ; Not the RST28V stub the listing shows there: by the time this runs the
                                                ; boot has copied that out to &4AAC and written the DOS's tail over
-                                               ; &7DF0-&7FAD, so what is at &7E03 is the DOS file's &7D73-&7DD3 -- LD
-                                               ; (HL),&00 : AND A : RET Z : LD A,(FLAGX) : RRA : RET C ... JP &012D, a
-                                               ; routine that clears the &5A60 flag and returns at once if it was clear
-                                               ; or the line is only being checked
+                                               ; &7DF0-&7FAD, so what is at &7E03 is the DOS file's &7D73-&7DD3,
+                                               ; EDIT_INSERT_VALUE_BODY, whose banner in the DOS listing reads it: clear
+                                               ; EDIT_PENDING, return if it was clear or the variable is new, else put
+                                               ; the variable's value into the edit line
                LD C,&61                        ; 7217 0E 61  and &61 of them, 97 bytes from &7E03
                LDIR                            ; 7219 ED B0
                LD BC,&4D50                     ; 721B 01 50 4D  &4D50, the address of what was just built, passed on to
@@ -18034,8 +18039,8 @@ HOOK_SETUPREGS:
 
 ; ---- V7221 ---- from &7203
 V7221:
-               DEFB &21,&60,&5A,&7E            ; 7221 !`Z~  LD HL,&5A60 then LD A,(HL) -- code, not data, copied in
-                                               ; ahead of the 97 bytes
+               DEFB &21,&60,&5A,&7E            ; 7221 !`Z~  LD HL,EDIT_PENDING then LD A,(HL) -- code, not data, copied
+                                               ; in ahead of the 97 bytes
 
 ;; --------------------------------------------------------------------
 ;; USING$(format$,number), the fixed-point formatter, and the manual is
@@ -20929,11 +20934,11 @@ EVALUV_STUB_1:
 
 ; ---- RELOCATED_TO_484D ---- from &7B51
 RELOCATED_TO_484D:
-               LD HL,(&5A67)                   ; 7BA4 2A 67 5A  from here to &7E42 this code is written for &484D:
+               LD HL,(SAVED_CHANNEL_OUTPUT)    ; 7BA4 2A 67 5A  from here to &7E42 this code is written for &484D:
                                                ; subtract &3357 from any address in it
                CALL HLJUMP                     ; 7BA7 CD 05 00
                LD HL,(LSPTR)                   ; 7BAA 2A 8B 5B
-               LD BC,(&5A5E)                   ; 7BAD ED 4B 5E 5A  &5A5E is where REF left the address just past the
+               LD BC,(REF_MATCH_END)           ; 7BAD ED 4B 5E 5A  &5A5E is where REF left the address just past the
                                                ; match. It is one of the fourteen bytes the ROM's variable table marks
                                                ; "14 SPARE" between LSOFF and SPOSNU, used rather than MasterBASIC's own
                                                ; page because this hook runs with the system page at &4000 and
@@ -20943,7 +20948,7 @@ RELOCATED_TO_484D:
                RET NC                          ; 7BB4 D0
                LD HL,(KCUR)                    ; 7BB5 2A 9A 5A
                DEC HL                          ; 7BB8 2B
-               LD (&5A65),HL                   ; 7BB9 22 65 5A  &5A65 takes the cursor, caught in passing rather than
+               LD (REF_CURSOR),HL              ; 7BB9 22 65 5A  &5A65 takes the cursor, caught in passing rather than
                                                ; worked out: the last time LSPTR is still below the end of the match,
                                                ; KCUR less one is what the manual's "cursor just after the reference"
                                                ; means
@@ -20965,12 +20970,12 @@ RELOCATED_TO_484D:
                DEC DE                          ; 7BCC 1B
                DEC DE                          ; 7BCD 1B
                DEC DE                          ; 7BCE 1B
-               LD (&5A62),DE                   ; 7BCF ED 53 62 5A  &5A62 is another of the fourteen spare bytes, holding
+               LD (EDITOR_RETURN),DE           ; 7BCF ED 53 62 5A  &5A62 is another of the fourteen spare bytes, holding
                                                ; the return address across the CALL below. The three DECs above and the
                                                ; three INCs at &7BD9 undo one another, so what is parked is the address
                                                ; less three
                CALL HLJUMP                     ; 7BD3 CD 05 00
-               LD HL,(&5A62)                   ; 7BD6 2A 62 5A  back off the spare byte, and the INCs below restore the
+               LD HL,(EDITOR_RETURN)           ; 7BD6 2A 62 5A  back off the spare byte, and the INCs below restore the
                                                ; three
                INC HL                          ; 7BD9 23
                INC HL                          ; 7BDA 23
@@ -20984,7 +20989,7 @@ RELOCATED_TO_484D:
 RELOCATED_TO_484D_1:
                LD HL,(XPTR)                    ; 7BE0 2A A3 5A
                RST ERR_HOOK                    ; 7BE3 CF
-               DEFB HKC_SETUPREGS              ; 7BE4 B9 hook code
+               DEFB HKC_EDIT_INSERT            ; 7BE4 B9 hook code
                LD HL,&7FE6                     ; 7BE5 21 E6 7F  the stack MasterBASIC hands the DOS -- the same &7FE6
                                                ; the boot writes into &5C59
                LD (DOSSTK),HL                  ; 7BE8 22 59 5C

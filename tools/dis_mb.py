@@ -183,7 +183,6 @@ class Page(Disassembler):
         self.relocated = []           # (from, to, destination) blocks moved
         self.no_peer = []             # ranges where &8000+ is not the peer
         self.self_window = []         # ranges where &8000+ is this page
-        self.nr_plain = set()         # inline words left as numbers
         self.sys_low = []             # ranges where &4000+ is the system page
         self.carried_by_value = {}    # address -> the MasterDOS source's name
         self.rendered = []            # ranges written by a renderer
@@ -453,12 +452,6 @@ class Page(Disassembler):
             if n:
                 self.used_bias = True
                 return n + '+' + PAGE_BIAS[0]
-        # A system-page address the ROM has no name for, that this half
-        # happens to have a label at: &6F48's &5A60 is one of the ROM's
-        # fourteen spare bytes, and was reading as the interrupt feed's
-        # loop label.
-        if at in self.nr_plain:
-            return hexn(v, 4)
         return self._name(v, lambda _: None)
 
     def _name(self, v, outside, absolute=False):
@@ -1215,7 +1208,6 @@ def seeds(dos, mb):
     # &55EA loads the same &4AE9 for INSTALL_CHANNEL_HANDLER to write
     # into channel B; it was reading as a label inside MULTIPLY_BY_60.
     mb.sys_low.append((0x55EA, 0x55ED))
-    mb.nr_plain.add(0x6F48)
     # The three vector values INSTALL_ROM_PATCHES writes: &49F7, &4A52
     # and &4AE6 are addresses in the ROM's system page, in the stubs it
     # has just put there, and not in this half.  &4AAC two instructions
@@ -1299,7 +1291,7 @@ def seeds(dos, mb):
     # self_window they became this half's &5007 and &5022, and the second
     # of those landed inside a CALL and was reported as a self-patch.
     mb.no_peer.append((0x5C02, 0x5C36))
-    # HOOK_SETUPREGS does the same at &7210: its &8D50 is CDBUFF+&50 in the
+    # HOOK_EDIT_INSERT does the same at &7210: its &8D50 is CDBUFF+&50 in the
     # ROM's system page, not the DOS page's &4D50.
     mb.no_peer.append((0x7203, 0x7220))
     # FORMAT: SELRDP at &76BC pages the newly reserved RAM disc page in at

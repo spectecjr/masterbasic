@@ -51,7 +51,8 @@ COPIES = (
     # hold the system page, and copies the DOS page's tail there in two
     # runs.  The first carries the alternate character set, 116 bytes in.
     ('DOS', 0x7D60, 0x7F1E, 0x4F00, "the DOS page's tail, 446 bytes, which "
-     'carries the alternate character set at &4F74'),
+     "carries EDIT's body at &4F13 and the alternate character set at "
+     '&4F74'),
     ('DOS', 0x7F1E, 0x7FBF, 0x4C14, 'and 161 bytes more, the rest of the '
      'DOS half, following straight on'),
 )
@@ -87,6 +88,16 @@ VECTORS = (
     (0x4C14, 'MNIP_MAIN_INPUT'),   # INSTALL_SYSPAGE_CODE points MNIP here
     (0x4D11, 'CDBUFF_11'),
     (0x4D50, 'CDBUFF_50'),
+    # Not a vector either: the 97 bytes at &4F13 are EDIT's body, carried
+    # here in the DOS's tail and copied on to MB &7E03 and, at run time,
+    # to CDBUFF+&54 by hook 185.  The DOS listing cannot decode them --
+    # FIND_ROM_CODE is written over them there from &7D79 at boot and its
+    # label lands mid-instruction -- so this is the one listing that
+    # shows them as the code they are.  The three DOS labels the copy
+    # rule would carry onto them (FIND_ROM_CODE and the two MBCOPY_
+    # entries) land inside instructions here and are dropped, as the
+    # build's count says.
+    (0x4F13, 'EDIT_INSERT_VALUE'),
 )
 
 

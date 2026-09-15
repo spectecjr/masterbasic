@@ -1705,7 +1705,7 @@ CKESV_2:
 ;; Takes:     A, D, HL
 ;; Leaves:    A, F, DE, HL
 ;;
-;; ? calls NRWR; falls into whatever follows rather than returning.
+;; ? reaches the ROM through EDIT_PENDING; calls NRWR; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
 
 ; ---- CKESV_3 ---- from &43EB when A <> &1A, &4409, &440E
@@ -1713,9 +1713,9 @@ CKESV_3:
                PUSH AF                         ; 4425 F5
                XOR A                           ; 4426 AF
                LD E,A                          ; 4427 5F
-                                               ; write the ROM variable &5A60
+                                               ; write the ROM variable EDIT_PENDING
                CALL NRWR                       ; 4428 CD 74 50
-               DEFW &5A60                      ; 442B 60 5A
+               DEFW EDIT_PENDING               ; 442B 60 5A
                LD HL,NRFLG                     ; 442D 21 1F 41  RECURSE OK
                LD (HL),E                       ; 4430 73
                POP AF                          ; 4431 F1
@@ -1937,7 +1937,7 @@ SAMHK:
                DEFW MB_SUBSTITUTE_PRINTER_CHAR+NOT_IN_THIS_PAGE ; 4512 code 182
                DEFW MB_HOOK_COMADENT+NOT_IN_THIS_PAGE           ; 4514 code 183
                DEFW MB_HOOK_VARSPACE+NOT_IN_THIS_PAGE           ; 4516 code 184
-               DEFW MB_HOOK_SETUPREGS+NOT_IN_THIS_PAGE          ; 4518 code 185
+               DEFW MB_HOOK_EDIT_INSERT+NOT_IN_THIS_PAGE        ; 4518 code 185
 
 ;; --------------------------------------------------------------------
 ;; GET_DISK_PORT_BASE -- &451A to &4520
@@ -24241,13 +24241,63 @@ INSTALL_TAIL_INTO_SYSPAGE:
                LD C,&A1                              ; 7D6E 0E A1
                LDIR                                  ; 7D70 ED B0
                RET                                   ; 7D72 C9
-               DEFB &36,&00,&A7,&C8,&3A,&71          ; 7D73 6.'H:q  in the file, this and the 96 bytes after it -- to
-                                                     ; &7DD3 -- are MasterBASIC's EDIT stub body, LD (HL),&00 : AND A :
-                                                     ; RET Z : LD A,(FLAGX) : RRA : RET C ... JP &012D, which
-                                                     ; INSTALL_TAIL_INTO_SYSPAGE carries to &4F13 and the installer on
-                                                     ; to MB &7E03, where HOOK_SETUPREGS copies it from at run time.
-                                                     ; FIND_ROM_CODE is written over it here at boot, from &7D79, which
-                                                     ; is why the listing shows that
+
+;; --------------------------------------------------------------------
+;; EDIT'S BODY -- IN THE FILE HERE, AND NEVER RUN HERE.  These 97 bytes
+;; travel with the DOS's tail: INSTALL_TAIL_INTO_SYSPAGE puts them at
+;; system-page &4F13, INSTALL_ROM_PATCHES copies that tail back over MB
+;; &7DF0 so that MB &7E03 holds them, and HOOK_EDIT_INSERT (hook 185)
+;; copies them from there into CDBUFF+&54 behind LD HL,EDIT_PENDING :
+;; LD A,(HL) and plants &4D50 as the hook's return.  Here the installer
+;; writes FIND_ROM_CODE over them from &7D79 at boot, which is why that
+;; label lands two bytes into the LD A,(FLAGX) and the listing shows
+;; DEFBs.  postinstall-syspage.asm decodes them at &4F13.
+;;
+;; What runs, at &4D50 in the system page:
+;;
+;;     LD HL,EDIT_PENDING : LD A,(HL)   the flag hook 183 set for EDIT
+;;     LD (HL),&00 : AND A : RET Z      clear it; a plain INPUT does nothing
+;;     LD A,(FLAGX) : RRA : RET C       bit 0 set means the variable is new:
+;;                                      "exactly equivalent to INPUT"
+;;     LD A,(DESTP) : CALL TSURPG       page the variable's page in
+;;     LD HL,(DEST) : LD BC,(STRLEN)    its value and, for a string, its length
+;;     LD A,(FLAGS) : BIT 6,A : JR Z    a string is copied as it stands;
+;;     LD DE,(STKEND) : LD BC,5 : LDIR  a number goes onto the calculator
+;;     LD (STKEND),DE                   stack and
+;;     CALL JPFSTRS : EX DE,HL          STR$ of it comes back, BC bytes at HL
+;;     LD A,B : OR C : RET Z            nothing to insert
+;;     IN A,(HMPR) : PUSH AF            the source page
+;;     PUSH HL : PUSH BC
+;;     LD A,(KCURP) : PUSH AF           the edit line's page
+;;     CALL TSURPG
+;;     LD HL,(KCUR) : INC HL
+;;     LD (KCUR),HL : DEC HL            KCUR one past the cursor, so that
+;;     XOR A : CALL JMKRBIG             opening BC bytes at the cursor
+;;                                      carries it over the gap
+;;     XOR A : LD (PAGCOUNT),A
+;;     POP AF : POP BC
+;;     LD (MODCOUNT),BC                 the length, for FARLDIR
+;;     EX DE,HL                         DE = the gap
+;;     LD HL,(KCUR) : DEC HL
+;;     LD (KCUR),HL                     and the cursor ends after the text
+;;     POP HL : LD C,A : POP AF         HL = source, C = the line's page,
+;;                                      A = the source page
+;;     JP J_FARLDIR                     move the text in
+;;
+;; So EDIT is INPUT with the variable's current value already in the
+;; edit line and the cursor after it -- the manual's "EDIT will give
+;; you the string back, with your cursor at the end of the line".  DEST
+;; and DESTP are what the ROM's INPUT parser leaves pointing at the
+;; variable (nparpro.asm PPA25, "EXITS WITH DEST PAGED IN"), FLAGX bit 0
+;; is its "VAR EXISTS" flag, clear when the variable was found, and
+;; FLAGS bit 6 is set for a numeric one.  Where the RET at the end of
+;; the far move lands -- the hook's return address was replaced by
+;; &4D50, so it is whatever the ROM's INPUT had below it -- has not
+;; been traced.
+;; --------------------------------------------------------------------
+
+EDIT_INSERT_VALUE_BODY:
+               DEFB &36,&00,&A7,&C8,&3A,&71    ; 7D73 6.'H:q
 
 ;; --------------------------------------------------------------------
 ;; Find a three-byte instruction sequence in the ROM and hand back a

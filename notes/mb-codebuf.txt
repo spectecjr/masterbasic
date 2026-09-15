@@ -31,8 +31,8 @@ MB &7206 : CDBUFF+&50 in the system page -- HMPR is zeroed at &720F
 MB &7209 : four bytes, which the note two lines down calls "those four"
 MB &7217 : and &61 of them, 97 bytes from &7E03
 
-MB &7221 : LD HL,&5A60 then LD A,(HL) -- code, not data, copied in ahead of the 97 bytes
-MB &7214 : the &61 bytes from &7E03 are appended after those four.  Not the RST28V stub the listing shows there: by the time this runs the boot has copied that out to &4AAC and written the DOS's tail over &7DF0-&7FAD, so what is at &7E03 is the DOS file's &7D73-&7DD3 -- LD (HL),&00 : AND A : RET Z : LD A,(FLAGX) : RRA : RET C ... JP &012D, a routine that clears the &5A60 flag and returns at once if it was clear or the line is only being checked
+MB &7221 : LD HL,EDIT_PENDING then LD A,(HL) -- code, not data, copied in ahead of the 97 bytes
+MB &7214 : the &61 bytes from &7E03 are appended after those four.  Not the RST28V stub the listing shows there: by the time this runs the boot has copied that out to &4AAC and written the DOS's tail over &7DF0-&7FAD, so what is at &7E03 is the DOS file's &7D73-&7DD3, EDIT_INSERT_VALUE_BODY, whose banner in the DOS listing reads it: clear EDIT_PENDING, return if it was clear or the variable is new, else put the variable's value into the edit line
 MB &721B : &4D50, the address of what was just built, passed on to be stored
 MB &7330 : DCT+&4000 -- the disc error counter, in the system page
 

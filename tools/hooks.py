@@ -40,7 +40,7 @@ NAMES = {
     0x5973: 'HOOK_SUBCHAR',
     0x6F3E: 'HOOK_COMADENT',
     0x5293: 'HOOK_VARSPACE',
-    0x71FE: 'HOOK_SETUPREGS',
+    0x71FE: 'HOOK_EDIT_INSERT',
 }
 
 DOCS = {
@@ -235,8 +235,8 @@ characters whose codes differ between the SAM and the printer.""",
 Hook code 183, raised by EDIT.
 
 On the running pass the spare ROM byte at &5A60 is set to &FF -- the
-flag the stub HOOK_SETUPREGS builds reads back with LD HL,&5A60 / LD
-A,(HL) -- and then the word at COMAD+&6C becomes the ROM's return
+flag the routine HOOK_EDIT_INSERT plants reads back with LD
+HL,EDIT_PENDING / LD A,(HL) -- and then the word at COMAD+&6C becomes the ROM's return
 address.  COMAD is the ROM's CMDADT, which runs from token &90, so &6C
 is entry &36, token &C6: the ROM's INPUT.  EDIT is INPUT with a flag,
 which is what docs/masterbasic-keywords.md says of it.""",
@@ -256,7 +256,8 @@ of memory", which is the kind of test this makes -- but the connection
 is inference, not something the routine states.""",
 
 0x71FE: """\
-Hook code 185.  Build a routine in the ROM's code buffer.
+Hook code 185.  Build EDIT's insert-the-value routine and make it the
+hook's return.
 
 It writes HL to XPTR, then pages HMPR to zero and copies into &4D50.
 That is not the DOS page: with HMPR zero an &8xxx is the ROM's system
@@ -264,22 +265,26 @@ page, and &4D50 there is CDBUFF+&50 -- the buffer the ROM's variable
 table describes as being for e.g. MULTI-LDI, max length &181.
 
 What it copies is code.  The four bytes at V7221 are &21 &60 &5A &7E,
-which is LD HL,&5A60 followed by LD A,(HL), and the &61 bytes at &7E03
-are appended straight after them.  Those are not the RST28V stub this
-listing shows at &7E03: the boot copies that block out to &484D and
-then writes the DOS's tail over &7DF0-&7FAD, so at run time &7E03
-holds the DOS file's &7D73-&7DD3 -- LD (HL),&00 : AND A : RET Z : LD
-A,(FLAGX) : RRA : RET C, then the work, ending JP &012D -- which is
-the body this hook exists to plant.  So a routine is assembled
-head-first in the buffer, and &4D50 -- its address -- is then handed to
+which is LD HL,EDIT_PENDING followed by LD A,(HL), and the &61 bytes at
+&7E03 are appended straight after them.  Those are not the RST28V stub
+this listing shows at &7E03: the boot copies that block out to &484D
+and then writes the DOS's tail over &7DF0-&7FAD, so at run time &7E03
+holds the DOS file's &7D73-&7DD3, EDIT_INSERT_VALUE_BODY in the DOS
+listing, whose banner decodes it.  Read together: clear EDIT_PENDING
+and return at once if it was clear (a plain INPUT) or if FLAGX bit 0
+says the variable is new (the manual's "exactly equivalent to INPUT");
+otherwise take the variable DEST/DESTP point at, STR$ it if FLAGS bit 6
+says numeric, open room for it at KCUR in the edit line and FARLDIR it
+in, leaving the cursor after it.  So a routine is assembled head-first
+in the buffer, and &4D50 -- its address -- is then handed to
 STORE_BC_AT_XVAR76, which writes it through the pointer in V4076; the
 word it stores is the ROM's return address, so the assembled routine
-runs when the hook returns.  The
-routine at &735D builds into the same buffer at &4D11, far enough
-along to overlap this one, so the two are alternative uses of it
-rather than both being live at once.
+runs when the hook returns.  The routine at &735D builds into the same
+buffer at &4D11, far enough along to overlap this one, so the two are
+alternative uses of it rather than both being live at once.
 
 It is called from the block at &7BE0, on the path taken when FLAGX bit
 5 is set -- the ROM's INPUT-in-progress flag -- so it belongs to the
-editing and INPUT path rather than to anything on the command side.""",
+editing and INPUT path rather than to anything on the command side.
+Where the planted routine's own RET lands has not been traced.""",
 }
