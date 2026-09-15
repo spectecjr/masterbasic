@@ -23,7 +23,7 @@ MB &7378 : &4D4E holds the operand of a CALL in the copied ROM code, read out be
 
 MB &737B : and stored at &4D75, inside COMPILE_PASS, so that what the ROM called is still called
 
-MB &737E : &4D71 is the CALL in COMPILE_PASS that will stand in its place
+MB &737E : &4D71 is the HMPR-preserving wrapper in COMPILE_PASS -- IN A,(HMPR) : PUSH AF : CALL : POP AF : OUT (HMPR),A : RET -- whose CALL at &4D74 will stand in ASSIGN's place, so the copied ROM code calls the wrapper and the wrapper calls ASSIGN
 
 MB &7381 : written where the operand was, so the copy now calls COMPILE_PASS and COMPILE_PASS calls what the copy used to.  It is the splice HCMDV makes at &4EF4, in fewer instructions
 

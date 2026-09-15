@@ -116,9 +116,8 @@ swap back with the same code.""",
 
 0x732A: """Hook code 157.  Rebuild the compile pass for a program that has changed.
 
-Pages the ROM's system page in, clears bits 0 and 2 of the byte at
-&5BB6 -- which is DCT, though the label here reads DOS_PCN2 because
-&9BB6 is also an address in the other page -- and calls
+Pages the ROM's system page in, clears bits 0 and 2 of DCT (&5BB6,
+the disc error counter, borrowed here as flags) and calls
 BUILD_COMPILER with those bits down, which assembles the replacement
 for the ROM's compile pass at CDBUFF+&11.  See notes/mb-compiler.txt.
 
@@ -233,14 +232,14 @@ manual's account of making a printer produce the right symbol for
 characters whose codes differ between the SAM and the printer.""",
 
 0x6F3E: """\
-Hook code 183.  Find an entry through COMAD.
+Hook code 183, raised by EDIT.
 
-If the test at L44DF fails, &FF is written to the ROM variable at &5A60
-first.  Then COMAD is read as a word and &6C added to it, and LMPR is
-read.  &6C is a fixed displacement into whatever COMAD points at.
-
-Named for what it computes.  What lives at COMAD+&6C is not established
-here.""",
+On the running pass the spare ROM byte at &5A60 is set to &FF -- the
+flag the stub HOOK_SETUPREGS builds reads back with LD HL,&5A60 / LD
+A,(HL) -- and then the word at COMAD+&6C becomes the ROM's return
+address.  COMAD is the ROM's CMDADT, which runs from token &90, so &6C
+is entry &36, token &C6: the ROM's INPUT.  EDIT is INPUT with a flag,
+which is what docs/masterbasic-keywords.md says of it.""",
 
 0x5293: """\
 Hook code 184.  Check the room above the variables area.
@@ -265,8 +264,8 @@ page, and &4D50 there is CDBUFF+&50 -- the buffer the ROM's variable
 table describes as being for e.g. MULTI-LDI, max length &181.
 
 What it copies is code.  The four bytes at V7221 are &21 &60 &5A &7E,
-which is LD HL,&5A60 followed by LD A,(HL), and the &61 bytes from
-L7E03 are appended straight after them.  So a routine is assembled
+which is LD HL,&5A60 followed by LD A,(HL), and the &61 bytes at
+HOOK_SETUPREGS_1 (&7E03) are appended straight after them.  So a routine is assembled
 head-first in the buffer, and &4D50 -- its address -- is then handed to
 STORE_BC_AT_XVAR76, which writes it through the pointer in V4076.  The
 routine at &735D builds into the same buffer at &4D11, far enough

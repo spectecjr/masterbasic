@@ -183,6 +183,7 @@ class Page(Disassembler):
         self.relocated = []           # (from, to, destination) blocks moved
         self.no_peer = []             # ranges where &8000+ is not the peer
         self.self_window = []         # ranges where &8000+ is this page
+        self.nr_plain = set()         # inline words left as numbers
         self.sys_low = []             # ranges where &4000+ is the system page
         self.carried_by_value = {}    # address -> the MasterDOS source's name
         self.rendered = []            # ranges written by a renderer
@@ -439,6 +440,12 @@ class Page(Disassembler):
             if n:
                 self.used_bias = True
                 return n + '+' + PAGE_BIAS[0]
+        # A system-page address the ROM has no name for, that this half
+        # happens to have a label at: &6F48's &5A60 is one of the ROM's
+        # fourteen spare bytes, and was reading as the interrupt feed's
+        # loop label.
+        if at in self.nr_plain:
+            return hexn(v, 4)
         return self._name(v, lambda _: None)
 
     def _name(self, v, outside, absolute=False):
@@ -801,8 +808,10 @@ NOTES['installer'] = '\n'.join((
     ';; The installer.  The boot sector copies these 943 bytes to &BC00 --',
     ';; the DOS page, as the boot sector has it mapped -- and runs them',
     ';; there.  The paging at that point is the one this listing assumes,',
-    ';; so the addresses read normally: &4xxx-&7xxx here, &8xxx-&Bxxx in',
-    ';; the DOS page.',
+    ';; so the addresses read normally -- &4xxx-&7xxx here, &8xxx-&Bxxx in',
+    ';; the DOS page -- until &7662, where LMPR := &1F swaps the system',
+    ';; page in for this one; from there on &4xxx-&5xxx is the ROM',
+    ';; variables and &8xxx-&Bxxx still the DOS page.',
     ';; ------------------------------------------------------------------',
 ))
 
@@ -1190,6 +1199,7 @@ def seeds(dos, mb):
     # &55EA loads the same &4AE9 for INSTALL_CHANNEL_HANDLER to write
     # into channel B; it was reading as a label inside MULTIPLY_BY_60.
     mb.sys_low.append((0x55EA, 0x55ED))
+    mb.nr_plain.add(0x6F48)
     # The three vector values INSTALL_ROM_PATCHES writes: &49F7, &4A52
     # and &4AE6 are addresses in the ROM's system page, in the stubs it
     # has just put there, and not in this half.  &4AAC two instructions

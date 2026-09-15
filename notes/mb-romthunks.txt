@@ -42,9 +42,11 @@ DOC CHECK_BREAK
 DOC FIND_VARIABLE
     Look a variable up and complain if it is not there.
 
-    Returns immediately while the line is only being syntax-checked.
-    Otherwise it saves HMPR, calls the ROM's LOOKVARS through the thunk
-    above, and reports "Not found" if that comes back with Z.  What
+    On the checking pass it parses the reference as a string
+    expression through CALL_EXPSTR, so a syntax error in it is still
+    reported, and returns with carry clear.  Otherwise it saves HMPR,
+    calls the ROM's LOOKVARS through CALL_LOOKVARS, and reports "Not
+    found" if that comes back with Z.  What
     follows reads FLAGS bit 6 -- the ROM's numeric-or-string flag -- and
     the type bits in C, and refuses the combination that does not make
     sense with "Argument".

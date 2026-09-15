@@ -140,7 +140,7 @@ DOS &4033 step
     in the allocation table.
 
 DOS &4034 : zero means the page is free
-DOS &4037 : a screen will do -- it can be taken back
+DOS &4037 : or a page a previous boot marked as MasterBASIC's -- the &30 MB &7693 writes, which the Technical Manual's list does not have; screens are &C0 -- since that can be taken back
 DOS &403C : keep going down; zero is the system page and stops the scan
 DOS &403E : nothing free and no screen to take
 
@@ -296,7 +296,7 @@ DOS &40CB step
 EQU MIN_RAMDISC_PAGE_TYPE : lowest allocation code that means a RAM disc
 EQU PAST_RAMDISC_PAGE_TYPE : one above the highest, so the test is a range
 EQU PAGE_VALUE_MASK : a page number is five bits; the rest of the port is not
-EQU SCREEN_PAGE_TYPE : allocation code for a page holding a screen
+EQU MB_PAGE_MARK : the allocation code MasterBASIC's installer writes against its own page at MB &7693; screens are &C0
 EQU BOOT_STACK_TOP : one past the window; the stack grows down into this page
 EQU FIRST_WAVE_SECTOR_COUNT : sectors in the DOS, read before MasterBASIC
 EQU DISKCTL_0_BASE_SIDE2 : the same drive with the second head energised
@@ -387,7 +387,7 @@ CONST MAX_INTERNAL_PAGE = &1F : the highest page number a 512K machine has
 DOS &4028 value PAGE_VALUE_MASK
 DOS &4019 value MIN_RAMDISC_PAGE_TYPE
 DOS &401D value PAST_RAMDISC_PAGE_TYPE
-DOS &4037 value SCREEN_PAGE_TYPE
+DOS &4037 value MB_PAGE_MARK
 DOS &4030 value BOOT_STACK_TOP
 
 GROUP Boot loader

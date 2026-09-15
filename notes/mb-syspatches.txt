@@ -154,9 +154,9 @@ MB &7667 : &DA bytes zeroed from DOS_SVHDR, the DOS page's own &410A upward
 
 MB &7689 : the nineteen bytes of workspace above
 
-MB &7693 : &30 into MasterBASIC's own allocation entry.  The boot sector builds the pointer as ALLOCT plus a page number -- LD HL,ALLOCT + MAX_INTERNAL_PAGE at DOS &4015, then LD L,A from HMPR at &402A -- and dumps/SYSPAGE_after_MBMD_boot.bin shows where it lands: page 28 holds &30 and page 29 &60, which are MasterBASIC's page and the DOS's.  So &7682 above marks the DOS page and this marks this half's.  &30 is not in the manual's list of values, which names &20, &40, &60, &C0 and &FF
+MB &7693 : &30 into MasterBASIC's own allocation entry -- its own mark, and the boot sector's CP &30 at DOS &4037 is what lets a re-boot take the page back.  The boot sector builds the pointer as ALLOCT plus a page number -- LD HL,ALLOCT + MAX_INTERNAL_PAGE at DOS &4015, then LD L,A from HMPR at &402A -- and dumps/SYSPAGE_after_MBMD_boot.bin shows where it lands: page 28 holds &30 and page 29 &60, which are MasterBASIC's page and the DOS's.  So &7682 above marks the DOS page and this marks this half's.  &30 is not in the manual's list of values, which names &20, &40, &60, &C0 and &FF
 
-MB &7697 : L less one, into the DOS page's &42CD.  SAVE_BLOCK_FROM_DOS_PAGE reads that byte back and adds the one again, so whichever page L holds here is the page it puts in the window
+MB &7697 : L is MasterBASIC's page, and L less one goes into the DOS page's &42CD -- the operand of CALLMB's LD H,&00 at DOS &42CC, so that CALLMB's OUT puts this half in section B.  This half's own &42CD, the byte SAVE_BLOCK_FROM_DOS_PAGE reads, is a different byte, written by the boot sector at DOS &40F0
 
 MB &769A : &44 and &01 -- PSLD is two bytes, DEVL then DEVN, so this sets the default device to D1
 

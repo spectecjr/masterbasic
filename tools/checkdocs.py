@@ -62,6 +62,7 @@ HISTORICAL = {
     ('design/cleanstyle.md', 'MAX_RETRY_COUNT'),
     ('design/cleanstyle.md', 'MAX_SECTOR_RETRY_COUNT'),
     ('design/cleanstyle.md', 'BOOT_FOUND_PAGE'),
+    ('design/cleanstyle.md', 'SCREEN_PAGE_TYPE'),  # the sketch's name for &30
     ('docs/disassembly.md', 'L1234'),     # an invented name, in an example
     ('docs/disassembly.md', 'L4461'),     # what CALL_NEXTCHAR was called
     ('docs/disassembly.md', 'L45D9'),     # what the address column reads

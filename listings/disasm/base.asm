@@ -144,7 +144,7 @@ HKC_SERRECV:                    EQU  &B5                                 ; Read 
 HKC_SUBCHAR:                    EQU  &B6                                 ; Replace one character with a string on its
                                                                          ; way to the printer. (see
                                                                          ; SUBSTITUTE_PRINTER_CHAR)
-HKC_COMADENT:                   EQU  &B7                                 ; Find an entry through COMAD. (see
+HKC_COMADENT:                   EQU  &B7                                 ; Hook code 183, raised by EDIT. (see
                                                                          ; HOOK_COMADENT)
 HKC_VARSPACE:                   EQU  &B8                                 ; Check the room above the variables area. (see
                                                                          ; HOOK_VARSPACE)

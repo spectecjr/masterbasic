@@ -95,15 +95,17 @@ MB &7419 BUILD_PROC_INDEX
     skip-colons-and-spaces flag LKFC documents, and &CA is the DEF PROC
     token.  For each one found it writes six bytes:
 
-        +0  the character after the token, AND &DF -- upper-cased
+        +0  the first character of the name, AND &DF -- upper-cased
         +1  the page the program is in
         +2  HL as LKFC left it, moved into BC at &742D and stored at
             &7447 -- not BC, which still holds the &21CA loaded before
             the call
-        +4  DE, stored at &744B, after the three exchanges at
-            &742F-&7434 and the RST NEXT_CHAR between them.  What it
-            holds by then has not been pinned down; do not read it as
-            LKFC's DE
+        +4  the address of the PROC name's first character: the RST
+            NEXT_CHAR at &7432 steps CHAD past the DEF PROC token and
+            any spaces and leaves that address in HL, which the EX
+            DE,HL at &7434 moves into DE.  FIND_PROC_ENTRY hands it,
+            less one, to MATCHER, whose contract is "MATCH NAME AT
+            (DE+1)"
 
     and a zero byte ends the table.  Where it puts it is the neat part:
     &E000 with HMPR set to FISCRNP, the page of screen 1.  Section D is
@@ -125,11 +127,12 @@ MB &73C9 FIND_PROC_ENTRY
     the address at +4 less one.  A mismatch goes round again; a zero byte
     ends the search.
 
-    Either way it finishes at &740A, writing the page and the address
+    Either way it finishes from &740C, writing the page and the address
     into the three bytes after the pointer the ROM's LKCALL left -- whose
     documented exit is "HL POINTS TO LOCN FOR 'PAGE' IN CALLING BUFFER".
-    A page of &FF is what the not-found path writes, and it gets there
-    through the &21 skip at &7409.
+    The found path leaves the page OR &80 in B and steps over the LD
+    B,&FF at &740A with the &21 skip at &7409; the not-found path jumps
+    straight to that LD B,&FF from &73E3.
 
     IT IS THE ROM'S LOOKDP WITH THE INDEX IN PLACE OF THE SCAN.
     ref/samrom/fn.asm has LOOKDP walking the program itself for every
@@ -142,7 +145,8 @@ MB &73C9 FIND_PROC_ENTRY
                 DB &21            ;'JR+2'
         LKDP4:  LD B,&FF          ;'NO DEF PROC/DEF FN'
 
-    which is &7402 to &740A instruction for instruction, skip included.
+    which is &7402 to &740A with the ROM's LD B,&80 / OR B folded into
+    one OR &80, skip included.
     So both numbers at that end are the ROM's, under its own comments,
     and the four DEC DEs at &73FE are its four DEC HLs.  The ROM also
     says why an index is worth building, though it says it of DEF FN

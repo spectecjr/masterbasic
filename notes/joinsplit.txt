@@ -74,7 +74,7 @@ MB &6ED4 : the cut point plus two: WORKSP counts the CR and the byte after it
 MB &6EDB : the line number for INSERTLN
 MB &6EDD : the first half goes into the program.  Everything above the insertion point moves up, including the rest of the edit line
 MB &6EE0 : PRPTR has been moved with the rest, so it now holds where WORKSP really is
-MB &6EF4 : CHAD was adjusted too, and still points just past the line number
+MB &6EF4 : CHAD was adjusted too, and points just past the line number -- or one further on, since INSERTLN steps it over a single space
 MB &6EFB : its page, put into HMPR so HL addresses the edit line through the window
 MB &6F03 : the length worked out at &6EB3
 MB &6F04 : close it up -- the first half and the slash both disappear, leaving the line number and the remainder.  "The slash disappears automatically"
@@ -195,9 +195,9 @@ MB &6F70 : CHAD put back, so the ROM can re-read the argument if this turns out 
 MB &6F76 : "$"
 MB &6F78 : not a string, so this is the ROM's own DELETE; the caller hands the token back
 MB &6F79 : &0058 in ROM 0 is POP AF : EI : RET, so the ROM's return will drop an extra stack word and skip its own DELETE
-MB &6F82 : the variable, and its element count multiplied by five for the numeric case
-MB &6F87 : the variable's page, brought in from A' with the caller's HMPR saved on the stack
-MB &6F8E : the slicer, if there is one; an empty string is stacked when there is not, which is the whole-variable case
+MB &6F82 : the variable, with its per-element size in DE -- the times-five is for a numeric array, which the "$" test above has already refused here
+MB &6F87 : A is the HMPR FIND_VARIABLE was entered with; the page LOOKVARS left in HMPR -- the variable's -- is saved on the stack and the caller's put back, so the slicer is evaluated under normal paging.  &6F96 puts the variable's page back
+MB &6F8E : the slicer, if there is one; without one the descriptor stands as stacked -- offset 0, length BC, the whole variable
 MB &6F9E : close up A pages plus BC bytes -- the entry that keeps the caller's page count
 MB &6FA6 : non-zero: VARIABLE_BODY_BY_KIND subtracts
 MB &6FB0 : and a second reclaim for what the first one left
@@ -230,9 +230,11 @@ MB &6FD3 : stored as a count again, not as a windowed address
 MB &6FDA : Z if the variable is now empty
 
 DOC ARRAY_ELEMENT_OFFSET
-    TWO MULTIPLIES BY THE SAME NUMBER.  DE holds the size of one
-    element, and the slicer has been evaluated into a start and a
-    length measured in elements; multiplying each of them by DE turns a
+    TWO MULTIPLIES BY THE SAME NUMBER.  HL holds the size of one
+    element on entry and DE the body's address -- the EX DE,HL at &6FE5
+    puts the size in DE for both multiplies -- and the slicer has been
+    evaluated into a start and a length measured in elements;
+    multiplying each of them by DE turns a
     slice of an array into a byte offset and a byte count.  For a plain
     string DE is one, so the multiply changes nothing and the slice is
     already in bytes -- which is how DELETE a$(3 TO 6) and DELETE
@@ -246,7 +248,7 @@ DOC ARRAY_ELEMENT_OFFSET
 MB &6FDF : the slicer, giving a page, an offset and a length
 MB &6FE6 : the offset in elements times the element size
 MB &6FEB : and the same for the length
-MB &6FF7 : the offset is a count, not a windowed address, so the top bit comes off before it is added to the base
+MB &6FF7 : HL is the body's windowed address, back off the stack; the window bit comes off so the base plus the byte offset in BC can be carried as a long address through the ADC below
 MB &7004 : HMPR moves on by however many pages the offset crossed
 MB &7009 : back to the page count belonging to the other product
 
@@ -381,7 +383,7 @@ MB &71BE : CHR$ 16 then 0 is PEN 0
 MB &71C7 : CHR$ 17 then 15 is PAPER 15 -- with the line above, the manual's "PEN 0: PAPER 15"
 
 MB &71CC : and fifteen is that colour, the parameter the control code above takes
-MB &71D7 : five, the count the line below it names -- ATTRT to GOVERT, the temporary print variables copied over the permanent ones
+MB &71D7 : five -- ATTRT, MASKT, PFLAGT, M23PAPT and M23INKT, the temporary colour variables copied over ATTRP to M23INKP so the new colours stick; OVERT, INVERT and GOVERT after them are not copied
 MB &71D1 : the five temporary print variables copied over the five permanent ones, so the new colours stick
 MB &71DF : &2F on the keyboard port is border 15
 MB &71E8 : &78 is PAPER 15 with PEN 0 -- fifteen shifted up three -- for the lower screen
@@ -392,11 +394,21 @@ MB &71FE : XPTR, which the ROM uses to mark where an error was found
 
 
 RENAME HOOK_SKIPNAME CMD_DELETE
-RENAME CMD_JOIN_FAIL CMD_JOIN_TO
-
-# CMD_JOIN_FAIL is not an error path: it is the manual's JOIN TO a$,b$.
-# The ARRAY_ELEMENT_OFFSET_1..5 labels at &703F-&70B0 sit on its code
-# too, named after the routine that happens to precede them.
+# CMD_JOIN_FAIL was not an error path: it is the manual's JOIN TO a$,b$.
+# Its branch labels used to derive from ARRAY_ELEMENT_OFFSET, the
+# routine before it, which RETs at &700B; naming the addresses gives
+# them JOIN TO's name, and &7075 is a JP C two tests share, not a loop.
+MB &700C CMD_JOIN_TO
+MB &7075 CMD_JOIN_TO_TOO_LONG
+# VARIABLE_BODY_BY_KIND: &713C is the ADD direction, the one JOIN TO
+# takes on every success, and &713D the error exit, which nothing loops
+# through -- the JR C at &7153 lands on a JP C two paths share.  The
+# rest are named too, so none derives from those two.
+MB &713C VARIABLE_BODY_BY_KIND_ADD
+MB &713D VARIABLE_BODY_BY_KIND_TOO_LONG
+MB &7140 VARIABLE_BODY_BY_KIND_STORE_DIM
+MB &7148 VARIABLE_BODY_BY_KIND_STRING
+MB &7156 VARIABLE_BODY_BY_KIND_DONE
 #
 # CMD_DELETE is the DELETE command.  Token &CD is DELETETOK in the ROM's own source
 # (ref/samrom/miscx1.asm, RENTAB), and the routine puts CHAD back to the

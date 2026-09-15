@@ -574,7 +574,10 @@ repository and only wanted reading:
   `&40`, page 28 `&30`, page 29 `&60`, pages 30 and 31 `&C0`, and page 32
   terminates it with `&FF`. Page 28 is MasterBASIC's and 29 the DOS's, so the
   `&60` goes to the DOS page and `&30` is what MasterBASIC gives its own — a
-  value the manual does not document. See `notes/mb-syspatches.txt`.
+  value the manual does not document. The DOS's boot sector accepts a page
+  marked `&30` as one it may take (`CP &30` at `&4037`), which is a re-boot
+  reclaiming the previous MasterBASIC page; the DOS listing had called the
+  value a screen's. See `notes/mb-syspatches.txt`.
 
 - **Which way `SVAL$`'s ordering runs.** Its calculator program at
   `MB &4182`-`&418A` writes `&EF` — `RST &28` — and then opcodes `&31` and

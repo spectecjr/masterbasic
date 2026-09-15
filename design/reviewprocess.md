@@ -410,6 +410,7 @@ The differences from the review prompt:
 | MB &5E64-&63FE, two cuts (2026-09-14) | review | 29 findings | 27 + 2 informational |
 | MB &66D2-&69E4 and &4717-&5000, four cuts (2026-09-14) | review | 52 findings | 52; two shipped defects, and one bugs.md consequence refuted |
 | MB &51DD-&5BD8, three cuts (2026-09-14) | review | 37 findings | 37; two operands that were another page's addresses, one hook body misnamed |
+| MB &42C1-&44F0 and &6DFC-&76DA, four cuts (2026-09-14) | review | 33 findings | 32 + 1 judgement call; a shared banner wrong for both halves, a DOS equate misnamed from this side |
 
 The first five ran on one model; the rest on another, after the first hit a
 session limit mid-run. The prompts were byte-identical across the change,

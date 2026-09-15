@@ -41,7 +41,8 @@ DOC EXPECT_END_OF_STATEMENT
 
 DOC CHAR_MUST_BE_C
     Require the current character to be the one in C, or report
-    "Not understood".  The character is not stepped past.
+    "Not understood".  The compare is made on the character already
+    under CHAD; a match then falls into CALL_NEXTCHAR and steps past it.
 
 DOC NEXT_CHAR_MUST_BE_C
     Step to the next character and require it to be the one in C.
@@ -82,11 +83,14 @@ DOC SKIP_THEN_TEST_RUNNING
     Step past the keyword, then report which pass this is.
 
 DOC BYTE_ARGUMENT
-    Evaluate an integer and say whether it fits in a byte.
+    Evaluate an integer that must fit in a byte: back with it in C, or
+    "Integer out of range".
 
     INC B then DEC B sets Z from the high half of the value the ROM
-    left in BC, so Z means the number is below 256.  The RET Z below it
-    is where callers that only accept a byte give up.
+    left in BC, so Z means the number is below 256 and the RET Z is the
+    way out.  Anything larger falls off the end into
+    REP_INTEGER_OUT_OF_RANGE, error 30; no caller tests anything on
+    return.
 
 # The addresses these names belong to.
 
@@ -99,7 +103,7 @@ MB &4458 EXPECT_NEXT_LPAREN
 
 MB &4450 expr CH_COMMA
 MB &4454 : ")", the character the shared tester below is being given
-MB &4458 : "(", likewise -- three entries, one routine, and the only difference between them is this byte
+MB &4458 : "(", the same tester as the two above, but reached through the step at &445A rather than past it
 MB &445A NEXT_CHAR_MUST_BE_C
 MB &445D CHAR_MUST_BE_C
 MB &4482 SKIP_THEN_NUMBER

@@ -23975,9 +23975,13 @@ RETURN_INTO_BC:
 ;;         CALL CMR
 ;;         DEFW <ROM address>
 ;;
-;;     The mirror of the routine above: it pages the ROM back in rather than
-;;     the other half, saves the current HMPR into the code that restores it,
-;;     and returns through a stub that undoes both.
+;;     The mirror of the routine above.  It puts the system page into section
+;;     B -- LMPR's low five bits become 31, and bits 5 and 6, the ROM bits,
+;;     are left as they were -- and switches to the ROM's own stack; it saves
+;;     the caller's HMPR into the LD A just before the jump, and that patched
+;;     LD runs BEFORE the ROM routine, through the GAP_BLOCK stub's OUT
+;;     (HMPR),A, so the ROM routine sees the caller's HMPR.  The return goes
+;;     through the stub's other entry, which puts LMPR back.
 ;; --------------------------------------------------------------------
 
 ; ---- CMR ---- from &423E, &4DED, &503C, &5042, &5767, &5953, &5AE6, &5B5A ...

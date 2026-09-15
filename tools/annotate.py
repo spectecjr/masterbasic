@@ -48,9 +48,13 @@ Call the main ROM.
     CALL CMR
     DEFW <ROM address>
 
-The mirror of the routine above: it pages the ROM back in rather than
-the other half, saves the current HMPR into the code that restores it,
-and returns through a stub that undoes both."""
+The mirror of the routine above.  It puts the system page into section
+B -- LMPR's low five bits become 31, and bits 5 and 6, the ROM bits,
+are left as they were -- and switches to the ROM's own stack; it saves
+the caller's HMPR into the LD A just before the jump, and that patched
+LD runs BEFORE the ROM routine, through the GAP_BLOCK stub's OUT
+(HMPR),A, so the ROM routine sees the caller's HMPR.  The return goes
+through the stub's other entry, which puts LMPR back."""
 
 NR_DOC = """\
 Read or write one of the ROM's system variables.
@@ -358,7 +362,11 @@ MB = {
     # IY before falling into the shared code.  This page has five zero
     # bytes there instead and starts at &42C1, which is where all
     # forty-five of its call sites go.
-    0x42C1: ('CALLDOS', CALL_OTHER.replace('CALLMB', 'CALLDOS')),
+    0x42C1: ('CALLDOS', CALL_OTHER.replace('CALLMB', 'CALLDOS').replace(
+        "&7FFC holds the\nROM's stack pointer as it stood when the DOS was entered.",
+        "LD (V4076),IY at &42D7 keeps the ROM stack\npointer the DOS's CALLMB "
+        "loaded into IY from its &7FFC, for\nSTORE_BC_AT_XVAR76 to write the "
+        "ROM's return address through.")),
     0x5934: ('SERINIT', SERINIT_DOC),
     # MasterBASIC's own hook codes, 175 to 185 -- see tools/hooks.py
     **dict((a, (hooks.NAMES[a], hooks.DOCS[a])) for a in hooks.NAMES),

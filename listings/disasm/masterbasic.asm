@@ -1280,8 +1280,9 @@ SAVE_BLOCK_FROM_SYSPAGE_DONE:
 ;; covers &4000-&7FFF, and jumps to it; the return goes through the stub
 ;; below, which puts LMPR back.  The &00 in the `LD H,&00` two instructions
 ;; down is a placeholder: the boot sector pokes the other page's number,
-;; less one, into it once it knows which page that is.  &7FFC holds the
-;; ROM's stack pointer as it stood when the DOS was entered.
+;; less one, into it once it knows which page that is.  LD (V4076),IY at &42D7 keeps the ROM stack
+;; pointer the DOS's CALLMB loaded into IY from its &7FFC, for
+;; STORE_BC_AT_XVAR76 to write the ROM's return address through.
 ;;
 ;; The parameter is read before the paging changes and jumped to after
 ;; it, so a value of &4000 or more is an address in the other page, and
@@ -1565,11 +1566,14 @@ DRTAB:
                DEFB "R"+&80                    ; 43A0 D2
 
 ;; --------------------------------------------------------------------
-;; Evaluate an integer and say whether it fits in a byte.
+;; Evaluate an integer that must fit in a byte: back with it in C, or
+;; "Integer out of range".
 ;;
 ;; INC B then DEC B sets Z from the high half of the value the ROM
-;; left in BC, so Z means the number is below 256.  The RET Z below it
-;; is where callers that only accept a byte give up.
+;; left in BC, so Z means the number is below 256 and the RET Z is the
+;; way out.  Anything larger falls off the end into
+;; REP_INTEGER_OUT_OF_RANGE, error 30; no caller tests anything on
+;; return.
 ;; --------------------------------------------------------------------
 
 ; ---- BYTE_ARGUMENT ---- from &4F84, &5512, &5516, &551F, &5537, &5540, &63F2, &653E ...
@@ -1662,9 +1666,11 @@ POINT_INTO_VARIABLE:
 ;; --------------------------------------------------------------------
 ;; Look a variable up and complain if it is not there.
 ;;
-;; Returns immediately while the line is only being syntax-checked.
-;; Otherwise it saves HMPR, calls the ROM's LOOKVARS through the thunk
-;; above, and reports "Not found" if that comes back with Z.  What
+;; On the checking pass it parses the reference as a string
+;; expression through CALL_EXPSTR, so a syntax error in it is still
+;; reported, and returns with carry clear.  Otherwise it saves HMPR,
+;; calls the ROM's LOOKVARS through CALL_LOOKVARS, and reports "Not
+;; found" if that comes back with Z.  What
 ;; follows reads FLAGS bit 6 -- the ROM's numeric-or-string flag -- and
 ;; the type bits in C, and refuses the combination that does not make
 ;; sense with "Argument".
@@ -1803,8 +1809,9 @@ LONGADDR_TO_PAGED:
 
 ; ---- MULTIPLY_HL_BY_DE ---- from &4791, &6FE6, &6FEB, &711E
 MULTIPLY_HL_BY_DE:
-               LD B,&10                        ; 4433 06 10  sixteen passes, one per bit of DE, which is the whole of a
-                                               ; sixteen-by-sixteen multiply done by shift and add
+               LD B,&10                        ; 4433 06 10  sixteen passes, one per bit of the original HL, walked out
+                                               ; of IY, which is the whole of a sixteen-by-sixteen multiply done by
+                                               ; shift and add
                PUSH HL                         ; 4435 E5
                POP IY                          ; 4436 FD E1
                XOR A                           ; 4438 AF
@@ -1877,8 +1884,8 @@ EXPECT_RPAREN:
 
 ; ---- EXPECT_NEXT_LPAREN ---- from &444A, &4B3C, &4D4F, &4E51, &4E63
 EXPECT_NEXT_LPAREN:
-               LD C,&28                        ; 4458 0E 28  "(", likewise -- three entries, one routine, and the only
-                                               ; difference between them is this byte
+               LD C,&28                        ; 4458 0E 28  "(", the same tester as the two above, but reached through
+                                               ; the step at &445A rather than past it
 
 ;; --------------------------------------------------------------------
 ;; Step to the next character and require it to be the one in C.
@@ -1890,7 +1897,8 @@ NEXT_CHAR_MUST_BE_C:
 
 ;; --------------------------------------------------------------------
 ;; Require the current character to be the one in C, or report
-;; "Not understood".  The character is not stepped past.
+;; "Not understood".  The compare is made on the character already
+;; under CHAD; a match then falls into CALL_NEXTCHAR and steps past it.
 ;; --------------------------------------------------------------------
 
 ; ---- CHAR_MUST_BE_C ---- from &4452, &4456, &44C5, &4D47, &5507
@@ -2119,9 +2127,13 @@ TEST_RUNNING:
 ;;     CALL CMR
 ;;     DEFW <ROM address>
 ;;
-;; The mirror of the routine above: it pages the ROM back in rather than
-;; the other half, saves the current HMPR into the code that restores it,
-;; and returns through a stub that undoes both.
+;; The mirror of the routine above.  It puts the system page into section
+;; B -- LMPR's low five bits become 31, and bits 5 and 6, the ROM bits,
+;; are left as they were -- and switches to the ROM's own stack; it saves
+;; the caller's HMPR into the LD A just before the jump, and that patched
+;; LD runs BEFORE the ROM routine, through the GAP_BLOCK stub's OUT
+;; (HMPR),A, so the ROM routine sees the caller's HMPR.  The return goes
+;; through the stub's other entry, which puts LMPR back.
 ;; --------------------------------------------------------------------
 
 ; ---- MBCMR ---- from &418D, &41BA, &41C5, &4461, &4467, &446D, &4476, &447C ...
@@ -17116,8 +17128,9 @@ CMD_SPLIT_LINE_1:
                DEFW PRPTRP                     ; 6EED A8 5A
                CALL MBNRWR                     ; 6EEF CD 82 45
                DEFW WORKSPP                    ; 6EF2 90 5A
-               CALL MBNRRDD                    ; 6EF4 CD 5F 45  CHAD was adjusted too, and still points just past the
-                                               ; line number
+               CALL MBNRRDD                    ; 6EF4 CD 5F 45  CHAD was adjusted too, and points just past the line
+                                               ; number -- or one further on, since INSERTLN steps it over a single
+                                               ; space
                DEFW CHADD                      ; 6EF7 97 5A
                LD H,B                          ; 6EF9 60
                LD L,C                          ; 6EFA 69
@@ -17229,14 +17242,14 @@ SPLIT_UNWIND_ROM_STACK_LOOP:
                RET                               ; 6F3D C9
 
 ;; --------------------------------------------------------------------
-;; Hook code 183.  Find an entry through COMAD.
+;; Hook code 183, raised by EDIT.
 ;;
-;; If the test at L44DF fails, &FF is written to the ROM variable at &5A60
-;; first.  Then COMAD is read as a word and &6C added to it, and LMPR is
-;; read.  &6C is a fixed displacement into whatever COMAD points at.
-;;
-;; Named for what it computes.  What lives at COMAD+&6C is not established
-;; here.
+;; On the running pass the spare ROM byte at &5A60 is set to &FF -- the
+;; flag the stub HOOK_SETUPREGS builds reads back with LD HL,&5A60 / LD
+;; A,(HL) -- and then the word at COMAD+&6C becomes the ROM's return
+;; address.  COMAD is the ROM's CMDADT, which runs from token &90, so &6C
+;; is entry &36, token &C6: the ROM's INPUT.  EDIT is INPUT with a flag,
+;; which is what docs/masterbasic-keywords.md says of it.
 ;; --------------------------------------------------------------------
 
 HOOK_COMADENT:
@@ -17245,7 +17258,7 @@ HOOK_COMADENT:
                LD A,&FF                        ; 6F43 3E FF  the byte at &5A60 is a ROM variable, not the code the label
                                                ; names
                CALL MBNRWR                     ; 6F45 CD 82 45
-               DEFW PRINTER_FEED_TICK_LOOP2    ; 6F48 60 5A
+               DEFW &5A60                      ; 6F48 60 5A
 
 ; ---- HOOK_COMADENT_1 ---- from &6F41
 HOOK_COMADENT_1:
@@ -17344,17 +17357,20 @@ HOOK_SKIPNAME_LOOP:
                                                ; will drop an extra stack word and skip its own DELETE
                CALL STORE_BC_AT_XVAR76         ; 6F7C CD 5C 6F
                CALL CALL_NEXTCHAR              ; 6F7F CD 61 44
-               CALL FIND_VARIABLE_TIMES_FIVE   ; 6F82 CD 4C 48  the variable, and its element count multiplied by five
-                                               ; for the numeric case
+               CALL FIND_VARIABLE_TIMES_FIVE   ; 6F82 CD 4C 48  the variable, with its per-element size in DE -- the
+                                               ; times-five is for a numeric array, which the "$" test above has already
+                                               ; refused here
                JR NC,HOOK_SKIPNAME_1           ; 6F85 30 0B
-               EX AF,AF'                       ; 6F87 08  the variable's page, brought in from A' with the caller's HMPR
-                                               ; saved on the stack
+               EX AF,AF'                       ; 6F87 08  A is the HMPR FIND_VARIABLE was entered with; the page
+                                               ; LOOKVARS left in HMPR -- the variable's -- is saved on the stack and
+                                               ; the caller's put back, so the slicer is evaluated under normal paging.
+                                               ; &6F96 puts the variable's page back
                IN A,(HMPR)                     ; 6F88 DB FB
                PUSH AF                         ; 6F8A F5
                EX AF,AF'                       ; 6F8B 08
                OUT (HMPR),A                    ; 6F8C D3 FB
-               CALL STACK_STRIDE_AND_SLICE_IT  ; 6F8E CD C3 47  the slicer, if there is one; an empty string is stacked
-                                               ; when there is not, which is the whole-variable case
+               CALL STACK_STRIDE_AND_SLICE_IT  ; 6F8E CD C3 47  the slicer, if there is one; without one the descriptor
+                                               ; stands as stacked -- offset 0, length BC, the whole variable
                PUSH HL                         ; 6F91 E5
 
 ; ---- HOOK_SKIPNAME_1 ---- from &6F85
@@ -17450,9 +17466,11 @@ ADJUST_VARIABLE_SIZE_2:
                RET                             ; 6FDC C9
 
 ;; --------------------------------------------------------------------
-;; TWO MULTIPLIES BY THE SAME NUMBER.  DE holds the size of one
-;; element, and the slicer has been evaluated into a start and a
-;; length measured in elements; multiplying each of them by DE turns a
+;; TWO MULTIPLIES BY THE SAME NUMBER.  HL holds the size of one
+;; element on entry and DE the body's address -- the EX DE,HL at &6FE5
+;; puts the size in DE for both multiplies -- and the slicer has been
+;; evaluated into a start and a length measured in elements;
+;; multiplying each of them by DE turns a
 ;; slice of an array into a byte offset and a byte count.  For a plain
 ;; string DE is one, so the multiply changes nothing and the slice is
 ;; already in bytes -- which is how DELETE a$(3 TO 6) and DELETE
@@ -17491,8 +17509,9 @@ ARRAY_ELEMENT_OFFSET:
                EX DE,HL                        ; 6FF4 EB
                POP HL                          ; 6FF5 E1
                EX (SP),HL                      ; 6FF6 E3
-               RES 7,H                         ; 6FF7 CB BC  the offset is a count, not a windowed address, so the top
-                                               ; bit comes off before it is added to the base
+               RES 7,H                         ; 6FF7 CB BC  HL is the body's windowed address, back off the stack; the
+                                               ; window bit comes off so the base plus the byte offset in BC can be
+                                               ; carried as a long address through the ADC below
                ADD HL,BC                       ; 6FF9 09
                ADC A,&00                       ; 6FFA CE 00  the carry out of the ADD HL,BC above, into the page -- the
                                                ; same 24-bit step &70A5 makes, and the line above says why the window
@@ -17537,7 +17556,7 @@ ARRAY_ELEMENT_OFFSET:
 CMD_JOIN_TO:
                CALL CALL_NEXTCHAR              ; 700C CD 61 44  past TO
                CALL FIND_VARIABLE              ; 700F CD D5 43
-               JR NC,ARRAY_ELEMENT_OFFSET_4    ; 7012 30 3B  on the checking pass FIND_VARIABLE only parses, and
+               JR NC,CMD_JOIN_TO_4             ; 7012 30 3B  on the checking pass FIND_VARIABLE only parses, and
                                                ; everything below is skipped
                JP NZ,REP_NOT_UNDERSTOOD        ; 7014 C2 B0 43
                PUSH AF                         ; 7017 F5
@@ -17558,37 +17577,37 @@ CMD_JOIN_TO:
                LD B,(HL)                       ; 7036 46
                ADD HL,BC                       ; 7037 09  record+13 plus the length mod 16K is the last byte of the
                                                ; body, and MKRBIG opens room after the byte it is given
-               JR NC,ARRAY_ELEMENT_OFFSET_1    ; 7038 30 05  the sum carried out of sixteen bits, so it is four pages on
+               JR NC,CMD_JOIN_TO_1             ; 7038 30 05  the sum carried out of sixteen bits, so it is four pages on
                                                ; and &8000 back -- two pages net, with the address forced into the
                                                ; window
                INC A                           ; 703A 3C
                SET 7,H                         ; 703B CB FC
-               JR ARRAY_ELEMENT_OFFSET_2       ; 703D 18 06
+               JR CMD_JOIN_TO_2                ; 703D 18 06
 
-; ---- ARRAY_ELEMENT_OFFSET_1 ---- from &7038
-ARRAY_ELEMENT_OFFSET_1:
+; ---- CMD_JOIN_TO_1 ---- from &7038
+CMD_JOIN_TO_1:
                BIT 6,H                         ; 703F CB 74  bit 6 set means it has run past &BFFF, so one page on and
                                                ; back into the window
-               JR Z,ARRAY_ELEMENT_OFFSET_3     ; 7041 28 03
+               JR Z,CMD_JOIN_TO_3              ; 7041 28 03
                RES 6,H                         ; 7043 CB B4
 
-; ---- ARRAY_ELEMENT_OFFSET_2 ---- from &703D
-ARRAY_ELEMENT_OFFSET_2:
+; ---- CMD_JOIN_TO_2 ---- from &703D
+CMD_JOIN_TO_2:
                INC A                           ; 7045 3C
 
-; ---- ARRAY_ELEMENT_OFFSET_3 ---- from &7041 when bit 6 of H clear
-ARRAY_ELEMENT_OFFSET_3:
+; ---- CMD_JOIN_TO_3 ---- from &7041 when bit 6 of H clear
+CMD_JOIN_TO_3:
                LD (V40AB),A                    ; 7046 32 AB 40  the page and address the gap will be opened at
                LD (V40A0),HL                   ; 7049 22 A0 40
                POP AF                          ; 704C F1
                OUT (HMPR),A                    ; 704D D3 FB
 
-; ---- ARRAY_ELEMENT_OFFSET_4 ---- from &7012
-ARRAY_ELEMENT_OFFSET_4:
+; ---- CMD_JOIN_TO_4 ---- from &7012
+CMD_JOIN_TO_4:
                CALL CALL_GETCHAR               ; 704F CD 67 44  the comma, and then the second variable
                CALL EXPECT_COMMA               ; 7052 CD 50 44
                CALL FIND_VARIABLE              ; 7055 CD D5 43
-               JR NC,ARRAY_ELEMENT_OFFSET_5    ; 7058 30 56
+               JR NC,CMD_JOIN_TO_5             ; 7058 30 56
                JP NZ,REP_NOT_UNDERSTOOD        ; 705A C2 B0 43
                PUSH AF                         ; 705D F5
                IN A,(HMPR)                     ; 705E DB FB
@@ -17604,8 +17623,8 @@ ARRAY_ELEMENT_OFFSET_4:
                LD HL,(V40A6)                   ; 7071 2A A6 40  the new element count
                ADD HL,BC                       ; 7074 09
 
-; ---- ARRAY_ELEMENT_OFFSET_LOOP ---- from &7080
-ARRAY_ELEMENT_OFFSET_LOOP:
+; ---- CMD_JOIN_TO_TOO_LONG ---- from &7080
+CMD_JOIN_TO_TOO_LONG:
                JP C,REP_STRING_TOO_LONG        ; 7075 DA B9 43  the carry from the ADD above, or from the ADD fourteen
                                                ; bytes below -- the JR at &7080 jumps backwards onto this JP, so one
                                                ; error jump serves both tests
@@ -17614,7 +17633,7 @@ ARRAY_ELEMENT_OFFSET_LOOP:
                LD BC,&000E                     ; 707C 01 0E 00  plus a header, as an overflow test only -- HL is not
                                                ; used again
                ADD HL,BC                       ; 707F 09
-               JR C,ARRAY_ELEMENT_OFFSET_LOOP  ; 7080 38 F3
+               JR C,CMD_JOIN_TO_TOO_LONG       ; 7080 38 F3
                CALL MBNRRDD                    ; 7082 CD 5F 45
                DEFW STRLOCN                    ; 7085 BC 5B
                CALL MBNRWRD                    ; 7087 CD 77 45  the second variable's record, parked in PRPTR
@@ -17648,8 +17667,8 @@ ARRAY_ELEMENT_OFFSET_LOOP:
                POP AF                          ; 70AD F1
                OUT (HMPR),A                    ; 70AE D3 FB
 
-; ---- ARRAY_ELEMENT_OFFSET_5 ---- from &7058
-ARRAY_ELEMENT_OFFSET_5:
+; ---- CMD_JOIN_TO_5 ---- from &7058
+CMD_JOIN_TO_5:
                CALL EXPECT_END_OF_STATEMENT    ; 70B0 CD D0 44
                LD A,(V40AB)                    ; 70B3 3A AB 40  back to the page holding the end of the first variable
                OUT (HMPR),A                    ; 70B6 D3 FB
@@ -17718,56 +17737,56 @@ ARRAY_ELEMENT_OFFSET_5:
 
 ; ---- VARIABLE_BODY_BY_KIND ---- from &6FA7
 VARIABLE_BODY_BY_KIND:
-               LD (V409E),A                    ; 7100 32 9E 40  the direction flag ADJUST_VARIABLE_SIZE reads
-               CALL POINT_INTO_VARIABLE        ; 7103 CD C3 43
-               CALL TIMES_FIVE                 ; 7106 CD 4F 48  five bytes to a number, one to a character; DE comes out
-                                               ; as the size of one element
-               EX DE,HL                        ; 7109 EB
-               PUSH HL                         ; 710A E5
-               CALL MBNRRDD                    ; 710B CD 5F 45
-               DEFW STRLOCN                    ; 710E BC 5B
-               LD A,(BC)                       ; 7110 0A
-               PUSH BC                         ; 7111 C5
-               LD HL,&000B                     ; 7112 21 0B 00  the same eleven, reached from the other command
-               ADD HL,BC                       ; 7115 09
-               AND &60                         ; 7116 E6 60  bits 5 and 6 of the type byte are what tell an array from a
-                                               ; simple variable
-               JR Z,VARIABLE_BODY_BY_KIND_2    ; 7118 28 2E
-               PUSH HL                         ; 711A E5
-               PUSH IX                         ; 711B DD E5
-               POP HL                          ; 711D E1
-               CALL MULTIPLY_HL_BY_DE          ; 711E CD 33 44  elements times element size gives bytes
-               LD B,H                          ; 7121 44
-               LD C,L                          ; 7122 4D
-               POP HL                          ; 7123 E1
-               CALL ADJUST_VARIABLE_SIZE       ; 7124 CD B3 6F  the 24-bit size at record+11, adjusted
-               PUSH IX                         ; 7127 DD E5
-               POP BC                          ; 7129 C1
-               INC HL                          ; 712A 23  record+15, the first dimension -- how many strings the array
-                                               ; holds
-               INC HL                          ; 712B 23
-               INC HL                          ; 712C 23
-               INC HL                          ; 712D 23
-               LD E,(HL)                       ; 712E 5E
-               INC HL                          ; 712F 23
-               LD D,(HL)                       ; 7130 56
-               EX DE,HL                        ; 7131 EB
-               LD A,(V409E)                    ; 7132 3A 9E 40
-               AND A                           ; 7135 A7
-               JR Z,VARIABLE_BODY_BY_KIND_FAIL ; 7136 28 04
-               SBC HL,BC                       ; 7138 ED 42
-               JR VARIABLE_BODY_BY_KIND_1      ; 713A 18 04
+               LD (V409E),A                       ; 7100 32 9E 40  the direction flag ADJUST_VARIABLE_SIZE reads
+               CALL POINT_INTO_VARIABLE           ; 7103 CD C3 43
+               CALL TIMES_FIVE                    ; 7106 CD 4F 48  five bytes to a number, one to a character; DE comes
+                                                  ; out as the size of one element
+               EX DE,HL                           ; 7109 EB
+               PUSH HL                            ; 710A E5
+               CALL MBNRRDD                       ; 710B CD 5F 45
+               DEFW STRLOCN                       ; 710E BC 5B
+               LD A,(BC)                          ; 7110 0A
+               PUSH BC                            ; 7111 C5
+               LD HL,&000B                        ; 7112 21 0B 00  the same eleven, reached from the other command
+               ADD HL,BC                          ; 7115 09
+               AND &60                            ; 7116 E6 60  bits 5 and 6 of the type byte are what tell an array
+                                                  ; from a simple variable
+               JR Z,VARIABLE_BODY_BY_KIND_STRING  ; 7118 28 2E
+               PUSH HL                            ; 711A E5
+               PUSH IX                            ; 711B DD E5
+               POP HL                             ; 711D E1
+               CALL MULTIPLY_HL_BY_DE             ; 711E CD 33 44  elements times element size gives bytes
+               LD B,H                             ; 7121 44
+               LD C,L                             ; 7122 4D
+               POP HL                             ; 7123 E1
+               CALL ADJUST_VARIABLE_SIZE          ; 7124 CD B3 6F  the 24-bit size at record+11, adjusted
+               PUSH IX                            ; 7127 DD E5
+               POP BC                             ; 7129 C1
+               INC HL                             ; 712A 23  record+15, the first dimension -- how many strings the
+                                                  ; array holds
+               INC HL                             ; 712B 23
+               INC HL                             ; 712C 23
+               INC HL                             ; 712D 23
+               LD E,(HL)                          ; 712E 5E
+               INC HL                             ; 712F 23
+               LD D,(HL)                          ; 7130 56
+               EX DE,HL                           ; 7131 EB
+               LD A,(V409E)                       ; 7132 3A 9E 40
+               AND A                              ; 7135 A7
+               JR Z,VARIABLE_BODY_BY_KIND_ADD     ; 7136 28 04
+               SBC HL,BC                          ; 7138 ED 42
+               JR VARIABLE_BODY_BY_KIND_STORE_DIM ; 713A 18 04
 
-; ---- VARIABLE_BODY_BY_KIND_FAIL ---- from &7136 when A = 0
-VARIABLE_BODY_BY_KIND_FAIL:
+; ---- VARIABLE_BODY_BY_KIND_ADD ---- from &7136 when A = 0
+VARIABLE_BODY_BY_KIND_ADD:
                ADD HL,BC                       ; 713C 09
 
-; ---- VARIABLE_BODY_BY_KIND_LOOP ---- from &7153
-VARIABLE_BODY_BY_KIND_LOOP:
+; ---- VARIABLE_BODY_BY_KIND_TOO_LONG ---- from &7153
+VARIABLE_BODY_BY_KIND_TOO_LONG:
                JP C,REP_STRING_TOO_LONG        ; 713D DA B9 43
 
-; ---- VARIABLE_BODY_BY_KIND_1 ---- from &713A
-VARIABLE_BODY_BY_KIND_1:
+; ---- VARIABLE_BODY_BY_KIND_STORE_DIM ---- from &713A
+VARIABLE_BODY_BY_KIND_STORE_DIM:
                EX DE,HL                        ; 7140 EB
                LD (HL),D                       ; 7141 72  written back high byte first, which is the way the two DECs
                                                ; walk
@@ -17777,18 +17796,18 @@ VARIABLE_BODY_BY_KIND_1:
                OR E                            ; 7145 B3
                JR VARIABLE_BODY_BY_KIND_DONE   ; 7146 18 0E
 
-; ---- VARIABLE_BODY_BY_KIND_2 ---- from &7118 when no bit of &60 is set
-VARIABLE_BODY_BY_KIND_2:
-               PUSH IX                         ; 7148 DD E5
-               POP BC                          ; 714A C1
-               CALL ADJUST_VARIABLE_SIZE       ; 714B CD B3 6F
-               PUSH AF                         ; 714E F5
-               LD A,(HL)                       ; 714F 7E
-               CP &04                          ; 7150 FE 04  four pages is 64K, the limit on one string
-               CCF                             ; 7152 3F  CCF turns "below four" into "four or more", so the carry means
-                                               ; too long
-               JR C,VARIABLE_BODY_BY_KIND_LOOP ; 7153 38 E8
-               POP AF                          ; 7155 F1
+; ---- VARIABLE_BODY_BY_KIND_STRING ---- from &7118 when no bit of &60 is set
+VARIABLE_BODY_BY_KIND_STRING:
+               PUSH IX                             ; 7148 DD E5
+               POP BC                              ; 714A C1
+               CALL ADJUST_VARIABLE_SIZE           ; 714B CD B3 6F
+               PUSH AF                             ; 714E F5
+               LD A,(HL)                           ; 714F 7E
+               CP &04                              ; 7150 FE 04  four pages is 64K, the limit on one string
+               CCF                                 ; 7152 3F  CCF turns "below four" into "four or more", so the carry
+                                                   ; means too long
+               JR C,VARIABLE_BODY_BY_KIND_TOO_LONG ; 7153 38 E8
+               POP AF                              ; 7155 F1
 
 ; ---- VARIABLE_BODY_BY_KIND_DONE ---- from &7146
 VARIABLE_BODY_BY_KIND_DONE:
@@ -17937,8 +17956,9 @@ CMD_CLS:
                LD HL,ATTRT                     ; 71D1 21 4E 5A  the five temporary print variables copied over the five
                                                ; permanent ones, so the new colours stick
                LD DE,ATTRP                     ; 71D4 11 45 5A
-               LD BC,&0005                     ; 71D7 01 05 00  five, the count the line below it names -- ATTRT to
-                                               ; GOVERT, the temporary print variables copied over the permanent ones
+               LD BC,&0005                     ; 71D7 01 05 00  five -- ATTRT, MASKT, PFLAGT, M23PAPT and M23INKT, the
+                                               ; temporary colour variables copied over ATTRP to M23INKP so the new
+                                               ; colours stick; OVERT, INVERT and GOVERT after them are not copied
                CALL MBCMR                      ; 71DA CD F0 44
                DEFW &008F                      ; 71DD 8F 00
                LD A,&2F                        ; 71DF 3E 2F  &2F on the keyboard port is border 15
@@ -17968,8 +17988,8 @@ CALL_JCLSBL:
 ;; table describes as being for e.g. MULTI-LDI, max length &181.
 ;;
 ;; What it copies is code.  The four bytes at V7221 are &21 &60 &5A &7E,
-;; which is LD HL,&5A60 followed by LD A,(HL), and the &61 bytes from
-;; L7E03 are appended straight after them.  So a routine is assembled
+;; which is LD HL,&5A60 followed by LD A,(HL), and the &61 bytes at
+;; HOOK_SETUPREGS_1 (&7E03) are appended straight after them.  So a routine is assembled
 ;; head-first in the buffer, and &4D50 -- its address -- is then handed to
 ;; STORE_BC_AT_XVAR76, which writes it through the pointer in V4076.  The
 ;; routine at &735D builds into the same buffer at &4D11, far enough
@@ -18311,9 +18331,8 @@ FN_USING_S_DONE3:
 ;; --------------------------------------------------------------------
 ;; Hook code 157.  Rebuild the compile pass for a program that has changed.
 ;;
-;; Pages the ROM's system page in, clears bits 0 and 2 of the byte at
-;; &5BB6 -- which is DCT, though the label here reads DOS_PCN2 because
-;; &9BB6 is also an address in the other page -- and calls
+;; Pages the ROM's system page in, clears bits 0 and 2 of DCT (&5BB6,
+;; the disc error counter, borrowed here as flags) and calls
 ;; BUILD_COMPILER with those bits down, which assembles the replacement
 ;; for the ROM's compile pass at CDBUFF+&11.  See notes/mb-compiler.txt.
 ;;
@@ -18432,8 +18451,10 @@ BUILD_COMPILER:
                                                ; code, read out before it is overwritten
                LD (&8D75),HL                   ; 737B 22 75 8D  and stored at &4D75, inside COMPILE_PASS, so that what
                                                ; the ROM called is still called
-               LD HL,&4D71                     ; 737E 21 71 4D  &4D71 is the CALL in COMPILE_PASS that will stand in its
-                                               ; place
+               LD HL,&4D71                     ; 737E 21 71 4D  &4D71 is the HMPR-preserving wrapper in COMPILE_PASS --
+                                               ; IN A,(HMPR) : PUSH AF : CALL : POP AF : OUT (HMPR),A : RET -- whose
+                                               ; CALL at &4D74 will stand in ASSIGN's place, so the copied ROM code
+                                               ; calls the wrapper and the wrapper calls ASSIGN
                LD (&8D4E),HL                   ; 7381 22 4E 8D  written where the operand was, so the copy now calls
                                                ; COMPILE_PASS and COMPILE_PASS calls what the copy used to. It is the
                                                ; splice HCMDV makes at &4EF4, in fewer instructions
@@ -18554,11 +18575,12 @@ L73BE:
 ;; the address at +4 less one.  A mismatch goes round again; a zero byte
 ;; ends the search.
 ;;
-;; Either way it finishes at &740A, writing the page and the address
+;; Either way it finishes from &740C, writing the page and the address
 ;; into the three bytes after the pointer the ROM's LKCALL left -- whose
 ;; documented exit is "HL POINTS TO LOCN FOR 'PAGE' IN CALLING BUFFER".
-;; A page of &FF is what the not-found path writes, and it gets there
-;; through the &21 skip at &7409.
+;; The found path leaves the page OR &80 in B and steps over the LD
+;; B,&FF at &740A with the &21 skip at &7409; the not-found path jumps
+;; straight to that LD B,&FF from &73E3.
 ;;
 ;; IT IS THE ROM'S LOOKDP WITH THE INDEX IN PLACE OF THE SCAN.
 ;; ref/samrom/fn.asm has LOOKDP walking the program itself for every
@@ -18571,7 +18593,8 @@ L73BE:
 ;;             DB &21            ;'JR+2'
 ;;     LKDP4:  LD B,&FF          ;'NO DEF PROC/DEF FN'
 ;;
-;; which is &7402 to &740A instruction for instruction, skip included.
+;; which is &7402 to &740A with the ROM's LD B,&80 / OR B folded into
+;; one OR &80, skip included.
 ;; So both numbers at that end are the ROM's, under its own comments,
 ;; and the four DEC DEs at &73FE are its four DEC HLs.  The ROM also
 ;; says why an index is worth building, though it says it of DEF FN
@@ -18663,15 +18686,17 @@ FIND_PROC_ENTRY_1:
 ;; skip-colons-and-spaces flag LKFC documents, and &CA is the DEF PROC
 ;; token.  For each one found it writes six bytes:
 ;;
-;;     +0  the character after the token, AND &DF -- upper-cased
+;;     +0  the first character of the name, AND &DF -- upper-cased
 ;;     +1  the page the program is in
 ;;     +2  HL as LKFC left it, moved into BC at &742D and stored at
 ;;         &7447 -- not BC, which still holds the &21CA loaded before
 ;;         the call
-;;     +4  DE, stored at &744B, after the three exchanges at
-;;         &742F-&7434 and the RST NEXT_CHAR between them.  What it
-;;         holds by then has not been pinned down; do not read it as
-;;         LKFC's DE
+;;     +4  the address of the PROC name's first character: the RST
+;;         NEXT_CHAR at &7432 steps CHAD past the DEF PROC token and
+;;         any spaces and leaves that address in HL, which the EX
+;;         DE,HL at &7434 moves into DE.  FIND_PROC_ENTRY hands it,
+;;         less one, to MATCHER, whose contract is "MATCH NAME AT
+;;         (DE+1)"
 ;;
 ;; and a zero byte ends the table.  Where it puts it is the neat part:
 ;; &E000 with HMPR set to FISCRNP, the page of screen 1.  Section D is
@@ -18782,9 +18807,11 @@ BUILD_PROC_INDEX_1:
 ;; AND THE REST OF IT BORROWS MEMORY IT DOES NOT OWN.  A block move
 ;; across the paging cannot run from the pages it is moving, because
 ;; the OUT that brings the next page in would page the mover out from
-;; under itself.  So this plants the moving instructions somewhere that
-;; stays mapped whatever sections A and B are doing -- the very top of
-;; memory -- and puts back what was there afterwards.
+;; under itself.  So the LDDR side plants the moving instructions
+;; somewhere that stays mapped whatever sections A and B are doing --
+;; the very top of memory -- and the LDIR side borrows a stack at one
+;; end of section C and jumps to the ROM's own copy of them; both put
+;; back what they took afterwards.
 ;;
 ;; The ten bytes it plants are its own &75D7 to &75E0, which is &4843
 ;; once installed:
@@ -18800,9 +18827,16 @@ BUILD_PROC_INDEX_1:
 ;;
 ;; THE SCRATCH IS TWENTY-TWO BYTES AT &FF80 or twelve at one end of
 ;; section C, kept in the system page at &4CEA while borrowed, with SP
-;; parked at &4CE8 beside it.  Both sizes put the address to come back
-;; to ten bytes in and set SP eight bytes in, so the ROM routine's own
-;; RET unwinds through the borrowed bytes and lands on the jump home.
+;; parked at &4CE8 beside it.  The two borrows are used differently.
+;; The &FF80 (or &C000) one, for the LDDR, plants the ten bytes above
+;; at its start, sets SP twenty-two bytes in and CALLs them, so the
+;; planted RET comes home through the CALL's own push.  The section-C
+;; one, for the LDIR, plants nothing: its LDIR only saves the twelve
+;; bytes, and the JP at &757E or &7595 goes to the ROM's own OUT :
+;; LDIR : LD A,&1F : OUT : POP AF : RET at &389E, found by the
+;; signature at &79DC -- with the address to come back to written ten
+;; bytes in and SP set eight bytes in, so that the ROM's POP AF and RET
+;; unwind through the borrowed bytes onto it.
 ;;
 ;; That the block runs at &46CC is not a guess.  Every absolute CALL
 ;; and JP in it that targets &4000-&7FFF -- eight of them -- lands
@@ -18863,7 +18897,10 @@ RELOCATED_TO_46CC_LOOP:
                LD B,A                          ; 748D 47
                CALL &4702                      ; 748E CD 02 47  &4702 once this block is moved -- the operand means the
                                                ; copy, not anything at that address in this page
-               LD BC,&1F00                     ; 7491 01 00 1F  &1F00, 7936 bytes, the most one pass moves
+               LD BC,&1F00                     ; 7491 01 00 1F  &1F00, 7936 bytes: the tail of a long move. The CALL
+                                               ; just above moved the rest -- the count less &1F00 -- first, and nothing
+                                               ; below splits that on anything but the &C000 boundary, so FARLDIR's
+                                               ; &4000 arrives here as a first chunk of &2100
                JR RELOCATED_TO_46CC_LOOP       ; 7494 18 E1
 
 ; ---- RELOCATED_TO_46CC_3 ---- from &7489 when A < &20
@@ -18936,8 +18973,7 @@ RELOCATED_TO_46CC_5:
                ADD HL,DE                       ; 74F3 19
                LD SP,HL                        ; 74F4 F9
                EXX                             ; 74F5 D9
-               CALL &0000                      ; 74F6 CD 00 00  the operand is written at &74DC, three instructions
-                                               ; before this is reached
+               CALL &0000                      ; 74F6 CD 00 00  the operand is written at &74DC, above
                EXX                             ; 74F9 D9
                LD SP,(&4CE8)                   ; 74FA ED 7B E8 4C  SP back from where &74C7 parked it
                LD HL,&4CEA                     ; 74FE 21 EA 4C  and the twenty-two saved bytes, on their way home
@@ -19008,7 +19044,8 @@ RELOCATED_TO_46CC_7:
                LD BC,&000C                     ; 7562 01 0C 00  twelve of them
                CP &9E                          ; 7565 FE 9E  which end of section C to borrow -- below it the top, at or
                                                ; above it the bottom at &8000. WHAT A HOLDS HERE IS NOT SETTLED: &7550
-                                               ; puts the destination's high byte in it, but the CALL NZ,INCURPAGE at
+                                               ; puts the source's high byte in it -- DE is still the source there, HL
+                                               ; having just been reloaded from TEMPW1 -- but the CALL NZ,INCURPAGE at
                                                ; &7554 reaches SELURPG, which leaves A as an HMPR byte instead, and &9E
                                                ; is not a value HMPR can sensibly take. One of those two readings is
                                                ; wrong and this note does not say which
@@ -19101,8 +19138,10 @@ RELOCATED_TO_46CC_10:
 ;; The installer.  The boot sector copies these 943 bytes to &BC00 --
 ;; the DOS page, as the boot sector has it mapped -- and runs them
 ;; there.  The paging at that point is the one this listing assumes,
-;; so the addresses read normally: &4xxx-&7xxx here, &8xxx-&Bxxx in
-;; the DOS page.
+;; so the addresses read normally -- &4xxx-&7xxx here, &8xxx-&Bxxx in
+;; the DOS page -- until &7662, where LMPR := &1F swaps the system
+;; page in for this one; from there on &4xxx-&5xxx is the ROM
+;; variables and &8xxx-&Bxxx still the DOS page.
 ;; ------------------------------------------------------------------
 
 INSTALLER:
@@ -19195,18 +19234,22 @@ INSTALLER_LOOP4:
                DJNZ INSTALLER_LOOP4            ; 768C 10 FB
                POP HL                          ; 768E E1
                LD SP,(DOS_V40F9)               ; 768F ED 7B F9 80
-               LD (HL),&30                     ; 7693 36 30  &30 into MasterBASIC's own allocation entry. The boot
-                                               ; sector builds the pointer as ALLOCT plus a page number -- LD HL,ALLOCT
-                                               ; + MAX_INTERNAL_PAGE at DOS &4015, then LD L,A from HMPR at &402A -- and
-                                               ; dumps/SYSPAGE_after_MBMD_boot.bin shows where it lands: page 28 holds
-                                               ; &30 and page 29 &60, which are MasterBASIC's page and the DOS's. So
-                                               ; &7682 above marks the DOS page and this marks this half's. &30 is not
-                                               ; in the manual's list of values, which names &20, &40, &60, &C0 and &FF
+               LD (HL),&30                     ; 7693 36 30  &30 into MasterBASIC's own allocation entry -- its own
+                                               ; mark, and the boot sector's CP &30 at DOS &4037 is what lets a re-boot
+                                               ; take the page back. The boot sector builds the pointer as ALLOCT plus a
+                                               ; page number -- LD HL,ALLOCT + MAX_INTERNAL_PAGE at DOS &4015, then LD
+                                               ; L,A from HMPR at &402A -- and dumps/SYSPAGE_after_MBMD_boot.bin shows
+                                               ; where it lands: page 28 holds &30 and page 29 &60, which are
+                                               ; MasterBASIC's page and the DOS's. So &7682 above marks the DOS page and
+                                               ; this marks this half's. &30 is not in the manual's list of values,
+                                               ; which names &20, &40, &60, &C0 and &FF
                LD A,L                          ; 7695 7D
                DEC A                           ; 7696 3D
-               LD (&82CD),A                    ; 7697 32 CD 82  L less one, into the DOS page's &42CD.
-                                               ; SAVE_BLOCK_FROM_DOS_PAGE reads that byte back and adds the one again,
-                                               ; so whichever page L holds here is the page it puts in the window
+               LD (&82CD),A                    ; 7697 32 CD 82  L is MasterBASIC's page, and L less one goes into the
+                                               ; DOS page's &42CD -- the operand of CALLMB's LD H,&00 at DOS &42CC, so
+                                               ; that CALLMB's OUT puts this half in section B. This half's own &42CD,
+                                               ; the byte SAVE_BLOCK_FROM_DOS_PAGE reads, is a different byte, written
+                                               ; by the boot sector at DOS &40F0
                LD HL,&0144                     ; 769A 21 44 01  &44 and &01 -- PSLD is two bytes, DEVL then DEVN, so
                                                ; this sets the default device to D1
                LD (PSLD),HL                    ; 769D 22 06 5A
@@ -19377,10 +19420,10 @@ INSTALL_ROM_VECTORS:
                LD (&5A69),DE                   ; 76DD ED 53 69 5A  &5A69 is VAR2+&69, inside the fourteen bytes vars.asm
                                                ; marks SPARE between LSOFF and SPOSNU; &7BCF parks a return address in
                                                ; &5A62 out of the same fourteen. &549F reads this word back with MBNRRDD
-                                               ; beside the ROM's ERRSP and MasterDOS's NEXTST -- the DEFW &7889 two
-                                               ; instructions later is LD BC,(NEXTST) -- so what it holds is a
-                                               ; next-statement address. It is MasterBASIC's NEXTST, written here in the
-                                               ; same breath as the DOS's own
+                                               ; beside the ROM's ERRSP and MasterDOS's NEXTST -- the DEFW &7889 at
+                                               ; &54B2, a few instructions later, is LD BC,(NEXTST) -- so what it holds
+                                               ; is a next-statement address. It is MasterBASIC's NEXTST, written here
+                                               ; in the same breath as the DOS's own
                CALL DOS_MBCOPY_778B            ; 76E1 CD AA BD
                CALL DOS_MBCOPY_7829            ; 76E4 CD 48 BE
                LD HL,SYS_PRTOKV_PRINT_TOKEN    ; 76E7 21 B0 4B  &4BB0 in the system page -- inside the 36 bytes put at

@@ -106,7 +106,7 @@ MB &76DD : &5A69 is VAR2+&69, inside the fourteen bytes vars.asm marks
            SPARE between LSOFF and SPOSNU; &7BCF parks a return address in
            &5A62 out of the same fourteen.  &549F reads this word back with
            MBNRRDD beside the ROM's ERRSP and MasterDOS's NEXTST -- the
-           DEFW &7889 two instructions later is LD BC,(NEXTST) -- so what
+           DEFW &7889 at &54B2, a few instructions later, is LD BC,(NEXTST) -- so what
            it holds is a next-statement address.  It is MasterBASIC's
            NEXTST, written here in the same breath as the DOS's own
 MB &76E7 : &4BB0 in the system page -- inside the 36 bytes put at &4BA0

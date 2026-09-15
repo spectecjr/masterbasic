@@ -510,7 +510,7 @@ MB &4297 expr PAGEMASK
 MB &5AF1 : the byte is the first of a register/value pair bound for the sound buffer, and the reader at &5AC7 sends it to port &01FF, the SAA1099's register select.  The chip has registers &00-&1F and &20 is the PAUSE marker the reader tests at &5AB5, so anything from &21 up is neither and the string is refused as Integer out of range
 
 MB &450D : the seed for the ADD IY,SP below, the only way the Z80 has of reading SP -- the zero is the idiom, as at &77F8
-MB &4433 : sixteen passes, one per bit of DE, which is the whole of a sixteen-by-sixteen multiply done by shift and add
+MB &4433 : sixteen passes, one per bit of the original HL, walked out of IY, which is the whole of a sixteen-by-sixteen multiply done by shift and add
 MB &4602 : the carry out of the ADD below it, into the top byte -- the 24-bit form the banner counts from the sixth step on
 MB &62E6 : three bits, because eight 64K banks cover the 512K a SAM can hold -- the banner above says the AND is what makes the result a bank number
 MB &49D4 : &42CD is the byte the boot sector patched with the other page's number less one, which the banner above sets out

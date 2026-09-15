@@ -38,13 +38,14 @@ BOOT_STACK_TOP:          EQU  &C000            ; one past the window; the stack 
 DIR_NAME_BUFFER:         EQU  &A000            ; where a sorted listing collects its names
 DRAM_PAGE_HIGH:          EQU  &7D
 MAX_INTERNAL_PAGE:       EQU  &1F              ; the highest page number a 512K machine has
+MB_PAGE_MARK:            EQU  &30              ; the allocation code MasterBASIC's installer writes against its own page
+                                               ; at MB &7693; screens are &C0
 MIN_RAMDISC_PAGE_TYPE:   EQU  &D0              ; lowest allocation code that means a RAM disc
 PAST_RAMDISC_PAGE_TYPE:  EQU  &D8              ; one above the highest, so the test is a range
 PAST_WINDOW_TOP:         EQU  &C0
 RAMDISC_PAGE_HIGH:       EQU  &80
 ROM_SP_AT_ENTRY:         EQU  &7FFC            ; the ROM's stack pointer as it entered the DOS -- the middle word of the
                                                ; three its PTDOS pushes at the top of this page
-SCREEN_PAGE_TYPE:        EQU  &30              ; allocation code for a page holding a screen
 WINDOW:                  EQU  &8000            ; the window, holding whatever HMPR last selected
 ZX_RESUME:               EQU  &B900            ; the resume stub in the Spectrum page
 ZX_RESUME_ARGS:          EQU  &B8F6            ; what the stub reads: the address to return to, then LMPR, HMPR and VMPR
@@ -308,7 +309,9 @@ FIND_FREE_PAGE_LOOP:
                LD A,(HL)                       ; 4033 7E
                AND A                           ; 4034 A7  zero means the page is free
                JR Z,FOUND_PAGE_FOR_MB          ; 4035 28 09
-               CP SCREEN_PAGE_TYPE             ; 4037 FE 30  a screen will do -- it can be taken back
+               CP MB_PAGE_MARK                 ; 4037 FE 30  or a page a previous boot marked as MasterBASIC's -- the
+                                               ; &30 MB &7693 writes, which the Technical Manual's list does not have;
+                                               ; screens are &C0 -- since that can be taken back
                JR Z,FOUND_PAGE_FOR_MB          ; 4039 28 05
                DEC L                           ; 403B 2D
                JR NZ,FIND_FREE_PAGE_LOOP       ; 403C 20 F5  keep going down; zero is the system page and stops the scan
@@ -319,7 +322,7 @@ FIND_FREE_PAGE_LOOP:
 ; sector addresses each sector carries in its last two bytes.  The
 ; first wave is the DOS itself.
 
-; ---- FOUND_PAGE_FOR_MB ---- from &4035 when A = 0, &4039 when A = SCREEN_PAGE_TYPE
+; ---- FOUND_PAGE_FOR_MB ---- from &4035 when A = 0, &4039 when A = MB_PAGE_MARK
 FOUND_PAGE_FOR_MB:
                PUSH HL                         ; 4040 E5
                LD HL,L41FF+IN_PAGE_C           ; 4041 21 FF 81  the last two bytes of the boot sector, in this half

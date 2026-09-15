@@ -42,9 +42,11 @@ DOC RELOCATED_TO_46CC
     AND THE REST OF IT BORROWS MEMORY IT DOES NOT OWN.  A block move
     across the paging cannot run from the pages it is moving, because
     the OUT that brings the next page in would page the mover out from
-    under itself.  So this plants the moving instructions somewhere that
-    stays mapped whatever sections A and B are doing -- the very top of
-    memory -- and puts back what was there afterwards.
+    under itself.  So the LDDR side plants the moving instructions
+    somewhere that stays mapped whatever sections A and B are doing --
+    the very top of memory -- and the LDIR side borrows a stack at one
+    end of section C and jumps to the ROM's own copy of them; both put
+    back what they took afterwards.
 
     The ten bytes it plants are its own &75D7 to &75E0, which is &4843
     once installed:
@@ -60,9 +62,16 @@ DOC RELOCATED_TO_46CC
 
     THE SCRATCH IS TWENTY-TWO BYTES AT &FF80 or twelve at one end of
     section C, kept in the system page at &4CEA while borrowed, with SP
-    parked at &4CE8 beside it.  Both sizes put the address to come back
-    to ten bytes in and set SP eight bytes in, so the ROM routine's own
-    RET unwinds through the borrowed bytes and lands on the jump home.
+    parked at &4CE8 beside it.  The two borrows are used differently.
+    The &FF80 (or &C000) one, for the LDDR, plants the ten bytes above
+    at its start, sets SP twenty-two bytes in and CALLs them, so the
+    planted RET comes home through the CALL's own push.  The section-C
+    one, for the LDIR, plants nothing: its LDIR only saves the twelve
+    bytes, and the JP at &757E or &7595 goes to the ROM's own OUT :
+    LDIR : LD A,&1F : OUT : POP AF : RET at &389E, found by the
+    signature at &79DC -- with the address to come back to written ten
+    bytes in and SP set eight bytes in, so that the ROM's POP AF and RET
+    unwind through the borrowed bytes onto it.
 
     That the block runs at &46CC is not a guess.  Every absolute CALL
     and JP in it that targets &4000-&7FFF -- eight of them -- lands
@@ -78,7 +87,7 @@ DOC RELOCATED_TO_46CC
 
 MB &7487 : thirty-two, and B counts 256-byte units, so this asks whether the move is &2000 bytes or more -- more than one pass will take
 MB &748B : thirty-one of those units off the count, which is the &1F00 below said the other way round
-MB &7491 : &1F00, 7936 bytes, the most one pass moves
+MB &7491 : &1F00, 7936 bytes: the tail of a long move.  The CALL just above moved the rest -- the count less &1F00 -- first, and nothing below splits that on anything but the &C000 boundary, so FARLDIR's &4000 arrives here as a first chunk of &2100
 
 MB &74C7 : a word in the system page where SP is parked while the stack is moved into the borrowed bytes; &74FA reads it back
 MB &74CB : &FF80, the top of memory less 128 -- twenty-two bytes of it are about to be borrowed, and being in section D they stay mapped however sections A and B are paged
@@ -90,7 +99,7 @@ MB &74E2 expr PAGEMASK
 MB &74E8 : the ten bytes to plant, which are this block's own &75D7 to &75E0 -- see the banner
 MB &74EB : ten of them
 MB &74F0 : twenty-two again, to put SP just past the borrowed bytes
-MB &74F6 : the operand is written at &74DC, three instructions before this is reached
+MB &74F6 : the operand is written at &74DC, above
 MB &74FA : SP back from where &74C7 parked it
 MB &74FE : and the twenty-two saved bytes, on their way home
 MB &7501 : twenty-two of them
@@ -99,7 +108,7 @@ MB &7558 : the same word as &74C7, on the other of the two paths
 MB &755C : &BF80, the top of section C this time, and twelve bytes rather than twenty-two
 MB &755F : the same save area in the system page
 MB &7562 : twelve of them
-MB &7565 : which end of section C to borrow -- below it the top, at or above it the bottom at &8000.  WHAT A HOLDS HERE IS NOT SETTLED: &7550 puts the destination's high byte in it, but the CALL NZ,INCURPAGE at &7554 reaches SELURPG, which leaves A as an HMPR byte instead, and &9E is not a value HMPR can sensibly take.  One of those two readings is wrong and this note does not say which
+MB &7565 : which end of section C to borrow -- below it the top, at or above it the bottom at &8000.  WHAT A HOLDS HERE IS NOT SETTLED: &7550 puts the source's high byte in it -- DE is still the source there, HL having just been reloaded from TEMPW1 -- but the CALL NZ,INCURPAGE at &7554 reaches SELURPG, which leaves A as an HMPR byte instead, and &9E is not a value HMPR can sensibly take.  One of those two readings is wrong and this note does not say which
 MB &756D : the bottom of section C, borrowed when the top would be in the way
 MB &7577 : ten bytes in, where the address to come back to goes -- &47ED is this block's own &7581, the instruction after the jump below
 MB &757B : eight bytes in, so that the ROM routine's RET unwinds through the borrowed bytes and onto that address

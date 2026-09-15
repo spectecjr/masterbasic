@@ -12,7 +12,7 @@ CONST SECTION_D = &C000 : where section D begins; a move that reaches it has to 
 MB &7461 : is B zero?  It is the length's high byte, so anything else means 256 bytes or more and the JR NZ takes it -- only a shorter move falls through to the SHORT_MOVE_LIMIT test below
 
 MB &7465 value SHORT_MOVE_LIMIT
-MB &749F : the high byte alone, so this is "has the move reached section D"
+MB &749F : the high byte of the lowest byte the LDDR will write, TEMPW1 less the count plus one: at or above &C0 the whole destination stays inside section D and goes in one piece; below it the range dips under &C000 and is split there
 MB &74A6 expr SECTION_D + 1
 MB &74D8 value SECTION_D
 MB &7533 : the high byte again, taking the address back down to an offset within the section
