@@ -110,7 +110,8 @@ DOC RELOCATED_TO_484D
     signature -- &2A96 at &46D4, &389E at &47EB and &4802, ENDOUTP at
     &49F5, PRMAIN at &49FE, CCRESTOP at &4A50 -- and three single bytes
     of &1C, MasterBASIC's page number, two of them landing exactly on
-    L7CF5+1 and L7D46+1, which are the operands the installer patches.
+    OWN_PAGE_FOR_INTERRUPT+1 and OWN_PAGE_FOR_PATOUT+1, which are the
+    operands the installer patches.
 
     What copies those ten bytes to &45A2 is INSTALL_EXTENDED_PUT, which
     assembles &45A2-&46CB out of seven runs; these are the first of them,

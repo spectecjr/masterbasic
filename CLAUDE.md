@@ -95,6 +95,9 @@ only.  `DOS` substitutes for `MB`.
     MB &7465 value NAME             name this operand (an equate is made)
     MB &74A6 expr SECTION_D + 1     rewrite the operand; checked against the bytes
     MB &7465 step text              a line of its own above the instruction
+    MB &7465 site NAME              a label that heads nothing -- a patched
+                                    operand named for what it becomes -- so
+                                    derived labels after it are not re-parented
     CONST NAME = &15 : description
     GROUP Heading                   the CONSTs after it, until the next GROUP
     RENAME OLD NEW

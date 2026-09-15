@@ -452,7 +452,7 @@ MB &6575 : the factor was decremented two instructions up, so this passes
            which is the manual's "the maximum width is 248" -- here the
            manual and the code agree exactly
 
-MB &6594 V6594
+MB &6594 CSZ2_WORD
     The operand of the CALL MBCMR at &6591, filled in by the installer
     at &761F.  The signature it searches for is D6 06 32 -- the ROM's
     own "SUB 6 / LD (FL6OR8),A" inside its CSIZE handler -- and five

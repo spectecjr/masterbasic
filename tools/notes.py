@@ -38,6 +38,11 @@ Eight kinds of entry, one per line, blank lines and # comments ignored
                                   where the same value means something
                                   different elsewhere
 
+    MB &7DA6 site JP_CCRESTOP     name an instruction that is not a
+                                  routine head -- a patched operand,
+                                  typically -- so the derived labels
+                                  after it keep their routine's name
+
     EQU STKEND : end of the calculator stack
                                   describe a ROM name in the equate block
 
@@ -95,7 +100,7 @@ GROUP = re.compile(r'^GROUP\s+(\S.*?)\s*$')
 CONST = re.compile(r'^CONST\s+(\w+)\s*=\s*([^:]+?)\s*(?::\s*(\S.*?))?\s*$')
 # RENAME ULA BORDER -- change a name everywhere it is written.
 RENAME = re.compile(r'^RENAME\s+(\w+)\s+(\w+)\s*$')
-KINDS = ('data', 'text', 'word', 'code', 'value', 'step', 'expr')
+KINDS = ('data', 'text', 'word', 'code', 'value', 'step', 'expr', 'site')
 
 
 def _numbers(table):
@@ -235,7 +240,7 @@ def parse(path):
                 # look like one.  Without this a mistyped entry quietly
                 # becomes a label: `DOS &4010 +1 : text` made a label
                 # called +1, which pyz80 then accepted.
-                if cur['kind'] is None and not re.fullmatch(
+                if cur['kind'] in (None, 'site') and not re.fullmatch(
                         r'[A-Za-z_]\w*', cur['name']):
                     bad.append('%s:%d: %r is not a name'
                                % (os.path.basename(path), n, cur['name']))
@@ -546,7 +551,7 @@ def apply(pages, root, banner, folder='notes', deferred=None):
                 stepped += 1
             continue
 
-        if e['kind']:
+        if e['kind'] and e['kind'] != 'site':
             end = (e['end'] or a) + 1
             for x in range(a, min(end, d.limit)):
                 d.setm(x, kinds[e['kind']])
@@ -579,6 +584,8 @@ def apply(pages, root, banner, folder='notes', deferred=None):
                         if pat.search(text):
                             d.overrides[at] = pat.sub(e['name'], text)
                 d.labels[a] = e['name']
+                if e['kind'] == 'site':
+                    d.site_labels.add(a)
                 named += 1
 
         if e['doc']:

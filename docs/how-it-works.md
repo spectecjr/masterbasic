@@ -90,7 +90,7 @@ editor's word-left and word-right come from.
 `INSTALL_ROM_PATCHES` also patches two instructions in the `&484D` block
 with MasterBASIC's own page number, so they can page the extension back in
 when needed. *Confirmed on hardware:* those bytes hold `&1C` in the dump,
-at `L7CF5+1` and `L7D46+1` exactly.
+at `OWN_PAGE_FOR_INTERRUPT+1` and `OWN_PAGE_FOR_PATOUT+1` exactly.
 
 **Point the ROM at it.** `INSTALL_ROM_VECTORS` at `&76DA` writes the
 installed addresses into the ROM vector variables:

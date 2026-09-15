@@ -183,6 +183,7 @@ class Page(Disassembler):
         self.relocated = []           # (from, to, destination) blocks moved
         self.no_peer = []             # ranges where &8000+ is not the peer
         self.self_window = []         # ranges where &8000+ is this page
+        self.site_labels = set()      # named instructions that head nothing
         self.sys_low = []             # ranges where &4000+ is the system page
         self.carried_by_value = {}    # address -> the MasterDOS source's name
         self.rendered = []            # ranges written by a renderer
@@ -2077,8 +2078,15 @@ def name_synthetic_labels(d):
     loop head, a plain return, or an error exit.  Anything less certain
     than those three gets a number, which at least carries the routine.
     """
+    # A `site` label -- an instruction someone has named for what its
+    # patched operand becomes, JP_CCRESTOP say -- is not a routine head
+    # and must not parent anything: naming it as a plain label
+    # re-parented every derived label after it in the dispatcher, and
+    # asking the patch detector instead took COMPILE_ALL, a real head
+    # whose first instruction is patched, off the list as well.
     heads = sorted(a for a, name in d.labels.items()
-                   if a in d.insns and not SYNTHETIC.match(name))
+                   if a in d.insns and not SYNTHETIC.match(name)
+                   and a not in d.site_labels)
     if not heads:
         return 0
     order = sorted(d.insns)
@@ -3870,7 +3878,7 @@ def note_relocated(d):
     return n
 
 
-def note_patched_ports(d, NEAR_PATCH=1024):
+def patched_sites(d, NEAR_PATCH=1024):
     """Say where an IN or OUT gets its port, when it is written at run time.
 
     The DOS does not bracket a transfer with INC C and DEC C to move
@@ -3879,8 +3887,15 @@ def note_patched_ports(d, NEAR_PATCH=1024):
     starts, so the loop itself is two instructions.  What is left in the
     listing is `IN A,(&00)`, which says nothing at all -- the &00 is a
     placeholder that is never executed.
+
+    Yields (patcher, owner, victim, port) for every store that lands
+    inside an instruction: the address of the LD, the instruction it
+    writes into, that instruction's text, and whether it is an IN or
+    OUT.  note_patched_ports writes the comments; name_synthetic_labels
+    asks the same question earlier, so that a site someone has named --
+    JP_CCRESTOP, say -- is not taken for a routine head and does not
+    re-parent every derived label after it.
     """
-    n = 0
     # A store that follows a signature search is a patch by construction,
     # however far away it lands: the search returns a ROM address in HL
     # and the only thing to do with it is write it into the operand of
@@ -3969,6 +3984,15 @@ def note_patched_ports(d, NEAR_PATCH=1024):
                 continue
             if d.insns[owner].length < 2:
                 continue
+        yield a, owner, victim, port
+
+
+def note_patched_ports(d, NEAR_PATCH=1024):
+    """Comment both ends of every patch patched_sites finds, and write
+    the store's operand as the instruction it patches plus an offset."""
+    n = 0
+    for a, owner, victim, port in patched_sites(d, NEAR_PATCH):
+        ins = d.insns[a]
         what = 'port' if port else 'operand'
         d.comments.setdefault(
             owner, 'the %s is written here at run time, from &%04X'

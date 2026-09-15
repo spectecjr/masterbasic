@@ -1,0 +1,80 @@
+# The instructions whose operand is written at run time, named for
+# what the operand becomes.  Each used to be Lxxxx -- a label that
+# existed only because the patcher's LD (Lxxxx+1),HL had to name it --
+# and the ROM addresses the signature searches resolve to are the
+# build's, printed beside each search in INSTALL_ROM_PATCHES and
+# RESOLVE_ROM_ENTRIES.  Where the ROM's map has no label for the
+# address the nearest one below it is given with the offset.
+
+# MBCMR: LD A,&00 takes the caller's HMPR, read at &4500.
+MB &4531 site MBCMR_CALLER_HMPR
+
+# COMPARE_FAR_STRINGS: the JR whose displacement CMD_SORT_2 sets to 2
+# (quit on a difference) or 5 (fold the case out first).
+MB &4744 site COMPARE_FAR_STRINGS_CASE_JR
+
+# HOOK_TOKENARG: the two LD BC that load the ROM address the hook will
+# return into, EXITIF+7 for EXIT IF and ENDPROC+3 for END PROC.
+MB &5321 site RETURN_INTO_EXITIF
+MB &534D site RETURN_INTO_ENDPROC
+
+# The JP NZ being assembled at &5CEE takes POKE2 as its operand.
+MB &5CF1 site POKE2_FOR_BUILT_JP
+
+# HOOK_CSIZE: CALL Z,EPSUB.
+MB &6516 site CALL_Z_EPSUB
+
+# COPY_EVERY_NTH_BYTE's three constants, written by SET_STEP_AND_COUNT:
+# the pass count and the stride from B, the bytes per pass from C.
+MB &67BE site NTH_BYTE_PASSES
+MB &67C1 site NTH_BYTE_PER_PASS
+MB &67C6 site NTH_BYTE_STRIDE
+
+# The compiler's four calls into ROM 1, resolved by signature.
+MB &73B9 site CALL_COMLEN
+MB &73BE site CALL_LKCALL
+MB &73F7 site CALL_MATCHER
+MB &7428 site CALL_LKFC
+
+# The string mover: a short move is handed to the ROM's own STRMOV1
+# eight bytes in, and the two LDIR borrows jump to BUFMV2+4, the ROM's
+# OUT (LMPR),A : LDIR : LD A,&1F : OUT : POP AF : RET.
+MB &7467 site SHORT_MOVE_TO_ROM
+MB &757E site ROM_LDIR_FROM_BOTTOM
+MB &7595 site ROM_LDIR_FROM_TOP
+
+# INSTALL_SYSPAGE_CODE: the three ROM entries the MNIP copy at &4C14
+# needs, planted into it -- EDPRT, KYIP2+12 and EDLP+7.
+MB &7AD5 site EDPRT_FOR_MNIP
+MB &7ADB site KYIP2_FOR_MNIP
+MB &7AE1 site EDLP_FOR_MNIP
+
+# The two LD A,&00 that take this half's own page number, one for the
+# interrupt path and one for PATOUT's, both written by
+# INSTALL_ROM_PATCHES from LMPR plus one.
+MB &7CF5 site OWN_PAGE_FOR_INTERRUPT
+MB &7D46 site OWN_PAGE_FOR_PATOUT
+
+# The dispatcher's way out: PRMAIN for a token that is not AT or TAB,
+# and CCRESTOP after the second operand.
+MB &7D54 site JP_NZ_PRMAIN
+MB &7DA6 site JP_CCRESTOP
+
+# The stubs after CURSOR_PATTERNS, which the label above them used to
+# claim: the tape loader's entry (AND A verifies; two bytes in, the
+# SCF inside the LD A,&37, loads) jumps to LDVD3+1; EXIT FOR calls
+# SEARCHALL -- the word the search at &7A60 reads out of the ROM's own
+# CALL at SEARCH+1 -- and jumps back to SEARCH+7; and &7DDB is the
+# post-LOAD stub the installer plants at &4A84.
+MB &7DB9 TAPE_VERIFY_STUB
+MB &7DBF site TAPE_JP_LDVD3
+MB &7DC2 EXIT_FOR_STUB
+MB &7DC5 site EXIT_FOR_CALL_SEARCHALL
+MB &7DD8 site EXIT_FOR_JP_SEARCH
+MB &7DDB POST_LOAD_STUB
+
+# The inline words after CALL MBCMR that a signature search fills.
+MB &45EA LOOKVARS_WORD
+MB &45F0 SLICING_WORD
+MB &45F6 INSERTLN_WORD
+MB &56F6 EDKY1_WORD

@@ -240,7 +240,7 @@ INSLV_STRING_MOVE:
                LD A,C                          ; 46D0 79
                CP &15                          ; 46D1 FE 15
 
-L7467:
+SHORT_MOVE_TO_ROM:
                JP C,&2A96                      ; 46D3 DA 96 2A
 
 ; ---- RELOCATED_TO_46CC_1 ---- from &46CE
@@ -419,7 +419,7 @@ RELOCATED_TO_46CC_7:
                EXX                             ; 47E6 D9
                LD SP,&8008                     ; 47E7 31 08 80
 
-L757E:
+ROM_LDIR_FROM_BOTTOM:
                JP &389E                        ; 47EA C3 9E 38
                DEFB &D9,&11,&00,&80,&18,&15    ; 47ED Y.....
 
@@ -432,7 +432,7 @@ RELOCATED_TO_46CC_8:
                EXX                             ; 47FD D9
                LD SP,&BF88                     ; 47FE 31 88 BF
 
-L7595:
+ROM_LDIR_FROM_TOP:
                JP &389E                        ; 4801 C3 9E 38
                DEFB &D9,&11,&80,&BF            ; 4804 Y..?
 
@@ -716,7 +716,7 @@ FRAME_INT_CALL_INTO_MB:
                PUSH AF                         ; 499C F5
                LD D,A                          ; 499D 57
 
-L7CF5:
+OWN_PAGE_FOR_INTERRUPT:
                LD A,&1C                        ; 499E 3E 1C
 
 SAVE_BOOT_BLOCK_1:
@@ -782,7 +782,7 @@ PATOUT_CHAR_OUT_4:
 S49EE:
                LD C,A                          ; 49EE 4F
 
-L7D46:
+OWN_PAGE_FOR_PATOUT:
                LD A,&1C                        ; 49EF 3E 1C
                JP MB_PAGER                     ; 49F1 C3 E0 5B
 
@@ -791,7 +791,7 @@ PATOUT_CHAR_OUT_5:
                JP &DC77                        ; 49F4 C3 77 DC
                DEFB &FE,&16,&28,&05,&FE,&17    ; 49F7 ~.(.~.
 
-L7D54:
+JP_NZ_PRMAIN:
                DEFB &C2,&CC,&01                ; 49FD BL.
 
 AT_TAB_HOOK:
@@ -821,31 +821,40 @@ AT_TAB_SECOND_OPERAND_1:
 AT_TAB_SECOND_OPERAND_2:
                DEFB &7A                        ; 4A4E z
 
-L7DA6:
+JP_CCRESTOP:
                DEFB &C3,&A7,&3D                ; 4A4F C'=
 
 CURSOR_PATTERNS:
                DEFB &00,&00,&00,&00,&3C,&3C,&3C,&00,&00,&3C,&3C,&3C,&00,&00,&00 ; 4A52 ....<<<..<<<...
-               DEFB &00,&A7,&3E,&37,&D9,&3E,&FF                                 ; 4A61 .'>7Y>.
+               DEFB &00                                                         ; 4A61 .
 
-L7DBF:
-               DEFB &C3,&BA,&E2,&11,&C1,&C0    ; 4A68 C:b.A@
+TAPE_VERIFY_STUB:
+               DEFB &A7,&3E,&37,&D9,&3E,&FF    ; 4A62 '>7Y>.
 
-L7DC5:
+TAPE_JP_LDVD3:
+               DEFB &C3,&BA,&E2                ; 4A68 C:b
+
+EXIT_FOR_STUB:
+               DEFB &11,&C1,&C0                ; 4A6B .A@
+
+EXIT_FOR_CALL_SEARCHALL:
                DEFB &CD,&9E,&1D,&C1,&38,&02,&CF,&05 ; 4A6E M..A8.O.
 
-AT_TAB_SECOND_OPERAND_3:
+EXIT_FOR_STUB_1:
                DEFB &57                        ; 4A76 W
 
-AT_TAB_SECOND_OPERAND_LOOP2:
+EXIT_FOR_STUB_LOOP:
                DEFB &E7,&FE,&0D,&28,&04,&FE,&3A,&20,&F7 ; 4A77 g~.(.~: w
 
-AT_TAB_SECOND_OPERAND_4:
+EXIT_FOR_STUB_2:
                DEFB &7A                        ; 4A80 z
 
-L7DD8:
-               DEFB &C3,&4E,&0D,&21,&B6,&5B,&CB,&C6,&3E,&FF,&32,&40,&5B,&2A,&A0 ; 4A81 CN.!6[KF>.2@[*
-               DEFB &5A,&3A,&9F,&5A,&D3,&FB,&36,&00,&C9                         ; 4A90 Z:.ZS{6.I
+EXIT_FOR_JP_SEARCH:
+               DEFB &C3,&4E,&0D                ; 4A81 CN.
+
+POST_LOAD_STUB:
+               DEFB &21,&B6,&5B,&CB,&C6,&3E,&FF,&32,&40,&5B,&2A,&A0,&5A,&3A,&9F ; 4A84 !6[KF>.2@[* Z:.
+               DEFB &5A,&D3,&FB,&36,&00,&C9                                     ; 4A93 ZS{6.I
 
 LOAD_RETURN_STUB:
                DEFB &CD,&84,&4A,&C3,&00,&00,&22,&9E,&4B,&E1,&CD,&01,&0E,&2A,&9E ; 4A99 M.JC..".KaM..*.

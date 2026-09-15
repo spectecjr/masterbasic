@@ -32,7 +32,7 @@ DOC RESOLVE_ROM_ENTRIES
     That is the whole of what was left open about those operands.
 
     The rest land in this page's own call sites -- &735E, &7468, &757F,
-    &7596, &73B4, &73BA, &73BF, V56F6 and others -- so the routine is
+    &7596, &73B4, &73BA, &73BF, EDKY1_WORD and others -- so the routine is
     self-patching, and the operands the listing shows at those addresses
     are the shipped zeros rather than what runs.
 

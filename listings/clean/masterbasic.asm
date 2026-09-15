@@ -2161,7 +2161,7 @@ MBCMR:
                PUSH HL                         ; 44FE E5
                LD C,A                          ; 44FF 4F
                IN A,(HMPR)                     ; 4500 DB FB
-               LD (L4531+1),A                  ; 4502 32 32 45  patches the operand of the LD at &4531
+               LD (MBCMR_CALLER_HMPR+1),A      ; 4502 32 32 45  patches the operand of the LD at &4531
                IN A,(LMPR)                     ; 4505 DB FA
                LD B,A                          ; 4507 47
                INC A                           ; 4508 3C
@@ -2189,7 +2189,7 @@ MBCMR_1:
                PUSH HL                         ; 452F E5
                PUSH DE                         ; 4530 D5
 
-L4531:
+MBCMR_CALLER_HMPR:
                LD A,&00                        ; 4531 3E 00  the operand is written here at run time, from &4502
                JP SYS_GAP_BLOCK+&09            ; 4533 C3 9F 58
 
@@ -2586,8 +2586,8 @@ MBGTHL:
 CALL_LOOKVARS:
                CALL MBCMR                      ; 45E7 CD F0 44  the operand is written here at run time, from &7A45
 
-; ---- V45EA ---- from &7A45
-V45EA:
+; ---- LOOKVARS_WORD ---- from &7A45
+LOOKVARS_WORD:
                DEFW &0000                      ; 45EA 00 00
                RET                             ; 45EC C9
 
@@ -2595,8 +2595,8 @@ V45EA:
 CALL_SLICING:
                CALL MBCMR                      ; 45ED CD F0 44
 
-; ---- V45F0 ---- from &75FB
-V45F0:
+; ---- SLICING_WORD ---- from &75FB
+SLICING_WORD:
                DEFW &0000                      ; 45F0 00 00
                RET                             ; 45F2 C9
 
@@ -2604,8 +2604,8 @@ V45F0:
 CALL_INSERTLN:
                CALL MBCMR                      ; 45F3 CD F0 44  the operand is written here at run time, from &7607
 
-; ---- V45F6 ---- from &7607
-V45F6:
+; ---- INSERTLN_WORD ---- from &7607
+INSERTLN_WORD:
                DEFW &0000                      ; 45F6 00 00
                RET                             ; 45F8 C9
 
@@ -2722,16 +2722,16 @@ CMD_SORT_1:
 
 ; ---- CMD_SORT_2 ---- from &461B
 CMD_SORT_2:
-               LD (L4744+1),A                  ; 462A 32 45 47  the operand of the JR at &4744 -- 2 quits on a
-                                               ; difference, 5 goes on to fold the case out of it
-               CALL FIND_STRING_VARIABLE       ; 462D CD 59 47  parses both slicers and works out where the array is; it
-                                               ; also chooses the scan, into IX
-               CALL EXPECT_END_OF_STATEMENT    ; 4630 CD D0 44
-               LD HL,(V40A2)                   ; 4633 2A A2 40  the first element to sort, as a window address, with its
-                                               ; page in V4099
-               LD A,(V4099)                    ; 4636 3A 99 40
-               OUT (HMPR),A                    ; 4639 D3 FB  from here on HMPR belongs to the sort, not to whoever
-                                               ; called it
+               LD (COMPARE_FAR_STRINGS_CASE_JR+1),A ; 462A 32 45 47  the operand of the JR at &4744 -- 2 quits on a
+                                                    ; difference, 5 goes on to fold the case out of it
+               CALL FIND_STRING_VARIABLE            ; 462D CD 59 47  parses both slicers and works out where the array
+                                                    ; is; it also chooses the scan, into IX
+               CALL EXPECT_END_OF_STATEMENT         ; 4630 CD D0 44
+               LD HL,(V40A2)                        ; 4633 2A A2 40  the first element to sort, as a window address,
+                                                    ; with its page in V4099
+               LD A,(V4099)                         ; 4636 3A 99 40
+               OUT (HMPR),A                         ; 4639 D3 FB  from here on HMPR belongs to the sort, not to whoever
+                                                    ; called it
 
 ;; --------------------------------------------------------------------
 ;; One pass of a selection sort: find the smallest element still
@@ -3180,7 +3180,7 @@ COMPARE_FAR_STRINGS_LOOP:
                CP (HL)                         ; 4742 BE
                EXX                             ; 4743 D9
 
-L4744:
+COMPARE_FAR_STRINGS_CASE_JR:
                JR NZ,COMPARE_FAR_STRINGS_LOOP3 ; 4744 20 02  the operand is written at &462A: 2 for ABS, 5 to go on and
                                                ; fold the case out
 
@@ -7121,7 +7121,7 @@ HOOK_TOKENARG_LOOP:
 HOOK_TOKENARG_2:
                CALL SKIP_THEN_END              ; 531E CD CD 44
 
-L5321:
+RETURN_INTO_EXITIF:
                LD BC,&0000                     ; 5321 01 00 00  the operand is written here at run time, from &7A5D
                JR HOOK_TOKENARG_LOOP           ; 5324 18 F5
 
@@ -7157,7 +7157,7 @@ HOOK_TOKENARG_4:
                CALL MBNRWRHL                   ; 5348 CD 75 45
                DEFW BSTKEND                    ; 534B C4 5B
 
-L534D:
+RETURN_INTO_ENDPROC:
                LD BC,&0000                     ; 534D 01 00 00  the operand is written here at run time, from &7A51
                JR HOOK_TOKENARG_LOOP           ; 5350 18 C9
 
@@ -8230,8 +8230,8 @@ L56F3:
                                                ; signature search finds the ROM's EDKY1 -- the byte pair is
                                                ; version-dependent, so it cannot be assembled
 
-; ---- V56F6 ---- from &79AE
-V56F6:
+; ---- EDKY1_WORD ---- from &79AE
+EDKY1_WORD:
                DEFW &0000                      ; 56F6 00 00
                CALL MBNRRDD                    ; 56F8 CD 5F 45  &5A65 is what the channel hook left behind: KCUR as it
                                                ; stood one character before the reference was reached
@@ -10448,7 +10448,7 @@ BUILD_PAGE_IN_TRAMPOLINE:
                                                ; run time
                INC HL                          ; 5CF0 23
 
-L5CF1:
+POKE2_FOR_BUILT_JP:
                LD BC,&0000                         ; 5CF1 01 00 00  the operand is written here at run time, from &79BA
                LD (HL),C                           ; 5CF4 71
                INC HL                              ; 5CF5 23
@@ -13434,7 +13434,7 @@ PRINT_MAGNIFIED_CHAR_LOOP2:
                LD A,(DMPFG)                    ; 6512 3A B7 5A
                AND A                           ; 6515 A7
 
-L6516:
+CALL_Z_EPSUB:
                CALL Z,&0000                    ; 6516 CC 00 00  the operand is written here at run time, from &7637
                LD A,(DHADJ)                    ; 6519 3A 82 5B
                ADD A,&08                       ; 651C C6 08  eight scan lines, one character row, added to the ROM's own
@@ -13599,8 +13599,8 @@ L6591:
 ;; of that arithmetic which do not suit a magnified character.
 ;; --------------------------------------------------------------------
 
-; ---- V6594 ---- from &761F
-V6594:
+; ---- CSZ2_WORD ---- from &761F
+CSZ2_WORD:
                DEFW &0000                      ; 6594 00 00
                POP BC                          ; 6596 C1  B is the width factor written to SYS_CHAR_WIDTH at &657F and
                                                ; pushed at &6584 -- zero when the ROM can print this width unaided
@@ -14238,10 +14238,10 @@ SET_STEP_AND_COUNT_1:
                INC H                           ; 679F 24
                RET Z                           ; 67A0 C8
                LD A,B                          ; 67A1 78
-               LD (L67BE+1),A                  ; 67A2 32 BF 67  patches the operand of the LD at &67BE
-               LD (L67C6+1),A                  ; 67A5 32 C7 67  patches the operand of the ADD at &67C6
+               LD (NTH_BYTE_PASSES+1),A        ; 67A2 32 BF 67  patches the operand of the LD at &67BE
+               LD (NTH_BYTE_STRIDE+1),A        ; 67A5 32 C7 67  patches the operand of the ADD at &67C6
                LD A,C                          ; 67A8 79
-               LD (L67C1+1),A                  ; 67A9 32 C2 67  patches the operand of the LD at &67C1
+               LD (NTH_BYTE_PER_PASS+1),A      ; 67A9 32 C2 67  patches the operand of the LD at &67C1
                LD L,&00                        ; 67AC 2E 00  L to zero, so every pass starts on a 256-byte boundary --
                                                ; the loop below steps H alone and ends when it wraps
 
@@ -14274,14 +14274,14 @@ COPY_EVERY_NTH_BYTE:
                PUSH DE                         ; 67BB D5
                LDI                             ; 67BC ED A0
 
-L67BE:
+NTH_BYTE_PASSES:
                LD C,&05                        ; 67BE 0E 05  the operand is written here at run time, from &67A2
 
 ; ---- COPY_EVERY_NTH_BYTE_LOOP ---- from &67CF
 COPY_EVERY_NTH_BYTE_LOOP:
                PUSH HL                         ; 67C0 E5
 
-L67C1:
+NTH_BYTE_PER_PASS:
                LD B,&33                        ; 67C1 06 33  the operand is written here at run time, from &67A9
 
 ; ---- COPY_EVERY_NTH_BYTE_LOOP2 ---- from &67CA when B is not 0 yet
@@ -14290,7 +14290,7 @@ COPY_EVERY_NTH_BYTE_LOOP2:
                LD (DE),A                       ; 67C4 12
                LD A,L                          ; 67C5 7D
 
-L67C6:
+NTH_BYTE_STRIDE:
                ADD A,&05                       ; 67C6 C6 05  the operand is written here at run time, from &67A5
                LD L,A                          ; 67C8 6F
                INC DE                          ; 67C9 13
@@ -18257,7 +18257,7 @@ COMPILE_ALL:
                CALL &4DE7                      ; 73B6 CD E7 4D  &4DE7 once this block is moved -- the operand means the
                                                ; copy, not anything at that address in this page
 
-L73B9:
+CALL_COMLEN:
                CALL &0000                      ; 73B9 CD 00 00  the operand is written here at run time, from &7A09
 
 ; ---- COMPILE_ALL_LOOP ---- from &73C7
@@ -18269,7 +18269,7 @@ COMPILE_ALL_LOOP:
                                                ; "look for PROC calls", and the byte is the marker a PROC call carries
                                                ; in the program text rather than a statement token
 
-L73BE:
+CALL_LKCALL:
                CALL &0000                      ; 73BE CD 00 00  the operand is written here at run time, from &7A15
                RET C                           ; 73C1 D8
                PUSH BC                         ; 73C2 C5
@@ -18358,7 +18358,7 @@ FIND_PROC_ENTRY_LOOP2:
                OUT (HMPR),A                    ; 73F4 D3 FB
                DEC DE                          ; 73F6 1B
 
-L73F7:
+CALL_MATCHER:
                CALL &0000                      ; 73F7 CD 00 00  the operand is written here at run time, from &7A21
                POP DE                          ; 73FA D1
                POP HL                          ; 73FB E1
@@ -18430,7 +18430,7 @@ BUILD_PROC_INDEX_LOOP:
                                                ; with the comment "DEFPROCTOK", in LOOKDP -- so the split into a flag
                                                ; and a token is its own
 
-L7428:
+CALL_LKFC:
                CALL &0000                      ; 7428 CD 00 00  the operand is written here at run time, from &7A2D
                JR C,BUILD_PROC_INDEX_1         ; 742B 38 28
                LD B,H                          ; 742D 44
@@ -18573,7 +18573,7 @@ RELOCATED_TO_46CC:
                LD A,C                          ; 7464 79
                CP SHORT_MOVE_LIMIT             ; 7465 FE 15
 
-L7467:
+SHORT_MOVE_TO_ROM:
                JP C,&0000                      ; 7467 DA 00 00  the operand is written here at run time, from &79F1
 
 ; ---- RELOCATED_TO_46CC_1 ---- from &7462 when A <> 0
@@ -18781,7 +18781,7 @@ RELOCATED_TO_46CC_7:
                LD SP,&8008                     ; 757B 31 08 80  eight bytes in, so that the ROM routine's RET unwinds
                                                ; through the borrowed bytes and onto that address
 
-L757E:
+ROM_LDIR_FROM_BOTTOM:
                JP &0000                        ; 757E C3 00 00  the operand is written here at run time, from &79E2
                EXX                             ; 7581 D9
                LD DE,&8000                     ; 7582 11 00 80  the borrowed bytes again, to put back what was taken
@@ -18797,7 +18797,7 @@ RELOCATED_TO_46CC_8:
                EXX                             ; 7591 D9
                LD SP,&BF88                     ; 7592 31 88 BF  and the same eight
 
-L7595:
+ROM_LDIR_FROM_TOP:
                JP &0000                        ; 7595 C3 00 00  the operand is written here at run time, from &79E5
                EXX                             ; 7598 D9
                LD DE,&BF80                     ; 7599 11 80 BF  and the same put-back
@@ -18877,25 +18877,25 @@ INSTALLER_LOOP:
                CALL RESOLVE_ROM_ENTRIES        ; 75EF CD 90 79
                CALL DOS_FIND_ROM_CODE          ; 75F2 CD 79 BD
                DEFB &F5,&DF,&E1,&2E,&00,&FA    ; 75F5 signature F5 DF E1 from &2E00, -6  -> &2E69 SLICING
-               LD (V45F0),HL                   ; 75FB 22 F0 45
+               LD (SLICING_WORD),HL            ; 75FB 22 F0 45
                CALL DOS_FIND_ROM_CODE          ; 75FE CD 79 BD
                DEFB &0A,&FE,&20,&10,&00,&F5    ; 7601 signature 0A FE 20 from &1000, -11  -> &10A0 INSERTLN
-               LD (V45F6),HL                   ; 7607 22 F6 45  patches the operand of the CALL at &45F3
+               LD (INSERTLN_WORD),HL           ; 7607 22 F6 45  patches the operand of the CALL at &45F3
                CALL DOS_FIND_ROM_CODE          ; 760A CD 79 BD
                DEFB &56,&5A,&C9,&3C,&00,&03    ; 760D signature 56 5A C9 from &3C00, +3  -> &3DA7 CCRESTOP
-               LD (L7DA6+1),HL                 ; 7613 22 A7 7D  patches the operand of the JP at &7DA6
+               LD (JP_CCRESTOP+1),HL           ; 7613 22 A7 7D  patches the operand of the JP at &7DA6
                CALL DOS_FIND_ROM_CODE          ; 7616 CD 79 BD
                DEFB &D6,&06,&32,&D7,&00,&05    ; 7619 signature D6 06 32 from &D700, +5  -> &D80E
-               LD (V6594),HL                   ; 761F 22 94 65  patches the operand of the CALL at &6591
+               LD (CSZ2_WORD),HL               ; 761F 22 94 65  patches the operand of the CALL at &6591
                CALL DOS_FIND_ROM_CODE          ; 7622 CD 79 BD
                DEFB &3A,&B7,&5A,&DB,&00,&00    ; 7625 signature 3A B7 5A from &DB00  -> &DC77 ENDOUTP
                LD (PATOUT_CHAR_OUT_5+1),HL     ; 762B 22 4C 7D  patches the operand of the JP at &7D4B
                CALL DOS_FIND_ROM_CODE          ; 762E CD 79 BD
                DEFB &00,&37,&C9,&3C,&00,&03    ; 7631 signature 00 37 C9 from &3C00, +3  -> &3C39 EPSUB
-               LD (L6516+1),HL                 ; 7637 22 17 65  patches the operand of the CALL at &6516
+               LD (CALL_Z_EPSUB+1),HL          ; 7637 22 17 65  patches the operand of the CALL at &6516
                CALL DOS_FIND_ROM_CODE          ; 763A CD 79 BD
                DEFB &EB,&E9,&F7,&01,&80,&02    ; 763D signature EB E9 F7 from &0180, +2  -> &01CC PRMAIN
-               LD (L7D54+1),HL                 ; 7643 22 55 7D  patches the operand of the JP at &7D54
+               LD (JP_NZ_PRMAIN+1),HL          ; 7643 22 55 7D  patches the operand of the JP at &7D54
                IN A,(LMPR)                     ; 7646 DB FA
                INC A                           ; 7648 3C
                AND PAGEMASK                    ; 7649 E6 1F
@@ -19975,7 +19975,7 @@ BUILD_PUT_BLOCK_LOOP2:
 ;; That is the whole of what was left open about those operands.
 ;;
 ;; The rest land in this page's own call sites -- &735E, &7468, &757F,
-;; &7596, &73B4, &73BA, &73BF, V56F6 and others -- so the routine is
+;; &7596, &73B4, &73BA, &73BF, EDKY1_WORD and others -- so the routine is
 ;; self-patching, and the operands the listing shows at those addresses
 ;; are the shipped zeros rather than what runs.
 ;;
@@ -19987,101 +19987,101 @@ BUILD_PUT_BLOCK_LOOP2:
 
 ; ---- RESOLVE_ROM_ENTRIES ---- from &75EF
 RESOLVE_ROM_ENTRIES:
-               CALL DOS_FIND_ROM_CODE          ; 7990 CD 79 BD
-               DEFB &C9,&E3,&CD,&10,&30,&03    ; 7993 signature C9 E3 CD from &1030, +3  -> &1066
-               LD E,(HL)                       ; 7999 5E
-               INC HL                          ; 799A 23
-               LD D,(HL)                       ; 799B 56
-               INC HL                          ; 799C 23
-               LD (&7DFB),DE                   ; 799D ED 53 FB 7D  two of these results fill the CALL &0000 and JP &0000
-                                               ; operands in the stub
-               INC HL                          ; 79A1 23
-               LD (&7E01),HL                   ; 79A2 22 01 7E  and &7E01 is the second of them, the operand of the JP
-                                               ; at &7E00. Both are inside the &7DF0-&7FAD the LDIR at &7B65 later
-                                               ; overwrites, but the &7BA4 block has already gone out to &484D by then,
-                                               ; at &7B5A, so the patched CALL and JP live on at &4AA3 and &4AA9 in the
-                                               ; system page
-               CALL DOS_FIND_ROM_CODE          ; 79A5 CD 79 BD
-               DEFB &20,&08,&78,&03,&70,&02    ; 79A8 signature 20 08 78 from &0370, +2  -> &038B EDKY1
-               LD (V56F6),HL                   ; 79AE 22 F6 56  patches the operand of the CALL at &56F3
-               CALL DOS_FIND_ROM_CODE          ; 79B1 CD 79 BD
-               DEFB &04,&EF,&06,&12,&00,&FF    ; 79B4 signature 04 EF 06 from &1200, -1  -> &1226 POKE2
-               LD (L5CF1+1),HL                 ; 79BA 22 F2 5C  patches the operand of the LD at &5CF1
-               CALL DOS_FIND_ROM_CODE          ; 79BD CD 79 BD
-               DEFB &F1,&0E,&FB,&05,&F0,&01    ; 79C0 signature F1 0E FB from &05F0, +1  -> &0604 AULLP
-               LD A,L                          ; 79C6 7D
-               ADD A,&12                       ; 79C7 C6 12  eighteen, the first eighteen bytes of the ROM's auto-list
-                                               ; loop -- AULLP is 26 bytes to its JR back, and the window stops at its
-                                               ; ADD HL,BC, before the PUSH AF -- which is what the rescue has to
-                                               ; recognise. &59C0's note has the other end of it: C is AULLP's low byte
-                                               ; and B that plus this, and the two compares there ask whether the
-                                               ; interrupt caught the ROM inside those eighteen bytes
-               LD H,A                          ; 79C9 67
-               LD (&59C1),HL                   ; 79CA 22 C1 59  and &59C1 is where the pair goes -- the operand of the
-                                               ; LD BC,&0000 at &59C0, which is the one instruction in the rescue that
-                                               ; cannot be assembled because AULLP moves with the ROM version
-               CALL DOS_FIND_ROM_CODE          ; 79CD CD 79 BD
-               DEFB &FF,&32,&46,&33,&00,&04    ; 79D0 signature FF 32 46 from &3300, +4  -> &33DB DOCOMP
-               LD (BUILD_COMPILER+1),HL        ; 79D6 22 5E 73  patches the operand of the LD at &735D
-               CALL DOS_FIND_ROM_CODE          ; 79D9 CD 79 BD
-               DEFB &B0,&3E,&1F,&38,&00,&FD    ; 79DC signature B0 3E 1F from &3800, -3  -> &389E
-               LD (L757E+1),HL                 ; 79E2 22 7F 75  patches the operand of the JP at &757E
-               LD (L7595+1),HL                 ; 79E5 22 96 75  patches the operand of the JP at &7595
-               CALL DOS_FIND_ROM_CODE          ; 79E8 CD 79 BD
-               DEFB &C2,&05,&00,&2A,&00,&03    ; 79EB signature C2 05 00 from &2A00, +3  -> &2A96
-               LD (L7467+1),HL                 ; 79F1 22 68 74  patches the operand of the JP at &7467
-               CALL DOS_FIND_ROM_CODE          ; 79F4 CD 79 BD
-               DEFB &21,&00,&4F,&2F,&00,&00    ; 79F7 signature 21 00 4F from &2F00  -> &2FD2 COMDF
-               LD (COMPILE_ALL+1),HL           ; 79FD 22 B4 73  patches the operand of the CALL at &73B3
-               CALL DOS_FIND_ROM_CODE          ; 7A00 CD 79 BD
-               DEFB &3A,&40,&5B,&2F,&E0,&00    ; 7A03 signature 3A 40 5B from &2FE0  -> &3019 COMLEN
-               LD (L73B9+1),HL                 ; 7A09 22 BA 73  patches the operand of the CALL at &73B9
-               CALL DOS_FIND_ROM_CODE          ; 7A0C CD 79 BD
-               DEFB &7A,&ED,&B1,&30,&00,&FC    ; 7A0F signature 7A ED B1 from &3000, -4  -> &304C LKCALL
-               LD (L73BE+1),HL                 ; 7A15 22 BF 73  patches the operand of the CALL at &73BE
-               CALL DOS_FIND_ROM_CODE          ; 7A18 CD 79 BD
-               DEFB &21,&40,&51,&30,&80,&00    ; 7A1B signature 21 40 51 from &3080  -> &3113 MATCHER
-               LD (L73F7+1),HL                 ; 7A21 22 F8 73  patches the operand of the CALL at &73F7
-               CALL DOS_FIND_ROM_CODE          ; 7A24 CD 79 BD
-               DEFB &7E,&C6,&01,&33,&E0,&00    ; 7A27 signature 7E C6 01 from &33E0  -> &343C LKFC
-               LD (L7428+1),HL                 ; 7A2D 22 29 74  patches the operand of the CALL at &7428
-               CALL DOS_FIND_ROM_CODE          ; 7A30 CD 79 BD
-               DEFB &CF,&82,&C9,&E2,&00,&04    ; 7A33 signature CF 82 C9 from &E200, +4  -> &E2BA
-               LD (L7DBF+1),HL                 ; 7A39 22 C0 7D  patches the operand of the JP at &7DBF
-               CALL DOS_FIND_ROM_CODE          ; 7A3C CD 79 BD
-               DEFB &79,&E6,&60,&13,&00,&F8    ; 7A3F signature 79 E6 60 from &1300, -8  -> &13AA LOOKVARS
-               LD (V45EA),HL                   ; 7A45 22 EA 45  patches the operand of the CALL at &45E7
-               CALL DOS_FIND_ROM_CODE          ; 7A48 CD 79 BD
-               DEFB &C9,&CF,&08,&19,&00,&06    ; 7A4B signature C9 CF 08 from &1900, +6  -> &19E1
-               LD (L534D+1),HL                 ; 7A51 22 4E 53  patches the operand of the LD at &534D
-               CALL DOS_FIND_ROM_CODE          ; 7A54 CD 79 BD
-               DEFB &C8,&37,&18,&18,&80,&0B    ; 7A57 signature C8 37 18 from &1880, +11  -> &192D
-               LD (L5321+1),HL                 ; 7A5D 22 22 53  patches the operand of the LD at &5321
-               CALL DOS_FIND_ROM_CODE          ; 7A60 CD 79 BD
-               DEFB &D2,&08,&00,&0C,&80,&00    ; 7A63 signature D2 08 00 from &0C80  -> &0D4A
-               PUSH HL                         ; 7A69 E5
-               DEC HL                          ; 7A6A 2B
-               LD D,(HL)                       ; 7A6B 56
-               DEC HL                          ; 7A6C 2B
-               LD E,(HL)                       ; 7A6D 5E
-               EX DE,HL                        ; 7A6E EB
-               LD (L7DC5+1),HL                 ; 7A6F 22 C6 7D  patches the operand of the CALL at &7DC5
-               POP HL                          ; 7A72 E1
-               INC HL                          ; 7A73 23
-               INC HL                          ; 7A74 23
-               INC HL                          ; 7A75 23
-               INC HL                          ; 7A76 23
-               LD (L7DD8+1),HL                 ; 7A77 22 D9 7D  patches the operand of the JP at &7DD8
-               CALL DOS_FIND_ROM_CODE          ; 7A7A CD 79 BD
-               DEFB &BF,&C9,&F7,&05,&00,&02    ; 7A7D signature BF C9 F7 from &0500, +2  -> &0576 EDPRT
-               LD (L7AD5+1),HL                 ; 7A83 22 D6 7A  patches the operand of the LD at &7AD5
-               CALL DOS_FIND_ROM_CODE          ; 7A86 CD 79 BD
-               DEFB &CB,&AE,&F5,&04,&80,&02    ; 7A89 signature CB AE F5 from &0480, +2  -> &0516
-               LD (L7ADB+1),HL                 ; 7A8F 22 DC 7A  patches the operand of the LD at &7ADB
-               CALL DOS_FIND_ROM_CODE          ; 7A92 CD 79 BD
-               DEFB &F1,&FE,&16,&02,&80,&FC    ; 7A95 signature F1 FE 16 from &0280, -4  -> &02CB
-               LD (L7AE1+1),HL                 ; 7A9B 22 E2 7A  patches the operand of the LD at &7AE1
-               RET                             ; 7A9E C9
+               CALL DOS_FIND_ROM_CODE            ; 7990 CD 79 BD
+               DEFB &C9,&E3,&CD,&10,&30,&03      ; 7993 signature C9 E3 CD from &1030, +3  -> &1066
+               LD E,(HL)                         ; 7999 5E
+               INC HL                            ; 799A 23
+               LD D,(HL)                         ; 799B 56
+               INC HL                            ; 799C 23
+               LD (&7DFB),DE                     ; 799D ED 53 FB 7D  two of these results fill the CALL &0000 and JP
+                                                 ; &0000 operands in the stub
+               INC HL                            ; 79A1 23
+               LD (&7E01),HL                     ; 79A2 22 01 7E  and &7E01 is the second of them, the operand of the JP
+                                                 ; at &7E00. Both are inside the &7DF0-&7FAD the LDIR at &7B65 later
+                                                 ; overwrites, but the &7BA4 block has already gone out to &484D by
+                                                 ; then, at &7B5A, so the patched CALL and JP live on at &4AA3 and &4AA9
+                                                 ; in the system page
+               CALL DOS_FIND_ROM_CODE            ; 79A5 CD 79 BD
+               DEFB &20,&08,&78,&03,&70,&02      ; 79A8 signature 20 08 78 from &0370, +2  -> &038B EDKY1
+               LD (EDKY1_WORD),HL                ; 79AE 22 F6 56  patches the operand of the CALL at &56F3
+               CALL DOS_FIND_ROM_CODE            ; 79B1 CD 79 BD
+               DEFB &04,&EF,&06,&12,&00,&FF      ; 79B4 signature 04 EF 06 from &1200, -1  -> &1226 POKE2
+               LD (POKE2_FOR_BUILT_JP+1),HL      ; 79BA 22 F2 5C  patches the operand of the LD at &5CF1
+               CALL DOS_FIND_ROM_CODE            ; 79BD CD 79 BD
+               DEFB &F1,&0E,&FB,&05,&F0,&01      ; 79C0 signature F1 0E FB from &05F0, +1  -> &0604 AULLP
+               LD A,L                            ; 79C6 7D
+               ADD A,&12                         ; 79C7 C6 12  eighteen, the first eighteen bytes of the ROM's auto-list
+                                                 ; loop -- AULLP is 26 bytes to its JR back, and the window stops at its
+                                                 ; ADD HL,BC, before the PUSH AF -- which is what the rescue has to
+                                                 ; recognise. &59C0's note has the other end of it: C is AULLP's low
+                                                 ; byte and B that plus this, and the two compares there ask whether the
+                                                 ; interrupt caught the ROM inside those eighteen bytes
+               LD H,A                            ; 79C9 67
+               LD (&59C1),HL                     ; 79CA 22 C1 59  and &59C1 is where the pair goes -- the operand of the
+                                                 ; LD BC,&0000 at &59C0, which is the one instruction in the rescue that
+                                                 ; cannot be assembled because AULLP moves with the ROM version
+               CALL DOS_FIND_ROM_CODE            ; 79CD CD 79 BD
+               DEFB &FF,&32,&46,&33,&00,&04      ; 79D0 signature FF 32 46 from &3300, +4  -> &33DB DOCOMP
+               LD (BUILD_COMPILER+1),HL          ; 79D6 22 5E 73  patches the operand of the LD at &735D
+               CALL DOS_FIND_ROM_CODE            ; 79D9 CD 79 BD
+               DEFB &B0,&3E,&1F,&38,&00,&FD      ; 79DC signature B0 3E 1F from &3800, -3  -> &389E
+               LD (ROM_LDIR_FROM_BOTTOM+1),HL    ; 79E2 22 7F 75  patches the operand of the JP at &757E
+               LD (ROM_LDIR_FROM_TOP+1),HL       ; 79E5 22 96 75  patches the operand of the JP at &7595
+               CALL DOS_FIND_ROM_CODE            ; 79E8 CD 79 BD
+               DEFB &C2,&05,&00,&2A,&00,&03      ; 79EB signature C2 05 00 from &2A00, +3  -> &2A96
+               LD (SHORT_MOVE_TO_ROM+1),HL       ; 79F1 22 68 74  patches the operand of the JP at &7467
+               CALL DOS_FIND_ROM_CODE            ; 79F4 CD 79 BD
+               DEFB &21,&00,&4F,&2F,&00,&00      ; 79F7 signature 21 00 4F from &2F00  -> &2FD2 COMDF
+               LD (COMPILE_ALL+1),HL             ; 79FD 22 B4 73  patches the operand of the CALL at &73B3
+               CALL DOS_FIND_ROM_CODE            ; 7A00 CD 79 BD
+               DEFB &3A,&40,&5B,&2F,&E0,&00      ; 7A03 signature 3A 40 5B from &2FE0  -> &3019 COMLEN
+               LD (CALL_COMLEN+1),HL             ; 7A09 22 BA 73  patches the operand of the CALL at &73B9
+               CALL DOS_FIND_ROM_CODE            ; 7A0C CD 79 BD
+               DEFB &7A,&ED,&B1,&30,&00,&FC      ; 7A0F signature 7A ED B1 from &3000, -4  -> &304C LKCALL
+               LD (CALL_LKCALL+1),HL             ; 7A15 22 BF 73  patches the operand of the CALL at &73BE
+               CALL DOS_FIND_ROM_CODE            ; 7A18 CD 79 BD
+               DEFB &21,&40,&51,&30,&80,&00      ; 7A1B signature 21 40 51 from &3080  -> &3113 MATCHER
+               LD (CALL_MATCHER+1),HL            ; 7A21 22 F8 73  patches the operand of the CALL at &73F7
+               CALL DOS_FIND_ROM_CODE            ; 7A24 CD 79 BD
+               DEFB &7E,&C6,&01,&33,&E0,&00      ; 7A27 signature 7E C6 01 from &33E0  -> &343C LKFC
+               LD (CALL_LKFC+1),HL               ; 7A2D 22 29 74  patches the operand of the CALL at &7428
+               CALL DOS_FIND_ROM_CODE            ; 7A30 CD 79 BD
+               DEFB &CF,&82,&C9,&E2,&00,&04      ; 7A33 signature CF 82 C9 from &E200, +4  -> &E2BA
+               LD (TAPE_JP_LDVD3+1),HL           ; 7A39 22 C0 7D  patches the operand of the JP at &7DBF
+               CALL DOS_FIND_ROM_CODE            ; 7A3C CD 79 BD
+               DEFB &79,&E6,&60,&13,&00,&F8      ; 7A3F signature 79 E6 60 from &1300, -8  -> &13AA LOOKVARS
+               LD (LOOKVARS_WORD),HL             ; 7A45 22 EA 45  patches the operand of the CALL at &45E7
+               CALL DOS_FIND_ROM_CODE            ; 7A48 CD 79 BD
+               DEFB &C9,&CF,&08,&19,&00,&06      ; 7A4B signature C9 CF 08 from &1900, +6  -> &19E1
+               LD (RETURN_INTO_ENDPROC+1),HL     ; 7A51 22 4E 53  patches the operand of the LD at &534D
+               CALL DOS_FIND_ROM_CODE            ; 7A54 CD 79 BD
+               DEFB &C8,&37,&18,&18,&80,&0B      ; 7A57 signature C8 37 18 from &1880, +11  -> &192D
+               LD (RETURN_INTO_EXITIF+1),HL      ; 7A5D 22 22 53  patches the operand of the LD at &5321
+               CALL DOS_FIND_ROM_CODE            ; 7A60 CD 79 BD
+               DEFB &D2,&08,&00,&0C,&80,&00      ; 7A63 signature D2 08 00 from &0C80  -> &0D4A
+               PUSH HL                           ; 7A69 E5
+               DEC HL                            ; 7A6A 2B
+               LD D,(HL)                         ; 7A6B 56
+               DEC HL                            ; 7A6C 2B
+               LD E,(HL)                         ; 7A6D 5E
+               EX DE,HL                          ; 7A6E EB
+               LD (EXIT_FOR_CALL_SEARCHALL+1),HL ; 7A6F 22 C6 7D  patches the operand of the CALL at &7DC5
+               POP HL                            ; 7A72 E1
+               INC HL                            ; 7A73 23
+               INC HL                            ; 7A74 23
+               INC HL                            ; 7A75 23
+               INC HL                            ; 7A76 23
+               LD (EXIT_FOR_JP_SEARCH+1),HL      ; 7A77 22 D9 7D  patches the operand of the JP at &7DD8
+               CALL DOS_FIND_ROM_CODE            ; 7A7A CD 79 BD
+               DEFB &BF,&C9,&F7,&05,&00,&02      ; 7A7D signature BF C9 F7 from &0500, +2  -> &0576 EDPRT
+               LD (EDPRT_FOR_MNIP+1),HL          ; 7A83 22 D6 7A  patches the operand of the LD at &7AD5
+               CALL DOS_FIND_ROM_CODE            ; 7A86 CD 79 BD
+               DEFB &CB,&AE,&F5,&04,&80,&02      ; 7A89 signature CB AE F5 from &0480, +2  -> &0516
+               LD (KYIP2_FOR_MNIP+1),HL          ; 7A8F 22 DC 7A  patches the operand of the LD at &7ADB
+               CALL DOS_FIND_ROM_CODE            ; 7A92 CD 79 BD
+               DEFB &F1,&FE,&16,&02,&80,&FC      ; 7A95 signature F1 FE 16 from &0280, -4  -> &02CB
+               LD (EDLP_FOR_MNIP+1),HL           ; 7A9B 22 E2 7A  patches the operand of the LD at &7AE1
+               RET                               ; 7A9E C9
 
 ;; --------------------------------------------------------------------
 ;; Write MasterBASIC's own code and settings into ten places in the
@@ -20182,16 +20182,16 @@ INSTALL_SYSPAGE_CODE:
                                                ; from there, which is that routine being carried into the file
                LD (MNIP+IN_PAGE_C),HL          ; 7AD2 22 DE 9B
 
-L7AD5:
+EDPRT_FOR_MNIP:
                LD HL,&0000                     ; 7AD5 21 00 00  the operand is written here at run time, from &7A83
                LD (&8C1A),HL                   ; 7AD8 22 1A 8C  &4C1A takes EDPRT, &0576, which the signature search at
                                                ; &7A7A found and &7A83 planted in the LD above
 
-L7ADB:
+KYIP2_FOR_MNIP:
                LD HL,&0000                     ; 7ADB 21 00 00  the operand is written here at run time, from &7A8F
                LD (&8C5F),HL                   ; 7ADE 22 5F 8C  &4C5F takes the &0516 from the search at &7A86
 
-L7AE1:
+EDLP_FOR_MNIP:
                LD HL,&0000                     ; 7AE1 21 00 00  the operand is written here at run time, from &7A9B
                LD (&8C31),HL                   ; 7AE4 22 31 8C  &4C31 takes the &02CB from the search at &7A92, and with
                                                ; those three the routine at &4C14 can reach the ROM entries it needs
@@ -20352,7 +20352,7 @@ INSTALL_ROM_PATCHES_1:
                IN A,(LMPR)                     ; 7B06 DB FA
                INC A                           ; 7B08 3C
                AND PAGEMASK                    ; 7B09 E6 1F
-               LD (L7CF5+1),A                  ; 7B0B 32 F6 7C  patches the operand of the LD at &7CF5
+               LD (OWN_PAGE_FOR_INTERRUPT+1),A ; 7B0B 32 F6 7C  patches the operand of the LD at &7CF5
                LD HL,(CHANS+IN_PAGE_C)         ; 7B0E 2A 4F 9C
                LD DE,PUTSWA                    ; 7B11 11 00 40  &4000 here is the window offset -- CHANS is a system
                                                ; variable in the page now at &8000 -- and not the XVAR that shares the
@@ -20394,7 +20394,7 @@ INSTALL_ROM_PATCHES_1:
                IN A,(LMPR)                     ; 7B48 DB FA
                AND PAGEMASK                    ; 7B4A E6 1F
                INC A                           ; 7B4C 3C
-               LD (L7D46+1),A                  ; 7B4D 32 47 7D  patches the operand of the LD at &7D46
+               LD (OWN_PAGE_FOR_PATOUT+1),A    ; 7B4D 32 47 7D  patches the operand of the LD at &7D46
                EX AF,AF'                       ; 7B50 08
                LD HL,RELOCATED_TO_484D         ; 7B51 21 A4 7B
                LD DE,&884D                     ; 7B54 11 4D 88  &484D seen through the window
@@ -20601,7 +20601,8 @@ EVALUV_STUB_1:
 ;; signature -- &2A96 at &46D4, &389E at &47EB and &4802, ENDOUTP at
 ;; &49F5, PRMAIN at &49FE, CCRESTOP at &4A50 -- and three single bytes
 ;; of &1C, MasterBASIC's page number, two of them landing exactly on
-;; L7CF5+1 and L7D46+1, which are the operands the installer patches.
+;; OWN_PAGE_FOR_INTERRUPT+1 and OWN_PAGE_FOR_PATOUT+1, which are the
+;; operands the installer patches.
 ;;
 ;; What copies those ten bytes to &45A2 is INSTALL_EXTENDED_PUT, which
 ;; assembles &45A2-&46CB out of seven runs; these are the first of them,
@@ -21021,7 +21022,7 @@ FRAME_INT_CALL_INTO_MB:
 ; MasterBASIC's own page number, which is not known until it is
 ; installed.
 
-L7CF5:
+OWN_PAGE_FOR_INTERRUPT:
                LD A,&00                        ; 7CF5 3E 00  the operand is written here at run time, from &7B0B
 
 ;; --------------------------------------------------------------------
@@ -21140,7 +21141,7 @@ PATOUT_CHAR_OUT_4:
                LD HL,PRINT_MAGNIFIED_CHAR+IN_PAGE_C ; 7D42 21 F3 A4
                LD C,A                               ; 7D45 4F
 
-L7D46:
+OWN_PAGE_FOR_PATOUT:
                LD A,&00                        ; 7D46 3E 00  the operand is written here at run time, from &7B4D
                JP PAGER                        ; 7D48 C3 E0 5B  PAGER again
 
@@ -21153,7 +21154,7 @@ PATOUT_CHAR_OUT_5:
                CP &17                          ; 7D52 FE 17  &17 is TAB, 23 in the same table, and the pair is what this
                                                ; stub exists to catch
 
-L7D54:
+JP_NZ_PRMAIN:
                JP NZ,&0000                     ; 7D54 C2 00 00  the operand is written here at run time, from &7643
 
 ;; --------------------------------------------------------------------
@@ -21245,7 +21246,7 @@ AT_TAB_SECOND_OPERAND_1:
 AT_TAB_SECOND_OPERAND_2:
                LD A,D                          ; 7DA5 7A
 
-L7DA6:
+JP_CCRESTOP:
                JP &0000                        ; 7DA6 C3 00 00  the operand is written here at run time, from &7613
 
 ;; --------------------------------------------------------------------
@@ -21297,59 +21298,58 @@ L7DA6:
 CURSOR_PATTERNS:
                DEFB &00,&00,&00,&00,&3C,&3C,&3C,&00,&00,&3C,&3C,&3C,&00,&00,&00 ; 7DA9 ....<<<..<<<...
                DEFB &00                                                         ; 7DB8 .
-               AND A                                                            ; 7DB9 A7
-               LD A,&37                                                         ; 7DBA 3E 37  &3E &37 is LD A,&37 read
-                                                                                ; from &7DBA and an SCF read from &7DBB,
-                                                                                ; which is the swallowed-opcode idiom
-                                                                                ; and not a value at all. LDBLK in
-                                                                                ; ref/samrom/tapex.asm reads the carry
-                                                                                ; it is called with as "NC=VERIFY,
-                                                                                ; CY=LOAD", so the AND A entry two bytes
-                                                                                ; above verifies and this one loads --
-                                                                                ; and the DOS calls each from the
-                                                                                ; routine that wants it
-               EXX                                                              ; 7DBC D9
-               LD A,&FF                                                         ; 7DBD 3E FF  the block type LDBLK
-                                                                                ; checks against the first byte on tape.
-                                                                                ; Its comment gives the two values --
-                                                                                ; "01=HEADER, FF=DATA" -- so this asks
-                                                                                ; for a data block
 
-L7DBF:
+TAPE_VERIFY_STUB:
+               AND A                           ; 7DB9 A7
+               LD A,&37                        ; 7DBA 3E 37  &3E &37 is LD A,&37 read from &7DBA and an SCF read from
+                                               ; &7DBB, which is the swallowed-opcode idiom and not a value at all.
+                                               ; LDBLK in ref/samrom/tapex.asm reads the carry it is called with as
+                                               ; "NC=VERIFY, CY=LOAD", so the AND A entry two bytes above verifies and
+                                               ; this one loads -- and the DOS calls each from the routine that wants it
+               EXX                             ; 7DBC D9
+               LD A,&FF                        ; 7DBD 3E FF  the block type LDBLK checks against the first byte on tape.
+                                               ; Its comment gives the two values -- "01=HEADER, FF=DATA" -- so this
+                                               ; asks for a data block
+
+TAPE_JP_LDVD3:
                JP &0000                        ; 7DBF C3 00 00  the operand is written here at run time, from &7A39
+
+EXIT_FOR_STUB:
                LD DE,&C0C1                     ; 7DC2 11 C1 C0  D and E are the ROM's search parameters, and &C0 and &C1
                                                ; are the tokens FOR and NEXT. FINDERS in ref/samrom/tadjm.asm documents
                                                ; them as "D=INTERVENING TOKS OR "THEN" FOR NULL, E=TARGET", so this
                                                ; walks forward for the matching NEXT counting nested FORs on the way,
                                                ; and the error below when it does not find one is "NEXT without FOR"
 
-L7DC5:
+EXIT_FOR_CALL_SEARCHALL:
                CALL &0000                      ; 7DC5 CD 00 00  the operand is written here at run time, from &7A6F
                POP BC                          ; 7DC8 C1
-               JR C,AT_TAB_SECOND_OPERAND_3    ; 7DC9 38 02
+               JR C,EXIT_FOR_STUB_1            ; 7DC9 38 02
                RST ERR_HOOK                    ; 7DCB CF
                DEFB ERR_NEXT_WITHOUT_FOR       ; 7DCC 05 error 5, "NEXT without FOR"
 
-; ---- AT_TAB_SECOND_OPERAND_3 ---- from &7DC9
-AT_TAB_SECOND_OPERAND_3:
+; ---- EXIT_FOR_STUB_1 ---- from &7DC9
+EXIT_FOR_STUB_1:
                LD D,A                          ; 7DCD 57
 
-; ---- AT_TAB_SECOND_OPERAND_LOOP2 ---- from &7DD5 when A <> CH_COLON
-AT_TAB_SECOND_OPERAND_LOOP2:
-               RST NEXT_CHAR                     ; 7DCE E7
-               CP CH_CR                          ; 7DCF FE 0D
-               JR Z,AT_TAB_SECOND_OPERAND_4      ; 7DD1 28 04
-               CP CH_COLON                       ; 7DD3 FE 3A  a colon or a carriage return, whichever comes first, is
-                                                 ; where a statement ends -- so this reads forward to it and &7DD7 hands
-                                                 ; the count back
-               JR NZ,AT_TAB_SECOND_OPERAND_LOOP2 ; 7DD5 20 F7
+; ---- EXIT_FOR_STUB_LOOP ---- from &7DD5 when A <> CH_COLON
+EXIT_FOR_STUB_LOOP:
+               RST NEXT_CHAR                   ; 7DCE E7
+               CP CH_CR                        ; 7DCF FE 0D
+               JR Z,EXIT_FOR_STUB_2            ; 7DD1 28 04
+               CP CH_COLON                     ; 7DD3 FE 3A  a colon or a carriage return, whichever comes first, is
+                                               ; where a statement ends -- so this reads forward to it and &7DD7 hands
+                                               ; the count back
+               JR NZ,EXIT_FOR_STUB_LOOP        ; 7DD5 20 F7
 
-; ---- AT_TAB_SECOND_OPERAND_4 ---- from &7DD1 when A = CH_CR
-AT_TAB_SECOND_OPERAND_4:
+; ---- EXIT_FOR_STUB_2 ---- from &7DD1 when A = CH_CR
+EXIT_FOR_STUB_2:
                LD A,D                          ; 7DD7 7A
 
-L7DD8:
+EXIT_FOR_JP_SEARCH:
                JP &0000                        ; 7DD8 C3 00 00  the operand is written here at run time, from &7A77
+
+POST_LOAD_STUB:
                LD HL,ROM_DCT                   ; 7DDB 21 B6 5B
                SET 0,(HL)                      ; 7DDE CB C6
                LD A,&FF                        ; 7DE0 3E FF  &FF into COMPFLG, which the ROM's variable table calls

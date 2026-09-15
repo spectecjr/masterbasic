@@ -286,7 +286,7 @@ variables:
 
 ```asm
       IN A,(HMPR)                     ; 4500
-      LD (L4531+1),A                  ; 4502  patches the operand of the LD at &4531
+      LD (MBCMR_CALLER_HMPR+1),A      ; 4502  patches the operand of the LD at &4531
       IN A,(LMPR)                     ; 4505
 ```
 
@@ -360,10 +360,10 @@ MasterBASIC calls almost no fixed address inside ROM 0. Instead:
 ```asm
       CALL DOS_FIND_ROM_CODE          ; 75FE
       DEFB &0A,&FE,&20,&10,&00,&F5    ; 7601  signature 0A FE 20 from &1000, -11
-      LD (V45F6),HL                   ; 7607                     -> &10A0 INSERTLN
+      LD (INSERTLN_WORD),HL           ; 7607                     -> &10A0 INSERTLN
       CALL DOS_FIND_ROM_CODE          ; 760A
       DEFB &56,&5A,&C9,&3C,&00,&03    ; 760D  signature 56 5A C9 from &3C00, +3
-      LD (L7DA6+1),HL                 ; 7613                     -> &3DA7 CCRESTOP
+      LD (JP_CCRESTOP+1),HL           ; 7613                     -> &3DA7 CCRESTOP
 ```
 
 Six inline bytes in the convention of idiom 3: a three-byte instruction

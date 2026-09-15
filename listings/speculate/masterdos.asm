@@ -24418,7 +24418,7 @@ EDIT_INSERT_VALUE_BODY:
 ;; entire point of doing it this way.
 ;;
 ;; One result is worth following.  The search at &75FE stores its pointer
-;; in V45F6, which is the DEFW of the CALL CMR at CALL_INSERTLN: that call has no
+;; in INSERTLN_WORD, which is the DEFW of the CALL CMR at CALL_INSERTLN: that call has no
 ;; fixed target at all, and goes wherever the signature was found.
 ;; --------------------------------------------------------------------
 
