@@ -103,8 +103,10 @@ DOS &7B57 expr DIR_LENGTH
 # PART HOOKS's entries that had no banner of this project's own.
 
 DOC FNDI2
-    FNDIRS past its name: ")" must close the argument, syntax time
-    aborts here, and the directory is read into the buffer.
+    FNDIRS with a "(": the name through EVNAMX, its path through EVFINS
+    when the line is running, "?" through ALLSR, then ")" must close
+    the argument, syntax time aborts here, and the directory is read
+    into the buffer.
 
 DOC NSTKAH
     The source's target for DSTAT's option 8, the drive number; this

@@ -2731,7 +2731,7 @@ CALL_GETINT:
 ;;     rather than five.  EXPSTR: evaluate a string expression.  7 callers.
 ;; --------------------------------------------------------------------
 
-; ---- CALL_EXPSTR ---- from &4422, &4B85, &4D33, &4D58, &4E54, &5AD9
+; ---- CALL_EXPSTR ---- from &4422, &4B85, &4D33, &4D52, &4D58, &4E54, &5AD9
 CALL_EXPSTR:
                CALL MBCMR                      ; 447C CD F0 44
                DEFW EXPSTR                     ; 447F 1B 01
@@ -7890,12 +7890,13 @@ PARSE_STRING_AND_OPTIONAL_ABS_DONE:
                RET                             ; 4D4E C9
 
 ;; --------------------------------------------------------------------
-;; FN_EQU -- &4D4F to &4D52
+;; FN_EQU -- &4D4F to &4D69
 ;;
-;; Takes:     nothing in registers
-;; Leaves:    C
+;; Takes:     A, B, DE, HL
+;; Leaves:    A, F, BC, DE, HL, IY
 ;;
-;; ? calls EXPECT_NEXT_LPAREN; falls into whatever follows rather than returning.
+;; ? calls EXPECT_COMMA, EXPECT_RPAREN, EXPECT_NEXT_LPAREN, CALL_EXPSTR; falls into whatever follows rather than
+;; returning.
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
@@ -7911,21 +7912,7 @@ PARSE_STRING_AND_OPTIONAL_ABS_DONE:
 
 FN_EQU:
                CALL EXPECT_NEXT_LPAREN         ; 4D4F CD 58 44
-               DEFB &CD                        ; 4D52 M  these three bytes are one instruction, CALL CALL_EXPSTR;
-                                               ; nothing enters at &4D53
-
-;; --------------------------------------------------------------------
-;; L4D53 -- &4D53 to &4D69
-;;
-;; Takes:     DE, HL
-;; Leaves:    A, F, BC, DE, HL, IY
-;;
-;; ? calls EXPECT_COMMA, EXPECT_RPAREN, CALL_EXPSTR, TWO_PAGED_STRINGS; falls into whatever follows rather than
-;; returning.
-;; --------------------------------------------------------------------
-
-               LD A,H                          ; 4D53 7C
-               LD B,H                          ; 4D54 44
+               CALL CALL_EXPSTR                ; 4D52 CD 7C 44  the first string; the second follows the comma
                CALL EXPECT_COMMA               ; 4D55 CD 50 44
                CALL CALL_EXPSTR                ; 4D58 CD 7C 44
                PUSH AF                         ; 4D5B F5  the run flag again, kept over the closing bracket
@@ -15321,10 +15308,8 @@ POKE2_FOR_BUILT_JP:
 ;; L5D20 -- &5D20 to &5D31
 ;;
 ;; Takes:     HL
-;; Leaves:    A, F, BC, DE, HL, IY
+;; Leaves:    F, BC, DE, HL
 ;; Ends:      JP
-;;
-;; ? calls EXPECT_COMMA, EXPECT_RPAREN, CALL_EXPSTR, TWO_PAGED_STRINGS.
 ;; --------------------------------------------------------------------
 
                LD DE,SYS_CDBUFF_50             ; 5D20 11 50 4D  entered through the window, as &9D20, by the trampoline
@@ -17712,8 +17697,8 @@ COUNT_RUN:
 ;; --------------------------------------------------------------------
 ;; COUNT_RUN_LOOP -- &61D5 to &61DC
 ;;
-;; Takes:     A, B, E, H
-;; Leaves:    F, B
+;; Takes:     A, B, E, HL
+;; Leaves:    F, B, HL
 ;;
 ;; ? calls NEXT_SOURCE_NIBBLE; falls into whatever follows rather than returning.
 ;; --------------------------------------------------------------------
@@ -18129,10 +18114,10 @@ BUILD_NIBBLE_TABLE_2:
                RET                             ; 627D C9
 
 ;; --------------------------------------------------------------------
-;; NEXT_SOURCE_NIBBLE -- &627E to &627F
+;; NEXT_SOURCE_NIBBLE -- &627E to &6286
 ;;
-;; Takes:     H
-;; Leaves:    F
+;; Takes:     HL
+;; Leaves:    F, HL
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
@@ -18158,31 +18143,21 @@ NEXT_SOURCE_NIBBLE:
                BIT 0,H                         ; 627E CB 44  an odd line steps back up and one pixel along; an even one
                                                ; steps down. The DEC H DEC H before the shared INC H is what makes the
                                                ; odd case H-1
-
-;; --------------------------------------------------------------------
-;; NEXT_SOURCE_NIBBLE_1 -- &6280 to &6286
-;;
-;; Takes:     HL
-;; Leaves:    F, HL
-;; --------------------------------------------------------------------
-
-; ---- NEXT_SOURCE_NIBBLE_1 ---- from DOS &45FC
-NEXT_SOURCE_NIBBLE_1:
-               JR Z,NEXT_SOURCE_NIBBLE_2       ; 6280 28 05
+               JR Z,NEXT_SOURCE_NIBBLE_1       ; 6280 28 05
                INC L                           ; 6282 2C
-               JR Z,NEXT_SOURCE_NIBBLE_3       ; 6283 28 18
+               JR Z,NEXT_SOURCE_NIBBLE_2       ; 6283 28 18
                DEC H                           ; 6285 25
                DEC H                           ; 6286 25
 
 ;; --------------------------------------------------------------------
-;; NEXT_SOURCE_NIBBLE_2 -- &6287 to &6287
+;; NEXT_SOURCE_NIBBLE_1 -- &6287 to &6287
 ;;
 ;; Takes:     H
 ;; Leaves:    F, H
 ;; --------------------------------------------------------------------
 
-; ---- NEXT_SOURCE_NIBBLE_2 ---- from &6280 when bit 0 of H clear, &62A1 when A >= H
-NEXT_SOURCE_NIBBLE_2:
+; ---- NEXT_SOURCE_NIBBLE_1 ---- from &6280 when bit 0 of H clear, &62A1 when A >= H
+NEXT_SOURCE_NIBBLE_1:
                INC H                           ; 6287 24
 
 ;; --------------------------------------------------------------------
@@ -18244,22 +18219,22 @@ READ_NIBBLE_AT_HL_DONE:
                RET                             ; 629C C9
 
 ;; --------------------------------------------------------------------
-;; NEXT_SOURCE_NIBBLE_3 -- &629D to &62A5
+;; NEXT_SOURCE_NIBBLE_2 -- &629D to &62A5
 ;;
 ;; Takes:     HL
 ;; Leaves:    A, F, HL
 ;; Ends:      RET
 ;; --------------------------------------------------------------------
 
-; ---- NEXT_SOURCE_NIBBLE_3 ---- from &6283 when L wraps to 0
-NEXT_SOURCE_NIBBLE_3:
+; ---- NEXT_SOURCE_NIBBLE_2 ---- from &6283 when L wraps to 0
+NEXT_SOURCE_NIBBLE_2:
                LD A,(EXPAND_LINE_COUNT)        ; 629D 3A 7A 40  three short of the number of lines, because CP H : JR NC
                                                ; lets H equal it and &6287 starts one more pair, so the walk ends at
                                                ; EXPAND_LINE_COUNT+2. That is EXPAND_LINE_COUNT+3 lines, which is what
                                                ; the totals need: &33, &6D and &BD reach exactly &1B00, &3800 and &6000
                                                ; bytes -- a MODE 1, a MODE 2 and a MODE 3 or 4 screen
                CP H                            ; 62A0 BC
-               JR NC,NEXT_SOURCE_NIBBLE_2      ; 62A1 30 E4
+               JR NC,NEXT_SOURCE_NIBBLE_1      ; 62A1 30 E4
                DEC L                           ; 62A3 2D
                LD H,L                          ; 62A4 65  H = &FF is how the walk says it has finished, which is the
                                                ; test ENCODE_SCREEN makes
@@ -19862,7 +19837,10 @@ CSZ2_WORD:
                DEFW UWBOT                      ; 65A6 3B 5A
                LD C,A                          ; 65A8 4F
                INC A                           ; 65A9 3C  ... which comes out -1 for heights 65 to 96: not even one row
-                                               ; left in the upper window
+                                               ; left in the upper window. Heights 97 to 176, which &6548 admits, give
+                                               ; 192 DIV height = 1 and so UWBOT = -2, which this INC A does not catch:
+                                               ; the fix-up below is for -1 alone, and the larger heights fall through
+                                               ; it
                JR NZ,HOOK_CSIZE_8              ; 65AA 20 06
                LD C,A                          ; 65AC 4F  keep one row anyway, so PRINT still has somewhere to go
                CALL MBNRWR                     ; 65AD CD 82 45

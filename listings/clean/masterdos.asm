@@ -7020,7 +7020,9 @@ DFMT:
 ;; byte dropped passes -- harmless here, since all it decides is
 ;; whether to print a name.
 ;;
-;; THE NAME IS AT DRAM+&D2, entry 0's offset 210 in the buffer, and
+;; THE NAME IS AT DRAM+&D2, entry 0's offset 210 in the buffer --
+;; the source counts entries from one, so its carried "ENTRY 1" and
+;; "DIR ENTRY 1" below are this same first entry -- and
 ;; three kinds of it are told apart the way PNDN2 does: &00 or &FF
 ;; is a disc formatted by SAMDOS, which has no name field, and "*"
 ;; is a MasterDOS disc never given one.  Both go to PNDN2, which
@@ -7334,7 +7336,8 @@ ITRK2:
 ;; --------------------------------------------------------------------
 ;;  FESET -- stamp the first directory entry as the disk is formatted
 ;;
-;;  Track 0 sector 1 entry 1 carries three things that belong to the disk rather than to any file: the number of extra
+;;  Track 0 sector 1's first entry -- entry 0 in this listing's counting, entry 1 in the source's, whose carried
+;;  comments keep it -- carries three things that belong to the disk rather than to any file: the number of extra
 ;;  directory tracks, a random word that identifies the disk, and the disk's name.
 ;;
 ;;  The random word is made from the refresh register and the low byte of the frame counter -- two quantities that are
@@ -9749,11 +9752,15 @@ EVPRM:
                LD A,H                          ; 5F22 7C
                CP &04                          ; 5F23 FE 04  &0400 and up, after the DEC, is 1025 sectors or more; 1 to
                                                ; 1024 is the range
-               JP NC,IOOR                      ; 5F25 D2 91 60  ALLOW 0000-03FFH IN DECED,
+               JP NC,IOOR                      ; 5F25 D2 91 60  ALLOW 0000-03FFH IN DECED, 0001-0400H IN ORIG, BC=
+                                               ; 1-1024 SECTORS -- the source's comment, whose second and third lines
+                                               ; the carry-across had put in a banner above EVPR5
 
 ;; --------------------------------------------------------------------
-;;       0001-0400H IN ORIG,
-;; BC= 1-1024 SECTORS
+;; EVPRM's exit: the address back into AHL and, when the line is
+;; running, SCASD stores it with the sector count in BC; the track and
+;; sector into HKDE, the end of the statement insisted on, and the
+;; drive into HKA.
 ;; --------------------------------------------------------------------
 
 ; ---- EVPR5 ---- from &5F1A, &5F1F
@@ -10221,13 +10228,14 @@ WFOD02:
 ;; --------------------------------------------------------------------
 
 WIORH:
-               JR NC,WIOOR                     ; 614A 30 8C  DTKS=1, TOT TKS 2-157 OK
+               JR NC,WIOOR                     ; 614A 30 8C  DTKS=1, TOT TKS 2-157 OK; DTKS=2, TOT TKS 3-158; DTKS=3,
+                                               ; TOT TKS 4-159; DTKS=4, TOT TKS 5-160; DTKS=5, TOT TKS 6-160 -- the
+                                               ; source's table, whose last four lines the carry-across had put in a
+                                               ; banner above WFODB
 
 ;; --------------------------------------------------------------------
-;; DTKS=2, TOT TKS 3-158
-;; DTKS=3, TOT TKS 4-159
-;; DTKS=4, TOT TKS 5-160
-;; DTKS=5, TOT TKS 6-160
+;; The format proper begins: a RAM-disc drive, 3 and up, goes to
+;; FORMRD; a floppy jumps back to WFOD3 and the controller.
 ;; --------------------------------------------------------------------
 
 ; ---- WFODB ---- from &611C when A = 0, &6134 when A = 0
@@ -10575,8 +10583,6 @@ EXDT1:
                INC HL                          ; 627D 23
                DEC BC                          ; 627E 0B
                LD A,B                          ; 627F 78
-
-EXDT1_DONE:
                OR C                            ; 6280 B1
                JR NZ,EXDT1                     ; 6281 20 F2
                RET                             ; 6283 C9
@@ -16841,24 +16847,24 @@ FNDIRS:
                CALL FDFSR                      ; 790B CD CF 66  GET "ANY" NAME, GTDEF
                CALL GTNC                       ; 790E CD 3C 50
                CP &28                          ; 7911 FE 28  "(" opens the directory's argument
-               JR Z,FNDIRS_1                   ; 7913 28 05
+               JR Z,FNDI2                      ; 7913 28 05
                CALL FABORT                     ; 7915 CD AA 7A
                JR FNDI3                        ; 7918 18 16
 
-; ---- FNDIRS_1 ---- from &7913 when A = &28
-FNDIRS_1:
+;; --------------------------------------------------------------------
+;; FNDIRS with a "(": the name through EVNAMX, its path through EVFINS
+;; when the line is running, "?" through ALLSR, then ")" must close
+;; the argument, syntax time aborts here, and the directory is read
+;; into the buffer.
+;; --------------------------------------------------------------------
+
+; ---- FNDI2 ---- from &7913 when A = &28
+FNDI2:
                CALL EVNAMX                     ; 791A CD CC 61
                PUSH AF                         ; 791D F5
                CALL NZ,EVFINS                  ; 791E C4 21 73
                POP AF                          ; 7921 F1
                CALL ALLSR                      ; 7922 CD C6 5C
-
-;; --------------------------------------------------------------------
-;; FNDIRS past its name: ")" must close the argument, syntax time
-;; aborts here, and the directory is read into the buffer.
-;; --------------------------------------------------------------------
-
-FNDI2:
                CALL GCHR                       ; 7925 CD 42 50
                LD C,&29                        ; 7928 0E 29  and ")" closes it
                CALL ISEP                       ; 792A CD 38 50

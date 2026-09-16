@@ -310,3 +310,11 @@ DOC EVFL1
 DOC DRSET
     Select the drive in A and take its current directory: DRIVE, then
     the drive's CDIRP entry into CDIRT.
+
+DOS &5F25 : ALLOW 0000-03FFH IN DECED, 0001-0400H IN ORIG, BC= 1-1024 SECTORS -- the source's comment, whose second and third lines the carry-across had put in a banner above EVPR5
+
+DOC EVPR5
+    EVPRM's exit: the address back into AHL and, when the line is
+    running, SCASD stores it with the sector count in BC; the track and
+    sector into HKDE, the end of the statement insisted on, and the
+    drive into HKA.

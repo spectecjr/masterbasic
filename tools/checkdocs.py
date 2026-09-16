@@ -64,6 +64,9 @@ HISTORICAL = {
     ('design/cleanstyle.md', 'BOOT_FOUND_PAGE'),
     ('design/cleanstyle.md', 'SCREEN_PAGE_TYPE'),  # the sketch's name for &30
     ('design/cleanstyle.md', 'L7467'),   # what SHORT_MOVE_TO_ROM was called, in an argument about it
+    # design/reviewplan.md records a stale label by name in the account
+    # of dropping it.
+    ('design/reviewplan.md', 'EXDT1_DONE'),
     ('docs/disassembly.md', 'L1234'),     # an invented name, in an example
     ('docs/disassembly.md', 'L4461'),     # what CALL_NEXTCHAR was called
     ('docs/disassembly.md', 'L45D9'),     # what the address column reads

@@ -108,11 +108,25 @@ sent to twelve reviewers on Opus with one prompt
 (`scratchpad/phase1/prompt-template.txt` that day; the facts block is the
 process file's with the controller's port table from the Technical
 Manual added).  100 findings, 97 confirmed and applied, 3 left open,
-none refuted.  The three: EXDT1_DONE at &6280, a stale label the old
-&A280 misreading left and nothing references (generator); two source
-continuation lines rendered as banners above EVPR5 and WFODB; and the
-carried FNDI2 at &7925, three instructions from where the source put
-it, with no referent.  The reviewers' own verdict
+none refuted.  The three, closed 2026-09-15: EXDT1_DONE at &6280, a
+stale label the old &A280 misreading left and nothing references --
+held by two things, the window forms of FORMAT's own LD HL,FTADD at
+&45FC, which was not in the pinned list, and a cross-page reference
+recorded before the `expr` note on MB &5352 withdrew it, and
+drop_unused_labels now discounts both (the MB's own NEXT_SOURCE_NIBBLE_1
+at &6280, the same coincidence from the other side, went with it); two
+source continuation lines rendered as banners above EVPR5 and WFODB,
+put back on the JP NC,IOOR and JR NC,WIOOR they belong to with DOCs
+for the two labels; and the carried FNDI2 at &7925, three instructions
+from where the source put it, moved to the EVNAMX at &791A by the
+misplaced-labels table in dis_mb.py's load().  With them, three observations left by
+later rounds: the CSIZE fix-up's UWBOT comment now says heights 97 to
+176 fall through it; the directory-entry numbering says once, at
+DFMTA and FESET, that the source counts from one and the prose from
+zero; and FN_EQU's &4D52, an orphan DEFB &CD because the trace had
+followed the JP &4D53 at &5D2F -- a system-page address -- into the
+byte after it, is a CALL again (no_follow on that one JP, and
+split_entries told the same).  The reviewers' own verdict
 on the carried comments was near-unanimous: all but a handful sit on the
 instruction the author wrote them against.  What they found instead was
 in three classes -- carried comments *split*, the second line of a
@@ -317,7 +331,7 @@ Bounded jobs, good between rounds or when a round is out for review:
   the instructions now, and three thunks nothing calls had said "One
   caller".  **The banner item is done**: every routine head reached
   from outside its routine, in both halves, has a banner, and every
-  one of them has been reviewed once.  Reading copy: 998 of 2341.
+  one of them has been reviewed once.  Reading copy: 998 of 2338 (three labels fewer, below).
 - **The synthetic labels -- 138 to 19, done 2026-09-14** (`grep -c
   '^[LV][0-9A-F]\{4\}:$'` on each clean listing).  Three commits.
   MasterBASIC's 31 patched sites are named for what their operands

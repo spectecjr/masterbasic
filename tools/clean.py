@@ -76,6 +76,12 @@ BAR = ';; ' + '-' * 68
 #  correction that no longer matches is a correction that has gone
 #  stale, and a silent miss is the failure this file exists to prevent.
 CARRIED_FIXES = [
+    # The source counts directory entries from one and this listing's
+    # prose from zero; the same first entry is "entry 1" in the carried
+    # comments and "entry 0" everywhere else, so say so where they meet.
+    ([';;  Track 0 sector 1 entry 1 carries three things that belong to the disk rather than to any file: the number of extra'],
+     [";;  Track 0 sector 1's first entry -- entry 0 in this listing's counting, entry 1 in the source's, whose carried",
+      ';;  comments keep it -- carries three things that belong to the disk rather than to any file: the number of extra']),
     ([';;  SVBLK -- save a block to the open file'],
      [';;  HSVBK -- save whole sectors to the open file, leaving the tail in the buffer.  SVBLK, below with its',
       ';;  own header, is the one that writes the partial last sector out; this returns on SBLOK\'s carry with it',

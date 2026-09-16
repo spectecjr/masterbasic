@@ -192,7 +192,7 @@ MB &4D45 : and &5B is that second byte, the function code the manual's table giv
 
 MB &4D4D : the run flag from the string, handed back to the caller's RET NC
 
-MB &4D52 : these three bytes are one instruction, CALL CALL_EXPSTR; nothing enters at &4D53
+MB &4D52 : the first string; the second follows the comma
 
 MB &4D5B : the run flag again, kept over the closing bracket
 

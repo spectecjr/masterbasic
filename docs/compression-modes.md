@@ -389,7 +389,7 @@ numbers, and the bitmap size is the one that matters for the format:
 
 The bitmap is treated as **rows of 128 bytes** whatever the mode — 54, 112
 or 192 of them — and `EXPAND_LINE_COUNT` is three less than the row count, which is how
-`NEXT_SOURCE_NIBBLE_3` tests for the end. Each byte is two nibbles, high first.
+`NEXT_SOURCE_NIBBLE_2` tests for the end. Each byte is two nibbles, high first.
 
 `NEXT_SOURCE_NIBBLE` at `MB &627E` defines the order the nibbles are coded in,
 and it is not left to right. With `H` the row and `L` the nibble within it:

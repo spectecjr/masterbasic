@@ -1790,7 +1790,7 @@ SECTOR_FOR_CHANNEL:
 SECTOR_FOR_CHANNEL_1:
                DEC A                           ; 45F9 3D
                JR NZ,SECTOR_FOR_CHANNEL_2      ; 45FA 20 16
-               LD HL,MB_NEXT_SOURCE_NIBBLE_1   ; 45FC 21 80 A2
+               LD HL,FTADD                     ; 45FC 21 80 A2
 
 ; ---- SECTOR_FOR_CHANNEL_LOOP ---- from &460A
 SECTOR_FOR_CHANNEL_LOOP:
@@ -8482,8 +8482,6 @@ EXDT1:
                INC HL                          ; 627D 23
                DEC BC                          ; 627E 0B
                LD A,B                          ; 627F 78
-
-EXDT1_DONE:
                OR C                            ; 6280 B1
                JR NZ,EXDT1                     ; 6281 20 F2
                RET                             ; 6283 C9
@@ -13633,19 +13631,17 @@ FNDIRS:
                CALL FDFSR                      ; 790B CD CF 66  GET "ANY" NAME, GTDEF
                CALL GTNC                       ; 790E CD 3C 50
                CP &28                          ; 7911 FE 28
-               JR Z,FNDIRS_1                   ; 7913 28 05
+               JR Z,FNDI2                      ; 7913 28 05
                CALL FABORT                     ; 7915 CD AA 7A
                JR FNDI3                        ; 7918 18 16
 
-; ---- FNDIRS_1 ---- from &7913 when A = &28
-FNDIRS_1:
+; ---- FNDI2 ---- from &7913 when A = &28
+FNDI2:
                CALL EVNAMX                     ; 791A CD CC 61
                PUSH AF                         ; 791D F5
                CALL NZ,EVFINS                  ; 791E C4 21 73
                POP AF                          ; 7921 F1
                CALL ALLSR                      ; 7922 CD C6 5C
-
-FNDI2:
                CALL GCHR                       ; 7925 CD 42 50
                LD C,&29                        ; 7928 0E 29
                CALL ISEP                       ; 792A CD 38 50

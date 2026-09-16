@@ -473,7 +473,7 @@ MB &659D : the height factor pushed at &6557 -- height/8, or zero for the height
 
 MB &65A3 : the ROM's window arithmetic set UWBOT to 192/height - 3
 
-MB &65A9 : ... which comes out -1 for heights 65 to 96: not even one row left in the upper window
+MB &65A9 : ... which comes out -1 for heights 65 to 96: not even one row left in the upper window.  Heights 97 to 176, which &6548 admits, give 192 DIV height = 1 and so UWBOT = -2, which this INC A does not catch: the fix-up below is for -1 alone, and the larger heights fall through it
 
 MB &65AC : keep one row anyway, so PRINT still has somewhere to go
 

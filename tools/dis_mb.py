@@ -192,6 +192,7 @@ class Page(Disassembler):
                                       # copy is to itself, and so is a data
                                       # operand at one of `sites`
         self.sys_low = []             # ranges where &4000+ is the system page
+        self.no_follow = set()        # jumps whose low target is the system page's
         self.carried_by_value = {}    # address -> the MasterDOS source's name
         self.rendered = []            # ranges written by a renderer
         self._inline = {}
@@ -692,6 +693,8 @@ class Page(Disassembler):
             if insn.text.startswith(('JP ', 'JR ', 'DJNZ', 'CALL')) and tgt is not None:
                 if self.moved_target(addr, tgt):
                     pass                # an address in the copy, not here
+                elif addr in self.no_follow:
+                    pass                # the system page's, not this one's
                 elif self.inside(tgt):
                     self.queue.append(tgt)
                 elif addr < BOOT_END and PEER <= tgt < PEER + HALF:
@@ -937,6 +940,13 @@ TITLES = {
 }
 
 
+# Carried labels xfer put on the wrong instruction, with the address the
+# source's placement gives them.  FNDI2 heads the source's CALL EVNAMX;
+# the carry matched the LD C,")" three instructions on, where nothing
+# jumps, and left the EVNAMX with a derived name.
+MISPLACED_LABELS = {'FNDI2': 0x791A}
+
+
 def load(work):
     raw = open(IMAGE, 'rb').read()
     assert raw[0] == 0x13, 'not a SAM CODE file'
@@ -957,6 +967,7 @@ def load(work):
     used = set()
     for a in sorted(found):
         t, name, _, _ = found[a]
+        t = MISPLACED_LABELS.get(name, t)
         if t not in dos.labels and name not in used:
             dos.labels[t] = name
             used.add(name)
@@ -1039,8 +1050,11 @@ def seeds(dos, mb):
     # which as an address in the other half is NEXT_SOURCE_NIBBLE_1, and
     # FTADD+&0176 is SET_COMPRESSION_MODE.  The operands were already
     # written as FTADD; the cross-references still credited the DOS with
-    # seven calls it does not make.
-    for at in (0x499B, 0x49CC, 0x54FE, 0x5552, 0x5568, 0x55A3, 0x55BF):
+    # seven calls it does not make.  &45FC, FORMAT's own LD HL,FTADD, is
+    # the eighth: it was not in this list, and its window form was what
+    # kept EXDT1_DONE at &6280 alive in drop_unused_labels.
+    for at in (0x45FC, 0x499B, 0x49CC, 0x54FE, 0x5552, 0x5568, 0x55A3,
+               0x55BF):
         dos.no_peer.append((at, at + 3))
 
     # Two more coincidences of address.  &6E04's LD BC,&6EF9 is a table
@@ -1337,6 +1351,11 @@ def seeds(dos, mb):
     # window and the ROM's system page at &4000 -- LD DE,&4D50 and
     # JP &4D53 are in that page, and its &9E1F is this half's own &5E1F.
     mb.self_window.append((0x5D20, 0x5D32))
+    # And the JP &4D53 at &5D2F is not followed: the tracer took it into
+    # FN_EQU one byte past its CALL CALL_EXPSTR and left &4D52 an orphan
+    # DEFB &CD.  Not a rule for every self_window block -- several of
+    # those jump into this page and are right to -- so it is this one.
+    mb.no_follow.add(0x5D2F)
     # &5FB9 rather than &5FD8: the system page calls it there, with
     # LD A,&1C : LD HL,&9FB9 : CALL PAGER at &48DA.
     # &63F6 used to be in this list and should not have been.  Its only
@@ -2229,19 +2248,9 @@ def describe_rom_thunks(d):
             continue
         # Counted from the instructions, not d.xrefs: an operand a notes/
         # `expr` entry rewrote gains no xref, and CALL_NEXTCHAR's caller
-        # at &6117 is one.  A CALL the listing shows as DEFB because its
-        # first byte overlaps something else -- FN_EQU's at &4D52 -- is
-        # still a caller, so an undecoded &CD with this address after it
-        # counts too, where the byte is not inside a decoded instruction.
+        # at &6117 is one.
         callers = sum(1 for i in d.insns.values() if i.target == at
                       and re.match(r'^(CALL|JP|JR|DJNZ)\b', i.text))
-        covered = set()
-        for i in d.insns.values():
-            covered.update(range(i.addr, i.end))
-        for p in range(d.base, d.limit - 2):
-            if (p not in covered and p not in d.insns and d.byte(p) == 0xCD
-                    and d.word(p + 1) == at and p + 1 in covered):
-                callers += 1
         # The description is the ROM source's or romsyms' own words and
         # keeps their case; "ROM entry:" opens some of them and says
         # nothing here.
@@ -2335,18 +2344,32 @@ def drop_unused_labels(d):
     # Every address any operand names, in each of the forms one can wear.
     # A jump into the window reads &4516+&4000, and the cross-reference
     # goes to &8516, so asking d.xrefs alone would call &4516 unused.
+    # An operand seeds() has pinned to this page -- the seven LD HL,FTADD
+    # in the DOS, the screen borrowed as FORMAT's track image -- names
+    # nothing in the window, so its window forms are not counted: they
+    # were what kept EXDT1_DONE, the label the old reading of &A280 as
+    # DOS &6280 had made, alive with nothing referring to it.
     touched = set()
     for i in d.insns.values():
         for v in (i.target,):
             if v is None:
                 continue
-            touched.update((v, v + 0x4000, v - 0x4000,
+            touched.add(v)
+            if any(lo <= i.addr < hi for lo, hi in d.no_peer):
+                continue
+            touched.update((v + 0x4000, v - 0x4000,
                             v & 0x7FFF, (v & 0x7FFF) + 0x4000))
+    # A cross-page reference the other half recorded before a notes/
+    # `expr` entry rewrote its operand is withdrawn: MB &5352's LD
+    # HL,&A280 is FTADD there too, and was the other thing holding
+    # EXDT1_DONE.
+    pinned = d.peer.expr_operands if d.peer is not None else set()
     n = 0
     for a, name in list(d.labels.items()):
         if not SYNTHETIC.match(name):
             continue
-        if d.xrefs.get(a) or d.peer_xrefs.get(a) or a in touched:
+        live = [w for w in d.peer_xrefs.get(a, ()) if w[1] not in pinned]
+        if d.xrefs.get(a) or live or a in touched:
             continue
         if a in d.headers or a in d.notes or a in d.comments:
             continue
@@ -4141,7 +4164,8 @@ def split_entries(d, rounds=8):
             if ins.target is not None and d.inside(ins.target)
             and ins.text.startswith(('CALL', 'JP ', 'JR ', 'DJNZ'))
             and d.m(ins.target) == CONT
-            and not d.moved_target(at, ins.target))))
+            and not d.moved_target(at, ins.target)
+            and at not in d.no_follow)))
         inside.update(d.unplaced())
         for a, name in sorted(inside.items()):
             p = a - 1

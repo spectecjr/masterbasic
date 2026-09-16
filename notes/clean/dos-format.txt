@@ -21,7 +21,9 @@ DOC DFMTA
     byte dropped passes -- harmless here, since all it decides is
     whether to print a name.
 
-    THE NAME IS AT DRAM+&D2, entry 0's offset 210 in the buffer, and
+    THE NAME IS AT DRAM+&D2, entry 0's offset 210 in the buffer --
+    the source counts entries from one, so its carried "ENTRY 1" and
+    "DIR ENTRY 1" below are this same first entry -- and
     three kinds of it are told apart the way PNDN2 does: &00 or &FF
     is a disc formatted by SAMDOS, which has no name field, and "*"
     is a MasterDOS disc never given one.  Both go to PNDN2, which
@@ -215,3 +217,9 @@ DOS &5686 : offset &D7, where the Spectrum's header keeps them
 
 DOS &5758 : the digit is zero, so print the pad character -- a space before the first significant digit, "0" after it
 DOS &55C2 : and the write-protect answer comes back as the rotated status
+
+DOS &614A : DTKS=1, TOT TKS 2-157 OK; DTKS=2, TOT TKS 3-158; DTKS=3, TOT TKS 4-159; DTKS=4, TOT TKS 5-160; DTKS=5, TOT TKS 6-160 -- the source's table, whose last four lines the carry-across had put in a banner above WFODB
+
+DOC WFODB
+    The format proper begins: a RAM-disc drive, 3 and up, goes to
+    FORMRD; a floppy jumps back to WFOD3 and the controller.
