@@ -82,8 +82,9 @@ DOC BUILD_PUT_BLOCK
     The extended PUT, assembled in the system page from &45A2: the ten
     bytes of PUT_PIECE_45A2 first, then the ROM's own PUT in runs --
     thirteen, thirteen, three -- with this half's pieces between and
-    after them, and the address of each run's end written into the
-    piece that jumps back into the ROM's code.  This runs from the
+    after them, and the end of each of the first two written into the
+    JP that returns to the ROM's code from the piece that follows it.
+    This runs from the
     installer's copy, so its addresses in this half carry
     INSTALLER_COPY.  The JP at &7826 that appears to land here is the
     DOS's CFMI, in a block written to run elsewhere, and not a caller.
@@ -99,10 +100,12 @@ DOC PUT_PIECE_45DE
     -- OVER0LP at &78DD, GPVARS at &78EE and PUT+&0D at &794C.
 
 DOC PUT_PIECE_45B9
-    Ten bytes written to run at &45B9, copied last and over the end of
-    the ROM's second run: a CALL into the block at &4667, the count
-    from DE' plus one into HL, and a JR that lands on PUT_PIECE_45C6's
-    PUSH HL at &788B.
+    Ten bytes written to run at &45B9, copied last and over the start
+    of the ROM's second run, leaving its last three bytes -- PUTL1's
+    CALL CHKEND at &45C3 -- in place: a CALL into the block at &4667,
+    the first string's data pointer from DE' plus one into HL -- its
+    non-zero high byte is what &78B0 tests -- and a JR that lands on
+    PUT_PIECE_45C6's PUSH HL at &788B.
 
 DOC PUT_PIECE_45A2
     Ten bytes written to run at &45A2, SYS_TOKEN_TO_FN_INDEX, the first
@@ -173,8 +176,10 @@ DOC LOAD_RETURN_STUB
 
 DOC RST28V_XVAR_NVAL
     What RST28V, the ROM's function-evaluator vector, points at once
-    the boot has copied the &61 bytes from here to &4AAC: XVAR and
-    NVAL, the two functions whose argument takes no bracket, drop the
-    ROM's return address and go to hook 179; anything else returns to
-    the ROM.  The bytes from &7E0F are the rest of that copy, the
-    error intercept the comments there read.
+    the boot's &7BA4 to &484D block move has put this at &4AAC: XVAR
+    and NVAL, the two functions whose argument takes no bracket, drop
+    the ROM's return address and go to hook 179; anything else returns
+    to the ROM.  The bytes from &7E0F to the block's end at &7E42 are
+    the rest of that copy, the error intercept the comments there
+    read; the &61-byte copy at &7214 is a later one, made after the
+    DOS's tail has been written over this.

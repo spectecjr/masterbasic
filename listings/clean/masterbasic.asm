@@ -870,8 +870,9 @@ FN_SVAL_S_3:
 ;; --------------------------------------------------------------------
 ;; The ROM's STKSTR as a subroutine of this page -- CALL MBCMR with the
 ;; address as its word, then RET -- so a caller spends three bytes
-;; rather than five.  STKSTR: push a five-byte number from A, E, D, C,
-;; B.  3 callers.
+;; rather than five.  STKSTR: push a five-byte calculator-stack entry
+;; -- a number, or a string's page, start and length -- from A, E, D,
+;; C, B.  3 callers.
 ;; --------------------------------------------------------------------
 
 ; ---- CALL_STKSTR ---- from &47C9, &4E30, &56C7
@@ -2033,7 +2034,7 @@ CHAR_MUST_BE_C:
 ;; The ROM's NEXTCHAR as a subroutine of this page -- CALL MBCMR with
 ;; the address as its word, then RET -- so a caller spends three bytes
 ;; rather than five.  NEXTCHAR: step CHAD and fetch the character
-;; there.  42 callers.
+;; there.  43 callers.
 ;; --------------------------------------------------------------------
 
 ; ---- CALL_NEXTCHAR ---- from &445A, &4482, &44CD, &44DF, &460B, &4614, &461D, &4625 when A = T_INVERSE ...
@@ -2094,7 +2095,7 @@ CALL_GETINT:
 ;; --------------------------------------------------------------------
 ;; The ROM's EXPSTR as a subroutine of this page -- CALL MBCMR with the
 ;; address as its word, then RET -- so a caller spends three bytes
-;; rather than five.  EXPSTR: evaluate a string expression.  6 callers.
+;; rather than five.  EXPSTR: evaluate a string expression.  7 callers.
 ;; --------------------------------------------------------------------
 
 ; ---- CALL_EXPSTR ---- from &4422, &4B85, &4D33, &4D58, &4E54, &5AD9
@@ -9502,10 +9503,10 @@ SUBSTITUTE_PRINTER_CHAR:
                JR Z,SEND_COUNTED_TO_CHANNEL    ; 5981 28 06
 
 ;; --------------------------------------------------------------------
-;; The ROM's PRMAIN as a subroutine of this page -- CALL MBCMR with the
-;; address as its word, then RET -- so a caller spends three bytes
-;; rather than five.  PRMAIN: Main ROM Print routine entrypoint. Prints
-;; the character in A.  One caller.
+;; The closing ROM call of the routine above, reached only by falling
+;; into it: CALL MBCMR with the ROM's PRMAIN as its word, then RET.
+;; PRMAIN: Main ROM Print routine entrypoint. Prints the character in
+;; A.
 ;; --------------------------------------------------------------------
 
 CALL_PRMAIN:
@@ -16790,10 +16791,10 @@ SET_UP_FAR_LDIR:
                POP AF                          ; 6DD1 F1
 
 ;; --------------------------------------------------------------------
-;; The ROM's J_FARLDIR as a subroutine of this page -- CALL MBCMR with
-;; the address as its word, then RET -- so a caller spends three bytes
-;; rather than five.  J_FARLDIR: MOVE (PAGCOUNT/MODCOUNT) BYTES FROM
-;; PAGE A, HL TO PAGE C, DE, USING LDIR.  One caller.
+;; The closing ROM call of the routine above, reached only by falling
+;; into it: CALL MBCMR with the ROM's J_FARLDIR as its word, then RET.
+;; J_FARLDIR: MOVE (PAGCOUNT/MODCOUNT) BYTES FROM PAGE A, HL TO PAGE C,
+;; DE, USING LDIR.
 ;; --------------------------------------------------------------------
 
 CALL_J_FARLDIR:
@@ -17966,10 +17967,9 @@ CMD_CLS:
                XOR A                           ; 71F7 AF  A = 0, and JCLSBL clears the screen
 
 ;; --------------------------------------------------------------------
-;; The ROM's JCLSBL as a subroutine of this page -- CALL MBCMR with the
-;; address as its word, then RET -- so a caller spends three bytes
-;; rather than five.  JCLSBL: clear the whole screen if A is zero,
-;; otherwise the window.  One caller.
+;; The closing ROM call of the routine above, reached only by falling
+;; into it: CALL MBCMR with the ROM's JCLSBL as its word, then RET.
+;; JCLSBL: clear the whole screen if A is zero, otherwise the window.
 ;; --------------------------------------------------------------------
 
 CALL_JCLSBL:
@@ -19996,8 +19996,9 @@ INSTALL_EXTENDED_PUT:
 ;; The extended PUT, assembled in the system page from &45A2: the ten
 ;; bytes of PUT_PIECE_45A2 first, then the ROM's own PUT in runs --
 ;; thirteen, thirteen, three -- with this half's pieces between and
-;; after them, and the address of each run's end written into the
-;; piece that jumps back into the ROM's code.  This runs from the
+;; after them, and the end of each of the first two written into the
+;; JP that returns to the ROM's code from the piece that follows it.
+;; This runs from the
 ;; installer's copy, so its addresses in this half carry
 ;; INSTALLER_COPY.  The JP at &7826 that appears to land here is the
 ;; DOS's CFMI, in a block written to run elsewhere, and not a caller.
@@ -20034,7 +20035,7 @@ BUILD_PUT_BLOCK:
                LD DE,&45B9                         ; 7871 11 B9 45  and ten bytes over &45B9, replacing the ROM's second
                                                    ; fragment
                LD C,&0A                            ; 7874 0E 0A  ten, written back over &45B9 -- the last run overwrites
-                                                   ; part of the third
+                                                   ; the first ten bytes of the ROM's second run
                LDIR                                ; 7876 ED B0
                RET                                 ; 7878 C9
 
@@ -20081,11 +20082,12 @@ PUT_PIECE_45DE:
                OUT (HMPR),A                    ; 7894 D3 FB
                LD HL,&469E                     ; 7896 21 9E 46  from inside the block just assembled, at &469E
                LD DE,PUT_TRAMPOLINE            ; 7899 11 00 F0
-               LD BC,&002E                     ; 789C 01 2E 00  forty-six bytes for PUT
+               LD BC,&002E                     ; 789C 01 2E 00  forty-six bytes for PUT GRAB, which SYS_FN_INDEX = 0
+                                               ; means
                LD A,(SYS_FN_INDEX)             ; 789F 3A F0 4A
                AND A                           ; 78A2 A7
                JR Z,PUT_PIECE_45DE_1           ; 78A3 28 02
-               LD C,&1D                        ; 78A5 0E 1D  twenty-nine for GRAB, which needs less of it
+               LD C,&1D                        ; 78A5 0E 1D  twenty-nine for a plain PUT, which needs less of it
 
 ; ---- PUT_PIECE_45DE_1 ---- from &78A3 when A = 0
 PUT_PIECE_45DE_1:
@@ -20108,7 +20110,8 @@ PUT_PIECE_45DE_1:
                                                ; below can make. &78D3 onwards is five doublings and adds that come to
                                                ; ten times A, and A is four or INVERT's low two bits, so the offsets it
                                                ; produces are 0, 10, 20, 30 and 40 -- ten bytes to an entry. Fifty is
-                                               ; the sixth, taken when SYS_FN_INDEX says GRAB rather than PUT
+                                               ; the sixth, taken when SYS_FN_INDEX says PUT rather than GRAB -- the
+                                               ; ROM's masked entry, type 5; GRAB goes to the trampoline's +&1D instead
                JR NZ,PUT_PIECE_45DE_4          ; 78BE 20 19
                LD IY,PUT_TRAMPOLINE + &1D      ; 78C0 FD 21 1D F0
                JR PUT_PIECE_45DE_5             ; 78C4 18 1B
@@ -20264,10 +20267,12 @@ PUT_PIECE_45DE_LOOP2:
                JP (IX)                         ; 797A DD E9
 
 ;; --------------------------------------------------------------------
-;; Ten bytes written to run at &45B9, copied last and over the end of
-;; the ROM's second run: a CALL into the block at &4667, the count
-;; from DE' plus one into HL, and a JR that lands on PUT_PIECE_45C6's
-;; PUSH HL at &788B.
+;; Ten bytes written to run at &45B9, copied last and over the start
+;; of the ROM's second run, leaving its last three bytes -- PUTL1's
+;; CALL CHKEND at &45C3 -- in place: a CALL into the block at &4667,
+;; the first string's data pointer from DE' plus one into HL -- its
+;; non-zero high byte is what &78B0 tests -- and a JR that lands on
+;; PUT_PIECE_45C6's PUSH HL at &788B.
 ;; --------------------------------------------------------------------
 
 PUT_PIECE_45B9:
@@ -21799,9 +21804,9 @@ POST_LOAD_STUB:
                LD A,(PROGP)                    ; 7DE8 3A 9F 5A
                OUT (HMPR),A                    ; 7DEB D3 FB
                LD (HL),&00                     ; 7DED 36 00  NOT A VALUE. This instruction runs at &4A96 and its operand
-                                               ; is the &4A97 the banner above sets out: &4F33 arms it with the byte the
-                                               ; stub is to write at the start of the BASIC program, and &FF there
-                                               ; stands for "nothing to write"
+                                               ; is the &4A97 the banner above sets out: &4F33 clears it to &FF,
+                                               ; "nothing to write", before the DOS runs, and HOOK_HLOAD at DOS &646F
+                                               ; writes the program's first byte over it for the stub to put back
                RET                             ; 7DEF C9
 
 ;; --------------------------------------------------------------------
@@ -21834,11 +21839,13 @@ LOAD_RETURN_STUB:
 
 ;; --------------------------------------------------------------------
 ;; What RST28V, the ROM's function-evaluator vector, points at once
-;; the boot has copied the &61 bytes from here to &4AAC: XVAR and
-;; NVAL, the two functions whose argument takes no bracket, drop the
-;; ROM's return address and go to hook 179; anything else returns to
-;; the ROM.  The bytes from &7E0F are the rest of that copy, the
-;; error intercept the comments there read.
+;; the boot's &7BA4 to &484D block move has put this at &4AAC: XVAR
+;; and NVAL, the two functions whose argument takes no bracket, drop
+;; the ROM's return address and go to hook 179; anything else returns
+;; to the ROM.  The bytes from &7E0F to the block's end at &7E42 are
+;; the rest of that copy, the error intercept the comments there
+;; read; the &61-byte copy at &7214 is a later one, made after the
+;; DOS's tail has been written over this.
 ;; --------------------------------------------------------------------
 
 ; ---- RST28V_XVAR_NVAL ---- from &7214

@@ -649,6 +649,18 @@ SPARE_TAKEN_BY_MB = {
 }
 
 
+# The annotated DOS source's word for a ROM entry, corrected where the
+# ROM's own code says otherwise.  ref/masterdos is a submodule, so the
+# correction lives here rather than in that tree.
+DESCRIPTION_FIXES = {
+    # main.asm's jump table says "STACK STRING PARAMS" and STKSTORE in
+    # tadjm.asm stores A, E, D, C, B as either a number or a string's
+    # page, start and length; CALL_STKSTR's third caller pushes a string.
+    'STKSTR': "push a five-byte calculator-stack entry -- a number, or a"
+              " string's page, start and length -- from A, E, D, C, B",
+}
+
+
 EXTRA_NOTES = {
     'ROM_BORDCR': 'VALUE TO SEND TO BORDER PORT -- the ROM calls &5C4B'
                   ' BORDCOL, and BORDCR is a different variable at &5C48.'

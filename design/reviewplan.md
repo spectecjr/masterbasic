@@ -310,8 +310,14 @@ Bounded jobs, good between rounds or when a round is out for review:
   mb-heads.txt`, one (SORT_TAIL, a patched operand) is a `site` now,
   and 8 are branch targets inside their own routine
   (VARIABLE_BODY_BY_KIND_ADD, STAMP_DATE_FIELDS, DUMP_INVERT and the
-  like) that want no banner.  Out for review as one cut.  Reading
-  copy: 998 of 2341.
+  like) that want no banner.  Reviewed as one cut: 12 findings, all
+  applied -- the PUT pieces had GRAB and PUT swapped twice, the
+  generated caller counts were from d.xrefs (which drops an operand an
+  `expr` rewrote, and a CALL the listing shows as DEFB) and are from
+  the instructions now, and three thunks nothing calls had said "One
+  caller".  **The banner item is done**: every routine head reached
+  from outside its routine, in both halves, has a banner, and every
+  one of them has been reviewed once.  Reading copy: 998 of 2341.
 - **The synthetic labels -- 138 to 19, done 2026-09-14** (`grep -c
   '^[LV][0-9A-F]\{4\}:$'` on each clean listing).  Three commits.
   MasterBASIC's 31 patched sites are named for what their operands

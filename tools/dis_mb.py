@@ -1808,6 +1808,7 @@ def load_symbols(d, work, dos=None, peer=None):
         sorted(glob.glob(os.path.join(ROOT, 'ref', 'samrom', '*.asm')))
         + [os.path.join(ROOT, 'ref', 'masterdos', 'annotated-src',
                         'masterdos23.asm')])
+    d.romdesc.update(romsyms.DESCRIPTION_FIXES)
     reserved = set(d.labels.values()) | set(d.ports.values())
     if peer is not None:
         reserved |= set(peer.labels.values())
@@ -2226,16 +2227,42 @@ def describe_rom_thunks(d):
         rom = d.ext_target(target) if target < BASE else None
         if not rom or w + 2 not in d.insns or d.insns[w + 2].text != 'RET':
             continue
-        callers = len(d.xrefs.get(at, ()))
+        # Counted from the instructions, not d.xrefs: an operand a notes/
+        # `expr` entry rewrote gains no xref, and CALL_NEXTCHAR's caller
+        # at &6117 is one.  A CALL the listing shows as DEFB because its
+        # first byte overlaps something else -- FN_EQU's at &4D52 -- is
+        # still a caller, so an undecoded &CD with this address after it
+        # counts too, where the byte is not inside a decoded instruction.
+        callers = sum(1 for i in d.insns.values() if i.target == at
+                      and re.match(r'^(CALL|JP|JR|DJNZ)\b', i.text))
+        covered = set()
+        for i in d.insns.values():
+            covered.update(range(i.addr, i.end))
+        for p in range(d.base, d.limit - 2):
+            if (p not in covered and p not in d.insns and d.byte(p) == 0xCD
+                    and d.word(p + 1) == at and p + 1 in covered):
+                callers += 1
         # The description is the ROM source's or romsyms' own words and
         # keeps their case; "ROM entry:" opens some of them and says
         # nothing here.
         what = re.sub(r'^ROM entry:\s*', '', described(rom)).rstrip('.')
-        text = ("The ROM's %s as a subroutine of this page -- %s with the "
-                "address as its word, then RET -- so a caller spends three "
-                "bytes rather than five.%s  %s"
-                % (rom, ins.text, '  %s: %s.' % (rom, what) if what else '',
-                   '%d callers.' % callers if callers > 1 else 'One caller.'))
+        if callers:
+            text = ("The ROM's %s as a subroutine of this page -- %s with "
+                    "the address as its word, then RET -- so a caller spends "
+                    "three bytes rather than five.%s  %s"
+                    % (rom, ins.text,
+                       '  %s: %s.' % (rom, what) if what else '',
+                       '%d callers.' % callers if callers > 1
+                       else 'One caller.'))
+        else:
+            # Nothing calls it: it is the closing ROM call of the routine
+            # above, reached only by falling into it, and the label marks
+            # the shape rather than an entry.
+            text = ("The closing ROM call of the routine above, reached "
+                    "only by falling into it: %s with the ROM's %s as its "
+                    "word, then RET.%s"
+                    % (ins.text, rom,
+                       '  %s: %s.' % (rom, what) if what else ''))
         d.headers[at] = annotate.banner(textwrap.fill(text, 68))
         n += 1
     return n

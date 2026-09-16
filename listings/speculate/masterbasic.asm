@@ -948,8 +948,9 @@ FN_SVAL_S_3:
 ;;
 ;;     The ROM's STKSTR as a subroutine of this page -- CALL MBCMR with the
 ;;     address as its word, then RET -- so a caller spends three bytes
-;;     rather than five.  STKSTR: push a five-byte number from A, E, D, C,
-;;     B.  3 callers.
+;;     rather than five.  STKSTR: push a five-byte calculator-stack entry
+;;     -- a number, or a string's page, start and length -- from A, E, D,
+;;     C, B.  3 callers.
 ;; --------------------------------------------------------------------
 
 ; ---- CALL_STKSTR ---- from &47C9, &4E30, &56C7
@@ -2621,7 +2622,7 @@ CHAR_MUST_BE_C:
 ;;     The ROM's NEXTCHAR as a subroutine of this page -- CALL MBCMR with
 ;;     the address as its word, then RET -- so a caller spends three bytes
 ;;     rather than five.  NEXTCHAR: step CHAD and fetch the character
-;;     there.  42 callers.
+;;     there.  43 callers.
 ;; --------------------------------------------------------------------
 
 ; ---- CALL_NEXTCHAR ---- from &445A, &4482, &44CD, &44DF, &460B, &4614, &461D, &4625 when A = T_INVERSE ...
@@ -2727,7 +2728,7 @@ CALL_GETINT:
 ;;
 ;;     The ROM's EXPSTR as a subroutine of this page -- CALL MBCMR with the
 ;;     address as its word, then RET -- so a caller spends three bytes
-;;     rather than five.  EXPSTR: evaluate a string expression.  6 callers.
+;;     rather than five.  EXPSTR: evaluate a string expression.  7 callers.
 ;; --------------------------------------------------------------------
 
 ; ---- CALL_EXPSTR ---- from &4422, &4B85, &4D33, &4D58, &4E54, &5AD9
@@ -13640,10 +13641,10 @@ SUBSTITUTE_PRINTER_CHAR:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     The ROM's PRMAIN as a subroutine of this page -- CALL MBCMR with the
-;;     address as its word, then RET -- so a caller spends three bytes
-;;     rather than five.  PRMAIN: Main ROM Print routine entrypoint. Prints
-;;     the character in A.  One caller.
+;;     The closing ROM call of the routine above, reached only by falling
+;;     into it: CALL MBCMR with the ROM's PRMAIN as its word, then RET.
+;;     PRMAIN: Main ROM Print routine entrypoint. Prints the character in
+;;     A.
 ;; --------------------------------------------------------------------
 
 CALL_PRMAIN:
@@ -24167,10 +24168,10 @@ SET_UP_FAR_LDIR:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     The ROM's J_FARLDIR as a subroutine of this page -- CALL MBCMR with
-;;     the address as its word, then RET -- so a caller spends three bytes
-;;     rather than five.  J_FARLDIR: MOVE (PAGCOUNT/MODCOUNT) BYTES FROM
-;;     PAGE A, HL TO PAGE C, DE, USING LDIR.  One caller.
+;;     The closing ROM call of the routine above, reached only by falling
+;;     into it: CALL MBCMR with the ROM's J_FARLDIR as its word, then RET.
+;;     J_FARLDIR: MOVE (PAGCOUNT/MODCOUNT) BYTES FROM PAGE A, HL TO PAGE C,
+;;     DE, USING LDIR.
 ;; --------------------------------------------------------------------
 
 CALL_J_FARLDIR:
@@ -25860,10 +25861,9 @@ CMD_CLS:
 ;;
 ;; Shown for this routine in listings/disasm/:
 ;;
-;;     The ROM's JCLSBL as a subroutine of this page -- CALL MBCMR with the
-;;     address as its word, then RET -- so a caller spends three bytes
-;;     rather than five.  JCLSBL: clear the whole screen if A is zero,
-;;     otherwise the window.  One caller.
+;;     The closing ROM call of the routine above, reached only by falling
+;;     into it: CALL MBCMR with the ROM's JCLSBL as its word, then RET.
+;;     JCLSBL: clear the whole screen if A is zero, otherwise the window.
 ;; --------------------------------------------------------------------
 
 CALL_JCLSBL:
@@ -31196,9 +31196,9 @@ POST_LOAD_STUB:
                LD A,(PROGP)                    ; 7DE8 3A 9F 5A
                OUT (HMPR),A                    ; 7DEB D3 FB
                LD (HL),&00                     ; 7DED 36 00  NOT A VALUE. This instruction runs at &4A96 and its operand
-                                               ; is the &4A97 the banner above sets out: &4F33 arms it with the byte the
-                                               ; stub is to write at the start of the BASIC program, and &FF there
-                                               ; stands for "nothing to write"
+                                               ; is the &4A97 the banner above sets out: &4F33 clears it to &FF,
+                                               ; "nothing to write", before the DOS runs, and HOOK_HLOAD at DOS &646F
+                                               ; writes the program's first byte over it for the stub to put back
                RET                             ; 7DEF C9
 
 ;; --------------------------------------------------------------------

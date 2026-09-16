@@ -212,7 +212,8 @@ SPOSNL:               EQU  &5A6E               ; SCREEN POSN (LOWER) 0,19 AFTER 
 SPSTORE:              EQU  &5AD2               ; SP STORE EXCLUSIVE TO INTERRUPTS
 SREAD:                EQU  &3FBB               ; SELECT SCREEN, ROM1 OFF
 STKEND:               EQU  &5C65               ; end of the calculator stack
-STKSTR:               EQU  &0127               ; push a five-byte number from A, E, D, C, B
+STKSTR:               EQU  &0127               ; push a five-byte calculator-stack entry -- a number, or a string's
+                                               ; page, start and length -- from A, E, D, C, B
 STREAM:               EQU  &0112               ; select the stream in A
 STRLOCN:              EQU  &5BBC               ; USED BY LOOKVARS
 STRM16NM:             EQU  &5B76               ; TLBYTE/NAME OF VAR THAT STREAM 16 WRITES TO
