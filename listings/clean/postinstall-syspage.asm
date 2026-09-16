@@ -857,8 +857,16 @@ POST_LOAD_STUB:
                DEFB &5A,&D3,&FB,&36,&00,&C9                                     ; 4A93 ZS{6.I
 
 LOAD_RETURN_STUB:
-               DEFB &CD,&84,&4A,&C3,&00,&00,&22,&9E,&4B,&E1,&CD,&01,&0E,&2A,&9E ; 4A99 M.JC..".KaM..*.
-               DEFB &4B,&C3,&69,&10                                             ; 4AA8 KCi.
+               DEFB &CD,&84,&4A,&C3,&00,&00    ; 4A99 M.JC..
+
+DEF_KEYCODE_STUB:
+               DEFB &22,&9E,&4B,&E1            ; 4A9F ".Ka
+
+DEF_KEYCODE_CALL:
+               DEFB &CD,&01,&0E,&2A,&9E,&4B    ; 4AA3 M..*.K
+
+DEF_KEYCODE_JP:
+               DEFB &C3,&69,&10                ; 4AA9 Ci.
 
 RST28V_XVAR_NVAL:
                DEFB &FE,&50,&28,&03,&FE,&4E,&C0 ; 4AAC ~P(.~N@

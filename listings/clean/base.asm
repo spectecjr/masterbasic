@@ -237,8 +237,10 @@ HKC_SUBCHAR:                    EQU  &B6                                     ; R
                                                                              ; SUBSTITUTE_PRINTER_CHAR)
 HKC_COMADENT:                   EQU  &B7                                     ; Hook code 183, raised by EDIT. (see
                                                                              ; HOOK_COMADENT)
-HKC_VARSPACE:                   EQU  &B8                                     ; Check the room above the variables area.
-                                                                             ; (see HOOK_VARSPACE)
+HKC_VARSPACE:                   EQU  &B8                                     ; Keep a &500 gap between the program's end
+                                                                             ; and the variables while NVARS sits in the
+                                                                             ; top &500 of its page, and close it
+                                                                             ; otherwise. (see HOOK_VARSPACE)
 HKC_EDIT_INSERT:                EQU  &B9                                     ; Build EDIT's insert-the-value routine and
                                                                              ; make it the hook's return. (see
                                                                              ; HOOK_EDIT_INSERT)

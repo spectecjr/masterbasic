@@ -30,7 +30,8 @@ DOC SORT_NAMES
 
     A SELECTION SORT IS THE RIGHT CHOICE HERE.  It compares as often as
     any of the simple sorts -- one pass per record, each scanning what
-    is left -- but it exchanges once per pass, n-1 times in all, and
+    is left -- but it exchanges once per pass, n times in all with the
+    last a record with itself, and
     an exchange means ten byte swaps with no room for a temporary.  A bubble sort
     would compare no less and move very much more.
 
@@ -38,8 +39,9 @@ DOC SORT_NAMES
     the front.  DE holds the best so far and HL the one being looked at;
     the first bytes are compared and only when they are equal does the
     inner loop go on to the other nine.  The count of those nine is
-    written into the loop's own LD B before anything starts, because it
-    is the one number the two entry points disagree about.
+    written into the loop's own LD B before anything starts, because B
+    is the inner loop's DJNZ counter and has to be reloaded from
+    somewhere on every equal first byte.
 
     THE COUNT IS TWO REGISTERS AND NO TEST.  A sixteen-bit count is
     turned into a B and a C that DJNZ can use: if the low byte is not

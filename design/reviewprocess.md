@@ -417,6 +417,7 @@ The differences from the review prompt:
 | DOS C12, D1, E1, F12 with 51 new banners (2026-09-14, round 11) | review | 16 findings | 15 + 1 left; four on the new banners, two on the generated headers |
 | DOS G1, MOVE, F11, SUBD, RAMD, HOOKS with 89 new banners (2026-09-14/15, round 11) | review | 28 findings | 25 + 3 left as code observations; thirteen on the new banners, one carried continuation placed as a header |
 | MB 46 heads with new banners, 29 by hand and 17 generated (2026-09-15, round 11) | review | 12 findings | 12; five on the hand-written banners, three on the generated counts |
+| MB second passes on the six cuts that returned twelve or more (2026-09-15, round 12) | review | 46 findings | 46; 1.6 per hundred against 2.7, 41% [C] against 57%; three change a reading, two are generator faults |
 
 The first five ran on one model; the rest on another, after the first hit a
 session limit mid-run. The prompts were byte-identical across the change,

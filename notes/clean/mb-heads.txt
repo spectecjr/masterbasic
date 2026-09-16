@@ -32,10 +32,11 @@ DOC HOOK_HORDER
     entry.
 
 DOC CMD_LPRINT_CLEAR
-    The rest of LPRINT once MODE is ruled out: LPRINT CLEAR, alone or
-    with a size, sizes the printer buffer; anything else has to be
-    LPRINT REF, and goes to PRINT_REF_COMMON with C = 3, the printer
-    stream.
+    The rest of LPRINT once MODE is ruled out: LPRINT CLEAR with a
+    size frees any buffer and allocates a new one, and alone empties
+    the buffer by setting the write pointer to the read pointer;
+    anything else has to be LPRINT REF, and goes to PRINT_REF_COMMON
+    with C = 3, the printer stream.
 
 DOC PRINT_REF_COMMON
     PRINT REF and LPRINT REF meet here with the stream in C, 2 or 3:
@@ -145,7 +146,8 @@ DOC AT_TAB_SECOND_OPERAND
     to the ROM's CCRESTOP through JP_CCRESTOP.
 
 DOC TAPE_VERIFY_STUB
-    Two entries into the ROM's LDBLK for the DOS's tape path, at &4A62
+    Two entries into the ROM's LDBLK for the DOS's network path -- NETPA
+    hands LOAD and VERIFY from device N to them -- at &4A62
     and &4A64 once installed: AND A here clears carry for a verify, and
     the LD A,&37 two bytes on -- entered in its middle, its &37 is an
     SCF -- sets it for a load.  Then EXX, A = &FF for a data block, and
@@ -171,8 +173,12 @@ DOC LOAD_RETURN_STUB
     Where the ROM's LOAD comes back to, at &4A99 once installed: the
     DOS's WRTBC plants this address as the return and the real one in
     the JP at &4A9D, so POST_LOAD_STUB runs first through the CALL
-    &4A84 and the JP then goes where LOAD was going.  The bytes after
-    it are a copy overwritten before anything could use it.
+    &4A84 and the JP then goes where LOAD was going.  The thirteen
+    bytes after it are DEF KEYCODE's syntax-time hook, at &4A9F once
+    installed: CMD_DEF_KEYCODE points the ROM's JP NC,DFKNL at it
+    (&5D6E), RESOLVE_ROM_ENTRIES fills its two operands, and here they
+    are overwritten by the LDIR at &7B65 only after the block has gone
+    out to &484D.
 
 DOC RST28V_XVAR_NVAL
     What RST28V, the ROM's function-evaluator vector, points at once

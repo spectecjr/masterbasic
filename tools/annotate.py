@@ -706,7 +706,7 @@ XVARS = [
     (31, 4, 'DPVARS',   'DUMP 4 length, width, width and height multipliers'),
     (35, 9, 'GCMX1',    'sent before a DUMP: left margin and line advance'),
     (44, 8, 'GCMX2B',   'as GCMX2 but for DUMP 4; copied to the ROM at BOOT'),
-    (52, 6, 'GCMX3',    'sent at the end of DUMP 4; copied to the ROM at BOOT'),
+    (52, 6, 'GCMX3',    'sent at the end of DUMP 1-3 by DUMP_FINISH and, through the ROM copy, of DUMP 4; copied to the ROM at BOOT'),
     (58, 2, 'DMPTL',    'DUMP 4 top-left address, copied to SVAR 45'),
     (60, 1, 'MODCHAR1', 'first character to substitute when LPRINTed: pound, 96'),
     (61, 1, 'MODCHAR2', 'second character to substitute: hash, 35'),

@@ -55,7 +55,7 @@ MB &4A7F : the DOS's half into the window, which is where DATDT and TIMDT are: &
 
 MB &4A82 : the caller's paging, put back at &4AD0
 
-MB &4A83 : this is CALL WAIT_FOR_CLOCK -- &CD &78 &49 -- which reads the chip into DATDT and TIMDT.  Without it TICS would return whatever the last TIME$ or DATE$ left there.  A phantom label at &4A84 is all that splits the instruction in the listing; see the notes
+MB &4A83 : reads the chip into DATDT and TIMDT.  Without it TICS would return whatever the last TIME$ or DATE$ left there.  The JP &4A84 at &4F3E used to split this into a DEFB and two phantoms; it is a system-page address and is not followed now is all that splits the instruction in the listing; see the notes
 
 MB &4A86 : DATDT is "dd/mm/yy", so the day is the first field
 
@@ -185,17 +185,12 @@ MB &5DAB expr &4B5B
 MB &4F3E expr &4A84
 MB &4F3E : a system-page address -- this block runs at &4CD3 once copied, so its numbers are the ROM's
 
-# WHY THE PHANTOM LABELS ARE STILL THERE.  The six operands above no
-# longer name this page's labels, but the labels themselves remain, and
-# at &4A84 one of them still splits CALL WAIT_FOR_CLOCK into a DEFB and
-# two instructions that are not really there.
-#
-# The reason is in the order things happen: an operand is named, and its
-# cross-reference recorded, while the instruction is being decoded -- in
-# tools/z80.py, long before any note is read.  A note can rewrite what is
-# printed; it cannot unmake the reference that caused a label to exist.
-# The same limitation leaves MCHRD listing a caller at DOS &6E04 that
-# only loads TABLE+8.
-#
-# What would fix it is a way to say "no label here", applied between
-# decoding and labelling.  Not written.
+# WHY THE PHANTOM LABELS WERE STILL THERE, until 2026-09-15.  The six
+# operands above no longer name this page's labels, but an `expr` note
+# rewrites what is printed and cannot unmake the reference that caused
+# a label to exist: an operand is named, and its cross-reference
+# recorded, while the instruction is being decoded, long before any
+# note is read.  At &4A84 that split CALL WAIT_FOR_CLOCK into a DEFB
+# and two instructions that were not there.  The way to say "do not
+# follow this jump" is the Page's no_follow set in tools/dis_mb.py,
+# which the trace and split_entries both consult; &4F3E is in it.

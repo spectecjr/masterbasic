@@ -19,7 +19,7 @@ DOC TIMES_FIVE
     the exchange done and nothing else, which is why the caller's EX
     undoes it cleanly on that path too.
 
-MB &484C : FIND_VARIABLE leaves the per-element size in DE -- 1 for a simple variable at &441D, the declared length for a fixed-length string at &4407 -- and the flags saying which kind it was
+MB &484C : FIND_VARIABLE leaves the per-element size in DE -- 1 for a simple variable or a one-dimensional array at &441D, the last dimension for a two-dimensional one at &4407 -- and the flags saying which kind it was
 
 MB &484F : the entry for a caller that already has a size in DE; everything below works in HL, so the two are exchanged first
 
@@ -296,11 +296,13 @@ DOC WAIT_FOR_CLOCK
 
     THE DI AT &4988 HAS NO EI.  Both ways out -- the give-up at &49A2 and
     the finish at &49D0 -- return with interrupts still disabled, and
-    nothing in this half turns them back on.  The ROM does it: CMR
-    switches LMPR with DI : OUT : LD SP,HL : EI, and the EI at &4520 is
-    unconditional.  DATE and TIME both call CALL_NEXTCHAR as their very
-    next instruction, at &4864 and &4873, so for those two the gap is a
-    handful of microseconds.
+    nothing on the way back turns them on.  MBCMR does it, at &4520 in
+    this half -- DI : OUT (LMPR) : LD SP,HL : EI, the same shape as the
+    DOS's CMR at &7BDD-&7BE1 -- and CALL_NEXTCHAR goes through it.
+    DATE and TIME both call CALL_NEXTCHAR as their very next
+    instruction, at &4864 and &4873, so for those two the gap is a
+    handful of microseconds; the DOS's TIME$ and DATE$ at &7B8E come
+    back through CALLMB and its CMR, as short a gap again.
 
     The date stamp is the exception.  &4A3E calls this from
     STAMP_WITH_DATE, and what follows it is CALLDOS and local code --

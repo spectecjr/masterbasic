@@ -242,13 +242,18 @@ is entry &36, token &C6: the ROM's INPUT.  EDIT is INPUT with a flag,
 which is what docs/masterbasic-keywords.md says of it.""",
 
 0x5293: """\
-Hook code 184.  Check the room above the variables area.
+Hook code 184.  Keep a &500 gap between the program's end and the
+variables while NVARS sits in the top &500 of its page, and close it
+otherwise.
 
 Reads NVARS as a word and branches on its high byte.  &BB or more
 gathers NVARSP and RAMTOP -- the ROM's pointers to the variables area
-and the top of BASIC's memory -- and below that goes to a second path at
-&52D5, which walks the program instead, measures NVARS to its end and
-hands the result to the ROM's RECLAIM2.  Neither branch is a refusal.
+and the top of BASIC's memory -- and, with &700 to spare below RAMTOP,
+opens &0500 zeroed bytes at the program's end; below that goes to a
+second path at &52D5, which walks the program instead, measures its
+end to NVARS and hands the gap to the ROM's RECLAIM2 to close, unless
+the program's own end is at &BB00 or above, when the gap is kept.
+Neither branch is a refusal.
 
 The manual's RESERVED function allocates heap space "at the expense of
 BASIC's GOSUB/DO/PROC stack" and warns that over-allocating gives "Out

@@ -65,8 +65,8 @@ ALTER -- the ALTER command, token 250.  Three unrelated jobs.
     ALTER DEVICE logical TO physical       point a logical drive number
                                            at a different real drive
     ALTER DISPLAY s TO s LINE y            show the top of one screen
-    ALTER DISPLAY OFF                      and stop doing it
                                            and the bottom of another
+    ALTER DISPLAY OFF                      and stop doing it
 
 The search-and-replace form follows REF's rules: a bare name matches
 only whole words and is not found inside strings, a quoted string is
@@ -128,8 +128,8 @@ that set printing up:
 
 With a buffer in place the computer feeds the printer 50 times a
 second, so LLIST and DUMP hand control back at once.  The serial
-settings come from XVAR 12-14 and are read when MODE 2 is next
-selected.
+settings come from XVAR 12-14 and are read by SERINIT whenever LPRINT
+MODE is set, either mode, and at boot (&75EC).
 
 Manual: "Interrupt-driven printing" and "Serial input and output".""",
 
@@ -153,7 +153,8 @@ everything the ROM's CHKEND rejected, which is every form below.
 Dumps 1-3 scan the screen palette, work out how bright each colour is
 and print a dot pattern of about the right darkness.  Everything about
 them -- strike count, dumped area, orientation and the Epson control
-sequences -- is in XVAR 5 and XVAR 15 to 58.
+sequences -- is in XVAR 5 and XVAR 15 to 57, less DUMP 4's own at 31
+to 34 and 44 to 51.
 
 INVERSE IS ONE PATCHED BYTE.  &67F8 loads the address of DUMP_INVERT,
 which sits between the LD A,D that fetches a finished bit-image byte

@@ -195,7 +195,7 @@ MB &6F70 : CHAD put back, so the ROM can re-read the argument if this turns out 
 MB &6F76 : "$"
 MB &6F78 : not a string, so this is the ROM's own DELETE; the caller hands the token back
 MB &6F79 : &0058 in ROM 0 is POP AF : EI : RET, so the ROM's return will drop an extra stack word and skip its own DELETE
-MB &6F82 : the variable, with its per-element size in DE -- the times-five is for a numeric array, which the "$" test above has already refused here
+MB &6F82 : the variable in DE, with its per-element size in HL -- the times-five is for a numeric array, which the "$" test above has already refused here
 MB &6F87 : A is the HMPR FIND_VARIABLE was entered with; the page LOOKVARS left in HMPR -- the variable's -- is saved on the stack and the caller's put back, so the slicer is evaluated under normal paging.  &6F96 puts the variable's page back
 MB &6F8E : the slicer, if there is one; without one the descriptor stands as stacked -- offset 0, length BC, the whole variable
 MB &6F9E : close up A pages plus BC bytes -- the entry that keeps the caller's page count

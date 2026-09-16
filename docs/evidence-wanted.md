@@ -292,7 +292,7 @@ so the field is written by displacement from the entry and never by the
 length**: `FPTR` gives the position in the file once the compressor has
 written it, `&FFF7` takes the nine-byte header off, and `PAGEFORM` splits
 the result into a page and an address. On the way back in, MasterBASIC's
-`&62A6` folds the pair with `PAGED_TO_LONG` into `EXPAND_INPUT_POINTER`, which
+`&62A6` folds the pair with `PAGED_TO_LONG` into `EXPAND_INPUT_REMAINING`, which
 `LOAD_NEXT_INPUT_BLOCK` counts down as it refills the input -- so the
 expander does depend on it, and the carried comment that called it "the
 address to expand into" was wrong. The question as it stood is below.

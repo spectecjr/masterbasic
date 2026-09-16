@@ -125,7 +125,7 @@ MB &7DF3 : an operand in the block the boot overwrites -- see above.  The DOS fi
 
 MB &7DFA : the same, and not the DOS &7DFA that evidence item 3 answers
 
-MB &7DFD : &4B9E is a system-page address, two below the &4BA0 that &7B3F fills with the 36 bytes from &7B80 -- but this copy of the instruction is overwritten before it could use it
+MB &7DFD : &4B9E is a system-page address, two below the &4BA0 that &7B3F fills with the 36 bytes from &7B80: the stub keeps its HL there across the ROM call
 
 MB &7E00 : the last of the three, on the same footing
 
@@ -352,3 +352,6 @@ MB &66B0 : the compressed length into the buffer's header, bytes 1 and 2, which 
 MB &7B00 : the IN this routine opens with, later overwritten by the header the compressor builds here
 
 EQU INSTALLER_COPY : the installer copy at &BC00 less its home at &75E1, for the installer addressing itself where it runs
+
+MB &7DF6-&7E03 code
+MB &7DF6 : the head of DEF KEYCODE's syntax-time hook, at &4A9F once installed: CMD_DEF_KEYCODE points the ROM's JP NC,DFKNL at it from &5D6E, and the DOS-tail LDIR at &7B65 overwrites these bytes here only after the block has gone out

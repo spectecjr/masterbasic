@@ -1,7 +1,7 @@
 # FORMAT's track image, the key-line reader, and LAST LINE RECALL.
 # Proposed by a fresh reader, audited against the instructions.
 
-MB &5355 : B = 60 gap bytes, and the &4E stays in C for every other gap fill in the routine
+MB &5355 : B = 60 gap bytes and C = &4E, the gap byte; the later gaps load their own BC pairs, so the C parked round the loop is never consumed
 
 MB &535B : ten sectors to a track
 
@@ -142,7 +142,7 @@ MB &53E1 : CNTRL is not down, so this was an ordinary RETURN -- go and file the 
 
 MB &53E4 : the cursor-key bits are wanted after the flush, and RDKEY overwrites A
 
-MB &53E5 : RDKEY is called for its side effect.  It ends in KBFLUSH -- queue emptied, "no key" in FLAGS -- so the CNTRL/arrow is thrown away instead of being typed into the line
+MB &53E5 : RDKEY is called for its side effect.  With a key down, as one is here, it ends in KBFLUSH -- queue emptied, "no key" in FLAGS -- so the CNTRL/arrow is thrown away instead of being typed into the line
 
 MB &53EB : bits 1-4 of the row, already shifted down by the RRA at the end of READ_KEY_LINE
 
@@ -158,7 +158,7 @@ MB &53FB : bits 1 and 2 -- up and down -- are the only ones left to test, and IN
 
 MB &5400 : B = &C8 over the &FE the port left in C, so &C8FE iterations, about a fifth of a second at 6MHz.  The count costs one byte because C is already what it needs to be
 
-MB &5405 : flush again: anything typed during the wait is not wanted either
+MB &5405 : a second RDKEY, which flushes only if a key is still held -- READKEY's no-key exit returns without touching the queue -- so a key tapped and released during the delay survives it
 
 MB &540A : clear the lower screen, which is where the line being edited is displayed, ready for the recalled one
 
@@ -184,7 +184,7 @@ MB &544B : the pointer that gets kept is the CR *before* the entry, not the one 
 
 MB &544E : backwards, with no bounds check of any kind.  There is nothing to run off: INC L and DEC L cannot leave the 256 bytes at &7C00, and the installer filled every one of them with &0D at &765B, so the walk always meets a CR
 
-MB &5455 : LINE_RECALL_PTR always points at the CR immediately before the entry now showing, which is what makes forwards and backwards symmetrical
+MB &5455 : LINE_RECALL_PTR points at the CR immediately before the entry now showing on every path but one: reaching the zero marker at &543D leaves it where it was, so from that blank line CNTRL/up skips the newest entry, where the blank left by filing at &548C recalls it
 
 MB &545D : open room for the recalled text at the front of the edit line, through the ROM's MKRBIG, which returns the address of the hole in HL
 

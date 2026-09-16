@@ -439,8 +439,8 @@ MB &5E6B : IMFNATAB's fifth two-byte entry, counting PI, RND, POINT, MEM,
 MB &5E7F : &8F62 is &4F62 in the system page, INSTBUF+&62
 MB &5E82 : IMLENGTH down to the DEFB 30 that finishes its RST &08 for
            "Integer out of range", which is the last thing it needs
-MB &5E85 : nothing jumps here.  The arrow from &5EDB is a frame out; see the
-           note there
+MB &5E85 : nothing jumps here: the JR at &5EDB runs in another frame and
+           lands in the copy, not on this LDIR
 MB &5E8A : fifteen more, landing at &4FDA because &4F62 + &78 is exactly
            where the first copy stopped
 MB &5E8E : the new displacement for the JR Z at &4FCD, whose next instruction
@@ -476,8 +476,8 @@ MB &5ED4 : MEMVAL+2, the page byte -- MEMVAL itself is &5121, so nothing in
            the listing names this one
 MB &5ED8 : and back, a page further on
 MB &5EDB : in the frame these bytes run in this reaches &4F91, which is
-           &4F62 + &2F -- IMLENC in the copy.  The listing's arrow to &5E85 is
-           the whole &0EF4 of the relocation out
+           &4F62 + &2F -- IMLENC in the copy; here the same displacement would
+           land on the LDIR at &5E85, the whole &0EF4 of the relocation out
 
 MB &5EDD : the value arrives as D:E in one pair and B:C in the other, high
            word first -- GET_LONG_INTEGER splits it with MOD and IDIV by
@@ -493,7 +493,9 @@ MB &5EEF : A and H shifted right twice as one 16-bit quantity, L thrown away:
            (size-1) divided by 1024
 MB &5EF7 : which must fit in one byte.  Non-zero here is a size above 256K,
            and the jump goes back to the "Integer out of range" at &5EE2 --
-           the manual's ceiling, "your sound buffer ... can be up to 256K"
+           the manual's ceiling, "your sound buffer ... can be up to 256K".
+           At exactly 256K, though, (size-1)/1024 is 255 and the INC C below
+           wraps to 0, so the usable ceiling is a slot short of the manual's
 MB &5EFA : slots, rounded up.  LPRINT CLEAR 1025 and LPRINT CLEAR 2048 both
            give 2, which is the manual's own worked example
 MB &5F00 : B = 0 marks nothing, so the first pass only asks whether the slots

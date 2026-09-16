@@ -113,7 +113,7 @@ MB &7D00 PATOUT_CHAR_OUT
 
 MB &7C92 : hook 177, HOOK_TOKENARG at &52FD: it takes the character after the &FF prefix and dispatches on it -- the three EXIT statements and POINT, which are all the prefixed tokens this half deals with itself.  Anything else reports "Not understood"
 
-MB &7CA7 : hook 173, HCMDV at &4E96 -- the same dispatcher the ROM's CMDV points at, reached here for the commands that need no test beyond their token
+MB &7CA7 : hook 173, HCMDV at &4E96 -- the command dispatcher the CMDV stub at &488E in this block hands its tokens to, reached here for the commands that need no test beyond their token
 
 MB &7CAB : hook 155, HOOK_CSIZE at &6534: the manual's "Improved CSIZE", which reads the arguments itself and then enters the ROM's own WIDTH past the range checks it would otherwise fail
 
@@ -207,9 +207,8 @@ DOC DISPATCH_ON_COMMAND_TOKEN
     with &FD and &FF, which the ROM's table does not name, handled last.
 
     PUT goes to TOKEN_TO_FN_INDEX, the ten bytes installed at &45A2,
-    which subtracts &AB and stores the result at &4AF0 in the system
-    page -- so PUT
-    arrives there as 1.
+    which reads the token after PUT, subtracts &AB (GRAB) and stores
+    the result at &4AF0 in the system page -- zero for PUT GRAB.
 
     An earlier note here doubted that H held a token at all, on the
     grounds that &C2, &C9, &CD, &D1, &E1 and &FF were past the end of the
@@ -276,7 +275,7 @@ MB &523A : three added to the byte just read, which is the operand being fixed u
 MB &522B : system-page &5000 seen through the window -- HMPR is still zero from &520A -- and not the DOS page
 MB &5245 : the four bytes at RCPTCH_PATCH_BYTES, a CALL and a JP with the JP's operand still to come
 
-MB &524B : three on, to the operand of that JP
+MB &524B : three past where the copy stopped: the ROM's CALL DOCOMP, which the CALL &4D14 just laid down replaces, so the JP re-enters the ROM at the instruction after it, CALL MCLS
 
 MB &5259 : &24 into the code buffer at &4D38, patching what BUILD_COMPILER laid down two instructions earlier
 
@@ -360,7 +359,7 @@ MB &530A : token &3D, POINT, which is &15 further on than the &28 the two DEC As
 MB &5338 : the type field of a BASIC stack frame, isolated exactly as do.asm's RETLOOP isolates it
 MB &533A : and &40 is the PROC type -- fn.asm's DPRA loads &40 under the comment 'PROC' TYPE, against &80 for DO and 0 for GOSUB
 
-MB &54E1 : &0049 is ANYI, the ROM's own frame-interrupt entry, so ALTER DISPLAY OFF hands the interrupt straight back to it
+MB &54E1 : &0049 is ANYI, the ROM's own handler for every maskable interrupt -- frame, line, MIDI and mouse alike -- so ALTER DISPLAY OFF hands the vector straight back to it
 
 MB &54E4 : zero into ALTDISP_TOP and ALTDISP_BOTTOM, which go out as one word
 
@@ -460,3 +459,5 @@ MB &7CF9 : with MasterBASIC at &8000 the routine called runs at &99A3, which is 
 
 GROUP Ports
 CONST LPEN = &F8 : port &F8 on the way in, where the CLUT is on the way out.  With 1 in A the read is &01F8 instead, which is HPEN, the raster line
+
+MB &531B site HOOK_TOKENARG_EXIT

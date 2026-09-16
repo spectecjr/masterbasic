@@ -5,7 +5,7 @@ as they were sold. The listings cannot be corrected: they assemble to the
 original image byte for byte, and that is the point of them. So a defect
 gets written down here and explained where it sits.
 
-Eleven are confirmed and one is suspected. The three sweeps this file used to
+Eleven are confirmed and two are suspected. The three sweeps this file used to
 plan have now been run, and what they found is at the end.
 
 ---
@@ -625,6 +625,43 @@ which is in the listings. A `CALL` of hook 153 from machine code with a
 small list would settle it.
 
 **Written up at** `&4800` in `listings/clean/masterbasic.asm`.
+
+---
+
+## 13. A double-strike DUMP 3 prints its second strike a dot or two out
+
+**Where** `DUMP_LINE` at `MB &68AA`, `DUMP_STRIKE` at `&68B7`, the
+line-end test at `&69AE`–`&69B2`.
+
+**What** `DTTH` (XVAR 5) is the number of times each line is struck,
+and the manual recommends `POKE XVAR 5,2` for a darker copy. A strike
+walks the line from `DUMP_LINE_BASE`, which `DUMP_LINE` stores once at
+`&68AD`, and starts its first pixel with the dots `DUMP_BITS_CARRY`
+says are still owed. That byte is written at `&68D5` on every strike,
+from `D` -- and `D` at the `JP NZ,DUMP_STRIKE` at `&69B2` is whatever
+the previous strike ended in: `DUMP_EMIT` leaves it at 3 when a pixel
+finished on the byte boundary (`&6992`), or at the number of dots still
+owed when it did not (`&698D`–`&698F`).
+
+DUMP 1 and DUMP 2 print one or two dots a pixel, so eight dots is
+always a whole number of pixels, `D` is 3 at every strike and the
+second strike is the first again. DUMP 3 prints three dots a pixel, so
+eight dots leave one or two of the last pixel owed; the second strike
+begins at the line's first pixel with that leftover already owed --
+3+3+2 on the first pass, 1+3+3+1 on the second -- and lands a dot or
+two to the side of the first. The next line then starts from the
+second strike's end state rather than the first's, so the offset walks
+down the page.
+
+**What it costs** A DUMP 3 with `DTTH` above 1 is smeared by a dot or
+two on every strike after the first, and the drift accumulates. Single
+strikes, the default, are unaffected.
+
+**Not observed.** Read out of the bytes; a double-strike DUMP 3 on a
+printer would settle it.
+
+**Written up at** `DUMP_LINE` and `DUMP_BITS_CARRY` in
+`listings/clean/masterbasic.asm`.
 
 ---
 

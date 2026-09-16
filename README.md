@@ -151,8 +151,9 @@ the other documents leave to the DOS.
 [docs/disassembly.md](docs/disassembly.md) is the other long form: how the
 listings are built, what each pass contributes, and what is still open.
 
-[docs/bugs.md](docs/bugs.md) is the defects found in MasterDOS itself — three
-confirmed and one suspected so far. The listings cannot be corrected, since
+[docs/bugs.md](docs/bugs.md) is the defects found in the shipped software,
+MasterDOS and MasterBASIC both — eleven confirmed and two suspected so far.
+The listings cannot be corrected, since
 they assemble to the original image byte for byte, so a defect is written down
 there and explained where it sits.
 
@@ -211,7 +212,7 @@ Every one of the 32640 bytes is accounted for:
 | Pointer tables | 113 |
 | Unclassified | 0 |
 
-No label lands inside an instruction. 998 of the 2338 labelled addresses
+No label lands inside an instruction. 998 of the 2340 labelled addresses
 carry a description in the reading copy -- some written by hand after
 reading the code, the rest the annotated MasterDOS author's, carried across
 where the two instruction streams still agree -- and 666 in the working

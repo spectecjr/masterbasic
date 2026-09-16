@@ -331,7 +331,7 @@ Bounded jobs, good between rounds or when a round is out for review:
   the instructions now, and three thunks nothing calls had said "One
   caller".  **The banner item is done**: every routine head reached
   from outside its routine, in both halves, has a banner, and every
-  one of them has been reviewed once.  Reading copy: 998 of 2338 (three labels fewer, below).
+  one of them has been reviewed once.  Reading copy: 998 of 2340.
 - **The synthetic labels -- 138 to 19, done 2026-09-14** (`grep -c
   '^[LV][0-9A-F]\{4\}:$'` on each clean listing).  Three commits.
   MasterBASIC's 31 patched sites are named for what their operands
@@ -385,6 +385,42 @@ Bounded jobs, good between rounds or when a round is out for review:
   read as the DOS label less &4000 like the rest.  MasterBASIC's own remaining
   numeric `DEFW`s are NR parameters whose CALL line explains them, and
   the four-line tables at `&610E`.
+
+---
+
+## Phase 5 -- second passes on MasterBASIC  (begun 2026-09-15; round 12)
+
+Phase 2's rule applied to phase 3: a cut that returned twelve or more
+findings is read again by someone fresh, with the same brief and a
+paragraph saying it is a second pass and not to look for the first
+reader's findings.  Six of the sixteen qualify -- MB-A (15), MB-B (14),
+MB-C (16), MB-D (15), MB-G (18), MB-O (12) -- re-cut from the current
+listing over the same ranges (`scratchpad/phase5/`).  What the pair
+measures is in "Convergence": phase 2's second passes came in at 1.3
+per hundred against 11.5, with no `[C]`, on DOS prose that had a
+source to check against; these have none, and the first pass was 2.7
+per hundred with 57% `[C]`, so the second-pass figure here is the one
+that says whether the MasterBASIC prose is converging or merely
+sampled.
+
+**Phase 5 record (2026-09-15, round 12).**  Six cuts, 2807 own lines,
+46 findings, all confirmed and applied -- 1.6 per hundred against the
+first pass's 2.7 on the same regions, with 41% `[C]` against 57%.
+That is not phase 2's collapse to 1.3 and zero `[C]`: the second
+readers found provable errors in every cut, and three of them change
+a reading rather than a number -- the thirteen bytes after
+LOAD_RETURN_STUB are DEF KEYCODE's syntax-time hook and not dead
+copy; WRITE_SCREEN_NIBBLE is the decoder's only write to the bitmap;
+a double-strike DUMP 3 prints its second strike a dot or two out
+(`docs/bugs.md` 13).  Two generator faults surfaced through them: a
+jump out of a relocated block to a system-page address outside the
+block's copy was still followed (the `no_follow` set; it had split
+CALL WAIT_FOR_CLOCK at &4A83 into a DEFB and two phantoms, the split
+the clock notes had been apologising for), and the synthetic namer's
+error-exit rule had never fired for `RST &08`.  So the MasterBASIC
+prose is converging -- the density fell by two fifths and the `[C]`
+share with it -- but it is not there, and the ten cuts that returned
+under twelve the first time have not had a second reader at all.
 
 ---
 

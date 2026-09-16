@@ -485,7 +485,7 @@ loop:
         put v at position c times, advancing the walk each time
 ```
 
-The walk stopping is the only end condition: `NEXT_SCREEN_NIBBLE_4` at
+The walk stopping is the only end condition: `WRITE_SCREEN_NIBBLE_4` at
 `MB &635D` resets `SP` from `EXPAND_SAVED_SP` and returns straight out of the expander
 when the walk would enter row `EXPAND_LINE_COUNT + 3`, the row after the last, wherever
 the stream stands. Then
@@ -515,7 +515,7 @@ of the screen as it was, and one that is long is ignored.
 | `GET_WORK_PAGE` | `MB &67D7` | a free page, or the screen |
 | `COMPRESS_SCREEN_FILE` / `ENCODE_SCREEN` / `ENCODE_RUN` | `MB &614E` / `&61A0` / `&61DE` | nibble coder |
 | `BUILD_NIBBLE_TABLE` / `SCAN_NIBBLE_TABLE` | `MB &6253` / `&6237` | the escape nibble |
-| `NEXT_SOURCE_NIBBLE` / `NEXT_SCREEN_NIBBLE` | `MB &627E` / `&6331` | the walk, encoding and decoding |
+| `NEXT_SOURCE_NIBBLE` / `WRITE_SCREEN_NIBBLE` | `MB &627E` / `&6331` | the walk, encoding and decoding |
 | `EXPAND_COMPRESSED_FILE` | `MB &62E9` | nibble decoder; entered from `&62A6` |
 | `PICK_COMPRESSION_CONSTANTS` | `MB &63C5` | the per-mode sizes |
 

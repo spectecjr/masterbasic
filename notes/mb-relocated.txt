@@ -18,9 +18,11 @@ DOC RELOCATED_TO_484D
     page mapped at &4000 -- which is precisely when MasterBASIC is *not*
     paged in.  That is the point of it.  The installer patches CHANS,
     HUDG and RST28V to point in here, so the ROM can reach these routines
-    at times when the extension itself is not in memory, and two
+    at times when the extension itself is not in memory, and three
     instructions in the block are patched with MasterBASIC's own page
-    number so they can page it back in when they need it.
+    number so they can page it back in when they need it: the LD A at
+    &7C2C, from &764E, and the two OWN_PAGE_FOR_ operands, from &7B0B
+    and &7B4D.
 
     Read against the system page, the stray targets are ordinary:
 
@@ -42,15 +44,17 @@ DOC RELOCATED_TO_484D
 
     Two independent checks agree.  &5A9F is not even an instruction
     boundary in this page, so reading it as a variable only makes sense
-    in the system page; and of the three "correct" targets, two are not
-    instruction boundaries here either -- &49EE falls inside the CALL at
-    &49ED and &4A18 inside the RES 6,D at &4A17 -- while the third,
-    &4A84, lands on an LD A,B that nothing else jumps to.
+    in the system page; and none of the three "correct" targets is one
+    either -- &49EE falls inside the CALL at &49ED, &4A18 inside the
+    RES 6,D at &4A17, and &4A84 inside the CALL WAIT_FOR_CLOCK at
+    &4A83.
 
-    Those two used to read as POP AF and OR D, and that was this pass's
-    own doing: taking the block's internal calls as evidence of entry
-    points here split both instructions in half.  They are left alone
-    now, which is what restored them.
+    All three used to read as split instructions, and that was this
+    pass's own doing: taking the block's internal calls as evidence of
+    entry points here split them in half.  They are left alone now,
+    which is what restored them; the last, &4A84, was split by the JP
+    at &4F3E in another relocated block until that jump was marked as
+    not to be followed.
 
     The JP &0000 and CALL &0000 operands scattered through the block are
     accounted for.  RESOLVE_ROM_ENTRIES writes ROM addresses it found by
@@ -60,8 +64,9 @@ DOC RELOCATED_TO_484D
     complete by the time it runs.
 
     A third check settles the relocation itself: no label anywhere in
-    &7BA4-&7E42 is called or jumped to from outside that range -- the
-    one outside reference, &7214's LD HL, is a block-copy source.
+    &7BA4-&7E42 is called or jumped to from outside that range -- every
+    outside reference into it, &7B51, &6430, &7214, &7B5F and &7B78, is
+    a block-copy source or destination, never a call or a jump.
     Every entry is reached only from within the block.  Nothing calls into it where it
     sits, so it never runs in place, and the copy is the only version
     that executes.  The helper block at &7B80 just above it is the
@@ -85,15 +90,17 @@ DOC RELOCATED_TO_484D
     look likelier than a token.
 
     &45A2 is settled, by a dump of a running machine.  dumps/SYSPAGE_after_MBMD_boot.bin
-    holds &4000-&4BFF of the ROM's system page after boot, and at &45A2
-    it has ten bytes that are MasterBASIC's own &7986:
+    holds the whole of the ROM's system page, &4000-&7FFF, after boot,
+    and at &45A2 it has ten bytes that are MasterBASIC's own &7986:
 
         POP HL : RST NEXT_CHAR : SUB &AB : LD (&4AF0),A : JR NZ,+1
         : RST NEXT_CHAR
 
     So the jump goes to a real routine that turns a token into a function
-    index -- and the dispatcher reaches it when H is &AC, which is &AB+1,
-    index one.  H is a token after all.
+    index -- the dispatcher reaches it when H is &AC, PUT, and the
+    routine then reads the token after PUT and subtracts &AB, GRAB, so
+    PUT GRAB gives index zero.  H is a token after all, and the CPs
+    against T_SAVE up to T_EDIT are what say so.
 
     Every value the dispatcher tests is one: &94-&97 SAVE, LOAD, MERGE
     and VERIFY, &A8 CSIZE, &A9 BLOCKS, &AA MODE, &AC PUT, &AE SOUND,
@@ -104,14 +111,16 @@ DOC RELOCATED_TO_484D
 
     The same dump settles the relocation itself, which no amount of
     reading could.  The two blocks are at &46CC and &484D, and they match
-    the file to within 6 bytes of 385 and 20 of 671; the 36 bytes at
+    the file to within 6 bytes of 385 and 19 of 671; the 36 bytes at
     &4BA0 match exactly.  Every one of the differences is a boot-time
     patch that can be named: ROM addresses RESOLVE_ROM_ENTRIES found by
-    signature -- &2A96 at &46D4, &389E at &47EB and &4802, ENDOUTP at
-    &49F5, PRMAIN at &49FE, CCRESTOP at &4A50 -- and three single bytes
-    of &1C, MasterBASIC's page number, two of them landing exactly on
-    OWN_PAGE_FOR_INTERRUPT+1 and OWN_PAGE_FOR_PATOUT+1, which are the
-    operands the installer patches.
+    signature -- &2A96 at &46D4, &389E at &47EB and &4802, and eight
+    words in the second block, ENDOUTP at &49F5, PRMAIN at &49FE,
+    CCRESTOP at &4A50 and the five at &4A69, &4A6F, &4A82, &4AA4 and
+    &4AAA that are this page's &7DC0, &7DC6, &7DD9, &7DFB and &7E01 --
+    and three single bytes of &1C, MasterBASIC's page number, at &48D6,
+    &499F and &49F0, which are the LD A at &7C2C and the two
+    OWN_PAGE_FOR_ operands the installer patches.
 
     What copies those ten bytes to &45A2 is INSTALL_EXTENDED_PUT, which
     assembles &45A2-&46CB out of seven runs; these are the first of them,
@@ -145,7 +154,7 @@ MB &7BEF : &BE00 is within &200 bytes of &BFBF, the top of the window, so the nu
 MB &7BF7 expr WORKSP+1
 MB &7BF7 : the high byte of WORKSP, a two-byte pointer in the same way
 
-MB &7BFA : bit 6 of that high byte, which is what separates an address in &4000-&7FFF from one at &8000-&BFFF
+MB &7BFA : bit 6 of that high byte: the ROM keeps these pointers in &8000-&BFFF form on ELINE's page, so bit 6 set means WORKSP has spilled over &BFFF into the next section, and the room made below pushes the edit line up to that boundary so it sits in one page
 
 MB &7BFF : the top of the window, so the subtraction below is everything from the edit line up to it
 

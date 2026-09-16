@@ -72,6 +72,12 @@ MB &7DC2 EXIT_FOR_STUB
 MB &7DC5 site EXIT_FOR_CALL_SEARCHALL
 MB &7DD8 site EXIT_FOR_JP_SEARCH
 MB &7DDB POST_LOAD_STUB
+# DEF KEYCODE's syntax-time hook, &4A9F once installed: its CALL and JP
+# take the ROM addresses RESOLVE_ROM_ENTRIES finds, written at &799D
+# and &79A2.
+MB &7DF6 DEF_KEYCODE_STUB
+MB &7DFA site DEF_KEYCODE_CALL
+MB &7E00 site DEF_KEYCODE_JP
 
 # The inline words after CALL MBCMR that a signature search fills.
 MB &45EA LOOKVARS_WORD

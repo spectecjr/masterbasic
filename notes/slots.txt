@@ -64,8 +64,9 @@ DOC ALLOC_UTILITY_SLOT
     conversion in this region and in FREE_SLOT_CHAIN is one of those
     two.
 
-    C is worked out just above by dividing the byte count by 1024 and
-    adding one -- "the number you supply is rounded up".
+    C is worked out just above by taking one off the byte count,
+    dividing by 1024 and adding one -- which rounds up, "the number you
+    supply is rounded up", and gives 2 for 1025 and for 2048 alike.
 
     The continuation path is the other DEC L: when a page turns out to
     be full, &5F75 restarts the ALLOCT scan from below the page it had
@@ -86,7 +87,7 @@ MB &5F19 : HMPR = 0 puts the system page in the window, which is what makes &911
 
 MB &5F1D : 0 -- a page nobody owns, to be claimed as a new utilities page
 
-MB &5F1F : &20 is the mark, and the DOC above says why -- it is the B the reserving pass writes, so a page already marked is one this routine claimed before
+MB &5F1F : &20 is the mark, and the DOC above says why -- it is the B the reserving pass writes, and the Technical Manual's mark for any program that follows its scheme, so a page found marked is shared rather than skipped
 MB &5F21 : &20 -- an existing utilities page, which may still have a free slot
 
 MB &5F24 : the walk stops at L = 0 without examining page 0, which is the system page and never a candidate
@@ -281,7 +282,7 @@ DOC TRACE_PLOT_CHAR
     SHOW_LINE_AND_STATEMENT is a section B address and the code, running
     in the window, is untouched.
 
-MB &602E : eight bytes a character, so the code is multiplied by eight -- ADD A,A on the byte is a byte shorter than ADD HL,HL, and drops bit 7, which is safe because nothing plotted here is above &3A
+MB &602E : eight bytes a character, so the code is multiplied by eight -- the first doubling is done on the byte, which drops bit 7, safe because nothing plotted here is above &3A
 
 MB &6030 : H cleared, so HL holds the doubled code by itself and the two ADD HL,HLs below finish the multiply
 
@@ -414,7 +415,7 @@ MB &62A6 EXPAND_SCREEN_FILE
     Expand a compressed SCREEN$ on its way in from disk: the pair of
     COMPRESS_SCREEN_FILE.  A = the mode byte, H = the compressed length's
     page and DE its offset, which PAGED_TO_LONG turns into the count
-    EXPAND_INPUT_POINTER holds; PICK_COMPRESSION_CONSTANTS gives the sizes, the nibble
+    EXPAND_INPUT_REMAINING holds; PICK_COMPRESSION_CONSTANTS gives the sizes, the nibble
     decoder EXPAND_COMPRESSED_FILE rebuilds the bitmap, and the loops
     after it skip the closing &FFs and copy the file's tail to the byte
     after the bitmap.

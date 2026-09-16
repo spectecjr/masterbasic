@@ -25,7 +25,7 @@ MB &4076 HOOK_ROM_SP
     hook's return address through it.
 MB &4078 EXPAND_SAVED_SP
 MB &407A EXPAND_LINE_COUNT
-MB &407B EXPAND_INPUT_POINTER
+MB &407B EXPAND_INPUT_REMAINING
 MB &407D REF_RETURN_COUNT
     REF's two-RETURN countdown: two when a match has just been shown.
 

@@ -2565,9 +2565,10 @@ GETSCR:
 ;; HSVBK with a DWAIT in place of its quarter-second DDEL and no EXX:
 ;; A is stored as PGES1 and the HSVB2 loop saves whole sectors,
 ;; leaving the last partial one in the buffer for the next block.
-;; Nothing in the DOS reaches it; MasterBASIC's block copiers at
-;; &42B9 and &66CF call it through CALLDOS, for SAVE BOOT's eight
-;; consecutive blocks and the compressor's.
+;; Nothing in the DOS reaches it; MasterBASIC calls it through
+;; CALLDOS from three places -- the block copiers at &42B9 and &66CF,
+;; for SAVE BOOT's eight consecutive blocks and the compressor's, and
+;; SEND_COMPRESSED_BLOCK at &6186.
 ;; --------------------------------------------------------------------
 
 HSVBK_DWAIT:

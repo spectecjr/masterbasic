@@ -1356,6 +1356,11 @@ def seeds(dos, mb):
     # DEFB &CD.  Not a rule for every self_window block -- several of
     # those jump into this page and are right to -- so it is this one.
     mb.no_follow.add(0x5D2F)
+    # The JP &4A84 at &4F3E is the same: the block HCMDV builds runs at
+    # &4CD3, and its jump leaves for the post-LOAD stub at system-page
+    # &4A84, not for this page's TICS arithmetic, where it had split
+    # CALL WAIT_FOR_CLOCK at &4A83 into a DEFB and two phantoms.
+    mb.no_follow.add(0x4F3E)
     # &5FB9 rather than &5FD8: the system page calls it there, with
     # LD A,&1C : LD HL,&9FB9 : CALL PAGER at &48DA.
     # &63F6 used to be in this list and should not have been.  Its only
@@ -2436,12 +2441,25 @@ def name_synthetic_labels(d):
         # a shared entry point, and calling it a loop head reads as a claim
         # about the code that is not true -- REP_MISSING_DEF_PROC_LOOP was
         # one, reached from 11457 bytes later.
+        # A label ON an error jump is an error exit whatever reaches
+        # it: GET_BUFFER_SIZE's "Integer out of range" is reached a
+        # second time from below, which made it a _LOOP.  (A real loop
+        # whose body errors within its first few instructions is still
+        # a loop, so only the first instruction is asked.)  The RST is
+        # rendered through an override; the instruction's own text says
+        # RST &08, and the byte after it is an error code below 128 or
+        # a hook code from 128 up -- a hook call is not a failure.
+        def fails(t):
+            return ((t.text == 'RST &08' and d.byte(t.end) < 0x80)
+                    or re.match(r'^(?:JP|JR|CALL) (?:[A-Z]+,)?(?:REP_|ERR_)',
+                                t.text) is not None)
+        if fails(d.insns[a]):
+            return 'FAIL'
         if any(a < r < head_after(a) for r in d.xrefs.get(a, ())):
             return 'LOOP'
         for j in range(where[a], min(where[a] + 4, len(order))):
             t = d.insns[order[j]]
-            if t.text.startswith('RST ERR_HOOK') or re.match(
-                    r'^(?:JP|JR|CALL) (?:[A-Z]+,)?(?:REP_|ERR_)', t.text):
+            if fails(t):
                 return 'FAIL'
             if t.text == 'RET':
                 return 'DONE'
@@ -2484,6 +2502,16 @@ def decode_marked_code(d):
     under its new name.  Decode such runs linearly, and only where the
     mark is CODE and nothing has been decoded there already.
     """
+    # A `code` range laid over an instruction the trace had already
+    # decoded marks that instruction's tail bytes CODE too, and reading
+    # "CODE and not an instruction start" as "undecoded" then decodes
+    # from inside it: &7DF6-&7E03 over the CALL at &7DFA produced an LD
+    # BC at &7DFB and a conflict.  Bytes inside a decoded instruction
+    # are put back to CONT first.
+    for i in d.insns.values():
+        for x in range(i.addr + 1, i.end):
+            if d.m(x) == CODE:
+                d.setm(x, CONT)
     n = 0
     a = d.base
     while a < d.limit:
@@ -4166,7 +4194,18 @@ def split_entries(d, rounds=8):
             and d.m(ins.target) == CONT
             and not d.moved_target(at, ins.target)
             and at not in d.no_follow)))
-        inside.update(d.unplaced())
+        # A label autolabel gave the operand of a store is no evidence
+        # of an entry: LD (&7DFB),DE at &799D patches the CALL at &7DFA
+        # and had it split into a DEFB and an LD BC that was never
+        # there.  A label something jumps to, or one no operand made,
+        # still counts.
+        for a, name in d.unplaced().items():
+            refs = d.xrefs.get(a, ())
+            if refs and not any(
+                    r in d.insns and d.insns[r].text.startswith(
+                        ('CALL', 'JP ', 'JR ', 'DJNZ')) for r in refs):
+                continue
+            inside[a] = name
         for a, name in sorted(inside.items()):
             p = a - 1
             while p > d.base and not d._starts_insn(p):
@@ -4229,7 +4268,13 @@ RELOCATED = ((0x7986, 0x7990, 0x45A2),   # INSTALL_EXTENDED_PUT, seven runs
              # FN_USING_S copies &00E7 bytes from here to &9000 with HMPR
              # zeroed -- &5000 in the system page -- and calls it there.
              # It ends where HOOK_PROGPREP begins.
-             (0x7243, 0x732A, 0x5000))
+             (0x7243, 0x732A, 0x5000),
+             # FN_LENGTH appends these fifteen bytes to its copy of the
+             # ROM's IMLENGTH at &4F62, so they run at &4FDA and their
+             # JR lands in that copy at &4F91 -- not on the LDIR at
+             # &5E85, which the listing had as a loop head on the
+             # strength of it.
+             (0x5ECE, 0x5EDD, 0x4FDA))
 
 
 def note_relocated(d):
@@ -4291,16 +4336,26 @@ def patched_sites(d, NEAR_PATCH=1024):
             p += 1
         if p - ins.end != 6:            # the signature search's six bytes
             continue
+        # The first search's result is read out of the ROM through HL
+        # before it is stored -- LD E,(HL) : INC HL : LD D,(HL) : INC HL
+        # at &7999 -- and the second store follows an INC HL of its own.
         # One result can fill two operands: &79E2 and &79E5 write the
-        # same HL to &757F and &7596.  So take the whole run of stores.
+        # same HL to &757F and &7596.  So take the whole run of stores,
+        # stepping over those reads and steps.
+        steps = ('LD E,(HL)', 'LD D,(HL)', 'INC HL', 'DEC HL', 'EX DE,HL')
         while True:
-            resolved.add(p)
             nxt = d.insns.get(p)
-            if nxt is None or not re.match(
+            if nxt is None:
+                break
+            if nxt.text in steps:
+                p = nxt.end
+                continue
+            if not re.match(
                     r'^LD \((?:&[0-9A-F]{4}|[A-Za-z_]\w*)'
                     r'(?:\+&?[0-9A-F]+)?\),(HL|DE)$',
                     d.overrides.get(p, nxt.text)):
                 break
+            resolved.add(p)
             p = nxt.end
     for a, ins in sorted(d.insns.items()):
         text = d.overrides.get(a, ins.text)

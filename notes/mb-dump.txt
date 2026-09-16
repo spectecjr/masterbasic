@@ -290,7 +290,8 @@ MB &5EE9 : &FF, and all three bytes of the decrement take it: H and L below make
 MB &5F10 : L cleared, so HL is the slot's own base.  A utility slot always starts on a &400 boundary; the low byte was the page number, now moved into A, and H, the descriptor, says which slot
 
 MB &5EDD GET_BUFFER_SIZE
-    The size argument of SOUND CLEAR.  GET_LONG_INTEGER, D refused as
+    The size argument of LPRINT CLEAR and SOUND CLEAR, which call it
+    from &55E1 and &5C8D.  GET_LONG_INTEGER, D refused as
     "Integer out of range", and then OR E : OR B : OR C so that a return
     with Z means every byte of it was zero -- which is the manual's
     "SOUND CLEAR 0 will delete the buffer and free the memory for other
@@ -298,7 +299,7 @@ MB &5EDD GET_BUFFER_SIZE
 
 MB &670D : type &11, a numeric array, the same type byte COMPRESS_BLOCK tests at &663E before it transposes
 
-MB &634A : a nibble, the low four bits of what the rotations above brought down
+MB &634A : the merge mask: XOR (HL) : AND &0F : XOR (HL) takes the low nibble from A and keeps the high half already in the byte -- the idiom of &620F, with the mask written in rather than held in E
 MB &6A45 : the same mask at the other reader, after its four RRCAs
 MB &6228 : E is the merge mask WRITE_NEXT_NIBBLE's XOR/AND/XOR uses and D its phase counter, set here as &62EE sets them for the reading end
 MB &6397 : &1900, the length of the input buffer -- &E500 plus it is the &FE00 that &637D and &62CF both test for
@@ -636,7 +637,7 @@ MB &62E9 EXPAND_COMPRESSED_FILE
     file will be automatically expanded again on reloading."  SP is
     parked in EXPAND_SAVED_SP first, and nothing borrows it: the one LD SP in the
     whole expander is the &635D that puts it back, which is how
-    NEXT_SCREEN_NIBBLE gets out of the run loop it was called from in
+    WRITE_SCREEN_NIBBLE gets out of the run loop it was called from in
     one step when the walk reaches the end of the screen.  The stream's
     end is never looked for.  The alternate registers take DE = &000F and HL = &E500, the
     same stream the encoder filled, and then pairs of nibbles come back
@@ -675,10 +676,14 @@ MB &6388 : back to the top of the refilled buffer, the same &E500 &62F1 describe
 
 MB &638B : and the mask and phase counter set again as at &62EE.  Putting D back to zero is safe because a refill can only happen between bytes: the path that gets here went through READ_NEXT_NIBBLE_1, which is the branch D even takes, so the byte just read was a second nibble
 
-MB &6331 NEXT_SCREEN_NIBBLE
-    Step a nibble address down the screen the way NEXT_SOURCE_NIBBLE
-    steps a nibble index, with the halving that turns the index into an
-    address folded into the same run of shifts.
+MB &6331 WRITE_SCREEN_NIBBLE
+    Step to the next pixel the way NEXT_SOURCE_NIBBLE steps a nibble
+    index, with the halving that turns the index into an address
+    folded into the same run of shifts, and write the nibble in A
+    there: a fresh byte with A in its high half on the even path, A's
+    low four bits merged into the byte on the odd one.  The LD (HL),A
+    at &6346 and &634D is the decoder's only write to the bitmap, which
+    is why both callers load A with the pixel value first.
 
 MB &6253 BUILD_NIBBLE_TABLE
     A histogram of the screen: how often each of the sixteen nibble
@@ -768,12 +773,16 @@ MB &61C2 ENCODE_ONE_NIBBLE
     run was starting.
 
 MB &63C5 PICK_COMPRESSION_CONSTANTS
-    Load the three constants the compressor and the expander work to --
-    H, BC and DE -- from one of three sets, by the mode byte in A: &33 /
-    &1B00 / &9B00 for A = 0, &6D / &3800 / &B800 for 1, and &BD / &2000 /
-    &E000 for anything above, the last with the bitmap's length given
-    less a whole page since it is the in-page part that counts.  DE is
-    the end of the bitmap as the window sees it, &8000 plus the length.
+    Load the constants the compressor and the expander work to, from
+    one of three sets by the mode byte in A: the line count into
+    EXPAND_LINE_COUNT (and A), the bitmap's in-page length into BC and
+    its end in the window into DE -- &33 / &1B00 / &9B00 for A = 0,
+    &6D / &3800 / &B800 for 1, and &BD / &2000 / &E000 for anything
+    above, the last with the bitmap's length given less a whole page
+    since it is the in-page part that counts.  DE is the end of the
+    bitmap as the window sees it, &8000 plus the length.  The caller's
+    DE comes back in HL -- the POP HL at &63E4 -- which is what lets
+    &6152 subtract from it and &62AC fold it without a move.
     One routine so COMPRESS_SCREEN_FILE and EXPAND_SCREEN_FILE agree on
     the sizes.
 
@@ -782,13 +791,13 @@ MB &63CB expr &9B00
 MB &6390 LOAD_NEXT_INPUT_BLOCK
 MB &6173 expr &A500
 MB &63A9 expr &A500
-MB &63A9 : &A500 is not a DOS routine.  HMPR is bumped by one at &63B3, three instructions on, and this address is used through that moved window -- so resolving it against the DOS page gives HOOK_HSAVE_1, which nothing here calls, and puts a caller in that routine's list in the other listing
+MB &63A9 : &A500 is not a DOS routine.  HMPR is bumped by one at &63B3-&63B4 and this address is used through that moved window: it is the &E500 buffer seen a page down.  Resolved against the DOS page it would be DOS &6500, a byte inside HOOK_HSAVE, which nothing here calls -- and a false caller in that routine's list in the other listing
 MB &63B7 : LDBLK, "load a block from the open file" -- this refills the input, which is what the routine is for
 
 DOC LOAD_NEXT_INPUT_BLOCK
     Compare what is left of the compressed input against &1900 and take the
     short path if there is less, with the caller's registers saved around
-    it.  EXPAND_INPUT_POINTER holds the compressed length still to be read, set at &62AF from the length HOOK_HLOAD passed.
+    it.  EXPAND_INPUT_REMAINING holds the compressed length still to be read, set at &62AF from the length HOOK_HLOAD passed.
 
 MB &66F2 EXPAND_INTO_WORK_PAGE
     Set up to expand a file: take a work page through GET_WORK_PAGE --
@@ -879,3 +888,6 @@ MB &622E : the value itself, written as many times as the run is long -- no esca
 # INP2 (&4F49).  The auto-suffixed name had it the other way round and
 # contradicted the banner two lines above it.
 MB &6AF3 CMD_DUMP_5_DISPATCH
+
+MB &67AE site TRANSPOSE_PAGES_LOOP
+MB &67AE : the tail both entries share: SET_STEP_AND_COUNT reaches it through the JR at &6799 as the SWAPPED entry does by falling in

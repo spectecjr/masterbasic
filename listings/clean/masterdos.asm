@@ -3289,9 +3289,10 @@ GETSCR:
 ;; HSVBK with a DWAIT in place of its quarter-second DDEL and no EXX:
 ;; A is stored as PGES1 and the HSVB2 loop saves whole sectors,
 ;; leaving the last partial one in the buffer for the next block.
-;; Nothing in the DOS reaches it; MasterBASIC's block copiers at
-;; &42B9 and &66CF call it through CALLDOS, for SAVE BOOT's eight
-;; consecutive blocks and the compressor's.
+;; Nothing in the DOS reaches it; MasterBASIC calls it through
+;; CALLDOS from three places -- the block copiers at &42B9 and &66CF,
+;; for SAVE BOOT's eight consecutive blocks and the compressor's, and
+;; SEND_COMPRESSED_BLOCK at &6186.
 ;; --------------------------------------------------------------------
 
 HSVBK_DWAIT:
@@ -11298,7 +11299,7 @@ HVER2:
 ;; entry offset 229 is ROM header offset 24, and nothing writes
 ;; DIFA+24 because the write goes through the entry in DCHAN.
 ;; HOOK_HLOAD_1 reads the three bytes back from STR-11, and
-;; MasterBASIC's &62A6 turns them back into a byte count in EXPAND_INPUT_POINTER,
+;; MasterBASIC's &62A6 turns them back into a byte count in EXPAND_INPUT_REMAINING,
 ;; which LOAD_NEXT_INPUT_BLOCK counts down as it refills the input.
 ;; Two edges of it: the count takes in the three &FF bytes the
 ;; compressor closes the stream with, which the expander skips, and

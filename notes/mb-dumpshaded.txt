@@ -147,6 +147,18 @@ DOC DUMP_LINE
     double-strike."  The carriage return in GCMX2 is what makes a second
     strike land on top of the first, and the manual says that too.
 
+    THE SECOND STRIKE OF A DUMP 3 LINE IS NOT QUITE THE SAME LINE.
+    DUMP_LINE_BASE is written once, here at &68AD; DUMP_BITS_CARRY is
+    written at &68D5 on every strike, from D, and D at &69B2 is the
+    state the previous strike ended in.  Eight dots at three a pixel
+    leave one or two of the last pixel owed, so the second strike
+    re-walks the line from the same base with that leftover on its
+    first pixel -- 3+3+2 and then 1+3+3+1, a dot or two apart -- and
+    the next line starts from the second strike's end state rather
+    than the first's.  DUMP 1 and DUMP 2 have D = 3 at every strike
+    and print the same line twice.  Read from the bytes; not seen on a
+    printer.
+
 MB &68AD : where this line starts on the bit axis
 MB &68AE : GCMX4, which ends the line before this one
 MB &68B4 : how many times to print this line
@@ -161,7 +173,11 @@ DOC DUMP_STRIKE
     Z -- so the branch is "is the byte axis being magnified at all".
     Not magnified, the phase counts down and wraps at 0; magnified, it
     counts up and wraps at 3.  Either way it stays in 0 to 2, and it is
-    what stops a flat area of colour printing as stripes.
+    what stops a flat area of colour printing as stripes -- on the one-
+    and two-dot paths, which read it at &6931-&6952.  The three-dot
+    path leaves DUMP_PIXEL at &692F before the phase is read, so DUMP 3
+    takes bits 2 to 0 of the pattern byte whatever the phase and only
+    E's per-byte step varies its pattern.
 
     THE COUNT SENT AFTER GCMX2 is worked out by adding, not multiplying:
     the number of steps on the byte axis, added to itself once for every
@@ -294,7 +310,9 @@ MB &699F : and stop when the byte axis runs out
 MB &69A6 : one of the three pattern bytes, stepped once per byte printed rather than once per line -- which is what makes the dither cell three dots wide
 
 DOC DUMP_LINE_END
-    The line is printed.  Print it again, move down, or stop.
+    The line is printed.  Strike it again, move down, or stop -- and
+    for DUMP 3 the second strike is offset by the dots the first left
+    owed; see DUMP_LINE.
 
     DTTH's count is spent first.  Then MODE 3, whose columns were
     doubled on the way in, has the column halved again -- into B only, C
@@ -309,9 +327,17 @@ DOC DUMP_LINE_END
     the same one the finished dump takes, so GCMX3 still goes out and the
     printer is left in text mode.  The manual says exactly that -- "All
     the DUMPs can be stopped immediately by ESC, but this may leave the
-    printer in graphics mode ... you may prefer to use the space bar,
-    which will stop the DUMP but leave the printer in the normal text
-    mode."  ESC is the ROM's doing, not this routine's.
+    printer in bit-image mode and require you to reset it.  It is
+    better to hold down the space bar, which will stop the DUMP but
+    leave the printer in the normal text mode."  ESC is the ROM's
+    doing, not this routine's.
+
+    THE END TEST WANTS C EXACTLY 0.  The second-half pass for MODE 3 and
+    the finish both hang on it (&69BD-&69BF), and C at a line end is
+    twice SDLHS plus the dots the line used, mod 256: with SDLHS 0 every
+    dump lands on 0, with SDLHS 1 a DUMP 1 never does, and the dump
+    would go round the left half again until the space bar.  A reading
+    of the bytes, not a thing seen.
 
 MB &69AE : another strike of the same line?
 MB &69B5 : MODE 3 doubled the columns on the way in
@@ -348,10 +374,12 @@ DOC DUMP_BIT_STEP
     "width" and "height".
 
 DOC DUMP_BITS_CARRY
-    Three, and the byte before the dot-pattern table.
+    Three at the start of a dump, and for DUMP 3 the dots still owed on
+    the pixel the last strike ended in (&68D5 stores D there on every
+    strike); the byte before the dot-pattern table.
 
     Two things at one address, and they do not collide because the table
-    is indexed from one: DUMP_PIXEL_TRIPLE reloads DUMP_BITS_LEFT from
-    here at the start of every byte, and DUMP_PIXEL adds three times the
+    is indexed from one: DUMP_BYTE reloads DUMP_BITS_LEFT from here at
+    the start of every byte (&6903), and DUMP_PIXEL adds three times the
     grey level plus one, two or three to the same address to reach the
     pattern.
