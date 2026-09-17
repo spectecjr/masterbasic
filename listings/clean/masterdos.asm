@@ -17107,8 +17107,8 @@ SIBKS:
 ;; The manual: "you can use a special value of zero in place of the
 ;; number of characters.  This reads in all characters until a carriage
 ;; return is found, like INPUT ... it does not clear the lower part of
-;; the screen, it does not beep with each input character, and it is
-;; much faster than INPUT."
+;; the screen, it does not beep with each input character even if you
+;; have POKEd SVAR 569 with a value, and it is much faster than INPUT."
 ;;
 ;; THE RANGE CHECK ALSO MOVED.  Stock made it before opening the
 ;; stream; here it happens after, because the zero test has to come

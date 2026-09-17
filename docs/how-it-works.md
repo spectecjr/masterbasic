@@ -112,7 +112,8 @@ Those roles were read out of the ROM source — `STRMOV1`, `EDITOR`,
 (PATOUT)` in the print path — because the ROM's own variable table leaves
 most of them without a comment. The SAM Coupé Technical Manual gives the
 same roles directly, and adds what each is called with: `CMDV` gets "the
-code about to be syntax checked or executed (normally a command code)",
+code of the character about to be syntax checked or executed (normally a
+command code)",
 `EVALUV` "A=current character in expression", `PRTOKV` "A=token code to
 expand and print as ASCII", and `RST8V` an error code with the alternate
 registers already selected and `CHAD`/`CHADP` already copied to
@@ -120,15 +121,17 @@ registers already selected and `CHAD`/`CHADP` already copied to
 them.
 
 **Why any of this has to be installed at all** is stated in the same
-place. The manual's advice to anyone taking a vector over is that the
-routine "must be in the system page to guarantee it is resident when the
-vector is called", and that "it is a good idea to use a short routine in
-the Heap to call a large routine in another page". That is exactly the
+place. The Technical Manual's advice to anyone taking a vector over is
+that the routine "must be in the system page to guarantee it is resident
+when the vector is called", and that it is a good idea to "use a short
+routine in the Heap to call a large routine in another page". That is
+exactly the
 shape of everything below: small resident stubs in the system page, the
-real code paged in behind them. The manual also gives the convention
-those stubs follow — a routine "making just RET will cause the normal ROM
-routine to be executed", while to take over completely you "POP the
-return address so that the ROM routine is never used". Both halves are
+real code paged in behind them. The Technical Manual also gives the
+convention those stubs follow — "making your routine just RET will cause
+the normal ROM routine to be executed", while to take over completely you
+"POP the return address so that the ROM routine is never used". Both
+halves are
 visible in `PRTOKV_STUB`, which does `CP &F7 : RET C` for the ROM's own
 tokens and `POP HL` for its own.
 

@@ -66,10 +66,10 @@ MB &5C6A CMD_SOUND
     SOUND, token &AE -- and the reason for taking it over is in the
     manual, which documents SOUND CLEAR and SOUND CLEAR size:
 
-        "SOUND CLEAR used on its own will clear the buffer ... To change
-        the sound buffer size, simply use SOUND CLEAR with a different
-        value.  SOUND CLEAR 0 will delete the buffer and free the memory
-        for other uses."
+        "To change the sound buffer size, simply use SOUND CLEAR with a
+        different value.  Any data in the buffer will be lost.  SOUND
+        CLEAR 0 will delete the buffer and free the memory for other
+        uses.  SOUND CLEAR used on its own will clear the buffer"
 
     The code is that sentence.  The next character is compared with the
     ROM's CLEAR token and anything else leaves for CMD_SOUND_2, the ordinary

@@ -392,9 +392,9 @@ MB &4C90 SEARCH_MEMORY
     CPIR looks for the pattern's first byte and the comparison at &4CB3
     checks the rest, going round again on a mismatch.
 
-    The manual gives the speeds this is answerable for: "Case-insensitive
-    at about 90K a second; ABS matches exactly and runs at over 200K a
-    second."
+    The manual gives the speeds this is answerable for: "about
+    90K/second" for the case-insensitive search, and with ABS, which
+    matches exactly, "over 200K/second".
 
 MB &484C FIND_VARIABLE_TIMES_FIVE
     FIND_VARIABLE, and then multiply what it found by five -- ADD HL,HL
@@ -536,7 +536,7 @@ MB &561B INSTALL_CHANNEL_HANDLER
     Write the HL it was called with -- pushed at &561B, popped into BC
     at &5625 -- into channel B's output word, &19 bytes into the ROM's
     channel table, which is how MasterBASIC puts itself in a channel's
-    place.  The one caller, &55FB, passes the HKC_LPRINT_BYTE stub or the
+    place.  {callers}, which passes the HKC_LPRINT_BYTE stub or the
     vector saved in SAVED_LPRINT_OUTPUT.
 
 MB &5621 : &19 into CHANS, the same word IS_CHANNEL_OURS reads back at &562E and INIT_SERIAL_FROM_TABLE writes at &55B0

@@ -170,8 +170,8 @@ PRTOKV_STUB:
       RET                             ; 7B99
 ```
 
-The manual's own worked example writes the second half as
-`POP BC ;JUNK RETURN ADDRESS`.
+The Technical Manual's own worked example writes the second half as
+`pop bc ; junk return address`.
 
 ## 6. The rotating window check
 
@@ -187,11 +187,12 @@ Walking a structure longer than 16K, from the Technical Manual:
 LAB1:
 ```
 
-`HMPAGE` is the manual's name for the port the listings call `HMPR`, and the
-`OUT (HMPAGE)` without an operand is the manual's own typo, reproduced here as
-it stands.
+`HMPAGE` is the Technical Manual's name for the port the listings call `HMPR`,
+and the `OUT (HMPAGE)` without an operand is the manual's own typo, reproduced
+here as it stands.
 
-The ROM keeps C and D as "a rotating window onto memory", so a pointer only ever
+The ROM keeps C and D as the Technical Manual's "rotating window onto memory",
+so a pointer only ever
 needs checking once per iteration. It is safe only because every structure
 walked this way ends in a terminator first: nothing stops the carry in hardware,
 and `INC A` on page `&1F` would set `HMPR` bit 5, which is a mode bit and not

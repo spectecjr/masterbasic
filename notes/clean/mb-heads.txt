@@ -16,12 +16,11 @@ DOC MBPPXR
 DOC CALL_SLICING
     The ROM's SLICING as a subroutine of this page, through MBCMR --
     but the word after the call is zero in the file: SLICING_WORD,
-    which the signature search fills at boot from &75FB.  One caller,
-    &47D7.
+    which the signature search fills at boot from &75FB.  {callers}.
 
 DOC CALL_INSERTLN
     The same for the ROM's INSERTLN: INSERTLN_WORD is filled from
-    &7607, and the one caller is &6EDD.
+    &7607; {callers}.
 
 DOC HOOK_HORDER
     Hook 153, ORDER: the entry the DOS's hook table points at, five

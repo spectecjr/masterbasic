@@ -51,14 +51,14 @@ MB &7B9E : FF 3B, PI, the lowest of the ROM's own functions, so this one compare
 # these stubs invented.  The Technical Manual, on SETIYV but saying "as
 # with all the vectors":
 #
-#     your routine making just RET will cause the normal ROM routine to
+#     making your routine just RET will cause the normal ROM routine to
 #     be executed.  Thus your code might start with a check ... and RET
 #     if so.  Otherwise, POP the return address so that the ROM routine
 #     is never used
 #
 # which is exactly PRTOKV_STUB: CP &F7 : RET C to let the ROM have it,
-# POP HL and a hook otherwise.  The manual's own worked example for
-# LPRTV even writes the second half as "POP BC ;JUNK RETURN ADDRESS".
+# POP HL and a hook otherwise.  The Technical Manual's own worked example
+# for LPRTV even writes the second half as "pop bc ; junk return address".
 #
 # And it says why the stubs are small and live where they do:
 #

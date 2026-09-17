@@ -24,8 +24,8 @@ DOC SEARCH_MEMORY
     THERE ARE TWO SEARCHES HERE, not one, chosen at &4CA2 by whether the
     call ended ",ABS".  &4CAA is the exact one and leans on CPIR; &4CE2
     is the case-insensitive one and has to do its own scanning, which is
-    the whole of the difference the manual quotes between "over 200K a
-    second" and "about 90K a second".  Both share the answer arithmetic
+    the whole of the difference the manual quotes between "over
+    200K/second" and "about 90K/second".  Both share the answer arithmetic
     at &4CD2 and the failure exit at &4CDD.
 
     Nothing here touches HMPR.  The caller works through the window at
@@ -272,7 +272,7 @@ MB &4DC3 : H is the string's page, L the option number 1 to 4
 
 MB &4DC6 : the empty string.  STKSTORE's five zero bytes serve as an empty string here as readily as they serve as zero elsewhere
 
-MB &4DD0 : the manual's "strings must be 16383 characters or less", and it is that because the copy below goes through the &8000 window
+MB &4DD0 : the manual's "SHIFT$ will only work with strings of 16383 characters or less", and it is that because the copy below goes through the &8000 window
 
 MB &4DD5 : the answer is built in fresh workspace, so the argument itself is not altered
 

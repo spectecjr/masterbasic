@@ -204,9 +204,8 @@ MB &57F2 : the terminator, whatever was pushed
 
 DOC PARSE_REFERENCE_3
     REF (x) where x is a number: build the printed form and the invisible
-    form, because the manual says both are searched for --
-
-        "REF (x)  Looks for: value of x, such as 10(invisible form)"
+    form, because the manual's table says both are searched for -- REF
+    (x) looks for "the value of x, such as 10 (invisible form)".
 
     FOUR BYTES OF CODE ARE POKED INTO THE ROM'S OWN BUFFER and called.
     They are

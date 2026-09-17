@@ -42,9 +42,8 @@ DOC DUMP_ORIENT
         4   upside down and mirrored
 
     Chosen at DUMP_ORIENT_SETUP when SDORI is zero: 1 for MODE 3 or for
-    DUMP 3, and 3 for everything else -- which is the manual's "the
-    normal setting produces upright dumps unless DUMP 3, or DUMP 2 and
-    MODE 3".
+    DUMP 3, and 3 for everything else -- which is the manual's SDORI
+    entry, "upright DUMPs unless DUMP 3, or DUMP 2 and MODE 3".
 
     An earlier reading of this had 1 as upside down and 3 as sideways.
     Both were wrong, and the SDORI table settles it: the value the user

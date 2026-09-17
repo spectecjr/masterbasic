@@ -104,6 +104,17 @@ only.  `DOS` substitutes for `MB`.
     DOC NAME                        banner; indented lines below are the text
     MB &7465                        a bare address: the indented block below
                                     is a banner at that address
+    {callers}                       inside a banner: the calls and jumps that
+                                    land here, counted from the bytes --
+                                    "three callers, &47C9, &4E30 and &56C7"
+
+A count restated by hand drifts ("42 callers" for 43, "nine" for
+twelve), and every one of those was something the build already knew;
+`{callers}` is the first placeholder, and the shape for any other
+number the build can derive.  The same goes for facts: a banner that
+needs a fact another banner owns -- what a routine leaves in HL, which
+page a block runs in -- points at that banner rather than restating it,
+because two statements of one fact part at the first correction.
 
 An indented block under a `:` line is a banner for that address too,
 and twice it was not meant to be -- the block sat under the nearest
@@ -120,14 +131,25 @@ five had landed.  Name by address instead; `MB &7CB2 NAME` cannot drift.
 `+&4000` and only `notes/clean/` may use the name.
 
 `tools/checkdocs.py` holds `docs/`, `notes/` and `design/` to the listings
-for names and quoted instructions, and `docs/sam-basic-grammar.txt` to
-the ROM's `CMDADT`: every `@ tok name` against the generated `[TOKENS]`
-block, and every `ref/samrom` routine a `:` line cites against the token
-that actually reaches it.  That second check exists because `COPY` and
-`COPY CHR$` sat under `@ CF COPY` for a while and are DUMP's -- `CMDADT`
-points `&BF` at the routine the ROM's source calls COPY and gives `&CF`
-NONSENSE.  Prose that merely *names* a routine is not checked, so a
-stale name in prose survives the build.
+for names, quoted instructions and "the CALL at &7DDB" claims, and
+`docs/sam-basic-grammar.txt` to the ROM's `CMDADT`: every `@ tok name`
+against the generated `[TOKENS]` block, and every `ref/samrom` routine a
+`:` line cites against the token that actually reaches it.  That second
+check exists because `COPY` and `COPY CHR$` sat under `@ CF COPY` for a
+while and are DUMP's -- `CMDADT` points `&BF` at the routine the ROM's
+source calls COPY and gives `&CF` NONSENSE.  Prose that merely *names* a
+routine is not checked, so a stale name in prose survives the build.
+
+It also holds quotations to their transcripts: a sentence in quotation
+marks with "manual" in the 120 characters before it is looked for, word
+for word, in `docs/masterbasic-manual.md` -- or in `ref/sam-coupe-
+technical-manual/techmanual.md` if it says Technical Manual, or
+`ref/masterdos/docs/` if it says DOS manual.  The sweep that built the
+check found sixteen that were not there: "90K a second" for
+"90K/second", two Technical Manual sentences credited to "the manual",
+two passages spliced into one, a clause dropped without an ellipsis.
+Quote the transcript, mark an omission with `...`, and put an insertion
+in `[square brackets]`; a paraphrase takes no quotation marks.
 
 ## References, and one trap
 

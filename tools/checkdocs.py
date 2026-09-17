@@ -19,6 +19,7 @@ not an accident.
 import os
 import re
 import sys
+import unicodedata
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Every tree, because prose is written about all of them: notes/clean/
@@ -216,6 +217,94 @@ def check_mnemonics():
                     bad.append('%s:%d says %s at %s &%04X; the listing has %s'
                                % (rel, n, claimed, tag, addr,
                                   have or 'no instruction starting there'))
+    return bad
+
+
+# A sentence in quotation marks attributed to a manual is a claim that
+# the transcript holds those words, and the sweep that built this check
+# found eighteen that did not: "90K a second" for "90K/second", a
+# Technical Manual sentence credited to "the manual", two passages
+# spliced into one, a sentence dropped from the middle of a quotation
+# with no ellipsis to say so.  A quote is attributed when "manual"
+# appears in the 120 characters before it -- the Technical Manual
+# and the MasterDOS documents are transcripts here too, and a quote
+# credited to one is looked for in that one -- or when "(manual)"
+# follows it.  Comparison is on words: markdown, tags and typography
+# are stripped from both sides, an ellipsis or a bracketed insertion
+# splits the quote into parts that must each be found, and case and
+# inner quotation marks are ignored.
+TRANSCRIPTS = (
+    (re.compile(r'technical manual', re.I),
+     ('ref/sam-coupe-technical-manual/techmanual.md',)),
+    (re.compile(r'(dos|dos\'s|masterdos\'s|interface) manual', re.I),
+     ('ref/masterdos/docs',)),
+    (re.compile(r'\bmanual\b', re.I), ('docs/masterbasic-manual.md',)),
+)
+
+
+def _plain(text):
+    # Accents fold away: the notes are ASCII (the listings are written
+    # in the console's encoding, and an accented byte broke a build),
+    # so "Coupe" must match the transcript's "Coup\u00e9".
+    text = unicodedata.normalize('NFKD', text)
+    text = ''.join(c for c in text if not unicodedata.combining(c))
+    text = (text.replace('\u2018', "'").replace('\u2019', "'")
+            .replace('\u201c', '"').replace('\u201d', '"')
+            .replace('\u2014', '--').replace('\u2013', '-'))
+    # A tag, not a "<" in prose: a bare "<" would swallow everything
+    # to the next ">", pages of it.
+    text = re.sub(r'</?[a-zA-Z][^<>]{0,30}>', ' ', text)
+    text = re.sub(r'[`*_"\']', '', text)
+    return re.sub(r'\s+', ' ', text).lower()
+
+
+def _transcript(paths):
+    out = []
+    for p in paths:
+        full = os.path.join(ROOT, p)
+        files = ([full] if os.path.isfile(full) else
+                 [os.path.join(full, f) for f in sorted(os.listdir(full))
+                  if f.endswith('.md')])
+        for f in files:
+            out.append(open(f, encoding='utf-8').read())
+    return _plain('\n'.join(out))
+
+
+def check_quotations():
+    """Every quotation attributed to a manual is in its transcript."""
+    transcripts = [(pat, _transcript(paths)) for pat, paths in TRANSCRIPTS]
+    bad = []
+    for rel, path in prose_files():
+        if rel.startswith('design/'):
+            continue        # the record keeps the misquotes it found
+        # Notes wrap; join a file into one text and report by the line
+        # the quote opens on.
+        lines = open(path, encoding='utf-8').read().split('\n')
+        text = '\n'.join(l.strip() for l in lines)
+        starts = [0]
+        for l in lines:
+            starts.append(starts[-1] + len(l.strip()) + 1)
+        for m in re.finditer(r'(?<![\w&])"(\S[^"]{14,300}?)"(?!\w)'
+                             r'(\s*\((?:the )?manual\))?', text):
+            # A stray quotation mark pairs with the next one across
+            # paragraphs; what it encloses is not a quotation.
+            if re.search(r'\n\n|\n(MB|DOS|DOC|GROUP|CONST|#) ', m.group(1)):
+                continue
+            before = re.sub(r'\s+', ' ', text[max(0, m.start() - 120):m.start()])
+            if m.group(2):
+                before = 'manual'
+            manual = next((t for pat, t in transcripts if pat.search(before)),
+                          None)
+            if manual is None:
+                continue
+            quote = _plain(m.group(1))
+            parts = [p.strip(' ,.;:') for p in
+                     re.split(r'\.\.\.|\u2026|\[[^\]]*\]', quote)]
+            missing = [p for p in parts if p and p not in manual]
+            if missing:
+                n = next(i for i, s in enumerate(starts) if s > m.start())
+                bad.append('%s:%d quotes a manual as "%s", which is not in it'
+                           % (rel, n, missing[0][:60]))
     return bad
 
 
@@ -609,6 +698,7 @@ def main():
                     bad.append('%s:%d names %s, which no longer exists'
                                % (rel, n, word))
     bad.extend(check_mnemonics())
+    bad.extend(check_quotations())
     for line in bad:
         print('  stale: ' + line)
     print('%d prose files check out against the listings%s'

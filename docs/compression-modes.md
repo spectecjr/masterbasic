@@ -88,8 +88,8 @@ the disk needs to know which it is looking at.
 | Entry offset 221, ROM header byte 16 | For a SCREEN$ file, the screen mode 0–3 | the ROM, for every SCREEN$ |
 | Entry offsets 229–231, ROM header bytes 24–26 | **Compressed length**, page form, *nibble-coded screens only*: a page byte then a 16-bit offset with bit 15 set | `HOOK_HSAVE_2` at `DOS &6544` |
 
-The manual's `FSTAT` option 8 reports offset 220 directly — "Bit 2, the
-file is compressed. Bit 3, the file is a SAVE MODE 3 SCREEN$ file" — and
+The manual's `FSTAT` option 8 reports offset 220 directly — bit 2 "The
+file is compressed", bit 3 "The file is a SAVE MODE 3 SCREEN$ file" — and
 option 2 "gives expanded length for compressed files".
 
 Three consequences for anyone reading a raw file out of a disk image:

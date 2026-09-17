@@ -348,9 +348,8 @@ ACRSU:
 ;;     4   upside down and mirrored
 ;;
 ;; Chosen at DUMP_ORIENT_SETUP when SDORI is zero: 1 for MODE 3 or for
-;; DUMP 3, and 3 for everything else -- which is the manual's "the
-;; normal setting produces upright dumps unless DUMP 3, or DUMP 2 and
-;; MODE 3".
+;; DUMP 3, and 3 for everything else -- which is the manual's SDORI
+;; entry, "upright DUMPs unless DUMP 3, or DUMP 2 and MODE 3".
 ;;
 ;; An earlier reading of this had 1 as upside down and 3 as sideways.
 ;; Both were wrong, and the SDORI table settles it: the value the user
@@ -2767,8 +2766,7 @@ LOOKVARS_WORD:
 ;; --------------------------------------------------------------------
 ;; The ROM's SLICING as a subroutine of this page, through MBCMR --
 ;; but the word after the call is zero in the file: SLICING_WORD,
-;; which the signature search fills at boot from &75FB.  One caller,
-;; &47D7.
+;; which the signature search fills at boot from &75FB.  One caller, &47D7.
 ;; --------------------------------------------------------------------
 
 ; ---- CALL_SLICING ---- from &47D7
@@ -2782,7 +2780,7 @@ SLICING_WORD:
 
 ;; --------------------------------------------------------------------
 ;; The same for the ROM's INSERTLN: INSERTLN_WORD is filled from
-;; &7607, and the one caller is &6EDD.
+;; &7607; one caller, &6EDD.
 ;; --------------------------------------------------------------------
 
 ; ---- CALL_INSERTLN ---- from &6EDD
@@ -5172,8 +5170,8 @@ GET_PAGED_ADDRESS_LOOP:
 ;; THERE ARE TWO SEARCHES HERE, not one, chosen at &4CA2 by whether the
 ;; call ended ",ABS".  &4CAA is the exact one and leans on CPIR; &4CE2
 ;; is the case-insensitive one and has to do its own scanning, which is
-;; the whole of the difference the manual quotes between "over 200K a
-;; second" and "about 90K a second".  Both share the answer arithmetic
+;; the whole of the difference the manual quotes between "over
+;; 200K/second" and "about 90K/second".  Both share the answer arithmetic
 ;; at &4CD2 and the failure exit at &4CDD.
 ;;
 ;; Nothing here touches HMPR.  The caller works through the window at
@@ -5674,8 +5672,9 @@ FN_SHIFT_S:
                PUSH HL                         ; 4DCD E5
                PUSH DE                         ; 4DCE D5
                LD A,B                          ; 4DCF 78
-               CP &40                          ; 4DD0 FE 40  the manual's "strings must be 16383 characters or less",
-                                               ; and it is that because the copy below goes through the &8000 window
+               CP &40                          ; 4DD0 FE 40  the manual's "SHIFT$ will only work with strings of 16383
+                                               ; characters or less", and it is that because the copy below goes through
+                                               ; the &8000 window
                JP NC,REP_STRING_TOO_LONG       ; 4DD2 D2 B9 43
                CALL MBCMR                      ; 4DD5 CD F0 44  the answer is built in fresh workspace, so the argument
                                                ; itself is not altered
@@ -8204,7 +8203,7 @@ CMD_LPRINT_CLEAR_DONE:
 ;; Write the HL it was called with -- pushed at &561B, popped into BC
 ;; at &5625 -- into channel B's output word, &19 bytes into the ROM's
 ;; channel table, which is how MasterBASIC puts itself in a channel's
-;; place.  The one caller, &55FB, passes the HKC_LPRINT_BYTE stub or the
+;; place.  One caller, &55FB, which passes the HKC_LPRINT_BYTE stub or the
 ;; vector saved in SAVED_LPRINT_OUTPUT.
 ;; --------------------------------------------------------------------
 
@@ -8841,9 +8840,8 @@ GET_STRING_AND_PAGE_IT_DONE:
 
 ;; --------------------------------------------------------------------
 ;; REF (x) where x is a number: build the printed form and the invisible
-;; form, because the manual says both are searched for --
-;;
-;;     "REF (x)  Looks for: value of x, such as 10(invisible form)"
+;; form, because the manual's table says both are searched for -- REF
+;; (x) looks for "the value of x, such as 10 (invisible form)".
 ;;
 ;; FOUR BYTES OF CODE ARE POKED INTO THE ROM'S OWN BUFFER and called.
 ;; They are
@@ -10515,10 +10513,10 @@ PAGE_IN_ROM1_1:
 ;; SOUND, token &AE -- and the reason for taking it over is in the
 ;; manual, which documents SOUND CLEAR and SOUND CLEAR size:
 ;;
-;;     "SOUND CLEAR used on its own will clear the buffer ... To change
-;;     the sound buffer size, simply use SOUND CLEAR with a different
-;;     value.  SOUND CLEAR 0 will delete the buffer and free the memory
-;;     for other uses."
+;;     "To change the sound buffer size, simply use SOUND CLEAR with a
+;;     different value.  Any data in the buffer will be lost.  SOUND
+;;     CLEAR 0 will delete the buffer and free the memory for other
+;;     uses.  SOUND CLEAR used on its own will clear the buffer"
 ;;
 ;; The code is that sentence.  The next character is compared with the
 ;; ROM's CLEAR token and anything else leaves for CMD_SOUND_2, the ordinary

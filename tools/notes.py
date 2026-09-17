@@ -294,6 +294,43 @@ def load(root, folder='notes'):
     return out, complaints
 
 
+def _number(n):
+    words = ('no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven',
+             'eight', 'nine', 'ten', 'eleven', 'twelve')
+    return words[n] if n < len(words) else str(n)
+
+
+def expand(d, a, line):
+    """The placeholders a DOC may carry, filled from the bytes.
+
+    A count restated by hand drifts -- "42 callers" for 43, "nine" for
+    twelve -- and every one of those was something the build already
+    knew.  `{callers}` is the calls and jumps that land on this address,
+    counted from the instructions and listed when there are few:
+    "three callers, &47C9, &4E30 and &56C7".
+    """
+    if '{callers}' not in line:
+        return line
+    froms = sorted(i.addr for i in d.insns.values()
+                   if i.target == a and i.text.startswith(
+                       ('CALL', 'JP ', 'JR ', 'DJNZ')))
+    n = len(froms)
+    if n == 0:
+        text = 'no callers'
+    elif n == 1:
+        text = 'one caller, &%04X' % froms[0]
+    elif n <= 6:
+        text = '%s callers, %s and &%04X' % (
+            _number(n), ', '.join('&%04X' % f for f in froms[:-1]), froms[-1])
+    else:
+        text = '%s callers' % _number(n)
+    # Capitalised when it opens a sentence.
+    before = line[:line.index('{callers}')]
+    if not before.strip() or before.rstrip().endswith(('.', '!', '?')):
+        text = text[0].upper() + text[1:]
+    return line.replace('{callers}', text)
+
+
 def set_header(d, a, doc, banner):
     """Head an address, keeping whatever header was already there.
 
@@ -302,7 +339,7 @@ def set_header(d, a, doc, banner):
     attached to this one, so replacing it outright would lose what it
     said about the others.
     """
-    body = list(doc)
+    body = [expand(d, a, x) for x in doc]
     was = d.headers.get(a)
     # A DOC that opens with a PART line has folded a section heading in.
     # If the carried copy of that heading landed on some other routine
