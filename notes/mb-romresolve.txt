@@ -8,7 +8,8 @@ DOC RESOLVE_ROM_ENTRIES
 
     Called once, from &75EF.  Each step is a call to FIND_ROM_CODE
     with six inline bytes -- three opcodes to look for, where to start
-    looking, and a signed step -- followed by an LD (nn),HL that drops
+    looking, and a signed offset added to the address found -- followed
+    by an LD (nn),HL that drops
     the answer into a patch site.  MasterBASIC therefore contains almost
     no hard-coded ROM addresses.  It knows what the ROM's code looks
     like, not where it is.

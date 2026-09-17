@@ -83,14 +83,17 @@ MB &41E4 FN_NVAL_FLOAT
     five bytes are copied straight onto the calculator stack.
 
     THE TRANSFORM EXISTS SO THAT STRING ORDER IS NUMERIC ORDER.  SVAL$
-    swaps the mantissa's sign bit into the top of byte 0 and the
-    exponent's low bit into the top of byte 1, so that comparing the
-    strings byte by byte compares sign, then exponent, then mantissa.
-    Positive numbers are then stored with all five bytes complemented
-    and negative ones plain.  Undoing it here: the two bits are swapped
-    back, and if the top bit of byte 0 was clear -- positive -- byte 1
-    gets bit 7 set and all five bytes are complemented, which leaves
-    that bit clear again, the positive sign a mantissa wants.
+    rotates the mantissa's sign bit through the top of the first two
+    bytes -- RL E / RRA / RR E at &419E -- so that byte 0 is the sign
+    over the exponent's top seven bits and byte 1 the exponent's low
+    bit over the mantissa, and comparing the strings byte by byte
+    compares sign, then exponent, then mantissa.  A positive number
+    then has the top bit of byte 0 set and all five bytes complemented
+    -- so its stored top bit is clear -- and a negative one is stored
+    plain.  Undoing it here: the rotate is run backwards, and if the
+    top bit of byte 0 was clear -- positive -- byte 1 gets bit 7 set
+    and all five bytes are complemented, which leaves that bit clear
+    again, the positive sign a mantissa wants.
 
     THE PAD IS &FF AND NOT ZERO because of that complement.  For a
     positive number &FF complements to zero mantissa bits, so a

@@ -935,14 +935,17 @@ FN_NVAL:
 ;; five bytes are copied straight onto the calculator stack.
 ;;
 ;; THE TRANSFORM EXISTS SO THAT STRING ORDER IS NUMERIC ORDER.  SVAL$
-;; swaps the mantissa's sign bit into the top of byte 0 and the
-;; exponent's low bit into the top of byte 1, so that comparing the
-;; strings byte by byte compares sign, then exponent, then mantissa.
-;; Positive numbers are then stored with all five bytes complemented
-;; and negative ones plain.  Undoing it here: the two bits are swapped
-;; back, and if the top bit of byte 0 was clear -- positive -- byte 1
-;; gets bit 7 set and all five bytes are complemented, which leaves
-;; that bit clear again, the positive sign a mantissa wants.
+;; rotates the mantissa's sign bit through the top of the first two
+;; bytes -- RL E / RRA / RR E at &419E -- so that byte 0 is the sign
+;; over the exponent's top seven bits and byte 1 the exponent's low
+;; bit over the mantissa, and comparing the strings byte by byte
+;; compares sign, then exponent, then mantissa.  A positive number
+;; then has the top bit of byte 0 set and all five bytes complemented
+;; -- so its stored top bit is clear -- and a negative one is stored
+;; plain.  Undoing it here: the rotate is run backwards, and if the
+;; top bit of byte 0 was clear -- positive -- byte 1 gets bit 7 set
+;; and all five bytes are complemented, which leaves that bit clear
+;; again, the positive sign a mantissa wants.
 ;;
 ;; THE PAD IS &FF AND NOT ZERO because of that complement.  For a
 ;; positive number &FF complements to zero mantissa bits, so a
@@ -14053,8 +14056,8 @@ CSZ2_WORD:
                                                ; this was 85-column MODE 3, so put the real one back
                CALL MBNRWR                     ; 6598 CD 82 45
                DEFW &5A37                      ; 659B 37 5A
-               POP AF                          ; 659D F1  the height factor pushed at &6557 -- height/8, or zero for the
-                                               ; heights the ROM handles by itself
+               POP AF                          ; 659D F1  the height factor pushed at &6557 -- height/8, or zero for
+                                               ; heights under 24, which &6552 leaves to the ROM's own printing
                CALL MBNRWR                     ; 659E CD 82 45
                DEFW SYS_CHAR_HEIGHT            ; 65A1 EF 4A
                CALL MBNRRD                     ; 65A3 CD 6A 45  the ROM's window arithmetic set UWBOT to 192/height - 3
@@ -14178,7 +14181,8 @@ COMPRESS_BLOCK_SATURATE:
 ; ---- COMPRESS_FILE ---- from DOS &6522
 COMPRESS_FILE:
                LD (V40A0),BC                   ; 65EA ED 43 A0 40  only C, the file type, is read back later -- at &663B
-                                               ; and &670A -- because the numeric-array case needs it
+                                               ; -- because the numeric-array case needs it; EXPAND_FILE stores its own
+                                               ; copy at &66D2 for &670A
                AND A                           ; 65EE A7  no whole pages, so the file is all remainder
                JR Z,COMPRESS_FILE_1            ; 65EF 28 16
 
@@ -18477,8 +18481,9 @@ FN_USING_S_2:
                EX AF,AF'                       ; 7282 08
                JR NC,FN_USING_S_3              ; 7283 30 04
                LD A,USING_OVERFLOW             ; 7285 3E 25  the number needs more digits before the point than the
-                                               ; format has room for, so the format is abandoned and the overflow mark
-                                               ; written at the front
+                                               ; format has room for, so the alignment is dropped: the overflow mark
+                                               ; goes into the first position, and the walk below fills the rest of the
+                                               ; format from the number's second character on
                LD (DE),A                       ; 7287 12
                XOR A                           ; 7288 AF
 
@@ -18629,8 +18634,9 @@ FN_USING_S_12:
 
 ; ---- FN_USING_S_DONE ---- from &7306 when A < CH_ZERO, &730A when A >= &3A
 FN_USING_S_DONE:
-               LD A,USING_OVERFLOW             ; 7316 3E 25  the carry ran off the front of the format, which is the
-                                               ; same overflow
+               LD A,USING_OVERFLOW             ; 7316 3E 25  the carry has met a character that cannot hold a digit --
+                                               ; or, falling through from &7314, run off the front of the format -- and
+                                               ; the overflow mark goes where it stopped
 
 ; ---- FN_USING_S_DONE2 ---- from &730F when A < &3A
 FN_USING_S_DONE2:
@@ -18832,18 +18838,20 @@ COMPILE_PASS:
 
 ;; --------------------------------------------------------------------
 ;; What the ROM calls ELCOMAL, at &4D7B once moved.  Six bytes: read
-;; REFFLG, CP &01, CCF -- so carry comes out clear only when REFFLG is
-;; zero, which the ROM's variable table glosses as "Z IF REF VAR BEING
-;; WORKED ON" -- and fall into COMPILE_ALL, where the carry decides
+;; REFFLG, CP &01, CCF -- so carry comes out set only when REFFLG is
+;; non-zero, which is what fn.asm's FNSYN stores when the syntax pass
+;; meets an FN, "NZ SHOWS FN USED IN THIS LINE (FOR COMPILER)"; the
+;; variable table's "Z IF REF VAR" is the parameter parser's other use
+;; of the byte -- and fall into COMPILE_ALL, where the carry decides
 ;; whether the DEF FN table is rebuilt.
 ;; --------------------------------------------------------------------
 
 COMPILE_ELINE:
                LD A,(REFFLG)                   ; 73AD 3A 76 5A
-               CP &01                          ; 73B0 FE 01  one, so the CCF after it turns "REFFLG is zero" into carry
-                                               ; clear. The ROM's variable table gives REFFLG as "Z IF REF VAR BEING
-                                               ; WORKED ON", so the carry this leaves means there is no REF variable in
-                                               ; hand
+               CP &01                          ; 73B0 FE 01  one, so the CCF after it leaves carry set only when REFFLG
+                                               ; is non-zero -- fn.asm's own ELCOMAL comments the same pair "CY IF NZ
+                                               ; (FN USED)" -- so carry means an FN was used in the line and the DEF FN
+                                               ; table is worth rebuilding
                CCF                             ; 73B2 3F
 
 ;; --------------------------------------------------------------------
@@ -19010,7 +19018,7 @@ FIND_PROC_ENTRY_1:
 ;; token.  For each one found it writes six bytes:
 ;;
 ;;     +0  the first character of the name, AND &DF -- upper-cased
-;;     +1  the page the program is in
+;;     +1  the page the DEF PROC's line is in, HMPR as LKFC left it
 ;;     +2  HL as LKFC left it, moved into BC at &742D and stored at
 ;;         &7447 -- not BC, which still holds the &21CA loaded before
 ;;         the call
@@ -19213,7 +19221,9 @@ RELOCATED_TO_46CC_LOOP:
                                                ; copy, not anything at that address in this page
                LD A,B                          ; 7486 78
                CP &20                          ; 7487 FE 20  thirty-two, and B counts 256-byte units, so this asks
-                                               ; whether the move is &2000 bytes or more -- more than one pass will take
+                                               ; whether the move is &2000 bytes or more; the split keeps any one pass
+                                               ; to &2100 at most, &4000 less the &1F00 held back, which the &9E test at
+                                               ; &7565 is sized for
                JR C,RELOCATED_TO_46CC_3        ; 7489 38 0B
                SUB &1F                         ; 748B D6 1F  thirty-one of those units off the count, which is the &1F00
                                                ; below said the other way round
@@ -19366,12 +19376,15 @@ RELOCATED_TO_46CC_7:
                LD DE,&4CEA                     ; 755F 11 EA 4C  the same save area in the system page
                LD BC,&000C                     ; 7562 01 0C 00  twelve of them
                CP &9E                          ; 7565 FE 9E  which end of section C to borrow -- below it the top, at or
-                                               ; above it the bottom at &8000. WHAT A HOLDS HERE IS NOT SETTLED: &7550
-                                               ; puts the source's high byte in it -- DE is still the source there, HL
-                                               ; having just been reloaded from TEMPW1 -- but the CALL NZ,INCURPAGE at
-                                               ; &7554 reaches SELURPG, which leaves A as an HMPR byte instead, and &9E
-                                               ; is not a value HMPR can sensibly take. One of those two readings is
-                                               ; wrong and this note does not say which
+                                               ; above it the bottom at &8000. A is the source's high byte from &7550 --
+                                               ; DE is still the source there, HL having just been reloaded from TEMPW1
+                                               ; -- and the threshold is sized for it: the largest chunk that reaches
+                                               ; here is &2100, and &BF80 less &2100 is &9E80, so a source at &9E or
+                                               ; above would run into the borrowed bytes at the top. On a D-form source
+                                               ; the CALL NZ,INCURPAGE at &7554 reaches SELURPG, which leaves A as the
+                                               ; HMPR byte instead -- a page number, below &9E -- so that path always
+                                               ; borrows at the top; a source that then runs past &BF8A has two bytes
+                                               ; overwritten by the LD (&BF8A),HL. Not seen; a reading of the bytes
                LD A,(TEMPB2)                   ; 7567 3A CF 5A
                DEC A                           ; 756A 3D
                JR C,RELOCATED_TO_46CC_8        ; 756B 38 1A
@@ -19469,8 +19482,10 @@ RELOCATED_TO_46CC_10:
 
 INSTALLER:
                LD HL,TRACE_SAVED_LMPR          ; 75E1 21 68 40
-               LD B,&4A                        ; 75E4 06 4A  &4A bytes from TRACE_SAVED_LMPR, so &4068 to &40B1 is
-                                               ; zeroed before anything runs
+               LD B,&4A                        ; 75E4 06 4A  seventy-four stores of A -- zero, left by BOOT's XOR A at
+                                               ; DOS &40F3 -- all to &4068, since the DJNZ goes back to the LD (HL),A
+                                               ; and nothing advances HL; only TRACE_SAVED_LMPR is cleared, and the
+                                               ; count reads like a loop that lost its INC HL
 
 ; ---- INSTALLER_LOOP ---- from &75E7 when B is not 0 yet
 INSTALLER_LOOP:
@@ -19541,7 +19556,8 @@ INSTALLER_LOOP3:
                IN A,(HMPR)                     ; 7678 DB FB
                AND PAGEMASK                    ; 767A E6 1F
                LD (DOSFLG),A                   ; 767C 32 C2 5B
-               LD H,&51                        ; 767F 26 51  &60 in ALLOCT marks this page as DOS's -- the table is at
+               LD H,&51                        ; 767F 26 51  &60 into the DOS page's ALLOCT entry -- A is the page in
+                                               ; section C, where the installer's copy is running -- and the table is at
                                                ; &5100
                LD L,A                          ; 7681 6F
                LD (HL),&60                     ; 7682 36 60  &60 is "used by DOS" in the manual's list of ALLOCT values,
@@ -19612,8 +19628,9 @@ INSTALLER_LOOP6:
                                                ; documentation tells a user to POKE into DVAR 2 to "enable a second
                                                ; floppy drive" -- fitted, eighty tracks. So all 256 matching means the
                                                ; controller answered, and MasterBASIC writes the setting the user would
-                                               ; otherwise have written by hand. &76C2 looked first, so an answer
-                                               ; already there is left alone
+                                               ; otherwise have written by hand. When it answers, &76C2 reads TRAKS2
+                                               ; before writing, so a non-zero value already there is kept; when it does
+                                               ; not, &76BE stores zero over whatever was there
 
 ; ---- INSTALLER_1 ---- from &76BE when the CP found A <> B
 INSTALLER_1:
@@ -20593,7 +20610,8 @@ PUT_PIECE_45A2:
 ;;
 ;; Called once, from &75EF.  Each step is a call to FIND_ROM_CODE
 ;; with six inline bytes -- three opcodes to look for, where to start
-;; looking, and a signed step -- followed by an LD (nn),HL that drops
+;; looking, and a signed offset added to the address found -- followed
+;; by an LD (nn),HL that drops
 ;; the answer into a patch site.  MasterBASIC therefore contains almost
 ;; no hard-coded ROM addresses.  It knows what the ROM's code looks
 ;; like, not where it is.
@@ -20946,17 +20964,18 @@ MB_PAGER:
 ;; tell whether our copy fires at all, because it writes what is
 ;; already there.
 ;;
-;; Between the copies it reaches the ROM's channel table through CHANS
-;; and writes MasterBASIC's own routines into three of its vectors, and
-;; it repoints HUDG and RST28V.  That is the mechanism behind the
+;; Before the copies it reaches the ROM's channel table through CHANS
+;; and writes MasterBASIC's own routines into three of its vectors,
+;; and between the last two it repoints HUDG and RST28V.  That is the
+;; mechanism behind the
 ;; extension seeing every character printed and every calculator
 ;; literal executed.
 ;;
 ;; ONE MORE THING THIS ROUTINE IS.  It is called once, from &7654,
 ;; inside the installer that runs at boot -- and after that its bytes
-;; are free.  MasterBASIC uses them: twenty of the twenty-one
-;; references to &7B00 in this listing are not calls but loads, and
-;; they treat it as a buffer.
+;; are free.  MasterBASIC uses them: of the seventeen references to
+;; &7B00 in this listing, and four more to &7B01 and &7B03, all but
+;; the CALL at &7654 are loads, and they treat it as a buffer.
 ;;
 ;;     COPY_STRING_TO_BUFFER gets a string, refuses one longer than 255 bytes, keeps
 ;;     the length in V4098 and LDIRs the text to &7B00.
@@ -20965,9 +20984,11 @@ MB_PAGER:
 ;;     against a byte read from it.
 ;;     &5674 and &577C read the first two bytes back.
 ;;     &66B0 and &66AA write two words into &7B01 and &7B03, over the
-;;     IN and the XOR this routine starts with.
+;;     IN and the XOR this routine starts with, and the compressor
+;;     keeps its 256 byte-sized counters in the same bytes (&6647,
+;;     &665A, &6668).
 ;;
-;; So `LD DE,INSTALL_ROM_PATCHES` in the middle of a command is not a
+;; So `LD DE,REF_BUFFER` in the middle of a command is not a
 ;; reference to this routine at all: it is the search-string buffer,
 ;; which happens to be built out of a routine that has already done its
 ;; job.  The same trick as the DEF KEY gap and the ROM's eight spare

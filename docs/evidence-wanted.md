@@ -470,9 +470,11 @@ that byte. `DOS &4222` is `DVAR 2`, `TRAKS2` -- "Drive 2, same encoding. **Zero
 means no second drive**" -- and `ref/masterdos/docs/dos-variables.md` tells a
 user to set it by hand: **`POKE DVAR 2, 128+80`** to "enable a second floppy
 drive". 128 + 80 is `&D0`, so the value means fitted, eighty tracks.
-MasterBASIC probes for the drive at boot and saves the user the poke, and
-`&76C2` reads `TRAKS2` first so a setting already there -- the user's own, or
-one carried in by a `SAVE BOOT` file -- is left alone.
+MasterBASIC probes for the drive at boot and saves the user the poke; when
+the controller answers, `&76C2` reads `TRAKS2` before writing, so a non-zero
+setting already there -- the user's own, or one carried in by a `SAVE BOOT`
+file -- is kept, and when it does not answer `&76BE` stores zero over
+whatever was there.
 
 **What made it findable.** Two ports in the same unnamed stretch had already
 been identified here and neither is this one: `CKPT` at DOS `&42B6` is `&EF`,

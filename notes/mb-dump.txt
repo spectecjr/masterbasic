@@ -470,7 +470,7 @@ MB &6596 : B is the width factor written to SYS_CHAR_WIDTH at &657F and pushed a
 
 MB &6597 : the width as the user asked for it, pushed at &655D.  The ROM has just written it to CSIZEW too, but replaces it with 6 if it decided this was 85-column MODE 3, so put the real one back
 
-MB &659D : the height factor pushed at &6557 -- height/8, or zero for the heights the ROM handles by itself
+MB &659D : the height factor pushed at &6557 -- height/8, or zero for heights under 24, which &6552 leaves to the ROM's own printing
 
 MB &65A3 : the ROM's window arithmetic set UWBOT to 192/height - 3
 
@@ -508,7 +508,7 @@ MB &65E7 COMPRESS_BLOCK_SATURATE
 
 MB &65E7 : the counter is a byte and has just wrapped: saturate it at 255
 
-MB &65EA : only C, the file type, is read back later -- at &663B and &670A -- because the numeric-array case needs it
+MB &65EA : only C, the file type, is read back later -- at &663B -- because the numeric-array case needs it; EXPAND_FILE stores its own copy at &66D2 for &670A
 
 MB &65EE : no whole pages, so the file is all remainder
 

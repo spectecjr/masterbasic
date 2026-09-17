@@ -217,26 +217,30 @@ histogram, the escape choice and the in-place loop are all in
 41 41 41 41 41 42 43 43 44 44 44 45 45 45 45 45
 ```
 
-Counts: `41`×5, `42`×1, `43`×2, `44`×3, `45`×5. The rarest is `42`, so
-`esc = 42`. Encoding left to right:
+Counts: `41`×5, `42`×1, `43`×2, `44`×3, `45`×5 — and every other value 0.
+The scan starts at value 0 with the best count at 255 and keeps the first
+strictly smaller, so the escape is `00`, a value that does not occur, as
+the paragraph above says it usually is. Encoding left to right:
 
 ```
-41 41 41 41 41   run of 5        -> 42 41 05
-42 43            literal escape  -> 42 42        (43 parked)
-43               run of 1        -> 43
-44 44 44         run of 3        -> 42 44 03
-45 45 45 45 45   run of 5        -> 42 45 05
+41 41 41 41 41   run of 5        -> 00 41 05
+42               run of 1        -> 42
+43 43            run of 2        -> 43 43
+44 44 44         run of 3        -> 00 44 03
+45 45 45 45 45   run of 5        -> 00 45 05
 ```
 
-Stream: `42 41 05 42 42 43 42 44 03 42 45 05`, twelve bytes. One byte was
-parked, so `n = 6`, and the block on disk is
+Stream: `00 41 05 42 43 43 00 44 03 00 45 05`, twelve bytes. Nothing was
+parked, so `n = 5`, and the block on disk is
 
 ```
-06  42  0C 00  10 00  43   42 41 05 42 42 43 42 44 03 42 45 05
+05  00  0C 00  10 00   00 41 05 42 43 43 00 44 03 00 45 05
 ```
 
-nineteen bytes for sixteen — the scheme only pays on data with runs, which
-is what the manual says too.
+eighteen bytes for sixteen — the scheme only pays on data with runs, which
+is what the manual says too. (Had every value occurred at least once, `42`
+would have been the escape and its own occurrence would have gone out as
+`42 42` with the following byte parked, costing a byte more.)
 
 ### Numeric arrays are transposed first
 

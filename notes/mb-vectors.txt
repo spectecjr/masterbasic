@@ -288,7 +288,7 @@ MB &7246 : &8000 undoes the bias in the RST &30 table, whose word is PFSTRS-&800
 MB &724E : 200 into FRACLIM where the ROM's own entry passes 6 -- no fraction has that many leading zeros, so the E-form the ROM would otherwise choose is never reached
 
 MB &7285 value USING_OVERFLOW
-MB &7285 : the number needs more digits before the point than the format has room for, so the format is abandoned and the overflow mark written at the front
+MB &7285 : the number needs more digits before the point than the format has room for, so the alignment is dropped: the overflow mark goes into the first position, and the walk below fills the rest of the format from the number's second character on
 
 MB &72A9 value CH_ZERO
 MB &72A9 : a "0" in the format is a digit position too, and the JR NZ below takes anything that is neither this nor a hash
@@ -319,7 +319,7 @@ MB &7311 value CH_ZERO
 MB &7311 : the carried digit wraps to zero and the loop moves left
 
 MB &7316 value USING_OVERFLOW
-MB &7316 : the carry ran off the front of the format, which is the same overflow
+MB &7316 : the carry has met a character that cannot hold a digit -- or, falling through from &7314, run off the front of the format -- and the overflow mark goes where it stopped
 
 MB &7320 value CH_DOT
 MB &7320 : CPIR looks for the decimal point, and what C has left is how many characters follow it

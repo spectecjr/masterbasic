@@ -85,7 +85,7 @@ DOC RELOCATED_TO_46CC
     The block ends exactly where the resident helper block at &75E1
     begins, so the two are neighbours, both written to be moved.
 
-MB &7487 : thirty-two, and B counts 256-byte units, so this asks whether the move is &2000 bytes or more -- more than one pass will take
+MB &7487 : thirty-two, and B counts 256-byte units, so this asks whether the move is &2000 bytes or more; the split keeps any one pass to &2100 at most, &4000 less the &1F00 held back, which the &9E test at &7565 is sized for
 MB &748B : thirty-one of those units off the count, which is the &1F00 below said the other way round
 MB &7491 : &1F00, 7936 bytes: the tail of a long move.  The CALL just above moved the rest -- the count less &1F00 -- first, and nothing below splits that on anything but the &C000 boundary, so FARLDIR's &4000 arrives here as a first chunk of &2100
 
@@ -108,7 +108,7 @@ MB &7558 : the same word as &74C7, on the other of the two paths
 MB &755C : &BF80, the top of section C this time, and twelve bytes rather than twenty-two
 MB &755F : the same save area in the system page
 MB &7562 : twelve of them
-MB &7565 : which end of section C to borrow -- below it the top, at or above it the bottom at &8000.  WHAT A HOLDS HERE IS NOT SETTLED: &7550 puts the source's high byte in it -- DE is still the source there, HL having just been reloaded from TEMPW1 -- but the CALL NZ,INCURPAGE at &7554 reaches SELURPG, which leaves A as an HMPR byte instead, and &9E is not a value HMPR can sensibly take.  One of those two readings is wrong and this note does not say which
+MB &7565 : which end of section C to borrow -- below it the top, at or above it the bottom at &8000.  A is the source's high byte from &7550 -- DE is still the source there, HL having just been reloaded from TEMPW1 -- and the threshold is sized for it: the largest chunk that reaches here is &2100, and &BF80 less &2100 is &9E80, so a source at &9E or above would run into the borrowed bytes at the top.  On a D-form source the CALL NZ,INCURPAGE at &7554 reaches SELURPG, which leaves A as the HMPR byte instead -- a page number, below &9E -- so that path always borrows at the top; a source that then runs past &BF8A has two bytes overwritten by the LD (&BF8A),HL.  Not seen; a reading of the bytes
 MB &756D : the bottom of section C, borrowed when the top would be in the way
 MB &7577 : ten bytes in, where the address to come back to goes -- &47ED is this block's own &7581, the instruction after the jump below
 MB &757B : eight bytes in, so that the ROM routine's RET unwinds through the borrowed bytes and onto that address

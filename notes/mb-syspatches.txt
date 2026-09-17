@@ -135,7 +135,7 @@ DOC GAP_BLOCK
 
 MB &76A2 : KTAB entry 264 gets &0D -- &59E8 less the &58E0 base -- and the map is 276 entries, which the Technical Manual gives as "69 keys and 4 shift states"
 MB &76A5 : and entry 255 the same, &59DF less the same base
-MB &767F : &60 in ALLOCT marks this page as DOS's -- the table is at &5100
+MB &767F : &60 into the DOS page's ALLOCT entry -- A is the page in section C, where the installer's copy is running -- and the table is at &5100
 
 MB &7682 : &60 is "used by DOS" in the manual's list of ALLOCT values, and the entry is this page's own
 
@@ -143,7 +143,7 @@ MB &7684 : nineteen bytes, &4AED to &4AFF
 
 MB &76A0 : &0D, the code the two KTAB entries below are given
 
-MB &75E4 : &4A bytes from TRACE_SAVED_LMPR, so &4068 to &40B1 is zeroed before anything runs
+MB &75E4 : seventy-four stores of A -- zero, left by BOOT's XOR A at DOS &40F3 -- all to &4068, since the DJNZ goes back to the LD (HL),A and nothing advances HL; only TRACE_SAVED_LMPR is cleared, and the count reads like a loop that lost its INC HL
 
 MB &764E : MasterBASIC's own page number, planted in the LD A at &7C2C.  That instruction is inside the &7BA4 block and runs at &48D5 once installed, where it has to page this half back in and cannot know the number by assembling it
 
@@ -167,5 +167,5 @@ MB &76B4 : twenty, counted down to nothing, to let the data register settle betw
 
 MB &76BC : zero if any read differs from what was written -- TRAKS2's own value for "no second drive" 
 
-MB &76C8 : &D0 is 128 + 80, which is what MasterDOS's own documentation tells a user to POKE into DVAR 2 to "enable a second floppy drive" -- fitted, eighty tracks.  So all 256 matching means the controller answered, and MasterBASIC writes the setting the user would otherwise have written by hand.  &76C2 looked first, so an answer already there is left alone
+MB &76C8 : &D0 is 128 + 80, which is what MasterDOS's own documentation tells a user to POKE into DVAR 2 to "enable a second floppy drive" -- fitted, eighty tracks.  So all 256 matching means the controller answered, and MasterBASIC writes the setting the user would otherwise have written by hand.  When it answers, &76C2 reads TRAKS2 before writing, so a non-zero value already there is kept; when it does not, &76BE stores zero over whatever was there
 MB &7686 : clear &4AED-&4AFF, nineteen bytes of workspace in the system page

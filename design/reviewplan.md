@@ -434,8 +434,24 @@ the name, and four derived labels parented on the wrong routine.  Two
 of the findings were this round's own: a wrapped `:` line half
 replaced, and HPRTOK's paragraphs attached to the wrong label by an
 indented block after a `:` line -- the notes syntax lets that happen
-silently.  L, M, N and P are out; the weekly limit killed the first
-two mid-read and they were sent again.
+silently.  L, M, N and P, 2026-09-16: 19 findings on 1348 own lines,
+17 applied, 3 `[C]`; the weekly limit killed the first two readers
+mid-read and they were sent again.  The installer's "&4A bytes zeroed
+from &4068" is seventy-four stores to one byte; the drive probe
+overwrites TRAKS2 with zero when the controller does not answer, which
+`docs/evidence-wanted.md` had as "left alone"; and the worked example
+in `docs/compression-modes.md` chose an escape the scan cannot choose.
+
+**Phase 5 is done.**  Sixteen cuts, 6628 own lines, 107 findings, 105
+applied: 1.6 per hundred against the first pass's 2.7, with 38% `[C]`
+against 57%.  Every cut returned something, the low-count cuts as
+much as the high; nine findings changed a reading and two added
+suspected defects.  What the second pass found most was not
+arithmetic but *attribution* -- the right fact credited to the wrong
+routine, register, page or path: "the ROM's CMR" for this half's
+MBCMR, "the caller kept BC" for a routine that returned it, "this
+page" for the DOS's, a stepper for the decoder's only write.  The
+first readers checked numbers; the second checked who does what.
 
 ---
 
@@ -472,3 +488,17 @@ can and the remaining errors want a different one -- running the code.
 None of the six rounds so far shows it.  That is the honest state: the
 error density is still above what one pass exhausts, each round is buying
 something, and the plan above is on the order of ten to fifteen more.
+
+**Round 12 (2026-09-16), the MasterBASIC second passes, is the first
+reading of that signal on this half**: 1.6 per hundred against 2.7 on
+the same regions, `[C]` at 38% against 57%, confirmed at 98%.  The
+`[C]` share is falling with the confirmed rate holding, which is the
+shape the paragraph above asks for -- but on one round, not two, and
+the density is still above phase 2's 1.3 on the DOS.  A third pass on
+the two or three MasterBASIC cuts that returned most this time (G, O,
+E) would say whether the curve continues; the DOS's other PARTs have
+had one carried-comment pass and one banner pass each, and no second
+reader of the lower-case prose since round 8 except the two in phase
+2.  Either is a round's work.  What neither can find is what a
+machine would: the four suspected defects in `docs/bugs.md` and the
+open items in `docs/evidence-wanted.md`.

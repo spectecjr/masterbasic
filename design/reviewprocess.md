@@ -419,6 +419,7 @@ The differences from the review prompt:
 | MB 46 heads with new banners, 29 by hand and 17 generated (2026-09-15, round 11) | review | 12 findings | 12; five on the hand-written banners, three on the generated counts |
 | MB second passes on the six cuts that returned twelve or more (2026-09-15, round 12) | review | 46 findings | 46; 1.6 per hundred against 2.7, 41% [C] against 57%; three change a reading, two are generator faults |
 | MB second passes on E, F, H, I, J, K, the cuts that returned under twelve (2026-09-15/16, round 12) | review | 42 findings | 42; 1.7 per hundred, 45% [C] -- the same rate as the high-count cuts; bugs.md 14 |
+| MB second passes on L, M, N, P (2026-09-16, round 12) | review | 19 findings | 17 + 2 left; 1.4 per hundred, 16% [C]; the installer's one-byte "clear", the drive probe's overwrite |
 
 The first five ran on one model; the rest on another, after the first hit a
 session limit mid-run. The prompts were byte-identical across the change,

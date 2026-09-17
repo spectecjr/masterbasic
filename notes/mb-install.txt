@@ -57,17 +57,18 @@ MB &7B00 INSTALL_ROM_PATCHES
     tell whether our copy fires at all, because it writes what is
     already there.
 
-    Between the copies it reaches the ROM's channel table through CHANS
-    and writes MasterBASIC's own routines into three of its vectors, and
-    it repoints HUDG and RST28V.  That is the mechanism behind the
+    Before the copies it reaches the ROM's channel table through CHANS
+    and writes MasterBASIC's own routines into three of its vectors,
+    and between the last two it repoints HUDG and RST28V.  That is the
+    mechanism behind the
     extension seeing every character printed and every calculator
     literal executed.
 
     ONE MORE THING THIS ROUTINE IS.  It is called once, from &7654,
     inside the installer that runs at boot -- and after that its bytes
-    are free.  MasterBASIC uses them: twenty of the twenty-one
-    references to &7B00 in this listing are not calls but loads, and
-    they treat it as a buffer.
+    are free.  MasterBASIC uses them: of the seventeen references to
+    &7B00 in this listing, and four more to &7B01 and &7B03, all but
+    the CALL at &7654 are loads, and they treat it as a buffer.
 
         COPY_STRING_TO_BUFFER gets a string, refuses one longer than 255 bytes, keeps
         the length in V4098 and LDIRs the text to &7B00.
@@ -76,9 +77,11 @@ MB &7B00 INSTALL_ROM_PATCHES
         against a byte read from it.
         &5674 and &577C read the first two bytes back.
         &66B0 and &66AA write two words into &7B01 and &7B03, over the
-        IN and the XOR this routine starts with.
+        IN and the XOR this routine starts with, and the compressor
+        keeps its 256 byte-sized counters in the same bytes (&6647,
+        &665A, &6668).
 
-    So `LD DE,INSTALL_ROM_PATCHES` in the middle of a command is not a
+    So `LD DE,REF_BUFFER` in the middle of a command is not a
     reference to this routine at all: it is the search-string buffer,
     which happens to be built out of a routine that has already done its
     job.  The same trick as the DEF KEY gap and the ROM's eight spare
