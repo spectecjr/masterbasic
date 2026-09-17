@@ -151,7 +151,9 @@ DOC TAPE_VERIFY_STUB
     and &4A64 once installed: AND A here clears carry for a verify, and
     the LD A,&37 two bytes on -- entered in its middle, its &37 is an
     SCF -- sets it for a load.  Then EXX, A = &FF for a data block, and
-    the JP to LDVD3 that the boot fills at &7A39.  HOOK_HLOAD and HVERY
+    the JP to LDVD3+1 -- the CALL LDBYTES, past LDVD3's own POP AF,
+    which would throw away that A and carry -- that the boot fills at
+    &7A39.  HOOK_HLOAD and HVERY
     in the DOS load the two addresses.
 
 DOC EXIT_FOR_STUB

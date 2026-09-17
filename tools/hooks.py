@@ -252,7 +252,8 @@ otherwise.
 Reads NVARS as a word and branches on its high byte.  &BB or more
 gathers NVARSP and RAMTOP -- the ROM's pointers to the variables area
 and the top of BASIC's memory -- and, with &700 to spare below RAMTOP,
-opens &0500 zeroed bytes at the program's end; below that goes to a
+opens &0500 bytes at the program's end and zeroes all but the first
+(the LDIR runs &04FE from the byte after it); below that goes to a
 second path at &52D5, which walks the program instead, measures its
 end to NVARS and hands the gap to the ROM's RECLAIM2 to close, unless
 the program's own end is at &BB00 or above, when the gap is kept.

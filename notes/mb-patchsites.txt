@@ -67,7 +67,7 @@ MB &7DA6 site JP_CCRESTOP
 # CALL at SEARCH+1 -- and jumps back to SEARCH+7; and &7DDB is the
 # post-LOAD stub the installer plants at &4A84.
 MB &7DB9 TAPE_VERIFY_STUB
-MB &7DBF site TAPE_JP_LDVD3
+MB &7DBF site TAPE_JP_LDBYTES
 MB &7DC2 EXIT_FOR_STUB
 MB &7DC5 site EXIT_FOR_CALL_SEARCHALL
 MB &7DD8 site EXIT_FOR_JP_SEARCH
@@ -84,3 +84,10 @@ MB &45EA LOOKVARS_WORD
 MB &45F0 SLICING_WORD
 MB &45F6 INSERTLN_WORD
 MB &56F6 EDKY1_WORD
+
+# The two vector entries into the &484D block that carried no label:
+# INSTALL_ROM_VECTORS writes &4866 into EDITV at &7721 and &488E into
+# CMDV at &76FC, which are this page's &7BBD and &7BE5 once installed.
+MB &7BBD site EDITV_ENTRY
+MB &7BBD : where EDITV points once installed, &4866: the ROM's editor comes in here
+MB &7BE5 site CMDV_ENTRY

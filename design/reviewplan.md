@@ -331,7 +331,7 @@ Bounded jobs, good between rounds or when a round is out for review:
   the instructions now, and three thunks nothing calls had said "One
   caller".  **The banner item is done**: every routine head reached
   from outside its routine, in both halves, has a banner, and every
-  one of them has been reviewed once.  Reading copy: 997 of 2339.
+  one of them has been reviewed once.  Reading copy: 997 of 2340.
 - **The synthetic labels -- 138 to 19, done 2026-09-14** (`grep -c
   '^[LV][0-9A-F]\{4\}:$'` on each clean listing).  Three commits.
   MasterBASIC's 31 patched sites are named for what their operands
@@ -502,3 +502,24 @@ reader of the lower-case prose since round 8 except the two in phase
 2.  Either is a round's work.  What neither can find is what a
 machine would: the four suspected defects in `docs/bugs.md` and the
 open items in `docs/evidence-wanted.md`.
+
+**Round 13 (2026-09-16), the third pass on G, O and E.**  19 findings
+on 1431 own lines, all confirmed and applied: 1.3 per hundred against
+2.3 for the same three cuts on the second pass and 2.7 on the first,
+with 47% `[C]` against 53% and 57%.  So the density falls by about
+two-fifths a pass, and the
+`[C]` share is flat rather than falling: a third reader still finds
+provable errors at nearly half of what it reports, and the confirmed
+rate is 100%.  That is not the stopping signal.  It is the other
+shape the paragraph above names -- the errors are being *sampled*, at
+a steady fraction each pass, not exhausted -- and it says what the
+remaining ones are: two of the nine `[C]`s were instructions the
+generator had split on a phantom label (a TBL_ name nothing referred
+to; a CALL into a trampoline being built), four were stale
+cross-references -- "the phantoms part of the way down", "the note
+there describes", "&4E53, the hook", a site named for the wrong ROM
+label -- and the rest were attributions.  None was arithmetic.
+Those classes are what a check can find and a reader finds slowly:
+every `&hhhh` a comment cites should be an instruction start or a
+label in its half, and every name it cites should exist.  That is the
+next step, not a fourth pass.

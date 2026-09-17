@@ -11,7 +11,7 @@ MB &4A65 : the HMPR that PAGE_IN_OTHER_HALF returned at &4A3D.  Abandoning the f
 
 MB &4A68 : the DOS's own DE, saved at &4A39 -- this runs inside MasterDOS's file-close and must give its registers back
 
-MB &4A6C : '0' off the tens digit.  No check that it was a digit: the buffer is the DOS's own DATDT/TIMDT, which PORT_BCD_DIGIT only ever writes '0' to '9' into
+MB &4A6C : '0' off the tens digit.  No check that it was a digit: the buffers are the DOS's DATDT/TIMDT and this page's mirror at &4120, and every writer of their digit positions -- PORT_BCD_DIGIT, the DATE and TIME statements' IS_DIGIT filter, TWO_DIGITS_BEFORE_DE -- puts only '0' to '9' there
 
 MB &4A6F : doubled, doubled, plus itself is five times, doubled again is ten -- four one-byte instructions where the Z80 has no multiply
 
@@ -117,8 +117,7 @@ DOC MULTIPLY_BY_60
 
     The AND A before the SBC HL,BC is there to clear the carry the last
     doubling left, and the SBC A,&00 after it carries the borrow out of
-    HL into the top byte.  Both calls come from TICS; the labels part of
-    the way down are phantoms, not entry points -- see the notes.
+    HL into the top byte.  Both calls come from TICS.
 
 MB &4ADC : the multiplicand kept whole, for the one subtraction that turns sixteen times into fifteen
 
@@ -161,7 +160,7 @@ MB &4B4D : the HMPR FIND_VARIABLE saved before LOOKVARS, put back -- LOOKVARS le
 
 MB &4B51 : zero only when DE is exactly 1, which is the flag V40AD carries into the search
 
-MB &4B59 : one instruction, LD BC,&0001, jumped over by the JR NZ at &4B55.  It is split in the listing by a phantom label at &4B5B, and it is not an instance of the swallowed-opcode idiom the note there describes; see the notes
+MB &4B59 : BC = 1, the start element when the array is not two-dimensional; jumped over by the JR NZ at &4B55
 
 MB &4B69 : a subscript that opens with a comma or TO has no start element to read, so BC stays at one
 
@@ -195,3 +194,7 @@ MB &4F3E : a system-page address -- this block runs at &4CD3 once copied, so its
 # and two instructions that were not there.  The way to say "do not
 # follow this jump" is the Page's no_follow set in tools/dis_mb.py,
 # which the trace and split_entries both consult; &4F3E is in it.
+
+MB &4BA3 site LOCN_STRING_TOO_LONG
+MB &4BA3 : "String too long", shared by LOCN, INARRAY and COPY_STRING_TO_BUFFER
+MB &4C55 site FN_LOCN_SHIFT_LOOP

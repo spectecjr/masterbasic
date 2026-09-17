@@ -4448,7 +4448,7 @@ READ_CLOCK_FIELDS_DONE:
 ;; --------------------------------------------------------------------
 ;; Stamp the directory entry with the date and time.
 ;;
-;; MasterDOS calls this as it closes a file, through the hook at
+;; MasterDOS calls this as it closes a file, through CALLMB at
 ;; &4E53, and it is MasterBASIC's rather than the DOS's because the
 ;; code that reads the clock chip is MasterBASIC's.  The date and time
 ;; themselves are the DOS's: this routine takes them out of DATDT and
@@ -4537,8 +4537,10 @@ TWO_DIGITS_FROM_DE:
                LD A,(DE)                       ; 4A6A 1A
                INC DE                          ; 4A6B 13
                SUB CH_ZERO                     ; 4A6C D6 30  '0' off the tens digit. No check that it was a digit: the
-                                               ; buffer is the DOS's own DATDT/TIMDT, which PORT_BCD_DIGIT only ever
-                                               ; writes '0' to '9' into
+                                               ; buffers are the DOS's DATDT/TIMDT and this page's mirror at &4120, and
+                                               ; every writer of their digit positions -- PORT_BCD_DIGIT, the DATE and
+                                               ; TIME statements' IS_DIGIT filter, TWO_DIGITS_BEFORE_DE -- puts only '0'
+                                               ; to '9' there
                LD C,A                          ; 4A6E 4F
                ADD A,A                         ; 4A6F 87  doubled, doubled, plus itself is five times, doubled again is
                                                ; ten -- four one-byte instructions where the Z80 has no multiply
@@ -4719,8 +4721,7 @@ TICS_DIVIDE_BY_5416:
 ;;
 ;; The AND A before the SBC HL,BC is there to clear the carry the last
 ;; doubling left, and the SBC A,&00 after it carries the borrow out of
-;; HL into the top byte.  Both calls come from TICS; the labels part of
-;; the way down are phantoms, not entry points -- see the notes.
+;; HL into the top byte.  Both calls come from TICS.
 ;; --------------------------------------------------------------------
 
 ; ---- MULTIPLY_BY_60 ---- from &4AA0, &4AAB
@@ -4849,7 +4850,7 @@ FN_INARRAY:
                                                ; array to find -- the jump skips the variable lookup and lets EXPSTR at
                                                ; &4B85 check the first argument as a plain string expression, then the
                                                ; comma and the second
-               JR Z,FN_INARRAY_2               ; 4B42 28 41
+               JR Z,FN_INARRAY_1               ; 4B42 28 41
                PUSH HL                         ; 4B44 E5
                CALL FIND_VARIABLE              ; 4B45 CD D5 43
                LD HL,STACK_BC_AS_INTEGER       ; 4B48 21 6B 4C
@@ -4863,13 +4864,11 @@ FN_INARRAY:
                OR D                            ; 4B51 B2  zero only when DE is exactly 1, which is the flag V40AD
                                                ; carries into the search
                LD (V40AD),A                    ; 4B52 32 AD 40
-               JR NZ,FN_INARRAY_1              ; 4B55 20 05
+               JR NZ,INARRAY_START_ELEMENT     ; 4B55 20 05
                LD D,B                          ; 4B57 50
                LD E,C                          ; 4B58 59
-               DEFB &01,&01                    ; 4B59 ..  one instruction, LD BC,&0001, jumped over by the JR NZ at
-                                               ; &4B55. It is split in the listing by a phantom label at &4B5B, and it
-                                               ; is not an instance of the swallowed-opcode idiom the note there
-                                               ; describes; see the notes
+               LD BC,&0001                     ; 4B59 01 01 00  BC = 1, the start element when the array is not
+                                               ; two-dimensional; jumped over by the JR NZ at &4B55
 
 ;; --------------------------------------------------------------------
 ;; INARRAY's first argument, read twice.  FIND_VARIABLE has parsed a$(
@@ -4883,11 +4882,8 @@ FN_INARRAY:
 ;; GETSTR hand the search the element to start from.
 ;; --------------------------------------------------------------------
 
+; ---- INARRAY_START_ELEMENT ---- from &4B55
 INARRAY_START_ELEMENT:
-               NOP                             ; 4B5B 00
-
-; ---- FN_INARRAY_1 ---- from &4B55
-FN_INARRAY_1:
                LD (V40A2),DE                   ; 4B5C ED 53 A2 40
                PUSH HL                         ; 4B60 E5
                INC BC                          ; 4B61 03
@@ -4916,8 +4912,8 @@ INARRAY_START_ELEMENT_1:
                DEFW CHADD                      ; 4B83 97 5A  CHADD rewound to the array name -- the HL pushed at &4B44
                                                ; -- so EXPSTR at &4B85 re-parses the whole reference as a string
 
-; ---- FN_INARRAY_2 ---- from &4B42
-FN_INARRAY_2:
+; ---- FN_INARRAY_1 ---- from &4B42
+FN_INARRAY_1:
                CALL CALL_EXPSTR                   ; 4B85 CD 7C 44
                CALL EXPECT_COMMA                  ; 4B88 CD 50 44
                CALL PARSE_STRING_AND_OPTIONAL_ABS ; 4B8B CD 33 4D
@@ -4940,9 +4936,10 @@ FN_LOCN_1:
                CP &3F                          ; 4BA1 FE 3F  B is the high byte of the span, so anything from &3F00
                                                ; bytes up falls into the error at &4BA3
 
-; ---- INARRAY_START_ELEMENT_2 ---- from &4C33 when A <> 0
-INARRAY_START_ELEMENT_2:
-               LD A,&2A                        ; 4BA3 3E 2A  error 42, "String too long"
+; ---- LOCN_STRING_TOO_LONG ---- from &4C33 when A <> 0
+LOCN_STRING_TOO_LONG:
+               LD A,&2A                        ; 4BA3 3E 2A  "String too long", shared by LOCN, INARRAY and
+                                               ; COPY_STRING_TO_BUFFER
                JP NC,REPORT                    ; 4BA5 D2 BE 43
                LD (V409E),HL                   ; 4BA8 22 9E 40
                LD (V40A0),BC                   ; 4BAB ED 43 A0 40
@@ -5056,7 +5053,7 @@ COPY_STRING_TO_BUFFER:
                OUT (HMPR),A                    ; 4C2F D3 FB
                LD A,B                          ; 4C31 78
                AND A                           ; 4C32 A7
-               JP NZ,INARRAY_START_ELEMENT_2   ; 4C33 C2 A3 4B
+               JP NZ,LOCN_STRING_TOO_LONG      ; 4C33 C2 A3 4B
                LD A,C                          ; 4C36 79
                LD (V4098),A                    ; 4C37 32 98 40
                AND A                           ; 4C3A A7
@@ -5083,11 +5080,11 @@ FN_LOCN_2:
                                                ; other way -- an 8K block number and an offset within it, turned back
                                                ; into the flat address LOCN reports
 
-; ---- COPY_STRING_TO_BUFFER_LOOP ---- from &4C58 when B is not 0 yet
-COPY_STRING_TO_BUFFER_LOOP:
+; ---- FN_LOCN_SHIFT_LOOP ---- from &4C58 when B is not 0 yet
+FN_LOCN_SHIFT_LOOP:
                RRA                             ; 4C55 1F
                RR H                            ; 4C56 CB 1C
-               DJNZ COPY_STRING_TO_BUFFER_LOOP ; 4C58 10 FB
+               DJNZ FN_LOCN_SHIFT_LOOP         ; 4C58 10 FB
                AND &0F                         ; 4C5A E6 0F  the top byte of the flat address. Blocks are counted from
                                                ; the ROM here, so page 31's upper block is block 65 and A can reach 8 --
                                                ; four bits are needed, unlike PAGED_TO_LONG's RAM-only page count at
@@ -5139,7 +5136,7 @@ GET_PAGED_ADDRESS:
                LD L,C                          ; 4C80 69
                LD B,&03                        ; 4C81 06 03  three places, which is what turns a flat address into an 8K
                                                ; block number and a windowed offset -- the banner above counts the
-                                               ; shifts and COPY_STRING_TO_BUFFER_LOOP undoes them
+                                               ; shifts and FN_LOCN_SHIFT_LOOP undoes them
 
 ; ---- GET_PAGED_ADDRESS_LOOP ---- from &4C86 when B is not 0 yet
 GET_PAGED_ADDRESS_LOOP:
@@ -7067,15 +7064,15 @@ HOOK_RCPTCH_4:
                LD (&8D2D),A                    ; 5256 32 2D 8D  &4D2D seen through the window, the code buffer; not the
                                                ; DOS's &4D2D
                LD A,&24                        ; 5259 3E 24  &24 into the code buffer at &4D38, patching what
-                                               ; BUILD_COMPILER laid down two instructions earlier
+                                               ; BUILD_COMPILER laid down at &5252, three instructions earlier
                LD (&8D38),A                    ; 525B 32 38 8D  &4D38 seen through the window
                LD A,(CHADP+IN_PAGE_C)          ; 525E 3A 96 9A
                OUT (HMPR),A                    ; 5261 D3 FB
                POP DE                          ; 5263 D1
                POP BC                          ; 5264 C1
                POP AF                          ; 5265 F1
-               CP T_CLEAR                      ; 5266 FE B3  the token that came in, so CLEAR leaves with what was built
-                                               ; and RUN with DE
+               CP T_CLEAR                      ; 5266 FE B3  the token that came in, so CLEAR leaves with the address
+                                               ; popped from beneath in BC and RUN with DE
                JR Z,HOOK_RCPTCH_5              ; 5268 28 02
                LD B,D                          ; 526A 42
                LD C,E                          ; 526B 4B
@@ -7137,7 +7134,8 @@ FIND_PROGRAM_END_LOOP:
 ;; Reads NVARS as a word and branches on its high byte.  &BB or more
 ;; gathers NVARSP and RAMTOP -- the ROM's pointers to the variables area
 ;; and the top of BASIC's memory -- and, with &700 to spare below RAMTOP,
-;; opens &0500 zeroed bytes at the program's end; below that goes to a
+;; opens &0500 bytes at the program's end and zeroes all but the first
+;; (the LDIR runs &04FE from the byte after it); below that goes to a
 ;; second path at &52D5, which walks the program instead, measures its
 ;; end to NVARS and hands the gap to the ROM's RECLAIM2 to close, unless
 ;; the program's own end is at &BB00 or above, when the gap is kept.
@@ -7279,7 +7277,9 @@ HOOK_VARSPACE_4:
 ;;
 ;; AND WHY IT WALKS AT ALL IS THE DESTINATION.  Each path ends by
 ;; putting an address in BC, and HOOK_RCPTCH_5 writes BC over the return
-;; address on the stack CALLDOS saved in HOOK_ROM_SP, so the ROM resumes there.
+;; address on the stack through HOOK_ROM_SP -- the pointer the last
+;; CALLDOS left there, which nothing between the DOS's CALLMB and the
+;; write at &526C disturbs -- so the ROM resumes there.
 ;; Two of the three are ROM addresses the boot searches out, and the
 ;; build resolves both against ref/samrom:
 ;;
@@ -7737,8 +7737,8 @@ HOOK_MERGECOMPFLG_LOOP3:
                JR NZ,HOOK_MERGECOMPFLG_2       ; 543E 20 06
                POP HL                          ; 5440 E1
                POP DE                          ; 5441 D1  so DE is left as the start of the (now emptied) edit line and
-                                               ; the recall simply produces a blank line -- the manual's "come back to
-                                               ; where you were when you came in"
+                                               ; the recall simply produces a blank line, what lies past the newest
+                                               ; entry
                JR HOOK_MERGECOMPFLG_4          ; 5442 18 2A
 
 ; ---- HOOK_MERGECOMPFLG_LOOP4 ---- from &5449 when A <> CH_CR
@@ -7830,8 +7830,8 @@ HOOK_MERGECOMPFLG_5:
 ;; line-storage buffer and come back to where you were".
 ;;
 ;; From &5493 on it does something further, and it is the two-gate test
-;; that lets REF resume.  The byte at REF_RETURN_COUNT, which SCAN_TEXT_PAGED set
-;; to 2, is counted down by the DEC (HL) at &5499 -- so the first line
+;; that lets REF resume.  The byte at REF_RETURN_COUNT, which REF_SHOW_LINE set
+;; to 2 at &5706, is counted down by the DEC (HL) at &5499 -- so the first line
 ;; entry leaves 1 and the second reaches 0 -- and reaching zero is
 ;; necessary but not enough.  &549B then does LD A,(BC) : CP CH_CR :
 ;; RET NZ, with BC the ELINE the POP at &5492 restored, so the search
@@ -20528,7 +20528,7 @@ RESOLVE_ROM_ENTRIES:
                LD (CALL_LKFC+1),HL               ; 7A2D 22 29 74  patches the operand of the CALL at &7428
                CALL DOS_FIND_ROM_CODE            ; 7A30 CD 79 BD
                DEFB &CF,&82,&C9,&E2,&00,&04      ; 7A33 signature CF 82 C9 from &E200, +4  -> &E2BA
-               LD (TAPE_JP_LDVD3+1),HL           ; 7A39 22 C0 7D  patches the operand of the JP at &7DBF
+               LD (TAPE_JP_LDBYTES+1),HL         ; 7A39 22 C0 7D  patches the operand of the JP at &7DBF
                CALL DOS_FIND_ROM_CODE            ; 7A3C CD 79 BD
                DEFB &79,&E6,&60,&13,&00,&F8      ; 7A3F signature 79 E6 60 from &1300, -8  -> &13AA LOOKVARS
                LD (LOOKVARS_WORD),HL             ; 7A45 22 EA 45  patches the operand of the CALL at &45E7
@@ -21035,9 +21035,10 @@ EVALUV_STUB_1:
 ;;             this half's code, sitting in the ROM's variable area.
 ;;     &4D11   CDBUFF+&11, the ROM's code buffer -- "for e.g. MULTI-LDI,
 ;;             max len &181".  The code called there is built at run
-;;             time by the routine at &735D, which LDIRs 66 bytes from
-;;             ROM &0000 and 219 bytes from &7385 into it and then
-;;             patches two of them.
+;;             time by BUILD_COMPILER at &735D, which LDIRs 66 bytes
+;;             of the ROM's DOCOMP -- the operand the boot found by
+;;             signature -- and 219 bytes from &7385 into it and then
+;;             patches four of its bytes.
 ;;     &5A9F   PROGP and &5AA0 PROG, read and written directly rather
 ;;             than through NRRD, because with the system page at &4000
 ;;             they are simply there.  &7350 confirms the pair: the same
@@ -21062,7 +21063,7 @@ EVALUV_STUB_1:
 ;; &7BA4-&7E42 is called or jumped to from outside that range -- every
 ;; outside reference into it, &7B51, &6430, &7214, &7B5F and &7B78, is
 ;; a block-copy source or destination, never a call or a jump.
-;; Every entry is reached only from within the block.  Nothing calls into it where it
+;; Nothing calls into it where it
 ;; sits, so it never runs in place, and the copy is the only version
 ;; that executes.  The helper block at &7B80 just above it is the
 ;; opposite -- called from &5561, &5739, &691C and &6A76 -- which is how
@@ -21137,7 +21138,10 @@ RELOCATED_TO_484D:
                                                ; KCUR less one is what the manual's "cursor just after the reference"
                                                ; means
                RET                             ; 7BBC C9
-               LD A,(FLAGX)                    ; 7BBD 3A 71 5C
+
+EDITV_ENTRY:
+               LD A,(FLAGX)                    ; 7BBD 3A 71 5C  where EDITV points once installed, &4866: the ROM's
+                                               ; editor comes in here
                AND &20                         ; 7BC0 E6 20  bit 5 of FLAGX, which the ROM sets while an INPUT is in
                                                ; progress
                JR NZ,RELOCATED_TO_484D_1       ; 7BC2 20 1C
@@ -21174,13 +21178,18 @@ RELOCATED_TO_484D_1:
                LD HL,(XPTR)                    ; 7BE0 2A A3 5A
                RST ERR_HOOK                    ; 7BE3 CF
                DEFB HKC_EDIT_INSERT            ; 7BE4 B9 hook code
-               LD HL,&7FE6                     ; 7BE5 21 E6 7F  the stack MasterBASIC hands the DOS -- the same &7FE6
-                                               ; the boot writes into &5C59
+
+CMDV_ENTRY:
+               LD HL,&7FE6                     ; 7BE5 21 E6 7F  where CMDV points once installed, &488E, so every
+                                               ; command token comes in here -- the RST above never returns to it,
+                                               ; HOOK_EDIT_INSERT having replaced its return address with &4D50. HL is
+                                               ; the stack MasterBASIC hands the DOS, the same &7FE6 the boot writes
+                                               ; into &5C59
                LD (DOSSTK),HL                  ; 7BE8 22 59 5C
                LD H,A                          ; 7BEB 67
                LD A,(NVARS+1)                  ; 7BEC 3A 89 5A  the high byte of NVARS. The ROM's table marks it "(2)",
                                                ; so the numeric-variables pointer is two bytes and this is its top half
-               CP &BE                          ; 7BEF FE BE  &BE00 is within &200 bytes of &BFBF, the top of the window,
+               CP &BE                          ; 7BEF FE BE  &BE00 is within &200 bytes of &C000, the top of the window,
                                                ; so the numeric variables have nearly run out of room -- which is what
                                                ; the hook below is raised to fix
                JR C,RELOCATED_TO_484D_2        ; 7BF1 38 04
@@ -21266,7 +21275,9 @@ RELOCATED_TO_484D_3:
 ;; so &98 itself falls through to the CP &FF at &7C8E and returns
 ;; untouched.
 ;;
-;; with &FD and &FF, which the ROM's table does not name, handled last.
+;; &FD EDIT, compared at &7C7E, and &FF, the function prefix, which the
+;; ROM's table does not name, are tested too: EDIT goes to hook 183,
+;; and &FF is let through by the RET NZ at &7C90.
 ;;
 ;; PUT goes to TOKEN_TO_FN_INDEX, the ten bytes installed at &45A2,
 ;; which reads the token after PUT, subtracts &AB (GRAB) and stores
@@ -21584,7 +21595,8 @@ SAVE_BOOT_BLOCK_1:
 ;; --------------------------------------------------------------------
 ;; MasterBASIC's character output, which runs at &49A9 -- the address
 ;; the listing already had an equate for, SYS_PATOUT_CHAR_OUT, because
-;; PATOUT is one of the ROM vectors the first stub redirects.  It reads
+;; PATOUT is one of the ROM vectors INSTALL_ROM_VECTORS points into this
+;; block, at &772D-&7730.  It reads
 ;; DMPFG, then DEVICE, then SYS_CHAR_WIDTH and SYS_CHAR_HEIGHT, and
 ;; hands a character to PRINT_SIZED_CHAR or PRINT_MAGNIFIED_CHAR
 ;; accordingly.
@@ -21699,9 +21711,7 @@ JP_NZ_PRMAIN:
 
 ; ---- AT_TAB_HOOK ---- from &7D50 when A = &16
 AT_TAB_HOOK:
-               DEFB &32                        ; 7D57 2
-               CP (HL)                         ; 7D58 BE
-               LD E,E                          ; 7D59 5B
+               LD (TVDATA),A                   ; 7D57 32 BE 5B
                LD HL,(CURCHL)                  ; 7D5A 2A 51 5C
                LD E,(HL)                       ; 7D5D 5E
                INC HL                          ; 7D5E 23
@@ -21853,7 +21863,9 @@ CURSOR_PATTERNS:
 ;; and &4A64 once installed: AND A here clears carry for a verify, and
 ;; the LD A,&37 two bytes on -- entered in its middle, its &37 is an
 ;; SCF -- sets it for a load.  Then EXX, A = &FF for a data block, and
-;; the JP to LDVD3 that the boot fills at &7A39.  HOOK_HLOAD and HVERY
+;; the JP to LDVD3+1 -- the CALL LDBYTES, past LDVD3's own POP AF,
+;; which would throw away that A and carry -- that the boot fills at
+;; &7A39.  HOOK_HLOAD and HVERY
 ;; in the DOS load the two addresses.
 ;; --------------------------------------------------------------------
 
@@ -21869,7 +21881,7 @@ TAPE_VERIFY_STUB:
                                                ; Its comment gives the two values -- "01=HEADER, FF=DATA" -- so this
                                                ; asks for a data block
 
-TAPE_JP_LDVD3:
+TAPE_JP_LDBYTES:
                JP &0000                        ; 7DBF C3 00 00  the operand is written here at run time, from &7A39
 
 ;; --------------------------------------------------------------------

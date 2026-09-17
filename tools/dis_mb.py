@@ -1361,6 +1361,11 @@ def seeds(dos, mb):
     # &4A84, not for this page's TICS arithmetic, where it had split
     # CALL WAIT_FOR_CLOCK at &4A83 into a DEFB and two phantoms.
     mb.no_follow.add(0x4F3E)
+    # And the CALL &4B5B at &5DAB, in the trampoline CMD_KEYIN builds:
+    # &4B5B is where CMD_KEYIN_1 lands in the block being built, and
+    # following it here split the LD BC,&0001 at &4B59 and put the
+    # phantom label the clock notes had lived with.
+    mb.no_follow.add(0x5DAB)
     # &5FB9 rather than &5FD8: the system page calls it there, with
     # LD A,&1C : LD HL,&9FB9 : CALL PAGER at &48DA.
     # &63F6 used to be in this list and should not have been.  Its only
@@ -4204,6 +4209,12 @@ def split_entries(d, rounds=8):
             if refs and not any(
                     r in d.insns and d.insns[r].text.startswith(
                         ('CALL', 'JP ', 'JR ', 'DJNZ')) for r in refs):
+                continue
+            # A TBL_ name with nothing referring to it is a run of bytes
+            # that happened to read as pointers, which drop_stray_labels
+            # removes later; taken as an entry here it split the LD
+            # (TVDATA),A at &7D57 into a DEFB and two phantoms.
+            if name.startswith('TBL_') and not refs:
                 continue
             inside[a] = name
         for a, name in sorted(inside.items()):

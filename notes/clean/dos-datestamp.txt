@@ -12,7 +12,7 @@ MB &4A39 STAMP_WITH_DATE
 DOC STAMP_WITH_DATE
     Stamp the directory entry with the date and time.
 
-    MasterDOS calls this as it closes a file, through the hook at
+    MasterDOS calls this as it closes a file, through CALLMB at
     &4E53, and it is MasterBASIC's rather than the DOS's because the
     code that reads the clock chip is MasterBASIC's.  The date and time
     themselves are the DOS's: this routine takes them out of DATDT and

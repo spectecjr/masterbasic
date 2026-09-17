@@ -79,7 +79,8 @@ MB &7E21 : and the same five on SYS_CHAR_WIDTH in L, so either factor being that
 MB &7D00 PATOUT_CHAR_OUT
     MasterBASIC's character output, which runs at &49A9 -- the address
     the listing already had an equate for, SYS_PATOUT_CHAR_OUT, because
-    PATOUT is one of the ROM vectors the first stub redirects.  It reads
+    PATOUT is one of the ROM vectors INSTALL_ROM_VECTORS points into this
+    block, at &772D-&7730.  It reads
     DMPFG, then DEVICE, then SYS_CHAR_WIDTH and SYS_CHAR_HEIGHT, and
     hands a character to PRINT_SIZED_CHAR or PRINT_MAGNIFIED_CHAR
     accordingly.
@@ -204,7 +205,9 @@ DOC DISPATCH_ON_COMMAND_TOKEN
     so &98 itself falls through to the CP &FF at &7C8E and returns
     untouched.
 
-    with &FD and &FF, which the ROM's table does not name, handled last.
+    &FD EDIT, compared at &7C7E, and &FF, the function prefix, which the
+    ROM's table does not name, are tested too: EDIT goes to hook 183,
+    and &FF is let through by the RET NZ at &7C90.
 
     PUT goes to TOKEN_TO_FN_INDEX, the ten bytes installed at &45A2,
     which reads the token after PUT, subtracts &AB (GRAB) and stores
@@ -277,13 +280,13 @@ MB &5245 : the four bytes at RCPTCH_PATCH_BYTES, a CALL and a JP with the JP's o
 
 MB &524B : three past where the copy stopped: the ROM's CALL DOCOMP, which the CALL &4D14 just laid down replaces, so the JP re-enters the ROM at the instruction after it, CALL MCLS
 
-MB &5259 : &24 into the code buffer at &4D38, patching what BUILD_COMPILER laid down two instructions earlier
+MB &5259 : &24 into the code buffer at &4D38, patching what BUILD_COMPILER laid down at &5252, three instructions earlier
 
 MB &5256 : &4D2D seen through the window, the code buffer; not the DOS's &4D2D
 MB &525B : &4D38 seen through the window
 
 MB &5266 value T_CLEAR
-MB &5266 : the token that came in, so CLEAR leaves with what was built and RUN with DE
+MB &5266 : the token that came in, so CLEAR leaves with the address popped from beneath in BC and RUN with DE
 
 DOC HOOK_TOKENARG
     Hook 177: the character after an &FF prefix, dispatched four ways.
@@ -328,7 +331,9 @@ DOC HOOK_TOKENARG
 
     AND WHY IT WALKS AT ALL IS THE DESTINATION.  Each path ends by
     putting an address in BC, and HOOK_RCPTCH_5 writes BC over the return
-    address on the stack CALLDOS saved in HOOK_ROM_SP, so the ROM resumes there.
+    address on the stack through HOOK_ROM_SP -- the pointer the last
+    CALLDOS left there, which nothing between the DOS's CALLMB and the
+    write at &526C disturbs -- so the ROM resumes there.
     Two of the three are ROM addresses the boot searches out, and the
     build resolves both against ref/samrom:
 

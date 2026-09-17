@@ -33,9 +33,10 @@ DOC RELOCATED_TO_484D
                 this half's code, sitting in the ROM's variable area.
         &4D11   CDBUFF+&11, the ROM's code buffer -- "for e.g. MULTI-LDI,
                 max len &181".  The code called there is built at run
-                time by the routine at &735D, which LDIRs 66 bytes from
-                ROM &0000 and 219 bytes from &7385 into it and then
-                patches two of them.
+                time by BUILD_COMPILER at &735D, which LDIRs 66 bytes
+                of the ROM's DOCOMP -- the operand the boot found by
+                signature -- and 219 bytes from &7385 into it and then
+                patches four of its bytes.
         &5A9F   PROGP and &5AA0 PROG, read and written directly rather
                 than through NRRD, because with the system page at &4000
                 they are simply there.  &7350 confirms the pair: the same
@@ -67,7 +68,7 @@ DOC RELOCATED_TO_484D
     &7BA4-&7E42 is called or jumped to from outside that range -- every
     outside reference into it, &7B51, &6430, &7214, &7B5F and &7B78, is
     a block-copy source or destination, never a call or a jump.
-    Every entry is reached only from within the block.  Nothing calls into it where it
+    Nothing calls into it where it
     sits, so it never runs in place, and the copy is the only version
     that executes.  The helper block at &7B80 just above it is the
     opposite -- called from &5561, &5739, &691C and &6A76 -- which is how
@@ -144,12 +145,12 @@ MB &7BCF : &5A62 is another of the fourteen spare bytes, holding the return addr
 
 MB &7BD6 : back off the spare byte, and the INCs below restore the three
 
-MB &7BE5 : the stack MasterBASIC hands the DOS -- the same &7FE6 the boot writes into &5C59
+MB &7BE5 : where CMDV points once installed, &488E, so every command token comes in here -- the RST above never returns to it, HOOK_EDIT_INSERT having replaced its return address with &4D50.  HL is the stack MasterBASIC hands the DOS, the same &7FE6 the boot writes into &5C59
 
 MB &7BEC expr NVARS+1
 MB &7BEC : the high byte of NVARS.  The ROM's table marks it "(2)", so the numeric-variables pointer is two bytes and this is its top half
 
-MB &7BEF : &BE00 is within &200 bytes of &BFBF, the top of the window, so the numeric variables have nearly run out of room -- which is what the hook below is raised to fix
+MB &7BEF : &BE00 is within &200 bytes of &C000, the top of the window, so the numeric variables have nearly run out of room -- which is what the hook below is raised to fix
 
 MB &7BF7 expr WORKSP+1
 MB &7BF7 : the high byte of WORKSP, a two-byte pointer in the same way

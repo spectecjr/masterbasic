@@ -176,7 +176,7 @@ MB &5434 : forwards first over the rest of the entry showing now, to the CR that
 
 MB &543B : a zero byte after that CR is the end-of-history marker written at &5490.  Reaching it means there is nothing newer
 
-MB &5441 : so DE is left as the start of the (now emptied) edit line and the recall simply produces a blank line -- the manual's "come back to where you were when you came in"
+MB &5441 : so DE is left as the start of the (now emptied) edit line and the recall simply produces a blank line, what lies past the newest entry
 
 MB &5446 : two entry points into one counting loop: the first character has already been fetched by the end-of-history test above, the rest come from &5444
 
@@ -210,8 +210,8 @@ DOC HOOK_MERGECOMPFLG_6
     line-storage buffer and come back to where you were".
 
     From &5493 on it does something further, and it is the two-gate test
-    that lets REF resume.  The byte at REF_RETURN_COUNT, which SCAN_TEXT_PAGED set
-    to 2, is counted down by the DEC (HL) at &5499 -- so the first line
+    that lets REF resume.  The byte at REF_RETURN_COUNT, which REF_SHOW_LINE set
+    to 2 at &5706, is counted down by the DEC (HL) at &5499 -- so the first line
     entry leaves 1 and the second reaches 0 -- and reaching zero is
     necessary but not enough.  &549B then does LD A,(BC) : CP CH_CR :
     RET NZ, with BC the ELINE the POP at &5492 restored, so the search

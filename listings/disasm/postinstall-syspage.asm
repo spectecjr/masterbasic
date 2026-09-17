@@ -792,11 +792,8 @@ JP_NZ_PRMAIN:
                DEFB &C2,&CC,&01                                                 ; 49FD BL.
 
 AT_TAB_HOOK:
-               DEFB &32                                                         ; 4A00 2
-
-TBL_7D58:
-               DEFB &BE,&5B,&2A,&51,&5C,&5E,&23,&56,&ED,&53,&B5,&5A,&11,&12,&4A ; 4A01 >[*Q\^#VmS5Z..J
-               DEFB &18,&06                                                     ; 4A10 ..
+               DEFB &32,&BE,&5B,&2A,&51,&5C,&5E,&23,&56,&ED,&53,&B5,&5A,&11,&12 ; 4A00 2>[*Q\^#VmS5Z..
+               DEFB &4A,&18,&06                                                 ; 4A0F J..
 
 AT_TAB_FIRST_OPERAND:
                DEFB &32,&BF,&5B,&11,&1F,&4A                                     ; 4A12 2?[..J
@@ -828,7 +825,7 @@ CURSOR_PATTERNS:
 TAPE_VERIFY_STUB:
                DEFB &A7,&3E,&37,&D9,&3E,&FF                                     ; 4A62 '>7Y>.
 
-TAPE_JP_LDVD3:
+TAPE_JP_LDBYTES:
                DEFB &C3,&BA,&E2                                                 ; 4A68 C:b
 
 EXIT_FOR_STUB:

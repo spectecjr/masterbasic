@@ -461,7 +461,7 @@ MB &53B5 READ_KEY_LINE
     line.  Which of the two the seven-read settling loop is waiting on is
     not established here, and the name says only what the routine does.
 
-MB &4B5B INARRAY_START_ELEMENT
+MB &4B5C INARRAY_START_ELEMENT
     INARRAY's first argument, read twice.  FIND_VARIABLE has parsed a$(
     and returned the dimensions; if the variable is a two-dimensional
     array (V40AD non-zero: FIND_VARIABLE's second dimension was not 1,
@@ -512,7 +512,7 @@ MB &4D33 PARSE_STRING_AND_OPTIONAL_ABS
 
 MB &42CC : the page for LMPR, through H because OUT (C),r has no immediate form and H is the register free here.  Zero in the file; the boot writes the DOS's page number less one over it from DOS &40F0, so that the DOS lands in section B -- &49D4 and &641F say the same
 MB &426B expr CH_ZERO
-MB &4C81 : three places, which is what turns a flat address into an 8K block number and a windowed offset -- the banner above counts the shifts and COPY_STRING_TO_BUFFER_LOOP undoes them
+MB &4C81 : three places, which is what turns a flat address into an 8K block number and a windowed offset -- the banner above counts the shifts and FN_LOCN_SHIFT_LOOP undoes them
 MB &58D7 : B cleared, so the C below is a byte count for the sixteen-bit work that follows
 MB &62CF : &FE, so &FE00 -- &E500 plus &1900, the end of the input buffer, and past it the byte comes from the DOS's LBYT instead.  The same test READ_NEXT_NIBBLE makes at &637D
 MB &4297 expr PAGEMASK
