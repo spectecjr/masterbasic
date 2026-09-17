@@ -20948,7 +20948,7 @@ MCHRD_STUB:
                PUSH BC                         ; 7B8C C5
                POP AF                          ; 7B8D F1
                RET                             ; 7B8E C9
-               NOP                             ; 7B8F 00
+               DEFB &00                        ; 7B8F .  zero fill
 
 ;; --------------------------------------------------------------------
 ;; What PRTOKV points at, installed at &4BB0.

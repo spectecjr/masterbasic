@@ -136,6 +136,89 @@ INVENTED = re.compile(r'\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b')
 DECLARES = re.compile(r'^\s*(?:RENAME|CONST)\s')
 
 
+# "the CALL at &7DDB": a mnemonic named beside an address is a claim
+# about the instruction there, and a rename or a re-decode can make it
+# false without touching the prose.  MNEMONIC_AT finds the claim; the
+# run of "X : Y : Z at &addr" that names a sequence is taken from its
+# first instruction.  Addresses in the blocks the boot copies into the
+# system page are the copy's, not this page's, and are not checked.
+MNEMONICS = ('LD|CALL|JP|JR|RST|POP|PUSH|CP|AND|OR|XOR|INC|DEC|ADD|ADC|SBC'
+             '|SUB|EX|EXX|LDIR|LDDR|LDI|LDD|DJNZ|RET|OUT|IN|BIT|SET|RES|RLA'
+             '|RRA|RL|RR|SRL|SLA|SRA|RLCA|RRCA|NOP|NEG|CPL|SCF|CCF|DI|EI'
+             '|CPIR|CPDR|HALT')
+MNEMONIC_AT = re.compile(
+    r'\b(' + MNEMONICS + r')(?: [A-Z(&][^ ]*)? at (?:(MB|DOS) )?&([0-9A-F]{4})\b')
+SEQUENCE = re.compile(
+    r'((?:\b(?:' + MNEMONICS + r')(?: [A-Z(&][^ ]*)?(?: : | / | then )){1,6})$')
+# "the CALL and JP at &7DFA and &7E00": two claims in one phrase.
+PAIR_AT = re.compile(
+    r'\b(' + MNEMONICS + r')(?: [A-Z(&][^ ]*)? and (' + MNEMONICS +
+    r')(?: [A-Z(&][^ ]*)? at (?:(MB|DOS) )?&([0-9A-F]{4}) and &([0-9A-F]{4})\b')
+PAGE_LINE = re.compile(r'^(MB|DOS)\s')
+# (lo, hi) in this page's numbering: the system-page copies the
+# installer makes, whose operands and addresses mean the copy.
+SYSPAGE_COPIES = ((0x45A2, 0x46CC), (0x46CC, 0x484D), (0x484D, 0x4AEC),
+                  (0x4BA0, 0x4BC4), (0x4C14, 0x4CB5), (0x4CD3, 0x4E2E),
+                  (0x4F00, 0x50E7), (0x5896, 0x58BE), (0x5BE0, 0x5BEE))
+
+
+def instruction_starts():
+    """{'MB': {addr: mnemonic}, 'DOS': {...}} from the reading copies."""
+    out = {}
+    for tag, part in (('DOS', 'masterdos'), ('MB', 'masterbasic')):
+        starts = {}
+        path = os.path.join(ROOT, 'listings', 'clean', part + '.asm')
+        for line in open(path, encoding='utf-8'):
+            m = re.match(r'^\s+([A-Z]+)\b.*?;\s([0-9A-F]{4})\s', line)
+            if m:
+                mnemonic = m.group(1)
+                # A skip byte is written as DEFB SKIP_n_VIA_x and its
+                # comment says what it reads as from here; prose that
+                # names it by that reading is right.
+                r = re.search(r'reads as ([A-Z]+)', line)
+                if mnemonic == 'DEFB' and r:
+                    mnemonic = r.group(1)
+                starts[int(m.group(2), 16)] = mnemonic
+        out[tag] = starts
+    return out
+
+
+def check_mnemonics():
+    """Every "the X at &addr" in the prose names the instruction there."""
+    starts = instruction_starts()
+    bad = []
+    for rel, path in prose_files():
+        page = None
+        for n, line in enumerate(open(path, encoding='utf-8'), 1):
+            m = PAGE_LINE.match(line)
+            if m:
+                page = m.group(1)
+            claims = []
+            rest = line
+            for m in PAIR_AT.finditer(line):
+                tag = m.group(3) or page
+                claims.append((m.group(1), tag, int(m.group(4), 16)))
+                claims.append((m.group(2), tag, int(m.group(5), 16)))
+                rest = rest.replace(m.group(0), ' ' * len(m.group(0)))
+            for m in MNEMONIC_AT.finditer(rest):
+                claimed = m.group(1)
+                seq = SEQUENCE.search(rest[:m.start()])
+                if seq:
+                    claimed = re.match(r'[A-Z]+', seq.group(1)).group(0)
+                claims.append((claimed, m.group(2) or page, int(m.group(3), 16)))
+            for claimed, tag, addr in claims:
+                if tag is None or not 0x4000 <= addr < 0x7FC0:
+                    continue
+                if any(lo <= addr < hi for lo, hi in SYSPAGE_COPIES):
+                    continue
+                have = starts[tag].get(addr)
+                if have != claimed:
+                    bad.append('%s:%d says %s at %s &%04X; the listing has %s'
+                               % (rel, n, claimed, tag, addr,
+                                  have or 'no instruction starting there'))
+    return bad
+
+
 def read_listings():
     """(text at each address, every name defined).
 
@@ -525,6 +608,7 @@ def main():
                 if word not in names and (key, word) not in HISTORICAL:
                     bad.append('%s:%d names %s, which no longer exists'
                                % (rel, n, word))
+    bad.extend(check_mnemonics())
     for line in bad:
         print('  stale: ' + line)
     print('%d prose files check out against the listings%s'

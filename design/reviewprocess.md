@@ -644,6 +644,96 @@ that *were* true, beside a tree that has moved.
 
 ---
 
+## Reducing the rate at the source  (2026-09-17)
+
+Thirteen rounds say what a pass finds: about two-fifths of what a
+reader can find, every pass, on this half's prose.  That is sampling,
+not exhaustion, and the remaining errors are not the kind a pass is
+good at.  Sorting rounds 11 to 13 by class:
+
+| class | share | example |
+|---|---|---|
+| attribution -- the right fact credited to the wrong routine, register, page or path | ~40% | "the ROM's CMR" for this half's MBCMR; "the caller kept BC" for a routine that returns it; "the first stub" for INSTALL_ROM_VECTORS |
+| subsidiary numbers -- counts and offsets restated by hand | ~15% | "42 callers" (43), "20 of 671" (19), "fourteen bytes below" (ten), "five instructions" (four) |
+| stale cross-references -- prose about a label, note or reading that regeneration has since removed | ~15% | "the note there describes" with no note there; "phantoms part of the way down" for labels long gone; a site named for LDVD3 when the target is LDVD3+1 |
+| generator artefacts read as fact | ~10% | an instruction split by a phantom label and its halves commented as instructions; "nothing the trace can follow reaches it" over a live stub |
+| misquotation -- the manual or the source given in quotation marks and not verbatim | ~5% | "graphics mode ... you may prefer" for "bit-image mode ... it is better" |
+| contradictions between two banners, one updated and one not | ~5% | HOOK_ARGS_TO_HEADER right beside a DSCHD banner saying the opposite |
+| genuine misreadings of flow | ~10% | CLOSE #n for CLOSE *n; LPRINT CLEAR alone "sizes" the buffer |
+
+Every class but the last is a class a *rule* can shrink, and the
+generated banners are the evidence: sixty-odd headers written by the
+build from the bytes -- the REP stubs, the PTM messages, the ROM
+thunks, the hook stubs -- returned three findings in three rounds,
+all in the generator and fixed once, against about one in eight for
+hand-written banners.  What is derived cannot drift; what is
+restated can.  So, in the order of what they would have caught:
+
+1. **Generate the numbers.**  Caller counts, "falls into X", "N bytes
+   from &a to &b", the dump diffs, the "from" lists: every number in
+   the table above was restated by hand from something the build
+   already knows.  A `{callers}` or `{size}` the build expands inside
+   a DOC would have made four of round 12's findings impossible to
+   write.  Not done yet; the thunk headers show the shape.
+
+2. **Turn a reading into a declaration.**  Three phantom splits this
+   week -- FN_EQU's CALL, CALL WAIT_FOR_CLOCK, INARRAY's LD BC -- came
+   from the trace following a CALL or JP whose operand a notes `expr`
+   entry had already declared to be another page's address.  The
+   trace now reads the `expr` entries first and does not follow those
+   (dis_mb.py, seeds); the three hand-listed cases are the rule's
+   instances.  The general form: a note that says what an operand
+   *is* should also say what the trace may *do* with it, and the
+   trace should ask.
+
+3. **Check the claims that have a checkable shape.**  `checkdocs`
+   held names and quoted instructions; it holds "the CALL at &7DDB"
+   now -- a mnemonic named beside an address is a claim about the
+   instruction there, and a re-decode makes it false silently (round
+   13 found four of those; the check finds none today, which is what
+   a guard looks like after the sweep).  The same shape would serve
+   quotations: a quoted sentence attributed to the manual should be
+   in `docs/masterbasic-manual.md` verbatim, and a `"..." (manual)`
+   marker would make it checkable.  Not built; the quotation habit
+   is inconsistent enough that the check would be noise until the
+   marker is adopted.
+
+4. **One fact, one place.**  Two banners that state the same fact
+   drift apart at the first correction; DSCHD's said the opposite of
+   HOOK_ARGS_TO_HEADER's two lines down.  A banner that needs a fact
+   another banner owns should point at it, not restate it.  A rule
+   for writing, enforced by the second reader.
+
+5. **Write the notes so the syntax cannot mis-attach them.**  Two of
+   round 12's findings were paragraphs on the wrong label because an
+   indented block after a `:` line is that line's header by the
+   grammar.  `notes.py` reports the shape now.  The wider lesson is
+   the same as 2: when the syntax has a silent interpretation, make
+   it loud.
+
+6. **Attribution wants a different reader, not another pass.**  The
+   largest class is the one a fresh reader finds slowest, because it
+   requires following the cross-reference out of the region and
+   reading the other routine.  The third-pass brief asked for exactly
+   that and got nine `[C]`s.  A cheaper form: a *cross-reference
+   pass* whose cut is not a region but the set of claims one region
+   makes about another -- "X leaves it in HL", "Y falls into Z", "the
+   ROM's W does V" -- each checked at its target.  `cutregion.py`
+   could produce that list from the prose; a reader checks a list of
+   claims faster than a region.
+
+7. **Run it.**  Four suspected defects and the evidence-wanted items
+   are what no reading closes, and every pass has found the prose's
+   account of a mechanism -- the drive probe, the double-strike DUMP,
+   the year-00 stamp -- resting on a reading of the bytes that a
+   booted machine would settle in a minute.
+
+The first, third and sixth are tooling of a day each; the second and
+fifth are done; the fourth is a habit.  None replaces a reader, and
+the DOS half has not had a lower-case second pass outside phase 2.
+
+---
+
 ## Beyond this project
 
 Nothing above is specific to Z80. The shape generalises to any work where a

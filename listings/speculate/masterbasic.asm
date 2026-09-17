@@ -29909,7 +29909,7 @@ MCHWR_STUB:
                RET                             ; 7B88 C9
 
 ;; --------------------------------------------------------------------
-;; MCHRD_STUB -- &7B89 to &7B8E
+;; MCHRD_STUB -- &7B89 to &7B8F
 ;;
 ;; Takes:     nothing in registers
 ;; Leaves:    registers unchanged
@@ -29923,15 +29923,7 @@ MCHRD_STUB:
                PUSH BC                         ; 7B8C C5
                POP AF                          ; 7B8D F1
                RET                             ; 7B8E C9
-
-;; --------------------------------------------------------------------
-;; L7B8F -- &7B8F to &7B8F
-;;
-;; Takes:     nothing in registers
-;; Leaves:    registers unchanged
-;; --------------------------------------------------------------------
-
-               NOP                             ; 7B8F 00
+               DEFB &00                        ; 7B8F .  zero fill
 
 ;; --------------------------------------------------------------------
 ;; PRTOKV_STUB -- &7B90 to &7B99

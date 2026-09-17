@@ -1351,21 +1351,18 @@ def seeds(dos, mb):
     # window and the ROM's system page at &4000 -- LD DE,&4D50 and
     # JP &4D53 are in that page, and its &9E1F is this half's own &5E1F.
     mb.self_window.append((0x5D20, 0x5D32))
-    # And the JP &4D53 at &5D2F is not followed: the tracer took it into
-    # FN_EQU one byte past its CALL CALL_EXPSTR and left &4D52 an orphan
-    # DEFB &CD.  Not a rule for every self_window block -- several of
-    # those jump into this page and are right to -- so it is this one.
-    mb.no_follow.add(0x5D2F)
-    # The JP &4A84 at &4F3E is the same: the block HCMDV builds runs at
-    # &4CD3, and its jump leaves for the post-LOAD stub at system-page
-    # &4A84, not for this page's TICS arithmetic, where it had split
-    # CALL WAIT_FOR_CLOCK at &4A83 into a DEFB and two phantoms.
-    mb.no_follow.add(0x4F3E)
-    # And the CALL &4B5B at &5DAB, in the trampoline CMD_KEYIN builds:
-    # &4B5B is where CMD_KEYIN_1 lands in the block being built, and
-    # following it here split the LD BC,&0001 at &4B59 and put the
-    # phantom label the clock notes had lived with.
-    mb.no_follow.add(0x5DAB)
+    # A CALL or JP whose operand a notes/ `expr` entry rewrites is not
+    # followed: the note says the operand is something other than an
+    # address in this page -- the system page's &4D53 at &5D2F, &4A84
+    # at &4F3E, &4B5B at &5DAB, each in a block that runs elsewhere --
+    # and the tracer, which runs long before the notes are applied, had
+    # followed all three into the middle of this page's instructions
+    # and split them (FN_EQU's CALL, CALL WAIT_FOR_CLOCK, INARRAY's LD
+    # BC,&0001).  Three were found by hand, one review at a time; the
+    # rule is the note that was already there.
+    for e in notes.load(ROOT)[0] + notes.load(ROOT, 'notes/clean')[0]:
+        if e.get('kind') == 'expr' and e['page'] in ('DOS', 'MB'):
+            (dos if e['page'] == 'DOS' else mb).no_follow.add(e['addr'])
     # &5FB9 rather than &5FD8: the system page calls it there, with
     # LD A,&1C : LD HL,&9FB9 : CALL PAGER at &48DA.
     # &63F6 used to be in this list and should not have been.  Its only
