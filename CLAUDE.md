@@ -102,6 +102,14 @@ only.  `DOS` substitutes for `MB`.
     GROUP Heading                   the CONSTs after it, until the next GROUP
     RENAME OLD NEW
     DOC NAME                        banner; indented lines below are the text
+    MB &7465                        a bare address: the indented block below
+                                    is a banner at that address
+
+An indented block under a `:` line is a banner for that address too,
+and twice it was not meant to be -- the block sat under the nearest
+`:` line instead of the label it belonged to, and nothing said so.
+`notes.py` reports it now; a banner meant there takes a bare `MB &addr`
+line of its own, and a comment wrapped starts in the text's column.
 
 `RENAME` says what a label is called *now*, and synthetic numbering is
 not stable while the same file is renaming: naming two addresses took

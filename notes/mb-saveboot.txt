@@ -206,8 +206,7 @@ MB &42AD SAVE_BLOCK_FROM_DOS_PAGE
     byte with the DOS page less one -- so &8000-&BFFF is the DOS page,
     the one arrangement an &8xxx operand means by default.
 
-MB &42B3 : and here they meet: page set, A zeroed -- it is PGES1, the count of whole 16K pages, so none -- and the DOS's HSVBK_DWAIT called through CALLDOS: a DWAIT, then the HSVB2 loop, which leaves the last partial sector in the buffer for the next block
-
+MB &42B3
     WHAT MASTERBASIC'S PAGE ACTUALLY HOLDS AFTER A BOOT, which no dump
     showed until dumps/FullMemoryDump_After_MB_Load.bin.  MasterBASIC is
     page 28 and the DOS page 29; the file is 512K, 32 pages, and both
@@ -254,6 +253,8 @@ MB &42B3 : and here they meet: page set, A zeroed -- it is PGES1, the count of w
     and by then &7C00 is DOSBUF again, so the same comparison there
     gives 26 of 943 and means nothing.  A review has already made that
     substitution once and reported the copy as imperfect.
+
+MB &42B3 : and here they meet: page set, A zeroed -- it is PGES1, the count of whole 16K pages, so none -- and the DOS's HSVBK_DWAIT called through CALLDOS: a DWAIT, then the HSVB2 loop, which leaves the last partial sector in the buffer for the next block
 
 MB &647E-&6484 data BOOT_HEADER_FIELDS
 MB &647E : seven bytes of header, not an instruction; the LDIR at &642E is all that reads them

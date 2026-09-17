@@ -152,6 +152,21 @@ def parse(path):
                     and len(line) - len(line.lstrip()) == cur['col']):
                 cur['comment'] += ' ' + line.strip()
                 continue
+            # An indented block under a `:` line, at any other column, is
+            # a header for that line's address -- and twice it was not
+            # meant to be: HPRTOK's paragraphs landed on HGTTK_DONE, and
+            # ELCOMAL's on the CP after COMPILE_ELINE, because the block
+            # sat under the nearest `:` line rather than under the
+            # `MB &addr NAME` it belonged to.  Reported, so that the
+            # placement is a choice: a header at an address wants a bare
+            # `MB &addr` line of its own above the block.
+            if cur.get('comment') is not None and not cur['doc']:
+                bad.append('%s:%d: an indented block under a `:` line is '
+                           'a header for &%04X -- if that is meant, put a '
+                           'bare `%s &%04X` line above it; if it is the '
+                           'comment wrapped, start it in column %d'
+                           % (os.path.basename(path), n, cur['addr'],
+                              cur['page'], cur['addr'], cur.get('col', 0)))
             # Kept with its indentation, and dedented as a block below:
             # a layout table in a header is a table, and flattening every
             # line to the left margin turns it into a paragraph that
