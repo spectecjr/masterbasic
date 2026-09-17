@@ -68,7 +68,7 @@ MB &6EAD : the slash's address, retrieved through AF because HL and DE are both 
 MB &6EB3 : the length from the character after the line number up to and including the slash -- everything the edit line is about to lose
 MB &6EB7 : the real end of the edit line
 MB &6EBE : parked in PRPTR, which the ROM adjusts when the program moves
-MB &6EC3 : and the edit line's total length, wanted below
+MB &6EC3 : WORKSP less ELINE, the edit line's length -- but nothing reads it: HL is overwritten by the POP at &6ED1, so the subtraction is dead, and with it the ELINE read at &6E75 that feeds it
 MB &6EC6 : the page as well, into PRPTRP
 MB &6ED4 : the cut point plus two: WORKSP counts the CR and the byte after it
 MB &6EDB : the line number for INSERTLN
@@ -77,7 +77,7 @@ MB &6EE0 : PRPTR has been moved with the rest, so it now holds where WORKSP real
 MB &6EF4 : CHAD was adjusted too, and points just past the line number -- or one further on, since INSERTLN steps it over a single space
 MB &6EFB : its page, put into HMPR so HL addresses the edit line through the window
 MB &6F03 : the length worked out at &6EB3
-MB &6F04 : close it up -- the first half and the slash both disappear, leaving the line number and the remainder.  "The slash disappears automatically"
+MB &6F04 : close it up: BC bytes from wherever INSERTLN left CHAD -- the first half and the slash when CHAD is where &6E9E put it, a character further on when INSERTLN stepped past a space -- leaving the line number and the remainder.  "The slash disappears automatically"
 
 MB &6F07 SPLIT_UNWIND_ROM_STACK
     THE ROM'S RETURN CHAIN IS REWRITTEN, because the ROM must not now do
@@ -142,7 +142,7 @@ MB &6F34 : WRTBC leaves HL one past the low byte, so three DECs step down a word
 
 MB &6F3E : Z while the syntax is only being checked
 MB &6F43 : the byte at &5A60 is a ROM variable, not the code the label names
-MB &6F4F : a fixed &6C into whatever COMAD points at -- COMAD is the ROM's "start of cmd addr table in ROM0"
+MB &6F4F : a fixed &6C into whatever COMAD points at -- COMAD is the ROM's CMDADDRT, the address of CMDADT, which is in ROM 1 whatever vars.asm's "IN ROM0" says: that is why ROM 1 is paged in below before the word is read
 MB &6F53 : ROM 1 into &C000; nothing puts it back here, so the caller's paging is restored by the hook return
 MB &6F59 : the word found there becomes the ROM's return address, through the routine below
 
@@ -189,7 +189,7 @@ DOC CMD_DELETE
     add.  JOIN TO below is the same machinery with the sign the other
     way round.
 
-MB &6F62 : A is the first character of the name, HL is CHAD where the scan starts
+MB &6F62 : A is the DELETE token itself and HL is CHAD on it -- hook 178 is raised from the CMDV dispatcher before the ROM's RST &20 steps past the command, which is why the scan below opens with a NEXTCHAR and why &6F7F steps once more before the lookup
 MB &6F6E : the address the scan started at, not where it stopped
 MB &6F70 : CHAD put back, so the ROM can re-read the argument if this turns out not to be a string
 MB &6F76 : "$"
@@ -216,6 +216,17 @@ DOC ADJUST_VARIABLE_SIZE
     The high byte of the count travels in A through a PUSH AF and comes
     back in B through a POP BC, which is why the same word is pushed as
     AF and popped as BC.
+
+    THE SUBTRACT PATH DROPS ITS BORROW.  The POP AF at &6FC6 sits
+    between SBC HL,BC and SBC A,B, and the flags it restores are the
+    ones pushed at &6FBD -- PAGED_TO_LONG's, whose last instruction is
+    AND &07 with carry clear -- so the top byte is subtracted without
+    the low word's borrow.  The add path pops first and keeps its
+    carry.  A plain string never feels it (the CP &04 at &7150 keeps
+    strings under four pages, so the top byte is zero), but a string
+    array over 64K that DELETE takes more from than its low sixteen
+    bits hold would be left a page too long.  Read from the bytes, not
+    seen: docs/bugs.md 14.
 
     RES 7,D on the way out undoes the windowing LONGADDR_TO_PAGED puts
     in, so the value is stored as a plain count again, and OR D / OR E
@@ -283,7 +294,7 @@ MB &7025 : kept, because STRLOCN is about to be pointed at the second variable a
 MB &7029 : record+11: pages, then length mod 16K, then the body
 MB &702D : the page this is all happening in
 MB &7032 : plus the length's whole pages
-MB &7037 : record+13 plus the length mod 16K is the last byte of the body, and MKRBIG opens room after the byte it is given
+MB &7037 : record+13 plus the length mod 16K is the last byte of the body.  MKRBIG opens the room AT the byte it is given and moves that byte up with the rest; LDDR leaves the stale copy at HL, and the copy at &70D2 from HL+1 overwrites the moved one, so the text still reads first string then second
 MB &7038 : the sum carried out of sixteen bits, so it is four pages on and &8000 back -- two pages net, with the address forced into the window
 MB &703F : bit 6 set means it has run past &BFFF, so one page on and back into the window
 MB &7046 : the page and address the gap will be opened at
@@ -291,7 +302,7 @@ MB &704F : the comma, and then the second variable
 MB &7062 : its page, parked in PRPTRP so it is adjusted with everything else
 MB &7068 : the two element lengths must match, or "Size mismatch"
 MB &7071 : the new element count
-MB &7075 : the carry from the ADD above, or from the ADD fourteen bytes below -- the JR at &7080 jumps backwards onto this JP, so one error jump serves both tests
+MB &7075 : the carry from the ADD above, or from the ADD ten bytes below -- the JR at &7080 jumps backwards onto this JP, so one error jump serves both tests
 MB &7078 : how many elements the second variable contributes; IX is loaded from here at &70FB
 MB &707C : plus a header, as an overflow test only -- HL is not used again
 MB &7087 : the second variable's record, parked in PRPTR

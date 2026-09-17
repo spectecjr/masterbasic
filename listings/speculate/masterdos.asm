@@ -1164,7 +1164,7 @@ DBSTP:
 ;;     it for a page that is no longer mapped: DOS_POINT would come out as one
 ;;     of the ROM variables that share &4FAC.  Below &4000 there is nothing to
 ;;     correct -- the switch leaves ROM0 in place, so NRREAD really is the ROM
-;;     routine at &0010.
+;;     routine at &00AC.
 ;; --------------------------------------------------------------------
 
 ; ---- CALLMB ---- from &43B5, &4E53, &4FDA, &51A7, &54F9, &5506, &59C2, &5B9C ...

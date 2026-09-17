@@ -52,10 +52,11 @@ This is the writing half of the background printer.  The reading half is
 PRINTER_FEED_TICK at &59FC, which runs from the interrupt fifty times a
 second and sends what is here to the port.
 
-A RING OF 1K SLOTS WITH TWO POINTERS.  V4085/V4086 are the page and
-address the tick reads from (it runs in the system page with this half in
-the window, and so spells them &8085/&8086), and V4088/V4089 are the page
-and address written here.  Equal pointers mean empty, so the writer must
+A RING OF 1K SLOTS WITH TWO POINTERS.  PRINT_READ_PAGE and
+PRINT_READ_ADDR are the page and address the tick reads from (it runs in
+the system page with this half in the window, and so spells them
+&8085/&8086), and PRINT_WRITE_PAGE and PRINT_WRITE_ADDR are the page and
+address written here.  Equal pointers mean empty, so the writer must
 never let its pointer catch the reader's -- hence the wait at &5BBB.
 
 The manual promises exactly that wait: "If the buffer becomes full, the
@@ -65,8 +66,9 @@ finishing the LLIST, DUMP or LPRINT."
 The body from &5B8E to &5BB0 is the same walk as WINDOW_SOUND_POINTER
 at &5B22 to &5B44, instruction for instruction, for the sound buffer.
 The differences: this stores one byte where that stores a register
-number and a value, and this writes the new page to V4088 as it goes
-(&5BB2) where that leaves the page for its caller's tail to record.
+number and a value, and this writes the new page to PRINT_WRITE_PAGE as
+it goes (&5BB2) where that records it in its own tail at &5B64, after
+the full-buffer wait.
 
 Hook 154 is HDUMMY in the DOS's table, a reserved slot; this is what
 MasterBASIC put in it.""",
@@ -196,7 +198,8 @@ that.  The assembler checks the subtraction on every build.
 
 F_XVAR - FN_TOKEN_BIAS is XVAR n.  It evaluates the integer, points HL
 at PUTSWA -- this page's &4000, which is XVAR 0 -- and enters the DOS at
-&6579, just past that routine's own LD HL,DVAR.  So XVAR n is the DOS's DVAR code aimed
+&6579, past that routine's own LD HL,DVAR and IN A,(LMPR) -- which is why
+&4E42 reads LMPR itself before the call.  So XVAR n is the DOS's DVAR code aimed
 at MasterBASIC's page instead of its own.  The ROM's STKEND comes back
 in DE either way.
 
@@ -282,7 +285,7 @@ otherwise take the variable DEST/DESTP point at, STR$ it if FLAGS bit 6
 says numeric, open room for it at KCUR in the edit line and FARLDIR it
 in, leaving the cursor after it.  So a routine is assembled head-first
 in the buffer, and &4D50 -- its address -- is then handed to
-STORE_BC_AT_XVAR76, which writes it through the pointer in V4076; the
+STORE_BC_AT_XVAR76, which writes it through the pointer in HOOK_ROM_SP; the
 word it stores is the ROM's return address, so the assembled routine
 runs when the hook returns.  The routine at &735D builds into the same
 buffer at &4D11, far enough along to overlap this one, so the two are

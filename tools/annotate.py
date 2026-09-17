@@ -40,7 +40,7 @@ inline DEFW is a ROM address, and reading this one that way would name
 it for a page that is no longer mapped: DOS_POINT would come out as one
 of the ROM variables that share &4FAC.  Below &4000 there is nothing to
 correct -- the switch leaves ROM0 in place, so NRREAD really is the ROM
-routine at &0010."""
+routine at &00AC."""
 
 CMR_DOC = """\
 Call the main ROM.
@@ -364,7 +364,7 @@ MB = {
     # forty-five of its call sites go.
     0x42C1: ('CALLDOS', CALL_OTHER.replace('CALLMB', 'CALLDOS').replace(
         "&7FFC holds the\nROM's stack pointer as it stood when the DOS was entered.",
-        "LD (V4076),IY at &42D7 keeps the ROM stack\npointer the DOS's CALLMB "
+        "LD (HOOK_ROM_SP),IY at &42D7 keeps the ROM stack\npointer the DOS's CALLMB "
         "loaded into IY from its &7FFC, for\nSTORE_BC_AT_XVAR76 to write the "
         "ROM's return address through.")),
     0x5934: ('SERINIT', SERINIT_DOC),

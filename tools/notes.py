@@ -472,6 +472,16 @@ def apply(pages, root, banner, folder='notes', deferred=None):
             elif re.fullmatch(r'\w+', e['name']):
                 d.overrides[a] = text.replace(lits[0], e['name'])
                 d.user_equs[e['name']] = int(lits[0][1:], 16)
+                # A value that is an address in this page has been
+                # declared a number by being named as an equate, so it
+                # gives whatever sits at that address no reference --
+                # as an `expr` would.  REF_BUFFER_2_TEXT at &5743 is
+                # &7B81, and the reference had kept a synthetic label
+                # alive on the JR inside the &4BA0 stub, named after
+                # whichever routine the namer credited it to.
+                if (ins.target == d.user_equs[e['name']]
+                        and d.inside(ins.target)):
+                    d.expr_operands.add(a)
                 if e.get('group'):
                     d.equ_group[e['name']] = e['group']
                     if e['group'] not in d.equ_order:

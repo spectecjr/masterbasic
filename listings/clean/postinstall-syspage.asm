@@ -923,10 +923,7 @@ RST28V_XVAR_NVAL_DONE3:
 ; --------------------------------------------------------------------
 
 DOS_HOOK_STUBS:
-               DEFB &40                        ; 4BA0 @
-
-WRITE_A_DESCENDING_2:
-               DEFB &18,&03,&CF,&97,&C9        ; 4BA1 ..O.I
+               DEFB &40,&18,&03,&CF,&97,&C9    ; 4BA0 @..O.I
 
 MCHWR_STUB:
                DEFB &CF,&A7,&C9                ; 4BA6 O'I

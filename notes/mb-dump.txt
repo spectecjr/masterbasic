@@ -738,9 +738,10 @@ MB &5B22 WINDOW_SOUND_POINTER
     from before the windowing, picks out the last quarter of the 1K slot,
     and the CP &FE at &5B38 says whether the pointer is on the link.
 
-    THE FIVE TESTS ARE THE CHAIN WALK, and this is the third routine to
+    THE THREE TESTS ARE THE CHAIN WALK, and this is the third routine to
     make it: SOUND_FEED_TICK at &5A96 and PRINTER_FEED_TICK at &5A1E do
-    the same five instructions on the same two addresses.  The buffer is
+    the same instructions on the same two bytes of the pointer, D and
+    E.  The buffer is
     1K slots from the utility allocator, each keeping its link in its
     last two bytes, and the top slot in the &4000 frame keeps its
     sixteen bytes lower to stay off SLOTT.  E holds the high byte from

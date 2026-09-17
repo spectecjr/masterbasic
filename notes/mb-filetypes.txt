@@ -32,7 +32,7 @@ MB &4349-&43A0 text DRTAB
          4  ZXS                     ZX code -- the whole entry is one byte
          5  ZXS "SNP 48K"           ZX 48K snapshot
          6  "MD.FILE"               Microdrive
-         7  ZXS SCREENS             ZX SCREEN$ -- two bytes for eleven characters
+         7  ZXS SCREENS             ZX SCREEN$ -- two bytes for nine characters
          8  "SPECIAL"
          9  ZXS "SNP 128K"          ZX 128K snapshot
         10  "OPENTYPE"

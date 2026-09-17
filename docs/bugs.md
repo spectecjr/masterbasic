@@ -5,7 +5,7 @@ as they were sold. The listings cannot be corrected: they assemble to the
 original image byte for byte, and that is the point of them. So a defect
 gets written down here and explained where it sits.
 
-Eleven are confirmed and two are suspected. The three sweeps this file used to
+Eleven are confirmed and three are suspected. The three sweeps this file used to
 plan have now been run, and what they found is at the end.
 
 ---
@@ -662,6 +662,34 @@ printer would settle it.
 
 **Written up at** `DUMP_LINE` and `DUMP_BITS_CARRY` in
 `listings/clean/masterbasic.asm`.
+
+---
+
+## 14. DELETE's size adjustment subtracts without its borrow
+
+**Where** `ADJUST_VARIABLE_SIZE` at MB `&6FB3`, the subtract path at
+`&6FC4`–`&6FC8`.
+
+**What** A variable's recorded size is three bytes -- pages, then the
+length mod 16K -- and this routine adds or subtracts a 24-bit count
+from it when JOIN TO puts bytes in or DELETE takes them out. On the
+subtract path `SBC HL,BC` at `&6FC4` takes the low word and leaves the
+borrow in carry; then `POP AF` at `&6FC6` restores the flags pushed at
+`&6FBD`, which are `PAGED_TO_LONG`'s -- its last instruction is
+`AND &07`, carry clear -- and `SBC A,B` at `&6FC8` subtracts the top
+byte with no borrow. The add path (`&6FCB`–`&6FCE`) pops first and its
+`ADC A,B` sees the carry from `ADD HL,BC`.
+
+**What it costs** Nothing for a plain string: `&7150` refuses strings of
+four pages or more, so the top byte is zero and the low word is the
+whole length. A string array is not checked, so DELETE of more bytes
+than the low sixteen bits of an array over 64K leaves its page count
+one too high.
+
+**Not observed.** Read out of the bytes; a string array over 64K and a
+DELETE that borrows would settle it.
+
+**Written up at** `ADJUST_VARIABLE_SIZE` in `listings/clean/masterbasic.asm`.
 
 ---
 

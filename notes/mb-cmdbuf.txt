@@ -52,7 +52,7 @@ MB &4F31 CMDBUF_PROLOGUE
 
     and &4A97 is that &00 -- the boundaries land exactly, and the two
     DEFB runs in listings/clean/postinstall-syspage.asm come to the
-    twenty-four bytes those instructions need.  So the LD (&4A97),A here
+    twenty-one bytes those instructions need.  So the LD (&4A97),A here
     is arming the byte the stub will write at the start of the BASIC
     program, with &FF standing for "nothing to write".  Reading it back
     at &4F39 under INC A : RET Z therefore asks whether the CALL between

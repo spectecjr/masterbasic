@@ -65,10 +65,13 @@ DOC EXPECT_RPAREN
 
 DOC EXPECT_NEXT_LPAREN_AND_NUMBER
     Step to the next character, require it to be "(", then evaluate a
-    numeric expression, leaving its value on the calculator stack.
+    numeric expression, leaving its value on the calculator stack, and
+    fall into EXPECT_COMMA for the "," after it.
 
 DOC EXPECT_NUMBER
-    Evaluate a numeric expression through the ROM.
+    Evaluate a numeric expression through the ROM, then fall into
+    EXPECT_COMMA: the number has to be followed by a ",", which SVAL$
+    at &4159 and LOCN at &4AF0 rely on.
 
 DOC SKIP_THEN_NUMBER
     Step past the keyword, then evaluate a numeric expression.

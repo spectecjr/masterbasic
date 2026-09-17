@@ -331,7 +331,7 @@ Bounded jobs, good between rounds or when a round is out for review:
   the instructions now, and three thunks nothing calls had said "One
   caller".  **The banner item is done**: every routine head reached
   from outside its routine, in both halves, has a banner, and every
-  one of them has been reviewed once.  Reading copy: 998 of 2340.
+  one of them has been reviewed once.  Reading copy: 997 of 2339.
 - **The synthetic labels -- 138 to 19, done 2026-09-14** (`grep -c
   '^[LV][0-9A-F]\{4\}:$'` on each clean listing).  Three commits.
   MasterBASIC's 31 patched sites are named for what their operands
@@ -421,6 +421,21 @@ error-exit rule had never fired for `RST &08`.  So the MasterBASIC
 prose is converging -- the density fell by two fifths and the `[C]`
 share with it -- but it is not there, and the ten cuts that returned
 under twelve the first time have not had a second reader at all.
+
+**The other ten, 2026-09-15/16.**  Six back so far -- E, F, H, I, J,
+K: 42 findings on 2473 own lines, all confirmed and applied, 1.7 per
+hundred with 45% `[C]` -- on cuts that had returned 7 to 11 the first
+time.  So a low first count was not a clean region: the second
+reader's rate on these is the same as on the six that returned the
+most.  Among them a fourth suspected defect (`docs/bugs.md` 14,
+ADJUST_VARIABLE_SIZE's subtract path drops its borrow), bugs.md 6
+confirmed from the bytes, CMD_DELETE entered on the token rather than
+the name, and four derived labels parented on the wrong routine.  Two
+of the findings were this round's own: a wrapped `:` line half
+replaced, and HPRTOK's paragraphs attached to the wrong label by an
+indented block after a `:` line -- the notes syntax lets that happen
+silently.  L, M, N and P are out; the weekly limit killed the first
+two mid-read and they were sent again.
 
 ---
 

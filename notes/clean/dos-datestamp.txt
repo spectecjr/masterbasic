@@ -52,7 +52,7 @@ MB &4A49 : the date stamp's five bytes, seen through the window
 MB &4A4A : day, month and year, as characters
 MB &4A4D : three of them
 MB &4A4F : two characters, one byte
-MB &4A52 : a zero field means the clock was never set
+MB &4A52 : a zero field is taken to mean the clock was never set -- true of the day, but a year of 00 (2000) stops the loop here too, with the year, hour and minute unwritten: docs/bugs.md 6
 MB &4A53 : so stop, and leave the stamp as it was
 MB &4A59 : the time, in the same form
 MB &4A5C : hour and minute; seconds are not kept

@@ -304,19 +304,21 @@ DOC FN_RESERVED
     IT RUNS ITS OWN CODE THROUGH THE WINDOW.  &4E6D-&4E72 put the page
     at &4000 -- which is this one, LMPR's page plus one -- into HMPR, so
     that MasterBASIC appears at &8000 as well as at &4000.  Then CMR
-    pages the ROM back in, which takes &4000 away, and calls &8E81:
-    the same bytes as &4E81, reached through the window.  The fragment
-    there needs the ROM for RST FPCALC and for GETINT and HEAPROOM in
-    the jump table, and the ROM cannot be in at the same time as this
-    page, so the window is how it gets both.
+    puts the system page into section B, which takes this page away
+    from &4000, and calls &8E81: the same bytes as &4E81, reached
+    through the window.  The fragment there needs the system page at
+    &4000 -- STKEND for RST FPCALC and GETINT, HEAPEND for HEAPROOM --
+    and this page cannot share section B with it, so the window is how
+    it gets both.  ROM 0 is in at &0000 throughout: CALLMB writes LMPR
+    with bits 5 and 6 clear and MBCMR leaves them alone.
 
 MB &4E70 : LMPR's page plus one is the page at &4000, which is this one -- so this puts MasterBASIC into the window as well
 
-MB &4E77 : &8E81 is &4E81 seen through the window, the fragment below, run with the ROM paged in
+MB &4E77 : &8E81 is &4E81 seen through the window, the fragment below, run with the system page in section B
 
 MB &4E7C : HEAPROOM's DE, the start of the space it handed out, is what RESERVED returns
 
-MB &4E86 : four adds of it make 65536 and a negative n becomes its unsigned equal.  GETINT below wants a plain word, and 65536-n is what HEAPROOM reads as "give this much back" -- the manual's "LET junk=RESERVED(-10)"
+MB &4E86 : the two DUP/ADDN pairs double it to 65536 before the last ADDN puts it on n, so a negative n becomes its unsigned equal.  GETINT below wants a plain word, and 65536-n is what HEAPROOM reads as "give this much back" -- the manual's "LET junk=RESERVED(-10)"
 
 MB &4E90 : HEAPROOM returns carry when there was room, and DE as the old HEAPEND
 

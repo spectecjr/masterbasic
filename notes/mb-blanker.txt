@@ -64,9 +64,11 @@ DOC PRINTER_FEED_TICK
     ILPC IS THE THROTTLE.  XVAR 8 is pushed at &5A0A and counted down at
     &5A59, so a frame sends at most that many characters however fast the
     printer is; the manual calls it the characters sent per interrupt.
-    CHECK_PRINTER_READY is asked before every byte, and a printer that is
-    not ready is waited on for ILPD -- XVAR 9, in ~25us units -- before
-    the loop gives up for this frame rather than holding the interrupt.
+    CHECK_PRINTER_READY is asked before every byte: a printer not ready
+    at the first ask (&5A42) ends the frame at once, and after each
+    byte sent it is waited on for ILPD -- XVAR 9, in ~25us units -- at
+    &5A60 before the loop gives up for this frame rather than holding
+    the interrupt.
 
     It runs on into SOUND_FEED_TICK, which the two exits at &5A00 and
     &5A5A jump straight to.

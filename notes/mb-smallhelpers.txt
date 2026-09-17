@@ -271,7 +271,7 @@ MB &49FD TWO_DIGITS_BEFORE_DE
     shape.
 
 MB &49FD : "0" less one, because the INC C below comes before the subtraction and so runs once more often than it succeeds -- which leaves C at "0" for anything under ten
-MB &4A00 : ten, the divisor.  The loop keeps going while the subtraction carries, so it always goes one step too far
+MB &4A00 : ten, the divisor.  The loop keeps going while the subtraction does not carry, so the one that does carry has gone a step too far
 MB &4A04 : "0" plus ten, which is both halves of the fix in one instruction: the ten the loop overshot by is put back and the remainder becomes a digit
 
 MB &47EE GET_NONEMPTY_STRING
@@ -304,8 +304,9 @@ MB &4C76 GET_PAGED_ADDRESS
     An address argument that may run past 64K.  GET_LONG_INTEGER gives 32
     bits, anything in D is "Integer out of range", and what is left is
     shifted three places -- RL H with RLA, three times, to carry the top
-    bits into the page, then three RR H with a SCF before the last, which
-    puts the address back in a section with its top bit set.
+    bits into A as an 8K block number counted from the ROM, then three RR
+    H with a SCF before the last, which puts the address back in a
+    section with its top bit set.
 
 MB &448B EXPR_TO_32BIT
     Evaluate a number and split it into 32 bits, for a caller in the DOS.
@@ -463,7 +464,9 @@ MB &53B5 READ_KEY_LINE
 MB &4B5B INARRAY_START_ELEMENT
     INARRAY's first argument, read twice.  FIND_VARIABLE has parsed a$(
     and returned the dimensions; if the variable is a two-dimensional
-    array (V40AD non-zero) and the subscript does not open with a comma
+    array (V40AD non-zero: FIND_VARIABLE's second dimension was not 1,
+    so DIM a$(n,1) takes the other path) and the subscript does not open
+    with a comma
     or TO, EXPNUM and GETINT read the start element into BC, otherwise
     BC stays 1.  CHADD is then rewound to the name at &4B80, so that the
     ROM's EXPSTR at &4B85 can evaluate the whole a$(start[,slicer]) and
@@ -509,7 +512,7 @@ MB &4D33 PARSE_STRING_AND_OPTIONAL_ABS
 
 MB &42CC : the page for LMPR, through H because OUT (C),r has no immediate form and H is the register free here.  Zero in the file; the boot writes the DOS's page number less one over it from DOS &40F0, so that the DOS lands in section B -- &49D4 and &641F say the same
 MB &426B expr CH_ZERO
-MB &4C81 : three places, which is what turns a flat address into a page and a windowed one -- the banner above counts the shifts and COPY_STRING_TO_BUFFER_LOOP undoes them
+MB &4C81 : three places, which is what turns a flat address into an 8K block number and a windowed offset -- the banner above counts the shifts and COPY_STRING_TO_BUFFER_LOOP undoes them
 MB &58D7 : B cleared, so the C below is a byte count for the sixteen-bit work that follows
 MB &62CF : &FE, so &FE00 -- &E500 plus &1900, the end of the input buffer, and past it the byte comes from the DOS's LBYT instead.  The same test READ_NEXT_NIBBLE makes at &637D
 MB &4297 expr PAGEMASK
