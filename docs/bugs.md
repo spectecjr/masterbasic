@@ -352,9 +352,16 @@ writes unconditionally, so midnight and the top of the hour are safe. The fault
 is only that a sentinel written for the first field of a loop is applied to all
 of them.
 
-**Not observed.** This is read out of the instructions, not seen on a machine.
-Testing it needs the clock set to a year of 00 and a file saved onto a
-directory slot that already held a stamped one.
+**Observed** 2026-09-18 under SimCoupe, whose SAMBUS clock `DATE` and
+`TIME` can set. `DATE "15/06/99": TIME "12:34:56": SAVE "y99" CODE
+32768,10` then `DATE "15/06/00": SAVE "y00" CODE 32768,10`, and `DIR
+DATE` shows `y99 15/06/99 12:35` and `y00 15/06/00 00:00` against a
+clock that read `12:36` when the second file was saved. The day and
+month are stamped, the time is not. The year and time bytes came out
+as `00` rather than the `&FF` this entry expected: the entry image
+held zeros there in this run, so what shows is whatever it held, as
+the paragraph above says, and "most often `&FF`" was a guess about
+the image that one run does not bear out.
 
 ---
 
@@ -455,7 +462,11 @@ is slower than it needs to be and that is all. It is here because the dead
 branch is evidence about the code rather than about the picture: someone
 changed the mode representation and left one test behind.
 
-**Not observed.** Read out of the instructions. `&20` is MODE 2 in `VMPR`
+**Observed** 2026-09-18 under SimCoupe, as time: twenty `COPY SCREEN 1
+TO 2` with both screens in the same mode, `FRAMES` read either side --
+MODE 1 44 frames, MODE 2 123, MODE 3 123, MODE 4 123. A 14336-byte
+copy would sit between the 6912-byte and 24576-byte figures, near 77;
+MODE 2 takes exactly the 24576-byte time. `&20` is MODE 2 in `VMPR`
 terms, which is what makes the intent legible.
 
 ---
@@ -541,11 +552,16 @@ the current directory goes on to `OFSM_3` and erases the entry as if it
 were a file. The directory's own contents are left on the disc with no
 entry pointing at them.
 
-**Not observed.** Read out of the bytes, which were checked against
-`dumps/MasterBasicMasterDos.bin` at offset `&0D42` and against stock
-`MDOS23.bin`, where the `CALL POIDFT` and its `7E` are both present. A
-`SAVE "name"` in a directory holding a subdirectory `name` would settle
-it.
+**Observed** 2026-09-18 under SimCoupe. `OPEN DIR "sub": DIR = "sub":
+SAVE "inner" CODE 32768,10: DIR = "\"`, then `SAVE "sub" CODE 32768,10`
+in the root. The DOS stops at `OVERWRITE "sub" (y/n)` -- the name
+check finds the directory and offers it as if it were a file, with
+nothing to say it is not -- and on `y` the root lists `sub` as a
+one-sector CODE file, `DIR = "sub"` answers `113 Directory not found`,
+and the slot count still includes `inner`, which nothing now points at.
+Read first from the bytes, checked against `dumps/MasterBasicMasterDos.bin`
+at offset `&0D42` and stock `MDOS23.bin`, where the `CALL POIDFT` and
+its `7E` are both present.
 
 **Written up at** `&4D49` in `listings/clean/masterdos.asm`.
 

@@ -467,9 +467,7 @@ to hand from 2026-09-17**: SimCoupe driven from PowerShell, with the
 recipe in `docs/evidence-wanted.md`.  It settled bugs.md 14 in an
 afternoon (the DELETE borrow: observed, a hang), and bugs 3, 7 and 12,
 DVAR 22 and LOCN's read-through the day after.  Bug 13 needs a printer
-device, which SimCoupe can be given; 10e wants a frame count either
-side of a COPY SCREEN in MODE 2 and MODE 3, which is the LOCN recipe
-again.
+device, which SimCoupe can be given.
 
 ---
 
@@ -550,7 +548,13 @@ attribution.  The same day the emulator settled four more of the
 never-run items: hook 153 from machine code wrecks the machine (bugs
 12), the name fold merges `x^` and `x~` and the DOS asks before
 overwriting (bugs 3), LOCN's 64K read-through shows as 36 frames for
-a hundred-byte search (10f), and DVAR 22 holds 17395.  Six of the
-eleven items under evidence-wanted 10 are now observed; 10d needs
-Spectrum mode, 10e a stopwatch, 10g a settable clock, and 10h-j want
-damaged discs or an unreachable stack.
+a hundred-byte search (10f), DVAR 22 holds 17395, and COPY SCREEN in
+MODE 2 takes MODE 4's time (bugs 8), a year of 00 leaves the stamp's
+time unwritten (bugs 6), and SAVE over a subdirectory's name erases
+the subdirectory after an OVERWRITE prompt that does not say what it
+is (bugs 10).  Nine of the thirteen items under evidence-wanted 10 are
+now observed; 10d needs Spectrum mode, and 10h-j want damaged discs or
+an unreachable stack.  Of bugs.md's fourteen, only 4 (NMI exit, needs
+Spectrum mode), 9 (NVAL, unreachable), 11 and 13 (both want the
+printer stream, which SimCoupe's -printerdev can write to a file) and
+the two disc-error ones (1 and 2) are still readings.

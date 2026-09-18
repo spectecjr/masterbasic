@@ -225,7 +225,7 @@ directory-entry read is a confirmation now rather than a question.
 | **A dump of page 3 with the Spectrum emulator loaded**, and of the system page while Spectrum mode is active | 9, and test 10d under it | needs Spectrum mode entered |
 | **The word at `&4EFE` in the system page while `SPLIT` runs** | 7 | needs a break in the right place |
 | **A directory entry read back after saving a compressed screen** | confirms 8, which is now read from the code: offsets 229-231 should hold the compressed length in page form | easy |
-| **Short BASIC tests**, 10e and 10g (10a, 10b, 10c, 10f and 10k are done) | two of the defects that have never been run | easy — the emulator recipe below, and a few lines each |
+| *(10a, 10b, 10c, 10e, 10f, 10g, 10k, 10l and 10m are done under the emulator)* | — | — |
 | *(10h, 10i and 10j want damaged discs or an unreachable stack, and are listed so nobody spends an afternoon on them)* | — | hard to impossible |
 | **A printer stream from `POKE XVAR 33,3 : DUMP 4`** | 12 | easy — the same method as 6 |
 | **A 512-byte CODE file saved under `SAVE MODE 2` and loaded back**, built as item 13 says | 13, a defect read from the compressor and never run | easy — a machine and a few lines |
@@ -374,7 +374,7 @@ of the system page taken while Spectrum mode is active — if `NMIV` reads
 ## 10. Defects read out of the instructions and never seen run
 
 Every one of these is written up in [bugs.md](bugs.md) and derived from the
-code alone. Six -- 10a, 10b, 10c, 10f, 10k and 10l -- have now been run under SimCoupe and
+code alone. Nine -- 10a, 10b, 10c, 10e, 10f, 10g, 10k, 10l and 10m -- have now been run under SimCoupe and
 observed; the rest have not, and that is the gap: a defect proved from the
 instructions and never executed is still a reading. They are in roughly the
 order of how cheap they are to try.
@@ -440,6 +440,12 @@ The control returns; 153 resets the machine or leaves it dead after an
 `Integer out of range`, and the list is not sorted. **Observed
 2026-09-18.**
 
+**10m. `SAVE` over a subdirectory's name.** `bugs.md` 10: a subdirectory
+`sub` holding a file, then `SAVE "sub"` in its parent. The DOS asks
+`OVERWRITE "sub"` and on `y` the directory is gone -- `sub` lists as a
+CODE file, `DIR = "sub"` is `113 Directory not found`, the inner file's
+slot stays taken. **Observed 2026-09-18.**
+
 **10d. The NMI menu's exit restores `HMPR` from the saved `LMPR`.** Enter
 Spectrum mode, press NMI, press `X` to exit, then `PEEK` through the `&8000`
 window and see which page answers. `SNPRT0` ships `&1F` and stays `&1F`, so the
@@ -451,6 +457,10 @@ against the same picture in MODE 3. The fast path tests for a mode number it
 never receives, so MODE 2 should take the slow path — visible as time rather
 than as a wrong picture, which is why this one wants a stopwatch more than an
 eye.
+
+**Observed 2026-09-18, under SimCoupe.** Twenty copies, `FRAMES` either
+side: MODE 1 44, MODE 2 123, MODE 3 123, MODE 4 123. MODE 2 pays the
+MODE 4 price.
 
 **10f. `LOCN` reads one byte past its own bound.** Put a search pattern at the
 very end of a region and `LOCN` for it, with the byte immediately after the
@@ -476,6 +486,12 @@ one, and `DIR` it. Expect today's day and month against a garbage year and
 time — most often `&FF`, since the entry image comes from `UIFA` and the ROM
 leaves that area uninitialised. One year in a hundred, so this is the one that
 needs a deliberate clock rather than patience.
+
+**Observed 2026-09-18, under SimCoupe**, which has a clock `DATE` and `TIME`
+can set. A file saved with the date `15/06/99` lists under `DIR DATE` as
+`15/06/99 12:35`; one saved with `15/06/00` lists as `15/06/00 00:00`
+against a clock reading `12:36`. Day and month stamped, time not; the
+unwritten bytes read `00` here, not `&FF`.
 
 **10h. `LOST DATA` on a block transfer.** The block loops mask the controller
 status with a value that cannot see `LOST DATA`. Inducing one needs the
