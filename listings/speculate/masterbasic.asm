@@ -24794,10 +24794,16 @@ CMD_SPLIT_LINE_1:
 ;;     &4EFE is ISPVAL-2, the bottom word of the ROM's machine stack in the
 ;;     system page.  Every place the ROM resets that stack does the same
 ;;     three things -- LD SP,ISPVAL, push a handler, LD (ERRSP),SP -- so
-;;     that word holds the outermost handler and ERRSP normally points at
-;;     it.  This reads it, calls the ROM routine whose address is stored
-;;     seventeen bytes before it, then puts the handler back twelve bytes
-;;     earlier than it was and writes &0004 into the five stack words below.
+;;     that word holds the outermost handler while a command runs.  But
+;;     MAINER, the handler the ROM pushes, is reached by the RET that pops
+;;     it, and the main loop then runs with SP at ISPVAL itself: so while
+;;     a line is being typed and checked, the bottom word is not a handler
+;;     but the return address of the main loop's CALL into LINESCAN,
+;;     MAINELP+9.  That is what this reads.  It calls the ROM routine
+;;     whose address is stored seventeen bytes before it -- the operand of
+;;     MAINEXEC's CALL AUTOLIST, six bytes above MAINELP -- then puts the
+;;     word back twelve bytes earlier, which is MAINELP itself, and writes
+;;     &0004 into the five stack words below.
 ;;
 ;;     &0004 IS THE ROM'S "POP HL : JP (HL)", which is a RET by another
 ;;     name.  MasterDOS calls the same constant FOWIA and uses it for the
@@ -24806,33 +24812,24 @@ CMD_SPLIT_LINE_1:
 ;;     five levels of ROM call, so the next RET after this routine walks all
 ;;     the way out to &4EFE and lands on whatever was written there.
 ;;
-;;     WHAT THE BASE IS, THE ROM AND THE SNAPSHOTS DISAGREE ABOUT, and that
-;;     is where this stops.
-;;
-;;     MAINER really is &0EED.  ROM30 has CD D1 3F there -- CALL R1OCHP --
-;;     and the eighteen bytes before it are the LD HL,FLAGS / SET 7,(HL) /
-;;     DEC HL / XOR A / LD (HL),A / INC A / LD (NSPPC),A / CALL COMPILE /
-;;     CALL LINERUN of the main loop, so &0EED-12 is exactly that XOR A:
-;;     the tail that clears the error number, sets NSPPC to statement 1 and
-;;     runs the edit line.  Twelve fits.
-;;
-;;     Seventeen does not.  &0EED-17 is &0EDC, the second byte of
-;;     LD HL,FLAGS, and the word there is &5C3B -- FLAGS itself, a system
-;;     variable and not a routine.
-;;
-;;     So the base is not MAINER, and the three system-page snapshots in
-;;     dumps/ say the same thing from the other end.  The word at &4EFE is
-;;     &0F78 before boot, &0E90 once MasterDOS has loaded, and &487F once
-;;     MasterBASIC has -- MasterBASIC replaces the outermost handler with
-;;     one of its own in the system page, and ERRSP is at &4EFA by then,
-;;     with two frames above it.  None of the three is MAINER.
-;;
-;;     &487F does not work either: seventeen back from it is &486E, whose
-;;     word is &F122, and twelve back is inside LD HL,(&4AF1).  Whatever
-;;     SPLIT finds at &4EFE is a fourth value, present only while a line is
-;;     being scanned, and the twelve landing on the main loop's tail is
-;;     what made MAINER look right.  The block stays a guess; see
-;;     docs/evidence-wanted.md.
+;;     THE BASE WAS SEEN ON THE EMULATOR, 2026-09-18, with a breakpoint on
+;;     the LD C,(HL) at &6F18 while a line with a slash was being entered:
+;;     BC, the word from &4EFE, was &0E96, HL was &0E85, and the word
+;;     fetched and planted as the CMR argument was &05C6.  In ROM 3.0
+;;     (SimCoupe's samrom.map, and ref/samrom/mainlp.asm) &0E96 is the
+;;     instruction after MAINELP's CALL LINESCAN; &0E85 is the operand of
+;;     CALL AUTOLIST at MAINEXEC, so &05C6 is AUTOLIST; and &0E96-12 is
+;;     &0E8A, MAINELP.  So the ROM routine called is AUTOLIST, which
+;;     relists the program with the first half of the line just inserted,
+;;     and the return the unwinding lands on is MAINELP -- CALL STRM0 :
+;;     CALL EDITOR -- with the line number and the remainder still in the
+;;     edit line, which is the manual's description of SPLIT to the
+;;     letter.  Read against MAINER, twelve had fitted (the XOR A of the
+;;     main loop's tail) and seventeen had not (&0EDC, inside LD HL,FLAGS);
+;;     read against the value that is actually there, both fit.  The three
+;;     snapshots in dumps/ (&0F78, &0E90, &487F) are boot-time states, and
+;;     a direct command sees MAINER at &4EFE; neither is what the editor
+;;     runs under.
 ;; --------------------------------------------------------------------
 
 SPLIT_UNWIND_ROM_STACK:
@@ -24840,36 +24837,41 @@ SPLIT_UNWIND_ROM_STACK:
                                                ; left it windowed onto DCT -- so this parks PRPTR on a fixed system-page
                                                ; byte, out of reach of the next pointer adjustment
                DEFW PRPTR                      ; 6F0A A9 5A
-               LD HL,&4EFE                     ; 6F0C 21 FE 4E  ISPVAL-2, the bottom word of the ROM's machine stack:
-                                               ; the handler pushed there whenever the stack is reset, and ERRSP's usual
-                                               ; value
+               LD HL,&4EFE                     ; 6F0C 21 FE 4E  ISPVAL-2, the bottom word of the ROM's machine stack --
+                                               ; while a line is being checked, the main loop's return address from CALL
+                                               ; LINESCAN, &0E96 in ROM 3.0
                PUSH HL                         ; 6F0F E5
                CALL MBRDBC                     ; 6F10 CD C2 45
                PUSH BC                         ; 6F13 C5
-               LD HL,&FFEF                     ; 6F14 21 EF FF  seventeen back from it
+               LD HL,&FFEF                     ; 6F14 21 EF FF  seventeen back from it: the operand of MAINEXEC's CALL
+                                               ; AUTOLIST
                ADD HL,BC                       ; 6F17 09
                LD C,(HL)                       ; 6F18 4E
                INC HL                          ; 6F19 23
                LD B,(HL)                       ; 6F1A 46
-               LD (UNWIND_CALL_WORD),BC        ; 6F1B ED 43 22 6F  and whatever is stored there is called as a ROM
-                                               ; routine, patched into the CMR argument below
+               LD (UNWIND_CALL_WORD),BC        ; 6F1B ED 43 22 6F  AUTOLIST, then, patched into the CMR argument below
+                                               ; and called: the program is relisted with the first half of the line in
+                                               ; it
                CALL MBCMR                      ; 6F1F CD F0 44
 
 ;; --------------------------------------------------------------------
 ;; The inline word of the CMR below it, written from BC: the ROM
-;; routine SPLIT_UNWIND_ROM_STACK found on the stack is called as one.
+;; routine SPLIT_UNWIND_ROM_STACK found through the stack -- AUTOLIST,
+;; read from the operand of the main loop's CALL AUTOLIST -- is called
+;; as one.
 ;; --------------------------------------------------------------------
 
 ; ---- UNWIND_CALL_WORD ---- from &6F1B
 UNWIND_CALL_WORD:
                DEFW &0000                      ; 6F22 00 00
                POP BC                          ; 6F24 C1
-               LD HL,&FFF4                     ; 6F25 21 F4 FF  twelve back from the handler
+               LD HL,&FFF4                     ; 6F25 21 F4 FF  twelve back from the return address is MAINELP
                ADD HL,BC                       ; 6F28 09
                LD B,H                          ; 6F29 44
                LD C,L                          ; 6F2A 4D
                POP HL                          ; 6F2B E1
-               CALL MBWRTBC                    ; 6F2C CD B3 45  which becomes the new bottom-of-stack return
+               CALL MBWRTBC                    ; 6F2C CD B3 45  which becomes the new bottom-of-stack return: the
+                                               ; editor, with the remainder still in the edit line
                LD BC,&0004                     ; 6F2F 01 04 00  &0004 is the ROM's POP HL : JP (HL) -- a return that
                                                ; forwards to the next frame
                LD E,&05                        ; 6F32 1E 05  five of them, filling the five stack words below the bottom

@@ -78,5 +78,7 @@ MB &6E5F RECLAIM2_WORD
     just before it: one past the ROM's own XOR A in RECLAIM2.
 MB &6F22 UNWIND_CALL_WORD
     The inline word of the CMR below it, written from BC: the ROM
-    routine SPLIT_UNWIND_ROM_STACK found on the stack is called as one.
+    routine SPLIT_UNWIND_ROM_STACK found through the stack -- AUTOLIST,
+    read from the operand of the main loop's CALL AUTOLIST -- is called
+    as one.
 MB &7221 EDIT_INSERT_HEAD

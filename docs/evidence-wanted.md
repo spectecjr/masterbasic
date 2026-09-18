@@ -4,7 +4,7 @@ What this project cannot settle by reading. Each entry says what to capture,
 why, and what it would decide — so that whoever has the hardware or the
 emulator can do it without reading the rest of the repository first. All five
 are answered, and are kept because the answers are worth more than the
-questions were. Item 7 is the one left open. Items 12 and 13 were settled
+questions were. Nothing is left open. Items 7, 12 and 13 were settled
 under the emulator on 2026-09-18, and item 8 by reading, not by a capture;
 all are kept for the same reason as the others.
 
@@ -223,7 +223,7 @@ directory-entry read is a confirmation now rather than a question.
 | | Closes | Cost |
 |---|---|---|
 | **A dump of page 3 with the Spectrum emulator loaded**, and of the system page while Spectrum mode is active | 9, and test 10d under it | needs Spectrum mode entered |
-| **The word at `&4EFE` in the system page while `SPLIT` runs** | 7 | needs a break in the right place |
+| *(7, the word at `&4EFE` while `SPLIT` runs, was read with a breakpoint on 2026-09-18: `&0E96`, the main loop's return into `LINESCAN`)* | — | — |
 | **A directory entry read back after saving a compressed screen** | confirms 8, which is now read from the code: offsets 229-231 should hold the compressed length in page form | easy |
 | *(10a, 10b, 10c, 10e, 10f, 10g, 10k, 10l and 10m are done under the emulator)* | — | — |
 | *(10h, 10i and 10j want damaged discs or an unreachable stack, and are listed so nobody spends an afternoon on them)* | — | hard to impossible |
@@ -238,9 +238,25 @@ nothing below that depends on it should be planned for.
 
 ---
 
-## 7. What the ROM's outermost error handler is while `SPLIT` runs
+## 7. Answered — the word `SPLIT` finds at `&4EFE` is the main loop's return into `LINESCAN`
 
-**Open.** `SPLIT`'s last fifty-five bytes, `MB &6F07-&6F3D`, rewrite the
+**Settled on the emulator, 2026-09-18**, with SimCoupe's debugger:
+`bpx 1c:2f18` (page 28, offset `&2F18`, the `LD C,(HL)` at `MB &6F18`)
+fires while `10 PRINT "hello": GO TO 10:/ PRINT "goodbye"` is being
+entered, and shows `BC` = **`&0E96`**, `HL` = `&0E85`, and after four
+instructions `BC` = **`&05C6`**. In ROM 3.0 `&0E96` is the instruction after
+`MAINELP`'s `CALL LINESCAN`; `&0E85` is the operand of `MAINEXEC`'s
+`CALL AUTOLIST`, so `&05C6` is `AUTOLIST`; and twelve back, `&0E8A`, is
+`MAINELP`. `MAINER` is reached by the `RET` that pops it, so during line
+entry the bottom of the ROM stack holds the main loop's own return
+address, not a handler -- the "fourth value" the listing guessed at.
+`SPLIT` calls `AUTOLIST` to relist the program with the first half
+inserted, then makes the unwinding land on `MAINELP`, the editor, with
+the remainder in the edit line. The listing's banner at
+`SPLIT_UNWIND_ROM_STACK` says so now. What follows is the question as it
+stood.
+
+`SPLIT`'s last fifty-five bytes, `MB &6F07-&6F3D`, rewrite the
 bottom of the ROM's machine stack. They read the word at `&4EFE` -- the slot
 `LD SP,ISPVAL : PUSH HL : LD (ERRSP),SP` fills -- call whatever routine's
 address is stored seventeen bytes below it, then put the handler back twelve
@@ -279,6 +295,20 @@ Failing that, two cheaper things would each narrow it:
   plain direct command. The handler is pushed afresh at every stack reset, so
   two readings would show whether it is stable enough to be read this way at
   all.
+
+**Both cheaper things done, 2026-09-18, under SimCoupe.** `SPLIT` works
+exactly as the manual says: `10 PRINT "hello": GO TO 10:/ PRINT "goodbye"`
+puts `10 PRINT "hello": GO TO 10` in the listing and leaves `10 PRINT
+"goodbye"` in the edit line with the cursor after the number, and nothing
+else is entered. And `DPEEK 20222` -- `&4EFE` -- is **3821, `&0EED`,
+`MAINER`**, both after a direct command and after `RUN` stops on `Number
+too big`; the three snapshot values above are boot-time states, not what
+the editor runs under -- and, as the breakpoint then showed, not what
+`SPLIT` runs under either: a direct command sees `MAINER` because the
+statement dispatcher has reset the stack and pushed it, and the editor
+sees the main loop's own return address because `MAINER` was reached by
+popping it. Read against `MAINER` the twelve fitted and the seventeen
+did not; read against `&0E96`, both do.
 
 ---
 
@@ -700,6 +730,18 @@ repository and only wanted reading:
   did: each line is `ESC "*" CHR$ 4 n1 n2` and `n1+256*n2` bytes, a
   bit per dot, bit 7 the top; a bare CR between two lines is a second
   strike of the same line.
+- **And the debugger.**  `F9` opens SimICE over the SAM screen; it is
+  drawn at the emulated display's size and is clipped in the window,
+  so capture the whole desktop with the emulator full-screen (`F8`)
+  rather than the SAM screenshot.  `Return` opens its command line,
+  `Esc` closes it and a second `Esc` leaves the debugger; keys typed
+  into the disassembly view are its shortcuts, so get the mode right
+  first.  Addresses are hex, pages too: `bpx 1c:2f18` is page 28,
+  offset `&2F18`, MasterBASIC's `&6F18`, and fires wherever that page
+  is mapped when it runs.  The register panel shows the paging (`A ROM
+  0 / B RAM 1C / C RAM 00 / D RAM 01`, `L` and `H` the port values),
+  `x N` steps N instructions, and the plain key script's 60 ms holds
+  are right for the GUI; the SAM pacing is not needed there.
 - Anything saved as a CODE file on an `.mgt` or `.dsk` image can be dropped
   in `diskimages/` and extracted here — the directory format and sector chains are
   understood, and `ref/masterdos/docs/disk-format.md` documents them.
