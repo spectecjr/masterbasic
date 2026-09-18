@@ -312,8 +312,8 @@ DOS &40DD BOOT_NEXT_SECTOR_TRAMPOLINE
 DOS &40E0 BOOT_LOAD_COMPLETE
     Both waves are in.  B counts the sectors of a wave and the DJNZ at
     &40C9 goes back for the next one; getting here instead means the
-    chain ended -- the last sector's final four bytes were zero -- so
-    there is nothing left to read.
+    chain ended -- the last sector's final two bytes, its link, were
+    zero -- so there is nothing left to read.
 
 DOS &40D2 step
     The end of a wave.  The page number found earlier comes back off the
@@ -372,7 +372,7 @@ DOS &7D66 : 446 bytes, to &4F00-&50BD in the system page
 DOS &7D6E : and 161 more; B is zero after an LDIR
 DOS &40EF : one below it, which is MasterBASIC's
 DOS &40F4 : &E9 is the printer's strobe port, RESP in the 1991 source; cleared before anything drives the printer
-DOS &40F0 : written into MasterBASIC's &42CC, not this half's: its page
+DOS &40F0 : written into MasterBASIC's page, not this half's: &42CD is the operand of the LD H,&00 at MasterBASIC's &42CC, and this is its page
 DOS &40F6 : and away, into the copy
 
 GROUP Boot loader

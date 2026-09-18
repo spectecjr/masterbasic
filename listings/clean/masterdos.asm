@@ -600,8 +600,8 @@ BOOT_NEXT_SECTOR_TRAMPOLINE:
 ;; --------------------------------------------------------------------
 ;; Both waves are in.  B counts the sectors of a wave and the DJNZ at
 ;; &40C9 goes back for the next one; getting here instead means the
-;; chain ended -- the last sector's final four bytes were zero -- so
-;; there is nothing left to read.
+;; chain ended -- the last sector's final two bytes, its link, were
+;; zero -- so there is nothing left to read.
 ;; --------------------------------------------------------------------
 
 ; Both waves are in.  Copy INSTALLER -- 943 bytes at MasterBASIC's
@@ -619,7 +619,8 @@ BOOT_LOAD_COMPLETE:
                IN A,(HMPR)                     ; 40EB DB FB  the page the DOS is in
                AND PAGE_VALUE_MASK             ; 40ED E6 1F
                DEC A                           ; 40EF 3D  one below it, which is MasterBASIC's
-               LD (&42CD),A                    ; 40F0 32 CD 42  written into MasterBASIC's &42CC, not this half's: its
+               LD (&42CD),A                    ; 40F0 32 CD 42  written into MasterBASIC's page, not this half's: &42CD
+                                               ; is the operand of the LD H,&00 at MasterBASIC's &42CC, and this is its
                                                ; page
                XOR A                           ; 40F3 AF
                OUT (&E9),A                     ; 40F4 D3 E9  &E9 is the printer's strobe port, RESP in the 1991 source;
@@ -5151,8 +5152,11 @@ FILL_DE_WITH_A:
 ;; becomes &10 and both mean BASIC, 2 becomes &11 and both mean a
 ;; numeric array, and so on down to CODE.  Flag 7 records that the file
 ;; was a Spectrum one, which is the only thing anything downstream needs
-;; to remember about it -- COPY_HEADER_FIELDS reads that flag to decide
-;; whether the entry has a ROM header in it or one has to be invented.
+;; to remember about it -- the BITF7 at &4EE0, the instruction before
+;; COPY_HEADER_FIELDS, reads that flag, and COPY_HEADER_FIELDS branches
+;; on the Z it brings in to decide whether the entry has a ROM header
+;; in it or one has to be invented.  COPY does not read the flag at
+;; all: &5A0C forces Z before calling in.
 ;;
 ;; The converted type is written back into the buffer, so the entry
 ;; itself reads as a SAM file from here on.
@@ -5394,7 +5398,8 @@ CLAIM_FREE_SLOT:
 ;;  The REP stubs are a chain: each loads its code into A and then skips the next two bytes with a DEFB &21, an
 ;;  "LD HL,nn" whose operand is the following instruction. The chain falls through to a single tail that plants the
 ;;  code in the byte after a CALL DERR and calls it -- so one copy of the call serves the twenty error codes the
-;;  chain carries; the eleven REP stubs outside it each have a CALL DERR of their own.
+;;  chain carries; the eleven REP stubs outside it each have a CALL DERR of their own, and SKIPF a
+;;  thirteenth inline at &72B1.
 ;;
 ;;  ERRTBL is indexed by the code less 81. Many entries are a single space, because MasterDOS leaves those reports to
 ;;  the ROM; the ones it does supply are compressed against the ROM's own substring dictionary, whose indices are the
@@ -13216,7 +13221,9 @@ OPND2_2:
 ;;
 ;; THE WHOLE ENTRY IS COPIED INTO THE RECORD at FFSA, which is what
 ;; makes every later offset into the entry an offset into the
-;; record.  The type and name go to NSTR1 as well, the first track
+;; record.  The type byte goes to NSTR1 as well; the eleven-byte LDIR
+;; after it lands the type and name on the channel's copy a second
+;; time, not on NSTR1.  The first track
 ;; and sector come out of offsets 13 and 14, and the pointer's
 ;; sector count starts at zero so that COUNT_AND_READ_SECTOR makes
 ;; it one as it reads.
@@ -17805,8 +17812,9 @@ DRIVE:
 ;;
 ;;     7   two meanings, on paths that do not meet.  NMQU raises it
 ;;         for the "?" option and OHASR reads it there; GTFS1 raises
-;;         it for a file whose type was a Spectrum one, and LOAD and
-;;         COPY_HEADER_FIELDS read it there -- the latter to decide
+;;         it for a file whose type was a Spectrum one, and LOAD reads
+;;         it there -- and once more at &4EE0, the BITF7 just before
+;;         COPY_HEADER_FIELDS, which branches on that Z to decide
 ;;         whether the ROM header has to be invented rather than
 ;;         copied.  COPY is the one command that uses "?" and also
 ;;         wants that answer, and it does not ask: it passes "not a

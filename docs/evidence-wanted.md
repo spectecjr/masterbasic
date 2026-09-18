@@ -225,7 +225,7 @@ directory-entry read is a confirmation now rather than a question.
 | **A dump of page 3 with the Spectrum emulator loaded**, and of the system page while Spectrum mode is active | 9, and test 10d under it | needs Spectrum mode entered |
 | **The word at `&4EFE` in the system page while `SPLIT` runs** | 7 | needs a break in the right place |
 | **A directory entry read back after saving a compressed screen** | confirms 8, which is now read from the code: offsets 229-231 should hold the compressed length in page form | easy |
-| **Short BASIC tests**, 10b, 10e, 10f and 10g (10a, 10c and 10k are done) | four of the defects that have never been run | easy — the emulator recipe below, and a few lines each |
+| **Short BASIC tests**, 10e and 10g (10a, 10b, 10c, 10f and 10k are done) | two of the defects that have never been run | easy — the emulator recipe below, and a few lines each |
 | *(10h, 10i and 10j want damaged discs or an unreachable stack, and are listed so nobody spends an afternoon on them)* | — | hard to impossible |
 | **A printer stream from `POKE XVAR 33,3 : DUMP 4`** | 12 | easy — the same method as 6 |
 | **A 512-byte CODE file saved under `SAVE MODE 2` and loaded back**, built as item 13 says | 13, a defect read from the compressor and never run | easy — a machine and a few lines |
@@ -374,7 +374,7 @@ of the system page taken while Spectrum mode is active — if `NMIV` reads
 ## 10. Defects read out of the instructions and never seen run
 
 Every one of these is written up in [bugs.md](bugs.md) and derived from the
-code alone. Three -- 10a, 10c and 10k -- have now been run under SimCoupe and
+code alone. Six -- 10a, 10b, 10c, 10f, 10k and 10l -- have now been run under SimCoupe and
 observed; the rest have not, and that is the gap: a defect proved from the
 instructions and never executed is still a reading. They are in roughly the
 order of how cheap they are to try.
@@ -409,6 +409,11 @@ the code says. Then save a second file as `X~` and see which of the two a
 `LOAD "X^"` fetches — that is the destructive half, and it is worth knowing
 whether the DOS offers to overwrite or silently picks one.
 
+**Observed 2026-09-18, under SimCoupe.** `SAVE "x^" CODE 32768,10` then
+`DIR "x~"` lists `x^`; `SAVE "x~" CODE 32768,10` stops at `OVERWRITE "x^"
+(y/n)` -- so the DOS does ask, and the file it names is the one it would
+destroy; declined, `LOAD "x~" CODE 40000` loads `x^`'s bytes.
+
 **10c. `SORT ABS INVERSE` reverts to ascending after 256 elements.** Fill a
 string array with more than 256 elements in random order, `SORT ABS INVERSE`
 (the manual's grammar; plain `SORT INVERSE` is a syntax error), and print
@@ -428,6 +433,13 @@ DIM a$(5,16384): LET z$="x": DELETE a$(1 TO 2): PRINT z$` hangs the
 machine, and the controls that do not borrow do not. **Observed
 2026-09-17.**
 
+**10l. Hook 153 from machine code.** `bugs.md` 12: `LD HL,list : LD
+BC,2 : LD DE,4 : LD A,2 : RST &08 : DEFB 153 : RET` poked at 40000 and
+called, with a control run of the same code calling hook 165 first.
+The control returns; 153 resets the machine or leaves it dead after an
+`Integer out of range`, and the list is not sorted. **Observed
+2026-09-18.**
+
 **10d. The NMI menu's exit restores `HMPR` from the saved `LMPR`.** Enter
 Spectrum mode, press NMI, press `X` to exit, then `PEEK` through the `&8000`
 window and see which page answers. `SNPRT0` ships `&1F` and stays `&1F`, so the
@@ -446,6 +458,17 @@ region set to something that would change the answer. The scan bounds itself at
 `N = length - patlen + 1` and then compares without a bound of its own, so for
 any pattern longer than one character the extra byte is *inside* the region and
 its flags are what comes back.
+
+**Observed 2026-09-18, under SimCoupe, as time.** A hundred zero bytes at
+32768, a three-byte pattern, and `FRAMES` (`DPEEK 23672`) read either side
+of the `LOCN`: with the byte at offset 98 -- `N`, one short of the region's
+end -- set to the pattern's first character, the search takes 36 frames;
+with it at offset 97, or absent, 1 frame. That is the 64K read-through
+`bugs.md` computes at about 90K a second, and the answer was 0 every time.
+The other half -- a match in the overrun's last 255 bytes being accepted
+as a position inside the region -- was tried with copies of the pattern
+at 98203 and 98300 and did not show; either the window is not where that
+entry puts it or the acceptance needs more than a copy there. Open.
 
 **10g. A year of `00` stops the date stamp half-written.** Set the clock to a
 year of `00`, save a file onto a directory slot that already held a stamped

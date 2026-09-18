@@ -422,6 +422,7 @@ The differences from the review prompt:
 | MB second passes on L, M, N, P (2026-09-16, round 12) | review | 19 findings | 17 + 2 left; 1.4 per hundred, 16% [C]; the installer's one-byte "clear", the drive probe's overwrite |
 | MB third pass on G, O, E (2026-09-16, round 13) | review | 19 findings | 19; 1.3 per hundred against 2.3 and 2.7, 47% [C] flat -- sampling, not exhausting; two phantom splits, four stale cross-references |
 | MB cross-reference pass, 831 claims about 45 routines in four bundles (2026-09-17, round 14) | claims | 5 findings | 5; 0.6 per hundred claims, 3 [C]; a caller credited to the DOS, four loads called calls, a label true of one tree only, "four bytes" for six, an address one instruction off |
+| DOS cross-reference pass, 467 claims about 48 routines in two bundles (2026-09-18, round 15) | claims | 5 findings | 5; 1.1 per hundred claims, 2 [C]; a flag test credited to the routine after it, "type and name" to NSTR1 for the type alone, "four bytes" for two, a stub count short by one, an operand named by its instruction |
 
 The first five ran on one model; the rest on another, after the first hit a
 session limit mid-run. The prompts were byte-identical across the change,
@@ -742,7 +743,14 @@ restated can.  So, in the order of what they would have caught:
    most of which has been read three times; the extractor's noise --
    about a third of the claims are system-page addresses that only
    coincide with this page's -- is the cost, and the reviewers
-   skipped it as briefed.  The DOS half has not had this pass.
+   skipped it as briefed.  Round 15 gave the DOS half the same pass
+   the next day -- 467 claims about 48 routines, two readers, five
+   findings, all confirmed, two `[C]`, 1.1 per hundred claims: a
+   FLAG3 test credited to COPY_HEADER_FIELDS that is BITF7's, the
+   instruction before it; "the type and name go to NSTR1" for the type
+   byte alone; "final four bytes" for a two-byte link; a stub count
+   short by the inline CALL DERR in SKIPF; an operand named by its
+   instruction's address.  Attribution again, four of five.
 
 7. **Run it.**  Four suspected defects and the evidence-wanted items
    are what no reading closes, and every pass has found the prose's
@@ -765,8 +773,8 @@ restated can.  So, in the order of what they would have caught:
    needs the emulator's reset, not BREAK.
 
 All seven are now done or in use; the fourth is a habit, written into
-CLAUDE.md.  None replaces a reader, and the DOS half has had neither
-the claims pass nor a lower-case second pass outside phase 2.
+CLAUDE.md.  None replaces a reader, and the DOS half has not had a
+lower-case second pass outside phase 2.
 
 ---
 

@@ -85,7 +85,9 @@ DOC OPND44
 
     THE WHOLE ENTRY IS COPIED INTO THE RECORD at FFSA, which is what
     makes every later offset into the entry an offset into the
-    record.  The type and name go to NSTR1 as well, the first track
+    record.  The type byte goes to NSTR1 as well; the eleven-byte LDIR
+    after it lands the type and name on the channel's copy a second
+    time, not on NSTR1.  The first track
     and sector come out of offsets 13 and 14, and the pointer's
     sector count starts at zero so that COUNT_AND_READ_SECTOR makes
     it one as it reads.

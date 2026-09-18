@@ -80,8 +80,11 @@ DOC FILE_TYPE_AT_POINT
     becomes &10 and both mean BASIC, 2 becomes &11 and both mean a
     numeric array, and so on down to CODE.  Flag 7 records that the file
     was a Spectrum one, which is the only thing anything downstream needs
-    to remember about it -- COPY_HEADER_FIELDS reads that flag to decide
-    whether the entry has a ROM header in it or one has to be invented.
+    to remember about it -- the BITF7 at &4EE0, the instruction before
+    COPY_HEADER_FIELDS, reads that flag, and COPY_HEADER_FIELDS branches
+    on the Z it brings in to decide whether the entry has a ROM header
+    in it or one has to be invented.  COPY does not read the flag at
+    all: &5A0C forces Z before calling in.
 
     The converted type is written back into the buffer, so the entry
     itself reads as a SAM file from here on.

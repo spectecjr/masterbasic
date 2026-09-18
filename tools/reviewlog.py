@@ -28,6 +28,11 @@ The rows are data, not a leaderboard.  A region that returns nothing is
 evidence the commentary there is sound; a region that returns twenty
 is one to re-read by hand, because a review samples the errors and does
 not exhaust them.
+
+A row whose shape is `claims` is a cross-reference pass (tools/claims.py):
+its own_lines column is the number of claims checked, not lines of
+prose, so it is printed with "claims" against it and kept out of the
+per-100-lines trend, which would otherwise compare unlike with unlike.
 """
 import csv
 import io
@@ -63,9 +68,10 @@ def main(argv):
              'C', 'C+P+G', 'per100'))
     trend = []
     for k in sorted(rounds, key=lambda x: (len(x), x)):
-        rs = [r for r in rounds[k] if r['shape'] == 'review']
+        rs = [r for r in rounds[k] if r['shape'] in ('review', 'claims')]
         if not rs:
             continue
+        claims = all(r['shape'] == 'claims' for r in rs)
         lines = [num(r['own_lines']) for r in rs]
         finds = [num(r['findings']) for r in rs]
         conf = [num(r['confirmed']) for r in rs]
@@ -84,16 +90,23 @@ def main(argv):
         cshare = '%3d%%' % (100.0 * c_sum / m_sum) if m_sum else ' --'
         dates = sorted({r['date'] for r in rs if r['date']})
         halves = ''.join(sorted({r['half'] for r in rs}))
-        print('%-6s %-11s %-6s %6s %8d %6d %7s %5s %7d %7s'
+        print('%-6s %-11s %-6s %6s %8d %6d %7s %5s %7d %7s%s'
               % (k, dates[0] if dates else '', halves,
-                 l_tot or '--', f_tot, c_tot, rate, cshare, m_sum, per100))
-        if l_tot:
+                 l_tot or '--', f_tot, c_tot, rate, cshare, m_sum, per100,
+                 '  per 100 claims' if claims else ''))
+        if l_tot and not claims:
             trend.append((k, 100.0 * f_on_lines / l_tot))
     print()
     print('%d regions reviewed, %d findings, %d confirmed on audit'
           % (sum(1 for r in data if r['shape'] == 'review' and num(r['findings']) is not None),
              sum(num(r['findings']) or 0 for r in data if r['shape'] == 'review'),
              sum(num(r['confirmed']) or 0 for r in data if r['shape'] == 'review')))
+    cl = [r for r in data if r['shape'] == 'claims']
+    if cl:
+        print('%d claims passes: %d claims checked, %d findings, %d confirmed on audit'
+              % (len(cl), sum(num(r['own_lines']) or 0 for r in cl),
+                 sum(num(r['findings']) or 0 for r in cl),
+                 sum(num(r['confirmed']) or 0 for r in cl)))
     if len(trend) >= 2:
         first, last = trend[0][1], trend[-1][1]
         print('findings per 100 own lines: round %s %.1f -> round %s %.1f'

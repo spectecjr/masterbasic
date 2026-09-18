@@ -465,9 +465,11 @@ not spend a session on it; the listing says where the reading stops
 seven short BASIC tests in 10 need only a booted machine, **and one is
 to hand from 2026-09-17**: SimCoupe driven from PowerShell, with the
 recipe in `docs/evidence-wanted.md`.  It settled bugs.md 14 in an
-afternoon (the DELETE borrow: observed, a hang).  Bugs 12 and 13 and the
-tests in 10 are the next things to put through it; 13 needs a printer
-device, which SimCoupe can be given.
+afternoon (the DELETE borrow: observed, a hang), and bugs 3, 7 and 12,
+DVAR 22 and LOCN's read-through the day after.  Bug 13 needs a printer
+device, which SimCoupe can be given; 10e wants a frame count either
+side of a COPY SCREEN in MODE 2 and MODE 3, which is the LOCN recipe
+again.
 
 ---
 
@@ -538,6 +540,17 @@ are about, four readers.  Five findings, all confirmed, three `[C]`:
 credited to the wrong half, four loads called calls, a sentence true
 of one tree only -- the attribution class that the region passes
 sampled at two-fifths a pass, found by a reader who had the target's
-bytes in front of them instead of the claim's.  The DOS half has not
-had it.  And the emulator ran the same day: bugs.md 14 is observed,
-not read.
+bytes in front of them instead of the claim's.  And the emulator ran
+the same day: bugs.md 14 is observed, not read.
+
+**Round 15 (2026-09-18), the DOS's cross-reference pass.**  467 claims
+about 48 routines, two readers, five findings, all confirmed and
+applied, two `[C]`: 1.1 per hundred claims, four of the five
+attribution.  The same day the emulator settled four more of the
+never-run items: hook 153 from machine code wrecks the machine (bugs
+12), the name fold merges `x^` and `x~` and the DOS asks before
+overwriting (bugs 3), LOCN's 64K read-through shows as 36 frames for
+a hundred-byte search (10f), and DVAR 22 holds 17395.  Six of the
+eleven items under evidence-wanted 10 are now observed; 10d needs
+Spectrum mode, 10e a stopwatch, 10g a settable clock, and 10h-j want
+damaged discs or an unreachable stack.

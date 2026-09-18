@@ -173,6 +173,10 @@ MasterDOS moved the pattern pointer from `IX` to `DE`, because `IX` now
 holds the channel record, and changed nothing else. This one was
 inherited, not introduced, which is the opposite of the two above.
 
+**Observed** 2026-09-18 under SimCoupe: with `x^` on the disc, `DIR
+"x~"` lists it, `SAVE "x~"` asks `OVERWRITE "x^" (y/n)`, and `LOAD "x~"
+CODE` loads `x^`'s bytes.
+
 **Written up at** `&4CDB` in `listings/clean/masterdos.asm`.
 
 ---
@@ -635,9 +639,14 @@ DOS's own catalogue uses, is unaffected: it is reached by a plain
 `CALLMB` with `HL` and `DE` in the main set and skips the `EXX`. The
 `SORT` command does not come this way either.
 
-**Not observed.** Read out of the instruction chain, every step of
-which is in the listings. A `CALL` of hook 153 from machine code with a
-small list would settle it.
+**Observed** 2026-09-18 under SimCoupe. Fourteen bytes at 40000 --
+`LD HL,40100 : LD BC,2 : LD DE,4 : LD A,2 : RST &08 : DEFB 153 : RET`
+-- and the eight bytes `DBCAABZZ` at 40100. `CALL 40000` with the hook
+byte changed to 165 (`PCAT`) returns to BASIC normally, so the harness
+is sound; with 153 it does not: on one run the machine went straight
+to the power-on screen, on another the statement ended in `30 Integer
+out of range` and the machine took no further line. A four-item list
+of two-byte records was never sorted.
 
 **Written up at** `&4800` in `listings/clean/masterbasic.asm`.
 
@@ -1114,4 +1123,11 @@ the reconstructed count at `&4CCA`–`&4CD1` comes out at N or less, which
 happens only in the final 255 bytes of the 65536: the usual cost is a
 64K read through sections C, D and round into A for one chunk, not a
 wrong answer.
+
+**The read-through is observed** (2026-09-18, SimCoupe): a hundred-byte
+`LOCN` for a three-byte pattern takes 36 frames with the byte at offset
+98 equal to the pattern's first character and 1 frame with it at
+offset 97 or absent, `FRAMES` read either side. The accepted-match case
+was not reproduced with copies of the pattern in what this entry
+computes as the window; that half stays a reading.
 
