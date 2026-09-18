@@ -317,10 +317,12 @@ ACRSU:
 ;; say: it is MasterBASIC's own code, running where its page is at &8000.
 ;; The DOS reaches these in the plain &40xx form, after CALLMB.
 ;;
-;; AND ONE LABEL HERE IS NOT A VARIABLE AT ALL.  V40F5 exists because
-;; &4A46 loads DIR_DATE+&4000, a directory offset that happens to come to
-;; &40F5; the address is inside the dot-pattern table, and the label
-;; splits that table's own DEFB run in two.  See docs/bugs.md.
+;; AND ONE ADDRESS HERE IS NOT A VARIABLE AT ALL.  &4A46 loads
+;; DIR_DATE+&4000, a directory offset that happens to come to &40F5,
+;; inside the dot-pattern table.  The working copy keeps a V40F5 label
+;; there, splitting that table's own DEFB run in two; the reading copy
+;; writes the operand as the offset it is and has no label.  See
+;; docs/bugs.md.
 ;; --------------------------------------------------------------------
 
                DEFB &00,&00                    ; 405A ..
@@ -3808,7 +3810,8 @@ INSERTLN_WORD:
 ;;     kept in BC and the answer built by shifting and adding: double and
 ;;     add BC back for three, three more doublings for twenty-four, add BC
 ;;     once more for twenty-five, and two doublings for a hundred.  The
-;;     companion to MULTIPLY_BY_60, and like it reached from the DOS.
+;;     companion to MULTIPLY_BY_60, which TICS calls from this page; this
+;;     one is called from the DOS, at &7B35.
 ;;
 ;;     A IS THE TOP OF A 24-BIT ANSWER, but only from the sixth step on:
 ;;     the carries out of the first four adds are dropped, so the result is
@@ -25143,8 +25146,10 @@ HOOK_SKIPNAME_1:
 ;;     carry.  A plain string never feels it (the CP &04 at &7150 keeps
 ;;     strings under four pages, so the top byte is zero), but a string
 ;;     array over 64K that DELETE takes more from than its low sixteen
-;;     bits hold would be left a page too long.  Read from the bytes, not
-;;     seen: docs/bugs.md 14.
+;;     bits hold is left four pages too long, and the next lookup of a
+;;     string variable behind it walks off the end and hangs the machine.
+;;     Seen under SimCoupe: DIM a$(5,16384): DELETE a$(1 TO 2) does it,
+;;     DELETE a$(1) does not.  docs/bugs.md 14.
 ;;
 ;;     RES 7,D on the way out undoes the windowing LONGADDR_TO_PAGED puts
 ;;     in, so the value is stored as a plain count again, and OR D / OR E
@@ -29748,7 +29753,7 @@ MB_PAGER:
 ;;         COPY_STRING_TO_BUFFER gets a string, refuses one longer than 255 bytes, keeps
 ;;         the length in V4098 and LDIRs the text to &7B00.
 ;;         &4C9F, &4CC3, &4D08, &4D1F, &5733 and &5838 point DE at it and
-;;         search or compare against what is there -- &4CAA is a CPIR
+;;         search or compare against what is there -- &4CAD is a CPIR
 ;;         against a byte read from it.
 ;;         &5674 and &577C read the first two bytes back.
 ;;         &66B0 and &66AA write two words into &7B01 and &7B03, over the
@@ -30041,7 +30046,7 @@ EVALUV_STUB_1:
 ;;                 time by BUILD_COMPILER at &735D, which LDIRs 66 bytes
 ;;                 of the ROM's DOCOMP -- the operand the boot found by
 ;;                 signature -- and 219 bytes from &7385 into it and then
-;;                 patches four of its bytes.
+;;                 patches it in four places, two bytes and two words.
 ;;         &5A9F   PROGP and &5AA0 PROG, read and written directly rather
 ;;                 than through NRRD, because with the system page at &4000
 ;;                 they are simply there.  &7350 confirms the pair: the same
@@ -30076,8 +30081,9 @@ EVALUV_STUB_1:
 ;;     Nothing calls into it where it
 ;;     sits, so it never runs in place, and the copy is the only version
 ;;     that executes.  The helper block at &7B80 just above it is the
-;;     opposite -- called from &5561, &5739, &691C and &6A76 -- which is how
-;;     a block meant to run where it sits looks.
+;;     same: copied to &4BA0 to run there, and the four references to it
+;;     in place -- &5561, &5739, &691C and &6A76 -- are loads that reuse
+;;     its bytes as a buffer, REF_BUFFER_2 and the grey map, not calls.
 ;;
 ;;     Two more system variables read directly here confirm the mapping a
 ;;     fourth time: DCT at &5BB6 and FLAGS at &5C3B, both at their ROM

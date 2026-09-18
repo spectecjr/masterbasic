@@ -421,6 +421,7 @@ The differences from the review prompt:
 | MB second passes on E, F, H, I, J, K, the cuts that returned under twelve (2026-09-15/16, round 12) | review | 42 findings | 42; 1.7 per hundred, 45% [C] -- the same rate as the high-count cuts; bugs.md 14 |
 | MB second passes on L, M, N, P (2026-09-16, round 12) | review | 19 findings | 17 + 2 left; 1.4 per hundred, 16% [C]; the installer's one-byte "clear", the drive probe's overwrite |
 | MB third pass on G, O, E (2026-09-16, round 13) | review | 19 findings | 19; 1.3 per hundred against 2.3 and 2.7, 47% [C] flat -- sampling, not exhausting; two phantom splits, four stale cross-references |
+| MB cross-reference pass, 831 claims about 45 routines in four bundles (2026-09-17, round 14) | claims | 5 findings | 5; 0.6 per hundred claims, 3 [C]; a caller credited to the DOS, four loads called calls, a label true of one tree only, "four bytes" for six, an address one instruction off |
 
 The first five ran on one model; the rest on another, after the first hit a
 session limit mid-run. The prompts were byte-identical across the change,
@@ -674,7 +675,8 @@ restated can.  So, in the order of what they would have caught:
    the table above was restated by hand from something the build
    already knows.  A `{callers}` or `{size}` the build expands inside
    a DOC would have made four of round 12's findings impossible to
-   write.  Not done yet; the thunk headers show the shape.
+   write.  `{callers}` is done (notes.py `expand`, 2026-09-17) and
+   three banners use it; the shape is there for the next placeholder.
 
 2. **Turn a reading into a declaration.**  Three phantom splits this
    week -- FN_EQU's CALL, CALL WAIT_FOR_CLOCK, INARRAY's LD BC -- came
@@ -691,12 +693,17 @@ restated can.  So, in the order of what they would have caught:
    now -- a mnemonic named beside an address is a claim about the
    instruction there, and a re-decode makes it false silently (round
    13 found four of those; the check finds none today, which is what
-   a guard looks like after the sweep).  The same shape would serve
-   quotations: a quoted sentence attributed to the manual should be
-   in `docs/masterbasic-manual.md` verbatim, and a `"..." (manual)`
-   marker would make it checkable.  Not built; the quotation habit
-   is inconsistent enough that the check would be noise until the
-   marker is adopted.
+   a guard looks like after the sweep).  Quotations have the same
+   check now (2026-09-17): a quoted sentence with "manual" before it
+   is looked for in the transcript that word names -- the MasterBASIC
+   manual, the Technical Manual, or `ref/masterdos/docs/` -- with
+   markdown, case and typography folded and an ellipsis splitting the
+   quote into parts.  No marker was needed after all; the attribution
+   already in the prose was enough to route 113 quotes, and sixteen
+   of them were not in their transcript -- "90K a second" for
+   "90K/second", the Technical Manual credited as "the manual", two
+   passages spliced, a clause dropped without an ellipsis.  All fixed
+   in the same commit.
 
 4. **One fact, one place.**  Two banners that state the same fact
    drift apart at the first correction; DSCHD's said the opposite of
@@ -718,19 +725,48 @@ restated can.  So, in the order of what they would have caught:
    that and got nine `[C]`s.  A cheaper form: a *cross-reference
    pass* whose cut is not a region but the set of claims one region
    makes about another -- "X leaves it in HL", "Y falls into Z", "the
-   ROM's W does V" -- each checked at its target.  `cutregion.py`
-   could produce that list from the prose; a reader checks a list of
-   claims faster than a region.
+   ROM's W does V" -- each checked at its target.  `tools/claims.py`
+   does that now (2026-09-17): every sentence of the reading copy
+   that names a routine other than the one it sits in, or an address
+   inside one, collected under the routine it is about; `--bundle`
+   prints a routine's region and then the claims made about it from
+   elsewhere, which is the reviewer's brief.  Round 14 ran it on the
+   45 MasterBASIC routines with the most claims, 831 claims in four
+   bundles: five findings, all confirmed, three `[C]` -- a caller
+   credited to the DOS that is TICS's, four loads described as calls
+   (the &7B80 block "meant to run where it sits" is copied to &4BA0
+   like its neighbour), a label sentence true of the working copy and
+   false of the reading copy it appears in, "four bytes" for six, an
+   address one instruction off.  That is 0.6 per hundred claims
+   against 1.3 per hundred lines on the third region pass, on prose
+   most of which has been read three times; the extractor's noise --
+   about a third of the claims are system-page addresses that only
+   coincide with this page's -- is the cost, and the reviewers
+   skipped it as briefed.  The DOS half has not had this pass.
 
 7. **Run it.**  Four suspected defects and the evidence-wanted items
    are what no reading closes, and every pass has found the prose's
    account of a mechanism -- the drive probe, the double-strike DUMP,
    the year-00 stamp -- resting on a reading of the bytes that a
-   booted machine would settle in a minute.
+   booted machine would settle in a minute.  It can be done from here
+   (2026-09-17): SimCoupe boots the `.mgt`, a PowerShell script holds
+   each key down long enough for the SAM to sample it, Shift-F9 saves
+   a PNG, and the model reads the screen.  The recipe is in
+   `docs/evidence-wanted.md`.  The first thing it settled was bugs.md
+   14: `DIM a$(5,16384): DELETE a$(1 TO 2)` hangs the next string
+   lookup, and the three controls that do not borrow do not.  Then
+   evidence-wanted 10a (`DPEEK DVAR 22` is 17395) and 10c (`SORT ABS
+   INVERSE` sorts 256 elements and not 257) -- and both tests as
+   written were wrong in a way only running them finds: `PRINT DVAR
+   22` prints the variable's address, and `SORT INVERSE` without ABS
+   is a syntax error.  Worth
+   knowing before the next one: BASIC boots with four pages, so an
+   array over 64K needs `OPEN 8: CLEAR 190000` first, and a hung SAM
+   needs the emulator's reset, not BREAK.
 
-The first, third and sixth are tooling of a day each; the second and
-fifth are done; the fourth is a habit.  None replaces a reader, and
-the DOS half has not had a lower-case second pass outside phase 2.
+All seven are now done or in use; the fourth is a habit, written into
+CLAUDE.md.  None replaces a reader, and the DOS half has had neither
+the claims pass nor a lower-case second pass outside phase 2.
 
 ---
 

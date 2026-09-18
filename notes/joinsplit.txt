@@ -225,8 +225,10 @@ DOC ADJUST_VARIABLE_SIZE
     carry.  A plain string never feels it (the CP &04 at &7150 keeps
     strings under four pages, so the top byte is zero), but a string
     array over 64K that DELETE takes more from than its low sixteen
-    bits hold would be left a page too long.  Read from the bytes, not
-    seen: docs/bugs.md 14.
+    bits hold is left four pages too long, and the next lookup of a
+    string variable behind it walks off the end and hangs the machine.
+    Seen under SimCoupe: DIM a$(5,16384): DELETE a$(1 TO 2) does it,
+    DELETE a$(1) does not.  docs/bugs.md 14.
 
     RES 7,D on the way out undoes the windowing LONGADDR_TO_PAGED puts
     in, so the value is stored as a plain count again, and OR D / OR E

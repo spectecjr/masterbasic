@@ -321,7 +321,8 @@ MB &45F9 MULTIPLY_BY_100
     kept in BC and the answer built by shifting and adding: double and
     add BC back for three, three more doublings for twenty-four, add BC
     once more for twenty-five, and two doublings for a hundred.  The
-    companion to MULTIPLY_BY_60, and like it reached from the DOS.
+    companion to MULTIPLY_BY_60, which TICS calls from this page; this
+    one is called from the DOS, at &7B35.
 
     A IS THE TOP OF A 24-BIT ANSWER, but only from the sixth step on:
     the carries out of the first four adds are dropped, so the result is

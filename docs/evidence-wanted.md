@@ -225,7 +225,7 @@ directory-entry read is a confirmation now rather than a question.
 | **A dump of page 3 with the Spectrum emulator loaded**, and of the system page while Spectrum mode is active | 9, and test 10d under it | needs Spectrum mode entered |
 | **The word at `&4EFE` in the system page while `SPLIT` runs** | 7 | needs a break in the right place |
 | **A directory entry read back after saving a compressed screen** | confirms 8, which is now read from the code: offsets 229-231 should hold the compressed length in page form | easy |
-| **Seven short BASIC tests**, 10a to 10g | seven of the nine defects that have never been run | easy — a machine and a few lines each |
+| **Short BASIC tests**, 10b, 10e, 10f and 10g (10a, 10c and 10k are done) | four of the defects that have never been run | easy — the emulator recipe below, and a few lines each |
 | *(10h, 10i and 10j want damaged discs or an unreachable stack, and are listed so nobody spends an afternoon on them)* | — | hard to impossible |
 | **A printer stream from `POKE XVAR 33,3 : DUMP 4`** | 12 | easy — the same method as 6 |
 | **A 512-byte CODE file saved under `SAVE MODE 2` and loaded back**, built as item 13 says | 13, a defect read from the compressor and never run | easy — a machine and a few lines |
@@ -374,21 +374,27 @@ of the system page taken while Spectrum mode is active — if `NMIV` reads
 ## 10. Defects read out of the instructions and never seen run
 
 Every one of these is written up in [bugs.md](bugs.md) and derived from the
-code alone. None has been observed on a machine, and that is the gap: a defect
-proved from the instructions and never executed is still a reading. They are in
-roughly the order of how cheap they are to try.
+code alone. Three -- 10a, 10c and 10k -- have now been run under SimCoupe and
+observed; the rest have not, and that is the gap: a defect proved from the
+instructions and never executed is still a reading. They are in roughly the
+order of how cheap they are to try.
 
 **10a. `DVAR 22` points into the middle of a routine.** One line:
 
 ```
-PRINT DVAR 22
+PRINT DPEEK DVAR 22
 ```
 
-Expect **17395** (`&43F3`). The hook table `SAMHK` is at **17574** (`&44A6`),
-179 bytes further on, and `&43F3` is an `LD L,C` inside another routine. Any
-program that reads `DVAR 22` to find the table is sent to the wrong place. If
-it prints 17574, this image is not the one the defect was read out of and that
-is worth knowing too.
+(`DVAR n` is the *address* of the variable, so `PRINT DVAR 22` prints
+492086, page 29 times 16384 plus `&4236`, which is where the word lives
+and not what it holds.)  Expect **17395** (`&43F3`). The hook table
+`SAMHK` is at **17574** (`&44A6`), 179 bytes further on, and `&43F3` is
+an `LD L,C` inside another routine. Any program that reads `DVAR 22` to
+find the table is sent to the wrong place. If it prints 17574, this
+image is not the one the defect was read out of and that is worth
+knowing too.
+
+**Observed 2026-09-17, under SimCoupe: 17395.**
 
 **10b. Six pairs of file names cannot be told apart.** `CKNAM` folds bit 5 out
 of every character, which was meant to make the compare case-blind and also
@@ -403,11 +409,24 @@ the code says. Then save a second file as `X~` and see which of the two a
 `LOAD "X^"` fetches — that is the destructive half, and it is worth knowing
 whether the DOS offers to overwrite or silently picks one.
 
-**10c. `SORT INVERSE` reverts to ascending after 256 elements.** Fill a string
-array with more than 256 elements in random order, `SORT INVERSE`, and print
-it. Expect the first block descending and every block after it ascending —
-neither sorted nor reversed, but alternating runs. Under 256 elements it should
+**10c. `SORT ABS INVERSE` reverts to ascending after 256 elements.** Fill a
+string array with more than 256 elements in random order, `SORT ABS INVERSE`
+(the manual's grammar; plain `SORT INVERSE` is a syntax error), and print
+it. Expect something neither sorted nor reversed. Under 256 elements it should
 be correct, which is the control.
+
+**Observed 2026-09-17, under SimCoupe.** Counting the places where the
+order changes direction: 200, 255 and 256 elements give one (sorted);
+257 gives two, at element 3; 300 gives eight; 600 gives 122. The
+prediction of neat alternating blocks was too tidy -- above the
+boundary the passes mix the two comparisons and never converge -- but
+the boundary is exactly at 256. `bugs.md` 7 has the table.
+
+**10k. `DELETE` on a string array over 64K drops its borrow.** `bugs.md`
+14, and the first thing the emulator settled: `OPEN 8: CLEAR 190000:
+DIM a$(5,16384): LET z$="x": DELETE a$(1 TO 2): PRINT z$` hangs the
+machine, and the controls that do not borrow do not. **Observed
+2026-09-17.**
 
 **10d. The NMI menu's exit restores `HMPR` from the saved `LMPR`.** Enter
 Spectrum mode, press NMI, press `X` to exit, then `PEEK` through the `&8000`
@@ -593,6 +612,26 @@ repository and only wanted reading:
 
 ## Notes on capturing
 
+- **The emulator can be driven from here.**  SimCoupe is installed
+  (`C:\Program Files\SimCoupe\SimCoupe.exe`); launch it with `-disk1
+  <the .mgt> -outpath <dir> -speed 400`, press Enter at the startup
+  screen and type `BOOT`.  Keys are sent with a script that calls
+  `keybd_event` and holds each key down for 60 ms, because a key the SAM
+  does not see held across one of its frames is a key it never saw.
+  Three things drop keys: a keyword being tokenised as the space after
+  it lands (pause 400 ms after every non-alphanumeric character), the
+  same key twice running (the second press reads as the first still
+  held -- pause before and after), and Enter held too long (it is
+  ignored; hold it 60 ms like the rest).  `Shift-F9` writes a PNG of
+  the SAM screen to the output directory, and the model reads it.
+  After a reset (`F12`) SimCoupe boots its own SAMDOS, not the disk --
+  type `BOOT` again, and `PRINT DPEEK DVAR 22` printing 17395 is the
+  check that MasterBASIC is the one answering.  BASIC boots with four
+  pages: an array over 64K needs `OPEN 8: CLEAR 190000` first.  A
+  hung SAM needs the reset; BREAK does nothing.  The script is not in
+  the repository -- it is thirty lines of PowerShell and belongs to
+  the session that wrote it -- but this paragraph is enough to write
+  it again.
 - Anything saved as a CODE file on an `.mgt` or `.dsk` image can be dropped
   in `diskimages/` and extracted here — the directory format and sector chains are
   understood, and `ref/masterdos/docs/disk-format.md` documents them.

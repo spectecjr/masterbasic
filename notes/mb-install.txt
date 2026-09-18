@@ -73,7 +73,7 @@ MB &7B00 INSTALL_ROM_PATCHES
         COPY_STRING_TO_BUFFER gets a string, refuses one longer than 255 bytes, keeps
         the length in V4098 and LDIRs the text to &7B00.
         &4C9F, &4CC3, &4D08, &4D1F, &5733 and &5838 point DE at it and
-        search or compare against what is there -- &4CAA is a CPIR
+        search or compare against what is there -- &4CAD is a CPIR
         against a byte read from it.
         &5674 and &577C read the first two bytes back.
         &66B0 and &66AA write two words into &7B01 and &7B03, over the

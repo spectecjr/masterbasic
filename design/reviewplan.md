@@ -462,8 +462,12 @@ first readers checked numbers; the second checked who does what.
 needs the emulator to load files, and as of 2026-09-13 it will not.  Do
 not spend a session on it; the listing says where the reading stops
 (`SNAP7`'s stub in page 3) and that is enough.  Items 7 and 12 and the
-seven short BASIC tests in 10 need only a booted machine and are cheap if
-one is to hand.
+seven short BASIC tests in 10 need only a booted machine, **and one is
+to hand from 2026-09-17**: SimCoupe driven from PowerShell, with the
+recipe in `docs/evidence-wanted.md`.  It settled bugs.md 14 in an
+afternoon (the DELETE borrow: observed, a hang).  Bugs 12 and 13 and the
+tests in 10 are the next things to put through it; 13 needs a printer
+device, which SimCoupe can be given.
 
 ---
 
@@ -523,3 +527,17 @@ Those classes are what a check can find and a reader finds slowly:
 every `&hhhh` a comment cites should be an instruction start or a
 label in its half, and every name it cites should exist.  That is the
 next step, not a fourth pass.
+
+**Round 14 (2026-09-17), the cross-reference pass.**  The checks came
+first -- mnemonics beside addresses, quotations against their
+transcripts, `{callers}` generated -- and then `tools/claims.py` cut
+the prose the other way: 831 sentences that name a routine other than
+the one they sit in, bundled under the 45 MasterBASIC routines they
+are about, four readers.  Five findings, all confirmed, three `[C]`:
+0.6 per hundred claims.  What they were is the point -- a caller
+credited to the wrong half, four loads called calls, a sentence true
+of one tree only -- the attribution class that the region passes
+sampled at two-fifths a pass, found by a reader who had the target's
+bytes in front of them instead of the claim's.  The DOS half has not
+had it.  And the emulator ran the same day: bugs.md 14 is observed,
+not read.

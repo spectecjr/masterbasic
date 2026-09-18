@@ -867,10 +867,12 @@ The &80xx form is also not the DOS reaching over, as this note used to
 say: it is MasterBASIC's own code, running where its page is at &8000.
 The DOS reaches these in the plain &40xx form, after CALLMB.
 
-AND ONE LABEL HERE IS NOT A VARIABLE AT ALL.  V40F5 exists because
-&4A46 loads DIR_DATE+&4000, a directory offset that happens to come to
-&40F5; the address is inside the dot-pattern table, and the label
-splits that table's own DEFB run in two.  See docs/bugs.md."""
+AND ONE ADDRESS HERE IS NOT A VARIABLE AT ALL.  &4A46 loads
+DIR_DATE+&4000, a directory offset that happens to come to &40F5,
+inside the dot-pattern table.  The working copy keeps a V40F5 label
+there, splitting that table's own DEFB run in two; the reading copy
+writes the operand as the offset it is and has no label.  See
+docs/bugs.md."""
 
 
 MBVARS2_BANNER = banner(MBVARS2_DOC)

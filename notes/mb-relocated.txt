@@ -36,7 +36,7 @@ DOC RELOCATED_TO_484D
                 time by BUILD_COMPILER at &735D, which LDIRs 66 bytes
                 of the ROM's DOCOMP -- the operand the boot found by
                 signature -- and 219 bytes from &7385 into it and then
-                patches four of its bytes.
+                patches it in four places, two bytes and two words.
         &5A9F   PROGP and &5AA0 PROG, read and written directly rather
                 than through NRRD, because with the system page at &4000
                 they are simply there.  &7350 confirms the pair: the same
@@ -71,8 +71,9 @@ DOC RELOCATED_TO_484D
     Nothing calls into it where it
     sits, so it never runs in place, and the copy is the only version
     that executes.  The helper block at &7B80 just above it is the
-    opposite -- called from &5561, &5739, &691C and &6A76 -- which is how
-    a block meant to run where it sits looks.
+    same: copied to &4BA0 to run there, and the four references to it
+    in place -- &5561, &5739, &691C and &6A76 -- are loads that reuse
+    its bytes as a buffer, REF_BUFFER_2 and the grey map, not calls.
 
     Two more system variables read directly here confirm the mapping a
     fourth time: DCT at &5BB6 and FLAGS at &5C3B, both at their ROM

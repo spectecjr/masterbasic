@@ -5,7 +5,7 @@ as they were sold. The listings cannot be corrected: they assemble to the
 original image byte for byte, and that is the point of them. So a defect
 gets written down here and explained where it sits.
 
-Eleven are confirmed and three are suspected. The three sweeps this file used to
+Twelve are confirmed and two are suspected. The three sweeps this file used to
 plan have now been run, and what they found is at the end.
 
 ---
@@ -397,10 +397,25 @@ ascending nor descending but a run of alternating orders.
 because it is its own tail; plain `SORT` goes through the case-folding scan at
 `&46CD`, which ends at `&46E9` instead.
 
-**Not observed.** This is read out of the instructions, not seen on a machine.
-It wants an array of more than 256 strings and a `SORT INVERSE`. The dead three
-bytes decoding as exactly the instruction the exit should reach is what makes it
-worth writing down rather than a suspicion.
+**Observed** on 2026-09-17 under SimCoupe (`diskimages/
+MasterDOS2_3_MasterBasic1_7.mgt`, the recipe in `docs/evidence-wanted.md`).
+Two-letter random strings, `SORT ABS INVERSE`, then a scan counting the
+places where the order changes direction (one change is a sorted array):
+
+| elements | direction changes |
+|---|---|
+| 200 | 1 |
+| 255 | 1 |
+| 256 | 1 |
+| 257 | 2, at element 3 |
+| 300 | 8, the first at 21 |
+| 600 | 122, the first at 16 |
+
+So the boundary is exactly where the bytes put it, and what comes out
+above it is not two neat runs but a mess: the pass mixes the two
+comparisons, and repeated passes never converge.  The dead three bytes
+decoding as exactly the instruction the exit should reach was what made
+this worth writing down; the machine agrees.
 
 ---
 
@@ -683,11 +698,27 @@ byte with no borrow. The add path (`&6FCB`–`&6FCE`) pops first and its
 **What it costs** Nothing for a plain string: `&7150` refuses strings of
 four pages or more, so the top byte is zero and the low word is the
 whole length. A string array is not checked, so DELETE of more bytes
-than the low sixteen bits of an array over 64K leaves its page count
-one too high.
+than the low sixteen bits of an array over 64K leaves its recorded
+size a 64K bank -- four pages -- too long, and the ROM's
+string-variable search walks by that
+length, so the next lookup of any string variable defined after the
+array runs off the end of the area and the machine hangs.
 
-**Not observed.** Read out of the bytes; a string array over 64K and a
-DELETE that borrows would settle it.
+**Observed** on 2026-09-17 under SimCoupe, booting
+`diskimages/MasterDOS2_3_MasterBasic1_7.mgt` on a 512K machine. BASIC
+boots with four pages, so `OPEN 8: CLEAR 190000` first; then
+
+    DIM a$(5,16384): LET z$="ok5": DELETE a$(1 TO 2): PRINT z$
+
+hangs at the `PRINT z$` -- no report line, BREAK ignored, only a reset
+recovers -- while `DELETE a$(1)` (16K, no borrow) and `DELETE c$(2 TO 5)`
+(64K, the top byte borrowed nothing) on arrays of the same size, and
+`DELETE a$(1 TO 2)` on a `DIM a$(3,16384)` (48K), all leave the string
+variable behind them findable and `FREE` right. The array's size in
+`PAGED_TO_LONG`'s form is `&01:4000`;
+taking `&8000` from the low word borrows, and the `SBC A,B` that
+follows does not see it, so the record says `&01:C000` -- seven pages
+-- for a three-page array.
 
 **Written up at** `ADJUST_VARIABLE_SIZE` in `listings/clean/masterbasic.asm`.
 
@@ -929,6 +960,9 @@ DVAR, that would be misled.
 `&43F3`. So the word was right where it was written and was left behind
 when this image relocated the DOS around it. The relocation is proved,
 not inferred.
+
+**Observed** 2026-09-17 under SimCoupe: `PRINT DPEEK DVAR 22` prints
+17395.
 
 ## Sixteen addresses carry two line notes, and one of each pair is thrown away
 
