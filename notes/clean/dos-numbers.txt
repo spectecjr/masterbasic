@@ -129,7 +129,7 @@ DOS &751F : two entries to a sector
 DOS &74F3 : B zero and C two: the DJNZ runs 256 times and C sends it round twice, the whole sector
 DOS &5F23 : &0400 and up, after the DEC, is 1025 sectors or more; 1 to 1024 is the range
 DOS &5FF7 expr TYPE_BASIC
-DOS &6054 : the ROM's entry LMPR, where SET_DOS_STACK put it: MasterBASIC sets DOSSTK to &7FE6, so the frame's top byte -- B from the ROM's PUSH BC -- lands at &7FE5, the source's SYSP-1.  SET 6 there brings ROM 1 in when the ROM's DOSC restores the port; the source's "port 251" is a slip for 250
+DOS &6054 : the ROM's entry LMPR, where SET_DOS_STACK put it: MasterBASIC sets DOSSTK to &7FE6, so the frame's top byte -- B from the ROM's PUSH BC -- lands at &7FE5, the source's SYSP-1.  SET 6 there brings ROM 1 in when the ROM's DOSC restores the port; the source's "port 251" is a slip for 250.  Seen on the emulator (2026-09-18, a write breakpoint on this byte during the boot's auto-load): PTDOS's LD SP,&8000 : PUSH BC : PUSH HL : CALL &4200 leaves 30 38 / FA 4E / FA 5F at &7FFA -- DOSC's address, ERRSP, then C = port &FA under B = the entry LMPR -- and SET_DOS_STACK's LDDR puts the same six bytes at &7FE0, so this byte is B.  Under MasterBASIC LMPR is &5F already and the SET changes nothing; under stock BASIC's &1F it would
 DOS &5013 : E = 1 tells the ROM to load the file's body: LDFL
 
 # --- the RAM disc ----------------------------------------------------------

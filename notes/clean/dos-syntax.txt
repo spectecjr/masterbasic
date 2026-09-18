@@ -71,6 +71,16 @@ DOC CKESV_1
 
     Which of MasterBASIC's extensions each serves is not settled here;
     the procedure and array code in the other half is where to look.
+    What it is not (2026-09-18, the emulator's debugger with a
+    breakpoint on the error-4 branch at &440B while lines were
+    entered, with d$(10,10) and n(5) dimensioned): LENGTH(1,d$), SORT
+    d$, JOIN TO d$,d$, DELETE d$(5), INARRAY(d$,"x"), LET a$=d$,
+    LENGTH(1,n), PRINT n(1,2), LET d$(1,2,3)="x", LET d$(3 TO 6)="x",
+    DELETE d$(3 TO 6), INSTR(d$,"x") and d$(1)(2 TO 3) all enter
+    without reaching it -- the ROM's syntax pass raises no "Subscript
+    wrong" for any of them, and SORT n and INARRAY(n,5) on the numeric
+    array are plain syntax errors -- so the case this swallows is rarer
+    than a bare array name or a wrong subscript count.
 
     Every exit clears the byte at &5A60, one of the ROM's fourteen spare
     bytes after LSOFF that MasterBASIC keeps a flag in -- MB &6F43 sets

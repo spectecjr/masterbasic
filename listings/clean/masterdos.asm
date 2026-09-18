@@ -1579,6 +1579,16 @@ CKESV:
 ;;
 ;; Which of MasterBASIC's extensions each serves is not settled here;
 ;; the procedure and array code in the other half is where to look.
+;; What it is not (2026-09-18, the emulator's debugger with a
+;; breakpoint on the error-4 branch at &440B while lines were
+;; entered, with d$(10,10) and n(5) dimensioned): LENGTH(1,d$), SORT
+;; d$, JOIN TO d$,d$, DELETE d$(5), INARRAY(d$,"x"), LET a$=d$,
+;; LENGTH(1,n), PRINT n(1,2), LET d$(1,2,3)="x", LET d$(3 TO 6)="x",
+;; DELETE d$(3 TO 6), INSTR(d$,"x") and d$(1)(2 TO 3) all enter
+;; without reaching it -- the ROM's syntax pass raises no "Subscript
+;; wrong" for any of them, and SORT n and INARRAY(n,5) on the numeric
+;; array are plain syntax errors -- so the case this swallows is rarer
+;; than a bare array name or a wrong subscript count.
 ;;
 ;; Every exit clears the byte at &5A60, one of the ROM's fourteen spare
 ;; bytes after LSOFF that MasterBASIC keeps a flag in -- MB &6F43 sets
@@ -9997,7 +10007,13 @@ DLVM2:
                                                ; MasterBASIC sets DOSSTK to &7FE6, so the frame's top byte -- B from the
                                                ; ROM's PUSH BC -- lands at &7FE5, the source's SYSP-1. SET 6 there
                                                ; brings ROM 1 in when the ROM's DOSC restores the port; the source's
-                                               ; "port 251" is a slip for 250
+                                               ; "port 251" is a slip for 250. Seen on the emulator (2026-09-18, a write
+                                               ; breakpoint on this byte during the boot's auto-load): PTDOS's LD
+                                               ; SP,&8000 : PUSH BC : PUSH HL : CALL &4200 leaves 30 38 / FA 4E / FA 5F
+                                               ; at &7FFA -- DOSC's address, ERRSP, then C = port &FA under B = the
+                                               ; entry LMPR -- and SET_DOS_STACK's LDDR puts the same six bytes at
+                                               ; &7FE0, so this byte is B. Under MasterBASIC LMPR is &5F already and the
+                                               ; SET changes nothing; under stock BASIC's &1F it would
                SET 6,(HL)                      ; 6057 CB F6  ENSURE ROM1 ON ON EXIT FROM DOS BY
                LD A,(DIFA)                     ; 6059 3A AD 41
                CP TYPE_BASIC                   ; 605C FE 10

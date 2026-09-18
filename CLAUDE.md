@@ -299,11 +299,13 @@ and `DIR_FLAGS`, the `TYPE_` file types, `CNTH`/`CNTL`, `ROM_SP_AT_ENTRY`
 queue command still works and should keep printing an empty list; a
 number that reappears is a note that stopped matching, not new work.
 
-**Two readings were left open on purpose** and say so in the listing:
+**One reading is left open on purpose** and says so in the listing:
 `CKESV_1`'s interception of errors 4 and 26 is described mechanically
 with the MasterBASIC feature it serves untraced (`notes/clean/
-dos-syntax.txt`), and `DLVM2`'s `SET 6,(&7FE5)` is commented from the
-1991 source's word without the stack frame having been traced.
+dos-syntax.txt`).  `DLVM2`'s `SET 6,(&7FE5)` was the other, commented
+from the 1991 source's word; the emulator's debugger traced the frame
+on 2026-09-18 (`docs/evidence-wanted.md` says how), and the comment
+says what it found.
 
 **Read the top entry before starting it.**  The count ranks sites, not
 work; only reading the routine tells you which it is.  `RELOCATED_TO_46CC`
