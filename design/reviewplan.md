@@ -559,6 +559,8 @@ an unreachable stack.  The printer went the same way: SimCoupe's
 from column 128 prints the empty left half) and 13 (the second strike
 a dot to the side, two dots of drift by the 37th line) and
 evidence-wanted 12 (DUMP 4 at a multiplier of 3 declares 1024 columns
-and sends 768 bytes, now bugs 15) came out of three captures.  Of
-bugs.md's fifteen, only 4 (NMI exit, needs Spectrum mode), 9 (NVAL,
-unreachable) and the two disc-error ones (1 and 2) are still readings.
+and sends 768 bytes, now bugs 15) came out of three captures; and
+evidence-wanted 13, the compressor's block edge, came back as 512
+zeros exactly as predicted, now bugs 16.  Of bugs.md's sixteen, only
+4 (NMI exit, needs Spectrum mode), 9 (NVAL, unreachable) and the two
+disc-error ones (1 and 2) are still readings.

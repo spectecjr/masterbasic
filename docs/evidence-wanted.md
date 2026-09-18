@@ -4,9 +4,9 @@ What this project cannot settle by reading. Each entry says what to capture,
 why, and what it would decide — so that whoever has the hardware or the
 emulator can do it without reading the rest of the repository first. All five
 are answered, and are kept because the answers are worth more than the
-questions were. Items 7 and 13 are open: 13 needs a few lines of BASIC.
-Item 12 was settled by a printer capture on 2026-09-18, and item 8 by
-reading, not by a capture; both are kept for the same reason as the others.
+questions were. Item 7 is the one left open. Items 12 and 13 were settled
+under the emulator on 2026-09-18, and item 8 by reading, not by a capture;
+all are kept for the same reason as the others.
 
 ---
 
@@ -228,7 +228,7 @@ directory-entry read is a confirmation now rather than a question.
 | *(10a, 10b, 10c, 10e, 10f, 10g, 10k, 10l and 10m are done under the emulator)* | — | — |
 | *(10h, 10i and 10j want damaged discs or an unreachable stack, and are listed so nobody spends an afternoon on them)* | — | hard to impossible |
 | *(12, the DUMP 4 multiplier, was captured on 2026-09-18: the two counts disagree, as read)* | — | — |
-| **A 512-byte CODE file saved under `SAVE MODE 2` and loaded back**, built as item 13 says | 13, a defect read from the compressor and never run | easy — a machine and a few lines |
+| *(13, the compressor's block edge, was run on 2026-09-18: both predictions hold to the byte)* | — | — |
 
 The Spectrum capture is the valuable one: it is the only thing that would
 settle where the NMI menu is entered from, and one of the defects below sits on
@@ -584,7 +584,7 @@ is a value the bytes are allowed to hold.
 
 ---
 
-## 13. Whether a SAVE MODE 2 block that saves nothing loads back wrong
+## 13. Answered — a SAVE MODE 2 block that saves nothing loads back as zeros
 
 `COMPRESS_BLOCK` runs its byte run-length coder in place over a block laid
 so as to end at `&FFFF`, and two of its loops step past that end without a
@@ -627,9 +627,13 @@ The other edge — an escape in the last position — is tested by
 final zero is the escape). Predicted: a first byte of zero and 511 bytes of
 one, the parked byte cascading the same way.
 
-Neither has been run, and this is not in [bugs.md](bugs.md) until one has.
-Ordinary code, screens and arrays carry runs of four throughout, so the
-defect would show only on data that is already compressed or random.
+**Both run, 2026-09-18, under SimCoupe, and both predictions hold to the
+byte.** The `&F3` block loads back as 512 zeros -- 2 of 512 match, the
+block's own two zeros -- while the same block ending `&07`, and the
+original under `SAVE MODE 1`, load back 512 of 512. The escape-last block
+loads back as a zero and 511 ones. Now [bugs.md](bugs.md) 16. Ordinary
+code, screens and arrays carry runs of four throughout, so the defect
+shows only on data that is already compressed or random.
 
 ---
 

@@ -321,7 +321,7 @@ disk format.
 Two loops in `COMPRESS_BLOCK` step past the last byte of the block without
 looking. The block ends at `&FFFF`, and the address after it is `&0000`,
 which under `CALLMB` holds ROM 0 — its first bytes are `DI` (`&F3`) and
-`JP` (`&C3`). This is a reading of the instructions and has not been run;
+`JP` (`&C3`). Read from the instructions first, and run on 2026-09-18:
 see the last section.
 
 - `COMPRESS_BLOCK_LOOP5` increments `HL` and then compares, so when a run
@@ -538,10 +538,10 @@ argument for every claim above lives.
   the flags, offsets 229–231 and the tail in one go.
   [evidence-wanted.md](evidence-wanted.md) already asks for the
   directory-entry read.
-- **The block-edge case** in *At the edge of a block* is a defect if the
-  reading is right. [evidence-wanted.md](evidence-wanted.md) item 13 gives
-  a 512-byte test for it and the predicted result. It is not in
-  [bugs.md](bugs.md), because it has not been confirmed.
+- **The block-edge case** in *At the edge of a block* has been run:
+  [evidence-wanted.md](evidence-wanted.md) item 13 gave a 512-byte test
+  and the predicted result, and under SimCoupe the block came back as 512
+  zeros, the prediction to the byte. It is [bugs.md](bugs.md) 16.
 - **The tail copy's stop condition** assumes the first `&FF` in the palette
   tail is the line-interrupt table's terminator. Palette entries are seven-bit
   values, so that holds for the forty bytes of `PALTAB` as the ROM keeps them;

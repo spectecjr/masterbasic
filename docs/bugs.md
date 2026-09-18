@@ -5,7 +5,7 @@ as they were sold. The listings cannot be corrected: they assemble to the
 original image byte for byte, and that is the point of them. So a defect
 gets written down here and explained where it sits.
 
-Thirteen are confirmed and two are suspected. The three sweeps this file used
+Fourteen are confirmed and two are suspected. The three sweeps this file used
 to plan have now been run, and what they found is at the end.
 
 ---
@@ -791,6 +791,43 @@ bytes before its CR LF. The prediction was written before the capture,
 in `docs/evidence-wanted.md` 12.
 
 **Written up at** `DUMP_UNSHADED` in `listings/clean/masterbasic.asm`.
+
+---
+
+## 16. A SAVE MODE 2 block with no run in it loads back as zeros
+
+**Where** `COMPRESS_BLOCK` in the MasterBASIC half: `COMPRESS_BLOCK_LOOP5`,
+which increments `HL` before it compares, and `COMPRESS_BLOCK_5`, which
+takes the byte after a literal escape; `EXPAND_BLOCK`, whose in-place
+decode assumes the stream is no longer than its output.
+
+**What** The coder runs over a block laid to end at `&FFFF`, and both
+loops step past that end: the byte at `&0000` is ROM 0's first byte,
+`&F3`, under `CALLMB`. A block ending in `&F3` is counted as a run of two
+and the stream comes out one byte longer than the input; a block ending
+in the escape byte takes the ROM byte as the escape's operand, the same.
+If the block saved a byte anywhere else the surplus is harmless. If it
+saved nothing -- no run of four in it -- the compressed length exceeds
+the expanded one, `EXPAND_BLOCK` places the stream one byte below where
+the output starts, and every read sees the byte the decode has just
+written. [compression-modes.md](compression-modes.md) has the format and
+the trace.
+
+**What it costs** Data with no run of four -- already-compressed or
+random bytes -- that happens to end in `&F3` or in its own escape byte
+saves without complaint and loads back wrong, with no error either way.
+Code, screens and arrays carry runs throughout and never meet it.
+
+**Observed** 2026-09-18 under SimCoupe, with the predictions written down
+first in `docs/evidence-wanted.md` 13. 512 bytes of `0..255, 0..254, &F3`
+saved under `SAVE MODE 2` and loaded back elsewhere: **512 bytes of
+zero**, 2 of 512 matching (the block's own two zeros). The same block
+with its last byte `&07`, and the original under `SAVE MODE 1`, both load
+back 512 of 512. The other edge, `0..255, 1..255, 0` -- the final zero
+being the escape -- loads back as a zero and 511 ones, which is the
+prediction to the byte.
+
+**Written up at** `COMPRESS_BLOCK` in `listings/clean/masterbasic.asm`.
 
 ---
 

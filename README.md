@@ -152,8 +152,8 @@ the other documents leave to the DOS.
 listings are built, what each pass contributes, and what is still open.
 
 [docs/bugs.md](docs/bugs.md) is the defects found in the shipped software,
-MasterDOS and MasterBASIC both — thirteen confirmed and two suspected so far,
-and eleven of the fifteen have been run under the emulator.
+MasterDOS and MasterBASIC both — fourteen confirmed and two suspected so far,
+and twelve of the sixteen have been run under the emulator.
 The listings cannot be corrected, since
 they assemble to the original image byte for byte, so a defect is written down
 there and explained where it sits.
