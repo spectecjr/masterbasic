@@ -4,9 +4,9 @@ What this project cannot settle by reading. Each entry says what to capture,
 why, and what it would decide — so that whoever has the hardware or the
 emulator can do it without reading the rest of the repository first. All five
 are answered, and are kept because the answers are worth more than the
-questions were. Items 7, 12 and 13 are open: 12 could be settled by anyone
-who can capture a printer stream, and 13 by a few lines of BASIC.  Item 8 was settled by reading, not
-by a capture, and is kept for the same reason as the others.
+questions were. Items 7 and 13 are open: 13 needs a few lines of BASIC.
+Item 12 was settled by a printer capture on 2026-09-18, and item 8 by
+reading, not by a capture; both are kept for the same reason as the others.
 
 ---
 
@@ -227,7 +227,7 @@ directory-entry read is a confirmation now rather than a question.
 | **A directory entry read back after saving a compressed screen** | confirms 8, which is now read from the code: offsets 229-231 should hold the compressed length in page form | easy |
 | *(10a, 10b, 10c, 10e, 10f, 10g, 10k, 10l and 10m are done under the emulator)* | — | — |
 | *(10h, 10i and 10j want damaged discs or an unreachable stack, and are listed so nobody spends an afternoon on them)* | — | hard to impossible |
-| **A printer stream from `POKE XVAR 33,3 : DUMP 4`** | 12 | easy — the same method as 6 |
+| *(12, the DUMP 4 multiplier, was captured on 2026-09-18: the two counts disagree, as read)* | — | — |
 | **A 512-byte CODE file saved under `SAVE MODE 2` and loaded back**, built as item 13 says | 13, a defect read from the compressor and never run | easy — a machine and a few lines |
 
 The Spectrum capture is the valuable one: it is the only thing that would
@@ -544,7 +544,7 @@ stray number.
 
 ---
 
-## 12. Whether DUMP 4's width multiplier is meant to go above 2
+## 12. Answered — DUMP 4's width multiplier above 2 declares more than it sends
 
 `DUMP_UNSHADED` reads the width multiplier — `DPVARS+2`, which is `XVAR 33` —
 twice, and treats it as two different kinds of number. `&6B71` adds two to it
@@ -569,6 +569,18 @@ the four `DPVARS` bytes may be set to, and that page is not in `ref/`.
 Item 6 settled the `DUMP 1-3` magnification out of those same two count bytes
 with no printer and no photograph. Both of its captures used multipliers of 1
 and 2 — the one range where this disagreement cannot show.
+
+**Captured, 2026-09-18**, under SimCoupe with `-parallel1 1`, which writes
+the printer stream to `simcNNNN.txt` in the output directory. Two things
+the test as written got wrong, found only by running it: `POKE XVAR 33,3`
+changes nothing, because `DUMP 4` reads the ROM's copy at `&5A14`
+(`ROM_DPVARS+2`, poked as 23060) and the XVAR is only what boot copies
+from; and the first capture, with the XVAR poked, came out at 256 columns
+and 256 bytes a line, the multiplier still 1. With `&5A14` at 3: 22 lines,
+every one `ESC "*" CHR$ 4` with a count of **1024** and **768** bytes of
+data before its CR LF. The prediction holds exactly. Written up as
+`bugs.md` 15, marked suspected until the User's Guide page says whether 3
+is a value the bytes are allowed to hold.
 
 ---
 
@@ -671,6 +683,19 @@ repository and only wanted reading:
   the repository -- it is thirty lines of PowerShell and belongs to
   the session that wrote it -- but this paragraph is enough to write
   it again.
+- **The printer too.**  `-parallel1 1` on the same command line makes
+  the parallel port a printer, and SimCoupe writes everything sent to
+  it as `simcNNNN.txt` in the output directory a second after the
+  stream goes quiet (`-flushdelay 1`); `-printerdev` is not needed.
+  `LPRINT` and every form of `DUMP` land there, and the three captures
+  of 2026-09-18 are kept as `dumps/printdump4x3.txt` (item 12: `DUMP 4`
+  with `&5A14` at 3), `dumps/printmode3lhs128.txt` (bugs 11: a MODE 3
+  `DUMP 1` from `SDLHS` 128, then from 0, in one file separated by the
+  `ESC "@"` each dump ends with) and `dumps/printdump3strike2.txt`
+  (bugs 13: `DUMP 3` with `DTTH` 2, then 1).  Read them the way item 6
+  did: each line is `ESC "*" CHR$ 4 n1 n2` and `n1+256*n2` bytes, a
+  bit per dot, bit 7 the top; a bare CR between two lines is a second
+  strike of the same line.
 - Anything saved as a CODE file on an `.mgt` or `.dsk` image can be dropped
   in `diskimages/` and extracted here — the directory format and sector chains are
   understood, and `ref/masterdos/docs/disk-format.md` documents them.

@@ -5,8 +5,8 @@ as they were sold. The listings cannot be corrected: they assemble to the
 original image byte for byte, and that is the point of them. So a defect
 gets written down here and explained where it sits.
 
-Twelve are confirmed and two are suspected. The three sweeps this file used to
-plan have now been run, and what they found is at the end.
+Thirteen are confirmed and two are suspected. The three sweeps this file used
+to plan have now been run, and what they found is at the end.
 
 ---
 
@@ -610,9 +610,15 @@ because `V40AA` is non-zero the wrap test at `&69C5` ends the dump
 after that one pass. The other three modes are unaffected — the
 doubling and the ninth bit exist only for MODE 3.
 
-**Not observed.** Read out of the instructions. `DUMP` a MODE 3 screen
-with `SDLHS` set to 128 would settle it: the output should be the
-right-hand half, and this reading says it is the left.
+**Observed** 2026-09-18 under SimCoupe with the printer stream written to
+a file. A MODE 3 screen with its right-hand half filled with `CHR$ 143`
+and its left half empty, `POKE XVAR 16,128: DUMP 1`, then `POKE XVAR
+16,0: DUMP 1`. The dump from 128 is 32 lines of 192 columns with every
+bit set -- solid ink, which is the empty left half (MODE 4's default
+paper prints as ink; the full dump from 0 is 64 lines at 61% set, the
+screen's black share). The right half never reaches the paper, and the
+dump is half the length of the full one, which is the single pass this
+entry predicts.
 
 **Written up at** `&689C` in `listings/clean/masterbasic.asm`.
 
@@ -697,8 +703,16 @@ down the page.
 two on every strike after the first, and the drift accumulates. Single
 strikes, the default, are unaffected.
 
-**Not observed.** Read out of the bytes; a double-strike DUMP 3 on a
-printer would settle it.
+**Observed** 2026-09-18 under SimCoupe, printer stream to a file. A
+MODE 4 screen with one vertical line, `PLOT 100,0: DRAW 0,170`, dumped
+with `POKE XVAR 5,2: DUMP 3` and again with `XVAR 5` back at 1. In the
+double-strike stream the line's two strikes are consecutive `ESC "*"`
+lines separated by a bare CR: the first has the white line on dot rows
+2, 3 and 4 of its eight, the second on 3, 4 and 5 -- one dot to the
+side, in every one of five hundred columns checked. The single-strike
+dump of the same screen has it on rows 4, 5 and 6, so by the
+thirty-seventh line the double-strike pair sits two dots from where a
+single strike puts it: the drift walking down the page.
 
 **Written up at** `DUMP_LINE` and `DUMP_BITS_CARRY` in
 `listings/clean/masterbasic.asm`.
@@ -746,6 +760,37 @@ follows does not see it, so the record says `&01:C000` -- seven pages
 -- for a three-page array.
 
 **Written up at** `ADJUST_VARIABLE_SIZE` in `listings/clean/masterbasic.asm`.
+
+---
+
+## 15. DUMP 4 with a width multiplier of 3 declares more columns than it sends
+
+**Where** `DUMP_UNSHADED`: `&6B71`, which reads `ROM_DPVARS+2` and
+rotates the column count `n+2` times, and `&6BCF`, which reads the same
+byte as a repeat count.
+
+**What** The width multiplier is used as two different kinds of number:
+the `ESC "*"` header's dot-column count is the width times `2^(n+2)`,
+and the data sent is the width times `8n`. Those agree at 1 and at 2
+and nowhere else.
+
+**What it costs** At 3 a 256-pixel screen declares 1024 columns and
+sends 768 bytes, so a real printer takes the first 256 bytes of the
+next line -- its CR, LF and `ESC "*"` header among them -- as image
+data, and the picture shears from the second line on. The manual defers
+to *The Coupé User's Guide* page 176 for what the bytes may hold, and
+that page is not in `ref/`; if it limits the multiplier to 1 and 2 this
+is a documented limit rather than a defect, which is why it is counted
+as suspected.
+
+**Observed** 2026-09-18 under SimCoupe: `POKE 23060,3: DUMP 4` (`&5A14`,
+the ROM's copy of `DPVARS+2`, which is what `DUMP 4` reads -- `POKE
+XVAR 33,3` changes nothing, since the XVAR is only the boot-time
+source) gives 22 lines each declaring 1024 columns and carrying 768
+bytes before its CR LF. The prediction was written before the capture,
+in `docs/evidence-wanted.md` 12.
+
+**Written up at** `DUMP_UNSHADED` in `listings/clean/masterbasic.asm`.
 
 ---
 

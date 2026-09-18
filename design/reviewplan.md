@@ -554,7 +554,11 @@ time unwritten (bugs 6), and SAVE over a subdirectory's name erases
 the subdirectory after an OVERWRITE prompt that does not say what it
 is (bugs 10).  Nine of the thirteen items under evidence-wanted 10 are
 now observed; 10d needs Spectrum mode, and 10h-j want damaged discs or
-an unreachable stack.  Of bugs.md's fourteen, only 4 (NMI exit, needs
-Spectrum mode), 9 (NVAL, unreachable), 11 and 13 (both want the
-printer stream, which SimCoupe's -printerdev can write to a file) and
-the two disc-error ones (1 and 2) are still readings.
+an unreachable stack.  The printer went the same way: SimCoupe's
+-parallel1 1 writes the stream to a file, and bugs 11 (the MODE 3 dump
+from column 128 prints the empty left half) and 13 (the second strike
+a dot to the side, two dots of drift by the 37th line) and
+evidence-wanted 12 (DUMP 4 at a multiplier of 3 declares 1024 columns
+and sends 768 bytes, now bugs 15) came out of three captures.  Of
+bugs.md's fifteen, only 4 (NMI exit, needs Spectrum mode), 9 (NVAL,
+unreachable) and the two disc-error ones (1 and 2) are still readings.
