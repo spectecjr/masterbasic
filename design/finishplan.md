@@ -187,6 +187,13 @@ count), bugs 1, 2, 4 and 9 and evidence-wanted 10d and 10h-j.
 `docs/disassembly.md` listing every one of them with where it is
 written up, and why it stops there.  Short.  README points at it.
 
+**Done, 2026-09-19.**  Six items: twelve synthetic labels (the count
+above was 19 when this plan was written and the grep says 12 now),
+`CKESV_1`, the DOS's `&4206`, the four unrun defects with what each
+would need, the nineteen `reviews.csv` rows with a deferred count, and
+the manual's features no table points at.  README's pointer names
+the section.
+
 ## 6. Freeze
 
 - Final figures into README and `docs/disassembly.md`, quoted from

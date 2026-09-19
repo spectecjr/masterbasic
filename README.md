@@ -149,7 +149,9 @@ from the BASIC statement to the bytes moving through the WD1772 -- the layer
 the other documents leave to the DOS.
 
 [docs/disassembly.md](docs/disassembly.md) is the other long form: how the
-listings are built, what each pass contributes, and what is still open.
+listings are built, what each pass contributes, and -- its last section,
+"What is not known" -- the residue, stated once: what stays unnamed,
+unexplained or unrun, and why it stops there.
 
 [docs/bugs.md](docs/bugs.md) is the defects found in the shipped software,
 MasterDOS and MasterBASIC both — fourteen confirmed and two suspected so far,

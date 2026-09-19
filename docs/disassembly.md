@@ -870,3 +870,49 @@ and description count that the tables above are set from.
 | `tools/speculate.py` | Builds `listings/speculate/`: a reading of every routine, marked as such |
 | `tools/specrender.py` | Turns that analysis into the text `listings/speculate/` carries |
 | `tools/build.sh` | Regenerate and verify |
+
+## What is not known
+
+Every byte is classified and every routine read; what follows is the
+residue, stated once so that it exists in one place. Each item says where
+it is written up and why it stops where it does.
+
+- **Twelve addresses keep a synthetic label** -- `L41FF` and `V7CFF` in
+  the DOS half, and ten `V40xx` bytes in MasterBASIC's variable block
+  (`grep -c '^[LV][0-9A-F]\{4\}:$'` on either reading copy counts them).
+  Each is a byte something touches and nothing describes: the ten are
+  variables the manual does not list, whose use the code shows and
+  whose purpose nothing states, as their banner says; `V7CFF` is where `SAVE BOOT` puts
+  the header fields (`FSA+236`); `L41FF` is the byte after `FSLTE`. A
+  name here would be a guess, and a wrong name is worse than a number.
+- **`CKESV_1`'s two interceptions are described and not explained.**
+  The DOS's syntax exit catches ROM errors 4 and 26 and, for each, does
+  something mechanical the banner sets out in full; which MasterBASIC
+  feature each serves is untraced, and the banner says what the
+  emulator's debugger ruled out. `notes/clean/dos-syntax.txt`.
+- **Where the DOS's `&4206` is entered from.** It is `JP NMI`, and
+  nothing in either half, the ROM or a full memory dump reaches it; the
+  likeliest caller is the Spectrum emulator in page 3, which could not be
+  loaded. [evidence-wanted.md](evidence-wanted.md) item 9, parked.
+- **Four defects read from the instructions and never seen run**: bug 1
+  (the block loops cannot see `LOST DATA`) needs the processor held up
+  mid-transfer, bug 2 (the `RECORD NOT FOUND` recovery) a disc with a
+  damaged ID field, bug 4 (the NMI menu's exit) the Spectrum emulator,
+  and bug 9 (`NVAL`'s `STKEND` write-back) `STKEND` at exactly `&4DFF`,
+  which is some fifty values pending on the calculator stack at once.
+  [bugs.md](bugs.md); the
+  recipes that would run them are evidence-wanted 10d and 10h-j, listed
+  there so that nobody spends an afternoon on them. The other twelve
+  have been run.
+- **Review findings deferred rather than applied.** `design/reviews.csv`
+  carries a `deferred` count on nineteen rows, with the item named in
+  the row's notes: stale cuts from before a rebuild, cosmetic wording,
+  names left as judgement calls, carried labels with no referent. None
+  is a claim the code contradicts; each was read and judged not worth a
+  change. `python tools/reviewlog.py --csv` prints the rows.
+- **What no table points at.** The listing's own header lists the
+  manual's features that no dispatch table reaches and so have not been
+  located by that route -- word left and right in the editor, HIDE TO,
+  OPEN BLOCKS, the FSTAT, DIR$ and INP$ extensions among them -- and the
+  seven found since. They are in the code somewhere; nothing has yet
+  said where.
