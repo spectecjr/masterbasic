@@ -14,6 +14,31 @@
 ; MasterBASIC rewrote is left undescribed rather than described
 ; wrongly, and the routines it changed are marked as changed.
 
+; Contents.  Each part opens with a ";;  PART" banner, which is
+; the thing to search for -- "PART B1" finds the first.  The
+; routine named is the first in the part.
+
+;   B1      &4000-&4519  HEADER                The boot sector, the DOS
+;                                              variables, and the three entry
+;                                              points
+;   C11     &451A-&4A77  GET_DISK_PORT_BASE    The disk driver
+;   C12     &4A78-&4FEF  FFNS                  Free space, the directory, and
+;                                              opening and closing files
+;   D1      &4FF0-&549D  CIEL                  The ROM interface, the flag
+;                                              byte, errors, and the NMI
+;                                              snapshot
+;   E1      &549E-&595A  DFMT                  Formatting, and the printing
+;                                              the catalogue needs
+;   F11     &595B-&5E75  CALL_Label            COPY, DIR, ERASE, RENAME,
+;                                              PROTECT and HIDE
+;   F12     &5E76-&6335  SNDFL                 LOAD, FORMAT, and the argument
+;                                              parsers
+;   G1      &6336-&6798  RXHED                 The load and save hooks, and
+;                                              file name parsing
+;   MOVE    &6799-&71FA  CMD_MOVE              the MOVE command, and BACKUP
+;   SUBD    &71FB-&74C0  OPNDIR                Subdirectories
+;   RAMD    &74C1-&7FBF  RDWSCT                RAM discs and MegaRAM
+
 
 ; What a dispatch table adds to one of the names below to
 ; make the word it stores.  Not bit 15 itself, which is
@@ -72,6 +97,33 @@ WRRAM:               EQU  &0113                ; and write address
 
 
                ORG  &4000
+
+;; --------------------------------------------------------------------
+;;  PART B1 -- The boot sector, the DOS variables, and the three entry points
+;;
+;;    HEADER                the nine-byte file header the image carries
+;;    BOOT                  the boot sector's loader: the rest of the
+;;                          DOS, then MasterBASIC, off the disc
+;;    ENTSP .. NEXTST       the DOS's working variables: the file
+;;                          information areas and the hook's saved
+;;                          registers among them
+;;    DVAR                  the DOS variables, PEEK DVAR n
+;;    CALLMB                call a routine in the MasterBASIC page
+;;    CTABN                 CTAB: the commands the DOS finishes after
+;;                          the ROM has given up on them
+;;    SYNTAX                the unrecognised-command entry, at page
+;;                          offset &0203
+;;    HOOK / SAMHK          the RST &08 entry, at page offset &0200,
+;;                          and its table
+;;
+;;  Three things enter the DOS from the ROM, through the jumps at
+;;  &4200: an unrecognised command, RST &08 with a hook code, and the
+;;  NMI button, whose handler is in PART D1.  The first two move to
+;;  the DOS's own stack through SET_DOS_STACK and look the token or
+;;  the code up in one of the two tables here; an entry with bit 15
+;;  set names a routine in the MasterBASIC page, reached through
+;;  CALLMB.
+;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
 ;; The nine-byte header, which is part of the image the boot sector loads

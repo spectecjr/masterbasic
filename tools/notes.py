@@ -6,7 +6,7 @@ the code.  This is the way in for knowledge that comes from a person
 instead, and it is deliberately a plain text file rather than another
 Python module, so that adding a name costs one line and no imports.
 
-Eight kinds of entry, one per line, blank lines and # comments ignored
+The kinds of entry, one per line, blank lines and # comments ignored
 (a range takes one of four markers, which is why the list runs longer):
 
     MB &5934 SERINIT              name a routine (or any address)
@@ -57,6 +57,17 @@ Eight kinds of entry, one per line, blank lines and # comments ignored
 
     RENAME ULA BORDER             change a name everywhere it is written
 
+    MB &4000 PART VARS -- MasterBASIC's variables
+        The indented lines        a section banner: the listing's own
+        below are its text.       shape, where there is no source to
+                                  carry one from.  Rendered as the
+                                  ';;  PART x -- title' block the DOS
+                                  half carries, above the header of
+                                  the routine at that address, so
+                                  cutregion.py --part cuts by it and
+                                  the contents table at the top of
+                                  the listing is built from it.
+
 The page is MB or DOS.  Addresses are as the listings write them, so
 &4000-&7FBF, and a range is inclusive of both ends.
 
@@ -100,7 +111,8 @@ GROUP = re.compile(r'^GROUP\s+(\S.*?)\s*$')
 CONST = re.compile(r'^CONST\s+(\w+)\s*=\s*([^:]+?)\s*(?::\s*(\S.*?))?\s*$')
 # RENAME ULA BORDER -- change a name everywhere it is written.
 RENAME = re.compile(r'^RENAME\s+(\w+)\s+(\w+)\s*$')
-KINDS = ('data', 'text', 'word', 'code', 'value', 'step', 'expr', 'site')
+KINDS = ('data', 'text', 'word', 'code', 'value', 'step', 'expr', 'site',
+         'part')
 
 
 def _numbers(table):
@@ -241,6 +253,9 @@ def parse(path):
             cur['col'] = text + (len(line[text:]) - len(line[text:].lstrip()))
         else:
             bits = rest.split()
+            # Written upper-case in a note, as the banner it makes is.
+            if bits and bits[0] == 'PART':
+                bits[0] = 'part'
             if bits and bits[0] in KINDS:
                 cur['kind'] = bits[0]
                 bits = bits[1:]
@@ -248,8 +263,9 @@ def parse(path):
                 # A `value` may be given an expression of names already
                 # defined rather than a name of its own, and that has
                 # spaces in it: `value SYSPAGE_IN_B | ENABLE_ROM1`.
+                # A `part` takes its whole heading, code and title.
                 cur['name'] = (' '.join(bits)
-                               if cur['kind'] in ('value', 'expr')
+                               if cur['kind'] in ('value', 'expr', 'part')
                                else bits[0])
                 # Anything else is a name for the address, so it has to
                 # look like one.  Without this a mistyped entry quietly
@@ -279,7 +295,7 @@ def load(root, folder='notes'):
 
     The default is notes/, the working prose.  notes/clean/ holds the
     reading copy's prose, applied over the top of it and winning where
-    the two disagree; both are the same eight kinds of entry, read by
+    the two disagree; both are the same kinds of entry, read by
     the same parser.
     """
     folder = os.path.join(root, folder)
@@ -483,6 +499,26 @@ def apply(pages, root, banner, folder='notes', deferred=None):
                             % (e['where'], e['addr'], e['page']))
             continue
         a = e['addr']
+
+        if e['kind'] == 'part':
+            # A section banner, rendered in the shape the DOS half's
+            # carried ones have -- ';;  PART code -- title', a blank,
+            # the text -- and kept apart from the header of the
+            # routine at the same address, which stays its own.
+            if not e['name']:
+                problems.append('%s: PART needs a code and a title'
+                                % e['where'])
+            elif not re.match(r'\S+ -- \S', e['name']):
+                problems.append('%s: PART wants `CODE -- title`, not %r'
+                                % (e['where'], e['name']))
+            elif a in d.parts:
+                problems.append('%s: &%04X already opens a PART'
+                                % (e['where'], a))
+            else:
+                body = [' PART ' + e['name'], '']
+                body += [(' ' + x) if x else '' for x in e['doc']]
+                d.parts[a] = banner(NL.join(body))
+            continue
 
         if e['kind'] == 'value':
             # Naming a number in one instruction, not everywhere: &E0 is
@@ -747,7 +783,7 @@ def collisions(entries):
     """
     out, seen = [], {}
     what = {'comment': 'a line comment', 'operand': 'a value or expr',
-            'step': 'a step', 'header': 'a header'}
+            'step': 'a step', 'header': 'a header', 'part': 'a PART'}
     for e in entries:
         keys = []
         if e['page'] in ('MB', 'DOS'):
@@ -758,6 +794,8 @@ def collisions(entries):
                 keys.append(('operand', e['page'], e['addr']))
             if e['kind'] == 'step':
                 keys.append(('step', e['page'], e['addr']))
+            elif e['kind'] == 'part':
+                keys.append(('part', e['page'], e['addr']))
             elif e['doc']:
                 keys.append(('header', e['page'], e['addr']))
         elif e['page'] == 'DOC':

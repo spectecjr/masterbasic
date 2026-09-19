@@ -1,0 +1,32 @@
+# The one PART banner the DOS half was missing.  The other eleven are
+# carried from ref/masterdos/annotated-src/, where each Part_ label of
+# the 1991 source has a heading written for it.  B1's heading is there
+# too and did not reach the listing, so the boot and the two entries
+# sat outside every part.  This note declares it as a PART of its own,
+# which the generator keeps apart from any routine's header.  The
+# title is the annotated source's, with its "two entry points" made
+# three: the JP NMI at &4206 is one as well.
+
+DOS &4000 PART B1 -- The boot sector, the DOS variables, and the three entry points
+      HEADER                the nine-byte file header the image carries
+      BOOT                  the boot sector's loader: the rest of the
+                            DOS, then MasterBASIC, off the disc
+      ENTSP .. NEXTST       the DOS's working variables: the file
+                            information areas and the hook's saved
+                            registers among them
+      DVAR                  the DOS variables, PEEK DVAR n
+      CALLMB                call a routine in the MasterBASIC page
+      CTABN                 CTAB: the commands the DOS finishes after
+                            the ROM has given up on them
+      SYNTAX                the unrecognised-command entry, at page
+                            offset &0203
+      HOOK / SAMHK          the RST &08 entry, at page offset &0200,
+                            and its table
+
+    Three things enter the DOS from the ROM, through the jumps at
+    &4200: an unrecognised command, RST &08 with a hook code, and the
+    NMI button, whose handler is in PART D1.  The first two move to
+    the DOS's own stack through SET_DOS_STACK and look the token or
+    the code up in one of the two tables here; an entry with bit 15
+    set names a routine in the MasterBASIC page, reached through
+    CALLMB.

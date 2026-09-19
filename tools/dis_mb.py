@@ -2910,9 +2910,85 @@ def samrom_text(pages):
                        '; ' + note if note else '')).rstrip())
     return chr(10).join(out) + chr(10)
 
+# The section banners' heading line: ';;  PART C11 -- The disk driver'.
+PART_LINE = re.compile(r'^(?:;;)?\s*PART (\S+)(?:\s+--\s*(.*))?$')
+
+
+def parts(d):
+    """The section banners, in address order, as (addr, code, title).
+
+    Two sources, one shape.  The DOS's are carried from the 1991 source's
+    Part_ divisions and live in d.headers, most of them rewritten by a
+    DOC whose first line keeps the PART heading; MasterBASIC has no
+    source, so its come from PART notes and live in d.parts.  Both are
+    read from the rendered text, so what the contents table says is
+    what the banner says.  The heading is the first line of the banner
+    that has the shape, not necessarily the first line: the speculate
+    tree puts a register summary above it, and the working copy keeps
+    a displaced copy below.  A title wrapped onto a second line, at the
+    heading's own indent, is joined back up.
+    """
+    found = {}
+    for table in (d.headers, d.parts):
+        for a, text in table.items():
+            # The banner without its ';;' margin and its rules, blank
+            # lines kept: a blank is what ends a wrapped title.
+            lines = [l[2:] if l.startswith(';;') else l.lstrip(';')
+                     for l in text.split(chr(10))]
+            lines = [l for l in lines
+                     if not l.strip() or set(l.strip()) - set('-')]
+            k = next((i for i, l in enumerate(lines)
+                      if PART_LINE.match(l.strip())), None)
+            if k is None:
+                continue
+            m = PART_LINE.match(lines[k].strip())
+            indent = len(lines[k]) - len(lines[k].lstrip())
+            title = (m.group(2) or '').strip()
+            for l in lines[k + 1:]:
+                # The title runs on while the next line is plain prose
+                # at the same indent; a blank, or the routine index
+                # set in from it, ends it.
+                if not l.strip() or len(l) - len(l.lstrip()) != indent:
+                    break
+                title += ' ' + l.strip()
+            if a not in found:                  # a PART note wins over a header
+                found[a] = (m.group(1), title)
+    return sorted((a, c, t) for a, (c, t) in found.items())
+
+
+def contents(d):
+    """The contents table for the top of a listing, from its PART banners.
+
+    Generated, so it cannot drift: the code, the address range, the first
+    routine and the title all come from the banner and the labels.  The
+    range runs to the byte before the next part, or to the end of the
+    half.
+    """
+    ps = parts(d)
+    if not ps:
+        return []
+    out = ['; Contents.  Each part opens with a ";;  PART" banner, which is',
+           '; the thing to search for -- "PART %s" finds the first.  The' % ps[0][1],
+           '; routine named is the first in the part.',
+           '']
+    sites = getattr(d, 'site_labels', set())
+    heads = sorted(a for a in d.labels if a not in sites)
+    for i, (a, code, title) in enumerate(ps):
+        end = ps[i + 1][0] - 1 if i + 1 < len(ps) else d.limit - 1
+        first = next((d.labels[x] for x in heads if x >= a), '')
+        lead = ';   %-7s &%04X-&%04X  %-20s  ' % (code, a, end, first)
+        rest = textwrap.wrap(title, 78 - len(lead)) or ['']
+        out.append((lead + rest[0]).rstrip())
+        out.extend((';' + ' ' * (len(lead) - 1) + l) for l in rest[1:])
+    return out
+
 
 def header(d):
     head = [d.title, '']
+    toc = contents(d)
+    if toc:
+        head.extend(toc)
+        head.append('')
     # Used by several groups below, and bound here rather than inside one
     # of them: the group that used to define it now lives in samrom.asm.
     described = _describer(d)
@@ -3518,6 +3594,15 @@ def write_clean(pages):
               'MasterDOS author%ss own; %d instructions carry a number, %d of '
               'them unexplained'
               % (d.tag, mine, orig, chr(39), nums, unexplained))
+        # The shape: how many PART banners the half has, and whether
+        # the first is at the top, so that no routine sits above it
+        # and outside every part.  checkdocs holds the second on the
+        # written file; this is the count for the log.
+        ps = parts(d)
+        print('listings/clean/: %s -- %d parts%s'
+              % (d.tag, len(ps),
+                 '' if ps and ps[0][0] == d.base else
+                 ', and the first is not at &%04X' % d.base))
         # Per routine, so that what is left is a queue rather than a
         # wall.  Not a target of zero: the count is of sites, and which
         # of them should keep a name is a judgement the report does not

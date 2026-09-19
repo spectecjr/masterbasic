@@ -5,7 +5,8 @@
     python tools/cutregion.py MB --range &5E00-&6400 [-o FILE]
 
 The first word is the half.  Then either routine names, a PART name (the
-DOS listing's ";;  PART x" banners), or an address range, half-open, of
+";;  PART x" banners both listings are divided by; the contents table
+at the top of each lists them), or an address range, half-open, of
 which every routine whose label falls inside is taken.  The region runs
 from each routine's banner -- its header block, any step lines, the
 "; ---- NAME ---- from" line -- to the banner of the next routine that
@@ -154,7 +155,7 @@ def cut_by_part(lines, part, hs):
                 e -= 1
             names = [(n, a) for i2, n, a, d in hs if s <= i2 < e and not d]
             return [(s, e)], names
-    sys.exit('no PART %s; the DOS listing has: %s'
+    sys.exit('no PART %s; this listing has: %s'
              % (part, ', '.join(PART.match(lines[i]).group(1) for i in starts)))
 
 
@@ -162,7 +163,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('half', choices=('MB', 'DOS'))
     ap.add_argument('names', nargs='*', help='routine labels')
-    ap.add_argument('--part', help='a PART name (DOS listing)')
+    ap.add_argument('--part', help='a PART code, from the contents table')
     ap.add_argument('--range', dest='range_',
                     help='&LO-&HI, half-open: routines whose label is inside')
     ap.add_argument('--tree', default='clean',

@@ -58,6 +58,7 @@ class Disassembler(Decoder):
         self.xrefs = {}                       # addr -> set of referring addrs
         self.comments = {}                    # addr -> comment text
         self.headers = {}                     # addr -> banner text
+        self.parts = {}                       # addr -> section banner, above the header
         self.renderers = {}                   # addr -> (end, text) for a whole run
         self.overrides = {}                   # addr -> instruction text to print instead
         self.byte_names = {}                  # addr -> a name to write for one DEFB byte
@@ -254,6 +255,12 @@ class Disassembler(Decoder):
                   % ('', hexn(org, 4)))
             a, end = org, org + ln
             while a < end:
+                # A section banner is its own block, above whatever
+                # header the first routine of the section has: the
+                # two say different things and a routine keeps its
+                # own even when it happens to open a part.
+                if a in self.parts:
+                    w('\n' + self.parts[a].rstrip() + '\n')
                 if a in self.headers:
                     w('\n' + self.headers[a].rstrip() + '\n')
                 if a in self.steps:

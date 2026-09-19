@@ -758,6 +758,27 @@ It runs after every other pass for that reason: a name can be put on the page by
 one pass and written into an instruction by another, so renaming has to be last
 and everywhere at once.
 
+One more divides a listing into parts:
+
+```text
+MB &460B PART SORT -- SORT, and the DOS's sorted DIR
+      CMD_SORT              SORT [ABS [INVERSE]] a$ -- a selection sort
+                            in place
+
+    SORT arrives from the DOS's CTAB, the command table, through CALLMB.
+```
+
+The DOS half's `PART` banners are carried from the annotated source's
+`Part_` divisions; MasterBASIC has no source to carry one from, so its
+seventeen are declared this way in `notes/mb-parts.txt`, and the DOS's
+first, `B1`, in `notes/dos-parts.txt`. A `PART` renders as the same
+`;;  PART code -- title` block, above and apart from the header of the
+routine at that address, so `tools/cutregion.py MB --part SORT` cuts by
+it. The contents table at the top of each listing -- code, address range,
+first routine, title -- is generated from the banners, and `build.log`
+prints the count of parts per half; `checkdocs` refuses a reading copy
+with no parts, two parts with one code, or a label above the first.
+
 Files are read in filename order, so `notes/00-disk.txt` lands before
 `notes/10-printer.txt` if that matters to you. Nothing else needs editing.
 

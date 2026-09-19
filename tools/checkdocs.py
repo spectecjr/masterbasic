@@ -672,6 +672,44 @@ def check_roundtrip():
 
 
 
+PART_BANNER = re.compile(r'^;;\s+PART (\S+)')
+LABEL_LINE = re.compile(r'^[A-Za-z_]\w*:\s*$')
+
+
+def check_parts():
+    """Both reading copies are divided into PARTs, from the top.
+
+    A part banner is a note like any other, so nothing stops one being
+    dropped or a routine being left above the first: the DOS half's
+    boot sat outside every part for as long as the parts were only
+    the ones carried from the 1991 source.  So: at least one PART in
+    each half, no two with one code, and no label before the first.
+    """
+    bad = []
+    for half in ('masterdos', 'masterbasic'):
+        rel = 'listings/clean/%s.asm' % half
+        codes, first_part, first_label = [], None, None
+        for n, line in enumerate(open(os.path.join(ROOT, rel),
+                                      encoding='utf-8'), 1):
+            m = PART_BANNER.match(line)
+            if m:
+                codes.append(m.group(1))
+                if first_part is None:
+                    first_part = n
+            elif first_label is None and LABEL_LINE.match(line):
+                first_label = n
+        if not codes:
+            bad.append('%s has no PART banners' % rel)
+            continue
+        for code in sorted(set(c for c in codes if codes.count(c) > 1)):
+            bad.append('%s has %d parts called %s'
+                       % (rel, codes.count(code), code))
+        if first_label is not None and first_label < first_part:
+            bad.append('%s: line %d has a label above the first PART, '
+                       'which is at line %d' % (rel, first_label, first_part))
+    return bad
+
+
 def main():
     at, names = read_listings()
     bad = []
@@ -699,6 +737,7 @@ def main():
                                % (rel, n, word))
     bad.extend(check_mnemonics())
     bad.extend(check_quotations())
+    bad.extend(check_parts())
     for line in bad:
         print('  stale: ' + line)
     print('%d prose files check out against the listings%s'

@@ -10,6 +10,45 @@
 ; The routines the DOS dispatch tables name carry the MasterBASIC
 ; manual's description of what they do; see docs/masterbasic-manual.md.
 
+; Contents.  Each part opens with a ";;  PART" banner, which is
+; the thing to search for -- "PART VARS" finds the first.  The
+; routine named is the first in the part.
+
+;   VARS    &4000-&4136  PUTSWA                MasterBASIC's variables
+;   ROMIF   &4137-&460A  SEND_BYTE_TO_PRINTER  The ROM interface, and the
+;                                              small routines around it
+;   SORT    &460B-&485A  CMD_SORT              SORT, and the DOS's sorted DIR
+;   CLOCK   &485B-&4AEF  CMD_DATE              DATE, TIME and TICS
+;   FUNCS   &4AF0-&4E95  FN_LOCN               LOCN, INARRAY, EQU, SHIFT$,
+;                                              XVAR, NVAL and RESERVED
+;   CMDV    &4E96-&5168  HCMDV                 Command dispatch, the tokeniser
+;                                              and the token printer
+;   PROG    &5169-&54C9  CMD_MERGE             MERGE *, the program-space
+;                                              hooks, and line entry
+;   REF     &54CA-&5933  CMD_ALTER             ALTER, REF and PRINT REF, and
+;                                              LPRINT's set-up
+;   INTS    &5934-&5BD7  SERINIT               The serial port, the interrupt,
+;                                              and the printer and sound
+;                                              buffers
+;   BUILT   &5BD8-&5EDC  CMD_RECORD            RECORD, SOUND, PAUSE, DEF
+;                                              KEYCODE, KEYIN, POKE and
+;                                              LENGTH, rebuilt from the ROM's
+;                                              own
+;   SLOTS   &5EDD-&614D  GET_BUFFER_SIZE       The utility-page slots, and
+;                                              LINE
+;   SAVE    &614E-&67EF  COMPRESS_SCREEN_FILE  SAVE MODE and SAVE BOOT: the
+;                                              two compressors, and CSIZE
+;                                              between them
+;   DUMP    &67F0-&6DFB  CMD_DUMP              DUMP and COPY SCREEN
+;   JOIN    &6DFC-&7158  CMD_JOIN              JOIN, SPLIT, DELETE and JOIN TO
+;   USING   &7159-&745F  HOOK_SWAPCHARS        BLOCKS, CLS *, EDIT, USING$ and
+;                                              the compile pass
+;   INSTALL &7460-&7B7F  RELOCATED_TO_46CC     The installer, and the string
+;                                              move it plants at &46CC
+;   SYSPAGE &7B80-&7FBF  DOS_HOOK_STUBS        The code that runs in the
+;                                              system page, and the BASIC left
+;                                              at the end
+
 
 
 ; Read from the code, not carried from a source.  MasterBASIC
@@ -146,6 +185,23 @@ TK_CR:                  EQU  &0D
 TK_NUM:                 EQU  &0E
 
                ORG  &4000
+
+;; --------------------------------------------------------------------
+;;  PART VARS -- MasterBASIC's variables
+;;
+;;    PUTSWA .. ACRSU       the XVARs the manual documents, XVAR 0 to 89
+;;    DUMP_ORIENT ..        the rest of the block, which it does not:
+;;                          named for what reads them
+;;    DUMP_BITS_CARRY       the byte the shaded dump's dot-pattern
+;;                          table is indexed from, and the table
+;;    DATE_TEXT ..          this page's mirror of the DOS's date and
+;;                          time buffers
+;;
+;;  Nothing runs here.  XVAR n is this page's &4000+n, so PRINT XVAR 0
+;;  gives the address the page is loaded at, and the manual's XVAR
+;;  numbers are offsets into this part.  The code begins at
+;;  SEND_BYTE_TO_PRINTER.
+;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
 ;; MasterBASIC's own variables -- the XVAR block.
@@ -708,6 +764,42 @@ TIME_TEXT_MINUTES:
 ; ---- TIME_TEXT_SECONDS ---- from &489F
 TIME_TEXT_SECONDS:
                DEFB &30,&30                    ; 4135 00
+
+;; --------------------------------------------------------------------
+;;  PART ROMIF -- The ROM interface, and the small routines around it
+;;
+;;    MBCMR                 call the main ROM with the system page in
+;;    CALLDOS               call a routine in the other page
+;;    MBNRRDD .. MBGTHL     the ROM's system variables, read and written
+;;                          through the window
+;;    EXPECT_NUMBER / EXPECT_COMMA / EXPECT_END_OF_STATEMENT / TEST_RUNNING
+;;                          the argument parsers, and which pass this is
+;;    REP_INTEGER_OUT_OF_RANGE .. REPORT
+;;                          the error stubs
+;;    CALL_NEXTCHAR / CALL_GETINT / CALL_EXPNUM / CALL_LOOKVARS
+;;                          ROM routines as subroutines of this page,
+;;                          and their kin
+;;    FIND_VARIABLE         a variable, through the ROM's LOOKVARS
+;;    IS_LETTER .. IS_NAME_CHAR
+;;                          character classes
+;;    FN_SVAL_S / FN_NVAL / FN_SCRAD
+;;                          three functions, written among the helpers
+;;    TRACK_SECTOR_TO_FILE_NUMBER / FILE_NUMBER_TO_TRACK_SECTOR
+;;                          conversions the DOS calls across the page
+;;    SEND_BYTE_TO_PRINTER / CHECK_PRINTER_READY / HOOK_SERSEND / HOOK_SERRECV
+;;                          one byte to or from the printer, or the
+;;                          serial line
+;;    SAVE_BLOCK_FROM_SYSPAGE ..
+;;                          SAVE BOOT's three block writers
+;;    DRTAB                 the file-type names DIR prints
+;;
+;;  Nearly everything in this half passes through here.  This page sits
+;;  at &4000, where the ROM's variables also live, so it cannot read one
+;;  directly: MBCMR pages the system page back in around a ROM call, and
+;;  the MBNR routines reach a variable through the window.  The
+;;  functions and cross-page helpers between them are in this part
+;;  because the author put them here, not because they belong together.
+;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
 ;; Send the byte in A to whichever printer LPRINT MODE selected.
@@ -2810,6 +2902,27 @@ MULTIPLY_BY_100:
                RET                             ; 460A C9
 
 ;; --------------------------------------------------------------------
+;;  PART SORT -- SORT, and the DOS's sorted DIR
+;;
+;;    CMD_SORT              SORT [ABS [INVERSE]] a$ -- a selection sort
+;;                          in place
+;;    SCAN_FOLDED_ASCENDING / SCAN_DESCENDING
+;;                          two of the three comparison scans it
+;;                          patches in; the third is inside CMD_SORT
+;;    COMPARE_FAR_STRINGS   comparing keys that lie in different pages
+;;    FIND_STRING_VARIABLE / STACK_STRIDE_AND_SLICE_IT
+;;                          the array, and its two slicers
+;;    SORT_NAMES / HOOK_HORDER
+;;                          the same sort over ten-byte records, which
+;;                          the DOS calls for a sorted catalogue
+;;
+;;  SORT arrives from the DOS's CTAB, the command table, through CALLMB.
+;;  SORT_NAMES is entered by a direct cross-page call from the DOS's
+;;  catalogue; HOOK_HORDER, hook 153, is the table entry five bytes
+;;  into it.
+;; --------------------------------------------------------------------
+
+;; --------------------------------------------------------------------
 ;; SORT -- the SORT command, token 251.
 ;;
 ;;     SORT [ABS [INVERSE]] a$
@@ -3741,6 +3854,24 @@ TIMES_FIVE:
                POP AF                          ; 4858 F1
                POP DE                          ; 4859 D1
                RET                             ; 485A C9
+
+;; --------------------------------------------------------------------
+;;  PART CLOCK -- DATE, TIME and TICS
+;;
+;;    CMD_DATE / CMD_TIME   set or print the SAMBus clock; TIME + and
+;;                          TIME - are the fast mode
+;;    WAIT_FOR_CLOCK / PORT_BCD_DIGIT
+;;                          the chip, a BCD digit at a time
+;;    READ_CLOCK_FIELDS     the argument's three fields checked
+;;                          against their limits
+;;    STAMP_WITH_DATE       stamp a directory entry, for the DOS
+;;    FN_TICS               seconds into the month, as a number
+;;
+;;  DATE and TIME are one routine with two entries, and both arrive from
+;;  the DOS's CTAB.  STAMP_WITH_DATE is called from the DOS when it
+;;  writes a directory entry; TICS is reached through the DOS's FNVEC,
+;;  the function table, like the eight other functions FNVEC lists.
+;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
 ;; DATE, which sets the calendar rather than reading it.
@@ -4725,6 +4856,23 @@ MULTIPLY_BY_60:
                ADD HL,HL                       ; 4AED 29
                ADC A,A                         ; 4AEE 8F
                RET                             ; 4AEF C9
+
+;; --------------------------------------------------------------------
+;;  PART FUNCS -- LOCN, INARRAY, EQU, SHIFT$, XVAR, NVAL and RESERVED
+;;
+;;    FN_LOCN / FN_INARRAY  search memory, or a string array, for a
+;;                          string
+;;    SEARCH_MEMORY         the engine under both, exact or case-blind
+;;    FN_EQU                compare two strings ignoring case
+;;    FN_SHIFT_S            force the case of a string, or make it
+;;                          printable
+;;    HOOK_XVARNVAL         hook 179: XVAR n, and NVAL through FN_NVAL
+;;    FN_RESERVED           RESERVED(n), space from the system heap
+;;
+;;  The functions arrive through the DOS's FNVEC, one entry per token.
+;;  XVAR and NVAL take an argument with no bracket and come a different
+;;  way, through hook 179 from the stub at RST28V_XVAR_NVAL.
+;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
 ;; LOCN -- token FF 29.
@@ -5937,6 +6085,30 @@ FN_RESERVED:
                DEFB ERR_OUT_OF_MEMORY          ; 4E95 01 error 1, "Out of memory"
 
 ;; --------------------------------------------------------------------
+;;  PART CMDV -- Command dispatch, the tokeniser and the token printer
+;;
+;;    HCMDV                 hook 173: what the CMDV stub sends across --
+;;                          SAVE, LOAD, MERGE, VERIFY, and six of the
+;;                          ROM's own commands
+;;    CMDBUF_PROLOGUE / CMDBUF_EPILOGUE
+;;                          the code it plants in the system page
+;;    CMD_MODE              MODE, taken from the ROM
+;;    HGTTK / GTDT          hook 171: matching a keyword while
+;;                          tokenising
+;;    HPRTOK / HOOK_HPFF    hooks 169 and 170: printing a token back,
+;;                          the FF-prefixed ones included
+;;    PRINT_OPEN_FILE_COUNT  "<n> OPEN file", for the DOS
+;;    MBKEYS                the keyword list
+;;
+;;  Every hook here is raised from the system page: the ROM calls its
+;;  CMDV, MTOKV and PRTOKV vectors, INSTALL_ROM_VECTORS has pointed
+;;  those at stubs the installer put there, and the stubs come back
+;;  through RST &08.  HCMDV is where MODE, SOUND, PAUSE, DEF KEYCODE,
+;;  KEYIN and POKE are taken away from the ROM; MODE stays here, the
+;;  other five go to PART BUILT.
+;; --------------------------------------------------------------------
+
+;; --------------------------------------------------------------------
 ;; Hook 173 -- dispatch one of MasterBASIC's commands.  The ROM calls
 ;; CMDV once a statement, before its own dispatch -- mainlp.asm's "ALLOWS
 ;; ADDING OF EXTRA CMDS" -- and CMDV points at the stub at &488E, whose
@@ -6869,6 +7041,27 @@ MBKEYS:
 ; 28  253      EDIT      EDIT var -- INPUT with the present value offered for editing
                DEFM "EDI"                      ; 5165
                DEFB "T"+&80
+
+;; --------------------------------------------------------------------
+;;  PART PROG -- MERGE *, the program-space hooks, and line entry
+;;
+;;    CMD_MERGE / OPEN_GAP_AT_LINE
+;;                          MERGE *: a block of lines in one move
+;;    HOOK_RCPTCH           hook 174: the ROM's RUN and CLEAR, copied
+;;                          and patched
+;;    HOOK_VARSPACE         hook 184: the gap kept above the program
+;;    HOOK_TOKENARG         hook 177: EXIT PROC, EXIT DO, EXIT FOR and
+;;                          POINT
+;;    HOOK_MERGECOMPFLG     hook 175: after every edited line -- the
+;;                          recompile flag, and last-line recall
+;;    BUILD_TRACK_IMAGE     one track laid out for the controller, for
+;;                          the DOS's FORMAT
+;;    READ_KEY_LINE         the keyboard row with CNTRL and the cursors
+;;
+;;  MERGE arrives from the DOS's CTAB with what the ROM's own MERGE has
+;;  refused.  The hooks are raised from the system page.
+;;  BUILD_TRACK_IMAGE is here because it is: only the DOS calls it.
+;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
 ;; MERGE -- CTAB's entry for token &96, reached only with what the ROM's
@@ -8008,6 +8201,30 @@ HOOK_MERGECOMPFLG_LOOP7:
                LD L,C                          ; 54C5 69
                DEC HL                          ; 54C6 2B
                JP SCAN_TEXT_PAGED              ; 54C7 C3 9B 56
+
+;; --------------------------------------------------------------------
+;;  PART REF -- ALTER, REF and PRINT REF, and LPRINT's set-up
+;;
+;;    CMD_ALTER             ALTER: search and replace, ALTER DEVICE,
+;;                          ALTER DISPLAY
+;;    CMD_REF / CMD_PRINT / PRINT_REF_COMMON
+;;                          REF, PRINT REF and LPRINT REF
+;;    PARSE_REFERENCE / MATCH_REFERENCE / SCAN_TEXT_PAGED
+;;                          what is looked for, and the search through
+;;                          the program text
+;;    FIND_LINE_FROM_START / NEXT_LINE
+;;                          walking the program a line at a time
+;;    CMD_LPRINT            LPRINT CLEAR and LPRINT MODE
+;;    INSTALL_CHANNEL_HANDLER / IS_CHANNEL_OURS
+;;                          the printer channel's output word, taken
+;;                          over for the buffer
+;;
+;;  ALTER, REF, PRINT and LPRINT all arrive from the DOS's CTAB, the
+;;  last two with what the ROM's own commands have refused -- there is no
+;;  ROM REF, so every REF line arrives.  The search
+;;  machinery is shared by all three forms of REF and by ALTER's
+;;  search-and-replace; LPRINT's set-up is here because LPRINT REF is.
+;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
 ;; ALTER -- the ALTER command, token 250.  Three unrelated jobs.
@@ -9508,6 +9725,32 @@ COMPARE_LINE_NUMBER_DONE:
                RET                             ; 5933 C9
 
 ;; --------------------------------------------------------------------
+;;  PART INTS -- The serial port, the interrupt, and the printer and sound buffers
+;;
+;;    SERINIT / SERCMD      the SCC2691, set up on every LPRINT MODE
+;;                          and at boot
+;;    SUBSTITUTE_PRINTER_CHAR hook 182: one character replaced by a
+;;                          string on its way out
+;;    SEND_COUNTED_TO_CHANNEL_1
+;;                          the once-per-interrupt work, fifty times a
+;;                          second
+;;    SCREEN_BLANK_TICK / PRINTER_FEED_TICK / SOUND_FEED_TICK
+;;                          what it does each time: the blanker, the
+;;                          printer buffer, the sound buffer
+;;    CMD_BLITZ / HOOK_BLITZ_SOUND
+;;                          BLITZ SOUND, and hook 176
+;;    ESCCHK                has ESC been pressed?
+;;    HOOK_LPRINT_BYTE      hook 154: one byte into the printer buffer
+;;
+;;  The interrupt work is entered from the frame interrupt hook in the
+;;  block at RELOCATED_TO_484D, with this page in the window rather
+;;  than at &4000 -- SEND_COUNTED_TO_CHANNEL_1's banner says what that
+;;  does to every address in it.  BLITZ arrives from the DOS's CTAB;
+;;  hooks 182 and 154 from the system page; nothing raises 176, and
+;;  CMD_BLITZ falls into its body.
+;; --------------------------------------------------------------------
+
+;; --------------------------------------------------------------------
 ;; Set up the SCC2691 for LPRINT MODE 2.
 ;;
 ;; C is SPORT, the port the Comms Interface is jumpered to, and B selects
@@ -10452,6 +10695,34 @@ HOOK_LPRINT_BYTE_DONE:
                POP AF                          ; 5BD4 F1
                OUT (HMPR),A                    ; 5BD5 D3 FB
                RET                             ; 5BD7 C9
+
+;; --------------------------------------------------------------------
+;;  PART BUILT -- RECORD, SOUND, PAUSE, DEF KEYCODE, KEYIN, POKE and LENGTH, rebuilt from the ROM's own
+;;
+;;    CMD_RECORD            RECORD SOUND: the ROM's RECORD copied and
+;;                          patched
+;;    CMD_SOUND / SILENCE_SOUND_CHIP
+;;                          SOUND CLEAR and the sound buffer; ordinary
+;;                          SOUND is the ROM's, rebuilt
+;;    CMD_PAUSE / CMD_DEF_KEYCODE / CMD_KEYIN
+;;                          three more, assembled in the ROM's code
+;;                          buffer
+;;    PREPARE_ROM1_COPY / PAGE_IN_ROM1
+;;                          reading ROM 1, and running what was copied
+;;    BUILD_PAGE_IN_TRAMPOLINE
+;;                          POKE: the ROM's own, behind a trampoline
+;;                          that pages this half in
+;;    PAUSE_STUB_BYTES .. FAR_MOVE_EITHER_WAY
+;;                          the bytes those builds are made of
+;;    FN_LENGTH             LENGTH, assembled at run time out of the
+;;                          ROM's own
+;;
+;;  Apart from SOUND CLEAR, none of these commands is implemented here.
+;;  Each copies the ROM's routine into the system page, changes a few
+;;  operands, and runs the copy.  SOUND, PAUSE, DEF KEYCODE, KEYIN and
+;;  POKE come from HCMDV; RECORD from the DOS's command-intercept
+;;  table; LENGTH from the DOS's function-evaluator hook.
+;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
 ;; Reached from MasterDOS's command-intercept table, which maps the ROM's
@@ -11490,6 +11761,24 @@ FN_LENGTH_2:
                                                ; land on the LDIR at &5E85, the whole &0EF4 of the relocation out
 
 ;; --------------------------------------------------------------------
+;;  PART SLOTS -- The utility-page slots, and LINE
+;;
+;;    GET_BUFFER_SIZE / FIND_SLOTS / ALLOC_UTILITY_SLOT / FREE_SLOT_CHAIN
+;;                          1K slots in the utilities pages, for the
+;;                          printer and sound buffers
+;;    SHOW_LINE_AND_STATEMENT / TRACE_PLOT_CHAR / TRACE_PRINT_DECIMAL
+;;                          the trace display at the lower right of
+;;                          the screen
+;;    CHECK_BREAK           BREAK, and LINE STEP's wait for CNTRL
+;;    CMD_LINE              LINE, LINE delay, LINE STEP, LINE OFF
+;;
+;;  The slot routines serve LPRINT CLEAR and SOUND CLEAR.  LINE arrives
+;;  from the DOS's CTAB; the display it turns on is called once a
+;;  statement from the CMDV block in the system page, and runs from the
+;;  window.
+;; --------------------------------------------------------------------
+
+;; --------------------------------------------------------------------
 ;; The size argument of LPRINT CLEAR and SOUND CLEAR, which call it
 ;; from &55E1 and &5C8D.  GET_LONG_INTEGER, D refused as
 ;; "Integer out of range", and then OR E : OR B : OR C so that a return
@@ -12364,6 +12653,31 @@ CMD_LINE_4:
                                                ; it
                LD (LINE_TRACE_SETTING),A       ; 614A 32 6F 40
                RET                             ; 614D C9
+
+;; --------------------------------------------------------------------
+;;  PART SAVE -- SAVE MODE and SAVE BOOT: the two compressors, and CSIZE between them
+;;
+;;    COMPRESS_SCREEN_FILE / EXPAND_SCREEN_FILE
+;;                          SAVE MODE 3's screen compressor and its
+;;                          expander
+;;    COMPRESS_FILE / EXPAND_FILE
+;;                          SAVE MODE 2's, for SCREEN, CODE and array
+;;                          files
+;;    GET_WORK_PAGE         the spare 16K page MODE 2 needs
+;;    CMD_SAVE / SET_COMPRESSION_MODE
+;;                          SAVE MODE n
+;;    SAVE_BOOT             SAVE BOOT: the two halves written back out
+;;                          as one file
+;;    HOOK_CSIZE / PRINT_MAGNIFIED_CHAR / PRINT_SIZED_CHAR
+;;                          hook 155, the extended CSIZE, and the
+;;                          printing it needs
+;;
+;;  SAVE arrives from the DOS's CTAB with what the ROM's own SAVE has
+;;  refused.  The compressors and expanders are called from the DOS's
+;;  load and save hooks, which choose between them on the mode and the
+;;  file type.  CSIZE is here because the code is: it sits between the
+;;  screen compressor and the general one.
+;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
 ;; Compress a SCREEN$ file on its way to disk, called from the DOS's
@@ -14802,6 +15116,28 @@ GET_WORK_PAGE_1:
                RET                             ; 67EF C9
 
 ;; --------------------------------------------------------------------
+;;  PART DUMP -- DUMP and COPY SCREEN
+;;
+;;    CMD_DUMP / DUMP_ORIENT_SETUP / DUMP_LINE .. DUMP_FINISH
+;;                          DUMP 1, 2 and 3, the shaded dumps
+;;    SCREEN_PIXEL_COLOUR / BUILD_GREY_MAP / PALETTE_INTENSITY
+;;                          a pixel's colour, and the palette turned
+;;                          into grey levels
+;;    DUMP_TEXT / DUMP_UNSHADED
+;;                          DUMP 5 and DUMP 4, which run from the
+;;                          system page
+;;    MODE1_SCREEN_ADDRESS .. PLOT_PIXEL_IN_MODE
+;;                          pixel addressing in MODE 1 and MODE 2
+;;    CMD_COPY_SCREEN / COPY_SCREEN_CONVERT
+;;                          COPY SCREEN n TO m, converting between
+;;                          modes
+;;
+;;  DUMP arrives from the DOS's CTAB with the forms the ROM's own DUMP
+;;  has refused.  COPY SCREEN is reached from the DOS's COPY by a
+;;  cross-page call, and shares the pixel addressing.
+;; --------------------------------------------------------------------
+
+;; --------------------------------------------------------------------
 ;; DUMP -- token &BF, which the ROM has too, and this routine gets only
 ;; what the ROM's own has already refused.  CTAB is reached through
 ;; SYNTAX, the unrecognised-command entry, so DUMP and DUMP CHR$ -- the
@@ -17073,6 +17409,28 @@ SCREEN_NUMBER_ARGUMENT_1:
                JP REPORT                       ; 6DF9 C3 BE 43
 
 ;; --------------------------------------------------------------------
+;;  PART JOIN -- JOIN, SPLIT, DELETE and JOIN TO
+;;
+;;    CMD_JOIN              JOIN [line]: two program lines made one
+;;    CMD_SPLIT_LINE / SPLIT_UNWIND_ROM_STACK
+;;                          the slash after a colon that splits a
+;;                          line, with the ROM's return chain
+;;                          rewritten under it
+;;    HOOK_COMADENT         hook 183, raised by EDIT
+;;    CMD_DELETE / ADJUST_VARIABLE_SIZE
+;;                          DELETE a$: part of a string or a string
+;;                          array removed
+;;    CMD_JOIN_TO / VARIABLE_BODY_BY_KIND
+;;                          JOIN TO a$,b$: the second appended to the
+;;                          first
+;;
+;;  JOIN and the split arrive from the DOS's CTAB -- the split is its
+;;  first entry, because "/" sorts below every command token.  DELETE
+;;  is hook 178, raised from the CMDV block before the ROM parses the
+;;  argument, and taken only when the argument is a string.
+;; --------------------------------------------------------------------
+
+;; --------------------------------------------------------------------
 ;; THE LINE NUMBER IS OPTIONAL, and the ROM already keeps the one the
 ;; user wants.  "JOIN 100" joins line 100 to the line below it; plain
 ;; "JOIN" joins "the line with the current line cursor", which is EPPC
@@ -18126,6 +18484,25 @@ VARIABLE_BODY_BY_KIND_DONE:
                RET                             ; 7158 C9
 
 ;; --------------------------------------------------------------------
+;;  PART USING -- BLOCKS, CLS *, EDIT, USING$ and the compile pass
+;;
+;;    HOOK_SWAPCHARS        hook 156, BLOCKS: the alternate character
+;;                          set swapped in
+;;    CMD_CLS               CLS *, black on white
+;;    HOOK_EDIT_INSERT      hook 185: EDIT's insert-the-value routine,
+;;                          built in the ROM's buffer
+;;    FN_USING_S            USING$(format$,number), the fixed-point
+;;                          formatter
+;;    HOOK_PROGPREP / BUILD_COMPILER / COMPILE_PASS
+;;                          hook 157: the ROM's compile pass replaced,
+;;                          with PROC calls resolved through an index
+;;
+;;  Five unrelated things in the order they were written.  CLS arrives
+;;  from the DOS's CTAB with what the ROM's own CLS has refused; USING$
+;;  through FNVEC; the hooks from the system page.
+;; --------------------------------------------------------------------
+
+;; --------------------------------------------------------------------
 ;; BLOCKS -- and the argument 0, 1 or 2 is the manual's:
 ;;
 ;;     BLOCKS 0  block graphics off, CHR$ 128-168 as user-defined
@@ -19101,6 +19478,37 @@ BUILD_PROC_INDEX_1:
                OUT (HMPR),A                    ; 745B D3 FB
                LD (HL),&00                     ; 745D 36 00  the zero that ends the table, written after the last entry
                RET                             ; 745F C9
+
+;; --------------------------------------------------------------------
+;;  PART INSTALL -- The installer, and the string move it plants at &46CC
+;;
+;;    RELOCATED_TO_46CC     385 bytes that run at &46CC in the system
+;;                          page: the string move INSLV points at
+;;    INSTALLER             the 943 bytes the boot sector copies to
+;;                          &BC00 and runs there
+;;    INSTALL_ROM_VECTORS   the ROM's vectors pointed into this half's
+;;                          blocks
+;;    RESOLVE_ROM_ENTRIES   twenty ROM entry points found by signature
+;;                          and patched in
+;;    INSTALL_EXTENDED_PUT / BUILD_PUT_BLOCK
+;;                          the faster PUT, assembled into the system
+;;                          page
+;;    SIZE_EXTERNAL_MEMORY / REPORT_EXTERNAL_MEMORY
+;;                          external memory counted and cleared, and
+;;                          "K External Memory"
+;;    INSTALL_SYSPAGE_CODE / MB_PAGER
+;;                          ten small writes into the system page,
+;;                          PAGER's replacement among them
+;;    INSTALL_ROM_PATCHES   three blocks copied into the system page,
+;;                          and INSTBUF and the DOS's boot sector
+;;                          copied into this one
+;;
+;;  Entered once, at boot, from the boot sector in the DOS half.  The
+;;  paging changes on the way through and every banner in the part
+;;  says which page an address is in; the string move is in this part
+;;  because it is copied out by INSTALL_ROM_PATCHES and lies just
+;;  before the installer.
+;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
 ;; 385 bytes assembled to run at &46CC, not here.  This is MasterBASIC's
@@ -21098,6 +21506,37 @@ INSTALL_ROM_PATCHES_1:
                                                ; way
                LDIR                            ; 7B7D ED B0
                RET                             ; 7B7F C9
+
+;; --------------------------------------------------------------------
+;;  PART SYSPAGE -- The code that runs in the system page, and the BASIC left at the end
+;;
+;;    DOS_HOOK_STUBS        36 bytes for &4BA0: the channel stubs, and
+;;                          PRTOKV's and EVALUV's
+;;    RELOCATED_TO_484D     671 bytes for &484D, which the ROM's
+;;                          vectors reach:
+;;    EDITV_ENTRY / CMDV_ENTRY / DISPATCH_ON_COMMAND_TOKEN
+;;                          the editor and the command dispatch,
+;;                          wrapped
+;;    SPLIT_DISPLAY_INT / FRAME_INT_CALL_INTO_MB
+;;                          ALTER DISPLAY's line interrupt, and the
+;;                          frame interrupt's call into this page
+;;    PATOUT_CHAR_OUT / AT_TAB_HOOK
+;;                          character output at CSIZE's sizes; AT and
+;;                          TAB
+;;    TAPE_VERIFY_STUB .. RST28V_XVAR_NVAL
+;;                          the smaller stubs
+;;    GAP_BLOCK             forty bytes for &5896
+;;    MBTEXT                tokenised BASIC nothing refers to, written
+;;                          over at boot
+;;
+;;  None of this runs where it is assembled.  The installer copies the
+;;  three blocks into the ROM's system page, so an operand here is an
+;;  address in that page, and RELOCATED_TO_484D's banner says how to
+;;  read one.  This is the code the ROM calls without knowing it, and
+;;  the way back into this page from here is RST &08 -- or, for the
+;;  trace, the frame interrupt and character output, PAGER with this
+;;  half's page number, which the installer patches into the block.
+;; --------------------------------------------------------------------
 
 ; ---- DOS_HOOK_STUBS ---- from &691C, &7B3C
 DOS_HOOK_STUBS:

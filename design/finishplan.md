@@ -64,6 +64,28 @@ the commands are, where the functions are, where the installer is.
 routine in the MasterBASIC copy sits under a part banner, and
 `cutregion.py MB --part X` cuts by it.
 
+**Done, 2026-09-18.**  Three departures from the proposal, each a
+judgement call.  The notes are `notes/mb-parts.txt` and
+`notes/dos-parts.txt`, shared rather than clean-only, so all three
+trees carry the same shape and `cutregion.py --tree` works on any of
+them.  Seventeen parts, not ten to fourteen: the code's own order
+makes the divisions, and merging neighbours to hit a number would
+have put SORT under the clock or the compile pass under JOIN.  And
+one DOS part added, `B1`, with the annotated source's title: the boot
+and the two entries sat outside every part, and the check that no
+label precedes the first PART (`checkdocs.py check_parts`) would have
+failed the DOS half without it.  The section banner is its own table
+(`d.parts`), emitted above the routine's header rather than folded
+into it, so a routine that opens a part keeps its banner and nothing
+written at the same address can displace the heading.
+`carrydoc.py`'s `sections()` was not reusable: it reads the source's
+rule lines, which MasterBASIC has none of.  `build.log` prints
+`DOS -- 12 parts` and `MB -- 17 parts`.  The banners had their
+second reader (round 18 in `reviews.csv`): fifteen findings in 542
+lines, all confirmed -- 2.8 per hundred, the first-pass rate this
+plan predicted, and the reason step 4's claims cut on changed prose
+is not optional.
+
 ## 2. One voice in the reading copy
 
 **Problem.**  The working copy's diary leaks into the reading copy:
@@ -129,7 +151,7 @@ as the house style.  Then `tools/claims.py` on the prose the pass
 changed, because a rewrite is new prose.
 
 Two readers, two audits, one round.  Record it in `reviews.csv` as
-round 18 with shape `edit`, and teach `reviewlog.py` the shape as it
+round 19 with shape `edit`, and teach `reviewlog.py` the shape as it
 was taught `claims`.
 
 ## 5. The residue, stated once
