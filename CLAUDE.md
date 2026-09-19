@@ -273,6 +273,10 @@ and a claims pass, and the three-times-read cuts return 0.4 per
 hundred.  New prose carries the first-pass rate, so a correction is
 the thing to have a second reader look at; the cheap form is
 `tools/claims.py` on what was written since, not another region pass.
+**What is left is `design/finishplan.md`**: the reading copy's shape --
+parts and a contents table for the MasterBASIC half, one voice, the
+author's comments declared, an editor's pass, the residue stated once,
+then a tag.  Nothing in it touches a byte; start there.
 
 **Magic numbers**: the target is *no unexplained number in a routine that
 has been worked*, not zero numbers.  Some can never be named — an operand
