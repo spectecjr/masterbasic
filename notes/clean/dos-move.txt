@@ -31,9 +31,11 @@ DOC CMD_MOVE
      MOVE a TO b -- the general copier.
 
     EITHER END CAN BE ANYTHING the machine can read or write: a stream
-    (`#n`), a device letter ("s:" for the screen, "p:" for the printer,
-    "k:" for the keyboard, "d:" for a disc file), or a file.  MOVE does
-    not care which, because it does not do the reading and writing
+    (`#n`), which may be open to the screen, the printer, the keyboard
+    or a disc file, or a file named with its "d:" prefix -- the one
+    device letter a bare end may carry, since CKDISC at &4800 refuses
+    every other with "Invalid device" and OPMV1 checks for "D" again.
+    MOVE does not care which, because it does not do the reading and writing
     itself -- it opens a channel at each end and works through the ROM's
     channel machinery, which is what makes one command serve every
     combination.
@@ -58,7 +60,7 @@ DOC CMD_MOVE
     Flag 2 is raised to say a MOVE is running; the open and end-of-file
     code reads it, to tell a MOVE from a command that would report "end
     of file".  The directory search reuses the same bit as "a search is
-    under way" -- STFPL sets it, SNDFL and REFBUF test it -- but MOVE's
+    under way" -- STFPL and SNDFL set it, SNDFL and REFBUF test it -- but MOVE's
     name evaluation is over before this SETF2, so the two never meet.
 
 DOS &679C : "," or
@@ -228,6 +230,12 @@ DOC TOSCQ
     printer or keyboard.  D also comes back
     holding the source file's type, which is what MOVA branches on next.
 
+    The CP &C4 is exact, with no fold of bit 5, where every other
+    letter test in this PART folds it first; CRMCH's SET 5 at &6D41
+    puts bit 5 into the letter of a channel it builds, so such a
+    channel reads &E4 here and a program MOVEd from it would be copied
+    raw rather than listed.  Read from the bytes, not run.
+
 DOS &68F8 : the channel being read from
 DOS &68FB : four bytes into its record is the device letter
 DOS &6900 : "D" with bit 7 set: a disc file
@@ -304,9 +312,10 @@ DOC HEVSY
     HEVNAM rather than from the line, then EVSY2 as before.
 
 DOC CLMOV
-    Close MOVE's file end: nothing to do if that end was a stream
-    (SSTR1 holds &FF), else IX to the channel record NSTR1 names and
-    DELD takes it out.
+    Close MOVE's file end: nothing to do if that end was a stream --
+    SSTR1 holds anything but &FF, the "not set" value CLEAR_TSTR
+    writes, and the INC A / RET NZ returns on it -- else IX to the
+    channel record NSTR1 names and DELD takes it out.
 
 DOC DELD
     Delete the channel record at IX: its displacement from CHANS in

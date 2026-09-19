@@ -20,7 +20,7 @@ DOC RENAM
     that the new name is free runs a second directory scan through the
     same buffer, so REFBUF re-reads it and PTSVT points back at the
     entry the search had reached.  (ERASE's plain-file path writes its
-    sector back inside its loop too, at &5D18, and needs neither; ERASE
+    sector back inside its loop too, at &5D1A, and needs neither; ERASE
     DIR runs a second scan of its own at &5D0C and calls PTSVT itself
     at &5D15.)
 
@@ -157,8 +157,11 @@ DOC SF1S
     ERASE's OVER, and the OFF option of PROTECT and HIDE at &5E33.
 
 DOC NWSADH
-    WSAD by a jump, for the branch that is too far for a JR: the entry
-    rewritten by RENAME goes back to the disc.
+    WSAD by a jump.  In the source OHAND's JR NWSADH came here, a byte
+    cheaper than its own JP; in this build the counterpart,
+    WRITE_TYPE_IF_CONFIRMED, jumps to WSAD itself at &5D2C, and nothing
+    branches here at all -- RENAME's rewritten entry falls into it
+    after FESE2, and goes back to the disc.
 
 DOC N2TN3
     The second name into the third slot: fourteen bytes from NSTR2+1

@@ -266,7 +266,13 @@ only and never run `build.sh`; every finding is verified against the
 instructions before it is applied; a finding right in substance with a
 wrong subsidiary number is not confirmed.  Auditors have been wrong —
 `PART G1` in the wrong tree, phantoms that were never phantoms — and are
-checked like anything else.
+checked like anything else.  **The planned passes are done** (2026-09-18,
+`design/reviewplan.md` phase 7): every region of both halves has had
+its carried comments swept, its banners read, two lower-case readers
+and a claims pass, and the three-times-read cuts return 0.4 per
+hundred.  New prose carries the first-pass rate, so a correction is
+the thing to have a second reader look at; the cheap form is
+`tools/claims.py` on what was written since, not another region pass.
 
 **Magic numbers**: the target is *no unexplained number in a routine that
 has been worked*, not zero numbers.  Some can never be named — an operand

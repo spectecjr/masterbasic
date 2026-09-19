@@ -6941,8 +6941,10 @@ SNPTAB:
 ;; THE LAST FEW STEPS CANNOT BE DONE FROM HERE.  Returning to the
 ;; program means restoring three ports and jumping to an address, and
 ;; every one of those makes this page vanish or the wrong one appear.
-;; So the address and the three port values are written into the
-;; Spectrum page at &B8F6, and the jump goes to the stub at &B900 which
+;; So NMI's own address -- not a resume address; the interrupted PC is
+;; still on the program's stack -- and the three port values are
+;; written into the Spectrum page at &B8F6, and the jump goes to the
+;; stub at &B900 which
 ;; is already there -- code in the page that will still be mapped when
 ;; the ports have been put back.
 ;; --------------------------------------------------------------------
@@ -9309,7 +9311,7 @@ CKDIR:
 ;; that the new name is free runs a second directory scan through the
 ;; same buffer, so REFBUF re-reads it and PTSVT points back at the
 ;; entry the search had reached.  (ERASE's plain-file path writes its
-;; sector back inside its loop too, at &5D18, and needs neither; ERASE
+;; sector back inside its loop too, at &5D1A, and needs neither; ERASE
 ;; DIR runs a second scan of its own at &5D0C and calls PTSVT itself
 ;; at &5D15.)
 ;;
@@ -9339,8 +9341,11 @@ RENAM:
                CALL FESE2                      ; 5D6D CD F8 55  COPY NAME, NEW RND NO.
 
 ;; --------------------------------------------------------------------
-;; WSAD by a jump, for the branch that is too far for a JR: the entry
-;; rewritten by RENAME goes back to the disc.
+;; WSAD by a jump.  In the source OHAND's JR NWSADH came here, a byte
+;; cheaper than its own JP; in this build the counterpart,
+;; WRITE_TYPE_IF_CONFIRMED, jumps to WSAD itself at &5D2C, and nothing
+;; branches here at all -- RENAME's rewritten entry falls into it
+;; after FESE2, and goes back to the disc.
 ;; --------------------------------------------------------------------
 
 NWSADH:
@@ -12131,9 +12136,11 @@ C11LP_DONE:
 ;;  MOVE a TO b -- the general copier.
 ;;
 ;; EITHER END CAN BE ANYTHING the machine can read or write: a stream
-;; (`#n`), a device letter ("s:" for the screen, "p:" for the printer,
-;; "k:" for the keyboard, "d:" for a disc file), or a file.  MOVE does
-;; not care which, because it does not do the reading and writing
+;; (`#n`), which may be open to the screen, the printer, the keyboard
+;; or a disc file, or a file named with its "d:" prefix -- the one
+;; device letter a bare end may carry, since CKDISC at &4800 refuses
+;; every other with "Invalid device" and OPMV1 checks for "D" again.
+;; MOVE does not care which, because it does not do the reading and writing
 ;; itself -- it opens a channel at each end and works through the ROM's
 ;; channel machinery, which is what makes one command serve every
 ;; combination.
@@ -12158,7 +12165,7 @@ C11LP_DONE:
 ;; Flag 2 is raised to say a MOVE is running; the open and end-of-file
 ;; code reads it, to tell a MOVE from a command that would report "end
 ;; of file".  The directory search reuses the same bit as "a search is
-;; under way" -- STFPL sets it, SNDFL and REFBUF test it -- but MOVE's
+;; under way" -- STFPL and SNDFL set it, SNDFL and REFBUF test it -- but MOVE's
 ;; name evaluation is over before this SETF2, so the two never meet.
 ;; --------------------------------------------------------------------
 
@@ -12478,6 +12485,12 @@ PRINTABLE_FORM_DONE:
 ;; "D" -- and the destination one of "S", "P" or "K" -- screen,
 ;; printer or keyboard.  D also comes back
 ;; holding the source file's type, which is what MOVA branches on next.
+;;
+;; The CP &C4 is exact, with no fold of bit 5, where every other
+;; letter test in this PART folds it first; CRMCH's SET 5 at &6D41
+;; puts bit 5 into the letter of a channel it builds, so such a
+;; channel reads &E4 here and a program MOVEd from it would be copied
+;; raw rather than listed.  Read from the bytes, not run.
 ;; --------------------------------------------------------------------
 
 ; ---- TOSCQ ---- from &6820
@@ -12689,9 +12702,10 @@ OPMV2:
                RET                             ; 69AB C9
 
 ;; --------------------------------------------------------------------
-;; Close MOVE's file end: nothing to do if that end was a stream
-;; (SSTR1 holds &FF), else IX to the channel record NSTR1 names and
-;; DELD takes it out.
+;; Close MOVE's file end: nothing to do if that end was a stream --
+;; SSTR1 holds anything but &FF, the "not set" value CLEAR_TSTR
+;; writes, and the INC A / RET NZ returns on it -- else IX to the
+;; channel record NSTR1 names and DELD takes it out.
 ;; --------------------------------------------------------------------
 
 ; ---- CLMOV ---- from &68A2, &68A8

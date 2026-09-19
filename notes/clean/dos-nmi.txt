@@ -226,8 +226,10 @@ DOC SNAP7
     THE LAST FEW STEPS CANNOT BE DONE FROM HERE.  Returning to the
     program means restoring three ports and jumping to an address, and
     every one of those makes this page vanish or the wrong one appear.
-    So the address and the three port values are written into the
-    Spectrum page at &B8F6, and the jump goes to the stub at &B900 which
+    So NMI's own address -- not a resume address; the interrupted PC is
+    still on the program's stack -- and the three port values are
+    written into the Spectrum page at &B8F6, and the jump goes to the
+    stub at &B900 which
     is already there -- code in the page that will still be mapped when
     the ports have been put back.
 

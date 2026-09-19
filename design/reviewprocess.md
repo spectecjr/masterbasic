@@ -424,6 +424,7 @@ The differences from the review prompt:
 | MB cross-reference pass, 831 claims about 45 routines in four bundles (2026-09-17, round 14) | claims | 5 findings | 5; 0.6 per hundred claims, 3 [C]; a caller credited to the DOS, four loads called calls, a label true of one tree only, "four bytes" for six, an address one instruction off |
 | DOS cross-reference pass, 467 claims about 48 routines in two bundles (2026-09-18, round 15) | claims | 5 findings | 5; 1.1 per hundred claims, 2 [C]; a flag test credited to the routine after it, "type and name" to NSTR1 for the type alone, "four bytes" for two, a stub count short by one, an operand named by its instruction |
 | DOS second passes, all eleven PARTs (2026-09-18, round 16) | review | 39 findings | 35 + 4 left; 0.8 per hundred, 28% [C]; no carried comment misplaced; attribution first again, then restated numbers, then the ROM's own words for error 29 |
+| DOS third pass on D1, F11, MOVE (2026-09-18, round 17) | review | 7 findings | 7; 0.4 per hundred against 1.2 on the same cuts that morning, 42% [C]; two of the seven were in sentences the second pass had just written |
 
 The first five ran on one model; the rest on another, after the first hit a
 session limit mid-run. The prompts were byte-identical across the change,

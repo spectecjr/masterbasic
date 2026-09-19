@@ -495,6 +495,34 @@ through the carried-fix table in `clean.py`, as the rule requires.
 
 ---
 
+## Phase 7 -- the second data point  (2026-09-18; round 17)
+
+A third reader on the three DOS cuts that returned most in phase 6
+-- D1, F11, MOVE, 1649 own lines, cut fresh after that round's
+edits -- with the round-13 brief: mark `[C]` only what the bytes
+prove.  Seven findings, all confirmed and applied, three `[C]`: 0.4
+per hundred against 1.2 for the same three cuts that morning and
+about 2 on their first reading, with the `[C]` share at 42% against
+32%.  The same shape as round 13 on the other half: the density falls
+by two-thirds a pass and the `[C]` share does not fall.  Two of the
+seven were in sentences the second pass had written hours earlier
+("&5D18" for the call two bytes on; a flag SNDFL sets as well as
+tests) -- a correction is new prose, and new prose carries the
+first-pass rate.
+
+**The review process is closed here.**  What "Convergence" says
+below is what the numbers say: the errors are being sampled at a
+steady fraction a pass, not exhausted, and a fourth reader would find
+two or three more per thousand lines at the cost of a round.  That
+is now below what the checks and the emulator find for nothing, and
+the residue is listed in "Evidence that needs a machine" and in the
+four rows of `reviews.csv` with a deferred count.  A future pass, if
+one is wanted, should be the claims cut (`tools/claims.py`) on the
+prose written since this date, not another region pass over prose
+read three times.
+
+---
+
 ## Evidence that needs a machine
 
 `docs/evidence-wanted.md` lists what is left: items 7, 9, 10a-j and 12.
@@ -567,6 +595,19 @@ Those classes are what a check can find and a reader finds slowly:
 every `&hhhh` a comment cites should be an instruction start or a
 label in its half, and every name it cites should exist.  That is the
 next step, not a fourth pass.
+
+**Rounds 16 and 17 (2026-09-18), the DOS second and third passes.**
+The DOS half's numbers, for the record beside MasterBASIC's: second
+readers on all eleven PARTs found 0.8 per hundred with 28% `[C]`;
+third readers on the three that returned most found 0.4 with 42%.
+Two rounds on each half now show the same thing -- density falling
+by about two-thirds a pass, `[C]` share flat -- and that is the
+"sampling, not exhausting" reading, made twice.  The stopping
+signal as this section first wrote it (`[C]` share falling while the
+confirmed rate holds) was never seen on either half; what was seen
+is the other honest reason to stop, that the next pass buys less
+than the checks and the emulator do for free.  Phase 7 above closes
+the process on that.
 
 **Round 14 (2026-09-17), the cross-reference pass.**  The checks came
 first -- mnemonics beside addresses, quotations against their
