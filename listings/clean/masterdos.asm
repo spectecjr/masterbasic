@@ -12,16 +12,24 @@
 ; reading got wrong, which claims are still open.  If you want the
 ; argument, read that one.  This one keeps the conclusions.
 ;
-; ; This file is the MasterDOS 2.3 half: 16320 bytes that run at
+; This file is the MasterDOS 2.3 half: 16320 bytes that run at
 ; &4000-&7FBF in page 29.  MasterBASIC is the other half, in page 28.
 ;
 ; The other half is at &8000-&BFBF while this one runs, so an operand in
 ; that range is an address in the other page, and the listings write it
 ; with a MB_ prefix.
 ;
+; Two voices.  A line comment in UPPER CASE is the 1991 author's, from
+; the MasterDOS source, carried only where this build still has the
+; instruction it was written against.  His shorthand is kept as he
+; wrote it, and it is right about this build unless a lower-case
+; comment on the same line says otherwise; "PROB NOT NEEDED" is him.
+; Everything in lower case, and every ;; banner, is this project's,
+; read from the bytes.
+; Most of the line comments in this half are his.
+;
 ; base.asm has the rest: the machine, the paging, what a windowed
 ; address means, and how to read a line of this listing.
-
 
 ; Contents.  Each part opens with a ";;  PART" banner, which is
 ; the thing to search for -- "PART B1" finds the first.  The
@@ -52,15 +60,11 @@
 ;   HOOKS   &7862-&7FBF  OPEN_BASIC_FOR_MERGE  Extending BASIC, the new
 ;                                              functions, and the ROM patches
 
-
 ; What a dispatch table adds to one of the names below to
 ; make the word it stores.  Not bit 15 itself, which is
 ; &8000: it is &4000 off to undo the window this page sees
 ; the other one through, then &8000 on to set the flag.
 NOT_IN_THIS_PAGE:        EQU  &4000
-
-
-
 
 ; Memory
 BOOT_STACK_TOP:          EQU  &C000            ; one past the window; the stack grows down into this page
@@ -212,7 +216,6 @@ STEP_OUT_CMD:            EQU  &7B              ; step out one track
 WRITE_SECTOR_CMD:        EQU  &A2              ; write sector
 WRITE_TRACK_CMD:         EQU  &F2              ; * write track, with the settling delay bit set
 WRRAM:                   EQU  &0113            ; and write address
-
 
                ORG  &4000
 

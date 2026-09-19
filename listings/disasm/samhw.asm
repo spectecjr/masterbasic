@@ -9,7 +9,6 @@
 ; Technical Manual, except the disk and printer ports, which are the
 ; DOS's own and described by its source.
 
-
 XMPRL:         EQU  &80                        ; External memory lower port address
 COMM:          EQU  &E0                        ; Disk 0 Side 0 Command Register
 TRCK:          EQU  &E1                        ; Disk 0 Side 0 Track Register

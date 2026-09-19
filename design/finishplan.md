@@ -144,6 +144,17 @@ is him.  Also fix the header itself: the doubled `; ;` at line 15 of
 the MasterBASIC copy, and the runs of blank lines (up to twelve) after
 it -- the emitter should collapse a run to one.
 
+**Done, 2026-09-19.**  The paragraph is in `clean.py`'s preamble, with
+one sentence per half (`VOICES`): the DOS's says most of its line
+comments are his and leaves the figure to `build.log`; MasterBASIC's
+says his voice is there only on `GTDT`, the fourteen bytes copied from
+his routine of that name.  `docs/disassembly.md` has the same under
+step 4, where it also corrects "10 section banners" to the 6 the build
+prints.  The `; ;` was the preamble prefixing a `WHERE` text that
+already began with `;`; the blank runs were the gaps equate families
+left when `base.asm` lifted them out, and the writer now collapses
+any run to one line in all five files of every tree.
+
 ## 4. An editor's pass
 
 **Problem.**  Every pass so far read for truth.  Nobody has read for

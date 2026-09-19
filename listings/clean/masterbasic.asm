@@ -12,16 +12,26 @@
 ; reading got wrong, which claims are still open.  If you want the
 ; argument, read that one.  This one keeps the conclusions.
 ;
-; ; This file is the MasterBASIC 1.7 half: 16320 bytes that run at
+; This file is the MasterBASIC 1.7 half: 16320 bytes that run at
 ; &4000-&7FBF in page 28.  MasterDOS is the other half, in page 29.
 ;
 ; The other half is at &8000-&BFBF while this one runs, so an operand in
 ; that range is an address in the other page, and the listings write it
 ; with a DOS_ prefix.
 ;
+; Two voices.  A line comment in UPPER CASE is the 1991 author's, from
+; the MasterDOS source, carried only where this build still has the
+; instruction it was written against.  His shorthand is kept as he
+; wrote it, and it is right about this build unless a lower-case
+; comment on the same line says otherwise; "PROB NOT NEEDED" is him.
+; Everything in lower case, and every ;; banner, is this project's,
+; read from the bytes.
+; MasterBASIC has no source, so his voice is heard in this half
+; only on GTDT, the fourteen bytes copied from his own routine
+; of that name.
+;
 ; base.asm has the rest: the machine, the paging, what a windowed
 ; address means, and how to read a line of this listing.
-
 
 ; Contents.  Each part opens with a ";;  PART" banner, which is
 ; the thing to search for -- "PART VARS" finds the first.  The
@@ -62,9 +72,6 @@
 ;                                              system page, and the BASIC left
 ;                                              at the end
 
-
-
-
 ; Read from the code, not carried from a source.  MasterBASIC
 ; has no published source, so unlike the names above these are
 ; an interpretation of what the surrounding instructions do,
@@ -85,17 +92,6 @@ UPPER:                  EQU  &DF               ; clearing bit 5 folds a letter t
 ; Ports
 LPEN:                   EQU  &F8               ; port &F8 on the way in, where the CLUT is on the way out. With 1 in A
                                                ; the read is &01F8 instead, which is HPEN, the raster line
-
-
-
-
-
-
-
-
-
-
-
 
 ; Numbers named by hand, each for one instruction
 ; where the same value means something else elsewhere.
@@ -143,7 +139,6 @@ TOKEN_GRAB:             EQU  &AB               ; the lower of the two command to
                                                ; one up, &AC
 USING_OVERFLOW:         EQU  &25
 
-
 ; The manual also describes these, which no table points at, so they have
 ; not been located in the code:
 ;
@@ -181,7 +176,6 @@ USING_OVERFLOW:         EQU  &25
 ;   read and write, where RDRSCT turns the transfer into an LDIR
 ;
 ; docs/how-it-works.md puts them in order.
-
 
 ; The rest of the numbers BASIC is written in: function
 ; tokens -- among them MasterBASIC's own XVAR and NVAL, in

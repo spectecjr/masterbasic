@@ -3467,8 +3467,12 @@ def write_trio(outdir, dos, mb, texts, bias, preamble=None):
     for name in ('masterdos.asm', 'masterbasic.asm', 'base.asm',
                  'samhw.asm', 'samrom.asm'):
         path = os.path.join(outdir, name)
+        # Lifting equate families out of a head leaves the blank lines
+        # that separated them: twelve in a row after LPEN once.  A run
+        # of blank lines says nothing a single one does not.
+        text = re.sub(chr(10) + '{3,}', chr(10) * 2, texts[name])
         with open(path, 'w') as f:
-            f.write(asmfmt.format_listing(texts[name]))
+            f.write(asmfmt.format_listing(text))
         print('wrote', path)
 
 

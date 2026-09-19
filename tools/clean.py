@@ -544,11 +544,20 @@ PREAMBLE = """\
 ; reading got wrong, which claims are still open.  If you want the
 ; argument, read that one.  This one keeps the conclusions.
 ;
-; %(where)s
+%(where)s
 ;
 ; The other half is at &8000-&BFBF while this one runs, so an operand in
 ; that range is an address in the other page, and the listings write it
 ; with a %(prefix)s prefix.
+;
+; Two voices.  A line comment in UPPER CASE is the 1991 author's, from
+; the MasterDOS source, carried only where this build still has the
+; instruction it was written against.  His shorthand is kept as he
+; wrote it, and it is right about this build unless a lower-case
+; comment on the same line says otherwise; "PROB NOT NEEDED" is him.
+; Everything in lower case, and every ;; banner, is this project's,
+; read from the bytes.
+%(voices)s
 ;
 ; base.asm has the rest: the machine, the paging, what a windowed
 ; address means, and how to read a line of this listing.
@@ -625,12 +634,21 @@ WHERE = {
 }
 
 WHAT = {'DOS': 'MasterDOS 2.3', 'MB': 'MasterBASIC 1.7'}
+# The sentence that says how much of each half is his.  The DOS's
+# figure is printed by the build (`still the MasterDOS author's own`),
+# so it is not repeated here where it would drift.
+VOICES = {
+    'DOS': '; Most of the line comments in this half are his.',
+    'MB': '; MasterBASIC has no source, so his voice is heard in this half\n'
+          '; only on GTDT, the fourteen bytes copied from his own routine\n'
+          '; of that name.',
+}
 PREFIX = {'DOS': 'MB_', 'MB': 'DOS_'}
 
 
 def preamble(d):
     return PREAMBLE % {'what': WHAT[d.tag], 'where': WHERE[d.tag],
-                       'prefix': PREFIX[d.tag]}
+                       'prefix': PREFIX[d.tag], 'voices': VOICES[d.tag]}
 
 
 def base_preamble():

@@ -22,7 +22,6 @@
 ; It still assembles to the original bytes: everything added here is a
 ; comment.
 
-
 ; Contents.  Each part opens with a ";;  PART" banner, which is
 ; the thing to search for -- "PART B1" finds the first.  The
 ; routine named is the first in the part.
@@ -48,14 +47,11 @@
 ;   SUBD    &71FB-&74C0  OPNDIR                Subdirectories
 ;   RAMD    &74C1-&7FBF  RDWSCT                RAM discs and MegaRAM
 
-
 ; What a dispatch table adds to one of the names below to
 ; make the word it stores.  Not bit 15 itself, which is
 ; &8000: it is &4000 off to undo the window this page sees
 ; the other one through, then &8000 on to set the flag.
 NOT_IN_THIS_PAGE:    EQU  &4000
-
-
 
 ; Numbers named by hand, each for one instruction
 ; where the same value means something else elsewhere.
@@ -103,7 +99,6 @@ STEP_OUT_CMD:        EQU  &7B                  ; step out one track
 WRITE_SECTOR_CMD:    EQU  &A2                  ; write sector
 WRITE_TRACK_CMD:     EQU  &F2                  ; * write track, with the settling delay bit set
 WRRAM:               EQU  &0113                ; and write address
-
 
                ORG  &4000
 

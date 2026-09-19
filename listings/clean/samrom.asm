@@ -7,7 +7,6 @@
 ;
 ; base.asm includes this before either half.
 
-
 ; The ROM's restarts, under the names its own source gives
 ; them.  A restart is a one-byte call to a fixed address, so
 ; these are those addresses.

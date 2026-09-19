@@ -198,7 +198,21 @@ in the middle still contributes both ends. An instruction matches only up to its
 operands, since an absolute address here is nearly always different and a
 relative jump's displacement changes whenever anything was inserted between.
 
-That places **1703 line comments, 170 routine headers and 10 section banners**.
+That places **1703 line comments, 170 routine headers and 6 section banners**.
+
+**Whose comments are whose.** A line comment in upper case is the 1991
+author's, carried from the MasterDOS source only where this build still has
+the instruction it was written against. His shorthand is kept as he wrote
+it -- `PROB NOT NEEDED`, `JUNK ENDS`, `PT TO 17 BYTES FURTHER ON` -- and it
+is right about this build unless a lower-case comment on the same line says
+otherwise: where MasterBASIC changed the code under a carried comment, the
+lower-case comment is the correction and the upper-case one is left standing
+as what the source said. Everything in lower case, and every `;;` banner, is
+this project's, read from the bytes. The build counts the two voices
+(`N line comments written here, M still the MasterDOS author's own`);
+MasterBASIC has no source, so its half has his voice only on `GTDT`, the
+fourteen bytes copied from his routine of that name. Each reading copy says
+this in its own header.
 
 It also puts the source's **names where the listing printed bare hex**. The
 disassembly can only name an address that something in the image refers to, so a

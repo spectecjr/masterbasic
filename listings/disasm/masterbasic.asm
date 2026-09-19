@@ -49,8 +49,6 @@
 ;                                              system page, and the BASIC left
 ;                                              at the end
 
-
-
 ; Read from the code, not carried from a source.  MasterBASIC
 ; has no published source, so unlike the names above these are
 ; an interpretation of what the surrounding instructions do,
@@ -111,7 +109,6 @@ SYS_STRM16_SAVE:        EQU  &4AF5
 SYS_TOKEN_TO_FN_INDEX:  EQU  &45A2
 USING_OVERFLOW:         EQU  &25
 
-
 ; The manual also describes these, which no table points at, so they have
 ; not been located in the code:
 ;
@@ -149,7 +146,6 @@ USING_OVERFLOW:         EQU  &25
 ;   read and write, where RDRSCT turns the transfer into an LDIR
 ;
 ; docs/how-it-works.md puts them in order.
-
 
 ; The rest of the numbers BASIC is written in: function
 ; tokens -- among them MasterBASIC's own XVAR and NVAL, in
