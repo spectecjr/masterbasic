@@ -18,9 +18,9 @@ DOC BUILD_TRACK_IMAGE
     IT BUILDS INTO THE SCREEN.  HL starts at &A280, which the DOS's own
     equate list calls FTADD and marks "(SCR in section C)" -- screen
     memory, borrowed as scratch, which is why DFMTB calls GETSCR before
-    getting here.  The listing used to render &A280 as the DOS's label
-    at &6280, because that is what a window address usually means;
-    here it does not, and the operand is pinned to the number.
+    getting here.  A window address usually means the DOS's label at
+    the matching address, &6280; here it does not, and the operand is
+    pinned to the number.
 
     THE LAYOUT is IBM System 34, the format the WD177x writes:
 

@@ -121,7 +121,7 @@ swap back with the same code.""",
 Pages the ROM's system page in, clears bits 0 and 2 of DCT (&5BB6,
 the disc error counter, borrowed here as flags) and calls
 BUILD_COMPILER with those bits down, which assembles the replacement
-for the ROM's compile pass at CDBUFF+&11.  See notes/mb-compiler.txt.
+for the ROM's compile pass at CDBUFF+&11.
 
 The old value of the byte is kept on the stack, and if its bit 0 was
 clear the two bytes &18 &01 are written over the start of what was
@@ -132,10 +132,9 @@ ROM's CALL SCOMP never runs.
 Both paths then call into the DOS page and write its result, plus
 one, to PROG, the ROM's start-of-program pointer.
 
-An earlier reading of this had &4D11 as a ROM vector being pointed at
-EXPT1NUM, on the strength of &0118 being an address in the ROM's jump
-table.  It is not a vector: BUILD_COMPILER copies code there, and
-&0118 is two instruction bytes.""",
+&4D11 is not a ROM vector, though &0118 is an address in the ROM's
+jump table: BUILD_COMPILER copies code there, and &0118 is two
+instruction bytes.""",
 0x53C3: """\
 Hook code 175.  Carry one bit of COMPFLG into DCT.
 

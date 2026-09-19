@@ -57,6 +57,12 @@ The kinds of entry, one per line, blank lines and # comments ignored
 
     RENAME ULA BORDER             change a name everywhere it is written
 
+    Working note: ...             a paragraph opening so, in any header,
+                                  is for the working copy and is left
+                                  out of the reading copy; a line
+                                  comment ending ` -- see notes/x.txt`
+                                  loses that tail there the same way
+
     MB &4000 PART VARS -- MasterBASIC's variables
         The indented lines        a section banner: the listing's own
         below are its text.       shape, where there is no source to

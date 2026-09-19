@@ -56,7 +56,7 @@ MB &4F7E CMD_MODE
     The ROM updates a screen's SCLIST entry when it switches away from
     it, in SCREEN; doing it here as well keeps the current screen's entry
     right at the moment the mode changes rather than at the next switch.
-    That is a reading of why, not something the code states.
+    That is a reading of why, not something the code says.
 
 MB &4F89 : the DEC A above turned MODE 1 to 4 into 0 to 3, so four is the first value that is not a mode and the carry separates them
 MB &4FA2 : every bit but 5 and 6.  XOR B : AND &9F : XOR B takes the bits the mask selects from the byte just read and the other two from B, which holds the mode already rotated into place -- so the page in the low five bits survives untouched

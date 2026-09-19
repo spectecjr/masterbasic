@@ -3085,7 +3085,7 @@ def header(d):
         rest = sorted(n for n in d.user_equs if n not in d.equ_group)
         if rest:
             head.append('')
-            head.append('; Numbers named in notes/, each for one instruction')
+            head.append('; Numbers named by hand, each for one instruction')
             head.append('; where the same value means something else elsewhere.')
             for name in homed(rest):
                 one_equate(name)

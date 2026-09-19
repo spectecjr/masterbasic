@@ -27,7 +27,7 @@
 ; reference, and the assembler resolves it: a routine that moves now
 ; takes its peer equate with it.
 
-; Numbers named in notes/, each for one instruction
+; Numbers named by hand, each for one instruction
 ; where the same value means something else elsewhere.
 ENABLE_ROM1:                    EQU  &40                                 ; LMPR bit 6: ROM 1 in at &C000. Does not move
                                                                          ; the page in section B

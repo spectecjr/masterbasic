@@ -226,15 +226,13 @@ MasterBASIC's:
     &AA MODE     &C2 PAUSE        &D1 KEYIN
     &AE SOUND    &C9 DEF KEYCODE  &E1 POKE
 
-notes/mb-cmdintercept.txt says what each of them does with it.
-
 Everything else takes the default path from &4ED4, which calls nothing.
 It assembles a routine in the ROM's code buffer out of three pieces --
 CMDBUF_PROLOGUE, eighty-eight bytes from wherever the table entry
 points, and CMDBUF_EPILOGUE -- fills in two operands, splices the
 result into the middle of the copied block, and hands the buffer's
 address to STORE_BC_AT_XVAR76.  A dump of a booted machine has all of
-it; notes/mb-cmdbuf.txt goes through it byte by byte."""
+it."""
 
 HEVV_DOC = """\
 Hook 172 -- evaluate a function.  The ROM's EVALUV vector points here,
@@ -869,10 +867,11 @@ The DOS reaches these in the plain &40xx form, after CALLMB.
 
 AND ONE ADDRESS HERE IS NOT A VARIABLE AT ALL.  &4A46 loads
 DIR_DATE+&4000, a directory offset that happens to come to &40F5,
-inside the dot-pattern table.  The working copy keeps a V40F5 label
-there, splitting that table's own DEFB run in two; the reading copy
-writes the operand as the offset it is and has no label.  See
-docs/bugs.md."""
+inside the dot-pattern table.  See docs/bugs.md.
+
+Working note: the reading copy writes that operand as the offset it
+is and has no label there; this copy keeps a V40F5 label, splitting
+the table's own DEFB run in two."""
 
 
 MBVARS2_BANNER = banner(MBVARS2_DOC)

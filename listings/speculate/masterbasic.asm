@@ -87,7 +87,7 @@ UPPER:                  EQU  &DF               ; clearing bit 5 folds a letter t
 LPEN:                   EQU  &F8               ; port &F8 on the way in, where the CLUT is on the way out. With 1 in A
                                                ; the read is &01F8 instead, which is HPEN, the raster line
 
-; Numbers named in notes/, each for one instruction
+; Numbers named by hand, each for one instruction
 ; where the same value means something else elsewhere.
 ANYI_EXIT:              EQU  &54               ; The tail of ANYI, eleven bytes past it: restore LMPR from A, unwind HL,
                                                ; BC and AF, enable interrupts and return. A handler that has finished
@@ -161,7 +161,7 @@ USING_OVERFLOW:         EQU  &25
 ;   the RAM disc speed-ups are the diversion at the first test of every
 ;   read and write, where RDRSCT turns the transfer into an LDIR
 ;
-; notes/ has each of them, and docs/how-it-works.md puts them in order.
+; docs/how-it-works.md puts them in order.
 
 
 ; The rest of the numbers BASIC is written in: function
@@ -375,10 +375,11 @@ ACRSU:
 ;;
 ;; AND ONE ADDRESS HERE IS NOT A VARIABLE AT ALL.  &4A46 loads
 ;; DIR_DATE+&4000, a directory offset that happens to come to &40F5,
-;; inside the dot-pattern table.  The working copy keeps a V40F5 label
-;; there, splitting that table's own DEFB run in two; the reading copy
-;; writes the operand as the offset it is and has no label.  See
-;; docs/bugs.md.
+;; inside the dot-pattern table.  See docs/bugs.md.
+;;
+;; Working note: the reading copy writes that operand as the offset it
+;; is and has no label there; this copy keeps a V40F5 label, splitting
+;; the table's own DEFB run in two.
 ;; --------------------------------------------------------------------
 
                DEFB &00,&00                    ; 405A ..
@@ -398,9 +399,10 @@ ACRSU:
 ;; DUMP 3, and 3 for everything else -- which is the manual's SDORI
 ;; entry, "upright DUMPs unless DUMP 3, or DUMP 2 and MODE 3".
 ;;
-;; An earlier reading of this had 1 as upside down and 3 as sideways.
-;; Both were wrong, and the SDORI table settles it: the value the user
-;; pokes and the value stored here are the same value.
+;; Working note: an earlier reading of this had 1 as upside down and
+;; 3 as sideways.  Both were wrong, and the SDORI table settles it:
+;; the value the user pokes and the value stored here are the same
+;; value.
 ;; --------------------------------------------------------------------
 
 ; ---- DUMP_ORIENT ---- from &6857, &6A00
@@ -1156,9 +1158,8 @@ FN_NVAL:
 ;;     SVAL$(0,3) comes back as exactly 0.  For a negative number the &FF
 ;;     stays put and the magnitude rounds up instead.
 ;;
-;;     The ordering runs descending, and notes/mb-nval.txt records how that
-;;     was settled: SVAL$'s calculator program is RESTACK then EXIT2, so it
-;;     never touches the sign.
+;;     The ordering runs descending: SVAL$'s calculator program is RESTACK
+;;     then EXIT2, so it never touches the sign.
 ;; --------------------------------------------------------------------
 
 ; ---- FN_NVAL_FLOAT ---- from &41D6 when A <> &02
@@ -1481,10 +1482,11 @@ DECIMAL_DIGIT_DONE:
 ;;     the boot sector would have held; &0014 is 20, the entries on a
 ;;     track.
 ;;
-;;     Its internal labels used to hang off the digit converter above,
-;;     which was wrong: the DEC HL at &4279 is entered from &4275 inside
-;;     this routine, and nothing in DECIMAL_DIGIT reaches past its RET at
-;;     &426E.  Naming the routine gives them the right prefix.
+;;     Working note: its internal labels used to hang off the digit
+;;     converter above, which was wrong: the DEC HL at &4279 is entered
+;;     from &4275 inside this routine, and nothing in DECIMAL_DIGIT
+;;     reaches past its RET at &426E.  Naming the routine gives them the
+;;     right prefix.
 ;; --------------------------------------------------------------------
 
 ; ---- FILE_NUMBER_TO_TRACK_SECTOR ---- from DOS &5F87
@@ -1684,9 +1686,11 @@ SAVE_BLOCK_FROM_THIS_PAGE_1:
 ;;
 ;;     And the boot sector really is kept here.  MB &7D00 holds F3 21 00 00
 ;;     22 E2 5A, which is the DOS page's own &4009 -- its &4000 being the
-;;     nine header bytes.  notes/mb-install.txt had this as "the likeliest
-;;     reading of two copies that go the wrong way"; it is now read from
-;;     memory at both ends.
+;;     nine header bytes.  It is read from memory at both ends.
+;;
+;;     Working note: notes/mb-install.txt had this as "the likeliest
+;;     reading of two copies that go the wrong way" before the dumps
+;;     settled it.
 ;;
 ;;     The installer's copy is NOT here: MB &7C00 matches the stored MB
 ;;     &75E1 in 12 bytes of 943, against 943 of 943 in the DOS page.
@@ -1695,8 +1699,10 @@ SAVE_BLOCK_FROM_THIS_PAGE_1:
 ;;     caught while the copy was running, and it is exact -- no byte
 ;;     differs.  It is not against MBPOST: that is a post-boot snapshot,
 ;;     and by then &7C00 is DOSBUF again, so the same comparison there
-;;     gives 26 of 943 and means nothing.  A review has already made that
-;;     substitution once and reported the copy as imperfect.
+;;     gives 26 of 943 and means nothing.
+;;
+;;     Working note: a review once made that substitution and reported
+;;     the copy as imperfect.
 ;; --------------------------------------------------------------------
 
 ; ---- SAVE_BLOCK_FROM_SYSPAGE_DONE ---- from &42A7
@@ -5055,11 +5061,13 @@ FIND_STRING_VARIABLE_1:
 ;;     other way, since SLICING also raises the ROM's own "Subscript wrong"
 ;;     for it.
 ;;
-;;     An earlier reading of this header said "a string of length zero at
-;;     address zero".  Zero is the address; BC is not touched, and if it
+;;     Zero is the address, not the length: BC is not touched, and if it
 ;;     were zero the routine would have nothing to slice.  &476A is the
 ;;     proof: FIND_STRING_VARIABLE calls this twice, and sets BC from DE in
 ;;     between so the second call gets the array's second dimension.
+;;
+;;     Working note: an earlier reading of this header said "a string of
+;;     length zero at address zero".
 ;;
 ;;     With no subscript -- end of statement, or a colon -- the descriptor
 ;;     is left as stacked, which for a caller that passed BC = 0 is an
@@ -8731,15 +8739,13 @@ FN_RESERVED:
 ;;         &AA MODE     &C2 PAUSE        &D1 KEYIN
 ;;         &AE SOUND    &C9 DEF KEYCODE  &E1 POKE
 ;;
-;;     notes/mb-cmdintercept.txt says what each of them does with it.
-;;
 ;;     Everything else takes the default path from &4ED4, which calls nothing.
 ;;     It assembles a routine in the ROM's code buffer out of three pieces --
 ;;     CMDBUF_PROLOGUE, eighty-eight bytes from wherever the table entry
 ;;     points, and CMDBUF_EPILOGUE -- fills in two operands, splices the
 ;;     result into the middle of the copied block, and hands the buffer's
 ;;     address to STORE_BC_AT_XVAR76.  A dump of a booted machine has all of
-;;     it; notes/mb-cmdbuf.txt goes through it byte by byte.
+;;     it.
 ;; --------------------------------------------------------------------
 
 HCMDV:
@@ -9092,7 +9098,7 @@ CMDBUF_PROLOGUE_2:
 ;;     The ROM updates a screen's SCLIST entry when it switches away from
 ;;     it, in SCREEN; doing it here as well keeps the current screen's entry
 ;;     right at the moment the mode changes rather than at the next switch.
-;;     That is a reading of why, not something the code states.
+;;     That is a reading of why, not something the code says.
 ;; --------------------------------------------------------------------
 
 ; ---- CMD_MODE ---- from &4ED1 when A = T_MODE
@@ -10548,8 +10554,8 @@ HOOK_VARSPACE_4:
 ;;     own END PROC can run unaltered.
 ;;
 ;;     EXIT FOR gets no such gift.  The ROM has nothing that leaves a FOR
-;;     loop, so MasterBASIC wrote it: &4A6B is its own code, and
-;;     notes/mb-blocks.txt has it.
+;;     loop, so MasterBASIC wrote it: &4A6B is its own code, EXIT_FOR_STUB
+;;     once installed.
 ;;
 ;;     What was here before:
 ;;
@@ -10734,9 +10740,9 @@ RETURN_INTO_ENDPROC:
 ;;     IT BUILDS INTO THE SCREEN.  HL starts at &A280, which the DOS's own
 ;;     equate list calls FTADD and marks "(SCR in section C)" -- screen
 ;;     memory, borrowed as scratch, which is why DFMTB calls GETSCR before
-;;     getting here.  The listing used to render &A280 as the DOS's label
-;;     at &6280, because that is what a window address usually means;
-;;     here it does not, and the operand is pinned to the number.
+;;     getting here.  A window address usually means the DOS's label at
+;;     the matching address, &6280; here it does not, and the operand is
+;;     pinned to the number.
 ;;
 ;;     THE LAYOUT is IBM System 34, the format the WD177x writes:
 ;;
@@ -19358,10 +19364,8 @@ WRITE_DOS_BYTE:
 ;;     &3B80 block.
 ;;
 ;;     The two copies that go the wrong way at boot are for this.
-;;     notes/mb-install.txt had to leave them as "the likeliest reading of
-;;     two copies that go the wrong way": INSTALL_ROM_PATCHES saves INSTBUF
-;;     into this page at &7DF0 and the DOS's boot sector at &7D00, and
-;;     nothing was seen to read them back.  This reads them back.  &7CF7
+;;     INSTALL_ROM_PATCHES saves INSTBUF into this page at &7DF0 and the
+;;     DOS's boot sector at &7D00, and this is what reads them back.  &7CF7
 ;;     and &7DF0 are the first and third blocks in the list, and they are
 ;;     the DOS's &4000-&40FF and part of its tail -- the two pieces of the
 ;;     DOS that the machine no longer holds in the DOS page once it has
@@ -19455,8 +19459,8 @@ SAVE_BOOT:
                                                     ; name" -- and &4D24 is an LD (HL),A that falls through CKDRV into
                                                     ; GOFSM, so the type is planted and the file opened for writing in
                                                     ; the one call
-               LD A,&13                             ; 6417 3E 13  type 19, which is CODE. notes/disks.txt has samdos2,
-                                                    ; MBMC and MBASC all saved as type 19
+               LD A,&13                             ; 6417 3E 13  type 19, which is CODE -- the type samdos2, MBMC and
+                                                    ; MBASC are saved as -- see notes/disks.txt
                                                     ; call DOS_PLANT_TYPE_THEN_GOFSM-&4000 in the other page: LMPR is
                                                     ; switched first, so that address is how the other listing numbers
                                                     ; it
@@ -20009,8 +20013,7 @@ HOOK_CSIZE:
                JR C,HOOK_CSIZE_5               ; 6546 38 31
                CP &B1                          ; 6548 FE B1  and 177 is the ceiling where the ROM's is 33, so this hook
                                                ; admits heights 6 to 176. The manual says 6 to 173 twice over and the
-                                               ; code does not bear it out; notes/manual-claims.txt records the
-                                               ; disagreement
+                                               ; code does not bear it out -- see notes/manual-claims.txt
                JR NC,HOOK_CSIZE_5              ; 654A 30 2D
                LD B,A                          ; 654C 47
                RRCA                            ; 654D 0F
@@ -21648,8 +21651,7 @@ DUMP_ORIENT_SETUP_4:
 ;;     first pixel -- 3+3+2 and then 1+3+3+1, a dot or two apart -- and
 ;;     the next line starts from the second strike's end state rather
 ;;     than the first's.  DUMP 1 and DUMP 2 have D = 3 at every strike
-;;     and print the same line twice.  Read from the bytes; not seen on a
-;;     printer.
+;;     and print the same line twice.  Read from the bytes, not run.
 ;; --------------------------------------------------------------------
 
 ; ---- DUMP_LINE ---- from &69CA
@@ -23028,8 +23030,7 @@ CMD_DUMP_4:
                LD DE,&8F00                     ; 6AE0 11 00 8F  INSTBUF, the ROM's &4F00, through the window -- the same
                                                ; destination CMD_DEF_KEYCODE writes to as &8F00
                LD BC,&0136                     ; 6AE3 01 36 01  &136 bytes, which is DUMP_TEXT entire: the copy runs
-                                               ; from &6AF9 and that length is the one notes/mb-install.txt lists
-                                               ; against INSTBUF
+                                               ; from &6AF9 -- see notes/mb-install.txt
                LDIR                            ; 6AE6 ED B0
                POP AF                          ; 6AE8 F1
                OUT (HMPR),A                    ; 6AE9 D3 FB
@@ -23838,9 +23839,11 @@ MODE2_SCREEN_ADDRESS:
 ;;     bit of D.  Called from &6D16, inside COPY SCREEN's conversion
 ;;     loop, and from nowhere else.
 ;;
-;;     THE NAME IT USED TO HAVE, SCREEN_ADDRESS_FOR_MODE, described the
-;;     first five instructions and not the routine: they pick the address,
-;;     and everything from &6C85 on writes the pixel.
+;;     The first five instructions pick the address; everything from
+;;     &6C85 on writes the pixel.
+;;
+;;     Working note: the name it used to have, SCREEN_ADDRESS_FOR_MODE,
+;;     described those five instructions and not the routine.
 ;;
 ;;     A conditional call stands in for a branch and a join.  A non-zero
 ;;     mode byte takes MODE2_SCREEN_ADDRESS and then sets carry so the
@@ -24003,10 +24006,11 @@ CMD_COPY_SCREEN:
 ;;
 ;;     Comparing L against VMPR masked to &1F is the whole of "is this the
 ;;     screen being displayed".  If it is, the answer is page 0 and &95D8,
-;;     which is PALTAB at &55D8 with the system page in the window; the
-;;     listing used to write that as DOS_ITRCK, a routine in the other half
-;;     that happens to sit at the matching address and has nothing to do
-;;     with this.
+;;     which is PALTAB at &55D8 with the system page in the window -- not
+;;     the other half's routine that happens to sit at &55D8, which has
+;;     nothing to do with this.
+;;
+;;     Working note: the listing used to write that operand as DOS_ITRCK.
 ;; --------------------------------------------------------------------
 
 ; ---- SCREEN_PAGE_OR_BUFFER ---- from &6CAF, &6CB5
@@ -26894,7 +26898,7 @@ FN_USING_S_DONE3:
 ;;     Pages the ROM's system page in, clears bits 0 and 2 of DCT (&5BB6,
 ;;     the disc error counter, borrowed here as flags) and calls
 ;;     BUILD_COMPILER with those bits down, which assembles the replacement
-;;     for the ROM's compile pass at CDBUFF+&11.  See notes/mb-compiler.txt.
+;;     for the ROM's compile pass at CDBUFF+&11.
 ;;
 ;;     The old value of the byte is kept on the stack, and if its bit 0 was
 ;;     clear the two bytes &18 &01 are written over the start of what was
@@ -26905,10 +26909,9 @@ FN_USING_S_DONE3:
 ;;     Both paths then call into the DOS page and write its result, plus
 ;;     one, to PROG, the ROM's start-of-program pointer.
 ;;
-;;     An earlier reading of this had &4D11 as a ROM vector being pointed at
-;;     EXPT1NUM, on the strength of &0118 being an address in the ROM's jump
-;;     table.  It is not a vector: BUILD_COMPILER copies code there, and
-;;     &0118 is two instruction bytes.
+;;     &4D11 is not a ROM vector, though &0118 is an address in the ROM's
+;;     jump table: BUILD_COMPILER copies code there, and &0118 is two
+;;     instruction bytes.
 ;; --------------------------------------------------------------------
 
 HOOK_PROGPREP:
@@ -27954,7 +27957,7 @@ RELOCATED_TO_46CC_7:
                                                ; the CALL NZ,INCURPAGE at &7554 reaches SELURPG, which leaves A as the
                                                ; HMPR byte instead -- a page number, below &9E -- so that path always
                                                ; borrows at the top; a source that then runs past &BF8A has two bytes
-                                               ; overwritten by the LD (&BF8A),HL. Not seen; a reading of the bytes
+                                               ; overwritten by the LD (&BF8A),HL. Read from the bytes, not run
                LD A,(TEMPB2)                   ; 7567 3A CF 5A
                DEC A                           ; 756A 3D
                JR C,RELOCATED_TO_46CC_8        ; 756B 38 1A
@@ -28446,8 +28449,10 @@ INSTALLER_2:
 ;;     values this routine writes -- &58B4, &4BBA, &4986, &45A1, &46CC -- in
 ;;     the system page afterwards, and this half's own bytes at those five
 ;;     addresses are unchanged from the file.  So &5AFA and its neighbours
-;;     here are the ROM's variables, not this page's code, and the listing
-;;     used to name them after whatever this half happens to hold there.
+;;     here are the ROM's variables, not this page's code.
+;;
+;;     Working note: the listing used to name them after whatever this
+;;     half happens to hold there.
 ;;
 ;;     That means the ROM's system page is at &4000 while this runs, and the
 ;;     DOS is in the window, since REPORT_EXTERNAL_MEMORY and
@@ -28461,8 +28466,10 @@ INSTALLER_2:
 ;;     &BCF9 -- in the window, in the DOS page, alongside the two routines
 ;;     it calls at &BDAA and &BD79.  dumps/LiveDuringMRINIT.bin is that page
 ;;     caught mid-boot and has the copy at &7C00-&7FAE, matching the stored
-;;     bytes over all 943.  See notes/mb-extmem.txt, which works the same
-;;     arithmetic out from the other end.
+;;     bytes over all 943.
+;;
+;;     Working note: notes/mb-extmem.txt works the same arithmetic out
+;;     from the other end.
 ;;
 ;;     &589C at &7708 used to come out as this page's V589C for want of
 ;;     anything better.  It is a patch site: the forty bytes copied to
@@ -29956,10 +29963,9 @@ INSTALL_SYSPAGE_CODE:
                LD A,&18                        ; 7AA6 3E 18  24, which the manual gives as the code in "KEY 36+70,24" --
                                                ; and the INC A below makes the 25 of "KEY 27+70,25"
                LD (&994A),A                    ; 7AA8 32 4A 99  &594A is KTAB entry 106, the 36+70 of that pair. IT IS A
-                                               ; KEY ASSIGNMENT AND NOT AN OPCODE: this line used to read &18 as JR,
-                                               ; which is what the byte would be if it were being executed, and the doc
-                                               ; block above the routine says otherwise -- MasterBASIC is doing two KEY
-                                               ; statements by writing into the table
+                                               ; KEY ASSIGNMENT AND NOT AN OPCODE: &18 would be JR if the byte were
+                                               ; executed, but it is data written into KTAB -- MasterBASIC is doing two
+                                               ; KEY statements by writing into the table
                INC A                           ; 7AAB 3C
                LD (&9941),A                    ; 7AAC 32 41 99  &5941 is entry 97, the 27+70, and takes the 25
                LD A,C                          ; 7AAF 79
@@ -31195,10 +31201,11 @@ OWN_PAGE_FOR_INTERRUPT:
 ;;     SAVE BOOT writes, so the name says what the address is for rather
 ;;     than what the instruction does.
 ;;
-;;     &7D00 has the same shape of problem and notes/mb-dispatch.txt sets
-;;     out what it cost there.  Without a name of its own this block took
-;;     the nearest underived label above and a number, which put a label
-;;     about the raster on the source address of a disc write.
+;;     Working note: &7D00 has the same shape of problem and
+;;     notes/mb-dispatch.txt sets out what it cost there.  Without a name
+;;     of its own this block took the nearest underived label above and a
+;;     number, which put a label about the raster on the source address
+;;     of a disc write.
 ;; --------------------------------------------------------------------
 
 SAVE_BOOT_BLOCK_1:
@@ -31226,11 +31233,12 @@ SAVE_BOOT_BLOCK_1:
 ;;     hands a character to PRINT_SIZED_CHAR or PRINT_MAGNIFIED_CHAR
 ;;     accordingly.
 ;;
-;;     IT IS NOT A ROUTINE HEAD AND THE LABEL HERE ONCE SAID IT WAS.  The
-;;     only reference to &7D00 in the image is LD DE,&7D00 at &7B78, which
-;;     is a destination and not a call, so the label was derived from
-;;     INSTALL_ROM_PATCHES and the blocks after it were parented to
-;;     whatever underived label came before -- CALLBACK_HCMDV once, and
+;;     IT IS NOT A ROUTINE HEAD.  The only reference to &7D00 in the image
+;;     is LD DE,&7D00 at &7B78, which is a destination and not a call.
+;;
+;;     Working note: the label here once said it was one.  With no call
+;;     to derive from, the blocks after it were parented to whatever
+;;     underived label came before -- CALLBACK_HCMDV once, and
 ;;     CALLBACK_RCPTCH after the stubs were renamed.  Both were wrong.
 ;;
 ;;     THE ADDRESS HAS TWO LIVES AND INSTALL_ROM_PATCHES GIVES IT BOTH,
@@ -31242,11 +31250,10 @@ SAVE_BOOT_BLOCK_1:
 ;;     then refilled with the boot sector, which is what SAVE BOOT writes
 ;;     out later.
 ;;
-;;     So notes/mb-saveboot.txt's "&7D00-&7DEF the DOS's boot sector" and
-;;     this listing's code at the same address are both right, of the same
-;;     bytes at different moments: that map is headed "WHAT MASTERBASIC'S
-;;     PAGE ACTUALLY HOLDS AFTER A BOOT" and was read from a memory dump.
-;;     Neither is an offset into a file on disc.
+;;     So a map of the page after a boot, which puts the DOS's boot sector
+;;     at &7D00-&7DEF, and this listing's code at the same address are
+;;     both right, of the same bytes at different moments: the map was
+;;     read from a memory dump.  Neither is an offset into a file on disc.
 ;; --------------------------------------------------------------------
 
 ; ---- PATOUT_CHAR_OUT ---- from &7B78
@@ -31746,7 +31753,7 @@ POST_LOAD_STUB:
 LOAD_RETURN_STUB:
                CALL &4A84                      ; 7DF0 CD 84 4A  the installer saves the ROM's transfer buffer here, and
                                                ; SAVE BOOT reads it back out as its third block -- which also carries
-                                               ; the alternate character set at &7E64, see notes/mb-saveboot.txt
+                                               ; the alternate character set at &7E64 -- see notes/mb-saveboot.txt
                JP &0000                        ; 7DF3 C3 00 00  an operand in the block the boot overwrites -- see
                                                ; above. The DOS fills it: this JP runs at &4A9C, and DOS &606F writes
                                                ; the ROM's pending return address to &4A9D with NRWRD before WRTBC
@@ -31975,7 +31982,7 @@ GAP_BLOCK:
                                                ; once the forty bytes reach &5896, and &7708 does LD
                                                ; (SYS_GAP_BLOCK+&06),HL -- which is &589C, this very operand -- with the
                                                ; signature search two instructions before it finding the ROM's POSTFF.
-                                               ; The dump has &3DAD there; notes/mb-vectors.txt works it out
+                                               ; The dump has &3DAD there -- see notes/mb-vectors.txt
                RET                             ; 7E4B C9
 
 ;; --------------------------------------------------------------------

@@ -101,9 +101,8 @@ MB &41E4 FN_NVAL_FLOAT
     SVAL$(0,3) comes back as exactly 0.  For a negative number the &FF
     stays put and the magnitude rounds up instead.
 
-    The ordering runs descending, and notes/mb-nval.txt records how that
-    was settled: SVAL$'s calculator program is RESTACK then EXIT2, so it
-    never touches the sign.
+    The ordering runs descending: SVAL$'s calculator program is RESTACK
+    then EXIT2, so it never touches the sign.
 
 MB &41E4 : SUB 3 then CP 3 -- lengths 3, 4 and 5 become 0, 1 and 2, while 0 and 1 wrap to &FD and &FE, so one unsigned compare throws out too short and too long together
 
@@ -192,10 +191,11 @@ MB &426F FILE_NUMBER_TO_TRACK_SECTOR
     the boot sector would have held; &0014 is 20, the entries on a
     track.
 
-    Its internal labels used to hang off the digit converter above,
-    which was wrong: the DEC HL at &4279 is entered from &4275 inside
-    this routine, and nothing in DECIMAL_DIGIT reaches past its RET at
-    &426E.  Naming the routine gives them the right prefix.
+    Working note: its internal labels used to hang off the digit
+    converter above, which was wrong: the DEC HL at &4279 is entered
+    from &4275 inside this routine, and nothing in DECIMAL_DIGIT
+    reaches past its RET at &426E.  Naming the routine gives them the
+    right prefix.
 
 # SETTLED, from the ROM's own calculator table.
 #

@@ -192,8 +192,8 @@ DOC PNTYP
 
     A type above &15 would run off the end of the 22-entry table, so
     &0D stands in for the lot of them -- which prints WHAT?, the same
-    marker the other unused codes get.  Not, as an earlier reading of
-    this had it, a name for open-type files: those are type 10.
+    marker the other unused codes get.  Not a name for open-type files:
+    those are type 10.
 
 DOS &562C expr TYPE_MASK
 DOS &562F : &16 and up is not a file type

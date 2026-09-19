@@ -151,9 +151,11 @@ MB &6C7B PLOT_PIXEL_IN_MODE
     bit of D.  Called from &6D16, inside COPY SCREEN's conversion
     loop, and from nowhere else.
 
-    THE NAME IT USED TO HAVE, SCREEN_ADDRESS_FOR_MODE, described the
-    first five instructions and not the routine: they pick the address,
-    and everything from &6C85 on writes the pixel.
+    The first five instructions pick the address; everything from
+    &6C85 on writes the pixel.
+
+    Working note: the name it used to have, SCREEN_ADDRESS_FOR_MODE,
+    described those five instructions and not the routine.
 
     A conditional call stands in for a branch and a join.  A non-zero
     mode byte takes MODE2_SCREEN_ADDRESS and then sets carry so the
@@ -228,10 +230,11 @@ MB &6CC2 SCREEN_PAGE_OR_BUFFER
 
     Comparing L against VMPR masked to &1F is the whole of "is this the
     screen being displayed".  If it is, the answer is page 0 and &95D8,
-    which is PALTAB at &55D8 with the system page in the window; the
-    listing used to write that as DOS_ITRCK, a routine in the other half
-    that happens to sit at the matching address and has nothing to do
-    with this.
+    which is PALTAB at &55D8 with the system page in the window -- not
+    the other half's routine that happens to sit at &55D8, which has
+    nothing to do with this.
+
+    Working note: the listing used to write that operand as DOS_ITRCK.
 
 MB &6CC6 : the page being displayed, less this one -- zero means they are the same screen
 

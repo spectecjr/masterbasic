@@ -779,6 +779,14 @@ first routine, title -- is generated from the banners, and `build.log`
 prints the count of parts per half; `checkdocs` refuses a reading copy
 with no parts, two parts with one code, or a label above the first.
 
+One note feeds every tree, and the reading copy is for conclusions, so a
+paragraph that is about the reading rather than the code -- what an
+earlier reading got wrong, which note file argues the point -- opens with
+`Working note:` and is left out of `listings/clean/`. A line comment may
+end ` -- see notes/x.txt`, and loses that tail there the same way. The
+build refuses a reading copy that still says `notes/`, `carrydoc`,
+`earlier reading`, `round N` or `the working copy`.
+
 Files are read in filename order, so `notes/00-disk.txt` lands before
 `notes/10-printer.txt` if that matters to you. Nothing else needs editing.
 

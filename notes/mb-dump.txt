@@ -117,7 +117,7 @@ MB &61F8 EMIT_RUN
 # SCRNBUF, and clears thirteen labels this half never had a use for.
 
 MB &6AE0 : INSTBUF, the ROM's &4F00, through the window -- the same destination CMD_DEF_KEYCODE writes to as &8F00
-MB &6AE3 : &136 bytes, which is DUMP_TEXT entire: the copy runs from &6AF9 and that length is the one notes/mb-install.txt lists against INSTBUF
+MB &6AE3 : &136 bytes, which is DUMP_TEXT entire: the copy runs from &6AF9 -- see notes/mb-install.txt
 
 MB &6AD4 CMD_DUMP_5
     DUMP 5, the text dump.  Sets carry and falls into the installer
@@ -424,8 +424,7 @@ MB &6544 : heights below six are refused, and this is the ROM's own floor
 
 MB &6548 : and 177 is the ceiling where the ROM's is 33, so this hook
            admits heights 6 to 176.  The manual says 6 to 173 twice over
-           and the code does not bear it out; notes/manual-claims.txt
-           records the disagreement
+           and the code does not bear it out -- see notes/manual-claims.txt
 
 MB &6550 : three RRCAs and five bits is a divide by eight -- the height
            multiplication factor, the manual's INT(height/8).  176 gives

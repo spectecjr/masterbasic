@@ -25,11 +25,13 @@ DOC STACK_STRIDE_AND_SLICE_IT
     other way, since SLICING also raises the ROM's own "Subscript wrong"
     for it.
 
-    An earlier reading of this header said "a string of length zero at
-    address zero".  Zero is the address; BC is not touched, and if it
+    Zero is the address, not the length: BC is not touched, and if it
     were zero the routine would have nothing to slice.  &476A is the
     proof: FIND_STRING_VARIABLE calls this twice, and sets BC from DE in
     between so the second call gets the array's second dimension.
+
+    Working note: an earlier reading of this header said "a string of
+    length zero at address zero".
 
     With no subscript -- end of statement, or a colon -- the descriptor
     is left as stacked, which for a caller that passed BC = 0 is an

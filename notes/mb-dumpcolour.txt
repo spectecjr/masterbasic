@@ -45,9 +45,10 @@ DOC DUMP_ORIENT
     DUMP 3, and 3 for everything else -- which is the manual's SDORI
     entry, "upright DUMPs unless DUMP 3, or DUMP 2 and MODE 3".
 
-    An earlier reading of this had 1 as upside down and 3 as sideways.
-    Both were wrong, and the SDORI table settles it: the value the user
-    pokes and the value stored here are the same value.
+    Working note: an earlier reading of this had 1 as upside down and
+    3 as sideways.  Both were wrong, and the SDORI table settles it:
+    the value the user pokes and the value stored here are the same
+    value.
 
 DOC TRANSFORM_DUMP_COORDS
     Turn the dump's own two axes in BC into a screen row and column.

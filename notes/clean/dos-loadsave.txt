@@ -149,8 +149,8 @@ DOC HOOK_HLOAD
     stopper: the program loads invisible, and stays so until the stub
     at &4A84 puts the saved byte back at (PROG).  DLVM2 at &606F
     arranges that by sending the ROM's LOAD back through that stub.
-    What the byte at &4A97 means is worked out in notes/mb-cmdbuf.txt
-    from the other side.
+    What the byte at &4A97 means is worked out from the other side, in
+    the banner of MasterBASIC's POST_LOAD_STUB.
 
 DOS &642E : bit 2 of the flags: the file is compressed
 DOS &6432 : bit 3: a SAVE MODE 3 screen

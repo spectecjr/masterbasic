@@ -48,7 +48,7 @@ NOT_IN_THIS_PAGE:    EQU  &4000
 
 
 
-; Numbers named in notes/, each for one instruction
+; Numbers named by hand, each for one instruction
 ; where the same value means something else elsewhere.
 DISKCTL_0_BASE:      EQU  &E0
 DISKCTL_1_BASE:      EQU  &F0
@@ -4717,9 +4717,9 @@ BCC:
 ;; The ROM's own vars file calls &5C4B BORDCOL, "VALUE TO SEND TO
 ;; BORDER PORT" -- already in port format, which is the only reason
 ;; this can send it straight out.  BORDCR is a different variable at
-;; &5C48, the lower screen's attributes; an earlier reading of this
-;; had the two the wrong way round, and so does the equate name,
-;; which is the 1991 source's own (it comments it "BORDCOL").
+;; &5C48, the lower screen's attributes -- and the equate name has the
+;; two the wrong way round: it is the 1991 source's own, which
+;; comments it "BORDCOL".
 ;;
 ;; The value of SOFF is preserved: bit 7 comes from a read of the
 ;; port and the rest from BORDCOL, which is what XOR C / AND &80 /
@@ -6230,7 +6230,7 @@ PMO6:
 ;; The tail of a confirmation prompt: a close quote, then compression
 ;; code 4, which expands to " (y/n)".  Its one caller is PM7K, after
 ;; FORMAT or FNM7K has printed a name in quotes.  Nothing here is a
-;; directory heading, whatever an earlier reading of it said.
+;; directory heading.
 ;; --------------------------------------------------------------------
 
 ; ---- PRINT_YN_PROMPT ---- from &591A
@@ -7626,8 +7626,8 @@ SNDTC:
 ;; --------------------------------------------------------------------
 ;; HLFG, and then the CB 66 that HLFG returns into: BIT 4,(HL).
 ;;
-;; Not the inline-parameter convention, which an earlier reading of it
-;; made this out to be -- the two bytes are executed, not read.  The
+;; Not the inline-parameter convention -- the two bytes are executed,
+;; not read.  The
 ;; other seven of the family are together at &50EC-&5145; this one is
 ;; on its own, three and a half kilobytes away.
 ;; --------------------------------------------------------------------
@@ -8717,8 +8717,8 @@ GDIFA:
 ;;
 ;; RXSS unpacks the header into UIFA and compares the device letter
 ;; with "D"; anything else is REP10, which is "Invalid device" -- not
-;; a missing sector, which an earlier reading of this had it be.  No
-;; sector is involved at any point.  The 1991 source calls it RXHED,
+;; a missing sector: no sector is involved at any point.  The 1991
+;; source calls it RXHED,
 ;; "INPUT A HEADER FROM IX".  Two of the three callers check the drive
 ;; with CKDRV first -- HOOK_HGFLE does not, and GTFL3 and FDHR do not
 ;; either -- and all three go on to their own directory search.
@@ -8984,8 +8984,8 @@ DSCHD:
 ;; D IS THE HIGH BYTE OF THE LENGTH, and goes to HD0B1.  Bit 7 of it
 ;; is the &8000 of page form on a length's remainder -- PAGEFORM
 ;; leaves it there and HCONR strips it at &63BB -- not a marker that
-;; the value is an address, which an earlier reading said; the TXHED
-;; banner in this same region names the bit correctly.
+;; the value is an address; the TXHED banner in this same region
+;; names the bit the same way.
 ;; --------------------------------------------------------------------
 
 ; ---- HOOK_ARGS_TO_HEADER ---- from &6436, &6446, &6459
@@ -9867,8 +9867,8 @@ FIRST_DISC_CHANNEL_2:
 ;; --------------------------------------------------------------------
 ;; Make a character safe to print, and say whether to invert it.
 ;;
-;; No stream number is read anywhere in it, whatever an earlier
-;; reading of this said.  Bit 7 of the character decides inverse
+;; No stream number is read anywhere in it.  Bit 7 of the character
+;; decides inverse
 ;; video, AND &7F strips it, anything from a space up passes
 ;; through, and everything else becomes MSUPC.
 ;; --------------------------------------------------------------------
@@ -10729,8 +10729,7 @@ OPND8:
 ;;
 ;; Neither branch returns at once and the table is laid down on both:
 ;; the difference is whether room has to be claimed first.  TEMPW1
-;; holds an address, not a page, and an earlier reading of this had
-;; both branches the wrong way round.
+;; holds an address, not a page.
 ;; --------------------------------------------------------------------
 
 ; ---- CRMCH ---- from &6BED, &6CC5
@@ -14488,7 +14487,7 @@ DRAM:
 ;; Those 328 bytes are the alternate character set.  MasterBASIC keeps
 ;; this whole 446-byte tail at its own &7DF0, which is why SAVE BOOT's
 ;; third block restores it and why the set sits at MB &7E64, where
-;; XVAR 87 ALTUDG says it does.  See notes/mb-saveboot.txt.
+;; XVAR 87 ALTUDG says it does.
 ;; --------------------------------------------------------------------
 
 INSTALL_TAIL_INTO_SYSPAGE:

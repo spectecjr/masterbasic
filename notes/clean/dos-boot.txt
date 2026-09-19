@@ -197,12 +197,9 @@ DOS &4086 step
     Put the data register's port in B, three on from the command and
     status register the loop above has been working with.
 
-    NOTHING ENTERS HERE.  This used to be read as three entry points that
-    MasterBASIC jumped into, each with a different amount of the sum
-    already done.  It is one run of straight-line code: the three
-    references were word loads of MasterBASIC's own printer and sound
-    buffer pointers, which the disassembler was resolving against this
-    page rather than that one.
+    NOTHING ENTERS HERE.  It is one run of straight-line code: the three
+    references to it are word loads of MasterBASIC's own printer and
+    sound buffer pointers, addresses in that page and not this one.
 
 DOS &408C step
     The transfer.  One byte at a time from the data register, with the

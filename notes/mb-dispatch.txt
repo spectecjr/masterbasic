@@ -85,11 +85,12 @@ MB &7D00 PATOUT_CHAR_OUT
     hands a character to PRINT_SIZED_CHAR or PRINT_MAGNIFIED_CHAR
     accordingly.
 
-    IT IS NOT A ROUTINE HEAD AND THE LABEL HERE ONCE SAID IT WAS.  The
-    only reference to &7D00 in the image is LD DE,&7D00 at &7B78, which
-    is a destination and not a call, so the label was derived from
-    INSTALL_ROM_PATCHES and the blocks after it were parented to
-    whatever underived label came before -- CALLBACK_HCMDV once, and
+    IT IS NOT A ROUTINE HEAD.  The only reference to &7D00 in the image
+    is LD DE,&7D00 at &7B78, which is a destination and not a call.
+
+    Working note: the label here once said it was one.  With no call
+    to derive from, the blocks after it were parented to whatever
+    underived label came before -- CALLBACK_HCMDV once, and
     CALLBACK_RCPTCH after the stubs were renamed.  Both were wrong.
 
     THE ADDRESS HAS TWO LIVES AND INSTALL_ROM_PATCHES GIVES IT BOTH,
@@ -101,11 +102,10 @@ MB &7D00 PATOUT_CHAR_OUT
     then refilled with the boot sector, which is what SAVE BOOT writes
     out later.
 
-    So notes/mb-saveboot.txt's "&7D00-&7DEF the DOS's boot sector" and
-    this listing's code at the same address are both right, of the same
-    bytes at different moments: that map is headed "WHAT MASTERBASIC'S
-    PAGE ACTUALLY HOLDS AFTER A BOOT" and was read from a memory dump.
-    Neither is an offset into a file on disc.
+    So a map of the page after a boot, which puts the DOS's boot sector
+    at &7D00-&7DEF, and this listing's code at the same address are
+    both right, of the same bytes at different moments: the map was
+    read from a memory dump.  Neither is an offset into a file on disc.
 
 
 # One line on each stub, saying what the hook it raises goes on to do.
@@ -356,8 +356,8 @@ DOC HOOK_TOKENARG
     own END PROC can run unaltered.
 
     EXIT FOR gets no such gift.  The ROM has nothing that leaves a FOR
-    loop, so MasterBASIC wrote it: &4A6B is its own code, and
-    notes/mb-blocks.txt has it.
+    loop, so MasterBASIC wrote it: &4A6B is its own code, EXIT_FOR_STUB
+    once installed.
 
 MB &5300 : &26 is EXIT PROC's code, and &27 and &28 are the other two EXITs, so this one subtraction serves all three -- see the banner
 MB &530A : token &3D, POINT, which is &15 further on than the &28 the two DEC As have already taken off.  The author's own source makes the same test and comments it "POINT IS FF 3D"

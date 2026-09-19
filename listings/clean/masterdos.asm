@@ -166,7 +166,7 @@ FIRST_RAMDISC_DRIVE:     EQU  &03
 MAX_ID_RETRIES:          EQU  &08
 MAX_TRANSFER_RETRIES:    EQU  &0A
 
-; Numbers named in notes/, each for one instruction
+; Numbers named by hand, each for one instruction
 ; where the same value means something else elsewhere.
 DISKCTL_1_BASE:          EQU  &F0
 DISKCTL_DATA_OFS:        EQU  &03
@@ -459,12 +459,9 @@ BOOT_CHOOSE_STEP_DIRECTION:
 ; Put the data register's port in B, three on from the command and
 ; status register the loop above has been working with.
 ;
-; NOTHING ENTERS HERE.  This used to be read as three entry points that
-; MasterBASIC jumped into, each with a different amount of the sum
-; already done.  It is one run of straight-line code: the three
-; references were word loads of MasterBASIC's own printer and sound
-; buffer pointers, which the disassembler was resolving against this
-; page rather than that one.
+; NOTHING ENTERS HERE.  It is one run of straight-line code: the three
+; references to it are word loads of MasterBASIC's own printer and
+; sound buffer pointers, addresses in that page and not this one.
                LD B,C                          ; 4086 41
                INC B                           ; 4087 04
                INC B                           ; 4088 04
@@ -6231,9 +6228,9 @@ BCC:
 ;; The ROM's own vars file calls &5C4B BORDCOL, "VALUE TO SEND TO
 ;; BORDER PORT" -- already in port format, which is the only reason
 ;; this can send it straight out.  BORDCR is a different variable at
-;; &5C48, the lower screen's attributes; an earlier reading of this
-;; had the two the wrong way round, and so does the equate name,
-;; which is the 1991 source's own (it comments it "BORDCOL").
+;; &5C48, the lower screen's attributes -- and the equate name has the
+;; two the wrong way round: it is the 1991 source's own, which
+;; comments it "BORDCOL".
 ;;
 ;; The value of SOFF is preserved: bit 7 comes from a read of the
 ;; port and the rest from BORDCOL, which is what XOR C / AND &80 /
@@ -6874,7 +6871,7 @@ SNAP3C:
 ;; &62A6.  Stock MasterDOS's HLOAD is four
 ;; instructions and none of this is in it, which is why those two
 ;; operands are bare numbers where the rest of the routine's are not:
-;; carrydoc has no source line to take them from.
+;; the 1991 source has no line to carry a name from.
 ;;
 ;; THEY ARE NOT REGISTERS BY THE TIME IT READS THEM.  COPY_HEADER_FIELDS
 ;; copies forty-two bytes of the directory entry -- offsets 210 to 251 --
@@ -7528,8 +7525,8 @@ ISECT:
 ;;
 ;; A type above &15 would run off the end of the 22-entry table, so
 ;; &0D stands in for the lot of them -- which prints WHAT?, the same
-;; marker the other unused codes get.  Not, as an earlier reading of
-;; this had it, a name for open-type files: those are type 10.
+;; marker the other unused codes get.  Not a name for open-type files:
+;; those are type 10.
 ;; --------------------------------------------------------------------
 
 ; ---- PNTYP ---- from &4C57
@@ -8020,7 +8017,7 @@ PMO6:
 ;; The tail of a confirmation prompt: a close quote, then compression
 ;; code 4, which expands to " (y/n)".  Its one caller is PM7K, after
 ;; FORMAT or FNM7K has printed a name in quotes.  Nothing here is a
-;; directory heading, whatever an earlier reading of it said.
+;; directory heading.
 ;; --------------------------------------------------------------------
 
 ; ---- PRINT_YN_PROMPT ---- from &591A
@@ -10936,8 +10933,8 @@ GDIFA:
 ;;
 ;; RXSS unpacks the header into UIFA and compares the device letter
 ;; with "D"; anything else is REP10, which is "Invalid device" -- not
-;; a missing sector, which an earlier reading of this had it be.  No
-;; sector is involved at any point.  The 1991 source calls it RXHED,
+;; a missing sector: no sector is involved at any point.  The 1991
+;; source calls it RXHED,
 ;; "INPUT A HEADER FROM IX".  Two of the three callers check the drive
 ;; with CKDRV first -- HOOK_HGFLE does not, and GTFL3 and FDHR do not
 ;; either -- and all three go on to their own directory search.
@@ -11203,8 +11200,8 @@ HOOK_HLDPG:
 ;; stopper: the program loads invisible, and stays so until the stub
 ;; at &4A84 puts the saved byte back at (PROG).  DLVM2 at &606F
 ;; arranges that by sending the ROM's LOAD back through that stub.
-;; What the byte at &4A97 means is worked out in notes/mb-cmdbuf.txt
-;; from the other side.
+;; What the byte at &4A97 means is worked out from the other side, in
+;; the banner of MasterBASIC's POST_LOAD_STUB.
 ;; --------------------------------------------------------------------
 
 HOOK_HLOAD:
@@ -11288,8 +11285,8 @@ DSCHD:
 ;; D IS THE HIGH BYTE OF THE LENGTH, and goes to HD0B1.  Bit 7 of it
 ;; is the &8000 of page form on a length's remainder -- PAGEFORM
 ;; leaves it there and HCONR strips it at &63BB -- not a marker that
-;; the value is an address, which an earlier reading said; the TXHED
-;; banner in this same region names the bit correctly.
+;; the value is an address; the TXHED banner in this same region
+;; names the bit the same way.
 ;; --------------------------------------------------------------------
 
 ; ---- HOOK_ARGS_TO_HEADER ---- from &6436, &6446, &6459
@@ -12203,8 +12200,8 @@ C11LP_DONE:
 ;;
 ;; THE ACCESS MODE FOR EACH END GOES IN FSTR1 FIRST -- MIN, the ZX IN
 ;; token, for the end being read, MOUT for the end being written.  They
-;; are access modes and have nothing to do with a serial port, whatever
-;; an earlier reading of this said; OPMOV reads FSTR1 to decide which.
+;; are access modes and have nothing to do with a serial port; OPMOV
+;; reads FSTR1 to decide which.
 ;;
 ;; AN END THAT NAMES A FILE gets a temporary disc channel, marked by a
 ;; channel letter of "D" with bit 7 set so that the reclaim pass can
@@ -13591,8 +13588,7 @@ OPND8:
 ;;
 ;; Neither branch returns at once and the table is laid down on both:
 ;; the difference is whether room has to be claimed first.  TEMPW1
-;; holds an address, not a page, and an earlier reading of this had
-;; both branches the wrong way round.
+;; holds an address, not a page.
 ;; --------------------------------------------------------------------
 
 ; ---- CRMCH ---- from &6BED, &6CC5
@@ -17433,8 +17429,7 @@ FABORT:
 ;; page number by 16384, add the offset, and subtract 4000H", i.e. the
 ;; start as a BASIC address, for every type alike.  An execute address
 ;; is stored in relative form as it stands, which is why option 6
-;; reads its page with no INC.  (An earlier reading here had option 5
-;; a page high for BASIC and SCREEN$; the ROM source says otherwise.)
+;; reads its page with no INC.
 ;;
 ;; A 48K SNAPSHOT HAS NO LENGTH FIELD, so option 2 answers three pages
 ;; and nothing over -- 49152 -- from the type alone.
@@ -18027,7 +18022,7 @@ DRAM:
 ;; Those 328 bytes are the alternate character set.  MasterBASIC keeps
 ;; this whole 446-byte tail at its own &7DF0, which is why SAVE BOOT's
 ;; third block restores it and why the set sits at MB &7E64, where
-;; XVAR 87 ALTUDG says it does.  See notes/mb-saveboot.txt.
+;; XVAR 87 ALTUDG says it does.
 ;; --------------------------------------------------------------------
 
 INSTALL_TAIL_INTO_SYSPAGE:

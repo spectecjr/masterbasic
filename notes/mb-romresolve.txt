@@ -51,7 +51,7 @@ MB &79C7 : eighteen, the first eighteen bytes of the ROM's auto-list loop -- AUL
 MB &79CA : and &59C1 is where the pair goes -- the operand of the LD BC,&0000 at &59C0, which is the one instruction in the rescue that cannot be assembled because AULLP moves with the ROM version
 MB &7AA6 : 24, which the manual gives as the code in "KEY 36+70,24" -- and the INC A below makes the 25 of "KEY 27+70,25"
 
-MB &7AA8 : &594A is KTAB entry 106, the 36+70 of that pair.  IT IS A KEY ASSIGNMENT AND NOT AN OPCODE: this line used to read &18 as JR, which is what the byte would be if it were being executed, and the doc block above the routine says otherwise -- MasterBASIC is doing two KEY statements by writing into the table
+MB &7AA8 : &594A is KTAB entry 106, the 36+70 of that pair.  IT IS A KEY ASSIGNMENT AND NOT AN OPCODE: &18 would be JR if the byte were executed, but it is data written into KTAB -- MasterBASIC is doing two KEY statements by writing into the table
 
 MB &7AAC : &5941 is entry 97, the 27+70, and takes the 25
 

@@ -229,7 +229,7 @@ DOS &5815 PRINT_YN_PROMPT
     The tail of a confirmation prompt: a close quote, then compression
     code 4, which expands to " (y/n)".  Its one caller is PM7K, after
     FORMAT or FNM7K has printed a name in quotes.  Nothing here is a
-    directory heading, whatever an earlier reading of it said.
+    directory heading.
 
 DOS &597B EVAL_NAME_PAIR
     A filename, a separator that may be either a comma or TO, and a
@@ -272,8 +272,8 @@ DOS &5D27 WRITE_TYPE_IF_CONFIRMED
 DOS &5E70 BITF4
     HLFG, and then the CB 66 that HLFG returns into: BIT 4,(HL).
 
-    Not the inline-parameter convention, which an earlier reading of it
-    made this out to be -- the two bytes are executed, not read.  The
+    Not the inline-parameter convention -- the two bytes are executed,
+    not read.  The
     other seven of the family are together at &50EC-&5145; this one is
     on its own, three and a half kilobytes away.
 
@@ -289,8 +289,8 @@ DOS &6336 RXHED
 
     RXSS unpacks the header into UIFA and compares the device letter
     with "D"; anything else is REP10, which is "Invalid device" -- not
-    a missing sector, which an earlier reading of this had it be.  No
-    sector is involved at any point.  The 1991 source calls it RXHED,
+    a missing sector: no sector is involved at any point.  The 1991
+    source calls it RXHED,
     "INPUT A HEADER FROM IX".  Two of the three callers check the drive
     with CKDRV first -- HOOK_HGFLE does not, and GTFL3 and FDHR do not
     either -- and all three go on to their own directory search.
@@ -303,8 +303,8 @@ DOS &6482 HOOK_ARGS_TO_HEADER
     D IS THE HIGH BYTE OF THE LENGTH, and goes to HD0B1.  Bit 7 of it
     is the &8000 of page form on a length's remainder -- PAGEFORM
     leaves it there and HCONR strips it at &63BB -- not a marker that
-    the value is an address, which an earlier reading said; the TXHED
-    banner in this same region names the bit correctly.
+    the value is an address; the TXHED banner in this same region
+    names the bit the same way.
 
 DOS &6633 READ_SAVED_SECTOR
     Take the track and sector out of SVDE and read it, then leave for
@@ -335,8 +335,8 @@ DOS &68AB FIRST_DISC_CHANNEL
 DOS &68DA PRINTABLE_FORM
     Make a character safe to print, and say whether to invert it.
 
-    No stream number is read anywhere in it, whatever an earlier
-    reading of this said.  Bit 7 of the character decides inverse
+    No stream number is read anywhere in it.  Bit 7 of the character
+    decides inverse
     video, AND &7F strips it, anything from a space up passes
     through, and everything else becomes MSUPC.
 
@@ -364,8 +364,7 @@ DOS &6D30 CRMCH
 
     Neither branch returns at once and the table is laid down on both:
     the difference is whether room has to be claimed first.  TEMPW1
-    holds an address, not a page, and an earlier reading of this had
-    both branches the wrong way round.
+    holds an address, not a page.
 
 DOS &6D4F COPY_MTBLS
     Eleven bytes from MTBLS, then &0308 bytes of zero after them -- the

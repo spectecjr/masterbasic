@@ -52,10 +52,8 @@ MB &6404 SAVE_BOOT
     &3B80 block.
 
     The two copies that go the wrong way at boot are for this.
-    notes/mb-install.txt had to leave them as "the likeliest reading of
-    two copies that go the wrong way": INSTALL_ROM_PATCHES saves INSTBUF
-    into this page at &7DF0 and the DOS's boot sector at &7D00, and
-    nothing was seen to read them back.  This reads them back.  &7CF7
+    INSTALL_ROM_PATCHES saves INSTBUF into this page at &7DF0 and the
+    DOS's boot sector at &7D00, and this is what reads them back.  &7CF7
     and &7DF0 are the first and third blocks in the list, and they are
     the DOS's &4000-&40FF and part of its tail -- the two pieces of the
     DOS that the machine no longer holds in the DOS page once it has
@@ -133,7 +131,7 @@ MB &6404 SAVE_BOOT
 
 MB &6414 : DOS &413A is the file-type byte in the DOS's own name block -- its listing has it as "file type, followed by the name" -- and &4D24 is an LD (HL),A that falls through CKDRV into GOFSM, so the type is planted and the file opened for writing in the one call
 
-MB &6417 : type 19, which is CODE.  notes/disks.txt has samdos2, MBMC and MBASC all saved as type 19
+MB &6417 : type 19, which is CODE -- the type samdos2, MBMC and MBASC are saved as -- see notes/disks.txt
 
 MB &641F : the DOS page, less one.  The boot sector patched this byte with it, so the INC A below makes it the page itself -- the same byte SAVE_BLOCK_FROM_DOS_PAGE reads at &42AD
 
@@ -149,10 +147,11 @@ MB &7CF7 SAVE_BOOT_BLOCK_1
     SAVE BOOT writes, so the name says what the address is for rather
     than what the instruction does.
 
-    &7D00 has the same shape of problem and notes/mb-dispatch.txt sets
-    out what it cost there.  Without a name of its own this block took
-    the nearest underived label above and a number, which put a label
-    about the raster on the source address of a disc write.
+    Working note: &7D00 has the same shape of problem and
+    notes/mb-dispatch.txt sets out what it cost there.  Without a name
+    of its own this block took the nearest underived label above and a
+    number, which put a label about the raster on the source address
+    of a disc write.
 
 MB &643C : block 2, &3C60 from the DOS page's &4100, filling DOS &4100-&7D5F
 
@@ -240,9 +239,11 @@ MB &42B3
 
     And the boot sector really is kept here.  MB &7D00 holds F3 21 00 00
     22 E2 5A, which is the DOS page's own &4009 -- its &4000 being the
-    nine header bytes.  notes/mb-install.txt had this as "the likeliest
-    reading of two copies that go the wrong way"; it is now read from
-    memory at both ends.
+    nine header bytes.  It is read from memory at both ends.
+
+    Working note: notes/mb-install.txt had this as "the likeliest
+    reading of two copies that go the wrong way" before the dumps
+    settled it.
 
     The installer's copy is NOT here: MB &7C00 matches the stored MB
     &75E1 in 12 bytes of 943, against 943 of 943 in the DOS page.
@@ -251,8 +252,10 @@ MB &42B3
     caught while the copy was running, and it is exact -- no byte
     differs.  It is not against MBPOST: that is a post-boot snapshot,
     and by then &7C00 is DOSBUF again, so the same comparison there
-    gives 26 of 943 and means nothing.  A review has already made that
-    substitution once and reported the copy as imperfect.
+    gives 26 of 943 and means nothing.
+
+    Working note: a review once made that substitution and reported
+    the copy as imperfect.
 
 MB &42B3 : and here they meet: page set, A zeroed -- it is PGES1, the count of whole 16K pages, so none -- and the DOS's HSVBK_DWAIT called through CALLDOS: a DWAIT, then the HSVB2 loop, which leaves the last partial sector in the buffer for the next block
 

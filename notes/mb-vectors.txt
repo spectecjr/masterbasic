@@ -26,8 +26,10 @@ DOC INSTALL_ROM_VECTORS
     values this routine writes -- &58B4, &4BBA, &4986, &45A1, &46CC -- in
     the system page afterwards, and this half's own bytes at those five
     addresses are unchanged from the file.  So &5AFA and its neighbours
-    here are the ROM's variables, not this page's code, and the listing
-    used to name them after whatever this half happens to hold there.
+    here are the ROM's variables, not this page's code.
+
+    Working note: the listing used to name them after whatever this
+    half happens to hold there.
 
     That means the ROM's system page is at &4000 while this runs, and the
     DOS is in the window, since REPORT_EXTERNAL_MEMORY and
@@ -41,8 +43,10 @@ DOC INSTALL_ROM_VECTORS
     &BCF9 -- in the window, in the DOS page, alongside the two routines
     it calls at &BDAA and &BD79.  dumps/LiveDuringMRINIT.bin is that page
     caught mid-boot and has the copy at &7C00-&7FAE, matching the stored
-    bytes over all 943.  See notes/mb-extmem.txt, which works the same
-    arithmetic out from the other end.
+    bytes over all 943.
+
+    Working note: notes/mb-extmem.txt works the same arithmetic out
+    from the other end.
 
     &589C at &7708 used to come out as this page's V589C for want of
     anything better.  It is a patch site: the forty bytes copied to

@@ -113,7 +113,7 @@ DISK_STATUS_DRQ:                EQU  &02                                     ; a
 DISK_STATUS_LOST_DATA:          EQU  &04                                     ; a byte was not moved in time and is gone
 DISK_STATUS_RECORD_NOT_FOUND:   EQU  &10                                     ; the sector was not on the track
 
-; Numbers named in notes/, each for one instruction
+; Numbers named by hand, each for one instruction
 ; where the same value means something else elsewhere.
 ENABLE_ROM1:                    EQU  &40                                     ; LMPR bit 6: ROM 1 in at &C000. Does not
                                                                              ; move the page in section B

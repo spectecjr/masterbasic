@@ -117,6 +117,17 @@ sentences belong.
 **Done when** the check passes and a reader of the clean tree is never
 sent to a file that is not in `docs/`.
 
+**Done, 2026-09-19.**  Some forty sites, each read and decided:
+most became a conclusion stated plainly, the rest a `Working note:`
+paragraph -- the declared form `clean.py` drops, so a diary sentence
+no longer has to be worded like one of the phrases `WORKING` already
+knew -- and a line comment's ` -- see notes/x.txt` tail comes off in
+the reading copy by the same pass.  `checkdocs.py check_voice` holds
+the rule: `notes/`, `carrydoc`, `earlier reading`, `round N`, `Working
+note:`, `the working copy`.  The caveats now read `Read from the
+bytes, not run.` for a behaviour not observed and `a reading, not
+something the code says` for an intent.
+
 ## 3. The author's comments, declared once
 
 **Problem.**  1,304 upper-case lines in the DOS reading copy are the

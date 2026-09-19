@@ -119,7 +119,7 @@ DOC SNAP4
     &62A6.  Stock MasterDOS's HLOAD is four
     instructions and none of this is in it, which is why those two
     operands are bare numbers where the rest of the routine's are not:
-    carrydoc has no source line to take them from.
+    the 1991 source has no line to carry a name from.
 
     THEY ARE NOT REGISTERS BY THE TIME IT READS THEM.  COPY_HEADER_FIELDS
     copies forty-two bytes of the directory entry -- offsets 210 to 251 --

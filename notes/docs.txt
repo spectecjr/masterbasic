@@ -6,9 +6,9 @@ DOS &5152 SETBORDER_BORDCOL
     The ROM's own vars file calls &5C4B BORDCOL, "VALUE TO SEND TO
     BORDER PORT" -- already in port format, which is the only reason
     this can send it straight out.  BORDCR is a different variable at
-    &5C48, the lower screen's attributes; an earlier reading of this
-    had the two the wrong way round, and so does the equate name,
-    which is the 1991 source's own (it comments it "BORDCOL").
+    &5C48, the lower screen's attributes -- and the equate name has the
+    two the wrong way round: it is the 1991 source's own, which
+    comments it "BORDCOL".
 
     The value of SOFF is preserved: bit 7 comes from a read of the
     port and the rest from BORDCOL, which is what XOR C / AND &80 /

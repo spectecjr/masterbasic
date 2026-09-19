@@ -447,4 +447,4 @@ looked like:
   the RAM disc speed-ups are the diversion at the first test of every
   read and write, where RDRSCT turns the transfer into an LDIR
 
-notes/ has each of them, and docs/how-it-works.md puts them in order."""
+docs/how-it-works.md puts them in order."""

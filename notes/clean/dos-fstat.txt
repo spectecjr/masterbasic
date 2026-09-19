@@ -63,8 +63,7 @@ DOC FSTAT
     page number by 16384, add the offset, and subtract 4000H", i.e. the
     start as a BASIC address, for every type alike.  An execute address
     is stored in relative form as it stands, which is why option 6
-    reads its page with no INC.  (An earlier reading here had option 5
-    a page high for BASIC and SCREEN$; the ROM source says otherwise.)
+    reads its page with no INC.
 
     A 48K SNAPSHOT HAS NO LENGTH FIELD, so option 2 answers three pages
     and nothing over -- 49152 -- from the type alone.

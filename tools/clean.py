@@ -43,8 +43,12 @@ NL = chr(10)
 #  A banner paragraph whose subject is the investigation rather than the
 #  code.  Each of these is a phrase that only makes sense to someone
 #  following the work; the reading copy has no use for any of them.
+#  `Working note:` is the declared form: a paragraph a note opens that
+#  way is written for the working copy and dropped here, so a diary
+#  sentence need not be disguised as one of the phrases below to go.
 WORKING = re.compile(
     r'WITHDRAWN'
+    r'|^\s*(?:;;\s*)?Working note:'
     r'|\bused to (?:say|show|call|read|come out|be)\b'
     r'|\bthe name it had before\b'
     r'|\bwas a guess\b'
@@ -331,10 +335,26 @@ def strip_alignment_marks(pages):
     return gone
 
 
+#  A line comment may end by pointing the working reader at the note
+#  that argues it: ` -- see notes/mb-blocks.txt`.  The reading copy
+#  cannot send anyone to notes/, so the pointer comes off here; the
+#  form is fixed so that a pointer written any other way is caught by
+#  checkdocs rather than left in.
+SEE_NOTES = re.compile(r'\s*--\s*see notes/[\w.-]+\.txt\s*$')
+
+
 def clean_pages(pages):
-    """Take the working notes out of every banner.  Returns the count."""
+    """Take the working notes out of every banner and comment.
+
+    Returns the count: paragraphs dropped, plus comments trimmed.
+    """
     gone = 0
     for d in pages:
+        for a, text in list(d.comments.items()):
+            cut = SEE_NOTES.sub('', text)
+            if cut != text:
+                d.comments[a] = cut
+                gone += 1
         for a in list(d.headers):
             banner, n = strip_working(d.headers[a])
             if not n:

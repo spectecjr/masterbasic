@@ -676,6 +676,32 @@ PART_BANNER = re.compile(r'^;;\s+PART (\S+)')
 LABEL_LINE = re.compile(r'^[A-Za-z_]\w*:\s*$')
 
 
+# What the reading copy may not say: it is written for conclusions, and
+# these are the words of the argument -- a note file a reader cannot be
+# sent to, the tool that carried a comment, the reading that was wrong
+# before this one, the review round that found it.  The working copy
+# keeps all of them; `Working note:` is how a note marks a paragraph
+# for that copy alone (clean.py drops it), and a line comment's
+# ` -- see notes/x.txt` tail comes off the same way.
+# "B round 256 times" is a loop, not a review; the lookahead spares it.
+DIARY = re.compile(r'notes/|carrydoc|earlier reading|\bround \d+\b(?! times)|'
+                   r'Working note:|the working copy|this note\b', re.I)
+
+
+def check_voice():
+    """The reading copies hold no diary."""
+    bad = []
+    for half in ('masterdos', 'masterbasic'):
+        rel = 'listings/clean/%s.asm' % half
+        for n, line in enumerate(open(os.path.join(ROOT, rel),
+                                      encoding='utf-8'), 1):
+            m = DIARY.search(line)
+            if m:
+                bad.append('%s:%d says %r, which the reading copy does not'
+                           % (rel, n, m.group(0)))
+    return bad
+
+
 def check_parts():
     """Both reading copies are divided into PARTs, from the top.
 
@@ -738,6 +764,7 @@ def main():
     bad.extend(check_mnemonics())
     bad.extend(check_quotations())
     bad.extend(check_parts())
+    bad.extend(check_voice())
     for line in bad:
         print('  stale: ' + line)
     print('%d prose files check out against the listings%s'
