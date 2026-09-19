@@ -141,7 +141,7 @@ DOC END_OF_CHANNELS
     would be is the end -- the ROM closes the list with one.
 
     CHKHL is the ROM's window step, called before each read: past
-    &BFFF it pages the next 16K in and pulls HL back to &8000.  It
+    &BFFF it pages the next 16K in and takes &4000 off HL.  It
     checks nothing about the length; a corrupt one walks on into the
     next page.
 

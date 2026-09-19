@@ -261,7 +261,8 @@ DOC SDCM
     entry offsets 11 and 12, the entry's own sector count, which the
     open file had been using as its pointer's sector index -- so the
     entry says how long the file is.  Then the byte count in the old
-    form at offsets 210 to 213 -- the author's comment says so that
+    form at offsets 210, 212 and 213, 211 left alone -- the author's
+    comment says so that
     G+DOS can read the file, and notes that entry 0 cannot use it
     since the disc's name is there -- and in page form at DIR_LENGTH,
     followed by &FF at DIR_EXECUTE for "no execute address".

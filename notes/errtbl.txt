@@ -35,14 +35,14 @@ DOC ERRTBL
     so the listing uses them: DEFB NO where the byte is &0B, and
     DEFB FILE+&80 where it is &97 and ends the message.
 
-    ALL BUT TWO OF THE HIGH CODES ARE ACTUALLY RAISED, which is the
+    ALL BUT ONE OF THE HIGH CODES ARE ACTUALLY RAISED, which is the
     check on having read them right.  The DOS's own chain of error
     stubs loads 113 at &5195, 114 just after it, 115 at &519B and 116
     at &519E -- the last two with live callers at &5A33/&6A11 and
-    &4D5B/&5E5F -- and MasterBASIC loads 119 at &43AD.  Only 117 and
-    118 have messages that nothing in either half loads into A; they
-    would be raised by CALL DERR with the code inline, which is the
-    other way in.
+    &4D5B/&5E5F -- and MasterBASIC loads 117 at &5B1D, for BLITZ
+    SOUND's "No Buffer", and 119 at &43AD.  Only 118 has a message that
+    nothing in either half loads into A; it would be raised by CALL
+    DERR with the code inline, which is the other way in.
 
     119 is the one that prompted this.  MasterBASIC's REP_SIZE_MISMATCH
     at &43AD loads it, and the only thing that reaches that stub is

@@ -3968,7 +3968,7 @@ GETSCR:
 ;;     Nothing in the DOS reaches it; MasterBASIC calls it through
 ;;     CALLDOS from three places -- the block copiers at &42B9 and &66CF,
 ;;     for SAVE BOOT's eight consecutive blocks and the compressor's, and
-;;     SEND_COMPRESSED_BLOCK at &6186.
+;;     SEND_COMPRESSED_BLOCK at &6189, each of those being the DEFW.
 ;; --------------------------------------------------------------------
 
 ; ---- HSVBK_DWAIT ---- from MB &42B6, MB &6186, MB &66CC
@@ -6537,7 +6537,9 @@ SWAP_TRACK_AND_SECTOR:
 ;;
 ;;     MasterBASIC &4224 does the arithmetic: ten times the track, plus the
 ;;     sector less one, plus one more on tracks 0 to 3 -- because
-;;     track 4 sector 1 is the DOS file and holds no entry.  It is not
+;;     track 4 sector 1 is the DOS file and holds no entry -- is the
+;;     sector's ordinal x; the number is 2x-1 plus the entry's index within
+;;     the sector, 0 or 1, which arrives in A.  It is not
 ;;     BYTE_TO_DECIMAL, which is &4240 and twenty-eight bytes further on;
 ;;     nothing here prints anything.
 ;; --------------------------------------------------------------------
@@ -8245,14 +8247,14 @@ DERR1_1:
 ;; so the listing uses them: DEFB NO where the byte is &0B, and
 ;; DEFB FILE+&80 where it is &97 and ends the message.
 ;;
-;; ALL BUT TWO OF THE HIGH CODES ARE ACTUALLY RAISED, which is the
+;; ALL BUT ONE OF THE HIGH CODES ARE ACTUALLY RAISED, which is the
 ;; check on having read them right.  The DOS's own chain of error
 ;; stubs loads 113 at &5195, 114 just after it, 115 at &519B and 116
 ;; at &519E -- the last two with live callers at &5A33/&6A11 and
-;; &4D5B/&5E5F -- and MasterBASIC loads 119 at &43AD.  Only 117 and
-;; 118 have messages that nothing in either half loads into A; they
-;; would be raised by CALL DERR with the code inline, which is the
-;; other way in.
+;; &4D5B/&5E5F -- and MasterBASIC loads 117 at &5B1D, for BLITZ
+;; SOUND's "No Buffer", and 119 at &43AD.  Only 118 has a message that
+;; nothing in either half loads into A; it would be raised by CALL
+;; DERR with the code inline, which is the other way in.
 ;;
 ;; 119 is the one that prompted this.  MasterBASIC's REP_SIZE_MISMATCH
 ;; at &43AD loads it, and the only thing that reaches that stub is
@@ -11883,7 +11885,8 @@ PCT2:
 ;;     THE &00 IS NOT A DISCARD, IT IS A PATCH SITE.  The AND A that tests
 ;;     the width is followed by LD A,&00, and that immediate at &5C98 is
 ;;     written from MasterBASIC's side: &65D0 puts the number of magnified
-;;     characters that fit on a line into it, every time CSIZE runs.  So
+;;     characters that fit on a line into it, every time CSIZE sets a
+;;     factor (a factor of zero returns at &65C2, before the write).  So
 ;;     when characters have been widened the count below divides THAT, and
 ;;     a listing falls to one name a line only when fewer than twenty-one
 ;;     magnified characters fit -- two names need ten, a space and ten.
@@ -19162,7 +19165,7 @@ STREAM_FILE_POINTER:
 ;; Shown for this routine in listings/disasm/:
 ;;
 ;;     STRMD gives the displacement, zero means no channel, and one less
-;;     than it added to CHANS is where the stream's entry lives.
+;;     than it added to CHANS is the stream's channel record.
 ;; --------------------------------------------------------------------
 
 ; ---- CHANNEL_FOR_STREAM ---- from &7093, &7112
@@ -24384,7 +24387,8 @@ DRAM:
 ;;         LD DE,&4F00     the system page, in section B
 ;;         LD BC,&01BE     446 bytes, to &4F00-&50BD
 ;;         LDIR
-;;         LD DE,&4C14     and 161 more, from &7F1E to the end of the half
+;;         LD DE,&4C14     and 161 more, from &7F1E to &7FBE -- one short of
+;;                         the half's last byte, a zero
 ;;         LD C,&A1        B is zero after an LDIR
 ;;         LDIR
 ;;         RET
@@ -24480,9 +24484,11 @@ EDIT_INSERT_VALUE_BODY:
 ;; pointer to it, adjusted by a signed offset.
 ;;
 ;; MasterBASIC does not hard-code the ROM addresses it needs to call and
-;; patch.  It searches for them, by the opcodes that are there.  This
-;; half keeps the routine at &775A, the boot copies it into the DOS page
-;; at &7D79, and 28 sites call it there through the window at &BD79.
+;; patch.  It searches for them, by the opcodes that are there.  The
+;; MasterBASIC half keeps the routine at MB &775A, the boot copies it
+;; into the DOS page at &7D79, and 28 sites call it there through the
+;; window at &BD79.  (This banner heads both copies; every bare address
+;; in it is MasterBASIC's.)
 ;;
 ;; Six inline bytes follow every one of those calls:
 ;;
@@ -24491,12 +24497,12 @@ EDIT_INSERT_VALUE_BODY:
 ;;     bytes 3,4   the address to start searching from, high byte first
 ;;     byte 5      a signed offset added to whatever is found
 ;;
-;; The search at &7774 keeps a three-byte sliding window -- the oldest
-;; byte in A, the newer two in DE -- and steps forward until the oldest
-;; matches and DE matches BC.  Twenty-five of the twenty-eight callers
-;; follow the call with an LD (nn),HL, so the pointer goes straight
-;; into a variable; &7990, &79BD and &7A60 read through it where it
-;; stands.
+;; The search at MB &7774 keeps a three-byte sliding window -- the
+;; oldest byte in A, the newer two in DE -- and steps forward until the
+;; oldest matches and DE matches BC.  Twenty-five of the twenty-eight
+;; callers follow the call with an LD (nn),HL, so the pointer goes
+;; straight into a variable; MB &7990, &79BD and &7A60 read through it
+;; where it stands.
 ;;
 ;; The signatures are ordinary Z80:
 ;;
@@ -24533,7 +24539,7 @@ EDIT_INSERT_VALUE_BODY:
 ;; code elsewhere and the searches would find it there, which is the
 ;; entire point of doing it this way.
 ;;
-;; One result is worth following.  The search at &75FE stores its pointer
+;; One result is worth following.  The search at MB &75FE stores its pointer
 ;; in INSERTLN_WORD, which is the DEFW of the CALL CMR at CALL_INSERTLN: that call has no
 ;; fixed target at all, and goes wherever the signature was found.
 ;; --------------------------------------------------------------------

@@ -21,7 +21,10 @@ DOC BITF4
     exists, whether a first sector has to be allocated -- a directory
     file has no contents of its own -- whether ERASE is erasing a file or
     a directory, and, through SNDTC, whether the entry SNDFX found is
-    the kind RENAME, COPY, PROTECT or HIDE wants.
+    a directory.  Of SNDFX's callers, ERASE and RENAME read that as the
+    Z this leaves; COPY reads the carry SNDTC's CP &01 set two
+    instructions earlier instead; PROTECT and HIDE test neither and
+    act on the entry whatever it is.
 
 DOS &5E73 : the one of the family that is not with the other seven at &511C
 

@@ -134,7 +134,7 @@ DOC RENT
 
 DOC ISEPX
     Step to the next character and require it to be C, the separator
-    wanted -- a comma, mostly -- or "Nonsense in BASIC" through REP0.
+    wanted -- a comma, mostly -- or "Not understood" through REP0.
 
 DOC ISEP
     Require the current character to be C, or REP0.

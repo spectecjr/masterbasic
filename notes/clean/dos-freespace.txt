@@ -59,7 +59,7 @@ DOS &4A99 : otherwise the remainder is the sector on the next track
 DOS &4A9F : bit 0 first, and RLC walks the mask along
 DOS &4AA8 : is this sector taken?
 DOS &4AAA : no, and that is the one
-DOS &4AAC : on to the next sector, and the next track if that ran out
+DOS &4AAC : on to the next sector; ISECT only wraps the sector and returns Z, and the CALL Z below is what steps the track
 DOS &4AB2 : and the next bit of the byte
 
 DOS &70DC : the high byte of the bit's offset

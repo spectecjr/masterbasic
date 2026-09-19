@@ -276,7 +276,8 @@ DOS &7D60 INSTALL_TAIL_INTO_SYSPAGE
         LD DE,&4F00     the system page, in section B
         LD BC,&01BE     446 bytes, to &4F00-&50BD
         LDIR
-        LD DE,&4C14     and 161 more, from &7F1E to the end of the half
+        LD DE,&4C14     and 161 more, from &7F1E to &7FBE -- one short of
+                        the half's last byte, a zero
         LD C,&A1        B is zero after an LDIR
         LDIR
         RET

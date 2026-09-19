@@ -203,7 +203,7 @@ statement always ends on `CNF`.
 
 `SYNTAX` is not a first chance, it is a second one. It is the entry at page
 offset `&0203`, which the ROM calls with the error number that made it give up,
-and it accepts exactly two — `CP &1D` for 29 *Nonsense in BASIC* and `CP &35`
+and it accepts exactly two — `CP &1D` for 29 *Not understood* and `CP &35`
 for 53 *No DOS*. So the ROM's own routine for a shared token always runs first,
 and a line it accepts never reaches the table at all. `DUMP` and `DUMP CHR$`
 are the clearest case: the ROM's routine takes both, so MasterBASIC's `&67F0`

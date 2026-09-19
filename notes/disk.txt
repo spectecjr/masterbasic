@@ -171,7 +171,9 @@ DOS &4FD7 GET_FILE_NUMBER
 
     MasterBASIC &4224 does the arithmetic: ten times the track, plus the
     sector less one, plus one more on tracks 0 to 3 -- because
-    track 4 sector 1 is the DOS file and holds no entry.  It is not
+    track 4 sector 1 is the DOS file and holds no entry -- is the
+    sector's ordinal x; the number is 2x-1 plus the entry's index within
+    the sector, 0 or 1, which arrives in A.  It is not
     BYTE_TO_DECIMAL, which is &4240 and twenty-eight bytes further on;
     nothing here prints anything.
 
@@ -247,7 +249,8 @@ DOS &5C8B COLUMNS_FOR_DIRECTORY
     THE &00 IS NOT A DISCARD, IT IS A PATCH SITE.  The AND A that tests
     the width is followed by LD A,&00, and that immediate at &5C98 is
     written from MasterBASIC's side: &65D0 puts the number of magnified
-    characters that fit on a line into it, every time CSIZE runs.  So
+    characters that fit on a line into it, every time CSIZE sets a
+    factor (a factor of zero returns at &65C2, before the write).  So
     when characters have been widened the count below divides THAT, and
     a listing falls to one name a line only when fewer than twenty-one
     magnified characters fit -- two names need ten, a space and ten.
@@ -408,7 +411,7 @@ DOS &700B STREAM_FILE_POINTER
 
 DOS &7018 CHANNEL_FOR_STREAM
     STRMD gives the displacement, zero means no channel, and one less
-    than it added to CHANS is where the stream's entry lives.
+    than it added to CHANS is the stream's channel record.
 
 DOS &71F3 CHANNEL_LENGTH_FIELD
     IX plus LENL, in HL.  Five instructions for an offset that six places

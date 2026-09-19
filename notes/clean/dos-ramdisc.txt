@@ -282,4 +282,4 @@ DOC CFMI
     which the boot-time call with 32 bytes can.
 
 DOS &7829 : GET FREE MEGA RAM PAGES IN E -- the source says 0-2, but CFMRP looks at 28 bytes of MRTAB and CFMI counts every clear bit, so 0 to 224
-DOS &762E : the bytes left, saved at &7602 -- the source's "* POP DE ;PREV TRK" on this line is a commented-out instruction, not a description
+DOS &762E : the bytes left, from SVDE -- written by SBLOK at &4983 or CCNT at &4927 before the first pass and by &7602 after each later one; the source's "* POP DE ;PREV TRK" on this line is a commented-out instruction, not a description

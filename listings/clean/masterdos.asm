@@ -67,7 +67,7 @@ TYPE_MASK:               EQU  &1F              ; bits 0 to 4 of the type byte ar
 
 ; Directory scan
 DIR_MODE_BUILD_MAP:      EQU  &20              ; rebuild the free-sector map while scanning
-DIR_MODE_COLLECT:        EQU  &02              ; collect names for a sorted listing
+DIR_MODE_COLLECT:        EQU  &02              ; collect names for the short listing, sorted afterwards if SRTFG says so
 DIR_MODE_FREE_SLOT:      EQU  &40              ; stop at the first free entry
 DIR_MODE_LIST:           EQU  &04              ; print a full listing, with a heading
 DIR_MODE_NAME:           EQU  &08              ; match the type byte and the name; * and ? are honoured under this and
@@ -1911,8 +1911,8 @@ ADJUST_PAGE_DE:
                DEC A                           ; 453E 3D
                LD (PGES1),A                    ; 453F 32 50 41
                LD A,D                          ; 4542 7A
-               ADD A,&40                       ; 4543 C6 40  &4000 on: the address moved up a page as the count comes
-                                               ; down
+               ADD A,&40                       ; 4543 C6 40  &4000 on: DE is the byte count, and one block off PGES1 is
+                                               ; &4000 more of it; the address is HL and does not move
                LD D,A                          ; 4545 57
                RET                             ; 4546 C9
 
@@ -2646,7 +2646,10 @@ HOOK_SKSAFE:
                CALL TIRD                       ; 4723 CD 5A 61
                RET NC                          ; 4726 D0  a RAM disc has no head to park
                LD A,(DTKS)                     ; 4727 3A 30 42  how many tracks the directory has
-               LD (SVHL+1),A                   ; 472A 32 06 7C
+               LD (SVHL+1),A                   ; 472A 32 06 7C  not in the 1991 source: the track count goes into SVHL's
+                                               ; high byte, so the park's seek -- with the block-load bit still set from
+                                               ; the load -- sees a small value at CTA25's CP PAST_WINDOW_TOP and cannot
+                                               ; step HMPR
                DEC A                           ; 472D 3D  so the last of them
                LD D,A                          ; 472E 57
                LD E,&01                        ; 472F 1E 01  PROB NOT NEEDED
@@ -3303,7 +3306,7 @@ GETSCR:
 ;; Nothing in the DOS reaches it; MasterBASIC calls it through
 ;; CALLDOS from three places -- the block copiers at &42B9 and &66CF,
 ;; for SAVE BOOT's eight consecutive blocks and the compressor's, and
-;; SEND_COMPRESSED_BLOCK at &6186.
+;; SEND_COMPRESSED_BLOCK at &6189, each of those being the DEFW.
 ;; --------------------------------------------------------------------
 
 HSVBK_DWAIT:
@@ -3719,8 +3722,8 @@ FNS4:
                LD A,(HL)                       ; 4AA8 7E  is this sector taken?
                AND B                           ; 4AA9 A0
                JR Z,FNS6                       ; 4AAA 28 2F  no, and that is the one
-               CALL ISECT                      ; 4AAC CD 24 56  on to the next sector, and the next track if that ran
-                                               ; out
+               CALL ISECT                      ; 4AAC CD 24 56  on to the next sector; ISECT only wraps the sector and
+                                               ; returns Z, and the CALL Z below is what steps the track
                CALL Z,FNS5                     ; 4AAF CC B6 4A  NEXT TRK IF NEEDED
                RLC B                           ; 4AB2 CB 00  and the next bit of the byte
                JR FNS4                         ; 4AB4 18 F2
@@ -3920,7 +3923,8 @@ PFNM2:
 ;;             and LOAD n is served without a scan -- CMD_LOAD at
 ;;             &5F87 turns the number straight into a track, sector
 ;;             and entry through FILE_NUMBER_TO_TRACK_SECTOR
-;;     bit 1   collect names for a sorted listing rather than printing
+;;     bit 1   collect names for the short listing -- sorted afterwards
+;;             if SRTFG says so, at &5B96 -- rather than printing
 ;;     bit 2   print a full listing, with a heading
 ;;     bit 3   match the type byte and the name
 ;;     bit 4   match the name, ignoring the type
@@ -5352,7 +5356,9 @@ SWAP_TRACK_AND_SECTOR:
 ;;
 ;; MasterBASIC &4224 does the arithmetic: ten times the track, plus the
 ;; sector less one, plus one more on tracks 0 to 3 -- because
-;; track 4 sector 1 is the DOS file and holds no entry.  It is not
+;; track 4 sector 1 is the DOS file and holds no entry -- is the
+;; sector's ordinal x; the number is 2x-1 plus the entry's index within
+;; the sector, 0 or 1, which arrives in A.  It is not
 ;; BYTE_TO_DECIMAL, which is &4240 and twenty-eight bytes further on;
 ;; nothing here prints anything.
 ;; --------------------------------------------------------------------
@@ -5544,7 +5550,7 @@ REP3:
 
 ;; --------------------------------------------------------------------
 ;; Step to the next character and require it to be C, the separator
-;; wanted -- a comma, mostly -- or "Nonsense in BASIC" through REP0.
+;; wanted -- a comma, mostly -- or "Not understood" through REP0.
 ;; --------------------------------------------------------------------
 
 ; ---- ISEPX ---- from &595D, &5EF6, &6DAC, &6DC6, &7078, &7A0B
@@ -6527,14 +6533,14 @@ DERR1_1:
 ;; so the listing uses them: DEFB NO where the byte is &0B, and
 ;; DEFB FILE+&80 where it is &97 and ends the message.
 ;;
-;; ALL BUT TWO OF THE HIGH CODES ARE ACTUALLY RAISED, which is the
+;; ALL BUT ONE OF THE HIGH CODES ARE ACTUALLY RAISED, which is the
 ;; check on having read them right.  The DOS's own chain of error
 ;; stubs loads 113 at &5195, 114 just after it, 115 at &519B and 116
 ;; at &519E -- the last two with live callers at &5A33/&6A11 and
-;; &4D5B/&5E5F -- and MasterBASIC loads 119 at &43AD.  Only 117 and
-;; 118 have messages that nothing in either half loads into A; they
-;; would be raised by CALL DERR with the code inline, which is the
-;; other way in.
+;; &4D5B/&5E5F -- and MasterBASIC loads 117 at &5B1D, for BLITZ
+;; SOUND's "No Buffer", and 119 at &43AD.  Only 118 has a message that
+;; nothing in either half loads into A; it would be raised by CALL
+;; DERR with the code inline, which is the other way in.
 ;;
 ;; 119 is the one that prompted this.  MasterBASIC's REP_SIZE_MISMATCH
 ;; at &43AD loads it, and the only thing that reaches that stub is
@@ -6721,7 +6727,8 @@ SNAP31:
                LD HL,(NMIKA)                   ; 5387 2A 3B 42  the user's own vector
                LD A,(NMIKP)                    ; 538A 3A 3A 42  and the page it wants mapped
                OUT (HMPR),A                    ; 538D D3 FB
-               CALL HLJUMP                     ; 538F CD 05 00  normally &0004, which is a RET
+               CALL HLJUMP                     ; 538F CD 05 00  normally &0004, the ROM's POP HL : JP (HL) -- a return,
+                                               ; with HL lost on the way
                JR SNAP29                       ; 5392 18 E0
 
 ; ---- SNAP32 ---- from &5385 when bit 4 of E set
@@ -6780,7 +6787,9 @@ SNAP3C:
 ;; THE NAME SAYS WHERE IT LANDED.  A snapshot is saved without anyone
 ;; typing a name, so two of them would collide; the name is finished
 ;; from the directory slot the file is about to take, which is unique
-;; by construction.  The track supplies a digit and the sector and
+;; by construction -- though the name keeps only the track's low three
+;; bits, so on a directory longer than eight tracks two slots eight
+;; tracks apart would name alike.  The track supplies a digit and the sector and
 ;; entry a letter -- E doubled less one, plus which of the two entries,
 ;; plus &40 to reach the letters.
 ;;
@@ -6802,10 +6811,11 @@ SNAP3C:
 ;; in and LD I,A on the way out, which is also why SNAP7's tail has to
 ;; work out the interrupt mode from its value rather than being told.
 ;;
-;; SOMETHING ELSE READS TWO OF THOSE BYTES.  MasterBASIC's replacement
-;; for the LOAD hook takes a page from STR-11 and an address from
-;; STR-10 -- the H' byte and the AF' word -- and hands them to its
-;; compressed-file expander at &62A6.  MasterDOS's own HLOAD is four
+;; SOMETHING ELSE READS TWO OF THOSE BYTES.  This build's LOAD hook,
+;; HOOK_HLOAD_1 at &6443 in this half, takes a page from STR-11 and an
+;; address from STR-10 -- the H' byte and the AF' word -- and hands
+;; them through CALLMB to MasterBASIC's compressed-screen expander at
+;; &62A6.  Stock MasterDOS's HLOAD is four
 ;; instructions and none of this is in it, which is why those two
 ;; operands are bare numbers where the rest of the routine's are not:
 ;; carrydoc has no source line to take them from.
@@ -7563,9 +7573,10 @@ PNTY5_1:
 ;; --------------------------------------------------------------------
 ;; Print the date stamp beside a file in a full listing, if it has one.
 ;;
-;; An unstamped entry holds &00: the floppy format writes every data
-;; byte as zero, the RAM disc format zeroes the first two bytes of
-;; each entry slot, and STAMP_WITH_DATE leaves the field alone when
+;; An unstamped entry holds &00 on a floppy, whose format writes every
+;; data byte as zero; the RAM disc format zeroes only the first two
+;; bytes of each entry slot, so there the field is whatever the page
+;; held; and STAMP_WITH_DATE leaves the field alone when
 ;; the clock is not set.  The test accepts &FF as well, which
 ;; is what a disc written by something else may leave there.
 ;;
@@ -8133,8 +8144,8 @@ PNDN2:
                INC A                           ; 589E 3C
                CP &02                          ; 589F FE 02  &FF became 0 and &00 became 1: a disc with no name field
                JR C,PMOSD                      ; 58A1 38 DD  PMOSD prints "SAM DOS" and four spaces after it if the
-                                               ; field was never written; the source's " SAM DOS " has the spaces on the
-                                               ; wrong side
+                                               ; field was never written; the source's comment, SAM DOS with three
+                                               ; spaces before it and one after, has them on the wrong side
                LD A,(HL)                       ; 58A3 7E
                CP &2A                          ; 58A4 FE 2A  "*" is a MasterDOS disc that was never named
                JR NZ,PMO8                      ; 58A6 20 0A  PRINT DISC NAME IF THERE IS ONE,
@@ -8185,8 +8196,9 @@ MSGUN:
 ;;  OHNM -- print the name of the command that is asking for confirmation
 ;;
 ;;  The command token is printed as a keyword, which means turning off the ROM's in-quotes flag so that the byte is
-;;  expanded rather than shown as a graphic. PROTECT and HIDE with OFF are prefixed with "UN", the trailing backspace
-;;  cancelling the space the keyword expansion adds.
+;;  expanded rather than shown as a graphic. PROTECT and HIDE with OFF are prefixed with "UN" and then a space and a
+;;  backspace: the ROM prints a leading space before a keyword only when the previous character was not one, so the
+;;  space suppresses it and the backspace steps back over the space, leaving the keyword hard against "UN".
 ;; --------------------------------------------------------------------
 
 ; ---- OHNM ---- from &5D39
@@ -8345,7 +8357,8 @@ RDKY:
 ;;  Not a general call: the two forms enter the Spectrum emulation, either from the beginning or by resuming the
 ;;  snapshot the NMI code saved. The label is spelled this way because CALL is a mnemonic.
 ;;
-;;  Errors: "integer out of range" for anything but 0 or 1
+;;  Errors: "integer out of range" when the low byte of the argument is 2 or more -- only C is tested against 2, so
+;;  256 passes as 0, as the line at &5967 says
 ;;
 ;; ZX ENTRY INTO RAM SPACE
 ;; --------------------------------------------------------------------
@@ -9035,7 +9048,8 @@ PCT2:
 ;; THE &00 IS NOT A DISCARD, IT IS A PATCH SITE.  The AND A that tests
 ;; the width is followed by LD A,&00, and that immediate at &5C98 is
 ;; written from MasterBASIC's side: &65D0 puts the number of magnified
-;; characters that fit on a line into it, every time CSIZE runs.  So
+;; characters that fit on a line into it, every time CSIZE sets a
+;; factor (a factor of zero returns at &65C2, before the write).  So
 ;; when characters have been widened the count below divides THAT, and
 ;; a listing falls to one name a line only when fewer than twenty-one
 ;; magnified characters fit -- two names need ten, a space and ten.
@@ -9119,8 +9133,8 @@ REDI2:
 
 ; ---- ALLSR ---- from &5B1B, &5B48, &5B52, &7922
 ALLSR:
-               SUB &3F                         ; 5CC6 D6 3F  "?" -- before the name in DIR, after it elsewhere: every
-                                               ; file, subdirectories included
+               SUB &3F                         ; 5CC6 D6 3F  "?" -- every file, subdirectories included. DIR looks for
+                                               ; it in three places, one before the name and two after, and DIR$ once
                RET NZ                          ; 5CC8 C0
                DEC A                           ; 5CC9 3D
                LD (CDIRT),A                    ; 5CCA 32 31 42  CDIRT=FF
@@ -9294,8 +9308,10 @@ CKDIR:
 ;; AND A between them is for.  What is different is FINDC: checking
 ;; that the new name is free runs a second directory scan through the
 ;; same buffer, so REFBUF re-reads it and PTSVT points back at the
-;; entry the search had reached.  (ERASE writes its sector back inside
-;; its loop too, at &5D18, and needs neither.)
+;; entry the search had reached.  (ERASE's plain-file path writes its
+;; sector back inside its loop too, at &5D18, and needs neither; ERASE
+;; DIR runs a second scan of its own at &5D0C and calls PTSVT itself
+;; at &5D15.)
 ;;
 ;; RENAMING ALSO MOVES A FILE.  The subdirectory tag at offset &FE is
 ;; written from CDIRT before the name is copied in, and CDIRT at that
@@ -9579,7 +9595,10 @@ SNDTC:
 ;; exists, whether a first sector has to be allocated -- a directory
 ;; file has no contents of its own -- whether ERASE is erasing a file or
 ;; a directory, and, through SNDTC, whether the entry SNDFX found is
-;; the kind RENAME, COPY, PROTECT or HIDE wants.
+;; a directory.  Of SNDFX's callers, ERASE and RENAME read that as the
+;; Z this leaves; COPY reads the carry SNDTC's CP &01 set two
+;; instructions earlier instead; PROTECT and HIDE test neither and
+;; act on the entry whatever it is.
 ;; --------------------------------------------------------------------
 
 ; ---- BITF4 ---- from &4D3C, &4DC3, &5CF5
@@ -9695,7 +9714,7 @@ SNDF5:
 
 ;; --------------------------------------------------------------------
 ;; A separator, or nothing: SEPAR tests for one and returns Z if it
-;; found it; anything else falls into REP0, "Nonsense in BASIC".
+;; found it; anything else falls into REP0, "Not understood".
 ;; --------------------------------------------------------------------
 
 ; ---- SEPARX ---- from &5B09, &5EFC, &5F03, &5F0C, &6B29, &707E
@@ -9704,7 +9723,8 @@ SEPARX:
                RET Z                           ; 5EDF C8
 
 ;; --------------------------------------------------------------------
-;; The ROM's error 29, "Nonsense in BASIC", through DERR: where a
+;; The ROM's error 29, "Not understood" -- NONSENSE is only the ROM
+;; source's label for it -- through DERR: where a
 ;; parse gives up on a character it cannot place.
 ;; --------------------------------------------------------------------
 
@@ -9830,8 +9850,10 @@ SVHD1_LOOP:
 
 ;; --------------------------------------------------------------------
 ;; REMOVE FLOATING POINT NUMBERS
-;;  During the syntax pass, the five-byte number forms the ROM compiled into the statement are reclaimed, so that the
-;;  DOS evaluates the arguments afresh at run time rather than from stale compiled values.
+;;  The ROM inserts the five-byte form of a number only at syntax time and reads it back at run time (SDECIMAL:
+;;  INSERT5B, then LK0ELP), and its own LOAD syntax has already planted forms in this statement by the time the DOS
+;;  sees it. REMFP, called at syntax time only, strips those so that the EVNUM after it does not leave two forms
+;;  per number; at run time the DOS reads the one its own pass inserted.
 ;; --------------------------------------------------------------------
 
 ; ---- REMFP ---- from &5F66 when A <> &0D, &5F6F, &6A9A
@@ -11127,7 +11149,7 @@ HOOK_HLDPG:
 HOOK_HLOAD:
                LD BC,&4A64                     ; 6422 01 64 4A  a system-page address, not this page's sector-write
                                                ; code. It is MB &7DBB, in the block installed at &484D, so &4A64 once it
-                                               ; runs; NETPA returns into it when the drive letter is "N": an SCF, then
+                                               ; runs; NETPA returns into it when the device letter is "N": an SCF, then
                                                ; the ROM's LDBYTES, which reads a set carry as LOAD
                CALL NETPA                      ; 6425 CD 9D 64
                CALL RESET_BUFFER_POINTERS      ; 6428 CD 84 4F
@@ -11231,8 +11253,8 @@ HOOK_ARGS_TO_HEADER:
 NETPA:
                LD A,(LSTR1)                    ; 649D 3A 39 41
                CP &4E                          ; 64A0 FE 4E  "N": the network; NETPA hands over to MasterBASIC's stub in
-                                               ; the system page, which sets carry and enters the ROM's tape and net
-                                               ; loader
+                                               ; the system page, which enters the ROM's tape and net loader with carry
+                                               ; set for LOAD or cleared for VERIFY, as the caller's BC chose the door
                RET NZ                          ; 64A2 C0
                POP HL                          ; 64A3 E1  JUNK RET ADDR
                CALL RETURN_INTO_BC             ; 64A4 CD AC 7B
@@ -12133,9 +12155,11 @@ C11LP_DONE:
 ;; ROM's "which channel am I talking to" pointer, is written before
 ;; every single character; CHANS is where the channel records live.
 ;;
-;; Flag 2 is raised to say a MOVE is running.  Nothing on the directory
-;; paths reads it; the open and end-of-file code does, to tell a MOVE
-;; from a command that would report "end of file".
+;; Flag 2 is raised to say a MOVE is running; the open and end-of-file
+;; code reads it, to tell a MOVE from a command that would report "end
+;; of file".  The directory search reuses the same bit as "a search is
+;; under way" -- STFPL sets it, SNDFL and REFBUF test it -- but MOVE's
+;; name evaluation is over before this SETF2, so the two never meet.
 ;; --------------------------------------------------------------------
 
 CMD_MOVE:
@@ -12236,8 +12260,11 @@ RELEASE_DISC_CHANNEL_1:
 ;; embedded in a line -- the &0E form -- is dropped, because the digits
 ;; that precede it are what the reader wants to see.
 ;;
-;; ANY OTHER TYPE is passed through character by character with the
-;; tokens left alone, since they are not tokens.
+;; ANY OTHER TYPE goes through MOVCD, a character at a time through
+;; PRINTABLE_FORM -- the author's "SUPPRESS UNPRINTABLES": control
+;; codes become the substitute character, and bytes of &80 and up are
+;; stripped or inverted unless MSFLG lets them through, &FF excepted.
+;; Only an open-type file, through MOVE1, is copied byte for byte.
 ;;
 ;; A file with type &0A, an open-type file, is copied and not listed:
 ;; it has no header to skip.
@@ -12535,8 +12562,10 @@ GIPC:
 ;; --------------------------------------------------------------------
 ;; One character out, the same way round.
 ;;
-;; The output routine is one byte into the record rather than two, and
-;; the same &4B marks the DOS's own.
+;; The output routine is the word at offset 0 of the record, where the
+;; input routine's is at 2, so the high byte read to tell whose it is
+;; comes from one byte in rather than three; the same &4B marks the
+;; DOS's own.
 ;; --------------------------------------------------------------------
 
 ; ---- MOVWC ---- from &6868, &6888, &6896
@@ -12968,7 +12997,7 @@ CMD_OPEN_DONE:
 ;; would be is the end -- the ROM closes the list with one.
 ;;
 ;; CHKHL is the ROM's window step, called before each read: past
-;; &BFFF it pages the next 16K in and pulls HL back to &8000.  It
+;; &BFFF it pages the next 16K in and takes &4000 off HL.  It
 ;; checks nothing about the length; a corrupt one walks on into the
 ;; next page.
 ;; --------------------------------------------------------------------
@@ -13831,7 +13860,8 @@ RCLM4:
 ;; entry offsets 11 and 12, the entry's own sector count, which the
 ;; open file had been using as its pointer's sector index -- so the
 ;; entry says how long the file is.  Then the byte count in the old
-;; form at offsets 210 to 213 -- the author's comment says so that
+;; form at offsets 210, 212 and 213, 211 left alone -- the author's
+;; comment says so that
 ;; G+DOS can read the file, and notes that entry 0 cannot use it
 ;; since the disc's name is there -- and in page form at DIR_LENGTH,
 ;; followed by &FF at DIR_EXECUTE for "no execute address".
@@ -14205,7 +14235,7 @@ STREAM_FILE_POINTER:
 
 ;; --------------------------------------------------------------------
 ;; STRMD gives the displacement, zero means no channel, and one less
-;; than it added to CHANS is where the stream's entry lives.
+;; than it added to CHANS is the stream's channel record.
 ;; --------------------------------------------------------------------
 
 ; ---- CHANNEL_FOR_STREAM ---- from &7093, &7112
@@ -14227,8 +14257,9 @@ CHANNEL_FOR_STREAM:
                JP NZ,REP10                     ; 7032 C2 F4 47  "INVALID DEVICE"
 
 ;; --------------------------------------------------------------------
-;; The file pointer as a flat address in A:HL: CNT sectors of 510
-;; plus RPT, through M510.
+;; The file pointer as a flat address in A:HL: CNT less one sectors
+;; of 510 plus RPT, through M510, which counts BC down before each
+;; add.
 ;; --------------------------------------------------------------------
 
 ; ---- FPTR ---- from &6532
@@ -14756,7 +14787,9 @@ OPNDIR:
                CALL PLNS                       ; 7203 CD 8E 50  PLACE NEXT STAT ADDR
                CALL CEOS                       ; 7206 CD 07 50
                LD A,DFT                        ; 7209 3E 15  the entry's type: a directory rather than a file
-               LD (NSTR1),A                    ; 720B 32 3A 41  where CKNAM will compare it from
+               LD (NSTR1),A                    ; 720B 32 3A 41  not for CKNAM -- the scan below is mode &30, without bit
+                                               ; 3, so the type is never compared -- but for OFM4, which copies NSTR1's
+                                               ; eleven bytes into the new entry image at &4DA8
                CALL SETF4                      ; 720E CD 04 51  a directory file has no contents of its own
                CALL GOFSM                      ; 7211 CD 28 4D  open it, which is also the scan that fills MAXT in
                LD A,(MAXT)                     ; 7214 3A 35 42  the highest tag in use anywhere on the disc
@@ -14864,8 +14897,8 @@ STDR1:
 
 ;; --------------------------------------------------------------------
 ;;  Work out what the new path string starts from: a leading root symbol means the path is absolute and starts again
-;;  at "1:", a leading "^" means it starts from whatever UPAR2 trimmed it to, and anything else appends to what is
-;;  already there.
+;;  at the drive's own "n:" -- the length is cut to two, so "2:" stays "2:" -- a leading "^" means it starts from
+;;  whatever UPAR2 trimmed it to, and anything else appends to what is already there.
 ;; --------------------------------------------------------------------
 
 ; ---- SDFCL ---- from &72AF when B is not 0 yet
@@ -15251,7 +15284,9 @@ STDPP:
 ; ---- STFPL ---- from &73FA when A <> (HL)
 STFPL:
                PUSH AF                         ; 73ED F5
-               CALL FIND_SUBDIRECTORY          ; 73EE CD 0B 73  FIND PARENT DIRECTORY
+               CALL FIND_SUBDIRECTORY          ; 73EE CD 0B 73  the directory being left, found by its own tag; the
+                                               ; parent's tag is then read from that entry's offset 254 -- the source's
+                                               ; "FIND PARENT DIRECTORY" names the outcome, not the lookup
                CALL SETF2                      ; 73F1 CD F8 50  "RESTART FROM CURRENT T/S"
                LD BC,DIRT                      ; 73F4 01 FA 00
                ADD HL,BC                       ; 73F7 09
@@ -15952,9 +15987,10 @@ RDSB2:
 
 ; ---- RDSB3 ---- from &75FF
 RDSB3:
-               LD BC,(SVDE)                    ; 762E ED 4B 02 7C  the bytes left, saved at &7602 -- the source's "* POP
-                                               ; DE ;PREV TRK" on this line is a commented-out instruction, not a
-                                               ; description
+               LD BC,(SVDE)                    ; 762E ED 4B 02 7C  the bytes left, from SVDE -- written by SBLOK at
+                                               ; &4983 or CCNT at &4927 before the first pass and by &7602 after each
+                                               ; later one; the source's "* POP DE ;PREV TRK" on this line is a
+                                               ; commented-out instruction, not a description
                LD (IX+RPT-DCHAN+1),B           ; 7632 DD 70 0E
                LD (IX+RPT-DCHAN),C             ; 7635 DD 71 0D
                LD DE,DRAM                      ; 7638 11 13 7D
@@ -17899,7 +17935,8 @@ DRAM:
 ;;     LD DE,&4F00     the system page, in section B
 ;;     LD BC,&01BE     446 bytes, to &4F00-&50BD
 ;;     LDIR
-;;     LD DE,&4C14     and 161 more, from &7F1E to the end of the half
+;;     LD DE,&4C14     and 161 more, from &7F1E to &7FBE -- one short of
+;;                     the half's last byte, a zero
 ;;     LD C,&A1        B is zero after an LDIR
 ;;     LDIR
 ;;     RET
@@ -17995,9 +18032,11 @@ EDIT_INSERT_VALUE_BODY:
 ;; pointer to it, adjusted by a signed offset.
 ;;
 ;; MasterBASIC does not hard-code the ROM addresses it needs to call and
-;; patch.  It searches for them, by the opcodes that are there.  This
-;; half keeps the routine at &775A, the boot copies it into the DOS page
-;; at &7D79, and 28 sites call it there through the window at &BD79.
+;; patch.  It searches for them, by the opcodes that are there.  The
+;; MasterBASIC half keeps the routine at MB &775A, the boot copies it
+;; into the DOS page at &7D79, and 28 sites call it there through the
+;; window at &BD79.  (This banner heads both copies; every bare address
+;; in it is MasterBASIC's.)
 ;;
 ;; Six inline bytes follow every one of those calls:
 ;;
@@ -18006,12 +18045,12 @@ EDIT_INSERT_VALUE_BODY:
 ;;     bytes 3,4   the address to start searching from, high byte first
 ;;     byte 5      a signed offset added to whatever is found
 ;;
-;; The search at &7774 keeps a three-byte sliding window -- the oldest
-;; byte in A, the newer two in DE -- and steps forward until the oldest
-;; matches and DE matches BC.  Twenty-five of the twenty-eight callers
-;; follow the call with an LD (nn),HL, so the pointer goes straight
-;; into a variable; &7990, &79BD and &7A60 read through it where it
-;; stands.
+;; The search at MB &7774 keeps a three-byte sliding window -- the
+;; oldest byte in A, the newer two in DE -- and steps forward until the
+;; oldest matches and DE matches BC.  Twenty-five of the twenty-eight
+;; callers follow the call with an LD (nn),HL, so the pointer goes
+;; straight into a variable; MB &7990, &79BD and &7A60 read through it
+;; where it stands.
 ;;
 ;; The signatures are ordinary Z80:
 ;;
@@ -18048,7 +18087,7 @@ EDIT_INSERT_VALUE_BODY:
 ;; code elsewhere and the searches would find it there, which is the
 ;; entire point of doing it this way.
 ;;
-;; One result is worth following.  The search at &75FE stores its pointer
+;; One result is worth following.  The search at MB &75FE stores its pointer
 ;; in INSERTLN_WORD, which is the DEFW of the CALL CMR at CALL_INSERTLN: that call has no
 ;; fixed target at all, and goes wherever the signature was found.
 ;; --------------------------------------------------------------------

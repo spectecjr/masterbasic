@@ -200,4 +200,4 @@ DOC PMO8
     which SDTKS fills from the directory at run time -- the file holds
     zeros there, which never print -- and the space after them.
 
-DOS &58A1 : PMOSD prints "SAM DOS" and four spaces after it if the field was never written; the source's "   SAM DOS " has the spaces on the wrong side
+DOS &58A1 : PMOSD prints "SAM DOS" and four spaces after it if the field was never written; the source's comment, SAM DOS with three spaces before it and one after, has them on the wrong side

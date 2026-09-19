@@ -168,10 +168,11 @@ DOS &637B expr NAME_FIELD
 
 DOC SEPARX
     A separator, or nothing: SEPAR tests for one and returns Z if it
-    found it; anything else falls into REP0, "Nonsense in BASIC".
+    found it; anything else falls into REP0, "Not understood".
 
 DOC REP0
-    The ROM's error 29, "Nonsense in BASIC", through DERR: where a
+    The ROM's error 29, "Not understood" -- NONSENSE is only the ROM
+    source's label for it -- through DERR: where a
     parse gives up on a character it cannot place.
 
 DOC AHLNX

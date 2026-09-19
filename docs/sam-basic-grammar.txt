@@ -596,7 +596,7 @@ or MasterBASIC one, they are not alternatives offered by one parser.  The
 ROM's own routine runs first, and the DOS is reached only through the
 entry at page offset &0203 -- SYNTAX, "the unrecognised-command entry",
 which the ROM calls with the error that made it give up and which accepts
-just two, `CP &1D` for 29 "Nonsense in BASIC" and `CP &35` for 53 "No
+just two, `CP &1D` for 29 "Not understood" and `CP &35` for 53 "No
 DOS".  Only then is the token looked up in CTAB.
 
 So a line the ROM's routine accepts never reaches MasterBASIC's, and the

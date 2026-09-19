@@ -55,9 +55,11 @@ DOC CMD_MOVE
     ROM's "which channel am I talking to" pointer, is written before
     every single character; CHANS is where the channel records live.
 
-    Flag 2 is raised to say a MOVE is running.  Nothing on the directory
-    paths reads it; the open and end-of-file code does, to tell a MOVE
-    from a command that would report "end of file".
+    Flag 2 is raised to say a MOVE is running; the open and end-of-file
+    code reads it, to tell a MOVE from a command that would report "end
+    of file".  The directory search reuses the same bit as "a search is
+    under way" -- STFPL sets it, SNDFL and REFBUF test it -- but MOVE's
+    name evaluation is over before this SETF2, so the two never meet.
 
 DOS &679C : "," or
 DOS &67A0 : "TO" between the two
@@ -109,8 +111,11 @@ DOC MOVA
     embedded in a line -- the &0E form -- is dropped, because the digits
     that precede it are what the reader wants to see.
 
-    ANY OTHER TYPE is passed through character by character with the
-    tokens left alone, since they are not tokens.
+    ANY OTHER TYPE goes through MOVCD, a character at a time through
+    PRINTABLE_FORM -- the author's "SUPPRESS UNPRINTABLES": control
+    codes become the substitute character, and bytes of &80 and up are
+    stripped or inverted unless MSFLG lets them through, &FF excepted.
+    Only an open-type file, through MOVE1, is copied byte for byte.
 
     A file with type &0A, an open-type file, is copied and not listed:
     it has no header to skip.
@@ -253,8 +258,10 @@ DOS &692F : anything else is the ROM's, so plant the address and call it
 DOC MOVWC
     One character out, the same way round.
 
-    The output routine is one byte into the record rather than two, and
-    the same &4B marks the DOS's own.
+    The output routine is the word at offset 0 of the record, where the
+    input routine's is at 2, so the high byte read to tell whose it is
+    comes from one byte in rather than three; the same &4B marks the
+    DOS's own.
 
 DOS &6940 : the channel being written to
 DOS &6946 : the output routine is the word at offset 0, and only its high byte is wanted
@@ -366,8 +373,9 @@ DOC LBYT
     when the read point has reached the link bytes.
 
 DOC FPTR
-    The file pointer as a flat address in A:HL: CNT sectors of 510
-    plus RPT, through M510.
+    The file pointer as a flat address in A:HL: CNT less one sectors
+    of 510 plus RPT, through M510, which counts BC down before each
+    add.
 
 DOC INVST
     Error code 21, "Invalid stream number", through DERR.

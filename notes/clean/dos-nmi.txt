@@ -64,7 +64,7 @@ DOS &537F : "1"
 DOS &5383 : or "5"
 DOS &5387 : the user's own vector
 DOS &538A : and the page it wants mapped
-DOS &538F : normally &0004, which is a RET
+DOS &538F : normally &0004, the ROM's POP HL : JP (HL) -- a return, with HL lost on the way
 DOS &5394 : "2" resumes, and the RET goes to the address pushed above
 DOS &5397 : "3"
 DOS &539B : a SCREEN$
@@ -88,7 +88,9 @@ DOC SNAP4
     THE NAME SAYS WHERE IT LANDED.  A snapshot is saved without anyone
     typing a name, so two of them would collide; the name is finished
     from the directory slot the file is about to take, which is unique
-    by construction.  The track supplies a digit and the sector and
+    by construction -- though the name keeps only the track's low three
+    bits, so on a directory longer than eight tracks two slots eight
+    tracks apart would name alike.  The track supplies a digit and the sector and
     entry a letter -- E doubled less one, plus which of the two entries,
     plus &40 to reach the letters.
 
@@ -110,10 +112,11 @@ DOC SNAP4
     in and LD I,A on the way out, which is also why SNAP7's tail has to
     work out the interrupt mode from its value rather than being told.
 
-    SOMETHING ELSE READS TWO OF THOSE BYTES.  MasterBASIC's replacement
-    for the LOAD hook takes a page from STR-11 and an address from
-    STR-10 -- the H' byte and the AF' word -- and hands them to its
-    compressed-file expander at &62A6.  MasterDOS's own HLOAD is four
+    SOMETHING ELSE READS TWO OF THOSE BYTES.  This build's LOAD hook,
+    HOOK_HLOAD_1 at &6443 in this half, takes a page from STR-11 and an
+    address from STR-10 -- the H' byte and the AF' word -- and hands
+    them through CALLMB to MasterBASIC's compressed-screen expander at
+    &62A6.  Stock MasterDOS's HLOAD is four
     instructions and none of this is in it, which is why those two
     operands are bare numbers where the rest of the routine's are not:
     carrydoc has no source line to take them from.

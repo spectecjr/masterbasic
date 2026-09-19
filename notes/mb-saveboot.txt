@@ -189,7 +189,7 @@ DOS &493A HSVBK_DWAIT
     Nothing in the DOS reaches it; MasterBASIC calls it through
     CALLDOS from three places -- the block copiers at &42B9 and &66CF,
     for SAVE BOOT's eight consecutive blocks and the compressor's, and
-    SEND_COMPRESSED_BLOCK at &6186.
+    SEND_COMPRESSED_BLOCK at &6189, each of those being the DEFW.
 
 MB &42A6 SAVE_BLOCK_FROM_SYSPAGE
     HMPR := 0, so &8000-&BFFF is the ROM's system page, then save DE

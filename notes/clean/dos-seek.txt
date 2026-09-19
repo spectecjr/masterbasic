@@ -18,6 +18,7 @@ DOC HOOK_SKSAFE
 
 DOS &4726 : a RAM disc has no head to park
 DOS &4727 : how many tracks the directory has
+DOS &472A : not in the 1991 source: the track count goes into SVHL's high byte, so the park's seek -- with the block-load bit still set from the load -- sees a small value at CTA25's CP PAST_WINDOW_TOP and cannot step HMPR
 DOS &472D : so the last of them
 DOS &4731 : which is track 4 only on a five-track directory; track 3 then, to stay off the first file
 

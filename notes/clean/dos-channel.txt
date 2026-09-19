@@ -236,7 +236,7 @@ DOS &6075 : not a destination: WRTBC writes it over the ROM's pending return add
 # is ambiguous.
 
 DOS &6422 expr &4A64
-DOS &6422 : a system-page address, not this page's sector-write code.  It is MB &7DBB, in the block installed at &484D, so &4A64 once it runs; NETPA returns into it when the drive letter is "N": an SCF, then the ROM's LDBYTES, which reads a set carry as LOAD
+DOS &6422 : a system-page address, not this page's sector-write code.  It is MB &7DBB, in the block installed at &484D, so &4A64 once it runs; NETPA returns into it when the device letter is "N": an SCF, then the ROM's LDBYTES, which reads a set carry as LOAD
 DOS &64AB expr &4A62
 DOS &64AB : the other entry to the same stub, two bytes below it -- MB &7DB9, whose AND A clears the carry the ROM's LDBYTES reads as VERIFY.  One stub, two doors, and this is the verify one
 DOS &64C2 expr &4000

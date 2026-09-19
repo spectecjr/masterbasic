@@ -7,7 +7,7 @@
 # --- 20-bit arithmetic and page form ---------------------------------
 DOS &608E : four bits of page above the sixteen HL now holds -- two of page over fourteen of offset: 20 bits in all
 DOS &6081 : and three for AHLN's nineteen
-DOS &4543 : &4000 on: the address moved up a page as the count comes down
+DOS &4543 : &4000 on: DE is the byte count, and one block off PGES1 is &4000 more of it; the address is HL and does not move
 DOS &71E1 expr SECTOR_LENGTH-2
 DOS &71E1 : 510 bytes a sector, the link excluded
 DOS &71E8 : the carry out of the add, into the top byte
@@ -58,7 +58,7 @@ DOS &5ED3 : track 4: the extended directory skips its first sector, which is why
 
 # --- names, devices and the command line -------------------------------
 DOS &4803 : "D": only a disc file has a directory
-DOS &64A0 : "N": the network; NETPA hands over to MasterBASIC's stub in the system page, which sets carry and enters the ROM's tape and net loader
+DOS &64A0 : "N": the network; NETPA hands over to MasterBASIC's stub in the system page, which enters the ROM's tape and net loader with carry set for LOAD or cleared for VERIFY, as the caller's BC chose the door
 DOS &6346 : "D"
 DOS &66F8 : "D" into SLDEV, the ROM's temporary device, so that a default drive reads as a disc device to the ROM
 DOS &617B expr CH_STAR
@@ -86,6 +86,7 @@ DOS &72DD expr CH_SPACE
 DOS &7398 : eleven characters is one more than a name holds
 DOS &7413 : the length in C alone
 DOS &73E1 expr CH_SPACE
+DOS &73EE : the directory being left, found by its own tag; the parent's tag is then read from that entry's offset 254 -- the source's "FIND PARENT DIRECTORY" names the outcome, not the lookup
 DOS &5764 expr CH_SPACE
 DOS &5DE1 expr NAME_FIELD
 DOS &660A : twenty-eight bytes: the first parameter block, DSTR1 up to DSTR2
@@ -186,7 +187,7 @@ DOS &53E6 : drive 1 unless SHIFT is down
 DOS &515D : bit 7 of port 254 is SOFF, the screen-off bit, read back and kept as it is
 DOS &6A19 : the page count alone
 DOS &7846 : eight bits a byte
-DOS &5CC6 : "?" -- before the name in DIR, after it elsewhere: every file, subdirectories included
+DOS &5CC6 : "?" -- every file, subdirectories included.  DIR looks for it in three places, one before the name and two after, and DIR$ once
 
 # PART E1's entries that had no banner of this project's own.
 

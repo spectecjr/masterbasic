@@ -28,9 +28,11 @@ DOC FIND_ROM_CODE
     pointer to it, adjusted by a signed offset.
 
     MasterBASIC does not hard-code the ROM addresses it needs to call and
-    patch.  It searches for them, by the opcodes that are there.  This
-    half keeps the routine at &775A, the boot copies it into the DOS page
-    at &7D79, and 28 sites call it there through the window at &BD79.
+    patch.  It searches for them, by the opcodes that are there.  The
+    MasterBASIC half keeps the routine at MB &775A, the boot copies it
+    into the DOS page at &7D79, and 28 sites call it there through the
+    window at &BD79.  (This banner heads both copies; every bare address
+    in it is MasterBASIC's.)
 
     Six inline bytes follow every one of those calls:
 
@@ -39,12 +41,12 @@ DOC FIND_ROM_CODE
         bytes 3,4   the address to start searching from, high byte first
         byte 5      a signed offset added to whatever is found
 
-    The search at &7774 keeps a three-byte sliding window -- the oldest
-    byte in A, the newer two in DE -- and steps forward until the oldest
-    matches and DE matches BC.  Twenty-five of the twenty-eight callers
-    follow the call with an LD (nn),HL, so the pointer goes straight
-    into a variable; &7990, &79BD and &7A60 read through it where it
-    stands.
+    The search at MB &7774 keeps a three-byte sliding window -- the
+    oldest byte in A, the newer two in DE -- and steps forward until the
+    oldest matches and DE matches BC.  Twenty-five of the twenty-eight
+    callers follow the call with an LD (nn),HL, so the pointer goes
+    straight into a variable; MB &7990, &79BD and &7A60 read through it
+    where it stands.
 
     The signatures are ordinary Z80:
 
@@ -81,7 +83,7 @@ DOC FIND_ROM_CODE
     code elsewhere and the searches would find it there, which is the
     entire point of doing it this way.
 
-    One result is worth following.  The search at &75FE stores its pointer
+    One result is worth following.  The search at MB &75FE stores its pointer
     in INSERTLN_WORD, which is the DEFW of the CALL CMR at CALL_INSERTLN: that call has no
     fixed target at all, and goes wherever the signature was found.
 

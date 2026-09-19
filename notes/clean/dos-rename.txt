@@ -19,8 +19,10 @@ DOC RENAM
     AND A between them is for.  What is different is FINDC: checking
     that the new name is free runs a second directory scan through the
     same buffer, so REFBUF re-reads it and PTSVT points back at the
-    entry the search had reached.  (ERASE writes its sector back inside
-    its loop too, at &5D18, and needs neither.)
+    entry the search had reached.  (ERASE's plain-file path writes its
+    sector back inside its loop too, at &5D18, and needs neither; ERASE
+    DIR runs a second scan of its own at &5D0C and calls PTSVT itself
+    at &5D15.)
 
     RENAMING ALSO MOVES A FILE.  The subdirectory tag at offset &FE is
     written from CDIRT before the name is copied in, and CDIRT at that

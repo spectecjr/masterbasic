@@ -455,6 +455,46 @@ first readers checked numbers; the second checked who does what.
 
 ---
 
+## Phase 6 -- second passes on the DOS  (begun 2026-09-18; round 16)
+
+Phase 5's brief on the other half.  The DOS's lower-case prose had one
+region reader in round 8 (the carried-comment sweep, twelve PART cuts)
+and one banner reader in round 11, and phase 2's two second passes on
+the functions and the load/save regions; no second reader of the prose
+as a whole since.  All eleven PARTs are cut by `cutregion.py --part`
+from the current listing (`scratchpad/phase8/`), 5060 own lines: C11
+612, C12 828, D1 559, E1 385, F11 381, F12 263, G1 353, MOVE 689,
+SUBD 154, RAMD 279, HOOKS 557.  The brief is phase 1's with the
+second-pass paragraph, told what the MasterBASIC second readers found
+most (attribution) and to follow every cross-reference out of the
+region.  Findings are audited against the bytes and the 1991 source
+before they are applied, as always; a finding on an upper-case
+comment is checked against `ref/masterdos/src/`, not against
+`annotated-src/`.
+
+**Phase 6 is done, the same day.**  Eleven cuts, 5060 own lines, 39
+findings, 35 applied: 0.8 per hundred, with 28% `[C]`, against 1.3
+and no `[C]` for phase 2's two DOS second passes and 1.6 and 38% for
+the MasterBASIC second passes.  Every cut returned something (one to
+seven), and not one carried comment was found on the wrong
+instruction or wrong about this build -- the round-8 sweep had done
+that job.  What the second readers found was the MasterBASIC pattern
+again: attribution first -- BITF4's answer credited to four commands
+when two read it, a flag "read on no directory path" that the
+directory search reuses, STR-11 reads credited to MasterBASIC that
+are this half's, a shared banner whose bare addresses are the other
+half's -- then restated numbers ("all but two", "CNT sectors", "210
+to 213"), then the ROM's own words (error 29 is "Not understood";
+"Nonsense" is only its label, and the wrong text was in five places
+including two in `docs/`).  Four findings were left: two are the
+1991 author's code rather than the prose (NMI's `LD A,I` before its
+`PUSH AF`, and a page table two entries short of what FORMAT allows),
+one needs the Spectrum path to settle, one was not verified.  Four
+carried banners from `annotated-src/` were wrong and are corrected
+through the carried-fix table in `clean.py`, as the rule requires.
+
+---
+
 ## Evidence that needs a machine
 
 `docs/evidence-wanted.md` lists what is left: items 7, 9, 10a-j and 12.

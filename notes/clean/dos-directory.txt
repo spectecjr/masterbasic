@@ -20,7 +20,8 @@ DOC FDHR
                 and LOAD n is served without a scan -- CMD_LOAD at
                 &5F87 turns the number straight into a track, sector
                 and entry through FILE_NUMBER_TO_TRACK_SECTOR
-        bit 1   collect names for a sorted listing rather than printing
+        bit 1   collect names for the short listing -- sorted afterwards
+                if SRTFG says so, at &5B96 -- rather than printing
         bit 2   print a full listing, with a heading
         bit 3   match the type byte and the name
         bit 4   match the name, ignoring the type
@@ -122,7 +123,7 @@ DOS &4679 : the sector is finished
 DOS &467B : nothing waiting yet
 
 GROUP Directory scan
-CONST DIR_MODE_COLLECT = &02 : collect names for a sorted listing
+CONST DIR_MODE_COLLECT = &02 : collect names for the short listing, sorted afterwards if SRTFG says so
 CONST DIR_MODE_LIST = &04 : print a full listing, with a heading
 
 DOC FDH05_1
@@ -510,7 +511,7 @@ DOC OPNDIR
     tags, tag 0 being the root.
 
 DOS &7209 : the entry's type: a directory rather than a file
-DOS &720B : where CKNAM will compare it from
+DOS &720B : not for CKNAM -- the scan below is mode &30, without bit 3, so the type is never compared -- but for OFM4, which copies NSTR1's eleven bytes into the new entry image at &4DA8
 DOS &720E : a directory file has no contents of its own
 DOS &7211 : open it, which is also the scan that fills MAXT in
 DOS &7214 : the highest tag in use anywhere on the disc
